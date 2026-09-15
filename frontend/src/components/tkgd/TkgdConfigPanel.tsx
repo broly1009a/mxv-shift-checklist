@@ -98,6 +98,7 @@ export default function TkgdConfigPanel() {
 
   // Operation Mode: Auto Pipeline 24/7 States
   const [autoPipelineEnabled, setAutoPipelineEnabled] = useState(false);
+  const [executionMode, setExecutionMode] = useState<'BATCH' | 'INSTANT_STREAM'>('BATCH');
   const [autoIntervalMinutes, setAutoIntervalMinutes] = useState(5);
   const [autoBatchSize, setAutoBatchSize] = useState(50);
   const [autoSyncMSystem, setAutoSyncMSystem] = useState(true);
@@ -154,6 +155,7 @@ export default function TkgdConfigPanel() {
         }
         if (data.autoPipeline) {
           if (data.autoPipeline.enabled !== undefined) setAutoPipelineEnabled(data.autoPipeline.enabled);
+          if (data.autoPipeline.executionMode) setExecutionMode(data.autoPipeline.executionMode);
           if (data.autoPipeline.intervalMinutes !== undefined) setAutoIntervalMinutes(data.autoPipeline.intervalMinutes);
           if (data.autoPipeline.batchSize !== undefined) setAutoBatchSize(data.autoPipeline.batchSize);
           if (data.autoPipeline.autoSyncMSystem !== undefined) setAutoSyncMSystem(data.autoPipeline.autoSyncMSystem);
@@ -299,6 +301,7 @@ export default function TkgdConfigPanel() {
         },
         autoPipeline: {
           enabled: autoPipelineEnabled,
+          executionMode,
           intervalMinutes: Number(autoIntervalMinutes) || 5,
           batchSize: Number(autoBatchSize) || 50,
           autoSyncMSystem,
@@ -728,7 +731,64 @@ export default function TkgdConfigPanel() {
                 gap: '14px',
               }}
             >
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {/* Lựa chọn Chế Độ Tự Động Hóa: Batch vs Instant Stream */}
+              <div>
+                <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <Cpu size={14} color="#3b82f6" />
+                  <span>Phương Thức Thực Thi Tự Động (Execution Mode):</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                  {/* Card 1: Batch Mode */}
+                  <div
+                    onClick={() => setExecutionMode('BATCH')}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      border: executionMode === 'BATCH' ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                      backgroundColor: executionMode === 'BATCH' ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-card)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem', color: executionMode === 'BATCH' ? '#2563eb' : 'var(--text-primary)' }}>
+                        <Layers size={16} color={executionMode === 'BATCH' ? '#2563eb' : '#64748b'} />
+                        <span>Theo Đợt (Batch Mode)</span>
+                      </div>
+                      {executionMode === 'BATCH' && <CheckCircle2 size={16} color="#3b82f6" />}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      Quét email theo mẻ định kỳ → Cào M-System toàn bộ danh sách chờ → Chạy đối soát tổng và xuất file Excel chốt ca.
+                    </div>
+                  </div>
+
+                  {/* Card 2: Instant Stream Mode */}
+                  <div
+                    onClick={() => setExecutionMode('INSTANT_STREAM')}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      border: executionMode === 'INSTANT_STREAM' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                      backgroundColor: executionMode === 'INSTANT_STREAM' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-card)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem', color: executionMode === 'INSTANT_STREAM' ? '#059669' : 'var(--text-primary)' }}>
+                        <Zap size={16} color={executionMode === 'INSTANT_STREAM' ? '#10b981' : '#64748b'} />
+                        <span>Liền Mạch Tức Thì (Instant Stream )</span>
+                      </div>
+                      {executionMode === 'INSTANT_STREAM' && <CheckCircle2 size={16} color="#10b981" />}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      Xử lý cuốn chiếu tức thì A-Z từng hồ sơ: Mail về → Bóc tách OCR → Cào MS ngay → Đối soát chéo 3 bên ngay → Khớp 100% thời gian thực (Zero Lag).
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                 <Clock size={15} color="#10b981" />
                 <span>Tham Số Vận Hành Định Kỳ:</span>
               </div>

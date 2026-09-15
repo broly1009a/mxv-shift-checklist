@@ -19,6 +19,7 @@ import {
   getTkgdAttachmentDirectory,
   resolveTkgdOutputDir,
 } from '../bot-engine/helpers/tkgd-reconcile-exporter.helper';
+import { evaluateRecordReconciliationRule } from '../bot-engine/helpers/tkgd-reconcile-rules.helper';
 import {
   parseAccountOpeningEmailBody,
   parseAccountOpeningEmailMulti,
@@ -26,9 +27,20 @@ import {
   htmlToPlainText,
   cleanPersonName,
   isLikelyValidPersonName,
+  isPersonNameMatch,
+  anyPersonNameMatchesMs,
+  isIgnoredEmailAttachment,
+  pickCccdImagePaths,
+  isNamedCccdFront,
+  isNamedCccdBack,
+  isNamedContractImage,
+  isNamedCccdPdf,
+  isDecorativeOrLogoAttachment,
+  probeImageDimensions,
 } from '../bot-engine/helpers/tkgd-mail-parser.helper';
 import { extractHopDongPdf, extractPhuLucPdf } from '../bot-engine/helpers/tkgd-doc-extractor.helper';
 import { runPythonExtractor } from '../bot-engine/helpers/tkgd-python-bridge.helper';
+import { classifyAccountFiles } from '../bot-engine/helpers/tkgd-document-classifier.helper';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 export interface TkgdProgressState {
@@ -73,45 +85,8 @@ function findBrowserExecutable(): string | undefined {
 
 /**
  * Nhận diện và bỏ qua các tệp ảnh logo, banner, chữ ký email không phải hồ sơ pháp lý
+ * → dùng isIgnoredEmailAttachment từ tkgd-mail-parser.helper (shared).
  */
-function isIgnoredEmailAttachment(fileName?: string, size?: number): boolean {
-  if (!fileName) return true;
-  const lower = fileName.trim().toLowerCase();
-  if (lower === 'thumbs.db' || lower === 'desktop.ini') return true;
-
-  // Nếu là ảnh kiểu image001, image002, image.png... nhưng dung lượng thực tế >= 25KB,
-  // đây là ảnh CCCD/tài liệu được dán hoặc chèn vào email -> KHÔNG ĐƯỢC BỎ QUA!
-  const isGenericImageName =
-    lower === 'image.png' ||
-    lower === 'image.jpg' ||
-    lower === 'image.jpeg' ||
-    lower === 'image.gif' ||
-    /^image\d+\.(png|jpe?g|gif)$/i.test(lower) ||
-    lower.startsWith('image0');
-
-  if (isGenericImageName) {
-    if (size !== undefined && size >= 25000) {
-      return false; // Ảnh CCCD / tài liệu có dung lượng thực tế
-    }
-    return true; // Icon chữ ký nhỏ (< 25KB)
-  }
-
-  if (
-    lower.startsWith('logo') ||
-    lower.includes('-logo') ||
-    lower.includes('_logo') ||
-    lower.includes('mxv-logo') ||
-    lower.includes('company-logo') ||
-    lower.startsWith('banner') ||
-    lower.startsWith('footer') ||
-    lower.startsWith('signature-banner') ||
-    lower.startsWith('outlook-') ||
-    lower.startsWith('icon')
-  ) {
-    return true;
-  }
-  return false;
-}
 
 function parseDate(dStr?: string): Date | undefined {
   if (!dStr) return undefined;
@@ -154,7 +129,21 @@ function formatDateStr(d?: Date | string | null): string {
 
 function normalizeDateStr(d: string | undefined | null): string {
   if (!d) return '';
-  const clean = String(d).trim().split('T')[0].split(' ')[0].replace(/-/g, '/');
+  const s = String(d).trim();
+
+  // ISO YYYY-MM-DD (có thể lẫn trong chuỗi OCR)
+  const iso = s.match(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/);
+  if (iso) {
+    return `${iso[3].padStart(2, '0')}/${iso[2].padStart(2, '0')}/${iso[1]}`;
+  }
+
+  // DD/MM/YYYY xuất hiện bất kỳ đâu (vd: "| 22/04/2021", "Ngày cấp: 22/04/2021")
+  const dmy = s.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/);
+  if (dmy) {
+    return `${dmy[1].padStart(2, '0')}/${dmy[2].padStart(2, '0')}/${dmy[3]}`;
+  }
+
+  const clean = s.split('T')[0].split(' ')[0].replace(/-/g, '/');
   const parts = clean.split('/');
   if (parts.length === 3) {
     if (parts[0].length === 4) {
@@ -162,7 +151,24 @@ function normalizeDateStr(d: string | undefined | null): string {
     }
     return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
   }
-  return clean;
+  return '';
+}
+
+function isCanonicalDate(d: string | undefined | null): boolean {
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(String(d || ''));
+}
+
+/** Ngày ISO YYYY-MM-DD là hợp lệ về mặt lịch — không coi là lỗi LECH */
+function isIsoDateOnly(d: string | undefined | null): boolean {
+  return /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(String(d || '').trim());
+}
+
+function pickValidPersonName(...candidates: Array<string | undefined | null>): string {
+  for (const c of candidates) {
+    const cleaned = cleanPersonName(c || undefined);
+    if (cleaned) return cleaned;
+  }
+  return '';
 }
 
 function isGenderMatch(g1?: string, g2?: string): boolean {
@@ -574,6 +580,7 @@ export class TkgdAutomationService {
       },
       autoPipeline: {
         enabled: config.autoPipeline?.enabled ?? false,
+        executionMode: config.autoPipeline?.executionMode ?? 'BATCH',
         intervalMinutes: config.autoPipeline?.intervalMinutes ?? 5,
         batchSize: config.autoPipeline?.batchSize ?? 50,
         autoSyncMSystem: config.autoPipeline?.autoSyncMSystem ?? true,
@@ -669,6 +676,7 @@ export class TkgdAutomationService {
     if (!config.autoPipeline) (config as any).autoPipeline = {};
     if (dto.autoPipeline) {
       if (dto.autoPipeline.enabled !== undefined) config.autoPipeline.enabled = dto.autoPipeline.enabled;
+      if (dto.autoPipeline.executionMode !== undefined) config.autoPipeline.executionMode = dto.autoPipeline.executionMode;
       if (dto.autoPipeline.intervalMinutes !== undefined) {
         config.autoPipeline.intervalMinutes = Math.max(1, Number(dto.autoPipeline.intervalMinutes) || 5);
       }
@@ -1014,15 +1022,17 @@ export class TkgdAutomationService {
       }
     }
 
-    // Tự động kiểm tra tính nhất quán: Chỉ chuyển LECH khi có lỗi định dạng hợp đồng thực tế (hdErrors), không chuyển LECH vì cảnh báo mép ảnh CCCD
+    // Soft-warn định dạng HĐ / chất lượng ảnh → CAN_KIEM_TRA (không đẩy LECH oan vì ISO date / mép ảnh)
     for (const doc of groupedMap.values()) {
-      const hdErrors: string[] = doc.hopDong?.dinhDangLoi || [];
-      if (hdErrors.length > 0 && doc.ketLuan?.trangThai === 'KHOP') {
-        const combinedErrors = Array.from(
-          new Set([...(doc.ketLuan?.danhSachLoi || []), ...hdErrors])
-        );
+      const hdErrors: string[] = (doc.hopDong?.dinhDangLoi || []).filter(
+        (e: string) => !/sai định dạng quy chuẩn|dùng tiếng Anh/i.test(e),
+      );
+      const imgWarns: string[] = doc.canCuoc?.canhBaoChatLuong || [];
+      const soft = Array.from(new Set([...hdErrors, ...imgWarns]));
+      if (soft.length > 0 && doc.ketLuan?.trangThai === 'KHOP') {
+        const combinedErrors = Array.from(new Set([...(doc.ketLuan?.danhSachLoi || []), ...soft]));
         doc.ketLuan = {
-          trangThai: 'LECH',
+          trangThai: 'CAN_KIEM_TRA',
           danhSachLoi: combinedErrors,
           reconciledAt: doc.ketLuan?.reconciledAt || new Date(),
         };
@@ -1030,10 +1040,10 @@ export class TkgdAutomationService {
           this.cleanRecordModel
             .updateMany(
               { $or: [{ _id: doc._id }, { maTKGD: doc.maTKGD }, { maTKGDBase: doc.maTKGDBase }] },
-              { $set: { 'ketLuan.trangThai': 'LECH', 'ketLuan.danhSachLoi': combinedErrors } },
+              { $set: { 'ketLuan.trangThai': 'CAN_KIEM_TRA', 'ketLuan.danhSachLoi': combinedErrors } },
             )
             .exec()
-            .catch(() => {});
+            .catch(() => { });
         }
       }
     }
@@ -1282,11 +1292,13 @@ export class TkgdAutomationService {
       if (!dir) return;
 
       const files = fs.readdirSync(dir);
-      const hopDong = files.find((f) => f.toLowerCase().endsWith('.pdf') && (f.toLowerCase().includes('mxv') || f.toLowerCase().includes('hopdong') || !f.toLowerCase().includes('pl01')));
-      let front = files.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && (f.toLowerCase().includes('truoc') || f.toLowerCase().includes('front')));
-      let back = files.find((f) => (f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')) && (f.toLowerCase().includes('sau') || f.toLowerCase().includes('back')));
-      if (!front) front = files.find((f) => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png'));
-      if (front && !back) back = files.filter((f) => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png')).find((f) => f !== front);
+      const classified = classifyAccountFiles(files);
+      const hopDong = classified.hopDongFile;
+      let front = classified.cccdFrontImage;
+      let back = classified.cccdBackImage;
+      if (!front && classified.cccdPdfFile) {
+        front = classified.cccdPdfFile;
+      }
 
       if (front || back || hopDong) {
         const pyRes = await runPythonExtractor({
@@ -1410,17 +1422,17 @@ export class TkgdAutomationService {
           if (record.hopDong) updatePayload.hopDong = record.hopDong;
           if (record.canCuoc) updatePayload.canCuoc = record.canCuoc;
 
-          const hdErrors: string[] = pyRes.hopDong?.dinhDangLoi || record.hopDong?.dinhDangLoi || [];
-          if (hdErrors.length > 0 && (!record.ketLuan?.trangThai || record.ketLuan?.trangThai === 'KHOP')) {
-            const combinedErrors = Array.from(
-              new Set([...(record.ketLuan?.danhSachLoi || []), ...hdErrors])
-            );
+          // Làm giàu CCCD xong thì đánh giá lại toàn bộ — tránh giữ lỗi stale "chưa có MS"
+          // và không đẩy LECH chỉ vì format ISO / cảnh báo ảnh.
+          if (record.ms?.isFoundOnMS || record.ms?.soCMND_HoChieu || record.ms?.hoVaTen) {
+            const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
             record.ketLuan = {
-              trangThai: 'LECH',
-              danhSachLoi: combinedErrors,
+              trangThai: finalStatus,
+              danhSachLoi: finalErrors,
               reconciledAt: new Date(),
             };
             updatePayload.ketLuan = record.ketLuan;
+            updatePayload['ms.isFoundOnMS'] = true;
           }
 
           if (Object.keys(updatePayload).length > 0 && record._id) {
@@ -1435,177 +1447,14 @@ export class TkgdAutomationService {
 
   /**
    * Đánh giá quy tắc đối soát chéo độc lập cho 1 hồ sơ CleanAccountRecord
-   * Dùng chung 100% logic giữa runReconciliation, reparseAccount và syncMSystemAccounts
+   * Kế thừa 100% từ tkgd-reconcile-rules.helper (Single Source of Truth, hỗ trợ 2/3 consensus & CCCD chunk-swap)
    */
   public evaluateRecordReconciliation(record: any): { finalStatus: string; finalErrors: string[] } {
-    if (record.manualReview?.isOverridden) {
-      return {
-        finalStatus: record.manualReview.status || 'KHOP',
-        finalErrors: [],
-      };
-    }
-
-    const ms: any = record.ms || {};
-    const mail: any = record.noiDungMail || {};
-    const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
-    const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
-
-    // Thứ tự ưu tiên Họ tên: HĐ > Phụ lục 01 > Ảnh CCCD > Tên sạch trên mail
-    const docName = record.hopDong?.hoVaTen || record.phuLuc?.hoVaTen || record.canCuoc?.hoVaTen || '';
-    const mailName = isLikelyValidPersonName(mail.tenTaiKhoan) ? mail.tenTaiKhoan : '';
-    const targetNameRaw = docName || mailName || '';
-    const targetName = cleanPersonName(targetNameRaw).toLowerCase().replace(/\s+/g, ' ');
-    const msName = cleanPersonName(ms.hoVaTen || ms.tenTKGD).toLowerCase().replace(/\s+/g, ' ');
-
-    const targetCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || record.phuLuc?.soCanCuoc || '').replace(/\D/g, '');
-    const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
-
-    let isCriticalMismatch = false;
-    const criticalErrors: string[] = [];
-
-    if (!ms.isFoundOnMS) {
-      isCriticalMismatch = true;
-      criticalErrors.push('Tài khoản chưa được tạo trên M-System');
-    } else {
-      const msCode = (ms.maTKGD || '').trim();
-      const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
-      if (isSubAccount) {
-        // Với tiểu khoản (-A, -L, -S), M-System lưu theo mã NĐT cơ sở (baseCode)
-        const msBaseCode = msCode.split('-')[0].toUpperCase();
-        if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-        }
-      } else {
-        if (baseCode && msCode && !msCode.startsWith(baseCode)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-        }
-      }
-
-      const normName = (s: string) =>
-        s
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/đ/g, 'd')
-          .replace(/Đ/g, 'd')
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '');
-
-      if (targetName && msName && normName(targetName) !== normName(msName)) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
-      }
-
-      const hdCccd = (record.hopDong?.soCanCuoc || '').replace(/\D/g, '');
-      const imgCccd = (record.canCuoc?.soCanCuoc || '').replace(/\D/g, '');
-
-      if (!isSubAccount) {
-        // Kiểm tra thiếu CCCD trên hồ sơ
-        if (!targetCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push('Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)');
-        }
-        // Kiểm tra M-System chưa nhập số CCCD
-        if (ms.isFoundOnMS && !msCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push('M-System chưa nhập số CCCD');
-        }
-        // Kiểm tra chéo giữa HĐ và ảnh CCCD
-        if (hdCccd && imgCccd && hdCccd !== imgCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: ${hdCccd} != Ảnh: ${imgCccd})`);
-        }
-      }
-
-      if (targetCccd && msCccd && targetCccd !== msCccd) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
-      }
-
-      // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
-      const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
-      const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
-      if (hdDob && msDob) {
-        const normHd = normalizeDateStr(hdDob);
-        const normMs = normalizeDateStr(msDob);
-        if (normHd.length === 10 && normMs.length === 10) {
-          if (normHd !== normMs) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
-          }
-        } else {
-          const getYear = (d: string) => (d.match(/\b(19\d{2}|20\d{2})\b/) || [])[0];
-          const yHd = getYear(hdDob);
-          const yMs = getYear(msDob);
-          if (yHd && yMs && yHd !== yMs) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch năm sinh (HĐ/CCCD: ${yHd} != MS: ${yMs})`);
-          }
-        }
-      }
-
-      // 5. Đối chiếu Ngày cấp (nếu cả 2 bên cùng cung cấp)
-      const hdIssue = record.hopDong?.rawNgayCap || (record.hopDong?.ngayCap ? formatDateStr(record.hopDong.ngayCap) : '') || (record.canCuoc?.rawNgayCap || (record.canCuoc?.ngayCap ? formatDateStr(record.canCuoc.ngayCap) : ''));
-      const msIssue = record.ms?.rawNgayCap || (record.ms?.ngayCap ? formatDateStr(record.ms.ngayCap) : '');
-      if (hdIssue && msIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(msIssue)) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${hdIssue} != MS: ${msIssue})`);
-      }
-
-      // 6. Đối chiếu Giới tính (nếu cả 2 bên cùng cung cấp)
-      const hdSex = record.hopDong?.rawGioiTinh || record.hopDong?.gioiTinh || record.canCuoc?.gioiTinh;
-      const msSex = record.ms?.gioiTinh;
-      if (hdSex && msSex && !isGenderMatch(hdSex, msSex)) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
-      }
-
-      // 7. Kiểm tra lỗi định dạng quy chuẩn Hợp đồng (dinhDangLoi) & chất lượng ảnh CCCD (canhBaoChatLuong)
-      const hdErrors: string[] = [
-        ...(record.hopDong?.dinhDangLoi || []),
-      ];
-      const rawDobStr = String(record.hopDong?.rawNgaySinh || '');
-      if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawDobStr) && !hdErrors.some((e: string) => e.includes('Ngày sinh'))) {
-        hdErrors.push(`Ngày sinh trên HĐ sai định dạng quy chuẩn (${rawDobStr} thay vì DD/MM/YYYY)`);
-      }
-      const rawCapStr = String(record.hopDong?.rawNgayCap || '');
-      if (/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(rawCapStr) && !hdErrors.some((e: string) => e.includes('Ngày cấp'))) {
-        hdErrors.push(`Ngày cấp trên HĐ sai định dạng quy chuẩn (${rawCapStr} thay vì DD/MM/YYYY)`);
-      }
-      const rawSexStr = String(record.hopDong?.rawGioiTinh || '').toLowerCase();
-      if ((rawSexStr === 'female' || rawSexStr === 'male') && !hdErrors.some((e: string) => e.includes('Giới tính'))) {
-        hdErrors.push(`Giới tính trên HĐ dùng tiếng Anh ('${record.hopDong?.rawGioiTinh}' thay vì 'Nam/Nữ')`);
-      }
-
-      const cccdWarnings: string[] = [
-        ...(record.canCuoc?.canhBaoChatLuong || []),
-      ];
-
-      // Nhận diện case 003C9462626 (LÂM THANH DANH) CCCD bị mất góc / cắt lẹm viền
-      if (baseCode === '003C9462626' && !cccdWarnings.some((w: string) => w.includes('mất góc'))) {
-        cccdWarnings.push('CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)');
-      }
-
-      for (const err of hdErrors) {
-        isCriticalMismatch = true;
-        criticalErrors.push(err);
-      }
-      for (const warn of cccdWarnings) {
-        isCriticalMismatch = true;
-        criticalErrors.push(warn);
-      }
-
-      if (!record.hopDong) record.hopDong = {};
-      record.hopDong.dinhDangLoi = hdErrors;
-      if (!record.canCuoc) record.canCuoc = {};
-      record.canCuoc.canhBaoChatLuong = cccdWarnings;
-    }
-
-    const finalStatus = isCriticalMismatch ? 'LECH' : 'KHOP';
-    const finalErrors = isCriticalMismatch ? criticalErrors : [];
-
-    return { finalStatus, finalErrors };
+    const res = evaluateRecordReconciliationRule(record);
+    return {
+      finalStatus: res.finalStatus,
+      finalErrors: res.finalErrors,
+    };
   }
 
   /**
@@ -1615,7 +1464,8 @@ export class TkgdAutomationService {
     const config = await this.userConfigModel.findOne({ userEmail }).lean();
     const query: any = {};
     if (batchDate) query.batchDate = batchDate;
-    const records = await this.cleanRecordModel.find(query).sort({ createdAt: -1 }).limit(100);
+    // Không limit chặt — tránh bỏ sót hồ sơ đã có MS khiến kết luận "chưa có MS" bị stale
+    const records = await this.cleanRecordModel.find(query).sort({ createdAt: -1 }).limit(5000);
 
     this.updateProgress(userEmail, {
       isProcessing: true,
@@ -1644,41 +1494,48 @@ export class TkgdAutomationService {
     const dateStr = (batchDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
     const targetFile = path.join(outDir, `Auto_Data_mail_${dateStr}.xlsx`);
 
-    this.updateProgress(userEmail, {
-      current: records.length,
-      total: records.length,
-      percent: 85,
-      stage: 'Đang tổng hợp báo cáo và xuất file Excel đối soát...',
-    });
-
-    const summary: ReconcileSummary = await reconcileAndExportToExcel(records, {
-      outputPath: targetFile,
-    });
-
-    // Cập nhật trạng thái đối soát trực tiếp vào MongoDB cho từng bản ghi
+    // 1. ĐỐI SOÁT & CẬP NHẬT KẾT LUẬN VÀO RECORD & MONGODB TRƯỚC:
+    // Đảm bảo dữ liệu in-memory và MongoDB có kết luận chuẩn xác nhất trước khi nạp vào template Excel
     const now = new Date();
     for (const record of records) {
       // CỔNG CHẶN BẢO VỆ DUYỆT TAY: Nếu hồ sơ đã được Cán bộ duyệt bằng tay thì tuyệt đối KHÔNG ghi đè kết luận máy!
       if (record.manualReview?.isOverridden) {
         this.logger.log(`[RECON] Hồ sơ ${record.maTKGD || record.maTKGDBase} đã được ${record.manualReview.approvedBy || 'Cán bộ'} phê duyệt tay. Giữ nguyên trạng thái.`);
+        record.ketLuan = {
+          trangThai: (record.manualReview.status || 'KHOP') as any,
+          danhSachLoi: [],
+          reconciledAt: now,
+        };
         continue;
       }
 
       const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
 
-      await this.cleanRecordModel.updateOne(
-        { _id: record._id },
-        {
-          $set: {
-            'ketLuan.trangThai': finalStatus,
-            'ketLuan.danhSachLoi': finalErrors,
-            'ketLuan.reconciledAt': now,
-            'hopDong.dinhDangLoi': record.hopDong?.dinhDangLoi || [],
-            'canCuoc.canhBaoChatLuong': record.canCuoc?.canhBaoChatLuong || [],
-          },
-        }
-      );
+      record.ketLuan = {
+        trangThai: finalStatus as any,
+        danhSachLoi: finalErrors,
+        reconciledAt: now,
+      };
+
+      const setPayload: Record<string, any> = {
+        'ketLuan.trangThai': finalStatus,
+        'ketLuan.danhSachLoi': finalErrors,
+        'ketLuan.reconciledAt': now,
+        'hopDong.dinhDangLoi': record.hopDong?.dinhDangLoi || [],
+        'canCuoc.canhBaoChatLuong': record.canCuoc?.canhBaoChatLuong || [],
+      };
+      // Heal flag stale: nếu evaluate đã xác nhận có MS thì ghi lại isFoundOnMS=true
+      if (record.ms?.isFoundOnMS) {
+        setPayload['ms.isFoundOnMS'] = true;
+      }
+
+      await this.cleanRecordModel.updateOne({ _id: record._id }, { $set: setPayload });
     }
+
+    // 2. XUẤT FILE EXCEL: Kế thừa 100% kết quả chuẩn vừa đối soát (Khớp giao diện FE 100%)
+    const summary: ReconcileSummary = await reconcileAndExportToExcel(records, {
+      outputPath: targetFile,
+    });
 
     this.updateProgress(userEmail, {
       isProcessing: false,
@@ -1701,11 +1558,11 @@ export class TkgdAutomationService {
     batchDateOrOptions?:
       | string
       | {
-          batchDate?: string;
-          fromDateTime?: string;
-          toDateTime?: string;
-          forceReparse?: boolean;
-        },
+        batchDate?: string;
+        fromDateTime?: string;
+        toDateTime?: string;
+        forceReparse?: boolean;
+      },
   ) {
     this.updateProgress(userEmail, {
       isProcessing: true,
@@ -1815,6 +1672,39 @@ export class TkgdAutomationService {
           }
 
           for (const msg of fetchedMessages) {
+            const bodyRawText = htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '';
+
+            // SMART SKIP TRƯỚC KHI TẢI ATTACHMENT NẶNG:
+            // Phân tích sơ bộ mã tài khoản trong email; nếu đã có đủ trong DB ngày hôm nay -> SKIP ngay
+            if (!forceReparse) {
+              const previewGroups = parseAccountOpeningEmailMulti(bodyRawText);
+              if (previewGroups && previewGroups.length > 0) {
+                let allAccountsExist = true;
+                for (const g of previewGroups) {
+                  const baseCode = g.maTKGDBase;
+                  if (!baseCode) continue;
+                  const targetCode = g.maTKGDFutures || g.maTKGDACM || baseCode;
+                  const existing = await this.cleanRecordModel.findOne({
+                    batchDate: todayStr,
+                    $or: [
+                      { maTKGDBase: baseCode },
+                      { maTKGD: targetCode },
+                      { 'noiDungMail.maTKGD_Futures': baseCode },
+                    ],
+                  }).select('_id hopDong canCuoc').lean();
+
+                  if (!existing || !existing.hopDong || !existing.canCuoc) {
+                    allAccountsExist = false;
+                    break;
+                  }
+                }
+                if (allAccountsExist) {
+                  // Đã đủ hồ sơ trong DB hôm nay -> BỎ QUA, không tải đính kèm nặng về RAM!
+                  continue;
+                }
+              }
+            }
+
             const msgAttachments: any[] = [];
             if (msg.hasAttachments) {
               try {
@@ -1827,8 +1717,18 @@ export class TkgdAutomationService {
                 if (attachRes.ok) {
                   const aData = await attachRes.json();
                   for (const a of aData.value || []) {
-                    const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 25000;
-                    if (a.contentBytes && (!a.isInline || isSubstantialImage) && !isIgnoredEmailAttachment(a.name, a.size)) {
+                    const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 45000;
+                    let dims: { width: number; height: number } | null = null;
+                    if (a.contentBytes && a.contentType?.startsWith('image/')) {
+                      try {
+                        dims = probeImageDimensions(Buffer.from(a.contentBytes, 'base64'));
+                      } catch { /* ignore */ }
+                    }
+                    if (
+                      a.contentBytes &&
+                      (!a.isInline || isSubstantialImage || isNamedCccdFront(a.name) || isNamedCccdBack(a.name)) &&
+                      !isIgnoredEmailAttachment(a.name, a.size, dims)
+                    ) {
                       msgAttachments.push({
                         name: a.name,
                         contentType: a.contentType,
@@ -1849,7 +1749,7 @@ export class TkgdAutomationService {
               senderEmail: msg.sender?.emailAddress?.address || '',
               senderName: msg.sender?.emailAddress?.name || '',
               receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
-              bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
+              bodyRawText,
               attachments: msgAttachments,
             });
           }
@@ -1905,6 +1805,35 @@ export class TkgdAutomationService {
               const matched = await this.fetchAllMatchingMailsFromGraph(graphUrl, accessToken, ccMatchFn, 10, fromDateObj);
               if (matched.length > 0) {
                 for (const msg of matched) {
+                  const bodyRawText = htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '';
+
+                  // SMART SKIP: Nếu tài khoản trong mail đã có đủ trong DB hôm nay -> bỏ qua tải tệp
+                  if (!forceReparse) {
+                    const previewGroups = parseAccountOpeningEmailMulti(bodyRawText);
+                    if (previewGroups && previewGroups.length > 0) {
+                      let allAccountsExist = true;
+                      for (const g of previewGroups) {
+                        const baseCode = g.maTKGDBase;
+                        if (!baseCode) continue;
+                        const targetCode = g.maTKGDFutures || g.maTKGDACM || baseCode;
+                        const existing = await this.cleanRecordModel.findOne({
+                          batchDate: todayStr,
+                          $or: [
+                            { maTKGDBase: baseCode },
+                            { maTKGD: targetCode },
+                            { 'noiDungMail.maTKGD_Futures': baseCode },
+                          ],
+                        }).select('_id hopDong canCuoc').lean();
+
+                        if (!existing || !existing.hopDong || !existing.canCuoc) {
+                          allAccountsExist = false;
+                          break;
+                        }
+                      }
+                      if (allAccountsExist) continue;
+                    }
+                  }
+
                   const msgAttachments: any[] = [];
                   if (msg.hasAttachments) {
                     try {
@@ -1915,8 +1844,18 @@ export class TkgdAutomationService {
                       if (attachRes.ok) {
                         const aData = await attachRes.json();
                         for (const a of aData.value || []) {
-                          const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 25000;
-                          if (a.contentBytes && (!a.isInline || isSubstantialImage) && !isIgnoredEmailAttachment(a.name, a.size)) {
+                          const isSubstantialImage = a.contentType?.startsWith('image/') && (a.size || 0) >= 45000;
+                          let dims: { width: number; height: number } | null = null;
+                          if (a.contentBytes && a.contentType?.startsWith('image/')) {
+                            try {
+                              dims = probeImageDimensions(Buffer.from(a.contentBytes, 'base64'));
+                            } catch { /* ignore */ }
+                          }
+                          if (
+                            a.contentBytes &&
+                            (!a.isInline || isSubstantialImage || isNamedCccdFront(a.name) || isNamedCccdBack(a.name)) &&
+                            !isIgnoredEmailAttachment(a.name, a.size, dims)
+                          ) {
                             msgAttachments.push({
                               name: a.name,
                               contentType: a.contentType,
@@ -1936,7 +1875,7 @@ export class TkgdAutomationService {
                     senderEmail: msg.sender?.emailAddress?.address || '',
                     senderName: msg.sender?.emailAddress?.name || '',
                     receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
-                    bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
+                    bodyRawText,
                     attachments: msgAttachments,
                   });
                 }
@@ -2104,8 +2043,8 @@ export class TkgdAutomationService {
 
           let hopDongPath: string | undefined = undefined;
           let phuLucPath: string | undefined = undefined;
-          let cccdFrontPath: string | undefined = undefined;
-          let cccdBackPath: string | undefined = undefined;
+          const imageCandidates: Array<{ name: string; filePath: string; size?: number }> = [];
+          let cccdPdfPath: string | undefined;
 
           for (const att of targetAttachments) {
             const attSize = att.size || (att.contentBytes ? Math.round(att.contentBytes.length * 0.75) : undefined);
@@ -2116,6 +2055,14 @@ export class TkgdAutomationService {
             if (att.contentBytes) {
               targetFilePath = path.join(tempAccDir, att.name);
               const fileBuf = Buffer.from(att.contentBytes, 'base64');
+              // Probe kích thước trước khi lưu — loại logo/banner ngay
+              if (/\.(png|jpe?g|webp|gif)$/i.test(nameLower)) {
+                const dims = probeImageDimensions(fileBuf);
+                if (isIgnoredEmailAttachment(att.name, attSize, dims)) {
+                  this.logger.log(`[TKGD-MAIL] Bỏ qua ảnh không phải CCCD: ${att.name} (${attSize || '?'}B, ${dims ? `${dims.width}x${dims.height}` : 'no-dim'})`);
+                  continue;
+                }
+              }
               fs.writeFileSync(targetFilePath, fileBuf);
 
               // Lưu trực tiếp file đính kèm vào thư mục HoSo_DinhKem
@@ -2136,26 +2083,24 @@ export class TkgdAutomationService {
 
             if (targetFilePath && fs.existsSync(targetFilePath)) {
               if (nameLower.endsWith('.pdf')) {
-                if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                if (isNamedCccdPdf(att.name)) {
+                  if (!cccdPdfPath) cccdPdfPath = targetFilePath;
+                } else if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
                   phuLucPath = targetFilePath;
                 } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
                   hopDongPath = targetFilePath;
                 }
               } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png') || nameLower.endsWith('.webp')) {
-                const isFront = /\b(truoc|front|mat1|mt)\b/i.test(nameLower) || nameLower.includes('mặt trước') || nameLower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('mt.') || nameLower.includes('image001');
-                const isBack = /\b(sau|back|mat2|ms)\b/i.test(nameLower) || nameLower.includes('mặt sau') || nameLower.includes('matsau') || /^ms[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('ms.') || nameLower.includes('image002');
-                if (isFront) {
-                  cccdFrontPath = targetFilePath;
-                } else if (isBack) {
-                  cccdBackPath = targetFilePath;
-                } else if (!cccdFrontPath) {
-                  cccdFrontPath = targetFilePath;
-                } else if (!cccdBackPath) {
-                  cccdBackPath = targetFilePath;
+                if (!isNamedContractImage(att.name)) {
+                  imageCandidates.push({ name: att.name || path.basename(targetFilePath), filePath: targetFilePath, size: attSize });
                 }
               }
             }
           }
+
+          const picked = pickCccdImagePaths(imageCandidates);
+          const cccdFrontPath = picked.frontPath || cccdPdfPath;
+          const cccdBackPath = picked.backPath;
 
           // Gọi Python Worker trích xuất chính xác 100%
           try {
@@ -2442,6 +2387,9 @@ export class TkgdAutomationService {
         }
         processedCount++;
       }
+      // GIẢI PHÓNG BỘ NHỚ RAM: giải phóng mảng attachments của email vừa xử lý
+      mail.attachments = [];
+      delete (mail as any).attachments;
     }
 
     this.updateProgress(userEmail, {
@@ -2467,7 +2415,7 @@ export class TkgdAutomationService {
   }
 
   /**
-   * Cào thông tin tài khoản từ M-System (Hỗ trợ cào lẻ 1 tài khoản hoặc cào tất cả hồ sơ chờ)
+   * Đồng bộ dữ liệu chi tiết nhà đầu tư từ M-System (RPA)
    * TỰ ĐỘNG ĐỐI SOÁT NGAY LẬP TỨC SAU KHI CÀO XONG!
    */
   async syncMSystemAccounts(
@@ -2510,18 +2458,38 @@ export class TkgdAutomationService {
 
     // 1. Xác định danh sách tài khoản cần cào
     let codesToScrape: string[] = [];
+    const todayStr = options?.batchDate || new Date().toISOString().slice(0, 10);
     if (options?.investorCode && options.investorCode.trim()) {
       codesToScrape = [options.investorCode.trim().split('-')[0]];
     } else {
-      const query: any = {
-        $or: [
-          { 'ms.isFoundOnMS': { $ne: true } },
-          { ms: null },
-        ],
-      };
-      if (options?.batchDate) query.batchDate = options.batchDate;
-      const batchLimit = Math.max(1, config?.autoPipeline?.batchSize || 50);
-      const pendingRecords = await this.cleanRecordModel.find(query).limit(batchLimit);
+      const batchLimit = Math.max(1, Math.min(config?.autoPipeline?.batchSize || 10, 20));
+
+      // Ưu tiên 1: Hồ sơ chờ của ngày chỉ định (hoặc hôm nay), mới nhất lên đầu
+      let pendingRecords = await this.cleanRecordModel
+        .find({
+          batchDate: todayStr,
+          $or: [
+            { 'ms.isFoundOnMS': { $ne: true } },
+            { ms: null },
+          ],
+        })
+        .sort({ createdAt: -1 })
+        .limit(batchLimit);
+
+      // Ưu tiên 2 (Fallback): Nếu ngày chỉ định không còn hồ sơ nào chờ, tự động quét hồ sơ chờ gần nhất chưa có MS
+      if (pendingRecords.length === 0) {
+        pendingRecords = await this.cleanRecordModel
+          .find({
+            $or: [
+              { 'ms.isFoundOnMS': { $ne: true } },
+              { ms: null },
+              { 'ketLuan.trangThai': 'CHUA_XU_LY' },
+            ],
+          })
+          .sort({ createdAt: -1 })
+          .limit(batchLimit);
+      }
+
       codesToScrape = Array.from(new Set(
         pendingRecords.map((r) => r.maTKGDBase || r.noiDungMail?.maTKGD_Futures || r.maTKGD?.split('-')[0] || '').filter(Boolean)
       ));
@@ -2554,7 +2522,6 @@ export class TkgdAutomationService {
     });
 
     let scrapedCount = 0;
-    const todayStr = options?.batchDate || new Date().toISOString().slice(0, 10);
 
     try {
       const context = await browser.newContext({
@@ -2683,6 +2650,37 @@ export class TkgdAutomationService {
             }
           );
           scrapedCount++;
+
+          // ĐỐI SOÁT TỨC THÌ (Instant Single Record Reconciliation):
+          // Ngay khi có dữ liệu MS, đánh giá quy tắc đối soát chéo 3 bên và CẬP NHẬT ĐỒNG BỘ ketLuan ngay lập tức
+          const updatedRecords = await this.cleanRecordModel.find({
+            $or: [
+              { maTKGDBase: code },
+              { maTKGD: new RegExp(`^${code}`, 'i') },
+              { 'noiDungMail.maTKGD_Futures': code },
+            ],
+          });
+          const nowRecon = new Date();
+          for (const rec of updatedRecords) {
+            // Không ghi đè nếu hồ sơ đã được duyệt tay
+            if (rec.manualReview?.isOverridden) continue;
+
+            const evalResult = this.evaluateRecordReconciliation(rec);
+            await this.cleanRecordModel.updateOne(
+              { _id: rec._id },
+              {
+                $set: {
+                  'ketLuan.trangThai': evalResult.finalStatus,
+                  'ketLuan.danhSachLoi': evalResult.finalErrors,
+                  'ketLuan.reconciledAt': nowRecon,
+                  trangThaiDoiSoat: evalResult.finalStatus,
+                  lyDoLoi: evalResult.finalErrors,
+                  daDoiSoat: true,
+                  thoiGianDoiSoat: nowRecon,
+                },
+              }
+            );
+          }
         } catch (err: any) {
           this.logger.error(`[TKGD-MS] Lỗi khi cào tài khoản ${code}: ${err.message}`);
         }
@@ -2714,8 +2712,8 @@ export class TkgdAutomationService {
       await browser.close().catch(() => { });
     }
 
-    // TỰ ĐỘNG ĐỐI SOÁT NGAY LẬP TỨC
-    const reconResult = await this.runReconciliation(userEmail);
+    // TỰ ĐỘNG ĐỐI SOÁT NGAY LẬP TỨC (cho ngày chỉ định/hôm nay)
+    const reconResult = await this.runReconciliation(userEmail, todayStr);
 
     this.updateProgress(userEmail, {
       isProcessing: false,
@@ -2809,8 +2807,8 @@ export class TkgdAutomationService {
 
     let hopDongPath: string | undefined = undefined;
     let phuLucPath: string | undefined = undefined;
-    let cccdFrontPath: string | undefined = undefined;
-    let cccdBackPath: string | undefined = undefined;
+    const imageCandidates: Array<{ name: string; filePath: string; size?: number }> = [];
+    let cccdPdfPath: string | undefined;
 
     const scanDirForFiles = (dir: string) => {
       if (!fs.existsSync(dir)) return;
@@ -2819,29 +2817,39 @@ export class TkgdAutomationService {
         for (const f of files) {
           const lower = f.toLowerCase();
           const full = path.join(dir, f);
+          const fileSize = fs.statSync(full).size;
+          const dims = /\.(jpe?g|png|webp|gif|bmp)$/i.test(lower)
+            ? probeImageDimensions(full)
+            : null;
+          if (isIgnoredEmailAttachment(f, fileSize, dims)) continue;
           if (lower.endsWith('.pdf')) {
-            if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('pl-01')) {
+            if (isNamedCccdPdf(f)) {
+              if (!cccdPdfPath) cccdPdfPath = full;
+            } else if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('pl-01')) {
               if (!phuLucPath) phuLucPath = full;
-            } else {
+            } else if (!isNamedContractImage(f) && !hopDongPath) {
+              hopDongPath = full;
+            } else if (isNamedContractImage(f) || !hopDongPath) {
               if (!hopDongPath) hopDongPath = full;
             }
           } else if (/\.(jpe?g|png|bmp|webp)$/i.test(lower)) {
-            if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2') || lower.includes('mat-sau')) {
-              if (!cccdBackPath) cccdBackPath = full;
-            } else if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1') || lower.includes('mat-truoc')) {
-              if (!cccdFrontPath) cccdFrontPath = full;
-            } else if (!cccdFrontPath) {
-              cccdFrontPath = full;
-            } else if (!cccdBackPath) {
-              cccdBackPath = full;
+            if (!isNamedContractImage(f)) {
+              imageCandidates.push({ name: f, filePath: full, size: fileSize });
             }
           }
         }
-      } catch {}
+      } catch { }
     };
 
     scanDirForFiles(officialAccDir);
     scanDirForFiles(tempAccDir);
+    const pickedReparse = pickCccdImagePaths(imageCandidates);
+    let cccdFrontPath = pickedReparse.frontPath;
+    let cccdBackPath = pickedReparse.backPath;
+    // CCCD gửi dạng PDF (076C3131313) — không lấy logo hash e0b6f9cd.png
+    if (!cccdFrontPath && cccdPdfPath) {
+      cccdFrontPath = cccdPdfPath;
+    }
 
     // 3. Nếu tìm được rawMail, cập nhật lại nội dung email qua parser mới
     let candidateName = '';
@@ -3207,6 +3215,7 @@ export class TkgdAutomationService {
     let msSignature: any = null;
 
     const otherFiles: any[] = [];
+    const mailImageCandidates: Array<{ name: string; filePath: string; size?: number }> = [];
 
     const buildFileObj = (fName: string, subType: string) => {
       let fileSize = 0;
@@ -3230,7 +3239,14 @@ export class TkgdAutomationService {
           fileSize = fs.statSync(path.join(foundDir, f)).size;
         } catch { }
       }
-      if (isIgnoredEmailAttachment(f, fileSize)) continue;
+      const fullPath = foundDir ? path.join(foundDir, f) : f;
+      const dims =
+        foundDir && fs.existsSync(fullPath) && /\.(jpe?g|png|webp|gif|bmp)$/i.test(f)
+          ? probeImageDimensions(fullPath)
+          : null;
+      // Logo FireAnt / banner / HĐ image… — không đưa vào slot CCCD
+      if (isIgnoredEmailAttachment(f, fileSize, dims) || isDecorativeOrLogoAttachment(f)) continue;
+
       const lower = f.toLowerCase();
       const isMS = lower.includes('_ms_') || lower.startsWith(`${code.toLowerCase()}_ms`);
 
@@ -3238,7 +3254,7 @@ export class TkgdAutomationService {
         if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('-pl')) {
           if (!mailPl01Pdf) mailPl01Pdf = buildFileObj(f, 'MAIL_PL01');
           else otherFiles.push(buildFileObj(f, 'PDF'));
-        } else if (lower.includes('mxv') || lower.includes('hopdong') || lower.includes('hd')) {
+        } else if (lower.includes('mxv') || lower.includes('hopdong') || lower.includes('hd') || isNamedContractImage(f)) {
           if (!mailContractPdf) mailContractPdf = buildFileObj(f, 'MAIL_CONTRACT');
           else otherFiles.push(buildFileObj(f, 'PDF'));
         } else {
@@ -3256,26 +3272,38 @@ export class TkgdAutomationService {
           } else {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
           }
-        } else {
-          const isFront = /\b(truoc|front|mat1|mt)\b/i.test(lower) || lower.includes('mặt trước') || lower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(lower) || lower.startsWith('mt.') || lower.includes('image001');
-          const isBack = /\b(sau|back|mat2|ms)\b/i.test(lower) || lower.includes('mặt sau') || lower.includes('matsau') || /^ms[_\-\.\s]/i.test(lower) || lower.startsWith('ms.') || lower.includes('image002');
-
-          if (isFront) {
-            mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (isBack) {
-            mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
-          } else if (lower.includes('chuky') || lower.includes('signature')) {
-            otherFiles.push(buildFileObj(f, 'IMAGE'));
-          } else if (!mailCccdFront && !lower.startsWith('image')) {
-            mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (!mailCccdBack && !lower.startsWith('image')) {
-            mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
+        } else if (isNamedContractImage(f)) {
+          if (lower.endsWith('.pdf') && !mailContractPdf) {
+            mailContractPdf = buildFileObj(f, 'MAIL_CONTRACT');
           } else {
-            otherFiles.push(buildFileObj(f, 'IMAGE'));
+            otherFiles.push(buildFileObj(f, 'MAIL_CONTRACT_IMAGE'));
           }
+        } else if (lower.includes('chuky') || lower.includes('signature')) {
+          otherFiles.push(buildFileObj(f, 'IMAGE'));
+        } else if (foundDir) {
+          // Gom ứng viên CCCD — chọn bằng pickCccdImagePaths (tránh logo làm mặt trước)
+          mailImageCandidates.push({ name: f, filePath: fullPath, size: fileSize });
+        } else {
+          otherFiles.push(buildFileObj(f, 'IMAGE'));
         }
       } else {
         otherFiles.push(buildFileObj(f, 'OTHER'));
+      }
+    }
+
+    // Chọn front/back từ ứng viên mail (cùng logic OCR/reparse)
+    if (mailImageCandidates.length > 0) {
+      const picked = pickCccdImagePaths(mailImageCandidates);
+      if (picked.frontPath) {
+        mailCccdFront = buildFileObj(path.basename(picked.frontPath), 'MAIL_CCCD_FRONT');
+      }
+      if (picked.backPath) {
+        mailCccdBack = buildFileObj(path.basename(picked.backPath), 'MAIL_CCCD_BACK');
+      }
+      for (const c of mailImageCandidates) {
+        const base = path.basename(c.filePath);
+        if (base === mailCccdFront?.fileName || base === mailCccdBack?.fileName) continue;
+        otherFiles.push(buildFileObj(base, 'IMAGE'));
       }
     }
 
@@ -3635,43 +3663,59 @@ export class TkgdAutomationService {
 
     try {
       const pipelineTask = async () => {
+        const userCfg = await this.userConfigModel.findOne({ userEmail }).lean();
+        const executionMode = userCfg?.autoPipeline?.executionMode || 'BATCH';
+        const isStream = executionMode === 'INSTANT_STREAM';
+        const shouldSyncMS = userCfg?.autoPipeline?.autoSyncMSystem !== false;
+        const shouldExportExcel = userCfg?.autoPipeline?.autoExportExcel !== false;
+
+        if (isStream) {
+          this.logger.log(`[TKGD-AUTO]  Kích hoạt chu trình Liền Mạch Tức Thì (Instant Stream) cho ${userEmail}...`);
+        }
+
         // 1. Quét mail mới
         this.updateProgress(userEmail, {
           isProcessing: true,
           taskType: 'SYNC_MAIL',
-          stage: 'Đang tự động quét email mở TKGD mới...',
+          stage: isStream
+            ? ' [Liền Mạch] Đang quét email mở TKGD mới và bóc tách tức thì...'
+            : 'Đang tự động quét email mở TKGD mới...',
           percent: 15,
         });
         const mailResult = await this.syncMailOpeningAccounts(userEmail);
         const newMailCount = mailResult.count || 0;
 
-        const userCfg = await this.userConfigModel.findOne({ userEmail }).lean();
-        const shouldSyncMS = userCfg?.autoPipeline?.autoSyncMSystem !== false;
-        const shouldExportExcel = userCfg?.autoPipeline?.autoExportExcel !== false;
+        const todayStr = new Date().toISOString().slice(0, 10);
 
         // 2. Cào M-System nếu bật cấu hình và có hồ sơ chưa đồng bộ
         let msResult = { scrapedCount: 0 };
         if (shouldSyncMS) {
           const pendingSyncCount = await this.cleanRecordModel.countDocuments({
-            'ms.isFoundOnMS': false,
+            $or: [
+              { 'ms.isFoundOnMS': { $ne: true } },
+              { ms: null },
+              { 'ketLuan.trangThai': 'CHUA_XU_LY' },
+            ],
           });
 
           if (pendingSyncCount > 0) {
-            const batchSize = Math.max(1, userCfg?.autoPipeline?.batchSize || 50);
+            const batchSize = Math.max(1, Math.min(userCfg?.autoPipeline?.batchSize || 10, 15));
             const processBatchCount = Math.min(pendingSyncCount, batchSize);
 
             this.updateProgress(userEmail, {
               isProcessing: true,
               taskType: 'SYNC_MS',
-              stage: `Đang tự động đồng bộ M-System cho ${processBatchCount} hồ sơ (trong tổng ${pendingSyncCount} hồ sơ chờ)...`,
+              stage: isStream
+                ? ` [Liền Mạch] Đang cào M-System & đối soát khớp tức thì cho ${processBatchCount} hồ sơ...`
+                : `Đang tự động đồng bộ M-System cho ${processBatchCount} hồ sơ (trong tổng ${pendingSyncCount} hồ sơ chờ hôm nay)...`,
               percent: 50,
             });
-            // Wrap M-System scraper với timeout 3 phút riêng — Playwright không được treo quá lâu
-            const MS_TIMEOUT_MS = 3 * 60 * 1000;
+            // Wrap M-System scraper với timeout 4 phút riêng — Playwright không được treo quá lâu
+            const MS_TIMEOUT_MS = 4 * 60 * 1000;
             msResult = await Promise.race([
-              this.syncMSystemAccounts(userEmail),
+              this.syncMSystemAccounts(userEmail, { batchDate: todayStr, downloadImages: true }),
               new Promise<{ scrapedCount: number }>((_, reject) =>
-                setTimeout(() => reject(new Error('syncMSystemAccounts timeout sau 3 phút')), MS_TIMEOUT_MS)
+                setTimeout(() => reject(new Error('syncMSystemAccounts timeout sau 4 phút')), MS_TIMEOUT_MS)
               ),
             ]).catch((err) => {
               this.logger.warn(`[TKGD-AUTO] ${err.message} — tiếp tục bước đối soát.`);
@@ -3724,7 +3768,7 @@ export class TkgdAutomationService {
       await this.userConfigModel.updateOne(
         { userEmail },
         { $set: { 'autoPipeline.lastRunTime': Date.now() } }
-      ).catch(() => {});
+      ).catch(() => { });
       this.updateProgress(userEmail, {
         isProcessing: false,
         taskType: 'IDLE',
@@ -3771,12 +3815,14 @@ export class TkgdAutomationService {
   async getAutoPipelineStatus(userEmail: string) {
     const cfg = await this.userConfigModel.findOne({ userEmail });
     const isEnabled = cfg?.autoPipeline?.enabled ?? false;
+    const executionMode = cfg?.autoPipeline?.executionMode ?? 'BATCH';
     const lastRunTime = cfg?.autoPipeline?.lastRunTime ?? 0;
     const lastProcessedCount = cfg?.autoPipeline?.lastProcessedCount ?? 0;
     const intervalMinutes = cfg?.autoPipeline?.intervalMinutes ?? 5;
 
     return {
       enabled: isEnabled,
+      executionMode,
       isRunning: this.isAutoPipelineRunning,
       lastRunTime,
       lastProcessedCount,
@@ -3791,6 +3837,46 @@ export class TkgdAutomationService {
   async runHistoricalBackfill(userEmail: string, fromDate?: string, toDate?: string) {
     this.logger.log(`[TKGD-BACKFILL] ${userEmail} yêu cầu quét vét dữ liệu lịch sử từ ${fromDate || 'toàn bộ'} đến ${toDate || 'nay'}`);
     return this.runAutoPipelineCycle(userEmail);
+  }
+
+  /**
+   * Tái thẩm định tức thì 1 hồ sơ tài khoản từ dữ liệu sạch trong DB (Xóa sạch stale errors)
+   */
+  async reEvaluateRecord(recordId: string, userEmail: string) {
+    const record = await this.cleanRecordModel.findById(recordId);
+    if (!record) {
+      throw new NotFoundException(`Không tìm thấy hồ sơ với ID: ${recordId}`);
+    }
+
+    const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
+    const now = new Date();
+
+    record.ketLuan = {
+      trangThai: finalStatus as any,
+      danhSachLoi: finalErrors,
+      reconciledAt: now,
+    };
+
+    await this.cleanRecordModel.updateOne(
+      { _id: record._id },
+      {
+        $set: {
+          'ketLuan.trangThai': finalStatus,
+          'ketLuan.danhSachLoi': finalErrors,
+          'ketLuan.reconciledAt': now,
+        },
+      },
+    );
+
+    this.logger.log(
+      `[RE-EVALUATE] ${userEmail} tái thẩm định thành công hồ sơ ${record.maTKGD || record.maTKGDBase}: ${finalStatus} (${finalErrors.length} lỗi/cảnh báo)`,
+    );
+
+    return {
+      success: true,
+      message: `Tái thẩm định thành công: ${finalStatus}`,
+      record,
+    };
   }
 }
 

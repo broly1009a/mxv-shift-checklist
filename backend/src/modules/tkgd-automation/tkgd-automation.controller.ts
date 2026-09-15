@@ -308,6 +308,18 @@ export class TkgdAutomationController {
   }
 
   /**
+   * Tái thẩm định tức thì 1 hồ sơ tài khoản theo dữ liệu sạch mới nhất trong DB
+   */
+  @Post('records/:id/re-evaluate')
+  async reEvaluateRecord(
+    @Req() req: any,
+    @Param('id') id: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.reEvaluateRecord(id, email);
+  }
+
+  /**
    * Bật/Tắt chế độ tự động hóa 24/7 (Quét mỗi 5 phút)
    */
   @Post('auto-pipeline/toggle')

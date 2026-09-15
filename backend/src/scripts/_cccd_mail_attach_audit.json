@@ -1,0 +1,4126 @@
+{
+  "summary": {
+    "lechUnique": 33,
+    "flaggedCases": 33,
+    "flagCounts": {
+      "HAS_GENERIC_OUTLOOK_IMAGE": 6,
+      "NO_NAMED_CCCD_BUT_HAS_IMAGES": 12,
+      "PICK_DIFF_OLD_VS_NEW": 12,
+      "COMPOSITE_CCCD_ONLY": 3,
+      "NO_MAIL_IMAGES": 14,
+      "OLD_BACK_IS_HD": 1,
+      "HD_STOLEN_CCCD_BACK_SLOT": 1,
+      "COMPOSITE_CCCD_PLUS_HD": 1
+    },
+    "hdStolenBackCount": 1,
+    "sampleHdStolen": [
+      {
+        "code": "001C0120575",
+        "batchDate": "2026-09-09",
+        "files": [
+          "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "HĐ Đặng Thị Ngọc Diệp.jpg"
+        ],
+        "oldPick": {
+          "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "back": "HĐ Đặng Thị Ngọc Diệp.jpg"
+        },
+        "newPick": {
+          "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "isComposite": true
+        }
+      }
+    ],
+    "topBugCases": [
+      {
+        "code": "048C7324877",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+        ],
+        "soCccdMail": "001204009025",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/048C7324877",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/048C7324877"
+        ],
+        "files": [
+          "048C7324877_MS_CCCD_sau.jpg",
+          "048C7324877_MS_CCCD_truoc.jpg",
+          "048C7324877_MS_ChuKy.png",
+          "F FireAnt COLOR black horizontal@2x.png",
+          "HĐ MTK - Nguyễn Văn Tiến.pdf",
+          "PLHĐ Nano - NGUYỄN VĂN TIẾN.pdf",
+          "nguyenvantien_1.jpg",
+          "nguyenvantien_2.jpg"
+        ],
+        "mailImages": [
+          "F FireAnt COLOR black horizontal@2x.png",
+          "nguyenvantien_1.jpg",
+          "nguyenvantien_2.jpg"
+        ],
+        "oldPick": {
+          "front": "F FireAnt COLOR black horizontal@2x.png",
+          "back": "nguyenvantien_1.jpg"
+        },
+        "newPick": {
+          "front": "F FireAnt COLOR black horizontal@2x.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "001C0128136",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/001C0128136",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/001C0128136"
+        ],
+        "files": [
+          "001C0128136_MS_CCCD_sau.jpg",
+          "001C0128136_MS_CCCD_truoc.jpg",
+          "001C0128136_MS_ChuKy.png",
+          "CCCD  Mã Thị Hậu.png",
+          "Hợp đồng khách hàng Mã Thị Hậu.jpg"
+        ],
+        "mailImages": [
+          "CCCD  Mã Thị Hậu.png",
+          "Hợp đồng khách hàng Mã Thị Hậu.jpg"
+        ],
+        "oldPick": {
+          "front": "CCCD  Mã Thị Hậu.png",
+          "back": "Hợp đồng khách hàng Mã Thị Hậu.jpg"
+        },
+        "newPick": {
+          "front": "CCCD  Mã Thị Hậu.png",
+          "isComposite": true
+        },
+        "flags": [
+          "COMPOSITE_CCCD_ONLY",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "003C7663035",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C7663035",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C7663035"
+        ],
+        "files": [
+          "003C7663035_MS_CCCD_sau.jpg",
+          "003C7663035_MS_CCCD_truoc.jpg",
+          "003C7663035_MS_ChuKy.png",
+          "hop-dong-003C7663035.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "045C4844668",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày cấp (HĐ/CCCD: 01/06/2024 != MS: 10/06/2024)"
+        ],
+        "soCccdMail": "044085002100",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/045C4844668",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/045C4844668"
+        ],
+        "files": [
+          "045C4844668_MS_CCCD_sau.jpg",
+          "045C4844668_MS_CCCD_truoc.jpg",
+          "045C4844668_MS_ChuKy.png",
+          "Duong Van Trang 668 1.png",
+          "Duong Van Trang 668 2.png",
+          "HD Duong Van Trang 668.pdf",
+          "nano Duong Van Trang 668.pdf"
+        ],
+        "mailImages": [
+          "Duong Van Trang 668 1.png",
+          "Duong Van Trang 668 2.png"
+        ],
+        "oldPick": {
+          "front": "Duong Van Trang 668 1.png",
+          "back": "Duong Van Trang 668 2.png"
+        },
+        "newPick": {
+          "front": "Duong Van Trang 668 1.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "003C3749834",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch giới tính (HĐ: lv{XX != MS: Nam)"
+        ],
+        "soCccdMail": "049097006238",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C3749834",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C3749834"
+        ],
+        "files": [
+          "003C3749834_MS_CCCD_sau.jpg",
+          "003C3749834_MS_CCCD_truoc.jpg",
+          "003C3749834_MS_ChuKy.png",
+          "hop-dong-003C3749834.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C1059483",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Ngày cấp trên HĐ không đọc được rõ (Ô9(02|.20)",
+          "Ảnh CCCD bị mờ/nhòe nét (003C1059483_MS_CCCD_truoc.jpg: blur=30.6): chất lượng kém, nguy cơ đọc sai ký tự"
+        ],
+        "soCccdMail": "049086004994",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1059483",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1059483"
+        ],
+        "files": [
+          "003C1059483_MS_CCCD_sau.jpg",
+          "003C1059483_MS_CCCD_truoc.jpg",
+          "003C1059483_MS_ChuKy.png",
+          "hop-dong-003C1059483.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "086C2657701",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Ảnh CCCD độ phân giải thấp (CCCD NGUYỄN QUANG LUYỆN.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+          "Ảnh CCCD độ phân giải thấp (CCCD NGUYỄN QUANG LUYỆN 1.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+        ],
+        "soCccdMail": "048076000071",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/086C2657701",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/086C2657701"
+        ],
+        "files": [
+          "086C2657701_MS_CCCD_sau.jpg",
+          "086C2657701_MS_CCCD_truoc.jpg",
+          "086C2657701_MS_ChuKy.png",
+          "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+          "CCCD NGUYỄN QUANG LUYỆN.jpg",
+          "HĐ mở TKGD NGUYỄN QUANG LUYỆN.pdf"
+        ],
+        "mailImages": [
+          "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+          "CCCD NGUYỄN QUANG LUYỆN.jpg"
+        ],
+        "oldPick": {
+          "front": "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+          "back": "CCCD NGUYỄN QUANG LUYỆN.jpg"
+        },
+        "newPick": {
+          "front": "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+          "isComposite": true
+        },
+        "flags": [
+          "COMPOSITE_CCCD_ONLY",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "076C9999999",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+        ],
+        "soCccdMail": "079081000072",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/076C9999999",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/076C9999999"
+        ],
+        "files": [
+          "076C9999999_MS_CCCD_sau.jpg",
+          "076C9999999_MS_CCCD_truoc.jpg",
+          "076C9999999_MS_ChuKy.png",
+          "CCCD Lê Hoàng Anh.pdf",
+          "HĐ Lê Hoàng Anh.PDF",
+          "e0b6f9cd.png"
+        ],
+        "mailImages": [
+          "e0b6f9cd.png"
+        ],
+        "oldPick": {
+          "front": "e0b6f9cd.png"
+        },
+        "newPick": {
+          "front": "e0b6f9cd.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES"
+        ]
+      },
+      {
+        "code": "076C6868688",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+        ],
+        "soCccdMail": "038182049531",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/076C6868688",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/076C6868688"
+        ],
+        "files": [
+          "076C6868688_MS_CCCD_sau.jpg",
+          "076C6868688_MS_CCCD_truoc.jpg",
+          "076C6868688_MS_ChuKy.png",
+          "CCCD Nguyễn Thị Thanh.pdf",
+          "HĐ Nguyễn Thị Thanh.PDF",
+          "e0b6f9cd.png"
+        ],
+        "mailImages": [
+          "e0b6f9cd.png"
+        ],
+        "oldPick": {
+          "front": "e0b6f9cd.png"
+        },
+        "newPick": {
+          "front": "e0b6f9cd.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES"
+        ]
+      },
+      {
+        "code": "076C3131313",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+        ],
+        "soCccdMail": "040089030010",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/076C3131313",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/076C3131313"
+        ],
+        "files": [
+          "076C3131313_MS_CCCD_sau.jpg",
+          "076C3131313_MS_CCCD_truoc.jpg",
+          "076C3131313_MS_ChuKy.png",
+          "CCCD Hồ Bá Huỳnh.pdf",
+          "HĐ Hồ Bá Huỳnh.PDF",
+          "e0b6f9cd.png"
+        ],
+        "mailImages": [
+          "e0b6f9cd.png"
+        ],
+        "oldPick": {
+          "front": "e0b6f9cd.png"
+        },
+        "newPick": {
+          "front": "e0b6f9cd.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES"
+        ]
+      },
+      {
+        "code": "003C1286707",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày sinh (HĐ/CCCD: 13/09/1939 != MS: 13/09/1989)"
+        ],
+        "soCccdMail": "079189002009",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1286707",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1286707"
+        ],
+        "files": [
+          "003C1286707_MS_CCCD_sau.jpg",
+          "003C1286707_MS_CCCD_truoc.jpg",
+          "003C1286707_MS_ChuKy.png",
+          "hop-dong-003C1286707.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "048C5952972",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+        ],
+        "soCccdMail": "034078000857",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/048C5952972",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/048C5952972"
+        ],
+        "files": [
+          "048C5952972_MS_CCCD_sau.jpg",
+          "048C5952972_MS_CCCD_truoc.jpg",
+          "048C5952972_MS_ChuKy.png",
+          "F FireAnt COLOR black horizontal@2x.png",
+          "HĐ MTK - Nguyễn Văn Vinh.pdf",
+          "PLHĐ Nano - NGUYỄN VĂN VINH.pdf",
+          "nguyenvanvinh_1.jpg",
+          "nguyenvanvinh_2.jpg"
+        ],
+        "mailImages": [
+          "F FireAnt COLOR black horizontal@2x.png",
+          "nguyenvanvinh_1.jpg",
+          "nguyenvanvinh_2.jpg"
+        ],
+        "oldPick": {
+          "front": "F FireAnt COLOR black horizontal@2x.png",
+          "back": "nguyenvanvinh_1.jpg"
+        },
+        "newPick": {
+          "front": "F FireAnt COLOR black horizontal@2x.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "003C7253652",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C7253652",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C7253652"
+        ],
+        "files": [
+          "003C7253652_MS_CCCD_sau.jpg",
+          "003C7253652_MS_CCCD_truoc.jpg",
+          "003C7253652_MS_ChuKy.png",
+          "hop-dong-003C7253652.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "046C0002905",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày cấp (HĐ/CCCD: 04/10/2022 != MS: 14/10/2022)"
+        ],
+        "soCccdMail": "072176006236",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/046C0002905",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/046C0002905"
+        ],
+        "files": [
+          "046C0002905_MS_CCCD_sau.jpg",
+          "046C0002905_MS_CCCD_truoc.jpg",
+          "046C0002905_MS_ChuKy.png",
+          "CCCD TRẦN THỊ THANH THẢO.pdf",
+          "HĐ + PL01 046C0002905.pdf",
+          "image.png"
+        ],
+        "mailImages": [
+          "image.png"
+        ],
+        "oldPick": {
+          "front": "image.png"
+        },
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "HAS_GENERIC_OUTLOOK_IMAGE",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "003C1601004",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Ảnh CCCD độ phân giải thấp (image001.png: 406x253px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+          "Ảnh CCCD độ phân giải thấp (image002.png: 408x248px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+        ],
+        "soCccdMail": "045204000011",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1601004",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1601004"
+        ],
+        "files": [
+          "003C1601004_MS_CCCD_sau.jpg",
+          "003C1601004_MS_CCCD_truoc.jpg",
+          "003C1601004_MS_ChuKy.png",
+          "Lê Nguyễn Minh Hùng-mxv.pdf",
+          "image001.png",
+          "image002.png"
+        ],
+        "mailImages": [
+          "image001.png",
+          "image002.png"
+        ],
+        "oldPick": {
+          "front": "image001.png",
+          "back": "image002.png"
+        },
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "HAS_GENERIC_OUTLOOK_IMAGE",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "048C8201013",
+        "batchDate": "2026-09-09",
+        "status": "CAN_KIEM_TRA",
+        "errs": [
+          "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc",
+          "Ảnh CCCD độ phân giải thấp (nguyenminhtruong_2.jpg: 464x293px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+        ],
+        "soCccdMail": "025082010652",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/048C8201013",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/048C8201013"
+        ],
+        "files": [
+          "048C8201013_MS_CCCD_sau.jpg",
+          "048C8201013_MS_CCCD_truoc.jpg",
+          "048C8201013_MS_ChuKy.png",
+          "F FireAnt COLOR black horizontal@2x.png",
+          "HĐ MTK - Nguyễn Minh Trường.pdf",
+          "PLHĐ Nano - NGUYỄN MINH TRƯỜNG.pdf",
+          "nguyenminhtruong_1.jpg",
+          "nguyenminhtruong_2.jpg"
+        ],
+        "mailImages": [
+          "F FireAnt COLOR black horizontal@2x.png",
+          "nguyenminhtruong_1.jpg",
+          "nguyenminhtruong_2.jpg"
+        ],
+        "oldPick": {
+          "front": "F FireAnt COLOR black horizontal@2x.png",
+          "back": "nguyenminhtruong_1.jpg"
+        },
+        "newPick": {
+          "front": "F FireAnt COLOR black horizontal@2x.png",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "003C1647904",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày cấp (HĐ/CCCD: 29/10/2044 != MS: 04/07/2025)"
+        ],
+        "soCccdMail": "001084616515",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1647904",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1647904"
+        ],
+        "files": [
+          "003C1647904_MS_CCCD_sau.jpg",
+          "003C1647904_MS_CCCD_truoc.jpg",
+          "003C1647904_MS_ChuKy.png",
+          "hop-dong-003C1647904.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C4865788",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày sinh (HĐ/CCCD: 13/09/1995 != MS: 23/09/1995)"
+        ],
+        "soCccdMail": "001095038735",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C4865788",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C4865788"
+        ],
+        "files": [
+          "003C4865788_MS_CCCD_sau.jpg",
+          "003C4865788_MS_CCCD_truoc.jpg",
+          "003C4865788_MS_ChuKy.png",
+          "Nguyễn Bảo Ngọccc.pdf",
+          "image001.png",
+          "image002.png"
+        ],
+        "mailImages": [
+          "image001.png",
+          "image002.png"
+        ],
+        "oldPick": {
+          "front": "image001.png",
+          "back": "image002.png"
+        },
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "HAS_GENERIC_OUTLOOK_IMAGE",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "003C6487170",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+          "Lệch ngày sinh (HĐ/CCCD: 01/11/1900 != MS: 01/11/1970)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C6487170",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C6487170"
+        ],
+        "files": [
+          "003C6487170_MS_CCCD_sau.jpg",
+          "003C6487170_MS_CCCD_truoc.jpg",
+          "003C6487170_MS_ChuKy.png",
+          "hop-dong-003C6487170.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C1901707",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày sinh (HĐ/CCCD: 10/04/1993 != MS: 10/04/1998)"
+        ],
+        "soCccdMail": "042098012109",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1901707",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1901707"
+        ],
+        "files": [
+          "003C1901707_MS_CCCD_sau.jpg",
+          "003C1901707_MS_CCCD_truoc.jpg",
+          "003C1901707_MS_ChuKy.png",
+          "hop-dong-003C1901707.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C0094629",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày cấp (HĐ/CCCD: 12/07/2032 != MS: 20/04/2021)"
+        ],
+        "soCccdMail": "036207020211",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C0094629",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C0094629"
+        ],
+        "files": [
+          "003C0094629_MS_CCCD_sau.jpg",
+          "003C0094629_MS_CCCD_truoc.jpg",
+          "003C0094629_MS_ChuKy.png",
+          "hop-dong-003C0094629.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C1684184",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày sinh (HĐ/CCCD: 22/04/2021 != MS: 27/01/2005)"
+        ],
+        "soCccdMail": "091204004348",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1684184",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1684184"
+        ],
+        "files": [
+          "003C1684184_MS_CCCD_sau.jpg",
+          "003C1684184_MS_CCCD_truoc.jpg",
+          "003C1684184_MS_ChuKy.png",
+          "hop-dong-003C1684184.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C1669379",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày cấp (HĐ/CCCD: 22/09/2032 != MS: 13/07/2022)"
+        ],
+        "soCccdMail": "070202008002",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1669379",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1669379"
+        ],
+        "files": [
+          "003C1669379_MS_CCCD_sau.jpg",
+          "003C1669379_MS_CCCD_truoc.jpg",
+          "003C1669379_MS_ChuKy.png",
+          "hop-dong-003C1669379.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C1402455",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch ngày cấp (HĐ/CCCD: 05/06/2027 != MS: 13/07/2022)"
+        ],
+        "soCccdMail": "079202021995",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1402455",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1402455"
+        ],
+        "files": [
+          "003C1402455_MS_CCCD_sau.jpg",
+          "003C1402455_MS_CCCD_truoc.jpg",
+          "003C1402455_MS_ChuKy.png",
+          "hop-dong-003C1402455.pdf"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "085C3564935",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Lệch họ tên (Yêu cầu: TRAN KIMKHOANG != MS: TRẦN KIM HOÀNG)"
+        ],
+        "soCccdMail": "026089001901",
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/085C3564935",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/085C3564935"
+        ],
+        "files": [
+          "085C3564935_MS_CCCD_sau.jpg",
+          "085C3564935_MS_CCCD_truoc.jpg",
+          "085C3564935_MS_ChuKy.png",
+          "HĐMTK 2026.PQT Trần Kim Hoàng pdf.pdf",
+          "TKH.jpg",
+          "TKH1.jpg"
+        ],
+        "mailImages": [
+          "TKH.jpg",
+          "TKH1.jpg"
+        ],
+        "oldPick": {
+          "front": "TKH.jpg",
+          "back": "TKH1.jpg"
+        },
+        "newPick": {
+          "front": "TKH.jpg",
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "046C0002887",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/046C0002887",
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/046C0002887",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/046C0002887"
+        ],
+        "files": [
+          "046C0002887 - Phụ lục điều chỉnh thông tin hợp đồng.pdf",
+          "046C0002887_MS_CCCD_sau.jpg",
+          "046C0002887_MS_CCCD_truoc.jpg",
+          "046C0002887_MS_ChuKy.png"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "003C0879444",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C0879444",
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/003C0879444",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C0879444"
+        ],
+        "files": [
+          "hop-dong-003C0879444.pdf",
+          "003C0879444_MS_CCCD_sau.jpg",
+          "003C0879444_MS_CCCD_truoc.jpg",
+          "003C0879444_MS_ChuKy.png"
+        ],
+        "mailImages": [],
+        "oldPick": {},
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_MAIL_IMAGES"
+        ]
+      },
+      {
+        "code": "001C0120575",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/001C0120575",
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/001C0120575",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/001C0120575"
+        ],
+        "files": [
+          "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "HĐ Đặng Thị Ngọc Diệp.jpg",
+          "001C0120575_MS_CCCD_sau.jpg",
+          "001C0120575_MS_CCCD_truoc.jpg",
+          "001C0120575_MS_ChuKy.png"
+        ],
+        "mailImages": [
+          "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "HĐ Đặng Thị Ngọc Diệp.jpg"
+        ],
+        "oldPick": {
+          "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "back": "HĐ Đặng Thị Ngọc Diệp.jpg"
+        },
+        "newPick": {
+          "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+          "isComposite": true
+        },
+        "flags": [
+          "OLD_BACK_IS_HD",
+          "HD_STOLEN_CCCD_BACK_SLOT",
+          "COMPOSITE_CCCD_PLUS_HD",
+          "COMPOSITE_CCCD_ONLY",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      },
+      {
+        "code": "046C0002904",
+        "batchDate": "2026-09-09",
+        "status": "LECH",
+        "errs": [
+          "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+        ],
+        "soCccdMail": null,
+        "dirs": [
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/046C0002904",
+          "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/046C0002904",
+          "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/046C0002904"
+        ],
+        "files": [
+          "CCCD LÊ NGỌC HẢI.pdf",
+          "HĐ+PL01 - 046C0002904.pdf",
+          "image.png",
+          "046C0002904_MS_CCCD_sau.jpg",
+          "046C0002904_MS_CCCD_truoc.jpg",
+          "046C0002904_MS_ChuKy.png"
+        ],
+        "mailImages": [
+          "image.png"
+        ],
+        "oldPick": {
+          "front": "image.png"
+        },
+        "newPick": {
+          "isComposite": false
+        },
+        "flags": [
+          "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+          "HAS_GENERIC_OUTLOOK_IMAGE",
+          "PICK_DIFF_OLD_VS_NEW"
+        ]
+      }
+    ],
+    "rawMailWithSuspiciousAtts": 50
+  },
+  "cases": [
+    {
+      "code": "003C9462626",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)"
+      ],
+      "soCccdMail": "087067013304",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C9462626",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-04/003C9462626",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-07/003C9462626",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-08/003C9462626",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C9462626"
+      ],
+      "files": [
+        "003C9462626_MS_CCCD_sau.jpg",
+        "003C9462626_MS_CCCD_truoc.jpg",
+        "003C9462626_MS_ChuKy.png",
+        "LAM-THANH-DANH-CCCD-sau.jpg",
+        "LAM-THANH-DANH-CCCD-truoc.jpg",
+        "LAM-THANH-DANH-mxv.pdf",
+        "image.png"
+      ],
+      "mailImages": [
+        "LAM-THANH-DANH-CCCD-sau.jpg",
+        "LAM-THANH-DANH-CCCD-truoc.jpg",
+        "image.png"
+      ],
+      "oldPick": {
+        "front": "LAM-THANH-DANH-CCCD-truoc.jpg",
+        "back": "LAM-THANH-DANH-CCCD-sau.jpg"
+      },
+      "newPick": {
+        "front": "LAM-THANH-DANH-CCCD-truoc.jpg",
+        "back": "LAM-THANH-DANH-CCCD-sau.jpg",
+        "isComposite": false
+      },
+      "flags": [
+        "HAS_GENERIC_OUTLOOK_IMAGE"
+      ]
+    },
+    {
+      "code": "048C7324877",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+      ],
+      "soCccdMail": "001204009025",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/048C7324877",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/048C7324877"
+      ],
+      "files": [
+        "048C7324877_MS_CCCD_sau.jpg",
+        "048C7324877_MS_CCCD_truoc.jpg",
+        "048C7324877_MS_ChuKy.png",
+        "F FireAnt COLOR black horizontal@2x.png",
+        "HĐ MTK - Nguyễn Văn Tiến.pdf",
+        "PLHĐ Nano - NGUYỄN VĂN TIẾN.pdf",
+        "nguyenvantien_1.jpg",
+        "nguyenvantien_2.jpg"
+      ],
+      "mailImages": [
+        "F FireAnt COLOR black horizontal@2x.png",
+        "nguyenvantien_1.jpg",
+        "nguyenvantien_2.jpg"
+      ],
+      "oldPick": {
+        "front": "F FireAnt COLOR black horizontal@2x.png",
+        "back": "nguyenvantien_1.jpg"
+      },
+      "newPick": {
+        "front": "F FireAnt COLOR black horizontal@2x.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "001C0128136",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/001C0128136",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/001C0128136"
+      ],
+      "files": [
+        "001C0128136_MS_CCCD_sau.jpg",
+        "001C0128136_MS_CCCD_truoc.jpg",
+        "001C0128136_MS_ChuKy.png",
+        "CCCD  Mã Thị Hậu.png",
+        "Hợp đồng khách hàng Mã Thị Hậu.jpg"
+      ],
+      "mailImages": [
+        "CCCD  Mã Thị Hậu.png",
+        "Hợp đồng khách hàng Mã Thị Hậu.jpg"
+      ],
+      "oldPick": {
+        "front": "CCCD  Mã Thị Hậu.png",
+        "back": "Hợp đồng khách hàng Mã Thị Hậu.jpg"
+      },
+      "newPick": {
+        "front": "CCCD  Mã Thị Hậu.png",
+        "isComposite": true
+      },
+      "flags": [
+        "COMPOSITE_CCCD_ONLY",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "036C8172636",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (MT.png: 460x305px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (MS.png: 452x299px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "036099000916",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/036C8172636",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/036C8172636"
+      ],
+      "files": [
+        "036C8172636_MS_CCCD_sau.jpg",
+        "036C8172636_MS_CCCD_truoc.jpg",
+        "036C8172636_MS_ChuKy.png",
+        "036C8172636_Pham Gia Khiem.pdf",
+        "MS.png",
+        "MT.png",
+        "image1.png"
+      ],
+      "mailImages": [
+        "MS.png",
+        "MT.png",
+        "image1.png"
+      ],
+      "oldPick": {
+        "front": "MT.png",
+        "back": "MS.png"
+      },
+      "newPick": {
+        "front": "MT.png",
+        "back": "MS.png",
+        "isComposite": false
+      },
+      "flags": [
+        "HAS_GENERIC_OUTLOOK_IMAGE"
+      ]
+    },
+    {
+      "code": "003C7663035",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C7663035",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C7663035"
+      ],
+      "files": [
+        "003C7663035_MS_CCCD_sau.jpg",
+        "003C7663035_MS_CCCD_truoc.jpg",
+        "003C7663035_MS_ChuKy.png",
+        "hop-dong-003C7663035.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "045C4844668",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 01/06/2024 != MS: 10/06/2024)"
+      ],
+      "soCccdMail": "044085002100",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/045C4844668",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/045C4844668"
+      ],
+      "files": [
+        "045C4844668_MS_CCCD_sau.jpg",
+        "045C4844668_MS_CCCD_truoc.jpg",
+        "045C4844668_MS_ChuKy.png",
+        "Duong Van Trang 668 1.png",
+        "Duong Van Trang 668 2.png",
+        "HD Duong Van Trang 668.pdf",
+        "nano Duong Van Trang 668.pdf"
+      ],
+      "mailImages": [
+        "Duong Van Trang 668 1.png",
+        "Duong Van Trang 668 2.png"
+      ],
+      "oldPick": {
+        "front": "Duong Van Trang 668 1.png",
+        "back": "Duong Van Trang 668 2.png"
+      },
+      "newPick": {
+        "front": "Duong Van Trang 668 1.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "003C3749834",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch giới tính (HĐ: lv{XX != MS: Nam)"
+      ],
+      "soCccdMail": "049097006238",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C3749834",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C3749834"
+      ],
+      "files": [
+        "003C3749834_MS_CCCD_sau.jpg",
+        "003C3749834_MS_CCCD_truoc.jpg",
+        "003C3749834_MS_ChuKy.png",
+        "hop-dong-003C3749834.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C1059483",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày cấp trên HĐ không đọc được rõ (Ô9(02|.20)",
+        "Ảnh CCCD bị mờ/nhòe nét (003C1059483_MS_CCCD_truoc.jpg: blur=30.6): chất lượng kém, nguy cơ đọc sai ký tự"
+      ],
+      "soCccdMail": "049086004994",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1059483",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1059483"
+      ],
+      "files": [
+        "003C1059483_MS_CCCD_sau.jpg",
+        "003C1059483_MS_CCCD_truoc.jpg",
+        "003C1059483_MS_ChuKy.png",
+        "hop-dong-003C1059483.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "086C2657701",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (CCCD NGUYỄN QUANG LUYỆN.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (CCCD NGUYỄN QUANG LUYỆN 1.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "048076000071",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/086C2657701",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/086C2657701"
+      ],
+      "files": [
+        "086C2657701_MS_CCCD_sau.jpg",
+        "086C2657701_MS_CCCD_truoc.jpg",
+        "086C2657701_MS_ChuKy.png",
+        "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+        "CCCD NGUYỄN QUANG LUYỆN.jpg",
+        "HĐ mở TKGD NGUYỄN QUANG LUYỆN.pdf"
+      ],
+      "mailImages": [
+        "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+        "CCCD NGUYỄN QUANG LUYỆN.jpg"
+      ],
+      "oldPick": {
+        "front": "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+        "back": "CCCD NGUYỄN QUANG LUYỆN.jpg"
+      },
+      "newPick": {
+        "front": "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+        "isComposite": true
+      },
+      "flags": [
+        "COMPOSITE_CCCD_ONLY",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "076C9999999",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "079081000072",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/076C9999999",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/076C9999999"
+      ],
+      "files": [
+        "076C9999999_MS_CCCD_sau.jpg",
+        "076C9999999_MS_CCCD_truoc.jpg",
+        "076C9999999_MS_ChuKy.png",
+        "CCCD Lê Hoàng Anh.pdf",
+        "HĐ Lê Hoàng Anh.PDF",
+        "e0b6f9cd.png"
+      ],
+      "mailImages": [
+        "e0b6f9cd.png"
+      ],
+      "oldPick": {
+        "front": "e0b6f9cd.png"
+      },
+      "newPick": {
+        "front": "e0b6f9cd.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES"
+      ]
+    },
+    {
+      "code": "076C6868688",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "038182049531",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/076C6868688",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/076C6868688"
+      ],
+      "files": [
+        "076C6868688_MS_CCCD_sau.jpg",
+        "076C6868688_MS_CCCD_truoc.jpg",
+        "076C6868688_MS_ChuKy.png",
+        "CCCD Nguyễn Thị Thanh.pdf",
+        "HĐ Nguyễn Thị Thanh.PDF",
+        "e0b6f9cd.png"
+      ],
+      "mailImages": [
+        "e0b6f9cd.png"
+      ],
+      "oldPick": {
+        "front": "e0b6f9cd.png"
+      },
+      "newPick": {
+        "front": "e0b6f9cd.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES"
+      ]
+    },
+    {
+      "code": "076C3131313",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "040089030010",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/076C3131313",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/076C3131313"
+      ],
+      "files": [
+        "076C3131313_MS_CCCD_sau.jpg",
+        "076C3131313_MS_CCCD_truoc.jpg",
+        "076C3131313_MS_ChuKy.png",
+        "CCCD Hồ Bá Huỳnh.pdf",
+        "HĐ Hồ Bá Huỳnh.PDF",
+        "e0b6f9cd.png"
+      ],
+      "mailImages": [
+        "e0b6f9cd.png"
+      ],
+      "oldPick": {
+        "front": "e0b6f9cd.png"
+      },
+      "newPick": {
+        "front": "e0b6f9cd.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES"
+      ]
+    },
+    {
+      "code": "003C1286707",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 13/09/1939 != MS: 13/09/1989)"
+      ],
+      "soCccdMail": "079189002009",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1286707",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1286707"
+      ],
+      "files": [
+        "003C1286707_MS_CCCD_sau.jpg",
+        "003C1286707_MS_CCCD_truoc.jpg",
+        "003C1286707_MS_ChuKy.png",
+        "hop-dong-003C1286707.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "048C5952972",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+      ],
+      "soCccdMail": "034078000857",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/048C5952972",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/048C5952972"
+      ],
+      "files": [
+        "048C5952972_MS_CCCD_sau.jpg",
+        "048C5952972_MS_CCCD_truoc.jpg",
+        "048C5952972_MS_ChuKy.png",
+        "F FireAnt COLOR black horizontal@2x.png",
+        "HĐ MTK - Nguyễn Văn Vinh.pdf",
+        "PLHĐ Nano - NGUYỄN VĂN VINH.pdf",
+        "nguyenvanvinh_1.jpg",
+        "nguyenvanvinh_2.jpg"
+      ],
+      "mailImages": [
+        "F FireAnt COLOR black horizontal@2x.png",
+        "nguyenvanvinh_1.jpg",
+        "nguyenvanvinh_2.jpg"
+      ],
+      "oldPick": {
+        "front": "F FireAnt COLOR black horizontal@2x.png",
+        "back": "nguyenvanvinh_1.jpg"
+      },
+      "newPick": {
+        "front": "F FireAnt COLOR black horizontal@2x.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "003C7253652",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C7253652",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C7253652"
+      ],
+      "files": [
+        "003C7253652_MS_CCCD_sau.jpg",
+        "003C7253652_MS_CCCD_truoc.jpg",
+        "003C7253652_MS_ChuKy.png",
+        "hop-dong-003C7253652.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "046C0002905",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 04/10/2022 != MS: 14/10/2022)"
+      ],
+      "soCccdMail": "072176006236",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/046C0002905",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/046C0002905"
+      ],
+      "files": [
+        "046C0002905_MS_CCCD_sau.jpg",
+        "046C0002905_MS_CCCD_truoc.jpg",
+        "046C0002905_MS_ChuKy.png",
+        "CCCD TRẦN THỊ THANH THẢO.pdf",
+        "HĐ + PL01 046C0002905.pdf",
+        "image.png"
+      ],
+      "mailImages": [
+        "image.png"
+      ],
+      "oldPick": {
+        "front": "image.png"
+      },
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "HAS_GENERIC_OUTLOOK_IMAGE",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "003C1601004",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (image001.png: 406x253px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (image002.png: 408x248px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "045204000011",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1601004",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1601004"
+      ],
+      "files": [
+        "003C1601004_MS_CCCD_sau.jpg",
+        "003C1601004_MS_CCCD_truoc.jpg",
+        "003C1601004_MS_ChuKy.png",
+        "Lê Nguyễn Minh Hùng-mxv.pdf",
+        "image001.png",
+        "image002.png"
+      ],
+      "mailImages": [
+        "image001.png",
+        "image002.png"
+      ],
+      "oldPick": {
+        "front": "image001.png",
+        "back": "image002.png"
+      },
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "HAS_GENERIC_OUTLOOK_IMAGE",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "048C8201013",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc",
+        "Ảnh CCCD độ phân giải thấp (nguyenminhtruong_2.jpg: 464x293px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "025082010652",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/048C8201013",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/048C8201013"
+      ],
+      "files": [
+        "048C8201013_MS_CCCD_sau.jpg",
+        "048C8201013_MS_CCCD_truoc.jpg",
+        "048C8201013_MS_ChuKy.png",
+        "F FireAnt COLOR black horizontal@2x.png",
+        "HĐ MTK - Nguyễn Minh Trường.pdf",
+        "PLHĐ Nano - NGUYỄN MINH TRƯỜNG.pdf",
+        "nguyenminhtruong_1.jpg",
+        "nguyenminhtruong_2.jpg"
+      ],
+      "mailImages": [
+        "F FireAnt COLOR black horizontal@2x.png",
+        "nguyenminhtruong_1.jpg",
+        "nguyenminhtruong_2.jpg"
+      ],
+      "oldPick": {
+        "front": "F FireAnt COLOR black horizontal@2x.png",
+        "back": "nguyenminhtruong_1.jpg"
+      },
+      "newPick": {
+        "front": "F FireAnt COLOR black horizontal@2x.png",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "003C1647904",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 29/10/2044 != MS: 04/07/2025)"
+      ],
+      "soCccdMail": "001084616515",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1647904",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1647904"
+      ],
+      "files": [
+        "003C1647904_MS_CCCD_sau.jpg",
+        "003C1647904_MS_CCCD_truoc.jpg",
+        "003C1647904_MS_ChuKy.png",
+        "hop-dong-003C1647904.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C4865788",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 13/09/1995 != MS: 23/09/1995)"
+      ],
+      "soCccdMail": "001095038735",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C4865788",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C4865788"
+      ],
+      "files": [
+        "003C4865788_MS_CCCD_sau.jpg",
+        "003C4865788_MS_CCCD_truoc.jpg",
+        "003C4865788_MS_ChuKy.png",
+        "Nguyễn Bảo Ngọccc.pdf",
+        "image001.png",
+        "image002.png"
+      ],
+      "mailImages": [
+        "image001.png",
+        "image002.png"
+      ],
+      "oldPick": {
+        "front": "image001.png",
+        "back": "image002.png"
+      },
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "HAS_GENERIC_OUTLOOK_IMAGE",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "003C6487170",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày sinh (HĐ/CCCD: 01/11/1900 != MS: 01/11/1970)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C6487170",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C6487170"
+      ],
+      "files": [
+        "003C6487170_MS_CCCD_sau.jpg",
+        "003C6487170_MS_CCCD_truoc.jpg",
+        "003C6487170_MS_ChuKy.png",
+        "hop-dong-003C6487170.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "041C0161098",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch họ tên (Yêu cầu: CHU MINH THUANK != MS: Chu Minh Thuận)"
+      ],
+      "soCccdMail": "001098006510",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/041C0161098",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/041C0161098"
+      ],
+      "files": [
+        "041C0161098_MS_CCCD_sau.jpg",
+        "041C0161098_MS_CCCD_truoc.jpg",
+        "041C0161098_MS_ChuKy.png",
+        "cccd ms Chu Minh Thuận.png",
+        "cccd mt Chu Minh Thuận.png"
+      ],
+      "mailImages": [
+        "cccd ms Chu Minh Thuận.png",
+        "cccd mt Chu Minh Thuận.png"
+      ],
+      "oldPick": {
+        "front": "cccd mt Chu Minh Thuận.png",
+        "back": "cccd ms Chu Minh Thuận.png"
+      },
+      "newPick": {
+        "front": "cccd mt Chu Minh Thuận.png",
+        "back": "cccd ms Chu Minh Thuận.png",
+        "isComposite": false
+      },
+      "flags": []
+    },
+    {
+      "code": "003C1901707",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 10/04/1993 != MS: 10/04/1998)"
+      ],
+      "soCccdMail": "042098012109",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1901707",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1901707"
+      ],
+      "files": [
+        "003C1901707_MS_CCCD_sau.jpg",
+        "003C1901707_MS_CCCD_truoc.jpg",
+        "003C1901707_MS_ChuKy.png",
+        "hop-dong-003C1901707.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C0094629",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 12/07/2032 != MS: 20/04/2021)"
+      ],
+      "soCccdMail": "036207020211",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C0094629",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C0094629"
+      ],
+      "files": [
+        "003C0094629_MS_CCCD_sau.jpg",
+        "003C0094629_MS_CCCD_truoc.jpg",
+        "003C0094629_MS_ChuKy.png",
+        "hop-dong-003C0094629.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C1684184",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 22/04/2021 != MS: 27/01/2005)"
+      ],
+      "soCccdMail": "091204004348",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1684184",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1684184"
+      ],
+      "files": [
+        "003C1684184_MS_CCCD_sau.jpg",
+        "003C1684184_MS_CCCD_truoc.jpg",
+        "003C1684184_MS_ChuKy.png",
+        "hop-dong-003C1684184.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C1669379",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 22/09/2032 != MS: 13/07/2022)"
+      ],
+      "soCccdMail": "070202008002",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1669379",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1669379"
+      ],
+      "files": [
+        "003C1669379_MS_CCCD_sau.jpg",
+        "003C1669379_MS_CCCD_truoc.jpg",
+        "003C1669379_MS_ChuKy.png",
+        "hop-dong-003C1669379.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C1402455",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 05/06/2027 != MS: 13/07/2022)"
+      ],
+      "soCccdMail": "079202021995",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C1402455",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C1402455"
+      ],
+      "files": [
+        "003C1402455_MS_CCCD_sau.jpg",
+        "003C1402455_MS_CCCD_truoc.jpg",
+        "003C1402455_MS_ChuKy.png",
+        "hop-dong-003C1402455.pdf"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "085C3564935",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Lệch họ tên (Yêu cầu: TRAN KIMKHOANG != MS: TRẦN KIM HOÀNG)"
+      ],
+      "soCccdMail": "026089001901",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/085C3564935",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/085C3564935"
+      ],
+      "files": [
+        "085C3564935_MS_CCCD_sau.jpg",
+        "085C3564935_MS_CCCD_truoc.jpg",
+        "085C3564935_MS_ChuKy.png",
+        "HĐMTK 2026.PQT Trần Kim Hoàng pdf.pdf",
+        "TKH.jpg",
+        "TKH1.jpg"
+      ],
+      "mailImages": [
+        "TKH.jpg",
+        "TKH1.jpg"
+      ],
+      "oldPick": {
+        "front": "TKH.jpg",
+        "back": "TKH1.jpg"
+      },
+      "newPick": {
+        "front": "TKH.jpg",
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "003C9544239",
+      "batchDate": "2026-09-09",
+      "status": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (VU-NGOC-SON-CCCD-truoc.jpg: 542x318px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (VU-NGOC-SON-CCCD-sau.jpg: 587x345px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "soCccdMail": "035066006976",
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C9544239",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/003C9544239",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C9544239"
+      ],
+      "files": [
+        "VU-NGOC-SON-CCCD-sau.jpg",
+        "VU-NGOC-SON-CCCD-truoc.jpg",
+        "VU-NGOC-SON-mxv.pdf",
+        "003C9544239_MS_CCCD_sau.jpg",
+        "003C9544239_MS_CCCD_truoc.jpg",
+        "003C9544239_MS_ChuKy.png"
+      ],
+      "mailImages": [
+        "VU-NGOC-SON-CCCD-sau.jpg",
+        "VU-NGOC-SON-CCCD-truoc.jpg"
+      ],
+      "oldPick": {
+        "front": "VU-NGOC-SON-CCCD-truoc.jpg",
+        "back": "VU-NGOC-SON-CCCD-sau.jpg"
+      },
+      "newPick": {
+        "front": "VU-NGOC-SON-CCCD-truoc.jpg",
+        "back": "VU-NGOC-SON-CCCD-sau.jpg",
+        "isComposite": false
+      },
+      "flags": []
+    },
+    {
+      "code": "046C0002887",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/046C0002887",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/046C0002887",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/046C0002887"
+      ],
+      "files": [
+        "046C0002887 - Phụ lục điều chỉnh thông tin hợp đồng.pdf",
+        "046C0002887_MS_CCCD_sau.jpg",
+        "046C0002887_MS_CCCD_truoc.jpg",
+        "046C0002887_MS_ChuKy.png"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "003C0879444",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/003C0879444",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/003C0879444",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/003C0879444"
+      ],
+      "files": [
+        "hop-dong-003C0879444.pdf",
+        "003C0879444_MS_CCCD_sau.jpg",
+        "003C0879444_MS_CCCD_truoc.jpg",
+        "003C0879444_MS_ChuKy.png"
+      ],
+      "mailImages": [],
+      "oldPick": {},
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_MAIL_IMAGES"
+      ]
+    },
+    {
+      "code": "001C0120575",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/001C0120575",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/001C0120575",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/001C0120575"
+      ],
+      "files": [
+        "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "HĐ Đặng Thị Ngọc Diệp.jpg",
+        "001C0120575_MS_CCCD_sau.jpg",
+        "001C0120575_MS_CCCD_truoc.jpg",
+        "001C0120575_MS_ChuKy.png"
+      ],
+      "mailImages": [
+        "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "HĐ Đặng Thị Ngọc Diệp.jpg"
+      ],
+      "oldPick": {
+        "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "back": "HĐ Đặng Thị Ngọc Diệp.jpg"
+      },
+      "newPick": {
+        "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "isComposite": true
+      },
+      "flags": [
+        "OLD_BACK_IS_HD",
+        "HD_STOLEN_CCCD_BACK_SLOT",
+        "COMPOSITE_CCCD_PLUS_HD",
+        "COMPOSITE_CCCD_ONLY",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    },
+    {
+      "code": "046C0002904",
+      "batchDate": "2026-09-09",
+      "status": "LECH",
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "soCccdMail": null,
+      "dirs": [
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-09/046C0002904",
+        "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-10/046C0002904",
+        "/opt/mxv-checklist/backend/data/temp_tkgd_attachments/046C0002904"
+      ],
+      "files": [
+        "CCCD LÊ NGỌC HẢI.pdf",
+        "HĐ+PL01 - 046C0002904.pdf",
+        "image.png",
+        "046C0002904_MS_CCCD_sau.jpg",
+        "046C0002904_MS_CCCD_truoc.jpg",
+        "046C0002904_MS_ChuKy.png"
+      ],
+      "mailImages": [
+        "image.png"
+      ],
+      "oldPick": {
+        "front": "image.png"
+      },
+      "newPick": {
+        "isComposite": false
+      },
+      "flags": [
+        "NO_NAMED_CCCD_BUT_HAS_IMAGES",
+        "HAS_GENERIC_OUTLOOK_IMAGE",
+        "PICK_DIFF_OLD_VS_NEW"
+      ]
+    }
+  ],
+  "broadHits": [
+    {
+      "code": "001C0120575",
+      "batchDate": "2026-09-09",
+      "files": [
+        "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "HĐ Đặng Thị Ngọc Diệp.jpg"
+      ],
+      "oldPick": {
+        "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "back": "HĐ Đặng Thị Ngọc Diệp.jpg"
+      },
+      "newPick": {
+        "front": "CCCD Đặng Thị Ngọc Diệp.jpg",
+        "isComposite": true
+      }
+    }
+  ],
+  "rawAttSample": [
+    {
+      "subject": "Hồ sơ mở TKGD 086C2600104 và Tiểu khoản TKGD 086C2600104-A",
+      "atts": [
+        {
+          "name": "CCCD TRẦN HOÀNG HUY.jpg",
+          "size": 365811,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "CCCD TRẦN HOÀNG HUY 1.jpg",
+          "size": 388394,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐ mở TKGD TRẦN HOÀNG HUY.pdf",
+          "size": 1166299,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C7015408_CCCD_ghep.jpg",
+          "size": 215391,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C7015408_Nguyễn Khánh Linh.pdf",
+          "size": 2566517,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "image1.png",
+          "size": 35043,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "036C8253769_Nguyen Thi Tuyen.pdf",
+          "size": 1070394,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "ms.png",
+          "size": 27469,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "mt.png",
+          "size": 33733,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "036C0141369_Vo Thi Minh Huyen.pdf",
+          "size": 1071786,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "tải xuống (1).png",
+          "size": 28585,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "tải xuống.png",
+          "size": 22879,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "036C8888871_Hoang Thi Lan.pdf",
+          "size": 1063980,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "tải xuống (2).png",
+          "size": 28904,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "tải xuống.png",
+          "size": 33700,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - VÕ ĐĂNG DUY",
+      "atts": [
+        {
+          "name": "hop-dong-003C1059483.pdf",
+          "size": 1624417,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở Tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "HĐMTK 2026.PQT Trịnh Xuân Đại pdf.pdf",
+          "size": 1173052,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "CCCD Hà Văn Cường.zip",
+          "size": 100138,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐMTK 2026.PQT Hà Văn Cường pdf.pdf",
+          "size": 1174992,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "CCCD Trịnh Xuân Đại.zip",
+          "size": 96409,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - PHẠM TIẾN HUY",
+      "atts": [
+        {
+          "name": "hop-dong-003C8780568.pdf",
+          "size": 1929509,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C6015060_CCCD_ghep.jpg",
+          "size": 225574,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C6015060_Phạm Hương Giang.pdf",
+          "size": 2566290,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "LE-XUAN-CHINH-PL01.pdf",
+          "size": 256914,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LE-XUAN-CHINH-CCCD-truoc.jpg",
+          "size": 92427,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LE-XUAN-CHINH-CCCD-sau.jpg",
+          "size": 88494,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C9269693_CCCD_ghep.jpg",
+          "size": 235238,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C9269693_Nguyễn Vũ Quang Anh.pdf",
+          "size": 2566533,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-ANH-KHOA-CCCD-sau.jpg",
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-ANH-KHOA-CCCD-truoc.jpg",
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-ANH-KHOA-mxv.pdf",
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - NGÔ QUỐC TRUNG",
+      "atts": [
+        {
+          "name": "hop-dong-003C3748802.pdf",
+          "size": 1114806,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - Đàm Như Hoài Nam",
+      "atts": [
+        {
+          "name": "hop-dong-003C6844720.pdf",
+          "size": 1638671,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C7291845_CCCD_ghep.jpg",
+          "size": 218837,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C7291845_Nguyễn Đức Nhật Minh.pdf",
+          "size": 2566569,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - NGUYỄN THỊ BÍCH NGỌC",
+      "atts": [
+        {
+          "name": "hop-dong-003C1911999.pdf",
+          "size": 1489741,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "LIN-THI-NHU-YEN-mxv.pdf",
+          "size": 406108,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LIN-THI-NHU-YEN-CCCD-truoc.jpg",
+          "size": 87241,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LIN-THI-NHU-YEN-CCCD-sau.jpg",
+          "size": 91458,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C9311157_CCCD_ghep.jpg",
+          "size": 231912,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C9311157_Bùi Hoàng Minh An.pdf",
+          "size": 2566279,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-DUC-CHINH-mxv.pdf",
+          "size": 406535,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-DUC-CHINH-CCCD-truoc.jpg",
+          "size": 86197,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-DUC-CHINH-CCCD-sau.jpg",
+          "size": 91650,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C2549554_CCCD_ghep.jpg",
+          "size": 232539,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C2549554_Lê Thị Thu Trang.pdf",
+          "size": 2566138,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "DANG-QUI-SI-PHU-mxv.pdf",
+          "size": 525422,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "DANG-QUI-SI-PHU-CCCD-truoc.jpg",
+          "size": 84593,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "DANG-QUI-SI-PHU-CCCD-sau.jpg",
+          "size": 91835,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "image1.png",
+          "size": 35043,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "tải xuống (2).jfif",
+          "size": 32738,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "tải xuống.jfif",
+          "size": 38169,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "036C6651927_Khuat Van Thanh.pdf",
+          "size": 1065843,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ TIỂU KHOẢN ACM",
+      "atts": [
+        {
+          "name": "009C2268268 - MT.jpg",
+          "size": 73421,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "009C2268268 - MS.jpg",
+          "size": 74555,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "009C2268268.pdf",
+          "size": 656736,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - TÔ ANH VŨ",
+      "atts": [
+        {
+          "name": "hop-dong-003C6480357.pdf",
+          "size": 1528306,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "DO-THI-DUYEN-mxv.pdf",
+          "size": 597659,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "DO-THI-DUYEN-PL01.pdf",
+          "size": 259919,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "DO-THI-DUYEN-CCCD-truoc.jpg",
+          "size": 85900,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "DO-THI-DUYEN-CCCD-sau.jpg",
+          "size": 80369,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - PHÙNG XUÂN TRƯỜNG",
+      "atts": [
+        {
+          "name": "hop-dong-003C7663035.pdf",
+          "size": 1856908,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-THI-LINH-mxv.pdf",
+          "size": 595415,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-LINH-CCCD-truoc.jpg",
+          "size": 91284,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-LINH-CCCD-sau.jpg",
+          "size": 90432,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "image001.png",
+          "size": 2571228,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "image002.png",
+          "size": 2066141,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "Nguyễn Tiến Hải-mxv.pdf",
+          "size": 263850,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ TIỂU KHOẢN ACM",
+      "atts": [
+        {
+          "name": "CCD NGUYỄN NGỌC ĐOAN TRANG.png",
+          "size": 959178,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐ 012C0110799 NGUYỄN NGỌC ĐOAN TRANG.pdf",
+          "size": 987520,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Trả lời: YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "CC PHẠM HƯƠNG GIANG.png",
+          "size": 798104,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - VÕ ANH KIỆT",
+      "atts": [
+        {
+          "name": "hop-dong-003C3749834.pdf",
+          "size": 1526224,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "MAI-DUC-DUONG-mxv.pdf",
+          "size": 472188,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "MAI-DUC-DUONG-CCCD-truoc.jpg",
+          "size": 91558,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "MAI-DUC-DUONG-CCCD-sau.jpg",
+          "size": 91934,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "yêu cầu mở TKGD và mở Tiểu khoản TKGD nano",
+      "atts": [
+        {
+          "name": "Hoàng Thu Phương 2.png",
+          "size": 39217,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "Hoàng Thu Phương 1.png",
+          "size": 37872,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "Hoàng thu Phương 072C8846296.pdf",
+          "size": 1100544,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C0838621_CCCD_ghep.jpg",
+          "size": 220919,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C0838621_Trần Minh Anh.pdf",
+          "size": 2566135,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - NGUYỄN THANH HƯNG",
+      "atts": [
+        {
+          "name": "hop-dong-003C1821988.pdf",
+          "size": 1367378,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "LE-TRONG-HUY-PL01.pdf",
+          "size": 256281,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LE-TRONG-HUY-CCCD-truoc.jpg",
+          "size": 88807,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LE-TRONG-HUY-CCCD-sau.jpg",
+          "size": 92199,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Hồ sơ mở TKGD 086C2657701 và Tiểu khoản TKGD 086C2657701-A",
+      "atts": [
+        {
+          "name": "CCCD NGUYỄN QUANG LUYỆN.jpg",
+          "size": 30523,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "CCCD NGUYỄN QUANG LUYỆN 1.jpg",
+          "size": 21145,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐ mở TKGD NGUYỄN QUANG LUYỆN.pdf",
+          "size": 1208836,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-TRUONG-HAI-DANG-mxv.pdf",
+          "size": 405701,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-TRUONG-HAI-DANG-CCCD-truoc.jpg",
+          "size": 90838,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-TRUONG-HAI-DANG-CCCD-sau.jpg",
+          "size": 87752,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C9124483_CCCD_ghep.jpg",
+          "size": 217199,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C9124483_Đào Thùy Dương.pdf",
+          "size": 2566307,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "HOANG-THANH-TUNG-PL01.pdf",
+          "size": 254657,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HOANG-THANH-TUNG-CCCD-truoc.jpg",
+          "size": 78227,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HOANG-THANH-TUNG-CCCD-sau.jpg",
+          "size": 81934,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C8794983_CCCD_ghep.jpg",
+          "size": 229366,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C8794983_Phan Ánh Nguyệt.pdf",
+          "size": 2566350,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-ANH-KHOA-mxv.pdf",
+          "size": 404960,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-ANH-KHOA-CCCD-truoc.jpg",
+          "size": 89694,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-ANH-KHOA-CCCD-sau.jpg",
+          "size": 85508,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở TKGD + Tiểu khoản ACM",
+      "atts": [
+        {
+          "name": "image001.png",
+          "size": 696058,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "image002.png",
+          "size": 683486,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "Bùi Thế Cương-mxv.pdf",
+          "size": 361273,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "Bùi Thế Cương - PL01.pdf",
+          "size": 284238,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-THI-PHUONG-THUY-mxv.pdf",
+          "size": 596303,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-PHUONG-THUY-CCCD-truoc.jpg",
+          "size": 80783,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-PHUONG-THUY-CCCD-sau.jpg",
+          "size": 91746,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C5488026_CCCD_ghep.jpg",
+          "size": 214724,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C5488026_Đỗ Thị Hải Yến.pdf",
+          "size": 2566405,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "image1.png",
+          "size": 35043,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "tải xuống (1).png",
+          "size": 27363,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "tải xuống.png",
+          "size": 27445,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "036C9397380_Nguyen Thuy Linh.pdf",
+          "size": 1065532,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C4263696_CCCD_ghep.jpg",
+          "size": 220240,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C4263696_Lê Thị Thanh Hiền.pdf",
+          "size": 2565931,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "LE-HOANG-HA-PL01.pdf",
+          "size": 255413,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LE-HOANG-HA-CCCD-truoc.jpg",
+          "size": 89188,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LE-HOANG-HA-CCCD-sau.jpg",
+          "size": 87156,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - THÁI NGỌC QUỲNH",
+      "atts": [
+        {
+          "name": "hop-dong-003C7758574.pdf",
+          "size": 1865613,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGO-DUC-HAI-CCCD-sau.jpg",
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGO-DUC-HAI-CCCD-truoc.jpg",
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGO-DUC-HAI-PL01.pdf",
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGO-DUC-HAI-mxv.pdf",
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - Phạm Hoàng Hiệp",
+      "atts": [
+        {
+          "name": "hop-dong-003C3026895.pdf",
+          "size": 1629216,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-ANH-KHOA-mxv.pdf",
+          "size": 404960,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-ANH-KHOA-CCCD-truoc.jpg",
+          "size": 89694,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-ANH-KHOA-CCCD-sau.jpg",
+          "size": 85508,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "image1.png",
+          "size": 35043,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "MS.png",
+          "size": 64519,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "MT.png",
+          "size": 91343,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "036C8172636_Pham Gia Khiem.pdf",
+          "size": 1069019,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "VU-HOANG-mxv.pdf",
+          "size": 594480,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "VU-HOANG-CCCD-truoc.jpg",
+          "size": 86734,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "VU-HOANG-CCCD-sau.jpg",
+          "size": 80114,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C7271123_CCCD_ghep.jpg",
+          "size": 210536,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C7271123_Nguyễn Thu Trang.pdf",
+          "size": 2566363,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "TRAN-QUOC-BAO-mxv.pdf",
+          "size": 543306,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-QUOC-BAO-CCCD-truoc.jpg",
+          "size": 92131,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-QUOC-BAO-CCCD-sau.jpg",
+          "size": 81688,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C6350592_CCCD_ghep.jpg",
+          "size": 221623,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C6350592_Hoàng Lê Sơn.pdf",
+          "size": 2566264,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "CCCD TRẦN LÊ VIỆT ANH.png",
+          "size": 756817,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐ 012C5767077 TRẦN LÊ VIỆT ANH.pdf",
+          "size": 981994,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Hồ sơ mở TKGD TKGD Futures, Nano và Options TKGD 045C4844668 DƯƠNG VĂN TRÁNG",
+      "atts": [
+        {
+          "name": "Duong Van Trang 668 1.png",
+          "size": 1062943,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "Duong Van Trang 668 2.png",
+          "size": 1059419,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HD Duong Van Trang 668.pdf",
+          "size": 675409,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "nano Duong Van Trang 668.pdf",
+          "size": 462305,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở Tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "CCCD Phạm Minh Toàn.zip",
+          "size": 114979,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "CCCD Trần Thị Thu Hiền.zip",
+          "size": 115235,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐMTK 2026.PQT Phạm Minh Toàn pdf.pdf",
+          "size": 1199821,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐMTK 2026.PQT Trần Thị Thu Hiền pdf.pdf",
+          "size": 1161332,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở tài khoản giao dịch tài khoản 048C7324877 - Nguyễn Văn Tiến",
+      "atts": [
+        {
+          "name": "F FireAnt COLOR black horizontal@2x.png",
+          "size": 246328,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "nguyenvantien_2.jpg",
+          "size": 86466,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "PLHĐ Nano - NGUYỄN VĂN TIẾN.pdf",
+          "size": 468827,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "nguyenvantien_1.jpg",
+          "size": 85470,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐ MTK - Nguyễn Văn Tiến.pdf",
+          "size": 1083319,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở TKGD + Tiểu khoản ACM",
+      "atts": [
+        {
+          "name": "image001.png",
+          "size": 1129630,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "image002.png",
+          "size": 626519,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "NGUYỄN THÁI HOÀN - PL01.pdf",
+          "size": 284821,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYỄN THÁI HOÀN-mxv.pdf",
+          "size": 361777,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "TRAN-VAN-LIEU-mxv.pdf",
+          "size": 472562,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-VAN-LIEU-CCCD-truoc.jpg",
+          "size": 88574,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-VAN-LIEU-CCCD-sau.jpg",
+          "size": 88625,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - Nguyễn Huy Thành",
+      "atts": [
+        {
+          "name": "hop-dong-003C2278303.pdf",
+          "size": 1726010,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C4405186_CCCD_ghep.jpg",
+          "size": 220843,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C4405186_Phạm Quỳnh Anh.pdf",
+          "size": 2566253,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - LỤC THỊ KIM MINH",
+      "atts": [
+        {
+          "name": "hop-dong-003C1250359.pdf",
+          "size": 1845558,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ TIỂU KHOẢN ACM",
+      "atts": [
+        {
+          "name": "CC HOÀNG VĂN LONG.png",
+          "size": 874853,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "HĐ 012C0074622 HOÀNG VĂN LONG.pdf",
+          "size": 979967,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C3413647_CCCD_ghep.jpg",
+          "size": 220429,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C3413647_Đặng Hương Giang.pdf",
+          "size": 2566484,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C7386691_CCCD_ghep.jpg",
+          "size": 224456,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C7386691_Vũ Quỳnh Anh.pdf",
+          "size": 2566478,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - Huỳnh Thị Liễu",
+      "atts": [
+        {
+          "name": "hop-dong-003C2026888.pdf",
+          "size": 1272225,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "TRAN-DAI-QUOC-mxv.pdf",
+          "size": 406841,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-DAI-QUOC-CCCD-truoc.jpg",
+          "size": 89002,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-DAI-QUOC-CCCD-sau.jpg",
+          "size": 88010,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - TÔ VĂN TUÂN",
+      "atts": [
+        {
+          "name": "hop-dong-003C9992222.pdf",
+          "size": 1474759,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "CCCD  Mã Thị Hậu.png",
+          "size": 141730,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "Hợp đồng khách hàng Mã Thị Hậu.jpg",
+          "size": 352936,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "[TVKD 003] Đề nghị mở TKGD - HOÀNG THỊ HẰNG",
+      "atts": [
+        {
+          "name": "hop-dong-003C7042172.pdf",
+          "size": 1383950,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "TRAN-NGOC-DIU-mxv.pdf",
+          "size": 541438,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-NGOC-DIU-CCCD-truoc.jpg",
+          "size": 89836,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "TRAN-NGOC-DIU-CCCD-sau.jpg",
+          "size": 90827,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C1276165_CCCD_ghep.jpg",
+          "size": 219264,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C1276165_Nguyễn Linh Ngân.pdf",
+          "size": 2566449,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "LAM-THANH-DANH-mxv.pdf",
+          "size": 523896,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LAM-THANH-DANH-CCCD-truoc.jpg",
+          "size": 91106,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "LAM-THANH-DANH-CCCD-sau.jpg",
+          "size": 88924,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGUYEN-THI-THU-THUY-mxv.pdf",
+          "size": 773909,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-THU-THUY-PL01.pdf",
+          "size": 247601,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-THU-THUY-CCCD-truoc.jpg",
+          "size": 92537,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGUYEN-THI-THU-THUY-CCCD-sau.jpg",
+          "size": 89088,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: Yêu cầu mở TKGD",
+      "atts": [
+        {
+          "name": "NGO-DUC-HAI-mxv.pdf",
+          "size": 405711,
+          "contract": true,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGO-DUC-HAI-PL01.pdf",
+          "size": 274720,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGO-DUC-HAI-CCCD-truoc.jpg",
+          "size": 92342,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "NGO-DUC-HAI-CCCD-sau.jpg",
+          "size": 88105,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Fw: YÊU CẦU MỞ TKGD",
+      "atts": [
+        {
+          "name": "image001.jpg",
+          "size": 90142,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "image002.jpg",
+          "size": 89323,
+          "contract": false,
+          "cccd": false,
+          "generic": true,
+          "logo": false
+        },
+        {
+          "name": "Thắng.pdf",
+          "size": 611153,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "YÊU CẦU MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA",
+      "atts": [
+        {
+          "name": "012C6915379_CCCD_ghep.jpg",
+          "size": 234061,
+          "contract": false,
+          "cccd": true,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "012C6915379_Hoàng Điệp.pdf",
+          "size": 2566226,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    },
+    {
+      "subject": "Yêu cầu mở Tài khoản giao dịch hàng hóa",
+      "atts": [
+        {
+          "name": "HĐMTK 2026.PQT Võ Thị Hồng pdf.pdf",
+          "size": 1171778,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "VTHong.jpg",
+          "size": 54124,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        },
+        {
+          "name": "VTHong1.jpg",
+          "size": 52870,
+          "contract": false,
+          "cccd": false,
+          "generic": false,
+          "logo": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { SprintMode, TkgdProgressState, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
 import { tkgdApi } from '../services/tkgd.api';
@@ -41,21 +41,37 @@ function playNotificationChime() {
   } catch {}
 }
 
-export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTkgdActionsProps = {}) {
-  const [sprintMode, setSprintMode] = useState<SprintMode>('FULL');
+export const useTkgdActions = ({
+  batchDate,
+  token,
+  userEmail,
+  onSuccess,
+}: UseTkgdActionsProps = {}) => {
+  const [sprintMode, setSprintMode] = useState<SprintMode>('FAST');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStage, setProcessingStage] = useState<string>('');
   const [progress, setProgress] = useState<TkgdProgressState | null>(null);
   const [syncingRowCode, setSyncingRowCode] = useState<string | null>(null);
   const [autoStatus, setAutoStatus] = useState<TkgdAutoPipelineStatus | null>(null);
+  const lastAutoRunTimeRef = useRef<number>(0);
 
-  // Lấy trạng thái Auto Pipeline hiện tại
+  // Lấy trạng thái Auto Pipeline hiện tại và tự động làm mới bảng khi có chu kỳ ngầm vừa hoàn thành
   const fetchAutoStatus = useCallback(async () => {
     try {
       const status = await tkgdApi.getAutoPipelineStatus(token, userEmail);
-      if (status) setAutoStatus(status);
+      if (status) {
+        setAutoStatus(status);
+        const newRunTime = status.lastRunTime || 0;
+        // Nếu phát hiện lần chạy mới vừa hoàn thành trong nền -> Tự động nảy kết quả lên giao diện
+        if (newRunTime > 0 && lastAutoRunTimeRef.current > 0 && newRunTime !== lastAutoRunTimeRef.current) {
+          if (onSuccess) await onSuccess();
+        }
+        if (newRunTime > 0) {
+          lastAutoRunTimeRef.current = newRunTime;
+        }
+      }
     } catch { }
-  }, [token, userEmail]);
+  }, [token, userEmail, onSuccess]);
 
   useEffect(() => {
     fetchAutoStatus();
@@ -69,10 +85,11 @@ export function useTkgdActions({ batchDate, token, userEmail, onSuccess }: UseTk
       const res = await tkgdApi.toggleAutoPipeline(boolVal, token, userEmail);
       toast.success(res.message);
       await fetchAutoStatus();
+      if (onSuccess) await onSuccess();
     } catch (err: any) {
       toast.error('Lỗi khi đổi trạng thái Tự Động: ' + err.message);
     }
-  }, [token, userEmail, fetchAutoStatus]);
+  }, [token, userEmail, fetchAutoStatus, onSuccess]);
 
   // Poll tiến độ thời gian thực khi isProcessing = true
   useEffect(() => {

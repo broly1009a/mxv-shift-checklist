@@ -1,0 +1,44 @@
+{
+  "name": "Case 086: Đảo cụm số CCCD do OCR đọc ngược dòng MRZ (086C2659556)",
+  "description": "HĐ và MS đều khớp số 066175007922. Ảnh OCR bị đảo cụm số thành 007922106617. Hệ thống phải nhận diện 2/3 đồng thuận và Auto-Heal, không được báo 'M-System chưa nhập' và không được đánh LỆCH.",
+  "record": {
+    "maTKGD": "086C2659556",
+    "maTKGDBase": "086C2659556",
+    "noiDungMail": {
+      "maTKGD_Futures": "086C2659556",
+      "tenTaiKhoan": "NGUYỄN THỊ MỸ DANH"
+    },
+    "hopDong": {
+      "maTKGD": "086C2659556",
+      "soCanCuoc": "066175007922",
+      "hoVaTen": "NGUYỄN THỊ MỸ DANH",
+      "rawNgaySinh": "29/04/1975",
+      "rawNgayCap": "26/05/2022",
+      "rawGioiTinh": "Nữ"
+    },
+    "canCuoc": {
+      "soCanCuoc": "007922106617",
+      "hoVaTen": "NGUYỄN THỊ MỸ DANH",
+      "rawNgaySinh": "29/04/1975",
+      "rawNgayCap": "26/05/2022",
+      "rawGioiTinh": "Nữ"
+    },
+    "ms": {
+      "isFoundOnMS": true,
+      "maTKGD": "086C2659556",
+      "soCMND_HoChieu": "066175007922",
+      "hoVaTen": "NGUYỄN THỊ MỸ DANH",
+      "rawNgaySinh": "29/04/1975",
+      "rawNgayCap": "26/05/2022",
+      "gioiTinh": "Nữ"
+    }
+  },
+  "expected": {
+    "finalStatus": "KHOP",
+    "mustNotIncludeErrors": [
+      "M-System chưa nhập số CCCD",
+      "Lệch số CCCD giữa HĐ và ảnh CCCD",
+      "Lệch số CCCD (Hồ sơ: 066175007922 != MS: 066175007922)"
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "Case 076: Họ tên tiếng Việt phức tạp và mã cơ sở hợp lệ (076C3131313)",
+  "description": "Họ tên dài nhiều âm tiết có thể bị OCR dính chữ hoặc khác hoa/thường nhẹ. Bot phải khớp chuẩn xác.",
+  "record": {
+    "maTKGD": "076C3131313",
+    "maTKGDBase": "076C3131313",
+    "noiDungMail": {
+      "maTKGD_Futures": "076C3131313",
+      "tenTaiKhoan": "TRẦN NGUYỄN HOÀNG ĐỨC DUY"
+    },
+    "hopDong": {
+      "maTKGD": "076C3131313",
+      "soCanCuoc": "079095012345",
+      "hoVaTen": "TRẦN NGUYỄN HOÀNG ĐỨC DUY",
+      "rawNgaySinh": "15/08/1995",
+      "rawNgayCap": "10/10/2021",
+      "rawGioiTinh": "Nam"
+    },
+    "canCuoc": {
+      "soCanCuoc": "079095012345",
+      "hoVaTen": "TRAN NGUYEN HOANG DUC DUY",
+      "rawNgaySinh": "15/08/1995",
+      "rawNgayCap": "10/10/2021",
+      "rawGioiTinh": "Nam"
+    },
+    "ms": {
+      "isFoundOnMS": true,
+      "maTKGD": "076C3131313",
+      "soCMND_HoChieu": "079095012345",
+      "hoVaTen": "Trần Nguyễn Hoàng Đức Duy",
+      "rawNgaySinh": "15/08/1995",
+      "rawNgayCap": "10/10/2021",
+      "gioiTinh": "Nam"
+    }
+  },
+  "expected": {
+    "finalStatus": "KHOP",
+    "mustNotIncludeErrors": [
+      "Lệch họ tên",
+      "Tài khoản chưa được tạo trên M-System"
+    ]
+  }
+}

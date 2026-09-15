@@ -226,6 +226,7 @@ export interface TkgdAutoPipelineStatus {
   lastProcessedCount: number;
   intervalMinutes: number;
   nextRunTime: number;
+  executionMode?: 'BATCH' | 'INSTANT_STREAM';
 }
 
 

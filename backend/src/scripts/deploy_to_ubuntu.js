@@ -61,6 +61,10 @@ const syncDirs = [
     localDir: path.join(repoRoot, 'backend/src/scripts/python'),
     remoteDir: '/opt/mxv-checklist/backend/src/scripts/python',
   },
+  {
+    localDir: path.join(repoRoot, 'backend/test'),
+    remoteDir: '/opt/mxv-checklist/backend/test',
+  },
 ];
 
 let filesToUpload = [];
@@ -79,6 +83,10 @@ syncDirs.forEach(({ localDir, remoteDir }) => {
 
 // 2. Các file đơn lẻ quan trọng
 const specificFiles = [
+  {
+    local: path.join(repoRoot, 'backend/package.json'),
+    remote: '/opt/mxv-checklist/backend/package.json',
+  },
   {
     local: path.join(repoRoot, 'backend/src/app.module.ts'),
     remote: '/opt/mxv-checklist/backend/src/app.module.ts',

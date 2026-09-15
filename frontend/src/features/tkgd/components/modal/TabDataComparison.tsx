@@ -99,14 +99,40 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     },
     {
       label: 'Ngày cấp',
-      left:
-        (inspectRecord.hopDong?.rawNgayCap && formatDateStr(inspectRecord.hopDong.rawNgayCap) !== '-')
-          ? formatDateStr(inspectRecord.hopDong.rawNgayCap)
-          : (inspectRecord.hopDong?.ngayCap && formatDateStr(inspectRecord.hopDong.ngayCap) !== '-')
-            ? formatDateStr(inspectRecord.hopDong.ngayCap)
-            : (inspectRecord.canCuoc?.rawNgayCap && formatDateStr(inspectRecord.canCuoc.rawNgayCap) !== '-')
-              ? formatDateStr(inspectRecord.canCuoc.rawNgayCap)
-              : formatDateStr(inspectRecord.canCuoc?.ngayCap),
+      left: (() => {
+        const cccdIssue =
+          (inspectRecord.canCuoc?.rawNgayCap && formatDateStr(inspectRecord.canCuoc.rawNgayCap) !== '-')
+            ? formatDateStr(inspectRecord.canCuoc.rawNgayCap)
+            : (inspectRecord.canCuoc?.ngayCap && formatDateStr(inspectRecord.canCuoc.ngayCap) !== '-')
+              ? formatDateStr(inspectRecord.canCuoc.ngayCap)
+              : '-';
+
+        const hdIssue =
+          (inspectRecord.hopDong?.rawNgayCap && formatDateStr(inspectRecord.hopDong.rawNgayCap) !== '-')
+            ? formatDateStr(inspectRecord.hopDong.rawNgayCap)
+            : (inspectRecord.hopDong?.ngayCap && formatDateStr(inspectRecord.hopDong.ngayCap) !== '-')
+              ? formatDateStr(inspectRecord.hopDong.ngayCap)
+              : '-';
+
+        const hdDob =
+          (inspectRecord.hopDong?.rawNgaySinh && formatDateStr(inspectRecord.hopDong.rawNgaySinh) !== '-')
+            ? formatDateStr(inspectRecord.hopDong.rawNgaySinh)
+            : (inspectRecord.hopDong?.ngaySinh && formatDateStr(inspectRecord.hopDong.ngaySinh) !== '-')
+              ? formatDateStr(inspectRecord.hopDong.ngaySinh)
+              : '-';
+
+        // Nếu HĐ lấy nhầm Ngày cấp trùng với Ngày sinh (lỗi bảng TVKD 003), ưu tiên CCCD
+        if (hdIssue !== '-' && hdIssue === hdDob && cccdIssue !== '-') {
+          return cccdIssue;
+        }
+
+        // Ưu tiên ngày cấp CCCD nếu có
+        if (cccdIssue !== '-') {
+          return cccdIssue;
+        }
+
+        return hdIssue !== '-' ? hdIssue : '-';
+      })(),
       right:
         (inspectRecord.ms?.rawNgayCap && formatDateStr(inspectRecord.ms.rawNgayCap) !== '-')
           ? formatDateStr(inspectRecord.ms.rawNgayCap)
@@ -475,13 +501,22 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
           <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
             Hồ sơ này không đạt tiêu chuẩn đối soát do các nguyên nhân sau:
           </p>
-          {inspectRecord.ketLuan?.danhSachLoi && inspectRecord.ketLuan.danhSachLoi.length > 0 && (
-            <ul style={{ margin: 0, paddingLeft: '22px', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
-              {inspectRecord.ketLuan.danhSachLoi.map((err, eIdx) => (
-                <li key={eIdx}>{err}</li>
-              ))}
-            </ul>
-          )}
+          {(() => {
+            const msHasCccd = !!(inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc);
+            const rawErrors = inspectRecord.ketLuan?.danhSachLoi || [];
+            const displayErrors = rawErrors.filter((err) => {
+              if (msHasCccd && err.includes('M-System chưa nhập số CCCD')) return false;
+              return true;
+            });
+            if (displayErrors.length === 0) return null;
+            return (
+              <ul style={{ margin: 0, paddingLeft: '22px', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
+                {displayErrors.map((err, eIdx) => (
+                  <li key={eIdx}>{err}</li>
+                ))}
+              </ul>
+            );
+          })()}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
             <button
               onClick={onSwitchToAttachments}

@@ -98,6 +98,7 @@ export class TkgdConfigService {
       },
       autoPipeline: {
         enabled: config.autoPipeline?.enabled ?? false,
+        executionMode: config.autoPipeline?.executionMode ?? 'BATCH',
         intervalMinutes: config.autoPipeline?.intervalMinutes ?? 5,
         batchSize: config.autoPipeline?.batchSize ?? 50,
         autoSyncMSystem: config.autoPipeline?.autoSyncMSystem ?? true,
@@ -193,6 +194,7 @@ export class TkgdConfigService {
     if (!config.autoPipeline) (config as any).autoPipeline = {};
     if (dto.autoPipeline) {
       if (dto.autoPipeline.enabled !== undefined) config.autoPipeline.enabled = dto.autoPipeline.enabled;
+      if (dto.autoPipeline.executionMode !== undefined) config.autoPipeline.executionMode = dto.autoPipeline.executionMode;
       if (dto.autoPipeline.intervalMinutes !== undefined) {
         config.autoPipeline.intervalMinutes = Math.max(1, Number(dto.autoPipeline.intervalMinutes) || 5);
       }

@@ -1,0 +1,343 @@
+{
+  "before": {
+    "total": 201,
+    "by": {
+      "KHOP": 162,
+      "LECH": 21,
+      "CAN_KIEM_TRA": 18,
+      "CHUA_XU_LY": 0
+    }
+  },
+  "after": {
+    "total": 201,
+    "by": {
+      "KHOP": 164,
+      "LECH": 19,
+      "CAN_KIEM_TRA": 18,
+      "CHUA_XU_LY": 0
+    }
+  },
+  "transitions": {
+    "to_KHOP": 2,
+    "to_CAN_KIEM_TRA": 0,
+    "stay_LECH": 19,
+    "error": 0,
+    "other": 0
+  },
+  "remainingLechUnique": 19,
+  "remainingLechRecords": 19,
+  "verdictCounts": {
+    "FALSE_POSITIVE": 0,
+    "MIXED": 4,
+    "LIKELY_CORRECT": 15
+  },
+  "falsePositives": [],
+  "mixed": [
+    {
+      "code": "003C7663035",
+      "batchDate": "2026-09-09",
+      "verdict": "MIXED",
+      "notes": [
+        "MIXED: có dấu hiệu ảnh CCCD nhưng chưa đọc số"
+      ],
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "mailName": "PHÙNG XUÂN TRƯỜNG",
+      "msName": "PHÙNG XUÂN TRƯỜNG",
+      "soCccdHd": null,
+      "soCccdImg": null,
+      "soCccdMs": "064207007142"
+    },
+    {
+      "code": "046C0002887",
+      "batchDate": "2026-09-09",
+      "verdict": "MIXED",
+      "notes": [
+        "MIXED: có dấu hiệu ảnh CCCD nhưng chưa đọc số"
+      ],
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "mailName": "và Tiểu khoản TKGD ACM 046C0002887",
+      "msName": "NGUYỄN VĂN NGHĨA",
+      "soCccdHd": null,
+      "soCccdImg": null,
+      "soCccdMs": "030089005899"
+    },
+    {
+      "code": "003C0879444",
+      "batchDate": "2026-09-09",
+      "verdict": "MIXED",
+      "notes": [
+        "MIXED: có dấu hiệu ảnh CCCD nhưng chưa đọc số"
+      ],
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "mailName": "LÊ HUỲNH HÙNG",
+      "msName": "LÊ HUỲNH HÙNG",
+      "soCccdHd": null,
+      "soCccdImg": null,
+      "soCccdMs": "074088619172"
+    },
+    {
+      "code": "046C0002904",
+      "batchDate": "2026-09-09",
+      "verdict": "MIXED",
+      "notes": [
+        "MIXED: có dấu hiệu ảnh CCCD nhưng chưa đọc số"
+      ],
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "mailName": "LÊ NGỌC HẢI",
+      "msName": "LÊ NGỌC HẢI",
+      "soCccdHd": null,
+      "soCccdImg": null,
+      "soCccdMs": "034098013933"
+    }
+  ],
+  "likelyCorrect": [
+    {
+      "code": "001C0128136",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch họ tên (Yêu cầu: MAK KTHIKHAUK KKKKKKKKKK != MS: Mã Thị Hậu)"
+      ],
+      "mailName": "Mã Thị Hậu",
+      "msName": "Mã Thị Hậu",
+      "soCccdHd": null,
+      "soCccdImg": "004173000550",
+      "soCccdMs": "004173000550"
+    },
+    {
+      "code": "045C4844668",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 01/06/2024 != MS: 10/06/2024)"
+      ],
+      "mailName": "DƯƠNG VĂN TRÁNG",
+      "msName": "DƯƠNG VĂN TRÁNG",
+      "soCccdHd": "044085002100",
+      "soCccdImg": "044085002100",
+      "soCccdMs": "044085002100"
+    },
+    {
+      "code": "003C3749834",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch giới tính (HĐ: lv{XX != MS: Nam)"
+      ],
+      "mailName": "VÕ ANH KIỆT",
+      "msName": "VÕ ANH KIỆT",
+      "soCccdHd": null,
+      "soCccdImg": "049097006238",
+      "soCccdMs": "049097006238"
+    },
+    {
+      "code": "003C1286707",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 13/09/1939 != MS: 13/09/1989)"
+      ],
+      "mailName": "ĐỖ THỊ HUỲNH GIAO",
+      "msName": "ĐỖ THỊ HUỲNH GIAO",
+      "soCccdHd": null,
+      "soCccdImg": "079189002009",
+      "soCccdMs": "079189002009"
+    },
+    {
+      "code": "046C0002905",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 04/10/2022 != MS: 14/10/2022)"
+      ],
+      "mailName": "TRẦN THỊ THANH THẢO",
+      "msName": "TRẦN THỊ THANH THẢO",
+      "soCccdHd": null,
+      "soCccdImg": "072176006236",
+      "soCccdMs": "072176006236"
+    },
+    {
+      "code": "003C1647904",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 29/10/2044 != MS: 04/07/2025)"
+      ],
+      "mailName": "NGUYỄN HOÀNG DŨNG",
+      "msName": "NGUYỄN HOÀNG DŨNG",
+      "soCccdHd": null,
+      "soCccdImg": "001084616515",
+      "soCccdMs": "001084616515"
+    },
+    {
+      "code": "003C4865788",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 13/09/1995 != MS: 23/09/1995)"
+      ],
+      "mailName": "NGUYỄN BẢO NGỌC",
+      "msName": "NGUYỄN BẢO NGỌC",
+      "soCccdHd": "001095038735",
+      "soCccdImg": "001095038735",
+      "soCccdMs": "001095038735"
+    },
+    {
+      "code": "003C6487170",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 01/11/1900 != MS: 01/11/1970)"
+      ],
+      "mailName": "NGUYỄN PHÚ HÒA",
+      "msName": "NGUYỄN PHÚ HÒA",
+      "soCccdHd": null,
+      "soCccdImg": "074070009057",
+      "soCccdMs": "074070009057"
+    },
+    {
+      "code": "041C0161098",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch họ tên (Yêu cầu: CHU MINH THUANK != MS: Chu Minh Thuận)"
+      ],
+      "mailName": "Chu Minh Thuận",
+      "msName": "Chu Minh Thuận",
+      "soCccdHd": "001098006510",
+      "soCccdImg": "001098006510",
+      "soCccdMs": "001098006510"
+    },
+    {
+      "code": "003C1901707",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 10/04/1993 != MS: 10/04/1998)"
+      ],
+      "mailName": "Lê Đăng Phú",
+      "msName": "Lê Đăng Phú",
+      "soCccdHd": null,
+      "soCccdImg": "042098012109",
+      "soCccdMs": "042098012109"
+    },
+    {
+      "code": "003C0094629",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 12/07/2032 != MS: 20/04/2021)"
+      ],
+      "mailName": "NGUYÊN HOÀNG MAI",
+      "msName": "NGUYÊN HOÀNG MAI",
+      "soCccdHd": null,
+      "soCccdImg": "036207020211",
+      "soCccdMs": "036207020211"
+    },
+    {
+      "code": "003C1684184",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 22/04/2021 != MS: 27/01/2005)"
+      ],
+      "mailName": "NGUYỄN TRIỆU HƯNG",
+      "msName": "NGUYỄN TRIỆU HƯNG",
+      "soCccdHd": "091204004348",
+      "soCccdImg": "091204004348",
+      "soCccdMs": "091204004348"
+    },
+    {
+      "code": "003C1669379",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 22/09/2032 != MS: 13/07/2022)"
+      ],
+      "mailName": "TRƯƠNG HUY HOÀNG",
+      "msName": "TRƯƠNG HUY HOÀNG",
+      "soCccdHd": null,
+      "soCccdImg": "070202008002",
+      "soCccdMs": "070202008002"
+    },
+    {
+      "code": "003C1402455",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 05/06/2027 != MS: 13/07/2022)"
+      ],
+      "mailName": "NGUYỄN ĐĂNG KHOA",
+      "msName": "NGUYỄN ĐĂNG KHOA",
+      "soCccdHd": null,
+      "soCccdImg": "079202021995",
+      "soCccdMs": "079202021995"
+    },
+    {
+      "code": "001C0120575",
+      "batchDate": "2026-09-09",
+      "verdict": "LIKELY_CORRECT",
+      "notes": [
+        "Có lệch field cụ thể"
+      ],
+      "errs": [
+        "Lệch họ tên (Yêu cầu: NMDANG THI NGOC DIEP != MS: Đặng Thị Ngọc Diệp)"
+      ],
+      "mailName": "Đặng Thị Ngọc Diệp",
+      "msName": "Đặng Thị Ngọc Diệp",
+      "soCccdHd": null,
+      "soCccdImg": "049189002581",
+      "soCccdMs": "049189002581"
+    }
+  ]
+}

@@ -396,6 +396,7 @@ export const TkgdDashboard: React.FC = () => {
               onSyncMSystem={handleSyncMSystem}
               onRunReconcile={handleRunReconcile}
               autoStatus={autoStatus}
+              onToggleAutoPipeline={handleToggleAutoPipeline}
             />
           )}
         </div>

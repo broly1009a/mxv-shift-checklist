@@ -165,6 +165,22 @@ export const tkgdApi = {
     return res.json();
   },
 
+  async reEvaluateRecord(
+    recordId: string,
+    token?: string | null,
+    userEmail?: string
+  ) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/records/${encodeURIComponent(recordId)}/re-evaluate`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể tái thẩm định hồ sơ');
+    }
+    return res.json();
+  },
+
   async getProgress(
     token?: string | null,
     userEmail?: string

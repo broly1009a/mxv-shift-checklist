@@ -33,6 +33,7 @@ interface TkgdActionToolbarProps {
   onSyncMSystem: () => void;
   onRunReconcile: () => void;
   autoStatus?: TkgdAutoPipelineStatus | null;
+  onToggleAutoPipeline?: (enabled: boolean) => void;
 }
 
 export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
@@ -49,6 +50,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
   onSyncMSystem,
   onRunReconcile,
   autoStatus,
+  onToggleAutoPipeline,
 }) => {
   const [showAdvancedActions, setShowAdvancedActions] = useState<boolean>(false);
   const [showRunConfigModal, setShowRunConfigModal] = useState<boolean>(false);
@@ -94,49 +96,120 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {/* Chỉ báo trạng thái Tự Động 24/7 (Badge tinh tế) */}
-        {autoStatus?.enabled && (
-          <div
-            title={`Bot đang chạy ngầm định kỳ mỗi ${autoStatus.intervalMinutes || 5} phút (quét mail, bóc tách và đối soát). Cấu hình tại tab Cài Đặt & Cấu Hình Bot.`}
+        {/* CÔNG TẮC BẬT / TẮT CHẾ ĐỘ TỰ ĐỘNG NGẦM (Master Auto Switch) */}
+        <div
+          onClick={() => {
+            if (onToggleAutoPipeline) {
+              onToggleAutoPipeline(!autoStatus?.enabled);
+            }
+          }}
+          title={
+            autoStatus?.enabled
+              ? `Chế độ tự động đang BẬT (${autoStatus?.executionMode === 'INSTANT_STREAM' ? 'Liền mạch: Tự động cào MS & đối soát tức thì từng TK mới' : `Định kỳ mỗi ${autoStatus.intervalMinutes || 5} phút`}). Nhấp để TẮT.`
+              : 'Chế độ tự động đang TẮT. Nhấp để BẬT tự động quét mail & cào MS ngầm 24/7.'
+          }
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '5px 12px',
+            borderRadius: '10px',
+            backgroundColor: autoStatus?.enabled
+              ? 'rgba(16, 185, 129, 0.12)'
+              : 'var(--bg-input)',
+            border: autoStatus?.enabled
+              ? '1px solid rgba(16, 185, 129, 0.45)'
+              : '1px dashed var(--border-color)',
+            cursor: 'pointer',
+            userSelect: 'none',
+            transition: 'all 0.2s ease',
+          }}
+          className="hover:scale-[1.02] active:scale-[0.98]"
+        >
+          {/* Đèn tín hiệu & Trạng thái */}
+          <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              color: '#10b981',
-              fontSize: '0.74rem',
-              fontWeight: 600,
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: autoStatus?.enabled ? '#10b981' : '#94a3b8',
+              boxShadow: autoStatus?.enabled ? '0 0 8px #10b981' : 'none',
+              display: 'inline-block',
             }}
-          >
+            className={autoStatus?.enabled ? 'animate-pulse' : ''}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', lineHeight: 1.25 }}>
             <span
               style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: '#10b981',
-                boxShadow: '0 0 6px #10b981',
-                display: 'inline-block',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: autoStatus?.enabled ? '#10b981' : 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
               }}
-              className="animate-pulse"
-            />
-            <span>Tự Động 24/7</span>
-            {autoStatus?.lastRunTime ? (
-              <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>
-                ({new Date(autoStatus.lastRunTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})
+            >
+              Tự Động: {autoStatus?.enabled ? 'BẬT' : 'TẮT'}
+              {autoStatus?.enabled && (
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 600,
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    backgroundColor: autoStatus?.executionMode === 'INSTANT_STREAM' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                    color: autoStatus?.executionMode === 'INSTANT_STREAM' ? '#10b981' : '#3b82f6',
+                  }}
+                >
+                  {autoStatus?.executionMode === 'INSTANT_STREAM' ? 'Từng TK Mới' : `${autoStatus.intervalMinutes || 5}p`}
+                </span>
+              )}
+            </span>
+            {autoStatus?.enabled && autoStatus?.lastRunTime ? (
+              <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>
+                Chạy gần nhất: {new Date(autoStatus.lastRunTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            ) : !autoStatus?.enabled ? (
+              <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>
+                Nhấp để bật ngầm
               </span>
             ) : null}
           </div>
-        )}
 
-        {/* 1. HERO BUTTON: CHẠY QUY TRÌNH TOÀN BỘ (All-in-One Pipeline) */}
+          {/* Switch Pill Graphic */}
+          <div
+            style={{
+              width: '30px',
+              height: '17px',
+              borderRadius: '10px',
+              backgroundColor: autoStatus?.enabled ? '#10b981' : 'var(--border-color)',
+              position: 'relative',
+              transition: 'background-color 0.2s ease',
+              marginLeft: '2px',
+            }}
+          >
+            <div
+              style={{
+                width: '13px',
+                height: '13px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                position: 'absolute',
+                top: '2px',
+                left: autoStatus?.enabled ? '15px' : '2px',
+                transition: 'left 0.2s ease',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 1. NÚT CHẠY THỦ CÔNG: QUÉT & CHẠY NGAY (Manual Run) */}
         <button
           id="tutorial-tkgd-auto-btn"
           onClick={() => setShowRunConfigModal(true)}
           disabled={isProcessing}
-          title="Thiết lập và chạy toàn bộ quy trình: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
+          title="Kích hoạt quét và chạy thủ công ngay lúc này: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -159,7 +232,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           ) : (
             <Zap size={14} fill="#fef08a" color="#fef08a" />
           )}
-          <span>{isProcessing ? 'Đang chạy...' : 'Chạy Tự Động Toàn Bộ'}</span>
+          <span>{isProcessing ? 'Đang chạy...' : 'Quét & Chạy Ngay'}</span>
         </button>
 
         {/* 2. TIỆN ÍCH: TẢI FILE EXCEL */}
@@ -515,10 +588,10 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Cấu Hình Chu Trình Chạy Tự Động
+                    Cấu Hình Quét & Chạy Thủ Công
                   </h3>
                   <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Tối ưu phạm vi quét email và chế độ bóc tách thông minh
+                    Kích hoạt quét email và đối soát dữ liệu theo yêu cầu ngay lập tức
                   </p>
                 </div>
               </div>

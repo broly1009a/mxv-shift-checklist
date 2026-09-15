@@ -1,0 +1,42 @@
+{
+  "name": "Case ACM: Tiểu khoản ACM -A đối chiếu mã cơ sở trên M-System",
+  "description": "Tiểu khoản 003C2333888-A có mã cơ sở 003C2333888 khớp với MS, phụ lục PL01 đầy đủ.",
+  "record": {
+    "maTKGD": "003C2333888-A",
+    "maTKGDBase": "003C2333888",
+    "noiDungMail": {
+      "maTKGD_Futures": "003C2333888",
+      "maTKGD_ACM": "003C2333888-A",
+      "tenTaiKhoan": "LÊ VĂN THÀNH"
+    },
+    "hopDong": {
+      "maTKGD": "003C2333888",
+      "soCanCuoc": "038090001234",
+      "hoVaTen": "LÊ VĂN THÀNH",
+      "rawNgaySinh": "01/01/1990",
+      "rawNgayCap": "02/02/2022",
+      "rawGioiTinh": "Nam"
+    },
+    "phuLuc": {
+      "soCanCuoc": "038090001234",
+      "hoVaTen": "LÊ VĂN THÀNH",
+      "chuKy": "Đã ký"
+    },
+    "ms": {
+      "isFoundOnMS": true,
+      "maTKGD": "003C2333888",
+      "soCMND_HoChieu": "038090001234",
+      "hoVaTen": "LÊ VĂN THÀNH",
+      "rawNgaySinh": "01/01/1990",
+      "rawNgayCap": "02/02/2022",
+      "gioiTinh": "Nam"
+    }
+  },
+  "expected": {
+    "finalStatus": "KHOP",
+    "mustNotIncludeErrors": [
+      "Lệch mã cơ sở",
+      "Lệch họ tên"
+    ]
+  }
+}

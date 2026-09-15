@@ -1,0 +1,954 @@
+[
+  {
+    "code": "003C2311200",
+    "name": "HOÀNG KIM CÔNG",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEJAADCZ4YzjeXbSKl0kfDESH1rAAWJ98b2AAA=",
+        "subject": "Fw: Yêu cầu mở TKGD",
+        "from": "clearing.acc@mxv.vn",
+        "receivedDateTime": "2026-09-10T11:45:25Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWCogZkAAA=",
+        "subject": "Yêu cầu mở TKGD",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-03T04:18:52Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "HOANG-KIM-CONG-mxv.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/HOANG-KIM-CONG-mxv.pdf",
+        "size": 405050,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "HOANG-KIM-CONG-CCCD-truoc.jpg",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/HOANG-KIM-CONG-CCCD-truoc.jpg",
+        "size": 87970,
+        "contentType": "image/jpeg"
+      },
+      {
+        "name": "HOANG-KIM-CONG-CCCD-sau.jpg",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/HOANG-KIM-CONG-CCCD-sau.jpg",
+        "size": 91816,
+        "contentType": "image/jpeg"
+      },
+      {
+        "name": "image.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/image.png",
+        "size": 21038,
+        "contentType": "image/png"
+      },
+      {
+        "name": "HOANG-KIM-CONG-mxv.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/HOANG-KIM-CONG-mxv.pdf",
+        "size": 405045,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "HOANG-KIM-CONG-CCCD-truoc.jpg",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/HOANG-KIM-CONG-CCCD-truoc.jpg",
+        "size": 87965,
+        "contentType": "image/jpeg"
+      },
+      {
+        "name": "HOANG-KIM-CONG-CCCD-sau.jpg",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C2311200/HOANG-KIM-CONG-CCCD-sau.jpg",
+        "size": 91811,
+        "contentType": "image/jpeg"
+      }
+    ]
+  },
+  {
+    "code": "085C0947827",
+    "name": "NGUYỄN VĂN THỊNH",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWHJyHQAAA=",
+        "subject": "Yêu cầu mở Tài khoản giao dịch hàng hóa",
+        "from": "cskh@phuquytrading.vn",
+        "receivedDateTime": "2026-09-08T00:07:24Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "HĐMTK 2026.PQT KH Nguyễn Văn Thịnh pdf.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/085C0947827/H_MTK_2026.PQT_KH_Nguy_n_V_n_Th_nh_pdf.pdf",
+        "size": 1212877,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "HĐMTK 2026.PQT KH Lê Quang Hưng pdf.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/085C0947827/H_MTK_2026.PQT_KH_L__Quang_H_ng_pdf.pdf",
+        "size": 1173083,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "CCCD Lê Quang Hưng.zip",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/085C0947827/CCCD_L__Quang_H_ng.zip",
+        "size": 98258,
+        "contentType": "application/x-zip-compressed"
+      },
+      {
+        "name": "CCCD Nguyễn Văn Thịnh.zip",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/085C0947827/CCCD_Nguy_n_V_n_Th_nh.zip",
+        "size": 502163,
+        "contentType": "application/x-zip-compressed"
+      }
+    ]
+  },
+  {
+    "code": "003C0879444",
+    "name": "LÊ HUỲNH HÙNG",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEJAADCZ4YzjeXbSKl0kfDESH1rAAWJ98b3AAA=",
+        "subject": "Fw: [TVKD 003] Đề nghị mở TKGD - LÊ HUỲNH HÙNG",
+        "from": "clearing.acc@mxv.vn",
+        "receivedDateTime": "2026-09-10T11:45:42Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBVAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - LÊ HUỲNH HÙNG",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T01:46:42Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C0879444.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/hop-dong-003C0879444.pdf",
+        "size": 4629683,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/image.png",
+        "size": 21038,
+        "contentType": "image/png"
+      },
+      {
+        "name": "hop-dong-003C0879444.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0879444/hop-dong-003C0879444.pdf",
+        "size": 4629678,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C0534241",
+    "name": "PHAN TẤN NHỰT",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEJAADCZ4YzjeXbSKl0kfDESH1rAAWJ98b4AAA=",
+        "subject": "Fw: [TVKD 003] Đề nghị mở TKGD - PHAN TẤN NHỰT",
+        "from": "clearing.acc@mxv.vn",
+        "receivedDateTime": "2026-09-10T11:45:54Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBXAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - PHAN TẤN NHỰT",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T01:53:37Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C0534241.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/hop-dong-003C0534241.pdf",
+        "size": 4452973,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/image.png",
+        "size": 21038,
+        "contentType": "image/png"
+      },
+      {
+        "name": "hop-dong-003C0534241.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0534241/hop-dong-003C0534241.pdf",
+        "size": 4452968,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C1564927",
+    "name": "NGUYỄN HUỲNH NHƯ",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBYAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - NGUYỄN HUỲNH NHƯ",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T01:54:35Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C1564927.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1564927/hop-dong-003C1564927.pdf",
+        "size": 3934061,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C0807375",
+    "name": "TRƯƠNG CẨM TÚ",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBlAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - TRƯƠNG CẨM TÚ",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T01:58:32Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C0807375.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0807375/hop-dong-003C0807375.pdf",
+        "size": 3786842,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C1731326",
+    "name": "TRƯƠNG NGỌC THU",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBnAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - TRƯƠNG NGỌC THU",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T01:59:37Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C1731326.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1731326/hop-dong-003C1731326.pdf",
+        "size": 3788532,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C1684879",
+    "name": "NGUYỄN VĂN HỢI",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBqAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - NGUYỄN VĂN HỢI",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:03:16Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C1684879.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684879/hop-dong-003C1684879.pdf",
+        "size": 4177965,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C6550243",
+    "name": "HUỲNH TUYẾT MAI",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jByAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - HUỲNH TUYẾT MAI",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:11:31Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C6550243.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C6550243/hop-dong-003C6550243.pdf",
+        "size": 3813107,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C1684184",
+    "name": "NGUYỄN TRIỆU HƯNG",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBvAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - NGUYỄN TRIỆU HƯNG",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:07:42Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C1684184.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1684184/hop-dong-003C1684184.pdf",
+        "size": 4684616,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C1669379",
+    "name": "TRƯƠNG HUY HOÀNG",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBuAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - TRƯƠNG HUY HOÀNG",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:06:54Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C1669379.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1669379/hop-dong-003C1669379.pdf",
+        "size": 3638123,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C0094629",
+    "name": "NGUYÊN HOÀNG MAI",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jBwAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - NGUYÊN HOÀNG MAI",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:09:16Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C0094629.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C0094629/hop-dong-003C0094629.pdf",
+        "size": 3927717,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C9052476",
+    "name": "HUỲNH THỊ KIM NGÂN",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jB_AAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - HUỲNH THỊ KIM NGÂN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:56:57Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C9052476.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C9052476/hop-dong-003C9052476.pdf",
+        "size": 4467935,
+        "contentType": "application/pdf"
+      }
+    ]
+  },
+  {
+    "code": "003C1719053",
+    "name": "LÊ THỊ THU HÒA",
+    "messages": [
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGsAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG/ TỪ CHỐI KÍCH HOẠT TÀI KHOẢN GIAO DỊCH",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T08:57:01Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWJ-zGOAAA=",
+        "subject": "TVKD 003 CÔNG VĂN GIẢI TRÌNH HỒ SƠ ĐĂNG KÝ MỞ TÀI KHOẢN GIAO DỊCH HÀNG HÓA VÀ ĐỀ NGHỊ ĐÓNG TÀI KHOẢN",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-11T07:07:29Z"
+      },
+      {
+        "id": "AAMkADc4YzVjYTYxLWNhODgtNDU4ZC1hN2JjLTJiZTEwY2QwOTU5OQBGAAAAAAAz3ExzesbSQr6uUA-FxfpqBwDCZ4YzjeXbSKl0kfDESH1rAAAAAAEMAADCZ4YzjeXbSKl0kfDESH1rAAWI_jCAAAA=",
+        "subject": "[TVKD 003] Đề nghị mở TKGD - LÊ THỊ THU HÒA",
+        "from": "dautuhanghoa@giacatloi.vn",
+        "receivedDateTime": "2026-09-09T02:58:31Z"
+      }
+    ],
+    "downloadedFiles": [
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "DANH SÁCH TKGD HUỶ + TỪ CHỐI KÍCH HOẠT.xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/DANH_S_CH_TKGD_HU____T__CH_I_K_CH_HO_T.xlsx",
+        "size": 12857,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "image001.png",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/image001.png",
+        "size": 422850,
+        "contentType": "image/png"
+      },
+      {
+        "name": "CÔNG VĂN GIẢI TRÌNH TVKD 003.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/C_NG_V_N_GI_I_TR_NH_TVKD_003.pdf",
+        "size": 894064,
+        "contentType": "application/pdf"
+      },
+      {
+        "name": "DANH SÁCH HỦY TKGD  .xlsx",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/DANH_S_CH_H_Y_TKGD__.xlsx",
+        "size": 14534,
+        "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      },
+      {
+        "name": "hop-dong-003C1719053.pdf",
+        "localPath": "/opt/mxv-checklist/backend/data/audit_14_accounts/003C1719053/hop-dong-003C1719053.pdf",
+        "size": 1162543,
+        "contentType": "application/pdf"
+      }
+    ]
+  }
+]

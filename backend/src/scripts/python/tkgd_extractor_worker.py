@@ -127,8 +127,23 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
             cand_issue_date = None
             cand_place = None
 
-            # Dòng ngay sau số CCCD thường là Ngày cấp
-            if idx + 1 < len(lines_p1) and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', lines_p1[idx + 1]):
+            # Cấu trúc TVKD 003 (Gia Cát Lợi):
+            # [12 số CCCD] -> [Ngày cấp: (nhãn)] -> [Date 1: Ngày sinh] -> [Nam/Nữ: Giới tính] -> [Date 2: Ngày cấp]
+            if idx + 4 < len(lines_p1):
+                p2 = lines_p1[idx + 2]
+                p3 = lines_p1[idx + 3]
+                p4 = lines_p1[idx + 4]
+                if re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', p2) and p3 in ['Nam', 'Nữ'] and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', p4):
+                    cand_dob = p2
+                    cand_gender = p3
+                    cand_issue_date = p4
+                    for j in range(max(0, idx - 12), idx):
+                        if re.search(r'họ\s*(&|và)?\s*tên', lines_p1[j], re.I) and j + 1 < idx:
+                            cand_name = lines_p1[j + 1]
+                            break
+
+            # Dòng ngay sau số CCCD thường là Ngày cấp (Layout chuẩn)
+            if not cand_issue_date and idx + 1 < len(lines_p1) and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', lines_p1[idx + 1]):
                 cand_issue_date = lines_p1[idx + 1]
 
             # Dò nơi cấp ở các dòng sau ngày cấp
@@ -137,17 +152,17 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
                     cand_place = lines_p1[k]
                     break
 
-            # Dò giới tính, ngày sinh, họ tên ở các dòng phía trước số CCCD
-            # Cấu trúc TVKD 036: [Họ tên] -> [Ngày sinh] -> [Giới tính: Nam/Nữ] -> [Quốc tịch] -> [Số CCCD]
-            for j in range(max(0, idx - 6), idx):
-                prev_line = lines_p1[j]
-                if prev_line in ['Nam', 'Nữ']:
-                    cand_gender = prev_line
-                    if j > 0 and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', lines_p1[j - 1]):
-                        cand_dob = lines_p1[j - 1]
-                        if j > 1 and re.match(r'^[A-ZÀ-Ỹ\s]{3,40}$', lines_p1[j - 2]):
-                            cand_name = lines_p1[j - 2]
-                    break
+            # Dò giới tính, ngày sinh, họ tên ở các dòng phía trước số CCCD (Layout TVKD 036 / Hitech)
+            if not cand_gender or not cand_dob:
+                for j in range(max(0, idx - 6), idx):
+                    prev_line = lines_p1[j]
+                    if prev_line in ['Nam', 'Nữ']:
+                        cand_gender = prev_line
+                        if j > 0 and re.match(r'^\d{1,2}/\d{1,2}/\d{4}$', lines_p1[j - 1]):
+                            cand_dob = lines_p1[j - 1]
+                            if j > 1 and re.match(r'^[A-ZÀ-Ỹ\s]{3,40}$', lines_p1[j - 2]):
+                                cand_name = lines_p1[j - 2]
+                        break
 
             if cand_cccd and (cand_name or cand_dob or cand_issue_date):
                 res['soCCCD'] = cand_cccd
@@ -265,6 +280,18 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
                     res['ngayCap'] = f"{dd:02d}/{mm:02d}/{yyyy}"
                 else:
                     res['ngayCap'] = raw_cap
+
+    # Sanity check: Ngày cấp không thể trùng Ngày sinh
+    if res.get('ngayCap') and res.get('ngaySinh') and res['ngayCap'] == res['ngaySinh']:
+        res['ngayCap'] = None
+        res['rawNgayCap'] = None
+
+    # Sanity check: CCCD 12 số không thể cấp trước năm 2012
+    if res.get('ngayCap') and res.get('soCCCD') and len(res['soCCCD']) == 12:
+        m_yr = re.search(r'\b(19\d{2}|20\d{2})\b', res['ngayCap'])
+        if m_yr and int(m_yr.group(1)) < 2012:
+            res['ngayCap'] = None
+            res['rawNgayCap'] = None
 
     # 7. Giới tính (Nếu chưa tìm thấy qua Anchor)
     if not res.get('gioiTinh'):
@@ -466,8 +493,11 @@ def auto_deskew_perspective_transform(im: Any) -> Any:
 
 
 def auto_split_composite_dual_card(img_path: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    """Nhận diện nếu một file ảnh là ảnh ghép 2 mặt CCCD (như file CC HOÀNG VĂN LONG.png).
-    Tự động cắt tách thành 2 ảnh con tạm thời (front_temp, back_temp) để bóc tách trọn vẹn cả 2 mặt."""
+    """Nhận diện nếu một file ảnh là ảnh ghép 2 mặt CCCD.
+    Hỗ trợ:
+      - Ghép dọc (trên/dưới): VD CC HOÀNG VĂN LONG.png
+      - Ghép ngang (trái/phải): VD CCCD Đặng Thị Ngọc Diệp.jpg (ratio ~3.08 ≈ 2× ID-1)
+    Tự động cắt tách thành 2 ảnh con tạm thời để bóc tách trọn vẹn cả 2 mặt."""
     if not img_path or not os.path.exists(img_path):
         return None, None
     try:
@@ -478,19 +508,21 @@ def auto_split_composite_dual_card(img_path: Optional[str]) -> Tuple[Optional[st
         if im is None:
             return None, None
         h, w = im.shape[:2]
+        ratio = float(w) / max(h, 1)
 
-        # Kiểm tra hình học ảnh ghép 2 mặt theo chiều dọc:
-        # 1. H >= W * 0.82 (ảnh vuông hoặc khổ đứng)
-        # 2. Hai mép trái phải có dải đệm tối (canvas padding)
         gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         left_mean = float(np.mean(gray[:, :6]))
-        right_mean = float(np.mean(gray[:, w-6:]))
+        right_mean = float(np.mean(gray[:, w - 6 :]))
 
-        is_composite = (h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)
-        if not is_composite and h > int(w * 1.25):
-            is_composite = True
+        # Ghép dọc: H lớn / mép tối hai bên
+        is_vertical = (h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)
+        if not is_vertical and h > int(w * 1.25):
+            is_vertical = True
 
-        if not is_composite:
+        # Ghép ngang: ~2 thẻ ID-1 cạnh nhau (1.59×2 ≈ 3.18); chấp nhận 2.45–3.85
+        is_horizontal = 2.45 <= ratio <= 3.85 and w >= 600
+
+        if not is_vertical and not is_horizontal:
             return None, None
 
         base_dir = os.path.dirname(img_path)
@@ -498,10 +530,14 @@ def auto_split_composite_dual_card(img_path: Optional[str]) -> Tuple[Optional[st
         front_temp = os.path.join(base_dir, f"{stem}_AUTO_FRONT.jpg")
         back_temp = os.path.join(base_dir, f"{stem}_AUTO_BACK.jpg")
 
-        # Nửa trên: Mặt trước (từ 0 đến 53% chiều cao)
-        front_slice = im[0 : int(h * 0.53), :]
-        # Nửa dưới: Mặt sau (từ 47% đến 100% chiều cao)
-        back_slice = im[int(h * 0.47) :, :]
+        if is_horizontal:
+            # Nửa trái: mặt trước; nửa phải: mặt sau
+            front_slice = im[:, 0 : int(w * 0.53)]
+            back_slice = im[:, int(w * 0.47) :]
+        else:
+            # Nửa trên: mặt trước; nửa dưới: mặt sau
+            front_slice = im[0 : int(h * 0.53), :]
+            back_slice = im[int(h * 0.47) :, :]
 
         cv2.imwrite(front_temp, front_slice)
         cv2.imwrite(back_temp, back_slice)
@@ -1274,8 +1310,14 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
             c_br = float(np.mean(gray[h-10:, w-10:]))
             corners = [c_tl, c_tr, c_bl, c_br]
 
-            # Rule nhận diện Ảnh ghép 2 mặt (Composite Dual-Card Canvas)
+            # Rule nhận diện Ảnh ghép 2 mặt (dọc trên/dưới hoặc ngang trái/phải)
+            ratio_wh = float(w) / max(h, 1)
             is_composite_card = (h >= int(w * 0.82)) and (left_mean < 80 and right_mean < 80)
+            if not is_composite_card and h > int(w * 1.25):
+                is_composite_card = True
+            # ~2 thẻ ID-1 ghép ngang (1.59×2 ≈ 3.18) — case 001C0120575
+            if not is_composite_card and 2.45 <= ratio_wh <= 3.85:
+                is_composite_card = True
 
             # Kiểm tra xem thẻ có đường biên lọt bên trong an toàn (viền bàn/giấy cách mép ảnh >= 8px) hay không
             edged = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 40, 140)
@@ -1289,10 +1331,10 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
                         break
             
             # Chỉ cảnh báo nếu tỷ lệ ảnh bị cắt xén bất thường quá nặng (mất hẳn chiều ngang hoặc dọc)
+            # Bỏ qua ảnh ghép 2 mặt (dọc/ngang) — không phải bị xén
             if not is_composite_card and w > int(h * 1.1):
-                ratio = w / max(h, 1)
-                if ratio < 1.15 or ratio > 2.25:
-                    w_msg = f"Tỉ lệ ảnh CCCD bất thường ({base_name}: {ratio:.2f} thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+                if ratio_wh < 1.15 or ratio_wh > 2.25:
+                    w_msg = f"Tỉ lệ ảnh CCCD bất thường ({base_name}: {ratio_wh:.2f} thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
                     if w_msg not in warnings:
                         warnings.append(w_msg)
         except Exception:
@@ -1416,6 +1458,87 @@ def call_gemini_vision_fallback(front_path: Optional[str], back_path: Optional[s
 # 5. HÀM CHÍNH TỔNG HỢP (PIPELINE)
 # ─────────────────────────────────────────────────────────────
 
+def rasterize_cccd_pdf(pdf_path: str, zoom: float = 2.0) -> Tuple[Optional[str], Optional[str]]:
+    """Xử lý file PDF CCCD (TVKD gửi CCCD dạng PDF, vd: 157_CCCD Phung Dac Long.pdf).
+    Nếu PDF có >= 2 trang:
+      - Trang 1 -> {base}_AUTO_FRONT.jpg (Mặt trước: QR, Họ tên, CCCD, Ngày sinh)
+      - Trang 2 -> {base}_AUTO_BACK.jpg (Mặt sau: Ngày cấp, Nơi cấp, MRZ)
+    Nếu PDF chỉ có 1 trang:
+      - Trang 1 -> {base}_AUTO_TEMP.jpg
+      - Thử tách ảnh ghép 2 mặt (auto_split_composite_dual_card) -> front, back
+      - Nếu không ghép: front = TEMP.jpg, back = None
+    """
+    if not pdf_path or not os.path.exists(pdf_path) or not pdf_path.lower().endswith('.pdf'):
+        return None, None
+    try:
+        import pymupdf
+        doc = pymupdf.open(pdf_path)
+        if len(doc) < 1:
+            doc.close()
+            return None, None
+
+        base, _ = os.path.splitext(pdf_path)
+        mat = pymupdf.Matrix(zoom, zoom)
+
+        if len(doc) >= 2:
+            pix0 = doc[0].get_pixmap(matrix=mat, alpha=False)
+            front_path = f"{base}_AUTO_FRONT.jpg"
+            pix0.save(front_path)
+
+            pix1 = doc[1].get_pixmap(matrix=mat, alpha=False)
+            back_path = f"{base}_AUTO_BACK.jpg"
+            pix1.save(back_path)
+            doc.close()
+            return front_path, back_path
+        else:
+            pix0 = doc[0].get_pixmap(matrix=mat, alpha=False)
+            temp_path = f"{base}_AUTO_TEMP.jpg"
+            pix0.save(temp_path)
+            doc.close()
+
+            s_front, s_back = auto_split_composite_dual_card(temp_path)
+            if s_front and s_back:
+                return s_front, s_back
+            return temp_path, None
+    except Exception:
+        return None, None
+
+
+def rasterize_pdf_first_page(pdf_path: str, out_path: Optional[str] = None, zoom: float = 2.0) -> Optional[str]:
+    """Render trang đầu PDF CCCD → JPG để OCR/UI (case 076C3131313: CCCD gửi dạng PDF)."""
+    if not pdf_path or not os.path.exists(pdf_path):
+        return None
+    if not pdf_path.lower().endswith('.pdf'):
+        return pdf_path
+    try:
+        import pymupdf
+        doc = pymupdf.open(pdf_path)
+        if len(doc) < 1:
+            doc.close()
+            return None
+        page = doc[0]
+        mat = pymupdf.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat, alpha=False)
+        if not out_path:
+            base, _ = os.path.splitext(pdf_path)
+            out_path = f"{base}_preview.jpg"
+        pix.save(out_path)
+        doc.close()
+        return out_path if os.path.exists(out_path) else None
+    except Exception:
+        return None
+
+
+def ensure_cccd_image_path(path: Optional[str]) -> Optional[str]:
+    """Nếu path là PDF CCCD thì rasterize sang JPG (giữ file preview cạnh PDF)."""
+    if not path or not os.path.exists(path):
+        return path
+    if path.lower().endswith('.pdf'):
+        p_front, _ = rasterize_cccd_pdf(path)
+        return p_front or path
+    return path
+
+
 def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
                            front: Optional[str], back: Optional[str],
                            code: str = '',
@@ -1427,6 +1550,30 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
         'canCuoc': {},
         'warnings': []
     }
+
+    # 0. Tự động nhận diện nếu hopdong thực chất là file PDF CCCD (vd: 157_CCCD Phung Dac Long.pdf)
+    if hopdong and not front and not back:
+        hd_name = os.path.basename(hopdong).lower()
+        if re.search(r'cccd|cmnd|can\s*cuoc|giay\s*to\s*tuy\s*than', hd_name) and not re.search(r'\b(hd|hop\s*dong)\b', hd_name):
+            front = hopdong
+            hopdong = None
+
+    # Rasterize CCCD PDF nếu có
+    if front and front.lower().endswith('.pdf') and not back:
+        p_front, p_back = rasterize_cccd_pdf(front)
+        if p_front: front = p_front
+        if p_back: back = p_back
+    elif front and front.lower().endswith('.pdf'):
+        p_front, _ = rasterize_cccd_pdf(front)
+        if p_front: front = p_front
+    if back and back.lower().endswith('.pdf'):
+        _, p_back = rasterize_cccd_pdf(back)
+        if p_back: back = p_back
+
+    if front and front.lower().endswith(('.jpg', '.jpeg', '.png')):
+        result['canCuocPreviewFront'] = front
+    if back and back.lower().endswith(('.jpg', '.jpeg', '.png')):
+        result['canCuocPreviewBack'] = back
 
     # 1. Bóc tách hợp đồng
     if hopdong and os.path.exists(hopdong):

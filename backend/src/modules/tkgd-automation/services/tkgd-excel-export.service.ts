@@ -12,43 +12,12 @@ import {
   getTkgdAttachmentDirectory,
   resolveTkgdOutputDir,
 } from '../../bot-engine/helpers/tkgd-reconcile-exporter.helper';
-
-function isIgnoredEmailAttachment(fileName?: string, size?: number): boolean {
-  if (!fileName) return true;
-  const lower = fileName.trim().toLowerCase();
-  if (lower === 'thumbs.db' || lower === 'desktop.ini') return true;
-
-  const isGenericImageName =
-    lower === 'image.png' ||
-    lower === 'image.jpg' ||
-    lower === 'image.jpeg' ||
-    lower === 'image.gif' ||
-    /^image\d+\.(png|jpe?g|gif)$/i.test(lower) ||
-    lower.startsWith('image0');
-
-  if (isGenericImageName) {
-    if (size !== undefined && size >= 25000) {
-      return false;
-    }
-    return true;
-  }
-
-  if (
-    lower.startsWith('logo') ||
-    lower.includes('-logo') ||
-    lower.includes('_logo') ||
-    lower.includes('mxv-logo') ||
-    lower.includes('company-logo') ||
-    lower.startsWith('banner') ||
-    lower.startsWith('footer') ||
-    lower.startsWith('signature-banner') ||
-    lower.startsWith('outlook-') ||
-    lower.startsWith('icon')
-  ) {
-    return true;
-  }
-  return false;
-}
+import {
+  isIgnoredEmailAttachment,
+  isNamedCccdFront,
+  isNamedCccdBack,
+  probeImageDimensions,
+} from '../../bot-engine/helpers/tkgd-mail-parser.helper';
 
 @Injectable()
 export class TkgdExcelExportService {
@@ -235,15 +204,19 @@ export class TkgdExcelExportService {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
           }
         } else {
-          if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1') || lower.includes('image001')) {
+          const fullPath = foundDir ? path.join(foundDir, f) : '';
+          const dims = fullPath && fs.existsSync(fullPath) ? probeImageDimensions(fullPath) : null;
+          if (isIgnoredEmailAttachment(f, fileSize, dims)) {
+            otherFiles.push(buildFileObj(f, 'IMAGE'));
+          } else if (isNamedCccdFront(lower)) {
             mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (lower.includes('sau') || lower.includes('back') || lower.includes('mat2') || lower.includes('image002')) {
+          } else if (isNamedCccdBack(lower)) {
             mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
           } else if (lower.includes('chuky') || lower.includes('signature')) {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
-          } else if (!mailCccdFront) {
+          } else if (!mailCccdFront && !/^image\d*\./i.test(lower)) {
             mailCccdFront = buildFileObj(f, 'MAIL_CCCD_FRONT');
-          } else if (!mailCccdBack) {
+          } else if (!mailCccdBack && !/^image\d*\./i.test(lower)) {
             mailCccdBack = buildFileObj(f, 'MAIL_CCCD_BACK');
           } else {
             otherFiles.push(buildFileObj(f, 'IMAGE'));

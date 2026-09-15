@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ShieldAlert,
   Lock,
+  Zap,
 } from 'lucide-react';
 import {
   CleanRecord,
@@ -48,6 +49,7 @@ export const TkgdInspectionModal: React.FC<TkgdInspectionModalProps> = ({
   const [activeModalTab, setActiveModalTab] = useState<'DIFF' | 'ATTACHMENTS' | 'AUDIT'>('DIFF');
   const [isApproving, setIsApproving] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  const [isReEvaluating, setIsReEvaluating] = useState(false);
   const [showApproveBox, setShowApproveBox] = useState(false);
   const [approveReason, setApproveReason] = useState('Đã xác minh hồ sơ gốc hợp lệ');
 
@@ -458,6 +460,42 @@ export const TkgdInspectionModal: React.FC<TkgdInspectionModalProps> = ({
                     <ShieldCheck size={15} /> Phê Duyệt Hồ Sơ (Chấp Thuận)
                   </button>
                 )
+              )}
+
+              {/* Nút Tái Thẩm Định Hồ Sơ (Dọn Sạch Lỗi Stale & Re-run Rule Engine) */}
+              {!record?.manualReview?.isOverridden && !showApproveBox && (
+                <button
+                  disabled={isReEvaluating}
+                  onClick={async () => {
+                    if (!record?._id) return;
+                    setIsReEvaluating(true);
+                    try {
+                      const res = await tkgdApi.reEvaluateRecord(record._id);
+                      toast.success(res.message || 'Đã tái thẩm định hồ sơ thành công!');
+                      if (res.record) onRecordUpdated?.(res.record);
+                    } catch (err: any) {
+                      toast.error('Lỗi tái thẩm định: ' + err.message);
+                    } finally {
+                      setIsReEvaluating(false);
+                    }
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    color: '#3b82f6',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    cursor: isReEvaluating ? 'not-allowed' : 'pointer',
+                  }}
+                  title="Chạy lại bộ luật đối soát chéo trên dữ liệu mới nhất, xóa bỏ các cảnh báo stale cũ"
+                >
+                  <Zap size={14} /> {isReEvaluating ? 'Đang thẩm định...' : 'Tái Thẩm Định'}
+                </button>
               )}
 
               <button

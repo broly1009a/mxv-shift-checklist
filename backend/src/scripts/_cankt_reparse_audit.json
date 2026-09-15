@@ -1,0 +1,381 @@
+{
+  "before": {
+    "total": 201,
+    "by": {
+      "KHOP": 164,
+      "LECH": 19,
+      "CAN_KIEM_TRA": 18,
+      "CHUA_XU_LY": 0
+    }
+  },
+  "after": {
+    "total": 201,
+    "by": {
+      "KHOP": 167,
+      "LECH": 19,
+      "CAN_KIEM_TRA": 15,
+      "CHUA_XU_LY": 0
+    }
+  },
+  "transitions": {
+    "CAN_KIEM_TRA->CAN_KIEM_TRA": 12,
+    "CAN_KIEM_TRA->KHOP": 3,
+    "LECH->LECH": 19
+  },
+  "results": [
+    {
+      "code": "048C8201013",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (048C8201013_MS_CCCD_sau.jpg: 524x331px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "ok": true
+    },
+    {
+      "code": "048C7324877",
+      "before": "CAN_KIEM_TRA",
+      "after": "KHOP",
+      "errs": [],
+      "ok": true
+    },
+    {
+      "code": "003C1901707",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 10/04/1993 != MS: 10/04/1998)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C7663035",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "045C4844668",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 01/06/2024 != MS: 10/06/2024)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C3749834",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch giới tính (HĐ: lv{XX != MS: Nam)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1286707",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 13/09/1939 != MS: 13/09/1989)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "046C0002905",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 04/10/2022 != MS: 14/10/2022)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1647904",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 29/10/2044 != MS: 04/07/2025)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C4865788",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 13/09/1995 != MS: 23/09/1995)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C6487170",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 01/11/1900 != MS: 01/11/1970)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "041C0161098",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch họ tên (Yêu cầu: CHU MINH THUANK != MS: Chu Minh Thuận)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "001C0128136",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch họ tên (Yêu cầu: MAK KTHIKHAUK KKKKKKKKKK != MS: Mã Thị Hậu)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C0094629",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 12/07/2032 != MS: 20/04/2021)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1684184",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: 22/04/2021 != MS: 27/01/2005)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1669379",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 22/09/2032 != MS: 13/07/2022)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1402455",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 05/06/2027 != MS: 13/07/2022)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "046C0002887",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C0879444",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "001C0120575",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Lệch họ tên (Yêu cầu: NMDANG THI NGOC DIEP != MS: Đặng Thị Ngọc Diệp)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "046C0002904",
+      "before": "LECH",
+      "after": "LECH",
+      "errs": [
+        "Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1250359",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày sinh trên HĐ không đọc được rõ (Hi)",
+        "Ngày cấp trên HĐ không đọc được rõ (Cue Cah Ser)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C9462626",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)",
+        "CCCD bị cắt lẹm chữ ở viền ảnh (003C9462626_MS_CCCD_truoc.jpg): dòng chữ bị xén cụt ở mép"
+      ],
+      "ok": true
+    },
+    {
+      "code": "036C8172636",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (MT.png: 460x305px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (MS.png: 452x299px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C3748802",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày sinh trên HĐ không đọc được rõ ([occoenn bạaoioiME [Naver [g2 |)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "048C5952972",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày sinh trên HĐ không đọc được rõ (1978)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1059483",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày cấp trên HĐ không đọc được rõ (Ô9(02|.20)",
+        "Ảnh CCCD bị mờ/nhòe nét (003C1059483_MS_CCCD_truoc.jpg: blur=30.6): chất lượng kém, nguy cơ đọc sai ký tự"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C9992222",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày cấp trên HĐ không đọc được rõ (Scanned with H)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "086C2657701",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (086C2657701_MS_CCCD_truoc.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (086C2657701_MS_CCCD_sau.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "ok": true
+    },
+    {
+      "code": "076C9999999",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày sinh trên HĐ không đọc được rõ (1981)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "076C6868688",
+      "before": "CAN_KIEM_TRA",
+      "after": "KHOP",
+      "errs": [],
+      "ok": true
+    },
+    {
+      "code": "076C3131313",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ngày sinh trên HĐ không đọc được rõ (1989)"
+      ],
+      "ok": true
+    },
+    {
+      "code": "003C1601004",
+      "before": "CAN_KIEM_TRA",
+      "after": "KHOP",
+      "errs": [],
+      "ok": true
+    },
+    {
+      "code": "003C9544239",
+      "before": "CAN_KIEM_TRA",
+      "after": "CAN_KIEM_TRA",
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (VU-NGOC-SON-CCCD-truoc.jpg: 542x318px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (VU-NGOC-SON-CCCD-sau.jpg: 587x345px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "ok": true
+    }
+  ],
+  "manifestCheck": {
+    "http": 200,
+    "mailFront": "nguyenminhtruong_1.jpg",
+    "mailBack": null,
+    "msFront": "048C8201013_MS_CCCD_truoc.jpg",
+    "msBack": "048C8201013_MS_CCCD_sau.jpg",
+    "fireantStillFront": false
+  },
+  "flippedToKhop": [
+    "048C7324877",
+    "076C6868688",
+    "003C1601004"
+  ],
+  "stillCanKiemTra": [
+    "048C8201013",
+    "003C1250359",
+    "003C9462626",
+    "036C8172636",
+    "003C3748802",
+    "048C5952972",
+    "003C1059483",
+    "003C9992222",
+    "086C2657701",
+    "076C9999999",
+    "076C3131313",
+    "003C9544239"
+  ],
+  "stillLech": [
+    "003C1901707",
+    "003C7663035",
+    "045C4844668",
+    "003C3749834",
+    "003C1286707",
+    "046C0002905",
+    "003C1647904",
+    "003C4865788",
+    "003C6487170",
+    "041C0161098",
+    "001C0128136",
+    "003C0094629",
+    "003C1684184",
+    "003C1669379",
+    "003C1402455",
+    "046C0002887",
+    "003C0879444",
+    "001C0120575",
+    "046C0002904"
+  ]
+}

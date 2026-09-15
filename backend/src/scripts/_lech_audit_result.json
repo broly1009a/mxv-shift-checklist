@@ -1,0 +1,1509 @@
+◇ injected env (22) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+SUMMARY_JSON
+{
+  "total": 88,
+  "summary": {
+    "CORRECT": 44,
+    "FALSE_POSITIVE": 35,
+    "MIXED": 9,
+    "NEEDS_REVIEW": 0
+  }
+}
+DETAIL_JSON
+{
+  "CORRECT": [
+    {
+      "maTKGD": "003C9462626",
+      "batchDate": "2026-09-04",
+      "mailName": "LÂM THANH DANH",
+      "hdName": "LÂM THANH DANH",
+      "msName": "LÂM THANH DANH",
+      "hdCccd": "087067013304",
+      "msCccd": "087067013304",
+      "foundMs": true,
+      "errs": [
+        "CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C2682568",
+      "batchDate": "2026-09-07",
+      "mailName": "LIN THỊ NHƯ YẾN",
+      "hdName": "LIN THỊ NHƯ YẾN",
+      "msName": "LIN THỊ NHƯ YẾN",
+      "hdCccd": "068177001280",
+      "msCccd": "068177001280",
+      "foundMs": true,
+      "errs": [
+        "Lệch giới tính (HĐ: Nam != MS: Nữ)"
+      ],
+      "notes": [
+        "CORRECT: HD=Nam MS=Nữ"
+      ]
+    },
+    {
+      "maTKGD": "003C9462626",
+      "batchDate": "2026-09-07",
+      "mailName": "LÂM THANH DANH",
+      "hdName": "LÂM THANH DANH",
+      "msName": "LÂM THANH DANH",
+      "hdCccd": "087067013304",
+      "msCccd": "087067013304",
+      "foundMs": true,
+      "errs": [
+        "CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C9462626",
+      "batchDate": "2026-09-08",
+      "mailName": "LÂM THANH DANH",
+      "hdName": "LÂM THANH DANH",
+      "msName": "LÂM THANH DANH",
+      "hdCccd": "087067013304",
+      "msCccd": "087067013304",
+      "foundMs": true,
+      "errs": [
+        "CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C2333888",
+      "batchDate": "2026-09-09",
+      "mailName": "Ngô Đức Hải",
+      "hdName": "Ngô Đức Hải",
+      "msName": "Ngô Đức Hải",
+      "hdCccd": "031079015563",
+      "msCccd": "031079015563",
+      "foundMs": true,
+      "errs": [
+        "CCCD bị xén sát mép ảnh (003C2333888_MS_CCCD_sau.jpg): chữ 'IDVNMO790155634031079015563<<.' chạm sát viền ảnh (<8px)"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C9462626",
+      "batchDate": "2026-09-09",
+      "mailName": "LÂM THANH DANH",
+      "hdName": "LÂM THANH DANH",
+      "msName": "LÂM THANH DANH",
+      "hdCccd": "087067013304",
+      "msCccd": "087067013304",
+      "foundMs": true,
+      "errs": [
+        "CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới)"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C7758574",
+      "batchDate": "2026-09-09",
+      "mailName": "THÁI NGỌC QUỲNH",
+      "hdName": "THÁI NGỌC QUỲNH",
+      "msName": "THÁI NGỌC QUỲNH",
+      "hdCccd": null,
+      "msCccd": "052194019534",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=052194019534"
+      ]
+    },
+    {
+      "maTKGD": "003C6480357",
+      "batchDate": "2026-09-09",
+      "mailName": "TÔ ANH VŨ",
+      "hdName": "TÔ ANH VŨ",
+      "msName": "TÔ ANH VŨ",
+      "hdCccd": null,
+      "msCccd": "052205000662",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=052205000662"
+      ]
+    },
+    {
+      "maTKGD": "085C4876915",
+      "batchDate": "2026-09-09",
+      "mailName": "HÀ VĂN CƯỜNG 085C4876915 085C1055726 TRỊNH XUÂN ĐẠI 085C1055726-A",
+      "hdName": "để thực hiện",
+      "msName": "HÀ VĂN CƯỜNG",
+      "hdCccd": "038085010735",
+      "msCccd": "024085013001",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: HÀ VĂN CƯỜNG)",
+        "Lệch số CCCD (Hồ sơ: 038085010735 != MS: 024085013001)",
+        "Lệch ngày sinh (HĐ/CCCD: 06/04/1985 != MS: 27/03/1985)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"HÀ VĂN CƯỜNG 085C4876915 085C1055726 TRỊNH XUÂN ĐẠI 085C1055726-A\" khớp MS=true)",
+        "CORRECT: HD=038085010735 MS=024085013001",
+        "CORRECT: HD=06/04/1985 MS=27/03/1985"
+      ]
+    },
+    {
+      "maTKGD": "036C8172636",
+      "batchDate": "2026-09-09",
+      "mailName": "Phạm Gia Khiêm",
+      "hdName": "PHẠM GIA KHIÊM",
+      "msName": "Phạm Gia Khiêm",
+      "hdCccd": "036099000916",
+      "msCccd": "036099000916",
+      "foundMs": true,
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (MT.png: 460x305px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (MS.png: 452x299px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C7663035",
+      "batchDate": "2026-09-09",
+      "mailName": "PHÙNG XUÂN TRƯỜNG",
+      "hdName": "PHÙNG XUÂN TRƯỜNG",
+      "msName": "PHÙNG XUÂN TRƯỜNG",
+      "hdCccd": null,
+      "msCccd": "064207007142",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=064207007142"
+      ]
+    },
+    {
+      "maTKGD": "085C4462551",
+      "batchDate": "2026-09-09",
+      "mailName": "PHẠM MINH TOÀN 085C4462551 085C8013983 TRẦN THỊ THU HIỀN 085C8013983-A",
+      "hdName": "để thực hiện",
+      "msName": "PHẠM MINH TOÀN",
+      "hdCccd": "027092000105",
+      "msCccd": "027092000105",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: PHẠM MINH TOÀN)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"PHẠM MINH TOÀN 085C4462551 085C8013983 TRẦN THỊ THU HIỀN 085C8013983-A\" khớp MS=true)"
+      ]
+    },
+    {
+      "maTKGD": "085C3828189",
+      "batchDate": "2026-09-09",
+      "mailName": "VÕ THỊ HỒNG 085C3828189",
+      "hdName": "để thực hiện",
+      "msName": "VÕ THỊ HỒNG",
+      "hdCccd": "020187000291",
+      "msCccd": "020187000291",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: VÕ THỊ HỒNG)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"VÕ THỊ HỒNG 085C3828189\" khớp MS=true)"
+      ]
+    },
+    {
+      "maTKGD": "045C4844668",
+      "batchDate": "2026-09-09",
+      "mailName": "DƯƠNG VĂN TRÁNG",
+      "hdName": "DƯƠNG VĂN TRÁNG",
+      "msName": "DƯƠNG VĂN TRÁNG",
+      "hdCccd": "044085002100",
+      "msCccd": "044085002100",
+      "foundMs": true,
+      "errs": [
+        "Lệch ngày cấp (HĐ/CCCD: 01/06/2024 != MS: 10/06/2024)"
+      ],
+      "notes": [
+        "CORRECT: HD=01/06/2024 MS=10/06/2024"
+      ]
+    },
+    {
+      "maTKGD": "003C3748802",
+      "batchDate": "2026-09-09",
+      "mailName": "NGÔ QUỐC TRUNG",
+      "hdName": "NGÔ QUỐC TRUNG",
+      "msName": "NGÔ QUỐC TRUNG",
+      "hdCccd": null,
+      "msCccd": "049201013184",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=049201013184"
+      ]
+    },
+    {
+      "maTKGD": "003C3749834",
+      "batchDate": "2026-09-09",
+      "mailName": "VÕ ANH KIỆT",
+      "hdName": "VÕ ANH KIỆT",
+      "msName": "VÕ ANH KIỆT",
+      "hdCccd": null,
+      "msCccd": "049097006238",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch giới tính (HĐ: lv{XX != MS: Nam)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=049097006238",
+        "CORRECT: HD=lv{XX MS=Nam"
+      ]
+    },
+    {
+      "maTKGD": "003C1250359",
+      "batchDate": "2026-09-09",
+      "mailName": "LỤC THỊ KIM MINH",
+      "hdName": "LỤC THỊ KIM MINH",
+      "msName": "LỤC THỊ KIM MINH",
+      "hdCccd": null,
+      "msCccd": "048189007360",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày cấp (HĐ/CCCD: Cue Cah Ser != MS: 14/02/2022)",
+        "Lệch giới tính (HĐ: Ng Điện thoại: != MS: Nữ)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=048189007360",
+        "CORRECT: HD=Cue Cah Ser MS=14/02/2022",
+        "CORRECT: HD=Ng Điện thoại: MS=Nữ"
+      ]
+    },
+    {
+      "maTKGD": "003C1911999",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THỊ BÍCH NGỌC",
+      "hdName": "NGUYỄN THỊ BÍCH NGỌC",
+      "msName": "NGUYỄN THỊ BÍCH NGỌC",
+      "hdCccd": null,
+      "msCccd": "070187000139",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=070187000139"
+      ]
+    },
+    {
+      "maTKGD": "086C2600104",
+      "batchDate": "2026-09-09",
+      "mailName": "Mã Tiểu khoản TKGD: 086C2600104",
+      "hdName": "Mã Tiểu khoản TKGD: 086C2600104",
+      "msName": "TRẦN HOÀNG HUY",
+      "hdCccd": "086086000104",
+      "msCccd": "086086000104",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: MÃ TIỂU KHOẢN TKGD: 086C2600104 != MS: TRẦN HOÀNG HUY)"
+      ],
+      "notes": [
+        "CORRECT: lệch tên thật: HD=Mã Tiểu khoản TKGD: 086C2600104 MS=TRẦN HOÀNG HUY mail=Mã Tiểu khoản TKGD: 086C2600104"
+      ]
+    },
+    {
+      "maTKGD": "086C2657701",
+      "batchDate": "2026-09-09",
+      "mailName": "Mã Tiểu khoản TKGD: 086C2657701",
+      "hdName": "Mã Tiểu khoản TKGD: 086C2657701",
+      "msName": "NGUYỄN QUANG LUYỆN",
+      "hdCccd": "048076000071",
+      "msCccd": "048076000071",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: MÃ TIỂU KHOẢN TKGD: 086C2657701 != MS: NGUYỄN QUANG LUYỆN)",
+        "Ảnh CCCD độ phân giải thấp (CCCD NGUYỄN QUANG LUYỆN.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (CCCD NGUYỄN QUANG LUYỆN 1.jpg: 484x311px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: lệch tên thật: HD=Mã Tiểu khoản TKGD: 086C2657701 MS=NGUYỄN QUANG LUYỆN mail=Mã Tiểu khoản TKGD: 086C2657701",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "076C9999999",
+      "batchDate": "2026-09-09",
+      "mailName": "LÊ HOÀNG ANH",
+      "hdName": "LÊ HOÀNG ANH",
+      "msName": "LÊ HOÀNG ANH",
+      "hdCccd": "079081000072",
+      "msCccd": "079081000072",
+      "foundMs": true,
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "076C6868688",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THỊ THANH",
+      "hdName": "NGUYỄN THỊ THANH",
+      "msName": "NGUYỄN THỊ THANH",
+      "hdCccd": "038182049531",
+      "msCccd": "038182049531",
+      "foundMs": true,
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "076C3131313",
+      "batchDate": "2026-09-09",
+      "mailName": "HỒ BÁ HUỲNH",
+      "hdName": "HỒ BÁ HUỲNH",
+      "msName": "HỒ BÁ HUỲNH",
+      "hdCccd": "040089030010",
+      "msCccd": "040089030010",
+      "foundMs": true,
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (e0b6f9cd.png: 397x275px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C1286707",
+      "batchDate": "2026-09-09",
+      "mailName": "ĐỖ THỊ HUỲNH GIAO",
+      "hdName": "ĐỖ THỊ HUỲNH GIAO",
+      "msName": "ĐỖ THỊ HUỲNH GIAO",
+      "hdCccd": null,
+      "msCccd": "079189002009",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=079189002009"
+      ]
+    },
+    {
+      "maTKGD": "048C5952972",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Văn Vinh",
+      "hdName": "Nguyễn Văn Vinh",
+      "msName": "NGUYỄN VĂN VINH",
+      "hdCccd": "034078000857",
+      "msCccd": "034078000857",
+      "foundMs": true,
+      "errs": [
+        "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C7253652",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN VĂN NHANH",
+      "hdName": "NGUYỄN VĂN NHANH",
+      "msName": "NGUYỄN VĂN NHANH",
+      "hdCccd": null,
+      "msCccd": "086078001016",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=086078001016"
+      ]
+    },
+    {
+      "maTKGD": "003C2199434",
+      "batchDate": "2026-09-09",
+      "mailName": "TRẦN ĐĂNG KHOA",
+      "hdName": "TRẦN ĐĂNG KHOA",
+      "msName": "TRẦN ĐĂNG KHOA",
+      "hdCccd": null,
+      "msCccd": "056205001916",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=056205001916"
+      ]
+    },
+    {
+      "maTKGD": "003C0151344",
+      "batchDate": "2026-09-09",
+      "mailName": "TÔ LONG PHÚ",
+      "hdName": "TÔ LONG PHÚ",
+      "msName": "TÔ LONG PHÚ",
+      "hdCccd": null,
+      "msCccd": "092205004661",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=092205004661"
+      ]
+    },
+    {
+      "maTKGD": "003C3226057",
+      "batchDate": "2026-09-09",
+      "mailName": "CHU THỊ NGỌC MAI",
+      "hdName": "CHU THỊ NGỌC MAI",
+      "msName": "CHU THỊ NGỌC MAI",
+      "hdCccd": null,
+      "msCccd": "035305000331",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=035305000331"
+      ]
+    },
+    {
+      "maTKGD": "003C8086027",
+      "batchDate": "2026-09-09",
+      "mailName": "HÀ THỊ THANH HÀ",
+      "hdName": "HÀ THỊ THANH HÀ",
+      "msName": "HÀ THỊ THANH HÀ",
+      "hdCccd": null,
+      "msCccd": "074174007823",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=074174007823"
+      ]
+    },
+    {
+      "maTKGD": "085C5176858",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN MẠNH NAM 085C5176858 085C1624271 NGUYỄN THỊ NGA 085C1624271-A",
+      "hdName": "để thực hiện",
+      "msName": "NGUYỄN MẠNH NAM",
+      "hdCccd": "024171013625",
+      "msCccd": "017088000311",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: NGUYỄN MẠNH NAM)",
+        "Lệch số CCCD (Hồ sơ: 024171013625 != MS: 017088000311)",
+        "Lệch ngày sinh (HĐ/CCCD: 10/10/1971 != MS: 21/02/1988)",
+        "Lệch giới tính (HĐ: Nữ != MS: Nam)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"NGUYỄN MẠNH NAM 085C5176858 085C1624271 NGUYỄN THỊ NGA 085C1624271-A\" khớp MS=true)",
+        "CORRECT: HD=024171013625 MS=017088000311",
+        "CORRECT: HD=10/10/1971 MS=21/02/1988",
+        "CORRECT: HD=Nữ MS=Nam"
+      ]
+    },
+    {
+      "maTKGD": "046C0002905",
+      "batchDate": "2026-09-09",
+      "mailName": "TRẦN THỊ THANH THẢO",
+      "hdName": "TRẦN THỊ THANH THẢO",
+      "msName": "TRẦN THỊ THANH THẢO",
+      "hdCccd": null,
+      "msCccd": "072176006236",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Ảnh CCCD độ phân giải thấp (image.png: 923x285px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Tỉ lệ ảnh CCCD bất thường (image.png: 3.24 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=072176006236",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "048C8201013",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Minh Trường",
+      "hdName": "Nguyễn Minh Trường",
+      "msName": "NGUYỄN MINH TRƯỜNG",
+      "hdCccd": "025082010652",
+      "msCccd": "025082010652",
+      "foundMs": true,
+      "errs": [
+        "Tỉ lệ ảnh CCCD bất thường (F FireAnt COLOR black horizontal@2x.png: 4.00 thay vì 1.59): nghi vấn bị cắt xén chiều ngang/dọc",
+        "Ảnh CCCD độ phân giải thấp (nguyenminhtruong_2.jpg: 464x293px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "085C8601974",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN HOÀNG ÂN 085C8601974",
+      "hdName": "để thực hiện",
+      "msName": "NGUYỄN HOÀNG ÂN",
+      "hdCccd": "079099013410",
+      "msCccd": "079099013410",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: NGUYỄN HOÀNG ÂN)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"NGUYỄN HOÀNG ÂN 085C8601974\" khớp MS=true)"
+      ]
+    },
+    {
+      "maTKGD": "003C1647904",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN HOÀNG DŨNG",
+      "hdName": "NGUYỄN HOÀNG DŨNG",
+      "msName": "NGUYỄN HOÀNG DŨNG",
+      "hdCccd": null,
+      "msCccd": "001084616515",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=001084616515"
+      ]
+    },
+    {
+      "maTKGD": "003C4865788",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN BẢO NGỌC",
+      "hdName": "NGUYỄN BẢO NGỌC",
+      "msName": "NGUYỄN BẢO NGỌC",
+      "hdCccd": "001095038735",
+      "msCccd": "001095038735",
+      "foundMs": true,
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (image002.png: 524x335px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C9258088",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Thị Nữ Hằng",
+      "hdName": "Nguyễn Thị Nữ Hằng",
+      "msName": "Nguyễn Thị Nữ Hằng",
+      "hdCccd": "040300022655",
+      "msCccd": "040300022655",
+      "foundMs": true,
+      "errs": [
+        "Ảnh CCCD độ phân giải thấp (image002.jpg: 526x336px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C6550243",
+      "batchDate": "2026-09-09",
+      "mailName": "HUỲNH TUYẾT MAI",
+      "hdName": "Lối",
+      "msName": "HUỲNH TUYẾT MAI",
+      "hdCccd": null,
+      "msCccd": "077182645986",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: LỐI != MS: HUỲNH TUYẾT MAI)",
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch giới tính (HĐ: Điện thoại: != MS: Nữ)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"Lối\" (mail=\"HUỲNH TUYẾT MAI\" khớp MS=true)",
+        "CORRECT: HĐ/OCR không có số CCCD; MS=077182645986",
+        "CORRECT: HD=Điện thoại: MS=Nữ"
+      ]
+    },
+    {
+      "maTKGD": "003C0094629",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYÊN HOÀNG MAI",
+      "hdName": "NGUYÊN HOÀNG MAI",
+      "msName": "NGUYÊN HOÀNG MAI",
+      "hdCccd": null,
+      "msCccd": "036207020211",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch giới tính (HĐ: _ CCCD/CMND: != MS: Nam)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=036207020211",
+        "CORRECT: OCR giới tính rác/thiếu: \"_ CCCD/CMND:\" vs MS=Nam"
+      ]
+    },
+    {
+      "maTKGD": "003C1669379",
+      "batchDate": "2026-09-09",
+      "mailName": "TRƯƠNG HUY HOÀNG",
+      "hdName": "TRƯƠNG HUY HOÀNG",
+      "msName": "TRƯƠNG HUY HOÀNG",
+      "hdCccd": null,
+      "msCccd": "070202008002",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=070202008002"
+      ]
+    },
+    {
+      "maTKGD": "085C7416709",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THU HUYỀN 085C7416709",
+      "hdName": "để thực hiện",
+      "msName": "NGUYỄN THU HUYỀN",
+      "hdCccd": "024195014507",
+      "msCccd": "024195014507",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: NGUYỄN THU HUYỀN)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"NGUYỄN THU HUYỀN 085C7416709\" khớp MS=true)"
+      ]
+    },
+    {
+      "maTKGD": "003C1402455",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN ĐĂNG KHOA",
+      "hdName": "NGUYỄN ĐĂNG KHOA",
+      "msName": "NGUYỄN ĐĂNG KHOA",
+      "hdCccd": null,
+      "msCccd": "079202021995",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=079202021995"
+      ]
+    },
+    {
+      "maTKGD": "085C3564935",
+      "batchDate": "2026-09-09",
+      "mailName": "TRẦN KIM HOÀNG 085C3564935",
+      "hdName": "để thực hiện",
+      "msName": "TRẦN KIM HOÀNG",
+      "hdCccd": "026089001901",
+      "msCccd": "026089001901",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐỂ THỰC HIỆN != MS: TRẦN KIM HOÀNG)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"để thực hiện\" (mail=\"TRẦN KIM HOÀNG 085C3564935\" khớp MS=true)"
+      ]
+    },
+    {
+      "maTKGD": "046C0001883",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THỊ LUYẾN",
+      "hdName": "NGUYỄN THỊ LUYẾN",
+      "msName": "NGUYỄN THỊ LUYẾN",
+      "hdCccd": null,
+      "msCccd": "027164002242",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=027164002242"
+      ]
+    }
+  ],
+  "FALSE_POSITIVE": [
+    {
+      "maTKGD": "003C8946619",
+      "batchDate": "2026-09-04",
+      "mailName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "msName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdCccd": "079304018664",
+      "msCccd": "079304018664",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→20/05/2022"
+      ]
+    },
+    {
+      "maTKGD": "003C6356889",
+      "batchDate": "2026-09-07",
+      "mailName": "ĐỖ THỊ DUYÊN",
+      "hdName": "ĐỖ THỊ DUYÊN",
+      "msName": "ĐỖ THỊ DUYÊN",
+      "hdCccd": "034183007022",
+      "msCccd": "034183007022",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-08-19 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→19/08/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C2823217",
+      "batchDate": "2026-09-07",
+      "mailName": "NGUYỄN TẤT THẮNG",
+      "hdName": "NGUYEN TAT THANG",
+      "msName": "NGUYỄN TẤT THẮNG",
+      "hdCccd": "001065002279",
+      "msCccd": "001065002279",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2025-05-13 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→13/05/2025"
+      ]
+    },
+    {
+      "maTKGD": "003C8946619",
+      "batchDate": "2026-09-07",
+      "mailName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "msName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdCccd": "079304018664",
+      "msCccd": "079304018664",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→20/05/2022"
+      ]
+    },
+    {
+      "maTKGD": "003C1399395",
+      "batchDate": "2026-09-07",
+      "mailName": "NGUYỄN THỊ THU THÚY",
+      "hdName": "NGUYỄN THỊ THU THÚY",
+      "msName": "NGUYỄN THỊ THU THÚY",
+      "hdCccd": "080180003960",
+      "msCccd": "080180003960",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1980-06-16 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-05-01 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→16/06/1980",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→01/05/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C6356889",
+      "batchDate": "2026-09-08",
+      "mailName": "ĐỖ THỊ DUYÊN",
+      "hdName": "ĐỖ THỊ DUYÊN",
+      "msName": "ĐỖ THỊ DUYÊN",
+      "hdCccd": "034183007022",
+      "msCccd": "034183007022",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-08-19 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→19/08/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C2823217",
+      "batchDate": "2026-09-08",
+      "mailName": "NGUYỄN TẤT THẮNG",
+      "hdName": "NGUYEN TAT THANG",
+      "msName": "NGUYỄN TẤT THẮNG",
+      "hdCccd": "001065002279",
+      "msCccd": "001065002279",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2025-05-13 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→13/05/2025"
+      ]
+    },
+    {
+      "maTKGD": "003C8946619",
+      "batchDate": "2026-09-08",
+      "mailName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "msName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdCccd": "079304018664",
+      "msCccd": "079304018664",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→20/05/2022"
+      ]
+    },
+    {
+      "maTKGD": "003C1399395",
+      "batchDate": "2026-09-08",
+      "mailName": "NGUYỄN THỊ THU THÚY",
+      "hdName": "NGUYỄN THỊ THU THÚY",
+      "msName": "NGUYỄN THỊ THU THÚY",
+      "hdCccd": "080180003960",
+      "msCccd": "080180003960",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1980-06-16 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-05-01 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→16/06/1980",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→01/05/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C6356889",
+      "batchDate": "2026-09-09",
+      "mailName": "ĐỖ THỊ DUYÊN",
+      "hdName": "ĐỖ THỊ DUYÊN",
+      "msName": "ĐỖ THỊ DUYÊN",
+      "hdCccd": "034183007022",
+      "msCccd": "034183007022",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-08-19 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→19/08/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C2823217",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN TẤT THẮNG",
+      "hdName": "NGUYEN TAT THANG",
+      "msName": "NGUYỄN TẤT THẮNG",
+      "hdCccd": "001065002279",
+      "msCccd": "001065002279",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2025-05-13 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→13/05/2025"
+      ]
+    },
+    {
+      "maTKGD": "003C8946619",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "msName": "NGUYỄN THỊ PHƯƠNG THÙY",
+      "hdCccd": "079304018664",
+      "msCccd": "079304018664",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→20/05/2022"
+      ]
+    },
+    {
+      "maTKGD": "003C1399395",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THỊ THU THÚY",
+      "hdName": "NGUYỄN THỊ THU THÚY",
+      "msName": "NGUYỄN THỊ THU THÚY",
+      "hdCccd": "080180003960",
+      "msCccd": "080180003960",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1980-06-16 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-05-01 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→16/06/1980",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→01/05/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C3299117",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Tiến Hải",
+      "hdName": "Nguyễn Tiến Hải",
+      "msName": "Nguyễn Tiến Hải",
+      "hdCccd": "042075017280",
+      "msCccd": "042075017280",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1975-01-10 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-08-12 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→10/01/1975",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→12/08/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C1821988",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN THANH HƯNG",
+      "hdName": "NGUYỄN THANH HƯNG",
+      "msName": "NGUYỄN THANH HƯNG",
+      "hdCccd": "040088010107",
+      "msCccd": "040088010107",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2023-01-27 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→27/01/2023"
+      ]
+    },
+    {
+      "maTKGD": "003C7042172",
+      "batchDate": "2026-09-09",
+      "mailName": "HOÀNG THỊ HẰNG",
+      "hdName": "HOÀNG THỊ HẰNG",
+      "msName": "HOÀNG THỊ HẰNG",
+      "hdCccd": "024184000595",
+      "msCccd": "024184000595",
+      "foundMs": true,
+      "errs": [
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2024-10-28 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→28/10/2024"
+      ]
+    },
+    {
+      "maTKGD": "003C6696969",
+      "batchDate": "2026-09-09",
+      "mailName": "BÙI VĂN DĨ KHANG",
+      "hdName": "BÙI VĂN DĨ KHANG",
+      "msName": "BÙI VĂN DĨ KHANG",
+      "hdCccd": "087204004135",
+      "msCccd": "087204004135",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (2004-05-10 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-04-26 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→10/05/2004",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→26/04/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C7204846",
+      "batchDate": "2026-09-09",
+      "mailName": "PHẠM MINH TRÍ",
+      "hdName": "PHẠM MINH TRÍ",
+      "msName": "PHẠM MINH TRÍ",
+      "hdCccd": "066092000301",
+      "msCccd": "066092000301",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1992-12-28 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2026-03-17 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→28/12/1992",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→17/03/2026"
+      ]
+    },
+    {
+      "maTKGD": "041C0161098",
+      "batchDate": "2026-09-09",
+      "mailName": "Chu Minh Thuận",
+      "hdName": "CHU MINH THUANK",
+      "msName": "Chu Minh Thuận",
+      "hdCccd": "001098006510",
+      "msCccd": "001098006510",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: CHU MINH THUANK != MS: Chu Minh Thuận)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: tên HĐ≈MS sau normalize: HD=CHU MINH THUANK MS=Chu Minh Thuận"
+      ]
+    },
+    {
+      "maTKGD": "003C4879685",
+      "batchDate": "2026-09-09",
+      "mailName": "ĐỖ THÀNH TRUNG",
+      "hdName": "ĐỖ THÀNH TRUNG",
+      "msName": "ĐỖ THÀNH TRUNG",
+      "hdCccd": "001085002342",
+      "msCccd": "001085002342",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1985-08-04 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2025-07-09 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→04/08/1985",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→09/07/2025"
+      ]
+    },
+    {
+      "maTKGD": "003C2268377",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Đức Dũng",
+      "hdName": "Nguyễn Đức Dũng",
+      "msName": "Nguyễn Đức Dũng",
+      "hdCccd": "038077010392",
+      "msCccd": "038077010392",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1977-11-20 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-08-11 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→20/11/1977",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→11/08/2021"
+      ]
+    },
+    {
+      "maTKGD": "003C9544239",
+      "batchDate": "2026-09-09",
+      "mailName": "VŨ NGỌC SƠN",
+      "hdName": "VŨ NGỌC SƠN",
+      "msName": "VŨ NGỌC SƠN",
+      "hdCccd": "035066006976",
+      "msCccd": "035066006976",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=035066006976)"
+      ]
+    },
+    {
+      "maTKGD": "003C0548228",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Văn Anh",
+      "hdName": "Nguyễn Văn Anh",
+      "msName": "Nguyễn Văn Anh",
+      "hdCccd": "042094006693",
+      "msCccd": "042094006693",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=042094006693)"
+      ]
+    },
+    {
+      "maTKGD": "003C2223636",
+      "batchDate": "2026-09-09",
+      "mailName": "Nguyễn Văn Thanh",
+      "hdName": "Nguyễn Văn Thanh",
+      "msName": "Nguyễn Văn Thanh",
+      "hdCccd": "001091030782",
+      "msCccd": "001091030782",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=001091030782)"
+      ]
+    },
+    {
+      "maTKGD": "003C1142138",
+      "batchDate": "2026-09-09",
+      "mailName": "MAI THỊ THÙY DUNG",
+      "hdName": "MAI THỊ THÙY DUNG",
+      "msName": "MAI THỊ THÙY DUNG",
+      "hdCccd": "079197005164",
+      "msCccd": "079197005164",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=079197005164)"
+      ]
+    },
+    {
+      "maTKGD": "003C2121212",
+      "batchDate": "2026-09-09",
+      "mailName": "LƯƠNG MINH NHẬT",
+      "hdName": "LƯƠNG MINH NHẬT",
+      "msName": "LƯƠNG MINH NHẬT",
+      "hdCccd": "083201006209",
+      "msCccd": "083201006209",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=083201006209)"
+      ]
+    },
+    {
+      "maTKGD": "003C2906200",
+      "batchDate": "2026-09-09",
+      "mailName": "LÊ HUYỀN TRÂN",
+      "hdName": "LÊ HUYỀN TRÂN",
+      "msName": "LÊ HUYỀN TRÂN",
+      "hdCccd": "087304008123",
+      "msCccd": "087304008123",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=087304008123)"
+      ]
+    },
+    {
+      "maTKGD": "003C3537109",
+      "batchDate": "2026-09-09",
+      "mailName": "Bùi Thị Hồng",
+      "hdName": "Bùi Thị Hồng",
+      "msName": "Bùi Thị Hồng",
+      "hdCccd": "051172007472",
+      "msCccd": "051172007472",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=051172007472)"
+      ]
+    },
+    {
+      "maTKGD": "003C1851441",
+      "batchDate": "2026-09-09",
+      "mailName": "TRẦN THỊ CHÍ UYÊN",
+      "hdName": "TRẦN THỊ CHÍ UYÊN",
+      "msName": "TRẦN THỊ CHÍ UYÊN",
+      "hdCccd": "079305024009",
+      "msCccd": "079305024009",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=079305024009)"
+      ]
+    },
+    {
+      "maTKGD": "003C1564927",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN HUỲNH NHƯ",
+      "hdName": "NGUYÊN HUỲNH NHƯ\nN",
+      "msName": "NGUYỄN HUỲNH NHƯ",
+      "hdCccd": "079202022331",
+      "msCccd": "079202022331",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=079202022331)"
+      ]
+    },
+    {
+      "maTKGD": "003C0534241",
+      "batchDate": "2026-09-09",
+      "mailName": "PHAN TẤN NHỰT",
+      "hdName": "PHAN TẤN NHỰT",
+      "msName": "PHAN TẤN NHỰT",
+      "hdCccd": "089071008025",
+      "msCccd": "089071008025",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=089071008025)"
+      ]
+    },
+    {
+      "maTKGD": "046C0002887",
+      "batchDate": "2026-09-09",
+      "mailName": "và Tiểu khoản TKGD ACM 046C0002887",
+      "hdName": "NGUYỄN VĂN NGHĨA",
+      "msName": "NGUYỄN VĂN NGHĨA",
+      "hdCccd": null,
+      "msCccd": "030089005899",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=030089005899)"
+      ]
+    },
+    {
+      "maTKGD": "003C0879444",
+      "batchDate": "2026-09-09",
+      "mailName": "LÊ HUỲNH HÙNG",
+      "hdName": "LÊ HUỲNH HÙNG",
+      "msName": "LÊ HUỲNH HÙNG",
+      "hdCccd": null,
+      "msCccd": "074088619172",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=074088619172)"
+      ]
+    },
+    {
+      "maTKGD": "001C0120575",
+      "batchDate": "2026-09-09",
+      "mailName": "Đặng Thị Ngọc Diệp",
+      "hdName": "",
+      "msName": "Đặng Thị Ngọc Diệp",
+      "hdCccd": null,
+      "msCccd": "049189002581",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=049189002581)"
+      ]
+    },
+    {
+      "maTKGD": "046C0002904",
+      "batchDate": "2026-09-09",
+      "mailName": "LÊ NGỌC HẢI",
+      "hdName": "LÊ NGỌC HẢI",
+      "msName": "LÊ NGỌC HẢI",
+      "hdCccd": null,
+      "msCccd": "034098013933",
+      "foundMs": true,
+      "errs": [
+        "Tài khoản chưa được tạo trên M-System"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: ms đã có dữ liệu (isFoundOnMS=true, cccd=034098013933)"
+      ]
+    }
+  ],
+  "MIXED": [
+    {
+      "maTKGD": "003C1399395",
+      "batchDate": "2026-09-04",
+      "mailName": "NGUYỄN THỊ THU THÚY",
+      "hdName": "NGUYỄN THỊ THU THÚY",
+      "msName": "NGUYỄN THỊ THU THÚY",
+      "hdCccd": "080180003960",
+      "msCccd": "080180003960",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1980-06-16 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-05-01 thay vì DD/MM/YYYY)",
+        "Giới tính trên HĐ dùng tiếng Anh ('female' thay vì 'Nam/Nữ')"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→16/06/1980",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→01/05/2021",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C1059483",
+      "batchDate": "2026-09-09",
+      "mailName": "VÕ ĐĂNG DUY",
+      "hdName": "VÕ ĐĂNG DUY",
+      "msName": "VÕ ĐĂNG DUY",
+      "hdCccd": null,
+      "msCccd": "049086004994",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày cấp (HĐ/CCCD: Ô9(02|.20 != MS: 02/02/2023)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=049086004994",
+        "MIXED: parse ngày cấp HĐ kém: raw=\"Ô9(02|.20\" MS=02/02/2023 | Lệch ngày cấp (HĐ/CCCD: Ô9(02|.20 != MS: 02/02/2023)"
+      ]
+    },
+    {
+      "maTKGD": "003C9992222",
+      "batchDate": "2026-09-09",
+      "mailName": "TÔ VĂN TUÂN",
+      "hdName": "TÔ VĂN TUÂN",
+      "msName": "TÔ VĂN TUÂN",
+      "hdCccd": null,
+      "msCccd": "079092012385",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày cấp (HĐ/CCCD: Scanned with H != MS: 22/11/2021)",
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (1992-12-19 thay vì DD/MM/YYYY)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=079092012385",
+        "CORRECT: HD=Scanned with H MS=22/11/2021",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→19/12/1992"
+      ]
+    },
+    {
+      "maTKGD": "003C4670745",
+      "batchDate": "2026-09-09",
+      "mailName": "ĐỖ ĐÌNH DUY",
+      "hdName": "DO DINH DUY",
+      "msName": "ĐỖ ĐÌNH DUY",
+      "hdCccd": null,
+      "msCccd": "056205012066",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày cấp (HĐ/CCCD: | 15/08/2021 != MS: 15/08/2021)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=056205012066",
+        "FALSE_POSITIVE: message tự mâu thuẫn — 2 phía cùng ngày: Lệch ngày cấp (HĐ/CCCD: | 15/08/2021 != MS: 15/08/2021)"
+      ]
+    },
+    {
+      "maTKGD": "003C1601004",
+      "batchDate": "2026-09-09",
+      "mailName": "LÊ NGUYỄN MINH HÙNG",
+      "hdName": "LÊ NGUYỄN MINH HÙNG",
+      "msName": "LÊ NGUYỄN MINH HÙNG",
+      "hdCccd": "045204000011",
+      "msCccd": "045204000011",
+      "foundMs": true,
+      "errs": [
+        "Ngày sinh trên HĐ sai định dạng quy chuẩn (2004-01-16 thay vì DD/MM/YYYY)",
+        "Ngày cấp trên HĐ sai định dạng quy chuẩn (2021-11-04 thay vì DD/MM/YYYY)",
+        "Ảnh CCCD độ phân giải thấp (image001.png: 406x253px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ",
+        "Ảnh CCCD độ phân giải thấp (image002.png: 408x248px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+      ],
+      "notes": [
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→16/01/2004",
+        "FALSE_POSITIVE: cùng ngày hợp lệ, chỉ khác format ISO→04/11/2021",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem",
+        "CORRECT: cảnh báo chất lượng ảnh/định dạng — giữ để cán bộ xem"
+      ]
+    },
+    {
+      "maTKGD": "003C6487170",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN PHÚ HÒA",
+      "hdName": "NGUYỄN PHÚ HÒA",
+      "msName": "NGUYỄN PHÚ HÒA",
+      "hdCccd": null,
+      "msCccd": "074070009057",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày sinh (HĐ/CCCD: 01/11/1900 —— != MS: 01/11/1970)",
+        "Lệch ngày cấp (HĐ/CCCD: | 11/07/2024 != MS: 11/07/2024)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=074070009057",
+        "CORRECT: HD=01/11/1900 MS=01/11/1970",
+        "FALSE_POSITIVE: message tự mâu thuẫn — 2 phía cùng ngày: Lệch ngày cấp (HĐ/CCCD: | 11/07/2024 != MS: 11/07/2024)"
+      ]
+    },
+    {
+      "maTKGD": "003C9052476",
+      "batchDate": "2026-09-09",
+      "mailName": "HUỲNH THỊ KIM NGÂN",
+      "hdName": "Được quét bằng CamScanner",
+      "msName": "HUỲNH THỊ KIM NGÂN",
+      "hdCccd": null,
+      "msCccd": "096190155346",
+      "foundMs": true,
+      "errs": [
+        "Lệch họ tên (Yêu cầu: ĐƯỢC QUÉT BẰNG CAMSCANNER != MS: HUỲNH THỊ KIM NGÂN)",
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày cấp (HĐ/CCCD: | 20/04/2021 != MS: 20/04/2021)"
+      ],
+      "notes": [
+        "CORRECT: OCR HĐ rác: \"Được quét bằng CamScanner\" (mail=\"HUỲNH THỊ KIM NGÂN\" khớp MS=true)",
+        "CORRECT: HĐ/OCR không có số CCCD; MS=096190155346",
+        "FALSE_POSITIVE: message tự mâu thuẫn — 2 phía cùng ngày: Lệch ngày cấp (HĐ/CCCD: | 20/04/2021 != MS: 20/04/2021)"
+      ]
+    },
+    {
+      "maTKGD": "003C1901707",
+      "batchDate": "2026-09-09",
+      "mailName": "Lê Đăng Phú",
+      "hdName": "Lê Đăng Phú",
+      "msName": "Lê Đăng Phú",
+      "hdCccd": null,
+      "msCccd": "042098012109",
+      "foundMs": true,
+      "errs": [
+        "Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)",
+        "Lệch ngày cấp (HĐ/CCCD: | 12/05/2022 != MS: 12/05/2022)"
+      ],
+      "notes": [
+        "CORRECT: HĐ/OCR không có số CCCD; MS=042098012109",
+        "FALSE_POSITIVE: message tự mâu thuẫn — 2 phía cùng ngày: Lệch ngày cấp (HĐ/CCCD: | 12/05/2022 != MS: 12/05/2022)"
+      ]
+    },
+    {
+      "maTKGD": "003C1684184",
+      "batchDate": "2026-09-09",
+      "mailName": "NGUYỄN TRIỆU HƯNG",
+      "hdName": "NGUYỄN TRIỆU HƯNG",
+      "msName": "NGUYỄN TRIỆU HƯNG",
+      "hdCccd": "091204004348",
+      "msCccd": "091204004348",
+      "foundMs": true,
+      "errs": [
+        "Lệch ngày sinh (HĐ/CCCD: CCCD/CMND: 091204004348 Ngày cấp: | 22/04/2021 != MS: 27/01/2005)",
+        "Lệch ngày cấp (HĐ/CCCD: | 22/04/2021 != MS: 22/04/2021)"
+      ],
+      "notes": [
+        "CORRECT: OCR ngày sinh lỗi: raw=\"CCCD/CMND: 091204004348 Ngày cấp: | 22/04/2021\" vs MS=27/01/2005",
+        "FALSE_POSITIVE: message tự mâu thuẫn — 2 phía cùng ngày: Lệch ngày cấp (HĐ/CCCD: | 22/04/2021 != MS: 22/04/2021)"
+      ]
+    }
+  ],
+  "NEEDS_REVIEW": []
+}

@@ -100,6 +100,12 @@ export class AutoPipelineConfigSubDoc {
 
   @Prop({ default: 0 })
   lastProcessedCount: number; // Số hồ sơ xử lý được trong lần gần nhất
+
+  @Prop({
+    enum: ['BATCH', 'INSTANT_STREAM'],
+    default: 'BATCH',
+  })
+  executionMode: 'BATCH' | 'INSTANT_STREAM'; // BATCH: Theo đợt | INSTANT_STREAM: Liền mạch tức thì từng hồ sơ
 }
 
 @Schema({ timestamps: true, collection: 'tkgd_user_configs' })

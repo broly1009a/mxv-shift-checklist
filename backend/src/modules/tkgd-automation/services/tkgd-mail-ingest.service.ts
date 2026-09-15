@@ -12,47 +12,15 @@ import {
   parseAccountOpeningEmailMulti,
   dispatchAttachmentsForAccount,
   htmlToPlainText,
+  isIgnoredEmailAttachment,
+  pickCccdImagePaths,
+  probeImageDimensions,
+  isNamedContractImage,
+  isNamedCccdPdf,
 } from '../../bot-engine/helpers/tkgd-mail-parser.helper';
 import { extractHopDongPdf, extractPhuLucPdf } from '../../bot-engine/helpers/tkgd-doc-extractor.helper';
 import { runPythonExtractor } from '../../bot-engine/helpers/tkgd-python-bridge.helper';
 import { getTkgdAttachmentDirectory } from '../../bot-engine/helpers/tkgd-reconcile-exporter.helper';
-
-function isIgnoredEmailAttachment(fileName?: string, size?: number): boolean {
-  if (!fileName) return true;
-  const lower = fileName.trim().toLowerCase();
-  if (lower === 'thumbs.db' || lower === 'desktop.ini') return true;
-
-  const isGenericImageName =
-    lower === 'image.png' ||
-    lower === 'image.jpg' ||
-    lower === 'image.jpeg' ||
-    lower === 'image.gif' ||
-    /^image\d+\.(png|jpe?g|gif)$/i.test(lower) ||
-    lower.startsWith('image0');
-
-  if (isGenericImageName) {
-    if (size !== undefined && size >= 25000) {
-      return false;
-    }
-    return true;
-  }
-
-  if (
-    lower.startsWith('logo') ||
-    lower.includes('-logo') ||
-    lower.includes('_logo') ||
-    lower.includes('mxv-logo') ||
-    lower.includes('company-logo') ||
-    lower.startsWith('banner') ||
-    lower.startsWith('footer') ||
-    lower.startsWith('signature-banner') ||
-    lower.startsWith('outlook-') ||
-    lower.startsWith('icon')
-  ) {
-    return true;
-  }
-  return false;
-}
 
 function parseDate(dStr?: string): Date | undefined {
   if (!dStr) return undefined;
@@ -379,8 +347,8 @@ export class TkgdMailIngestService {
 
           let hopDongPath: string | undefined = undefined;
           let phuLucPath: string | undefined = undefined;
-          let cccdFrontPath: string | undefined = undefined;
-          let cccdBackPath: string | undefined = undefined;
+          const imageCandidates: Array<{ name: string; filePath: string; size?: number }> = [];
+          let cccdPdfPath: string | undefined;
 
           for (const att of targetAttachments) {
             const attSize = att.size || (att.contentBytes ? Math.round(att.contentBytes.length * 0.75) : undefined);
@@ -391,6 +359,10 @@ export class TkgdMailIngestService {
             if (att.contentBytes) {
               targetFilePath = path.join(tempAccDir, att.name);
               const fileBuf = Buffer.from(att.contentBytes, 'base64');
+              if (/\.(png|jpe?g|webp|gif)$/i.test(nameLower)) {
+                const dims = probeImageDimensions(fileBuf);
+                if (isIgnoredEmailAttachment(att.name, attSize, dims)) continue;
+              }
               fs.writeFileSync(targetFilePath, fileBuf);
 
               if (officialAccDir) {
@@ -406,26 +378,24 @@ export class TkgdMailIngestService {
 
             if (targetFilePath && fs.existsSync(targetFilePath)) {
               if (nameLower.endsWith('.pdf')) {
-                if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                if (isNamedCccdPdf(att.name)) {
+                  if (!cccdPdfPath) cccdPdfPath = targetFilePath;
+                } else if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
                   phuLucPath = targetFilePath;
                 } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
                   hopDongPath = targetFilePath;
                 }
               } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png') || nameLower.endsWith('.webp')) {
-                const isFront = /\b(truoc|front|mat1|mt)\b/i.test(nameLower) || nameLower.includes('mặt trước') || nameLower.includes('mattruoc') || /^mt[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('mt.') || nameLower.includes('image001');
-                const isBack = /\b(sau|back|mat2|ms)\b/i.test(nameLower) || nameLower.includes('mặt sau') || nameLower.includes('matsau') || /^ms[_\-\.\s]/i.test(nameLower) || nameLower.startsWith('ms.') || nameLower.includes('image002');
-                if (isFront) {
-                  cccdFrontPath = targetFilePath;
-                } else if (isBack) {
-                  cccdBackPath = targetFilePath;
-                } else if (!cccdFrontPath) {
-                  cccdFrontPath = targetFilePath;
-                } else if (!cccdBackPath) {
-                  cccdBackPath = targetFilePath;
+                if (!isNamedContractImage(att.name)) {
+                  imageCandidates.push({ name: att.name || path.basename(targetFilePath), filePath: targetFilePath, size: attSize });
                 }
               }
             }
           }
+
+          const picked = pickCccdImagePaths(imageCandidates);
+          const cccdFrontPath = picked.frontPath || cccdPdfPath;
+          const cccdBackPath = picked.backPath;
 
           try {
             const pythonRes = await runPythonExtractor({

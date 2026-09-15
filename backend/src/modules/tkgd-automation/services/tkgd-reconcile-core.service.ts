@@ -9,6 +9,8 @@ import { TkgdProgressService } from './tkgd-progress.service';
 import { TkgdExcelExportService } from './tkgd-excel-export.service';
 import { resolveTkgdOutputDir } from '../../bot-engine/helpers/tkgd-reconcile-exporter.helper';
 import { runPythonExtractor } from '../../bot-engine/helpers/tkgd-python-bridge.helper';
+import { isPersonNameMatch, anyPersonNameMatchesMs } from '../../bot-engine/helpers/tkgd-mail-parser.helper';
+import { evaluateRecordReconciliationRule } from '../../bot-engine/helpers/tkgd-reconcile-rules.helper';
 
 function parseDate(dStr?: string): Date | undefined {
   if (!dStr) return undefined;
@@ -510,6 +512,40 @@ export class TkgdReconcileCoreService {
     const dateStr = (batchDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
     const targetFile = path.join(outDir, `Auto_Data_mail_${dateStr}.xlsx`);
 
+    // 1. ĐỐI SOÁT & CẬP NHẬT KẾT LUẬN VÀO RECORD & MONGODB TRƯỚC:
+    const now = new Date();
+    for (const record of records) {
+      if (record.manualReview?.isOverridden) {
+        this.logger.log(`[RECON] Hồ sơ ${record.maTKGD || record.maTKGDBase} đã được phê duyệt tay. Giữ nguyên.`);
+        record.ketLuan = {
+          trangThai: (record.manualReview.status || 'KHOP') as any,
+          danhSachLoi: [],
+          reconciledAt: now,
+        };
+        continue;
+      }
+
+      const res = evaluateRecordReconciliationRule(record);
+
+      record.ketLuan = {
+        trangThai: res.finalStatus as any,
+        danhSachLoi: res.finalErrors,
+        reconciledAt: now,
+      };
+
+      await this.cleanRecordModel.updateOne(
+        { _id: record._id },
+        {
+          $set: {
+            'ketLuan.trangThai': res.finalStatus,
+            'ketLuan.danhSachLoi': res.finalErrors,
+            'ketLuan.reconciledAt': now,
+          },
+        },
+      );
+    }
+
+    // 2. XUẤT FILE EXCEL ĐỐI SOÁT: Kế thừa 100% kết quả vừa tính toán và đã gán vào record
     this.progressService.updateProgress(userEmail, {
       current: records.length,
       total: records.length,
@@ -518,117 +554,6 @@ export class TkgdReconcileCoreService {
     });
 
     const summary = await this.excelExportService.exportReconciliationExcel(records, targetFile);
-
-    const now = new Date();
-    for (const record of records) {
-      if (record.manualReview?.isOverridden) {
-        this.logger.log(`[RECON] Hồ sơ ${record.maTKGD || record.maTKGDBase} đã được phê duyệt tay. Giữ nguyên.`);
-        continue;
-      }
-
-      const ms: any = record.ms || {};
-      const mail: any = record.noiDungMail || {};
-      const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || '').trim();
-      const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
-      
-      const cleanPersonName = (n: string) => {
-        if (!n) return '';
-        let s = n.split(/[\r\n]/)[0].trim();
-        s = s.replace(/\s+(TVKD|Tài khoản|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
-        s = s.replace(/[;,.\-:]+$/, '').trim();
-        return s.toLowerCase().replace(/\s+/g, ' ');
-      };
-      const targetName = cleanPersonName(record.hopDong?.hoVaTen || record.canCuoc?.hoVaTen || mail.tenTaiKhoan);
-      const msName = cleanPersonName(ms.hoVaTen || ms.tenTKGD);
-
-      const targetCccd = (record.hopDong?.soCanCuoc || record.canCuoc?.soCanCuoc || record.phuLuc?.soCanCuoc || '').replace(/\D/g, '');
-      const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
-
-      let isCriticalMismatch = false;
-      const criticalErrors: string[] = [];
-
-      if (!ms.isFoundOnMS) {
-        isCriticalMismatch = true;
-        criticalErrors.push('Tài khoản chưa được tạo trên M-System');
-      } else {
-        const msCode = (ms.maTKGD || '').trim();
-        const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
-        if (isSubAccount) {
-          const msBaseCode = msCode.split('-')[0].toUpperCase();
-          if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-          }
-        } else {
-          if (baseCode && msCode && !msCode.startsWith(baseCode)) {
-            isCriticalMismatch = true;
-            criticalErrors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-          }
-        }
-
-        const normName = (s: string) =>
-          s
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd')
-            .replace(/Đ/g, 'd')
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '');
-
-        if (targetName && msName && normName(targetName) !== normName(msName)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
-        }
-
-        if (targetCccd && msCccd && targetCccd !== msCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch số CCCD (Yêu cầu: ${targetCccd} != MS: ${msCccd})`);
-        }
-
-        const hdDob = record.hopDong?.rawNgaySinh || (record.hopDong?.ngaySinh ? formatDateStr(record.hopDong.ngaySinh) : '') || (record.canCuoc?.rawNgaySinh || (record.canCuoc?.ngaySinh ? formatDateStr(record.canCuoc.ngaySinh) : ''));
-        const msDob = record.ms?.rawNgaySinh || (record.ms?.ngaySinh ? formatDateStr(record.ms.ngaySinh) : '');
-        if (hdDob && msDob) {
-          const normHd = normalizeDateStr(hdDob);
-          const normMs = normalizeDateStr(msDob);
-          if (normHd.length === 10 && normMs.length === 10) {
-            if (normHd !== normMs) {
-              isCriticalMismatch = true;
-              criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
-            }
-          }
-        }
-
-        const hdErrors: string[] = [
-          ...(record.hopDong?.dinhDangLoi || []),
-        ];
-        const cccdWarnings: string[] = [
-          ...(record.canCuoc?.canhBaoChatLuong || []),
-        ];
-
-        for (const err of hdErrors) {
-          isCriticalMismatch = true;
-          criticalErrors.push(err);
-        }
-        for (const warn of cccdWarnings) {
-          isCriticalMismatch = true;
-          criticalErrors.push(warn);
-        }
-      }
-
-      let finalStatus = isCriticalMismatch ? 'LECH' : 'KHOP';
-      let finalErrors = isCriticalMismatch ? criticalErrors : [];
-
-      await this.cleanRecordModel.updateOne(
-        { _id: record._id },
-        {
-          $set: {
-            'ketLuan.trangThai': finalStatus,
-            'ketLuan.danhSachLoi': finalErrors,
-            'ketLuan.reconciledAt': now,
-          },
-        }
-      );
-    }
 
     this.progressService.updateProgress(userEmail, {
       isProcessing: false,

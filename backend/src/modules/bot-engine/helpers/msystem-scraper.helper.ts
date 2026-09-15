@@ -194,109 +194,109 @@ export async function scrapeInvestorDetailFromMSystem(
     const tabThongTin = page.locator('.ant-tabs-tab:has-text("THÔNG TIN")').first();
     if (await tabThongTin.isVisible({ timeout: 2000 }).catch(() => false)) {
       await tabThongTin.click();
-      await page.waitForTimeout(1000);
+      // Chờ React hydrate xong: đợi đến khi input "Họ và tên" có giá trị thực sự
+      // (không dùng waitForTimeout cố định vì React set .value qua JS sau render)
+      await page.waitForFunction(
+        () => {
+          const inp = document.querySelector('input[placeholder="Họ và tên"]') as HTMLInputElement | null;
+          return inp !== null && inp.value.trim().length > 0;
+        },
+        { timeout: 8000 },
+      ).catch(() => {
+        // Nếu timeout thì vẫn tiếp tục (tài khoản có thể chưa nhập tên)
+      });
     }
 
     // 3. Trích xuất chính xác theo cấu trúc DOM thực tế của M-System
-    // A. Họ và tên
-    let hoVaTen = await page
-      .locator('input[placeholder="Họ và tên"]')
-      .first()
-      .inputValue()
-      .catch(() => '');
-    if (!hoVaTen) {
-      hoVaTen = (await page.locator('.form-group:has-text("Họ và tên") input').first().getAttribute('value').catch(() => '')) || '';
-    }
+    // Dùng page.evaluate() để đọc .value DOM property trực tiếp — tránh vấn đề
+    // React controlled disabled input chưa kịp sync attribute "value" với DOM property.
+    const formValues = await page.evaluate(() => {
+      function readInput(selector: string): string {
+        const el = document.querySelector(selector) as HTMLInputElement | null;
+        return el ? (el.value || el.getAttribute('value') || '') : '';
+      }
+      function readAntPicker(labelText: string): string {
+        // Tìm form-group chứa text label rồi lấy input bên trong ant-picker
+        const groups = Array.from(document.querySelectorAll('.form-group'));
+        for (const g of groups) {
+          if (g.textContent?.includes(labelText)) {
+            const inp = g.querySelector('.ant-picker input, input') as HTMLInputElement | null;
+            if (inp) return inp.value || inp.getAttribute('value') || inp.getAttribute('title') || '';
+          }
+        }
+        return '';
+      }
+      function readInputByLabel(labelText: string): string {
+        const groups = Array.from(document.querySelectorAll('.form-group'));
+        for (const g of groups) {
+          if (g.textContent?.includes(labelText)) {
+            const inp = g.querySelector('input') as HTMLInputElement | null;
+            if (inp) return inp.value || inp.getAttribute('value') || '';
+          }
+        }
+        return '';
+      }
 
-    // B. Số CMT / Hộ chiếu
-    let soCMND = await page
-      .locator('input[placeholder="Số CMT/ Hộ chiếu"], input[placeholder*="CMT"]')
-      .first()
-      .inputValue()
-      .catch(() => '');
-    if (!soCMND) {
-      soCMND = (await page.locator('.form-group:has-text("Số CMT") input').first().getAttribute('value').catch(() => '')) || '';
-    }
+      return {
+        hoVaTen: readInput('input[placeholder="Họ và tên"]') || readInputByLabel('Họ và tên'),
+        soCMND: readInput('input[placeholder="Số CMT/ Hộ chiếu"]')
+          || readInput('input[placeholder*="CMT"]')
+          || readInput('input[placeholder*="CCCD"]')
+          || readInputByLabel('Số CMT'),
+        ngaySinhStr: readAntPicker('Ngày sinh'),
+        ngayCapStr: readAntPicker('Ngày cấp'),
+        noiCap: readInput('input[placeholder="Nơi cấp"]') || readInputByLabel('Nơi cấp'),
+        diaChi: (() => {
+          const el = document.querySelector('textarea[placeholder="Địa chỉ"], input[placeholder="Địa chỉ"]') as HTMLInputElement | HTMLTextAreaElement | null;
+          return el ? (el.value || el.getAttribute('value') || '') : '';
+        })(),
+        tenTKGD: readInput('input[placeholder="Tên TKGD"]') || readInputByLabel('Tên TKGD'),
+        maTKGD: readInput('input[placeholder="Mã TKGD"]') || readInputByLabel('Mã TKGD'),
+        trangThai: (() => {
+          const groups = Array.from(document.querySelectorAll('.form-group'));
+          for (const g of groups) {
+            if (g.textContent?.includes('Trạng thái')) {
+              const sel = g.querySelector('.ant-select-selection-item') as HTMLElement | null;
+              const inp = g.querySelector('input') as HTMLInputElement | null;
+              return sel?.innerText?.trim() || inp?.value || '';
+            }
+          }
+          return '';
+        })(),
+        loaiHinh: (() => {
+          const groups = Array.from(document.querySelectorAll('.form-group'));
+          for (const g of groups) {
+            if (g.textContent?.includes('Loại hình')) {
+              const sel = g.querySelector('.ant-select-selection-item') as HTMLElement | null;
+              const inp = g.querySelector('input') as HTMLInputElement | null;
+              return sel?.innerText?.trim() || inp?.value || '';
+            }
+          }
+          return '';
+        })(),
+        ngayThamGiaStr: readAntPicker('Ngày tham gia'),
+      };
+    });
 
-    // C. Ngày sinh (ant-picker input bên trong form-group "Ngày sinh")
-    let ngaySinhStr = await page
-      .locator('.form-group:has-text("Ngày sinh") .ant-picker input')
-      .first()
-      .getAttribute('value')
-      .catch(() => '');
-    if (!ngaySinhStr) {
-      ngaySinhStr = await page
-        .locator('.form-group:has-text("Ngày sinh") input')
-        .first()
-        .inputValue()
-        .catch(() => '');
-    }
+    // Destructure kết quả
+    let hoVaTen = formValues.hoVaTen.trim();
+    let soCMND = formValues.soCMND.trim();
+    let ngaySinhStr = formValues.ngaySinhStr.trim();
+    let ngayCapStr = formValues.ngayCapStr.trim();
+    let noiCap = formValues.noiCap.trim();
+    let diaChi = formValues.diaChi.trim();
+    let tenTKGD = formValues.tenTKGD.trim();
+    let trangThai = formValues.trangThai.trim();
+    let loaiHinh = formValues.loaiHinh.trim();
+    let ngayThamGiaStr = formValues.ngayThamGiaStr.trim();
 
-    // D. Ngày cấp (ant-picker input bên trong form-group "Ngày cấp")
-    let ngayCapStr = await page
-      .locator('.form-group:has-text("Ngày cấp") .ant-picker input')
-      .first()
-      .getAttribute('value')
-      .catch(() => '');
-    if (!ngayCapStr) {
-      ngayCapStr = await page
-        .locator('.form-group:has-text("Ngày cấp") input')
-        .first()
-        .inputValue()
-        .catch(() => '');
-    }
+    console.log(`  📋 page.evaluate() đọc được: hoVaTen="${hoVaTen}", soCMND="${soCMND}", ngaySinh="${ngaySinhStr}", ngayCap="${ngayCapStr}"`);
 
-    // E. Nơi cấp
-    let noiCap = await page
-      .locator('input[placeholder="Nơi cấp"]')
-      .first()
-      .inputValue()
-      .catch(() => '');
-    if (!noiCap) {
-      noiCap = (await page.locator('.form-group:has-text("Nơi cấp") input').first().getAttribute('value').catch(() => '')) || '';
-    }
-
-    // F. Địa chỉ
-    let diaChi = await page
-      .locator('textarea[placeholder="Địa chỉ"], input[placeholder="Địa chỉ"]')
-      .first()
-      .inputValue()
-      .catch(() => '');
-    if (!diaChi) {
-      diaChi = await page
-        .locator('.form-group:has-text("Địa chỉ") textarea')
-        .first()
-        .innerText()
-        .catch(() => '');
-    }
-
-    // G. Tên TKGD & Mã TKGD & Trạng thái từ phần trên
-    let tenTKGD = await page
-      .locator('input[placeholder="Tên TKGD"], .form-group:has-text("Tên TKGD") input')
-      .first()
-      .inputValue()
-      .catch(() => '');
+    // Fallback: nếu tenTKGD không đọc được thì dùng hoVaTen
     if (!tenTKGD) {
-      tenTKGD = hoVaTen; // Mặc định tên TKGD = họ tên khách hàng cá nhân
+      tenTKGD = hoVaTen;
     }
 
-    let trangThai = await page
-      .locator('.form-group:has-text("Trạng thái") input, .form-group:has-text("Trạng thái") .ant-select-selection-item')
-      .first()
-      .innerText()
-      .catch(() => 'Hoạt động');
-
-    let loaiHinh = await page
-      .locator('.form-group:has-text("Loại hình") input, .form-group:has-text("Loại hình") .ant-select-selection-item')
-      .first()
-      .innerText()
-      .catch(() => 'Cá nhân');
-
-    let ngayThamGiaStr = await page
-      .locator('.form-group:has-text("Ngày tham gia") input')
-      .first()
-      .getAttribute('value')
-      .catch(() => '');
 
     // 4. Trích xuất ảnh CMT/CCCD mặt trước, mặt sau và Chữ ký
     console.log(`  📸 Đang kiểm tra & bóc tách ảnh CCCD / Chữ ký trên M-System...`);

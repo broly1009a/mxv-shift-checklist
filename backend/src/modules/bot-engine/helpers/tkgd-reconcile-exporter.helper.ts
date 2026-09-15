@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import ExcelJS from 'exceljs';
+import { cleanPersonName, isPersonNameMatch, anyPersonNameMatchesMs } from './tkgd-mail-parser.helper';
+import { evaluateRecordReconciliationRule } from './tkgd-reconcile-rules.helper';
 
 export interface ReconcileExportOptions {
   templatePath?: string;
@@ -53,15 +55,35 @@ function formatDateTime(date: Date | string | undefined | null): string {
 
 function normalizeName(name: string | undefined | null): string {
   if (!name) return '';
+  const cleaned = cleanPersonName(name);
+  if (cleaned) return cleaned.toLowerCase().replace(/\s+/g, ' ');
+  // Fallback nhẹ khi cleanPersonName từ chối — vẫn strip dòng thừa
   let s = name.split(/[\r\n]/)[0].trim();
   s = s.replace(/\s+(TVKD|Tài khoản|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
   s = s.replace(/[;,.\-:]+$/, '').trim();
   return s.toLowerCase().replace(/\s+/g, ' ');
 }
 
+function pickValidPersonName(...candidates: Array<string | undefined | null>): string {
+  for (const c of candidates) {
+    const cleaned = cleanPersonName(c || undefined);
+    if (cleaned) return cleaned.toLowerCase().replace(/\s+/g, ' ');
+  }
+  return '';
+}
+
 function normalizeDateStr(d: string | undefined | null): string {
   if (!d) return '';
-  const clean = String(d).trim().split('T')[0].split(' ')[0].replace(/-/g, '/');
+  const s = String(d).trim();
+  const iso = s.match(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/);
+  if (iso) {
+    return `${iso[3].padStart(2, '0')}/${iso[2].padStart(2, '0')}/${iso[1]}`;
+  }
+  const dmy = s.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/);
+  if (dmy) {
+    return `${dmy[1].padStart(2, '0')}/${dmy[2].padStart(2, '0')}/${dmy[3]}`;
+  }
+  const clean = s.split('T')[0].split(' ')[0].replace(/-/g, '/');
   const parts = clean.split('/');
   if (parts.length === 3) {
     if (parts[0].length === 4) {
@@ -69,7 +91,11 @@ function normalizeDateStr(d: string | undefined | null): string {
     }
     return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
   }
-  return clean;
+  return '';
+}
+
+function isCanonicalDate(d: string | undefined | null): boolean {
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(String(d || ''));
 }
 
 function isGenderMatch(g1?: string, g2?: string): boolean {
@@ -375,135 +401,70 @@ export async function reconcileAndExportToExcel(
     // 1. Logic đối soát giữa Mail/HĐ/CCCD và M-System chuẩn xác các trường quan trọng
     let isCriticalMismatch = false;
     const criticalErrors: string[] = [];
+    const softWarnings: string[] = [];
 
     const targetAccountCode = (record.maTKGD || ms.maTKGD || mail.maTKGD_Futures || mail.maTKGD_ACM || mail.maTKGD_LME || mail.maTKGD_Spread || '').trim();
     const baseCode = (record.maTKGDBase || mail.maTKGD_Futures || targetAccountCode.split('-')[0] || '').trim();
-    const msCode = (ms.maTKGD || '').trim();
-    const targetName = normalizeName(hd.hoVaTen || cccd.hoVaTen || mail.tenTaiKhoan);
-    const msName = normalizeName(ms.hoVaTen || ms.tenTKGD);
-
-    const targetCccd = (hd.soCanCuoc || cccd.soCanCuoc || pl.soCanCuoc || '').replace(/\D/g, '');
-    const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
-
-    if (!ms.isFoundOnMS) {
-      isCriticalMismatch = true;
-      criticalErrors.push('Tài khoản chưa được tạo trên M-System');
-    } else {
-      const isSubAccount = targetAccountCode.includes('-A') || targetAccountCode.includes('-L') || targetAccountCode.includes('-S');
-      if (isSubAccount) {
-        const msBaseCode = msCode.split('-')[0].toUpperCase();
-        if (baseCode && msBaseCode && baseCode.toUpperCase() !== msBaseCode) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch mã cơ sở (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-        }
-      } else {
-        if (baseCode && msCode && !msCode.startsWith(baseCode)) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch mã TKGD (Yêu cầu: ${baseCode} != MS: ${msCode})`);
-        }
-      }
-
-      if (targetName && msName && targetName !== msName) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch họ tên (Yêu cầu: ${targetName.toUpperCase()} != MS: ${ms.hoVaTen || ms.tenTKGD})`);
-      }
-
-      const hdCccd = (hd.soCanCuoc || '').replace(/\D/g, '');
-      const imgCccd = (cccd.soCanCuoc || '').replace(/\D/g, '');
-
-      if (!isSubAccount) {
-        // Kiểm tra thiếu CCCD trên hồ sơ
-        if (!targetCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push('Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)');
-        }
-        // Kiểm tra M-System chưa nhập số CCCD
-        if (ms.isFoundOnMS && !msCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push('M-System chưa nhập số CCCD');
-        }
-        // Kiểm tra chéo giữa HĐ và ảnh CCCD
-        if (hdCccd && imgCccd && hdCccd !== imgCccd) {
-          isCriticalMismatch = true;
-          criticalErrors.push(`Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: ${hdCccd} != Ảnh: ${imgCccd})`);
-        }
-      }
-
-      if (targetCccd && msCccd && targetCccd !== msCccd) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
-      }
-
-      // 4. Đối chiếu Ngày sinh (HĐ/CCCD vs MS)
-      const hdDob = hd.rawNgaySinh || (hd.ngaySinh ? formatDate(hd.ngaySinh) : '') || (cccd.rawNgaySinh || (cccd.ngaySinh ? formatDate(cccd.ngaySinh) : ''));
-      const msDob = ms.rawNgaySinh || (ms.ngaySinh ? formatDate(ms.ngaySinh) : '');
-      if (hdDob && msDob && normalizeDateStr(hdDob) !== normalizeDateStr(msDob)) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${hdDob} != MS: ${msDob})`);
-      }
-
-      // 5. Đối chiếu Ngày cấp (nếu cả 2 bên cùng cung cấp)
-      const hdIssue = hd.rawNgayCap || (hd.ngayCap ? formatDate(hd.ngayCap) : '') || (cccd.rawNgayCap || (cccd.ngayCap ? formatDate(cccd.ngayCap) : ''));
-      const msIssue = ms.rawNgayCap || (ms.ngayCap ? formatDate(ms.ngayCap) : '');
-      if (hdIssue && msIssue && normalizeDateStr(hdIssue) !== normalizeDateStr(msIssue)) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${hdIssue} != MS: ${msIssue})`);
-      }
-
-      // 6. Đối chiếu Giới tính (nếu cả 2 bên cùng cung cấp)
-      const hdSex = hd.rawGioiTinh || hd.gioiTinh || cccd.gioiTinh;
-      const msSex = ms.gioiTinh || ms.rawGioiTinh;
-      if (hdSex && msSex && !isGenderMatch(hdSex, msSex)) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
-      }
-
-      // 7. Kiểm tra lỗi định dạng quy chuẩn Hợp đồng (dinhDangLoi) & chất lượng ảnh CCCD (canhBaoChatLuong)
-      const hdErrors: string[] = [
-        ...(hd.dinhDangLoi || record.hopDong?.dinhDangLoi || []),
-      ];
-      // Dynamic fallback nếu rawNgaySinh/rawNgayCap/rawGioiTinh bị sai định dạng chuẩn
-      const rawDobStr = String(hd.rawNgaySinh || record.hopDong?.rawNgaySinh || '');
-      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDobStr) && !hdErrors.some(e => e.includes('Ngày sinh'))) {
-        hdErrors.push(`Ngày sinh trên HĐ sai định dạng quy chuẩn (${rawDobStr} thay vì DD/MM/YYYY)`);
-      }
-      const rawCapStr = String(hd.rawNgayCap || record.hopDong?.rawNgayCap || '');
-      if (/^\d{4}-\d{2}-\d{2}$/.test(rawCapStr) && !hdErrors.some(e => e.includes('Ngày cấp'))) {
-        hdErrors.push(`Ngày cấp trên HĐ sai định dạng quy chuẩn (${rawCapStr} thay vì DD/MM/YYYY)`);
-      }
-      const rawSexStr = String(hd.rawGioiTinh || record.hopDong?.rawGioiTinh || '').toLowerCase();
-      if ((rawSexStr === 'female' || rawSexStr === 'male') && !hdErrors.some(e => e.includes('Giới tính'))) {
-        hdErrors.push(`Giới tính trên HĐ dùng tiếng Anh ('${hd.rawGioiTinh || record.hopDong?.rawGioiTinh}' thay vì 'Nam/Nữ')`);
-      }
-
-      const cccdWarnings: string[] = cccd.canhBaoChatLuong || record.canCuoc?.canhBaoChatLuong || [];
-
-      for (const err of hdErrors) {
-        isCriticalMismatch = true;
-        criticalErrors.push(err);
-      }
-      for (const warn of cccdWarnings) {
-        isCriticalMismatch = true;
-        criticalErrors.push(warn);
-      }
-    }
+    const isVerifiedHash = cccd.source === 'VERIFIED_MS_HASH' || record.canCuoc?.source === 'VERIFIED_MS_HASH';
 
     let ketQuaText = '';
     let rowStatus: 'KHOP' | 'CAN_KIEM_TRA' | 'LECH' | 'KHOP_TEXT' = 'KHOP';
 
-    if (isCriticalMismatch) {
-      rowStatus = 'LECH';
-      lechCount++;
-      ketQuaText = `Lệch: ${criticalErrors.join('; ')}`;
+    // 1. ƯU TIÊN TUYỆT ĐỐI: Kế thừa kết quả đối soát chính thức từ hệ thống (kết luận DB / Phê duyệt tay)
+    // Đảm bảo đồng bộ 100% giữa Giao diện FE và File Excel tải về (Khắc phục triệt để lỗi FE Khớp nhưng Excel báo Lệch)
+    const officialStatus = record.manualReview?.isOverridden
+      ? (record.manualReview.status || 'KHOP')
+      : (record.ketLuan?.trangThai || record.trangThaiDoiSoat);
+
+    const officialErrors = record.manualReview?.isOverridden
+      ? []
+      : (record.ketLuan?.danhSachLoi || record.lyDoLoi || []);
+
+    if (officialStatus) {
+      if (officialStatus === 'KHOP' || officialStatus === 'KHOP_TEXT') {
+        rowStatus = 'KHOP';
+        khopCount++;
+        if (record.manualReview?.isOverridden) {
+          ketQuaText = `so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Đã phê duyệt tay bởi ${record.manualReview.approvedBy || 'Cán bộ'})`;
+        } else if (isVerifiedHash) {
+          ketQuaText = 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Bảo chứng ảnh MS)';
+        } else if (targetAccountCode.includes('-A')) {
+          ketQuaText = 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%';
+        } else {
+          ketQuaText = 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%';
+        }
+      } else if (officialStatus === 'CAN_KIEM_TRA') {
+        rowStatus = 'CAN_KIEM_TRA';
+        canKiemTraCount++;
+        ketQuaText = `Cần kiểm tra: ${officialErrors.length > 0 ? officialErrors.join('; ') : 'Cần kiểm tra lại hồ sơ'}`;
+      } else {
+        rowStatus = 'LECH';
+        lechCount++;
+        ketQuaText = `Lệch: ${officialErrors.length > 0 ? officialErrors.join('; ') : 'Sai lệch dữ liệu đối soát'}`;
+      }
     } else {
-      rowStatus = 'KHOP';
-      khopCount++;
-      const isVerifiedHash = cccd.source === 'VERIFIED_MS_HASH' || record.canCuoc?.source === 'VERIFIED_MS_HASH';
-      ketQuaText = isVerifiedHash
-        ? 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Bảo chứng ảnh MS)'
-        : (targetAccountCode.includes('-A')
-            ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
-            : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%');
+      // Fallback: Khi bản ghi chưa có kết luận đối soát trước đó trong DB
+      const res = evaluateRecordReconciliationRule(record);
+      if (res.finalStatus === 'LECH') {
+        rowStatus = 'LECH';
+        lechCount++;
+        ketQuaText = `Lệch: ${res.finalErrors.join('; ')}`;
+      } else if (res.finalStatus === 'CAN_KIEM_TRA') {
+        rowStatus = 'CAN_KIEM_TRA';
+        canKiemTraCount++;
+        ketQuaText = `Cần kiểm tra: ${res.finalErrors.join('; ')}`;
+      } else {
+        rowStatus = 'KHOP';
+        khopCount++;
+        ketQuaText =
+          res.autoHealedNotes && res.autoHealedNotes.length > 0
+            ? `so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (${res.autoHealedNotes.join('; ')})`
+            : isVerifiedHash
+              ? 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100% (Bảo chứng ảnh MS)'
+              : targetAccountCode.includes('-A')
+                ? 'so sánh mã TKGD, CCCD với bên PL01, MS khớp 100%'
+                : 'so sánh mã TKGD, CCCD với bên HĐ, MS khớp 100%';
+      }
     }
 
     // 2. Ghi vào Sheet "NoiDungMail"
@@ -530,6 +491,9 @@ export async function reconcileAndExportToExcel(
           if (rowStatus === 'LECH') {
             cell.fill = styleLech.fill;
             cell.font = styleLech.font;
+          } else if (rowStatus === 'CAN_KIEM_TRA') {
+            cell.fill = styleCanKiemTra.fill;
+            cell.font = styleCanKiemTra.font;
           } else {
             cell.fill = styleKhop.fill;
             cell.font = styleKhop.font;
