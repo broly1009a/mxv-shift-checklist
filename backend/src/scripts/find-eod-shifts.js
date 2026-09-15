@@ -48,7 +48,7 @@ async function main() {
         };
         s.tasks.splice(parentIdx + 1, 0, newBotSub1, newBotSub2);
         await db.collection('shift_logs').updateOne({ _id: s._id }, { $set: { tasks: s.tasks } });
-        console.log(`✅ Updated shift ${s._id} successfully!`);
+        console.log(` Updated shift ${s._id} successfully!`);
       }
     }
   }

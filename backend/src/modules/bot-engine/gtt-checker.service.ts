@@ -814,7 +814,7 @@ export class GttCheckerService {
     await page.click(ADD_CLOSE_BTN);
     await page.waitForTimeout(2000);
 
-    this.logger.log(`✅ Đã thêm cột S cho Batch ${batchNum}`);
+    this.logger.log(` Đã thêm cột S cho Batch ${batchNum}`);
   }
 
   /**
@@ -960,7 +960,7 @@ export class GttCheckerService {
           ]);
           await download.saveAs(this.marketCsvPath);
           this.logger.log(
-            `✅ Đã tải thành công market.csv: ${this.marketCsvPath}`,
+            ` Đã tải thành công market.csv: ${this.marketCsvPath}`,
           );
         } else {
           throw new Error(
@@ -989,7 +989,7 @@ export class GttCheckerService {
           ]);
           await download.saveAs(this.trangThaiMoPath);
           this.logger.log(
-            `✅ Đã tải thành công trang-thai-mo.xlsx: ${this.trangThaiMoPath}`,
+            ` Đã tải thành công trang-thai-mo.xlsx: ${this.trangThaiMoPath}`,
           );
         } else {
           throw new Error(
@@ -1121,7 +1121,7 @@ export class GttCheckerService {
       await this.rpaService['waitForCqgNotLoading']?.(page, 30000).catch(() => { });
       await this.rpaService['dismissCqgNotifications']?.(page).catch(() => { });
       await page.waitForTimeout(3000);
-      this.logger.log('✅ Đăng nhập CQG THÀNH CÔNG!');
+      this.logger.log(' Đăng nhập CQG THÀNH CÔNG!');
 
       // Batch split (max 95 per tab)
       const BATCH_LIMIT = 95;

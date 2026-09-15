@@ -270,7 +270,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
     if (missingOrOutdated.length === 0) {
       job.logs.push(
-        `[${new Date().toISOString()}] ✅ Tất cả ${scanResults.length} file đã có đầy đủ. Không cần tải thêm.`,
+        `[${new Date().toISOString()}]  Tất cả ${scanResults.length} file đã có đầy đủ. Không cần tải thêm.`,
       );
       await job.save();
       return;
@@ -303,7 +303,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
           );
           if (downloaded) {
             job.logs.push(
-              `[${new Date().toISOString()}] ✅ Tải thành công: ${item.filename}`,
+              `[${new Date().toISOString()}]  Tải thành công: ${item.filename}`,
             );
           } else {
             job.logs.push(
@@ -457,7 +457,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     );
 
     for (const d of downloaded) {
-      job.logs.push(`[${new Date().toISOString()}] ✅ Đã tải thành công: ${d}`);
+      job.logs.push(`[${new Date().toISOString()}]  Đã tải thành công: ${d}`);
     }
     for (const e of errors) {
       job.logs.push(`[${new Date().toISOString()}]  Lỗi tải: ${e}`);
@@ -527,7 +527,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
     if (missingOrOutdated.length === 0) {
       await logAndSave(
-        `✅ Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`,
+        ` Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`,
       );
       return;
     }
@@ -600,7 +600,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
           targetDate,
           logAndSave,
         );
-        await logAndSave(`✅ Hoàn tất đồng bộ file từ SFTP.`);
+        await logAndSave(` Hoàn tất đồng bộ file từ SFTP.`);
       } catch (err: any) {
         await logAndSave(` Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
 

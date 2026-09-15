@@ -54,7 +54,7 @@ if (frMerged && fr1 && fr2) {
     console.log('      → Bot đã bỏ qua bước ghép file vì tưởng FR.xlsx "đã tồn tại hôm nay".');
     console.log('      → Hậu quả: Đối chiếu DSGD mới nhất với FR.xlsx cũ dẫn đến hàng ngàn lệnh lệch giả!');
   } else {
-    console.log('   ✅ File FR.xlsx đã mới hơn file thô.');
+    console.log('    File FR.xlsx đã mới hơn file thô.');
   }
 }
 
@@ -73,6 +73,6 @@ if (psMerged && ps1 && ps2) {
     console.log('    BÁO ĐỘNG: File gộp PS.xlsx CŨ HƠN file thô PS1/PS2!');
     console.log('      → Bot bỏ qua ghép PS.xlsx khiến dữ liệu Tất toán TTTT bị lệch hàng trăm tài khoản!');
   } else {
-    console.log('   ✅ File PS.xlsx đã mới hơn file thô.');
+    console.log('    File PS.xlsx đã mới hơn file thô.');
   }
 }

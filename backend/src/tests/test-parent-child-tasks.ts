@@ -98,7 +98,7 @@ async function runTests() {
     } catch (err) {
       if (err instanceof BadRequestException) {
         console.log(
-          '✅ Test 1 PASSED: Successfully blocked manual update. Msg:',
+          ' Test 1 PASSED: Successfully blocked manual update. Msg:',
           err.message,
         );
       } else {
@@ -119,7 +119,7 @@ async function runTests() {
     );
     if (parent && !parent.isChecked && parent.status === 'PENDING') {
       console.log(
-        '✅ Test 2 PASSED: Parent task is still PENDING since child_task_2 is not completed.',
+        ' Test 2 PASSED: Parent task is still PENDING since child_task_2 is not completed.',
       );
     } else {
       throw new Error('Test 2 FAILED: Parent task checked too early!');
@@ -140,7 +140,7 @@ async function runTests() {
     );
     if (parent && parent.isChecked && parent.status === 'PASSED') {
       console.log(
-        '✅ Test 3 PASSED: Parent task automatically marked as PASSED!',
+        ' Test 3 PASSED: Parent task automatically marked as PASSED!',
       );
     } else {
       throw new Error(
@@ -161,7 +161,7 @@ async function runTests() {
     );
     if (parent && !parent.isChecked && parent.status === 'PENDING') {
       console.log(
-        '✅ Test 4 PASSED: Parent task automatically reset to PENDING because a child was unchecked!',
+        ' Test 4 PASSED: Parent task automatically reset to PENDING because a child was unchecked!',
       );
     } else {
       throw new Error(

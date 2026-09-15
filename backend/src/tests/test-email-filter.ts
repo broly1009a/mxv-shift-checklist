@@ -31,7 +31,7 @@ async function run() {
       tempDir,
       targetDate,
     );
-    console.log(`\n✅ THÀNH CÔNG! Đã tải file lịch sử email về: ${filePath}`);
+    console.log(`\n THÀNH CÔNG! Đã tải file lịch sử email về: ${filePath}`);
   } catch (err: any) {
     console.error(`\n THẤT BẠI:`, err.message);
   } finally {

@@ -640,7 +640,7 @@ async function main() {
 
   if (fs.existsSync(msEdgePath)) {
     launchOptions.executablePath = msEdgePath;
-    log('✅ Sử dụng trình duyệt Microsoft Edge');
+    log(' Sử dụng trình duyệt Microsoft Edge');
   } else {
     log(' Không tìm thấy Edge, sử dụng Chromium mặc định');
   }
@@ -938,7 +938,7 @@ async function main() {
     }
 
     if (userIndexFrame) {
-      log(`✅ Tìm thấy userIndex frame: ${userIndexFrame.url()}`);
+      log(` Tìm thấy userIndex frame: ${userIndexFrame.url()}`);
 
       // Tìm span LEAFITEM "Reporting Tool" và gọi jumpToLink trực tiếp
       const result = await userIndexFrame.evaluate(() => {
@@ -1011,7 +1011,7 @@ async function main() {
           (f) => f.name() === 'dataFrame' || f.url().includes('ReportingTool'),
         );
       if (dataFrame) {
-        log(`✅ dataFrame URL: ${dataFrame.url()}`);
+        log(` dataFrame URL: ${dataFrame.url()}`);
 
         if (dataFrame.url().includes('ReportingTool')) {
           log(
@@ -1097,7 +1097,7 @@ async function main() {
 
           // Bước 2: Chờ postback reload
           if ((selectResult as any).triggered) {
-            log('⏳ Chờ postback/reload sau khi chọn template...');
+            log(' Chờ postback/reload sau khi chọn template...');
             try {
               await dataFrame.waitForNavigation({
                 timeout: 15000,
@@ -1164,7 +1164,7 @@ async function main() {
                   `report-${Date.now()}.csv`,
                 );
                 require('fs').writeFileSync(downloadPath, buffer);
-                log(`✅ ĐÃ TẢI FILE THÀNH CÔNG: ${downloadPath}`);
+                log(` ĐÃ TẢI FILE THÀNH CÔNG: ${downloadPath}`);
                 reportResponses.push(downloadPath);
               } catch (e: any) {
                 log(` Không thể lấy body: ${e.message}`);
@@ -1476,10 +1476,10 @@ async function main() {
             .waitForEvent('download', { timeout: 30000 })
             .catch(() => null);
           await dataFrame.locator('#saveButton').click({ timeout: 5000 });
-          log('✅ Đã click saveButton');
+          log(' Đã click saveButton');
 
           // Chờ 30 giây xem có download event hoặc network response
-          log('⏳ Chờ download (30 giây)...');
+          log(' Chờ download (30 giây)...');
           const download = await downloadPromise;
           if (download) {
             const downloadPath = path.join(
@@ -1487,7 +1487,7 @@ async function main() {
               `report-${Date.now()}.csv`,
             );
             await download.saveAs(downloadPath);
-            log(`✅ ĐÃ TẢI FILE THÀNH CÔNG (event): ${downloadPath}`);
+            log(` ĐÃ TẢI FILE THÀNH CÔNG (event): ${downloadPath}`);
           } else {
             await page.waitForTimeout(5000);
             log(
@@ -1520,7 +1520,7 @@ async function main() {
           .frameLocator('frame[name="userIndex"], iframe[name="userIndex"]')
           .locator('span.LEAFITEM', { hasText: 'Reporting Tool' });
         await span.click({ timeout: 5000 });
-        log('✅ Đã click Reporting Tool qua Playwright locator');
+        log(' Đã click Reporting Tool qua Playwright locator');
         await page.waitForTimeout(3000);
         await page.screenshot({
           path: path.join(DEBUG_DIR, 'after-reporting-tool-click.png'),
@@ -1530,7 +1530,7 @@ async function main() {
       }
     }
 
-    log('⏳ Giữ trình duyệt mở trong 5 phút để bạn kiểm tra...');
+    log(' Giữ trình duyệt mở trong 5 phút để bạn kiểm tra...');
     await page.waitForTimeout(300000);
   } catch (error: any) {
     log(` Lỗi trong quá trình chạy: ${error.message}`);

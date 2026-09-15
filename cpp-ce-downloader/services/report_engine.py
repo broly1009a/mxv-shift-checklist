@@ -143,7 +143,7 @@ class ReportEngine:
             for attempt in range(1, max_day_retries + 1):
                 backoff_sec = min(15 * attempt, 45)
                 if attempt > 1:
-                    self.log(f"  ⏳ [Thử lại Ngày {start_date} - Lần {attempt}/{max_day_retries}] Tạm nghỉ {backoff_sec}s để Server SQL giải phóng RAM/CPU...")
+                    self.log(f"   [Thử lại Ngày {start_date} - Lần {attempt}/{max_day_retries}] Tạm nghỉ {backoff_sec}s để Server SQL giải phóng RAM/CPU...")
                     time.sleep(backoff_sec)
 
                 res = self.download_single_report_internal(page, page_obj, report_cfg, interval, sub_dest_path)
@@ -185,7 +185,7 @@ class ReportEngine:
             sub_file_name = f"temp_{code}_{s_tag}_{e_tag}{extra_suffix}.csv"
             sub_dest_path = os.path.join(target_folder, sub_file_name)
 
-            self.log(f"\n  [⏳ Safety Net Step {depth}.{idx}] Tải khoảng nhỏ: {sub_interval['start_str']} -> {sub_interval['end_str']}...")
+            self.log(f"\n  [ Safety Net Step {depth}.{idx}] Tải khoảng nhỏ: {sub_interval['start_str']} -> {sub_interval['end_str']}...")
             res = self.download_single_report_internal(page, page_obj, report_cfg, sub_interval, sub_dest_path)
 
             if not res and depth < 4:
@@ -250,7 +250,7 @@ class ReportEngine:
             except Exception:
                 pass
 
-        self.log(f"\n  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
+        self.log(f"\n  [ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
         # 1. Điều hướng trang báo cáo
         learned_url = page_obj.navigate_to_report(report_cfg, self.system_url)
@@ -304,7 +304,7 @@ class ReportEngine:
             max_monthly_retries = 5
             for m_attempt in range(2, max_monthly_retries + 1):
                 m_timeout = min(self.download_timeout * m_attempt, 600000)  # Nâng dần lên 300s, 480s, 600s (10 phút)
-                self.log(f"  ⏳ [Thử lại Tháng {mmyy} - Lần {m_attempt}/{max_monthly_retries}] Tạm nghỉ 15s, tăng thời gian chờ lên {m_timeout // 1000}s...")
+                self.log(f"   [Thử lại Tháng {mmyy} - Lần {m_attempt}/{max_monthly_retries}] Tạm nghỉ 15s, tăng thời gian chờ lên {m_timeout // 1000}s...")
                 time.sleep(15)
                 try:
                     download_result = page_obj.trigger_export_download(

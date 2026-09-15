@@ -274,13 +274,13 @@ conn.on('ready', () => {
                   if (putErr) {
                     console.error(`   Loi upload ${item.remote}:`, putErr.message);
                   } else {
-                    console.log(`  [${currentIdx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)}`);
+                    console.log(`  [${currentIdx}/${filesToUpload.length}]  Uploaded: ${path.basename(item.local)}`);
                   }
                   completed++;
                   startWorker();
                 });
               } else {
-                console.log(`  [${currentIdx}/${filesToUpload.length}] ✅ Uploaded: ${path.basename(item.local)}`);
+                console.log(`  [${currentIdx}/${filesToUpload.length}]  Uploaded: ${path.basename(item.local)}`);
                 completed++;
                 startWorker();
               }

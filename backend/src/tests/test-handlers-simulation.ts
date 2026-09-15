@@ -21,7 +21,7 @@ async function runHandlerSimulation() {
     total++;
     if (cond) {
       passed++;
-      console.log(`✅ [PASS] ${name}`);
+      console.log(` [PASS] ${name}`);
     } else {
       console.error(` [FAIL] ${name}`);
       if (detail) console.error(`   👉 ${detail}`);

@@ -22,7 +22,7 @@ const commands = [
 ];
 
 conn.on('ready', () => {
-  console.log('✅ Đã kết nối SSH tới Ubuntu 10.0.0.26');
+  console.log(' Đã kết nối SSH tới Ubuntu 10.0.0.26');
   const fullCmd = commands.join(' && ');
 
   conn.exec(fullCmd, (err, stream) => {

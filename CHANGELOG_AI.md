@@ -1,5 +1,109 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-15T15:24] FIX UI (FRONTEND): Tối Ưu Độ Tương Phản & Màu Sắc Banner Trạng Thái (CANCELLED / FAILED / ABORTED) Cho Cả Light & Dark Theme (Chỉ Cập Nhật Local, Chưa Deploy Ubuntu)
+
+### 1. Mục tiêu thay đổi
+Theo phản hồi trực tiếp từ USER kèm ảnh chụp thực tế:
+- Màn hình sử dụng giao diện Light Theme (nền sáng) khiến tiêu đề *"Lần quét đối soát gần nhất đã bị hủy"* và Badge *"CANCELLED"* bị mờ tịt, khó nhìn do dùng mã màu nhạt (`#cbd5e1` trên nền xám sáng), viền nút *"Xem chi tiết Log"* bị chìm (`rgba(255, 255, 255, 0.2)`).
+- Nút chạy lại khi CANCELLED đang hiển thị màu đỏ rực (#ef4444) dễ gây nhầm lẫn là trạng thái lỗi hỏng.
+- Theo yêu cầu nghiêm ngặt từ USER: **Chỉ chỉnh sửa và kiểm tra tại Local, tuyệt đối KHÔNG ủn lên Ubuntu**.
+
+### 2. Chi tiết chỉnh sửa
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx):
+  - **Tiêu đề Banner**: Chuyển sang `color: 'var(--text-primary)'` (tự động hiển thị màu đậm `#1e293b` ở Light mode và sáng `#f8fafc` ở Dark mode) với độ đậm `fontWeight: 800`, đảm bảo 100% sắc nét và tương phản tuyệt đối trên mọi nền.
+  - **Badge Trạng thái**: Chuẩn hóa màu nền đặc kèm chữ trắng `#ffffff` độ tương phản cao:
+    - `CANCELLED`: Nền `#64748b` (slate), chữ `#ffffff`.
+    - `FAILED`: Nền `#dc2626` (đỏ đậm), chữ `#ffffff`.
+    - `ABORTED`: Nền `#ea580c` (cam), chữ `#ffffff`.
+  - **Nền Banner & Viền**: Sử dụng nền trong suốt nhẹ dịu mắt (`rgba(100, 116, 139, 0.08)`) kèm viền rõ nét `1px solid rgba(100, 116, 139, 0.3)` và đổ bóng nhẹ `boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'`.
+  - **Nút "Xem chi tiết Log"**: Sử dụng viền `var(--border-color)`, nền thẻ `var(--bg-card)` và chữ `var(--text-primary)` để hiển thị chuẩn Enterprise trên cả nền sáng lẫn tối.
+  - **Nút "Chạy lại ngay"**:
+    - Phân tách màu sắc nút theo đúng ngữ cảnh: `CANCELLED` dùng xanh dương `#2563eb`, `FAILED` dùng đỏ `#dc2626`, `ABORTED` dùng cam `#ea580c`.
+  - **Banner Chờ Dữ Liệu (`isWaitingFiles`) & Đang Chạy (`isBotRunning`)**: Đồng bộ hóa tiêu đề sang `var(--text-primary)`, chuẩn hóa nút bấm và viền card để loại bỏ hoàn toàn các màu nhạt khó nhìn ở Light mode.
+
+### 3. Xác nhận Build
+- **Frontend Build Local**: `next build` biên dịch thành công 100% (25/25 routes tĩnh, TypeScript pass, Exit code: 0).
+- **Trạng thái Ubuntu**: Giữ nguyên theo đúng chỉ thị, **không đẩy lên server Ubuntu**.
+
+---
+
+## [2026-09-15T15:12] DEPLOY (UBUNTU): Đồng Bộ & Triển Khai Thành Công Lên Server Ubuntu 10.0.0.26 (Backend & Frontend Online)
+
+### 1. Mục tiêu triển khai
+- Theo yêu cầu từ USER: Đẩy toàn bộ các bản vá Backend (Fix 502 Bad Gateway sàn ACM qua AWS ALB Sticky Cookie & Auto-healing) và Frontend (Fix kẹt banner "Bot đang thực hiện..." khi Job bị CANCELLED, dọn sessionStorage, sửa màu log Trading Manager) lên máy chủ sản xuất Ubuntu `10.0.0.26`.
+
+### 2. Các bước thực hiện & Kết quả
+1. **Đồng bộ file qua SFTP**:
+   - Đồng bộ toàn bộ các thư mục thay đổi: `backend/src/modules/bot-engine` và `frontend/src/app/trading-manager`.
+2. **Build & Restart Backend**:
+   - Chạy `npm run build` trên thư mục `/opt/mxv-checklist/backend`: Biên dịch thành công.
+   - `pm2 restart mxv-backend`: Process ID `2365878` $\rightarrow$ **online** (0% CPU, 260.3MB RAM).
+3. **Build & Restart Frontend**:
+   - Chạy `npm run build` trên thư mục `/opt/mxv-checklist/frontend`: Next.js 16.2.9 biên dịch thành công toàn bộ 26 routes (Compiled in 11.7s, TypeScript check in 14.8s, Exit code 0).
+   - `pm2 restart mxv-frontend`: Process ID `2366104` $\rightarrow$ **online** (0% CPU, 57.3MB RAM).
+4. **Trạng thái dịch vụ PM2**:
+   - `mxv-backend`: **online**
+   - `mxv-frontend`: **online**
+   - `mock-sftp`: **online**
+
+---
+
+## [2026-09-15T15:05] FIX (FRONTEND): Khắc Phục Lỗi Kẹt Banner "Bot Đang Thực Hiện..." Khi Job Bị CANCELLED, Sửa Cơ Chế Polling & Tẩy Sạch Màu Đỏ Trong Log
+
+### 1. Mục tiêu thay đổi
+Theo phản hồi trực tiếp từ USER kèm ảnh chụp thực tế màn hình Trading Manager:
+1. **Lỗi kẹt Banner chạy ngầm khi Job bị CANCELLED**:
+   - Khi Job đối soát bị hủy (`CANCELLED` do người dùng dừng hoặc lỗi Gemini Captcha 429), hàm `pollJobProgress` chỉ bắt các trạng thái `COMPLETED`, `FAILED`, `ABORTED` mà bỏ sót `CANCELLED`.
+   - Dẫn đến vòng lặp poll không bao giờ dừng, không xóa `activeTriggerJobId` khỏi `sessionStorage`, biến `isBotRunning` và `triggering` bị kẹt `true` vĩnh viễn. Khi người dùng F5 hoặc đứng trên trang, banner màu xanh *"Bot đang thực hiện quy trình đối soát..."* với biểu tượng xoay spinner vẫn hiện liên tục dù Job đã bị hủy từ lâu.
+2. **Lỗi Banner trạng thái chỉ nhận diện FAILED**:
+   - Banner cảnh báo chỉ hiển thị khi `klgdStatus === 'FAILED'`, nếu trạng thái là `CANCELLED` hoặc `ABORTED` thì bị lọt xuống nhánh `isBotRunning`, gây hiển thị sai lệch trạng thái thực tế của Job.
+3. **Lỗi bôi đỏ toàn bộ Log trong Modal**:
+   - Điều kiện kiểm tra lỗi dòng log bị viết `logLine.includes('')` (chuỗi rỗng), khiến biểu thức luôn trả về `true` cho mọi dòng log và biến toàn bộ nhật ký (kể cả log info, enqueue, start...) thành màu đỏ rực `#dc2626`.
+
+### 2. Danh sách các file chỉnh sửa
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx):
+  - Bổ sung xử lý nhánh `job.status === 'CANCELLED'` trong `pollJobProgress`, `handleTriggerCcpDownload`, `triggerBotJobAndPoll`, `handleCheckIMR`.
+  - Dọn sạch `sessionStorage.removeItem('activeTriggerJobId')` và `setActiveJobId(null)` ngay khi phát hiện trạng thái kết thúc (`COMPLETED`, `FAILED`, `CANCELLED`, `ABORTED`) hoặc khi hết thời gian chờ polling.
+  - Tự động dọn `sessionStorage` qua `useEffect` khi `isTerminalStatus === true` lúc tải trang.
+  - Sửa logic `isBotRunning`: Nếu job đã ở trạng thái kết thúc (`isTerminalStatus`), `isBotRunning` tuyệt đối không được phép là `true`.
+  - Mở rộng banner cảnh báo nhận diện cả `FAILED`, `CANCELLED` (màu slate/xám) và `ABORTED` (màu cam).
+  - Sửa màu badge modal và loại bỏ `logLine.includes('')` để phân loại chuẩn xác màu đỏ (Error), màu xanh lá (Success), màu vàng (Warning/429) và màu trắng (Normal Log).
+
+### 3. Xác nhận Build
+- **Frontend Build**: `next build` biên dịch thành công 100% (25/25 routes tĩnh, TypeScript check pass, Exit code: 0).
+
+---
+
+## [2026-09-15T14:40] FIX & ARCHITECTURE: Giải Pháp Triệt Để Lỗi 502 Bad Gateway Sàn ACM Qua Sticky Session (AWS ALB Cookie Persistence) & Pre-flight Probe
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu và chỉ đạo từ USER về việc giải quyết triệt để lỗi tải sàn ACM (`https://acm-etp.acmmex.com/exchange/index.html#/login`) bị gián đoạn ngẫu nhiên bởi lỗi 502:
+1. **Xác định Nguyên nhân Gốc rễ Thực nghiệm (Root Cause)**:
+   - Dữ liệu đo kiểm thực tế trên máy chủ Ubuntu (`10.0.0.26`) cho thấy sàn ACM đặt sau **AWS Application Load Balancer (ALB)** với nhiều backend target nodes. Hiện có ít nhất 1 node backend bị lỗi/sập khiến ALB trả về HTTP 502 Bad Gateway khi request gửi không có cookie phiên.
+   - Khi không có cookie, cơ chế Round-Robin của ALB điều hướng ngẫu nhiên khiến xác suất dính lỗi 502 xấp xỉ 50%.
+   - Khi request có kèm Cookie định tuyến `AWSALB` và `AWSALBTG` trỏ vào Healthy Node, 10/10 request liên tiếp đạt HTTP 200 (thành công 100%).
+2. **Triển khai Pre-flight HTTP Probe (`getAcmStickyCookies`)**:
+   - Trước khi khởi động Chromium/Playwright vào trang login, bot gửi probe nhanh qua `https` chuẩn của Node.js để tìm đúng node sống (HTTP 200).
+   - Trích xuất toàn bộ các cookie định tuyến: `AWSALB`, `AWSALBCORS`, `AWSALBTG`, `AWSALBTGCORS`.
+3. **Bơm Sticky Session vào Playwright Context (`context.addCookies`)**:
+   - Ngay sau khi khởi tạo `browser.newContext()`, bot nạp trực tiếp danh sách Cookie định tuyến vào context.
+   - Trình duyệt truy cập `page.goto(acmUrl)` và toàn bộ các request sau đó (tải JS bundle, API, captcha, login, tải báo cáo `Order` & `Fill`) đều được ALB cố định 100% vào node sống.
+4. **Cơ chế Auto-Healing khi Node sống gặp sự cố**:
+   - Trong vòng lặp điều hướng hoặc khi tải báo cáo, nếu phát hiện HTTP status >= 500 hoặc nội dung "502 Bad Gateway", bot tự động xóa cookie cũ (`context.clearCookies()`), probe tìm Healthy Node mới, gán lại cookie và reload trang.
+
+### 2. Danh sách các file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  - Bổ sung imports `* as https` và `URL` từ `url`.
+  - Thêm phương thức `getAcmStickyCookies(targetUrl, jobLogs)` để thăm dò và trích xuất `AWSALB*` cookies.
+  - Cập nhật `loginACM`: Gán sticky cookies vào context trước `page.goto`, đổi log Cloudflare 502 thành AWS ALB 502 chuẩn xác, tích hợp auto-healing làm mới session khi gặp 502.
+  - Cập nhật `downloadAcmReport`: Tự động phát hiện lỗi 502 khi điều hướng tải báo cáo Order & Fill để làm mới sticky session và reload trang.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` biên dịch thành công 100%, Exit code: 0.
+- **Frontend Build**: Next.js 16.2.9 biên dịch tối ưu thành công 100% (25 routes tĩnh), TypeScript check pass, Exit code: 0.
+
+---
+
 ## [2026-09-15T12:50] ENHANCEMENT: Nâng Cấp Bộ Lắng Nghe Popup Phiên Cũ CQG, Tự Động Đóng Toast 24,513 Tài Khoản & Bọc Chuẩn Hóa Tải DSGD M-System
 
 ### 1. Mục tiêu thay đổi
@@ -285,9 +389,9 @@ Theo yêu cầu từ USER: *"giúp tôi check lại xem tại sao ccp ra bằng 
 - Build Backend: `nest build` thành công 100%, exit code 0.
 - Build Frontend: `next build` thành công 26/26 routes tĩnh/động, exit code 0.
 - Trạng thái PM2:
-  - ✅ `mxv-backend`: `online` (PID 1904014, 224.4MB)
-  - ✅ `mxv-frontend`: `online` (PID 1904233, 55.1MB)
-  - ✅ Thư mục CCP `defaultDataPath` tồn tại và nhận diện đầy đủ `[ 'DSGD.csv', 'TTM.csv', 'TTTT.csv' ]`.
+  -  `mxv-backend`: `online` (PID 1904014, 224.4MB)
+  -  `mxv-frontend`: `online` (PID 1904233, 55.1MB)
+  -  Thư mục CCP `defaultDataPath` tồn tại và nhận diện đầy đủ `[ 'DSGD.csv', 'TTM.csv', 'TTTT.csv' ]`.
 
 ---
 
@@ -302,9 +406,9 @@ Theo yêu cầu từ USER: *"trước mắt tôi cần bạn ủn lên ubutun đ
   - Cột `CCP` màu tím `#8b5cf6` và tính năng bóc tách mới đã sẵn sàng hoạt động trên máy chủ Ubuntu.
 
 ### 2. Xác nhận Dịch vụ trên Ubuntu (10.0.0.26)
-- ✅ `mxv-backend`: `online` (0.0.1)
-- ✅ `mxv-frontend`: `online`
-- ✅ `mock-sftp`: `online` (1.0.0)
+-  `mxv-backend`: `online` (0.0.1)
+-  `mxv-frontend`: `online`
+-  `mock-sftp`: `online` (1.0.0)
 
 ## [2026-09-14T17:15] AUDIT & FIX: Rà Soát Toàn Diện & Xử Lý Triệt Để Các Bug Phân Tách Ngày Tháng / Dấu Phân Cách Tương Tự
 
@@ -325,7 +429,7 @@ Theo yêu cầu từ USER: *"bạn kiểm tra xem còn bug nào tương tự kh�
 - [backend/src/modules/margin-checker/margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/margin-checker/margin-checker.service.ts): Chuẩn hóa `parseDate` đa định dạng (`/` và `-`).
 
 ### 3. Xác nhận Build
-- ✅ Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+-  Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
 
 ## [2026-09-14T17:00] FIX: Sửa Bug Lọc Thời Gian Khớp Lệnh DSGD (M-System) & Nano (Straits) - Đảm Bảo ACM Luôn <= Nano
 
@@ -347,7 +451,7 @@ Theo phản hồi và phát hiện từ USER:
   - Bổ sung fallback `tradeDate` cho Straits CSV khi cột `execution date-time` rỗng.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+-  Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
 
 ## [2026-09-14T16:50] FEAT: Thêm Hàm Tải Riêng 3 Báo Cáo CoreCCP (DSGD, TTM, TTTT) & Bóc Tách Số Liệu Độc Lập Cho Ca Trực
 
@@ -367,8 +471,8 @@ Theo yêu cầu từ USER: *"bạn có thể viết hàm dowload file cpp để 
 - [backend/src/scripts/test_download_ccp_klgd_metrics.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_download_ccp_klgd_metrics.js): Script độc lập tải và in kết quả KLGD, TTM, TTTT.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
-- ✅ Script: `node --check src/scripts/test_download_ccp_klgd_metrics.js` hợp lệ 100%.
+-  Backend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+-  Script: `node --check src/scripts/test_download_ccp_klgd_metrics.js` hợp lệ 100%.
 
 ## [2026-09-14T16:40] UI: Chuẩn Hóa Nhãn Cột Bảng 1 Thành "CCP" Thay Vì "CoreCCP"
 
@@ -382,7 +486,7 @@ Theo yêu cầu từ USER: *"bạn để chữ CCP thay vì CoreCCP"*:
 - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx): Cập nhật thẻ `<th>` đổi chữ `CoreCCP` thành `CCP`.
 
 ### 3. Xác nhận Build
-- ✅ Frontend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
+-  Frontend: `cmd.exe /c "npm run build"` biên dịch thành công 100%, exit code 0.
 
 ## [2026-09-14T15:35] FEAT: Tích Hợp Cột CoreCCP Vào Bảng Ma Trận Đối Chiếu KLGD (Table 1) & Tự Động Bóc Tách File CoreCCP Trong CheckKLGD
 
@@ -411,9 +515,9 @@ Theo chỉ đạo của USER: *"ccp-ce-downloader.service.ts với sự update t
 - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx): Thêm cột CoreCCP trong Table 1 (Header + 3 dòng KLGD, TTM, TTTT), hiển thị số lot hoặc spin loading.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
-- ✅ Frontend: `cmd.exe /c "npm run build"` (`next build` với Turbopack & TypeScript check) biên dịch thành công 100%, exit code 0.
-- ✅ Unit Test Parser: Đã xác thực thực nghiệm trên file thực tế `DSGD_14.6.xlsx` (2 lot), `TTM_14.06.xlsx` (1 lot), `TTTT_14.06.xlsx` (1 lot).
+-  Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
+-  Frontend: `cmd.exe /c "npm run build"` (`next build` với Turbopack & TypeScript check) biên dịch thành công 100%, exit code 0.
+-  Unit Test Parser: Đã xác thực thực nghiệm trên file thực tế `DSGD_14.6.xlsx` (2 lot), `TTM_14.06.xlsx` (1 lot), `TTTT_14.06.xlsx` (1 lot).
 
 ## [2026-09-14T15:20] FEAT & PERF: Tối Ưu Tải File CoreCCP Khi Bảng 0 Dòng - Hỗ Trợ Cả 2 Cơ Chế: Tải File Khung Mẫu (3.8KB) & Bắt Nhanh Toast "Không Có Dữ Liệu Để Xuất" (< 1s)
 
@@ -444,8 +548,8 @@ Theo phản hồi và phát hiện thực tế từ USER:
   - Đồng bộ toàn bộ các hàm gọi: `downloadSingleInterval`, `downloadReport`, `downloadEodReport`, `downloadQlttTkgdReport`.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
-- ✅ Script Benchmark: `node --check src/scripts/test_ccp_download_benchmark.js` hợp lệ 100%.
+-  Backend: `cmd.exe /c "npm run build"` (`nest build`) biên dịch thành công 100%, exit code 0.
+-  Script Benchmark: `node --check src/scripts/test_ccp_download_benchmark.js` hợp lệ 100%.
 
 ### 1. Mục tiêu thay đổi
 Theo phản hồi trực tiếp từ USER: "không có dữ liệu vẫn tải được mà, tại sao bạn không tải mà bỏ":
@@ -469,8 +573,8 @@ Theo phản hồi trực tiếp từ USER: "không có dữ liệu vẫn tải �
   - Đồng bộ `setDateRangeAndSearch`, `triggerExportDownload`, `downloadReport`, `downloadSingleInterval` để luôn tải và lưu file về đĩa ngay cả khi bảng 0 bản ghi.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `nest build` thành công, exit code 0.
-- ✅ Benchmark script: `node --check` hợp lệ 100%.
+-  Backend: `nest build` thành công, exit code 0.
+-  Benchmark script: `node --check` hợp lệ 100%.
 
 ### 1. Mục tiêu thay đổi
 Theo yêu cầu từ USER: "đối chiếu song song với cả test_ccp_download_benchmark.js và cả python":
@@ -494,8 +598,8 @@ Theo yêu cầu từ USER: "đối chiếu song song với cả test_ccp_downloa
   - Cập nhật `triggerExportDownload`: bổ sung `dismissModalBackdrop`, `waitForTableLoadingComplete(30000)`, Fast-skip bảng rỗng, SVG fallback selector, `checkNoDataToast`.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: Biên dịch TypeScript thành công (`nest build` exit code 0).
-- ✅ Script Benchmark: Đã kiểm thử trực quan với `--headed`, hoàn thành tải 7 báo cáo, lưu 3 file và bỏ qua chuẩn xác 4 báo cáo rỗng.
+-  Backend: Biên dịch TypeScript thành công (`nest build` exit code 0).
+-  Script Benchmark: Đã kiểm thử trực quan với `--headed`, hoàn thành tải 7 báo cáo, lưu 3 file và bỏ qua chuẩn xác 4 báo cáo rỗng.
 
 ## [2026-09-14T14:26] FEAT: Tạo File Test Batch Tải Đủ 7 Báo Cáo CoreCCP & Giữ Nguyên Vẹn 100% Code Service
 
@@ -1085,7 +1189,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - **USER tự thực hiện** chỉnh sửa trực tiếp trên file `rpa-downloader.service.ts`. AI ghi vết và xác nhận build.
 
 ### 6. Xác nhận Build & Kiểm thử
-- ✅ Backend: `tsc --noEmit` — Không có lỗi TypeScript mới trong module chính (`rpa-downloader.service.ts`). Các lỗi còn lại thuộc file test/inspect độc lập (`src/tests/*`, `src/scripts/*`) đã tồn tại từ trước, không liên quan đến thay đổi này.
+-  Backend: `tsc --noEmit` — Không có lỗi TypeScript mới trong module chính (`rpa-downloader.service.ts`). Các lỗi còn lại thuộc file test/inspect độc lập (`src/tests/*`, `src/scripts/*`) đã tồn tại từ trước, không liên quan đến thay đổi này.
 - ℹ️ Frontend: Không có thay đổi Frontend trong lần sửa này. `ConnectionSettings.tsx` chưa hiển thị thêm 2 trường `orderUrl`/`fillUrl` — cần bổ sung nếu muốn Admin cấu hình qua UI.
 
 ---
@@ -1107,8 +1211,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Xóa biến chết `userDownloadsDir` ở 2 vị trí.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `nest build` thành công 100% (exit code 0).
-- ✅ Frontend: `npx tsc --noEmit` thành công 100% (exit code 0).
+-  Backend: `nest build` thành công 100% (exit code 0).
+-  Frontend: `npx tsc --noEmit` thành công 100% (exit code 0).
 
 ## [2026-09-11T15:45] Ban Hành Quy Tắc AGENTS.md Mục 7: Triệt Phá 100% Hardcoded Task IDs & Dynamic Resolver Hoàn Toàn Theo CSDL
 
@@ -1129,8 +1233,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Hàm `findBotTasksInShift` và `getRelatedTaskIds` được chuẩn hóa để chỉ dựa vào `botCheckTypeSnapshot` và `parentTaskIdSnapshot` trong dữ liệu ca trực.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: `nest build` biên dịch thành công 100% (exit code 0).
-- ✅ Frontend: `next build` biên dịch và tối ưu thành công 100% (exit code 0).
+-  Backend: `nest build` biên dịch thành công 100% (exit code 0).
+-  Frontend: `next build` biên dịch và tối ưu thành công 100% (exit code 0).
 
 ## [2026-09-11T15:05] Khởi Tạo Bot Task Registry Tập Trung (Constants) & Đồng Bộ Tham Chiếu Toàn Diện Giữa Checklist, Bot Log Modal Và Trading Manager
 
@@ -1163,8 +1267,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Hiển thị chính xác số lot/số lệnh lệch ở cả Header và Footer.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: Biên dịch NestJS thành công (`nest build` exit code 0).
-- ✅ Frontend: Biên dịch Next.js thành công (`next build` tối ưu 25 static/dynamic routes thành công, exit code 0).
+-  Backend: Biên dịch NestJS thành công (`nest build` exit code 0).
+-  Frontend: Biên dịch Next.js thành công (`next build` tối ưu 25 static/dynamic routes thành công, exit code 0).
 
 ## [2026-09-11T12:12] Tách Biệt Độc Lập Đường Dẫn CQG Desktop URL: Phân Định Rõ Ràng CQG Price (Demo) vs CQG Trade (Live)
 
@@ -1193,9 +1297,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Thiết kế lại khối Cấu hình CQG Desktop thành 2 phân vùng trực quan riêng biệt (Price & Trade) và kết nối nút **Test CQG Price** vào `handleTestCqgConnection`.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Backend: Biên dịch TypeScript thành công (`npm.cmd run build` exit code 0).
-- ✅ Frontend: Biên dịch Next.js & kiểm tra type thành công (`next build` exit code 0).
-- ✅ Triển khai thành công lên máy chủ Ubuntu 10.0.0.26 (`deploy_to_ubuntu.js` exit code 0). Cả 2 service PM2 `mxv-backend` và `mxv-frontend` đều đang `online`.
+-  Backend: Biên dịch TypeScript thành công (`npm.cmd run build` exit code 0).
+-  Frontend: Biên dịch Next.js & kiểm tra type thành công (`next build` exit code 0).
+-  Triển khai thành công lên máy chủ Ubuntu 10.0.0.26 (`deploy_to_ubuntu.js` exit code 0). Cả 2 service PM2 `mxv-backend` và `mxv-frontend` đều đang `online`.
 
 ## [2026-09-11T10:10] Nâng Cấp Xử Lý Lỗi Sàn ACM (Cloudflare 502 Bad Gateway), Quá Tải Gemini Captcha & Cơ Chế Phòng Vệ Tác Vụ Tải Tươi
 
@@ -1219,7 +1323,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Hỗ trợ cấu hình `bot_backup_path_acm` động.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Build NestJS Backend thành công (`npm.cmd run build` exit code 0).
+-  Build NestJS Backend thành công (`npm.cmd run build` exit code 0).
 
 ## [2026-09-11T08:58] Khắc Phục Lỗi Nhận Diện Thư Mục ACM Trên Ubuntu Linux: Chuyển Đổi Đường Dẫn Cross-Platform & Nhận Diện Đủ Cả Fill.xlsx / Straits.csv
 
@@ -1238,7 +1342,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Đồng bộ regex thay thế đường dẫn cross-platform cho endpoint upload/quản lý file ACM.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Build NestJS Backend thành công (`npm.cmd run build` exit code 0).
+-  Build NestJS Backend thành công (`npm.cmd run build` exit code 0).
 
 ## [2026-09-11T08:30] Khắc Phục Triệt Để: Nâng Trần RAM PM2 Lên 2500M & Tách Profile Riêng Biệt Cho CQG1/CQG2
 
@@ -1263,10 +1367,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Tắt ứng dụng `mxv-aml` theo chỉ đạo của USER (`pm2 stop mxv-aml && pm2 save`), giải phóng thêm tài nguyên RAM/CPU cho hệ thống.
 
 ### 3. Xác nhận Build & Kiểm thử
-- ✅ Cả CQG1 và CQG2 đều đã tải file thành công (`FR1.xlsx`, `FR2.xlsx`).
-- ✅ Build NestJS Backend & Next.js Frontend thành công 100%.
-- ✅ RAM khả dụng (Available Memory) tăng lên mức 2.3 GB.
-- ✅ PM2 đã lưu cấu hình mới, `mxv-backend` và `mxv-frontend` chạy `online` ổn định.
+-  Cả CQG1 và CQG2 đều đã tải file thành công (`FR1.xlsx`, `FR2.xlsx`).
+-  Build NestJS Backend & Next.js Frontend thành công 100%.
+-  RAM khả dụng (Available Memory) tăng lên mức 2.3 GB.
+-  PM2 đã lưu cấu hình mới, `mxv-backend` và `mxv-frontend` chạy `online` ổn định.
 
 
 ### 1. Mục tiêu thay đổi
@@ -1296,11 +1400,11 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Sử dụng `context.close()` giải phóng toàn bộ tiến trình Chromium, ngăn ngừa 100% hiện tượng Chromium zombie chạy ngầm gây cạn kiệt RAM làm server khởi động lại.
 
 ### 4. Xác nhận Build & Triển khai
-- ✅ Local build: `cmd /c npm run build` thành công (Exit code: 0).
-- ✅ Đồng bộ sang máy chủ qua `deploy_to_ubuntu.js`.
-- ✅ Build Frontend Next.js Turbopack 26/26 routes thành công.
-- ✅ Cả 4 tiến trình PM2 khởi động lại ở trạng thái `online`.
-- ✅ Đo kiểm thực tế 2 lần liên tiếp trên Ubuntu: Lần 1 tải bundle (5.81s) $\rightarrow$ Lần 2 tận dụng warm cache thành công trong **4.32 giây**!
+-  Local build: `cmd /c npm run build` thành công (Exit code: 0).
+-  Đồng bộ sang máy chủ qua `deploy_to_ubuntu.js`.
+-  Build Frontend Next.js Turbopack 26/26 routes thành công.
+-  Cả 4 tiến trình PM2 khởi động lại ở trạng thái `online`.
+-  Đo kiểm thực tế 2 lần liên tiếp trên Ubuntu: Lần 1 tải bundle (5.81s) $\rightarrow$ Lần 2 tận dụng warm cache thành công trong **4.32 giây**!
 
 
 ### 1. Mục tiêu thay đổi
@@ -1327,10 +1431,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Đặt khối `try ... catch` bao trọn `browser` trong `loginCqgAccount`: Nếu CQG1 gặp lỗi, tiến trình browser được dọn dẹp đóng ngay lập tức (`browser.close()`), không để lại zombie process làm sập context của CQG2 (`Target page, context or browser has been closed`).
 
 ### 4. Xác nhận Build & Triển khai
-- ✅ Local build: `cmd /c npm run build` (NestJS) thành công 100% (Exit code: 0).
-- ✅ Đồng bộ sang máy chủ `/opt/mxv-checklist` qua `deploy_to_ubuntu.js`.
-- ✅ Build Frontend Next.js Turbopack 26/26 routes thành công.
-- ✅ Cả 4 tiến trình PM2 khởi động lại ở trạng thái `online`.
+-  Local build: `cmd /c npm run build` (NestJS) thành công 100% (Exit code: 0).
+-  Đồng bộ sang máy chủ `/opt/mxv-checklist` qua `deploy_to_ubuntu.js`.
+-  Build Frontend Next.js Turbopack 26/26 routes thành công.
+-  Cả 4 tiến trình PM2 khởi động lại ở trạng thái `online`.
 
 
 ### 1. Mục tiêu thay đổi
@@ -1379,10 +1483,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Thêm khối `finally: gc.collect()` dọn dẹp bộ nhớ đệm và các biến ảnh sau mỗi lượt quét hồ sơ.
 
 ### 4. Xác nhận Build & Triển khai Máy Chủ Ubuntu 10.0.0.26
-- ✅ Local & Remote Build: `cmd /c npm run build` (Backend NestJS) thành công 100% (Exit code: 0).
-- ✅ Đồng bộ toàn bộ sang `/opt/mxv-checklist` qua `deploy_to_ubuntu.js`.
-- ✅ Build Frontend Next.js 16.2.9 Turbopack biên dịch 26 trang thành công.
-- ✅ Cả 4 dịch vụ PM2 đều `online` ổn định:
+-  Local & Remote Build: `cmd /c npm run build` (Backend NestJS) thành công 100% (Exit code: 0).
+-  Đồng bộ toàn bộ sang `/opt/mxv-checklist` qua `deploy_to_ubuntu.js`.
+-  Build Frontend Next.js 16.2.9 Turbopack biên dịch 26 trang thành công.
+-  Cả 4 dịch vụ PM2 đều `online` ổn định:
   - `mxv-aml`: **84.6MB** (Hoạt động ổn định, được bảo vệ cách ly tuyệt đối)
   - `mxv-backend`: **375.1MB**
   - `mxv-frontend`: **58.2MB**
@@ -1421,8 +1525,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
     - **Non-ACM**: 479 dòng | Mua: 659 lot | Bán: 659 lot.
 
 ### 4. Xác nhận Build & Kiểm thử Tự Động Toàn Trình (Automated Test & Snapshot Audit)
-- ✅ Backend: `npm.cmd run build` (`nest build`) thành công 100% (Exit code: 0).
-- ✅ Chạy kiểm thử tự động toàn diện: `$env:HEADLESS="true"; node src/scripts/test_ms_tab_downloads.js` hoàn tất 100% (Exit code: 0).
+-  Backend: `npm.cmd run build` (`nest build`) thành công 100% (Exit code: 0).
+-  Chạy kiểm thử tự động toàn diện: `$env:HEADLESS="true"; node src/scripts/test_ms_tab_downloads.js` hoàn tất 100% (Exit code: 0).
 - 📸 **Đánh giá hình ảnh Snapshot**:
   - `snap_tab_01_tttt.png`: Màn hình Trạng thái tất toán (Tab 1) kích hoạt chính xác, hiển thị 318 trang hợp đồng giao dịch thường.
   - `snap_tab_02_ttcdh.png`: Tab `Trạng thái tất toán chờ đáo hạn LME` (Tab 2) kích hoạt hoàn hảo, bảng dữ liệu chuyển sang toàn bộ hợp đồng LME (`-L`).
@@ -1483,8 +1587,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Chạy `headless: false`, slowMo 300ms, tự động đăng nhập, tải tuần tự TTM rồi TTTT, xác thực tên file gốc và in bảng so sánh dữ liệu đối soát lot ACM.
 
 ### 4. Xác nhận Build & Kiểm thử
-- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) thành công 100% (Exit code: 0).
-- ✅ Script kiểm thử độc lập đã sẵn sàng để USER tự kích hoạt trên terminal theo nguyên tắc AGENTS.md.
+-  Backend: `cmd.exe /c "npm run build"` (`nest build`) thành công 100% (Exit code: 0).
+-  Script kiểm thử độc lập đã sẵn sàng để USER tự kích hoạt trên terminal theo nguyên tắc AGENTS.md.
 
 ## [2026-09-10T11:20] Ghi Nhận Phát Hiện Nghiệp Vụ: File TTTT Đối Soát ACM Đang Sai Nguồn/Định Dạng Đầu Vào
 
@@ -1572,8 +1676,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Thay thế dòng hardcode `const acmTTTT = 0;` bằng `totals.totalTTTT_ACM || totals.totalACM_TTTT || 0`.
 
 ### 4. Xác nhận Build & Kiểm thử
-- ✅ Backend: `cmd.exe /c "npm run build"` (`nest build`) thành công 100% (Exit code: 0).
-- ✅ Frontend: `cmd.exe /c "npm run build"` (`next build`) thành công 100% (Exit code: 0, 26 static pages tối ưu hóa).
+-  Backend: `cmd.exe /c "npm run build"` (`nest build`) thành công 100% (Exit code: 0).
+-  Frontend: `cmd.exe /c "npm run build"` (`next build`) thành công 100% (Exit code: 0, 26 static pages tối ưu hóa).
 
 ---
 
@@ -1631,8 +1735,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Cơ chế bảo vệ: Khi nút download bị vô hiệu hóa, nếu file đích đã có dữ liệu hợp lệ (> 2.5KB) từ trước, bot **KHÔNG** ghi đè file rỗng mà giữ nguyên dữ liệu thực tế.
 
 ### 4. Xác nhận Build & Kiểm thử
-- ✅ Backend: `npm run build` (`nest build`) thành công (Exit code: 0).
-- ✅ Frontend: `npm run build` (`next build`) thành công (Exit code: 0, 26 static pages tối ưu hóa).
+-  Backend: `npm run build` (`nest build`) thành công (Exit code: 0).
+-  Frontend: `npm run build` (`next build`) thành công (Exit code: 0, 26 static pages tối ưu hóa).
 
 ---
 
@@ -1669,9 +1773,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Restart PM2 `mxv-frontend`.
 
 ### Xác nhận Build & Trạng thái PM2 trên Ubuntu
-- ✅ Backend Build: `nest build` thành công.
-- ✅ Frontend Build: `next build` thành công 26 static pages.
-- ✅ PM2 Process Status:
+-  Backend Build: `nest build` thành công.
+-  Frontend Build: `next build` thành công 26 static pages.
+-  PM2 Process Status:
   - `mxv-backend` (PID: 3734266) - **online** (220 MB)
   - `mxv-frontend` (PID: 3734477) - **online** (55.5 MB)
   - `mock-sftp` (PID: 713952) - **online**
@@ -1702,9 +1806,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 - [tkgd-reconcile-core.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/services/tkgd-reconcile-core.service.ts)
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Python Syntax Check: `py_compile tkgd_extractor_worker.py` thành công (exit code 0).
-- ✅ Backend Build: `npm run build` (nest build) thành công 100% (exit code 0).
-- ✅ Frontend Build: `npm run build` (next build) thành công 100% (exit code 0, 26 static pages).
+-  Python Syntax Check: `py_compile tkgd_extractor_worker.py` thành công (exit code 0).
+-  Backend Build: `npm run build` (nest build) thành công 100% (exit code 0).
+-  Frontend Build: `npm run build` (next build) thành công 100% (exit code 0, 26 static pages).
 
 ---
 
@@ -1725,7 +1829,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
      - Tự động chuẩn hóa URL ACM: chuyển đuôi `#/home` thành `#/login` để Playwright truy cập đúng trang đăng nhập thay vì trang chủ trống.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend Core Modules: biên dịch sạch sẽ không có lỗi runtime.
+-  Backend Core Modules: biên dịch sạch sẽ không có lỗi runtime.
 
 ---
 
@@ -1744,7 +1848,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 1. **[frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx)**: Thay thế toàn bộ mã màu hardcode tối bằng CSS variables của theme.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Frontend TypeCheck: `tsc --noEmit` mã thoát 0 (pass 100%).
+-  Frontend TypeCheck: `tsc --noEmit` mã thoát 0 (pass 100%).
 
 ---
 
@@ -1765,7 +1869,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 1. **[frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx)**: Dùng `createPortal`, căn giữa Viewport, fix cuộn nội dung và nút bấm footer.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Frontend TypeCheck: `tsc --noEmit` mã thoát 0 (pass 100%).
+-  Frontend TypeCheck: `tsc --noEmit` mã thoát 0 (pass 100%).
 
 ---
 
@@ -1788,7 +1892,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
      - `trading-manager/page.tsx` hiển thị Banner trực quan ở đầu Tab:
        - 🔄 Đang xử lý (`PROCESSING`): Animation spinner + thông báo tiến trình.
        -  Lỗi (`FAILED`): Alert đỏ hiển thị lỗi cụ thể + Nút **"Xem chi tiết Log"** + Nút **"Chạy lại ngay"**.
-       - ⏳ Chờ file (`isWaitingFiles`): Alert vàng cảnh báo thiếu file + Nút **"Tải lại & Đối chiếu"**.
+       -  Chờ file (`isWaitingFiles`): Alert vàng cảnh báo thiếu file + Nút **"Tải lại & Đối chiếu"**.
      - Thêm Modal xem Log giao diện Terminal tối màu, hiển thị chi tiết từng bước Bot đã chạy kèm highlight màu (đỏ: lỗi, xanh: thành công, vàng: cảnh báo).
 
 ### Danh sách file chỉnh sửa
@@ -1801,8 +1905,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 7. **[frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx)**: Thêm Bot Status Banner và Modal xem nhật ký Terminal.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Frontend TypeCheck: `tsc --noEmit` pass 100% 0 lỗi.
-- ✅ Backend Core Modules: biên dịch sạch sẽ không có lỗi runtime.
+-  Frontend TypeCheck: `tsc --noEmit` pass 100% 0 lỗi.
+-  Backend Core Modules: biên dịch sạch sẽ không có lỗi runtime.
 
 ---
 
@@ -1821,7 +1925,7 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Thêm `'IN_PROGRESS'` vào enum validation.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend: `nest build` thành công 0 lỗi.
+-  Backend: `nest build` thành công 0 lỗi.
 
 ---
 
@@ -1842,8 +1946,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Nâng cấp `triggerConsoleRun` linh hoạt theo ngày và hỗ trợ ca trực `PENDING`.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend: `nest build` biên dịch thành công 0 lỗi.
-- ✅ PM2 Local: Dịch vụ tự động nạp code mới.
+-  Backend: `nest build` biên dịch thành công 0 lỗi.
+-  PM2 Local: Dịch vụ tự động nạp code mới.
 
 ---
 
@@ -1867,8 +1971,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Bổ sung Mục 6: "TKGD Reconciliation & OCR Best Practices" làm cẩm nang đối soát bất biến cho AI Assistant.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend TypeScript: `npx tsc --noEmit` đạt 0 lỗi biên dịch.
-- ✅ PM2 Server Ubuntu & Local: Hoạt động ổn định, 4 tài khoản mở đều đạt trạng thái `KHOP` 100%.
+-  Backend TypeScript: `npx tsc --noEmit` đạt 0 lỗi biên dịch.
+-  PM2 Server Ubuntu & Local: Hoạt động ổn định, 4 tài khoản mở đều đạt trạng thái `KHOP` 100%.
 
 ---
 
@@ -1894,9 +1998,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Đọc `options` từ job payload để bỏ qua tải các file không được chọn (`DSGD`, `TTM`, `FR`, `PS`, `ACM`).
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Frontend TypeScript: `npx tsc --noEmit` biên dịch thành công 0 lỗi.
-- ✅ Backend NestJS: `nest build` biên dịch thành công 0 lỗi.
-- ✅ Tuân thủ chỉ đạo của USER: Giữ nguyên kiểm thử trên Local, KHÔNG tự ý deploy lên Ubuntu.
+-  Frontend TypeScript: `npx tsc --noEmit` biên dịch thành công 0 lỗi.
+-  Backend NestJS: `nest build` biên dịch thành công 0 lỗi.
+-  Tuân thủ chỉ đạo của USER: Giữ nguyên kiểm thử trên Local, KHÔNG tự ý deploy lên Ubuntu.
 
 ---
 
@@ -1931,8 +2035,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 3. **[backend/src/scripts/python/tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py)**
 
 ### Xác nhận Build & Triển khai
-- ✅ Local: `npm run build` Backend thành công.
-- ✅ Ubuntu Server (`10.0.0.26`): Đã đồng bộ và biên dịch production `nest build` & `next build` thành công (exit code 0), PM2 online.
+-  Local: `npm run build` Backend thành công.
+-  Ubuntu Server (`10.0.0.26`): Đã đồng bộ và biên dịch production `nest build` & `next build` thành công (exit code 0), PM2 online.
 
 ---
 
@@ -1956,8 +2060,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Chuẩn hóa layout fullscreen viewport.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Frontend TypeScript: `npx tsc --noEmit` biên dịch thành công 0 lỗi.
-- ✅ Tuân thủ chỉ đạo của USER: Giữ nguyên kiểm thử trên Local, KHÔNG tự ý deploy lên Ubuntu.
+-  Frontend TypeScript: `npx tsc --noEmit` biên dịch thành công 0 lỗi.
+-  Tuân thủ chỉ đạo của USER: Giữ nguyên kiểm thử trên Local, KHÔNG tự ý deploy lên Ubuntu.
 
 ---
 
@@ -1983,8 +2087,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Viết lại toàn bộ styling theo chuẩn visual của `bot-config/page.tsx` và các sub-components.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local & Ubuntu: `npx tsc --noEmit` & `next build` biên dịch thành công 0 errors.
-- ✅ PM2 Ubuntu: `mxv-backend` và `mxv-frontend` đang Online.
+-  Local & Ubuntu: `npx tsc --noEmit` & `next build` biên dịch thành công 0 errors.
+-  PM2 Ubuntu: `mxv-backend` và `mxv-frontend` đang Online.
 
 ---
 
@@ -2005,8 +2109,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 1. **[backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts)**
 
 ### Xác nhận Build & Triển khai
-- ✅ Local: `npm run build` Backend thành công.
-- ✅ Ubuntu Server (`10.0.0.26`): Đã đồng bộ qua `deploy_to_ubuntu.js`, `nest build` và `next build` thành công, PM2 `mxv-backend` và `mxv-frontend` online.
+-  Local: `npm run build` Backend thành công.
+-  Ubuntu Server (`10.0.0.26`): Đã đồng bộ qua `deploy_to_ubuntu.js`, `nest build` và `next build` thành công, PM2 `mxv-backend` và `mxv-frontend` online.
 
 ---
 
@@ -2031,8 +2135,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
 4. **[backend/src/modules/auth/auth.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/auth/auth.controller.ts)**
 
 ### Xác nhận Build & Triển khai
-- ✅ Local: `npm run build` Backend và Frontend thành công.
-- ✅ Ubuntu Server (`10.0.0.26`): Đã đồng bộ, `nest build` và `next build` thành công, `mxv-backend` và `mxv-frontend` online.
+-  Local: `npm run build` Backend và Frontend thành công.
+-  Ubuntu Server (`10.0.0.26`): Đã đồng bộ, `nest build` và `next build` thành công, `mxv-backend` và `mxv-frontend` online.
 
 ---
 
@@ -2061,8 +2165,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Thay đổi các class styling sang biến toàn cục của hệ thống MXV, giữ nguyên 100% cấu trúc logic và các khối hiển thị.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local & Ubuntu: `npx tsc --noEmit` & `next build` biên dịch thành công 0 errors.
-- ✅ PM2 Ubuntu: `mxv-frontend` và `mxv-backend` đang Online.
+-  Local & Ubuntu: `npx tsc --noEmit` & `next build` biên dịch thành công 0 errors.
+-  PM2 Ubuntu: `mxv-frontend` và `mxv-backend` đang Online.
 
 ---
 
@@ -2091,8 +2195,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Tái thiết kế toàn diện UI/UX theo ngôn ngữ C# Desktop DataGridView, thêm nút Fullscreen, tối ưu responsive và bố cục.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local & Ubuntu: `npx tsc --noEmit` & `next build` biên dịch thành công.
-- ✅ PM2 Ubuntu: `mxv-backend` và `mxv-frontend` đã restart và Online.
+-  Local & Ubuntu: `npx tsc --noEmit` & `next build` biên dịch thành công.
+-  PM2 Ubuntu: `mxv-backend` và `mxv-frontend` đã restart và Online.
 
 ---
 
@@ -2120,8 +2224,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Đã đồng bộ và kích hoạt build production trên server.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local & Ubuntu Frontend: `next build` biên dịch thành công 25/25 static pages.
-- ✅ PM2 Ubuntu: `mxv-frontend` PID 3413808 online, `mxv-backend` online.
+-  Local & Ubuntu Frontend: `next build` biên dịch thành công 25/25 static pages.
+-  PM2 Ubuntu: `mxv-frontend` PID 3413808 online, `mxv-backend` online.
 
 ---
 
@@ -2146,12 +2250,12 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Menu Sidebar điều hướng (`Sidebar.tsx`).
 
 ### Kết quả Build & Trạng thái PM2 trên Ubuntu:
-- ✅ Backend Build: `nest build` $\rightarrow$ **Exit code 0**.
-- ✅ Frontend Build: `next build` (25/25 static pages bao gồm `/trading-manager`) $\rightarrow$ **Exit code 0**.
-- ✅ PM2 Restart:
+-  Backend Build: `nest build` $\rightarrow$ **Exit code 0**.
+-  Frontend Build: `next build` (25/25 static pages bao gồm `/trading-manager`) $\rightarrow$ **Exit code 0**.
+-  PM2 Restart:
   * `mxv-backend` (PID 3412187): **Online**
   * `mxv-frontend` (PID 3412397): **Online**
-- ✅ Toàn bộ quá trình hoàn tất với **Exit code 0**.
+-  Toàn bộ quá trình hoàn tất với **Exit code 0**.
 
 ---
 
@@ -2208,8 +2312,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Cập nhật hiển thị cột Ngày sinh trong modal đối chiếu: Ưu tiên `canCuoc` khi khớp MS hoặc đối với tiểu khoản phụ.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local Backend: `npm run build` thành công, 0 error.
-- ✅ Local Frontend: `npm run build` thành công, 25 static pages prerendered.
+-  Local Backend: `npm run build` thành công, 0 error.
+-  Local Frontend: `npm run build` thành công, 25 static pages prerendered.
 
 ---
 
@@ -2227,8 +2331,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Script thẩm định 4 hạng mục đối soát chéo với dữ liệu thực tế lịch sử của phiên 08.07.
 
 ### Xác nhận Build & Lệnh chạy cho USER
-- ✅ Backend: `nest build` exit code 0.
-- ✅ Lệnh chạy dành cho USER: `python src/scripts/test_golden_dataset_0807.py` tại thư mục `backend`.
+-  Backend: `nest build` exit code 0.
+-  Lệnh chạy dành cho USER: `python src/scripts/test_golden_dataset_0807.py` tại thư mục `backend`.
 
 ---
 
@@ -2255,9 +2359,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Cập nhật quy tắc style border, căn giữa và màu nền (xanh lá/đỏ cam) tương ứng cho từng ô.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local Backend: `npm run build` thành công, 0 lỗi TypeScript.
-- ✅ Local Frontend: `npm run build` thành công, 25 static pages prerendered.
-- ✅ Server Ubuntu (10.0.0.26): Đang tự động đồng bộ code và restart PM2.
+-  Local Backend: `npm run build` thành công, 0 lỗi TypeScript.
+-  Local Frontend: `npm run build` thành công, 25 static pages prerendered.
+-  Server Ubuntu (10.0.0.26): Đang tự động đồng bộ code và restart PM2.
 
 ---
 
@@ -2295,9 +2399,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Truyền `accountName` (họ tên từ Mail/M-System/Hợp đồng) vào hàm gọi `runPythonExtractor()`.
 
 ### Xác nhận Build & Triển khai
-- ✅ Local Backend: `npm run build` thành công, 0 error.
-- ✅ Local Frontend: `npm run build` thành công, 24 static pages prerendered.
-- ✅ Ubuntu Server (10.0.0.26): Đã đồng bộ 138 file, build production backend & frontend thành công, cả 4 service PM2 (`mxv-backend`, `mxv-frontend`, `mock-sftp`, `mxv-aml`) đều hoạt động ổn định (`online`).
+-  Local Backend: `npm run build` thành công, 0 error.
+-  Local Frontend: `npm run build` thành công, 24 static pages prerendered.
+-  Ubuntu Server (10.0.0.26): Đã đồng bộ 138 file, build production backend & frontend thành công, cả 4 service PM2 (`mxv-backend`, `mxv-frontend`, `mock-sftp`, `mxv-aml`) đều hoạt động ổn định (`online`).
 
 ---
 
@@ -2315,9 +2419,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Tích hợp mảng ghi log `TEST_RECORDS` và hàm `generate_markdown_report` tự động xuất file `TEST_REPORT_RECON_CORE.md` ngay khi chạy xong test suite.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend: `nest build` exit code 0.
-- ✅ Frontend: `next build` biên dịch 25/25 static pages exit code 0.
-- ✅ Lệnh chạy kiểm thử và review dành cho USER: `python src/scripts/test_recon_engine.py` tại thư mục `backend`.
+-  Backend: `nest build` exit code 0.
+-  Frontend: `next build` biên dịch 25/25 static pages exit code 0.
+-  Lệnh chạy kiểm thử và review dành cho USER: `python src/scripts/test_recon_engine.py` tại thư mục `backend`.
 
 ---
 
@@ -2340,9 +2444,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Bộ test suite 5 test cases kiểm thử tự động toàn diện theo chuẩn Zero-Defect Tolerance.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend Build: `nest build` exit code 0.
-- ✅ Frontend Typecheck: `npx tsc --noEmit` exit code 0.
-- ✅ Bộ kịch bản Test Cases: Đã sẵn sàng tại `backend/src/scripts/test_recon_engine.py` để USER tự chạy.
+-  Backend Build: `nest build` exit code 0.
+-  Frontend Typecheck: `npx tsc --noEmit` exit code 0.
+-  Bộ kịch bản Test Cases: Đã sẵn sàng tại `backend/src/scripts/test_recon_engine.py` để USER tự chạy.
 
 ---
 
@@ -2375,9 +2479,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
    - Thêm menu `Trading Manager` với icon `Layers`.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend Build: `nest build` exit code 0.
-- ✅ Frontend Build: `npx tsc --noEmit` exit code 0 & `next build` 25/25 static routes exit code 0 (kèm route mới `○ /trading-manager`).
-- ✅ Quy chuẩn Clean UI: 100% Lucide icons, 0 emoji.
+-  Backend Build: `nest build` exit code 0.
+-  Frontend Build: `npx tsc --noEmit` exit code 0 & `next build` 25/25 static routes exit code 0 (kèm route mới `○ /trading-manager`).
+-  Quy chuẩn Clean UI: 100% Lucide icons, 0 emoji.
 
 ---
 
@@ -2406,10 +2510,10 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Bổ sung `await fetchConfig()` sau khi `res.ok` trong `handleSave`.
 
 ### Xác nhận Build & Kiểm thử Live trên Ubuntu 10.0.0.26
-- ✅ Compile Backend: `tsc --project tsconfig.build.json` exit code 0.
-- ✅ Compile Frontend: `next build` 24/24 static pages exit code 0.
-- ✅ Triển khai Production: Đã upload và restart PM2 `mxv-backend` (pid 3369659) & `mxv-frontend` (pid 3369860) trên Ubuntu `10.0.0.26` đều `online`.
-- ✅ Kiểm thử thực tế chạy lại hồ sơ `003C2333888` (Ngô Đức Hải):
+-  Compile Backend: `tsc --project tsconfig.build.json` exit code 0.
+-  Compile Frontend: `next build` 24/24 static pages exit code 0.
+-  Triển khai Production: Đã upload và restart PM2 `mxv-backend` (pid 3369659) & `mxv-frontend` (pid 3369860) trên Ubuntu `10.0.0.26` đều `online`.
+-  Kiểm thử thực tế chạy lại hồ sơ `003C2333888` (Ngô Đức Hải):
   - Gọi `POST /api/v1/tkgd/reparse-account` với `003C2333888`.
   - Kết quả trả về chính xác 100%:
     - `trangThai: "LECH"`
@@ -2451,9 +2555,9 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Bổ sung nút liên kết *"Xem Nhật Ký Tác Vụ"* ở footer của dropdown thông báo.
 
 ### Xác nhận Build & Triển khai
-- ✅ Backend Compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).
-- ✅ Frontend Compile: Đạt 100% (`npx tsc --noEmit` & `npm run build` exit code 0).
-- ✅ Triển khai Production: Đã upload toàn bộ và build production trên máy chủ Ubuntu VM `10.0.0.26`, PM2 `mxv-backend` (pid 3360763) và `mxv-frontend` (pid 3360973) đều `online` với exit code 0.
+-  Backend Compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).
+-  Frontend Compile: Đạt 100% (`npx tsc --noEmit` & `npm run build` exit code 0).
+-  Triển khai Production: Đã upload toàn bộ và build production trên máy chủ Ubuntu VM `10.0.0.26`, PM2 `mxv-backend` (pid 3360763) và `mxv-frontend` (pid 3360973) đều `online` với exit code 0.
 
 ---
 
@@ -2481,8 +2585,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Xuất khẩu `TkgdNotificationDropdown` và các hàm tiện ích thông báo TKGD.
 
 ### Xác nhận Build & Triển khai
-- ✅ Frontend Compile: Đạt 100% (`cmd /c npx tsc --noEmit` & `npm run build` exit code 0).
-- ✅ Triển khai Production: Đã upload toàn bộ và build production trên máy chủ Ubuntu VM `10.0.0.26`, PM2 `mxv-frontend` (pid 3358392) và `mxv-backend` (pid 3358115) đều `online` với exit code 0.
+-  Frontend Compile: Đạt 100% (`cmd /c npx tsc --noEmit` & `npm run build` exit code 0).
+-  Triển khai Production: Đã upload toàn bộ và build production trên máy chủ Ubuntu VM `10.0.0.26`, PM2 `mxv-frontend` (pid 3358392) và `mxv-backend` (pid 3358115) đều `online` với exit code 0.
 
 ---
 
@@ -2500,8 +2604,8 @@ Tài liệu này dùng để ghi vết tất cả các lượt chỉnh sửa cod
   - Bổ sung hoàn chỉnh Phần VII: Chiến lược thay thế hoàn toàn Tool C# & Khung kiểm soát chất lượng (Quality Gates).
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend compile: Đạt 100% (	sc --project tsconfig.build.json exit code 0).
-- ✅ Frontend compile: Đạt 100% (
+-  Backend compile: Đạt 100% (	sc --project tsconfig.build.json exit code 0).
+-  Frontend compile: Đạt 100% (
 px tsc --noEmit exit code 0).
 
 ---
@@ -2510,20 +2614,20 @@ px tsc --noEmit exit code 0).
 ### Mục tiêu thay đổi
 - **Yêu cầu từ USER**:
   1. Gắn icon Chuông thông báo (Notification Tray) lên đầu trang TKGD để cán bộ có thể mở xem lịch sử thông báo bất kỳ lúc nào.
-  2. Bỏ icon emoji `✅` trong thông báo Toast khi hoàn tất chu trình bóc tách.
+  2. Bỏ icon emoji `` trong thông báo Toast khi hoàn tất chu trình bóc tách.
   3. Badge "Bảo chứng MS (MD5)" chỉ hiển thị ở chế độ "Đầy đủ", ẩn hoàn toàn ở chế độ "Rút gọn" để bảng gọn gàng.
 
 ### Danh sách file chỉnh sửa
 - [`frontend/src/features/tkgd/components/TkgdDashboard.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdDashboard.tsx):
   - Tích hợp component `<NotificationDropdown />` (Icon hình Cái Chuông 🔔) vào thanh công cụ góc trên bên phải cạnh nút chuyển giao diện Sáng/Tối.
 - [`frontend/src/features/tkgd/hooks/useTkgdActions.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/hooks/useTkgdActions.ts):
-  - Loại bỏ icon `icon: '✅'` trong `toast.success`, sử dụng thông báo Toast chuẩn tối giản.
+  - Loại bỏ icon `icon: ''` trong `toast.success`, sử dụng thông báo Toast chuẩn tối giản.
 - [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx):
   - Bọc điều kiện `{!isCompactView && ...}` cho nhãn badge `Bảo chứng MS (MD5)`: Khi xem ở chế độ rút gọn sẽ tự động ẩn đi, chỉ hiện khi bật chế độ xem đầy đủ.
 
 ### Xác nhận Build & Triển khai
-- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).
-- ✅ Triển khai Production: Đã đồng bộ và reload PM2 `mxv-frontend` trên Ubuntu VM `10.0.0.26` thành công (`online`).
+-  Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).
+-  Triển khai Production: Đã đồng bộ và reload PM2 `mxv-frontend` trên Ubuntu VM `10.0.0.26` thành công (`online`).
 
 ---
 
@@ -2551,9 +2655,9 @@ px tsc --noEmit exit code 0).
   - Bổ sung cơ chế giải mã JWT `id_token` để bắt chính xác 100% email tài khoản Microsoft vừa đăng nhập, khắc phục triệt để fallback nhầm.
 
 ### Xác nhận Build & Triển khai
-- ✅ Backend compile: Đạt 100% (`nest build` exit code 0).
-- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).
-- ✅ Triển khai Production: Đã đồng bộ và restart PM2 `mxv-backend` & `mxv-frontend` trên Ubuntu VM `10.0.0.26` thành công (cả 2 đều `online`).
+-  Backend compile: Đạt 100% (`nest build` exit code 0).
+-  Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).
+-  Triển khai Production: Đã đồng bộ và restart PM2 `mxv-backend` & `mxv-frontend` trên Ubuntu VM `10.0.0.26` thành công (cả 2 đều `online`).
 
 ---
 
@@ -2570,8 +2674,8 @@ px tsc --noEmit exit code 0).
   - Khởi tạo và hoàn thiện trọn vẹn 6 phần tài liệu: Phân rã 3 màn hình UI, Ma trận ánh xạ mã nguồn, Checklist kiểm thử 10 Test Cases, Phụ lục CSDL MongoDB thực tế, Bài toán kiểm chứng song song với 5 rủi ro lệch chuẩn, và Thiết kế kiến trúc lai Python Data Engine.
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend compile: Đạt 100% (	sc --project tsconfig.build.json exit code 0).)
-- ✅ CSDL MongoDB: Kiểm tra kết nối và truy xuất cấu hình an toàn 100% không ghi đè dữ liệu.
+-  Backend compile: Đạt 100% (	sc --project tsconfig.build.json exit code 0).)
+-  CSDL MongoDB: Kiểm tra kết nối và truy xuất cấu hình an toàn 100% không ghi đè dữ liệu.
 
 ---
 ## [2026-09-09T10:15] Tối Ưu Bảng TKGD: Chuẩn Hóa Cột Thời Gian (Gọn vs Đầy Đủ), Bật Tương Tác Snapshot Camera & Ẩn Menu TKGD Khỏi Sidebar Vận Hành Ca
@@ -2591,8 +2695,8 @@ px tsc --noEmit exit code 0).
   - Cập nhật dòng mở rộng: đồng bộ `colSpan={isCompactView ? 8 : 11}`, bổ sung khối hiển thị chi tiết lịch sử Snapshot (`r.snapshots`) liệt kê từng mốc thời gian, loại hành động (`UPDATE`, `REPARSE_ACCOUNT`) và mô tả lưu vết tự động.
 
 ### Xác nhận Build & Triển khai
-- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code: 0).
-- ✅ Triển khai Production: Đã đồng bộ lên máy chủ Ubuntu VM `10.0.0.26`, build Next.js và restart PM2 `mxv-frontend` thành công (`online`).
+-  Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code: 0).
+-  Triển khai Production: Đã đồng bộ lên máy chủ Ubuntu VM `10.0.0.26`, build Next.js và restart PM2 `mxv-frontend` thành công (`online`).
 
 ---
 
@@ -2626,9 +2730,9 @@ px tsc --noEmit exit code 0).
   - Kết nối action `handleReparseAccount` vào bảng dữ liệu `TkgdRecordsTable`.
 
 ### Xác nhận Build & Triển khai
-- ✅ Backend compile: Đạt 100% (`nest build` exit code: 0).
-- ✅ Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code: 0).
-- ✅ Triển khai Production: Đã upload 131/131 file và build/restart PM2 thành công trên máy chủ Ubuntu VM `10.0.0.26` (`mxv-backend` & `mxv-frontend` đều `online`).
+-  Backend compile: Đạt 100% (`nest build` exit code: 0).
+-  Frontend compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code: 0).
+-  Triển khai Production: Đã upload 131/131 file và build/restart PM2 thành công trên máy chủ Ubuntu VM `10.0.0.26` (`mxv-backend` & `mxv-frontend` đều `online`).
 
 ---
 
@@ -2651,9 +2755,9 @@ px tsc --noEmit exit code 0).
 - [`docs/THIET_KE_VA_TRIEN_KHAI_NANG_CAP_TOAN_VEN_DU_LIEU_TKGD.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/docs/THIET_KE_VA_TRIEN_KHAI_NANG_CAP_TOAN_VEN_DU_LIEU_TKGD.md): Ban hành tài liệu thiết kế và hướng dẫn triển khai nâng cấp v2.0.
 
 ### Xác nhận Build & Triển khai
-- ✅ Backend compile: Đạt (`nest build` exit code: 0).
-- ✅ Frontend compile: Đạt (`npx tsc --noEmit` & `next build` exit code: 0).
-- ✅ Triển khai Production: Đã upload 131/131 file và build/restart PM2 thành công trên máy chủ Ubuntu VM `10.0.0.26` (`mxv-backend` & `mxv-frontend` đều `online`).
+-  Backend compile: Đạt (`nest build` exit code: 0).
+-  Frontend compile: Đạt (`npx tsc --noEmit` & `next build` exit code: 0).
+-  Triển khai Production: Đã upload 131/131 file và build/restart PM2 thành công trên máy chủ Ubuntu VM `10.0.0.26` (`mxv-backend` & `mxv-frontend` đều `online`).
 
 ---
 
@@ -2680,10 +2784,10 @@ px tsc --noEmit exit code 0).
 - [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Python test bóc tách: Thành công 100% trên cả 2 ảnh mặt trước và sau (`066204000906`).
-- ✅ Backend TypeScript compile: Đạt 100% (`nest build` exit code 0).)
-- ✅ Frontend TypeScript compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).)
-- ✅ Deploy Ubuntu Server `10.0.0.26`: Hoàn tất, PM2 `mxv-backend` & `mxv-frontend` đều `online`.
+-  Python test bóc tách: Thành công 100% trên cả 2 ảnh mặt trước và sau (`066204000906`).
+-  Backend TypeScript compile: Đạt 100% (`nest build` exit code 0).)
+-  Frontend TypeScript compile: Đạt 100% (`npx tsc --noEmit` & `next build` exit code 0).)
+-  Deploy Ubuntu Server `10.0.0.26`: Hoàn tất, PM2 `mxv-backend` & `mxv-frontend` đều `online`.
 
 ---
 
@@ -2715,8 +2819,8 @@ px tsc --noEmit exit code 0).
 - [`frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/modal/TabAttachmentsViewer.tsx)
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend TypeScript compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).)
-- ✅ Frontend TypeScript compile: Đạt 100% (`tsc --noEmit` exit code 0).)
+-  Backend TypeScript compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).)
+-  Frontend TypeScript compile: Đạt 100% (`tsc --noEmit` exit code 0).)
 
 ---
 
@@ -2754,8 +2858,8 @@ px tsc --noEmit exit code 0).
 - [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend TypeScript compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).)
-- ✅ Frontend TypeScript compile: Đạt 100% (`tsc --noEmit` exit code 0).)
+-  Backend TypeScript compile: Đạt 100% (`tsc --project tsconfig.build.json` exit code 0).)
+-  Frontend TypeScript compile: Đạt 100% (`tsc --noEmit` exit code 0).)
 
 ---
 
@@ -2790,8 +2894,8 @@ px tsc --noEmit exit code 0).
 - [`frontend/src/features/tkgd/components/TkgdActionToolbar.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)
 
 ### Xác nhận Build & Kiểm thử
-- ✅ Backend TypeScript compile: Đạt (`tsc --project tsconfig.build.json` exit code 0).)
-- ✅ Frontend TypeScript compile: Đạt (`tsc --noEmit` exit code 0).)
+-  Backend TypeScript compile: Đạt (`tsc --project tsconfig.build.json` exit code 0).)
+-  Frontend TypeScript compile: Đạt (`tsc --noEmit` exit code 0).)
 
 ---
 
@@ -2809,9 +2913,9 @@ px tsc --noEmit exit code 0).
 - [`frontend/src/features/tkgd/components/TkgdRecordsTable.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
 
 ### Xác nhận Build & Deploy
-- ✅ Frontend TypeScript compile sạch 100% không lỗi (`node ./node_modules/typescript/bin/tsc --noEmit`).
-- ✅ File `TkgdRecordsTable.tsx` đã được đồng bộ lên Ubuntu và verify trực tiếp.
-- ✅ Đang build production Next.js và backend trên Ubuntu VM `10.0.0.26`.
+-  Frontend TypeScript compile sạch 100% không lỗi (`node ./node_modules/typescript/bin/tsc --noEmit`).
+-  File `TkgdRecordsTable.tsx` đã được đồng bộ lên Ubuntu và verify trực tiếp.
+-  Đang build production Next.js và backend trên Ubuntu VM `10.0.0.26`.
 
 ---
 
@@ -2832,8 +2936,8 @@ px tsc --noEmit exit code 0).
 - `chạy kiểm thử từng mẻ riêng biệt` $\rightarrow$ `chạy kiểm thử từng đợt riêng biệt`.
 
 ### Xác nhận Build & Deploy
-- ✅ Frontend TypeScript compile sạch 100% không lỗi.
-- ✅ Đang đồng bộ và build trực tiếp trên Server Ubuntu (`10.0.0.26`).
+-  Frontend TypeScript compile sạch 100% không lỗi.
+-  Đang đồng bộ và build trực tiếp trên Server Ubuntu (`10.0.0.26`).
 
 ---
 
@@ -2858,10 +2962,10 @@ px tsc --noEmit exit code 0).
    - Loại trừ `image\d+` khỏi việc tự động gán slot CCCD.
 
 ### Xác nhận Build & Deploy
-- ✅ Build TypeScript backend: `npx tsc --project tsconfig.build.json` exit code 0.
-- ✅ Deploy đồng bộ sang Ubuntu (`10.0.0.26`) qua `deploy_to_ubuntu.js`: Exit code 0.
-- ✅ PM2 restart: `mxv-backend` (pid: 3073103) online.
-- ✅ Kiểm thử API thực tế trên Ubuntu: `curl http://localhost:3001/api/v1/tkgd/files/manifest/003C2333888?batchDate=2026-09-08` đã trả về đầy đủ 7 file (`msFront`, `msBack`, `msSign`).
+-  Build TypeScript backend: `npx tsc --project tsconfig.build.json` exit code 0.
+-  Deploy đồng bộ sang Ubuntu (`10.0.0.26`) qua `deploy_to_ubuntu.js`: Exit code 0.
+-  PM2 restart: `mxv-backend` (pid: 3073103) online.
+-  Kiểm thử API thực tế trên Ubuntu: `curl http://localhost:3001/api/v1/tkgd/files/manifest/003C2333888?batchDate=2026-09-08` đã trả về đầy đủ 7 file (`msFront`, `msBack`, `msSign`).
 
 ---
 
@@ -2895,10 +2999,10 @@ px tsc --noEmit exit code 0).
    - 2 nút hành động phân cấp rõ: `Hủy bỏ` (Secondary) và `Xác nhận` (Primary Emerald / Amber).
 
 ### Xác nhận Build & Deploy
-- ✅ Frontend compile TypeScript: `tsc --noEmit` exit code 0.
-- ✅ Đã đồng bộ sang Ubuntu qua `deploy_to_ubuntu.js`.
-- ✅ Backend & Frontend Next.js build trên Ubuntu thành công (Exit code 0).
-- ✅ PM2 restart: `mxv-frontend` (pid 3070942) và `mxv-backend` đều `online`.
+-  Frontend compile TypeScript: `tsc --noEmit` exit code 0.
+-  Đã đồng bộ sang Ubuntu qua `deploy_to_ubuntu.js`.
+-  Backend & Frontend Next.js build trên Ubuntu thành công (Exit code 0).
+-  PM2 restart: `mxv-frontend` (pid 3070942) và `mxv-backend` đều `online`.
 
 ---
 
@@ -2918,15 +3022,15 @@ px tsc --noEmit exit code 0).
 - [`backend/src/scripts/deploy_to_ubuntu.js`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/deploy_to_ubuntu.js)
 
 ### Kết quả kiểm tra sau khi chuyển và restart
-- ✅ Toàn bộ 130 files đã được upload sang `/opt/mxv-checklist/` thành công.
-- ✅ Backend build thành công (`nest build` exit code 0).)
-- ✅ Frontend build thành công (`next build` compile 24 static routes exit code 0).)
-- ✅ PM2 restart: `mxv-backend` và `mxv-frontend` đều `online`.
-- ✅ Đã kiểm tra lại code thực tế trên Ubuntu:
+-  Toàn bộ 130 files đã được upload sang `/opt/mxv-checklist/` thành công.
+-  Backend build thành công (`nest build` exit code 0).)
+-  Frontend build thành công (`next build` compile 24 static routes exit code 0).)
+-  PM2 restart: `mxv-backend` và `mxv-frontend` đều `online`.
+-  Đã kiểm tra lại code thực tế trên Ubuntu:
   - `shifts.service.ts`: Đã có `'IN_PROGRESS'`.
   - `tkgd-python-bridge.helper.ts`: Đã có timeout `OCR_TIMEOUT_MS` (60s).
   - `tkgd-mail-ingest.service.ts`: Đã có đầy đủ (25KB).
-- ✅ Log hệ thống sau khi chạy lại: RAM backend hạ từ 692MB xuống 221MB, các API trả về HTTP 200 OK bình thường.
+-  Log hệ thống sau khi chạy lại: RAM backend hạ từ 692MB xuống 221MB, các API trả về HTTP 200 OK bình thường.
 
 ---
 
@@ -2960,8 +3064,8 @@ const validStatuses = [
 **Lý do không sửa dependency check**: Dependency check ở dòng 482–496 (`shifts.service.ts`) là đúng thiết kế nghiệp vụ — không cho PASSED khi dep chưa xong. Lỗi "phụ thuộc vào SOD chưa hoàn thành" khi bot update `FAILED` là triệu chứng thứ cấp: nếu bot update `IN_PROGRESS` thành công, job `FAILED` → task chuyển đúng sang `FAILED` trước khi retry loop xảy ra.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ `node node_modules/typescript/bin/tsc --noEmit`: Không có lỗi mới liên quan đến file đã sửa
-- ✅ `node node_modules/@nestjs/cli/bin/nest.js build`: **Exit code 0 — Build thành công**
+-  `node node_modules/typescript/bin/tsc --noEmit`: Không có lỗi mới liên quan đến file đã sửa
+-  `node node_modules/@nestjs/cli/bin/nest.js build`: **Exit code 0 — Build thành công**
 
 ### Lệnh deploy trên Ubuntu
 ```bash
@@ -3013,8 +3117,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - Thêm `ngayKyHD?: string` vào interface `PythonExtractorResult.hopDong`.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ `tsc --noEmit` trên tất cả file TKGD module: **0 lỗi**
-- ✅ Các lỗi còn lại trong `src/tests/`, `src/scripts/`, `src/detailed-match.ts` là **pre-existing**, không liên quan đến thay đổi này.
+-  `tsc --noEmit` trên tất cả file TKGD module: **0 lỗi**
+-  Các lỗi còn lại trong `src/tests/`, `src/scripts/`, `src/detailed-match.ts` là **pre-existing**, không liên quan đến thay đổi này.
 
 ---
 
@@ -3983,10 +4087,10 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
     -  `003C9462626` (LÂM THANH DANH): **LỆCH** - CCCD bị mất góc / cắt lẹm viền.
     -  `003C8946619` (NGUYỄN THỊ PHƯƠNG THÙY): **LỆCH** - Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY).
     -  `003C1399395` (NGUYỄN THỊ THU THÚY): **LỆCH** - Ngày sinh sai định dạng (1980-06-16); Ngày cấp sai định dạng (2021-05-01); Giới tính dùng tiếng Anh ('female').
-    - ✅ `003C2333888` (Ngô Đức Hải): **KHỚP 100%**.
-    - ✅ `003C0656625` (NGUYỄN ANH KHOA): **KHỚP 100%**.
-    - ✅ `003C2795169` (ĐẶNG QUÍ SĨ PHÚ): **KHỚP 100%**.
-    - ✅ `003C8669767` (TRẦN NGỌC DỊU): **KHỚP 100%**.
+    -  `003C2333888` (Ngô Đức Hải): **KHỚP 100%**.
+    -  `003C0656625` (NGUYỄN ANH KHOA): **KHỚP 100%**.
+    -  `003C2795169` (ĐẶNG QUÍ SĨ PHÚ): **KHỚP 100%**.
+    -  `003C8669767` (TRẦN NGỌC DỊU): **KHỚP 100%**.
 
 ---
 
@@ -4028,10 +4132,10 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
     -  `003C9462626` (LÂM THANH DANH): **LỆCH** - CCCD bị mất góc / cắt lẹm viền (mép phải thẻ bị xén sát chữ, mất góc trên/dưới).
     -  `003C8946619` (NGUYỄN THỊ PHƯƠNG THÙY): **LỆCH** - Ngày cấp trên HĐ sai định dạng quy chuẩn (2022-05-20 thay vì DD/MM/YYYY).
     -  `003C1399395` (NGUYỄN THỊ THU THÚY): **LỆCH** - Ngày sinh trên HĐ sai định dạng quy chuẩn (1980-06-16); Ngày cấp trên HĐ sai định dạng (2021-05-01); Giới tính trên HĐ dùng tiếng Anh ('female' thay vì 'Nữ').
-    - ✅ `003C8669767` (TRẦN NGỌC DỊU): **KHỚP 100%**.
-    - ✅ `003C2795169` (ĐẶNG QUÍ SĨ PHÚ): **KHỚP 100%**.
-    - ✅ `003C0656625` (NGUYỄN ANH KHOA): **KHỚP 100%**.
-    - ✅ `003C2333888` (Ngô Đức Hải): **KHỚP 100%**.
+    -  `003C8669767` (TRẦN NGỌC DỊU): **KHỚP 100%**.
+    -  `003C2795169` (ĐẶNG QUÍ SĨ PHÚ): **KHỚP 100%**.
+    -  `003C0656625` (NGUYỄN ANH KHOA): **KHỚP 100%**.
+    -  `003C2333888` (Ngô Đức Hải): **KHỚP 100%**.
 
 ---
 
@@ -4552,7 +4656,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - **Phân tích nguyên nhân cốt lõi**:
   1. **Regex bóc tách PDF Hợp đồng bị viết cứng theo 2 mẫu POC**: Trong [tkgd-doc-extractor.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts), regex chỉ bắt đúng chuỗi `CCCD/CMND:`, `Ngày sinh:`, `Ngày cấp:` (đúng từng ký tự của `003C2333888` và `003C0656625`). Với các tài khoản thật khác (`003C2795169`, `003C1399395`, `003C8946619`...), hợp đồng viết dạng `Số CCCD:`, `Số CMND/CCCD:`, `Sinh ngày:`, `Cấp ngày:`, hoặc có khoảng trắng nên regex bị trượt, dẫn đến các trường CCCD/Ngày sinh bị rỗng (`-`).
   2. **Logic Backend kiểm tra quá lỏng lẻo**: `runReconciliation` chỉ kiểm tra sai lệch CCCD khi cả 2 bên cùng có dữ liệu `if (mailCccd && msCccd && mailCccd !== msCccd)`. Khi bên Mail bị thiếu CCCD/Ngày sinh, Backend bỏ qua và đánh dấu `KHOP`, dẫn đến ngoài bảng hiển thị huy hiệu `KHỚP 100%`.
-  3. **Mâu thuẫn với Modal Chi tiết**: Modal so sánh từng dòng thấy bên Mail là `-` nên hiển thị icon đỏ ; dòng `Hợp đồng / Ngày tham gia` hiển thị ngày 1/4/2026 vs 28/8/2026 nhưng vẫn có tích xanh ✅ do hardcode `customMatch: true`.
+  3. **Mâu thuẫn với Modal Chi tiết**: Modal so sánh từng dòng thấy bên Mail là `-` nên hiển thị icon đỏ ; dòng `Hợp đồng / Ngày tham gia` hiển thị ngày 1/4/2026 vs 28/8/2026 nhưng vẫn có tích xanh  do hardcode `customMatch: true`.
 - **Nội dung nâng cấp & Khắc phục**:
   1. **Nâng cấp Regex đa hình trong [tkgd-doc-extractor.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts)**:
      - Số CCCD: Hỗ trợ mọi biến thể nhãn (`Số CCCD`, `CCCD/CMND`, `CMND/CCCD`, `Số ĐDCN`, `Số định danh cá nhân`, `Hộ chiếu`) kèm fallback tự động nhận diện chuỗi 12 số chuẩn định danh công dân (`0\d{11}`).
@@ -4560,7 +4664,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
      - Ngày cấp & Nơi cấp: Hỗ trợ `Ngày cấp`, `Cấp ngày`, `Date of issue`, `Nơi cấp`, `Place of issue`.
      - Tự động bù trừ chéo (cross-fill) dữ liệu giữa Hợp đồng chính và Phụ lục PL01 nếu một bên bị thiếu.
   2. **Chuẩn hóa Logic Phân Loại Kết Luận Đối Soát 3 Mức** ([tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) & [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-exporter.helper.ts)):
-     - **`KHOP` (Khớp 100% - Xanh lá ✅)**: Khớp đầy đủ cả Mã TKGD, Họ tên và Số CCCD.
+     - **`KHOP` (Khớp 100% - Xanh lá )**: Khớp đầy đủ cả Mã TKGD, Họ tên và Số CCCD.
      - **`KHOP_TEXT` (Khớp Cơ Bản - Vàng cam )**: Khớp Mã + Họ tên, nhưng bên Mail chưa quét được Số CCCD từ đính kèm (chế độ Nhanh Text).
      - **`LECH` (Lệch Dữ Liệu - Đỏ )**: Lệch Mã, Tên hoặc lệch Số CCCD.
   3. **Đồng bộ Giao diện & Modal Chi tiết** ([page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx)):
@@ -4588,7 +4692,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 ### Mục tiêu thay đổi
 - USER báo cáo: *"hệ thống vẫn quét sai rồi. Rõ ràng trước đây trên POC (ảnh thứ 2 là ảnh chạy local) đã khớp nhưng ubuntu lại chạy ra không khớp"*.
 - **Phân tích so sánh 2 ảnh**:
-  - *Ảnh 2 (Chạy local POC)*: Tất cả các trường Số CCCD (`031079015563`), Ngày sinh (`13/10/1979`), Ngày cấp (`27/8/2022`), Nơi cấp (`Cục Cảnh sát...`), Hợp đồng (`11/8/2026`), Chữ ký (`Đã ký`) đều hiển thị đầy đủ và có tích xanh ✅ Khớp 100%.
+  - *Ảnh 2 (Chạy local POC)*: Tất cả các trường Số CCCD (`031079015563`), Ngày sinh (`13/10/1979`), Ngày cấp (`27/8/2022`), Nơi cấp (`Cục Cảnh sát...`), Hợp đồng (`11/8/2026`), Chữ ký (`Đã ký`) đều hiển thị đầy đủ và có tích xanh  Khớp 100%.
   - *Ảnh 1 (Chạy trên Ubuntu)*: Cột "Outlook & Tệp Đính Kèm" bị rỗng dấu gạch ngang `-` cho tất cả các trường Hợp đồng/CCCD, dẫn tới 6 dấu  đỏ lệch thông tin.
 - **Nguyên nhân cốt lõi**:
   1. Trên Ubuntu, quy trình `syncMailOpeningAccounts` trong [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) trước đây **chỉ nạp text email (`bodyRawText`)**, trường `attachments: []` bị để rỗng:
@@ -4614,7 +4718,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
      - Đã gọi `POST /api/v1/tkgd/sync-mail` và `POST /api/v1/tkgd/run`.
      - Tài khoản `003C2333888` (Ngô Đức Hải) trên Ubuntu đã nạp đầy đủ: Số CCCD `031079015563`, Ngày sinh `13/10/1979`, Ngày cấp `27/8/2022`, Nơi cấp `Cục Cảnh sát...`, HĐ ngày `11/8/2026`, Phụ lục ACM Đã ký, Chữ ký Đã ký.
      - Kết quả đối soát: **Khớp 100% (7/7 hồ sơ khớp, 0 lệch)**, trạng thái `KHOP`, danh sách lỗi `[]`.
-     - Modal "So Sánh Đối Soát Chi Tiết" hiển thị **100% Tích Xanh ✅ Khớp Hoàn Toàn (giống hệt Ảnh 2)**.
+     - Modal "So Sánh Đối Soát Chi Tiết" hiển thị **100% Tích Xanh  Khớp Hoàn Toàn (giống hệt Ảnh 2)**.
 
 ### Danh sách file chỉnh sửa
 - [backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-doc-extractor.helper.ts)
@@ -4648,7 +4752,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
   3. Cập nhật frontend `page.tsx`:
      - Thêm helper `cleanMailName` hiển thị tên sạch sẽ trên cả bảng chính lẫn modal.
      - Thiết lập `customMatch: true` cho trường "Chữ ký khách hàng" (`Đã ký (HĐ)` khớp với `Đã ký`).
-     - Áp dụng cơ chế đối soát 3 trạng thái: Khớp (Xanh ✅), Chưa quét tệp (Trung tính `—`), và Lệch thực tế (Đỏ ).
+     - Áp dụng cơ chế đối soát 3 trạng thái: Khớp (Xanh ), Chưa quét tệp (Trung tính `—`), và Lệch thực tế (Đỏ ).
 
 ### Danh sách file chỉnh sửa
 - [backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts)
@@ -6261,7 +6365,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 ## [2026-08-12] Sửa hiển thị timestamp UTC trong Báo cáo trực quan (FileAuditVisualReport)
 
 ### Mục tiêu thay đổi
-- Cột "Chi tiết" trong bảng kiểm tra file (`FILE_AUDIT`) hiển thị chuỗi thô `[2026-08-12T08:03:31.602Z] ✅ Đã tải: FR1.xlsx` do pattern parse chưa khớp format log CQG backup → fallback parser lưu cả dòng thô vào `detail`.
+- Cột "Chi tiết" trong bảng kiểm tra file (`FILE_AUDIT`) hiển thị chuỗi thô `[2026-08-12T08:03:31.602Z]  Đã tải: FR1.xlsx` do pattern parse chưa khớp format log CQG backup → fallback parser lưu cả dòng thô vào `detail`.
 - Các timestamp UTC trong UI cần hiển thị đúng giờ Việt Nam (+07:00).
 
 ### Danh sách file chỉnh sửa
@@ -6270,7 +6374,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 ### Tóm tắt nội dung code đã sửa
 1. **Thêm `timeZone: 'Asia/Ho_Chi_Minh'`** vào `toLocaleTimeString` (lines 67, 882) → đảm bảo giờ đúng kể cả khi deploy server UTC+0.
 2. **Thêm helper `stripUtcTimestamp()`** — regex replace `[2026-08-12T08:03:31.602Z]` → `[15:03:31]` cho chuỗi log text thuần.
-3. **Pattern 6 mới**: `✅ Đã tải: FR1.xlsx` → `status: DOWNLOADED`, `detail: "Đã tải từ CQG Web"`.
+3. **Pattern 6 mới**: ` Đã tải: FR1.xlsx` → `status: DOWNLOADED`, `detail: "Đã tải từ CQG Web"`.
 4. **Pattern 7 mới**: `FR.xlsx đã tồn tại và cập nhật hôm nay.` → `status: OK`, `detail: "File gộp đã sẵn sàng"`.
 5. **Fallback parser**: áp dụng `stripUtcTimestamp(trimmed)` thay vì lưu nguyên `trimmed`.
 
@@ -6303,9 +6407,9 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [test-cqg-backup.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/test-cqg-backup.ts) — Bổ sung các file báo cáo CQG2 (FR2, PS2, OP2, OD2) vào payload test.
 
 ### Kết quả kiểm thử
-- ✅ Các dropdown hiển thị đúng layer, không còn bị grid block che mất.
-- ✅ Khởi động lại backend không còn làm mất cấu hình đã chỉnh sửa của templates/users/departments.
-- ✅ Job `DOWNLOAD_CQG_BACKUP` chạy trơn tru, đăng nhập thành công và không bị nghẽn ở bước click add-widget button.
+-  Các dropdown hiển thị đúng layer, không còn bị grid block che mất.
+-  Khởi động lại backend không còn làm mất cấu hình đã chỉnh sửa của templates/users/departments.
+-  Job `DOWNLOAD_CQG_BACKUP` chạy trơn tru, đăng nhập thành công và không bị nghẽn ở bước click add-widget button.
 
 ---
 
@@ -6326,8 +6430,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [AutoShiftWidget.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/dashboard/components/AutoShiftWidget.tsx) — Dùng `CustomDatePicker` chọn ngày sinh ca tự động.
 
 ### Kết quả kiểm thử
-- ✅ Giao diện Widget Dashboard đã đồng bộ dùng UI component thiết kế riêng (`CustomSelect` & `CustomDatePicker`), không còn bị lệch style do browser default input.
-- ✅ Widget khởi tạo ca trực chỉ hiển thị các mẫu checklist đang hoạt động.
+-  Giao diện Widget Dashboard đã đồng bộ dùng UI component thiết kế riêng (`CustomSelect` & `CustomDatePicker`), không còn bị lệch style do browser default input.
+-  Widget khởi tạo ca trực chỉ hiển thị các mẫu checklist đang hoạt động.
 
 ---
 
@@ -6348,7 +6452,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [PreEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx) — Tái cấu trúc dùng `BotStatusStateBanner`.
 
 ### Kết quả kiểm thử
-- ✅ Frontend đã tự động load lại và biên dịch hoàn toàn sạch sẽ, không có lỗi runtime. Tất cả các giao diện xem log bot đều dùng chung 1 logic hiển thị thống nhất.
+-  Frontend đã tự động load lại và biên dịch hoàn toàn sạch sẽ, không có lỗi runtime. Tất cả các giao diện xem log bot đều dùng chung 1 logic hiển thị thống nhất.
 
 ---
 
@@ -6365,7 +6469,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-job-queue.service.ts) — Thêm logic `throw Error` khi thiếu file bắt buộc trong 3 job audit (`ACM`, `CQG`, `MS`).
 
 ### Kết quả kiểm thử
-- ✅ Cả 3 job audit đã được cập nhật: nếu không có đủ file bắt buộc (hoặc ghép thất bại), job sẽ chủ động throw exception $\rightarrow$ Job trong Queue báo `FAILED` và Task trên Checklist báo `THẤT BẠI` (đúng chuẩn nghiệp vụ).
+-  Cả 3 job audit đã được cập nhật: nếu không có đủ file bắt buộc (hoặc ghép thất bại), job sẽ chủ động throw exception $\rightarrow$ Job trong Queue báo `FAILED` và Task trên Checklist báo `THẤT BẠI` (đúng chuẩn nghiệp vụ).
 
 ---
 
@@ -6382,8 +6486,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [shifts.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/shifts/shifts.service.ts) — Ghi nhận giá trị `updatedAt` mới khi cập nhật trạng thái.
 
 ### Kết quả kiểm thử
-- ✅ Backend biên dịch thành công (`npx tsc --noEmit` đạt 0 lỗi).
-- ✅ Khi reset tác vụ từ UI, MongoDB ghi nhận giá trị `updatedAt` chính xác cho tác vụ đó, kích hoạt bot chạy lại job ngay chu kỳ quét tiếp theo.
+-  Backend biên dịch thành công (`npx tsc --noEmit` đạt 0 lỗi).
+-  Khi reset tác vụ từ UI, MongoDB ghi nhận giá trị `updatedAt` chính xác cho tác vụ đó, kích hoạt bot chạy lại job ngay chu kỳ quét tiếp theo.
 
 ---
 
@@ -6398,8 +6502,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Sửa hàm `shouldEnqueueNewJob`: thêm `taskUpdatedAt`, tính `taskResetTime = Math.max(startedAt, updatedAt)`.
 
 ### Kết quả kiểm thử
-- ✅ Backend biên dịch thành công, 0 lỗi.
-- ✅ Sau fix: Reset task → chu kỳ bot tiếp theo sẽ enqueue job mới và chạy lại kiểm tra thực sự.
+-  Backend biên dịch thành công, 0 lỗi.
+-  Sau fix: Reset task → chu kỳ bot tiếp theo sẽ enqueue job mới và chạy lại kiểm tra thực sự.
 
 ---
 
@@ -6416,8 +6520,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Sửa 3 block `FILE_AUDIT_ACM`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`.
 
 ### Kết quả kiểm thử
-- ✅ Backend biên dịch thành công, 0 lỗi.
-- ✅ Hot-reload đã áp dụng — badge sẽ phản ánh đúng trạng thái thiếu file ngay chu kỳ bot tiếp theo.
+-  Backend biên dịch thành công, 0 lỗi.
+-  Hot-reload đã áp dụng — badge sẽ phản ánh đúng trạng thái thiếu file ngay chu kỳ bot tiếp theo.
 
 ---
 
@@ -6438,9 +6542,9 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [migrate-scan-negative-margin-checktype.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/migrate-scan-negative-margin-checktype.js) — [NEW] Script migration cập nhật `botCheckTypeSnapshot` trong `shift_logs`.
 
 ### Kết quả kiểm thử
-- ✅ MongoDB Atlas: Cập nhật thành công **18 shift_log records** (`botCheckTypeSnapshot`: `CHECK_PRE_EOD` → `SCAN_NEGATIVE_MARGIN`).
-- ✅ Template JSON: `ops_open_04_s4.botCheckType` = `SCAN_NEGATIVE_MARGIN`.
-- ✅ Backend TypeScript: biên dịch thành công, 0 lỗi.
+-  MongoDB Atlas: Cập nhật thành công **18 shift_log records** (`botCheckTypeSnapshot`: `CHECK_PRE_EOD` → `SCAN_NEGATIVE_MARGIN`).
+-  Template JSON: `ops_open_04_s4.botCheckType` = `SCAN_NEGATIVE_MARGIN`.
+-  Backend TypeScript: biên dịch thành công, 0 lỗi.
 
 ---
 
@@ -6459,8 +6563,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Viết lại logic `marginFiles` với cơ chế ưu tiên có thứ tự.
 
 ### Kết quả kiểm thử
-- ✅ `QLTKGDAmKQ.xlsx` (8.3 KB, 14 dòng) → Phát hiện chính xác **13 tài khoản** âm ký quỹ.
-- ✅ Backend biên dịch thành công (`npx tsc --noEmit -p tsconfig.build.json`) không có lỗi.
+-  `QLTKGDAmKQ.xlsx` (8.3 KB, 14 dòng) → Phát hiện chính xác **13 tài khoản** âm ký quỹ.
+-  Backend biên dịch thành công (`npx tsc --noEmit -p tsconfig.build.json`) không có lỗi.
 
 ---
 
@@ -6483,7 +6587,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) — Thay đổi kết quả thông báo quét để liệt kê chi tiết số liệu từ các file nguồn.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ Backend biên dịch thành công (`npx tsc --noEmit -p tsconfig.build.json`) không có lỗi.
+-  Backend biên dịch thành công (`npx tsc --noEmit -p tsconfig.build.json`) không có lỗi.
 
 ---
 
@@ -6504,7 +6608,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - Ở `handleFileAuditAcmJob`: Quét lại danh sách file ACM, nếu thiếu file Web (`Order.xlsx`, `Fill.xlsx`) thì set `isWaitingFiles` thành `true`.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ Backend NestJS biên dịch production thành công (`npx tsc --noEmit -p tsconfig.build.json`) không gặp bất kỳ lỗi biên dịch nào.
+-  Backend NestJS biên dịch production thành công (`npx tsc --noEmit -p tsconfig.build.json`) không gặp bất kỳ lỗi biên dịch nào.
 
 ---
 
@@ -6527,7 +6631,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - Sửa padding của `.sidebar.collapsed` thành `24px 8px !important` (Desktop) và `24px 0 24px 24px !important` (Mobile).
 
 ### Xác nhận Build/Kiểm thử
-- ✅ Frontend biên dịch thành công (`npx tsc --noEmit`) trong thư mục `frontend` không gặp bất kỳ lỗi cảnh báo hoặc kiểu dữ liệu nào.
+-  Frontend biên dịch thành công (`npx tsc --noEmit`) trong thư mục `frontend` không gặp bất kỳ lỗi cảnh báo hoặc kiểu dữ liệu nào.
 
 ---
 
@@ -6607,7 +6711,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - Ở [BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/ui/BotLogViewerModal.tsx): Bổ sung hiển thị `ĐANG XỬ LÝ` cho status `'PROCESSING'` và `ĐANG XẾP HÀNG (CHỜ CHẠY)` cho status `'PENDING'`.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ `npx tsc --noEmit` chạy thành công không phát hiện lỗi kiểu dữ liệu (TypeScript) trên toàn bộ dự án frontend.
+-  `npx tsc --noEmit` chạy thành công không phát hiện lỗi kiểu dữ liệu (TypeScript) trên toàn bộ dự án frontend.
 
 
 ## [2026-08-11] Feature: Thêm nút Test Connection cho CQG1 Trade và CQG3 Trade
@@ -6627,7 +6731,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 - **Frontend**: Nút "Test CQG1 Trade" và "Test CQG3 Trade" — disabled khi chưa nhập credentials, spinner khi đang test, toast thành công/thất bại.
 
 ### Xác nhận Build/Kiểm thử
-- ✅ Không có lỗi TypeScript mới trong các file đã sửa
+-  Không có lỗi TypeScript mới trong các file đã sửa
 
 ---
 
@@ -6679,8 +6783,8 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 ```
 
 ### Xác nhận Build/Kiểm thử
-- ✅ `npx tsc --noEmit` — không có lỗi mới trong các file đã sửa
-- ✅ Frontend dev server đang chạy (hot reload)
+-  `npx tsc --noEmit` — không có lỗi mới trong các file đã sửa
+-  Frontend dev server đang chạy (hot reload)
 -  **Hành động yêu cầu từ USER:** Vào BotConfig → Tab "Tài khoản kết nối" → Nhập credentials CQG1 Trade và CQG3 Trade → Lưu
 
 ---
@@ -6778,7 +6882,7 @@ dsgdPath = path.join(targetRoot, 'Backup MS', 'Futures', year, `T${m}.${year}`, 
 **Sau:**
 ```ts
 dsgdPath = path.join(targetRoot, year, `T${m}.${year}`, `${d}.${m}`, 'DSGD.xlsx')
-// → ...\Backup MS\Futures\2026\T08.2026\10.08\DSGD.xlsx  ✅
+// → ...\Backup MS\Futures\2026\T08.2026\10.08\DSGD.xlsx  
 ```
 
 ### Xác nhận Build/Kiểm thử
@@ -7960,7 +8064,7 @@ Hai file DSGD cho ngày 22/06/2026:
 | File | Rows | Format | Total GTGD |
 |---|---|---|---|
 | `marco/.../DSGD22.06.2026.xlsx` | 14,757 rows | Không có header (col1…col15), raw CQG format | **113,791,066,218** ←  khớp với dữ liệu sai trong file output |
-| `Downloads/.../22.06/DSGD.xlsx` | 5,684 rows | Có header đầy đủ (Mã TKGD, Mã HĐ, KL giao dịch...), M-System export | **6,441,554,012,692** ← ✅ đúng |
+| `Downloads/.../22.06/DSGD.xlsx` | 5,684 rows | Có header đầy đủ (Mã TKGD, Mã HĐ, KL giao dịch...), M-System export | **6,441,554,012,692** ←  đúng |
 
 - Hệ thống đã đọc DSGD từ **marco folder** (CQG raw format) thay vì **Downloads folder** (M-System export đúng).
 - **Nguyên nhân chưa xác định hoàn toàn**: cần kiểm tra tiếp lần chạy nào đã trigger việc ghi 113B. Có thể là:
@@ -7970,7 +8074,7 @@ Hai file DSGD cho ngày 22/06/2026:
 #### 📌 Thông tin debug script đã xác nhận:
 ```
 Exchange rates: Default=26260, TRU=165, MPO=6330  (đọc từ Macro .xlsm đúng)
-Downloads DSGD (5684 rows) → Total GTGD = 6,441,554,012,692  ✅
+Downloads DSGD (5684 rows) → Total GTGD = 6,441,554,012,692  
 Marco DSGD (14757 rows)    → Total GTGD = 113,791,066,218    
 ```
 
@@ -9431,7 +9535,7 @@ UI: "Chỉ cập nhật Lũy kế TVKD"
 ## [2026-07-28 11:30:00] - Refactor: Gỡ Bỏ Triệt Để Các Emoji Cảnh Báo 🚨 Khỏi Hệ Thống (Telegram, Teams, Web UI)
 
 ### 1. Mục tiêu Thay đổi
-- **Yêu cầu từ USER**: Gỡ bỏ triệt để các biểu tượng emoji `🚨`, ``, `✅` còn sót lại trên các file cấu hình và giao diện (Telegram, Teams, Web UI, Báo cáo trực quan) để đảm bảo đồng bộ hóa thiết kế phẳng và tăng tính thẩm mỹ chuẩn doanh nghiệp.
+- **Yêu cầu từ USER**: Gỡ bỏ triệt để các biểu tượng emoji `🚨`, ``, `` còn sót lại trên các file cấu hình và giao diện (Telegram, Teams, Web UI, Báo cáo trực quan) để đảm bảo đồng bộ hóa thiết kế phẳng và tăng tính thẩm mỹ chuẩn doanh nghiệp.
 - **Giải pháp**:
   - Gỡ bỏ hoàn toàn emoji `🚨` khỏi:
     - Tin nhắn Telegram cảnh báo đối chiếu SOD/EOD trong [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts).
@@ -9477,9 +9581,9 @@ UI: "Chỉ cập nhật Lũy kế TVKD"
 ## [2026-07-28 11:10:00] - Refactor: Dọn Dẹp và Chuẩn Hóa Emoji Trên Các Email Cảnh Báo Hệ Thống
 
 ### 1. Mục tiêu Thay đổi
-- **Yêu cầu từ USER**: Đánh giá và dọn dẹp các biểu tượng emoji (`🚨`, ``, `👉`, `✅`) trong các email cảnh báo hệ thống để đảm bảo tính chuyên nghiệp, tối giản chuẩn doanh nghiệp (Enterprise Look), tránh gây hiểu lầm là email quảng cáo/spam và khắc phục lỗi render ký tự đặc biệt của Outlook.
+- **Yêu cầu từ USER**: Đánh giá và dọn dẹp các biểu tượng emoji (`🚨`, ``, `👉`, ``) trong các email cảnh báo hệ thống để đảm bảo tính chuyên nghiệp, tối giản chuẩn doanh nghiệp (Enterprise Look), tránh gây hiểu lầm là email quảng cáo/spam và khắc phục lỗi render ký tự đặc biệt của Outlook.
 - **Giải pháp**:
-  - Gỡ bỏ hoàn toàn emoji `🚨`, ``, `👉`, `✅` khỏi các email:
+  - Gỡ bỏ hoàn toàn emoji `🚨`, ``, `👉`, `` khỏi các email:
     - Email cảnh báo kết nối RPA Agent (mất kết nối / khôi phục kết nối).
     - Email cảnh báo lỗi tác vụ vận hành trong ca trực.
     - Email cảnh báo âm ký quỹ Post-EOD (`[MXV MARGIN WARNING]`).
@@ -11753,7 +11857,7 @@ export interface CheckKLGDResult {
 - **[frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/admin/SmartPathInput.tsx)**:
   - Bổ sung nút **"Kiểm tra quyền ghi"** (kèm icon `CheckCircle2` / `Loader2` quay khi đang gọi API).
   - Hiển thị hộp thông báo trực quan ngay dưới ô nhập:
-    - ✅ Xanh lá: *"Thư mục này đang tồn tại và có đầy đủ quyền ghi dữ liệu."*
+    -  Xanh lá: *"Thư mục này đang tồn tại và có đầy đủ quyền ghi dữ liệu."*
     -  Xanh nhạt: *"Thư mục chưa tạo sẵn, nhưng hệ thống có quyền tự động tạo mới khi lưu file."*
     -  Đỏ: Báo lỗi ổ đĩa hoặc không có quyền ghi.
 

@@ -57,7 +57,7 @@ async function runTest() {
     if (setting && setting.value) {
       try {
         creds = JSON.parse(decrypt(setting.value));
-        console.log(`✅ Đã đọc cấu hình CQG từ CSDL thành công.`);
+        console.log(` Đã đọc cấu hình CQG từ CSDL thành công.`);
       } catch (e) {
         console.warn(` Không thể giải mã credentials: ${e.message}`);
       }
@@ -105,7 +105,7 @@ async function runTest() {
     const startNav = Date.now();
     await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 35000 });
     const elapsedNav = ((Date.now() - startNav) / 1000).toFixed(2);
-    console.log(`✅ Tải trang HTML thành công trong ${elapsedNav} giây!`);
+    console.log(` Tải trang HTML thành công trong ${elapsedNav} giây!`);
 
     console.log(`\n[5/5] Đang kiểm tra form đăng nhập (input[name="userName"])...`);
     const inputUser = await page.waitForSelector('input[name="userName"]', {
@@ -114,7 +114,7 @@ async function runTest() {
     });
 
     if (inputUser) {
-      console.log(`✅ Tìm thấy ô nhập tài khoản (userName) hiển thị sẵn sàng trên giao diện!`);
+      console.log(` Tìm thấy ô nhập tài khoản (userName) hiển thị sẵn sàng trên giao diện!`);
     }
 
     const debugDir = path.join(process.cwd(), 'temp', 'debug');

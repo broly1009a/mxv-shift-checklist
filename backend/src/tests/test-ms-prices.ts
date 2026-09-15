@@ -110,7 +110,7 @@ async function runMSPricesTest() {
   };
   if (chromePaths.length > 0) {
     launchOptions.executablePath = chromePaths[0];
-    console.log(`✅ Chrome: ${chromePaths[0]}`);
+    console.log(` Chrome: ${chromePaths[0]}`);
   }
 
   const browser = await chromium.launch(launchOptions);
@@ -172,7 +172,7 @@ async function runMSPricesTest() {
         .isVisible({ timeout: 5000 })
         .catch(() => false);
       if (pinSelectorVisible) {
-        console.log('✅ Đã hiển thị bảng PIN!');
+        console.log(' Đã hiển thị bảng PIN!');
         break;
       }
       console.log(
@@ -242,7 +242,7 @@ async function runMSPricesTest() {
           const downloadPath = path.join(DEBUG_DIR, 'market.csv');
           await download.saveAs(downloadPath);
           console.log(
-            `✅ Đã tải và lưu thành công file CSV bảng giá: ${downloadPath}`,
+            ` Đã tải và lưu thành công file CSV bảng giá: ${downloadPath}`,
           );
           marketCsvDownloaded = true;
 
@@ -306,7 +306,7 @@ async function runMSPricesTest() {
           const downloadPath = path.join(DEBUG_DIR, 'trang-thai-mo.xlsx');
           await download.saveAs(downloadPath);
           console.log(
-            `✅ Đã tải và lưu thành công file trạng thái mở: ${downloadPath}`,
+            ` Đã tải và lưu thành công file trạng thái mở: ${downloadPath}`,
           );
           openPositionDownloaded = true;
           break;

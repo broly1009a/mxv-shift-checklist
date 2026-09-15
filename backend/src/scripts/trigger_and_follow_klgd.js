@@ -12,7 +12,7 @@ async function main() {
   console.log('================================================================================');
 
   const today = '2026-09-15';
-  
+
   // Tìm ca trực active hôm nay
   const shift = await db.collection('shift_logs').findOne({
     $or: [
@@ -24,14 +24,14 @@ async function main() {
 
   let targetTaskId = 'TASK_CHECK_KLGD';
   if (shift && Array.isArray(shift.details)) {
-    const task = shift.details.find(d => 
-      d.botCheckType === 'CHECK_KLGD' || 
+    const task = shift.details.find(d =>
+      d.botCheckType === 'CHECK_KLGD' ||
       d.taskId?.includes('KLGD') ||
       d.name?.toLowerCase().includes('khớp lệnh')
     );
     if (task) {
       targetTaskId = task.taskId;
-      console.log(`✅ Tìm thấy ca trực: ${shift.name || shift.shiftDate} (ID: ${shift._id}), Task ID: ${targetTaskId}`);
+      console.log(` Tìm thấy ca trực: ${shift.name || shift.shiftDate} (ID: ${shift._id}), Task ID: ${targetTaskId}`);
     }
   }
 
@@ -93,9 +93,9 @@ async function main() {
 
     if (job.status === 'COMPLETED' || job.status === 'ABORTED' || job.status === 'FAILED') {
       console.log('--------------------------------------------------------------------------------');
-      console.log(`🏁 JOB KẾT THÚC VỚI TRẠNG THÁI: [${job.status}] (Số lần thử: ${job.attempts}/${job.maxAttempts})`);
+      console.log(` JOB KẾT THÚC VỚI TRẠNG THÁI: [${job.status}] (Số lần thử: ${job.attempts}/${job.maxAttempts})`);
       console.log(`⏱️ Tổng thời gian thực thi: ${((Date.now() - startTime) / 1000).toFixed(1)} giây`);
-      
+
       if (job.status === 'COMPLETED') {
         const res = job.payload?.result;
         console.log('\n📊 KẾT QUẢ ĐỐI CHIẾU CHI TIẾT:');

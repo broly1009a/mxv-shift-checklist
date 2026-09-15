@@ -69,7 +69,7 @@ function analyzeTTTTFile(filePath, label) {
     return;
   }
 
-  console.log(`✅ Tiêu đề tại dòng ${headerRow + 1} (index ${headerRow}):`);
+  console.log(` Tiêu đề tại dòng ${headerRow + 1} (index ${headerRow}):`);
   console.log(`   [Mã TKGD]=Cột ${maTKGDIndex + 1}, [Mã HĐ]=Cột ${maHDIndex + 1}, [KL Mua]=Cột ${tongMuaIndex + 1}, [KL Bán]=Cột ${tongBanIndex + 1}`);
 
   const allRows = [];

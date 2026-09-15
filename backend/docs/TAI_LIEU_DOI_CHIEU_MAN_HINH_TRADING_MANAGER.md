@@ -275,11 +275,11 @@ Trích xuất từ bản ghi thực tế đã hoàn tất trong collection `bot_
 │                   MÀN HÌNH KIỂM CHỨNG SONG SONG (SHADOW CONSOLE UI)                    │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ [TẦNG 1] BẢNG ĐỐI SOÁT CHÉO THỜI GIAN THỰC (LIVE DUAL-RUN COMPARISON):                │
-│  • Tổng KLGD MS    : [ Tool C#: 12,580 ]  [ Bot: 12,580 ]  -> Delta: 0 (✅ MATCH)      │
-│  • Tổng KLGD CQG   : [ Tool C#: 12,580 ]  [ Bot: 12,580 ]  -> Delta: 0 (✅ MATCH)      │
-│  • Tổng KLGD ACM   : [ Tool C#:    420 ]  [ Bot:    420 ]  -> Delta: 0 (✅ MATCH)      │
-│  • Số TK âm IMR    : [ Tool C#:      2 ]  [ Bot:      2 ]  -> Delta: 0 (✅ MATCH)      │
-│  • Giá thanh toán  : [ Tool C#:     48 ]  [ Bot:     48 ]  -> Delta: 0 (✅ MATCH)      │
+│  • Tổng KLGD MS    : [ Tool C#: 12,580 ]  [ Bot: 12,580 ]  -> Delta: 0 ( MATCH)      │
+│  • Tổng KLGD CQG   : [ Tool C#: 12,580 ]  [ Bot: 12,580 ]  -> Delta: 0 ( MATCH)      │
+│  • Tổng KLGD ACM   : [ Tool C#:    420 ]  [ Bot:    420 ]  -> Delta: 0 ( MATCH)      │
+│  • Số TK âm IMR    : [ Tool C#:      2 ]  [ Bot:      2 ]  -> Delta: 0 ( MATCH)      │
+│  • Giá thanh toán  : [ Tool C#:     48 ]  [ Bot:     48 ]  -> Delta: 0 ( MATCH)      │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ [TẦNG 2] 4 KHỐI CHI TIẾT TƯƠNG ỨNG TAB 1 C# (DRILL-DOWN & ON-DEMAND CHECK):           │
 │  • Khối 1: Ma trận 4 bên (KLGD/TTM/TTTT) + Bảng lệnh lệch (Mã lệnh, HĐ, Giá, KL...)    │
@@ -335,7 +335,7 @@ Trích xuất từ bản ghi thực tế đã hoàn tất trong collection `bot_
 1. **Bước 1 (Frontend)**: Xây dựng màn hình **Shadow Console UI** (Tầng 1 + Tầng 2) hiển thị dữ liệu đối chiếu hiện tại để cán bộ trực ca quan sát ngay kết quả song song.
 2. **Bước 2 (Python Engine)**: Xây dựng file `recon_data_worker.py` và helper bridge kết nối từ NestJS.
 3. **Bước 3 (Thẩm định 3 bên)**: Chạy đối chiếu chéo đồng thời giữa **Tool C# Prod** $\leftrightarrow$ **NestJS cũ** $\leftrightarrow$ **Python Engine mới**.
-4. **Bước 4 (Cắt chuyển)**: Khi kết quả Python Engine đạt `✅ MATCH 100%` liên tục qua các ca trực, chính thức chuyển giao toàn bộ tác vụ đối soát ngầm cho Python Engine và đưa Tool C# vào trạng thái dự phòng.
+4. **Bước 4 (Cắt chuyển)**: Khi kết quả Python Engine đạt ` MATCH 100%` liên tục qua các ca trực, chính thức chuyển giao toàn bộ tác vụ đối soát ngầm cho Python Engine và đưa Tool C# vào trạng thái dự phòng.
 
 ---
 
@@ -357,7 +357,7 @@ Trích xuất từ bản ghi thực tế đã hoàn tất trong collection `bot_
    - Khi thiếu bất kỳ file nào trong cặp file thô (chỉ có `FR1` thiếu `FR2`, hoặc chưa có file `Straits.csv`): Hệ thống giữ trạng thái `IS_WAITING_FILES`, ghi log rõ file thiếu, tuyệt đối không tính toán trên tập dữ liệu khuyết.
    - Khi cấu trúc cột trong file M-System (`QLTKGD`, `DSGD`) bị thay đổi: Phát cảnh báo `SCHEMA_MISMATCH`, yêu cầu xác nhận trước khi tiếp tục, tuyệt đối không đọc bừa theo vị trí cột.
 4. **Tiêu Chuẩn Thẩm Định 14 Ngày (14-Day Zero-Delta Gate)**:
-   - Trước khi chính thức tắt bỏ Tool C#, hệ thống Web mới phải trải qua giai đoạn chạy song song có giám sát trong tối thiểu **14 ngày làm việc liên tiếp** với kết quả đối soát luôn đạt `✅ MATCH 100%` (Delta = 0 trên tất cả các ca trực).
+   - Trước khi chính thức tắt bỏ Tool C#, hệ thống Web mới phải trải qua giai đoạn chạy song song có giám sát trong tối thiểu **14 ngày làm việc liên tiếp** với kết quả đối soát luôn đạt ` MATCH 100%` (Delta = 0 trên tất cả các ca trực).
 
 ### 3. Đặc Tả Giao Diện Bàn Giao Tác Nghiệp (Trading Operation Console UI Specification)
 Màn hình Web mới sẽ kế thừa trọn vẹn sức mạnh của Tool C# nhưng được tối ưu hóa giao diện phẳng, hiện đại:

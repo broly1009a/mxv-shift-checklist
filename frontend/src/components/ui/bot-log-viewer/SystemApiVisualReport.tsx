@@ -37,7 +37,7 @@ const summarizeLogText = (text: string): string => {
     if (
       cleanLine.startsWith('') ||
       cleanLine.startsWith('') ||
-      cleanLine.startsWith('✅') ||
+      cleanLine.startsWith('') ||
       cleanLine.startsWith('•')
     ) {
       summaryLines.push(cleanLine);

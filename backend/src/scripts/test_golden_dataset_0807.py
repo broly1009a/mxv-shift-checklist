@@ -197,7 +197,7 @@ def generate_markdown_report(report_path: str, passed_count: int, total_count: i
     md.append(f"- **Môi trường**: Hệ điều hành `{os_name}` | Python `{py_ver}` | Pandas `{pd_ver}`")
     md.append(f"- **Tập dữ liệu kiểm thử**: Ngày thực tế `08.07.2026` từ `backend/data/Backup MS` & `Backup CQG`")
 
-    status_overall = "✅ ĐẠT CHUẨN ĐỐI SOÁT CHÉO (100% PASSED)" if passed_count == total_count else " CÓ KỊCH BẢN CẦN LƯU Ý"
+    status_overall = " ĐẠT CHUẨN ĐỐI SOÁT CHÉO (100% PASSED)" if passed_count == total_count else " CÓ KỊCH BẢN CẦN LƯU Ý"
     md.append(f"- **Đánh giá tổng thể**: **{status_overall}** ({passed_count}/{total_count} kịch bản đạt yêu cầu)\n")
 
     md.append("### BẢNG SO KHỚP KẾT QUẢ THỰC TẾ GIỮA C# TOOL VÀ ENGINE MỚI\n")
@@ -206,7 +206,7 @@ def generate_markdown_report(report_path: str, passed_count: int, total_count: i
 
     for i, rec in enumerate(TEST_RECORDS, 1):
         stt = f"**GD-0{i}**"
-        status_tag = "✅ **PASSED**" if rec["passed"] else " **FAILED**"
+        status_tag = " **PASSED**" if rec["passed"] else " **FAILED**"
         elapsed = f"`{rec['elapsed_ms']:.1f} ms`"
         md.append(f"| {stt} | {rec['name']} | {status_tag} | {elapsed} | {rec['details']} |")
 

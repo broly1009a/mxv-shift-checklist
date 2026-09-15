@@ -310,7 +310,7 @@ def wait_for_table_loading_complete(page: Page, max_timeout_ms: int = 60000, log
     Kiểm tra liên tục 0 visible spinner trong ít nhất 2 chu kỳ liên tiếp (mỗi chu kỳ 1s).
     """
     import time
-    log("  ⏳ Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
+    log("   Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
     start_time = time.time()
     max_sec = max_timeout_ms / 1000.0
 
@@ -345,7 +345,7 @@ def wait_for_table_loading_complete(page: Page, max_timeout_ms: int = 60000, log
                 return True
         else:
             stable_count = 0
-            log(f"  ⏳ Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
+            log(f"   Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
 
         page.wait_for_timeout(1000)
 
@@ -460,7 +460,7 @@ def set_date_range_and_search(page: Page, start_date: str, end_date: str, exchan
     search_btn = page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
     if search_btn.is_visible(timeout=2000):
         search_btn.click(force=True)
-        log("  ⏳ Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
+        log("   Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
         wait_for_table_loading_complete(page, 60000, log=log)
         dismiss_modal_backdrop(page)
 
@@ -656,7 +656,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
         except Exception:
             pass
 
-    log(f"\n  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
+    log(f"\n  [ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
     # 1. Điều hướng và tự động bắt URL mới nhất
     learned_url = navigate_to_report_page(page, report_cfg, system_url, log)

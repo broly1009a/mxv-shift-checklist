@@ -32,7 +32,7 @@ async function runCqgBackupTest() {
     try {
       creds = JSON.parse(decrypt(credRaw));
       console.log(
-        '✅ Tìm thấy thông tin cấu hình bot_credentials_cqg trong CSDL.',
+        ' Tìm thấy thông tin cấu hình bot_credentials_cqg trong CSDL.',
       );
       console.log(`- URL: ${creds.url || 'Mặc định'}`);
       console.log(
@@ -72,7 +72,7 @@ async function runCqgBackupTest() {
       'bot_credentials_cqg',
       encrypt(JSON.stringify(newCreds)),
     );
-    console.log('✅ Đã cập nhật bot_credentials_cqg vào CSDL.');
+    console.log(' Đã cập nhật bot_credentials_cqg vào CSDL.');
     creds = newCreds;
   }
 
@@ -112,7 +112,7 @@ async function runCqgBackupTest() {
     },
   });
   await testJob.save();
-  console.log(`✅ Đã tạo test job trong CSDL với ID: ${testJob._id}`);
+  console.log(` Đã tạo test job trong CSDL với ID: ${testJob._id}`);
 
   // 4. Chạy job trực tiếp bằng botJobQueueService
   console.log('\n====================================================');

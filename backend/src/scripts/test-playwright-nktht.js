@@ -140,7 +140,7 @@ async function runPlaywrightNkthtTest() {
       const download = await downloadPromise;
       const savePath = path.join(__dirname, '..', '..', 'temp_NKTTHT_test.xlsx');
       await download.saveAs(savePath);
-      console.log(`\n✅ TẢI THÀNH CÔNG RỰC RỠ! File đã được lưu tại:\n   ${savePath}`);
+      console.log(`\n TẢI THÀNH CÔNG RỰC RỠ! File đã được lưu tại:\n   ${savePath}`);
       console.log(`Kích thước file: ${(fs.statSync(savePath).size / 1024).toFixed(2)} KB`);
     } else {
       console.log('Không tìm thấy nút xuất file trên giao diện!');

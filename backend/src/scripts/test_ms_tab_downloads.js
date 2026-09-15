@@ -150,12 +150,12 @@ async function runTabVisualTest() {
     if (expectedPattern && !expectedPattern.test(suggested)) {
       console.error(`    CẢNH BÁO: Tên file gốc không khớp mẫu: ${suggested}`);
     } else {
-      console.log(`   ✅ Tên file khớp chuẩn regex.`);
+      console.log(`    Tên file khớp chuẩn regex.`);
     }
 
     await download.saveAs(savePath);
     const sizeKb = (fs.statSync(savePath).size / 1024).toFixed(2);
-    console.log(`   ✅ Đã lưu file về: ${savePath} (${sizeKb} KB)`);
+    console.log(`    Đã lưu file về: ${savePath} (${sizeKb} KB)`);
     return { suggested, savePath, sizeKb };
   }
 

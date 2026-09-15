@@ -11,8 +11,8 @@ Thời điểm kiểm thử: 10:37:57 14/9/2026
  • [TTTT (Tất toán) ] Tồn tại: TTTT_14.06.xlsx (4.4 KB)
  • [Tỷ giá CCP     ] Tồn tại: Tỷ giá_14.06.xlsx (17.5 KB)
 
-⏳ Đang nạp service và thực thi thuật toán bóc tách...
-✅ Quá trình tính toán hoàn tất trong: 29 ms
+ Đang nạp service và thực thi thuật toán bóc tách...
+ Quá trình tính toán hoàn tất trong: 29 ms
 
 ====================================================================================================
 2. TỔNG HỢP KPI TOÀN THỊ TRƯỜNG ACM (PHIÊN 14/06):

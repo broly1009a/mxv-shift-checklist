@@ -123,7 +123,7 @@ async function run() {
 
   const rawEncryptedCreds = setting.value;
   const creds = JSON.parse(decrypt(rawEncryptedCreds));
-  console.log(`✅ Đã nạp tài khoản CQG từ CSDL: ${creds.username1 || creds.usernameCQG1}`);
+  console.log(` Đã nạp tài khoản CQG từ CSDL: ${creds.username1 || creds.usernameCQG1}`);
 
   const destDir = path.join(process.cwd(), 'temp', 'test_cqg_downloads');
   if (!fs.existsSync(destDir)) {
@@ -142,7 +142,7 @@ async function run() {
 
   console.log(`📂 Thư mục lưu kết quả: ${destDir}`);
   console.log(`🌐 Chế độ: HEADED (Trình duyệt Chrome mở trực tiếp trên màn hình)`);
-  console.log(`⏳ Bắt đầu tải bộ 4 file FR1, PS1, OP1, OD1...\n`);
+  console.log(` Bắt đầu tải bộ 4 file FR1, PS1, OP1, OD1...\n`);
 
   const expectedList = [
     { file: 'FR1.xlsx', type: 'FR' },
@@ -181,7 +181,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? '✅ CHUẨN' : ' LỆCH';
+      const statusStr = a.isMatch ? ' CHUẨN' : ' LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -205,7 +205,7 @@ async function run() {
     }
 
     if (!hasDuplicate) {
-      console.log('   ✅ TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
+      console.log('    TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
     }
 
     // Kết luận tổng thể

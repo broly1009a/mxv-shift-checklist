@@ -454,7 +454,7 @@ function runStep3Test() {
 
   fs.writeFileSync(outputFilePath, outputText, 'utf8');
   console.log(
-    `✅ SUCCESS: Clean, grouped Teams Adaptive Cards report saved to: ${outputFilePath}`,
+    ` SUCCESS: Clean, grouped Teams Adaptive Cards report saved to: ${outputFilePath}`,
   );
 
   // Generate the manual text messages for copy-pasting
@@ -511,7 +511,7 @@ function runStep3Test() {
 
   fs.writeFileSync(manualMessagesPath, manualText, 'utf8');
   console.log(
-    `✅ SUCCESS: Manual copy-paste messages report saved to: ${manualMessagesPath}`,
+    ` SUCCESS: Manual copy-paste messages report saved to: ${manualMessagesPath}`,
   );
 }
 

@@ -361,20 +361,20 @@ class MainWindow(QMainWindow):
                 self.current_report_name = match.group(1).strip()
                 self.lbl_status.setText(f"<b>📂 Đang chuyển sang báo cáo: {self.current_report_name}</b>")
 
-        elif "[⏳ Đang tải]" in text:
+        elif "[ Đang tải]" in text:
             self.completed_tasks += 1
             if self.total_tasks > 0:
                 pct = int((self.completed_tasks / self.total_tasks) * 100)
                 self.progress_bar.setValue(min(pct, 95))
             
-            clean_msg = text.replace("[⏳ Đang tải]", "").strip()
-            self.lbl_status.setText(f"⏳ Đang tiến hành tải: <b>{clean_msg}</b>")
+            clean_msg = text.replace("[ Đang tải]", "").strip()
+            self.lbl_status.setText(f" Đang tiến hành tải: <b>{clean_msg}</b>")
 
         elif "🎉 [Thành công]" in text:
             self.downloaded_count += 1
             match = re.search(r"Đã lưu file:\s*(.+)", text)
             filename = os.path.basename(match.group(1).strip()) if match else "file CSV"
-            self.lbl_summary.setText(f"✅ Đã tải & lưu thành công: <b>{filename}</b> (Đã tải tổng cộng: {self.downloaded_count} file CSV)")
+            self.lbl_summary.setText(f" Đã tải & lưu thành công: <b>{filename}</b> (Đã tải tổng cộng: {self.downloaded_count} file CSV)")
 
         elif "HOÀN THÀNH" in text:
             self.progress_bar.setValue(100)

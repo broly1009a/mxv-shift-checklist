@@ -698,7 +698,7 @@ export async function reconcileAndExportToExcel(
 
   await workbook.xlsx.writeFile(outputPath);
 
-  console.log(`✅ Xuất file Excel đối soát thành công!`);
+  console.log(` Xuất file Excel đối soát thành công!`);
   console.log(`   - Tổng số bản ghi: ${records.length}`);
   console.log(`   - Số bản ghi Khớp: ${khopCount}`);
   console.log(`   - Số bản ghi Cần Ktra: ${canKiemTraCount}`);

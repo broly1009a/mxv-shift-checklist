@@ -36,7 +36,7 @@ async function stopActiveJobs() {
           }
         }
       );
-      console.log(`✅ Da cap nhat CANCELLED cho ${res.modifiedCount} bot job!`);
+      console.log(` Da cap nhat CANCELLED cho ${res.modifiedCount} bot job!`);
     } else {
       console.log('ℹ️ Khong co bot job nao dang chay ngam can huy.');
     }

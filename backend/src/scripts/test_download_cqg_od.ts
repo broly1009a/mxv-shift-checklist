@@ -56,7 +56,7 @@ async function run() {
   console.log(`🔑 Tài khoản CQG1: ${creds.username1 || creds.usernameCQG1 || 'Chưa cấu hình'}`);
   console.log(`🔑 Tài khoản CQG2: ${creds.username2 || creds.usernameCQG2 || 'Chưa cấu hình'}\n`);
 
-  console.log('⏳ Đang gọi RpaDownloaderService.downloadCqgBackup để tải riêng OD1 và OD2...');
+  console.log(' Đang gọi RpaDownloaderService.downloadCqgBackup để tải riêng OD1 và OD2...');
 
   try {
     const result = await rpaDownloader.downloadCqgBackup(
@@ -66,7 +66,7 @@ async function run() {
 
     console.log('\n================== KẾT QUẢ ==================');
     if (result.downloaded.length > 0) {
-      console.log(`✅ Tải thành công các file: ${result.downloaded.join(', ')}`);
+      console.log(` Tải thành công các file: ${result.downloaded.join(', ')}`);
       result.downloaded.forEach((file) => {
         const filePath = path.join(destDir, file);
         if (fs.existsSync(filePath)) {

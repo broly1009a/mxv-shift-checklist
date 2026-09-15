@@ -18,7 +18,7 @@ async function main() {
   // 1. Kết nối MongoDB
   console.log('\n[1] Đang kết nối tới MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const CleanRecordModel = mongoose.model(
     'CleanAccountRecord',

@@ -71,7 +71,7 @@ async function runCcpTest() {
   }
 
   if (updatedJob.status === 'COMPLETED' && exists) {
-    console.log('✅ TEST PASSED: RUN_MACRO executed successfully!');
+    console.log(' TEST PASSED: RUN_MACRO executed successfully!');
   } else {
     console.error(' TEST FAILED: Job not completed or output file missing.');
   }

@@ -136,7 +136,7 @@ _Mục tiêu: Để AI hiểu cấu trúc màn hình M-System và cách gọi AP
 
 | # | File cần cung cấp | Mô tả | Mức ưu tiên |
 |---|---|---|---|
-| 1 | `KetNoiAPI_WS.v2.13.md` ← **đã có!** | Tài liệu đặc tả MXV API v2.13 | ✅ Đã có |
+| 1 | `KetNoiAPI_WS.v2.13.md` ← **đã có!** | Tài liệu đặc tả MXV API v2.13 |  Đã có |
 | 2 | `screenshot_msystem_danhsach_tk.png` | Ảnh chụp màn hình danh sách TK trên MS |  Bắt buộc |
 | 3 | `screenshot_msystem_chi_tiet_tk.png` | Ảnh chụp màn hình **chi tiết 1 TK** trên MS (thấy CCCD, Ngày sinh) |  Bắt buộc |
 | 4 | `screenshot_msystem_tim_kiem.png` | Ảnh chụp màn hình thanh tìm kiếm TK theo mã | 🟡 Nên có |
@@ -147,10 +147,10 @@ _Mục tiêu: Để AI hiểu cấu trúc màn hình M-System và cách gọi AP
 
 | Nhóm | Tình trạng | Ghi chú |
 |------|-----------|---------|
-| 📂 mail-samples | ⏳ Chờ input | Cần ít nhất 1-2 file email mẫu |
-| 📂 pdf-samples | ⏳ Chờ input | Cần file HĐ và PL01 mẫu |
-| 📂 cccd-samples | ⏳ Chờ input | Cần ảnh CCCD mẫu (đã che thông tin) |
-| 📂 excel-templates | ⏳ Chờ input | Cần template và file DSGD |
+| 📂 mail-samples |  Chờ input | Cần ít nhất 1-2 file email mẫu |
+| 📂 pdf-samples |  Chờ input | Cần file HĐ và PL01 mẫu |
+| 📂 cccd-samples |  Chờ input | Cần ảnh CCCD mẫu (đã che thông tin) |
+| 📂 excel-templates |  Chờ input | Cần template và file DSGD |
 | 📂 msystem-specs | 🟡 Một phần | Đã có API doc, cần thêm screenshot MS |
 
 ---

@@ -164,10 +164,10 @@ async function runTest() {
   const ccpCreds = await getCreds('bot_credentials_ccp');
   await client.close();
 
-  console.log(`- M-System : ${msCreds ? '✅ Đã cấu hình' : ' Thiếu'}`);
-  console.log(`- CQG      : ${cqgCreds ? '✅ Đã cấu hình' : ' Thiếu'}`);
-  console.log(`- ACM      : ${acmCreds ? '✅ Đã cấu hình' : ' Thiếu'}`);
-  console.log(`- CoreCCP  : ${ccpCreds ? '✅ Đã cấu hình' : ' Thiếu'}\n`);
+  console.log(`- M-System : ${msCreds ? ' Đã cấu hình' : ' Thiếu'}`);
+  console.log(`- CQG      : ${cqgCreds ? ' Đã cấu hình' : ' Thiếu'}`);
+  console.log(`- ACM      : ${acmCreds ? ' Đã cấu hình' : ' Thiếu'}`);
+  console.log(`- CoreCCP  : ${ccpCreds ? ' Đã cấu hình' : ' Thiếu'}\n`);
 
   const executablePath = getChromeExecutablePath();
   const launchArgs = [
@@ -244,7 +244,7 @@ async function runTest() {
       await page.waitForTimeout(1000);
 
       readyTimes.ms = new Date();
-      console.log(` -> [MS] ✅ SẴN SÀNG TẠI DSGD lúc: ${readyTimes.ms.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
+      console.log(` -> [MS]  SẴN SÀNG TẠI DSGD lúc: ${readyTimes.ms.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
       readyState.ms = true;
       checkBarrier();
 
@@ -302,7 +302,7 @@ async function runTest() {
       await page.waitForTimeout(1500);
 
       readyTimes.acm = new Date();
-      console.log(` -> [ACM] ✅ SẴN SÀNG TẠI FILL lúc: ${readyTimes.acm.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
+      console.log(` -> [ACM]  SẴN SÀNG TẠI FILL lúc: ${readyTimes.acm.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
       readyState.acm = true;
       checkBarrier();
 
@@ -338,7 +338,7 @@ async function runTest() {
       await page.waitForTimeout(800);
 
       readyTimes.ccp = new Date();
-      console.log(` -> [CCP] ✅ SẴN SÀNG TẠI BÁO CÁO lúc: ${readyTimes.ccp.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
+      console.log(` -> [CCP]  SẴN SÀNG TẠI BÁO CÁO lúc: ${readyTimes.ccp.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
       readyState.ccp = true;
       checkBarrier();
 
@@ -386,7 +386,7 @@ async function runTest() {
       }
 
       readyTimes.cqg = new Date();
-      console.log(` -> [CQG] ✅ SẴN SÀNG TẠI FR1 lúc: ${readyTimes.cqg.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
+      console.log(` -> [CQG]  SẴN SÀNG TẠI FR1 lúc: ${readyTimes.cqg.toISOString()} (+${((Date.now() - p1Start) / 1000).toFixed(1)}s)`);
       readyState.cqg = true;
       checkBarrier();
 
@@ -447,7 +447,7 @@ async function runTest() {
     if (psCheck) {
       console.log(' Phát hiện tiến trình Chrome còn sót lại:\n' + psCheck);
     } else {
-      console.log('✅ TIẾN TRÌNH SẠCH 100%: Hoàn toàn không còn bất kỳ tiến trình Chrome/Chromium nào chạy ngầm!');
+      console.log(' TIẾN TRÌNH SẠCH 100%: Hoàn toàn không còn bất kỳ tiến trình Chrome/Chromium nào chạy ngầm!');
     }
   } catch (err) {
     console.log('Kiểm tra pgrep:', err.message);

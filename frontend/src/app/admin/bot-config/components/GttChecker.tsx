@@ -146,7 +146,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
       if (!res.ok) throw new Error(data.message || 'Kiểm tra GTT thất bại');
       setGttReport(data.report);
       const { matched, diffCount, msOnlyCount, cqgOnlyCount } = data.report;
-      toast.success(`GTT Check hoàn tất! ✅ ${matched} khớp,  ${diffCount} chênh lệch, ${msOnlyCount + cqgOnlyCount} thiếu`, { id: toastId, duration: 8000 });
+      toast.success(`GTT Check hoàn tất!  ${matched} khớp,  ${diffCount} chênh lệch, ${msOnlyCount + cqgOnlyCount} thiếu`, { id: toastId, duration: 8000 });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kiểm tra GTT', { id: toastId });
     } finally {

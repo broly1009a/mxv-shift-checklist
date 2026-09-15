@@ -280,21 +280,21 @@ Hiện có thể triển khai API mock trước.
 
 Đã có đủ thông tin để triển khai:
 
-✅ Authentication
+ Authentication
 
-✅ Department Management
+ Department Management
 
-✅ Working Calendar
+ Working Calendar
 
-✅ Shift Slot
+ Shift Slot
 
-✅ Checklist Template
+ Checklist Template
 
-✅ Shift Job Generation
+ Shift Job Generation
 
-✅ Activity Logs
+ Activity Logs
 
-✅ Dashboard
+ Dashboard
 
 ---
 

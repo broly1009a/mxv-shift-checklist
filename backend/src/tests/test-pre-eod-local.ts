@@ -45,7 +45,7 @@ async function testPreEod() {
       sessionStartStr,
     );
 
-    console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU PRE-EOD CHUNG:');
+    console.log('\n KẾT QUẢ ĐỐI CHIẾU PRE-EOD CHUNG:');
     console.log(`• Passed Status: ${result.passed}`);
     console.log('\n--- 1. KHỚP LỆNH THƯỜNG (MS vs CQG) ---');
     console.log(`• Tổng khớp MS (CQG): ${result.totals.totalCQG_MS} lot`);

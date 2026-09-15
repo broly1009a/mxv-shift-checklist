@@ -100,7 +100,7 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
           const downloadSuccess = await this.rpaDownloaderService.downloadDsgdMmCcp(dsgdMmCcpPathStd);
           if (downloadSuccess && fs.existsSync(dsgdMmCcpPathStd)) {
             dsgdMmCcpBuffer = fs.readFileSync(dsgdMmCcpPathStd);
-            log(`✅ Tự động tải file DSGD MM CCP thành công và nạp vào dữ liệu tính toán.`);
+            log(` Tự động tải file DSGD MM CCP thành công và nạp vào dữ liệu tính toán.`);
           } else {
             throw new Error('Tải tệp tin không thành công không rõ lý do.');
           }
@@ -205,7 +205,7 @@ export class CcpStatsJobHandler implements IBotJobHandler, OnModuleInit {
         targetOutputPath,
       );
 
-      log(`✅ Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);
+      log(` Chạy báo cáo CCP thành công. File kết quả: ${outputPath}`);
       await safeSave();
       return { outputPath };
     } catch (err: any) {

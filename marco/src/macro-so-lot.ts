@@ -216,9 +216,9 @@ function printReport(report: DailyLotReport) {
   console.log(`  TTM:   ${report.acmTtmLot.toLocaleString()} lot`);
 
   console.log('\n' + '─'.repeat(70));
-  console.log('✅ VALIDATION RESULTS:');
+  console.log(' VALIDATION RESULTS:');
   for (const v of report.validations) {
-    const icon = v.passed ? '  ✅' : '  ';
+    const icon = v.passed ? '  ' : '  ';
     console.log(`${icon} ${v.field}: ${v.expected} vs ${v.actual}`);
   }
   console.log('='.repeat(70) + '\n');
@@ -308,7 +308,7 @@ async function main() {
       process.exit(2);
     }
 
-    console.log('✅ Hoàn thành!');
+    console.log(' Hoàn thành!');
 
   } catch (err) {
     console.error(' Lỗi:', err);

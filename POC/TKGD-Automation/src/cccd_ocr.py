@@ -140,7 +140,7 @@ def decode_qr_code(image_path: str) -> Optional[CCCDData]:
                 data.ngayCap = f"{raw_cap[0:2]}/{raw_cap[2:4]}/{raw_cap[4:8]}"
         
         data.qr_success = True
-        print(f"    ✅ QR: {data.soCCCD} | {data.hoTen} | {data.ngaySinh}")
+        print(f"     QR: {data.soCCCD} | {data.hoTen} | {data.ngaySinh}")
         return data
         
     except ImportError:
@@ -305,7 +305,7 @@ def parse_mrz_lines(lines: list) -> Optional[CCCDData]:
             # Mặc định nơi cấp của thẻ Căn cước mới theo Luật 2023
             if not data.noiCap:
                 data.noiCap = "BỘ CÔNG AN"
-            print(f"    ✅ MRZ: {data.soCCCD} | {data.hoTenKhongDau} | {data.ngaySinh} | {data.gioiTinh} | {data.noiCap}")
+            print(f"     MRZ: {data.soCCCD} | {data.hoTenKhongDau} | {data.ngaySinh} | {data.gioiTinh} | {data.noiCap}")
             return data
         
         return None
@@ -423,7 +423,7 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
         if qr_data and qr_data.qr_success and qr_data.soCCCD:
             result = qr_data
             if result.soCCCD and result.hoTen and result.ngaySinh:
-                print(f"     ✅ Giải mã thành công từ QR Code mặt trước (0 tokens).")
+                print(f"      Giải mã thành công từ QR Code mặt trước (0 tokens).")
                 return result
     
     # Lớp 1B: QR Code mặt sau (Đặc thù thẻ Căn Cước Luật 2023 áp dụng từ 01/07/2024)
@@ -432,7 +432,7 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
         if qr_data_sau and qr_data_sau.qr_success and qr_data_sau.soCCCD:
             result = qr_data_sau
             if result.soCCCD and result.hoTen and result.ngaySinh:
-                print(f"     ✅ Giải mã thành công từ QR Code mặt sau (Thẻ Căn Cước mới 2024) (0 tokens).")
+                print(f"      Giải mã thành công từ QR Code mặt sau (Thẻ Căn Cước mới 2024) (0 tokens).")
                 return result
 
     # Lớp 2: MRZ (mặt sau) — offline fallback nhanh
@@ -503,7 +503,7 @@ def extract_cccd_data(truoc_path: str = None, sau_path: str = None, gemini_key: 
                     result.ngayCap = ai_data.get("ngayCap") or result.ngayCap
                     result.noiCap = ai_data.get("noiCap") or result.noiCap or "BỘ CÔNG AN"
                     result.ocr_success = True
-                    print(f"     ✅ Gemini AI trích xuất hoàn thiện: {result.soCCCD} | {result.hoTen} | {result.ngaySinh} | {result.gioiTinh}")
+                    print(f"      Gemini AI trích xuất hoàn thiện: {result.soCCCD} | {result.hoTen} | {result.ngaySinh} | {result.gioiTinh}")
                     return result
         except Exception as e:
             print(f"      Gemini AI fallback: {e}")

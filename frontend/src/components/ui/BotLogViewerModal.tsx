@@ -596,8 +596,8 @@ export default function BotLogViewerModal({
       }
 
       // Pattern 2: Download success
-      // e.g. "✅ Tải thành công: DSQLKQ.xlsx"
-      const successMatch = trimmed.match(/(?:✅\s*)?Tải thành công:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      // e.g. " Tải thành công: DSQLKQ.xlsx"
+      const successMatch = trimmed.match(/(?:\s*)?Tải thành công:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
       if (successMatch) {
         const filename = successMatch[1].trim();
         fileMap.set(filename, {
@@ -628,8 +628,8 @@ export default function BotLogViewerModal({
         });
       }
 
-      // Pattern 5: Merge CQG success — "✅ Ghép file FR.xlsx thành công."
-      const mergeSuccessMatch = trimmed.match(/(?:✅\s*)?Ghép file\s+([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s+thành công/i);
+      // Pattern 5: Merge CQG success — " Ghép file FR.xlsx thành công."
+      const mergeSuccessMatch = trimmed.match(/(?:\s*)?Ghép file\s+([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))\s+thành công/i);
       if (mergeSuccessMatch) {
         const filename = mergeSuccessMatch[1].trim();
         fileMap.set(filename, {
@@ -639,8 +639,8 @@ export default function BotLogViewerModal({
       }
 
 
-      // Pattern 6: CQG Backup download success — "✅ Đã tải: FR1.xlsx"
-      const cqgDownloadMatch = trimmed.match(/✅\s*Đã tải:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
+      // Pattern 6: CQG Backup download success — " Đã tải: FR1.xlsx"
+      const cqgDownloadMatch = trimmed.match(/\s*Đã tải:\s*([a-zA-Z0-9_\-\s\.]+\.(?:xlsx|csv|txt))/i);
       if (cqgDownloadMatch) {
         const filename = cqgDownloadMatch[1].trim();
         fileMap.set(filename, {

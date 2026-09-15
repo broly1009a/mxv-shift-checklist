@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { chromium, Browser, Page, Download } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as https from 'https';
+import { URL } from 'url';
 import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { decrypt } from './utils/crypto';
@@ -2192,6 +2194,133 @@ export class RpaDownloaderService {
   }
 
   /**
+   * Thăm dò (probe) máy chủ sàn ACM qua AWS ALB để tìm Healthy Target Node (HTTP 200)
+   * và trích xuất các Cookie định tuyến phiên (Sticky Session: AWSALB, AWSALBTG, ...).
+   */
+  async getAcmStickyCookies(
+    targetUrl: string,
+    jobLogs: string[] | ((msg: string) => void | Promise<void>) = [],
+  ): Promise<Array<{ name: string; value: string; domain: string; path: string; httpOnly?: boolean; secure?: boolean }>> {
+    const log = this.getLogFn(jobLogs);
+    let urlObj: URL;
+    try {
+      urlObj = new URL(targetUrl);
+    } catch {
+      return [];
+    }
+
+    const probeUrl = `${urlObj.origin}/exchange/index.html`;
+    const maxProbes = 8;
+
+    for (let i = 1; i <= maxProbes; i++) {
+      try {
+        const probeResult = await new Promise<{ status: number; headers: Record<string, string | string[] | undefined> }>((resolve, reject) => {
+          const req = https.request(
+            probeUrl,
+            {
+              method: 'GET',
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
+              timeout: 10000,
+              rejectUnauthorized: false,
+            },
+            (res) => {
+              res.resume();
+              resolve({ status: res.statusCode || 0, headers: res.headers });
+            },
+          );
+          req.on('error', reject);
+          req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Probe timeout'));
+          });
+          req.end();
+        });
+
+        if (probeResult.status === 200) {
+          const rawSetCookies = probeResult.headers['set-cookie'];
+          const cookieStrings: string[] = Array.isArray(rawSetCookies)
+            ? rawSetCookies
+            : rawSetCookies
+              ? [rawSetCookies]
+              : [];
+
+          const playwrightCookies: Array<{
+            name: string;
+            value: string;
+            domain: string;
+            path: string;
+            httpOnly?: boolean;
+            secure?: boolean;
+          }> = [];
+
+          for (const rawCookie of cookieStrings) {
+            const parts = rawCookie.split(';').map((p) => p.trim());
+            if (parts.length === 0) continue;
+            const [kv, ...attrs] = parts;
+            const eqIdx = kv.indexOf('=');
+            if (eqIdx === -1) continue;
+            const name = kv.slice(0, eqIdx).trim();
+            const value = kv.slice(eqIdx + 1).trim();
+
+            if (name.startsWith('AWSALB')) {
+              let domain = urlObj.hostname;
+              let pathStr = '/';
+              let isSecure = false;
+              let isHttpOnly = false;
+
+              for (const attr of attrs) {
+                const lower = attr.toLowerCase();
+                if (lower.startsWith('domain=')) {
+                  domain = attr.slice(7).trim().replace(/^\./, '');
+                } else if (lower.startsWith('path=')) {
+                  pathStr = attr.slice(5).trim();
+                } else if (lower === 'secure') {
+                  isSecure = true;
+                } else if (lower === 'httponly') {
+                  isHttpOnly = true;
+                }
+              }
+
+              playwrightCookies.push({
+                name,
+                value,
+                domain,
+                path: pathStr,
+                secure: isSecure,
+                httpOnly: isHttpOnly,
+              });
+            }
+          }
+
+          if (playwrightCookies.length > 0) {
+            await log(
+              `Đã kết nối thành công tới Healthy Node của sàn ACM (lần thử ${i}/${maxProbes}, HTTP 200). Đã lưu ${playwrightCookies.length} Sticky Cookies (AWSALB).`,
+            );
+            return playwrightCookies;
+          }
+        } else {
+          this.logger.debug(
+            `ACM Probe lần ${i}/${maxProbes} trả về HTTP ${probeResult.status} (Unhealthy Node), đang thử lại...`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.debug(`ACM Probe lần ${i}/${maxProbes} lỗi: ${err.message}`);
+      }
+
+      if (i < maxProbes) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    }
+
+    this.logger.warn(`Không thể lấy Sticky Cookie ACM sau ${maxProbes} lần probe.`);
+    return [];
+  }
+
+  /**
    * Khởi chạy trình duyệt và đăng nhập vào ACM.
    * Tự động giải captcha bằng Gemini API. Nếu lỗi, có cơ chế fallback nhập tay qua giao diện.
    */
@@ -2266,6 +2395,14 @@ export class RpaDownloaderService {
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     });
 
+    // Thăm dò Healthy Node của AWS ALB và bơm Sticky Cookie vào context trước khi duyệt web
+    await log('Đang dò tìm node máy chủ hoạt động tốt của sàn ACM (AWS ALB Sticky Session)...');
+    const stickyCookies = await this.getAcmStickyCookies(acmUrl, jobLogs);
+    if (stickyCookies.length > 0) {
+      await context.addCookies(stickyCookies);
+      await log(`Đã gán ${stickyCookies.length} cookie định tuyến phiên vào trình duyệt.`);
+    }
+
     const page = await context.newPage();
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', {
@@ -2288,7 +2425,7 @@ export class RpaDownloaderService {
             return null;
           });
 
-        // Kiểm tra xem trang có dính mã 502 / Bad Gateway của Cloudflare hay không
+        // Kiểm tra xem trang có dính mã 502 / Bad Gateway của AWS ALB hay không
         const isBadGateway =
           (response && response.status() >= 500) ||
           (await page
@@ -2296,6 +2433,7 @@ export class RpaDownloaderService {
               const text = document.body ? document.body.innerText : '';
               return (
                 text.includes('Bad gateway') ||
+                text.includes('502 Bad Gateway') ||
                 text.includes('Error code 502') ||
                 text.includes('Host Error')
               );
@@ -2304,16 +2442,22 @@ export class RpaDownloaderService {
 
         if (isBadGateway) {
           if (attempt < maxNavAttempts) {
-            const retryDelays = [3000, 5000, 7000, 9000, 10000];
-            const waitMs = retryDelays[attempt - 1] || 5000;
+            const retryDelays = [2000, 3000, 4000, 5000, 6000];
+            const waitMs = retryDelays[attempt - 1] || 3000;
             await log(
-              ` Máy chủ ACM phản hồi lỗi (Cloudflare 502 Bad Gateway / Host Error, lần ${attempt}/${maxNavAttempts}). Tự động tải lại sau ${waitMs / 1000} giây...`,
+              `Máy chủ ACM phản hồi lỗi (AWS ALB 502 Bad Gateway, lần ${attempt}/${maxNavAttempts}). Đang làm mới Sticky Session và thử lại sau ${waitMs / 1000}s...`,
             );
+            // Làm mới session cookie để đổi sang healthy node
+            await context.clearCookies().catch(() => { });
+            const freshCookies = await this.getAcmStickyCookies(acmUrl, jobLogs);
+            if (freshCookies.length > 0) {
+              await context.addCookies(freshCookies);
+            }
             await page.waitForTimeout(waitMs);
             continue;
           }
           throw new Error(
-            'Máy chủ web ACM không phản hồi (Cloudflare 502 Bad Gateway kéo dài cả 5 lần thử). Vui lòng kiểm tra lại dịch vụ sàn ACM.',
+            'Máy chủ web ACM không phản hồi (AWS ALB 502 Bad Gateway kéo dài cả 5 lần thử). Vui lòng kiểm tra lại dịch vụ sàn ACM.',
           );
         }
 
@@ -2333,7 +2477,7 @@ export class RpaDownloaderService {
 
         if (attempt < maxNavAttempts) {
           await log(
-            ` Chưa hiển thị form đăng nhập ACM (lần ${attempt}/${maxNavAttempts}). Đang tải lại trang...`,
+            `Chưa hiển thị form đăng nhập ACM (lần ${attempt}/${maxNavAttempts}). Đang tải lại trang...`,
           );
           await page.waitForTimeout(2000);
         }
@@ -2611,11 +2755,38 @@ export class RpaDownloaderService {
     const log = this.getLogFn(jobLogs);
 
     await log(`Điều hướng đến trang tải báo cáo: ${url}`);
-    await page
+    const navRes = await page
       .goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
       .catch(async () => {
-        await page.goto(url).catch(() => { });
+        return await page.goto(url).catch(() => null);
       });
+
+    // Tự động xử lý nếu gặp 502 Bad Gateway khi điều hướng tải báo cáo
+    const isBadGateway =
+      (navRes && navRes.status() >= 500) ||
+      (await page
+        .evaluate(() => {
+          const text = document.body ? document.body.innerText : '';
+          return (
+            text.includes('Bad gateway') ||
+            text.includes('502 Bad Gateway') ||
+            text.includes('Error code 502') ||
+            text.includes('Host Error')
+          );
+        })
+        .catch(() => false));
+
+    if (isBadGateway) {
+      await log('Phát hiện 502 khi điều hướng báo cáo ACM. Đang làm mới Sticky Session và tải lại trang...');
+      const ctx = page.context();
+      await ctx.clearCookies().catch(() => { });
+      const freshCookies = await this.getAcmStickyCookies(url, jobLogs);
+      if (freshCookies.length > 0) {
+        await ctx.addCookies(freshCookies);
+      }
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => { });
+    }
+
     await page.waitForTimeout(3000).catch(() => { }); // Đợi tải dữ liệu ban đầu
 
     const exportBtnSelector =
@@ -2765,7 +2936,7 @@ export class RpaDownloaderService {
             let downloadedCount = 0;
             const downloadNext = async () => {
               if (downloadedCount >= filesToDownload.length) {
-                await log('✅ Hoàn tất tải toàn bộ file từ SFTP.');
+                await log(' Hoàn tất tải toàn bộ file từ SFTP.');
                 conn.end();
                 return resolve();
               }
@@ -3513,7 +3684,7 @@ export class RpaDownloaderService {
           .isVisible({ timeout: 150 })
           .catch(() => false)
       ) {
-        await notifClose.first().click().catch(() => {});
+        await notifClose.first().click().catch(() => { });
       }
 
       // Nếu sau khi click vẫn còn ở form đăng nhập ("Log on"), bấm lại để đảm bảo đã submit
@@ -3525,8 +3696,8 @@ export class RpaDownloaderService {
         const submitBtn = page.locator('button[type="submit"], button:has-text("Log on")');
         const submitText = await submitBtn.first().innerText().catch(() => '');
         if (submitText.includes('Log on')) {
-          await submitBtn.first().click({ force: true }).catch(() => {});
-          await page.keyboard.press('Enter').catch(() => {});
+          await submitBtn.first().click({ force: true }).catch(() => { });
+          await page.keyboard.press('Enter').catch(() => { });
           await new Promise((r) => setTimeout(r, 1500));
         }
       }
@@ -3545,7 +3716,7 @@ export class RpaDownloaderService {
         this.logger.warn(
           `[CQG] Phát hiện popup xác nhận đăng nhập/xung đột phiên ("${btnText}") cho ${username}. Tự động click để chiếm quyền phiên...`,
         );
-        await takeoverBtn.first().click().catch(() => {});
+        await takeoverBtn.first().click().catch(() => { });
         await new Promise((r) => setTimeout(r, 1000));
       }
 
@@ -3556,8 +3727,8 @@ export class RpaDownloaderService {
       const debugDir = path.join(process.cwd(), 'temp', 'debug');
       if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
       const snapPath = path.join(debugDir, `cqg_timeout_${username}_${Date.now()}.png`);
-      await page.screenshot({ path: snapPath, fullPage: true }).catch(() => {});
-    } catch {}
+      await page.screenshot({ path: snapPath, fullPage: true }).catch(() => { });
+    } catch { }
 
     throw new Error(
       `Timeout ${timeoutMs}ms chờ logo dashboard/menu Ho sau khi đăng nhập CQG (${username}).`,

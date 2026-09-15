@@ -158,7 +158,7 @@ def derive_conclusion(record: RecordResult) -> RecordResult:
         record.ghi_chu = 'OCR CCCD không đọc được, cần kiểm tra thủ công'
     else:
         record.ket_luan = 'KHOP'
-        record.ghi_chu = '✅ Hồ sơ hợp lệ, sẵn sàng phê duyệt'
+        record.ghi_chu = ' Hồ sơ hợp lệ, sẵn sàng phê duyệt'
     
     return record
 
@@ -302,7 +302,7 @@ def run_batch(mail_folder: str, output_excel: str = None,
     chua_ms = sum(1 for r in records if 'MS' in r.ket_luan)
     
     print(f"  Tổng mail xử lý:     {total}")
-    print(f"  ✅ KHỚP hoàn toàn:   {khop}")
+    print(f"   KHỚP hoàn toàn:   {khop}")
     print(f"   LỆCH thông tin:   {lech}")
     print(f"  🟡 THIẾU hồ sơ:     {thieu}")
     print(f"  🟠 Chưa trên MS:     {chua_ms}")

@@ -413,7 +413,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     models = manager.fetch_public_models()
-    print(f"\n✅ Đã tìm thấy và xếp hạng {len(models)} models:")
+    print(f"\n Đã tìm thấy và xếp hạng {len(models)} models:")
     print(f"{'STT':<4} | {'Clean Model Name':<32} | {'Score':<6} | {'DisplayName'}")
     print("-" * 75)
     for idx, m in enumerate(models, 1):

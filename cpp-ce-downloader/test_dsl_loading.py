@@ -61,7 +61,7 @@ def run_automated_evaluation():
         search_btn = page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
         if search_btn.is_visible():
             search_btn.click()
-            print("  ⏳ Bấm Tìm kiếm. Chờ API & Loading Spinner...")
+            print("   Bấm Tìm kiếm. Chờ API & Loading Spinner...")
             page.wait_for_timeout(1500)
             try:
                 page.wait_for_selector(

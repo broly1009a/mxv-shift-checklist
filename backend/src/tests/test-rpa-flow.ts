@@ -86,7 +86,7 @@ async function runRpaTests() {
   if (!job) {
     throw new Error('RPA BotJob was not enqueued in MongoDB!');
   }
-  console.log(`✅ Job enqueued successfully in state: ${job.status}`);
+  console.log(` Job enqueued successfully in state: ${job.status}`);
 
   // Fetch shift log state after first check
   let updatedLog = await shiftLogModel.findById(shiftLog._id).exec();

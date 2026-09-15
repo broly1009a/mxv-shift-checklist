@@ -257,7 +257,7 @@ async function main() {
     await page.keyboard.press('Enter');
 
     await page.waitForURL((url) => !url.toString().includes('/login'), { timeout: 20000 });
-    console.log(`✅ Đăng nhập CoreCCP thành công!`);
+    console.log(` Đăng nhập CoreCCP thành công!`);
 
     for (let i = 0; i < TARGET_REPORTS.length; i++) {
       const rep = TARGET_REPORTS[i];
@@ -329,7 +329,7 @@ async function main() {
 
           const dl = await downloadPromise;
           await dl.saveAs(dest);
-          console.log(`   ✅ Tải thành công [${rep.code}] -> ${path.basename(dest)}`);
+          console.log(`    Tải thành công [${rep.code}] -> ${path.basename(dest)}`);
         } catch (dlErr) {
           console.log(`    Báo cáo [${rep.code}] bảng rỗng hoặc không có dữ liệu để xuất.`);
         }

@@ -1654,7 +1654,7 @@ export class CcpCeDownloaderService {
       }
     }
 
-    this.log(`[CCP KLGD] ✅ Hoàn tất bóc tách CoreCCP: KLGD=${klgd}, TTM=${ttm}, TTTT=${tttt}`, logCb);
+    this.log(`[CCP KLGD]  Hoàn tất bóc tách CoreCCP: KLGD=${klgd}, TTM=${ttm}, TTTT=${tttt}`, logCb);
     return {
       success: true,
       tradingDate,
@@ -1847,7 +1847,7 @@ export class CcpCeDownloaderService {
         }
       }
 
-      this.log(`[CCP KLGD] ✅ Hoàn tất bóc tách CoreCCP: KLGD=${klgd}, TTM=${ttm}, TTTT=${tttt}`, logCb);
+      this.log(`[CCP KLGD]  Hoàn tất bóc tách CoreCCP: KLGD=${klgd}, TTM=${ttm}, TTTT=${tttt}`, logCb);
       return {
         success: true,
         tradingDate,

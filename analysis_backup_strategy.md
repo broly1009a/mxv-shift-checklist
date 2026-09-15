@@ -39,7 +39,7 @@ Cách tiếp cận hiện tại của bạn (bot tải toàn bộ) có vấn đ�
                     ┌──────────────▼──────────────────┐
                     │         Phân loại kết quả        │
                     ├──────────────┬──────────────────┤
-                    │   ✅ Đủ file │   Thiếu file    │
+                    │    Đủ file │   Thiếu file    │
                     │   → Done     │  → Bot tự tải     │
                     └─────────────┴──────────────────-┘
                                    │ (chỉ ~3 file)
@@ -82,8 +82,8 @@ async handleFileAuditJob(job: BotJob) {
   const missing = required.filter(f => !fs.existsSync(path.join(backupDir, f)));
 
   if (missing.length === 0) {
-    // ✅ Đủ hết, ghi log và done
-    job.logs.push('✅ Đủ tất cả file backup. Không cần tải thêm.');
+    //  Đủ hết, ghi log và done
+    job.logs.push(' Đủ tất cả file backup. Không cần tải thêm.');
     return;
   }
 
@@ -96,7 +96,7 @@ async handleFileAuditJob(job: BotJob) {
       // Tải đúng file bị thiếu vào thư mục backup
       const destFile = path.join(backupDir, filename);
       await this.downloadByFilename(page, filename, destFile);
-      job.logs.push(`✅ Đã tải bổ sung: ${filename}`);
+      job.logs.push(` Đã tải bổ sung: ${filename}`);
     }
   } finally {
     await browser.close();
@@ -110,7 +110,7 @@ Thay vì checklist task trigger "tải file", nó trigger "kiểm tra file":
 ```
 Checklist item: "Xác nhận backup file cuối phiên"
   → Bot job: FILE_AUDIT (không phải RPA_DOWNLOAD)
-  → Kết quả: "✅ 15/15 file đầy đủ" hoặc " Đã tự động bổ sung 2 file bị thiếu"
+  → Kết quả: " 15/15 file đầy đủ" hoặc " Đã tự động bổ sung 2 file bị thiếu"
 ```
 
 ---

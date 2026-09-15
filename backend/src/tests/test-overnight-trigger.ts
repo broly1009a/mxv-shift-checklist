@@ -13,7 +13,7 @@ let totalTests = 0;
 function assert(condition: boolean, testName: string, details?: any) {
   totalTests++;
   if (condition) {
-    console.log(`✅ [PASS] ${testName}`);
+    console.log(` [PASS] ${testName}`);
     passedTests++;
   } else {
     console.error(` [FAIL] ${testName}`);

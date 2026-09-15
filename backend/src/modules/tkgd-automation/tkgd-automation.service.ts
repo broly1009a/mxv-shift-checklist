@@ -3827,7 +3827,7 @@ export class TkgdAutomationService {
         percent: 100,
         stage: `Hoàn tất chu kỳ tự động: xử lý ${totalDone} mục.`,
       });
-      this.logger.log(`[TKGD-AUTO] ✅ Chu kỳ hoàn tất cho ${userEmail}: ${totalDone} mục.`);
+      this.logger.log(`[TKGD-AUTO]  Chu kỳ hoàn tất cho ${userEmail}: ${totalDone} mục.`);
       return { success: true, processedCount: totalDone, message: `Đã xử lý xong ${totalDone} mục.` };
 
     } catch (err: any) {

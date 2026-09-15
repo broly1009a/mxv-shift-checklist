@@ -50,7 +50,7 @@ async function run() {
 
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
-    console.log('✅ Lấy Access Token thành công!');
+    console.log(' Lấy Access Token thành công!');
 
     const searchSubject = "MXV M-System - Thông báo kết quả Job Snapshot dữ liệu";
     const targetSender = "minhle@mxv.vn";

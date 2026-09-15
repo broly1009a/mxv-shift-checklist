@@ -107,12 +107,12 @@ export class MSystemTabNavigatorHelper {
           '.ladda-loading, div.spinner, div.loading, div.block-ui-overlay',
           { state: 'detached', timeout: 5000 },
         )
-        .catch(() => {});
+        .catch(() => { });
 
       if (options?.snapshotPath) {
         const dir = path.dirname(options.snapshotPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        await page.screenshot({ path: options.snapshotPath, fullPage: false }).catch(() => {});
+        await page.screenshot({ path: options.snapshotPath, fullPage: false }).catch(() => { });
         logger.log(`[TabNavigator] Đã chụp snapshot tab: ${options.snapshotPath}`);
       }
 
@@ -149,7 +149,7 @@ export class MSystemTabNavigatorHelper {
           throw new Error(errMsg);
         }
         log.log(
-          `[TabNavigator] ✅ Xác thực hợp lệ file "${suggested}" khớp mẫu kỳ vọng của "${expectedTargetKey}".`,
+          `[TabNavigator]  Xác thực hợp lệ file "${suggested}" khớp mẫu kỳ vọng của "${expectedTargetKey}".`,
         );
       }
     }
@@ -249,7 +249,7 @@ export class MSystemTabNavigatorHelper {
     // 2. Đợi URL hash thay đổi theo mẫu dự kiến (tránh race condition giữa các trang SPA)
     if (options?.expectedHashPattern) {
       log.log(`[TabNavigator] Đợi URL hash khớp mẫu: ${options.expectedHashPattern}`);
-      await page.waitForURL(options.expectedHashPattern, { timeout: 15000 }).catch(() => {});
+      await page.waitForURL(options.expectedHashPattern, { timeout: 15000 }).catch(() => { });
     }
 
     // 3. Nếu có chỉ định sub-tab (ví dụ: Chờ đáo hạn LME, Spreads, ACM)
@@ -265,7 +265,7 @@ export class MSystemTabNavigatorHelper {
       if (options?.snapshotPath) {
         const dir = path.dirname(options.snapshotPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        await page.screenshot({ path: options.snapshotPath, fullPage: false }).catch(() => {});
+        await page.screenshot({ path: options.snapshotPath, fullPage: false }).catch(() => { });
         log.log(`[TabNavigator] Đã chụp snapshot: ${options.snapshotPath}`);
       }
     }
@@ -284,7 +284,7 @@ export class MSystemTabNavigatorHelper {
     // 5. Thu gọn menu cha nếu cần
     if (menuSteps.length > 0) {
       const topMenuSelector = `xpath=//a[text()='${menuSteps[0]}']`;
-      await page.click(topMenuSelector, { force: true }).catch(() => {});
+      await page.click(topMenuSelector, { force: true }).catch(() => { });
       await page.waitForTimeout(800);
     }
 

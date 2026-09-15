@@ -305,15 +305,15 @@ TASK-2 (lớn hơn, sau TASK-1)
 ## Kế Hoạch Kiểm Thử
 
 ### TASK-1
-- ✅ `tsc --noEmit` Backend & Frontend không lỗi mới
-- ✅ Vào UI Admin → Cấu hình kết nối → ACM: Thấy 2 ô mới `orderUrl` / `fillUrl`
-- ✅ Lưu config → Reload lại trang → 2 ô vẫn giữ giá trị
-- ✅ Xóa trống `orderUrl`/`fillUrl` → Bot vẫn tự ghép từ `url` base
+-  `tsc --noEmit` Backend & Frontend không lỗi mới
+-  Vào UI Admin → Cấu hình kết nối → ACM: Thấy 2 ô mới `orderUrl` / `fillUrl`
+-  Lưu config → Reload lại trang → 2 ô vẫn giữ giá trị
+-  Xóa trống `orderUrl`/`fillUrl` → Bot vẫn tự ghép từ `url` base
 
 ### TASK-2
-- ✅ `tsc --noEmit` Backend không lỗi mới
-- ✅ (USER tự chạy) Trigger thủ công endpoint CCP/CE report với khoảng ngày 1 tuần → File CSV xuất hiện đúng thư mục
-- ✅ Log hiển thị đúng URL điều hướng, trạng thái bộ lọc, kết quả tải
+-  `tsc --noEmit` Backend không lỗi mới
+-  (USER tự chạy) Trigger thủ công endpoint CCP/CE report với khoảng ngày 1 tuần → File CSV xuất hiện đúng thư mục
+-  Log hiển thị đúng URL điều hướng, trạng thái bộ lọc, kết quả tải
 
 ---
 

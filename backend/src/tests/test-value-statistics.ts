@@ -290,7 +290,7 @@ async function runTest() {
         );
         mismatchCount++;
       } else {
-        console.log(`✅ Khớp: [${code}] ${writtenVal.toLocaleString()}`);
+        console.log(` Khớp: [${code}] ${writtenVal.toLocaleString()}`);
       }
     }
   };

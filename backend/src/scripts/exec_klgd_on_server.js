@@ -10,7 +10,7 @@ async function run() {
   console.log('🚀 KHỞI ĐỘNG KIỂM THỬ THỰC TẾ: JOB CHECK_KLGD VỚI BỘ LẮNG NGHE PHIÊN CQG MỚI');
   console.log('================================================================================');
   console.log('[1/4] Đang khởi tạo NestJS Application Context trên máy chủ Ubuntu Linux...');
-  
+
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
@@ -40,7 +40,7 @@ async function run() {
     ],
   });
   await job.save();
-  console.log(`✅ Đã tạo Job ID: ${job._id}`);
+  console.log(` Đã tạo Job ID: ${job._id}`);
   console.log('[3/4] Bắt đầu thực thi trực tiếp qua BotJobQueueService & ReconJobsHandler...');
   console.log('--------------------------------------------------------------------------------');
 
@@ -54,9 +54,9 @@ async function run() {
     await job.save();
 
     console.log('--------------------------------------------------------------------------------');
-    console.log('🏁 [THÀNH CÔNG] JOB CHECK_KLGD ĐÃ HOÀN TẤT THÀNH CÔNG VỚI TRẠNG THÁI COMPLETED!');
+    console.log(' [THÀNH CÔNG] JOB CHECK_KLGD ĐÃ HOÀN TẤT THÀNH CÔNG VỚI TRẠNG THÁI COMPLETED!');
     console.log(`⏱️ Thời gian thực thi: ${((Date.now() - startTime) / 1000).toFixed(1)} giây`);
-    
+
     // In payload kết quả
     const res = job.payload?.result || job.payload?.get?.('result');
     if (res) {

@@ -83,7 +83,7 @@ async function main() {
   const client = new MongoClient(URI);
   try {
     await client.connect();
-    console.log('✅ Đã kết nối tới MongoDB.');
+    console.log(' Đã kết nối tới MongoDB.');
     const db = client.db();
 
     // 1. Tìm phòng ban QLGD_OPS

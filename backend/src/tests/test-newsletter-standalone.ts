@@ -42,7 +42,7 @@ async function runTest() {
   const testDate = new Date();
   const logs: string[] = [];
 
-  console.log('⏳ Đang thực thi hàm xuất file bản tin...');
+  console.log(' Đang thực thi hàm xuất file bản tin...');
   const generateNewsletter = (service as any).generateNewsletterFile.bind(service);
 
   await generateNewsletter(targetRoot, testDate, mockGtgdMap, logs);

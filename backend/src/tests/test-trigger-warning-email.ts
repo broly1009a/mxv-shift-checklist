@@ -57,7 +57,7 @@ async function run() {
       console.log(' Đang tiến hành gửi Email Cảnh báo Sự cố...');
       // Gọi trực tiếp hàm gửi cảnh báo
       await settingsService.sendM365TokenExpiredAlert(errorMsg);
-      console.log('✅ ĐÃ GỬI EMAIL CẢNH BÁO THÀNH CÔNG!');
+      console.log(' ĐÃ GỬI EMAIL CẢNH BÁO THÀNH CÔNG!');
     } else {
       console.log(' Cảnh báo: Microsoft vẫn chấp nhận token này? Kịch bản test thất bại.');
     }

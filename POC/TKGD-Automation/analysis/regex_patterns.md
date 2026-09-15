@@ -33,8 +33,8 @@ PATTERN_FUTURES = r'Mã TKGD\s*:\s*(\d{3}[A-Z]\d{7})(?!\s*-)'
 # Hoặc rộng hơn để bắt cả dòng tiêu đề Futures:
 PATTERN_FUTURES_V2 = r'Tài khoản giao dịch Futures[:\s]*.*?Mã TKGD\s*:\s*(\d{3}[A-Z]\d{7})'
 
-# Test với mẫu: "Mã TKGD: 003C2333888" → "003C2333888" ✅
-# Test với mẫu: "Mã TKGD: 003C0656625" → "003C0656625" ✅
+# Test với mẫu: "Mã TKGD: 003C2333888" → "003C2333888" 
+# Test với mẫu: "Mã TKGD: 003C0656625" → "003C0656625" 
 ```
 
 ### Pattern 2: Mã TKGD ACM
@@ -44,8 +44,8 @@ PATTERN_ACM = r'Mã TKGD\s*:\s*(\d{3}[A-Z]\d{7}-[ALMS])'
 # Hoặc theo đoạn "Tài khoản giao dịch ACM":
 PATTERN_ACM_V2 = r'Tài khoản giao dịch ACM[:\s]*.*?Mã TKGD\s*:\s*(\d{3}[A-Z]\d{7}-[ALMS])'
 
-# Test với mẫu: "Mã TKGD: 003C2333888-A" → "003C2333888-A" ✅
-# Mẫu 2 không có ACM → None ✅
+# Test với mẫu: "Mã TKGD: 003C2333888-A" → "003C2333888-A" 
+# Mẫu 2 không có ACM → None 
 ```
 
 ### Pattern 3: Tên Tài Khoản
@@ -53,8 +53,8 @@ PATTERN_ACM_V2 = r'Tài khoản giao dịch ACM[:\s]*.*?Mã TKGD\s*:\s*(\d{3}[A-
 # Theo sau mỗi Mã TKGD
 PATTERN_TEN_TK = r'Tên tài khoản\s*:\s*(.+?)(?:\r?\n|$)'
 
-# Test: "Tên tài khoản: Ngô Đức Hải" → "Ngô Đức Hải" ✅
-# Test: "Tên tài khoản: NGUYỄN ANH KHOA" → "NGUYỄN ANH KHOA" ✅
+# Test: "Tên tài khoản: Ngô Đức Hải" → "Ngô Đức Hải" 
+# Test: "Tên tài khoản: NGUYỄN ANH KHOA" → "NGUYỄN ANH KHOA" 
 ```
 
 ### Pattern 4: Mã TVKD (từ mã TK)
@@ -62,23 +62,23 @@ PATTERN_TEN_TK = r'Tên tài khoản\s*:\s*(.+?)(?:\r?\n|$)'
 # 3 ký tự đầu của investorCode
 PATTERN_TVKD_FROM_CODE = r'^(\d{3})'  # Apply on maTKGD
 
-# "003C2333888" → "003" → TVKD 003 ✅
+# "003C2333888" → "003" → TVKD 003 
 ```
 
 ### Pattern 5: Phát hiện có ACM không
 ```python
 # Nếu body mail có chứa chuỗi này → có yêu cầu mở ACM
 HAS_ACM_PATTERN = r'Tiểu khoản ACM|tài khoản.*ACM|TKGD.*ACM'
-# Mẫu 1: "mở TKGD + Tiểu khoản ACM" → True ✅
-# Mẫu 2: không có → False ✅
+# Mẫu 1: "mở TKGD + Tiểu khoản ACM" → True 
+# Mẫu 2: không có → False 
 ```
 
 ### Pattern 6: Phát hiện có PL01 không
 ```python
 # Kiểm tra body mail đề cập PL01
 HAS_PL01_MENTION = r'Phụ lục số 01|PL01|phụ lục.*tiểu khoản'
-# Mẫu 1: "Phụ lục số 01 đăng ký mở bổ sung tiểu khoản" → True ✅
-# Mẫu 2: không có → False ✅
+# Mẫu 1: "Phụ lục số 01 đăng ký mở bổ sung tiểu khoản" → True 
+# Mẫu 2: không có → False 
 
 # Kiểm tra file đính kèm có PL01 không
 HAS_PL01_ATTACHMENT = r'PL01\.(pdf|PDF)$'

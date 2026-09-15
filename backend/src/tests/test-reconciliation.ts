@@ -118,7 +118,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
     .isVisible({ timeout: 2000 })
     .catch(() => false);
   if (sColExists) {
-    console.log('✅ Cột S đã tồn tại, bỏ qua bước thêm cột.');
+    console.log(' Cột S đã tồn tại, bỏ qua bước thêm cột.');
     return;
   }
 
@@ -163,7 +163,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.click(ADD_COLUMNS_SEL);
   await page.waitForTimeout(1500);
   await screenshot(page, `tab${batchNum}-08-manage-columns-dialog`);
-  console.log('✅ Mở Manage Columns dialog');
+  console.log(' Mở Manage Columns dialog');
 
   const FILTER_INPUT =
     '.wpfe-column-picker-dialog-search-input input[placeholder="Type to filter"]';
@@ -171,7 +171,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.fill(FILTER_INPUT, 'Settlement');
   await page.waitForTimeout(1000);
   await screenshot(page, `tab${batchNum}-09-settlement-search`);
-  console.log('✅ Đã tìm kiếm "Settlement" trong dialog');
+  console.log(' Đã tìm kiếm "Settlement" trong dialog');
 
   const S_ITEM_SELECTORS = [
     '.wpfe-list-item-content:has-text("Last settlement")',
@@ -210,7 +210,7 @@ async function addSettlementColumn(page: any, batchNum: number): Promise<void> {
   await page.click(ADD_CLOSE_BTN);
   await page.waitForTimeout(2000);
 
-  console.log('✅ Đã thêm cột S (Last settlement price)!');
+  console.log(' Đã thêm cột S (Last settlement price)!');
 }
 
 /**
@@ -463,7 +463,7 @@ async function runEndToEndReconciliation() {
         .isVisible({ timeout: 5000 })
         .catch(() => false);
       if (pinSelectorVisible) {
-        console.log('✅ Đã hiển thị bảng PIN!');
+        console.log(' Đã hiển thị bảng PIN!');
         break;
       }
       console.log(
@@ -529,7 +529,7 @@ async function runEndToEndReconciliation() {
           ]);
           await download.saveAs(marketCsvPath);
           console.log(
-            `✅ Đã tải và lưu thành công file CSV bảng giá: ${marketCsvPath}`,
+            ` Đã tải và lưu thành công file CSV bảng giá: ${marketCsvPath}`,
           );
           marketCsvDownloaded = true;
           break;
@@ -575,7 +575,7 @@ async function runEndToEndReconciliation() {
           ]);
           await download.saveAs(trangThaiMoPath);
           console.log(
-            `✅ Đã tải và lưu thành công file trạng thái mở: ${trangThaiMoPath}`,
+            ` Đã tải và lưu thành công file trạng thái mở: ${trangThaiMoPath}`,
           );
           openPositionDownloaded = true;
           break;
@@ -642,7 +642,7 @@ async function runEndToEndReconciliation() {
     });
     await page.waitForTimeout(3000);
     await screenshot(page, '10-cqg-login-success');
-    console.log('✅ Đăng nhập CQG THÀNH CÔNG!');
+    console.log(' Đăng nhập CQG THÀNH CÔNG!');
 
     // CQG limits list to 100 symbols, we split into batches
     const BATCH_LIMIT = 95;
@@ -831,7 +831,7 @@ async function runEndToEndReconciliation() {
       });
   } else {
     console.log(
-      '✅ TUYỆT VỜI! Tất cả các mã đều khớp giá hoàn hảo giữa M-System và CQG.',
+      ' TUYỆT VỜI! Tất cả các mã đều khớp giá hoàn hảo giữa M-System và CQG.',
     );
   }
 

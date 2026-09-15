@@ -44,7 +44,7 @@ async function run() {
       tempDir,
       targetDate,
     );
-    console.log(`\n✅ SUCCESS! File downloaded: ${filePath}`);
+    console.log(`\n SUCCESS! File downloaded: ${filePath}`);
   } catch (err: any) {
     console.error(`\n FAILED:`, err.message);
     if (activePage) {

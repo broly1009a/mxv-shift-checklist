@@ -18,7 +18,7 @@ async function bootstrap() {
     console.log(
       '\n============================================================',
     );
-    console.log('✅ TEST REPORT COMPLETED');
+    console.log(' TEST REPORT COMPLETED');
     console.log('============================================================');
     console.log(`Total contracts checked: ${report.totalContracts}`);
     console.log(`Matched: ${report.matched}`);

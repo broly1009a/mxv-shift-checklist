@@ -33,7 +33,7 @@ async function runRealEndToEndTest() {
   // 1. Kết nối MongoDB
   console.log('\n[1] Đang kết nối MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const CleanRecordModel = mongoose.model('CleanAccountRecord', CleanAccountRecordSchema);
 
@@ -158,8 +158,8 @@ async function runRealEndToEndTest() {
 
   await CleanRecordModel.findOneAndUpdate({ maTKGD: khachHang1.maTKGD }, khachHang1, { upsert: true });
   await CleanRecordModel.findOneAndUpdate({ maTKGD: khachHang2.maTKGD }, khachHang2, { upsert: true });
-  console.log('  ✅ Đã lưu hồ sơ 1: Ngô Đức Hải (Futures: 003C2333888 & ACM: 003C2333888-A)');
-  console.log('  ✅ Đã lưu hồ sơ 2: Nguyễn Anh Khoa (Futures: 003C0656625)');
+  console.log('   Đã lưu hồ sơ 1: Ngô Đức Hải (Futures: 003C2333888 & ACM: 003C2333888-A)');
+  console.log('   Đã lưu hồ sơ 2: Nguyễn Anh Khoa (Futures: 003C0656625)');
 
   // 3. Mở file template Auto Data mail.xlsm và điền chuẩn 5 sheet
   console.log('\n[3] Bắt đầu điền chuẩn xác dữ liệu vào 5 sheet của Auto Data mail.xlsm...');
@@ -316,7 +316,7 @@ async function runRealEndToEndTest() {
   console.log('='.repeat(75));
 
   await mongoose.disconnect();
-  console.log('✅ Hoàn tất thành công 100%!\n');
+  console.log(' Hoàn tất thành công 100%!\n');
 }
 
 runRealEndToEndTest().catch((err) => {

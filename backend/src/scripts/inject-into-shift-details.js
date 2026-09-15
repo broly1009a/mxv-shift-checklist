@@ -14,11 +14,11 @@ async function main() {
     const details = s.details || [];
     console.log(`\nShift ${s._id} (status: ${s.status}): details count = ${details.length}`);
     const parentIdx = details.findIndex(d => d.taskId === 'TASK_CHECK_EOD' || (d.taskNameSnapshot && d.taskNameSnapshot.includes('Đối chiếu & Chạy EOD')));
-    
+
     if (parentIdx !== -1) {
       const parentTask = details[parentIdx];
       console.log(`  Found Parent Task in shift ${s._id}: [${parentTask.taskId}] "${parentTask.taskNameSnapshot}"`);
-      
+
       const hasBotSub1 = details.some(d => d.taskId === 'TASK_CHECK_EOD_sb1');
       if (!hasBotSub1) {
         console.log(`  --> Injecting 2 Bot subtasks for TASK_CHECK_EOD into shift ${s._id}...`);
@@ -52,7 +52,7 @@ async function main() {
 
         details.splice(parentIdx + 1, 0, newBotSub1, newBotSub2);
         await db.collection('shift_logs').updateOne({ _id: s._id }, { $set: { details: details } });
-        console.log(`  ✅ Successfully updated shift ${s._id}!`);
+        console.log(`   Successfully updated shift ${s._id}!`);
       } else {
         console.log(`  Bot subtasks already present in shift ${s._id}`);
       }

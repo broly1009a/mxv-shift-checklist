@@ -977,15 +977,15 @@ export default function TaskTable({
                   {(() => {
                     const botChild = hasChildren
                       ? children.find(
-                          (c) =>
-                            (c as any).isBotCheckSnapshot ||
-                            (c as any).botCheckTypeSnapshot ||
-                            (c.resultNote && c.resultNote.includes('{')),
-                        )
+                        (c) =>
+                          (c as any).isBotCheckSnapshot ||
+                          (c as any).botCheckTypeSnapshot ||
+                          (c.resultNote && c.resultNote.includes('{')),
+                      )
                       : null;
                     const effectiveResultNote =
                       selectedTask.resultNote &&
-                      selectedTask.resultNote.includes('{')
+                        selectedTask.resultNote.includes('{')
                         ? selectedTask.resultNote
                         : botChild?.resultNote || selectedTask.resultNote || '';
                     const effectiveBotTaskId =
@@ -997,7 +997,7 @@ export default function TaskTable({
                     try {
                       const json = JSON.parse(effectiveResultNote);
                       parsedMessage = json.message || effectiveResultNote;
-                    } catch (e) {}
+                    } catch (e) { }
 
                     const cleanedMsg = cleanAnsiText(parsedMessage);
 
@@ -1014,16 +1014,16 @@ export default function TaskTable({
                         flexDirection: 'column',
                         gap: '8px'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                        {/* <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0284c7', fontWeight: 700, flexShrink: 0 }}>
                             <Bot size={13} /> Log kết quả Bot:
                           </span>
                           <span style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                             {cleanedMsg || 'Đã kích hoạt tác vụ kiểm tra tự động của Bot'}
                           </span>
-                        </div>
+                        </div> */}
 
-                        <div style={{ marginTop: '4px' }}>
+                        {/* <div style={{ marginTop: '4px' }}>
                           <button
                             type="button"
                             onClick={() => onOpenBotLogViewer?.(selectedTask.taskNameSnapshot, effectiveResultNote, selectedTask.status, selectedTask.checkedAt, effectiveBotTaskId)}
@@ -1043,7 +1043,7 @@ export default function TaskTable({
                           >
                             <Search size={12} /> Xem đối chiếu chi tiết trực quan (Bảng số liệu & Lệch)
                           </button>
-                        </div>
+                        </div> */}
                       </div>
                     );
                   })()}

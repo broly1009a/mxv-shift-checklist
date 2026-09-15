@@ -79,7 +79,7 @@ function analyzeTTTTFile(filePath: string, label: string) {
     return;
   }
 
-  console.log(`✅ Tìm thấy tiêu đề tại dòng ${headerRow + 1} (index ${headerRow}):`);
+  console.log(` Tìm thấy tiêu đề tại dòng ${headerRow + 1} (index ${headerRow}):`);
   console.log(`   - Cột [Mã TKGD] : Index ${maTKGDIndex}`);
   console.log(`   - Cột [Mã HĐ]   : Index ${maHDIndex}`);
   console.log(`   - Cột [KL Mua]   : Index ${tongMuaIndex}`);

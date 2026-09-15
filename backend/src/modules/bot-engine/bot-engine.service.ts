@@ -261,7 +261,7 @@ export class BotEngineService {
                         // Append to checkResult message for Web UI representation
                         checkResult.message += `.  CẢNH BÁO: Phát hiện ${count} tài khoản âm ký quỹ đầu ngày: ${allNegativeAccounts.map(a => `${a.account}(${a.margin})`).join(', ')}`;
                       } else {
-                        checkResult.message += `. ✅ Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`;
+                        checkResult.message += `.  Không phát hiện tài khoản nào bị âm ký quỹ đầu ngày.`;
                       }
                     }
                   }

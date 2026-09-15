@@ -76,7 +76,7 @@ async function downloadFresh() {
 
   await download.saveAs(targetPath);
   const sizeKb = (fs.statSync(targetPath).size / 1024).toFixed(2);
-  console.log(`✅ ĐÃ LƯU THÀNH CÔNG TTTT.xlsx MỚI NHẤT VÀO: ${targetPath} (${sizeKb} KB)`);
+  console.log(` ĐÃ LƯU THÀNH CÔNG TTTT.xlsx MỚI NHẤT VÀO: ${targetPath} (${sizeKb} KB)`);
 
   await browser.close();
   console.log('--- HOÀN TẤT ---');

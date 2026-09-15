@@ -60,7 +60,7 @@ async function testLocalReconciliation() {
       '05:00',
     );
 
-    console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU KHỚP LỆNH:');
+    console.log('\n KẾT QUẢ ĐỐI CHIẾU KHỚP LỆNH:');
     console.log(
       `• Tổng khớp lệnh thường MS:  ${resultKLGD.totals.totalDSGD} lot`,
     );
@@ -149,7 +149,7 @@ async function testLocalReconciliation() {
 
     const resultEOD = await reconService.checkEOD(eodFiles);
 
-    console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU SỐ DƯ EOD:');
+    console.log('\n KẾT QUẢ ĐỐI CHIẾU SỐ DƯ EOD:');
     console.log(
       `• Số tài khoản lệch số dư EOD (>= 1,000đ): ${resultEOD.mismatchedEOD.length}`,
     );
@@ -191,7 +191,7 @@ async function testLocalReconciliation() {
     const usdRate = 25220; // Tỷ giá mặc định
     const resultCQG = await reconService.checkEODCQG(cqgFiles, usdRate);
 
-    console.log('\n✅ KẾT QUẢ ĐỐI CHIẾU SỐ DƯ CQG:');
+    console.log('\n KẾT QUẢ ĐỐI CHIẾU SỐ DƯ CQG:');
     console.log(
       `• Số tài khoản lệch số dư CQG (> 100 USD): ${resultCQG.length}`,
     );

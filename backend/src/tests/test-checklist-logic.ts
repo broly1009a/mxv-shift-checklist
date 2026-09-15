@@ -95,7 +95,7 @@ async function runTests() {
     } catch (err) {
       if (err instanceof BadRequestException) {
         console.log(
-          '✅ Test 1 PASSED: Successfully blocked checking it_open_04. Error message:',
+          ' Test 1 PASSED: Successfully blocked checking it_open_04. Error message:',
           err.message,
         );
       } else {
@@ -127,7 +127,7 @@ async function runTests() {
       itOpen04Task.status === 'PASSED'
     ) {
       console.log(
-        '✅ Test 2 PASSED: Successfully unlocked and checked dependent task it_open_04.',
+        ' Test 2 PASSED: Successfully unlocked and checked dependent task it_open_04.',
       );
     } else {
       throw new Error(
@@ -151,7 +151,7 @@ async function runTests() {
     } catch (err) {
       if (err instanceof BadRequestException) {
         console.log(
-          '✅ Test 3 PASSED: Successfully blocked resetting parent task. Error message:',
+          ' Test 3 PASSED: Successfully blocked resetting parent task. Error message:',
           err.message,
         );
       } else {
@@ -180,7 +180,7 @@ async function runTests() {
       resetTask.needsAttentionAt === null
     ) {
       console.log(
-        '✅ Test 4 PASSED: Successfully reset task to PENDING and cleared all lifecycle timestamps.',
+        ' Test 4 PASSED: Successfully reset task to PENDING and cleared all lifecycle timestamps.',
       );
     } else {
       console.log('Task detail:', resetTask);
@@ -248,7 +248,7 @@ async function runTests() {
       } catch (err) {
         if (err instanceof BadRequestException) {
           console.log(
-            '✅ Test 5 PASSED: Successfully blocked closing shift. Error message:',
+            ' Test 5 PASSED: Successfully blocked closing shift. Error message:',
             err.message,
           );
         } else {

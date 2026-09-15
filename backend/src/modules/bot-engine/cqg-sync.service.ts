@@ -216,7 +216,7 @@ export class CqgSyncService {
       try {
         logs.push(`Đang ghép file ${name}.xlsx...`);
         await mergeFn();
-        logs.push(`✅ Ghép file ${name}.xlsx thành công.`);
+        logs.push(` Ghép file ${name}.xlsx thành công.`);
       } catch (err: any) {
         const msg = ` Lỗi khi ghép file ${name}.xlsx: ${err.message}`;
         this.logger.error(msg, err.stack);

@@ -276,21 +276,21 @@ Mock APIs can be implemented initially.
 
 The following modules have sufficient requirements and are ready for implementation:
 
-✅ Authentication & Authorization
+ Authentication & Authorization
 
-✅ Department Management
+ Department Management
 
-✅ Working Calendar
+ Working Calendar
 
-✅ Shift Slot Management
+ Shift Slot Management
 
-✅ Checklist Template Management
+ Checklist Template Management
 
-✅ Shift Job Generation
+ Shift Job Generation
 
-✅ Activity Logging
+ Activity Logging
 
-✅ Dashboard
+ Dashboard
 
 ---
 

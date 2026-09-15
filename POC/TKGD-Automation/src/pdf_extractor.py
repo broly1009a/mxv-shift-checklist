@@ -193,8 +193,8 @@ def extract_from_hop_dong(pdf_path: str) -> PDFExtractResult:
     
     print(f"    Tên KH trong HĐ: {result.tenKH_in_pdf}")
     print(f"    Mã TK trong HĐ:  {result.maTKGD_in_pdf}")
-    print(f"    Chữ ký: {'✅' if result.has_signature_area else ' Không phát hiện'}")
-    print(f"    Con dấu: {'✅' if result.has_stamp_area else ' Không phát hiện'}")
+    print(f"    Chữ ký: {'' if result.has_signature_area else ' Không phát hiện'}")
+    print(f"    Con dấu: {'' if result.has_stamp_area else ' Không phát hiện'}")
     
     return result
 
@@ -260,7 +260,7 @@ def extract_from_pl01(pdf_path: str) -> PDFExtractResult:
     
     print(f"    Tên KH trong PL01: {result.tenKH_in_pdf}")
     print(f"    Mã TK ACM:         {result.maTKGD_in_pdf}")
-    print(f"    Chữ ký: {'✅' if result.has_signature_area else ' Không phát hiện'}")
+    print(f"    Chữ ký: {'' if result.has_signature_area else ' Không phát hiện'}")
     
     return result
 

@@ -165,7 +165,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             page,
             path.join(msDailyPath, 'DSGD.xlsx'),
           );
-          log('MS ✅ Tải DSGD.xlsx thành công.');
+          log('MS  Tải DSGD.xlsx thành công.');
         } else {
           log('MS ⏭️ Bỏ qua tải DSGD.xlsx theo tùy chọn.');
         }
@@ -176,7 +176,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             page,
             path.join(msDailyPath, 'TTM.xlsx'),
           );
-          log('MS ✅ Tải TTM.xlsx thành công.');
+          log('MS  Tải TTM.xlsx thành công.');
         } else {
           log('MS ⏭️ Bỏ qua tải TTM.xlsx theo tùy chọn.');
         }
@@ -187,7 +187,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             page,
             path.join(msDailyPath, 'TTTT.xlsx'),
           );
-          log('MS ✅ Tải TTTT.xlsx thành công.');
+          log('MS  Tải TTTT.xlsx thành công.');
         } else {
           log('MS ⏭️ Bỏ qua tải TTTT.xlsx theo tùy chọn.');
         }
@@ -239,7 +239,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         cqgDailyPath,
       );
       if (result.downloaded.length > 0) {
-        log(`CQG ✅ Đã tải: ${result.downloaded.join(', ')}.`);
+        log(`CQG  Đã tải: ${result.downloaded.join(', ')}.`);
       }
       if (result.errors.length > 0) {
         errors.push(...result.errors.map((e) => `CQG: ${e}`));
@@ -255,7 +255,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('')).join(' | ')}`,
         );
       } else {
-        log('CQG ✅ Ghép file CQG hoàn tất.');
+        log('CQG  Ghép file CQG hoàn tất.');
       }
     };
 
@@ -275,7 +275,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         );
         browser = acmSession.browser;
         await this.rpaDownloaderService.downloadAcmBackup(acmSession.page, acmDailyPath, jobLogFn);
-        log('ACM ✅ Tải báo cáo Fill/Order thành công.');
+        log('ACM  Tải báo cáo Fill/Order thành công.');
       } catch (err: any) {
         errors.push(`ACM: ${err.message}`);
         log(`ACM  Lỗi tải file ACM: ${err.message}. Tiếp tục quy trình với file Straits.csv sẵn có.`);
@@ -305,7 +305,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     if (errors.length > 0) {
       log(` Có ${errors.length} lỗi khi tải file, tiếp tục đối chiếu với dữ liệu có sẵn...`);
     } else {
-      log('✅ Tải dữ liệu tươi hoàn tất từ các nguồn đã chọn.');
+      log(' Tải dữ liệu tươi hoàn tất từ các nguồn đã chọn.');
     }
 
     try {

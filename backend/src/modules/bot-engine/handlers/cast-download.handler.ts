@@ -16,7 +16,7 @@ export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly settingsService: SystemSettingsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.registry.register(this);
@@ -89,7 +89,7 @@ export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         fs.copyFileSync(destFile, targetBackupFile);
 
         job.logs.push(
-          `[${new Date().toISOString()}] ✅ Đã copy và đổi tên thành công: ${targetBackupFile}`,
+          `[${new Date().toISOString()}]  Đã copy và đổi tên thành công: ${targetBackupFile}`,
         );
         await job.save();
       }

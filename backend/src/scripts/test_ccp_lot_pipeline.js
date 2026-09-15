@@ -66,7 +66,7 @@ async function runTest() {
   const ttttBuf = hasTttt ? fs.readFileSync(ttttPath) : undefined;
   const tyGiaBuf = hasTyGia ? fs.readFileSync(tyGiaPath) : undefined;
 
-  log('\n⏳ Đang nạp service và thực thi thuật toán bóc tách...');
+  log('\n Đang nạp service và thực thi thuật toán bóc tách...');
   const mockSettingsService = { getSetting: async () => null };
   const service = new CcpLotStatisticsService(mockSettingsService);
 
@@ -83,7 +83,7 @@ async function runTest() {
     },
   );
   const elapsed = Date.now() - startTime;
-  log(`✅ Quá trình tính toán hoàn tất trong: ${elapsed} ms`);
+  log(` Quá trình tính toán hoàn tất trong: ${elapsed} ms`);
 
   // ── PHẦN 1: KPI TỔNG HỢP ──
   log('\n' + '='.repeat(100));

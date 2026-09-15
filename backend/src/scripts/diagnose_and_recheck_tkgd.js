@@ -64,7 +64,7 @@ conn.on('ready', async () => {
         try {
           const parsed = JSON.parse(res.stdout);
           if (parsed.success) {
-            console.log(`✅ Thành công`);
+            console.log(` Thành công`);
           } else {
             console.log(` Phản hồi: ${parsed.message || res.stdout.slice(0, 80)}`);
           }
@@ -72,7 +72,7 @@ conn.on('ready', async () => {
           console.log(` Xong (${res.stdout.slice(0, 60)}...)`);
         }
       }
-      console.log('\n✅ Đã gửi toàn bộ yêu cầu Reparse sang hệ thống!');
+      console.log('\n Đã gửi toàn bộ yêu cầu Reparse sang hệ thống!');
     }
 
     // 3. Nếu có cờ --run-recon: Kích hoạt đối soát chéo lại toàn bộ batch
@@ -84,7 +84,7 @@ conn.on('ready', async () => {
       const res = await runRemoteCommand(reconCmd);
       try {
         const parsed = JSON.parse(res.stdout);
-        console.log('✅ Kết quả đối soát:', parsed);
+        console.log(' Kết quả đối soát:', parsed);
       } catch (e) {
         console.log('Kết quả:', res.stdout);
       }
@@ -158,7 +158,7 @@ function analyzeRecords(rawOut) {
   console.log(`   - Tổng số hồ sơ: ${records.length}`);
   const khopList = records.filter(r => r.ketLuan?.trangThai === 'KHOP');
   const lechList = records.filter(r => r.ketLuan?.trangThai === 'LECH' || !r.ketLuan?.trangThai);
-  console.log(`   - Trạng thái hiện tại: ✅ KHỚP: ${khopList.length} |  LỆCH / CHƯA XỬ LÝ: ${lechList.length}`);
+  console.log(`   - Trạng thái hiện tại:  KHỚP: ${khopList.length} |  LỆCH / CHƯA XỬ LÝ: ${lechList.length}`);
 
   console.log('\n' + '='.repeat(90));
   console.log('🔍 PHÂN LOẠI CHI TIẾT CÁC NGUYÊN NHÂN GÂY LỆCH HIỆN TẠI:');
@@ -347,7 +347,7 @@ function analyzeRecords(rawOut) {
   const stillLech = reevaluatedList.filter(r => r.newStatus === 'LECH');
 
   console.log(`   - Tổng số tài khoản bị LỆCH hiện tại: ${records.filter(r => r.ketLuan?.trangThai === 'LECH' || !r.ketLuan?.trangThai).length}`);
-  console.log(`   - Số tài khoản SẼ CHUYỂN THÀNH ✅ KHỚP NGAY: ${becomeKhop.length} (${Math.round((becomeKhop.length / (records.filter(r => r.ketLuan?.trangThai === 'LECH' || !r.ketLuan?.trangThai).length || 1)) * 100)}%)`);
+  console.log(`   - Số tài khoản SẼ CHUYỂN THÀNH  KHỚP NGAY: ${becomeKhop.length} (${Math.round((becomeKhop.length / (records.filter(r => r.ketLuan?.trangThai === 'LECH' || !r.ketLuan?.trangThai).length || 1)) * 100)}%)`);
   console.log(`   - Số tài khoản CẦN REPARSE VỚI QR/GEMINI MỚI: ${missingCodes.length}`);
   console.log(`   - Số tài khoản LỆCH THỰC SỰ: ${stillLech.filter(r => !missingCodes.includes(r.code)).length}`);
 

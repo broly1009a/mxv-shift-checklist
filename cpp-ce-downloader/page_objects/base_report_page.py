@@ -14,7 +14,7 @@ class BaseReportPage(BasePage):
         đồng thời duy trì initial sleep vừa đủ (800ms) để tránh nhận diện nhầm dữ liệu cũ.
         """
         import time
-        self.log("  ⏳ Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
+        self.log("   Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...")
         start_time = time.time()
         max_sec = max_timeout_ms / 1000.0
 
@@ -49,7 +49,7 @@ class BaseReportPage(BasePage):
                     return True
             else:
                 stable_count = 0
-                self.log(f"  ⏳ Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
+                self.log(f"   Phát hiện {len(visible_spinners)} loading spinner đang hoạt động... Đang chờ...")
 
             self.page.wait_for_timeout(300) # Kiểm tra liên tục mỗi 300ms thay vì 1000ms để tối ưu tốc độ phản hồi
 
@@ -217,7 +217,7 @@ class BaseReportPage(BasePage):
         search_btn = self.page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first
         if search_btn.is_visible(timeout=2000):
             search_btn.click(force=True)
-            self.log("  ⏳ Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
+            self.log("   Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...")
             self.wait_for_table_loading_complete(60000)
             self.dismiss_modal_backdrop()
 

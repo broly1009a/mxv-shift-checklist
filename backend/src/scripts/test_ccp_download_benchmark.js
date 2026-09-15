@@ -200,7 +200,7 @@ async function ensureSidebarExpanded(page) {
 
 // 3. wait_for_table_loading_complete (Python base_report_page.py:L10-58)
 async function waitForTableLoadingComplete(page, maxTimeoutMs = 60000) {
-  console.log('  ⏳ Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...');
+  console.log('   Đang kiểm tra & chờ bảng hoàn tất nạp dữ liệu từ Server...');
   const startTime = Date.now();
   const maxSec = maxTimeoutMs / 1000.0;
 
@@ -234,7 +234,7 @@ async function waitForTableLoadingComplete(page, maxTimeoutMs = 60000) {
       }
     } else {
       stableCount = 0;
-      console.log(`  ⏳ Phát hiện ${visibleSpinners.length} loading spinner đang hoạt động... Đang chờ...`);
+      console.log(`   Phát hiện ${visibleSpinners.length} loading spinner đang hoạt động... Đang chờ...`);
     }
 
     await page.waitForTimeout(300);
@@ -435,7 +435,7 @@ async function setDateRangeAndSearch(page, startDate, endDate, reportCode) {
   const searchBtn = page.locator("xpath=//button[contains(., 'Tìm kiếm')]").first();
   if (await searchBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await searchBtn.click({ force: true });
-    console.log('  ⏳ Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...');
+    console.log('   Đã bấm Tìm kiếm. Đang chờ API & bảng nạp xong dữ liệu...');
     await waitForTableLoadingComplete(page, 60000);
     await dismissModalBackdrop(page);
   }
@@ -578,7 +578,7 @@ async function downloadSingleReport(page, report, startDateStr, endDateStr, outp
     await downloadResult.saveAs(destFilePath);
     if (fs.existsSync(destFilePath) && fs.statSync(destFilePath).size > 0) {
       const sz = (fs.statSync(destFilePath).size / 1024).toFixed(1);
-      console.log(`  ✅ ĐÃ TẢI XONG: ${targetFileName} (${sz} KB) trong ${durationSec}s`);
+      console.log(`   ĐÃ TẢI XONG: ${targetFileName} (${sz} KB) trong ${durationSec}s`);
       return {
         code: report.code,
         name: report.name,

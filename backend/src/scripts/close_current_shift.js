@@ -43,7 +43,7 @@ async function closeCurrentShift() {
       }
     );
 
-    console.log(`✅ DA DONG THANH CONG ${updateResult.modifiedCount} ca truc (status -> COMPLETED) luc ${now.toLocaleString('vi-VN')}!`);
+    console.log(` DA DONG THANH CONG ${updateResult.modifiedCount} ca truc (status -> COMPLETED) luc ${now.toLocaleString('vi-VN')}!`);
   } catch (err) {
     console.error(' Loi khi dong ca truc:', err.message);
   } finally {

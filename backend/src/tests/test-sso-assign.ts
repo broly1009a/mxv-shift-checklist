@@ -31,7 +31,7 @@ async function run() {
       'Giám đốc Khối QLGD',
     );
 
-    console.log('\n✅ SSO Auto-Onboard Succeeded!');
+    console.log('\n SSO Auto-Onboard Succeeded!');
     console.log('----------------------------------------------------');
     console.log(`Username:       ${user.username}`);
     console.log(`Full Name:      ${user.fullName}`);

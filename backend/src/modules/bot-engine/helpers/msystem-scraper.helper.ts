@@ -354,7 +354,7 @@ export async function scrapeInvestorDetailFromMSystem(
       result.cccdMatSauLocalPath = backImg.localPath;
       result.chuKyLocalPath = signImg.localPath;
 
-      console.log(`  ✅ Đã cào thành công từ M-System:`);
+      console.log(`   Đã cào thành công từ M-System:`);
       console.log(`     - Tên TKGD:  ${result.tenTKGD}`);
       console.log(`     - Họ và tên: ${result.hoVaTen}`);
       console.log(`     - Số CMT:    ${result.soCMND_HoChieu}`);

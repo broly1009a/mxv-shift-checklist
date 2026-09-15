@@ -12,11 +12,11 @@
 
 | Module | Tên Module | Trạng Thái | Script Kiểm Thử Độc Lập | Kết Quả Xác Nhận |
 | :---: | :--- | :---: | :--- | :--- |
-| **M1** | **Đọc Mail & Lưu MongoDB (Raw + Clean NoiDungMail)** | 🟩 **HOÀN THÀNH** | `npx ts-node src/scripts/test_tkgd_module1_mail_mongo.ts` | ✅ **PASS 100% (Atlas DB)** |
-| **M2** | **RPA M-System Cào Chi Tiết TKGD & Lưu Khối `MS`** | 🟩 **SẴN SÀNG TEST** | `npx ts-node src/scripts/test_tkgd_module2_ms_scrape.ts --headed --code 001C0008386-A` | ⏳ User tự test trên terminal |
-| **M3** | **Đối Soát Chéo & Xuất File Chuẩn `Auto Data mail.xlsm`** | 🟩 **SẴN SÀNG TEST** | `npx ts-node src/scripts/test_tkgd_module3_export_excel.ts` | ⏳ User tự test trên terminal |
-| **ALL**| **Pipeline Tự Động Hóa Tổng Thể (End-to-End)** | 🟩 **SẴN SÀNG TEST** | `npx ts-node src/scripts/run_tkgd_pipeline.ts --headed` | ⏳ User tự test trên terminal |
-| **M4** | **OCR CCCD & PDF Hợp Đồng (Giai đoạn 2)** | ⚪ *Dự phòng* | `python src/cccd_ocr.py` | ✅ Đã test model Gemini Vision |
+| **M1** | **Đọc Mail & Lưu MongoDB (Raw + Clean NoiDungMail)** | 🟩 **HOÀN THÀNH** | `npx ts-node src/scripts/test_tkgd_module1_mail_mongo.ts` |  **PASS 100% (Atlas DB)** |
+| **M2** | **RPA M-System Cào Chi Tiết TKGD & Lưu Khối `MS`** | 🟩 **SẴN SÀNG TEST** | `npx ts-node src/scripts/test_tkgd_module2_ms_scrape.ts --headed --code 001C0008386-A` |  User tự test trên terminal |
+| **M3** | **Đối Soát Chéo & Xuất File Chuẩn `Auto Data mail.xlsm`** | 🟩 **SẴN SÀNG TEST** | `npx ts-node src/scripts/test_tkgd_module3_export_excel.ts` |  User tự test trên terminal |
+| **ALL**| **Pipeline Tự Động Hóa Tổng Thể (End-to-End)** | 🟩 **SẴN SÀNG TEST** | `npx ts-node src/scripts/run_tkgd_pipeline.ts --headed` |  User tự test trên terminal |
+| **M4** | **OCR CCCD & PDF Hợp Đồng (Giai đoạn 2)** | ⚪ *Dự phòng* | `python src/cccd_ocr.py` |  Đã test model Gemini Vision |
 
 
 

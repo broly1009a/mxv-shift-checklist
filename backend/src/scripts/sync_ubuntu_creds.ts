@@ -7,7 +7,7 @@ import { decrypt } from '../modules/bot-engine/utils/crypto';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 async function syncCreds() {
-  console.log('⏳ Đang kết nối Ubuntu Server 10.0.0.26 để trích xuất bot_credentials_cqg...');
+  console.log(' Đang kết nối Ubuntu Server 10.0.0.26 để trích xuất bot_credentials_cqg...');
   const conn = new Client();
 
   conn.on('ready', () => {
@@ -25,7 +25,7 @@ async function syncCreds() {
           const doc = JSON.parse(out.trim());
           if (doc && doc.value) {
             const creds = JSON.parse(decrypt(doc.value));
-            console.log('✅ Đã trích xuất thành công tài khoản CQG từ Ubuntu:');
+            console.log(' Đã trích xuất thành công tài khoản CQG từ Ubuntu:');
             console.log(`   - CQG1: ${creds.username1 || creds.usernameCQG1}`);
             console.log(`   - CQG2: ${creds.username2 || creds.usernameCQG2}`);
             console.log(`   - URL: ${creds.url || creds.urlTrade}`);
@@ -38,7 +38,7 @@ async function syncCreds() {
                 { $set: { value: doc.value, updatedAt: new Date() } },
                 { upsert: true }
               );
-              console.log('✅ Đã đồng bộ tài khoản CQG từ Ubuntu vào Database Atlas thành công!');
+              console.log(' Đã đồng bộ tài khoản CQG từ Ubuntu vào Database Atlas thành công!');
               await mongoose.disconnect();
             }
           } else {

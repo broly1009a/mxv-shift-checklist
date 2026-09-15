@@ -59,7 +59,7 @@ export function ensureMonthSheetExists(
     const durationMs = Date.now() - startTime;
 
     if (result.status === 0) {
-      const successMsg = `[Auto-Clone] ✅ Tự động sinh Sheet '${targetSheetName}' trong ${fileName} thành công (${durationMs}ms).`;
+      const successMsg = `[Auto-Clone]  Tự động sinh Sheet '${targetSheetName}' trong ${fileName} thành công (${durationMs}ms).`;
       logger.log(successMsg);
       jobLogs?.push(successMsg);
       return true;

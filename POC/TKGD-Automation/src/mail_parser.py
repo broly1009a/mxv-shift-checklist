@@ -184,6 +184,6 @@ def process_mail(raw_mail) -> ParsedMailData:
     if not parsed.isComplete:
         print(f"    THIẾU HỒ SƠ: {', '.join(parsed.missingDocs)}")
     else:
-        print(f"  ✅ Hồ sơ đầy đủ")
+        print(f"   Hồ sơ đầy đủ")
     
     return parsed

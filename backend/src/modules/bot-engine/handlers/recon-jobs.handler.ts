@@ -231,7 +231,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg) {
         if (!barrierAnnounced) {
           barrierAnnounced = true;
-          log('🏁 Tất cả 4 nguồn (MS, CQG, ACM, CoreCCP) đều đã vào vị trí! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
+          log(' Tất cả 4 nguồn (MS, CQG, ACM, CoreCCP) đều đã vào vị trí! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
         }
         triggerBarrierResolve();
       }
@@ -268,7 +268,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         page = msSession.page;
 
         if (options.checkKlgd !== false) {
-          log('MS ⏳ Điều hướng đến màn hình DSGD...');
+          log('MS  Điều hướng đến màn hình DSGD...');
           await page.click("xpath=//a[text()='QL giao dịch']");
           await page.waitForTimeout(1000);
           await page.click("xpath=//a[text()='Danh sách giao dịch']");
@@ -294,7 +294,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             path.join(msDailyPath, 'DSGD.xlsx'),
             'DSGD',
           );
-          log('MS ✅ Tải DSGD.xlsx thành công.');
+          log('MS  Tải DSGD.xlsx thành công.');
         }
 
         if (options.checkTtm !== false) {
@@ -303,7 +303,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             page,
             path.join(msDailyPath, 'TTM.xlsx'),
           );
-          log('MS ✅ Tải TTM.xlsx thành công.');
+          log('MS  Tải TTM.xlsx thành công.');
         }
 
         if (options.checkTttt !== false) {
@@ -312,7 +312,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             page,
             path.join(msDailyPath, 'TTTT.xlsx'),
           );
-          log('MS ✅ Tải TTTT.xlsx thành công.');
+          log('MS  Tải TTTT.xlsx thành công.');
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);
@@ -324,7 +324,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           checkAllReadyAndTrigger();
         }
         if (browser) await browser.close().catch(() => { });
-        log('MS 🔒 Đã đóng trình duyệt M-System.');
+        log('MS  Đã đóng trình duyệt M-System.');
       }
     };
 
@@ -373,7 +373,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         const fillUrl = creds.fillUrl || `${baseUrl}#/business-tetptrade`;
         const orderUrl = creds.orderUrl || `${baseUrl}#/business-tetporder`;
 
-        log(`ACM ⏳ Điều hướng đến màn hình Fill: ${fillUrl}...`);
+        log(`ACM  Điều hướng đến màn hình Fill: ${fillUrl}...`);
         await page.goto(fillUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(async () => {
           await page.goto(fillUrl).catch(() => { });
         });
@@ -405,14 +405,14 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           try {
             fs.copyFileSync(straitsFile, fillFile);
           } catch { }
-          log('ACM ✅ Tải Straits.csv (Fill) thành công.');
+          log('ACM  Tải Straits.csv (Fill) thành công.');
         } else {
           // Fallback tải chuẩn
           await this.rpaDownloaderService.downloadAcmReport(page, fillFile, fillUrl, jobLogFn);
           try {
             if (fs.existsSync(fillFile)) fs.copyFileSync(fillFile, straitsFile);
           } catch { }
-          log('ACM ✅ Tải báo cáo Fill qua fallback thành công.');
+          log('ACM  Tải báo cáo Fill qua fallback thành công.');
         }
 
         // Tải bổ sung Order nếu cần
@@ -423,7 +423,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             orderUrl,
             jobLogFn,
           );
-          log('ACM ✅ Tải Order.xlsx thành công.');
+          log('ACM  Tải Order.xlsx thành công.');
         } catch (orderErr: any) {
           log(`ACM  Không thể tải Order.xlsx: ${orderErr.message}`);
         }
@@ -437,7 +437,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           checkAllReadyAndTrigger();
         }
         if (browser) await browser.close().catch(() => { });
-        log('ACM 🔒 Đã đóng trình duyệt ACM.');
+        log('ACM  Đã đóng trình duyệt ACM.');
       }
     };
 
@@ -492,11 +492,11 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
         log('CCP ⚡ [Pha 2] Kích hoạt xuất báo cáo DSGD CoreCCP...');
         const dsgdFile = await ccpSession.triggerExportDsgd();
-        log(`CCP ✅ Tải DSGD hoàn tất: ${dsgdFile || 'Không có dữ liệu'}`);
+        log(`CCP  Tải DSGD hoàn tất: ${dsgdFile || 'Không có dữ liệu'}`);
 
         // Tải các báo cáo bổ sung (TTM, TTTT) và bóc tách
         await ccpSession.downloadRemainingAndExtract(dsgdFile || undefined);
-        log('CCP ✅ Tải toàn bộ báo cáo CoreCCP hoàn tất.');
+        log('CCP  Tải toàn bộ báo cáo CoreCCP hoàn tất.');
       } catch (err: any) {
         errors.push(`CCP: ${err.message}`);
         log(`CCP ❌ Lỗi: ${err.message}`);
@@ -507,7 +507,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           checkAllReadyAndTrigger();
         }
         if (ccpSession) await ccpSession.close().catch(() => { });
-        log('CCP 🔒 Đã đóng trình duyệt CoreCCP.');
+        log('CCP  Đã đóng trình duyệt CoreCCP.');
       }
     };
 
@@ -565,7 +565,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         );
 
         if (result.downloaded.length > 0) {
-          log(`CQG ✅ Đã tải: ${result.downloaded.join(', ')}.`);
+          log(`CQG  Đã tải: ${result.downloaded.join(', ')}.`);
         }
         if (result.errors.length > 0) {
           errors.push(...result.errors.map((e) => `CQG: ${e}`));
@@ -591,7 +591,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('')).join(' | ')}`,
           );
         } else {
-          log('CQG ✅ Ghép file CQG hoàn tất.');
+          log('CQG  Ghép file CQG hoàn tất.');
         }
       } catch (err: any) {
         errors.push(`CQG: ${err.message}`);
@@ -602,7 +602,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           readyState.cqg = true;
           checkAllReadyAndTrigger();
         }
-        log('CQG 🔒 Đã hoàn tất và đóng trình duyệt CQG.');
+        log('CQG  Đã hoàn tất và đóng trình duyệt CQG.');
       }
     };
 
@@ -674,7 +674,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     if (errors.length > 0) {
       log(`⚠️ Có ${errors.length} lỗi/cảnh báo bổ trợ (non-blocking), tiếp tục đối chiếu với dữ liệu sẵn có...`);
     } else {
-      log('✅ Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
+      log(' Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
     }
 
     try {
@@ -769,7 +769,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       if (error) {
         lines.push(` TRẠNG THÁI: LỖI THỰC THI - ${error}`);
       } else if (result) {
-        const status = result.passed ? '✅ KHỚP HOÀN TOÀN' : ' CÓ CHÊNH LỆCH';
+        const status = result.passed ? ' KHỚP HOÀN TOÀN' : ' CÓ CHÊNH LỆCH';
         lines.push(` KẾT QUẢ TỔNG QUÁT: ${status}`);
         lines.push('');
         lines.push('--- BẢNG TỔNG HỢP SỐ LIỆU ---');

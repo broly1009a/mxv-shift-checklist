@@ -546,8 +546,8 @@ GTGD = 1 × 6.485 × 100 × 25920 = 16,806,720 VND
 
 | File | Trạng thái | Mô tả |
 |---|---|---|
-| `ccp-classifier.helper.ts` | ✅ Hoàn thành | Parser DSGD/TTM/TTTT, classifier ACM/Spread/LME, `getMaHHFromCcpMaHD` (5 ký tự đầu), `CCP_HH_DEFAULTS` |
-| `ccp-lot-statistics.service.ts` | ✅ Hoàn thành | Service chính: tính lot/GTGD/TTM/TTTT per TVKD, kiểm tra 4 loại lệnh, parse tỷ giá |
-| `ccp-statistics.module.ts` | ✅ Đã đăng ký | `CcpLotStatisticsService` đã vào providers + exports |
-| `ccp-statistics.controller.ts` | ✅ Hoàn thành | 3 endpoints mới: `GET/POST lot-statistics/config` + `POST lot-statistics` |
-| TypeScript check | ✅ Pass | Không có lỗi TS trong các file mới |
+| `ccp-classifier.helper.ts` |  Hoàn thành | Parser DSGD/TTM/TTTT, classifier ACM/Spread/LME, `getMaHHFromCcpMaHD` (5 ký tự đầu), `CCP_HH_DEFAULTS` |
+| `ccp-lot-statistics.service.ts` |  Hoàn thành | Service chính: tính lot/GTGD/TTM/TTTT per TVKD, kiểm tra 4 loại lệnh, parse tỷ giá |
+| `ccp-statistics.module.ts` |  Đã đăng ký | `CcpLotStatisticsService` đã vào providers + exports |
+| `ccp-statistics.controller.ts` |  Hoàn thành | 3 endpoints mới: `GET/POST lot-statistics/config` + `POST lot-statistics` |
+| TypeScript check |  Pass | Không có lỗi TS trong các file mới |

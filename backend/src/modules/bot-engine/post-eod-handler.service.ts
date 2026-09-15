@@ -118,7 +118,7 @@ export class PostEodHandlerService {
         accountColIdx = actIdx;
         marginColIdx = mgnIdx;
         this.logger.log(
-          `[NegativeMargin][Excel] ✅ Tìm thấy header tại dòng ${r + 1}:\n` +
+          `[NegativeMargin][Excel]  Tìm thấy header tại dòng ${r + 1}:\n` +
           `  - Cột tài khoản: cột số ${actIdx} ("${row[actIdx]}")\n` +
           `  - Cột ký quỹ  : cột số ${mgnIdx} ("${row[mgnIdx]}")`,
         );
@@ -239,7 +239,7 @@ export class PostEodHandlerService {
           mgnIdx = tempMgnIdx;
           headersFound = true;
           this.logger.log(
-            `[NegativeMargin][CSV] ✅ Tìm thấy header tại dòng ${lineNum}:\n` +
+            `[NegativeMargin][CSV]  Tìm thấy header tại dòng ${lineNum}:\n` +
             `  - Cột tài khoản: cột số ${actIdx} ("${cols[actIdx]}")\n` +
             `  - Cột ký quỹ  : cột số ${mgnIdx} ("${cols[mgnIdx]}")`,
           );

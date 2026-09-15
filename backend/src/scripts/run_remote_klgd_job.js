@@ -48,7 +48,7 @@ async function run() {
     ],
   });
   await job.save();
-  console.log(\`✅ Đã tạo Job ID: \${job._id}\`);
+  console.log(\` Đã tạo Job ID: \${job._id}\`);
   console.log('[3/4] Bắt đầu thực thi trực tiếp qua BotJobQueueService & ReconJobsHandler...');
   console.log('--------------------------------------------------------------------------------');
 
@@ -62,7 +62,7 @@ async function run() {
     await job.save();
 
     console.log('--------------------------------------------------------------------------------');
-    console.log('🏁 [THÀNH CÔNG] JOB CHECK_KLGD ĐÃ HOÀN TẤT THÀNH CÔNG VỚI TRẠNG THÁI COMPLETED!');
+    console.log(' [THÀNH CÔNG] JOB CHECK_KLGD ĐÃ HOÀN TẤT THÀNH CÔNG VỚI TRẠNG THÁI COMPLETED!');
     console.log(\`⏱️ Thời gian thực thi: \${((Date.now() - startTime) / 1000).toFixed(1)} giây\`);
     
     // In payload kết quả
@@ -110,7 +110,7 @@ const conn = new Client();
 console.log('Đang kết nối SSH tới Ubuntu Server 10.0.0.26...');
 
 conn.on('ready', () => {
-  console.log('✅ Đã kết nối SSH. Đang tải script test lên máy chủ qua SFTP...');
+  console.log(' Đã kết nối SSH. Đang tải script test lên máy chủ qua SFTP...');
   conn.sftp((err, sftp) => {
     if (err) {
       console.error('Lỗi SFTP:', err);
@@ -122,7 +122,7 @@ conn.on('ready', () => {
     const writeStream = sftp.createWriteStream(remoteScriptPath);
 
     writeStream.on('close', () => {
-      console.log('✅ Đã upload script lên server. Bắt đầu chạy Job CHECK_KLGD trực tiếp...');
+      console.log(' Đã upload script lên server. Bắt đầu chạy Job CHECK_KLGD trực tiếp...');
       console.log('--------------------------------------------------------------------------------');
 
       const cmd = `cd /opt/mxv-checklist/backend && node exec_klgd_on_server.js`;

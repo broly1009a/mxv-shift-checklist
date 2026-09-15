@@ -150,7 +150,7 @@ const SUBTASK_DEFINITIONS = {
 async function main() {
   const client = new MongoClient(URI);
   await client.connect();
-  console.log('✅ Connected to MongoDB\n');
+  console.log(' Connected to MongoDB\n');
 
   const db = client.db('mxv_shift_checklist');
   const col = db.collection('checklist_templates');
@@ -215,7 +215,7 @@ async function main() {
     );
 
     const added = newTasks.length - parentTasksOnly.length;
-    console.log(`✅ Updated "${tmpl.title}": ${parentTasksOnly.length} → ${newTasks.length} tasks (+${added} sub-tasks)`);
+    console.log(` Updated "${tmpl.title}": ${parentTasksOnly.length} → ${newTasks.length} tasks (+${added} sub-tasks)`);
   }
 
   await client.close();

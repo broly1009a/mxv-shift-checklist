@@ -204,7 +204,7 @@ async function runSidebarClickTest() {
         timeout: 15000,
       },
     );
-    appendLog('✅ Đăng nhập M-System thành công!\n');
+    appendLog(' Đăng nhập M-System thành công!\n');
 
     // 2. Bắt đầu test click từng item trong sidebar
     appendLog('[STEP 2] Bắt đầu kiểm thử click lần lượt các mục Sidebar:\n');
@@ -310,7 +310,7 @@ async function runSidebarClickTest() {
       }
 
       const duration = `${Date.now() - startTime}ms`;
-      const statusStr = isSuccess ? '✅ SUCCESS' : ' FAILED';
+      const statusStr = isSuccess ? ' SUCCESS' : ' FAILED';
       const hashStr = currentUrl.includes('#')
         ? '#' + currentUrl.split('#')[1]
         : 'N/A';

@@ -195,11 +195,11 @@ async function runVisualTest() {
     if (!/^trang-thai-mo/i.test(ttmSuggested)) {
       console.error(` CẢNH BÁO: Tên file gốc không khớp tiền tố 'trang-thai-mo': ${ttmSuggested}`);
     } else {
-      console.log(`✅ Khớp tiền tố chuẩn C#: ^trang-thai-mo`);
+      console.log(` Khớp tiền tố chuẩn C#: ^trang-thai-mo`);
     }
 
     await ttmDownload.saveAs(ttmSavePath);
-    console.log(`✅ Đã lưu file TTM về: ${ttmSavePath} (${(fs.statSync(ttmSavePath).size / 1024).toFixed(2)} KB)`);
+    console.log(` Đã lưu file TTM về: ${ttmSavePath} (${(fs.statSync(ttmSavePath).size / 1024).toFixed(2)} KB)`);
     results.ttm = { success: true, suggestedName: ttmSuggested, path: ttmSavePath };
 
     // -------------------------------------------------------------
@@ -223,11 +223,11 @@ async function runVisualTest() {
     if (!/^trang-thai-tat-toan/i.test(ttttSuggested)) {
       console.error(` CẢNH BÁO: Tên file gốc không khớp tiền tố 'trang-thai-tat-toan': ${ttttSuggested}`);
     } else {
-      console.log(`✅ Khớp tiền tố chuẩn C#: ^trang-thai-tat-toan`);
+      console.log(` Khớp tiền tố chuẩn C#: ^trang-thai-tat-toan`);
     }
 
     await ttttDownload.saveAs(ttttSavePath);
-    console.log(`✅ Đã lưu file TTTT về: ${ttttSavePath} (${(fs.statSync(ttttSavePath).size / 1024).toFixed(2)} KB)`);
+    console.log(` Đã lưu file TTTT về: ${ttttSavePath} (${(fs.statSync(ttttSavePath).size / 1024).toFixed(2)} KB)`);
     results.tttt = { success: true, suggestedName: ttttSuggested, path: ttttSavePath };
 
     // -------------------------------------------------------------

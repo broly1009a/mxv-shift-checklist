@@ -12,7 +12,7 @@ const URI = process.env.MONGODB_URI || 'mongodb+srv://broly1009a_db_user:C1m2alt
 async function main() {
   const client = new MongoClient(URI);
   await client.connect();
-  console.log('✅ Connected to MongoDB');
+  console.log(' Connected to MongoDB');
 
   const db = client.db('mxv_shift_checklist');
 

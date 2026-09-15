@@ -56,7 +56,7 @@ conn.on('ready', async () => {
       if (jsonStart >= 0) {
         const parsed = JSON.parse(rawOut.substring(jsonStart).trim());
         const cc = parsed.canCuoc || {};
-        console.log(`   ✅ Bóc tách thành công:`);
+        console.log(`    Bóc tách thành công:`);
         console.log(`      • Số CCCD:        ${cc.soCCCD || 'Chưa đọc'}`);
         console.log(`      • Họ và tên:      ${cc.hoTen || 'Chưa đọc'}`);
         console.log(`      • Ngày sinh:      ${cc.ngaySinh || 'Chưa đọc'}`);

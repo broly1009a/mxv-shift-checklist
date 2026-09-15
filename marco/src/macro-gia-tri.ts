@@ -279,7 +279,7 @@ async function main() {
       console.log('ℹ️  Dry-run mode: không ghi file');
     }
 
-    console.log('✅ Hoàn thành!');
+    console.log(' Hoàn thành!');
   } catch (err) {
     console.error(' Lỗi:', err);
     process.exit(1);

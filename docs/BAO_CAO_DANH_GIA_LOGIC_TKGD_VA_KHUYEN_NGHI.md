@@ -32,7 +32,7 @@ graph TD
     B -- Thiếu trên MS / Sai số CCCD / Sai Tên / Lệch Mã cơ sở --> C[KẾT LUẬN: LỆCH - Báo Đỏ ]
     B -- Khớp 100% Trường Cốt Lõi --> D{TẦNG 2: CHUẨN HÓA ĐỊNH DẠNG}
     D -- Chuẩn hóa Ngày ISO & VN / Giới tính EN & VI / Tên bỏ chữ ký --> E{TẦNG 3: TRƯỜNG BỔ TRỢ}
-    E -- Khuyết 1 bên HĐ/CCCD: Bỏ qua --> F[KẾT LUẬN: KHỚP 100% - Báo Xanh ✅]
+    E -- Khuyết 1 bên HĐ/CCCD: Bỏ qua --> F[KẾT LUẬN: KHỚP 100% - Báo Xanh ]
     E -- Có cả 2 bên & Khác biệt thực tế --> G[Cảnh báo Chi tiết Chờ Audit ]
 ```
 

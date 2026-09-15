@@ -33,7 +33,7 @@ async function testScanDecision() {
 
     const result = await service.scanDecisionDocument(mockUser);
 
-    console.log('✅ KẾT QUẢ QUÉT THÀNH CÔNG:');
+    console.log(' KẾT QUẢ QUÉT THÀNH CÔNG:');
     console.log(JSON.stringify(result, null, 2));
   } catch (error: any) {
     console.error(' LỖI XẢY RA KHI TEST:');

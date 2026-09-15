@@ -15,7 +15,7 @@ if (!mongodbUri) {
 console.log('🔄 Đang kết nối tới database...');
 mongoose.connect(mongodbUri)
   .then(async () => {
-    console.log('✅ Kết nối database thành công.');
+    console.log(' Kết nối database thành công.');
 
     const db = mongoose.connection.db;
     const collection = db.collection('shift_logs');
@@ -26,7 +26,7 @@ mongoose.connect(mongodbUri)
       { $set: { status: 'COMPLETED', closedAt: new Date() } }
     );
 
-    console.log(`✅ Thành công! Đã đóng ${result.modifiedCount} ca trực đang hoạt động.`);
+    console.log(` Thành công! Đã đóng ${result.modifiedCount} ca trực đang hoạt động.`);
     await mongoose.disconnect();
     process.exit(0);
   })

@@ -664,7 +664,7 @@ export class ValueStatisticsService {
       assertSafeWritePath(targetPath, targetRoot);
     }
     await safeWriteExcel(wb, targetPath);
-    const successMsg = `[Bản Tin] ✅ Đã xuất thành công báo cáo bản tin: ${targetFileName}`;
+    const successMsg = `[Bản Tin]  Đã xuất thành công báo cáo bản tin: ${targetFileName}`;
     this.logger.log(successMsg);
     jobLogs?.push(successMsg);
 
@@ -683,7 +683,7 @@ export class ValueStatisticsService {
         assertSafeWritePath(targetPath2, targetRoot);
       }
       await safeWriteExcel(wb, targetPath2);
-      this.logger.log(`[MarketValue] ✅ Đã lưu bản sao MarketValue: GTGD_${year}${monthStr}${dayStr}.xlsx`);
+      this.logger.log(`[MarketValue]  Đã lưu bản sao MarketValue: GTGD_${year}${monthStr}${dayStr}.xlsx`);
     } catch (e: any) {
       this.logger.warn(`Không thể lưu bản sao MarketValue: ${e.message}`);
     }

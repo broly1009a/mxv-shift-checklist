@@ -155,7 +155,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
         print(f"  [⏭ Bỏ qua] File {file_name} đã tồn tại tại: {dest_path}")
         return True
 
-    print(f"  [⏳ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
+    print(f"  [ Đang tải] {report_cfg['name']} ({code}) | Tháng {mmyy} ({start_date} -> {end_date})...")
 
     # 3. Điều hướng tới màn hình báo cáo
     try:

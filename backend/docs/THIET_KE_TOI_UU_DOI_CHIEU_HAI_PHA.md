@@ -241,7 +241,7 @@ Click Xuất M-System         Click Xuất ACM                 Click Xuất Core
     if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg) {
       if (!barrierAnnounced) {
         barrierAnnounced = true;
-        log('🏁 Tất cả 4 nguồn (MS, CQG, ACM, CoreCCP) đều đã vào vị trí! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
+        log(' Tất cả 4 nguồn (MS, CQG, ACM, CoreCCP) đều đã vào vị trí! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
       }
       triggerBarrierResolve();
     }

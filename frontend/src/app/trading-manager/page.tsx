@@ -329,9 +329,22 @@ export default function TradingManagerPage() {
               sessionStorage.removeItem('activeTriggerJobId');
             }
             setActiveJobId(null);
+            setTriggering(false);
             toast.dismiss('bot-job-progress');
             const errDetail = job.error || 'Dịch vụ đối tác sàn ngoài tạm thời không khả dụng.';
             toast.error(`Tác vụ tạm dừng: ${errDetail}`, { duration: 6000 });
+            await fetchConsoleSummary(selectedDate, true);
+            break;
+          } else if (job.status === 'CANCELLED') {
+            isDone = true;
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('activeTriggerJobId');
+            }
+            setActiveJobId(null);
+            setTriggering(false);
+            toast.dismiss('bot-job-progress');
+            const errDetail = job.error || 'Tác vụ đối chiếu đã bị hủy bỏ.';
+            toast.error(`Tác vụ đã bị hủy: ${errDetail}`, { duration: 5000 });
             await fetchConsoleSummary(selectedDate, true);
             break;
           } else if (job.status === 'FAILED') {
@@ -340,6 +353,7 @@ export default function TradingManagerPage() {
               sessionStorage.removeItem('activeTriggerJobId');
             }
             setActiveJobId(null);
+            setTriggering(false);
             toast.dismiss('bot-job-progress');
             const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
             toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
@@ -353,7 +367,11 @@ export default function TradingManagerPage() {
 
       if (!isDone) {
         toast.dismiss('bot-job-progress');
-        toast.success('Bot đã nhận lệnh và đang tiếp tục xử lý ngầm.', { duration: 4000 });
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('activeTriggerJobId');
+        }
+        setActiveJobId(null);
+        toast.success('Bot đã hoàn tất kiểm tra trạng thái.', { duration: 4000 });
         await fetchConsoleSummary(selectedDate, true);
       }
 
@@ -479,10 +497,10 @@ export default function TradingManagerPage() {
             toast.success('Đã tải xong toàn bộ báo cáo CoreCCP về thư mục backup!', { duration: 5000 });
             await fetchConsoleSummary(selectedDate, true);
             break;
-          } else if (job.status === 'FAILED') {
+          } else if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
             isDone = true;
             toast.dismiss('ccp-job-progress');
-            toast.error(`Tải báo cáo CoreCCP thất bại: ${job.error || 'Xem log để biết thêm'}`, { duration: 6000 });
+            toast.error(`Tải báo cáo CoreCCP kết thúc (${job.status}): ${job.error || 'Xem log để biết thêm'}`, { duration: 6000 });
             await fetchConsoleSummary(selectedDate, true);
             break;
           }
@@ -536,7 +554,7 @@ export default function TradingManagerPage() {
         if (!jr.ok) continue;
         const job = await jr.json();
         if (job.status === 'COMPLETED') { toast.dismiss(toastId); onCompleted(job); return; }
-        if (job.status === 'FAILED') { toast.dismiss(toastId); onFailed(job); return; }
+        if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') { toast.dismiss(toastId); onFailed(job); return; }
       } catch { /* bỏ qua lỗi mạng chập chờn */ }
     }
     toast.dismiss(toastId);
@@ -583,9 +601,9 @@ export default function TradingManagerPage() {
             toast.success('Quét ký quỹ TKGD hoàn tất!', { duration: 5000 });
             return;
           }
-          if (job.status === 'FAILED') {
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
             toast.dismiss('imr-check');
-            toast.error(`Quét ký quỹ thất bại: ${job.error || 'Lỗi không xác định'}`, { duration: 6000 });
+            toast.error(`Quét ký quỹ kết thúc (${job.status}): ${job.error || 'Lỗi không xác định'}`, { duration: 6000 });
             return;
           }
         } catch { /* poll error */ }
@@ -781,11 +799,27 @@ export default function TradingManagerPage() {
   const isWaitingFiles = !!summaryData?.klgd?.isWaitingFiles;
   const waitingMessage = summaryData?.klgd?.waitingMessage || '';
 
+  const isTerminalStatus =
+    klgdStatus === 'FAILED' ||
+    klgdStatus === 'CANCELLED' ||
+    klgdStatus === 'ABORTED' ||
+    klgdStatus === 'COMPLETED';
+
+  // Tự động dọn sạch session storage khi job đã hoàn tất hoặc bị hủy/lỗi
+  useEffect(() => {
+    if (isTerminalStatus && typeof window !== 'undefined') {
+      const persisted = sessionStorage.getItem('activeTriggerJobId');
+      if (persisted) {
+        sessionStorage.removeItem('activeTriggerJobId');
+        setActiveJobId(null);
+        setTriggering(false);
+      }
+    }
+  }, [isTerminalStatus]);
+
   const isBotRunning =
-    klgdStatus === 'PROCESSING' ||
-    klgdStatus === 'PENDING' ||
-    triggering ||
-    !!activeJobId;
+    (klgdStatus === 'PROCESSING' || klgdStatus === 'PENDING') ||
+    (triggering && !isTerminalStatus);
 
   const displayLogs =
     (triggering || !!activeJobId) && activeJobLogs.length > 0
@@ -1066,10 +1100,19 @@ export default function TradingManagerPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
             {/* BOT EXECUTION STATUS & ERROR ALERT BANNER */}
-            {klgdStatus === 'FAILED' ? (
+            {klgdStatus === 'FAILED' || klgdStatus === 'CANCELLED' || klgdStatus === 'ABORTED' ? (
               <div style={{
-                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(185, 28, 28, 0.2))',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
+                background: klgdStatus === 'FAILED'
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : klgdStatus === 'CANCELLED'
+                    ? 'rgba(100, 116, 139, 0.08)'
+                    : 'rgba(249, 115, 22, 0.08)',
+                border: `1px solid ${klgdStatus === 'FAILED'
+                    ? 'rgba(239, 68, 68, 0.3)'
+                    : klgdStatus === 'CANCELLED'
+                      ? 'rgba(100, 116, 139, 0.3)'
+                      : 'rgba(249, 115, 22, 0.3)'
+                  }`,
                 borderRadius: '12px',
                 padding: '14px 20px',
                 display: 'flex',
@@ -1077,29 +1120,40 @@ export default function TradingManagerPage() {
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: '12px',
-                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.15)'
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                    backgroundColor: klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.15)' : klgdStatus === 'CANCELLED' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(249, 115, 22, 0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#f87171',
+                    color: klgdStatus === 'FAILED' ? '#dc2626' : klgdStatus === 'CANCELLED' ? '#475569' : '#ea580c',
                     flexShrink: 0
                   }}>
                     <AlertTriangle size={22} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span>Lần quét đối soát gần nhất thất bại</span>
-                      <span style={{ fontSize: '0.72rem', backgroundColor: 'rgba(239, 68, 68, 0.35)', padding: '2px 8px', borderRadius: '4px', color: '#fecaca', fontWeight: 700 }}>FAILED</span>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>
+                        {klgdStatus === 'FAILED' ? 'Lần quét đối soát gần nhất thất bại' : klgdStatus === 'CANCELLED' ? 'Lần quét đối soát gần nhất đã bị hủy' : 'Lần quét đối soát gần nhất bị tạm dừng'}
+                      </span>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        backgroundColor: klgdStatus === 'FAILED' ? '#dc2626' : klgdStatus === 'CANCELLED' ? '#64748b' : '#ea580c',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        color: '#ffffff',
+                        fontWeight: 700
+                      }}>
+                        {klgdStatus}
+                      </span>
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px', maxWidth: '750px', wordBreak: 'break-word' }}>
-                      {klgdError || 'Gặp lỗi trong quá trình tải file M-System / CQG hoặc đối chiếu dữ liệu.'}
+                      {klgdError || (klgdStatus === 'CANCELLED' ? 'Tác vụ đối chiếu đã bị hủy bỏ trước khi hoàn thành.' : 'Gặp lỗi trong quá trình tải file M-System / CQG hoặc đối chiếu dữ liệu.')}
                     </div>
                   </div>
                 </div>
@@ -1114,12 +1168,13 @@ export default function TradingManagerPage() {
                         gap: '6px',
                         padding: '8px 14px',
                         borderRadius: '8px',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-card)',
                         color: 'var(--text-primary)',
                         fontSize: '0.8rem',
                         fontWeight: 600,
                         cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                         transition: 'all 0.2s'
                       }}
                     >
@@ -1138,12 +1193,13 @@ export default function TradingManagerPage() {
                       padding: '8px 16px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: '#ef4444',
+                      backgroundColor: klgdStatus === 'FAILED' ? '#dc2626' : klgdStatus === 'CANCELLED' ? '#2563eb' : '#ea580c',
                       color: '#ffffff',
                       fontSize: '0.8rem',
                       fontWeight: 700,
                       cursor: triggering ? 'not-allowed' : 'pointer',
                       opacity: triggering ? 0.7 : 1,
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
                       transition: 'all 0.2s'
                     }}
                   >
@@ -1154,32 +1210,33 @@ export default function TradingManagerPage() {
               </div>
             ) : isWaitingFiles ? (
               <div style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.15))',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
                 borderRadius: '12px',
                 padding: '14px 20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '12px'
+                gap: '12px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fbbf24',
+                    color: '#d97706',
                     flexShrink: 0
                   }}>
                     <Clock size={20} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fde68a' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
                       Chờ dữ liệu báo cáo đối soát
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -1198,12 +1255,13 @@ export default function TradingManagerPage() {
                         gap: '6px',
                         padding: '8px 14px',
                         borderRadius: '8px',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-card)',
                         color: 'var(--text-primary)',
                         fontSize: '0.8rem',
                         fontWeight: 600,
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
                       }}
                     >
                       <Terminal size={14} />
@@ -1221,11 +1279,12 @@ export default function TradingManagerPage() {
                       padding: '8px 16px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: '#f59e0b',
+                      backgroundColor: '#d97706',
                       color: '#ffffff',
                       fontSize: '0.8rem',
                       fontWeight: 700,
-                      cursor: triggering ? 'not-allowed' : 'pointer'
+                      cursor: triggering ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)'
                     }}
                   >
                     <RefreshCw size={14} className={triggering ? 'animate-spin' : ''} />
@@ -1235,32 +1294,33 @@ export default function TradingManagerPage() {
               </div>
             ) : isBotRunning ? (
               <div style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.2))',
-                border: '1px solid rgba(59, 130, 246, 0.4)',
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
                 borderRadius: '12px',
                 padding: '14px 20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '12px'
+                gap: '12px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{
                     width: '38px',
                     height: '38px',
                     borderRadius: '10px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#60a5fa',
+                    color: '#2563eb',
                     flexShrink: 0
                   }}>
                     <Loader2 size={20} className="animate-spin" />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#93c5fd' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
                       Bot đang thực hiện quy trình đối soát...
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -1278,12 +1338,13 @@ export default function TradingManagerPage() {
                       gap: '6px',
                       padding: '8px 14px',
                       borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
                       color: 'var(--text-primary)',
                       fontSize: '0.8rem',
                       fontWeight: 600,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
                     }}
                   >
                     <Terminal size={14} />
@@ -1431,7 +1492,7 @@ export default function TradingManagerPage() {
                     </th>
                     <th style={{ width: '18%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 800 }}>
-                        <FileSpreadsheet size={15} /> ACM (Straits)
+                        <FileSpreadsheet size={15} /> ACM (MS)
                       </span>
                     </th>
                     <th style={{ width: '18%', padding: '14px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 800 }}>
@@ -3355,9 +3416,9 @@ export default function TradingManagerPage() {
                     padding: '2px 8px',
                     borderRadius: '6px',
                     fontWeight: 700,
-                    backgroundColor: klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.12)' : klgdStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-                    color: klgdStatus === 'FAILED' ? '#ef4444' : klgdStatus === 'COMPLETED' ? '#10b981' : '#3b82f6',
-                    border: `1px solid ${klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.25)' : klgdStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`,
+                    backgroundColor: klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.12)' : klgdStatus === 'CANCELLED' ? 'rgba(100, 116, 139, 0.15)' : klgdStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                    color: klgdStatus === 'FAILED' ? '#ef4444' : klgdStatus === 'CANCELLED' ? '#94a3b8' : klgdStatus === 'COMPLETED' ? '#10b981' : '#3b82f6',
+                    border: `1px solid ${klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.25)' : klgdStatus === 'CANCELLED' ? 'rgba(100, 116, 139, 0.3)' : klgdStatus === 'COMPLETED' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`,
                   }}>
                     {klgdStatus}
                   </span>
@@ -3414,15 +3475,16 @@ export default function TradingManagerPage() {
                     </div>
                   ) : (
                     displayLogs.map((logLine: string, idx: number) => {
-                      const isErr = logLine.includes('') || logLine.toLowerCase().includes('lỗi') || logLine.toLowerCase().includes('fail');
-                      const isSuccess = logLine.includes('✅') || logLine.includes('thành công') || logLine.includes('khớp');
-                      const isWarn = logLine.includes('') || logLine.toLowerCase().includes('timeout') || logLine.includes('bỏ qua');
+                      const lower = logLine.toLowerCase();
+                      const isErr = lower.includes('lỗi') || lower.includes('fail') || lower.includes('error') || lower.includes('thất bại');
+                      const isSuccess = logLine.includes('') || lower.includes('thành công') || lower.includes('khớp hoàn toàn');
+                      const isWarn = lower.includes('timeout') || lower.includes('bỏ qua') || lower.includes('cảnh báo') || lower.includes('warn') || lower.includes('429');
 
                       return (
                         <div
                           key={idx}
                           style={{
-                            color: isErr ? '#dc2626' : isSuccess ? '#16a34a' : isWarn ? '#d97706' : 'var(--text-primary)',
+                            color: isErr ? '#ef4444' : isSuccess ? '#10b981' : isWarn ? '#f59e0b' : 'var(--text-primary)',
                             fontWeight: (isErr || isSuccess || isWarn) ? 600 : 400,
                             wordBreak: 'break-word',
                             padding: '2px 0',

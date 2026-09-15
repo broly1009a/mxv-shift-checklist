@@ -220,10 +220,10 @@ async function run() {
   const isAll = process.argv.includes('--all');
   const isDestM = process.argv.includes('--dest-m');
 
-  console.log('⏳ Đang kết nối CSDL Ubuntu Server (10.0.0.26) để lấy tài khoản CQG...');
+  console.log(' Đang kết nối CSDL Ubuntu Server (10.0.0.26) để lấy tài khoản CQG...');
   const ubuntuCreds = await fetchUbuntuCqgCredentials();
 
-  console.log('⏳ Đang khởi tạo ứng dụng NestJS...');
+  console.log(' Đang khởi tạo ứng dụng NestJS...');
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
@@ -233,7 +233,7 @@ async function run() {
 
   let creds: any;
   if (ubuntuCreds && (ubuntuCreds.username1 || ubuntuCreds.usernameCQG1)) {
-    console.log('✅ Đã lấy thành công tài khoản CQG từ Database Ubuntu Server (10.0.0.26)!');
+    console.log(' Đã lấy thành công tài khoản CQG từ Database Ubuntu Server (10.0.0.26)!');
     creds = ubuntuCreds;
     // Đồng bộ lại vào settings để rpaDownloader sử dụng trực tiếp
     await settingsService.setSetting('bot_credentials_cqg', encrypt(JSON.stringify(ubuntuCreds)));
@@ -277,7 +277,7 @@ async function run() {
     console.log(`👤 Tài khoản CQG2: ${creds.username2 || creds.usernameCQG2 || 'Chưa cấu hình'}`);
   }
   console.log(`🌐 Chế độ: HEADED (Trình duyệt Chrome sẽ hiển thị trực tiếp trên màn hình)`);
-  console.log('\n⏳ Bắt đầu tải file CQG... Xin vui lòng quan sát cửa sổ Chrome đang mở...');
+  console.log('\n Bắt đầu tải file CQG... Xin vui lòng quan sát cửa sổ Chrome đang mở...');
 
   const reportsToDownload: any = isAll
     ? { FR1: true, PS1: true, OP1: true, OD1: true, FR2: true, PS2: true, OP2: true, OD2: true }
@@ -328,7 +328,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? '✅ CHUẨN' : ' LỆCH';
+      const statusStr = a.isMatch ? ' CHUẨN' : ' LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -352,7 +352,7 @@ async function run() {
     }
 
     if (!hasDuplicate) {
-      console.log('   ✅ TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
+      console.log('    TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
     }
 
     // Kết luận tổng thể

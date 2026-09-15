@@ -12,7 +12,7 @@ def test_cccd_images():
     try:
         from pyzbar.pyzbar import decode as pyzbar_decode
         has_pyzbar = True
-        print("✅ Thư viện pyzbar đã sẵn sàng!")
+        print(" Thư viện pyzbar đã sẵn sàng!")
     except Exception as e:
         print(f" pyzbar chưa dùng được: {e}")
 
@@ -21,7 +21,7 @@ def test_cccd_images():
     try:
         import pytesseract
         has_tesseract = True
-        print("✅ Thư viện pytesseract đã sẵn sàng!")
+        print(" Thư viện pytesseract đã sẵn sàng!")
     except Exception as e:
         print(f" pytesseract chưa dùng được: {e}")
 

@@ -10,7 +10,7 @@ const conn = new Client();
 console.log('Đang kết nối SSH tới Ubuntu Server 10.0.0.26...');
 
 conn.on('ready', () => {
-  console.log('✅ Đã kết nối SSH thành công. Đang tải script test lên máy chủ qua SFTP...');
+  console.log(' Đã kết nối SSH thành công. Đang tải script test lên máy chủ qua SFTP...');
   conn.sftp((err, sftp) => {
     if (err) {
       console.error('Lỗi SFTP:', err);
@@ -22,7 +22,7 @@ conn.on('ready', () => {
     const writeStream = sftp.createWriteStream(remoteScriptPath);
 
     writeStream.on('close', () => {
-      console.log('✅ Đã upload script lên server. Bắt đầu kích hoạt kiểm thử trực tiếp...');
+      console.log(' Đã upload script lên server. Bắt đầu kích hoạt kiểm thử trực tiếp...');
       console.log('--------------------------------------------------------------------------------');
 
       const cmd = `cd /opt/mxv-checklist/backend && node src/scripts/test_4_chromes_barrier_live.js`;

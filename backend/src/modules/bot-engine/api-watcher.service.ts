@@ -5,7 +5,7 @@ import { OmsWatcherService } from './oms-watcher.service';
 export class ApiWatcherService {
   private readonly logger = new Logger(ApiWatcherService.name);
 
-  constructor(private readonly omsWatcherService: OmsWatcherService) {}
+  constructor(private readonly omsWatcherService: OmsWatcherService) { }
 
   /**
    * Check if HTTP API target condition is met.
@@ -183,7 +183,7 @@ export class ApiWatcherService {
           success: true,
           message: JSON.stringify({
             message:
-              '✅ [Mô Phỏng] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
+              ' [Mô Phỏng] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
             timestamp: new Date().toISOString(),
             data: match.body,
           }),

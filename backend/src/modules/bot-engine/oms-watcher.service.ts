@@ -80,7 +80,7 @@ export class OmsWatcherService {
         return {
           success: true,
           message:
-            '✅ [Simulation] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
+            ' [Simulation] Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.',
           data: {
             ccp: {
               eod: {
@@ -389,7 +389,7 @@ export class OmsWatcherService {
         const overallSuccess = ccpEodOk && ccpMmOk && ceEodOk && ceMmOk;
         let message = 'Kiểm tra OMS thành công.';
         if (overallSuccess) {
-          message = `✅ Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.`;
+          message = ` Đã hoàn thành EOD & lệnh MM trên cả hai hệ thống CCP và CE.`;
         } else {
           const failures: string[] = [];
           if (!ccpEodOk) failures.push('EOD CCP chưa xong');

@@ -168,14 +168,14 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
         processParams,
         job.logs,
       );
-      log(`✅ Chạy tính toán thống kê số lot thành công.`);
+      log(` Chạy tính toán thống kê số lot thành công.`);
       log(
         `Kết quả: DSGD Product: ${result.summary.dsgdProduct}, FR Product: ${result.summary.frProduct}`,
       );
 
       const allPassed = result.validations.every((v: any) => v.passed);
       if (allPassed) {
-        log(`✅ Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
+        log(` Tất cả các kiểm tra đối chiếu (Validation) đều khớp.`);
       } else {
         log(` Phát hiện chênh lệch đối chiếu:`);
         for (const val of result.validations) {

@@ -17,7 +17,7 @@ async function main() {
   // 1. Kết nối MongoDB
   console.log('\n[1] Đang kết nối tới MongoDB Atlas...');
   await mongoose.connect(MONGODB_URI);
-  console.log('✅ Kết nối MongoDB thành công!');
+  console.log(' Kết nối MongoDB thành công!');
 
   const SettingModel = mongoose.model('SystemSetting', SystemSettingSchema);
 
@@ -37,8 +37,8 @@ async function main() {
   console.log(`  - Client ID:        ${clientId ? clientId.slice(0, 8) + '...' : '(Chưa cấu hình)'}`);
   console.log(`  - Tenant ID:        ${tenantId ? tenantId.slice(0, 8) + '...' : 'common'}`);
   console.log(`  - Watcher Email:    ${watcherEmail || '(Chưa cấu hình)'}`);
-  console.log(`  - Client Secret:    ${clientSecret ? '✅ Đã có' : ' Chưa có'}`);
-  console.log(`  - Refresh Token:    ${refreshToken ? '✅ Đã có trong DB' : ' Chưa có'}`);
+  console.log(`  - Client Secret:    ${clientSecret ? ' Đã có' : ' Chưa có'}`);
+  console.log(`  - Refresh Token:    ${refreshToken ? ' Đã có trong DB' : ' Chưa có'}`);
 
   if (!refreshToken) {
     console.log('\n Lỗi: Không tìm thấy Refresh Token M365 trong Database (key: m365_refresh_token).');
@@ -72,7 +72,7 @@ async function main() {
 
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
-  console.log('✅ Lấy Access Token thành công (Hết hạn sau:', tokenData.expires_in, 'giây)!');
+  console.log(' Lấy Access Token thành công (Hết hạn sau:', tokenData.expires_in, 'giây)!');
 
   // Lưu refresh token mới nếu Microsoft cấp mới
   if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
@@ -110,7 +110,7 @@ async function main() {
 
   const msgData = await msgRes.json();
   const messages: any[] = msgData.value || [];
-  console.log(`✅ Quét thành công! Tìm thấy tổng cộng ${messages.length} email gần nhất trong hộp thư.`);
+  console.log(` Quét thành công! Tìm thấy tổng cộng ${messages.length} email gần nhất trong hộp thư.`);
 
   // 5. Lọc các email liên quan đến Yêu cầu mở TKGD
   console.log('\n' + '='.repeat(70));

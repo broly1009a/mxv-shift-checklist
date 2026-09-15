@@ -2621,7 +2621,7 @@ export class RpaDownloaderService {
             let downloadedCount = 0;
             const downloadNext = async () => {
               if (downloadedCount >= filesToDownload.length) {
-                await log('✅ Hoàn tất tải toàn bộ file từ SFTP.');
+                await log(' Hoàn tất tải toàn bộ file từ SFTP.');
                 conn.end();
                 return resolve();
               }

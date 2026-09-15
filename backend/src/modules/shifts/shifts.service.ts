@@ -775,7 +775,7 @@ export class ShiftsService {
     if (isChecked && !oldIsChecked && task.prioritySnapshot === 'CRITICAL') {
       const actorName = user.fullName || 'Nhân sự vận hành';
       await this.telegramService.sendMessage(
-        `✅ <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
+        ` <b>[TÁC VỤ KHẨN CẤP HOÀN THÀNH]</b>\n` +
         `• Tác vụ: <b>${task.taskId} - ${task.taskNameSnapshot}</b>\n` +
         `• Trạng thái: <b>${status}</b>\n` +
         `• Ca trực: <i>${(result.templateId as any)?.title || 'Ca vận hành'}</i>\n` +

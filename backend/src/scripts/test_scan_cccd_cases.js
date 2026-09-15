@@ -101,7 +101,7 @@ async function main() {
       const v = tc.verify(res);
       if (v.pass) {
         passCount++;
-        console.log('✅ PASS');
+        console.log(' PASS');
         console.log(`   ↳ Chi tiết: ${v.details}`);
         if (res.canCuoc?.boundingBoxes && Object.keys(res.canCuoc.boundingBoxes).length > 0) {
           console.log(`   ↳ Bounding Boxes: ${JSON.stringify(res.canCuoc.boundingBoxes)}`);

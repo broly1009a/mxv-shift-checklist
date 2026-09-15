@@ -169,7 +169,7 @@ async function runMSystemDownloadTest() {
     }
     const destPath = path.join(tempDir, destFileName);
     await download.saveAs(destPath);
-    console.log(`✅ SUCCESS: Downloaded and saved report to: ${destPath}`);
+    console.log(` SUCCESS: Downloaded and saved report to: ${destPath}`);
   }
 
   try {

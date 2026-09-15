@@ -1,12 +1,12 @@
 Dễ — vì hạ tầng cốt lõi đã có sẵn gần đủ. Đây là đánh giá nhanh:
 
-Hiện trạng đã có ✅
+Hiện trạng đã có 
 Thành phần	Trạng thái
-BotJobQueue — hàng đợi job async	✅ Có sẵn
-readIfExists() — tự tìm file trong thư mục chỉ định	✅ Có sẵn (reconciliation.controller.ts line 408)
-Cấu hình đường dẫn thư mục qua Admin UI	✅ Đã có (backup paths)
-Playwright login tự động (MS, CQG, ACM, CAST)	✅ Scripts đã có
-Gửi email kết quả	✅ Có sẵn trong IT Tool
+BotJobQueue — hàng đợi job async	 Có sẵn
+readIfExists() — tự tìm file trong thư mục chỉ định	 Có sẵn (reconciliation.controller.ts line 408)
+Cấu hình đường dẫn thư mục qua Admin UI	 Đã có (backup paths)
+Playwright login tự động (MS, CQG, ACM, CAST)	 Scripts đã có
+Gửi email kết quả	 Có sẵn trong IT Tool
 Phần cần thêm (không nhiều)
 1. Cron scheduler (NestJS @Schedule)         → ~1 ngày
    - 07:00: tải file CAST → checkSOD
@@ -69,9 +69,9 @@ Ngày 2 (~8 tiếng)
 Ngày 3 (nếu cần)
 └── Fix bugs, test end-to-end với dữ liệu thực               ~4h
 Điều kiện để rút ngắn xuống 1.5 ngày
-✅ CAST script test pass trước (cần credentials)
-✅ Xác nhận email service dùng cái có sẵn của IT Tool hay viết mới
-✅ Chỉ làm SOD + KLGD trước, để PreEOD/EOD sau
+ CAST script test pass trước (cần credentials)
+ Xác nhận email service dùng cái có sẵn của IT Tool hay viết mới
+ Chỉ làm SOD + KLGD trước, để PreEOD/EOD sau
 Kết luận: Khi nào bạn muốn bắt đầu, nói tôi để làm lần lượt — bắt đầu từ SchedulerService + processQueue handler trước sẽ nhanh nhất.
 
 
