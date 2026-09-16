@@ -112,21 +112,94 @@ function analyzeExcelFile(filePath: string, fileName: string, expectedType: stri
   }
 }
 
+const isProd = args.includes('--prod');
+
+async function resolveCredentials(isProd: boolean): Promise<{ rawEncryptedCreds: string; displayInfo: string }> {
+  if (!isProd) {
+    const demoCreds = {
+      url: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+      urlTrade: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+      username1: 'MXV03',
+      password1: 'MXV',
+    };
+    return {
+      rawEncryptedCreds: encrypt(JSON.stringify(demoCreds)),
+      displayInfo: `🌐 Môi trường: CQG DEMO (https://mdemo.cqg.com/cqg/desktop/main)\n✅ Tài khoản DEMO: ${demoCreds.username1} | Mật khẩu: ${demoCreds.password1}`,
+    };
+  }
+
+  console.log('🔍 Đang trích xuất cấu hình bot_credentials_cqg (PRODUCTION)...');
+  let prodCreds: any = null;
+
+  // 1. Thử đọc từ MongoDB (Atlas hoặc Local)
+  const mongoUri = process.env.MONGODB_URI;
+  if (mongoUri) {
+    try {
+      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 3000 });
+      const doc = await mongoose.connection.db?.collection('system_settings').findOne({ key: 'bot_credentials_cqg' });
+      if (doc && doc.value) {
+        prodCreds = JSON.parse(decrypt(doc.value));
+      }
+      await mongoose.disconnect();
+    } catch { }
+  }
+
+  // 2. Nếu local chưa có, trích xuất an toàn qua SSH từ Ubuntu Server 10.0.0.26
+  if (!prodCreds) {
+    console.log('📡 Đang kết nối SSH tới Ubuntu Server (10.0.0.26) để lấy bot_credentials_cqg...');
+    try {
+      const { Client } = require('ssh2');
+      const conn = new Client();
+      const output: string = await new Promise((resolve) => {
+        const t = setTimeout(() => { try { conn.end(); } catch { } resolve(''); }, 6000);
+        conn.on('ready', () => {
+          conn.exec('mongosh mxv_shift_checklist --quiet --eval "JSON.stringify(db.system_settings.findOne({key: \'bot_credentials_cqg\'}))"', (err: any, stream: any) => {
+            if (err) { clearTimeout(t); conn.end(); return resolve(''); }
+            let data = '';
+            stream.on('data', (d: any) => { data += d.toString(); });
+            stream.on('close', () => { clearTimeout(t); conn.end(); resolve(data.trim()); });
+          });
+        });
+        conn.on('error', () => { clearTimeout(t); resolve(''); });
+        conn.connect({
+          host: '10.0.0.26',
+          port: 22,
+          username: 'mxvadmin',
+          password: 'MxV!,#2o26',
+          readyTimeout: 6000,
+        });
+      });
+
+      if (output) {
+        const doc = JSON.parse(output);
+        if (doc && doc.value) {
+          prodCreds = JSON.parse(decrypt(doc.value));
+        }
+      }
+    } catch { }
+  }
+
+  if (!prodCreds) {
+    throw new Error('Không tìm thấy tài khoản bot_credentials_cqg (PROD) trong CSDL hoặc Server Ubuntu!');
+  }
+
+  const u1 = prodCreds.username1 || prodCreds.usernameCQG1 || 'N/A';
+  const u2 = prodCreds.username2 || prodCreds.usernameCQG2 || 'N/A';
+  const url = prodCreds.url || prodCreds.urlTrade || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+
+  return {
+    rawEncryptedCreds: encrypt(JSON.stringify(prodCreds)),
+    displayInfo: `🌐 Môi trường: CQG PRODUCTION (${url})\n✅ Tài khoản PROD CQG1: ${u1} | CQG2: ${u2}`,
+  };
+}
+
 async function run() {
   console.log('\n======================================================================');
   console.log('       KIỂM THỬ ĐỘC LẬP RPA CQG (DỌN TAB RÁC & TẢI BÁO CÁO CHUẨN)      ');
   console.log('======================================================================\n');
 
-  // Sử dụng cấu hình CQG DEMO theo yêu cầu của USER
-  const demoCreds = {
-    url: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
-    urlTrade: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
-    username1: 'MXV03',
-    password1: 'MXV',
-  };
-  const rawEncryptedCreds = encrypt(JSON.stringify(demoCreds));
-  console.log(`🌐 Môi trường: CQG DEMO (https://mdemo.cqg.com/cqg/desktop/main)`);
-  console.log(`✅ Tài khoản DEMO: ${demoCreds.username1} | Mật khẩu: ${demoCreds.password1}`);
+  const { rawEncryptedCreds, displayInfo } = await resolveCredentials(isProd);
+  console.log(displayInfo);
 
   const destDir = path.join(process.cwd(), 'temp', 'test_cqg_downloads');
   if (!fs.existsSync(destDir)) {
@@ -154,8 +227,9 @@ async function run() {
     console.log(`🧹 Chế độ: CHỈ DỌN DẸP TAB RÁC TRONG PANEL g1.w431 (Bảo vệ tuyệt đối panel g3.w0)`);
     reportsConfig.cleanOnly = true;
   } else {
-    // Kiểm tra xem người dùng có truyền chỉ định báo cáo cụ thể không (vd: OP1, FR1...)
-    const requestedKeys = args.filter((a) => ['FR1', 'PS1', 'OP1', 'OD1'].includes(a.toUpperCase()));
+    // Kiểm tra xem người dùng có truyền chỉ định báo cáo cụ thể không (vd: OP1, FR1, FR2, PS2...)
+    const validKeys = ['FR1', 'PS1', 'OP1', 'OD1', 'FR2', 'PS2', 'OP2', 'OD2'];
+    const requestedKeys = args.filter((a) => validKeys.includes(a.toUpperCase()));
     if (requestedKeys.length > 0) {
       requestedKeys.forEach((k) => {
         const upper = k.toUpperCase();
