@@ -143,9 +143,9 @@ export async function writeCcpLotToAccumulator(
   // Quét Row 4 động 100% để lập bản đồ cột (Zero hardcoded column indices)
   const headerRow = ws.getRow(4);
 
-  let colAcmDsgd = 6;
-  let colAcmTttt = 7;
-  let colAcmTtm = 8;
+  let colAcmDsgd = 3;
+  let colAcmTttt = 4;
+  let colAcmTtm = 5;
   const tvkdColMap = new Map<string, number>();
   const hhColMap = new Map<string, number>();
   let colTotalTvkd = -1;
@@ -159,8 +159,8 @@ export async function writeCcpLotToAccumulator(
     const headerText = String(headerVal).trim();
     const norm = headerText.replace(/[\r\n\s]+/g, ' ').toUpperCase();
 
-    // Nhận diện cột tổng hợp ACM (thường ở cols 6, 7, 8)
-    if (c >= 5 && c <= 10) {
+    // Nhận diện cột tổng hợp M-System / CCP (nằm ở cols 3, 4, 5: C, D, E)
+    if (c >= 3 && c <= 5) {
       if (norm.includes('SỐ LOT') && (norm.includes('GD') || norm.includes('GIAO DỊCH'))) {
         colAcmDsgd = c;
       } else if (norm.includes('TẤT TOÁN') || norm.includes('TAT TOAN')) {
@@ -190,11 +190,17 @@ export async function writeCcpLotToAccumulator(
     }
   }
 
-  // ── 1. Block CCP Summary (cols 6-8) ──────────────────────────────────────────
+  // ── 1. Block M-System / CCP Summary (cols 3-5: C, D, E) ────────────────────────
   ws.getCell(targetRowIndex, colAcmDsgd).value = result.totalSoLot;
-  ws.getCell(targetRowIndex, colAcmTttt).value = result.totalTtttLot;
+  ws.getCell(targetRowIndex, colAcmTttt).value = result.totalKltt ?? result.totalTtttLot ?? 0;
   ws.getCell(targetRowIndex, colAcmTtm).value  = result.totalTtmLot;
-  log(`Row ${targetRowIndex}: ACM_DSGD(col ${colAcmDsgd})=${result.totalSoLot}, ACM_TTTT(col ${colAcmTttt})=${result.totalTtttLot}, ACM_TTM(col ${colAcmTtm})=${result.totalTtmLot}`);
+
+  // Dọn sạch các cột 6, 7, 8 (CQG: F, G, H) nếu trước đó từng bị ghi nhầm vào đây
+  ws.getCell(targetRowIndex, 6).value = null;
+  ws.getCell(targetRowIndex, 7).value = null;
+  ws.getCell(targetRowIndex, 8).value = null;
+
+  log(`Row ${targetRowIndex}: MS_DSGD(col ${colAcmDsgd})=${result.totalSoLot}, MS_TTTT(col ${colAcmTttt})=${result.totalKltt ?? result.totalTtttLot ?? 0}, MS_TTM(col ${colAcmTtm})=${result.totalTtmLot} (Đã dọn sạch cột CQG 6, 7, 8)`);
 
   // ── 2. Per TVKD ─────────────────────────────────────────────────────────────
   let tvkdWritten = 0;

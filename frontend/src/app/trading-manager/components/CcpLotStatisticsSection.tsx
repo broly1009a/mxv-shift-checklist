@@ -1155,7 +1155,7 @@ export default function CcpLotStatisticsSection({
 
       {/* ── 3. KPI STATS CARDS (WHEN RESULT READY) ── */}
       {result && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           {/* Total Lot */}
           <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1202,6 +1202,22 @@ export default function CcpLotStatisticsSection({
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
               Tổng vị thế mở: {fmtNum(result.totalTtmLot)} lot
+            </span>
+          </div>
+
+          {/* TTTT Position (Tất toán) */}
+          <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Trạng Thái Tất Toán (TTTT)
+              </span>
+              <CheckCircle2 size={18} color="#8b5cf6" />
+            </div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#8b5cf6' }}>
+              {fmtNum(result.totalKltt ?? result.totalTtttLot ?? 0)} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Lot</span>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              Lãi/Lỗ: {fmtCur(result.byTvkd.reduce((acc, t) => acc + (t.ttttLaiLoThucTeVnd || 0), 0))}
             </span>
           </div>
 

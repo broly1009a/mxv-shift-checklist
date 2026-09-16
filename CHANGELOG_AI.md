@@ -12367,8 +12367,66 @@ export interface CheckKLGDResult {
    - Nổi bật giao diện màu cam nhạt khi đang duyệt lịch sử, kèm nút `[Về hiện tại]` để quay lại phiên Live.
 
 ### 4. Xác nhận Build
+
+---
+
+## [2026-09-16T14:05] TASK-Fix CoreCCP Download Subfolder & Thêm Thẻ KPI Trạng Thái Tất Toán (TTTT)
+
+### 1. Mục tiêu thay đổi
+- Sửa lỗi bot tải báo cáo CoreCCP lưu vào thư mục gốc `Backup CCP/Futures/` thay vì thư mục ngày ca trực `YYYY/TMM.YYYY/DD.MM`.
+- Bổ sung callback ghi log trực tiếp vào `job.logs` khi tải CoreCCP để người dùng theo dõi được trên Log Modal.
+- Di chuyển/đồng bộ các file `QLTTTKGD.csv`, `EOD.csv`, `NR.csv`, `TTTT.csv` đã tải vào thư mục ngày `16.09`.
+- Bổ sung thẻ KPI **Trạng Thái Tất Toán (TTTT)** trên hàng thẻ thống kê của phân hệ CoreCCP Automation (Tab 2 Thống Kê Số Lot & GTGD) bên cạnh thẻ Trạng Thái Mở (TTM).
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-ce-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts)
+- [CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **Chuẩn hóa đường dẫn lưu file CoreCCP/CoreEX (`ccp-ce-download.handler.ts`)**:
+   - Kiểm tra định dạng `rawOutputDir`: Nếu chưa kết thúc bằng cấu trúc ngày `DD.MM` (hoặc `YYYY/TMM.YYYY/DD.MM`), luôn tự động ghép `subFolder` ngày của ca trực.
+   - Thêm log callback truyền vào `ccpCeDownloaderService.run` để cập nhật từng bước tiến trình tải vào `job.logs` theo thời gian thực.
+2. **Thêm Thẻ KPI Trạng Thái Tất Toán (TTTT) (`CcpLotStatisticsSection.tsx`)**:
+   - Thêm thẻ KPI `Trạng Thái Tất Toán (TTTT)` bên cạnh thẻ `Trạng Thái Mở (TTM)`.
+   - Hiển thị tổng số lot tất toán (`result.totalKltt ?? result.totalTtttLot ?? 0 Lot`) và tổng Lãi/Lỗ tất toán thực tế (`result.byTvkd.reduce(...)`).
+   - Sử dụng icon SVG `CheckCircle2` từ `lucide-react`, mã màu tím `#8b5cf6`, tuân thủ nghiêm ngặt Quy tắc 4.5 (Zero Unicode Emojis).
+
+### 4. Xác nhận Build & Deploy
+- **Đồng bộ Server Ubuntu 10.0.0.26**: Đã chuyển 4 file vào `.../Backup CCP/Futures/2026/T09.2026/16.09/`.
 - **Backend Build**: `npm run build` thành công (**Exit code 0**).
 - **Frontend Build**: `npm run build` thành công (**Exit code 0**).
+---
+
+## [2026-09-16T14:15] TASK-Fix Cột Ghi File Lũy Kế ACM: Chuyển Từ Cột CQG Sang Cột M-System / CCP (Cột C, D, E)
+
+### 1. Mục tiêu thay đổi
+- Sửa lỗi logic ghi file lũy kế `Thong ke so lot giao dich ACM [year].xlsx`: Trước đó kết quả thống kê CCP bị ghi nhầm vào cột **CQG (Cột F, G, H tương ứng 6, 7, 8)** thay vì cột **M-System / CCP (Cột C, D, E tương ứng 3, 4, 5)**.
+- Tự động dọn sạch các giá trị ở cột CQG nếu trước đó từng bị ghi nhầm.
+- Cập nhật trực tiếp dòng ngày 16/09/2026 trên file thực tế `Thong ke so lot giao dich ACM 2026.xlsx` tại ổ đĩa chung.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **Sửa dải cột tổng hợp trong `writeCcpLotToAccumulator`**:
+   - `colAcmDsgd`: Đổi mặc định từ `6` $\rightarrow$ `3` (Cột C: Số Lot giao dịch M-System/CCP).
+   - `colAcmTttt`: Đổi mặc định từ `7` $\rightarrow$ `4` (Cột D: Số lot tất toán M-System/CCP).
+   - `colAcmTtm`: Đổi mặc định từ `8` $\rightarrow$ `5` (Cột E: Vị thế mở M-System/CCP).
+   - Điều chỉnh phạm vi quét header: Giới hạn quét cột M-System/CCP trong khoảng `c >= 3 && c <= 5`.
+2. **Ghi và dọn dẹp cột**:
+   - Ghi dữ liệu vào Cột 3, 4, 5 (C, D, E).
+   - Gán `null` dọn sạch Cột 6, 7, 8 (F, G, H - CQG).
+3. **Thực thi trên File Excel thực tế**:
+   - Chuyển dữ liệu dòng 16 (16/09/2026):
+     - Trước: C, D, E = `null`; F, G, H = `3`, `1`, `1`
+     - Sau: C, D, E = `3`, `2`, `1`; F, G, H = `null` (đã dọn sạch)
+
+### 4. Xác nhận Build & Deploy
+- **Backend Build**: `npm run build` thành công (**Exit code 0**).
+- **Frontend Build**: `npm run build` thành công (**Exit code 0**).
+- **PM2**: `mxv-backend` và `mxv-frontend` restarted online.
+
+
 
 
 
