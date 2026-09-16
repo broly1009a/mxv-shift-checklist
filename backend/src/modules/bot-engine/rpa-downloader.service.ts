@@ -4252,7 +4252,12 @@ export class RpaDownloaderService {
 
     // ── CQG1: FR1, PS1, OP1, OD1, AS ──────────────────────────────────────────
     const needCqg1 =
-      reports.FR1 || reports.PS1 || reports.OP1 || reports.OD1 || reports.AS;
+      reports.cleanOnly ||
+      reports.FR1 ||
+      reports.PS1 ||
+      reports.OP1 ||
+      reports.OD1 ||
+      reports.AS;
     if (needCqg1) {
       const username1 = creds.username1 || creds.usernameCQG1;
       const password1 = creds.password1 || creds.passwordCQG1;
@@ -4303,7 +4308,8 @@ export class RpaDownloaderService {
           if (reports.cleanOnly) {
             this.logger.log('[CQG] Chế độ Clean-Only: Tiến hành dọn dẹp đóng sạch toàn bộ tab thừa trong panel g1.w431...');
             await this.closeAllOpenCqgWidgetTabs(page);
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            this.logger.log('[CQG] Đã dọn dẹp xong! Giữ trình duyệt mở 8s để bạn quan sát thực tế trên màn hình...');
+            await new Promise((resolve) => setTimeout(resolve, 8000));
             return { errors, downloaded };
           }
 
