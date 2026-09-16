@@ -40,11 +40,11 @@ const { chromium } = require('playwright-core');
 const ALL_CCP_REPORTS = [
   {
     code: 'DSGD',
-    name: 'Lịch sử giao dịch (Khớp lệnh)',
+    name: 'Danh sách giao dịch',
     parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '', // Trên CoreCCP không có /ORDERS/ORDERMATCH_ALL (URL đó của CoreEX), bắt buộc click qua Menu
-    fileNamePrefix: 'DSGD',
+    childMenu: 'Danh sách giao dịch',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
+    enabled: true,
   },
   {
     code: 'TTTT',

@@ -151,10 +151,10 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
   },
   {
     code: 'DSGD',
-    name: 'Lịch sử giao dịch (CE)',
+    name: 'Danh sách giao dịch (CE)',
     parentMenu: 'Quản lý sổ lệnh',
-    childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '/ORDERS/ORDERMATCH_ALL',
+    childMenu: 'Danh sách giao dịch',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
     enabled: true,
   },
 ];
@@ -571,11 +571,14 @@ export class CcpCeDownloaderService {
       }
 
       const learnedUrl = page.url();
-      this.log(`[Nav] Menu click thanh cong -> URL: ${learnedUrl}`, logCb);
+      if (learnedUrl.includes('/DASHBOARD') || learnedUrl.endsWith('.vn/') || learnedUrl.endsWith('.vn')) {
+        throw new Error(`[Fail-Fast] Không thể điều hướng đến báo cáo ${report.name} (${report.code}). Trình duyệt vẫn đang ở Dashboard (${learnedUrl})!`);
+      }
+      this.log(`[Nav] Điều hướng thành công -> URL: ${learnedUrl}`, logCb);
       return learnedUrl;
     } catch (e: any) {
-      this.log(`[Nav] Loi dieu huong den ${report.childMenu}: ${e?.message}`, logCb);
-      return page.url();
+      this.log(`[Nav] Lỗi điều hướng đến ${report.childMenu}: ${e?.message}`, logCb);
+      throw e;
     }
   }
 

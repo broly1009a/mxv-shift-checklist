@@ -8,17 +8,33 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
    - AI chỉ thực hiện đúng theo yêu cầu rõ ràng của USER.
    - Tuyệt đối không tự ý thêm/bớt các fallback, pattern tìm kiếm rác hoặc logic phát triển theo giả định cá nhân.
 
-2. **Ghi vết Thay đổi (Change Log Audit)**:
+2. **Quy Tắc Chứng Cứ Ràng Buộc (Proof of Ground Truth - Bắt Buộc Dừng & Hỏi)**:
+   - Mọi thay đổi tham số kỹ thuật liên quan đến: **URL, XPath, CSS Selector, Tên Menu, Tên File, Tên Cột Excel, Logic Crawler/RPA** BẮT BUỘC phải thỏa mãn ít nhất 1 trong 3 điều kiện:
+     1. Trích dẫn được đường dẫn file và dòng code từ một test script/code gốc đang hoạt động chuẩn trong repo; **HOẶC**
+     2. Được USER chỉ đạo bằng văn bản rõ ràng; **HOẶC**
+     3. Được trích xuất từ log chạy thực tế của hệ thống.
+   - ⛔ **NẾU KHÔNG CÓ ĐỦ 1 TRONG 3 CHỨNG CỨ TRÊN: AI BẮT BUỘC PHẢI DỪNG LẠI VÀ ĐẶT CÂU HỎI CHO USER (STOP & ASK), TUYỆT ĐỐI CẤM TỰ Ý SỬA CODE HOẶC PHỎNG ĐOÁN.**
+
+3. **Quy Tắc Fail-Fast & Zero-Silent-Swallow (Tuyệt Đối Cấm Nuốt Lỗi / Báo Thành Công Ảo)**:
+   - Tuyệt đối không viết block `try/catch` rỗng nuốt lỗi để tiếp tục dòng chảy sai lệch.
+   - Khi điều hướng (Navigation), bắt buộc phải assert URL hoặc kiểm tra sự tồn tại của Table/Header/Element đặc trưng của màn hình con mục tiêu.
+   - Nếu sau điều hướng mà URL vẫn ở Dashboard (`/` hoặc `/DASHBOARD`) hoặc không tìm thấy trang con $\rightarrow$ **BẮT BUỘC PHẢI `throw new Error(...)` ĐỂ DỪNG JOB VÀ CẢNH BÁO NGAY LẬP TỨC**, nghiêm cấm việc chạy tiếp xuống hàm thao tác dữ liệu hay bấm nút (như "Kết xuất") trên màn hình sai.
+
+4. **Quy Tắc Cấm Tự Sinh Mảng Fallback Rác (No Speculative Fallback Arrays)**:
+   - Mỗi báo cáo/màn hình chỉ có **DUY NHẤT 1 bộ định danh chuẩn** (Tên menu chuẩn và URL chuẩn đã kiểm chứng).
+   - Nghiêm cấm việc nhồi nhét nhiều tên phỏng đoán vào mảng candidate (ví dụ: `['Danh sách giao dịch', 'Danh sách giao dịch MM', ...]`) để "cầu may". Nếu giao diện hệ thống đối tác thay đổi, bot phải fail để con người cập nhật cấu hình, tuyệt đối không code kiểu chắp vá.
+
+5. **Ghi vết Thay đổi (Change Log Audit)**:
    - Khi hoàn thành bất kỳ lượt chỉnh sửa nào, AI MUST ghi vết chi tiết vào file [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/CHANGELOG_AI.md) và báo cáo lại chi tiết bao gồm:
      - **Mục tiêu thay đổi**: Lý do và yêu cầu cụ thể từ USER.
      - **Danh sách file chỉnh sửa**: Đưa link trực tiếp tới các file bị tác động.
      - **Tóm tắt nội dung code đã sửa**: Nêu rõ trước và sau khi sửa.
      - **Xác nhận Build/Kiểm thử**: Đảm bảo cả Frontend và Backend đều chạy build thành công (`npx tsc --noEmit` & `npm run build`).
 
-3. **Tuyệt đối không tự ý can thiệp vào Database của hệ thống**:
+6. **Tuyệt đối không tự ý can thiệp vào Database của hệ thống**:
    - AI tuyệt đối không được viết và chạy các script tự phát để xóa (delete), sửa đổi (update) hoặc reset các bảng ghi dữ liệu thực tế đang chạy (như Checklist templates, ShiftLogs, Users...) nếu không có chỉ đạo bằng văn bản rõ ràng từ USER. Phải bảo vệ tính toàn vẹn của dữ liệu ca trực đang kiểm thử/vận hành của USER.
 
-4. **Quy tắc Kiểm thử & Chạy File Test Script (USER Tự Chạy Test)**:
+7. **Quy tắc Kiểm thử & Chạy File Test Script (USER Tự Chạy Test)**:
    - Đối với các file test script (như `test_tkgd_module...`, script RPA cào dữ liệu, Playwright, bot crawler hoặc test tool độc lập...), AI chuẩn bị code hoàn chỉnh, kiểm tra tính đúng đắn và viết hướng dẫn chi tiết lệnh chạy (kèm các cờ tham số như chạy có giao diện `--headed` hoặc không giao diện).
    - **AI tuyệt đối không tự ý kích hoạt chạy ngầm các file test script**; **PHẢI ĐỂ USER TỰ CHẠY** trực tiếp trên terminal của mình để USER chủ động quan sát log, giao diện trình duyệt và kiểm thử thực tế.
 

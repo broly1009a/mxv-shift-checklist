@@ -166,8 +166,38 @@ export default function LegacyReconSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
+  // Format last checked time (e.g., "08/09 14:00")
+  const lastCheckedFormatted = useMemo(() => {
+    const d = summaryData?.shiftInfo?.lastCheckedAt || summaryData?.klgd?.executedAt;
+    if (!d) return '--/-- --:--';
+    const dateObj = new Date(d);
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const mins = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${day}/${month} ${hours}:${mins}`;
+  }, [summaryData]);
+
   // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
-  const runs = summaryData?.runs || [];
+  const serverRuns = summaryData?.runs || [];
+  const runs = useMemo(() => {
+    if (serverRuns && serverRuns.length > 0) return serverRuns;
+    // Fallback: nếu server chưa kịp trả về danh sách runs nhưng đã có lượt check hiển thị
+    if (summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt || (lastCheckedFormatted && lastCheckedFormatted !== '--/-- --:--')) {
+      const execTime = summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt || new Date().toISOString();
+      const currentId = selectedRunJobId || summaryData?.currentJobId || summaryData?.klgd?.jobId || 'current-latest';
+      const timePart = lastCheckedFormatted.includes(' ') ? lastCheckedFormatted.split(' ')[1] : lastCheckedFormatted;
+      return [{
+        id: currentId,
+        jobId: currentId,
+        time: timePart,
+        label: lastCheckedFormatted !== '--/-- --:--' ? lastCheckedFormatted : 'Hiện tại',
+        createdAt: execTime,
+        status: summaryData?.klgd?.status || 'COMPLETED',
+      }];
+    }
+    return [];
+  }, [serverRuns, summaryData, lastCheckedFormatted, selectedRunJobId]);
   const isViewingHistorical = summaryData?.isViewingHistorical || false;
   const currentRunIndex = useMemo(() => {
     if (!runs || runs.length === 0) return -1;
@@ -494,17 +524,7 @@ export default function LegacyReconSection({
   const ccpTTTT = totals.totalCCP_TTTT;
   const ccpStatus = totals.ccpStatus || (ccpDSGD !== undefined ? 'COMPLETED' : 'IDLE');
 
-  // Format last checked time (e.g., "08/09 14:00")
-  const lastCheckedFormatted = useMemo(() => {
-    const d = summaryData?.shiftInfo?.lastCheckedAt || summaryData?.klgd?.executedAt;
-    if (!d) return '--/-- --:--';
-    const dateObj = new Date(d);
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const hours = String(dateObj.getHours()).padStart(2, '0');
-    const mins = String(dateObj.getMinutes()).padStart(2, '0');
-    return `${day}/${month} ${hours}:${mins}`;
-  }, [summaryData]);
+
 
   const klgdStatus = summaryData?.klgd?.status || 'IDLE';
   const klgdError = summaryData?.klgd?.error || null;
@@ -919,60 +939,63 @@ export default function LegacyReconSection({
                   </span>
                 </div>
 
-                {/* 2. Bộ lọc lượt check nằm bên cạnh (không sửa đè vào giao diện cũ) */}
-                {runs.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    paddingLeft: '14px',
-                    borderLeft: '1px solid var(--border-color)',
-                  }}>
-                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <History size={14} /> Lượt:
-                    </span>
+                {/* 2. Bộ lọc lượt check nằm bên cạnh (luôn hiển thị, không ẩn) */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  paddingLeft: '14px',
+                  borderLeft: '1px solid var(--border-color)',
+                }}>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <History size={14} /> Lượt:
+                  </span>
 
-                    {/* Nút lùi về lượt trước (<) */}
-                    <button
-                      type="button"
-                      title="Xem lượt check trước đó"
-                      disabled={!hasPrevRun}
-                      onClick={goToPrevRun}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: hasPrevRun ? 'var(--bg-input)' : 'transparent',
-                        color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        opacity: hasPrevRun ? 1 : 0.35,
-                        cursor: hasPrevRun ? 'pointer' : 'not-allowed',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
+                  {/* Nút lùi về lượt trước (<) */}
+                  <button
+                    type="button"
+                    title="Xem lượt check trước đó"
+                    disabled={!hasPrevRun}
+                    onClick={goToPrevRun}
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: hasPrevRun ? 'var(--bg-input)' : 'transparent',
+                      color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      opacity: hasPrevRun ? 1 : 0.35,
+                      cursor: hasPrevRun ? 'pointer' : 'not-allowed',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
 
-                    {/* Dropdown / Select chọn lượt */}
-                    <select
-                      value={selectedRunJobId || (runs[0]?.id || '')}
-                      onChange={(e) => handleSelectRun(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        fontSize: '0.85rem',
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
-                        backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.1)' : 'var(--bg-input)',
-                        color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
-                        border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.4)' : '1px solid var(--border-color)',
-                        cursor: 'pointer',
-                        outline: 'none',
-                      }}
-                    >
-                      {runs.map((r: any, idx: number) => {
+                  {/* Dropdown / Select chọn lượt */}
+                  <select
+                    value={selectedRunJobId || (runs[0]?.id || '')}
+                    onChange={(e) => handleSelectRun(e.target.value)}
+                    disabled={runs.length <= 1}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.1)' : 'var(--bg-input)',
+                      color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
+                      border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.4)' : '1px solid var(--border-color)',
+                      cursor: runs.length > 1 ? 'pointer' : 'default',
+                      outline: 'none',
+                    }}
+                  >
+                    {runs.length === 0 ? (
+                      <option value="">Lượt hiện tại</option>
+                    ) : (
+                      runs.map((r: any, idx: number) => {
                         const runNumber = runs.length - idx;
                         const date = new Date(r.createdAt || Date.now());
                         const timeStr = date.toLocaleTimeString('vi-VN', {
@@ -988,58 +1011,58 @@ export default function LegacyReconSection({
                             {labelText}
                           </option>
                         );
-                      })}
-                    </select>
+                      })
+                    )}
+                  </select>
 
-                    {/* Nút tiến tới lượt sau (>) */}
+                  {/* Nút tiến tới lượt sau (>) */}
+                  <button
+                    type="button"
+                    title="Xem lượt check mới hơn"
+                    disabled={!hasNextRun}
+                    onClick={goToNextRun}
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: hasNextRun ? 'var(--bg-input)' : 'transparent',
+                      color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      opacity: hasNextRun ? 1 : 0.35,
+                      cursor: hasNextRun ? 'pointer' : 'not-allowed',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+
+                  {/* Nút quay về lượt Mới nhất khi đang xem quá khứ */}
+                  {isViewingHistorical && (
                     <button
                       type="button"
-                      title="Xem lượt check mới hơn"
-                      disabled={!hasNextRun}
-                      onClick={goToNextRun}
+                      onClick={() => handleSelectRun(runs[0]?.id, true)}
+                      title="Quay lại lượt check mới nhất hiện tại"
                       style={{
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: hasNextRun ? 'var(--bg-input)' : 'transparent',
-                        color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        opacity: hasNextRun ? 1 : 0.35,
-                        cursor: hasNextRun ? 'pointer' : 'not-allowed',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.15s ease',
+                        gap: '4px',
+                        padding: '5px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                        color: '#0ea5e9',
+                        border: '1px solid rgba(14, 165, 233, 0.3)',
+                        cursor: 'pointer',
                       }}
                     >
-                      <ChevronRight size={16} />
+                      <RotateCcw size={12} />
+                      <span>Về hiện tại</span>
                     </button>
-
-                    {/* Nút quay về lượt Mới nhất khi đang xem quá khứ */}
-                    {isViewingHistorical && (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectRun(runs[0]?.id, true)}
-                        title="Quay lại lượt check mới nhất hiện tại"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '5px 10px',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          backgroundColor: 'rgba(14, 165, 233, 0.12)',
-                          color: '#0ea5e9',
-                          border: '1px solid rgba(14, 165, 233, 0.3)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <RotateCcw size={12} />
-                        <span>Về hiện tại</span>
-                      </button>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 

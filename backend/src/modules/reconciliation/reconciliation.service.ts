@@ -5142,15 +5142,22 @@ export class ReconciliationService {
         ? this.botJobModel.findById(jobId).lean().exec()
         : this.botJobModel.findOne({ jobType: 'CHECK_KLGD' }).sort({ createdAt: -1 }).lean().exec();
 
-      const dayStart = new Date(`${targetDate}T00:00:00.000Z`);
-      const dayEnd = new Date(`${targetDate}T23:59:59.999Z`);
+      const dayStartVN = new Date(`${targetDate}T00:00:00.000+07:00`);
+      const dayEndVN = new Date(`${targetDate}T23:59:59.999+07:00`);
+      const dayStartUTC = new Date(`${targetDate}T00:00:00.000Z`);
+      const dayEndUTC = new Date(`${targetDate}T23:59:59.999Z`);
+      const minDate = new Date(Math.min(dayStartVN.getTime(), dayStartUTC.getTime()));
+      const maxDate = new Date(Math.max(dayEndVN.getTime(), dayEndUTC.getTime()));
+
       const pastRunsPromise = this.botJobModel
         .find({
-          jobType: 'CHECK_KLGD',
+          jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] },
           $or: [
-            { createdAt: { $gte: dayStart, $lte: dayEnd } },
-            { 'payload.targetDate': targetDate },
-            { 'payload.sessionDay': targetDate },
+            { createdAt: { $gte: minDate, $lte: maxDate } },
+            { 'payload.targetDate': { $in: [targetDate, slashDate] } },
+            { 'payload.sessionDay': { $in: [targetDate, slashDate] } },
+            { 'payload.shiftDate': { $in: [targetDate, slashDate] } },
+            { 'payload.date': { $in: [targetDate, slashDate] } },
           ],
         })
         .sort({ createdAt: -1 })
@@ -5217,6 +5224,41 @@ export class ReconciliationService {
               ccp: totals.totalCCP_DSGD || 0,
             },
           };
+        });
+      }
+
+      // Đảm bảo klgdJob hiện tại luôn có trong runs nếu chưa có
+      if (klgdJob && !runs.some((r) => r.id === String(klgdJob._id || klgdJob.jobId))) {
+        const payload = klgdJob.payload
+          ? typeof klgdJob.payload.toObject === 'function'
+            ? klgdJob.payload.toObject()
+            : klgdJob.payload
+          : {};
+        const res = payload.result || {};
+        const totals = res.totals || {};
+        const created = new Date(klgdJob.createdAt || Date.now());
+        const vnDate = new Date(created.getTime() + 7 * 3600 * 1000);
+        const timeStr = `${String(vnDate.getUTCHours()).padStart(2, '0')}:${String(vnDate.getUTCMinutes()).padStart(2, '0')}`;
+        const dateStrFormatted = `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')}`;
+        const differ = totals.differ || 0;
+        const differACM = totals.differACM || 0;
+        const hasDiscrepancy = differ !== 0 || differACM !== 0;
+
+        runs.unshift({
+          id: String(klgdJob._id || klgdJob.jobId),
+          jobId: String(klgdJob._id || klgdJob.jobId),
+          time: timeStr,
+          label: `${dateStrFormatted} ${timeStr}`,
+          createdAt: klgdJob.createdAt || new Date(),
+          status: klgdJob.status || 'COMPLETED',
+          hasDiscrepancy,
+          totals: {
+            dsgd: totals.totalDSGD || 0,
+            fr: totals.totalFR || 0,
+            acm: totals.totalACM || 0,
+            nano: totals.totalNano || 0,
+            ccp: totals.totalCCP_DSGD || 0,
+          },
         });
       }
     }

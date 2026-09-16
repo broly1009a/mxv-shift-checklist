@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-16T18:10] RULE ENFORCEMENT: Cập Nhật 3 Quy Tắc Cưỡng Chế Sắt Đá Vào AGENTS.md (Chống Phỏng Đoán, Fail-Fast, Cấm Mảng Fallback)
+
+### 1. Mục tiêu thay đổi
+- Sau sự cố AI suy đoán sai về DSGD CoreCCP và tự ý đưa ra phỏng đoán, USER và AI đã thống nhất nâng cấp bộ quy tắc `AGENTS.md` thành các cơ chế cưỡng chế kỹ thuật rõ ràng để AI không thể vi phạm:
+  1. **Quy Tắc Chứng Cứ Ràng Buộc (Proof of Ground Truth - Bắt Buộc Dừng & Hỏi)**: Cấm sửa Selector/URL/Menu nếu không có trích dẫn từ test script, chỉ đạo từ USER hoặc log thực tế. Thiếu chứng cứ bắt buộc phải Dừng & Hỏi USER.
+  2. **Quy Tắc Fail-Fast & Zero-Silent-Swallow**: Tuyệt đối cấm nuốt lỗi khi điều hướng hoặc báo thành công ảo khi URL chưa chuyển trang. Phải `throw new Error` dừng ngay lập tức.
+  3. **Quy Tắc Cấm Tự Sinh Mảng Fallback Rác**: Cấm nhồi nhét nhiều tên phỏng đoán vào mảng candidate để "cầu may".
+
+### 2. Danh sách file chỉnh sửa
+- [.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+---
+
 ## [2026-09-16T16:12] BUGFIX & DEPLOY: Khắc Phục Lỗi 502 Bad Gateway Trên Ubuntu & Gỡ Bỏ Hoàn Toàn Giá Trị Mặc Định Suy Diễn
 
 ### 1. Mục tiêu thay đổi
