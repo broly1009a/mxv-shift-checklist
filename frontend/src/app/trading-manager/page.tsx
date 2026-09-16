@@ -1518,60 +1518,13 @@ export default function TradingManagerPage() {
                 )}
               </div>
 
-              {/* Bên phải: Lựa chọn lượt check (Quá khứ / Hiện tại) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <History size={14} /> Lượt check:
-                </span>
-
-                {/* Nút lùi về lượt trước (<) */}
-                <button
-                  type="button"
-                  title="Xem lượt check trước đó"
-                  disabled={!hasPrevRun}
-                  onClick={goToPrevRun}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: hasPrevRun ? 'var(--bg-input)' : 'transparent',
-                    color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    opacity: hasPrevRun ? 1 : 0.35,
-                    cursor: hasPrevRun ? 'pointer' : 'not-allowed',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                {/* Dropdown / Select chọn lượt */}
-                {runs.length > 0 ? (
-                  <select
-                    value={selectedRunJobId || (runs[0]?.id || '')}
-                    onChange={(e) => handleSelectRun(e.target.value)}
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: 800,
-                      fontFamily: 'monospace',
-                      backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.1)' : 'var(--bg-input)',
-                      color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
-                      border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.4)' : '1px solid var(--border-color)',
-                      cursor: 'pointer',
-                      outline: 'none',
-                    }}
-                  >
-                    {runs.map((r: any, idx: number) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label || r.time} {idx === 0 ? '(Mới nhất)' : ''} {r.hasDiscrepancy ? '⚠️' : '✓'}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
+              {/* Bên phải: Thời điểm check gần nhất (Giao diện cũ) + Bộ lọc xem lại lượt check bên cạnh */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                {/* 1. Giao diện gốc cũ: Thời điểm check gần nhất */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                    Thời điểm check gần nhất:
+                  </span>
                   <span style={{
                     padding: '6px 14px',
                     borderRadius: '8px',
@@ -1585,54 +1538,116 @@ export default function TradingManagerPage() {
                   }}>
                     {lastCheckedFormatted}
                   </span>
-                )}
+                </div>
 
-                {/* Nút tiến tới lượt sau (>) */}
-                <button
-                  type="button"
-                  title="Xem lượt check mới hơn"
-                  disabled={!hasNextRun}
-                  onClick={goToNextRun}
-                  style={{
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: hasNextRun ? 'var(--bg-input)' : 'transparent',
-                    color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    opacity: hasNextRun ? 1 : 0.35,
-                    cursor: hasNextRun ? 'pointer' : 'not-allowed',
-                    display: 'inline-flex',
+                {/* 2. Bộ lọc lượt check nằm bên cạnh (không sửa đè vào giao diện cũ) */}
+                {runs.length > 0 && (
+                  <div style={{
+                    display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <ChevronRight size={16} />
-                </button>
+                    gap: '8px',
+                    paddingLeft: '14px',
+                    borderLeft: '1px solid var(--border-color)',
+                  }}>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <History size={14} /> Lượt:
+                    </span>
 
-                {/* Nút quay về lượt Mới nhất khi đang xem quá khứ */}
-                {isViewingHistorical && (
-                  <button
-                    type="button"
-                    onClick={() => handleSelectRun(runs[0]?.id, true)}
-                    title="Quay lại lượt check mới nhất hiện tại"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '5px 10px',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      backgroundColor: 'rgba(14, 165, 233, 0.12)',
-                      color: '#0ea5e9',
-                      border: '1px solid rgba(14, 165, 233, 0.3)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <RotateCcw size={12} />
-                    <span>Về hiện tại</span>
-                  </button>
+                    {/* Nút lùi về lượt trước (<) */}
+                    <button
+                      type="button"
+                      title="Xem lượt check trước đó"
+                      disabled={!hasPrevRun}
+                      onClick={goToPrevRun}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: hasPrevRun ? 'var(--bg-input)' : 'transparent',
+                        color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        opacity: hasPrevRun ? 1 : 0.35,
+                        cursor: hasPrevRun ? 'pointer' : 'not-allowed',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    {/* Dropdown / Select chọn lượt */}
+                    <select
+                      value={selectedRunJobId || (runs[0]?.id || '')}
+                      onChange={(e) => handleSelectRun(e.target.value)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.1)' : 'var(--bg-input)',
+                        color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
+                        border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.4)' : '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        outline: 'none',
+                      }}
+                    >
+                      {runs.map((r: any, idx: number) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label || r.time} {idx === 0 ? '(Mới nhất)' : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Nút tiến tới lượt sau (>) */}
+                    <button
+                      type="button"
+                      title="Xem lượt check mới hơn"
+                      disabled={!hasNextRun}
+                      onClick={goToNextRun}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: hasNextRun ? 'var(--bg-input)' : 'transparent',
+                        color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        opacity: hasNextRun ? 1 : 0.35,
+                        cursor: hasNextRun ? 'pointer' : 'not-allowed',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+
+                    {/* Nút quay về lượt Mới nhất khi đang xem quá khứ */}
+                    {isViewingHistorical && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRun(runs[0]?.id, true)}
+                        title="Quay lại lượt check mới nhất hiện tại"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '5px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                          color: '#0ea5e9',
+                          border: '1px solid rgba(14, 165, 233, 0.3)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <RotateCcw size={12} />
+                        <span>Về hiện tại</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
