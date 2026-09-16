@@ -1593,11 +1593,23 @@ export default function TradingManagerPage() {
                         outline: 'none',
                       }}
                     >
-                      {runs.map((r: any, idx: number) => (
-                        <option key={r.id} value={r.id}>
-                          {r.label || r.time} {idx === 0 ? '(Mới nhất)' : ''}
-                        </option>
-                      ))}
+                      {runs.map((r: any, idx: number) => {
+                        const runNumber = runs.length - idx;
+                        const date = new Date(r.createdAt || Date.now());
+                        const timeStr = date.toLocaleTimeString('vi-VN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          timeZone: 'Asia/Ho_Chi_Minh',
+                        });
+                        const isLatest = idx === 0;
+                        const labelText = `Lượt #${runNumber} (${timeStr})${isLatest ? ' - Mới nhất' : ''}`;
+                        return (
+                          <option key={r.id} value={r.id}>
+                            {labelText}
+                          </option>
+                        );
+                      })}
                     </select>
 
                     {/* Nút tiến tới lượt sau (>) */}
