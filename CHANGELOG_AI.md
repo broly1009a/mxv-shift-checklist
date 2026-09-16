@@ -1,24 +1,31 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-16T09:50] FIX & REFACTOR: Chuẩn Hóa Logic Đóng Tab Widget CQG Desktop Web (Strict Scope wpfe-widget-tab-header-group)
+## [2026-09-16T10:30] FIX & REFACTOR: Tối Ưu Đóng Tab CQG An Toàn (Giữ Lại 1 Tab Tránh Sập Layout) & Sửa Dialog Log Off
 
 ### 1. Mục tiêu thay đổi
-Theo yêu cầu và cung cấp cấu trúc DOM thực tế từ USER:
-- Khắc phục lỗi bot RPA tải CQG quên hoặc không đóng được các tab widget cũ, dẫn đến tích tụ nhiều tab rác hoặc đè tab.
-- Tuyệt đối không quét bừa các selector chung như `button.close` hay `@aria-label='Close'` có nguy cơ click nhầm vào các nút khác trên giao diện CQG (Add widget +, Phóng to Maximize, Menu Gear, Toolbars...).
-- Giới hạn phạm vi chuẩn xác 100% trong `<wpfe-widget-tab-header-group>` và các tab con `<wpfe-widget-tab-header>`.
-- Xử lý cơ chế ẩn hiện động của CQG: Tab inactive trong CQG Desktop không render nút đóng cho tới khi được hover hoặc được kích hoạt active.
+Theo phân tích và kiểm thử thực tế cùng USER:
+- Khắc phục lỗi sập layout: Trong CQG Desktop Web, nếu đóng sạch toàn bộ tab về 0 tab thì panel trên (`g1.w431`) sẽ bị hủy bỏ (collapse), làm panel bên dưới (`g3.w0`) bị kéo nhảy lên trên xáo trộn layout.
+- Áp dụng cơ chế dọn dẹp thông minh: Khi tải xong tab nào thì đóng đúng tab đó, đồng thời kiểm tra nếu có tab thừa phía trước thì đóng dần cho đến khi **CHỈ CÒN ĐÚNG 1 TAB DUY NHẤT** (chặn cứng `count > 1`, không bao giờ đóng tab cuối cùng).
+- Sửa lỗi kẹt xác nhận Log off: Khi hiện `<wpfe-confirmation-dialog>`, code cũ trỏ nhầm vào nút Log off ở Sidebar phía sau màn đen backdrop gây lỗi *"intercepts pointer events"*. Chuyển sang định vị đích danh `wpfe-confirmation-dialog button.wpfe-confirm`.
+- Bổ sung cờ Playwright Chrome/Edge: Thêm `--disable-session-crashed-bubble` và `--hide-crash-restore-bubble` để triệt tiêu popup "Restore pages" khi mở trình duyệt.
 
 ### 2. Danh sách file chỉnh sửa
 - [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+- [backend/src/scripts/test_cqg_pure.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_pure.ts)
 
 ### 3. Tóm tắt nội dung code đã sửa
-- Hàm `closeAllOpenCqgWidgetTabs(page: Page)`:
-  - Giới hạn locator duy nhất vào `wpfe-widget-tab-header-group wpfe-widget-tab-header button.wpfe-widget-tab-header-close-button`.
-  - Triệt tiêu hoàn toàn các selector lỏng lẻo `//button[contains(@class, 'close')]` hoặc `//button[.//mat-icon]`.
-  - Vòng lặp đóng tab tuần tự (tối đa 10 lượt). Khi tab active đóng, CQG tự chuyển active sang tab kế tiếp.
-  - Trường hợp tab chưa render nút đóng: Tự động hover vào tab con đầu tiên (`firstTab.hover()`) hoặc click kích hoạt (`.wpfe-tab-header-body`) để render nút đóng trước khi click.
-  - Ngắt vòng lặp an toàn khi không còn tab nào hoặc chỉ còn tab hệ thống cố định.
+1. **`rpa-downloader.service.ts`**:
+   - Khối `finally` của `downloadCqgWidget`: Đóng tab vừa tải, sau đó lặp đóng các tab thừa trong panel `g1.w431` cho đến khi `remainingCount === 1` thì dừng lại ngay.
+   - Thêm điều kiện loại trừ `not(@data-help-id='g3.w0')` trên tất cả các thao tác tab và menu 3 chấm để bảo vệ 100% panel bên dưới.
+   - Hàm `logoutCqg`: Định vị chính xác nút xác nhận `wpfe-confirmation-dialog button.wpfe-confirm` với `{ force: true }`.
+   - Cấu hình `launchOptions`: Thêm `acceptDownloads: true`, `--disable-session-crashed-bubble`, `--hide-crash-restore-bubble`.
+2. **`test_cqg_pure.ts`**:
+   - Nâng cấp hỗ trợ tải từng file cụ thể (ví dụ `OP1`, `FR1`) hoặc trọn gói 4 file.
+   - Hỗ trợ kiểm thử trực tiếp trên môi trường Demo `MXV03` / `MXV`.
+
+### 4. Xác nhận Build & Kiểm thử
+- Build Backend: `nest build` thành công 100% không cảnh báo/lỗi (`code 0`).
+- Kiểm thử thực tế: File `OP1.xlsx` (9.2 KB, Open Positions) tải thành công, tab được dọn sạch về 1 tab duy nhất, log off đóng phiên mượt mà.
 
 ---
 

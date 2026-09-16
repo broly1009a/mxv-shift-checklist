@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
 import { RpaDownloaderService } from '../modules/bot-engine/rpa-downloader.service';
-import { decrypt } from '../modules/bot-engine/utils/crypto';
+import { decrypt, encrypt } from '../modules/bot-engine/utils/crypto';
 
 // Nạp file .env từ nhiều vị trí khả dĩ
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -117,22 +117,16 @@ async function run() {
   console.log('       KIỂM THỬ ĐỘC LẬP RPA CQG (DỌN TAB RÁC & TẢI BÁO CÁO CHUẨN)      ');
   console.log('======================================================================\n');
 
-  // 1. Lấy thông tin tài khoản CQG từ CSDL MongoDB
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mxv-checklist';
-  console.log(`🔌 Đang kết nối CSDL: ${mongoUri.split('@').pop() || mongoUri}`);
-  
-  await mongoose.connect(mongoUri);
-  const setting = await mongoose.connection.db!.collection('system_settings').findOne({ key: 'bot_credentials_cqg' });
-  await mongoose.disconnect();
-
-  if (!setting || !setting.value) {
-    console.error('❌ Không tìm thấy cấu hình bot_credentials_cqg trong CSDL MongoDB!');
-    process.exit(1);
-  }
-
-  const rawEncryptedCreds = setting.value;
-  const creds = JSON.parse(decrypt(rawEncryptedCreds));
-  console.log(`✅ Đã nạp tài khoản CQG từ CSDL: ${creds.username1 || creds.usernameCQG1}`);
+  // Sử dụng cấu hình CQG DEMO theo yêu cầu của USER
+  const demoCreds = {
+    url: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+    urlTrade: 'https://mdemo.cqg.com/cqg/desktop/logon?ref=forced',
+    username1: 'MXV03',
+    password1: 'MXV',
+  };
+  const rawEncryptedCreds = encrypt(JSON.stringify(demoCreds));
+  console.log(`🌐 Môi trường: CQG DEMO (https://mdemo.cqg.com/cqg/desktop/main)`);
+  console.log(`✅ Tài khoản DEMO: ${demoCreds.username1} | Mật khẩu: ${demoCreds.password1}`);
 
   const destDir = path.join(process.cwd(), 'temp', 'test_cqg_downloads');
   if (!fs.existsSync(destDir)) {
