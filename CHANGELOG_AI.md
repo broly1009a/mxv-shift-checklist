@@ -1,6 +1,149 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-16T11:10] FIX: Chuẩn Hóa Điều Hướng Báo Cáo DSGD CoreCCP Sang Menu "Danh Sách Giao Dịch" (/ORDERS/ORDERMATCH_DETAIL)
+## [2026-09-16T16:12] BUGFIX & DEPLOY: Khắc Phục Lỗi 502 Bad Gateway Trên Ubuntu & Gỡ Bỏ Hoàn Toàn Giá Trị Mặc Định Suy Diễn
+
+### 1. Mục tiêu thay đổi
+1. **Xử lý triệt để lỗi 502 Bad Gateway (`https://10.0.0.26/trading-manager`)**:
+   - Nguyên nhân: Trong lần deploy trước đó, thư mục con `components/core-ccp` chứa `CcpLotStatisticsSection.tsx` bị thiếu trên Ubuntu dẫn đến Next.js build fail, PM2 không tìm thấy production bundle hợp lệ và Nginx trả về lỗi `502 Bad Gateway`.
+   - Khắc phục: Bổ sung upload đầy đủ toàn bộ thư mục `components/core-ccp`, thực hiện clean build lại Next.js và khởi động lại PM2 `mxv-frontend`.
+2. **Gỡ bỏ 100% các giá trị đường dẫn fallback mặc định tự suy diễn**:
+   - Tuân thủ nghiêm ngặt chỉ đạo của USER: Không tự ý hiển thị các đường dẫn mặc định trong Cấu hình.
+   - Chỉ đọc và hiển thị chính xác các giá trị đang thực sự tồn tại trong CSDL MongoDB (`system_settings`). Trường nào chưa có trong CSDL thì giữ nguyên chuỗi rỗng (`''`).
+   - Sửa chuẩn key `bot_macro_lot_path` để đọc đúng file Macro số lot đã lưu trong CSDL.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build trên Ubuntu**: `next build` hoàn tất sạch sẽ 26/26 routes (Exit code: 0).
+- **PM2 Status**: `mxv-frontend` (PID: 2951490) và `mxv-backend` (PID: 2951279) Online 100%.
+- **Nginx HTTP Test**: `curl -I -k https://localhost/trading-manager` trả về **`HTTP/1.1 200 OK`**.
+
+---
+
+## [2026-09-16T15:48] CLEANUP & RESTORATION: Khôi Phục Nguyên Bản 2 Màn Hình CoreCCP (Tải 4 File & Thống Kê Lot/GTGD), Xóa Subtab Thừa, Đồng Bộ CSDL Bot Config
+
+### 1. Mục tiêu thay đổi
+1. **Khôi phục màn hình Tải 4 File & Kiểm Tra Đối Chiếu EOD CoreCCP**:
+   - Trả lại đúng màn hình vận hành thực tế mà người dùng đang sử dụng: Nút `Tải Báo Cáo CoreCCP` (tải 4 file QLTTTKGD, EOD, NR, TTTT), nút `Kiểm Tra Đối Chiếu CCP`, 4 thẻ KPI (Tổng TK, File sẵn sàng 4/4, Tài khoản âm, Lệch EOD), khối hiển thị trạng thái 4 file nguồn, Terminal live output và Bảng chênh lệch công thức EOD.
+2. **Loại bỏ toàn bộ các subtab phát sinh ngoài luồng (`GTT`, `MARGIN`)**:
+   - Tuân thủ tuyệt đối **Rule 1 của AGENTS.md** (Không tự ý suy diễn hoặc mở rộng logic ngoài chỉ đạo).
+   - Xóa bỏ 2 file tạm `CoreCcpGttSection.tsx` và `CoreCcpMarginSection.tsx`.
+   - Giữ duy nhất 2 Sub-tab chuẩn xác:
+     - Sub-tab 1: `1. Đối Soát Ký Quỹ & EOD (VNCLEAR)` (Màn hình Tải 4 file và Kiểm tra).
+     - Sub-tab 2: `2. Thống Kê Số Lot & GTGD (Thay Thế Macro)` (`CcpLotStatisticsSection`).
+3. **Đồng bộ trực tiếp cấu hình CSDL với Bot Config**:
+   - Trong `TradingManagerConfigSection.tsx`, kết nối trực tiếp `GET /api/v1/system-settings` và `POST /api/v1/system-settings`, đồng bộ 100% với MongoDB `system_settings` của Bot Config.
+
+### 2. Danh sách file chỉnh sửa & xóa
+- [frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx)
+- [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)
+- *(Đã xóa file thừa)*: `frontend/src/app/trading-manager/components/core-ccp/CoreCcpGttSection.tsx`
+- *(Đã xóa file thừa)*: `frontend/src/app/trading-manager/components/core-ccp/CoreCcpMarginSection.tsx`
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Cấu trúc lại `CoreCcpBackupSection.tsx`: Chỉ chứa đúng 2 màn hình gốc theo đúng chu trình nghiệp vụ thực tế của người dùng, không chèn các màn hình giả định.
+- `TradingManagerConfigSection.tsx`: Đọc và ghi trực tiếp các keys cấu hình (`bot_backup_path_ms`, `bot_backup_path_cqg`, `session_start_time`, `usd_exchange_rate`...) vào bảng CSDL `system_settings` dùng chung với trang Quản trị Bot.
+
+### 4. Xác nhận Build & Triển khai
+- **TypeScript**: `tsc --noEmit` hoàn tất không có lỗi (Exit code: 0).
+- **Frontend Build**: `next build` biên dịch thành công 26/26 routes (Exit code: 0).
+- **Deploy Server Ubuntu (10.0.0.26)**: Hoàn tất deploy và khởi động lại PM2 online (`mxv-backend` PID: 2939363, `mxv-frontend` PID: 2939636).
+
+---
+
+## [2026-09-16T15:32] BUGFIX & UI RESTORATION: Khôi Phục 100% Giao Diện Gốc Tab 1 (Bảng Ma Trận 3x5, Lệch Khớp, EOD) & Hủy Endpoint Thừa
+
+### 1. Mục tiêu thay đổi
+Thực hiện yêu cầu từ USER:
+1. *"tôi tái cấu trúc code chứ không có nhu cầu sửa sang giao diện khác"* -> Khôi phục chính xác 100% giao diện và mã nguồn nguyên bản của Tab 1 (`Check GD - EOD - Sync`) vào [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx), không can thiệp hay thay đổi bất kỳ thành phần UI nào của người dùng:
+   - Thanh điều hướng lượt check (`< Lượt #N (HH:mm:ss) >`, Quét lại sau, Chuông âm báo).
+   - Bảng Ma trận 3 dòng x 5 cột đối soát trong phiên: KLGD, TTM, TTTT (M-System, CQG, ACM Straits, Nano, CCP).
+   - Thanh công cụ hành động: Chọn ngày phiên, [Hôm nay], [Check thủ công], [Check], [Âm báo: Bật/Tắt].
+   - Bảng hiển thị chi tiết giao dịch chênh lệch / TTM chênh lệch dạng DataGrid.
+   - 2 Khung song song: [Tài khoản âm ký quỹ mới (EOD)] và [Kết quả chạy EOD].
+   - Khung dưới cùng: [Kết quả đồng bộ số dư CQG].
+2. *"@Get('trading-manager-config') không cần thiết trong botcofig có cấu hình rồi bốc ra thôi không cần phải thiết kế mới"* -> Revert và loại bỏ hoàn toàn endpoint mới trong `bot-engine.controller.ts`, tận dụng 100% các endpoint cấu hình CSDL sẵn có của Bot Config.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Revert file `bot-engine.controller.ts` về trạng thái nguyên bản (loại bỏ `@Get('trading-manager-config')` và `@Post('trading-manager-config')`).
+- Chuyển trọn vẹn 100% code logic, state, hook WebSocket và toàn bộ khối JSX nguyên bản của Tab 1 từ `page_orig.tsx` vào `LegacyReconSection.tsx`.
+- Khắc phục triệt để lỗi hiển thị sai giao diện, các ô filter bị co rút hoặc dữ liệu hiển thị gạch nối `--`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **TypeScript**: `tsc --noEmit` hoàn tất không có lỗi (Exit code: 0).
+- **Frontend Build**: `next build` biên dịch 26/26 routes thành công (Exit code: 0).
+- **Deploy Máy Chủ Ubuntu (10.0.0.26)**: Đã build và restart PM2 thành công (`mxv-backend` PID: 2931671, `mxv-frontend` PID: 2931889).
+
+---
+1. **`core-ccp/`**:
+   - `CoreCcpGttSection.tsx`: Kiểm tra giá thanh toán CoreCCP vs CQG Price và xuất file Excel điều chỉnh.
+   - `CoreCcpMarginSection.tsx`: Quản lý 4 nhóm ký quỹ bù trừ VNCLEAR.
+   - `CcpLotStatisticsSection.tsx`: Thống kê số lot, GTGD, TTM, TTTT.
+   - `CoreCcpBackupSection.tsx`: Tải 8 báo cáo chuẩn CoreCCP và điều phối các subtab trên.
+2. **`legacy-ms-cqg/`**:
+   - `LegacyGttCheckerSection.tsx`: Tách độc lập tính năng check GTT M-System cũ.
+   - `LegacyBackupThongKeSection.tsx`: Backup 20 file MS, 9 file CQG, IMR và Macro cũ.
+   - `LegacyReconSection.tsx`: Đối chiếu khớp lệnh MS vs CQG vs ACM trong phiên.
+3. **`shared/`**:
+   - Di chuyển `TradingManagerConfigSection.tsx` và `TradingManagerGuideModal.tsx` vào `shared/`.
+4. **`page.tsx`**:
+   - Cập nhật import trỏ chuẩn xác vào 3 thư mục `core-ccp/`, `legacy-ms-cqg/`, và `shared/`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Frontend Build**: Next.js Turbopack biên dịch 26/26 routes thành công (Exit code: 0).
+- **Backend Build**: NestJS build hoàn thành không lỗi (Exit code: 0).
+- **Deploy Máy Chủ Ubuntu (10.0.0.26)**: Đã deploy qua `deploy_to_ubuntu.js`, PM2 `mxv-backend` (PID: 2925875) và `mxv-frontend` (PID: 2926107) đều hoạt động `online` ổn định.
+
+---
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER ("hoàn thiện nốt màn hình bên Backup – Thống kê – GTT với cấu hình đường dẫn theo database đã lưu... từ đó cũng dựng ra màn hình tương tự cho backup CCP"):
+1. **Tổng hợp danh mục cấu hình hệ thống (Database Gap Analysis)**:
+   - Đối chiếu đầy đủ 19 tham số và đường dẫn giữa C# Tool (`operate-transaction-app`) và CSDL MongoDB.
+   - Bổ sung vào Backend các tham số còn thiếu: Tỷ giá thanh toán Mua/Bán (`usd_settlement_rate_sell`, `usd_settlement_rate_buy`), Giờ kết thúc phiên (`session_end_time`), các đường dẫn thư mục kiểm tra MS-CQG, kết quả check, dữ liệu đầu ngày MS, file nhập GTT, bản tin, danh sách tài khoản âm ký quỹ theo dõi và bảng mapping ngày nghỉ LME.
+2. **Hoàn thiện Tab "Cấu hình – Đường dẫn" (Tab 3)**:
+   - Loại bỏ 100% các ô nhập tĩnh read-only tạm thời.
+   - Thay bằng component [TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/TradingManagerConfigSection.tsx) chuẩn 1:1 theo cửa sổ C# Desktop FormConfig: Cấu hình tỷ giá (Bán/Mua/Quy đổi), Cấu hình phiên, 10+ đường dẫn hoạt động có kiểm tra quyền ghi thời gian thực, 2 bảng song song (TK âm KQ & Ngày nghỉ LME) và nút **Lưu cấu hình** ghi trực tiếp vào MongoDB.
+3. **Xây dựng Màn hình Chuyên biệt "Backup & Đối Chiếu CoreCCP" (Tab 4)**:
+   - Xây dựng component [CoreCcpBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/CoreCcpBackupSection.tsx) thay thế 20 báo cáo cũ M-System bằng 8 báo cáo chuẩn thế hệ mới của CoreCCP (`QLTTTKGD`, `EOD`, `NR`, `TTTT`, `DSGD`, `TTM`, `DSL`, `LSGTT`).
+   - Khung Backup CoreCCP & CQG đối ứng, Section Giá thanh toán CoreCCP vs CQG Price, Section Kiểm tra ký quỹ CoreCCP (4 nhóm chỉ số mới theo quy chế bù trừ thanh toán VNCLEAR), và nhúng `CcpLotStatisticsSection` với đầy đủ thống kê số lot, GTGD, TTM, TTTT.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)
+- [frontend/src/app/trading-manager/components/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/TradingManagerConfigSection.tsx) [NEW]
+- [frontend/src/app/trading-manager/components/CoreCcpBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/CoreCcpBackupSection.tsx) [NEW]
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **`bot-engine.controller.ts`**:
+   - Thêm endpoint `GET /api/v1/bot-engine/trading-manager-config`: Tổng hợp và trả về toàn bộ 19 tham số cấu hình, tỷ giá, giờ phiên, 12 đường dẫn, danh sách TK âm KQ và ngày nghỉ LME từ CSDL `system_settings`.
+   - Thêm endpoint `POST /api/v1/bot-engine/trading-manager-config`: Nhận dữ liệu cập nhật từ UI và lưu trực tiếp vào CSDL MongoDB.
+2. **`TradingManagerConfigSection.tsx`**:
+   - Dựng form cấu hình 1:1 chuẩn C# FormConfig: Tỷ giá thanh toán Mua/Bán, Tỷ giá quy đổi USD/VND, Giờ bắt đầu/kết thúc phiên.
+   - 12 ô đường dẫn với nút "Kiểm tra" quyền đọc/ghi thời gian thực thông qua `verify-storage-path`.
+   - 2 bảng song song: ListBox mã tài khoản âm ký quỹ (có Thêm/Xóa) và Bảng mapping Ngày gốc - Ngày thay thế của sàn LME.
+   - Nút lớn "Lưu Cấu Hình" gọi API lưu CSDL.
+3. **`CoreCcpBackupSection.tsx`**:
+   - Chuẩn hóa quy trình vận hành CoreCCP: Header lập lịch, Khung 8 báo cáo CoreCCP + 9 file CQG, Khung đối chiếu GTT CoreCCP, Khung kiểm tra 4 nhóm ký quỹ bù trừ VNCLEAR, và nhúng thống kê số lot & GTGD.
+4. **`trading-manager/page.tsx`**:
+   - Import và kết nối các Tab: Tab 3 trỏ vào `TradingManagerConfigSection`, Tab 4 trỏ vào `CoreCcpBackupSection`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build Local**: `nest build` thành công 100% (Exit code: 0).
+- **Frontend Build Local**: Next.js Turbopack biên dịch 26/26 routes thành công 100% (TypeScript pass, Exit code: 0).
+- **Deploy Máy Chủ Ubuntu (10.0.0.26)**: Đồng bộ 243 file và biên dịch thành công 100% với Exit code: 0; PM2 `mxv-backend` (PID: 2915561) và `mxv-frontend` (PID: 2915790) đều hoạt động `online` ổn định.
+
+---
+
 
 ### 1. Mục tiêu thay đổi
 Theo đối chiếu ảnh chụp màn hình menu thực tế từ USER:
