@@ -83,6 +83,10 @@ export default function TradingManagerPage() {
   }, [activeJobId]);
   const [summaryData, setSummaryData] = useState<any>(null);
   const [selectedRunJobId, setSelectedRunJobId] = useState<string | null>(null);
+  const selectedRunJobIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedRunJobIdRef.current = selectedRunJobId;
+  }, [selectedRunJobId]);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
@@ -194,7 +198,7 @@ export default function TradingManagerPage() {
   const fetchConsoleSummary = useCallback(async (date?: string, silent: boolean = false, jobId?: string | null) => {
     if (!token) return;
     const qDate = date || selectedDate;
-    const targetJobId = jobId !== undefined ? jobId : selectedRunJobId;
+    const targetJobId = jobId !== undefined ? jobId : selectedRunJobIdRef.current;
     if (!silent) setLoading(true);
 
     try {
@@ -231,15 +235,17 @@ export default function TradingManagerPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [token, selectedDate, selectedRunJobId, playAlertSound]);
+  }, [token, selectedDate, playAlertSound]);
 
   // Load when date changes
   useEffect(() => {
     if (selectedDate) {
+      selectedRunJobIdRef.current = null;
       setSelectedRunJobId(null);
       fetchConsoleSummary(selectedDate, false, null);
     }
-  }, [selectedDate, fetchConsoleSummary]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
   const runs = summaryData?.runs || [];
@@ -255,9 +261,11 @@ export default function TradingManagerPage() {
 
   const handleSelectRun = useCallback((jobId: string | null, forceLatest: boolean = false) => {
     if (forceLatest || (runs.length > 0 && jobId === runs[0].id)) {
+      selectedRunJobIdRef.current = null;
       setSelectedRunJobId(null);
       fetchConsoleSummary(selectedDate, false, null);
     } else {
+      selectedRunJobIdRef.current = jobId;
       setSelectedRunJobId(jobId);
       fetchConsoleSummary(selectedDate, false, jobId);
     }
@@ -279,7 +287,10 @@ export default function TradingManagerPage() {
   useEffect(() => {
     if (!checkPeriodic) return;
     const interval = setInterval(() => {
-      fetchConsoleSummary(selectedDate, true);
+      // Khi đang xem lượt quá khứ, không tự động refresh đè dữ liệu live
+      if (!selectedRunJobIdRef.current) {
+        fetchConsoleSummary(selectedDate, true);
+      }
     }, 45000);
     return () => clearInterval(interval);
   }, [checkPeriodic, selectedDate, fetchConsoleSummary]);
@@ -450,7 +461,10 @@ export default function TradingManagerPage() {
     // 1. Nhận sự kiện cập nhật Dashboard từ hệ thống
     socket.on('dashboard-updated', (payload: any) => {
       console.log('[WS] dashboard-updated received:', payload);
-      fetchConsoleSummary(selectedDate, true);
+      // Khi đang xem lượt quá khứ, không tự động refresh đè dữ liệu live
+      if (!selectedRunJobIdRef.current) {
+        fetchConsoleSummary(selectedDate, true);
+      }
     });
 
     // 2. Stream log thời gian thực định kỳ 1.5s
