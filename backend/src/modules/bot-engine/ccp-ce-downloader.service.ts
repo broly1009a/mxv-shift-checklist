@@ -99,10 +99,10 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
   },
   {
     code: 'DSL',
-    name: 'Lịch sử lệnh',
+    name: 'Danh sách lệnh',
     parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Lịch sử lệnh',
-    cachedUrl: '', // CoreCCP không có direct URL, dùng click menu
+    childMenu: 'Danh sách lệnh',
+    cachedUrl: '/ORDERS/ORDERBOOK',
     enabled: true,
   },
   {
@@ -144,17 +144,17 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
   {
     code: 'DSL',
     name: 'Lịch sử lệnh (CE)',
-    parentMenu: 'Lệnh và vị thế',
+    parentMenu: 'Quản lý sổ lệnh',
     childMenu: 'Lịch sử lệnh',
-    cachedUrl: '',
+    cachedUrl: '/ORDERS/ORDERBOOK_ALL',
     enabled: true,
   },
   {
     code: 'DSGD',
     name: 'Lịch sử giao dịch (CE)',
-    parentMenu: 'Lệnh và vị thế',
+    parentMenu: 'Quản lý sổ lệnh',
     childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '',
+    cachedUrl: '/ORDERS/ORDERMATCH_ALL',
     enabled: true,
   },
 ];
