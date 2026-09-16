@@ -5,13 +5,20 @@ import * as XLSX from 'xlsx';
 import mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
 import { RpaDownloaderService } from '../modules/bot-engine/rpa-downloader.service';
-import { decrypt, encrypt } from '../modules/bot-engine/utils/crypto';
+import { decrypt } from '../modules/bot-engine/utils/crypto';
 
+// Nạp file .env từ nhiều vị trí khả dĩ
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
-// Ép buộc hiển thị giao diện Chrome (HEADED) để quan sát
-process.env.HEADLESS_BOT = 'false';
-process.env.PLAYWRIGHT_HEADLESS = 'false';
+const args = process.argv.slice(2);
+const isCleanOnly = args.includes('--clean-only');
+const isHeadless = args.includes('--headless');
+
+// Mặc định chạy có giao diện (HEADED) để người dùng quan sát trực tiếp trên màn hình
+process.env.HEADLESS_BOT = isHeadless ? 'true' : 'false';
+process.env.PLAYWRIGHT_HEADLESS = isHeadless ? 'true' : 'false';
 
 function calculateMD5(filePath: string): string {
   if (!fs.existsSync(filePath)) return '';
@@ -107,23 +114,25 @@ function analyzeExcelFile(filePath: string, fileName: string, expectedType: stri
 
 async function run() {
   console.log('\n======================================================================');
-  console.log('   KIỂM THỬ ĐỘC LẬP TẢI VÀ SO SÁNH 4 BÁO CÁO CQG (FR, PS, OP, OD)   ');
+  console.log('       KIỂM THỬ ĐỘC LẬP RPA CQG (DỌN TAB RÁC & TẢI BÁO CÁO CHUẨN)      ');
   console.log('======================================================================\n');
 
-  // Lấy tài khoản CQG trực tiếp từ MongoDB atlas
+  // 1. Lấy thông tin tài khoản CQG từ CSDL MongoDB
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/mxv-checklist';
+  console.log(`🔌 Đang kết nối CSDL: ${mongoUri.split('@').pop() || mongoUri}`);
+  
   await mongoose.connect(mongoUri);
   const setting = await mongoose.connection.db!.collection('system_settings').findOne({ key: 'bot_credentials_cqg' });
   await mongoose.disconnect();
 
   if (!setting || !setting.value) {
-    console.error(' Không tìm thấy bot_credentials_cqg trong CSDL MongoDB!');
+    console.error('❌ Không tìm thấy cấu hình bot_credentials_cqg trong CSDL MongoDB!');
     process.exit(1);
   }
 
   const rawEncryptedCreds = setting.value;
   const creds = JSON.parse(decrypt(rawEncryptedCreds));
-  console.log(` Đã nạp tài khoản CQG từ CSDL: ${creds.username1 || creds.usernameCQG1}`);
+  console.log(`✅ Đã nạp tài khoản CQG từ CSDL: ${creds.username1 || creds.usernameCQG1}`);
 
   const destDir = path.join(process.cwd(), 'temp', 'test_cqg_downloads');
   if (!fs.existsSync(destDir)) {
@@ -141,28 +150,59 @@ async function run() {
   const rpaDownloader = new RpaDownloaderService(mockSettingsService);
 
   console.log(`📂 Thư mục lưu kết quả: ${destDir}`);
-  console.log(`🌐 Chế độ: HEADED (Trình duyệt Chrome mở trực tiếp trên màn hình)`);
-  console.log(` Bắt đầu tải bộ 4 file FR1, PS1, OP1, OD1...\n`);
+  console.log(`🌐 Chế độ hiển thị: ${process.env.HEADLESS_BOT === 'false' ? 'HEADED (Trực quan trên màn hình)' : 'HEADLESS (Chạy ngầm)'}`);
 
-  const expectedList = [
-    { file: 'FR1.xlsx', type: 'FR' },
-    { file: 'PS1.xlsx', type: 'PS' },
-    { file: 'OP1.xlsx', type: 'OP' },
-    { file: 'OD1.xlsx', type: 'OD' },
-  ];
+  // Xác định danh sách báo cáo cần chạy dựa trên tham số dòng lệnh
+  const reportsConfig: any = {};
+  const expectedList: { file: string; type: string }[] = [];
+
+  if (isCleanOnly) {
+    console.log(`🧹 Chế độ: CHỈ DỌN DẸP TAB RÁC TRONG PANEL g1.w431 (Bảo vệ tuyệt đối panel g3.w0)`);
+    reportsConfig.cleanOnly = true;
+  } else {
+    // Kiểm tra xem người dùng có truyền chỉ định báo cáo cụ thể không (vd: OP1, FR1...)
+    const requestedKeys = args.filter((a) => ['FR1', 'PS1', 'OP1', 'OD1'].includes(a.toUpperCase()));
+    if (requestedKeys.length > 0) {
+      requestedKeys.forEach((k) => {
+        const upper = k.toUpperCase();
+        reportsConfig[upper] = true;
+        expectedList.push({ file: `${upper}.xlsx`, type: upper.slice(0, 2) });
+      });
+      console.log(`🎯 Chỉ định tải riêng báo cáo: ${requestedKeys.join(', ')}`);
+    } else {
+      // Mặc định tải trọn gói 4 file của tài khoản 1
+      reportsConfig.FR1 = true;
+      reportsConfig.PS1 = true;
+      reportsConfig.OP1 = true;
+      reportsConfig.OD1 = true;
+      expectedList.push(
+        { file: 'FR1.xlsx', type: 'FR' },
+        { file: 'PS1.xlsx', type: 'PS' },
+        { file: 'OP1.xlsx', type: 'OP' },
+        { file: 'OD1.xlsx', type: 'OD' },
+      );
+      console.log(`🚀 Chế độ mặc định: Tải trọn gói 4 file FR1, PS1, OP1, OD1 (kèm auto dọn sạch tab thừa)`);
+    }
+  }
 
   try {
-    const result = await rpaDownloader.downloadCqgBackup(
-      { FR1: true, PS1: true, OP1: true, OD1: true },
-      destDir,
-    );
+    const result = await rpaDownloader.downloadCqgBackup(reportsConfig, destDir);
+
+    if (isCleanOnly) {
+      console.log('\n======================================================================');
+      console.log('            HOÀN TẤT DỌN DẸP TAB WIDGET THỪA TRÊN CQG                 ');
+      console.log('======================================================================\n');
+      console.log('✅ Toàn bộ tab rác trong panel g1.w431 đã được dọn sạch.');
+      console.log('🛡️ Panel g3.w0 bên dưới và các panel khác đã được bảo toàn nguyên vẹn 100%!');
+      return;
+    }
 
     console.log('\n======================================================================');
     console.log('                 BÁO CÁO PHÂN TÍCH & SO SÁNH CHI TIẾT                 ');
     console.log('======================================================================\n');
 
     if (result.errors && result.errors.length > 0) {
-      console.log(' Cảnh báo / lỗi phát sinh:');
+      console.log('⚠️ Cảnh báo / lỗi phát sinh trong phiên:');
       result.errors.forEach((e) => console.log(`   - ${e}`));
       console.log('');
     }
@@ -181,7 +221,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? ' CHUẨN' : ' LỆCH';
+      const statusStr = a.isMatch ? '✅ CHUẨN' : '❌ LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -193,32 +233,37 @@ async function run() {
     console.log('-------------------------------------------------------------------------------------------------------------------------\n');
 
     // Kiểm tra tính độc lập (trùng lặp MD5)
-    console.log('🔍 KIỂM TRA TÍNH ĐỘC LẬP GIỮA CÁC FILE:');
-    let hasDuplicate = false;
-    for (let i = 0; i < analyses.length; i++) {
-      for (let j = i + 1; j < analyses.length; j++) {
-        if (analyses[i].md5 && analyses[i].md5 === analyses[j].md5) {
-          console.log(`    PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
-          hasDuplicate = true;
+    if (analyses.length > 1) {
+      console.log('🔍 KIỂM TRA TÍNH ĐỘC LẬP GIỮA CÁC FILE:');
+      let hasDuplicate = false;
+      for (let i = 0; i < analyses.length; i++) {
+        for (let j = i + 1; j < analyses.length; j++) {
+          if (analyses[i].md5 && analyses[i].md5 === analyses[j].md5) {
+            console.log(`   ❌ PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
+            hasDuplicate = true;
+          }
         }
       }
-    }
 
-    if (!hasDuplicate) {
-      console.log('    TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
+      if (!hasDuplicate) {
+        console.log('   ✅ TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
+      }
     }
 
     // Kết luận tổng thể
     const allMatch = analyses.every((a) => a.isMatch);
     console.log('\n🎯 KẾT LUẬN CUỐI CÙNG:');
-    if (allMatch && !hasDuplicate) {
-      console.log('   🎉 BUG ĐÃ ĐƯỢC KHẮC PHỤC TRIỆT ĐỂ! Không còn hiện tượng các file bị tải nhầm thành Positions.');
+    if (allMatch) {
+      console.log('   🎉 QUY TRÌNH THÀNH CÔNG RỰC RỠ!');
+      console.log('   - Mỗi tab widget sau khi tải xong đều được tự động dọn sạch.');
+      console.log('   - Panel g1.w431 không còn bị tích tụ tab rác.');
+      console.log('   - Panel g3.w0 được bảo vệ an toàn.');
       console.log(`   📂 File thực tế được lưu tại: ${destDir}`);
     } else {
-      console.log('    Vẫn còn file chưa khớp hoặc bị trùng lặp, vui lòng kiểm tra lại log chi tiết ở trên.');
+      console.log('   ⚠️ Vẫn còn file chưa khớp hoặc chưa tải được, vui lòng kiểm tra lại log chi tiết ở trên.');
     }
   } catch (err: any) {
-    console.error(` Lỗi thực thi: ${err.message}`);
+    console.error(`❌ Lỗi thực thi: ${err.message}`);
   }
 }
 

@@ -4125,7 +4125,7 @@ export class RpaDownloaderService {
         'FR1' | 'PS1' | 'OP1' | 'OD1' | 'FR2' | 'PS2' | 'OP2' | 'OD2' | 'AS',
         boolean
       >
-    >,
+    > & { cleanOnly?: boolean },
     destDir: string,
     onReadyBarrier?: () => Promise<void>,
   ): Promise<{ errors: string[]; downloaded: string[] }> {
@@ -4298,6 +4298,13 @@ export class RpaDownloaderService {
               await browser1?.close().catch(() => { });
               throw new Error(`[CQG] Rào cản đồng bộ đã bị hủy, dừng phiên CQG: ${barrierErr?.message || barrierErr}`);
             }
+          }
+
+          if (reports.cleanOnly) {
+            this.logger.log('[CQG] Chế độ Clean-Only: Tiến hành dọn dẹp đóng sạch toàn bộ tab thừa trong panel g1.w431...');
+            await this.closeAllOpenCqgWidgetTabs(page);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            return { errors, downloaded };
           }
 
           if (reports.FR1) {
