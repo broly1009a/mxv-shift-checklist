@@ -3735,6 +3735,94 @@ export class RpaDownloaderService {
     );
   }
 
+  /**
+   * Đóng toàn bộ các tab widget thừa đang mở trên thanh tab của CQG Desktop Web
+   * Giúp màn hình làm việc luôn sạch sẽ, tránh hiện tượng tab cũ đè tab mới hoặc tích tụ nhiều tab rác.
+   * 
+   * LƯU Ý PHẠM VI CHÍNH XÁC (TUYỆT ĐỐI TUÂN THỦ CHỈ ĐẠO CỦA USER):
+   * 1. Chỉ thao tác dọn dẹp tab trong panel widget thao tác:
+   *    <wpfe-widget-tab-control data-help-id="g1.w431"> (vị trí top: 0px, left: 0px)
+   * 2. TUYỆT ĐỐI KHÔNG được đóng, xóa hay chạm vào tab trong panel bên dưới:
+   *    <wpfe-widget-tab-control data-help-id="g3.w0"> (vị trí top: 451px) hoặc các panel khác (Orders, Heatmap, Chart...)!
+   * 3. Bên trong panel g1.w431, chỉ click button.wpfe-widget-tab-header-close-button của wpfe-widget-tab-header.
+   */
+  async closeAllOpenCqgWidgetTabs(page: Page): Promise<void> {
+    try {
+      await page.keyboard.press('Escape').catch(() => { });
+
+      // Định vị chính xác panel mục tiêu g1.w431 (loại trừ tuyệt đối panel g3.w0 và các panel cố định khác)
+      let targetControl = page.locator("wpfe-widget-tab-control[data-help-id='g1.w431']");
+      const hasSpecificControl = (await targetControl.count().catch(() => 0)) > 0;
+      if (!hasSpecificControl) {
+        // Fallback an toàn: Tìm panel ở vị trí top: 0px nhưng loại trừ tuyệt đối g3.w0
+        targetControl = page
+          .locator("div.wpfe-page-layout-tab-panel[style*='top: 0px'] wpfe-widget-tab-control:not([data-help-id='g3.w0'])")
+          .first();
+      }
+
+      const controlCount = await targetControl.count().catch(() => 0);
+      if (controlCount === 0) return;
+
+      const tabGroup = targetControl.locator('wpfe-widget-tab-header-group').first();
+      const groupExists = await tabGroup.isVisible().catch(() => false);
+      if (!groupExists) return;
+
+      // Quét và đóng tuần tự các tab widget thừa trong duy nhất phạm vi panel g1.w431
+      for (let attempt = 0; attempt < 12; attempt++) {
+        // 1. Tìm nút đóng của tab active bên trong wpfe-widget-tab-header thuộc panel g1.w431
+        const activeCloseBtn = tabGroup
+          .locator('wpfe-widget-tab-header button.wpfe-widget-tab-header-close-button')
+          .first();
+
+        if (await activeCloseBtn.isVisible({ timeout: 600 }).catch(() => false)) {
+          this.logger.log(`[CQG] Đang đóng tab widget thừa trong panel g1.w431 (lượt ${attempt + 1})...`);
+          await activeCloseBtn.click({ force: true }).catch(() => { });
+          await page.waitForTimeout(400);
+          continue;
+        }
+
+        // 2. Nếu tab chưa active nên chưa render nút đóng, tìm các tab con trong panel này
+        const tabs = tabGroup.locator('wpfe-widget-tab-header');
+        const tabCount = await tabs.count().catch(() => 0);
+        if (tabCount === 0) {
+          // Đã dọn dẹp sạch toàn bộ các tab thừa trong panel này
+          break;
+        }
+
+        // Thử hover vào tab đầu tiên để CQG hiển thị nút đóng
+        const firstTab = tabs.first();
+        await firstTab.hover().catch(() => { });
+        await page.waitForTimeout(250);
+
+        if (await activeCloseBtn.isVisible({ timeout: 600 }).catch(() => false)) {
+          this.logger.log(`[CQG] Đang đóng tab widget sau khi hover trong panel g1.w431 (lượt ${attempt + 1})...`);
+          await activeCloseBtn.click({ force: true }).catch(() => { });
+          await page.waitForTimeout(400);
+          continue;
+        }
+
+        // Nếu hover vẫn chưa hiện nút, click vào thân tab để kích hoạt tab active
+        const tabBody = firstTab.locator('.wpfe-tab-header-body').first();
+        if (await tabBody.isVisible().catch(() => false)) {
+          await tabBody.click({ force: true }).catch(() => { });
+          await page.waitForTimeout(300);
+          if (await activeCloseBtn.isVisible({ timeout: 600 }).catch(() => false)) {
+            this.logger.log(`[CQG] Đang đóng tab widget sau khi kích hoạt active trong panel g1.w431 (lượt ${attempt + 1})...`);
+            await activeCloseBtn.click({ force: true }).catch(() => { });
+            await page.waitForTimeout(400);
+            continue;
+          }
+        }
+
+        // Không còn tab nào có thể đóng trong panel này
+        break;
+      }
+      await page.waitForTimeout(300);
+    } catch (err: any) {
+      this.logger.warn(`[CQG] Lỗi khi dọn dẹp tab widget: ${err?.message || err}`);
+    }
+  }
+
   private async downloadCqgWidget(
     page: Page,
     searchTerm: string,
@@ -3753,6 +3841,9 @@ export class RpaDownloaderService {
     // Tự động đóng/xóa popup Notifications của CQG nếu đang nổi trên màn hình
     await this.dismissCqgNotifications(page);
 
+    // Dọn dẹp sạch sẽ toàn bộ các tab widget thừa trước khi thêm widget mới
+    await this.closeAllOpenCqgWidgetTabs(page);
+
     // Dismiss open modals or menus
     await page.keyboard.press('Escape').catch(() => { });
     await page.keyboard.press('Escape').catch(() => { });
@@ -3766,8 +3857,14 @@ export class RpaDownloaderService {
       await homeMenu.click();
       await page.waitForTimeout(1000);
 
-      // Bước 2 (C#): Bấm nút dấu cộng add widget
-      const plusIcon = page.locator("//div[contains(@class, 'wpfe-add-widget-btn')]").first();
+      // Bước 2 (C#): Bấm nút dấu cộng add widget trong panel thao tác (ưu tiên g1.w431, loại trừ g3.w0)
+      let plusIcon = page.locator("wpfe-widget-tab-control[data-help-id='g1.w431'] .wpfe-add-widget-btn").first();
+      if ((await plusIcon.count().catch(() => 0)) === 0) {
+        plusIcon = page.locator("div.wpfe-page-layout-tab-panel[style*='top: 0px'] .wpfe-add-widget-btn").first();
+      }
+      if ((await plusIcon.count().catch(() => 0)) === 0) {
+        plusIcon = page.locator("//div[contains(@class, 'wpfe-add-widget-btn')]").first();
+      }
       await plusIcon.waitFor({ state: 'visible', timeout: 10000 });
       await plusIcon.click();
       await page.waitForTimeout(1000);
@@ -3821,9 +3918,11 @@ export class RpaDownloaderService {
       await page.waitForTimeout(10000);
 
       const ellipsisXPath =
-        `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']` +
+        `//wpfe-widget-tab-control[@data-help-id='g1.w431']//mat-icon[@data-mat-icon-name='ellipsis-v']` +
         ' | ' +
-        `//div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[1]//mat-icon[@data-mat-icon-name='ellipsis-v']`;
+        `//span[contains(text(), '${tabLabel}: All')]/ancestor::wpfe-widget-tab-control[not(@data-help-id='g3.w0')][1]//mat-icon[@data-mat-icon-name='ellipsis-v']` +
+        ' | ' +
+        `//div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[not(@data-help-id='g3.w0')][1]//mat-icon[@data-mat-icon-name='ellipsis-v']`;
       const downloadBtnXPath = `//div[contains(text(), "${downloadText}")]`;
 
       // Bước 9 & 10: Mở menu 3 chấm và bấm Download (chờ đến khi nút tải HẾT BỊ LÀM MỜ/DISABLED)
@@ -3880,23 +3979,9 @@ export class RpaDownloaderService {
     } catch (err: any) {
       this.logger.warn(`[CQG] Lỗi trong quá trình mở hoặc tải ${tabLabel}: ${err.message}`);
     } finally {
-      // Bước 11 (C#): Đóng tab widget vừa thêm để giữ màn hình luôn sạch sẽ (kể cả khi thành công hay bị lỗi)
-      try {
-        await page.keyboard.press('Escape').catch(() => { });
-        const closeButtonXPath =
-          `//span[contains(text(), '${tabLabel}: All')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]` +
-          ' | ' +
-          `//div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`;
-        const closeBtn = page.locator(closeButtonXPath).first();
-        const canClose = await closeBtn.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
-        if (canClose) {
-          await closeBtn.click({ force: true });
-          this.logger.log(`[CQG] Đã đóng tab widget: ${tabLabel}: All`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`[CQG] Không thể đóng tab ${tabLabel}: ${err.message}`);
-      }
-      await page.waitForTimeout(2000);
+      // Bước 11 (C#): Đóng toàn bộ các tab widget vừa thêm để giữ màn hình luôn sạch sẽ (kể cả khi thành công hay bị lỗi)
+      await this.closeAllOpenCqgWidgetTabs(page);
+      await page.waitForTimeout(1000);
     }
 
     if (!downloaded) {

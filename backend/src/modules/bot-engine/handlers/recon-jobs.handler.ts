@@ -8,7 +8,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
-import { parseJobPayload, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
+import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 
 @Injectable()
@@ -104,9 +104,10 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
   private async handleCheckKlgdJob(job: any) {
     const payload = parseJobPayload(job);
-    let targetDate = new Date();
-    if (payload.sessionDay) {
-      targetDate = new Date(payload.sessionDay);
+    let targetDate: Date;
+    if (payload.sessionDay || payload.targetDate) {
+      const resolved = resolveBotTargetDate(payload);
+      targetDate = resolved.dateObj;
     } else {
       // Overnight session logic:
       // Trong phiên MXV, phiên giao dịch mở lúc ~06:30/07:00 sáng và kéo dài xuyên đêm tới 05:00/06:00 sáng hôm sau.
@@ -241,7 +242,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       if (REQUIRE_ALL_SOURCES_FRESH && !barrierTriggered && !barrierAborted) {
         barrierAborted = true;
         abortReason = `Nguồn [${source}] gặp sự cố: ${errorMsg}`;
-        log(`⛔ DỪNG RÀO CẢN ĐỒNG BỘ: ${abortReason}. Đã dừng quy trình để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`);
+        log(` DỪNG RÀO CẢN ĐỒNG BỘ: ${abortReason}. Đã dừng quy trình để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`);
         triggerBarrierReject(new Error(abortReason));
       }
     };
@@ -283,7 +284,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         await barrierTriggerPromise;
 
         if (options.checkKlgd !== false) {
-          log('MS ⚡ [Pha 2] Kích hoạt xuất DSGD.xlsx...');
+          log('MS  [Pha 2] Kích hoạt xuất DSGD.xlsx...');
           const [dl] = await Promise.all([
             page.waitForEvent('download', { timeout: 45000 }),
             page.click("xpath=//i[contains(@class, 'fa-file-csv')]", { timeout: 15000 }),
@@ -316,7 +317,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);
-        log(`MS ❌ Lỗi: ${err.message}`);
+        log(`MS  Lỗi: ${err.message}`);
         abortBarrierIfStrict('M-System', err.message);
       } finally {
         if (!barrierAborted) {
@@ -390,7 +391,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         // Chờ tín hiệu rào cản kích hoạt tải Pha 2
         await barrierTriggerPromise;
 
-        log('ACM ⚡ [Pha 2] Kích hoạt xuất báo cáo Fill (Straits.csv)...');
+        log('ACM  [Pha 2] Kích hoạt xuất báo cáo Fill (Straits.csv)...');
         const btn = page.locator(exportBtnSelector).first();
         const isVisible = await btn.isVisible().catch(() => false);
         const straitsFile = path.join(acmDailyPath, 'Straits.csv');
@@ -429,7 +430,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
       } catch (err: any) {
         errors.push(`ACM: ${err.message}`);
-        log(`ACM ❌ Lỗi: ${err.message}`);
+        log(`ACM  Lỗi: ${err.message}`);
         abortBarrierIfStrict('Straits ACM', err.message);
       } finally {
         if (!barrierAborted) {
@@ -490,7 +491,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         // Chờ tín hiệu rào cản kích hoạt tải Pha 2
         await barrierTriggerPromise;
 
-        log('CCP ⚡ [Pha 2] Kích hoạt xuất báo cáo DSGD CoreCCP...');
+        log('CCP  [Pha 2] Kích hoạt xuất báo cáo DSGD CoreCCP...');
         const dsgdFile = await ccpSession.triggerExportDsgd();
         log(`CCP  Tải DSGD hoàn tất: ${dsgdFile || 'Không có dữ liệu'}`);
 
@@ -499,7 +500,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         log('CCP  Tải toàn bộ báo cáo CoreCCP hoàn tất.');
       } catch (err: any) {
         errors.push(`CCP: ${err.message}`);
-        log(`CCP ❌ Lỗi: ${err.message}`);
+        log(`CCP  Lỗi: ${err.message}`);
         abortBarrierIfStrict('CoreCCP', err.message);
       } finally {
         if (!barrierAborted) {
@@ -555,7 +556,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           log('CQG  CQG1 đã đăng nhập và sẵn sàng xuất FR1. Chờ rào cản đồng bộ...');
           checkAllReadyAndTrigger();
           await barrierTriggerPromise;
-          log('CQG ⚡ [Pha 2] Kích hoạt xuất FR1.xlsx...');
+          log('CQG  [Pha 2] Kích hoạt xuất FR1.xlsx...');
         };
 
         const result = await this.rpaDownloaderService.downloadCqgBackup(
@@ -595,7 +596,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
       } catch (err: any) {
         errors.push(`CQG: ${err.message}`);
-        log(`CQG ❌ Lỗi: ${err.message}`);
+        log(`CQG  Lỗi: ${err.message}`);
         abortBarrierIfStrict('CQG', err.message);
       } finally {
         if (!barrierAborted) {
@@ -634,7 +635,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     if (barrierAborted) {
-      log(`⛔ QUY TRÌNH ĐỐI SOÁT TẠM DỪNG: ${abortReason}. Không thực hiện so khớp để bảo vệ tính toàn vẹn số liệu.`);
+      log(` QUY TRÌNH ĐỐI SOÁT TẠM DỪNG: ${abortReason}. Không thực hiện so khớp để bảo vệ tính toàn vẹn số liệu.`);
       payload.result = {
         passed: false,
         isAborted: true,
@@ -659,7 +660,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       );
       if (coreErrors.length > 0) {
         const errorMsg = `Thiếu file dữ liệu cốt lõi do lỗi tải/đăng nhập: ${coreErrors.join(' | ')}. Dừng đối chiếu để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`;
-        log(`⛔ DỪNG ĐỐI SOÁT: ${errorMsg}`);
+        log(` DỪNG ĐỐI SOÁT: ${errorMsg}`);
         payload.result = {
           passed: false,
           isAborted: true,
@@ -672,7 +673,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     }
 
     if (errors.length > 0) {
-      log(`⚠️ Có ${errors.length} lỗi/cảnh báo bổ trợ (non-blocking), tiếp tục đối chiếu với dữ liệu sẵn có...`);
+      log(` Có ${errors.length} lỗi/cảnh báo bổ trợ (non-blocking), tiếp tục đối chiếu với dữ liệu sẵn có...`);
     } else {
       log(' Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
     }
@@ -826,8 +827,11 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
   private async handleCheckPreEodJob(job: any) {
     const payload = parseJobPayload(job);
     let targetDate: Date;
-    if (payload.sessionDay) {
-      targetDate = new Date(payload.sessionDay);
+    let dateStr: string;
+    if (payload.sessionDay || payload.targetDate) {
+      const resolved = resolveBotTargetDate(payload);
+      targetDate = resolved.dateObj;
+      dateStr = resolved.dateStr;
     } else {
       const localNow = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
       targetDate = new Date(Date.UTC(
@@ -835,9 +839,9 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         localNow.getUTCMonth(),
         localNow.getUTCDate()
       ));
+      targetDate.setUTCHours(0, 0, 0, 0);
+      dateStr = targetDate.toISOString().split('T')[0];
     }
-    targetDate.setUTCHours(0, 0, 0, 0);
-    const dateStr = payload.sessionDay || targetDate.toISOString().split('T')[0];
     job.logs.push(
       `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD tự động ngày ${dateStr}...`,
     );

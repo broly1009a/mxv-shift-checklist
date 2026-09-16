@@ -33,7 +33,7 @@ conn.on('ready', () => {
         console.log('\\n=== THUẬT TOÁN CŨ (TRƯỚC KHI SỬA) ===');
         console.log('  -> Bốc trúng Ca ID:', oldShift?._id.toString(), '| Status:', oldShift?.status);
         if (oldShift?.status === 'COMPLETED') {
-          console.log('  ❌ HẬU QUẢ: Bốc trúng ca COMPLETED -> Queue Guard sẽ CANCEL Job ngay lập tức!');
+          console.log('   HẬU QUẢ: Bốc trúng ca COMPLETED -> Queue Guard sẽ CANCEL Job ngay lập tức!');
         }
 
         // 2. Thuật toán MỚI 3 tầng

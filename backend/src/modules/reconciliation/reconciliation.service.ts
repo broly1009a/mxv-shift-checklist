@@ -1539,7 +1539,7 @@ export class ReconciliationService {
 
     if (files.dsgdCcp) {
       try {
-        const parsed = CcpExcelParser.parseDSGD(files.dsgdCcp);
+        const parsed = CcpExcelParser.parseDSGD(files.dsgdCcp, tradingDate, sessionStart, checkTime);
         totalCCP_DSGD = parsed.totalKhop;
         ccpStatus = 'COMPLETED';
       } catch (err: any) {
@@ -1548,7 +1548,7 @@ export class ReconciliationService {
     }
     if (files.ttmCcp) {
       try {
-        const parsed = CcpExcelParser.parseTTM(files.ttmCcp);
+        const parsed = CcpExcelParser.parseTTM(files.ttmCcp, tradingDate);
         totalCCP_TTM = parsed.totalTTM;
         ccpStatus = 'COMPLETED';
       } catch (err: any) {
@@ -1557,7 +1557,7 @@ export class ReconciliationService {
     }
     if (files.ttttCcp) {
       try {
-        const parsed = CcpExcelParser.parseTTTT(files.ttttCcp);
+        const parsed = CcpExcelParser.parseTTTT(files.ttttCcp, tradingDate);
         totalCCP_TTTT = parsed.totalTTTT;
         ccpStatus = 'COMPLETED';
       } catch (err: any) {
@@ -4226,11 +4226,12 @@ export class ReconciliationService {
     const target = path.join(base, subFolder);
     if (fs.existsSync(target)) return target;
 
+    // CHỈ cho phép fallback về các thư mục CÓ đúng subFolder ngày hôm đó!
+    // TUYỆT ĐỐI KHÔNG fallback về thư mục gốc không có subFolder (tránh bốc nhầm file cũ từ ngày khác)
     const candidates = [
       path.join(defaultDataPath, subFolder),
       path.join(process.cwd(), 'backupCCP', subFolder),
-      defaultDataPath,
-      path.join(process.cwd(), 'backupCCP'),
+      path.join(process.cwd(), 'data', 'backup', 'ccp', subFolder),
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) return c;

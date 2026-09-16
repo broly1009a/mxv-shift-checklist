@@ -73,6 +73,46 @@ export function isCcpOptions(maHD: string): boolean {
   return /^[CP]\./i.test(maHD.trim());
 }
 
+// ─── Header Map & Dynamic Column Resolution ──────────────────────────────────
+
+export type CcpHeaderMap = Record<string, number>;
+
+export function normalizeHeaderKey(str: any): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export function buildCcpHeaderMap(headerRow: any[]): CcpHeaderMap {
+  const map: CcpHeaderMap = {};
+  if (!Array.isArray(headerRow)) return map;
+  for (let i = 0; i < headerRow.length; i++) {
+    const key = normalizeHeaderKey(headerRow[i]);
+    if (key && map[key] === undefined) {
+      map[key] = i;
+    }
+  }
+  return map;
+}
+
+export function resolveColIdx(
+  headerMap: CcpHeaderMap | undefined,
+  aliases: string[],
+  defaultIdx: number,
+): number {
+  if (!headerMap) return defaultIdx;
+  for (const alias of aliases) {
+    const key = normalizeHeaderKey(alias);
+    if (headerMap[key] !== undefined) {
+      return headerMap[key];
+    }
+  }
+  return defaultIdx;
+}
+
 // ─── Row Parsers ─────────────────────────────────────────────────────────────
 
 function parseNum(val: any): number {
@@ -86,44 +126,68 @@ function parseStr(val: any): string {
 }
 
 /** Parse một row từ file DSGD CCP (array format, 25 cols) */
-export function parseCcpDsgdRow(raw: any[]): CcpDsgdRow {
+export function parseCcpDsgdRow(raw: any[], headerMap?: CcpHeaderMap): CcpDsgdRow {
+  const idxTKGD = resolveColIdx(headerMap, ['matkgd', 'sotkgd', 'account', 'tk'], 5);
+  const idxTVKD = resolveColIdx(headerMap, ['mathanhvien', 'matvkd', 'tvkd', 'member'], 21);
+  const idxHD = resolveColIdx(headerMap, ['mahd', 'mahopdong', 'symbol', 'contract'], 6);
+  const idxMB = resolveColIdx(headerMap, ['muaban', 'side', 'buysell'], 7);
+  const idxType = resolveColIdx(headerMap, ['loailenh', 'ordertype', 'type'], 8);
+  const idxKL = resolveColIdx(headerMap, ['klkhop', 'khoiluongkhop', 'volume', 'qty', 'matchedvolume'], 10);
+  const idxGia = resolveColIdx(headerMap, ['giakhoptrungbinh', 'giakhoptb', 'giakhop', 'price', 'avgprice'], 13);
+
   return {
     raw,
-    maTKGD: parseStr(raw[5]),
-    maTvkd: parseStr(raw[21]),
-    maHD: parseStr(raw[6]),
-    muaBan: parseStr(raw[7]),     // "Mua" | "Bán"
-    loaiLenh: parseStr(raw[8]),   // MKT | LMT | STP | STL
-    klKhop: parseNum(raw[10]),
-    giaKhop: parseNum(raw[13]),
+    maTKGD: parseStr(raw[idxTKGD]),
+    maTvkd: parseStr(raw[idxTVKD]),
+    maHD: parseStr(raw[idxHD]),
+    muaBan: parseStr(raw[idxMB]),     // "Mua" | "Bán"
+    loaiLenh: parseStr(raw[idxType]),   // MKT | LMT | STP | STL
+    klKhop: parseNum(raw[idxKL]),
+    giaKhop: parseNum(raw[idxGia]),
   };
 }
 
 /** Parse một row từ file TTM CCP (24 cols) */
-export function parseCcpTtmRow(raw: any[]): CcpTtmRow {
+export function parseCcpTtmRow(raw: any[], headerMap?: CcpHeaderMap): CcpTtmRow {
+  const idxTVKD = resolveColIdx(headerMap, ['mathanhvien', 'matvkd', 'tvkd', 'member'], 0);
+  const idxTKGD = resolveColIdx(headerMap, ['matkgd', 'sotkgd', 'account', 'tk'], 3);
+  const idxHD = resolveColIdx(headerMap, ['mahopdong', 'mahd', 'symbol', 'contract'], 5);
+  const idxKLM = resolveColIdx(headerMap, ['khoiluongmua', 'klmua', 'buyvolume', 'buyqty'], 8);
+  const idxKLB = resolveColIdx(headerMap, ['khoiluongban', 'klban', 'sellvolume', 'sellqty'], 9);
+  const idxLL = resolveColIdx(headerMap, ['lailodukien', 'unrealizedpnl'], 13);
+  const idxLLVnd = resolveColIdx(headerMap, ['lailodukienvnd', 'unrealizedpnlvnd'], 14);
+
   return {
     raw,
-    maTvkd: parseStr(raw[0]),
-    maTKGD: parseStr(raw[3]),
-    maHD: parseStr(raw[5]),
-    klMua: parseNum(raw[8]),
-    klBan: parseNum(raw[9]),
-    laiLoDuKien: parseNum(raw[13]),
-    laiLoDuKienVnd: parseNum(raw[14]),
+    maTvkd: parseStr(raw[idxTVKD]),
+    maTKGD: parseStr(raw[idxTKGD]),
+    maHD: parseStr(raw[idxHD]),
+    klMua: parseNum(raw[idxKLM]),
+    klBan: parseNum(raw[idxKLB]),
+    laiLoDuKien: parseNum(raw[idxLL]),
+    laiLoDuKienVnd: parseNum(raw[idxLLVnd]),
   };
 }
 
-/** Parse một row từ file TTTT CCP (31 cols) */
-export function parseCcpTtttRow(raw: any[]): CcpTtttRow {
+/** Parse một row từ file TTTT CCP (31 cols) - hỗ trợ cả format TTTT và PNL_EXECUTED */
+export function parseCcpTtttRow(raw: any[], headerMap?: CcpHeaderMap): CcpTtttRow {
+  const idxTVKD = resolveColIdx(headerMap, ['mathanhvien', 'matvkd', 'tvkd', 'member'], 0);
+  const idxTKGD = resolveColIdx(headerMap, ['matkgd', 'sotkgd', 'account', 'tk'], 3);
+  const idxHD = resolveColIdx(headerMap, ['mahopdong', 'mahd', 'symbol', 'contract'], 7);
+  const idxLL = resolveColIdx(headerMap, ['lailothucte', 'realizedpnl'], 4);
+  const idxLLVnd = resolveColIdx(headerMap, ['lailothuctevnd', 'realizedpnlvnd'], 5);
+  const idxKLM = resolveColIdx(headerMap, ['khoiluongmua', 'klmua', 'buyvolume', 'buyqty'], 9);
+  const idxKLB = resolveColIdx(headerMap, ['khoiluongban', 'klban', 'sellvolume', 'sellqty'], 10);
+
   return {
     raw,
-    maTvkd: parseStr(raw[0]),
-    maTKGD: parseStr(raw[3]),
-    maHD: parseStr(raw[7]),
-    laiLoThucTe: parseNum(raw[4]),
-    laiLoThucTeVnd: parseNum(raw[5]),
-    klMua: parseNum(raw[9]),
-    klBan: parseNum(raw[10]),
+    maTvkd: parseStr(raw[idxTVKD]),
+    maTKGD: parseStr(raw[idxTKGD]),
+    maHD: parseStr(raw[idxHD]),
+    laiLoThucTe: parseNum(raw[idxLL]),
+    laiLoThucTeVnd: parseNum(raw[idxLLVnd]),
+    klMua: parseNum(raw[idxKLM]),
+    klBan: parseNum(raw[idxKLB]),
   };
 }
 

@@ -185,7 +185,7 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
             if (g === 'CAN_CUOC_2024') return ' Thẻ Căn Cước 2024 (Luật Căn cước 2023)';
             if (g === 'CCCD_CHIP_2021') return ' CCCD Gắn Chip (Phát hành 2021 - 2024)';
             if (g === 'CCCD_MA_VACH') return ' CCCD Mã Vạch (Phát hành 2016 - 2020)';
-            if (g === 'CMND_9_SO') return '⛔ CMND 9 Số Cũ (Đã hết hiệu lực từ 01/01/2025)';
+            if (g === 'CMND_9_SO') return ' CMND 9 Số Cũ (Đã hết hiệu lực từ 01/01/2025)';
             return g;
           })(),
           right: inspectRecord.canCuoc.confidenceScore !== undefined

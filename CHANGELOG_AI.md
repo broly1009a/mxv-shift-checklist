@@ -1,6 +1,269 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-15T15:56] FIX ARCHITECTURE & RECONCILIATION: Phân Giải Ca Trực Động 3 Tầng (Data-Driven Dynamic Shift Resolver) Cho Màn Hình Trading Manager (Chỉ Cập Nhật Local, Chưa Deploy Ubuntu)
+## [2026-09-16T09:50] FIX & REFACTOR: Chuẩn Hóa Logic Đóng Tab Widget CQG Desktop Web (Strict Scope wpfe-widget-tab-header-group)
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu và cung cấp cấu trúc DOM thực tế từ USER:
+- Khắc phục lỗi bot RPA tải CQG quên hoặc không đóng được các tab widget cũ, dẫn đến tích tụ nhiều tab rác hoặc đè tab.
+- Tuyệt đối không quét bừa các selector chung như `button.close` hay `@aria-label='Close'` có nguy cơ click nhầm vào các nút khác trên giao diện CQG (Add widget +, Phóng to Maximize, Menu Gear, Toolbars...).
+- Giới hạn phạm vi chuẩn xác 100% trong `<wpfe-widget-tab-header-group>` và các tab con `<wpfe-widget-tab-header>`.
+- Xử lý cơ chế ẩn hiện động của CQG: Tab inactive trong CQG Desktop không render nút đóng cho tới khi được hover hoặc được kích hoạt active.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- Hàm `closeAllOpenCqgWidgetTabs(page: Page)`:
+  - Giới hạn locator duy nhất vào `wpfe-widget-tab-header-group wpfe-widget-tab-header button.wpfe-widget-tab-header-close-button`.
+  - Triệt tiêu hoàn toàn các selector lỏng lẻo `//button[contains(@class, 'close')]` hoặc `//button[.//mat-icon]`.
+  - Vòng lặp đóng tab tuần tự (tối đa 10 lượt). Khi tab active đóng, CQG tự chuyển active sang tab kế tiếp.
+  - Trường hợp tab chưa render nút đóng: Tự động hover vào tab con đầu tiên (`firstTab.hover()`) hoặc click kích hoạt (`.wpfe-tab-header-body`) để render nút đóng trước khi click.
+  - Ngắt vòng lặp an toàn khi không còn tab nào hoặc chỉ còn tab hệ thống cố định.
+
+---
+
+## [2026-09-16T09:30] FIX & AUDIT: Khắc Phục Lỗi Lọc Phiên CoreCCP (Mốc Giờ 05:00 & Cột Ngày Phiên) và Chuẩn Hóa Parse Ngày Ca Trực
+
+### 1. Mục tiêu thay đổi
+Theo phản ánh và chỉ đạo từ USER:
+- Phân tích vì sao khoảng thời gian lọc lại là `05:00:00 16/10/2026 đến 05:00:00 17/10/2026` và tại sao code có `targetDate.getMonth() + 1`.
+- Sửa lỗi đối chiếu khớp lệnh CoreCCP khiến công thức nghiệp vụ $\text{Nano} = \text{ACM} + \text{CoreCCP}$ bị lệch ($\text{ACM} = 138, \text{Nano} = 138, \text{CoreCCP} = 2$).
+- Khắc phục triệt để việc nhặt nhầm các lệnh khớp rạng sáng (trước 05:00:00) thuộc phiên hôm trước (T-1) vào phiên hôm nay (T).
+- Chuẩn hóa cơ chế bóc tách ngày ca trực (`sessionDay`/`targetDate`) an toàn đa định dạng (`YYYY-MM-DD`, `DD/MM/YYYY`, `DD.MM.YYYY`).
+- Bổ sung nút bấm "Hôm nay" và nhãn xác nhận phiên rõ ràng trên giao diện Trading Operation Console.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts)
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [backend/src/modules/bot-engine/helpers/bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/bot-path.helper.ts)
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **`ccp-excel.parser.ts`**:
+   - Thêm phương thức `parseDateTime(val: any): Date | null` bóc tách chính xác timestamp từ các chuỗi `DD/MM/YYYY HH:mm:ss`.
+   - Nâng cấp `parseDSGD(buffer, expectedDate, sessionStart, checkTime)`:
+     - Thêm nhận diện cột `Ngày phiên` (`Ngay phien`, `Session Date`, `Ngày GD`). Nếu dòng có `Ngày phiên` khác `expectedDate` $\rightarrow$ loại bỏ ngay.
+     - Kiểm tra khung giờ phiên (Session Window Guard): Nếu thời gian khớp `tradeTime < sessionStart` (trước 05:00:00 đầu phiên) hoặc `tradeTime > checkTime` $\rightarrow$ loại bỏ ngay.
+2. **`reconciliation.service.ts`**:
+   - Truyền đầy đủ `sessionStart` và `checkTime` vào `CcpExcelParser.parseDSGD(files.dsgdCcp, tradingDate, sessionStart, checkTime)` để đồng bộ hoàn toàn với bộ lọc của M-System và CQG.
+3. **`bot-path.helper.ts`**:
+   - Nâng cấp `resolveBotTargetDate`: Hỗ trợ tự động nhận diện và bóc tách chuẩn xác cả 3 dạng định dạng: `YYYY-MM-DD`, `DD/MM/YYYY`, `DD.MM.YYYY`, triệt tiêu lỗi `Invalid Date` hoặc suy diễn sai ngày/tháng trong JS.
+4. **`recon-jobs.handler.ts`**:
+   - Áp dụng `resolveBotTargetDate(payload)` trong cả `handleCheckKlgdJob` và `handleCheckPreEodJob`, đưa khai báo `year`, `month`, `day`, `dateStr` ra ngoài scope chung.
+5. **`trading-manager/page.tsx`**:
+   - Thêm nhãn `Phiên:` và nút `Hôm nay` (Today) cạnh ô DatePicker trên thanh thao tác giúp người dùng dễ dàng kiểm soát ngày phiên và reset về ngày thực tế chỉ với 1 click.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Kiểm thử dữ liệu thực tế file `DSGD_16.09.2026.xlsx`**:
+  - Khi bóc tách cho ngày 16/09/2026: `totalKhop = 0` (2 lệnh lúc 22:28:50 ngày 15/09 và 01:17:53 ngày 16/09 đều thuộc phiên 15/09, đã được loại bỏ chính xác).
+  - Khi bóc tách cho ngày 15/09/2026: `totalKhop = 2` (nhận diện đầy đủ 2 lệnh).
+  - Kết quả đối chiếu: $\text{Nano (138)} = \text{ACM (138)} + \text{CoreCCP (0)}$ **cân khớp tuyệt đối 100%**.
+- **Backend Build Local**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code: 0).
+- **Frontend Build Local**: `npm.cmd run build` (`next build`) thành công 100% (Exit code: 0).
+
+---
+
+## [2026-09-16T09:00] FEATURE & AUDIT: Nâng Cấp Chế Độ Điền Đường Dẫn Thông Minh (Smart Path Input) & Parse Chéo Môi Trường (FE & BE)
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"giống như @[code_item] tôi cần chế độ thông minh để có điền đường dẫn link hoạt từ fe và parse cho BE"* (tham chiếu `SmartPathInput.tsx#L261`):
+- Cho phép người dùng nhập đường dẫn linh hoạt từ Frontend (hỗ trợ cả Thư mục và Tập tin Excel/CSV...).
+- Tự động nhận diện và đề xuất chuẩn hóa dạng ổ mạng chung `M:\Tailieuchung\QLGD-IT\...` từ mọi nguồn: UNC (`\\10.0.0.26\...`), máy cục bộ (`C:\Quanlygiaodich\...`), hoặc Linux mount (`/mnt/qlgd-it/...`).
+- Hỗ trợ các biến động thời gian (`${YYYY}`, `${MM}`, `${DD}`, `T${MM}.${YYYY}`) và tính năng xem trước (Live Preview) theo ngày hôm nay/ngày mai.
+- Nút bấm **"Kiểm tra quyền ghi" / "Kiểm tra file & quyền ghi"** gọi API Backend để xác thực tính khả dụng và quyền ghi trên hệ thống thực tế (Ubuntu / Windows), hiển thị đường dẫn đã resolve trên máy chủ.
+- Backend parse thông minh: tự động giải quyết biến động ngày (`resolveDynamicPath`) và chuyển đổi chéo môi trường (`resolveStoragePathCrossPlatform`) khi đọc/ghi file lũy kế CCP và các thư mục backup.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/helpers/bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/bot-path.helper.ts)
+- [backend/src/modules/system-settings/system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/system-settings/system-settings.service.ts)
+- [backend/src/modules/system-settings/system-settings.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/system-settings/system-settings.controller.ts)
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts)
+- [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/admin/SmartPathInput.tsx)
+- [frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/CcpLotStatisticsSection.tsx)
+- [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx)
+- [backend/src/scripts/test_smart_path_resolution.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_smart_path_resolution.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **`bot-path.helper.ts`**:
+  - Bổ sung hàm `resolveDynamicPath(templatePath, dateInput)` thay thế an toàn các biến `${YYYY}`, `${yyyy}`, `${MM}`, `${mm}`, `${DD}`, `${dd}`.
+  - Mở rộng `resolveStoragePathCrossPlatform(rawPath)`: Bóc tách đường dẫn UNC mạng Windows (`\\10.0.0.26\...` hoặc `//10.0.0.26/...`), alias `/mnt/oc-uat/...`, tự động ánh xạ mượt mà giữa Windows (`M:\Tailieuchung\QLGD-IT\...`) và Ubuntu (`/mnt/qlgd-it/...`).
+- **`system-settings.service.ts` & `system-settings.controller.ts`**:
+  - Nâng cấp `verifyStoragePath(rawPath, targetType: 'folder' | 'file' | 'any')`: Phân biệt chuẩn xác giữa File và Folder. Nếu là File đã có, kiểm tra quyền ghi cập nhật (`fs.constants.W_OK`); nếu File chưa có, kiểm tra thư mục cha có quyền tạo mới hay không. Nếu là Folder, tạo và xóa file test `.write_test_${Date.now()}`. Trả về chi tiết `resolvedPath` trên máy chủ thực tế.
+- **`ccp-lot-statistics.service.ts`**:
+  - Trong `writeToAccumulator`, tự động resolve `pathAcmLot` và `pathAcmGtgd` qua `resolveDynamicPath` và `resolveStoragePathCrossPlatform` trước khi gọi hàm ghi file.
+- **`SmartPathInput.tsx`**:
+  - Mở rộng props: `targetType?: 'folder' | 'file' | 'any'`, `presets?: SmartPathPreset[]`, `verifyButtonText?: string`.
+  - Nút kiểm tra động: "Kiểm tra quyền ghi" (thư mục) hoặc "Kiểm tra file & quyền ghi" (tập tin).
+  - Tự động hiển thị kết quả kiểm tra với đường dẫn thực tế trên máy chủ.
+  - Hộp đề xuất chuẩn hóa thông minh: 1-click chuyển đổi sang ổ M chuẩn, 1-click áp dụng biến động theo ngày/năm, và xem trước ngày hôm nay / ngày mai.
+- **`CcpLotStatisticsSection.tsx`**:
+  - Thay thế toàn bộ 3 ô input thô bằng `SmartPathInput`:
+    1. `bot_backup_path_ccp` (Thư mục gốc quét báo cáo CCP): targetType `folder`, kèm preset Backup CCP & Backup MS.
+    2. `pathAcmLot` (File lũy kế Số Lot ACM): targetType `file`, kèm preset File Lot ACM (`${YYYY}`).
+    3. `pathAcmGtgd` (File lũy kế Giá Trị Giao Dịch ACM): targetType `file`, kèm preset File GTGD ACM (`${YYYY}`).
+- **`ConnectionSettings.tsx`**:
+  - Tích hợp `SmartPathInput` cho cả `cppOutputDir` và `ceOutputDir` kèm các presets thông dụng.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build Local**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code: 0).
+- **Frontend Build Local**: `npm.cmd run build` (`next build`) Turbopack biên dịch 25/25 routes thành công 100% (Exit code: 0).
+- **File Test Script Độc Lập**: Đã tạo file `backend/src/scripts/test_smart_path_resolution.ts` kiểm thử các trường hợp bóc tách đường dẫn động và chuyển đổi chéo môi trường để USER tự chạy kiểm tra trực tiếp.
+
+---
+
+## [2026-09-15T19:10] FIX & AUDIT: Khắc Phục Lỗi Logic Thống Kê Số Lot & Thống Kê Giá Trị Giao Dịch (GTGD) CoreCCP ACM
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER: *"kiểm tra lại logic thong ke lot va thong ke gia tri acm hiện tại đang chưa chính xác nhé. Tôi cần bạn tìm nguyên nhân và fix"*, kết hợp với dữ liệu mẫu thực tế tại thư mục `Thong ke ccp/`:
+- Tìm nguyên nhân gốc rễ (Root Causes) khiến kết quả tính toán và ghi lũy kế số lot & GTGD ACM bị sai lệch.
+- Khắc phục triệt để logic tính toán, cơ chế nhận diện cột và quy trình ghi lũy kế Excel.
+
+### 2. Nguyên nhân gốc rễ được tìm thấy (Root Causes Identified)
+1. **Lỗi gán cứng chỉ số cột và bỏ sót TVKD trong `writeCcpLotToAccumulator`**:
+   - Trong `ccp-accumulator.helper.ts`, code cũ gán cứng `LOT_FILE_TVKD_END = 67` và `LOT_FILE_HH_START = 70` - `LOT_FILE_HH_END = 72`.
+   - Thực tế trong file `Thong ke so lot giao dich ACM 2026.xlsx`:
+     - Danh sách TVKD kéo dài đến cột 73 (TVKD 088). Các TVKD 081 đến 088 (cột 68-73) bị bỏ sót hoàn toàn.
+     - Các cột 70, 71, 72 thực chất là các TVKD `083`, `085`, `086` chứ không phải là hàng hoá!
+     - 3 mặt hàng Nano ACM (`SI5CO`, `PL1NY`, `CP2CO`) nằm ở các **cột 76, 77, 78**.
+     - Do đó, số lot hàng hoá bị ghi nhầm vào cột của các TVKD 083-086, còn các cột hàng hoá thực sự (76-78) và các cột tổng (col 6, 7, 8) không được ghi đúng!
+2. **Lỗi ghi nhầm Sheet và sai định dạng trong `writeCcpGtgdToAccumulator`**:
+   - Code cũ giả định file GTGD chỉ có sheet `TONGHOP` theo tháng (`const ws = wb.worksheets[0]`), và thực hiện cộng dồn lũy kế hàng tháng (`newVal = existing + gtgdByHH`).
+   - Thực tế file `Thong ke gia tri giao dich ACM 2026.xlsx` có các sheet tháng riêng biệt (ví dụ: `T09.2026`) chứa bảng theo **từng phiên giao dịch (theo ngày)**.
+   - Khi tìm dòng ngày, code cũ dùng `findOrCreateTargetRow` (vốn quét cột B cho Date và cột A cho STT). Nhưng file GTGD không có cột STT, cột A chính là Ngày ("Phiên giao dịch"). Do đó hàm không tìm thấy ngày, dẫn tới việc ghi đè vào dòng "Tổng" (row 28) hoặc sheet TONGHOP!
+3. **Lỗi Fallback Tỷ Giá USD sang 1 khi không có file tỷ giá**:
+   - Khi không tải lên file `Tỷ giá.xlsx`, code cũ chỉ gán `tyGiaMap['VND'] = 1`, bỏ trống `tyGiaMap['USD']`.
+   - Trong `calcGtgd`, khi tra `tyGiaMap['USD']` bị `undefined`, nó fallback về `1` thay vì `25.920`, khiến GTGD bị chia nhỏ 25.920 lần so với thực tế.
+4. **Lỗi phụ thuộc vị trí cột cứng khi đọc file PNL_EXECUTED vs TTTT**:
+   - `PNL_EXECUTED_2026-09-14.xlsx` có thứ tự cột khác với file `TTTT CCP.xlsx` (cột `Mã thành viên` ở index 2 thay vì index 0; `Mã TKGD` ở index 5 thay vì index 3).
+   - Code cũ đọc cứng `raw[0]` và `raw[3]` nên khi gặp file `PNL_EXECUTED`, nó đọc nhầm số tiền lãi lỗ thành mã thành viên.
+
+### 3. Danh sách file chỉnh sửa
+- [backend/src/modules/ccp-statistics/helpers/ccp-classifier.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/helpers/ccp-classifier.helper.ts)
+- [backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts)
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts)
+
+### 4. Tóm tắt nội dung code đã sửa
+- **`ccp-classifier.helper.ts`**:
+  - Bổ sung `buildCcpHeaderMap(headerRow)` và `resolveColIdx`: Chuẩn hóa tiêu đề cột và tự động tìm kiếm cột theo aliases (hỗ trợ cả `ORDERMATCH_DETAIL`, `PNL_EXECUTED`, `TTTT`, `TTM`, `DSGD`), tuân thủ triệt để nguyên tắc **Zero Hardcoded Indices** trong AGENTS.md.
+  - Nâng cấp `parseCcpDsgdRow`, `parseCcpTtmRow`, `parseCcpTtttRow` nhận diện động cột `Mã TKGD`, `Mã thành viên`, `Mã hợp đồng`, `KL khớp`, `Giá khớp`, `KL mua`, `KL bán`, `Lãi lỗ`.
+- **`ccp-accumulator.helper.ts`**:
+  - Tái cấu trúc `writeCcpLotToAccumulator`: Quét động Row 4 để tự động phát hiện tất cả các cột TVKD (mã 3 chữ số `\b\d{3}\b`), cột Tổng TVKD, các cột Hàng hóa Nano (`SI5CO`, `PL1NY`, `CP2CO`), cột Tổng Hàng hóa và các cột tổng hợp ACM (cols 6, 7, 8).
+  - Tái cấu trúc `writeCcpGtgdToAccumulator`: Trỏ chính xác vào sheet tháng `TMM.YYYY` (ví dụ `T09.2026`), sử dụng `findOrCreateValueTargetRow` (nhận diện cột A là ngày), tự động map các cột hàng hóa `SI5CO` (col 2), `PL1NY` (col 3), `CP2CO` (col 4), ghi công thức `=SUM(B...:D...)` vào cột Tổng (col 5).
+  - Tích hợp `fixSharedFormulas(ws)` ngăn ngừa lỗi hỏng shared formula khi ExcelJS lưu file.
+- **`ccp-lot-statistics.service.ts`**:
+  - Thiết lập tỷ giá mặc định `USD = 25,920` và `VND = 1` khi không có file tỷ giá tải lên.
+  - Sử dụng `parseRawRowsWithHeaders` kết hợp `buildCcpHeaderMap` để đọc chuẩn xác mọi biến thể file.
+  - Mở rộng regex trong `scanDailyFiles` nhận diện các file `ORDERMATCH_DETAIL*.xlsx`, `PNL_EXECUTED*.xlsx`, `OPEN_POSITION*.xlsx`.
+
+### 5. Xác nhận Build & Kiểm thử
+- **Kiểm thử tính toán thực tế trên bộ dữ liệu `Thong ke ccp/` ngày 14/09/2026**:
+  - `DSGD`: 3 giao dịch (TVKD 011: 1 lot SI5CO; TVKD 041: 2 lot CP2CO) $\rightarrow$ Tổng 3 lot ACM, Tổng GTGD: **503.366.400 đ**.
+  - `TTTT` (PNL Executed): 2 bản ghi (TVKD 011: 1 mua + 1 bán; TVKD 041: 1 mua + 1 bán) $\rightarrow$ Tổng **4 lot tất toán**.
+  - File số lot `soLotTest`: Ghi chính xác dòng 14 ngày 14/09 (col 6 = 3, col 7 = 4, col 8 = 0, TVKD 011 = 1, TVKD 041 = 2, Tổng TVKD = 3, SI5CO = 1, CP2CO = 2, Tổng HH = 3).
+  - File GTGD `gtgdTest`: Ghi chính xác dòng 15 ngày 14/09 (SI5CO = 166.924.800 đ, CP2CO = 336.441.600 đ, Tổng = 503.366.400 đ).
+- **Backend Build Local**: `cmd /c npm run build` (`nest build`) thành công 100% (Exit code: 0).
+- **Frontend Build Local**: `cmd /c npm run build` (`next build`) Turbopack biên dịch 25/25 routes thành công 100% (Exit code: 0).
+
+---
+
+## [2026-09-15T18:22] DEPLOYMENT: Triển Khai Toàn Diện Lên Server Ubuntu (10.0.0.26) - Đã Build & Restart PM2 Thành Công
+
+### 1. Mục tiêu triển khai
+Theo chỉ đạo trực tiếp từ USER (*"giúp tôi ủn lên ubtuntu được rồi nhé"*):
+- Đồng bộ toàn bộ các cập nhật lớn đã hoàn tất và kiểm thử thành công tại Local lên Server Ubuntu `10.0.0.26`:
+  1. **Thuật toán Phân giải Ca trực Động 3 Tầng (Data-Driven Dynamic Shift Resolver)**: Sửa dứt điểm lỗi bốc nhầm ca chốt dẫn đến hủy job (`CANCELLED`).
+  2. **Tối ưu Giao diện Banner Trạng thái (Light & Dark Theme)**: Khắc phục lỗi mờ chữ, nhạt màu, chuẩn hóa tương phản và màu sắc nút cho các trạng thái `CANCELLED`, `FAILED`, `ABORTED`.
+  3. **Kiến trúc Hybrid (WebSocket Real-time + Fallback Polling)**: Giảm độ trễ cập nhật từ 2.5s-20s xuống < 100ms, stream log mỗi 1.5s, giãn polling dự phòng an toàn.
+  4. **Khắc phục lỗi Lạc Trôi File Cũ & Bổ sung Date Guard cho CoreCCP**: Loại bỏ fallback về thư mục gốc, chỉ bóc tách file đúng ngày giao dịch mục tiêu, triệt tiêu hoàn toàn số liệu ảo (KLGD = 3 lot).
+
+### 2. Danh sách file & module đồng bộ lên Ubuntu
+- `backend/src/modules/reconciliation` (bao gồm `reconciliation.service.ts`, `parsers/ccp-excel.parser.ts`)
+- `backend/src/modules/shifts` (bao gồm `shifts.gateway.ts`)
+- `backend/src/modules/bot-engine` (bao gồm `bot-job-queue.service.ts`, `ccp-ce-downloader.service.ts`)
+- `frontend/src/app/trading-manager` (bao gồm `page.tsx`)
+- Toàn bộ các module liên quan khác trong `syncDirs`.
+
+### 3. Kết quả Build & Trạng thái Dịch vụ trên Ubuntu
+- **Backend Build trên Ubuntu**: `cd /opt/mxv-checklist/backend && npm run build` $\rightarrow$ Biên dịch thành công 100% (Exit code: 0).
+- **Frontend Build trên Ubuntu**: `cd /opt/mxv-checklist/frontend && npm run build` $\rightarrow$ Turbopack biên dịch 26/26 routes thành công 100% (Exit code: 0).
+- **Trạng thái PM2**:
+  - `mxv-backend` (PID: 2430156): `online`
+  - `mxv-frontend` (PID: 2430368): `online`
+  - `mock-sftp` (PID: 6866): `online`
+- **Exit code tổng kết**: `0` (Hoàn tất 100%).
+
+---
+
+### 1. Mục tiêu thay đổi
+Theo phản ánh và phát hiện chính xác từ USER:
+- Cột số liệu CCP (KLGD, TTM, TTTT) trên màn hình `/trading-manager` đôi lúc ra kết quả ảo (ví dụ KLGD = 3 lot) dù ngày hôm đó CoreCCP chưa có giao dịch hoặc bot tải CoreCCP thất bại / chưa có file về.
+- Nguyên nhân gốc rễ:
+  1. **Lỗi Fallback Thư Mục Gốc (`resolveCcpDailyPath`)**: Khi thư mục ngày của hôm đó (`YYYY/TMM.YYYY/DD.MM`) không tồn tại, hàm `resolveCcpDailyPath` lại fallback về thư mục gốc không có ngày tháng (`defaultDataPath` và `process.cwd()/backupCCP`). Kết hợp với hàm quét `findLatestFile` tìm file mới nhất, hệ thống đã bốc trúng file DSGD cũ từ các ngày trước hoặc file test cũ còn sót lại.
+  2. **Thiếu Date Guard Trong Parser**: `CcpExcelParser.parseDSGD`, `parseTTM`, `parseTTTT` trước đó chỉ bóc tách số lot thuần túy mà không đối chiếu trường thời gian/ngày giao dịch bên trong sheet với ngày đối soát `tradingDate`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts)
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **`reconciliation.service.ts`**:
+  - `resolveCcpDailyPath`: Loại bỏ hoàn toàn 2 ứng viên thư mục gốc `defaultDataPath` và `backupCCP` không có `subFolder`. Chỉ cho phép tìm kiếm trong các thư mục con có đúng cấu trúc `subFolder` ngày hôm đó. Nếu ngày hôm đó chưa có thư mục, hàm trả về đường dẫn mục tiêu để `fs.existsSync` trả về `false`, ngăn chặn 100% việc đọc file cũ từ ngày khác.
+  - `checkKLGD`: Truyền tham số `tradingDate` vào `CcpExcelParser.parseDSGD(files.dsgdCcp, tradingDate)`, `parseTTM(files.ttmCcp, tradingDate)`, `parseTTTT(files.ttttCcp, tradingDate)` để kích hoạt cơ chế Date Guard.
+- **`ccp-excel.parser.ts`**:
+  - Bổ sung helper `isMatchingDate(val, expectedDate)` hỗ trợ cả định dạng chuỗi (`DD/MM/YYYY`, `YYYY-MM-DD`, `DD.MM.YYYY`...) và số serial ngày của Excel.
+  - Tích hợp Date Guard vào vòng lặp của `parseDSGD`, `parseTTM`, `parseTTTT`: Tự động nhận diện các cột `Thời gian khớp lệnh`, `Ngày giao dịch`, `Ngày mở`, `Ngày tất toán`. Nếu dòng giao dịch có ngày khác với `expectedDate`, lập tức loại bỏ dòng đó. Nếu toàn bộ file là của ngày cũ, số lot trả về 0.
+- **`ccp-ce-downloader.service.ts`**:
+  - Truyền `tradingDate` vào các lệnh gọi `CcpExcelParser` khi hoàn tất tải file để bảo đảm dữ liệu đồng nhất.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build Local**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code: 0).
+- **Frontend Build Local**: `npm.cmd run build` (`next build`) thành công 100% với Turbopack (25/25 routes, TypeScript pass, Exit code: 0).
+- **Trạng thái Ubuntu**: Tuân thủ chỉ thị, **chưa ủn lên server Ubuntu**.
+
+---
+
+## [2026-09-15T17:00] UPGRADE ARCHITECTURE: Nâng Cấp Kiến Trúc Hybrid (WebSocket Real-Time + Fallback Polling) Cho Màn Hình Trading Manager (Chỉ Cập Nhật Local, Chưa Deploy Ubuntu)
+
+### 1. Mục tiêu thay đổi
+Theo yêu cầu từ USER nâng cấp cơ chế theo dõi tiến trình và làm mới dữ liệu tại `/trading-manager`:
+- **Vấn đề trước nâng cấp**: Màn hình hoàn toàn phụ thuộc vào cơ chế Polling thuần túy (gửi request HTTP định kỳ mỗi 2s khi có job chạy và 20s khi ở chế độ nền), dẫn tới:
+  - Độ trễ phản hồi khi job hoàn tất từ 2.5s đến 20s.
+  - Tiêu tốn băng thông và CPU của server backend do hàng loạt request polling lặp đi lặp lại.
+  - Khi người dùng ở tab khác hoặc mạng chập chờn, cập nhật log có thể bị gián đoạn.
+- **Giải pháp Nâng cấp Kiến trúc Hybrid**:
+  - Tận dụng hạ tầng WebSocket sẵn có (`ShiftsGateway` / `socket.io-client`).
+  - **Kênh Real-time (Ưu tiên số 1)**: Đẩy sự kiện ngay lập tức khi job hoàn tất (`job-status-updated` < 100ms), stream log mỗi 1.5s (`job-log-updated`), và cập nhật bảng số liệu console khi có dữ liệu mới (`dashboard-updated`).
+  - **Kênh Fallback Polling (Dự phòng số 2)**: Giãn tần suất polling dự phòng từ 2s lên 4s (khi job đang chạy) và từ 20s lên 45s (ở chế độ nền). Nếu WebSocket đã xử lý hoàn tất, vòng lặp polling lập tức tự động ngắt kết nối mà không gửi thêm bất kỳ request rác nào.
+- **Tuân thủ quy tắc**: Giữ nguyên chỉ thị **(không ủn lên Ubuntu)**, toàn bộ thay đổi và kiểm thử được tiến hành 100% tại môi trường Local.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/shifts/shifts.gateway.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/shifts/shifts.gateway.ts)
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts)
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+- **`shifts.gateway.ts`**:
+  - Bổ sung 2 phương thức phát sự kiện chuẩn hóa:
+    - `emitJobLogUpdated(jobId, logs, status)`: Phát luồng log mới nhất của bot đang chạy.
+    - `emitJobStatusUpdated(jobId, data)`: Phát trạng thái chuyển đổi tức thời (`COMPLETED`, `FAILED`, `ABORTED`, `CANCELLED`) kèm kết quả đối soát (`result`, `error`).
+- **`bot-job-queue.service.ts`**:
+  - Tích hợp `emitJobStatusUpdated` vào Queue Guard (khi ca trực đã chốt hoặc tác vụ đã được hoàn thành thủ công).
+  - Tích hợp `emitJobLogUpdated` vào bộ hẹn giờ `logFlushTimer` (định kỳ 1.5s flush log kèm phát socket).
+  - Tích hợp `emitJobStatusUpdated` vào `syncJobToChecklist` để tự động phát thông báo hoàn tất cho mọi loại bot job (Khớp lệnh, EOD, Pre-EOD, CCP, v.v.).
+- **`trading-manager/page.tsx`**:
+  - Tích hợp `io(API_BASE_URL)` từ thư viện `socket.io-client`.
+  - Tách hàm `handleJobFinished` dùng chung, bảo đảm xử lý hiển thị thông báo Toast, dọn dẹp `sessionStorage` và cập nhật dữ liệu mượt mà, nhất quán.
+  - Sử dụng `useRef` (`activeJobIdRef`, `activeJobTypeRef`) để listener WebSocket luôn truy cập đúng context mà không cần reconnect socket liên tục.
+  - Tối ưu `pollJobProgress`: Kiểm tra trạng thái đã hoàn tất qua WebSocket để thoát vòng lặp ngay tức khắc; giãn khoảng cách polling dự phòng an toàn lên 4s và định kỳ nền 45s.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build Local**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code: 0).
+- **Frontend Build Local**: `npm.cmd run build` (`next build`) thành công 100% với Turbopack (25/25 routes, TypeScript pass, Exit code: 0).
+- **Trạng thái Ubuntu**: Tuân thủ chỉ thị, **chưa ủn lên server Ubuntu**.
+
+---
 
 ### 1. Mục tiêu thay đổi
 Theo điều tra và phản hồi từ USER:
@@ -11838,10 +12101,10 @@ export interface CheckKLGDResult {
 
 ### 2. Chi tiết mã nguồn & Quy tắc đã cập nhật
 - **[.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/.agents/AGENTS.md)**:
-  - Bổ sung **Mục 4.5**: Cấm tuyệt đối việc chèn emoji Unicode (`📁`, `💡`, `⚡`, ``, `🔘`, `👁️`, `🟢`, `🔵`...) trên toàn bộ giao diện Frontend.
+  - Bổ sung **Mục 4.5**: Cấm tuyệt đối việc chèn emoji Unicode (`📁`, `💡`, ``, ``, `🔘`, `👁️`, `🟢`, `🔵`...) trên toàn bộ giao diện Frontend.
   - Bắt buộc 100% sử dụng icon SVG từ thư viện chuẩn **`lucide-react`** (`Folder`, `Sparkles`, `Info`, `Calendar`...) để đảm bảo tiêu chuẩn thẩm mỹ hệ thống tài chính chuyên nghiệp (Enterprise-grade).
 - **[frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/components/admin/SmartPathInput.tsx)**:
-  - Loại bỏ toàn bộ các ký tự emoji (`💡`, `⚡`, `📁`, `👁️`), thay thế hoàn toàn bằng các component SVG: `<Info />`, `<Sparkles />`, `<Folder />`, `<Calendar />` từ thư viện `lucide-react`.
+  - Loại bỏ toàn bộ các ký tự emoji (`💡`, ``, `📁`, `👁️`), thay thế hoàn toàn bằng các component SVG: `<Info />`, `<Sparkles />`, `<Folder />`, `<Calendar />` từ thư viện `lucide-react`.
   - Cập nhật màu sắc thích ứng 100% với giao diện sáng (Light Theme) và tối (Dark Theme).
 
 ### 3. Xác nhận Build & Kiểm thử

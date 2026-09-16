@@ -82,7 +82,7 @@ async function run() {
     job.logs.forEach(l => console.log(l));
 
   } catch (err) {
-    console.error('\\n❌ [LỖI THỰC THI]:', err.message);
+    console.error('\\n [LỖI THỰC THI]:', err.message);
     job.status = 'FAILED';
     job.failedAt = new Date();
     job.error = err.message;

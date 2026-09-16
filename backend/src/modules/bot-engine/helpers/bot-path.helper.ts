@@ -31,14 +31,48 @@ export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: st
   if (targetDateStr instanceof Date) {
     dateObj = targetDateStr;
   } else {
-    // Parse YYYY-MM-DD or ISO string safely without timezone offset issues
-    const str = String(targetDateStr).split('T')[0];
-    const parts = str.split('-');
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      dateObj = new Date(year, month, day);
+    // Parse YYYY-MM-DD, DD/MM/YYYY, or DD.MM.YYYY safely without timezone offset issues
+    const str = String(targetDateStr).split('T')[0].trim();
+    if (str.includes('-')) {
+      const parts = str.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const day = parseInt(parts[2], 10);
+          dateObj = new Date(year, month, day);
+        } else {
+          // DD-MM-YYYY
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          dateObj = new Date(year, month, day);
+        }
+      } else {
+        dateObj = new Date(targetDateStr);
+      }
+    } else if (str.includes('/')) {
+      const parts = str.split('/');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY/MM/DD
+          dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        } else {
+          // DD/MM/YYYY
+          dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+      } else {
+        dateObj = new Date(targetDateStr);
+      }
+    } else if (str.includes('.')) {
+      const parts = str.split('.');
+      if (parts.length === 3) {
+        // DD.MM.YYYY
+        dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+      } else {
+        dateObj = new Date(targetDateStr);
+      }
     } else {
       dateObj = new Date(targetDateStr);
     }
@@ -117,8 +151,48 @@ export async function getCcpBackupBase(settingsService: { getSetting: (key: stri
 }
 
 /**
+ * Thay thế biến động ngày/tháng/năm (${YYYY}, ${MM}, ${DD}) vào chuỗi đường dẫn.
+ * Nếu không truyền dateInput, mặc định lấy theo thời gian thực tế hiện tại (GMT+7).
+ */
+export function resolveDynamicPath(
+  templatePath: string,
+  dateInput?: Date | string,
+): string {
+  if (!templatePath) return templatePath;
+  if (!templatePath.includes('${')) return templatePath;
+
+  let d: Date;
+  if (dateInput) {
+    if (dateInput instanceof Date) {
+      d = isNaN(dateInput.getTime()) ? new Date() : dateInput;
+    } else {
+      try {
+        d = resolveBotTargetDate({ targetDate: dateInput }).dateObj;
+      } catch {
+        d = new Date();
+      }
+    }
+  } else {
+    // Mặc định GMT+7
+    d = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  }
+
+  const yyyy = d.getFullYear ? d.getFullYear().toString() : new Date().getFullYear().toString();
+  const mm = String((d.getMonth ? d.getMonth() : new Date().getMonth()) + 1).padStart(2, '0');
+  const dd = String(d.getDate ? d.getDate() : new Date().getDate()).padStart(2, '0');
+
+  return templatePath
+    .replace(/\${YYYY}/g, yyyy)
+    .replace(/\${yyyy}/g, yyyy)
+    .replace(/\${MM}/g, mm)
+    .replace(/\${mm}/g, mm)
+    .replace(/\${DD}/g, dd)
+    .replace(/\${dd}/g, dd);
+}
+
+/**
  * Chuẩn hóa đường dẫn lưu trữ chéo hệ điều hành (Windows vs Ubuntu):
- * - Nếu chạy trên Linux: tự động ánh xạ M:\Tailieuchung\QLGD-IT (hoặc Quanlygiaodich/...) sang /mnt/qlgd-it/
+ * - Nếu chạy trên Linux: tự động ánh xạ M:\Tailieuchung\QLGD-IT (hoặc Quanlygiaodich/..., UNC \\10.0.0.26\...) sang /mnt/qlgd-it/
  * - Nếu chạy trên Windows: nếu nhận được /mnt/qlgd-it/..., tự động ánh xạ về M:\Tailieuchung\QLGD-IT\...
  */
 export function resolveStoragePathCrossPlatform(rawPath: string): string {
@@ -130,8 +204,15 @@ export function resolveStoragePathCrossPlatform(rawPath: string): string {
   const windowsShareBase = (process.env.STORAGE_SHARE_WINDOWS || 'M:\\Tailieuchung\\QLGD-IT')
     .replace(/[/\\]+$/, '');
 
+  const normalized = rawPath.replace(/\\/g, '/');
+
   if (process.platform === 'linux') {
-    const normalized = rawPath.replace(/\\/g, '/');
+    // UNC path like //10.0.0.26/Tailieuchung/QLGD-IT/...
+    const uncMatch = normalized.match(/^\/\/[^/]+\/(?:tailieuchung\/qlgd-it\/|tailieuchung\/)?(.*)$/i);
+    if (uncMatch) {
+      return `${linuxMountBase}/${uncMatch[1]}`.replace(/\/+/g, '/');
+    }
+
     const qlgdMatch = normalized.match(/(?:^|\/)(quanlygiaodich\/.*)$/i);
     if (qlgdMatch) {
       return `${linuxMountBase}/${qlgdMatch[1]}`.replace(/\/+/g, '/');
@@ -142,20 +223,27 @@ export function resolveStoragePathCrossPlatform(rawPath: string): string {
     if (/^[a-zA-Z]:\/qlgd-it\/(.*)$/i.test(normalized)) {
       return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
     }
+    if (/^\/mnt\/oc-uat\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^\/mnt\/oc-uat\//i, '')}`.replace(/\/+/g, '/');
+    }
     if (/^m:\/(.*)$/i.test(normalized)) {
       return `${linuxMountBase}/${normalized.replace(/^m:\//i, '')}`.replace(/\/+/g, '/');
     }
-    return rawPath.replace(/\\/g, '/');
+    return normalized;
   } else {
     // Windows
-    const normalizedSlash = rawPath.replace(/\\/g, '/');
     const linuxBaseSlash = linuxMountBase.toLowerCase();
-    if (normalizedSlash.toLowerCase().startsWith(linuxBaseSlash)) {
-      const remainder = normalizedSlash.slice(linuxBaseSlash.length).replace(/^\/+/, '');
+    if (normalized.toLowerCase().startsWith(linuxBaseSlash)) {
+      const remainder = normalized.slice(linuxBaseSlash.length).replace(/^\/+/, '');
+      return path.join(windowsShareBase, remainder);
+    }
+    if (normalized.toLowerCase().startsWith('/mnt/oc-uat')) {
+      const remainder = normalized.slice('/mnt/oc-uat'.length).replace(/^\/+/, '');
       return path.join(windowsShareBase, remainder);
     }
     return path.normalize(rawPath);
   }
 }
+
 
 

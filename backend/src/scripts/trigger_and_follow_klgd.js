@@ -40,7 +40,7 @@ async function main() {
     status: 'PROCESSING'
   });
   if (activeJob) {
-    console.log(`⚠️ Đang có Job chạy dở: ${activeJob.jobType} (ID: ${activeJob._id}). Đang chờ job này kết thúc...`);
+    console.log(` Đang có Job chạy dở: ${activeJob.jobType} (ID: ${activeJob._id}). Đang chờ job này kết thúc...`);
   }
 
   const newJob = {
@@ -80,7 +80,7 @@ async function main() {
 
     const job = await db.collection('bot_jobs').findOne({ _id: jobId });
     if (!job) {
-      console.log('❌ Không tìm thấy job trong DB!');
+      console.log(' Không tìm thấy job trong DB!');
       break;
     }
 
@@ -111,7 +111,7 @@ async function main() {
           console.log('Payload result:', JSON.stringify(job.payload, null, 2));
         }
       } else {
-        console.log(`⚠️ Lỗi chi tiết: ${job.error || 'N/A'}`);
+        console.log(` Lỗi chi tiết: ${job.error || 'N/A'}`);
       }
       break;
     }

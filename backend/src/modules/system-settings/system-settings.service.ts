@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { SystemSetting } from '../../schemas/system-setting.schema';
 import * as fs from 'fs';
 import * as path from 'path';
-import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
+import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../bot-engine/helpers/bot-path.helper';
 
 @Injectable()
 export class SystemSettingsService implements OnModuleInit {
@@ -297,12 +297,17 @@ export class SystemSettingsService implements OnModuleInit {
   }
 
   /**
-   * Kiểm tra xem đường dẫn thư mục có tồn tại và có quyền ghi hay không.
+  /**
+   * Kiểm tra xem đường dẫn thư mục hoặc tập tin có tồn tại và có quyền ghi hay không.
    */
-  async verifyStoragePath(rawPath: string): Promise<{
+  async verifyStoragePath(
+    rawPath: string,
+    targetType: 'folder' | 'file' | 'any' = 'any',
+  ): Promise<{
     success: boolean;
     exists: boolean;
     canWrite: boolean;
+    isFile: boolean;
     resolvedPath: string;
     message: string;
   }> {
@@ -311,29 +316,119 @@ export class SystemSettingsService implements OnModuleInit {
         success: false,
         exists: false,
         canWrite: false,
+        isFile: false,
         resolvedPath: '',
-        message: 'Đường dẫn thư mục trống.',
+        message: 'Đường dẫn kiểm tra đang để trống.',
       };
     }
 
     try {
-      const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
-      const yyyy = now.getUTCFullYear().toString();
-      const mm = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-      const dd = now.getUTCDate().toString().padStart(2, '0');
-
-      const formatted = rawPath
-        .replace(/\${YYYY}/g, yyyy)
-        .replace(/\${MM}/g, mm)
-        .replace(/\${DD}/g, dd)
-        .replace(/\${yyyy}/g, yyyy)
-        .replace(/\${mm}/g, mm)
-        .replace(/\${dd}/g, dd);
-
+      const formatted = resolveDynamicPath(rawPath.trim());
       const resolved = resolveStoragePathCrossPlatform(formatted);
 
-      // 1. Kiểm tra nếu thư mục đã tồn tại
+      // Nhận diện loại đích là File nếu có đuôi mở rộng phổ biến hoặc targetType = file
+      const hasFileExt = /\.(xlsx|xls|csv|txt|json|pdf|xml|doc|docx)$/i.test(resolved);
+      const isFile = targetType === 'file' || (targetType === 'any' && hasFileExt);
+
+      // TRƯỜNG HỢP 1: TẬP TIN (FILE)
+      if (isFile) {
+        if (fs.existsSync(resolved)) {
+          const stat = fs.statSync(resolved);
+          if (stat.isDirectory()) {
+            return {
+              success: false,
+              exists: true,
+              canWrite: false,
+              isFile: true,
+              resolvedPath: resolved,
+              message: `Đường dẫn là một thư mục, nhưng yêu cầu chỉ định tập tin.`,
+            };
+          }
+
+          try {
+            fs.accessSync(resolved, fs.constants.W_OK);
+            return {
+              success: true,
+              exists: true,
+              canWrite: true,
+              isFile: true,
+              resolvedPath: resolved,
+              message: `Tập tin này đang tồn tại và có đầy đủ quyền đọc/ghi dữ liệu.`,
+            };
+          } catch (writeErr: any) {
+            return {
+              success: false,
+              exists: true,
+              canWrite: false,
+              isFile: true,
+              resolvedPath: resolved,
+              message: `Tập tin có tồn tại nhưng bị khóa hoặc không có quyền ghi: ${writeErr.message}`,
+            };
+          }
+        }
+
+        // File chưa tồn tại -> kiểm tra thư mục cha
+        let parentDir = path.dirname(resolved);
+        let foundExistingParent: string | null = null;
+        for (let i = 0; i < 5; i++) {
+          if (fs.existsSync(parentDir)) {
+            foundExistingParent = parentDir;
+            break;
+          }
+          const nextParent = path.dirname(parentDir);
+          if (nextParent === parentDir) break;
+          parentDir = nextParent;
+        }
+
+        if (foundExistingParent) {
+          const testFile = path.join(foundExistingParent, `.write_test_${Date.now()}`);
+          try {
+            fs.writeFileSync(testFile, 'test');
+            fs.unlinkSync(testFile);
+            return {
+              success: true,
+              exists: false,
+              canWrite: true,
+              isFile: true,
+              resolvedPath: resolved,
+              message: `Tập tin chưa tạo sẵn, nhưng hệ thống có quyền tự động tạo mới khi lưu (quyền ghi hợp lệ tại ${foundExistingParent}).`,
+            };
+          } catch (writeErr: any) {
+            return {
+              success: false,
+              exists: false,
+              canWrite: false,
+              isFile: true,
+              resolvedPath: resolved,
+              message: `Thư mục cha (${foundExistingParent}) không có quyền ghi để tạo file: ${writeErr.message}`,
+            };
+          }
+        }
+
+        return {
+          success: false,
+          exists: false,
+          canWrite: false,
+          isFile: true,
+          resolvedPath: resolved,
+          message: `Ổ đĩa hoặc đường dẫn lưu file không khả dụng trên hệ thống (${resolved}).`,
+        };
+      }
+
+      // TRƯỜNG HỢP 2: THƯ MỤC (DIRECTORY)
       if (fs.existsSync(resolved)) {
+        const stat = fs.statSync(resolved);
+        if (!stat.isDirectory()) {
+          return {
+            success: false,
+            exists: true,
+            canWrite: false,
+            isFile: false,
+            resolvedPath: resolved,
+            message: `Đường dẫn là một tập tin, nhưng yêu cầu chỉ định thư mục.`,
+          };
+        }
+
         const testFile = path.join(resolved, `.write_test_${Date.now()}`);
         try {
           fs.writeFileSync(testFile, 'test');
@@ -342,6 +437,7 @@ export class SystemSettingsService implements OnModuleInit {
             success: true,
             exists: true,
             canWrite: true,
+            isFile: false,
             resolvedPath: resolved,
             message: 'Thư mục này đang tồn tại và có đầy đủ quyền ghi dữ liệu.',
           };
@@ -350,13 +446,14 @@ export class SystemSettingsService implements OnModuleInit {
             success: false,
             exists: true,
             canWrite: false,
+            isFile: false,
             resolvedPath: resolved,
             message: `Thư mục có tồn tại nhưng không có quyền ghi: ${writeErr.message}`,
           };
         }
       }
 
-      // 2. Nếu thư mục chưa tồn tại, tìm thư mục cha gần nhất đang tồn tại
+      // Nếu thư mục chưa tồn tại, tìm thư mục cha gần nhất đang tồn tại
       let currentDir = path.dirname(resolved);
       let foundExistingParent: string | null = null;
       for (let i = 0; i < 5; i++) {
@@ -378,6 +475,7 @@ export class SystemSettingsService implements OnModuleInit {
             success: true,
             exists: false,
             canWrite: true,
+            isFile: false,
             resolvedPath: resolved,
             message: `Thư mục chưa tạo sẵn, nhưng hệ thống có quyền tự động tạo mới thư mục khi lưu file (quyền ghi hợp lệ tại ${foundExistingParent}).`,
           };
@@ -386,6 +484,7 @@ export class SystemSettingsService implements OnModuleInit {
             success: false,
             exists: false,
             canWrite: false,
+            isFile: false,
             resolvedPath: resolved,
             message: `Thư mục cha (${foundExistingParent}) không có quyền ghi: ${writeErr.message}`,
           };
@@ -396,6 +495,7 @@ export class SystemSettingsService implements OnModuleInit {
         success: false,
         exists: false,
         canWrite: false,
+        isFile: false,
         resolvedPath: resolved,
         message: `Ổ đĩa hoặc đường dẫn không khả dụng trên hệ thống (${resolved}).`,
       };
@@ -404,6 +504,7 @@ export class SystemSettingsService implements OnModuleInit {
         success: false,
         exists: false,
         canWrite: false,
+        isFile: false,
         resolvedPath: rawPath,
         message: `Lỗi kiểm tra đường dẫn: ${err.message}`,
       };

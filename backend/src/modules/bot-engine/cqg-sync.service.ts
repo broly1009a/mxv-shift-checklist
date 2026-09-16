@@ -200,13 +200,13 @@ export class CqgSyncService {
 
       if (missingRaw.length > 0) {
         if (name === 'FR') {
-          const msg = `⚠️ Không ghép file FR.xlsx vì thiếu file nguồn: ${missingRaw.join(', ')}. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.`;
+          const msg = ` Không ghép file FR.xlsx vì thiếu file nguồn: ${missingRaw.join(', ')}. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.`;
           this.logger.warn(msg);
           logs.push(msg);
           return;
         }
         if (missingRaw.length === rawKeys.length) {
-          const msg = `⚠️ Bỏ qua ghép ${name}.xlsx vì thiếu toàn bộ file nguồn: ${missingRaw.join(', ')}`;
+          const msg = ` Bỏ qua ghép ${name}.xlsx vì thiếu toàn bộ file nguồn: ${missingRaw.join(', ')}`;
           this.logger.warn(msg);
           logs.push(msg);
           return;

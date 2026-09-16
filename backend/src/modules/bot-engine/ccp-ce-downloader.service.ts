@@ -1631,7 +1631,7 @@ export class CcpCeDownloaderService {
 
     if (resultFiles.dsgd && fs.existsSync(resultFiles.dsgd)) {
       try {
-        const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd));
+        const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd), tradingDate);
         klgd = parsed.totalKhop || 0;
       } catch (e: any) {
         this.log(`[CCP KLGD] Lỗi bóc tách DSGD: ${e.message}`, logCb);
@@ -1639,7 +1639,7 @@ export class CcpCeDownloaderService {
     }
     if (resultFiles.ttm && fs.existsSync(resultFiles.ttm)) {
       try {
-        const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm));
+        const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm), tradingDate);
         ttm = parsed.totalTTM || 0;
       } catch (e: any) {
         this.log(`[CCP KLGD] Lỗi bóc tách TTM: ${e.message}`, logCb);
@@ -1647,7 +1647,7 @@ export class CcpCeDownloaderService {
     }
     if (resultFiles.tttt && fs.existsSync(resultFiles.tttt)) {
       try {
-        const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt));
+        const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt), tradingDate);
         tttt = parsed.totalTTTT || 0;
       } catch (e: any) {
         this.log(`[CCP KLGD] Lỗi bóc tách TTTT: ${e.message}`, logCb);
@@ -1824,7 +1824,7 @@ export class CcpCeDownloaderService {
 
       if (resultFiles.dsgd && fs.existsSync(resultFiles.dsgd)) {
         try {
-          const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd));
+          const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd), tradingDate);
           klgd = parsed.totalKhop || 0;
         } catch (e: any) {
           this.log(`[CCP KLGD] Lỗi bóc tách DSGD: ${e.message}`, logCb);
@@ -1832,7 +1832,7 @@ export class CcpCeDownloaderService {
       }
       if (resultFiles.ttm && fs.existsSync(resultFiles.ttm)) {
         try {
-          const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm));
+          const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm), tradingDate);
           ttm = parsed.totalTTM || 0;
         } catch (e: any) {
           this.log(`[CCP KLGD] Lỗi bóc tách TTM: ${e.message}`, logCb);
@@ -1840,7 +1840,7 @@ export class CcpCeDownloaderService {
       }
       if (resultFiles.tttt && fs.existsSync(resultFiles.tttt)) {
         try {
-          const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt));
+          const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt), tradingDate);
           tttt = parsed.totalTTTT || 0;
         } catch (e: any) {
           this.log(`[CCP KLGD] Lỗi bóc tách TTTT: ${e.message}`, logCb);

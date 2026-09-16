@@ -178,7 +178,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                           {theGen === 'CAN_CUOC_2024' && ' Căn Cước 2024'}
                           {theGen === 'CCCD_CHIP_2021' && ' CCCD Gắn Chip'}
                           {theGen === 'CCCD_MA_VACH' && ' CCCD Mã Vạch'}
-                          {theGen === 'CMND_9_SO' && '⛔ CMND 9 Số Cũ'}
+                          {theGen === 'CMND_9_SO' && ' CMND 9 Số Cũ'}
                         </span>
                       )}
                       {confScore !== undefined && (

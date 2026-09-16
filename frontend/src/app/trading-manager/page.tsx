@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { io } from 'socket.io-client';
 import {
   RefreshCw,
   Play,
@@ -70,6 +71,12 @@ export default function TradingManagerPage() {
   const [triggeringSection, setTriggeringSection] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [activeJobLogs, setActiveJobLogs] = useState<string[]>([]);
+  const activeJobIdRef = useRef<string | null>(null);
+  const activeJobTypeRef = useRef<string>('CHECK_KLGD');
+
+  useEffect(() => {
+    activeJobIdRef.current = activeJobId;
+  }, [activeJobId]);
   const [summaryData, setSummaryData] = useState<any>(null);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
@@ -223,12 +230,12 @@ export default function TradingManagerPage() {
     }
   }, [selectedDate, fetchConsoleSummary]);
 
-  // Periodic polling (20s)
+  // Periodic polling fallback (45s dự phòng khi mất kết nối WebSocket)
   useEffect(() => {
     if (!checkPeriodic) return;
     const interval = setInterval(() => {
       fetchConsoleSummary(selectedDate, true);
-    }, 20000);
+    }, 45000);
     return () => clearInterval(interval);
   }, [checkPeriodic, selectedDate, fetchConsoleSummary]);
 
@@ -240,23 +247,112 @@ export default function TradingManagerPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Reusable Polling Function for Bot Job
+  // Trình xử lý hoàn tất bot job dùng chung cho cả WebSocket Real-time & Fallback Polling
+  const handleJobFinished = useCallback(
+    async (job: any, jobType: string = 'CHECK_KLGD') => {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('activeTriggerJobId');
+      }
+      setActiveJobId(null);
+      activeJobIdRef.current = null;
+      setTriggering(false);
+      setTriggeringSection(null);
+      toast.dismiss('bot-job-progress');
+
+      if (Array.isArray(job.logs) && job.logs.length > 0) {
+        setActiveJobLogs(job.logs);
+      }
+
+      if (job.status === 'COMPLETED') {
+        const payloadResult = job.result || job.payload?.result;
+        if (jobType === 'CHECK_KLGD') {
+          const diffKLGD = payloadResult?.totals?.differ || 0;
+          const diffACM = payloadResult?.totals?.differACM || 0;
+          const mismatchTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
+          const pendingCount = payloadResult?.pendingSyncTrades?.length || 0;
+          if (diffKLGD === 0 && diffACM === 0 && mismatchTrades === 0) {
+            const note = pendingCount > 0 ? ` (Bảo lưu ${pendingCount} lệnh sau mốc cắt)` : '';
+            toast.success(`Đối chiếu Khớp lệnh hoàn tất: Số liệu khớp hoàn toàn!${note}`, { duration: 5000 });
+          } else {
+            toast.error(`Đối chiếu Khớp lệnh: Lệch ${mismatchTrades} lệnh (Lệch CQG: ${diffKLGD}, ACM: ${diffACM})`, { duration: 6000 });
+          }
+        } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
+          const negAccs = payloadResult?.eodResult?.negativeIMRAcc?.length || payloadResult?.negativeIMRAcc?.length || 0;
+          const mismatchEOD = payloadResult?.eodResult?.mismatchedEOD?.length || payloadResult?.mismatchedEOD?.length || 0;
+          const mismatchCQG = payloadResult?.cqgResult?.length || 0;
+          if (negAccs === 0 && mismatchEOD === 0 && mismatchCQG === 0) {
+            toast.success('Đối chiếu EOD hoàn tất: Vị thế & Số dư khớp hoàn toàn, không có TK âm!', { duration: 5000 });
+          } else {
+            const parts = [];
+            if (negAccs > 0) parts.push(`${negAccs} TK âm KQ`);
+            if (mismatchEOD > 0) parts.push(`${mismatchEOD} TK lệch EOD`);
+            if (mismatchCQG > 0) parts.push(`${mismatchCQG} TK lệch số dư CQG`);
+            toast.error(`Hoàn tất EOD: Phát hiện ${parts.join(', ')}!`, { duration: 6000 });
+          }
+        } else if (jobType === 'CHECK_PRE_EOD') {
+          const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
+          const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
+          if (misTrades === 0 && misPos === 0) {
+            toast.success('Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
+          } else {
+            toast.error(`Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
+          }
+        } else if (jobType === 'CHECK_EOD_CCP') {
+          const totalMis = payloadResult?.mismatchedEOD?.length || 0;
+          const totalNeg = (payloadResult?.negativeBalanceAccs?.length || 0) + (payloadResult?.negativeIMRAcc?.length || 0);
+          if (totalMis === 0 && totalNeg === 0) {
+            toast.success('Đối chiếu CoreCCP hoàn tất: Toàn bộ tài khoản khớp 100% công thức EOD!', { duration: 5000 });
+          } else {
+            toast.error(`Hoàn tất EOD CoreCCP: Phát hiện ${totalMis} TK lệch công thức, ${totalNeg} TK âm ký quỹ!`, { duration: 6000 });
+          }
+        } else {
+          toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
+        }
+      } else if (job.status === 'ABORTED') {
+        const errDetail = job.error || 'Dịch vụ đối tác sàn ngoài tạm thời không khả dụng.';
+        toast.error(`Tác vụ tạm dừng: ${errDetail}`, { duration: 6000 });
+      } else if (job.status === 'CANCELLED') {
+        const errDetail = job.error || 'Tác vụ đối chiếu đã bị hủy bỏ.';
+        toast.error(`Tác vụ đã bị hủy: ${errDetail}`, { duration: 5000 });
+      } else if (job.status === 'FAILED') {
+        const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
+        toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
+      }
+
+      await fetchConsoleSummary(selectedDate, true);
+    },
+    [selectedDate, fetchConsoleSummary],
+  );
+
+  // Reusable Polling Fallback Function for Bot Job
   const pollJobProgress = useCallback(
     async (jobId: string, jobType: string = 'CHECK_KLGD') => {
       if (!token) return;
       setTriggering(true);
       setActiveJobId(jobId);
+      activeJobIdRef.current = jobId;
+      activeJobTypeRef.current = jobType;
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('activeTriggerJobId', jobId);
       }
 
       const startTime = Date.now();
-      const MAX_WAIT_MS = 180000; // Tối đa 3 phút (bao gồm cả các lượt retry)
-      const POLL_INTERVAL_MS = 2000;
+      const MAX_WAIT_MS = 180000;
+      const POLL_INTERVAL_MS = 4000; // Polling an toàn 4s thay vì 2s vì đã có WebSocket
       let isDone = false;
 
       while (Date.now() - startTime < MAX_WAIT_MS) {
+        // Thoát ngay nếu WebSocket đã xử lý hoàn tất
+        if (!activeJobIdRef.current || activeJobIdRef.current !== jobId) {
+          return;
+        }
+
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+        if (!activeJobIdRef.current || activeJobIdRef.current !== jobId) {
+          return;
+        }
+
         try {
           const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -268,118 +364,71 @@ export default function TradingManagerPage() {
             setActiveJobLogs(job.logs);
           }
 
-          if (job.status === 'COMPLETED') {
+          if (['COMPLETED', 'ABORTED', 'CANCELLED', 'FAILED'].includes(job.status)) {
             isDone = true;
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('activeTriggerJobId');
-            }
-            setActiveJobId(null);
-            toast.dismiss('bot-job-progress');
-
-            const payloadResult = job.payload?.result;
-            if (jobType === 'CHECK_KLGD') {
-              const diffKLGD = payloadResult?.totals?.differ || 0;
-              const diffACM = payloadResult?.totals?.differACM || 0;
-              const mismatchTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
-              const pendingCount = payloadResult?.pendingSyncTrades?.length || 0;
-              if (diffKLGD === 0 && diffACM === 0 && mismatchTrades === 0) {
-                const note = pendingCount > 0 ? ` (Bảo lưu ${pendingCount} lệnh sau mốc cắt)` : '';
-                toast.success(`Đối chiếu Khớp lệnh hoàn tất: Số liệu khớp hoàn toàn!${note}`, { duration: 5000 });
-              } else {
-                toast.error(`Đối chiếu Khớp lệnh: Lệch ${mismatchTrades} lệnh (Lệch CQG: ${diffKLGD}, ACM: ${diffACM})`, { duration: 6000 });
-              }
-            } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
-              const negAccs = payloadResult?.eodResult?.negativeIMRAcc?.length || payloadResult?.negativeIMRAcc?.length || 0;
-              const mismatchEOD = payloadResult?.eodResult?.mismatchedEOD?.length || payloadResult?.mismatchedEOD?.length || 0;
-              const mismatchCQG = payloadResult?.cqgResult?.length || 0;
-              if (negAccs === 0 && mismatchEOD === 0 && mismatchCQG === 0) {
-                toast.success('Đối chiếu EOD hoàn tất: Vị thế & Số dư khớp hoàn toàn, không có TK âm!', { duration: 5000 });
-              } else {
-                const parts = [];
-                if (negAccs > 0) parts.push(`${negAccs} TK âm KQ`);
-                if (mismatchEOD > 0) parts.push(`${mismatchEOD} TK lệch EOD`);
-                if (mismatchCQG > 0) parts.push(`${mismatchCQG} TK lệch số dư CQG`);
-                toast.error(`Hoàn tất EOD: Phát hiện ${parts.join(', ')}!`, { duration: 6000 });
-              }
-            } else if (jobType === 'CHECK_PRE_EOD') {
-              const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
-              const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
-              if (misTrades === 0 && misPos === 0) {
-                toast.success('Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
-              } else {
-                toast.error(`Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
-              }
-            } else if (jobType === 'CHECK_EOD_CCP') {
-              const totalMis = payloadResult?.mismatchedEOD?.length || 0;
-              const totalNeg = (payloadResult?.negativeBalanceAccs?.length || 0) + (payloadResult?.negativeIMRAcc?.length || 0);
-              if (totalMis === 0 && totalNeg === 0) {
-                toast.success('Đối chiếu CoreCCP hoàn tất: Toàn bộ tài khoản khớp 100% công thức EOD!', { duration: 5000 });
-              } else {
-                toast.error(`Hoàn tất EOD CoreCCP: Phát hiện ${totalMis} TK lệch công thức, ${totalNeg} TK âm ký quỹ!`, { duration: 6000 });
-              }
-            } else {
-              toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
-            }
-
-            await fetchConsoleSummary(selectedDate, true);
-            break;
-          } else if (job.status === 'ABORTED') {
-            isDone = true;
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('activeTriggerJobId');
-            }
-            setActiveJobId(null);
-            setTriggering(false);
-            toast.dismiss('bot-job-progress');
-            const errDetail = job.error || 'Dịch vụ đối tác sàn ngoài tạm thời không khả dụng.';
-            toast.error(`Tác vụ tạm dừng: ${errDetail}`, { duration: 6000 });
-            await fetchConsoleSummary(selectedDate, true);
-            break;
-          } else if (job.status === 'CANCELLED') {
-            isDone = true;
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('activeTriggerJobId');
-            }
-            setActiveJobId(null);
-            setTriggering(false);
-            toast.dismiss('bot-job-progress');
-            const errDetail = job.error || 'Tác vụ đối chiếu đã bị hủy bỏ.';
-            toast.error(`Tác vụ đã bị hủy: ${errDetail}`, { duration: 5000 });
-            await fetchConsoleSummary(selectedDate, true);
-            break;
-          } else if (job.status === 'FAILED') {
-            isDone = true;
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('activeTriggerJobId');
-            }
-            setActiveJobId(null);
-            setTriggering(false);
-            toast.dismiss('bot-job-progress');
-            const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
-            toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
-            await fetchConsoleSummary(selectedDate, true);
+            await handleJobFinished(job, jobType);
             break;
           }
         } catch {
-          // Bỏ qua lỗi mạng chập chờn khi poll
+          // Bỏ qua lỗi mạng chập chờn khi poll fallback
         }
       }
 
-      if (!isDone) {
+      if (!isDone && activeJobIdRef.current === jobId) {
         toast.dismiss('bot-job-progress');
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('activeTriggerJobId');
         }
         setActiveJobId(null);
+        activeJobIdRef.current = null;
+        setTriggering(false);
+        setTriggeringSection(null);
         toast.success('Bot đã hoàn tất kiểm tra trạng thái.', { duration: 4000 });
         await fetchConsoleSummary(selectedDate, true);
       }
-
-      setTriggering(false);
-      setTriggeringSection(null);
     },
-    [token, selectedDate, fetchConsoleSummary],
+    [token, selectedDate, fetchConsoleSummary, handleJobFinished],
   );
+
+  // Hybrid WebSocket Real-time Synchronization for Trading Manager
+  useEffect(() => {
+    if (!token) return;
+
+    const socket = io(API_BASE_URL, {
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      console.log('[WS] Trading Manager connected to socket gateway');
+    });
+
+    // 1. Nhận sự kiện cập nhật Dashboard từ hệ thống
+    socket.on('dashboard-updated', (payload: any) => {
+      console.log('[WS] dashboard-updated received:', payload);
+      fetchConsoleSummary(selectedDate, true);
+    });
+
+    // 2. Stream log thời gian thực định kỳ 1.5s
+    socket.on('job-log-updated', (payload: { jobId: string; logs: string[]; status?: string }) => {
+      if (activeJobIdRef.current && payload?.jobId === activeJobIdRef.current) {
+        if (Array.isArray(payload.logs) && payload.logs.length > 0) {
+          setActiveJobLogs(payload.logs);
+        }
+      }
+    });
+
+    // 3. Phản hồi hoàn tất / thất bại ngay tức thì (<100ms)
+    socket.on('job-status-updated', (payload: any) => {
+      if (activeJobIdRef.current && payload?.jobId === activeJobIdRef.current) {
+        console.log('[WS] job-status-updated received for active job:', payload);
+        handleJobFinished(payload, activeJobTypeRef.current);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, selectedDate, fetchConsoleSummary, handleJobFinished]);
 
   // Khôi phục tiến trình khi F5 / Reload trang
   useEffect(() => {
@@ -1649,8 +1698,11 @@ export default function TradingManagerPage() {
 
             {/* ACTION BAR: DATE PICKER | CHECK THỦ CÔNG | CHECK | CHUÔNG (Nút bấm to rõ theo chuẩn Bot Config) */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Date Input */}
+              {/* Date Input with clear label and Today quick-select */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Phiên:
+                </span>
                 <input
                   type="date"
                   value={selectedDate}
@@ -1665,6 +1717,25 @@ export default function TradingManagerPage() {
                     cursor: 'pointer',
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date();
+                    const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
+                    setSelectedDate(vnTime.toISOString().split('T')[0]);
+                  }}
+                  className="btn btn-secondary"
+                  title="Đặt lại về phiên ngày hôm nay"
+                  style={{
+                    height: '42px',
+                    padding: '8px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Hôm nay
+                </button>
               </div>
 
               {/* Check thủ công */}

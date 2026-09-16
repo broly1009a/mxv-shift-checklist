@@ -25,6 +25,7 @@ import {
   parseCcpDsgdRow,
   parseCcpTtmRow,
   parseCcpTtttRow,
+  buildCcpHeaderMap,
   classifyCcpDsgd,
   getMaHHFromCcpMaHD,
   getCcpHhSpec,
@@ -46,6 +47,7 @@ import {
   resolveDailySubfolder,
   resolveBotTargetDate,
   resolveStoragePathCrossPlatform,
+  resolveDynamicPath,
 } from '../bot-engine/helpers/bot-path.helper';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -170,23 +172,42 @@ export class CcpLotStatisticsService {
       tyGiaMap = this.parseTyGiaFile(files.tyGia);
       this.logger.log(`[CCP] Đọc tỷ giá từ file: ${JSON.stringify(tyGiaMap)}`);
     } else {
-      this.logger.warn('[CCP] Không có file tỷ giá, GTGD sẽ không quy đổi được về VND');
-      warnings.push('Không có file tỷ giá – GTGD tính theo đơn vị gốc × 1');
+      this.logger.log('[CCP] Không có file tỷ giá, áp dụng tỷ giá mặc định USD = 25,920 VND');
+      warnings.push('Sử dụng tỷ giá mặc định 1 USD = 25.920 đ');
     }
+    // Mặc định tỷ giá USD quy đổi nếu file tỷ giá thiếu
+    tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;
     // VND luôn = 1
     tyGiaMap['VND'] = tyGiaMap['VND'] ?? 1;
 
     // ── 2. Parse file DSGD ────────────────────────────────────────────────
-    const dsgdRows = this.parseRawRows(files.dsgdCcp).map(parseCcpDsgdRow);
-    const mmRows = files.dsgdMmCcp
-      ? this.parseRawRows(files.dsgdMmCcp).map(parseCcpDsgdRow)
-      : [];
+    const dsgdParsed = this.parseRawRowsWithHeaders(files.dsgdCcp);
+    const dsgdHeaderMap = buildCcpHeaderMap(dsgdParsed.headers);
+    const dsgdRows = dsgdParsed.rows.map((r) => parseCcpDsgdRow(r, dsgdHeaderMap));
+
+    let mmRows: CcpDsgdRow[] = [];
+    if (files.dsgdMmCcp) {
+      const mmParsed = this.parseRawRowsWithHeaders(files.dsgdMmCcp);
+      const mmHeaderMap = buildCcpHeaderMap(mmParsed.headers);
+      mmRows = mmParsed.rows.map((r) => parseCcpDsgdRow(r, mmHeaderMap));
+    }
     const allDsgd = [...dsgdRows, ...mmRows];
     this.logger.debug(`[CCP] DSGD rows: ${dsgdRows.length} + MM: ${mmRows.length}`);
 
     // ── 3. Parse TTM / TTTT ───────────────────────────────────────────────
-    const ttmRows = files.ttm ? this.parseRawRows(files.ttm).map(parseCcpTtmRow) : [];
-    const ttttRows = files.tttt ? this.parseRawRows(files.tttt).map(parseCcpTtttRow) : [];
+    let ttmRows: CcpTtmRow[] = [];
+    if (files.ttm) {
+      const ttmParsed = this.parseRawRowsWithHeaders(files.ttm);
+      const ttmHeaderMap = buildCcpHeaderMap(ttmParsed.headers);
+      ttmRows = ttmParsed.rows.map((r) => parseCcpTtmRow(r, ttmHeaderMap));
+    }
+
+    let ttttRows: CcpTtttRow[] = [];
+    if (files.tttt) {
+      const ttttParsed = this.parseRawRowsWithHeaders(files.tttt);
+      const ttttHeaderMap = buildCcpHeaderMap(ttttParsed.headers);
+      ttttRows = ttttParsed.rows.map((r) => parseCcpTtttRow(r, ttttHeaderMap));
+    }
     this.logger.debug(`[CCP] TTM rows: ${ttmRows.length}, TTTT rows: ${ttttRows.length}`);
 
     // ── 4. Phân loại DSGD ─────────────────────────────────────────────────
@@ -257,11 +278,18 @@ export class CcpLotStatisticsService {
     let lotUpdated = false;
     let gtgdUpdated = false;
 
-    if (paths.pathAcmLot) {
+    const resolvedLotPath = paths.pathAcmLot
+      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmLot, result.ngayGD))
+      : undefined;
+    const resolvedGtgdPath = paths.pathAcmGtgd
+      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd, result.ngayGD))
+      : undefined;
+
+    if (resolvedLotPath) {
       try {
-        await writeCcpLotToAccumulator(result, paths.pathAcmLot, jobLogs);
+        await writeCcpLotToAccumulator(result, resolvedLotPath, jobLogs);
         lotUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi lot vào: ${paths.pathAcmLot}`);
+        this.logger.log(`[CCP-ACC] Đã ghi lot vào: ${resolvedLotPath}`);
       } catch (err: any) {
         const msg = `Lỗi ghi file lũy kế lot: ${err.message}`;
         errors.push(msg);
@@ -270,11 +298,11 @@ export class CcpLotStatisticsService {
       }
     }
 
-    if (paths.pathAcmGtgd) {
+    if (resolvedGtgdPath) {
       try {
-        await writeCcpGtgdToAccumulator(result, paths.pathAcmGtgd, jobLogs);
+        await writeCcpGtgdToAccumulator(result, resolvedGtgdPath, jobLogs);
         gtgdUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi GTGD vào: ${paths.pathAcmGtgd}`);
+        this.logger.log(`[CCP-ACC] Đã ghi GTGD vào: ${resolvedGtgdPath}`);
       } catch (err: any) {
         const msg = `Lỗi ghi file lũy kế GTGD: ${err.message}`;
         errors.push(msg);
@@ -459,7 +487,7 @@ export class CcpLotStatisticsService {
       const doCao = hhSpec?.doCao ?? 1;
       const currency = hhSpec?.tienTe ?? 'USD';
       const tyGia = tyGiaMap[currency] ?? tyGiaMap['USD'] ?? 1;
-      const gtgd = row.klKhop * row.giaKhop * doCao * tyGia;
+      const gtgd = Math.round(row.klKhop * row.giaKhop * doCao * tyGia);
 
       if (!hhMap.has(maHH)) hhMap.set(maHH, { soLot: 0, giaTri: 0 });
       const entry = hhMap.get(maHH)!;
@@ -503,8 +531,8 @@ export class CcpLotStatisticsService {
 
       const tyGia = tyGiaMap[currency] ?? tyGiaMap['USD'] ?? 1;
 
-      // GTGD = KL × Giá × doCao × tyGia
-      total += row.klKhop * row.giaKhop * doCao * tyGia;
+      // GTGD = KL × Giá × doCao × tyGia (làm tròn số nguyên VND)
+      total += Math.round(row.klKhop * row.giaKhop * doCao * tyGia);
     }
     return total;
   }
@@ -522,6 +550,18 @@ export class CcpLotStatisticsService {
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
     return rows.slice(1); // bỏ header
+  }
+
+  /**
+   * Parse buffer Excel → trả về cả headers và data rows
+   */
+  private parseRawRowsWithHeaders(buffer: Buffer): { headers: any[]; rows: any[][] } {
+    const wb = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+    if (all.length === 0) return { headers: [], rows: [] };
+    return { headers: all[0] || [], rows: all.slice(1) };
   }
 
   /**
@@ -664,6 +704,9 @@ export class CcpLotStatisticsService {
         /^DSGD(?!\s*MM).*\.csv$/i,
         /^DSGD(?!\s*MM).*\.xlsx$/i,
         /^DSGD(?!\s*MM).*\.xls$/i,
+        /^ORDERMATCH_DETAIL.*\.xlsx$/i,
+        /^ORDERMATCH.*\.xlsx$/i,
+        /^ORDERMATCH.*\.csv$/i,
         /^DSGD.*\.csv$/i,
         /^DSGD.*\.xlsx$/i,
         /^DSGD.*\.xls$/i,
@@ -674,6 +717,8 @@ export class CcpLotStatisticsService {
         /^TTM.*\.xlsx$/i,
         /^TTM.*\.xls$/i,
         /^TTM.*\.csv$/i,
+        /^OPEN_POSITION.*\.xlsx$/i,
+        /^OPEN_POSITION.*\.csv$/i,
       ]);
 
       // 3. TTTT (tùy chọn)
@@ -681,6 +726,8 @@ export class CcpLotStatisticsService {
         /^TTTT.*\.xlsx$/i,
         /^TTTT.*\.xls$/i,
         /^TTTT.*\.csv$/i,
+        /^PNL_EXECUTED.*\.xlsx$/i,
+        /^PNL_EXECUTED.*\.csv$/i,
       ]);
 
       // 4. Tỷ giá (tùy chọn)

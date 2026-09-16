@@ -21,8 +21,8 @@ export class SystemSettingsController {
   }
 
   @Post('verify-storage-path')
-  async verifyStoragePath(@Body() body: { path: string }) {
-    return this.settingsService.verifyStoragePath(body.path);
+  async verifyStoragePath(@Body() body: { path: string; targetType?: 'folder' | 'file' | 'any' }) {
+    return this.settingsService.verifyStoragePath(body.path, body.targetType);
   }
 
   @UseGuards(RolesGuard)

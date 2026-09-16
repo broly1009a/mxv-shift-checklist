@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
+import SmartPathInput from '@/components/admin/SmartPathInput';
 
 export interface CcpLotStatisticsSectionProps {
   token: string | null;
@@ -1063,48 +1064,52 @@ export default function CcpLotStatisticsSection({
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  Thư mục gốc quét báo cáo CCP (bot_backup_path_ccp):
-                </label>
-                <input
-                  type="text"
-                  value={backupPathCcp}
-                  onChange={(e) => setBackupPathCcp(e.target.value)}
-                  placeholder="M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures (hoặc /mnt/...)"
-                  className="form-input"
-                  style={{ fontSize: '0.78rem', fontFamily: 'monospace' }}
-                />
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <SmartPathInput
+                value={backupPathCcp}
+                onChange={setBackupPathCcp}
+                label="Thư mục gốc quét báo cáo CCP (bot_backup_path_ccp):"
+                placeholder="M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures (hoặc /mnt/...)"
+                targetType="folder"
+                presets={[
+                  {
+                    name: 'Backup CCP',
+                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+                  },
+                  {
+                    name: 'Backup MS',
+                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+                  },
+                ]}
+              />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  File lũy kế Số Lot ACM:
-                </label>
-                <input
-                  type="text"
-                  value={pathAcmLot}
-                  onChange={(e) => setPathAcmLot(e.target.value)}
-                  placeholder="M:\...\Thong ke so lot giao dich ACM 2025.xlsx"
-                  className="form-input"
-                  style={{ fontSize: '0.78rem', fontFamily: 'monospace' }}
-                />
-              </div>
+              <SmartPathInput
+                value={pathAcmLot}
+                onChange={setPathAcmLot}
+                label="File lũy kế Số Lot ACM (pathAcmLot):"
+                placeholder="M:\...\Thong ke so lot giao dich ACM ${YYYY}.xlsx"
+                targetType="file"
+                presets={[
+                  {
+                    name: 'File Lot ACM (${YYYY})',
+                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\Thong ke so lot giao dich ACM ${YYYY}.xlsx',
+                  },
+                ]}
+              />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  File lũy kế Giá Trị Giao Dịch ACM:
-                </label>
-                <input
-                  type="text"
-                  value={pathAcmGtgd}
-                  onChange={(e) => setPathAcmGtgd(e.target.value)}
-                  placeholder="M:\...\Thong ke gia tri giao dich ACM 2025.xlsx"
-                  className="form-input"
-                  style={{ fontSize: '0.78rem', fontFamily: 'monospace' }}
-                />
-              </div>
+              <SmartPathInput
+                value={pathAcmGtgd}
+                onChange={setPathAcmGtgd}
+                label="File lũy kế Giá Trị Giao Dịch ACM (pathAcmGtgd):"
+                placeholder="M:\...\Thong ke gia tri giao dich ACM ${YYYY}.xlsx"
+                targetType="file"
+                presets={[
+                  {
+                    name: 'File GTGD ACM (${YYYY})',
+                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx',
+                  },
+                ]}
+              />
             </div>
           </div>
         )}

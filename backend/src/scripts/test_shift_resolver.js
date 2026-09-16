@@ -113,20 +113,20 @@ async function runTest() {
   console.log(`  * Thuật toán cũ chọn Ca ID: ${oldShift?._id}`);
   console.log(`  * Trạng thái ca bốc được: [${oldShift?.status}]`);
   if (oldShift?.status === 'COMPLETED') {
-    console.log(`  ❌ HẬU QUẢ CŨ: Ca bốc được đã COMPLETED -> Queue Guard sẽ HỦY JOB NGAY LẬP TỨC (CANCELLED)!`);
+    console.log(`   HẬU QUẢ CŨ: Ca bốc được đã COMPLETED -> Queue Guard sẽ HỦY JOB NGAY LẬP TỨC (CANCELLED)!`);
   } else {
-    console.log(`  ⚠️ Thuật toán cũ phụ thuộc may rủi vào createdAt.`);
+    console.log(`   Thuật toán cũ phụ thuộc may rủi vào createdAt.`);
   }
 
   // 3. MÔ PHỎNG THUẬT TOÁN MỚI (DATA-DRIVEN 3 TẦNG)
   console.log('\n--- [BƯỚC 3: KẾT QUẢ THUẬT TOÁN MỚI 3 TẦNG (ĐÃ FIX)] ---');
-  
+
   const testJobTypes = ['CHECK_KLGD', 'CHECK_PRE_EOD'];
   const nowMinutes = vnTime.getUTCHours() * 60 + vnTime.getUTCMinutes();
 
   for (const jobType of testJobTypes) {
     console.log(`\n>>> KIỂM TRA ĐỊNH TUYẾN CHO TÁC VỤ: [${jobType}] <<<`);
-    
+
     // Tầng 1: Lọc ca đang MỞ
     const openShifts = shifts.filter((s) => s.status === 'ACTIVE' || s.status === 'PENDING');
     console.log(`  - Số lượng ca đang MỞ (ACTIVE/PENDING): ${openShifts.length}`);
