@@ -655,7 +655,9 @@ export class CcpLotStatisticsService {
             (f) =>
               /^DSGD.*\.xlsx$/i.test(f) ||
               /^DSGD.*\.xls$/i.test(f) ||
-              /^DSGD.*\.csv$/i.test(f),
+              /^DSGD.*\.csv$/i.test(f) ||
+              /^ORDERMATCH.*\.xlsx$/i.test(f) ||
+              /^ORDERMATCH.*\.csv$/i.test(f),
           );
           if (hasDsgd) {
             folderToScan = folder;

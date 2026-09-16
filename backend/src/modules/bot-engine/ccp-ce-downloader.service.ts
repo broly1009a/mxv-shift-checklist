@@ -107,10 +107,10 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
   },
   {
     code: 'DSGD',
-    name: 'Lịch sử giao dịch',
+    name: 'Danh sách giao dịch',
     parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '', // CoreCCP không có direct URL, dùng click menu
+    childMenu: 'Danh sách giao dịch',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
     enabled: true,
   },
   {
@@ -537,8 +537,8 @@ export class CcpCeDownloaderService {
         childCandidates.push('Lịch sử nộp rút tiền', 'Lịch sử Nộp/ Rút tiền');
       } else if (report.childMenu === 'Lịch sử lệnh' || report.childMenu === 'Danh sách lệnh') {
         childCandidates.push('Lịch sử lệnh', 'Danh sách lệnh');
-      } else if (report.childMenu === 'Lịch sử giao dịch' || report.childMenu === 'Danh sách giao dịch') {
-        childCandidates.push('Lịch sử giao dịch', 'Danh sách giao dịch');
+      } else if (report.childMenu === 'Danh sách giao dịch' || report.childMenu === 'Lịch sử giao dịch') {
+        childCandidates.push('Danh sách giao dịch', 'Danh sách giao dịch MM', 'Lịch sử giao dịch');
       } else if (report.childMenu === 'Trạng thái mở' || report.childMenu === 'Vị thế mở') {
         childCandidates.push('Trạng thái mở', 'Vị thế mở', 'Danh sách trạng thái mở');
       }
@@ -1560,10 +1560,10 @@ export class CcpCeDownloaderService {
       const targetReports: CcpReportConfig[] = [
         {
           code: 'DSGD',
-          name: 'Lịch sử giao dịch',
+          name: 'Danh sách giao dịch',
           parentMenu: 'Lệnh và vị thế',
-          childMenu: 'Lịch sử giao dịch',
-          cachedUrl: '',
+          childMenu: 'Danh sách giao dịch',
+          cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
           enabled: true,
         },
         {
@@ -1741,10 +1741,10 @@ export class CcpCeDownloaderService {
 
     const repDSGD: CcpReportConfig = {
       code: 'DSGD',
-      name: 'Lịch sử giao dịch',
+      name: 'Danh sách giao dịch',
       parentMenu: 'Lệnh và vị thế',
-      childMenu: 'Lịch sử giao dịch',
-      cachedUrl: '',
+      childMenu: 'Danh sách giao dịch',
+      cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
       enabled: true,
     };
 

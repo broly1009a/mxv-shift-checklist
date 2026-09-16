@@ -1,5 +1,31 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-16T11:10] FIX: Chuẩn Hóa Điều Hướng Báo Cáo DSGD CoreCCP Sang Menu "Danh Sách Giao Dịch" (/ORDERS/ORDERMATCH_DETAIL)
+
+### 1. Mục tiêu thay đổi
+Theo đối chiếu ảnh chụp màn hình menu thực tế từ USER:
+- Khắc phục lỗi bóc tách CoreCCP ra kết quả `KLGD = 0` (thay vì `2 lots` để khớp với Nano = 556):
+- Nguyên nhân: Trước đây code cấu hình tên menu là *"Lịch sử giao dịch"*, dẫn đến việc bot click nhầm vào menu con "Lịch sử giao dịch" ở phía dưới (vốn là nhật ký hạch toán tiền/nghiệp vụ kế toán, hoàn toàn không chứa cột `KL khớp` hay `Mã HĐ`).
+- Chuyển sang đúng menu cấp trên: **"Danh sách giao dịch"** và gán URL trực tiếp **`/ORDERS/ORDERMATCH_DETAIL`**.
+- Bổ sung nhận diện pattern `ORDERMATCH` cho bộ quét thư mục `scanDailyFiles` trong `ccp-lot-statistics.service.ts`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **`ccp-ce-downloader.service.ts`**:
+   - `DEFAULT_CCP_REPORTS` và `repDSGD`: Đổi `name` và `childMenu` thành `'Danh sách giao dịch'`.
+   - Gán `cachedUrl: '/ORDERS/ORDERMATCH_DETAIL'` để ưu tiên điều hướng thẳng tới trang khớp lệnh CoreCCP, tránh rủi ro click nhầm menu tiền.
+   - Hàm `navigateToReport`: Ưu tiên `childCandidates` tìm `'Danh sách giao dịch'` trước `'Lịch sử giao dịch'`.
+2. **`ccp-lot-statistics.service.ts`**:
+   - Thêm `^ORDERMATCH.*\.xlsx$/i` và `^ORDERMATCH.*\.csv$/i` vào điều kiện kiểm tra `hasDsgd` trong thư mục.
+
+### 4. Xác nhận Build & Kiểm thử
+- `nest build` thành công 100% không cảnh báo lỗi (`code 0`).
+
+---
+
 ## [2026-09-16T10:30] FIX & REFACTOR: Tối Ưu Đóng Tab CQG An Toàn (Giữ Lại 1 Tab Tránh Sập Layout) & Sửa Dialog Log Off
 
 ### 1. Mục tiêu thay đổi
