@@ -5024,7 +5024,7 @@ export class ReconciliationService {
    * Tổng hợp dữ liệu hiển thị toàn diện cho Màn hình Trading Operation Console
    * Gom dữ liệu mới nhất từ bot_jobs (CHECK_KLGD, CHECK_PRE_EOD, SCAN_NEGATIVE_MARGIN)
    */
-  async getConsoleSummary(dateStr?: string): Promise<any> {
+  async getConsoleSummary(dateStr?: string, jobId?: string): Promise<any> {
     const today = new Date();
     let targetDate = dateStr;
     if (!targetDate) {
@@ -5135,47 +5135,90 @@ export class ReconciliationService {
     let ccpDownloadJob: any = null;
     let ccpCheckJob: any = null;
 
+    let runs: any[] = [];
+
     if (this.botJobModel) {
-      [klgdJob, preEodJob, marginJob, cqgSyncJob, ccpDownloadJob, ccpCheckJob] = await Promise.all([
-        this.botJobModel
-          .findOne({ jobType: 'CHECK_KLGD' })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec(),
-        this.botJobModel
-          .findOne({ jobType: 'CHECK_PRE_EOD' })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec(),
-        this.botJobModel
-          .findOne({
-            jobType: {
-              $in: [
-                'SCAN_NEGATIVE_MARGIN',
-                'CHECK_MARGIN_DECISION',
-                'CHECK_EOD_MM',
-              ],
+      const klgdPromise = jobId
+        ? this.botJobModel.findById(jobId).lean().exec()
+        : this.botJobModel.findOne({ jobType: 'CHECK_KLGD' }).sort({ createdAt: -1 }).lean().exec();
+
+      const dayStart = new Date(`${targetDate}T00:00:00.000Z`);
+      const dayEnd = new Date(`${targetDate}T23:59:59.999Z`);
+      const pastRunsPromise = this.botJobModel
+        .find({
+          jobType: 'CHECK_KLGD',
+          $or: [
+            { createdAt: { $gte: dayStart, $lte: dayEnd } },
+            { 'payload.targetDate': targetDate },
+            { 'payload.sessionDay': targetDate },
+          ],
+        })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean()
+        .exec();
+
+      const [loadedKlgd, loadedPreEod, loadedMargin, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns] =
+        await Promise.all([
+          klgdPromise,
+          this.botJobModel.findOne({ jobType: 'CHECK_PRE_EOD' }).sort({ createdAt: -1 }).lean().exec(),
+          this.botJobModel
+            .findOne({
+              jobType: {
+                $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MM'],
+              },
+            })
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec(),
+          this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC' }).sort({ createdAt: -1 }).lean().exec(),
+          this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT' }).sort({ createdAt: -1 }).lean().exec(),
+          this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP' }).sort({ createdAt: -1 }).lean().exec(),
+          pastRunsPromise,
+        ]);
+
+      klgdJob = loadedKlgd;
+      preEodJob = loadedPreEod;
+      marginJob = loadedMargin;
+      cqgSyncJob = loadedCqgSync;
+      ccpDownloadJob = loadedCcpDl;
+      ccpCheckJob = loadedCcpCheck;
+
+      if (Array.isArray(loadedPastRuns)) {
+        runs = loadedPastRuns.map((j: any) => {
+          const payload = j.payload
+            ? typeof j.payload.toObject === 'function'
+              ? j.payload.toObject()
+              : j.payload
+            : {};
+          const res = payload.result || {};
+          const totals = res.totals || {};
+          const created = new Date(j.createdAt);
+          const vnDate = new Date(created.getTime() + 7 * 3600 * 1000);
+          const timeStr = `${String(vnDate.getUTCHours()).padStart(2, '0')}:${String(vnDate.getUTCMinutes()).padStart(2, '0')}`;
+          const dateStrFormatted = `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')}`;
+          const differ = totals.differ || 0;
+          const differACM = totals.differACM || 0;
+          const hasDiscrepancy = differ !== 0 || differACM !== 0;
+
+          return {
+            id: String(j._id || j.jobId),
+            jobId: String(j._id || j.jobId),
+            time: timeStr,
+            label: `${dateStrFormatted} ${timeStr}`,
+            createdAt: j.createdAt,
+            status: j.status,
+            hasDiscrepancy,
+            totals: {
+              dsgd: totals.totalDSGD || 0,
+              fr: totals.totalFR || 0,
+              acm: totals.totalACM || 0,
+              nano: totals.totalNano || 0,
+              ccp: totals.totalCCP_DSGD || 0,
             },
-          })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec(),
-        this.botJobModel
-          .findOne({ jobType: 'CHECK_CQG_SYNC' })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec(),
-        this.botJobModel
-          .findOne({ jobType: 'DOWNLOAD_CCP_REPORT' })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec(),
-        this.botJobModel
-          .findOne({ jobType: 'CHECK_EOD_CCP' })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec(),
-      ]);
+          };
+        });
+      }
     }
 
     // 3. Xử lý Payload KLGD
@@ -5311,10 +5354,16 @@ export class ReconciliationService {
     const ccpCheckResult = ccpCheckJob?.payload?.result || {};
     const ccpMismatchedAccounts = ccpCheckResult?.mismatchedEOD || [];
 
+    const latestRunId = runs.length > 0 ? runs[0].id : null;
+    const isViewingHistorical = !!(jobId && latestRunId && jobId !== latestRunId);
+
     return {
       success: true,
       date: targetDate,
       serverTime: new Date().toISOString(),
+      runs,
+      currentJobId: klgdJob?._id?.toString() || null,
+      isViewingHistorical,
       shiftInfo: {
         shiftLogId: shiftLog?._id?.toString(),
         shiftDate: shiftLog?.shiftDate || slashDate,

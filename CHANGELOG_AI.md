@@ -12335,6 +12335,41 @@ export interface CheckKLGDResult {
 - **Backend Build**: `cmd /c "npm run build"` thành công 100% (**Exit code 0**).
 - **Frontend TypeCheck**: `cmd /c "npx tsc --noEmit"` thành công 100% (**Exit code 0, 0 errors**).
 
+---
+
+## [Audit 2026-09-16] Khôi phục Direct URL Báo Cáo CoreCCP/CoreCE & Bổ Sung Bộ Điều Hướng Xem Lại Lượt Chạy Quá Khứ (Interactive Run Navigator)
+
+### 1. Mục tiêu thay đổi
+1. **Khôi phục cấu hình báo cáo CoreCCP & CoreCE**:
+   - Đối chiếu với tool Python gốc ([downloader_original.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/cpp-ce-downloader/backup_original_monolithic/downloader_original.py) và [core_ex_page.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/cpp-ce-downloader/page_objects/core_ex_page.py)).
+   - Sửa lỗi `DSGD` bị click nhầm vào menu con "Lịch sử giao dịch" (hạch toán tiền) thay vì "Danh sách giao dịch" (`/ORDERS/ORDERMATCH_DETAIL`).
+   - Sửa lỗi tương tự cho `DSL` (`/ORDERS/ORDERBOOK`) và CoreCE (`/ORDERS/ORDERBOOK_ALL`, `/ORDERS/ORDERMATCH_ALL`).
+2. **Tính năng Xem lại Lượt chạy Quá khứ (Past Runs Navigator)**:
+   - Thay thế nhãn thời gian tĩnh bằng bộ điều hướng trực quan: nút lùi `<` (lượt cũ hơn), dropdown chọn lượt của cả ngày (kèm icon trạng thái khớp/lệch), nút tiến `>` (lượt mới hơn), và nút "Về hiện tại".
+   - Tự động nạp lại dữ liệu ma trận (KLGD, TTM, TTTT) tương ứng với từng snapshot lịch sử.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts)
+- [trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **Khôi phục Báo Cáo CoreCCP/CoreCE**:
+   - `DSGD`: Khôi phục `cachedUrl: '/ORDERS/ORDERMATCH_DETAIL'`, `childMenu: 'Danh sách giao dịch'`.
+   - `DSL`: Khôi phục `cachedUrl: '/ORDERS/ORDERBOOK'`, `childMenu: 'Danh sách lệnh'`.
+   - CoreCE: `parentMenu: 'Quản lý sổ lệnh'`, `DSL: '/ORDERS/ORDERBOOK_ALL'`, `DSGD: '/ORDERS/ORDERMATCH_ALL'`.
+2. **Backend History Run Support**:
+   - `getConsoleSummary(dateStr?: string, jobId?: string)`: Truy vấn danh sách `runs` trong ngày từ `bot_jobs` (`CHECK_KLGD`), nạp snapshot dữ liệu tương ứng khi có `jobId`.
+   - Gắn cờ `isViewingHistorical` và `currentJobId` vào payload trả về.
+3. **Frontend UI Interactive Navigator**:
+   - Cung cấp cụm điều khiển `<` `[ 16/09 10:58 (Mới nhất) ]` `>` với icon SVG từ `lucide-react`.
+   - Nổi bật giao diện màu cam nhạt khi đang duyệt lịch sử, kèm nút `[Về hiện tại]` để quay lại phiên Live.
+
+### 4. Xác nhận Build
+- **Backend Build**: `npm run build` thành công (**Exit code 0**).
+- **Frontend Build**: `npm run build` thành công (**Exit code 0**).
+
 
 
 

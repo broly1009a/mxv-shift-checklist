@@ -1199,8 +1199,11 @@ export class ReconciliationController {
    */
   @Get('console-summary')
   @Permissions('ACCESS_AUTO_SHIFT')
-  async getConsoleSummary(@Query('date') dateStr?: string) {
-    return this.reconciliationService.getConsoleSummary(dateStr);
+  async getConsoleSummary(
+    @Query('date') dateStr?: string,
+    @Query('jobId') jobId?: string,
+  ) {
+    return this.reconciliationService.getConsoleSummary(dateStr, jobId);
   }
 
   /**

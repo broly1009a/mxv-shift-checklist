@@ -34,6 +34,10 @@ import {
   X,
   Download,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  History,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -78,6 +82,7 @@ export default function TradingManagerPage() {
     activeJobIdRef.current = activeJobId;
   }, [activeJobId]);
   const [summaryData, setSummaryData] = useState<any>(null);
+  const [selectedRunJobId, setSelectedRunJobId] = useState<string | null>(null);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
@@ -186,13 +191,18 @@ export default function TradingManagerPage() {
   }, []);
 
   // Fetch Console Summary Data
-  const fetchConsoleSummary = useCallback(async (date?: string, silent: boolean = false) => {
+  const fetchConsoleSummary = useCallback(async (date?: string, silent: boolean = false, jobId?: string | null) => {
     if (!token) return;
     const qDate = date || selectedDate;
+    const targetJobId = jobId !== undefined ? jobId : selectedRunJobId;
     if (!silent) setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}`, {
+      const url = targetJobId
+        ? `${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}&jobId=${targetJobId}`
+        : `${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}`;
+
+      const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -221,14 +231,49 @@ export default function TradingManagerPage() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [token, selectedDate, playAlertSound]);
+  }, [token, selectedDate, selectedRunJobId, playAlertSound]);
 
   // Load when date changes
   useEffect(() => {
     if (selectedDate) {
-      fetchConsoleSummary(selectedDate);
+      setSelectedRunJobId(null);
+      fetchConsoleSummary(selectedDate, false, null);
     }
   }, [selectedDate, fetchConsoleSummary]);
+
+  // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
+  const runs = summaryData?.runs || [];
+  const isViewingHistorical = summaryData?.isViewingHistorical || false;
+  const currentRunIndex = useMemo(() => {
+    if (!runs || runs.length === 0) return -1;
+    const targetId = selectedRunJobId || summaryData?.currentJobId || runs[0]?.id;
+    return runs.findIndex((r: any) => r.id === targetId);
+  }, [runs, selectedRunJobId, summaryData?.currentJobId]);
+
+  const hasPrevRun = currentRunIndex >= 0 && currentRunIndex < runs.length - 1; // Lượt cũ hơn
+  const hasNextRun = currentRunIndex > 0; // Lượt mới hơn
+
+  const handleSelectRun = useCallback((jobId: string | null, forceLatest: boolean = false) => {
+    if (forceLatest || (runs.length > 0 && jobId === runs[0].id)) {
+      setSelectedRunJobId(null);
+      fetchConsoleSummary(selectedDate, false, null);
+    } else {
+      setSelectedRunJobId(jobId);
+      fetchConsoleSummary(selectedDate, false, jobId);
+    }
+  }, [runs, selectedDate, fetchConsoleSummary]);
+
+  const goToPrevRun = useCallback(() => {
+    if (hasPrevRun && currentRunIndex >= 0 && runs[currentRunIndex + 1]) {
+      handleSelectRun(runs[currentRunIndex + 1].id);
+    }
+  }, [hasPrevRun, currentRunIndex, runs, handleSelectRun]);
+
+  const goToNextRun = useCallback(() => {
+    if (hasNextRun && currentRunIndex > 0 && runs[currentRunIndex - 1]) {
+      handleSelectRun(runs[currentRunIndex - 1].id);
+    }
+  }, [hasNextRun, currentRunIndex, runs, handleSelectRun]);
 
   // Periodic polling fallback (45s dự phòng khi mất kết nối WebSocket)
   useEffect(() => {
@@ -1473,24 +1518,122 @@ export default function TradingManagerPage() {
                 )}
               </div>
 
-              {/* Bên phải: Thời điểm check gần nhất */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                  Thời điểm check gần nhất:
+              {/* Bên phải: Lựa chọn lượt check (Quá khứ / Hiện tại) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <History size={14} /> Lượt check:
                 </span>
-                <span style={{
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  fontFamily: 'monospace',
-                  backgroundColor: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                  letterSpacing: '0.05em',
-                }}>
-                  {lastCheckedFormatted}
-                </span>
+
+                {/* Nút lùi về lượt trước (<) */}
+                <button
+                  type="button"
+                  title="Xem lượt check trước đó"
+                  disabled={!hasPrevRun}
+                  onClick={goToPrevRun}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: hasPrevRun ? 'var(--bg-input)' : 'transparent',
+                    color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    opacity: hasPrevRun ? 1 : 0.35,
+                    cursor: hasPrevRun ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {/* Dropdown / Select chọn lượt */}
+                {runs.length > 0 ? (
+                  <select
+                    value={selectedRunJobId || (runs[0]?.id || '')}
+                    onChange={(e) => handleSelectRun(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: 800,
+                      fontFamily: 'monospace',
+                      backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.1)' : 'var(--bg-input)',
+                      color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
+                      border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.4)' : '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    {runs.map((r: any, idx: number) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label || r.time} {idx === 0 ? '(Mới nhất)' : ''} {r.hasDiscrepancy ? '⚠️' : '✓'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)',
+                    letterSpacing: '0.05em',
+                  }}>
+                    {lastCheckedFormatted}
+                  </span>
+                )}
+
+                {/* Nút tiến tới lượt sau (>) */}
+                <button
+                  type="button"
+                  title="Xem lượt check mới hơn"
+                  disabled={!hasNextRun}
+                  onClick={goToNextRun}
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: hasNextRun ? 'var(--bg-input)' : 'transparent',
+                    color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    opacity: hasNextRun ? 1 : 0.35,
+                    cursor: hasNextRun ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                {/* Nút quay về lượt Mới nhất khi đang xem quá khứ */}
+                {isViewingHistorical && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRun(runs[0]?.id, true)}
+                    title="Quay lại lượt check mới nhất hiện tại"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                      color: '#0ea5e9',
+                      border: '1px solid rgba(14, 165, 233, 0.3)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <RotateCcw size={12} />
+                    <span>Về hiện tại</span>
+                  </button>
+                )}
               </div>
             </div>
 
