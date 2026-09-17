@@ -95,6 +95,116 @@ export default function LegacyBackupThongKeSection({
   // Macro State
   const [lotMacroLoading, setLotMacroLoading] = useState<boolean>(false);
   const [valueMacroLoading, setValueMacroLoading] = useState<boolean>(false);
+  const [downloadingMs, setDownloadingMs] = useState<boolean>(false);
+  const [downloadingCqg, setDownloadingCqg] = useState<boolean>(false);
+
+  // Trigger real Playwright RPA download for selected MS reports
+  const handleDownloadMsBackup = async () => {
+    if (!token || downloadingMs) return;
+    const selected = Object.keys(msReports).filter((k) => msReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo MS để tải!');
+      return;
+    }
+
+    setDownloadingMs(true);
+    const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo MS...`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-download`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets: selected, sessionDay: selectedDate }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã đưa yêu cầu tải báo cáo vào hàng đợi!', { id: toastId });
+        await handleAuditMsBackup();
+        return;
+      }
+
+      toast.loading(`Bot đang đăng nhập M-System và tải ${selected.length} báo cáo...`, { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!jr.ok) continue;
+          const job = await jr.json();
+          if (job.status === 'COMPLETED') {
+            toast.success(`Đã tải xong ${selected.length} báo cáo MS về thư mục Backup!`, { id: toastId, duration: 5000 });
+            await handleAuditMsBackup();
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Tải báo cáo MS kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditMsBackup();
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.success('Tác vụ tải MS đang tiếp tục chạy ngầm trên server.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải MS: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingMs(false);
+    }
+  };
+
+  // Trigger CQG sync & download
+  const handleDownloadCqgBackup = async () => {
+    if (!token || downloadingCqg) return;
+    setDownloadingCqg(true);
+    const toastId = toast.loading('Đang khởi động bot đồng bộ & tải báo cáo CQG...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: selectedDate, jobType: 'CHECK_CQG_SYNC' }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã kích hoạt đồng bộ CQG!', { id: toastId });
+        await handleAuditCqgBackup();
+        return;
+      }
+
+      toast.loading('Bot đang tải và ghép file báo cáo CQG...', { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!jr.ok) continue;
+          const job = await jr.json();
+          if (job.status === 'COMPLETED') {
+            toast.success('Đã tải & đồng bộ toàn bộ file CQG về thư mục Backup!', { id: toastId, duration: 5000 });
+            await handleAuditCqgBackup();
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Tải CQG kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditCqgBackup();
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.success('Tác vụ tải CQG đang tiếp tục chạy ngầm.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải CQG: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingCqg(false);
+    }
+  };
 
   // Audit MS Backup
   const handleAuditMsBackup = async () => {
@@ -142,11 +252,59 @@ export default function LegacyBackupThongKeSection({
 
 
 
+  // Restore IMR result from localStorage on date change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`mxv_imr_result_${selectedDate}`);
+        if (saved) {
+          setImrResult(JSON.parse(saved));
+        } else {
+          setImrResult(null);
+        }
+      } catch {
+        setImrResult(null);
+      }
+    }
+  }, [selectedDate]);
+
   // Check IMR Negative Margin
   const handleCheckIMR = async () => {
     if (!token || imrLoading) return;
     setImrLoading(true);
+    const toastId = toast.loading('Đang phân tích dữ liệu ký quỹ (QLTKGD, TTM, DSLCK)...');
     try {
+      // 1. Thử gọi trực tiếp endpoint check-imr đồng bộ cực nhanh
+      const fastRes = await fetch(`${API_BASE_URL}/api/v1/reconciliation/check-imr`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionDate: selectedDate }),
+      });
+      if (fastRes.ok) {
+        const fastData = await fastRes.json();
+        if (fastData && fastData.success) {
+          const resObj = {
+            g1: fastData.results?.group1 || [],
+            g2: fastData.results?.group2 || [],
+            g3: fastData.results?.group3 || [],
+            g4: fastData.results?.group4 || [],
+          };
+          setImrResult(resObj);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`mxv_imr_result_${selectedDate}`, JSON.stringify(resObj));
+          }
+          toast.success(
+            `Quét ký quỹ hoàn tất! G1: ${resObj.g1.length}, G2: ${resObj.g2.length}, G3: ${resObj.g3.length}, G4: ${resObj.g4.length}`,
+            { id: toastId, duration: 5000 }
+          );
+          return;
+        } else if (fastData && fastData.filesFound && !fastData.filesFound.qltkgd) {
+          toast.error(`Không tìm thấy file QLTKGD.xlsx trong thư mục backup ngày ${selectedDate}! Vui lòng tải báo cáo MS trước.`, { id: toastId, duration: 6000 });
+          return;
+        }
+      }
+
+      // 2. Fallback: Kích hoạt background bot job
       const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -157,11 +315,11 @@ export default function LegacyBackupThongKeSection({
       const jobId = result.jobId;
 
       if (!jobId) {
-        toast.success(result.message || 'Đã kích hoạt quét ký quỹ!');
+        toast.success(result.message || 'Đã kích hoạt quét ký quỹ!', { id: toastId });
         return;
       }
 
-      toast.loading('Bot đang phân tích file QLTKGD & TTM M-System...', { id: 'imr-polling' });
+      toast.loading('Bot đang phân tích file QLTKGD & TTM M-System...', { id: toastId });
       const start = Date.now();
       while (Date.now() - start < 120000) {
         await new Promise((r) => setTimeout(r, 2000));
@@ -172,28 +330,29 @@ export default function LegacyBackupThongKeSection({
           if (!jr.ok) continue;
           const job = await jr.json();
           if (job.status === 'COMPLETED') {
-            toast.dismiss('imr-polling');
             const r = job.payload?.result || job;
-            setImrResult({
+            const resObj = {
               g1: r.imrGroup1 || r.laiLoCoTTM || [],
               g2: r.imrGroup2 || r.kyQuyKhongTTM || [],
               g3: r.imrGroup3 || r.kqycttNeKqyc || [],
               g4: r.imrGroup4 || r.kqkdttNeKqkd || [],
-            });
-            toast.success('Quét ký quỹ hoàn tất!', { duration: 5000 });
+            };
+            setImrResult(resObj);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`mxv_imr_result_${selectedDate}`, JSON.stringify(resObj));
+            }
+            toast.success('Quét ký quỹ hoàn tất!', { id: toastId, duration: 5000 });
             return;
           }
           if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
-            toast.dismiss('imr-polling');
-            toast.error(`Quét ký quỹ kết thúc (${job.status}): ${job.error || ''}`, { duration: 6000 });
+            toast.error(`Quét ký quỹ kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
             return;
           }
         } catch { /* poll error */ }
       }
-      toast.dismiss('imr-polling');
-      toast.success('Tác vụ đang chạy ngầm, sẽ hoàn thành sau.');
+      toast.success('Tác vụ đang chạy ngầm, sẽ hoàn thành sau.', { id: toastId });
     } catch (err: any) {
-      toast.error(`Lỗi quét ký quỹ: ${err.message}`);
+      toast.error(`Lỗi quét ký quỹ: ${err.message}`, { id: toastId });
     } finally {
       setImrLoading(false);
     }
@@ -367,18 +526,31 @@ export default function LegacyBackupThongKeSection({
               </div>
             </div>
 
-            {/* Nút Backup MS */}
+            {/* Nút Thao tác MS */}
             <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={handleAuditMsBackup}
-                disabled={auditingMs}
-                className="btn btn-primary"
-                style={{ width: '180px', fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                {auditingMs ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                <span>{auditingMs ? 'Đang kiểm tra...' : 'Backup MS'}</span>
-              </button>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleDownloadMsBackup}
+                  disabled={downloadingMs || auditingMs}
+                  className="btn btn-primary"
+                  style={{ flex: 1, maxWidth: '200px', fontSize: '0.82rem', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  {downloadingMs ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingMs ? 'Đang tải MS...' : 'Tải Báo Cáo Đã Chọn'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAuditMsBackup}
+                  disabled={downloadingMs || auditingMs}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file trong thư mục backup"
+                >
+                  {auditingMs ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+              </div>
               {auditMsResult && (
                 <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
                   {auditMsResult.summary ? `MS: ${auditMsResult.summary.ok}/${auditMsResult.summary.total} files OK` : 'Hoàn tất'}
@@ -425,18 +597,31 @@ export default function LegacyBackupThongKeSection({
               </div>
             </div>
 
-            {/* Nút Backup CQG */}
+            {/* Nút Thao tác CQG */}
             <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={handleAuditCqgBackup}
-                disabled={auditingCqg}
-                className="btn btn-primary"
-                style={{ width: '180px', fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                {auditingCqg ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                <span>{auditingCqg ? 'Đang kiểm tra...' : 'Backup CQG'}</span>
-              </button>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleDownloadCqgBackup}
+                  disabled={downloadingCqg || auditingCqg}
+                  className="btn btn-primary"
+                  style={{ flex: 1, maxWidth: '200px', fontSize: '0.82rem', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  {downloadingCqg ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingCqg ? 'Đang tải CQG...' : 'Tải Báo Cáo CQG'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAuditCqgBackup}
+                  disabled={downloadingCqg || auditingCqg}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file trong thư mục backup"
+                >
+                  {auditingCqg ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+              </div>
               {auditCqgResult && (
                 <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
                   {auditCqgResult.summary ? `CQG: ${auditCqgResult.summary.ok}/${auditCqgResult.summary.total} files OK` : 'Hoàn tất'}

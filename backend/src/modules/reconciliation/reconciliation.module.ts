@@ -10,6 +10,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
+import {
+  KlgdReconService,
+  PreEodReconService,
+  CcpReconService,
+  CqgSyncReconService,
+  ReconConsoleSummaryService,
+} from './services';
 
 @Module({
   imports: [
@@ -24,9 +31,22 @@ import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
     NotificationsModule,
     AuthModule,
   ],
-  providers: [ReconciliationService],
+  providers: [
+    KlgdReconService,
+    PreEodReconService,
+    CcpReconService,
+    CqgSyncReconService,
+    ReconConsoleSummaryService,
+    ReconciliationService,
+  ],
   controllers: [ReconciliationController],
-  exports: [ReconciliationService],
+  exports: [
+    KlgdReconService,
+    PreEodReconService,
+    CcpReconService,
+    CqgSyncReconService,
+    ReconConsoleSummaryService,
+    ReconciliationService,
+  ],
 })
 export class ReconciliationModule {}
-

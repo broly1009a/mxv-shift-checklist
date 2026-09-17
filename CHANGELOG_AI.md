@@ -1,5 +1,56 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-17T15:30] REFACTOR: Phân Rã Toàn Diện ReconciliationService (6.000 dòng) Thành Kiến Trúc Modular Facade & 5 Sub-Services Độc Lập
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER: Tái cấu trúc phân rã `reconciliation.service.ts` khổng lồ (~5.974 dòng, 228 KB) thành cấu trúc dịch vụ phân lớp (Modular Sub-Services) kết hợp Facade/Delegation Pattern, bảo đảm 100% không làm gãy các tính năng đang chạy, không làm thay đổi public API signatures cho Controllers và Bot Job Handlers.
+- Tách biệt rõ ràng các trách nhiệm nghiệp vụ:
+  1. `helpers/recon-number-parser.helper.ts`: Tập trung các pure parsing functions (DSGD, FR, Straits CSV, Nano, OP, TTM, TTTT, PS), LME mapping, và file path resolvers.
+  2. `services/klgd-recon.service.ts` (`KlgdReconService`): Đóng gói nghiệp vụ đối chiếu khớp lệnh trong phiên (`checkKLGD`, `runAutoCheckKLGD`).
+  3. `services/pre-eod-recon.service.ts` (`PreEodReconService`): Đóng gói nghiệp vụ đối chiếu Pre-EOD, SOD, EOD MM (`checkPreEOD`, `runAutoCheckPreEOD`, `runAutoCheckSOD`, `runAutoCheckEodMm`, email builder).
+  4. `services/ccp-recon.service.ts` (`CcpReconService`): Đóng gói nghiệp vụ đối chiếu EOD CoreCCP và M-System (`checkEOD`, `checkEODCCP`, `runAutoCheckEodCcp`, `downloadAndExtractCcpMetrics`, `getCurrentExchangeRates`).
+  5. `services/cqg-sync-recon.service.ts` (`CqgSyncReconService`): Đóng gói nghiệp vụ đồng bộ số dư CQG & quét ký quỹ âm (`checkEODCQG`, `checkNegativeMargin`, `runAutoCheckCQGSync`, email builders).
+  6. `services/recon-console-summary.service.ts` (`ReconConsoleSummaryService`): Đóng gói nghiệp vụ Trading Operation Console (`getConsoleSummary`, `triggerConsoleRun`, `checkImr`, đồng bộ tỷ giá M-System Playwright bot).
+  7. `reconciliation.service.ts` (`ReconciliationService`): Đóng vai trò Facade Service mỏng nhẹ (Thin Delegation Layer), ủy quyền 100% các cuộc gọi sang các Sub-Services tương ứng, bảo toàn tương thích ngược cho Controllers, Bot Job Handlers và Test Scripts.
+  8. `reconciliation.service.backup.ts`: Lưu trữ bản gốc 100% nguyên vẹn để đối chiếu và rollback an toàn.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [backend/src/modules/reconciliation/reconciliation.service.backup.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.backup.ts) (Bản sao lưu nguyên vẹn)
+- [backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts)
+- [backend/src/modules/reconciliation/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/klgd-recon.service.ts)
+- [backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)
+- [backend/src/modules/reconciliation/services/ccp-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts)
+- [backend/src/modules/reconciliation/services/cqg-sync-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/cqg-sync-recon.service.ts)
+- [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts)
+- [backend/src/modules/reconciliation/services/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/index.ts)
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts)
+- [backend/src/modules/reconciliation/reconciliation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.module.ts)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **TypeScript Typecheck**: Toàn bộ module `reconciliation` đạt **0 errors** trên hệ thống types (`ReconciliationService`, `ReconciliationController`, `ReconciliationModule`, và các services con).
+- **NestJS Production Build**: Lệnh `npm run build` (`nest build`) **thành công 100%** (Exit code: 0).
+
+---
+
+
+### 1. Mục tiêu thay đổi
+- Mở rộng script [inspect_core_ccp_catalog.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/inspect_core_ccp_catalog.js) để chạy bao phủ 100% toàn bộ cây menu mà USER cung cấp:
+  + Cả 14 nhóm menu: FCM, Phân quyền, Tham số, Loại hình GD, Sản phẩm, Thành viên, Tài khoản, Nộp rút tiền, Lệnh và vị thế (kèm Tra cứu tổng hợp 3 cấp), Giao nhận, Quản lý rủi ro, Báo cáo, Monitor OMS, Vận hành.
+  + Hỗ trợ điều hướng lồng 3 cấp (`Parent` -> `SubGroup: Tra cứu tổng hợp` -> `Leaf: Danh sách lệnh/giao dịch MM...`).
+  + Quét từng Tab con, bóc tách toàn bộ tiêu đề cột (Columns), nút Kết xuất và định dạng file hỗ trợ.
+  + Kết xuất ra file JSON (`core_ccp_catalog.json`) và Markdown tra cứu (`core_ccp_catalog.md`).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/inspect_core_ccp_catalog.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/inspect_core_ccp_catalog.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- Syntax check: `node --check backend/src/scripts/inspect_core_ccp_catalog.js` thành công (Exit code: 0).
+
+---
+
+
 ## [2026-09-16T18:10] RULE ENFORCEMENT: Cập Nhật 3 Quy Tắc Cưỡng Chế Sắt Đá Vào AGENTS.md (Chống Phỏng Đoán, Fail-Fast, Cấm Mảng Fallback)
 
 ### 1. Mục tiêu thay đổi

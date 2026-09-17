@@ -43,6 +43,7 @@ import { AgentController } from './bot-agent.controller';
 import { getRelatedTaskIds } from './constants/bot-task-registry';
 import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { REQUIRED_CCP_FILES } from './handlers/file-audit.handler';
 import {
   getMsBackupBase,
   getCqgBackupBase,
@@ -2678,6 +2679,123 @@ export class BotEngineController {
       message: 'Đã đưa yêu cầu tải báo cáo CoreCCP vào hàng đợi.',
       jobId: job._id,
     };
+  }
+
+  /**
+   * Quét nhanh thư mục Backup CoreCCP và trả về trạng thái 8 file báo cáo.
+   * POST /api/v1/bot-engine/audit-ccp-backup
+   */
+  @Post('audit-ccp-backup')
+  async auditCcpBackup(@Body('targetDate') targetDateStr?: string) {
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const backupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ccp',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+    );
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+    const dailyPath = path.join(backupPath, subFolder);
+
+    const scanPath = fs.existsSync(dailyPath) ? dailyPath : backupPath;
+
+    if (!fs.existsSync(scanPath)) {
+      return {
+        success: false,
+        backupPath: scanPath,
+        message: `Thư mục backup CCP không tồn tại: ${scanPath}`,
+        summary: { total: 8, ok: 0, missing: 8, empty: 0 },
+        files: REQUIRED_CCP_FILES.map((f) => ({
+          key: f.key,
+          name: f.name,
+          filename: f.filename,
+          status: 'MISSING',
+          size: 0,
+        })),
+      };
+    }
+
+    const results = await this.jobQueueService.scanCcpBackupFiles(
+      scanPath,
+      targetDate,
+    );
+    const okCount = results.filter((r: any) => r.status === 'OK').length;
+    const missingCount = results.filter((r: any) => r.status === 'MISSING').length;
+    const emptyCount = results.filter((r: any) => r.status === 'EMPTY').length;
+
+    return {
+      success: true,
+      backupPath: scanPath,
+      summary: {
+        total: results.length,
+        ok: okCount,
+        missing: missingCount,
+        empty: emptyCount,
+      },
+      files: results,
+    };
+  }
+
+  /**
+   * Lấy cấu hình lịch tự động tải CoreCCP.
+   * GET /api/v1/bot-engine/backup-ccp/schedule
+   */
+  @Get('backup-ccp/schedule')
+  async getCcpSchedule() {
+    const periodic = await this.settingsService.getSetting('bot_ccp_periodic_enabled', 'true');
+    const periodicMinutes = await this.settingsService.getSetting('bot_ccp_periodic_minutes', '60');
+    const timeEnabled = await this.settingsService.getSetting('bot_ccp_time_enabled', 'true');
+    const time = await this.settingsService.getSetting('bot_ccp_time', '06:00');
+    const reportsRaw = await this.settingsService.getSetting(
+      'bot_ccp_reports',
+      JSON.stringify(['QLTTTKGD', 'EOD', 'NR', 'DSL', 'DSGD', 'TTTT', 'TTM', 'LSGTT']),
+    );
+    let reports: string[] = [];
+    try {
+      reports = JSON.parse(reportsRaw);
+    } catch {
+      reports = ['QLTTTKGD', 'EOD', 'NR', 'DSL', 'DSGD', 'TTTT', 'TTM', 'LSGTT'];
+    }
+
+    return {
+      periodic: periodic === 'true',
+      periodicMinutes: parseInt(periodicMinutes, 10) || 60,
+      timeEnabled: timeEnabled === 'true',
+      time,
+      reports,
+    };
+  }
+
+  /**
+   * Lưu cấu hình lịch tự động tải CoreCCP.
+   * POST /api/v1/bot-engine/backup-ccp/schedule
+   */
+  @Post('backup-ccp/schedule')
+  async saveCcpSchedule(
+    @Body('periodic') periodic?: boolean,
+    @Body('periodicMinutes') periodicMinutes?: number,
+    @Body('timeEnabled') timeEnabled?: boolean,
+    @Body('time') time?: string,
+    @Body('reports') reports?: string[],
+  ) {
+    if (periodic !== undefined) {
+      await this.settingsService.setSetting('bot_ccp_periodic_enabled', String(periodic));
+    }
+    if (periodicMinutes !== undefined) {
+      await this.settingsService.setSetting('bot_ccp_periodic_minutes', String(periodicMinutes));
+    }
+    if (timeEnabled !== undefined) {
+      await this.settingsService.setSetting('bot_ccp_time_enabled', String(timeEnabled));
+    }
+    if (time !== undefined) {
+      await this.settingsService.setSetting('bot_ccp_time', time.trim());
+    }
+    if (reports && Array.isArray(reports)) {
+      await this.settingsService.setSetting('bot_ccp_reports', JSON.stringify(reports));
+    }
+    return { success: true, message: 'Đã lưu cấu hình tự động tải CoreCCP thành công.' };
   }
 
   /**

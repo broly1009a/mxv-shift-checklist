@@ -1,0 +1,5241 @@
+[
+  {
+    "parentMenu": "Quản lý FCM",
+    "subGroup": "",
+    "childMenu": "Danh sách FCM",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/FCMMNG/FCM_INFORMATION",
+    "pagePath": "/FCMMNG/FCM_INFORMATION",
+    "inspectedAt": "2026-09-17T04:43:35.505Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã FCM"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã FCM",
+        "Tên FCM",
+        "Tài khoản Omnibus",
+        "Tài khoản Omnibus dùng cho báo cáo offset",
+        "Trạng thái"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "FCM001",
+          "FCM001",
+          "00017890001",
+          "00017890002",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý FCM",
+    "subGroup": "",
+    "childMenu": "Quản lý cấu hình báo cáo offset",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/FCMMNG/FCM_INFORMATION",
+    "pagePath": "/FCMMNG/FCM_INFORMATION",
+    "inspectedAt": "2026-09-17T04:43:38.912Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã FCM"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã FCM",
+        "Tên FCM",
+        "Tài khoản Omnibus",
+        "Tài khoản Omnibus dùng cho báo cáo offset",
+        "Trạng thái"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "FCM001",
+          "FCM001",
+          "00017890001",
+          "00017890002",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý FCM",
+    "subGroup": "",
+    "childMenu": "Quản lý file báo cáo offset",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/FCMMNG/FCM_INFORMATION",
+    "pagePath": "/FCMMNG/FCM_INFORMATION",
+    "inspectedAt": "2026-09-17T04:43:42.290Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã FCM"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã FCM",
+        "Tên FCM",
+        "Tài khoản Omnibus",
+        "Tài khoản Omnibus dùng cho báo cáo offset",
+        "Trạng thái"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "FCM001",
+          "FCM001",
+          "00017890001",
+          "00017890002",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Người dùng và phân quyền",
+    "subGroup": "",
+    "childMenu": "Người sử dụng",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/USERMNG/TLPROFILES",
+    "pagePath": "/USERMNG/TLPROFILES",
+    "inspectedAt": "2026-09-17T04:43:46.660Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Họ và tên",
+      "Trạng thái"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Phân quyền",
+        "Tên đăng nhập",
+        "Họ và tên",
+        "Số CMT",
+        "Số điện thoại",
+        "Email",
+        "Phòng ban",
+        "Chức danh",
+        "Trạng thái",
+        "Ghi chú",
+        "Mật khẩu"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Phân quyềnResetpass",
+          "tiennguyen",
+          "Nguyễn Khắc Tiến",
+          "0123789456",
+          "0961616161",
+          "khac.tiennguyen@mxv.vn"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Tham số hệ thống",
+    "subGroup": "",
+    "childMenu": "Tỷ giá nguyên tệ",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "pagePath": "/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "inspectedAt": "2026-09-17T04:43:51.306Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Nguyên tệ",
+      "Ngày tạo"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Nguyên tệ",
+        "Tỷ giá quy đổi",
+        "Tỷ giá Mua",
+        "Tỷ giá Bán",
+        "Ngày tạo",
+        "Trạng thái duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Ngày duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "VND",
+          "1",
+          "1",
+          "1",
+          "06/03/2026 09:54:00",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Tham số hệ thống",
+    "subGroup": "",
+    "childMenu": "Tham số hệ thống",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "pagePath": "/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "inspectedAt": "2026-09-17T04:43:54.721Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Nguyên tệ",
+      "Ngày tạo"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Nguyên tệ",
+        "Tỷ giá quy đổi",
+        "Tỷ giá Mua",
+        "Tỷ giá Bán",
+        "Ngày tạo",
+        "Trạng thái duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Ngày duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "VND",
+          "1",
+          "1",
+          "1",
+          "06/03/2026 09:54:00",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Tham số hệ thống",
+    "subGroup": "",
+    "childMenu": "Cấu hình Noti/SMS/Email",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "pagePath": "/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "inspectedAt": "2026-09-17T04:43:58.141Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Nguyên tệ",
+      "Ngày tạo"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Nguyên tệ",
+        "Tỷ giá quy đổi",
+        "Tỷ giá Mua",
+        "Tỷ giá Bán",
+        "Ngày tạo",
+        "Trạng thái duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Ngày duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "VND",
+          "1",
+          "1",
+          "1",
+          "06/03/2026 09:54:00",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Loại hình giao dịch",
+    "subGroup": "",
+    "childMenu": "Quản lý loại hình giao dịch",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "pagePath": "/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "inspectedAt": "2026-09-17T04:44:01.559Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Nguyên tệ",
+      "Ngày tạo"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Nguyên tệ",
+        "Tỷ giá quy đổi",
+        "Tỷ giá Mua",
+        "Tỷ giá Bán",
+        "Ngày tạo",
+        "Trạng thái duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Ngày duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "VND",
+          "1",
+          "1",
+          "1",
+          "06/03/2026 09:54:00",
+          "Hoạt động"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Loại hình giao dịch",
+    "subGroup": "",
+    "childMenu": "Rổ hệ số ký quỹ",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/TRANSPARAMMNG/IMBASKETS",
+    "pagePath": "/TRANSPARAMMNG/IMBASKETS",
+    "inspectedAt": "2026-09-17T04:44:05.870Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Trạng thái",
+      "Mã rổ",
+      "Tên rổ"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Trạng thái",
+        "Mã rổ",
+        "Loại tiểu khoản giao dịch",
+        "Tên rổ",
+        "Ngày hiệu lực",
+        "Ngày hết hạn",
+        "Ngày tạo",
+        "Ngày duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Trạng thái duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hoạt động",
+          "0001",
+          "MXV",
+          "Rổ hệ số KQ VNC1",
+          "16/01/2026",
+          "31/12/2099",
+          "16/01/2026 11:49:00"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Loại hình giao dịch",
+    "subGroup": "",
+    "childMenu": "Rổ hạn mức",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/TRANSPARAMMNG/IMBASKETS",
+    "pagePath": "/TRANSPARAMMNG/IMBASKETS",
+    "inspectedAt": "2026-09-17T04:44:09.551Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Trạng thái",
+      "Mã rổ",
+      "Tên rổ"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Trạng thái",
+        "Mã rổ",
+        "Loại tiểu khoản giao dịch",
+        "Tên rổ",
+        "Ngày hiệu lực",
+        "Ngày hết hạn",
+        "Ngày tạo",
+        "Ngày duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Trạng thái duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hoạt động",
+          "0001",
+          "MXV",
+          "Rổ hệ số KQ VNC1",
+          "16/01/2026",
+          "31/12/2099",
+          "16/01/2026 11:49:00"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Loại hình giao dịch",
+    "subGroup": "",
+    "childMenu": "Biểu phí giao dịch",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/TRANSPARAMMNG/IMBASKETS",
+    "pagePath": "/TRANSPARAMMNG/IMBASKETS",
+    "inspectedAt": "2026-09-17T04:44:13.271Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Trạng thái",
+      "Mã rổ",
+      "Tên rổ"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Trạng thái",
+        "Mã rổ",
+        "Loại tiểu khoản giao dịch",
+        "Tên rổ",
+        "Ngày hiệu lực",
+        "Ngày hết hạn",
+        "Ngày tạo",
+        "Ngày duyệt",
+        "Người tạo",
+        "Người duyệt",
+        "Trạng thái duyệt"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hoạt động",
+          "0001",
+          "MXV",
+          "Rổ hệ số KQ VNC1",
+          "16/01/2026",
+          "31/12/2099",
+          "16/01/2026 11:49:00"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý sản phẩm",
+    "subGroup": "",
+    "childMenu": "Quản lý giá thanh toán",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT",
+    "pagePath": "/PRODUCT/SETTLEMENT",
+    "inspectedAt": "2026-09-17T04:44:18.375Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã hàng hóa",
+      "Mã hợp đồng",
+      "Nhóm hàng hóa",
+      "Tên hàng hóa tiếng Việt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã hàng hóa",
+        "Mã hợp đồng",
+        "Nhóm hàng hóa",
+        "Loại công cụ",
+        "Tên hàng hóa tiếng Việt",
+        "Tên hàng hóa tiếng Anh",
+        "Tên hợp đồng",
+        "Tháng đáo hạn",
+        "Năm đáo hạn",
+        "Giá thanh toán",
+        "Giá trần",
+        "Giá sàn",
+        "Giá mở cửa",
+        "Ngày phiên giao dịch",
+        "Ngừng giao dịch",
+        "Tiền tệ"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Điều chỉnh",
+          "VNC",
+          "VNC1F28",
+          "Kim loại",
+          "Futures",
+          "VNC",
+          "VNC",
+          "Bạc VNC08 02/2028"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý sản phẩm",
+    "subGroup": "",
+    "childMenu": "Quản lý lịch sử giá thanh toán",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT",
+    "pagePath": "/PRODUCT/SETTLEMENT",
+    "inspectedAt": "2026-09-17T04:44:22.404Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã hàng hóa",
+      "Mã hợp đồng",
+      "Nhóm hàng hóa",
+      "Tên hàng hóa tiếng Việt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã hàng hóa",
+        "Mã hợp đồng",
+        "Nhóm hàng hóa",
+        "Loại công cụ",
+        "Tên hàng hóa tiếng Việt",
+        "Tên hàng hóa tiếng Anh",
+        "Tên hợp đồng",
+        "Tháng đáo hạn",
+        "Năm đáo hạn",
+        "Giá thanh toán",
+        "Giá trần",
+        "Giá sàn",
+        "Giá mở cửa",
+        "Ngày phiên giao dịch",
+        "Ngừng giao dịch",
+        "Tiền tệ"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Điều chỉnh",
+          "VNC",
+          "VNC1F28",
+          "Kim loại",
+          "Futures",
+          "VNC",
+          "VNC",
+          "Bạc VNC08 02/2028"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý thành viên",
+    "subGroup": "",
+    "childMenu": "Gửi email cho thành viên",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/MEMBERSMNG/MEMBERSEND",
+    "pagePath": "/MEMBERSMNG/MEMBERSEND",
+    "inspectedAt": "2026-09-17T04:44:27.767Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã thành viên",
+      "Ngày/Tháng thực hiện",
+      "Mã báo cáo",
+      "Trạng thái"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã thành viên",
+        "Ngày/Tháng thực hiện",
+        "Mã báo cáo",
+        "Trạng thái",
+        "Người tạo",
+        "Ngày giờ tạo file",
+        "Ngày giờ gửi mail",
+        "Thao tác",
+        "file báo cáo"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Xem báo cáo",
+          "001",
+          "16/09/2026",
+          "BC08A",
+          "Chờ gửi",
+          "SYSTEM",
+          "17/09/2026 05:32:20"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý tài khoản",
+    "subGroup": "",
+    "childMenu": "Danh sách tài khoản giao dịch",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ACCOUNTMNG/ACCOUNTS_INFO",
+    "pagePath": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "inspectedAt": "2026-09-17T04:44:33.202Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã khách hàng"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Mã khách hàng",
+        "Số TKGD",
+        "Tên khách hàng",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Loại tiểu khoản",
+        "Trạng thái tiểu khoản",
+        "Ngày mở",
+        "Ngày đóng",
+        "Loại hình",
+        "Rổ ký quỹ",
+        "Rổ hạn mức",
+        "Biểu phí",
+        "Tỷ lệ an toàn",
+        "Tỷ lệ cảnh báo",
+        "Tỷ lệ xử lý"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "012C0000204",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "TVKD-012",
+          "MXV",
+          "Hoạt động",
+          "01/01/2026"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý tài khoản",
+    "subGroup": "",
+    "childMenu": "Yêu cầu mở tiểu khoản",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ACCOUNTMNG/ACCOUNTS_INFO",
+    "pagePath": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "inspectedAt": "2026-09-17T04:44:36.746Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã khách hàng"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Mã khách hàng",
+        "Số TKGD",
+        "Tên khách hàng",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Loại tiểu khoản",
+        "Trạng thái tiểu khoản",
+        "Ngày mở",
+        "Ngày đóng",
+        "Loại hình",
+        "Rổ ký quỹ",
+        "Rổ hạn mức",
+        "Biểu phí",
+        "Tỷ lệ an toàn",
+        "Tỷ lệ cảnh báo",
+        "Tỷ lệ xử lý"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "012C0000204",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "TVKD-012",
+          "MXV",
+          "Hoạt động",
+          "01/01/2026"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý tài khoản",
+    "subGroup": "",
+    "childMenu": "Lịch sử phê duyệt yêu cầu mở tiểu khoản",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ACCOUNTMNG/ACCOUNTS_INFO",
+    "pagePath": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "inspectedAt": "2026-09-17T04:44:40.374Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã khách hàng"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Mã khách hàng",
+        "Số TKGD",
+        "Tên khách hàng",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Loại tiểu khoản",
+        "Trạng thái tiểu khoản",
+        "Ngày mở",
+        "Ngày đóng",
+        "Loại hình",
+        "Rổ ký quỹ",
+        "Rổ hạn mức",
+        "Biểu phí",
+        "Tỷ lệ an toàn",
+        "Tỷ lệ cảnh báo",
+        "Tỷ lệ xử lý"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "012C0000204",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "TVKD-012",
+          "MXV",
+          "Hoạt động",
+          "01/01/2026"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý tài khoản",
+    "subGroup": "",
+    "childMenu": "Quản lý khách hàng (đầy đủ)",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ACCOUNTMNG/ACCOUNTS_INFO",
+    "pagePath": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "inspectedAt": "2026-09-17T04:44:44.002Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã khách hàng"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Mã khách hàng",
+        "Số TKGD",
+        "Tên khách hàng",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Loại tiểu khoản",
+        "Trạng thái tiểu khoản",
+        "Ngày mở",
+        "Ngày đóng",
+        "Loại hình",
+        "Rổ ký quỹ",
+        "Rổ hạn mức",
+        "Biểu phí",
+        "Tỷ lệ an toàn",
+        "Tỷ lệ cảnh báo",
+        "Tỷ lệ xử lý"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "012C0000204",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "TVKD-012",
+          "MXV",
+          "Hoạt động",
+          "01/01/2026"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Yêu cầu rút tiền",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:44:49.546Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Lịch sử Nộp/ Rút tiền",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:44:53.384Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Gửi yêu cầu rút tiền sang ngân hàng",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:44:57.261Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Tài khoản ngân hàng",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:45:01.117Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Tài khoản VA",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:45:04.957Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Theo dõi yêu cầu mở VA với MSB",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:45:08.911Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Danh sách ngân hàng",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:45:12.756Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Chênh lệch phí TVKD",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:45:16.601Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Nộp rút tiền",
+    "subGroup": "",
+    "childMenu": "Đối soát nộp rút tiền MSB",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "pagePath": "/CASHTRANFER/CASHTRANFER_WITHDRAW",
+    "inspectedAt": "2026-09-17T04:45:20.465Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày yêu cầu",
+      "(Đến) Ngày yêu cầu",
+      "Tên thành viên",
+      "Mã yêu cầu",
+      "Số tài khoản"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày yêu cầu",
+        "Ngày tạo",
+        "Giờ tạo",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Mã yêu cầu",
+        "Số tài khoản",
+        "Tiểu khoản giao dịch",
+        "Tên NĐT",
+        "Số tiền",
+        "Người tạo",
+        "Ngân hàng rút tiền",
+        "Trạng thái MXV",
+        "Trạng thái ngân hàng",
+        "Mô tả lỗi",
+        "Mô tả lỗi ngân hàng",
+        "Hình thức",
+        "Diễn giải"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "17/09/2026",
+          "17/09/2026",
+          "10:28:34",
+          "782",
+          "782 MxPro UAT",
+          "78220260917387",
+          "782C4555784"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Danh sách lệnh",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK",
+    "pagePath": "/ORDERS/ORDERBOOK",
+    "inspectedAt": "2026-09-17T04:45:28.093Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Tất cả",
+        "isSelected": true,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống",
+          "Ngày phiên",
+          "Mã lệnh MXV gửi lên Sở",
+          "Mã lệnh TVKD gửi lên MXV",
+          "Mã lệnh",
+          "Mã KH",
+          "Mã TKGD",
+          "Mã HĐ",
+          "Trạng thái",
+          "Mua/Bán",
+          "Loại lệnh",
+          "KL đặt",
+          "KL khớp",
+          "Giá đặt",
+          "Giá dừng",
+          "Giá khớp trung bình",
+          "KL còn lại",
+          "KL hủy",
+          "Phí giao dịch",
+          "Thời gian đặt",
+          "Hiệu lực",
+          "Sàn giao dịch",
+          "Ngày hiệu lực",
+          "Tên TKGD",
+          "Mã thành viên",
+          "Tên thành viên",
+          "Người đặt lệnh",
+          "Thời gian thực hiện"
+        ]
+      },
+      {
+        "name": "Lệnh đã khớp",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh MXV gửi lên Sở0",
+          "Mã lệnh TVKD gửi lên MXV0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Sàn giao dịch0",
+          "Ngày hiệu lực0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian thực hiện0"
+        ]
+      },
+      {
+        "name": "Lệnh chờ khớp",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh MXV gửi lên Sở0",
+          "Mã lệnh TVKD gửi lên MXV0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Ngày hiệu lực0",
+          "Sàn giao dịch0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian thực hiện0"
+        ]
+      },
+      {
+        "name": "Lệnh đã hủy",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh MXV gửi lên Sở0",
+          "Mã lệnh TVKD gửi lên MXV0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Ngày hiệu lực0",
+          "Sàn giao dịch0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian hủy lệnh0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh MXV gửi lên Sở",
+        "Mã lệnh TVKD gửi lên MXV",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Giải tỏa lệnh",
+          "17/09/2026",
+          "17/09/2026",
+          "06202609170000045241",
+          "06202609170000045241",
+          "712C3341632",
+          "712C3341632-M"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Danh sách giao dịch",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
+    "pagePath": "/ORDERS/ORDERMATCH_DETAIL",
+    "inspectedAt": "2026-09-17T04:45:42.343Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Danh sách giao dịch",
+        "isSelected": true,
+        "columns": [
+          "Thao tác",
+          "Ngày hệ thống",
+          "Ngày phiên",
+          "Mã lệnh",
+          "Mã giao dịch OMS",
+          "Mã giao dịch EX",
+          "Mã TKGD",
+          "Mã HĐ",
+          "Mua/Bán",
+          "Loại lệnh",
+          "KL đặt",
+          "KL khớp",
+          "Giá đặt",
+          "Giá dừng",
+          "Giá khớp trung bình",
+          "KL còn lại",
+          "KL hủy",
+          "Phí giao dịch",
+          "Thời gian đặt",
+          "Hiệu lực",
+          "Ngày hiệu lực",
+          "Sàn giao dịch",
+          "Mã thành viên",
+          "Tên thành viên",
+          "Người đặt lệnh",
+          "Thời gian khớp lệnh"
+        ]
+      },
+      {
+        "name": "Giao dịch bị hủy",
+        "isSelected": false,
+        "columns": [
+          "Thao tác",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh0",
+          "Mã giao dịch OMS0",
+          "Mã giao dịch EX0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Ngày hiệu lực0",
+          "Sàn giao dịch0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian khớp lệnh0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã giao dịch OMS",
+      "Mã giao dịch EX"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã giao dịch OMS",
+        "Mã giao dịch EX",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Ngày hiệu lực",
+        "Sàn giao dịch",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian khớp lệnh"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hủy kết quả giao dịch",
+          "17/09/2026",
+          "17/09/2026",
+          "12202609170000000271",
+          "TVKD659-12202609170000000271-567",
+          "20260917128616",
+          "659C2222333-A",
+          "PL1NYV26"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Lịch sử lệnh",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL",
+    "pagePath": "/ORDERS/ORDERMATCH_DETAIL",
+    "inspectedAt": "2026-09-17T04:45:48.792Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Danh sách giao dịch",
+        "isSelected": true,
+        "columns": [
+          "Thao tác",
+          "Ngày hệ thống",
+          "Ngày phiên",
+          "Mã lệnh",
+          "Mã giao dịch OMS",
+          "Mã giao dịch EX",
+          "Mã TKGD",
+          "Mã HĐ",
+          "Mua/Bán",
+          "Loại lệnh",
+          "KL đặt",
+          "KL khớp",
+          "Giá đặt",
+          "Giá dừng",
+          "Giá khớp trung bình",
+          "KL còn lại",
+          "KL hủy",
+          "Phí giao dịch",
+          "Thời gian đặt",
+          "Hiệu lực",
+          "Ngày hiệu lực",
+          "Sàn giao dịch",
+          "Mã thành viên",
+          "Tên thành viên",
+          "Người đặt lệnh",
+          "Thời gian khớp lệnh"
+        ]
+      },
+      {
+        "name": "Giao dịch bị hủy",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh MXV gửi lên Sở0",
+          "Mã lệnh TVKD gửi lên MXV0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Sàn giao dịch0",
+          "Ngày hiệu lực0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian thực hiện0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã giao dịch OMS",
+      "Mã giao dịch EX"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã giao dịch OMS",
+        "Mã giao dịch EX",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Ngày hiệu lực",
+        "Sàn giao dịch",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian khớp lệnh"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hủy kết quả giao dịch",
+          "17/09/2026",
+          "17/09/2026",
+          "12202609170000000271",
+          "TVKD659-12202609170000000271-567",
+          "20260917128616",
+          "659C2222333-A",
+          "PL1NYV26"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Lịch sử giao dịch",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_ALL",
+    "pagePath": "/ORDERS/ORDERMATCH_ALL",
+    "inspectedAt": "2026-09-17T04:46:00.219Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Tất cả",
+        "isSelected": true,
+        "columns": [
+          "Ngày hệ thống",
+          "Ngày phiên",
+          "Mã lệnh",
+          "Mã giao dịch OMS",
+          "Mã giao dịch EX",
+          "Mã TKGD",
+          "Mã HĐ",
+          "Mua/Bán",
+          "Loại lệnh",
+          "KL đặt",
+          "KL khớp",
+          "Giá đặt",
+          "Giá dừng",
+          "Giá khớp trung bình",
+          "KL còn lại",
+          "KL hủy",
+          "Phí giao dịch",
+          "Thời gian đặt",
+          "Hiệu lực",
+          "Ngày hiệu lực",
+          "Sàn giao dịch",
+          "Mã thành viên",
+          "Tên thành viên",
+          "Người đặt lệnh",
+          "Thời gian khớp lệnh"
+        ]
+      },
+      {
+        "name": "Giao dịch bị hủy",
+        "isSelected": false,
+        "columns": [
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh0",
+          "Mã giao dịch OMS0",
+          "Mã giao dịch EX0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Ngày hiệu lực0",
+          "Sàn giao dịch0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian khớp lệnh0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã giao dịch OMS",
+      "Mã giao dịch EX"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã giao dịch OMS",
+        "Mã giao dịch EX",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Ngày hiệu lực",
+        "Sàn giao dịch",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian khớp lệnh"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "16/09/2026",
+          "12202609160000001551",
+          "TVKD659-12202609160000001551-7915",
+          "20260916179962",
+          "659C2222333-A",
+          "PL1NYF27",
+          "Bán"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Danh sách lệnh MM",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_MM",
+    "inspectedAt": "2026-09-17T04:46:08.038Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Tất cả",
+        "isSelected": true,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống",
+          "Ngày phiên",
+          "Mã lệnh",
+          "Mã KH",
+          "Mã TKGD",
+          "Mã HĐ",
+          "Trạng thái",
+          "Mua/Bán",
+          "Loại lệnh",
+          "KL đặt",
+          "KL khớp",
+          "Giá đặt",
+          "Giá dừng",
+          "Giá khớp trung bình",
+          "KL còn lại",
+          "KL hủy",
+          "Phí giao dịch",
+          "Thời gian đặt",
+          "Hiệu lực",
+          "Sàn giao dịch",
+          "Ngày hiệu lực",
+          "Tên TKGD",
+          "Mã thành viên",
+          "Tên thành viên",
+          "Người đặt lệnh",
+          "Thời gian thực hiện"
+        ]
+      },
+      {
+        "name": "Lệnh đã khớp",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Sàn giao dịch0",
+          "Ngày hiệu lực0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian thực hiện0"
+        ]
+      },
+      {
+        "name": "Lệnh chờ khớp",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Ngày hiệu lực0",
+          "Sàn giao dịch0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian thực hiện0"
+        ]
+      },
+      {
+        "name": "Lệnh đã hủy",
+        "isSelected": false,
+        "columns": [
+          "Chi tiết",
+          "Ngày hệ thống0",
+          "Ngày phiên0",
+          "Mã lệnh0",
+          "Mã KH0",
+          "Mã TKGD0",
+          "Mã HĐ0",
+          "Trạng thái0",
+          "Mua/Bán0",
+          "Loại lệnh0",
+          "KL đặt0",
+          "KL khớp0",
+          "Giá đặt0",
+          "Giá dừng0",
+          "Giá khớp trung bình0",
+          "KL còn lại0",
+          "KL hủy0",
+          "Phí giao dịch0",
+          "Thời gian đặt0",
+          "Hiệu lực0",
+          "Ngày hiệu lực0",
+          "Sàn giao dịch0",
+          "Tên TKGD0",
+          "Mã thành viên0",
+          "Tên thành viên0",
+          "Người đặt lệnh0",
+          "Thời gian hủy lệnh0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Giải tỏa lệnh",
+          "17/09/2026",
+          "17/09/2026",
+          "06202609170000028754",
+          "682C6666669",
+          "682C6666669-M",
+          "DTV0627",
+          "Khớp hết"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Lịch sử lệnh MM",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_ALL_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_ALL_MM",
+    "inspectedAt": "2026-09-17T04:46:18.999Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "16/09/2026",
+          "06202609160000061155",
+          "682C6666663",
+          "682C6666663-M",
+          "CHV0627",
+          "Khớp hết"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Danh sách giao dịch MM",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_ALL_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_ALL_MM",
+    "inspectedAt": "2026-09-17T04:46:23.583Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "16/09/2026",
+          "06202609160000061155",
+          "682C6666663",
+          "682C6666663-M",
+          "CHV0627",
+          "Khớp hết"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Lịch sử giao dịch MM",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_ALL_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_ALL_MM",
+    "inspectedAt": "2026-09-17T04:46:27.587Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "16/09/2026",
+          "06202609160000061155",
+          "682C6666663",
+          "682C6666663-M",
+          "CHV0627",
+          "Khớp hết"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Trạng thái mở",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_ALL_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_ALL_MM",
+    "inspectedAt": "2026-09-17T04:46:31.613Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "16/09/2026",
+          "06202609160000061155",
+          "682C6666663",
+          "682C6666663-M",
+          "CHV0627",
+          "Khớp hết"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Lệnh và vị thế",
+    "subGroup": "Tra cứu tổng hợp",
+    "childMenu": "Trạng thái tất toán",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_ALL_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_ALL_MM",
+    "inspectedAt": "2026-09-17T04:46:35.552Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Ngày hệ thống",
+      "(Từ) Ngày phiên",
+      "(Đến) Ngày phiên",
+      "Mã lệnh",
+      "Mã KH",
+      "Mã TKGD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Chi tiết",
+        "Ngày hệ thống",
+        "Ngày phiên",
+        "Mã lệnh",
+        "Mã KH",
+        "Mã TKGD",
+        "Mã HĐ",
+        "Trạng thái",
+        "Mua/Bán",
+        "Loại lệnh",
+        "KL đặt",
+        "KL khớp",
+        "Giá đặt",
+        "Giá dừng",
+        "Giá khớp trung bình",
+        "KL còn lại",
+        "KL hủy",
+        "Phí giao dịch",
+        "Thời gian đặt",
+        "Hiệu lực",
+        "Sàn giao dịch",
+        "Ngày hiệu lực",
+        "Tên TKGD",
+        "Mã thành viên",
+        "Tên thành viên",
+        "Người đặt lệnh",
+        "Thời gian thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "16/09/2026",
+          "06202609160000061155",
+          "682C6666663",
+          "682C6666663-M",
+          "CHV0627",
+          "Khớp hết"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Tra cứu hạn mức giao nhận",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK_ALL_MM",
+    "pagePath": "/ORDERS/ORDERBOOK_ALL_MM",
+    "inspectedAt": "2026-09-17T04:46:40.453Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Yêu cầu đăng ký giao nhận",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:46:46.415Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Yêu cầu đăng ký lưu ký",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:46:50.344Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Trạng thái giao nhận vật chất",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:46:54.308Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Tra cứu đối chiếu MSB",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:46:58.269Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Chỉ định yêu cầu giao nhận vật chất",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:47:02.289Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Quản lý tiền giao nhận",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:47:06.216Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Giao nhận",
+    "subGroup": "",
+    "childMenu": "Yêu cầu giao hàng chỉ định bị từ chối",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/DELIVERY/PHYSICAL_MARKET_ALL",
+    "pagePath": "/DELIVERY/PHYSICAL_MARKET_ALL",
+    "inspectedAt": "2026-09-17T04:47:10.115Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Kho",
+      "Mã hàng hóa",
+      "Hợp đồng kỳ hạn",
+      "Trạng thái duyệt"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Khu vực",
+        "Kho",
+        "Mã hàng hóa",
+        "Hợp đồng kỳ hạn",
+        "Tổng dung lượng kho",
+        "Hạn mức tiếp nhận của kho theo ngày",
+        "Tổng số lượng bán đã đăng ký lưu ký",
+        "Tổng số lượng bán đã giao thực tế",
+        "Số lượng còn đăng ký bán",
+        "Số lượng còn bán phải giao vào kho",
+        "Hạn mức nhận",
+        "Tổng số lượng bên mua đã đăng ký nhận hàng",
+        "Tổng số lượng bên mua thực tế đã nhận hàng",
+        "Số lượng còn lại có thể đăng ký mua"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Hồ Chí Minh",
+          "MSB chi nhánh TP.Hồ Chí Minh",
+          "AOC",
+          "AOC0127",
+          "70",
+          "70",
+          "0",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý rủi ro",
+    "subGroup": "",
+    "childMenu": "Quản lý trạng thái TKGD",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL",
+    "pagePath": "/RISKMNG/ACCTMARGIN_ALL",
+    "inspectedAt": "2026-09-17T04:47:17.151Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Danh sách trạng thái TKGD",
+        "isSelected": true,
+        "columns": [
+          "Mã TKGD",
+          "Tên TKGD",
+          "Mã TVKD",
+          "Tên TVKD",
+          "Trạng thái",
+          "Tỷ lệ ký quỹ (%)",
+          "Số dư TKKQ",
+          "Mức bổ sung ký quỹ",
+          "KQ ban đầu yêu cầu",
+          "KQ ban đầu yêu cầu (USD)",
+          "KQ ban đầu yêu cầu tạm tính",
+          "KQ ban đầu yêu cầu tạm tính (USD)",
+          "Lãi lỗ thực tế Future (VND)",
+          "Lãi lỗ thực tế Future (USD)",
+          "Lãi lỗ dự kiến Future (VND)",
+          "Lãi lỗ dự kiến Future (USD)",
+          "Lãi lỗ thực tế T-1 Future (VND)",
+          "Lãi lỗ thực tế T-1 Future (USD)",
+          "Giá trị ròng ký quỹ",
+          "Giá trị ròng ký quỹ (USD)",
+          "Ký quỹ khả dụng tạm tính",
+          "Ký quỹ khả dụng",
+          "Ký quỹ khả dụng (USD)",
+          "Phí giao dịch",
+          "Nộp rút trong phiên",
+          "Nộp rút trong phiên (USD)",
+          "Ký quỹ giao nhận",
+          "Phí giao nhận",
+          "Phí thực hiện thay nghĩa vụ",
+          "Phí dịch vụ thanh toán",
+          "Phí thanh toán đáo hạn bằng tiền",
+          "Lãi lỗ vị thế đáo hạn",
+          "Số dư đầu ngày",
+          "Số dư đầu ngày (USD)",
+          "Số dư cuối ngày",
+          "Số dư cuối ngày (USD)",
+          "Phương thức xử lý",
+          "Phí quyền chọn",
+          "Phí quyền chọn (USD)",
+          "MVO",
+          "MVO (USD)",
+          "Lãi lỗ chờ đáo hạn",
+          "Lãi lỗ chờ đáo hạn (USD)",
+          "Lãi lỗ Options",
+          "Lãi lỗ Options (USD)",
+          "Lãi lỗ dự kiến Options",
+          "Lãi lỗ dự kiến Options (USD)",
+          "Số dư đầu ngày tạm tính",
+          "Số dư đầu ngày tạm tính (USD)"
+        ]
+      },
+      {
+        "name": "Danh sách trạng thái TKTVKD",
+        "isSelected": false,
+        "columns": [
+          "Mã TKGD0",
+          "Tên TKGD0",
+          "Mã TVKD0",
+          "Tên TVKD0",
+          "Trạng thái0",
+          "Tỷ lệ ký quỹ (%)0",
+          "Số dư TKKQ0",
+          "Mức bổ sung ký quỹ0",
+          "KQ ban đầu yêu cầu0",
+          "KQ ban đầu yêu cầu (USD)0",
+          "KQ ban đầu yêu cầu tạm tính0",
+          "KQ ban đầu yêu cầu tạm tính (USD)0",
+          "Lãi lỗ thực tế Future (VND)0",
+          "Lãi lỗ thực tế Future (USD)0",
+          "Lãi lỗ dự kiến Future (VND)0",
+          "Lãi lỗ dự kiến Future (USD)0",
+          "Lãi lỗ thực tế T-1 Future (VND)0",
+          "Lãi lỗ thực tế T-1 Future (USD)0",
+          "Giá trị ròng ký quỹ0",
+          "Giá trị ròng ký quỹ (USD)0",
+          "Ký quỹ khả dụng tạm tính0",
+          "Ký quỹ khả dụng0",
+          "Ký quỹ khả dụng (USD)0",
+          "Phí giao dịch0",
+          "Nộp rút trong phiên0",
+          "Nộp rút trong phiên (USD)0",
+          "Ký quỹ giao nhận0",
+          "Phí giao nhận0",
+          "Phí thực hiện thay nghĩa vụ0",
+          "Phí dịch vụ thanh toán0",
+          "Phí thanh toán đáo hạn bằng tiền0",
+          "Lãi lỗ vị thế đáo hạn0",
+          "Số dư đầu ngày0",
+          "Số dư đầu ngày (USD)0",
+          "Số dư cuối ngày0",
+          "Số dư cuối ngày (USD)0",
+          "Phương thức xử lý0",
+          "Phí quyền chọn0",
+          "Phí quyền chọn (USD)0",
+          "MVO0",
+          "MVO (USD)0",
+          "Lãi lỗ chờ đáo hạn0",
+          "Lãi lỗ chờ đáo hạn (USD)0",
+          "Lãi lỗ Options0",
+          "Lãi lỗ Options (USD)0",
+          "Lãi lỗ dự kiến Options0",
+          "Lãi lỗ dự kiến Options (USD)0",
+          "Số dư đầu ngày tạm tính0",
+          "Số dư đầu ngày tạm tính (USD)0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Mã TKGD",
+        "Tên TKGD",
+        "Mã TVKD",
+        "Tên TVKD",
+        "Trạng thái",
+        "Tỷ lệ ký quỹ (%)",
+        "Số dư TKKQ",
+        "Mức bổ sung ký quỹ",
+        "KQ ban đầu yêu cầu",
+        "KQ ban đầu yêu cầu (USD)",
+        "KQ ban đầu yêu cầu tạm tính",
+        "KQ ban đầu yêu cầu tạm tính (USD)",
+        "Lãi lỗ thực tế Future (VND)",
+        "Lãi lỗ thực tế Future (USD)",
+        "Lãi lỗ dự kiến Future (VND)",
+        "Lãi lỗ dự kiến Future (USD)",
+        "Lãi lỗ thực tế T-1 Future (VND)",
+        "Lãi lỗ thực tế T-1 Future (USD)",
+        "Giá trị ròng ký quỹ",
+        "Giá trị ròng ký quỹ (USD)",
+        "Ký quỹ khả dụng tạm tính",
+        "Ký quỹ khả dụng",
+        "Ký quỹ khả dụng (USD)",
+        "Phí giao dịch",
+        "Nộp rút trong phiên",
+        "Nộp rút trong phiên (USD)",
+        "Ký quỹ giao nhận",
+        "Phí giao nhận",
+        "Phí thực hiện thay nghĩa vụ",
+        "Phí dịch vụ thanh toán",
+        "Phí thanh toán đáo hạn bằng tiền",
+        "Lãi lỗ vị thế đáo hạn",
+        "Số dư đầu ngày",
+        "Số dư đầu ngày (USD)",
+        "Số dư cuối ngày",
+        "Số dư cuối ngày (USD)",
+        "Phương thức xử lý",
+        "Phí quyền chọn",
+        "Phí quyền chọn (USD)",
+        "MVO",
+        "MVO (USD)",
+        "Lãi lỗ chờ đáo hạn",
+        "Lãi lỗ chờ đáo hạn (USD)",
+        "Lãi lỗ Options",
+        "Lãi lỗ Options (USD)",
+        "Lãi lỗ dự kiến Options",
+        "Lãi lỗ dự kiến Options (USD)",
+        "Số dư đầu ngày tạm tính",
+        "Số dư đầu ngày tạm tính (USD)"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "TVKD 012",
+          "An toàn",
+          "256.32",
+          "1,027,849,422",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý rủi ro",
+    "subGroup": "",
+    "childMenu": "Danh sách Tài khoản vi phạm ký quỹ",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL",
+    "pagePath": "/RISKMNG/ACCTMARGIN_ALL",
+    "inspectedAt": "2026-09-17T04:47:23.458Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Danh sách trạng thái TKGD",
+        "isSelected": true,
+        "columns": [
+          "Mã TKGD",
+          "Tên TKGD",
+          "Mã TVKD",
+          "Tên TVKD",
+          "Trạng thái",
+          "Tỷ lệ ký quỹ (%)",
+          "Số dư TKKQ",
+          "Mức bổ sung ký quỹ",
+          "KQ ban đầu yêu cầu",
+          "KQ ban đầu yêu cầu (USD)",
+          "KQ ban đầu yêu cầu tạm tính",
+          "KQ ban đầu yêu cầu tạm tính (USD)",
+          "Lãi lỗ thực tế Future (VND)",
+          "Lãi lỗ thực tế Future (USD)",
+          "Lãi lỗ dự kiến Future (VND)",
+          "Lãi lỗ dự kiến Future (USD)",
+          "Lãi lỗ thực tế T-1 Future (VND)",
+          "Lãi lỗ thực tế T-1 Future (USD)",
+          "Giá trị ròng ký quỹ",
+          "Giá trị ròng ký quỹ (USD)",
+          "Ký quỹ khả dụng tạm tính",
+          "Ký quỹ khả dụng",
+          "Ký quỹ khả dụng (USD)",
+          "Phí giao dịch",
+          "Nộp rút trong phiên",
+          "Nộp rút trong phiên (USD)",
+          "Ký quỹ giao nhận",
+          "Phí giao nhận",
+          "Phí thực hiện thay nghĩa vụ",
+          "Phí dịch vụ thanh toán",
+          "Phí thanh toán đáo hạn bằng tiền",
+          "Lãi lỗ vị thế đáo hạn",
+          "Số dư đầu ngày",
+          "Số dư đầu ngày (USD)",
+          "Số dư cuối ngày",
+          "Số dư cuối ngày (USD)",
+          "Phương thức xử lý",
+          "Phí quyền chọn",
+          "Phí quyền chọn (USD)",
+          "MVO",
+          "MVO (USD)",
+          "Lãi lỗ chờ đáo hạn",
+          "Lãi lỗ chờ đáo hạn (USD)",
+          "Lãi lỗ Options",
+          "Lãi lỗ Options (USD)",
+          "Lãi lỗ dự kiến Options",
+          "Lãi lỗ dự kiến Options (USD)",
+          "Số dư đầu ngày tạm tính",
+          "Số dư đầu ngày tạm tính (USD)"
+        ]
+      },
+      {
+        "name": "Danh sách trạng thái TKTVKD",
+        "isSelected": false,
+        "columns": [
+          "Thao tác",
+          "Mã TKGD0",
+          "Mã TVKD0",
+          "Tên TKGD0",
+          "Tỷ lệ ký quỹ (%)0",
+          "Trạng thái0",
+          "Số dư TKKQ0",
+          "Mức bổ sung ký quỹ0",
+          "KQ ban đầu yêu cầu0",
+          "KQ ban đầu yêu cầu (USD)0",
+          "KQ ban đầu yêu cầu tạm tính0",
+          "KQ ban đầu yêu cầu tạm tính (USD)0",
+          "Lãi lỗ thực tế Future (VND)0",
+          "Lãi lỗ thực tế Future (USD)0",
+          "Lãi lỗ dự kiến Future (VND)0",
+          "Lãi lỗ dự kiến Future (USD)0"
+        ]
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Mã TKGD",
+        "Tên TKGD",
+        "Mã TVKD",
+        "Tên TVKD",
+        "Trạng thái",
+        "Tỷ lệ ký quỹ (%)",
+        "Số dư TKKQ",
+        "Mức bổ sung ký quỹ",
+        "KQ ban đầu yêu cầu",
+        "KQ ban đầu yêu cầu (USD)",
+        "KQ ban đầu yêu cầu tạm tính",
+        "KQ ban đầu yêu cầu tạm tính (USD)",
+        "Lãi lỗ thực tế Future (VND)",
+        "Lãi lỗ thực tế Future (USD)",
+        "Lãi lỗ dự kiến Future (VND)",
+        "Lãi lỗ dự kiến Future (USD)",
+        "Lãi lỗ thực tế T-1 Future (VND)",
+        "Lãi lỗ thực tế T-1 Future (USD)",
+        "Giá trị ròng ký quỹ",
+        "Giá trị ròng ký quỹ (USD)",
+        "Ký quỹ khả dụng tạm tính",
+        "Ký quỹ khả dụng",
+        "Ký quỹ khả dụng (USD)",
+        "Phí giao dịch",
+        "Nộp rút trong phiên",
+        "Nộp rút trong phiên (USD)",
+        "Ký quỹ giao nhận",
+        "Phí giao nhận",
+        "Phí thực hiện thay nghĩa vụ",
+        "Phí dịch vụ thanh toán",
+        "Phí thanh toán đáo hạn bằng tiền",
+        "Lãi lỗ vị thế đáo hạn",
+        "Số dư đầu ngày",
+        "Số dư đầu ngày (USD)",
+        "Số dư cuối ngày",
+        "Số dư cuối ngày (USD)",
+        "Phương thức xử lý",
+        "Phí quyền chọn",
+        "Phí quyền chọn (USD)",
+        "MVO",
+        "MVO (USD)",
+        "Lãi lỗ chờ đáo hạn",
+        "Lãi lỗ chờ đáo hạn (USD)",
+        "Lãi lỗ Options",
+        "Lãi lỗ Options (USD)",
+        "Lãi lỗ dự kiến Options",
+        "Lãi lỗ dự kiến Options (USD)",
+        "Số dư đầu ngày tạm tính",
+        "Số dư đầu ngày tạm tính (USD)"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "TVKD 012",
+          "An toàn",
+          "256.32",
+          "1,027,849,422",
+          "0"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý rủi ro",
+    "subGroup": "",
+    "childMenu": "Tra cứu lịch sử Force Sell",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/RISKMNG/FORCESELL",
+    "pagePath": "/RISKMNG/FORCESELL",
+    "inspectedAt": "2026-09-17T04:47:32.844Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Mã TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Mã TKGD",
+        "Mã TVKD",
+        "Tên TKGD",
+        "Tỷ lệ ký quỹ (%)",
+        "Trạng thái",
+        "Số dư TKKQ",
+        "Mức bổ sung ký quỹ",
+        "KQ ban đầu yêu cầu",
+        "KQ ban đầu yêu cầu (USD)",
+        "KQ ban đầu yêu cầu tạm tính",
+        "KQ ban đầu yêu cầu tạm tính (USD)",
+        "Lãi lỗ thực tế Future (VND)",
+        "Lãi lỗ thực tế Future (USD)",
+        "Lãi lỗ dự kiến Future (VND)",
+        "Lãi lỗ dự kiến Future (USD)"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Xử lý",
+          "601C9998889-M",
+          "601",
+          "MXV 89",
+          "-2,841,893.34%",
+          "Xử lý",
+          "-1,818,650,500,000",
+          "1,818,875,740,000"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Quản lý rủi ro",
+    "subGroup": "",
+    "childMenu": "Thiết lập tài khoản loại trừ xử lý tự động",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/RISKMNG/FORCESELL_HIST",
+    "pagePath": "/RISKMNG/FORCESELL_HIST",
+    "inspectedAt": "2026-09-17T04:47:40.862Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "ID Force Sell",
+      "TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "ID Force Sell",
+        "Phương thức",
+        "TKGD",
+        "Khách hàng",
+        "Mã TVKD",
+        "Thời gian bắt đầu",
+        "Tỷ lệ ký quỹ (%)",
+        "Mức bổ sung KQ",
+        "Lệnh Force",
+        "Thời gian kết thúc"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Xem chi tiết",
+          "FS-2026-259-155353",
+          "Thủ công",
+          "641C0365489-A",
+          "Quỳnh 4",
+          "641",
+          "16/09/2026 15:53:53",
+          "27.65%"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Báo cáo",
+    "subGroup": "",
+    "childMenu": "Báo cáo",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/RISKMNG/FORCESELL_HIST",
+    "pagePath": "/RISKMNG/FORCESELL_HIST",
+    "inspectedAt": "2026-09-17T04:47:45.660Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "ID Force Sell",
+      "TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "ID Force Sell",
+        "Phương thức",
+        "TKGD",
+        "Khách hàng",
+        "Mã TVKD",
+        "Thời gian bắt đầu",
+        "Tỷ lệ ký quỹ (%)",
+        "Mức bổ sung KQ",
+        "Lệnh Force",
+        "Thời gian kết thúc"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Xem chi tiết",
+          "FS-2026-259-155353",
+          "Thủ công",
+          "641C0365489-A",
+          "Quỳnh 4",
+          "641",
+          "16/09/2026 15:53:53",
+          "27.65%"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Monitor OMS",
+    "subGroup": "",
+    "childMenu": "Monitor OMS ACM",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/RISKMNG/FORCESELL_HIST",
+    "pagePath": "/RISKMNG/FORCESELL_HIST",
+    "inspectedAt": "2026-09-17T04:47:50.511Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "ID Force Sell",
+      "TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "ID Force Sell",
+        "Phương thức",
+        "TKGD",
+        "Khách hàng",
+        "Mã TVKD",
+        "Thời gian bắt đầu",
+        "Tỷ lệ ký quỹ (%)",
+        "Mức bổ sung KQ",
+        "Lệnh Force",
+        "Thời gian kết thúc"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Xem chi tiết",
+          "FS-2026-259-155353",
+          "Thủ công",
+          "641C0365489-A",
+          "Quỳnh 4",
+          "641",
+          "16/09/2026 15:53:53",
+          "27.65%"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "EOD hệ thống",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/MONITOR_OMS/MONITOR_OMS_ACM",
+    "pagePath": "/MONITOR_OMS/MONITOR_OMS_ACM",
+    "inspectedAt": "2026-09-17T04:47:59.833Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Phiên",
+        "isSelected": true,
+        "columns": [
+          "Bước",
+          "Công việc",
+          "Trạng thái",
+          "Bắt đầu",
+          "Kết thúc",
+          "Chi tiết lỗi",
+          "Bước",
+          "Công việc",
+          "Trạng thái",
+          "Bắt đầu",
+          "Kết thúc",
+          "Chi tiết lỗi",
+          "Thao tác",
+          "Ngày hệ thống",
+          "Sàn giao dịch",
+          "Người thực hiện",
+          "Trạng thái",
+          "Phương thức",
+          "Thời gian bắt đầu",
+          "Thời gian kết thúc"
+        ]
+      },
+      {
+        "name": "Tài khoản",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Lệnh",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hợp đồng/ HH",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Rổ ký quỹ",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Rổ hạn mức",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Phí giao dịch",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Lãi lỗ thực tế",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Trạng thái mở",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": false,
+    "filters": [
+      "Tìm kiếm..."
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Bước",
+        "Công việc",
+        "Trạng thái",
+        "Bắt đầu",
+        "Kết thúc",
+        "Chi tiết lỗi",
+        "Bước",
+        "Công việc",
+        "Trạng thái",
+        "Bắt đầu",
+        "Kết thúc",
+        "Chi tiết lỗi",
+        "Thao tác",
+        "Ngày hệ thống",
+        "Sàn giao dịch",
+        "Người thực hiện",
+        "Trạng thái",
+        "Phương thức",
+        "Thời gian bắt đầu",
+        "Thời gian kết thúc"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "1",
+          "Tổng hợp csv cuối ngày",
+          "Chưa chạy",
+          "-",
+          "-",
+          "-"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "EOD giao nhận",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/EODPROCESS",
+    "pagePath": "/EOD/EODPROCESS",
+    "inspectedAt": "2026-09-17T04:48:05.097Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Vận hành EOD - MXV",
+        "isSelected": true,
+        "columns": []
+      },
+      {
+        "name": "Vận hành EOD - ACM",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Lịch sử EOD",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": false,
+      "text": "",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": false,
+    "filters": [
+      "Tìm kiếm..."
+    ],
+    "table": {
+      "hasTable": false,
+      "columns": [],
+      "rowCountText": "",
+      "sampleRows": []
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "File Monitor (CSV)",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/MONITORCSV",
+    "pagePath": "/EOD/MONITORCSV",
+    "inspectedAt": "2026-09-17T04:48:12.099Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": false,
+      "text": "",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": false,
+    "filters": [
+      "Tìm kiếm...",
+      "Loại file"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Loại file",
+        "Thời gian bắt đầu",
+        "Thời gian kết thúc",
+        "Trạng thái",
+        "Người thực hiện",
+        "Thao tác",
+        "Loại file",
+        "Loại file",
+        "Ngày hệ thống",
+        "Thời gian bắt đầu",
+        "Thời gian kết thúc",
+        "Trạng thái",
+        "Người thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Tạo fileXem chi tiết",
+          "Đăng ký giao nhận",
+          "17/09/2026 08:30:01",
+          "17/09/2026 08:30:03",
+          "Thành công",
+          "SYSTEM"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "Truy vấn thông tin từ core Exchange",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/MONITORCSV",
+    "pagePath": "/EOD/MONITORCSV",
+    "inspectedAt": "2026-09-17T04:48:15.655Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "Loại file",
+      "Ngày hệ thống"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Thao tác",
+        "Loại file",
+        "Thời gian bắt đầu",
+        "Thời gian kết thúc",
+        "Trạng thái",
+        "Người thực hiện",
+        "Thao tác",
+        "Loại file",
+        "Loại file",
+        "Ngày hệ thống",
+        "Thời gian bắt đầu",
+        "Thời gian kết thúc",
+        "Trạng thái",
+        "Người thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Tạo fileXem chi tiết",
+          "Đăng ký giao nhận",
+          "17/09/2026 08:30:01",
+          "17/09/2026 08:30:03",
+          "Thành công",
+          "SYSTEM"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "Đối chiếu lệnh với core Exchange",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/COMPARECSV",
+    "pagePath": "/EOD/COMPARECSV",
+    "inspectedAt": "2026-09-17T04:48:23.773Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": false,
+      "text": "",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": false,
+    "filters": [
+      "Tìm kiếm..."
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Loại truy vấn",
+        "Thao tác",
+        "Thời gian bắt đầu",
+        "Thời gian kết thúc",
+        "Trạng thái",
+        "Người thực hiện"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "Thông tin hàng hóa",
+          "Lấy dữ liệu",
+          "04:45:21",
+          "04:45:22",
+          "Thành công",
+          "SYSTEM"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "Lịch sử đối chiếu lệnh với core Exchange",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/COMPARECSV",
+    "pagePath": "/EOD/COMPARECSV",
+    "inspectedAt": "2026-09-17T04:48:27.645Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": false,
+      "text": "",
+      "dropdownOptions": []
+    },
+    "hasSearchButton": false,
+    "filters": [
+      "Tìm kiếm..."
+    ],
+    "table": {
+      "hasTable": false,
+      "columns": [],
+      "rowCountText": "",
+      "sampleRows": []
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "Kết quả EOD",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST",
+    "pagePath": "/EOD/ACCTMARGIN_HIST",
+    "inspectedAt": "2026-09-17T04:48:39.480Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày giao dịch",
+      "(Đến) Ngày giao dịch",
+      "Mã TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày giao dịch",
+        "Mã TKGD",
+        "Tên TKGD",
+        "Mã TVKD",
+        "Số dư đầu ngày",
+        "Nộp rút trong ngày",
+        "Lãi lỗ thực tế (VND)",
+        "Lãi lỗ dự kiến (VND)",
+        "Lãi lỗ chờ đáo hạn (VND)",
+        "KQ ban đầu yêu cầu",
+        "Ký quỹ khả dụng",
+        "Giá trị ròng ký quỹ",
+        "Lãi lỗ thực tế Option",
+        "Lãi lỗ dự kiến Option",
+        "Phí giao dịch",
+        "Phí quyền chọn",
+        "Số dư cuối ngày",
+        "MVO (VND)",
+        "Mức bổ sung ký quỹ",
+        "Tỷ lệ ký quỹ",
+        "Phí thanh toán đáo hạn bằng tiền",
+        "Lãi lỗ vị thế đáo hạn",
+        "Ký quỹ giao nhận",
+        "Phí giao nhận",
+        "Phí dịch vụ thanh toán",
+        "Phí thực hiện thay nghĩa vụ",
+        "Trạng thái"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "1,027,849,422",
+          "0",
+          "0",
+          "-545,400,000"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "Đối chiếu lệnh liên thông",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST",
+    "pagePath": "/EOD/ACCTMARGIN_HIST",
+    "inspectedAt": "2026-09-17T04:48:44.085Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày giao dịch",
+      "(Đến) Ngày giao dịch",
+      "Mã TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày giao dịch",
+        "Mã TKGD",
+        "Tên TKGD",
+        "Mã TVKD",
+        "Số dư đầu ngày",
+        "Nộp rút trong ngày",
+        "Lãi lỗ thực tế (VND)",
+        "Lãi lỗ dự kiến (VND)",
+        "Lãi lỗ chờ đáo hạn (VND)",
+        "KQ ban đầu yêu cầu",
+        "Ký quỹ khả dụng",
+        "Giá trị ròng ký quỹ",
+        "Lãi lỗ thực tế Option",
+        "Lãi lỗ dự kiến Option",
+        "Phí giao dịch",
+        "Phí quyền chọn",
+        "Số dư cuối ngày",
+        "MVO (VND)",
+        "Mức bổ sung ký quỹ",
+        "Tỷ lệ ký quỹ",
+        "Phí thanh toán đáo hạn bằng tiền",
+        "Lãi lỗ vị thế đáo hạn",
+        "Ký quỹ giao nhận",
+        "Phí giao nhận",
+        "Phí dịch vụ thanh toán",
+        "Phí thực hiện thay nghĩa vụ",
+        "Trạng thái"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "1,027,849,422",
+          "0",
+          "0",
+          "-545,400,000"
+        ]
+      ]
+    }
+  },
+  {
+    "parentMenu": "Vận hành",
+    "subGroup": "",
+    "childMenu": "Lịch sử đối chiếu lệnh liên thông",
+    "actualUrl": "https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST",
+    "pagePath": "/EOD/ACCTMARGIN_HIST",
+    "inspectedAt": "2026-09-17T04:48:48.375Z",
+    "pageTitle": "Trang chủ",
+    "tabs": [
+      {
+        "name": "Hệ thống0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Hàng hóa0",
+        "isSelected": false,
+        "columns": []
+      },
+      {
+        "name": "Tài khoản0",
+        "isSelected": false,
+        "columns": []
+      }
+    ],
+    "exportButton": {
+      "hasExport": true,
+      "text": "Kết xuất",
+      "dropdownOptions": [
+        "Xuất trang hiện tại",
+        "Xuất tất cả"
+      ]
+    },
+    "hasSearchButton": true,
+    "filters": [
+      "Tìm kiếm...",
+      "(Từ) Ngày giao dịch",
+      "(Đến) Ngày giao dịch",
+      "Mã TKGD",
+      "Mã TVKD"
+    ],
+    "table": {
+      "hasTable": true,
+      "columns": [
+        "Ngày giao dịch",
+        "Mã TKGD",
+        "Tên TKGD",
+        "Mã TVKD",
+        "Số dư đầu ngày",
+        "Nộp rút trong ngày",
+        "Lãi lỗ thực tế (VND)",
+        "Lãi lỗ dự kiến (VND)",
+        "Lãi lỗ chờ đáo hạn (VND)",
+        "KQ ban đầu yêu cầu",
+        "Ký quỹ khả dụng",
+        "Giá trị ròng ký quỹ",
+        "Lãi lỗ thực tế Option",
+        "Lãi lỗ dự kiến Option",
+        "Phí giao dịch",
+        "Phí quyền chọn",
+        "Số dư cuối ngày",
+        "MVO (VND)",
+        "Mức bổ sung ký quỹ",
+        "Tỷ lệ ký quỹ",
+        "Phí thanh toán đáo hạn bằng tiền",
+        "Lãi lỗ vị thế đáo hạn",
+        "Ký quỹ giao nhận",
+        "Phí giao nhận",
+        "Phí dịch vụ thanh toán",
+        "Phí thực hiện thay nghĩa vụ",
+        "Trạng thái"
+      ],
+      "rowCountText": "",
+      "sampleRows": [
+        [
+          "16/09/2026",
+          "012C0000204-M",
+          "Lê Thị Trang",
+          "012",
+          "1,027,849,422",
+          "0",
+          "0",
+          "-545,400,000"
+        ]
+      ]
+    }
+  }
+]

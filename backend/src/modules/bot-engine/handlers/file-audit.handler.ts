@@ -40,6 +40,62 @@ export const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
   { key: 'TTTT', filename: 'TTTT.xlsx' },
 ];
 
+export const REQUIRED_CCP_FILES: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  patterns: RegExp[];
+}> = [
+  {
+    key: 'QLTTTKGD',
+    name: 'Quản lý thông tin tài khoản',
+    filename: 'QLTTTKGD.csv',
+    patterns: [/qltkgd/i, /account_inf/i, /acctmargin_all/i],
+  },
+  {
+    key: 'EOD',
+    name: 'Quản trị báo cáo cuối ngày',
+    filename: 'EOD.csv',
+    patterns: [/eod/i, /acctmargin_hist/i],
+  },
+  {
+    key: 'NR',
+    name: 'Lịch sử nộp rút tiền',
+    filename: 'NR.csv',
+    patterns: [/nr/i, /cashtranfer/i, /nop.*rut/i],
+  },
+  {
+    key: 'DSL',
+    name: 'Danh sách lệnh',
+    filename: 'DSL.csv',
+    patterns: [/dsl/i, /orderbook/i, /danh.*sach.*lenh/i],
+  },
+  {
+    key: 'DSGD',
+    name: 'Danh sách giao dịch',
+    filename: 'DSGD.csv',
+    patterns: [/dsgd/i, /ordermatch/i, /giao.*dich/i],
+  },
+  {
+    key: 'TTTT',
+    name: 'Trạng thái tất toán',
+    filename: 'TTTT.csv',
+    patterns: [/tttt/i, /pnl/i, /tat.*toan/i],
+  },
+  {
+    key: 'TTM',
+    name: 'Trạng thái mở',
+    filename: 'TTM.csv',
+    patterns: [/ttm/i, /open_pos/i, /vi.*the.*mo/i, /trang.*thai.*mo/i],
+  },
+  {
+    key: 'LSGTT',
+    name: 'Lịch sử giá thanh toán',
+    filename: 'LSGTT.csv',
+    patterns: [/lsgtt/i, /settlement/i, /gia.*thanh.*toan/i],
+  },
+];
+
 @Injectable()
 export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(FileAuditJobHandler.name);
@@ -123,6 +179,73 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       }
 
       return { key, filename, status: 'MISSING' as const };
+    });
+  }
+
+  public async scanCcpBackupFiles(
+    backupPath: string,
+    targetDate: Date = new Date(),
+  ): Promise<
+    Array<{
+      key: string;
+      name: string;
+      filename: string;
+      actualFile?: string;
+      status: 'OK' | 'MISSING' | 'EMPTY';
+      size?: number;
+      lastModified?: Date;
+    }>
+  > {
+    const existingFiles = fs.existsSync(backupPath)
+      ? fs.readdirSync(backupPath)
+      : [];
+
+    return REQUIRED_CCP_FILES.map(({ key, name, filename, patterns }) => {
+      // 1. Kiểm tra exact filename (.csv hoặc .xlsx)
+      const exactCsv = path.join(backupPath, filename);
+      const exactXlsx = path.join(backupPath, filename.replace(/\.csv$/, '.xlsx'));
+
+      let chosenPath = '';
+      let chosenName = '';
+
+      if (fs.existsSync(exactCsv)) {
+        chosenPath = exactCsv;
+        chosenName = filename;
+      } else if (fs.existsSync(exactXlsx)) {
+        chosenPath = exactXlsx;
+        chosenName = path.basename(exactXlsx);
+      } else {
+        // 2. Quét pattern trong danh sách existingFiles
+        const matched = existingFiles.find((f) => {
+          if (f.startsWith('~$')) return false;
+          return patterns.some((p) => p.test(f));
+        });
+        if (matched) {
+          chosenPath = path.join(backupPath, matched);
+          chosenName = matched;
+        }
+      }
+
+      if (chosenPath && fs.existsSync(chosenPath)) {
+        const stat = fs.statSync(chosenPath);
+        return {
+          key,
+          name,
+          filename,
+          actualFile: chosenName,
+          status: stat.size > 100 ? ('OK' as const) : ('EMPTY' as const),
+          size: stat.size,
+          lastModified: stat.mtime,
+        };
+      }
+
+      return {
+        key,
+        name,
+        filename,
+        status: 'MISSING' as const,
+        size: 0,
+      };
     });
   }
 

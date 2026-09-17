@@ -601,100 +601,70 @@ export default function TradingManagerConfigSection({
         </div>
       </div>
 
-      {/* SECTION 3: 10 ĐƯỜNG DẪN HỆ THỐNG CHUẨN 1:1 C# TOOL */}
+      {/* SECTION 3: CÁC ĐƯỜNG DẪN HOẠT ĐỘNG THỰC TẾ (HỆ THỐNG SỬ DỤNG) */}
       <div className="glass-panel" style={{ padding: '22px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-          <Folder size={18} color="#10b981" />
-          <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            Đường Dẫn Báo Cáo & Thư Mục Hoạt Động
-          </h4>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Folder size={18} color="#10b981" />
+            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              Đường Dẫn Thư Mục Backup & Thống Kê Hoạt Động
+            </h4>
+          </div>
+          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            7 đường dẫn đang hoạt động trong hệ thống
+          </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {[
             {
-              id: 'reconFolderCheckPath',
-              label: 'Đường dẫn check KLGD, TTM, TTTT giữa MS và CQG',
-              val: reconFolderCheckPath,
-              setVal: setReconFolderCheckPath,
-              desc: 'Thư mục chứa các file check khớp lệnh tạm thời giữa MS và CQG Desktop',
-            },
-            {
-              id: 'reconResultFolderPath',
-              label: 'Đường dẫn kết quả check KLGD, TTM, TTTT giữa MS và CQG',
-              val: reconResultFolderPath,
-              setVal: setReconResultFolderPath,
-              desc: 'Thư mục xuất file Excel biên bản kết quả đối soát sau khi chạy đối chiếu',
-            },
-            {
-              id: 'morningMsDataPath',
-              label: 'Đường dẫn folder Dữ liệu đầu ngày MS',
-              val: morningMsDataPath,
-              setVal: setMorningMsDataPath,
-              desc: 'Thư mục RISK chứa file dữ liệu vị thế, tài khoản đầu ngày SOD của MS',
-            },
-            {
-              id: 'gttImportPath',
-              label: 'Đường dẫn file nhập GTT',
-              val: gttImportPath,
-              setVal: setGttImportPath,
-              desc: 'Thư mục chứa file giá thanh toán GTT để nhập lên M-System',
+              id: 'botBackupPathMs',
+              label: 'Đường dẫn backup M-System (Futures)',
+              val: botBackupPathMs,
+              setVal: setBotBackupPathMs,
+              desc: 'Thư mục gốc lưu trữ 20 báo cáo tải về từ M-System (DSGD, TTM, TTTT, DSQLKQ...)',
             },
             {
               id: 'botBackupPathCqg',
-              label: 'Đường dẫn backup CQG',
+              label: 'Đường dẫn backup CQG (Futures)',
               val: botBackupPathCqg,
               setVal: setBotBackupPathCqg,
               desc: 'Thư mục gốc lưu trữ 9 báo cáo thô tải về từ CQG (FR, PS, OP, OD, AS...)',
             },
             {
-              id: 'botBackupPathMs',
-              label: 'Đường dẫn backup MS',
-              val: botBackupPathMs,
-              setVal: setBotBackupPathMs,
-              desc: 'Thư mục gốc lưu trữ 20 báo cáo tải về từ M-System (DSGD, TTM, TTTT...)',
-            },
-            {
               id: 'botBackupPathAcm',
-              label: 'Đường dẫn backup ACM',
+              label: 'Đường dẫn backup ACM (Straits)',
               val: botBackupPathAcm,
               setVal: setBotBackupPathAcm,
               desc: 'Thư mục lưu trữ file Straits CSV giao dịch khớp lệnh ACM Nano',
-            },
-            {
-              id: 'botLotMacroPath',
-              label: 'Đường dẫn thống kê số lot giao dịch',
-              val: botLotMacroPath,
-              setVal: setBotLotMacroPath,
-              desc: 'Thư mục chứa các file Excel Macro tổng hợp số lot giao dịch hàng ngày',
-            },
-            {
-              id: 'botMacroValuePath',
-              label: 'Đường dẫn thống kê giá trị giao dịch',
-              val: botMacroValuePath,
-              setVal: setBotMacroValuePath,
-              desc: 'Thư mục chứa các file Excel Macro tính toán tổng giá trị giao dịch thị trường',
-            },
-            {
-              id: 'newsTeamStatPath',
-              label: 'Đường dẫn thống kê gửi team bản tin',
-              val: newsTeamStatPath,
-              setVal: setNewsTeamStatPath,
-              desc: 'Thư mục lưu báo cáo thống kê phục vụ gửi email cho Khối Bản tin & Thị trường',
             },
             {
               id: 'botBackupPathCcp',
               label: 'Đường dẫn backup CoreCCP (VNCLEAR)',
               val: botBackupPathCcp,
               setVal: setBotBackupPathCcp,
-              desc: 'Thư mục lưu trữ 8 báo cáo chuẩn từ hệ thống bù trừ thanh toán CoreCCP',
+              desc: 'Thư mục lưu trữ 8 báo cáo chuẩn từ hệ thống bù trừ thanh toán CoreCCP (DSGD, TTM, TTTT...)',
             },
             {
               id: 'botBackupPathCe',
               label: 'Đường dẫn backup CoreEX (Giao Dịch Mới)',
               val: botBackupPathCe,
               setVal: setBotBackupPathCe,
-              desc: 'Thư mục lưu trữ báo cáo từ hệ thống CoreEX',
+              desc: 'Thư mục lưu trữ báo cáo từ hệ thống giao dịch CoreEX',
+            },
+            {
+              id: 'botLotMacroPath',
+              label: 'Đường dẫn Macro thống kê số lot giao dịch',
+              val: botLotMacroPath,
+              setVal: setBotLotMacroPath,
+              desc: 'Đường dẫn file Excel Macro tổng hợp số lot giao dịch hàng ngày (Macro thong ke so lot...)',
+            },
+            {
+              id: 'botMacroValuePath',
+              label: 'Đường dẫn Macro thống kê giá trị giao dịch',
+              val: botMacroValuePath,
+              setVal: setBotMacroValuePath,
+              desc: 'Đường dẫn file Excel Macro tính toán tổng giá trị giao dịch thị trường (Macro thong ke gia tri...)',
             },
           ].map((item) => {
             const status = pathStatus[item.id];
