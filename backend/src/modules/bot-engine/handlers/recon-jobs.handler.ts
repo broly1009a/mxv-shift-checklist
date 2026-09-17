@@ -690,7 +690,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         log(`Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
       }
       if (result.isWaitingFiles) {
-        log(result.message);
+        log(result.message || '[Đang chờ dữ liệu] Đang chờ cập nhật đầy đủ file đối chiếu.');
       } else {
         log('Hoàn thành đối chiếu khớp lệnh định kỳ trong phiên.');
         log(`Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`);

@@ -1,5 +1,31 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-17T19:35] FIX: Sửa Lỗi TypeScript TS2345 (string | undefined không gán được cho string) Tại recon-jobs.handler.ts:L693
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi TypeScript type checking:
+  `Argument of type 'string | undefined' is not assignable to parameter of type 'string'. Type 'undefined' is not assignable to type 'string'. @[recon-jobs.handler.ts:L693]`
+
+### 2. Nguyên nhân gốc rễ
+- Hàm `log(msg: string)` yêu cầu tham số bắt buộc kiểu `string`.
+- `result` trả về từ `reconciliationService.runAutoCheckKLGD(...)` có kiểu `CheckKLGDResult`, trong đó thuộc tính `message?: string` là tùy chọn (`string | undefined`).
+- Khi gọi `log(result.message)` ở dòng 693, TypeScript strict null checks báo lỗi vì `result.message` có thể là `undefined`.
+
+### 3. Giải pháp xử lý
+- Bổ sung chuỗi fallback mặc định an toàn:
+  `log(result.message || '[Đang chờ dữ liệu] Đang chờ cập nhật đầy đủ file đối chiếu.');`
+- Đảm bảo tham số truyền vào hàm `log` luôn là `string`.
+
+### 4. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L692-L694)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 5. Xác nhận Build & Kiểm thử
+- **TypeScript Typecheck**: `recon-jobs.handler.ts` không còn lỗi type (0 errors).
+- **Backend Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
 ## [2026-09-17T19:21] FEAT: Tạo File Test Chuyên Biệt Tải Hàng Cuối Cùng Để Kiểm Thử Chuyển Trang (test_ccp_download_contracts_next_page.js)
 
 ### 1. Mục tiêu thay đổi
