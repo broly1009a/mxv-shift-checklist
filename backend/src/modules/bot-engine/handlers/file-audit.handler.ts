@@ -45,54 +45,170 @@ export const REQUIRED_CCP_FILES: Array<{
   name: string;
   filename: string;
   patterns: RegExp[];
+  optional?: boolean;
 }> = [
-  {
-    key: 'QLTTTKGD',
-    name: 'Quản lý thông tin tài khoản',
-    filename: 'QLTTTKGD.csv',
-    patterns: [/qltkgd/i, /account_inf/i, /acctmargin_all/i],
-  },
-  {
-    key: 'EOD',
-    name: 'Quản trị báo cáo cuối ngày',
-    filename: 'EOD.csv',
-    patterns: [/eod/i, /acctmargin_hist/i],
-  },
-  {
-    key: 'NR',
-    name: 'Lịch sử nộp rút tiền',
-    filename: 'NR.csv',
-    patterns: [/nr/i, /cashtranfer/i, /nop.*rut/i],
-  },
+  // ── Nhóm Lệnh thường ──────────────────────────────────────────────────────
   {
     key: 'DSL',
-    name: 'Danh sách lệnh',
-    filename: 'DSL.csv',
-    patterns: [/dsl/i, /orderbook/i, /danh.*sach.*lenh/i],
+    name: 'Danh sách lệnh (Tất cả)',
+    filename: 'DSL CCP.xlsx',
+    patterns: [/^dsl\s+ccp/i, /^dsl\b/i, /orderbook/i],
+  },
+  {
+    key: 'DSLDK',
+    name: 'Danh sách lệnh đã khớp',
+    filename: 'DSLDK CCP.xlsx',
+    patterns: [/^dsldk\s+ccp/i, /dsldk/i, /lenh.*da.*khop/i],
+  },
+  {
+    key: 'DSLCK',
+    name: 'Danh sách lệnh chờ khớp',
+    filename: 'DSLCK CCP.xlsx',
+    patterns: [/^dslck\s+ccp/i, /dslck/i, /lenh.*cho.*khop/i],
+  },
+  {
+    key: 'DSLDH',
+    name: 'Danh sách lệnh đã hủy',
+    filename: 'DSLDH CCP.xlsx',
+    patterns: [/^dsldh\s+ccp/i, /dsldh/i, /lenh.*da.*huy/i],
   },
   {
     key: 'DSGD',
     name: 'Danh sách giao dịch',
-    filename: 'DSGD.csv',
-    patterns: [/dsgd/i, /ordermatch/i, /giao.*dich/i],
+    filename: 'DSGD CCP.xlsx',
+    patterns: [/^dsgd\s+ccp/i, /^dsgd\b/i, /ordermatch/i],
+  },
+
+  // ── Nhóm Lệnh Market Maker ───────────────────────────────────────────────
+  {
+    key: 'DSL_MM',
+    name: 'Danh sách lệnh MM',
+    filename: 'DSL MM CCP.xlsx',
+    patterns: [/dsl.*mm/i, /orderbook_mm/i],
+  },
+  {
+    key: 'DSLDK_MM',
+    name: 'Lệnh đã khớp MM',
+    filename: 'DSLDK MM CCP.xlsx',
+    patterns: [/dsldk.*mm/i],
+  },
+  {
+    key: 'DSLCK_MM',
+    name: 'Lệnh chờ khớp MM',
+    filename: 'DSLCK MM CCP.xlsx',
+    patterns: [/dslck.*mm/i],
+  },
+  {
+    key: 'DSLDH_MM',
+    name: 'Lệnh đã hủy MM',
+    filename: 'DSLDH MM CCP.xlsx',
+    patterns: [/dsldh.*mm/i],
+  },
+  {
+    key: 'DSGD_MM',
+    name: 'Danh sách giao dịch MM',
+    filename: 'DSGD MM CCP.xlsx',
+    patterns: [/dsgd.*mm/i],
+  },
+
+  // ── Nhóm Vị thế & Lãi lỗ ─────────────────────────────────────────────────
+  {
+    key: 'TTM',
+    name: 'Trạng thái mở cuối ngày',
+    filename: 'TTM CCP.xlsx',
+    patterns: [/ttm\s+ccp/i, /^ttm\b/i, /open_pos/i],
+  },
+  {
+    key: 'TTM_PRE1620',
+    name: 'Trạng thái mở trước 16h20',
+    filename: 'TTM truoc 4h20.xlsx',
+    patterns: [/ttm.*4h20/i, /ttm.*16h/i],
+    optional: true,
   },
   {
     key: 'TTTT',
     name: 'Trạng thái tất toán',
-    filename: 'TTTT.csv',
+    filename: 'TTTT.xlsx',
     patterns: [/tttt/i, /pnl/i, /tat.*toan/i],
   },
+
+  // ── Nhóm Rủi ro & Ký quỹ ─────────────────────────────────────────────────
   {
-    key: 'TTM',
-    name: 'Trạng thái mở',
-    filename: 'TTM.csv',
-    patterns: [/ttm/i, /open_pos/i, /vi.*the.*mo/i, /trang.*thai.*mo/i],
+    key: 'QLTTTKGD',
+    name: 'Quản lý trạng thái TKGD',
+    filename: 'QL TT TKGD.xlsx',
+    patterns: [/ql.*tt.*tkgd\.xlsx$/i, /qltkgd/i, /acctmargin_all/i],
   },
   {
-    key: 'LSGTT',
-    name: 'Lịch sử giá thanh toán',
-    filename: 'LSGTT.csv',
-    patterns: [/lsgtt/i, /settlement/i, /gia.*thanh.*toan/i],
+    key: 'QLTTTKGD_PRE1620',
+    name: 'Quản lý trạng thái TKGD trước 16h20',
+    filename: 'QL TT TKGD truoc 4h20.xlsx',
+    patterns: [/ql.*tt.*tkgd.*4h20/i],
+    optional: true,
+  },
+  {
+    key: 'QLTTTVKD',
+    name: 'Quản lý trạng thái TVKD',
+    filename: 'QL TT TVKD.xlsx',
+    patterns: [/ql.*tt.*tvkd/i],
+  },
+  {
+    key: 'DSQLKQ_TKGD',
+    name: 'Quản lý ký quỹ TKGD',
+    filename: 'DSQLKQ TKGD.xlsx',
+    patterns: [/dsqlkq.*tkgd/i],
+  },
+  {
+    key: 'DSQLKQ_TVKD',
+    name: 'Quản lý ký quỹ TVKD',
+    filename: 'DSQLKQ TVKD.xlsx',
+    patterns: [/dsqlkq.*tvkd/i],
+  },
+
+  // ── Nhóm Tiền & Tài khoản ────────────────────────────────────────────────
+  {
+    key: 'NR',
+    name: 'Lịch sử nộp rút tiền',
+    filename: 'NR.xlsx',
+    patterns: [/^nr\b/i, /cashtranfer/i, /nop.*rut/i],
+  },
+  {
+    key: 'DSTKGD',
+    name: 'Danh sách tài khoản giao dịch',
+    filename: 'DSTKGD ACM.xlsx',
+    patterns: [/dstkgd/i, /accounts_info/i],
+  },
+
+  // ── Nhóm Hàng hóa & Hợp đồng & Giá ───────────────────────────────────────
+  {
+    key: 'GTT',
+    name: 'Giá thanh toán',
+    filename: 'GTT CCP.xlsx',
+    patterns: [/^gtt\s+ccp/i, /^gtt\b/i, /settlement/i],
+  },
+  {
+    key: 'HH',
+    name: 'Danh mục hàng hóa',
+    filename: 'HH.xlsx',
+    patterns: [/^hh\.xlsx$/i, /commodity/i],
+  },
+  {
+    key: 'HD_CP2CO',
+    name: 'Hợp đồng Đồng Nano ACM (CP2CO)',
+    filename: 'HĐ CP2CO.xlsx',
+    patterns: [/cp2co/i],
+  },
+  {
+    key: 'HD_PL1NY',
+    name: 'Hợp đồng Bạch kim Nano ACM (PL1NY)',
+    filename: 'HĐ PL1NY.xlsx',
+    patterns: [/pl1ny/i],
+  },
+  {
+    key: 'HD_SI5CO',
+    name: 'Hợp đồng Bạc Nano ACM (SI5CO)',
+    filename: 'HĐ SI5CO.xlsx',
+    patterns: [/si5co/i],
   },
 ];
 

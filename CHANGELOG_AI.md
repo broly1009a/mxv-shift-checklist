@@ -1,5 +1,445 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-17T19:21] FEAT: Tạo File Test Chuyên Biệt Tải Hàng Cuối Cùng Để Kiểm Thử Chuyển Trang (test_ccp_download_contracts_next_page.js)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chính xác yêu cầu của USER:
+  > *"tôi cần bạn tạo file test tải luôn hàng cuối cùng để next trang thay vì chạy từ đầu"*
+- Thay vì chạy qua 20 hàng đầu tiên tốn thời gian, script sẽ:
+  1. **Trang 1**: Nhảy thẳng tới hàng cuối cùng (`rows.last()`, tức hàng #20 `CXR1`) $\rightarrow$ Mở modal $\rightarrow$ Tải file `HĐ CXR1.xlsx` bằng Cách 2 (Click Kết xuất mở menu $\rightarrow$ Bấm Xuất tất cả).
+  2. Đóng modal an toàn $\rightarrow$ Cuộn tới thanh phân trang và bấm nút *"Tới trang tiếp theo"*.
+  3. **Kiểm chứng chuyển trang thành công**: Chờ text biến chuyển từ `"1-20 trên 60"` sang `"21-40 trên 60"`.
+  4. **Trang 2**: Nhảy thẳng tới hàng cuối cùng (#40) $\rightarrow$ Tải hợp đồng $\rightarrow$ Bấm Next sang Trang 3 (`41-60 trên 60`).
+  5. **Trang 3**: Xác nhận đã tới trang cuối cùng và nút Next bị vô hiệu hóa (`Mui-disabled`).
+
+### 2. Danh sách file tạo mới / chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_next_page.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_next_page.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Cú pháp & Build
+- Cú pháp file test: `cmd /c "node -c src/scripts/test_ccp_download_contracts_next_page.js"` **thành công (Exit code: 0)**.
+
+---
+
+## [2026-09-17T19:18] FIX: Sửa Lỗi Chuyển Trang Không Ăn Của Nút 'Tới Trang Tiếp Theo' & Mở Rộng 'Số Bản Ghi Mỗi Trang' Lên 100
+
+### 1. Mục tiêu thay đổi
+- **Hiện tượng**: Khi hết Trang 1 (dòng #20 `CXR1`), bot bấm nút *"Tới trang tiếp theo"* nhưng bảng vẫn giữ nguyên ở Trang 1 (`1-20 trên 60`). Dẫn tới Trang 2 và Trang 3 lại quét lại các mã cũ (`MXV_TEST1`, `TEST1234`, `PL1NY`...).
+- **Nguyên nhân gốc rễ**:
+  1. `await nextBtn.click({ force: true })` bỏ qua việc scrollIntoView. Do thanh phân trang nằm ở đáy bảng (sau 20 dòng) ngoài viewport màn hình, click bị trượt hoặc Chromium bỏ qua mouse event ngoài viewport.
+  2. Code không kiểm tra xem chuỗi phân trang `1-20 trên 60` đã thực sự đổi sang `21-40 trên 60` hay chưa mà đã vội vàng tăng `pageNum++`.
+  3. Không có bộ lọc trùng mã (`processedCodes`) nên quét lặp lại nếu trang chưa kịp chuyển.
+
+### 2. Giải pháp xử lý
+1. **Mở rộng Số bản ghi mỗi trang lên 100**:
+   - Ngay khi vào màn hình `/PRODUCT/COMMODITY`, tự động bấm chọn `100` bản ghi mỗi trang trên combobox MRT $\rightarrow$ bảng hiển thị toàn bộ 60 hàng hóa trên duy nhất 1 trang (`1-60 trên 60`), quét liền mạch không cần phân trang.
+2. **Cơ chế Next Page đáng tin cậy (Chuẩn Material-UI MRT)**:
+   - `scrollIntoViewIfNeeded()` tới thanh phân trang trước khi click.
+   - Click thật, fallback sang native DOM click (`nextBtn.evaluate(b => b.click())`) và thẻ span bọc ngoài `span[aria-label='Tới trang tiếp theo']`.
+   - **Bắt buộc chờ chuỗi phân trang THỰC SỰ THAY ĐỔI**: So sánh `currentRange` (`1-20 trên 60`) với `newRange` (`21-40 trên 60`). Chỉ khi text đổi và table reload xong mới tăng `pageNum++`.
+3. **Bộ lọc chống trùng lặp (`processedCodes = new Set()`)**:
+   - Ghi nhớ mã `UACODE` đã xử lý. Nếu gặp lại mã cũ thì lập tức bỏ qua trong 0.1s.
+
+### 3. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T19:15] AUDIT & CONFIRM: Bảo Toàn 100% Logic Cũ (Ấn 2 Lần Kết Xuất) Cho Toàn Bộ Báo Cáo Thường - Chỉ Cô Lập Cách 2 Riêng Cho Modal Xem Thông Tin Hàng Hóa
+
+### 1. Mục tiêu & Chỉ đạo từ USER
+- Tuân thủ tuyệt đối chỉ đạo của USER:
+  > *"tuyệt đối không được sửa logic cũ khi ấn 2 lần kết xuất vì nó đang hoạt động nó chỉ không hoạt động với xem modal thông tin hàng hóa thôi"*
+
+### 2. Kiểm chứng mã nguồn thực tế (Code-First Grounding)
+1. **Hàm xuất file chung `triggerExportDownload`** ([ccp-ce-downloader.service.ts#L1132-L1158](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L1132-L1158)):
+   - **Giữ nguyên 100% logic gốc đang hoạt động**:
+     - *Phương án 1*: Hover -> "Xuất tất cả"
+     - *Phương án 2*: Kích đúp 2 lần vào nút Kết xuất (`exportBtn.dblclick({ force: true })`).
+   - Tuyệt đối không thay đổi bất kỳ hành vi nào của 25 báo cáo thông thường (DSL, DSGD, TTTT, EOD, QLTTTKGD...).
+2. **Riêng hàm tải hợp đồng `downloadCommoditiesAndContracts`** ([ccp-ce-downloader.service.ts#L2243-L2275](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L2243-L2275)):
+   - Cô lập riêng trong modal Xem thông tin hàng hóa: Click nút Kết xuất `#tabpanel-1` để mở menu Popover $\rightarrow$ click chọn `Xuất tất cả` (`li:visible:has-text('Xuất tất cả').last()`).
+3. **Đồng bộ các file script**: Đảm bảo `test_ccp_download_failed_files.js` và `test_ccp_download_25_files.js` giữ đúng fallback `exportBtn.dblclick({ force: true })` (ấn 2 lần kết xuất).
+
+### 3. Xác nhận Build & Thực tế
+- **Backend Build**: `cmd /c "npm run build"` thành công 100% (Exit code: 0).
+- **Kết quả chạy thực tế của USER**: Đã tải liên tiếp thành công trọn vẹn toàn bộ các file `HĐ PL1NY.xlsx`, `HĐ CP2CO.xlsx`, `HĐ SI5CO.xlsx`, `HĐ SRV.xlsx`, `HĐ CHV.xlsx`, `HĐ DTV.xlsx`, `HĐ TDV.xlsx`, `HĐ SVR3L.xlsx`, `HĐ CXA2.xlsx`, `HĐ CXA1.xlsx`, `HĐ CXR2.xlsx`, `HĐ CXR1.xlsx` trong thư mục `temp/test_ccp_contracts`.
+
+---
+
+## [2026-09-17T19:11] FEAT: Đóng Gói Hoàn Chỉnh Chức Năng Xuất File CoreCCP Vào ccp-ce-downloader.service.ts
+
+### 1. Mục tiêu thay đổi
+- Thực hiện đóng gói toàn bộ logic theo đúng chỉ đạo của USER:
+  1. **Đóng gói luồng xuất file chung (`triggerExportDownload`)**:
+     - *Luồng 1*: Thử click trực tiếp nút "Kết xuất".
+     - *Chuyển sang Cách 2*: Nếu sau thời gian chờ không có file tải về $\rightarrow$ tự động chuyển sang Cách 2 (Click nút "Kết xuất" mở Menu Popover $\rightarrow$ Click chọn **`Xuất tất cả`**).
+  2. **Ưu tiên Cách 2 cho Xem thông tin hàng hóa (`downloadCommoditiesAndContracts`)**:
+     - Bỏ hoàn toàn các bước hover và thử click trực tiếp.
+     - Ưu tiên Cách 2 ngay từ đầu: Mở modal $\rightarrow$ click nút "Kết xuất" trong `#tabpanel-1` $\rightarrow$ bấm chọn **`Xuất tất cả`** để tải về các file `HĐ <UACODE>.xlsx`.
+     - Nhận diện bảng trống `0-0 trên 0` để bỏ qua trong 0.5s.
+     - Đóng modal an toàn bằng CloseIcon "X" và nút "Đóng".
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T19:04] FIX: Khắc Phục Lỗi Menu 'Xuất Tất Cả' Bị Chững Bằng Selector :visible .last() & Real Click Đóng Menu Kích Hoạt Tải
+
+### 1. Mục tiêu thay đổi
+- **Hiện tượng**: Menu đã mở bung ra trên màn hình (`Xuất trang hiện tại`, `Xuất tất cả` trong ảnh chụp), bot đã trỏ vào nhưng bị chững lại 20 giây và không kích hoạt tải file.
+- **Nguyên nhân gốc rễ**:
+  1. **Selector `.first()` trỏ nhầm phần tử cũ**: Selector `page.locator("//li[contains(., 'Xuất tất cả')]").first()` đã bắt trúng một phần tử menu cũ/ẩn còn lưu trong DOM của trang trước, thay vì popup menu đang hiển thị thực tế trên cùng.
+  2. **Click ảo `force: true` không làm đóng menu**: Khi bắn click vào phần tử cũ/ẩn, menu thật đang hiển thị trên màn hình hoàn toàn không nhận được sự kiện click, dẫn tới menu vẫn mở trơ trơ và browser không sinh ra sự kiện `download`.
+- **Giải pháp xử lý**:
+  1. Định vị chuẩn xác menu item đang hiển thị: `page.locator("li:visible:has-text('Xuất tất cả'), [role='menuitem']:visible:has-text('Xuất tất cả')").last()`.
+  2. Thực hiện click thật (actionable click: `await exportAllItem.click()`).
+  3. Cơ chế tự kiểm tra: Nếu sau 400ms menu vẫn chưa đóng (chưa ăn click) $\rightarrow$ nhấp thêm lần nữa để đảm bảo menu đóng lại và download bắt đầu ngay lập tức.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T19:02] FIX: Đẩy Trực Tiếp Logic Cách 2 (Click Nút Kết Xuất Mở Menu -> Chọn Xuất Tất Cả) Ngay Từ Đầu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chính xác theo chỉ đạo của USER:
+  > *"hay là riêng với xem thông tin hàng hóa thì ủn logic tải bằng cách 2 trước được không"*
+- **Giải pháp xử lý**:
+  + Loại bỏ hoàn toàn các bước hover phức tạp.
+  + Đẩy trực tiếp Cách 2 lên chạy ngay từ đầu:
+    1. Click trực tiếp vào nút "Kết xuất": `await modalExportBtn.click({ force: true })` $\rightarrow$ Nút lún xuống và Menu Popover bung ra ngay lập tức.
+    2. Chờ 0.6s để menu hiển thị trọn vẹn trên màn hình.
+    3. Định vị và click dứt khoát vào option **"Xuất tất cả"** (`await exportAllItem.click({ force: true })`) để kích hoạt tải file.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:58] FIX: Chuyển Sang Hover Trực Tiếp Bằng modalExportBtn.hover({ force: true }) Để Menu Bung Rõ Ràng
+
+### 1. Mục tiêu thay đổi
+- Khắc phục phản hồi của USER: Menu hover không xuất hiện rõ ràng khi dùng tọa độ `mouse.move`.
+- **Giải pháp xử lý**:
+  + Chuyển từ `page.mouse.move(x, y)` sang gọi trực tiếp `await modalExportBtn.hover({ force: true })` để Playwright kích hoạt đầy đủ chuỗi sự kiện `pointerenter`, `mouseenter`, `mouseover` vào đúng thẻ nút "Kết xuất".
+  + Tăng thời gian chờ lên 800ms (`await page.waitForTimeout(800)`) để hiệu ứng animation/fade-in của MUI Popover hiển thị hoàn chỉnh và nhìn thấy rõ ràng trên màn hình trước khi click chọn "Xuất tất cả".
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:48] FIX: Ngăn Chặn Bắt Nhầm Dòng Bảng Hợp Đồng Trong Modal & Đóng Modal Đa Tầng Bằng CloseIcon SVG
+
+### 1. Mục tiêu thay đổi
+- **Hiện tượng lỗi**:
+  + Sau khi tải xong `HĐ PL1NY.xlsx`, màn hình bị bật popup con **"Xem Thông tin hợp đồng"** (của hợp đồng `PL1NYF27`).
+  + Hàng hóa kế tiếp (`ACM`) không tìm thấy popup xuất file do bị popup con che khuất.
+- **Nguyên nhân gốc rễ**:
+  1. **Selector `rows` bị trùng lặp**: `//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]` là lazy locator. Khi modal của `PL1NY` mở ra, trong DOM xuất hiện bảng thứ 2 (bảng hợp đồng). Khi duyệt `row = rows.nth(i)`, Playwright đã chọn nhầm dòng hợp đồng bên trong modal thay vì dòng hàng hóa ở bảng chính.
+  2. **Nút Thao tác click nhầm icon xem chi tiết hợp đồng**: Do `row` trỏ vào dòng hợp đồng của `PL1NY`, thao tác `actionBtn.click()` đã kích hoạt mở modal con "Xem Thông tin hợp đồng".
+  3. **Hàm `closeModal` bị kẹt**: Với hàng hóa có nhiều dòng hợp đồng như `PL1NY`, nút "Đóng" ở footer bị đẩy xuống dưới khung cuộn (overflow).
+- **Giải pháp xử lý**:
+  1. **Cô lập `rows` bảng chính**: Dùng selector `//div[contains(@class, 'crud-grid-container') and not(ancestor::div[@id='tabpanel-1'])]//tbody//tr[@data-index]`, loại trừ tuyệt đối mọi bảng nằm trong modal `#tabpanel-1`.
+  2. **Đóng modal đa tầng bằng SVG CloseIcon**: Click ưu tiên icon "X" (`svg[path[starts-with(@d, 'M19 6.41')]]`) cố định ở header trên cùng, không bao giờ bị che bởi thanh cuộn; cuộn nút "Đóng" vào tầm nhìn; fallback phím `Escape`.
+  3. **Kiểm tra liveness trước mỗi dòng**: Tự động phát hiện và đóng dứt điểm mọi modal còn sót lại trước khi tương tác với hàng hóa tiếp theo.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:44] FIX: Chuẩn Hóa 100% Cấu Trúc DOM Modal & Nút Thao Tác Từ Mã Nguồn HTML Thực Tế Của USER
+
+### 1. Mục tiêu thay đổi
+- Đối chiếu và chuẩn hóa toàn bộ các selector với đoạn mã nguồn HTML thực tế của Modal do USER cung cấp trực tiếp:
+  1. **Tiêu đề Modal**: `#modal-modal-title` (`h2:has-text('Xem Thông tin hàng hóa')`).
+  2. **Tab Thông tin hợp đồng**: Nút `<button id="tab-1">Thông tin hợp đồng</button>`.
+  3. **Container Tabpanel**: `<div role="tabpanel" id="tabpanel-1">`.
+  4. **Kiểm tra dữ liệu rỗng (Skip 0.5s)**: Thẻ `Không có dữ liệu` (`<div class="MuiBox-root mui-1xfgwse">Không có dữ liệu</div>`) và phân trang `0-0 trên 0` bên trong `#tabpanel-1`.
+  5. **Nút Kết xuất chuẩn**: Nằm riêng biệt bên trong `#tabpanel-1`: `#tabpanel-1 button.button-element:has-text('Kết xuất')` (tránh hoàn toàn va chạm với nút Kết xuất ở màn hình cha bên ngoài).
+  6. **Cơ chế đóng modal chuẩn xác (`closeModal`)**:
+     - Thử nút Đóng ở footer: `button.button-element:has-text('Đóng')`.
+     - Thử icon SVG close ở header: `#modal-modal-title` $\rightarrow$ `..//*[name()='svg']`.
+     - Fallback phím `Escape`.
+     - Chờ sự kiện `#modal-modal-title` chuyển sang trạng thái `hidden` để đảm bảo modal đã đóng hoàn toàn trước khi thao tác tiếp dòng kế tiếp.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:41] FIX: Sửa Locator Modal Để Loại Trừ Popup Ẩn 'settings-popup' Gây Lỗi Timeout 5000ms
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi timeout 5000ms từ Playwright call log:
+  `locator.waitFor: Timeout 5000ms exceeded. waiting for locator('div[role=\'presentation\'][class*=\'MuiModal-root\'], ...')`
+  `14 x locator resolved to hidden <div aria-hidden="true" role="presentation" id="settings-popup" class="MuiPopover-root MuiModal-root MuiModal-hidden">`
+  + Nguyên nhân: Trang web có một popup cấu hình ẩn (`id="settings-popup"`) cũng chứa class `MuiModal-root`. Khi dùng `.first()`, Playwright luôn trỏ vào popup ẩn này thay vì Modal "Xem Thông tin hàng hóa" thực tế.
+- **Giải pháp xử lý**:
+  + Định danh Modal mục tiêu bằng tiêu đề hoặc `aria-labelledby`:
+    `locator("div[aria-labelledby='modal-modal-title'], div[role='presentation']:has-text('Xem Thông tin hàng hóa'), div[class*='wrapper-modal-element']:not(#settings-popup)").first()`
+  + Loại trừ hoàn toàn `#settings-popup` và các modal ẩn.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:37] FIX: Khắc Phục Lỗi Pointer Intercept Do Nút Bị Che Bởi Modal & Tự Động Nhận Diện Bảng Không Có Dữ Liệu (0-0 Trên 0)
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi chí mạng do Playwright báo log:
+  `<div class="wrapper-modal-element } MuiModal-root ..."> subtree intercepts pointer events`
+  + Nguyên nhân: Selector `modalExportBtn` bắt nhầm vào nút "Kết xuất" của trang chính ở ngoài. Khi click, lớp phủ của Modal (`wrapper-modal-element`) đè lên trên và chặn đứng toàn bộ tương tác chuột.
+  + Hàng hóa `MXV_TEST1` hiển thị `Không có dữ liệu` (bảng `0-0 trên 0`) nên việc cố bấm xuất file gây treo vô ích.
+- **Giải pháp xử lý**:
+  + **Định vị phạm vi chuẩn xác**: Định nghĩa `modal = page.locator("div[role='presentation'][class*='MuiModal-root'], div[class*='wrapper-modal-element']").first()`. Mọi thao tác click Tab, tìm nút Kết xuất, nút Đóng đều lấy từ `modal.locator(...)`.
+  + **Nhận diện Bảng trống**: Kiểm tra `modal.locator("text='Không có dữ liệu', text='0-0 trên 0'")`. Nếu thấy bảng không có dữ liệu $\rightarrow$ đóng modal ngay trong 0.5s và chuyển sang hàng hóa tiếp theo.
+  + **Click chuẩn nút trong Modal**: Nút Kết xuất bên trong modal được click trực tiếp không bao giờ bị intercept.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:34] FIX: Triển Khai Chính Xác Thao Tác Di Chuột (Mouse Move) & Click Giữ Chuột 1 Giây Theo Chỉ Đạo Của USER
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chính xác theo chỉ đạo bằng văn bản của USER:
+  > *"muốn hiện lên thì chỉ cần di chuột vào nút kết xuất là sẽ hiện ra option chọn tải hoặc là ấn như này chắc chắn được là sẽ ấn vào kết xuất vẫn giữ nguyên chuột chờ 1s rồi ấn tiếp"*
+- **Giải pháp xử lý**:
+  + **Bước 1 (Di chuột thực tế)**: Lấy tọa độ `boundingBox()` của nút Kết xuất và gọi `page.mouse.move(x, y)` để di chuyển con trỏ chuột thực tế vào tâm nút, chờ 600ms để menu bung ra nếu hệ thống hỗ trợ hover.
+  + **Bước 2 (Click giữ nguyên vị trí chuột chờ 1s)**: Nếu menu chưa bung, thực hiện click ngay tại vị trí con trỏ chuột hiện tại (`page.mouse.click(x, y)`), giữ nguyên vị trí chuột và chờ đúng 1 giây (1000ms).
+  + **Bước 3 (Bấm chọn Xuất tất cả)**: Click dứt khoát vào option `Xuất tất cả`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:33] FIX: Chuẩn Hóa Cơ Chế Click Mở Menu Dropdown 'Kết Xuất' Thay Vì Dùng Hover
+
+### 1. Mục tiêu thay đổi
+- Sửa lỗi không bung menu "Xuất tất cả":
+  + Nút "Kết xuất" sử dụng component `Button` và `Menu` của Material-UI (React), hoạt động dựa trên state React `onClick={(e) => setAnchorEl(e.currentTarget)}`.
+  + Giao diện hoàn toàn **KHÔNG hỗ trợ mở bằng sự kiện hover/mouseenter**.
+  + Menu khi mở được render vào một Portal ở cuối `<body>` (`li[role="menuitem"]`), chứ không nằm bên trong container của modal.
+- **Giải pháp xử lý**:
+  + Bỏ hoàn toàn thao tác `hover()` vô hiệu.
+  + Click trực tiếp vào nút Kết xuất để kích hoạt React state mở Popover Menu.
+  + Dùng locator toàn cục trên `<body>` để tìm và click chính xác item `Xuất tất cả`: `//li[contains(., 'Xuất tất cả')] | //*[@role='menuitem'][contains(., 'Xuất tất cả')]`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:31] FIX: Cô Lập Selector Nút 'Kết Xuất' Vào Tabpanel-1 & Bỏ Qua Siêu Tốc Hàng Hóa Rác Không Có Hợp Đồng
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để việc bot bị "kẹt" ở hàng hóa đầu tiên `MXV_TEST1`:
+  + Hàng hóa `MXV_TEST1` là mã test nội bộ, không có bất kỳ hợp đồng nào (`tabpanel-1` trống không có nút Kết xuất).
+  + Selector cũ có fallback `| //button[contains(., 'Kết xuất')]` khiến Playwright bắt nhầm vào nút "Kết xuất" của trang chính ở ngoài (nằm chìm phía sau backdrop của modal). Khi bot hover hoặc click vào nút này, modal backdrop chặn lại khiến menu không bao giờ bung ra.
+- **Giải pháp xử lý**:
+  + **Cô lập 100% phạm vi**: Selector `modalExportBtn` chỉ tìm duy nhất bên trong `tabpanel-1`: `xpath=//div[@id='tabpanel-1']//button[contains(@class, 'button-element') or contains(., 'Kết xuất')]`.
+  + **Cơ chế Bỏ qua siêu tốc (Fast Skip)**: Nếu sau 2.5s không thấy nút Kết xuất trong `tabpanel-1` (nghĩa là hàng hóa không có hợp đồng), bot lập tức bỏ qua, đóng modal và chuyển sang hàng hóa tiếp theo mà không đợi timeout 35s.
+  + **Mở Menu chuẩn MUI**: Dùng `click()` trực tiếp vào nút Kết xuất bên trong modal để bung Popover Menu `role="menuitem"`, sau đó bấm dứt khoát vào `Xuất tất cả`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T18:20] FIX: Tối Ưu Cơ Chế Kích Hoạt Menu Dropdown 'Xuất Tất Cả' Cho Nút 'Kết Xuất' Trong Modal Hợp Đồng
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi nút "Kết xuất" trong modal chi tiết Hàng hóa / Hợp đồng không kích hoạt tải file.
+- **Nguyên nhân phân tích từ ảnh thực tế do USER cung cấp**:
+  + Nút "Kết xuất" là một Menu Button (có icon mũi tên trỏ xuống). Khi bấm vào, hệ thống xổ ra Menu Dropdown gồm 2 lựa chọn: `Xuất trang hiện tại` và `Xuất tất cả`.
+  + Nếu bot gọi `click()` hai lần hoặc click nhanh vào nút cha, menu bị toggle đóng lại ngay trước khi kịp nhận diện mục chọn con `Xuất tất cả`.
+- **Giải pháp xử lý**:
+  + Áp dụng quy trình 3 bước chuẩn: **Hover nút Kết xuất (300-400ms) $\rightarrow$ Tìm option `Xuất tất cả` (trong `MuiMenuItem-root` / `li`) $\rightarrow$ Nếu chưa bung menu mới click mở $\rightarrow$ Click dứt khoát vào mục `Xuất tất cả`**.
+  + Xử lý linh hoạt cả 2 trường hợp hệ thống kích hoạt menu qua Hover hoặc Click.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T17:30] FIX: Khắc Phục Lỗi Không Nhận Diện Tab 'Thông Tin Hợp Đồng' & Nút 'Kết Xuất' Do Giao Diện Không Dùng MuiDialog
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi Playwright không tìm thấy Tab `Thông tin hợp đồng` và nút `Kết xuất` khi mở chi tiết hàng hóa (`/PRODUCT/COMMODITY`).
+- **Nguyên nhân phân tích từ HTML thực tế do USER cung cấp**:
+  + Thẻ cha bọc form chi tiết hàng hóa là `<div class="MuiBox-root mui-ijtv1l">` (Drawer / Container layout), **HOÀN TOÀN KHÔNG có class `MuiDialog-root` hay `role="dialog"`**.
+  + Code cũ dùng selector bị giới hạn bên trong `//div[contains(@class, 'MuiDialog-root') or contains(@role, 'dialog')]//...` dẫn tới việc XPath bị rỗng, không tìm thấy nút Tab `id="tab-1"`.
+  + Do không bấm được Tab `tab-1`, `tabpanel-1` vẫn ở trạng thái ẩn (`hidden=""`, `display: none`), khiến nút "Kết xuất" (`button-element`) không xuất hiện trên DOM.
+- **Giải pháp xử lý**:
+  + Loại bỏ điều kiện ràng buộc `MuiDialog-root` / `role='dialog'`.
+  + Nhận diện trực tiếp Tab "Thông tin hợp đồng": `//button[@id='tab-1' or (contains(@role, 'tab') and contains(., 'Thông tin hợp đồng')) or contains(., 'Thông tin hợp đồng')]`.
+  + Định vị nút "Kết xuất": `//div[@id='tabpanel-1']//button[contains(@class, 'button-element')] | //button[contains(@class, 'button-element') and contains(., 'Kết xuất')]`.
+  + Cập nhật nút đóng/quay lại: `//button[contains(., 'Quay lại') or contains(., 'Trở về') or contains(., 'Đóng') or @aria-label='close' or @aria-label='Close' or contains(., 'Hủy')]`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js)
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js)
+- [backend/src/scripts/test_ccp_download_25_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_25_files.js)
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+## [2026-09-17T17:26] FEATURE: Cung Cấp File Test Độc Lập Chuyên Biệt Tải Riêng Hợp Đồng (HĐ *.xlsx) Đa Trang
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER: Tạo riêng script kiểm thử `test_ccp_download_contracts_only.js` chỉ chạy chuyên biệt màn hình Quản lý hàng hóa, hợp đồng (`/PRODUCT/COMMODITY`).
+- Không tải bất kỳ báo cáo nào khác (không chạy lệnh, vị thế, tiền hay giao dịch), đi thẳng vào việc mở modal từng hàng hóa để xuất file `HĐ <Mã_HH>.xlsx`.
+- Duyệt tuần tự 100% tất cả hàng hóa (không lọc bỏ bất kỳ mã nào), tự động bấm nút `Tới trang tiếp theo` (`button[@aria-label='Tới trang tiếp theo']`) sang các trang tiếp theo cho đến trang cuối cùng.
+- Selector nút Kết xuất trong modal tuân thủ chuẩn `button.button-element`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [backend/src/scripts/test_ccp_download_contracts_only.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_contracts_only.js) (Script test chuyên biệt tải HĐ đa trang)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER: Cung cấp script test tập trung riêng biệt `test_ccp_download_failed_files.js` để kiểm thử nhanh các file bị thiếu mà không cần chạy lại 18 file đã tải thành công.
+- Cập nhật URL chuẩn cho báo cáo Khớp lệnh MM `DSGD MM CCP`: `/ORDERS/ORDERMATCH_DETAIL_MM` (thay thế URL nhầm lẫn cũ `/ORDERS/ORDERBOOK_ALL_MM`).
+- Áp dụng thuật toán duyệt đa trang (Multi-page Pagination Loop) cho phân hệ Hợp đồng `/PRODUCT/COMMODITY`:
+  + Tự động quét hàng hóa trên từng trang $\rightarrow$ Kiểm tra nút `Tới trang tiếp theo` (`button[@aria-label='Tới trang tiếp theo']` theo đúng snippet HTML thực tế USER cung cấp).
+  + Lặp duyệt tự động cho đến khi nút chuyển trang bị disabled (trang cuối cùng).
+  + Cập nhật selector nút "Kết xuất" trong Modal: `button.button-element`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [backend/src/scripts/test_ccp_download_failed_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_failed_files.js) (Script test độc lập tập trung 3 cụm file lỗi)
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts) (Cập nhật cachedUrl `DSGD_MM` $\rightarrow$ `/ORDERS/ORDERMATCH_DETAIL_MM`)
+- [backend/src/scripts/test_ccp_download_25_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_25_files.js) (Đồng bộ URL `DSGD MM`)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố nghẽn mạng / API tải chậm trên môi trường UAT VNCLEAR đối với màn hình `/ORDERS/PNL_EXECUTED` (`TTTT.xlsx`):
+  + Chuyển đổi cơ chế điều hướng từ `waitUntil: 'networkidle'` sang `waitUntil: 'domcontentloaded'` trên cả NestJS Backend Service và Playwright Test Script. Tránh việc bot bị block vô hạn (vượt quá 30s timeout) do các kết nối Realtime/Socket hoặc API nền của Tab 1.
+  + Cơ chế **Chuyển Tab Tức Thì (Instant Tab Switching)**: Vừa mở màn hình `/ORDERS/PNL_EXECUTED`, bot lập tức click chuyển sang Tab 2 **"Lịch sử tất toán"** thay vì đứng đợi API của Tab 1 ("Trạng thái tất toán trong phiên").
+  + Bổ sung kiểm tra trạng thái khung xương loading (`MuiSkeleton-root`, `MuiCircularProgress-root`, `MuiBackdrop-root`) và chỉ kích hoạt nút "Kết xuất" khi nút đã thoát khỏi trạng thái disabled (`not(@disabled) and not(contains(@class, 'Mui-disabled'))`).
+  + Tối ưu hóa **Fail-Safe Isolation per Report**: Bọc `try/catch` độc lập cho từng file trong vòng lặp chính. Đảm bảo nếu 1 file/màn hình bất kỳ bị sự cố UAT thì bot vẫn tiếp tục tải đầy đủ toàn bộ các file còn lại trong bộ 25 file.
+  + Tăng timeout cho nhóm file Lệnh MM dung lượng lớn (`DSL MM`, `DSLDK MM`) lên 50 giây.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts) (Tối ưu điều hướng direct URL sang `domcontentloaded`)
+- [backend/src/scripts/test_ccp_download_25_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_25_files.js) (Nâng cấp `safeNavigate`, bổ sung `MuiSkeleton-root`, chuyển tab tức thì `PNL_EXECUTED`, fail-safe isolation per screen, tăng timeout MM)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build**: `cmd /c "npm run build"` **thành công 100% (Exit code: 0)**.
+
+---
+
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER và đối chứng 100% với dữ liệu mẫu thực tế trong thư mục `Backup CCP` (25 file `.xlsx`) cùng DOM HTML thực tế từ giao diện VNCLEAR:
+  + Ánh xạ và hỗ trợ tải chính xác 25 file Excel hàng ngày của Maker từ CoreCCP VNCLEAR (Bộ 10 file Lệnh & MM, 3 file Vị thế & Lãi lỗ, 5 file Rủi ro & Ký quỹ, 2 file Tiền & Tài khoản, 5 file Hàng hóa & Hợp đồng).
+  + Tối ưu hóa chuyển tab nội bộ (In-page tab switching) giảm số lần tải lại URL từ 25 lần xuống còn 10 lần.
+  + Triển khai cơ chế Dual-Mode Date Strategy: Tải hàng ngày tự động bỏ qua điền ngày (để nguyên ngày mặc định của VNCLEAR) giúp tăng tốc vượt trội (~35s cho 25 file) và tránh lỗi lệch format ngày của MUI DatePicker; chỉ điền ngày khi có yêu cầu tra cứu quá khứ.
+  + Triển khai logic duyệt động Zero-Hardcode cho Hàng hóa & Hợp đồng: Xuất `HH.xlsx` từ bảng chính, duyệt từng dòng `UACODE` $\rightarrow$ bấm nút `Xem` $\rightarrow$ chuyển Tab `Thông tin hợp đồng` (`#tab-1`) $\rightarrow$ bấm `Kết xuất` $\rightarrow$ lưu `HĐ <UACODE>.xlsx`. Tương lai có thêm hàng hóa Nano mới bot tự động thích ứng mà không cần sửa code.
+  + Chuẩn hóa tên file: `DSQLKQ TKGD.xlsx` và `DSQLKQ TVKD.xlsx` (bỏ đuôi ngoặc đơn theo chỉ đạo của USER); `DSTKGD ACM.xlsx` (xuất tất cả tài khoản, không lọc).
+  + Cung cấp script kiểm thử độc lập `test_ccp_download_25_files.js` với cờ `--headed` để USER chủ động chạy kiểm tra trực quan.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [design_doc_1_ccp_backup.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/design_doc_1_ccp_backup.md) (Tài liệu thiết kế chi tiết v2.1)
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts) (Mở rộng `CcpReportConfig`, `DEFAULT_CCP_REPORTS` 25 file, bổ sung `downloadCommodityAndContracts` và `downloadBatch25CcpReports`)
+- [backend/src/modules/bot-engine/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/file-audit.handler.ts) (Cập nhật `REQUIRED_CCP_FILES` bao phủ đủ 25 file Excel)
+- [backend/src/scripts/test_ccp_download_25_files.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ccp_download_25_files.js) (Script test độc lập có giao diện `--headed` cho USER tự chạy)
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx) (Sửa import `useEffect`)
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Production Build**: Lệnh `cmd /c "npm run build"` (`nest build`) **thành công 100% (Exit code: 0)**.
+- **Frontend Next.js Production Build**: Lệnh `cmd /c "npm run build"` (`next build`) **thành công 100% (Exit code: 0)**, biên dịch thành công toàn bộ 25 route tĩnh và động.
+
+---
+
+
 ## [2026-09-17T15:30] REFACTOR: Phân Rã Toàn Diện ReconciliationService (6.000 dòng) Thành Kiến Trúc Modular Facade & 5 Sub-Services Độc Lập
 
 ### 1. Mục tiêu thay đổi
