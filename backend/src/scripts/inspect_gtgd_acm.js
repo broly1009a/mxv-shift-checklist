@@ -1,14 +1,21 @@
 const path = require('path');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 
-const filePath = path.resolve(__dirname, '../../../Thong ke ccp/output/Thong ke gia tri giao dich ACM 2026.xlsx');
-const wb = XLSX.readFile(filePath);
-
-for (const sName of wb.SheetNames) {
-  console.log(`\n=== Sheet: ${sName} ===`);
-  const sheet = wb.Sheets[sName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-  for (let i = 0; i < Math.min(rows.length, 25); i++) {
-    console.log(`Row ${i}:`, JSON.stringify(rows[i]));
-  }
+async function inspectGtgdAcm() {
+  const p = path.join(__dirname, '..', 'modules', 'ccp-statistics', 'inputExampleCppFull', 'review_output', 'Thong ke gia tri giao dich ACM 2026.xlsx');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(p);
+  wb.eachSheet((ws, id) => {
+    console.log(`Sheet ${id}: ${ws.name}, rowCount = ${ws.rowCount}, colCount = ${ws.columnCount}`);
+    for (let r = 1; r <= Math.min(25, ws.rowCount); r++) {
+      const row = ws.getRow(r);
+      const vals = [];
+      row.eachCell((c, col) => {
+        vals.push(`C${col}:${c.value}`);
+      });
+      if (vals.length > 0) console.log(`  Row ${r}: ${vals.join(' | ')}`);
+    }
+  });
 }
+
+inspectGtgdAcm().catch(console.error);

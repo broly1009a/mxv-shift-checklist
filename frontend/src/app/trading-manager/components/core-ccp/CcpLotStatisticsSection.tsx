@@ -118,12 +118,25 @@ export default function CcpLotStatisticsSection({
   const [result, setResult] = useState<CcpLotResultData | null>(null);
   const [accumulatorLogs, setAccumulatorLogs] = useState<string[]>([]);
 
-  // Config state
+  // Config state (Phase 1 & Phase 2 - 11 file lũy kế)
   const [showConfig, setShowConfig] = useState<boolean>(false);
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
+  const [backupPathCcp, setBackupPathCcp] = useState<string>('');
+  // Phase 1 - ACM
   const [pathAcmLot, setPathAcmLot] = useState<string>('');
   const [pathAcmGtgd, setPathAcmGtgd] = useState<string>('');
-  const [backupPathCcp, setBackupPathCcp] = useState<string>('');
+  // Phase 2 - Số Lot theo loại
+  const [pathNormalLot, setPathNormalLot] = useState<string>('');
+  const [pathSpreadLot, setPathSpreadLot] = useState<string>('');
+  const [pathLmeLot, setPathLmeLot] = useState<string>('');
+  const [pathOptionsLot, setPathOptionsLot] = useState<string>('');
+  // Phase 2 - GTGD theo loại
+  const [pathGtgdNormal, setPathGtgdNormal] = useState<string>('');
+  const [pathGtgdSpread, setPathGtgdSpread] = useState<string>('');
+  const [pathGtgdLme, setPathGtgdLme] = useState<string>('');
+  const [pathGtgdOptions, setPathGtgdOptions] = useState<string>('');
+  // Phase 2 - Raw DSGD
+  const [pathDsgdCumulative, setPathDsgdCumulative] = useState<string>('');
 
   // Table filtering & view states
   const [searchTvkd, setSearchTvkd] = useState<string>('');
@@ -149,9 +162,18 @@ export default function CcpLotStatisticsSection({
       const data = await res.json();
       const cfg = data?.data || data;
       if (cfg) {
+        setBackupPathCcp(cfg.bot_backup_path_ccp || '');
         setPathAcmLot(cfg.pathAcmLot || cfg.pathAcmCumulative || '');
         setPathAcmGtgd(cfg.pathAcmGtgd || cfg.pathGtgdAcm || '');
-        setBackupPathCcp(cfg.bot_backup_path_ccp || '');
+        setPathNormalLot(cfg.pathNormalLot || cfg.pathNormalCumulative || '');
+        setPathSpreadLot(cfg.pathSpreadLot || cfg.pathSpreadCumulative || '');
+        setPathLmeLot(cfg.pathLmeLot || cfg.pathLmeCumulative || '');
+        setPathOptionsLot(cfg.pathOptionsLot || cfg.pathOptionsCumulative || '');
+        setPathGtgdNormal(cfg.pathGtgdNormal || '');
+        setPathGtgdSpread(cfg.pathGtgdSpread || '');
+        setPathGtgdLme(cfg.pathGtgdLme || '');
+        setPathGtgdOptions(cfg.pathGtgdOptions || '');
+        setPathDsgdCumulative(cfg.pathDsgdCumulative || '');
       }
     } catch (err) {
       console.warn('Lỗi tải cấu hình file lũy kế:', err);
@@ -201,11 +223,24 @@ export default function CcpLotStatisticsSection({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          bot_backup_path_ccp: backupPathCcp,
           pathAcmLot,
           pathAcmGtgd,
           pathAcmCumulative: pathAcmLot,
           pathGtgdAcm: pathAcmGtgd,
-          bot_backup_path_ccp: backupPathCcp,
+          pathNormalLot,
+          pathNormalCumulative: pathNormalLot,
+          pathSpreadLot,
+          pathSpreadCumulative: pathSpreadLot,
+          pathLmeLot,
+          pathLmeCumulative: pathLmeLot,
+          pathOptionsLot,
+          pathOptionsCumulative: pathOptionsLot,
+          pathGtgdNormal,
+          pathGtgdSpread,
+          pathGtgdLme,
+          pathGtgdOptions,
+          pathDsgdCumulative,
         }),
       });
       const data = await res.json();
@@ -1083,32 +1118,101 @@ export default function CcpLotStatisticsSection({
                 ]}
               />
 
+              {/* ── Nhóm 1: File ACM (Phase 1) ── */}
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#10b981', marginTop: '4px' }}>
+                1. Nhóm File Lũy Kế ACM (Nano):
+              </div>
               <SmartPathInput
                 value={pathAcmLot}
                 onChange={setPathAcmLot}
-                label="File lũy kế Số Lot ACM (pathAcmLot):"
+                label="File Số Lot ACM (pathAcmLot):"
                 placeholder="M:\...\Thong ke so lot giao dich ACM ${YYYY}.xlsx"
                 targetType="file"
-                presets={[
-                  {
-                    name: 'File Lot ACM (${YYYY})',
-                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\Thong ke so lot giao dich ACM ${YYYY}.xlsx',
-                  },
-                ]}
               />
-
               <SmartPathInput
                 value={pathAcmGtgd}
                 onChange={setPathAcmGtgd}
-                label="File lũy kế Giá Trị Giao Dịch ACM (pathAcmGtgd):"
+                label="File Giá Trị Giao Dịch ACM (pathAcmGtgd):"
                 placeholder="M:\...\Thong ke gia tri giao dich ACM ${YYYY}.xlsx"
                 targetType="file"
-                presets={[
-                  {
-                    name: 'File GTGD ACM (${YYYY})',
-                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx',
-                  },
-                ]}
+              />
+
+              {/* ── Nhóm 2: Số Lot Theo Phân Hệ (Phase 2) ── */}
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#3b82f6', marginTop: '8px' }}>
+                2. Nhóm File Lũy Kế Số Lot Theo Phân Hệ (Phase 2):
+              </div>
+              <SmartPathInput
+                value={pathNormalLot}
+                onChange={setPathNormalLot}
+                label="File Số Lot Futures Thường (pathNormalLot):"
+                placeholder="M:\...\Thong ke so lot giao dich ${YYYY}.xlsx"
+                targetType="file"
+              />
+              <SmartPathInput
+                value={pathSpreadLot}
+                onChange={setPathSpreadLot}
+                label="File Số Lot Spread (pathSpreadLot):"
+                placeholder="M:\...\Thong ke so lot giao dich Spread ${YYYY}.xlsx"
+                targetType="file"
+              />
+              <SmartPathInput
+                value={pathLmeLot}
+                onChange={setPathLmeLot}
+                label="File Số Lot LME (pathLmeLot):"
+                placeholder="M:\...\Thong ke so lot giao dich LME ${YYYY}.xlsx"
+                targetType="file"
+              />
+              <SmartPathInput
+                value={pathOptionsLot}
+                onChange={setPathOptionsLot}
+                label="File Số Lot Options (pathOptionsLot):"
+                placeholder="M:\...\Thong ke so lot giao dich Options ${YYYY}.xlsx"
+                targetType="file"
+              />
+
+              {/* ── Nhóm 3: Giá Trị Giao Dịch Theo Phân Hệ (Phase 2) ── */}
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f59e0b', marginTop: '8px' }}>
+                3. Nhóm File Lũy Kế Giá Trị Giao Dịch (GTGD VND - Phase 2):
+              </div>
+              <SmartPathInput
+                value={pathGtgdNormal}
+                onChange={setPathGtgdNormal}
+                label="File GTGD Thường (pathGtgdNormal):"
+                placeholder="M:\...\Thong ke gia tri giao dich ${YYYY}.xlsx"
+                targetType="file"
+              />
+              <SmartPathInput
+                value={pathGtgdSpread}
+                onChange={setPathGtgdSpread}
+                label="File GTGD Spread (pathGtgdSpread):"
+                placeholder="M:\...\Thong ke gia tri giao dich Spread ${YYYY}.xlsx"
+                targetType="file"
+              />
+              <SmartPathInput
+                value={pathGtgdLme}
+                onChange={setPathGtgdLme}
+                label="File GTGD LME (pathGtgdLme):"
+                placeholder="M:\...\Thong ke gia tri giao dich LME ${YYYY}.xlsx"
+                targetType="file"
+              />
+              <SmartPathInput
+                value={pathGtgdOptions}
+                onChange={setPathGtgdOptions}
+                label="File GTGD Options (pathGtgdOptions):"
+                placeholder="M:\...\Thong ke gia tri giao dich Options ${YYYY}.xlsx"
+                targetType="file"
+              />
+
+              {/* ── Nhóm 4: Sổ Giao Dịch Thô Lũy Kế ── */}
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#8b5cf6', marginTop: '8px' }}>
+                4. File Sổ Giao Dịch Gốc Lũy Kế Tháng (Raw DSGD):
+              </div>
+              <SmartPathInput
+                value={pathDsgdCumulative}
+                onChange={setPathDsgdCumulative}
+                label="File DSGD CCP Lũy Kế Tháng (pathDsgdCumulative):"
+                placeholder="M:\...\DSGD T${MM}.${YYYY} CCP.xlsx"
+                targetType="file"
               />
             </div>
           </div>

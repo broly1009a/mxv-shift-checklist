@@ -26,6 +26,7 @@ import {
   parseCcpTtmRow,
   parseCcpTtttRow,
   buildCcpHeaderMap,
+  resolveColIdx,
   classifyCcpDsgd,
   getMaHHFromCcpMaHD,
   getCcpHhSpec,
@@ -39,6 +40,9 @@ import {
 import {
   writeCcpLotToAccumulator,
   writeCcpGtgdToAccumulator,
+  writeCcpTypedLotToAccumulator,
+  writeCcpTypedValueToAccumulator,
+  appendCcpRawDsgd,
   CcpAccumulatorPaths,
 } from './helpers/ccp-accumulator.helper';
 import {
@@ -67,7 +71,8 @@ export interface CcpDailyScanResult {
     dsgd?: CcpDailyFileInfo;
     ttm?: CcpDailyFileInfo;
     tttt?: CcpDailyFileInfo;
-    tyGia?: CcpDailyFileInfo;
+    tyGia?: CcpDailyFileInfo & { fromDate?: string };
+    maHD?: CcpDailyFileInfo & { fromDate?: string };
   };
 }
 
@@ -116,10 +121,21 @@ export interface CcpLotResult {
   totalTtttLot: number;  // TTTT: tổng lot tất toán (mua + bán)
   // Phân loại (phase 2: khi có Spread/LME/Options)
   acmLot: number;
-  spreadLot: number; // future
-  lmeLot: number;    // future
-  optionsLot: number; // future
-  normalLot: number;  // future
+  spreadLot: number;
+  lmeLot: number;
+  optionsLot: number;
+  normalLot: number;
+  bacThoiLot?: number;
+  bacThoiGtgd?: number;
+  // Thống kê phân hệ độc lập (Phase 2)
+  byType?: {
+    acm: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    normal: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    spread: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    lme: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    options: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    bacThoi?: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number; isStandby: boolean };
+  };
   // Metadata
   tyGiaUsed: CcpTyGiaMap;
   warnings: string[];
@@ -131,6 +147,7 @@ export interface CcpLotInput {
   ttm?: Buffer;              // optional
   tttt?: Buffer;             // optional
   tyGia?: Buffer;            // optional – file Tỷ giá.xlsx từ CCP
+  maHD?: Buffer;             // optional – file Mã HĐ CCP / Hàng hóa (/PRODUCT/COMMODITY)
 }
 
 export interface CcpLotParams {
@@ -180,6 +197,17 @@ export class CcpLotStatisticsService {
     // VND luôn = 1
     tyGiaMap['VND'] = tyGiaMap['VND'] ?? 1;
 
+    // ── 1B. Parse file Mã HĐ / Quy chuẩn Hàng hóa CCP (doCao) ──────────────
+    if (files.maHD) {
+      try {
+        const parsedSpecs = this.parseCcpCommoditySpecFile(files.maHD);
+        this.logger.log(`[CCP] Đọc thành công ${parsedSpecs.length} quy chuẩn hàng hóa (doCao) từ file CCP`);
+        params.hhOverrides = [...(params.hhOverrides ?? []), ...parsedSpecs];
+      } catch (err: any) {
+        this.logger.warn(`[CCP] Không thể bóc tách file Mã HĐ CCP: ${err.message}`);
+      }
+    }
+
     // ── 2. Parse file DSGD ────────────────────────────────────────────────
     const dsgdParsed = this.parseRawRowsWithHeaders(files.dsgdCcp);
     const dsgdHeaderMap = buildCcpHeaderMap(dsgdParsed.headers);
@@ -212,17 +240,64 @@ export class CcpLotStatisticsService {
 
     // ── 4. Phân loại DSGD ─────────────────────────────────────────────────
     const classified = classifyCcpDsgd(allDsgd);
+    const bacThoiRows = classified.bacThoi || [];
+    const hasBacThoi = bacThoiRows.length > 0;
+    const bacThoiLot = this.sumLot(bacThoiRows);
+    const bacThoiGtgd = this.calcGtgd(bacThoiRows, tyGiaMap, params);
+
     this.logger.debug(
-      `[CCP] Phân loại: ACM=${classified.acm.length}, Spread=${classified.spread.length}, LME=${classified.lme.length}, Normal=${classified.normal.length}`,
+      `[CCP] Phân loại: ACM=${classified.acm.length}, Spread=${classified.spread.length}, LME=${classified.lme.length}, BacThoi=${bacThoiRows.length}, Normal=${classified.normal.length}`,
     );
     if (classified.spread.length > 0 || classified.lme.length > 0 || classified.normal.length > 0) {
       warnings.push(
         `Phát hiện tài khoản non-ACM: Spread=${classified.spread.length}, LME=${classified.lme.length}, Normal=${classified.normal.length} – Phase 2 support.`,
       );
     }
+    if (hasBacThoi) {
+      const msg = `[CCP STANDBY] Phát hiện ${bacThoiRows.length} giao dịch tài khoản Bạc thỏi (-M) với ${bacThoiLot} lot, GTGD: ${bacThoiGtgd.toLocaleString('vi-VN')} VND. Tạm thời tách riêng lưu vào Database (MongoDB) & File audit Standby (chưa ghi vào file Sổ thường).`;
+      warnings.push(msg);
+      jobLogs?.push(msg);
+      this.logger.warn(msg);
+    }
 
-    // ── 5. Tính toán per TVKD ─────────────────────────────────────────────
+    // ── 5. Tính toán per TVKD & Phân hệ độc lập (Phase 2) ────────────────
     const byTvkd = this.calcPerTvkd(allDsgd, ttmRows, ttttRows, tyGiaMap, params, warnings);
+
+    const byType = {
+      acm: {
+        byTvkd: this.calcPerTvkd(classified.acm, ttmRows, ttttRows, tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.acm),
+        totalGiaTri: this.calcGtgd(classified.acm, tyGiaMap, params),
+      },
+      normal: {
+        byTvkd: this.calcPerTvkd(classified.normal, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.normal),
+        totalGiaTri: this.calcGtgd(classified.normal, tyGiaMap, params),
+      },
+      spread: {
+        byTvkd: this.calcPerTvkd(classified.spread, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.spread),
+        totalGiaTri: this.calcGtgd(classified.spread, tyGiaMap, params),
+      },
+      lme: {
+        byTvkd: this.calcPerTvkd(classified.lme, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.lme),
+        totalGiaTri: this.calcGtgd(classified.lme, tyGiaMap, params),
+      },
+      options: {
+        byTvkd: this.calcPerTvkd(classified.options, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.options),
+        totalGiaTri: this.calcGtgd(classified.options, tyGiaMap, params),
+      },
+      bacThoi: hasBacThoi
+        ? {
+            byTvkd: this.calcPerTvkd(bacThoiRows, [], [], tyGiaMap, params, []),
+            totalSoLot: bacThoiLot,
+            totalGiaTri: bacThoiGtgd,
+            isStandby: true,
+          }
+        : undefined,
+    };
 
     // ── 6. Tổng hợp ───────────────────────────────────────────────────────
     const totalSoLot = byTvkd.reduce((s, r) => s + r.soLot, 0);
@@ -234,6 +309,7 @@ export class CcpLotStatisticsService {
     const result: CcpLotResult = {
       ngayGD,
       byTvkd,
+      byType,
       totalSoLot,
       totalGiaTri,
       totalTtmMua,
@@ -246,6 +322,8 @@ export class CcpLotStatisticsService {
       lmeLot: this.sumLot(classified.lme),
       optionsLot: this.sumLot(classified.options),
       normalLot: this.sumLot(classified.normal),
+      bacThoiLot,
+      bacThoiGtgd,
       tyGiaUsed: tyGiaMap,
       warnings,
     };
@@ -272,42 +350,178 @@ export class CcpLotStatisticsService {
   async writeToAccumulator(
     result: CcpLotResult,
     paths: CcpAccumulatorPaths,
+    dsgdBuffer?: Buffer,
     jobLogs?: string[],
   ): Promise<{ lotUpdated: boolean; gtgdUpdated: boolean; errors: string[] }> {
     const errors: string[] = [];
     let lotUpdated = false;
     let gtgdUpdated = false;
 
-    const resolvedLotPath = paths.pathAcmLot
-      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmLot, result.ngayGD))
+    // ── 1. Phase 1: ACM Lot & GTGD (giữ nguyên tương thích) ────────────────
+    const resolvedAcmLotPath = (paths.pathAcmLot || (paths as any).pathAcmCumulative)
+      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmLot || (paths as any).pathAcmCumulative, result.ngayGD))
       : undefined;
-    const resolvedGtgdPath = paths.pathAcmGtgd
-      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd, result.ngayGD))
+    const resolvedAcmGtgdPath = (paths.pathAcmGtgd || (paths as any).pathGtgdAcm)
+      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd || (paths as any).pathGtgdAcm, result.ngayGD))
       : undefined;
 
-    if (resolvedLotPath) {
+    if (resolvedAcmLotPath) {
       try {
-        await writeCcpLotToAccumulator(result, resolvedLotPath, jobLogs);
+        await writeCcpLotToAccumulator(result, resolvedAcmLotPath, jobLogs);
         lotUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi lot vào: ${resolvedLotPath}`);
+        this.logger.log(`[CCP-ACC] Đã ghi lot ACM vào: ${resolvedAcmLotPath}`);
       } catch (err: any) {
-        const msg = `Lỗi ghi file lũy kế lot: ${err.message}`;
+        const msg = `Lỗi ghi file lũy kế lot ACM: ${err.message}`;
         errors.push(msg);
         this.logger.error(msg);
         jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
       }
     }
 
-    if (resolvedGtgdPath) {
+    if (resolvedAcmGtgdPath) {
       try {
-        await writeCcpGtgdToAccumulator(result, resolvedGtgdPath, jobLogs);
+        await writeCcpGtgdToAccumulator(result, resolvedAcmGtgdPath, jobLogs);
         gtgdUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi GTGD vào: ${resolvedGtgdPath}`);
+        this.logger.log(`[CCP-ACC] Đã ghi GTGD ACM vào: ${resolvedAcmGtgdPath}`);
       } catch (err: any) {
-        const msg = `Lỗi ghi file lũy kế GTGD: ${err.message}`;
+        const msg = `Lỗi ghi file lũy kế GTGD ACM: ${err.message}`;
         errors.push(msg);
         this.logger.error(msg);
         jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 2. Phase 2: Số Lot theo phân hệ (Normal, Spread, LME, Options) ─────
+    const typedLots: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
+      { key: 'NormalLot', rawPath: paths.pathNormalLot || (paths as any).pathNormalCumulative, type: 'normal' },
+      { key: 'SpreadLot', rawPath: paths.pathSpreadLot || (paths as any).pathSpreadCumulative, type: 'spread' },
+      { key: 'LmeLot',    rawPath: paths.pathLmeLot || (paths as any).pathLmeCumulative,       type: 'lme' },
+      { key: 'OptionsLot',rawPath: paths.pathOptionsLot || (paths as any).pathOptionsCumulative, type: 'options' },
+    ];
+
+    for (const { key, rawPath, type } of typedLots) {
+      if (!rawPath) continue;
+
+      // Zero-Lot Bypass: Nếu phân hệ này không có lot phát sinh (totalSoLot === 0),
+      // tự động bỏ qua (Skip), không mở và không ghi đè số 0 vào file Excel lũy kế.
+      const typeStats = (result as any).byType?.[type];
+      if (!typeStats || typeStats.totalSoLot <= 0) {
+        this.logger.debug(`[CCP-ACC] Bỏ qua ghi lot ${key}: 0 lot phát sinh.`);
+        continue;
+      }
+
+      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+      try {
+        await writeCcpTypedLotToAccumulator(result, resolved, type, jobLogs);
+        lotUpdated = true;
+        this.logger.log(`[CCP-ACC] Đã ghi lot ${key} vào: ${resolved}`);
+      } catch (err: any) {
+        const msg = `Lỗi ghi file lũy kế lot ${key}: ${err.message}`;
+        errors.push(msg);
+        this.logger.error(msg);
+        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 3. Phase 2: GTGD theo phân hệ (Normal, Spread, LME, Options) ───────
+    const typedGtgd: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
+      { key: 'GtgdNormal',  rawPath: paths.pathGtgdNormal,  type: 'normal' },
+      { key: 'GtgdSpread',  rawPath: paths.pathGtgdSpread,  type: 'spread' },
+      { key: 'GtgdLme',     rawPath: paths.pathGtgdLme,     type: 'lme' },
+      { key: 'GtgdOptions', rawPath: paths.pathGtgdOptions, type: 'options' },
+    ];
+
+    for (const { key, rawPath, type } of typedGtgd) {
+      if (!rawPath) continue;
+
+      // Zero-Lot Bypass: Nếu phân hệ này không có GTGD phát sinh, tự động bỏ qua.
+      const typeStats = (result as any).byType?.[type];
+      if (!typeStats || typeStats.totalGiaTri <= 0) {
+        this.logger.debug(`[CCP-ACC] Bỏ qua ghi GTGD ${key}: 0 VND phát sinh.`);
+        continue;
+      }
+
+      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+      try {
+        await writeCcpTypedValueToAccumulator(result, resolved, type, jobLogs);
+        gtgdUpdated = true;
+        this.logger.log(`[CCP-ACC] Đã ghi GTGD ${key} vào: ${resolved}`);
+      } catch (err: any) {
+        const msg = `Lỗi ghi file lũy kế GTGD ${key}: ${err.message}`;
+        errors.push(msg);
+        this.logger.error(msg);
+        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 4. Phase 2: Raw DSGD Lũy Kế ───────────────────────────────────────
+    if (paths.pathDsgdCumulative && dsgdBuffer) {
+      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathDsgdCumulative, result.ngayGD));
+      try {
+        await appendCcpRawDsgd(dsgdBuffer, resolved, result.ngayGD, jobLogs);
+        this.logger.log(`[CCP-ACC] Đã ghi lũy kế DSGD Raw vào: ${resolved}`);
+      } catch (err: any) {
+        const msg = `Lỗi ghi file raw DSGD lũy kế: ${err.message}`;
+        errors.push(msg);
+        this.logger.error(msg);
+        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 5. Standby: Ghi File Audit Bạc Thỏi (-M) nếu phát sinh giao dịch ──
+    const bacThoiData = (result as any).byType?.bacThoi;
+    if (bacThoiData && bacThoiData.totalSoLot > 0) {
+      try {
+        const anyRefPath =
+          paths.pathNormalLot ||
+          (paths as any).pathNormalCumulative ||
+          paths.pathAcmLot ||
+          (paths as any).pathAcmCumulative ||
+          paths.pathDsgdCumulative;
+        if (anyRefPath) {
+          const resolvedRef = resolveStoragePathCrossPlatform(
+            resolveDynamicPath(anyRefPath, result.ngayGD),
+          );
+          const targetDir = path.dirname(resolvedRef);
+          if (fs.existsSync(targetDir)) {
+            const dateStr =
+              result.ngayGD instanceof Date
+                ? `${result.ngayGD.getFullYear()}${String(result.ngayGD.getMonth() + 1).padStart(2, '0')}${String(result.ngayGD.getDate()).padStart(2, '0')}`
+                : String(result.ngayGD).replace(/[^0-9]/g, '').slice(0, 8);
+            const auditFilePath = path.join(targetDir, `Standby_Bac_Thoi_${dateStr}.txt`);
+
+            const lines: string[] = [
+              '================================================================================',
+              'BÁO CÁO KIỂM TOÁN TÀI KHOẢN BẠC THỎI NIÊM YẾT (-M) [CHẾ ĐỘ STANDBY]',
+              `Ngày giao dịch: ${result.ngayGD instanceof Date ? result.ngayGD.toLocaleDateString('vi-VN') : result.ngayGD}`,
+              `Thời gian hệ thống ghi nhận: ${new Date().toLocaleString('vi-VN')}`,
+              'Trạng thái: Chờ quyết định chính thức từ MXV về việc tách sổ riêng hay gộp vào Sổ thường.',
+              '--------------------------------------------------------------------------------',
+              `TỔNG SỐ LOT BẠC THỎI: ${bacThoiData.totalSoLot} lot`,
+              `TỔNG GIÁ TRỊ GIAO DỊCH: ${bacThoiData.totalGiaTri.toLocaleString('vi-VN')} VND`,
+              '--------------------------------------------------------------------------------',
+              'CHI TIẾT THEO THÀNH VIÊN KINH DOANH (TVKD):',
+            ];
+
+            for (const tvkd of bacThoiData.byTvkd || []) {
+              lines.push(
+                `- TVKD ${tvkd.tvkd} (${tvkd.tenThanhVien || 'N/A'}): ${tvkd.soLot} lot | ${tvkd.giaTri.toLocaleString('vi-VN')} VND`,
+              );
+              for (const hh of tvkd.byHH || []) {
+                lines.push(
+                  `    + Mã hàng: ${hh.maHH} - Số lot: ${hh.soLot} - GTGD: ${hh.giaTri.toLocaleString('vi-VN')} VND`,
+                );
+              }
+            }
+            lines.push('================================================================================');
+
+            fs.writeFileSync(auditFilePath, lines.join('\n'), 'utf-8');
+            this.logger.log(`[CCP-STANDBY] Đã ghi file audit Bạc thỏi (-M) vào: ${auditFilePath}`);
+            jobLogs?.push(`[CCP-STANDBY] Đã xuất file audit Bạc thỏi (-M): ${path.basename(auditFilePath)}`);
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[CCP-STANDBY] Không thể ghi file audit Bạc thỏi: ${err.message}`);
       }
     }
 
@@ -327,26 +541,51 @@ export class CcpLotStatisticsService {
     try {
       const p = JSON.parse(raw);
       return {
-        pathAcmCumulative: p.pathAcmCumulative || '',
-        pathNormalCumulative: p.pathNormalCumulative || '',
-        pathSpreadCumulative: p.pathSpreadCumulative || '',
-        pathLmeCumulative: p.pathLmeCumulative || '',
-        pathOptionsCumulative: p.pathOptionsCumulative || '',
-        pathGtgdAcm: p.pathGtgdAcm || '',
+        // Phase 1
+        pathAcmLot: p.pathAcmLot || p.pathAcmCumulative || '',
+        pathAcmGtgd: p.pathAcmGtgd || p.pathGtgdAcm || '',
+        pathAcmCumulative: p.pathAcmCumulative || p.pathAcmLot || '',
+        pathGtgdAcm: p.pathGtgdAcm || p.pathAcmGtgd || '',
+        // Phase 2 - Số Lot
+        pathNormalLot: p.pathNormalLot || p.pathNormalCumulative || '',
+        pathSpreadLot: p.pathSpreadLot || p.pathSpreadCumulative || '',
+        pathLmeLot: p.pathLmeLot || p.pathLmeCumulative || '',
+        pathOptionsLot: p.pathOptionsLot || p.pathOptionsCumulative || '',
+        pathNormalCumulative: p.pathNormalCumulative || p.pathNormalLot || '',
+        pathSpreadCumulative: p.pathSpreadCumulative || p.pathSpreadLot || '',
+        pathLmeCumulative: p.pathLmeCumulative || p.pathLmeLot || '',
+        pathOptionsCumulative: p.pathOptionsCumulative || p.pathOptionsLot || '',
+        // Phase 2 - Raw DSGD
+        pathDsgdCumulative: p.pathDsgdCumulative || '',
+        // Phase 2 - GTGD
         pathGtgdNormal: p.pathGtgdNormal || '',
+        pathGtgdSpread: p.pathGtgdSpread || '',
+        pathGtgdLme: p.pathGtgdLme || '',
+        pathGtgdOptions: p.pathGtgdOptions || '',
+        // Cấu hình chung
         ccpApiBaseUrl: p.ccpApiBaseUrl || '',
         updateCumulative: p.updateCumulative === true || p.updateCumulative === 'true',
         bot_backup_path_ccp: ccpBackupPath,
       };
     } catch {
       return {
+        pathAcmLot: '',
+        pathAcmGtgd: '',
         pathAcmCumulative: '',
+        pathGtgdAcm: '',
+        pathNormalLot: '',
+        pathSpreadLot: '',
+        pathLmeLot: '',
+        pathOptionsLot: '',
         pathNormalCumulative: '',
         pathSpreadCumulative: '',
         pathLmeCumulative: '',
         pathOptionsCumulative: '',
-        pathGtgdAcm: '',
+        pathDsgdCumulative: '',
         pathGtgdNormal: '',
+        pathGtgdSpread: '',
+        pathGtgdLme: '',
+        pathGtgdOptions: '',
         ccpApiBaseUrl: '',
         updateCumulative: false,
         bot_backup_path_ccp: ccpBackupPath,
@@ -587,6 +826,46 @@ export class CcpLotStatisticsService {
   }
 
   /**
+   * Parse file Mã Hàng hóa / Hợp đồng CCP (xuất từ /PRODUCT/COMMODITY).
+   *
+   * Cấu trúc file (đã xác nhận từ file mẫu Mã HĐ CCP_14_06.xlsx):
+   *   col[1] = Mã hàng hóa (PL1NY, CP2CO, SI5CO, SIV...)
+   *   col[5] = Tên hàng hóa tiếng Việt
+   *   col[7] = Độ lớn hợp đồng (5, 1000, 100, 1200...) -> chính là doCao
+   *   col[8] = Đơn vị đo lường (Pound, kg, Lô...)
+   *   col[14] = Tiền tệ (USD, VND...)
+   */
+  parseCcpCommoditySpecFile(buffer: Buffer): CcpHhSpec[] {
+    const { headers, rows } = this.parseRawRowsWithHeaders(buffer);
+    const headerMap = buildCcpHeaderMap(headers);
+
+    const idxMaHH = resolveColIdx(headerMap, ['mahanghoa', 'mahh', 'symbol'], 1);
+    const idxTenHH = resolveColIdx(headerMap, ['tenhanghoatiengviet', 'tenhh', 'name'], 5);
+    const idxDoCao = resolveColIdx(headerMap, ['dolonhopdong', 'docao', 'multiplier', 'contractsize'], 7);
+    const idxDonVi = resolveColIdx(headerMap, ['donvidoluong', 'donvi', 'unit'], 8);
+    const idxTienTe = resolveColIdx(headerMap, ['tiente', 'currency'], 14);
+
+    const specs: CcpHhSpec[] = [];
+    for (const row of rows) {
+      const maHH = String(row[idxMaHH] ?? '').trim().toUpperCase();
+      if (!maHH) continue;
+      const doCao = parseFloat(String(row[idxDoCao] ?? '1').replace(/,/g, ''));
+      const tienTe = String(row[idxTienTe] ?? 'USD').trim().toUpperCase() || 'USD';
+      const tenHH = String(row[idxTenHH] ?? maHH).trim();
+      const donVi = String(row[idxDonVi] ?? '').trim();
+
+      specs.push({
+        maHH,
+        tenHH,
+        doCao: isNaN(doCao) || doCao <= 0 ? 1 : doCao,
+        donVi,
+        tienTe,
+      });
+    }
+    return specs;
+  }
+
+  /**
    * Lấy tỷ giá từ API CCP: GET {baseUrl}/SYSCONFIGMNG/CURRENCYEXCHANGERATE
    * Trả về map { 'USD': 25920, 'JPY': 170, ... }
    *
@@ -630,9 +909,11 @@ export class CcpLotStatisticsService {
 
     let targetFolder = '';
     let candidateFolders: string[] = [];
+    let dateObj = new Date();
 
     try {
-      const { dateObj } = resolveBotTargetDate({ targetDate: dateStr });
+      const resolved = resolveBotTargetDate({ targetDate: dateStr });
+      dateObj = resolved.dateObj;
       const ccpSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(ccpBaseRaw), dateObj);
       const msSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(msBaseRaw), dateObj);
       candidateFolders = [ccpSub.fullPath, msSub.fullPath];
@@ -732,12 +1013,67 @@ export class CcpLotStatisticsService {
         /^PNL_EXECUTED.*\.csv$/i,
       ]);
 
-      // 4. Tỷ giá (tùy chọn)
+      // 4. Tỷ giá (tùy chọn) - ưu tiên ngày hiện tại
       result.files.tyGia = findFile([
         /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i,
         /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xls$/i,
         /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.csv$/i,
       ]);
+
+      // Nếu ngày hiện tại chưa có file tỷ giá -> Quét tìm file tỷ giá gần nhất từ các ngày trước
+      if (!result.files.tyGia) {
+        for (const candidateFolder of candidateFolders) {
+          const baseFolder = path.dirname(candidateFolder);
+          const nearestTyGia = this.findLatestFileInHistory(
+            baseFolder,
+            dateObj,
+            [
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xls$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.csv$/i,
+            ],
+            30,
+          );
+          if (nearestTyGia) {
+            result.files.tyGia = nearestTyGia;
+            this.logger.log(
+              `[CCP] Ngày ${dateStr} chưa có file tỷ giá, tự động sử dụng tỷ giá gần nhất từ ngày ${nearestTyGia.fromDate} (${nearestTyGia.filename})`,
+            );
+            break;
+          }
+        }
+      }
+
+      // 5. Mã HĐ / Quy chuẩn Hàng hóa doCao (tùy chọn) - ưu tiên ngày hiện tại
+      result.files.maHD = findFile([
+        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xlsx$/i,
+        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xls$/i,
+        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.csv$/i,
+      ]);
+
+      // Nếu ngày hiện tại chưa có file Mã HĐ -> Quét tìm file Mã HĐ gần nhất từ các ngày trước
+      if (!result.files.maHD) {
+        for (const candidateFolder of candidateFolders) {
+          const baseFolder = path.dirname(candidateFolder);
+          const nearestMaHD = this.findLatestFileInHistory(
+            baseFolder,
+            dateObj,
+            [
+              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xlsx$/i,
+              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xls$/i,
+              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.csv$/i,
+            ],
+            60,
+          );
+          if (nearestMaHD) {
+            result.files.maHD = nearestMaHD;
+            this.logger.log(
+              `[CCP] Tự động sử dụng file quy chuẩn hàng hóa (doCao) gần nhất từ ngày ${nearestMaHD.fromDate} (${nearestMaHD.filename})`,
+            );
+            break;
+          }
+        }
+      }
 
       result.canProcess = !!result.files.dsgd?.present;
     } catch (err: any) {
@@ -745,6 +1081,49 @@ export class CcpLotStatisticsService {
     }
 
     return result;
+  }
+
+  /**
+   * Quét lùi về các ngày trước đó (tối đa maxDays ngày) để tìm file gần nhất
+   * (áp dụng cho Tỷ giá và Mã HĐ / Độ lớn hợp đồng khi ngày hiện tại chưa có file mới).
+   */
+  private findLatestFileInHistory(
+    baseDir: string,
+    targetDate: Date,
+    patterns: RegExp[],
+    maxDays = 30,
+  ): (CcpDailyFileInfo & { fromDate?: string }) | undefined {
+    if (!fs.existsSync(baseDir)) return undefined;
+
+    for (let dayOffset = 1; dayOffset <= maxDays; dayOffset++) {
+      const prevDate = new Date(targetDate);
+      prevDate.setDate(prevDate.getDate() - dayOffset);
+
+      try {
+        const sub = resolveDailySubfolder(baseDir, prevDate);
+        if (fs.existsSync(sub.fullPath)) {
+          const files = fs.readdirSync(sub.fullPath);
+          for (const pattern of patterns) {
+            const match = files.find((f) => pattern.test(f));
+            if (match) {
+              const fpath = path.join(sub.fullPath, match);
+              const stat = fs.statSync(fpath);
+              const dStr = prevDate.toISOString().slice(0, 10);
+              return {
+                present: true,
+                filename: match,
+                size: stat.size,
+                path: fpath,
+                fromDate: dStr,
+              };
+            }
+          }
+        }
+      } catch {
+        // continue
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -764,9 +1143,10 @@ export class CcpLotStatisticsService {
     const ttm = scan.files.ttm?.path ? fs.readFileSync(scan.files.ttm.path) : undefined;
     const tttt = scan.files.tttt?.path ? fs.readFileSync(scan.files.tttt.path) : undefined;
     const tyGia = scan.files.tyGia?.path ? fs.readFileSync(scan.files.tyGia.path) : undefined;
+    const maHD = scan.files.maHD?.path ? fs.readFileSync(scan.files.maHD.path) : undefined;
 
     return this.processCcpLotStatistics(
-      { dsgdCcp, ttm, tttt, tyGia },
+      { dsgdCcp, ttm, tttt, tyGia, maHD },
       { ngayGD: dateStr },
     );
   }

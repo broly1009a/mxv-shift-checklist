@@ -253,6 +253,15 @@ export class CcpStatisticsController {
       result: any;         // CcpLotResult (serialized)
       pathAcmLot?: string;
       pathAcmGtgd?: string;
+      pathNormalLot?: string;
+      pathSpreadLot?: string;
+      pathLmeLot?: string;
+      pathOptionsLot?: string;
+      pathDsgdCumulative?: string;
+      pathGtgdNormal?: string;
+      pathGtgdSpread?: string;
+      pathGtgdLme?: string;
+      pathGtgdOptions?: string;
     },
   ) {
     if (!body?.result) {
@@ -262,19 +271,25 @@ export class CcpStatisticsController {
       );
     }
 
-    // Lấy paths: uu tiên từ body, fallback sang config trong DB
-    let pathAcmLot = body.pathAcmLot;
-    let pathAcmGtgd = body.pathAcmGtgd;
+    const config = await this.ccpLotStatisticsService.getConfig();
+    const paths = {
+      pathAcmLot: body.pathAcmLot || config.pathAcmLot || config.pathAcmCumulative || '',
+      pathAcmGtgd: body.pathAcmGtgd || config.pathAcmGtgd || config.pathGtgdAcm || '',
+      pathNormalLot: body.pathNormalLot || config.pathNormalLot || config.pathNormalCumulative || '',
+      pathSpreadLot: body.pathSpreadLot || config.pathSpreadLot || config.pathSpreadCumulative || '',
+      pathLmeLot: body.pathLmeLot || config.pathLmeLot || config.pathLmeCumulative || '',
+      pathOptionsLot: body.pathOptionsLot || config.pathOptionsLot || config.pathOptionsCumulative || '',
+      pathDsgdCumulative: body.pathDsgdCumulative || config.pathDsgdCumulative || '',
+      pathGtgdNormal: body.pathGtgdNormal || config.pathGtgdNormal || '',
+      pathGtgdSpread: body.pathGtgdSpread || config.pathGtgdSpread || '',
+      pathGtgdLme: body.pathGtgdLme || config.pathGtgdLme || '',
+      pathGtgdOptions: body.pathGtgdOptions || config.pathGtgdOptions || '',
+    };
 
-    if (!pathAcmLot || !pathAcmGtgd) {
-      const config = await this.ccpLotStatisticsService.getConfig();
-      pathAcmLot = pathAcmLot || config.pathAcmCumulative || '';
-      pathAcmGtgd = pathAcmGtgd || config.pathGtgdAcm || '';
-    }
-
-    if (!pathAcmLot && !pathAcmGtgd) {
+    const hasAnyPath = Object.values(paths).some((p) => p && String(p).trim().length > 0);
+    if (!hasAnyPath) {
       throw new HttpException(
-        'Chưa cấu hình đường dẫn file lũy kế (pathAcmLot / pathGtgdAcm). Vui lòng vào Cấu hình đường dẫn để thiết lập.',
+        'Chưa cấu hình bất kỳ đường dẫn file lũy kế nào. Vui lòng vào Cấu hình đường dẫn để thiết lập.',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -289,7 +304,8 @@ export class CcpStatisticsController {
     try {
       const writeResult = await this.ccpLotStatisticsService.writeToAccumulator(
         result,
-        { pathAcmLot, pathAcmGtgd },
+        paths,
+        undefined, // dsgdBuffer (nếu upload)
         jobLogs,
       );
 

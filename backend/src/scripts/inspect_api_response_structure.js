@@ -1,0 +1,39 @@
+const { Client } = require('ssh2');
+
+const conn = new Client();
+conn.on('ready', () => {
+  // Curl API trên localhost 3001 và dùng jq hoặc node parse JSON
+  const cmd = `
+    node -e "
+      const http = require('http');
+      http.get('http://127.0.0.1:3001/api/v1/reconciliation/console-summary?date=2026-09-17&jobId=6aab0b84cbae7980bc5366a8', (res) => {
+        let raw = '';
+        res.on('data', c => raw += c);
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(raw);
+            console.log('--- ROOT KEYS OF CONSOLE SUMMARY RESPONSE ---');
+            console.log(Object.keys(data));
+            console.log('--- klgd field ---');
+            console.log(JSON.stringify(data.klgd, null, 2));
+            console.log('--- intraday field ---');
+            console.log(JSON.stringify(data.intraday, null, 2));
+          } catch (e) {
+            console.error('Parse error:', e.message, raw.slice(0, 200));
+          }
+        });
+      });
+    "
+  `;
+
+  conn.exec(cmd, (err, stream) => {
+    if (err) throw err;
+    stream.on('data', d => process.stdout.write(d.toString()));
+    stream.on('close', () => conn.end());
+  });
+}).connect({
+  host: '10.0.0.26',
+  port: 22,
+  username: 'mxvadmin',
+  password: 'MxV!,#2o26',
+});
