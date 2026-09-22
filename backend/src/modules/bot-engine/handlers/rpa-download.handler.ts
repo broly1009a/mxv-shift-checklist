@@ -25,6 +25,7 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
   public getReportFileName(target: string): string {
     switch (target) {
       case 'NKTTHT':
+      case 'NKTHT':
         return 'NKTTHT.xlsx';
       case 'DSTKGD-Futures':
         return 'DSTKGD-Futures.xlsx';
@@ -38,14 +39,19 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       case 'QLTTTKGD':
         return 'QLTKGD.xlsx';
       case 'QLTKGDAmKQ':
+      case 'QLTKGD âm KQ':
+      case 'QLTTTKGDAmKQ':
         return 'QLTKGDAmKQ.xlsx';
       case 'TLKQHSKQ':
+      case 'TLQHSKQ':
         return 'TLKQHSKQ.xlsx';
       case 'NR':
         return 'NR.xlsx';
       case 'DSTrader':
         return 'DSTrader.xlsx';
       case 'Markettruoc6h':
+      case 'market truoc 6h':
+      case 'market truoc 6 h':
         return 'market truoc 6h.csv';
       case 'DSLDK':
         return 'DSLDK.xlsx';
@@ -61,6 +67,10 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         return 'TTM.xlsx';
       case 'TTTT':
         return 'TTTT.xlsx';
+      case 'TTCDH':
+        return 'TTCDH.xlsx';
+      case 'DSQLKQ':
+        return 'DSQLKQ.xlsx';
       default:
         return `${target}.xlsx`;
     }
@@ -94,6 +104,34 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const { browser, page } =
       await this.rpaDownloaderService.loginMSystem(tempDir);
 
+    const backupMsBase =
+      payload.backupPathMs ||
+      (await getMsBackupBase(this.settingsService));
+
+    let destFolder: string | null = null;
+    if (backupMsBase) {
+      const targetDate = sessionDay ? new Date(sessionDay) : new Date();
+      const year = targetDate.getFullYear().toString();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+      const subFolder = path.join(
+        year,
+        `T${month}.${year}`,
+        `${day}.${month}`,
+      );
+      destFolder = path.join(backupMsBase, subFolder);
+      if (!fs.existsSync(destFolder)) {
+        fs.mkdirSync(destFolder, { recursive: true });
+      }
+      job.logs.push(
+        `[${new Date().toISOString()}] Target Backup MS folder: ${destFolder}`,
+      );
+      await job.save();
+    }
+
+    const successfulTargets: string[] = [];
+    const failedTargets: Array<{ target: string; error: string }> = [];
+
     try {
       for (const target of targets) {
         const filename = this.getReportFileName(target);
@@ -103,128 +141,150 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         );
         await job.save();
 
-        switch (target) {
-          case 'NKTTHT':
-            await this.rpaDownloaderService.downloadNKTTHT(page, destFile);
-            break;
-          case 'DSTKGD-Futures':
-            await this.rpaDownloaderService.downloadDSTKGDFutures(
-              page,
-              destFile,
-            );
-            break;
-          case 'DSTKGD-Spread':
-            await this.rpaDownloaderService.downloadDSTKGDSpread(
-              page,
-              destFile,
-            );
-            break;
-          case 'DSTKGD-LME':
-            await this.rpaDownloaderService.downloadDSTKGDLME(page, destFile);
-            break;
-          case 'DSTKGD-ACM':
-            await this.rpaDownloaderService.downloadDSTKGDACM(page, destFile);
-            break;
-          case 'QLTKGD':
-          case 'QLTTTKGD':
-            await this.rpaDownloaderService.downloadQLTTTKGD(page, destFile);
-            break;
-          case 'QLTKGDAmKQ':
-            await this.rpaDownloaderService.downloadQLTTTKGDAmKQ(
-              page,
-              destFile,
-            );
-            break;
-          case 'TLKQHSKQ':
-            await this.rpaDownloaderService.downloadTLKQHSKQ(page, destFile);
-            break;
-          case 'NR':
-            await this.rpaDownloaderService.downloadNR(page, destFile);
-            break;
-          case 'DSTrader':
-            await this.rpaDownloaderService.downloadDSTrader(page, destFile);
-            break;
-          case 'Markettruoc6h':
-            await this.rpaDownloaderService.downloadMarkettruoc6h(
-              page,
-              destFile,
-            );
-            break;
-          case 'DSLDK':
-            await this.rpaDownloaderService.downloadDSLDK(page, destFile);
-            break;
-          case 'DSLCK':
-            await this.rpaDownloaderService.downloadDSLCK(page, destFile);
-            break;
-          case 'DSLH':
-            await this.rpaDownloaderService.downloadDSLH(page, destFile);
-            break;
-          case 'DSLK':
-            await this.rpaDownloaderService.downloadDSLK(page, destFile);
-            break;
-          case 'DSGD':
-            await this.rpaDownloaderService.downloadDSGD(
-              page,
-              destFile,
-              sessionDay,
-            );
-            break;
-          case 'TTM':
-            await this.rpaDownloaderService.downloadTTM(page, destFile);
-            break;
-          case 'TTTT':
-            await this.rpaDownloaderService.downloadTTTT(page, destFile);
-            break;
-          default:
-            this.logger.warn(`Unknown download target skipped: ${target}`);
-            job.logs.push(
-              `[${new Date().toISOString()}] Warning: Unknown download target skipped: ${target}`,
-            );
-        }
-
-        job.logs.push(
-          `[${new Date().toISOString()}] Downloaded report: ${target} successfully.`,
-        );
-        await job.save();
-      }
-
-      const backupMsBase =
-        payload.backupPathMs ||
-        (await getMsBackupBase(this.settingsService));
-
-      if (backupMsBase) {
-        const targetDate = sessionDay ? new Date(sessionDay) : new Date();
-        const year = targetDate.getFullYear().toString();
-        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const day = String(targetDate.getDate()).padStart(2, '0');
-        const subFolder = path.join(
-          year,
-          `T${month}.${year}`,
-          `${day}.${month}`,
-        );
-        const destFolder = path.join(backupMsBase, subFolder);
-
-        if (!fs.existsSync(destFolder)) {
-          fs.mkdirSync(destFolder, { recursive: true });
-        }
-
-        job.logs.push(
-          `[${new Date().toISOString()}] Copying downloaded reports to Backup MS folder: ${destFolder}`,
-        );
-        for (const target of targets) {
-          const filename = this.getReportFileName(target);
-          const srcFile = path.join(tempDir, filename);
-          if (fs.existsSync(srcFile)) {
-            const destFile = path.join(destFolder, filename);
-            fs.copyFileSync(srcFile, destFile);
-            job.logs.push(
-              `[${new Date().toISOString()}]  Copied ${filename} to ${destFile}`,
-            );
+        try {
+          switch (target) {
+            case 'NKTTHT':
+            case 'NKTHT':
+              await this.rpaDownloaderService.downloadNKTTHT(page, destFile);
+              break;
+            case 'DSTKGD-Futures':
+              await this.rpaDownloaderService.downloadDSTKGDFutures(
+                page,
+                destFile,
+              );
+              break;
+            case 'DSTKGD-Spread':
+              await this.rpaDownloaderService.downloadDSTKGDSpread(
+                page,
+                destFile,
+              );
+              break;
+            case 'DSTKGD-LME':
+              await this.rpaDownloaderService.downloadDSTKGDLME(page, destFile);
+              break;
+            case 'DSTKGD-ACM':
+              await this.rpaDownloaderService.downloadDSTKGDACM(page, destFile);
+              break;
+            case 'QLTKGD':
+            case 'QLTTTKGD':
+              await this.rpaDownloaderService.downloadQLTTTKGD(page, destFile);
+              break;
+            case 'QLTKGDAmKQ':
+            case 'QLTKGD âm KQ':
+            case 'QLTTTKGDAmKQ':
+              await this.rpaDownloaderService.downloadQLTTTKGDAmKQ(
+                page,
+                destFile,
+              );
+              break;
+            case 'TLKQHSKQ':
+            case 'TLQHSKQ':
+              await this.rpaDownloaderService.downloadTLKQHSKQ(page, destFile);
+              break;
+            case 'NR':
+              await this.rpaDownloaderService.downloadNR(page, destFile);
+              break;
+            case 'DSTrader':
+              await this.rpaDownloaderService.downloadDSTrader(page, destFile);
+              break;
+            case 'Markettruoc6h':
+            case 'market truoc 6h':
+            case 'market truoc 6 h':
+              await this.rpaDownloaderService.downloadMarkettruoc6h(
+                page,
+                destFile,
+              );
+              break;
+            case 'DSLDK':
+              await this.rpaDownloaderService.downloadDSLDK(page, destFile);
+              break;
+            case 'DSLCK':
+              await this.rpaDownloaderService.downloadDSLCK(page, destFile);
+              break;
+            case 'DSLH':
+              await this.rpaDownloaderService.downloadDSLH(page, destFile);
+              break;
+            case 'DSLK':
+              await this.rpaDownloaderService.downloadDSLK(page, destFile);
+              break;
+            case 'DSGD':
+              await this.rpaDownloaderService.downloadDSGD(
+                page,
+                destFile,
+                sessionDay,
+              );
+              break;
+            case 'TTM':
+              await this.rpaDownloaderService.downloadTTM(page, destFile);
+              break;
+            case 'TTTT':
+              await this.rpaDownloaderService.downloadTTTT(page, destFile);
+              break;
+            case 'TTCDH':
+              await this.rpaDownloaderService.downloadTTCDH(page, destFile);
+              break;
+            case 'DSQLKQ':
+              await this.rpaDownloaderService.downloadDSQLKQ(page, destFile);
+              break;
+            default:
+              this.logger.warn(`Unknown download target skipped: ${target}`);
+              job.logs.push(
+                `[${new Date().toISOString()}] Warning: Unknown download target skipped: ${target}`,
+              );
+              continue;
           }
+
+          if (fs.existsSync(destFile)) {
+            successfulTargets.push(target);
+            job.logs.push(
+              `[${new Date().toISOString()}] Downloaded report: ${target} successfully.`,
+            );
+
+            // Immediate Copy on Success: Lưu ngay vào thư mục Backup MS
+            if (destFolder) {
+              const finalBackupFile = path.join(destFolder, filename);
+              fs.copyFileSync(destFile, finalBackupFile);
+              job.logs.push(
+                `[${new Date().toISOString()}] Copied ${filename} to ${finalBackupFile}`,
+              );
+            }
+          } else {
+            throw new Error(`File ${filename} không tồn tại sau khi tải!`);
+          }
+        } catch (targetErr: any) {
+          this.logger.error(
+            `Error downloading target ${target}: ${targetErr.message}`,
+          );
+          failedTargets.push({ target, error: targetErr.message });
+          job.logs.push(
+            `[${new Date().toISOString()}] ERROR downloading ${target}: ${targetErr.message}`,
+          );
         }
+
         await job.save();
       }
-      return { tempDir };
+
+      if (failedTargets.length > 0) {
+        const failedSummary = failedTargets
+          .map((f) => `${f.target} (${f.error})`)
+          .join('; ');
+        if (successfulTargets.length === 0) {
+          throw new Error(
+            `Tải toàn bộ ${targets.length} báo cáo thất bại: ${failedSummary}`,
+          );
+        }
+        job.logs.push(
+          `[${new Date().toISOString()}] Hoàn tất ${successfulTargets.length}/${targets.length} báo cáo MS. Có ${failedTargets.length} báo cáo gặp sự cố: ${failedSummary}`,
+        );
+        await job.save();
+      } else {
+        job.logs.push(
+          `[${new Date().toISOString()}] Hoàn tất thành công toàn bộ ${successfulTargets.length}/${targets.length} báo cáo MS về thư mục Backup!`,
+        );
+        await job.save();
+      }
+
+      return { tempDir, successfulTargets, failedTargets };
     } finally {
       this.logger.log('Closing Playwright browser context.');
       await browser.close().catch((err) => {

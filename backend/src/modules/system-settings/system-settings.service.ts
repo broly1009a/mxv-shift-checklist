@@ -327,7 +327,7 @@ export class SystemSettingsService implements OnModuleInit {
       const resolved = resolveStoragePathCrossPlatform(formatted);
 
       // Nhận diện loại đích là File nếu có đuôi mở rộng phổ biến hoặc targetType = file
-      const hasFileExt = /\.(xlsx|xls|csv|txt|json|pdf|xml|doc|docx)$/i.test(resolved);
+      const hasFileExt = /\.(xlsx|xls|xlsm|xlsb|csv|txt|json|pdf|xml|doc|docx)$/i.test(resolved);
       const isFile = targetType === 'file' || (targetType === 'any' && hasFileExt);
 
       // TRƯỜNG HỢP 1: TẬP TIN (FILE)

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   FileText,
@@ -37,13 +38,25 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
   runTime,
   summaryData,
 }) => {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'summary' | 'raw'>('summary');
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const parsed = useMemo(() => {
     return parseReconJobLogs(logs, summaryData);
   }, [logs, summaryData]);
+
+  const isWaiting = parsed.reconResult.status === 'WAITING';
+  const isPassed =
+    !isWaiting &&
+    (parsed.reconResult.status === 'PASSED' ||
+      (parsed.reconResult.differKlgd === 0 && parsed.reconResult.differAcm === 0));
+  const isFailed = !isWaiting && !isPassed;
 
   const filteredLogs = useMemo(() => {
     if (!searchTerm.trim()) return logs;
@@ -58,40 +71,44 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
 
-  const isPassed = parsed.reconResult.status === 'PASSED';
-  const isFailed = parsed.reconResult.status === 'FAILED';
-  const isWaiting = parsed.reconResult.status === 'WAITING';
-
-  return (
+  return createPortal(
     <div
+      onClick={onClose}
       style={{
         position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(4px)',
-        zIndex: 9999,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(9, 14, 26, 0.75)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        zIndex: 999999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '20px',
+        boxSizing: 'border-box',
       }}
-      onClick={onClose}
     >
       <div
+        className="glass-panel"
         style={{
           width: '100%',
           maxWidth: '860px',
           maxHeight: '90vh',
-          backgroundColor: 'var(--bg-card, #18181b)',
+          backgroundColor: 'var(--bg-card)',
           borderRadius: '16px',
-          border: '1px solid var(--border-color, #27272a)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--glass-shadow)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          color: 'var(--text-primary, #f4f4f5)',
+          color: 'var(--text-primary)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -259,11 +276,11 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
                         color: isPassed ? '#10b981' : isFailed ? '#ef4444' : '#f59e0b',
                       }}
                     >
-                      {parsed.reconResult.verdictText}
+                      {isPassed ? 'KHỚP HOÀN TOÀN (100%)' : parsed.reconResult.verdictText}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #a1a1aa)', marginTop: '2px' }}>
                       {isPassed
-                        ? 'Khối lượng giao dịch khớp 100% giữa tất cả các hệ thống'
+                        ? 'Khối lượng giao dịch khớp 100% giữa tất cả các hệ thống (0 lots lệch)'
                         : isFailed
                           ? `Lệch MS vs CQG: ${parsed.reconResult.differKlgd || 0} lots | Lệch ACM vs Nano: ${parsed.reconResult.differAcm || 0} lots`
                           : 'Đang trong tiến trình thu thập và đồng bộ'}
@@ -333,7 +350,7 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
                     letterSpacing: '0.05em',
                   }}
                 >
-                  Tiến Trình Tải Dữ Liệu Tươi 4 Nguồn (Đồng Bộ 2 Pha)
+                  Trạng Thái Thu Thập Dữ Liệu (4 Nguồn Hệ Thống)
                 </div>
 
                 <div
@@ -344,7 +361,7 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
                   }}
                 >
                   {/* M-System */}
-                  <SourceStatusCard milestone={parsed.downloads.ms} label="M-System" defaultFile="DSGD.xlsx" />
+                  <SourceStatusCard milestone={parsed.downloads.ms} label="M-System" defaultFile="DSGD, TTM, TTTT" />
 
                   {/* CQG */}
                   <SourceStatusCard milestone={parsed.downloads.cqg} label="CQG" defaultFile="FR, OP, PS" />
@@ -353,7 +370,7 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
                   <SourceStatusCard milestone={parsed.downloads.acm} label="ACM Nano" defaultFile="Straits.csv / Fill.xlsx" />
 
                   {/* CoreCCP */}
-                  <SourceStatusCard milestone={parsed.downloads.ccp} label="CoreCCP" defaultFile="Báo cáo CCP" />
+                  <SourceStatusCard milestone={parsed.downloads.ccp} label="CoreCCP" defaultFile="Báo cáo CoreCCP" />
                 </div>
               </div>
 
@@ -372,23 +389,23 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
               >
                 <div>
                   <span style={{ color: 'var(--text-secondary, #a1a1aa)', fontWeight: 600 }}>
-                    Rào cản đồng bộ 4 nguồn:
+                    Thời điểm sẵn sàng dữ liệu:
                   </span>{' '}
                   <span style={{ fontWeight: 800, color: parsed.barrierStatus === 'SYNCED' ? '#10b981' : '#f59e0b' }}>
                     {parsed.barrierStatus === 'SYNCED'
-                      ? `Đồng bộ hoàn tất ${parsed.barrierTime ? `(${parsed.barrierTime})` : ''}`
+                      ? `Đã đồng bộ đầy đủ ${parsed.barrierTime ? `(${parsed.barrierTime})` : ''}`
                       : parsed.barrierStatus === 'TIMEOUT'
-                        ? 'Timeout (70s) - Xuất dữ liệu sẵn sàng'
-                        : 'Đang chờ xử lý'}
+                        ? 'Xuất dữ liệu sẵn sàng'
+                        : 'Đang chuẩn bị dữ liệu'}
                   </span>
                 </div>
 
                 <div>
                   <span style={{ color: 'var(--text-secondary, #a1a1aa)', fontWeight: 600 }}>
-                    Khung thời gian lọc lệnh:
+                    Khung giờ đối soát:
                   </span>{' '}
                   <span style={{ fontWeight: 800, fontFamily: 'monospace' }}>
-                    {parsed.filterWindow ? `${parsed.filterWindow.start} - ${parsed.filterWindow.end}` : 'Theo ca'}
+                    {parsed.filterWindow ? `${parsed.filterWindow.start} - ${parsed.filterWindow.end}` : 'Toàn phiên'}
                   </span>
                 </div>
               </div>
@@ -502,35 +519,32 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
         {/* Modal Footer */}
         <div
           style={{
-            padding: '12px 24px',
-            borderTop: '1px solid var(--border-color, #27272a)',
+            padding: '14px 24px',
+            borderTop: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            fontSize: '0.78rem',
-            color: 'var(--text-secondary, #71717a)',
+            fontSize: '0.8rem',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'rgba(255, 255, 255, 0.01)',
           }}
         >
           <div>Dữ liệu đối soát tự động từ bot engine</div>
           <button
             type="button"
             onClick={onClose}
+            className="btn btn-secondary"
             style={{
-              padding: '6px 16px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--bg-input, #27272a)',
-              border: '1px solid var(--border-color, #3f3f46)',
-              color: 'var(--text-primary, #f4f4f5)',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
+              padding: '7px 18px',
+              fontSize: '0.82rem',
             }}
           >
             Đóng
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

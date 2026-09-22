@@ -1,6 +1,111 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-22T09:50] FEAT: Bộ Phòng Vệ ACM Chưa Cắt Phiên & Nút Xem Nhanh Nhật Ký Tóm Tắt (Log Summary Modal)
+## [2026-09-22T14:32] FIX: Khắc Phục Triệt Để Lỗi Layout & Chuẩn Hóa CSS Toàn Bộ Modal Màn Hình Trading Manager
+
+### 1. Mục tiêu thay đổi
+1. **Khắc phục lỗi lệch vị trí, trôi tuột layout của các Modal trên màn hình Trading Manager**:
+   - Hiện tượng: Modal bị lệch sang phải (thụt vào theo lề 260px của Sidebar), không che được Header & Sidebar, và bị tụt xuống đáy màn hình khi trang có cuộn chuột.
+   - Nguyên nhân: Thẻ cha trong `trading-manager/page.tsx` có `className="animate-fade-in"` tạo Stacking Context và biến thành Containing Block của các Modal con có `position: fixed`. Khi cuộn trang, toạ độ tương đối của thẻ cha làm modal bị trôi xuống dưới.
+2. **Đồng bộ hóa CSS Modal theo hệ sinh thái `globals.css`**:
+   - Thay thế toàn bộ mã màu cứng HEX (`#18181b`, `#27272a`, `#09090b`...) bằng hệ thống biến CSS toàn cục: `var(--bg-card)`, `var(--border-color)`, `var(--text-primary)`, `var(--text-secondary)`, `var(--bg-input)`.
+   - Áp dụng class chuẩn `.glass-panel` cho khung modal để có hiệu ứng viền mờ, đổ bóng `var(--glass-shadow)` và bo tròn 16px chuẩn Enterprise MXV.
+   - Chuẩn hoá các nút bấm sang class `.btn`, `.btn-secondary`, `.btn-primary` của hệ thống.
+3. **Áp dụng React Portal (`createPortal`) đưa toàn bộ Modal ra ngoài `document.body`**:
+   - Thoát hoàn toàn khỏi phạm vi kẹp cứng của thẻ `<main className="main-content">`.
+   - Lớp backdrop bao phủ trọn vẹn 100vw x 100vh với `zIndex: 999999` (che cả Header và Sidebar), căn giữa tuyệt đối ở mọi độ phân giải và vị trí scroll.
+
+### 2. Danh sách file chỉnh sửa
+- [BackupLogSummaryModal.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx):
+  * Thêm `createPortal` mount vào `document.body`, kiểm tra `mounted` state chống lỗi hydration SSR.
+  * Cập nhật container sang `.glass-panel`, chuyển các nút sang `.btn .btn-secondary`, dùng CSS variables chuẩn.
+- [ReconLogSummaryModal.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx):
+  * Thêm `createPortal` mount vào `document.body`, bổ sung `mounted` state.
+  * Cập nhật container sang `.glass-panel`, chuyển nút đóng sang `.btn .btn-secondary`.
+- [TradingManagerGuideModal.tsx](file:///frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx):
+  * Bọc `createPortal` vào `document.body`, thêm `mounted` state và backdrop `100vw x 100vh`.
+- [TradingManagerJobQueueSection.tsx](file:///frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  * Bọc modal xác nhận dừng tác vụ bot bằng `createPortal(..., document.body)` với `mounted` state.
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend TypeScript check: `npx tsc --noEmit` hoàn thành thành công 100% (exit code 0).
+
+---
+
+## [2026-09-22T14:10] FEAT: Bổ Sung Đầy Đủ JobType Trading Manager, Chuẩn Hóa UI/Logic Modal Đối Chiếu & Thêm Modal Tóm Tắt Backup MS/CQG
+
+### 1. Mục tiêu thay đổi
+1. **Bổ sung đầy đủ JobType trên màn hình Trading Manager**:
+   - Khắc phục việc các tác vụ tải Backup M-System (`RPA_DOWNLOAD_REPORTS`), kiểm tra audit (`FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `FILE_AUDIT_CCP`, `FILE_AUDIT_ACM`) và Giá thanh toán (`CREATE_GTT_FILE`, `CHECK_GTT`, `GENERATE_IMPORT_GTT_FILE`) bị thiếu trong danh sách bộ lọc `TRADING_JOB_TYPES`.
+   - Giúp các tác vụ Backup xuất hiện đầy đủ trên tab Hàng đợi & Logs, hiển thị tiến độ và badge nhấp nháy trên thanh menu điều hướng.
+2. **Khắc phục lỗi logic & Chuẩn hóa giao diện Modal Tóm Tắt Đối Chiếu (`ReconLogSummaryModal.tsx`)**:
+   - Sửa lỗi logic: Khắc phục trường hợp lệch `0 lots` nhưng parser lại hiển thị màu đỏ "CÓ LỆCH SỐ LIỆU". Đảm bảo khi `differ === 0 && differACM === 0` luôn hiển thị màu xanh "KHỚP HOÀN TOÀN (100%)".
+   - Loại bỏ hoàn toàn ngôn ngữ kỹ thuật máy móc:
+     * Thay "Tiến Trình Tải Dữ Liệu Tươi 4 Nguồn (Đồng Bộ 2 Pha)" $\rightarrow$ **"Trạng Thái Thu Thập Dữ Liệu (4 Nguồn Hệ Thống)"**.
+     * Thay "Rào cản đồng bộ 4 nguồn: Đồng bộ hoàn tất" $\rightarrow$ **"Thời điểm sẵn sàng dữ liệu: Đã đồng bộ đầy đủ"**.
+     * Thay "Khung thời gian lọc lệnh:" $\rightarrow$ **"Khung giờ đối soát:"**.
+3. **Thêm Modal Tóm Tắt Xem Nhanh Kết Quả Tải Backup MS & CQG (`BackupLogSummaryModal.tsx`)**:
+   - Tạo component modal chuyên biệt theo dõi trạng thái tải các file Backup: Hiển thị trạng thái thành công/lỗi từng file, đường dẫn thư mục lưu trữ trên ổ đĩa mạng `M:\...\Backup MS\Futures\...`, tổng thời gian thực hiện.
+   - Hỗ trợ 2 tab: Tóm tắt trực quan và Log chi tiết (Raw Logs có tìm kiếm & sao chép).
+   - Tích hợp 2 nút bấm `[Nhật ký]` trực tiếp tại khối **Backup MS** và **Backup CQG** trên giao diện Backup Thống kê - GTT, tự động đồng bộ theo lượt tải gần nhất.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [page.tsx](file:///frontend/src/app/trading-manager/page.tsx):
+  * Bổ sung đầy đủ các jobType vào `TRADING_JOB_TYPES` để polling số lượng tác vụ nền.
+- [TradingManagerJobQueueSection.tsx](file:///frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  * Bổ sung các jobType vào danh sách và thêm nhãn nghiệp vụ tiếng Việt trong `getJobLabel`.
+- [reconLogParser.ts](file:///frontend/src/app/trading-manager/utils/reconLogParser.ts):
+  * Cập nhật logic đồng bộ số liệu `summaryData.totals`, bóc tách số lots từ log và chốt cờ `PASSED` khi cả 2 độ lệch đều bằng 0.
+- [ReconLogSummaryModal.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx):
+  * Chuẩn hóa từ ngữ nghiệp vụ, loại bỏ các cụm từ kỹ thuật máy móc, fix lỗi trùng khai báo biến.
+- [BackupLogSummaryModal.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx) [NEW]:
+  * Component Modal tóm tắt tiến trình và danh sách file tải Backup MS / CQG.
+- [LegacyBackupThongKeSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  * Tích hợp nút `[Nhật ký]` cho Backup MS và CQG, lưu `lastMsJobId` và `lastCqgJobId` vào state/localStorage.
+- [deploy_bundle.js](file:///backend/src/scripts/deploy_bundle.js):
+  * Thêm `BackupLogSummaryModal.tsx` vào danh sách bundle triển khai.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` thành công 100% (exit code 0).
+- Frontend: `next build` thành công 100% (exit code 0).
+
+---
+
+
+### 1. Mục tiêu thay đổi
+1. **Khắc phục triệt để lỗi kẹt menu Cấp 3 khi tải ALL 20 báo cáo M-System**:
+   - Khi chạy tuần tự chuỗi 20 báo cáo, các file `DSTKGD-*` chạy trước làm menu Cấp 2 (`QL TKGD`) giữ class `open`, kết hợp việc bot tự ý click thu gọn menu cha Cấp 1 (`QL khách hàng`) sau mỗi lần tải làm rối loạn trạng thái DOM của Angular CoreUI.
+   - Khi chuyển sang báo cáo số 6 (`TLKQ HSKQ`), bot bỏ qua click Cấp 2 khiến menu Cấp 3 không thể click được, dẫn tới tải nhầm file cũ và ném Exception.
+2. **Nâng cấp điều hướng Direct Hash Navigation cho `TLKQ HSKQ`**:
+   - Chuyển `downloadTLKQHSKQ` sang dùng URL Hash trực tiếp: `#/clientManagement/marginRatioMultiplier` (được xác thực 100% qua ảnh chụp và mã HTML thực tế của USER). Nhảy thẳng vào màn hình trong 1 giây, hoàn toàn miễn nhiễm với lỗi sidebar.
+   - Giữ fallback an toàn sang `navigateAndDownload` nếu có sự cố URL.
+3. **Smart Toggle Check & Loại bỏ Auto-Collapse**:
+   - Trong `msystem-tab-navigator.helper.ts`: Khi kiểm tra menu cha, chỉ bỏ qua click nếu menu con cấp tiếp theo (`menuSteps[i+1]`) thực tế ĐÃ HIỂN THỊ (`isVisible() === true`).
+   - Loại bỏ lệnh tự động click đóng menu cha sau mỗi lần tải để tránh làm lệch trạng thái toggle.
+4. **Cơ chế Chịu Lỗi Từng Báo Cáo (Per-Target Fault Tolerance) & Copy Ngay Tức Thì (Immediate Copy)**:
+   - Trong `rpa-download.handler.ts`: Bọc `try / catch` riêng biệt cho từng báo cáo trong vòng lặp 20 file.
+   - File nào tải xong thành công được copy ngay lập tức vào thư mục `Backup MS` thay vì chờ đến cuối cùng.
+   - Thu thập danh sách `successfulTargets` và `failedTargets`, ghi log cảnh báo rõ ràng mà không làm sập toàn bộ các file còn lại.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [rpa-downloader.service.ts](file:///backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * Cập nhật `downloadTLKQHSKQ` sang dùng `gotoAndDownload('#/clientManagement/marginRatioMultiplier')` với fallback an toàn.
+- [msystem-tab-navigator.helper.ts](file:///backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts):
+  * Cải tiến logic bỏ qua click: Kiểm tra `isNextVisible` của menu con kế tiếp thay vì chỉ kiểm tra class `open` của `parentLi`.
+  * Xóa bỏ bước 5 tự ý click thu gọn menu cha.
+- [rpa-download.handler.ts](file:///backend/src/modules/bot-engine/handlers/rpa-download.handler.ts):
+  * Tạo sẵn `destFolder` trước vòng lặp.
+  * Bọc `try / catch` riêng cho từng target trong danh sách tải.
+  * Tải xong file nào copy ngay tức thì vào `destFolder`.
+  * Ghi log chi tiết tiến độ từng file và tổng kết toàn diện.
+- [test_msystem_menu_cap3.js](file:///backend/src/scripts/test_msystem_menu_cap3.js) [NEW]:
+  * File test Playwright có giao diện (`headed: true`, `slowMo: 600ms`) để USER tự chạy tái hiện và kiểm chứng cách khắc phục lỗi kẹt menu Cấp 3.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `npm run build` (`nest build`) biên dịch thành công 100% (exit code 0).
+- Test thực tế: Chạy `test_msystem_menu_cap3.js` trên máy thành công 100%, xác nhận `#/clientManagement/marginRatioMultiplier` hiển thị đúng tiêu đề `"TLKQ HSKQ"` và sẵn sàng nút xuất file.
+
+---
+
 
 ### 1. Mục tiêu thay đổi
 1. **Giải cứu số liệu đối soát ACM Nano khi sàn chưa cắt phiên (Zero-Regression)**:

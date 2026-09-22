@@ -247,29 +247,52 @@ export function parseReconJobLogs(logs: string[] = [], summaryData?: any): Parse
     }
 
     // 9. Kết quả đối soát
-    if (cleanLine.includes('Kết quả: KHỚP')) {
+    if (cleanLine.includes('Kết quả: KHỚP') || cleanLine.includes('Đối chiếu hoàn tất: KHỚP')) {
       result.reconResult.status = 'PASSED';
       result.reconResult.verdictText = 'KHỚP HOÀN TOÀN';
-    } else if (cleanLine.includes('Kết quả: LỆCH')) {
+      result.reconResult.differKlgd = 0;
+      result.reconResult.differAcm = 0;
+    } else if (cleanLine.includes('Kết quả: LỆCH') || cleanLine.includes('Đối chiếu: LỆCH')) {
       result.reconResult.status = 'FAILED';
       result.reconResult.verdictText = 'CÓ LỆCH SỐ LIỆU';
+      const matchDiff = cleanLine.match(/Lệch\s*(?:MS\s*vs\s*CQG)?[:\s]+(\d+)/i);
+      if (matchDiff) {
+        result.reconResult.differKlgd = parseInt(matchDiff[1], 10);
+      }
+      const matchAcm = cleanLine.match(/Lệch\s*ACM[:\s]+(\d+)/i);
+      if (matchAcm) {
+        result.reconResult.differAcm = parseInt(matchAcm[1], 10);
+      }
     } else if (cleanLine.includes('Đang chờ cập nhật đầy đủ') || cleanLine.includes('Đang chờ dữ liệu')) {
       result.reconResult.status = 'WAITING';
       result.reconResult.verdictText = 'ĐANG CHỜ DỮ LIỆU ĐỐI SOÁT';
     }
   }
 
-  // Nếu kết quả đối soát chưa rõ từ log thì lấy từ summaryData
-  if (result.reconResult.status === 'UNKNOWN' && summaryData?.klgd) {
+  // Luôn đồng bộ chuẩn xác từ summaryData nếu có (Ground Truth)
+  if (summaryData?.klgd) {
     const totals = summaryData.klgd.totals || {};
-    const differ = totals.differ || 0;
-    const differACM = totals.differACM || 0;
+    const differ = totals.differ !== undefined ? totals.differ : (result.reconResult.differKlgd ?? 0);
+    const differACM = totals.differACM !== undefined ? totals.differACM : (result.reconResult.differAcm ?? 0);
     const passed = differ === 0 && differACM === 0;
 
     result.reconResult.status = passed ? 'PASSED' : 'FAILED';
     result.reconResult.verdictText = passed ? 'KHỚP HOÀN TOÀN' : 'CÓ LỆCH SỐ LIỆU';
     result.reconResult.differKlgd = differ;
     result.reconResult.differAcm = differACM;
+
+    if (summaryData.klgd.acmSessionAnomaly) {
+      result.anomaly = {
+        hasAnomaly: true,
+        note: summaryData.klgd.acmAnomalyNote || 'Sàn ACM chưa cắt phiên kế toán (Hệ thống tự động đối soát theo Trade Date)',
+      };
+    }
+  }
+
+  // Bảo vệ: Nếu cả 2 độ lệch đều bằng 0 thì bắt buộc là PASSED (tránh lỗi hiển thị sai trạng thái)
+  if (result.reconResult.differKlgd === 0 && result.reconResult.differAcm === 0 && result.reconResult.status !== 'WAITING') {
+    result.reconResult.status = 'PASSED';
+    result.reconResult.verdictText = 'KHỚP HOÀN TOÀN';
   }
 
   // Tính tổng thời lượng chạy

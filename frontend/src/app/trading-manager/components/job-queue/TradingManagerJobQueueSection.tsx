@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Activity,
   RefreshCw,
@@ -39,6 +40,14 @@ export const TRADING_JOB_TYPES = [
   'RUN_LOT_MACRO',
   'RUN_VALUE_MACRO',
   'RUN_MACRO',
+  'RPA_DOWNLOAD_REPORTS',
+  'FILE_AUDIT_MS',
+  'FILE_AUDIT_CQG',
+  'FILE_AUDIT_CCP',
+  'FILE_AUDIT_ACM',
+  'CREATE_GTT_FILE',
+  'CHECK_GTT',
+  'GENERATE_IMPORT_GTT_FILE',
 ];
 
 export interface BotJob {
@@ -90,6 +99,11 @@ export default function TradingManagerJobQueueSection({
   // Captcha Handling
   const [captchaText, setCaptchaText] = useState('');
   const [submittingCaptcha, setSubmittingCaptcha] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
@@ -321,6 +335,14 @@ export default function TradingManagerJobQueueSection({
         return 'Kiểm Tra & Ghép File CQG';
       case 'FILE_AUDIT_ACM':
         return 'Tải Báo Cáo Tự Doanh ACM';
+      case 'FILE_AUDIT_CCP':
+        return 'Kiểm Tra & Tải Bổ Sung CoreCCP';
+      case 'CREATE_GTT_FILE':
+        return 'Tạo File Giá Thanh Toán (GTT)';
+      case 'CHECK_GTT':
+        return 'Đối Chiếu Giá Thanh Toán (GTT)';
+      case 'GENERATE_IMPORT_GTT_FILE':
+        return 'Tạo File Nhập GTT (Import)';
       default:
         return jobType;
     }
@@ -1217,22 +1239,35 @@ export default function TradingManagerJobQueueSection({
       </div>
 
       {/* MODAL XÁC NHẬN DỪNG TÁC VỤ */}
-      {showCancelModal && jobToCancel && (
+      {showCancelModal && jobToCancel && mounted && typeof document !== 'undefined' && createPortal(
         <div
+          onClick={() => {
+            setShowCancelModal(false);
+            setJobToCancel(null);
+            setCancelReason('');
+          }}
           style={{
             position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(4px)',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(9, 14, 26, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
+            zIndex: 999999,
             padding: '16px',
+            boxSizing: 'border-box',
           }}
         >
           <div
             className="glass-panel"
+            onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
               maxWidth: '460px',
@@ -1243,6 +1278,7 @@ export default function TradingManagerJobQueueSection({
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
+              boxShadow: 'var(--glass-shadow)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1322,7 +1358,8 @@ export default function TradingManagerJobQueueSection({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

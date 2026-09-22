@@ -13,11 +13,13 @@ import {
   Sliders,
   Loader2,
   FileSpreadsheet,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/context/AuthContext';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
+import BackupLogSummaryModal from './BackupLogSummaryModal';
 
 // Danh sách 25 báo cáo VNCLEAR / CoreCCP theo chuẩn Ground Truth Maker
 export const CORE_CCP_REPORTS_LIST: Array<{
@@ -245,6 +247,48 @@ export default function LegacyBackupThongKeSection({
   const [downloadingMs, setDownloadingMs] = useState<boolean>(false);
   const [downloadingCqg, setDownloadingCqg] = useState<boolean>(false);
 
+  // Modal xem nhanh nhật ký tóm tắt Backup MS / CQG
+  const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
+  const [modalJobType, setModalJobType] = useState<'MS' | 'CQG'>('MS');
+  const [lastMsJobId, setLastMsJobId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_last_ms_backup_job_id');
+    }
+    return null;
+  });
+  const [lastCqgJobId, setLastCqgJobId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_last_cqg_backup_job_id');
+    }
+    return null;
+  });
+
+  // Tự động load jobId gần nhất từ CSDL nếu state chưa có
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=RPA_DOWNLOAD_REPORTS&limit=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data[0]?._id) {
+          setLastMsJobId((prev) => prev || data[0]._id);
+        }
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=CHECK_CQG_SYNC&limit=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data[0]?._id) {
+          setLastCqgJobId((prev) => prev || data[0]._id);
+        }
+      })
+      .catch(() => {});
+  }, [token]);
+
   // Trigger real Playwright RPA download for selected MS reports
   const handleDownloadMsBackup = async () => {
     if (!token || downloadingMs) return;
@@ -271,6 +315,9 @@ export default function LegacyBackupThongKeSection({
         await handleAuditMsBackup();
         return;
       }
+
+      setLastMsJobId(jobId);
+      if (typeof window !== 'undefined') localStorage.setItem('tm_last_ms_backup_job_id', jobId);
 
       toast.loading(`Bot đang đăng nhập M-System và tải ${selected.length} báo cáo...`, { id: toastId });
       const start = Date.now();
@@ -322,6 +369,9 @@ export default function LegacyBackupThongKeSection({
         await handleAuditCqgBackup();
         return;
       }
+
+      setLastCqgJobId(jobId);
+      if (typeof window !== 'undefined') localStorage.setItem('tm_last_cqg_backup_job_id', jobId);
 
       toast.loading('Bot đang tải và ghép file báo cáo CQG...', { id: toastId });
       const start = Date.now();
@@ -868,6 +918,19 @@ export default function LegacyBackupThongKeSection({
                   {auditingMs ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   <span>Kiểm tra</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalJobType('MS');
+                    setShowBackupModal(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Xem nhật ký tóm tắt tải báo cáo M-System"
+                >
+                  <FileText size={14} />
+                  <span>Nhật ký</span>
+                </button>
               </div>
               {auditMsResult && (
                 <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
@@ -938,6 +1001,19 @@ export default function LegacyBackupThongKeSection({
                 >
                   {auditingCqg ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   <span>Kiểm tra</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalJobType('CQG');
+                    setShowBackupModal(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Xem nhật ký tóm tắt đồng bộ CQG"
+                >
+                  <FileText size={14} />
+                  <span>Nhật ký</span>
                 </button>
               </div>
               {auditCqgResult && (
@@ -1229,6 +1305,16 @@ export default function LegacyBackupThongKeSection({
           Cấu Hình Bot Toàn Diện
         </Link>
       </div>
+
+      {/* Modal Tóm Tắt Nhật Ký Tải Báo Cáo MS / CQG */}
+      <BackupLogSummaryModal
+        isOpen={showBackupModal}
+        onClose={() => setShowBackupModal(false)}
+        jobId={modalJobType === 'MS' ? lastMsJobId : lastCqgJobId}
+        jobType={modalJobType}
+        token={token}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 }

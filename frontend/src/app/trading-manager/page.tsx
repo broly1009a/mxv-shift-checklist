@@ -76,6 +76,14 @@ export default function TradingManagerPage() {
       'RUN_LOT_MACRO',
       'RUN_VALUE_MACRO',
       'RUN_MACRO',
+      'RPA_DOWNLOAD_REPORTS',
+      'FILE_AUDIT_MS',
+      'FILE_AUDIT_CQG',
+      'FILE_AUDIT_CCP',
+      'FILE_AUDIT_ACM',
+      'CREATE_GTT_FILE',
+      'CHECK_GTT',
+      'GENERATE_IMPORT_GTT_FILE',
     ].join(',');
 
     const pollActiveJobs = async () => {

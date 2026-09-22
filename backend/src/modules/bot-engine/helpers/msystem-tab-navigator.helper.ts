@@ -223,20 +223,20 @@ export class MSystemTabNavigatorHelper {
       const menu = menuSteps[i];
       const selector = `xpath=//*[self::a or self::span or self::li or self::div][normalize-space(text())='${menu}' or contains(text(), '${menu}')]`;
 
-      // Kiểm tra nếu là menu cha cấp trên và đã mở sẵn (có class open/show)
+      // Kiểm tra nếu là menu cha cấp trên: chỉ bỏ qua click nếu menu con cấp tiếp theo ĐÃ hiển thị sẵn
       if (i < menuSteps.length - 1) {
-        const isAlreadyOpen = await page
-          .locator(selector)
-          .evaluate((el) => {
-            const parentLi = el.closest('li');
-            return parentLi
-              ? parentLi.classList.contains('open') || parentLi.classList.contains('show')
-              : false;
-          })
+        const nextMenu = menuSteps[i + 1];
+        const nextSelector = `xpath=//*[self::a or self::span or self::li or self::div][normalize-space(text())='${nextMenu}' or contains(text(), '${nextMenu}')]`;
+        const isNextVisible = await page
+          .locator(nextSelector)
+          .first()
+          .isVisible()
           .catch(() => false);
 
-        if (isAlreadyOpen) {
-          log.log(`[TabNavigator] Menu cha "${menu}" đã mở sẵn. Bỏ qua click.`);
+        if (isNextVisible) {
+          log.log(
+            `[TabNavigator] Menu con kế tiếp "${nextMenu}" đã hiển thị sẵn. Bỏ qua click "${menu}".`,
+          );
           continue;
         }
       }
@@ -280,13 +280,6 @@ export class MSystemTabNavigatorHelper {
         logger: log,
       },
     );
-
-    // 5. Thu gọn menu cha nếu cần
-    if (menuSteps.length > 0) {
-      const topMenuSelector = `xpath=//a[text()='${menuSteps[0]}']`;
-      await page.click(topMenuSelector, { force: true }).catch(() => { });
-      await page.waitForTimeout(800);
-    }
 
     return suggestedName;
   }
