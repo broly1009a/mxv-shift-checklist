@@ -10,15 +10,17 @@ import {
   Minimize2,
   BookOpen,
   ArrowLeft,
+  Terminal,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TradingManagerGuideModal from './components/shared/TradingManagerGuideModal';
 import TradingManagerConfigSection from './components/shared/TradingManagerConfigSection';
 import CoreCcpBackupSection from './components/core-ccp/CoreCcpBackupSection';
 import LegacyBackupThongKeSection from './components/legacy-ms-cqg/LegacyBackupThongKeSection';
 import LegacyReconSection from './components/legacy-ms-cqg/LegacyReconSection';
+import TradingManagerJobQueueSection from './components/job-queue/TradingManagerJobQueueSection';
 
 export default function TradingManagerPage() {
   const { token } = useAuth();
@@ -27,10 +29,13 @@ export default function TradingManagerPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Top Tabs: Màn hình đối chiếu Khớp lệnh, Backup MS/CQG, Cấu hình, và Hệ thống mới CoreCCP (VNCLEAR)
+  // Top Tabs: Màn hình đối chiếu Khớp lệnh, Backup MS/CQG, Cấu hình, Hệ thống mới CoreCCP (VNCLEAR), và Hàng đợi & Logs
   const [topTab, setTopTab] = useState<
-    'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR'
+    'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR' | 'HANG_DOI_LOGS'
   >('CHECK_GD_EOD_SYNC');
+
+  // Số lượng background job đang chạy
+  const [activeJobsCount, setActiveJobsCount] = useState<number>(0);
 
   // Selected Date (Mặc định hôm nay theo giờ Việt Nam GMT+7)
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -56,6 +61,44 @@ export default function TradingManagerPage() {
     const dateStr = vnTime.toISOString().split('T')[0];
     setSelectedDate(dateStr);
   }, []);
+
+  // Polling số lượng tác vụ đang chạy để hiển thị badge nhấp nháy trên Tab (chỉ tính tác vụ Trading Manager)
+  useEffect(() => {
+    if (!token) return;
+    const TRADING_JOB_TYPES = [
+      'CHECK_KLGD',
+      'CHECK_PRE_EOD',
+      'CHECK_CQG_SYNC',
+      'SCAN_NEGATIVE_MARGIN',
+      'DOWNLOAD_CCP_REPORT',
+      'DOWNLOAD_CE_REPORT',
+      'CHECK_EOD_CCP',
+      'RUN_LOT_MACRO',
+      'RUN_VALUE_MACRO',
+      'RUN_MACRO',
+    ].join(',');
+
+    const pollActiveJobs = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=${TRADING_JOB_TYPES}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const active = data.filter(
+              (j: any) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
+            ).length;
+            setActiveJobsCount(active);
+          }
+        }
+      } catch {}
+    };
+
+    pollActiveJobs();
+    const interval = setInterval(pollActiveJobs, 8000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   // Fullscreen toggle handler
   const toggleFullscreen = () => {
@@ -165,14 +208,14 @@ export default function TradingManagerPage() {
                   }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {/* <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Hệ thống: Online
                 </span>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace' }}>
                   {!isDiffer ? 'Khớp 100%' : `Lệch ${totalDifferLots} lot`}
                 </span>
-              </div>
+              </div> */}
             </div>
 
             {/* Fullscreen Button */}
@@ -187,7 +230,7 @@ export default function TradingManagerPage() {
             </button>
 
             {/* In-App Guide Button */}
-            <button
+            {/* <button
               type="button"
               onClick={() => setShowGuideModal(true)}
               className="btn btn-secondary"
@@ -205,7 +248,7 @@ export default function TradingManagerPage() {
             >
               <BookOpen size={15} />
               <span>Hướng Dẫn Nghiệp Vụ</span>
-            </button>
+            </button> */}
 
             {/* Back to Dashboard */}
             <Link
@@ -329,6 +372,46 @@ export default function TradingManagerPage() {
             <FileSpreadsheet size={16} color={topTab === 'CORE_CCP_VNCLEAR' ? '#10b981' : 'var(--text-muted)'} />
             <span>Báo Cáo & Đối Chiếu CoreCCP</span>
           </button>
+
+          {/* TAB 5: HÀNG ĐỢI & LOGS ROBOT */}
+          <button
+            type="button"
+            onClick={() => setTopTab('HANG_DOI_LOGS')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'HANG_DOI_LOGS' ? '2px solid #10b981' : '2px solid transparent',
+              color: topTab === 'HANG_DOI_LOGS' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'HANG_DOI_LOGS' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Terminal size={16} color={topTab === 'HANG_DOI_LOGS' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Hàng đợi & Logs</span>
+            {activeJobsCount > 0 && (
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  padding: '1px 7px',
+                  borderRadius: '10px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  lineHeight: '1.2',
+                }}
+                className="animate-pulse"
+              >
+                {activeJobsCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* TAB CONTENTS (MODULARIZED ARCHITECTURE) */}
@@ -357,6 +440,13 @@ export default function TradingManagerPage() {
             token={token}
             selectedDate={selectedDate}
             onOpenGuide={() => setShowGuideModal(true)}
+          />
+        ) : topTab === 'HANG_DOI_LOGS' ? (
+          /* TAB 5: HÀNG ĐỢI & LOGS REAL-TIME ROBOT */
+          <TradingManagerJobQueueSection
+            token={token}
+            selectedDate={selectedDate}
+            onActiveCountChange={setActiveJobsCount}
           />
         ) : null}
 

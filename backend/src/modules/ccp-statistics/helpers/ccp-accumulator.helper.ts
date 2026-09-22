@@ -203,8 +203,13 @@ export async function writeCcpLotToAccumulator(
     }
   }
 
+  // ── ACM Ground Truth Values (C# Tool parity) ─────────────────────────────
+  // Chỉ lấy số lot và TVKD thuộc phân hệ ACM (tài khoản kết thúc bằng 'A')
+  const acmTotalLot = result.byType?.acm?.totalSoLot ?? result.acmLot ?? 0;
+  const acmTvkdList = result.byType?.acm?.byTvkd ?? [];
+
   // ── 1. Block M-System / CCP Summary (cols 3-5: C, D, E) ────────────────────────
-  ws.getCell(targetRowIndex, colAcmDsgd).value = result.totalSoLot;
+  ws.getCell(targetRowIndex, colAcmDsgd).value = acmTotalLot;
   ws.getCell(targetRowIndex, colAcmTttt).value = result.totalKltt ?? result.totalTtttLot ?? 0;
   ws.getCell(targetRowIndex, colAcmTtm).value  = result.totalTtmLot;
 
@@ -213,17 +218,17 @@ export async function writeCcpLotToAccumulator(
   ws.getCell(targetRowIndex, 7).value = null;
   ws.getCell(targetRowIndex, 8).value = null;
 
-  log(`Row ${targetRowIndex}: MS_DSGD(col ${colAcmDsgd})=${result.totalSoLot}, MS_TTTT(col ${colAcmTttt})=${result.totalKltt ?? result.totalTtttLot ?? 0}, MS_TTM(col ${colAcmTtm})=${result.totalTtmLot} (Đã dọn sạch cột CQG 6, 7, 8)`);
+  log(`Row ${targetRowIndex}: MS_DSGD(col ${colAcmDsgd})=${acmTotalLot} (ACM Only), MS_TTTT(col ${colAcmTttt})=${result.totalKltt ?? result.totalTtttLot ?? 0}, MS_TTM(col ${colAcmTtm})=${result.totalTtmLot} (Đã dọn sạch cột CQG 6, 7, 8)`);
 
-  // ── 2. Per TVKD ─────────────────────────────────────────────────────────────
+  // ── 2. Per TVKD (ACM Only) ───────────────────────────────────────────────────
   let tvkdWritten = 0;
   for (const [code, col] of tvkdColMap.entries()) {
-    const item = result.byTvkd.find((t) => t.tvkd === code);
+    const item = acmTvkdList.find((t) => t.tvkd === code);
     const lot = item?.soLot || 0;
     ws.getCell(targetRowIndex, col).value = lot;
     if (lot > 0) tvkdWritten++;
   }
-  log(`Per-TVKD: ghi ${tvkdWritten} TVKD có lot > 0 trên tổng số ${tvkdColMap.size} TVKD được nhận diện`);
+  log(`Per-TVKD ACM: ghi ${tvkdWritten} TVKD có lot ACM > 0 trên tổng số ${tvkdColMap.size} TVKD`);
 
   // Công thức Tổng TVKD
   if (colTotalTvkd !== -1 && tvkdColMap.size > 0) {
@@ -233,14 +238,14 @@ export async function writeCcpLotToAccumulator(
     const lastColLetter = getColLetter(lastTvkdCol);
     ws.getCell(targetRowIndex, colTotalTvkd).value = {
       formula: `SUM(${firstColLetter}${targetRowIndex}:${lastColLetter}${targetRowIndex})`,
-      result: result.totalSoLot,
+      result: acmTotalLot,
     };
   }
 
   // ── 3. Per HH (SI5CO, PL1NY, CP2CO) ─────────────────────────────────────────
   for (const [maHH, col] of hhColMap.entries()) {
     let sumLot = 0;
-    for (const item of result.byTvkd) {
+    for (const item of acmTvkdList) {
       for (const hh of item.byHH ?? []) {
         if (hh.maHH.toUpperCase() === maHH) {
           sumLot += hh.soLot;
@@ -248,7 +253,7 @@ export async function writeCcpLotToAccumulator(
       }
     }
     ws.getCell(targetRowIndex, col).value = sumLot;
-    log(`Per-HH: ${maHH} (col ${col}) = ${sumLot} lot`);
+    log(`Per-HH ACM: ${maHH} (col ${col}) = ${sumLot} lot`);
   }
 
   // Công thức Tổng Hàng hoá
@@ -259,7 +264,7 @@ export async function writeCcpLotToAccumulator(
     const lastHhColLetter = getColLetter(lastHhCol);
     ws.getCell(targetRowIndex, colTotalHh).value = {
       formula: `SUM(${firstHhColLetter}${targetRowIndex}:${lastHhColLetter}${targetRowIndex})`,
-      result: result.totalSoLot,
+      result: acmTotalLot,
     };
   }
 
@@ -355,9 +360,10 @@ export async function writeCcpGtgdToAccumulator(
   if (!hhColMap.has('CP2CO')) hhColMap.set('CP2CO', 4);
   if (colTong === -1) colTong = 5;
 
-  // Tính GTGD per HH từ danh sách TVKD
+  // Tính GTGD per HH từ danh sách TVKD ACM (chỉ các tài khoản -A)
+  const acmTvkdList = result.byType?.acm?.byTvkd ?? [];
   const gtgdByHh = new Map<string, number>();
-  for (const tvkd of result.byTvkd) {
+  for (const tvkd of acmTvkdList) {
     for (const hh of tvkd.byHH ?? []) {
       const key = hh.maHH.toUpperCase();
       gtgdByHh.set(key, (gtgdByHh.get(key) || 0) + hh.giaTri);

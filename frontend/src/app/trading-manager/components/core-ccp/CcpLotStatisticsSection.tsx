@@ -74,6 +74,17 @@ interface CcpDailyScanResult {
     ttm?: CcpDailyFileInfo;
     tttt?: CcpDailyFileInfo;
     tyGia?: CcpDailyFileInfo;
+    maHD?: CcpDailyFileInfo;
+  };
+  dbExchangeRates?: {
+    usd: number;
+    ccpUsd?: number;
+    jpy?: number;
+    myr?: number;
+    cny?: number;
+    lastSynced?: string;
+    detectedRate?: number;
+    detectedSource?: string;
   };
 }
 
@@ -260,6 +271,69 @@ export default function CcpLotStatisticsSection({
     }
   };
 
+  // Đồng bộ tỷ giá mới nhất từ tệp ngày CoreCCP hoặc M-System và lưu vào CSDL
+  const [syncingRate, setSyncingRate] = useState<boolean>(false);
+  const handleSyncExchangeRates = async () => {
+    if (!token) return;
+    setSyncingRate(true);
+    const toastId = toast.loading('Đang lấy tỷ giá mới nhất từ tệp ngày CoreCCP / M-System...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/sync-exchange-rate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ date: ngayGD }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Đã đồng bộ tỷ giá thành công vào CSDL!', { id: toastId });
+        if (ngayGD) {
+          fetchDailyScan(ngayGD);
+        }
+      } else {
+        toast.error(data.message || 'Không thể đồng bộ tỷ giá', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message}`, { id: toastId });
+    } finally {
+      setSyncingRate(false);
+    }
+  };
+
+  // Tải lên riêng file tỷ giá và lưu trực tiếp vào CSDL MongoDB
+  const [uploadingTyGia, setUploadingTyGia] = useState<boolean>(false);
+  const handleUploadTyGiaOnly = async (file: File) => {
+    if (!token || !file) return;
+    setUploadingTyGia(true);
+    const toastId = toast.loading(`Đang xử lý tệp tỷ giá ${file.name}...`);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/upload-tygia`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Đã bóc tách và lưu tỷ giá vào CSDL thành công!', { id: toastId });
+        if (ngayGD) {
+          fetchDailyScan(ngayGD);
+        }
+      } else {
+        toast.error(data.message || 'Lỗi xử lý file tỷ giá', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi tải lên: ${err.message}`, { id: toastId });
+    } finally {
+      setUploadingTyGia(false);
+    }
+  };
+
   // Run calculation
   const handleProcess = async () => {
     if (!token) return;
@@ -326,7 +400,7 @@ export default function CcpLotStatisticsSection({
       }
 
       if (res.ok && data?.success) {
-        toast.success(data.message || 'Đã ghi thành công vào các file lũy kế ACM Excel');
+        toast.success(data.message || 'Đã ghi thành công vào toàn bộ các file lũy kế Excel');
       } else {
         toast.error(data?.message || 'Lỗi khi ghi file lũy kế');
       }
@@ -461,7 +535,7 @@ export default function CcpLotStatisticsSection({
                 CoreCCP Automation
               </span>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Thống Kê Số Lot & Giá Trị Giao Dịch CCP (Thay Thế Macro)
+                Thống Kê Số Lot & Giá Trị Giao Dịch CCP
               </h3>
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -597,7 +671,7 @@ export default function CcpLotStatisticsSection({
                 ) : (
                   <>
                     <Save size={15} />
-                    <span>Ghi Vào File Lũy Kế ACM</span>
+                    <span>Ghi Vào Các File Lũy Kế Excel (Toàn Bộ Báo Cáo)</span>
                   </>
                 )}
               </button>
@@ -662,6 +736,29 @@ export default function CcpLotStatisticsSection({
             >
               <Upload size={14} />
               <span>Tải Lên File Thủ Công</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSyncExchangeRates}
+              disabled={syncingRate}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                padding: '5px 14px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                borderColor: '#3b82f6',
+                color: '#3b82f6',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              title="Đồng bộ tỷ giá mới nhất từ tệp ngày CoreCCP (TTTT/TTM) hoặc M-System và lưu vào CSDL MongoDB"
+            >
+              <RefreshCw size={14} className={syncingRate ? 'animate-spin' : ''} />
+              <span>{syncingRate ? 'Đang Lấy...' : 'Lấy Tỷ Giá Mới Nhất'}</span>
             </button>
           </div>
 
@@ -730,6 +827,28 @@ export default function CcpLotStatisticsSection({
               </span>
             </div>
 
+            {scanResult && !scanResult.exists && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                }}
+              >
+                <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                <span>
+                  Không thể truy cập thư mục backup: Ổ đĩa mạng chia sẻ (/mnt/qlgd-it) đang bị mất kết nối hoặc thư mục ngày chưa được tạo. Vui lòng kiểm tra trạng thái mount trên máy chủ.
+                </span>
+              </div>
+            )}
+
             <div
               style={{
                 display: 'grid',
@@ -762,16 +881,16 @@ export default function CcpLotStatisticsSection({
                       padding: '2px 6px',
                       borderRadius: '4px',
                       backgroundColor: scanResult?.files.dsgd?.present ? '#10b981' : '#ef4444',
-                      color: '#000',
+                      color: scanResult?.files.dsgd?.present ? '#000' : '#fff',
                     }}
                   >
-                    {scanResult?.files.dsgd?.present ? 'ĐÃ CÓ' : 'CHƯA CÓ'}
+                    {scanResult?.files.dsgd?.present ? 'ĐÃ CÓ FILE' : 'THIẾU FILE (BẮT BUỘC)'}
                   </span>
                 </div>
                 <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: scanResult?.files.dsgd?.present ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                   {scanResult?.files.dsgd?.present
                     ? `${scanResult.files.dsgd.filename} (${(scanResult.files.dsgd.size / 1024).toFixed(1)} KB)`
-                    : 'Thiếu file DSGD_*.xlsx trong thư mục'}
+                    : 'Bắt buộc phải có file DSGD để đối chiếu số lot & GTGD'}
                 </span>
               </div>
 
@@ -780,8 +899,8 @@ export default function CcpLotStatisticsSection({
                 style={{
                   padding: '12px',
                   borderRadius: '8px',
-                  backgroundColor: scanResult?.files.ttm?.present ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                  border: `1px solid ${scanResult?.files.ttm?.present ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'}`,
+                  backgroundColor: scanResult?.files.ttm?.present ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                  border: `1px solid ${scanResult?.files.ttm?.present ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
@@ -795,17 +914,17 @@ export default function CcpLotStatisticsSection({
                       fontWeight: 800,
                       padding: '2px 6px',
                       borderRadius: '4px',
-                      backgroundColor: scanResult?.files.ttm?.present ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                      color: scanResult?.files.ttm?.present ? '#000' : 'var(--text-muted)',
+                      backgroundColor: scanResult?.files.ttm?.present ? '#10b981' : '#f59e0b',
+                      color: '#000',
                     }}
                   >
-                    {scanResult?.files.ttm?.present ? 'ĐÃ CÓ' : 'TÙY CHỌN'}
+                    {scanResult?.files.ttm?.present ? 'ĐÃ CÓ FILE' : 'CHƯA TÌM THẤY'}
                   </span>
                 </div>
                 <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: scanResult?.files.ttm?.present ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                   {scanResult?.files.ttm?.present
                     ? `${scanResult.files.ttm.filename} (${(scanResult.files.ttm.size / 1024).toFixed(1)} KB)`
-                    : 'Chưa có file TTM (sẽ tính = 0)'}
+                    : 'Chưa có file TTM (sẽ tính số lot mở = 0 nếu bỏ qua)'}
                 </span>
               </div>
 
@@ -814,8 +933,8 @@ export default function CcpLotStatisticsSection({
                 style={{
                   padding: '12px',
                   borderRadius: '8px',
-                  backgroundColor: scanResult?.files.tttt?.present ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                  border: `1px solid ${scanResult?.files.tttt?.present ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'}`,
+                  backgroundColor: scanResult?.files.tttt?.present ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                  border: `1px solid ${scanResult?.files.tttt?.present ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
@@ -829,17 +948,17 @@ export default function CcpLotStatisticsSection({
                       fontWeight: 800,
                       padding: '2px 6px',
                       borderRadius: '4px',
-                      backgroundColor: scanResult?.files.tttt?.present ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                      color: scanResult?.files.tttt?.present ? '#000' : 'var(--text-muted)',
+                      backgroundColor: scanResult?.files.tttt?.present ? '#10b981' : '#f59e0b',
+                      color: '#000',
                     }}
                   >
-                    {scanResult?.files.tttt?.present ? 'ĐÃ CÓ' : 'TÙY CHỌN'}
+                    {scanResult?.files.tttt?.present ? 'ĐÃ CÓ FILE' : 'CHƯA TÌM THẤY'}
                   </span>
                 </div>
                 <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: scanResult?.files.tttt?.present ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                   {scanResult?.files.tttt?.present
                     ? `${scanResult.files.tttt.filename} (${(scanResult.files.tttt.size / 1024).toFixed(1)} KB)`
-                    : 'Chưa có file TTTT (sẽ tính = 0)'}
+                    : 'Chưa có file TTTT (sẽ tính số lot tất toán = 0 nếu bỏ qua)'}
                 </span>
               </div>
 
@@ -848,8 +967,16 @@ export default function CcpLotStatisticsSection({
                 style={{
                   padding: '12px',
                   borderRadius: '8px',
-                  backgroundColor: scanResult?.files.tyGia?.present ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                  border: `1px solid ${scanResult?.files.tyGia?.present ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'}`,
+                  backgroundColor: scanResult?.files.tyGia?.present
+                    ? 'rgba(16, 185, 129, 0.08)'
+                    : scanResult?.dbExchangeRates?.detectedRate
+                    ? 'rgba(16, 185, 129, 0.08)'
+                    : 'rgba(59, 130, 246, 0.08)',
+                  border: `1px solid ${
+                    scanResult?.files.tyGia?.present || scanResult?.dbExchangeRates?.detectedRate
+                      ? 'rgba(16, 185, 129, 0.3)'
+                      : 'rgba(59, 130, 246, 0.3)'
+                  }`,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
@@ -863,17 +990,27 @@ export default function CcpLotStatisticsSection({
                       fontWeight: 800,
                       padding: '2px 6px',
                       borderRadius: '4px',
-                      backgroundColor: scanResult?.files.tyGia?.present ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                      color: scanResult?.files.tyGia?.present ? '#000' : 'var(--text-muted)',
+                      backgroundColor: scanResult?.files.tyGia?.present
+                        ? '#10b981'
+                        : scanResult?.dbExchangeRates?.detectedRate
+                        ? '#10b981'
+                        : '#3b82f6',
+                      color: scanResult?.files.tyGia?.present || scanResult?.dbExchangeRates?.detectedRate ? '#000' : '#fff',
                     }}
                   >
-                    {scanResult?.files.tyGia?.present ? 'ĐÃ CÓ' : 'DÙNG MẶC ĐỊNH'}
+                    {scanResult?.files.tyGia?.present
+                      ? 'ĐÃ CÓ TỆP'
+                      : scanResult?.dbExchangeRates?.detectedRate
+                      ? 'BÁO CÁO NGÀY'
+                      : 'CSDL MONGODB'}
                   </span>
                 </div>
-                <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: scanResult?.files.tyGia?.present ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: scanResult?.files.tyGia?.present || scanResult?.dbExchangeRates?.detectedRate ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                   {scanResult?.files.tyGia?.present
                     ? `${scanResult.files.tyGia.filename} (${(scanResult.files.tyGia.size / 1024).toFixed(1)} KB)`
-                    : 'Mặc định: 1 USD = 25.920 đ'}
+                    : scanResult?.dbExchangeRates?.detectedRate
+                    ? `1 USD = ${scanResult.dbExchangeRates.detectedRate.toLocaleString('vi-VN')} đ (${scanResult.dbExchangeRates.detectedSource || 'từ tệp ngày'})`
+                    : `1 USD = ${(scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || 25920).toLocaleString('vi-VN')} đ ${scanResult?.dbExchangeRates?.lastSynced ? `(Đã lưu DB: ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleTimeString('vi-VN')} ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleDateString('vi-VN')})` : ''}`}
                 </span>
               </div>
             </div>
@@ -892,182 +1029,196 @@ export default function CcpLotStatisticsSection({
             }}
           >
 
-          {/* 1. File DSGD */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>
-                1. DSGD CoreCCP (*)
-              </label>
-              <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 700 }}>Bắt buộc</span>
-            </div>
-            <label
-              style={{
-                border: '1px dashed rgba(16, 185, 129, 0.4)',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                backgroundColor: dsgdFile ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
-                height: '36px',
-              }}
-            >
-              <FileSpreadsheet size={15} color="#10b981" />
-              <span
+            {/* 1. File DSGD */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>
+                  1. DSGD CoreCCP (*)
+                </label>
+                <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 700 }}>Bắt buộc</span>
+              </div>
+              <label
                 style={{
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  color: dsgdFile ? 'var(--text-primary)' : 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
+                  border: '1px dashed rgba(16, 185, 129, 0.4)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: dsgdFile ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                  height: '36px',
                 }}
               >
-                {dsgdFile ? dsgdFile.name : 'Chọn file DSGD_*.xlsx'}
-              </span>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => e.target.files?.[0] && setDsgdFile(e.target.files[0])}
-                style={{ display: 'none' }}
-              />
-            </label>
-          </div>
+                <FileSpreadsheet size={15} color="#10b981" />
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    color: dsgdFile ? 'var(--text-primary)' : 'var(--text-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                >
+                  {dsgdFile ? dsgdFile.name : 'Chọn file DSGD_*.xlsx'}
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => e.target.files?.[0] && setDsgdFile(e.target.files[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
 
-          {/* 2. File TTM */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                2. TTM (Trạng Thái Mở)
-              </label>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tùy chọn</span>
-            </div>
-            <label
-              style={{
-                border: '1px dashed var(--border-color)',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                backgroundColor: ttmFile ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
-                height: '36px',
-              }}
-            >
-              <FileSpreadsheet size={15} color={ttmFile ? '#3b82f6' : 'var(--text-muted)'} />
-              <span
+            {/* 2. File TTM */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  2. TTM (Trạng Thái Mở)
+                </label>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tùy chọn</span>
+              </div>
+              <label
                 style={{
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  color: ttmFile ? 'var(--text-primary)' : 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
+                  border: '1px dashed var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: ttmFile ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                  height: '36px',
                 }}
               >
-                {ttmFile ? ttmFile.name : 'Chọn file TTM_*.xlsx'}
-              </span>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => e.target.files?.[0] && setTtmFile(e.target.files[0])}
-                style={{ display: 'none' }}
-              />
-            </label>
-          </div>
+                <FileSpreadsheet size={15} color={ttmFile ? '#3b82f6' : 'var(--text-muted)'} />
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    color: ttmFile ? 'var(--text-primary)' : 'var(--text-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                >
+                  {ttmFile ? ttmFile.name : 'Chọn file TTM_*.xlsx'}
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => e.target.files?.[0] && setTtmFile(e.target.files[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
 
-          {/* 3. File TTTT */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                3. TTTT (Tất Toán)
-              </label>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tùy chọn</span>
-            </div>
-            <label
-              style={{
-                border: '1px dashed var(--border-color)',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                backgroundColor: ttttFile ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
-                height: '36px',
-              }}
-            >
-              <FileSpreadsheet size={15} color={ttttFile ? '#f59e0b' : 'var(--text-muted)'} />
-              <span
+            {/* 3. File TTTT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  3. TTTT (Tất Toán)
+                </label>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tùy chọn</span>
+              </div>
+              <label
                 style={{
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  color: ttttFile ? 'var(--text-primary)' : 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
+                  border: '1px dashed var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: ttttFile ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                  height: '36px',
                 }}
               >
-                {ttttFile ? ttttFile.name : 'Chọn file TTTT_*.xlsx'}
-              </span>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => e.target.files?.[0] && setTtttFile(e.target.files[0])}
-                style={{ display: 'none' }}
-              />
-            </label>
-          </div>
+                <FileSpreadsheet size={15} color={ttttFile ? '#f59e0b' : 'var(--text-muted)'} />
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    color: ttttFile ? 'var(--text-primary)' : 'var(--text-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                >
+                  {ttttFile ? ttttFile.name : 'Chọn file TTTT_*.xlsx'}
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => e.target.files?.[0] && setTtttFile(e.target.files[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
 
-          {/* 4. File Tỷ Giá */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                4. Tỷ Giá CCP
-              </label>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Mặc định API</span>
-            </div>
-            <label
-              style={{
-                border: '1px dashed var(--border-color)',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                backgroundColor: tyGiaFile ? 'rgba(168, 85, 247, 0.08)' : 'transparent',
-                height: '36px',
-              }}
-            >
-              <FileSpreadsheet size={15} color={tyGiaFile ? '#a855f7' : 'var(--text-muted)'} />
-              <span
+            {/* 4. File Tỷ Giá */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  4. Tỷ Giá CCP
+                </label>
+                {tyGiaFile ? (
+                  <button
+                    type="button"
+                    onClick={() => handleUploadTyGiaOnly(tyGiaFile)}
+                    disabled={uploadingTyGia}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.68rem', padding: '1px 6px', height: '22px', display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', borderColor: '#10b981' }}
+                    title="Lưu tỷ giá từ file này vào CSDL MongoDB ngay"
+                  >
+                    <Save size={11} />
+                    <span>{uploadingTyGia ? 'Đang lưu...' : 'Lưu vào CSDL'}</span>
+                  </button>
+                ) : (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Mặc định CSDL</span>
+                )}
+              </div>
+              <label
                 style={{
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  color: tyGiaFile ? 'var(--text-primary)' : 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
+                  border: '1px dashed var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: tyGiaFile ? 'rgba(168, 85, 247, 0.08)' : 'transparent',
+                  height: '36px',
                 }}
               >
-                {tyGiaFile ? tyGiaFile.name : 'Tỷ giá_*.xlsx (hoặc API)'}
-              </span>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={(e) => e.target.files?.[0] && setTyGiaFile(e.target.files[0])}
-                style={{ display: 'none' }}
-              />
-            </label>
+                <FileSpreadsheet size={15} color={tyGiaFile ? '#a855f7' : 'var(--text-muted)'} />
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    color: tyGiaFile ? 'var(--text-primary)' : 'var(--text-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1,
+                  }}
+                >
+                  {tyGiaFile ? tyGiaFile.name : 'Tỷ giá_*.xlsx (hoặc CSDL)'}
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => e.target.files?.[0] && setTyGiaFile(e.target.files[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
           </div>
-        </div>
         )}
 
         {/* Collapsible Config Box */}
@@ -1139,7 +1290,7 @@ export default function CcpLotStatisticsSection({
 
               {/* ── Nhóm 2: Số Lot Theo Phân Hệ (Phase 2) ── */}
               <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#3b82f6', marginTop: '8px' }}>
-                2. Nhóm File Lũy Kế Số Lot Theo Phân Hệ (Phase 2):
+                2. Nhóm File Lũy Kế Số Lot Theo Phân Hệ:
               </div>
               <SmartPathInput
                 value={pathNormalLot}
@@ -1172,7 +1323,7 @@ export default function CcpLotStatisticsSection({
 
               {/* ── Nhóm 3: Giá Trị Giao Dịch Theo Phân Hệ (Phase 2) ── */}
               <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f59e0b', marginTop: '8px' }}>
-                3. Nhóm File Lũy Kế Giá Trị Giao Dịch (GTGD VND - Phase 2):
+                3. Nhóm File Lũy Kế Giá Trị Giao Dịch:
               </div>
               <SmartPathInput
                 value={pathGtgdNormal}
@@ -1205,7 +1356,7 @@ export default function CcpLotStatisticsSection({
 
               {/* ── Nhóm 4: Sổ Giao Dịch Thô Lũy Kế ── */}
               <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#8b5cf6', marginTop: '8px' }}>
-                4. File Sổ Giao Dịch Gốc Lũy Kế Tháng (Raw DSGD):
+                4. File Sổ Giao Dịch Gốc Lũy Kế Tháng:
               </div>
               <SmartPathInput
                 value={pathDsgdCumulative}

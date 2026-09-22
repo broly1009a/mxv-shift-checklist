@@ -74,7 +74,7 @@ async function getCredentialsFromDB() {
     const decrypted = decryptAES256(setting.value);
     return JSON.parse(decrypted);
   } catch (err) {
-    console.warn(`⚠️ Không thể đọc CSDL: ${err.message}`);
+    console.warn(` Không thể đọc CSDL: ${err.message}`);
     return null;
   }
 }
@@ -173,7 +173,7 @@ async function main() {
       if (page.url().includes('ORDERMATCH_DETAIL')) {
         console.log(`   🎉 HỆ THỐNG CHO PHÉP TRUY CẬP TRỰC TIẾP QUA URL!`);
       } else {
-        console.log(`   ⚠️ Hệ thống redirect về: ${page.url()} (Không hỗ trợ direct URL)`);
+        console.log(`    Hệ thống redirect về: ${page.url()} (Không hỗ trợ direct URL)`);
       }
     } catch (err) {
       console.log(`   ❌ Lỗi khi navigate direct URL: ${err.message}`);
@@ -280,14 +280,14 @@ async function main() {
             console.log(`   - Dữ liệu dòng 1: ${data[1].slice(0, 6).join(' | ')} ...`);
             console.log(`   🎉 CHÍNH XÁC LÀ FILE BÁO CÁO CÓ DỮ LIỆU KHỚP LỆNH!`);
           } else {
-            console.log(`   ⚠️ File chỉ có dòng header, 0 dòng dữ liệu.`);
+            console.log(`    File chỉ có dòng header, 0 dòng dữ liệu.`);
           }
         }
       } catch (err) {
-        console.log(`   ⚠️ Không bắt được sự kiện tải file: ${err.message}`);
+        console.log(`    Không bắt được sự kiện tải file: ${err.message}`);
       }
     } else {
-      console.log(`   ⚠️ Không tìm thấy nút 'Kết xuất' trên màn hình hiện tại.`);
+      console.log(`    Không tìm thấy nút 'Kết xuất' trên màn hình hiện tại.`);
     }
 
     console.log(`\n⏳ Giữ trình duyệt thêm 10 giây để bạn quan sát trực tiếp màn hình...`);

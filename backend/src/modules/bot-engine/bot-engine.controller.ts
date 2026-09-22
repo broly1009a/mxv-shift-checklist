@@ -616,6 +616,7 @@ export class BotEngineController {
   async getJobs(
     @Query('shiftLogId') shiftLogId?: string,
     @Query('taskId') taskId?: string,
+    @Query('jobTypes') jobTypes?: string,
   ) {
     const query: any = {};
     if (shiftLogId) {
@@ -636,6 +637,15 @@ export class BotEngineController {
         } catch (e) {}
       }
       query['payload.taskId'] = { $in: relatedTaskIds };
+    }
+    if (jobTypes) {
+      const types = jobTypes
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (types.length > 0) {
+        query['jobType'] = { $in: types };
+      }
     }
 
     // Mặc định chỉ lấy jobs trong vòng 30 ngày gần nhất để giảm số bản ghi
@@ -1949,13 +1959,9 @@ export class BotEngineController {
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
 
-    const year = targetDate.getFullYear().toString();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const dailyPath = path.join(backupPath, subFolder);
-
-    const scanPath = fs.existsSync(dailyPath) ? dailyPath : backupPath;
+    const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, targetDate);
+    const resolvedBackupPath = resolveStoragePathCrossPlatform(backupPath);
+    const scanPath = fs.existsSync(dailyPath) ? dailyPath : resolvedBackupPath;
 
     if (!fs.existsSync(scanPath)) {
       throw new HttpException(
@@ -2693,20 +2699,16 @@ export class BotEngineController {
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
 
-    const year = targetDate.getFullYear().toString();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-    const dailyPath = path.join(backupPath, subFolder);
-
-    const scanPath = fs.existsSync(dailyPath) ? dailyPath : backupPath;
+    const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, targetDate);
+    const resolvedBackupPath = resolveStoragePathCrossPlatform(backupPath);
+    const scanPath = fs.existsSync(dailyPath) ? dailyPath : resolvedBackupPath;
 
     if (!fs.existsSync(scanPath)) {
       return {
         success: false,
         backupPath: scanPath,
         message: `Thư mục backup CCP không tồn tại: ${scanPath}`,
-        summary: { total: 8, ok: 0, missing: 8, empty: 0 },
+        summary: { total: REQUIRED_CCP_FILES.length, ok: 0, missing: REQUIRED_CCP_FILES.length, empty: 0 },
         files: REQUIRED_CCP_FILES.map((f) => ({
           key: f.key,
           name: f.name,

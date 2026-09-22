@@ -1,9 +1,550 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-18T09:05] FEAT: Hoàn Thiện Bản Thiết Kế Go-Live, Single-Pass Classifier O(N) & Cơ Chế Zero-Lot Bypass
+## [2026-09-22T09:50] FEAT: Bộ Phòng Vệ ACM Chưa Cắt Phiên & Nút Xem Nhanh Nhật Ký Tóm Tắt (Log Summary Modal)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: Tổng hợp toàn bộ thông tin chi tiết và logic chuẩn xác thành **Bản Thiết Kế Kỹ Thuật Go-Live** ([`docs/BAN_THIET_KE_GO_LIVE_THONG_KE_CORECCP.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/BAN_THIET_KE_GO_LIVE_THONG_KE_CORECCP.md)) để sẵn sàng Go-Live ngay.
+1. **Giải cứu số liệu đối soát ACM Nano khi sàn chưa cắt phiên (Zero-Regression)**:
+   - Khắc phục lỗi `Nano = 0` (lệch 464 lots) ngày 22/09/2026 do sàn ACM chưa chạy batch cắt phiên kế toán (`Trading Day = 20260921`), khiến lệnh hôm nay bị bộ lọc phiên loại bỏ.
+   - Thêm cơ chế Smart Anomaly Re-check: Khi thỏa mãn điều kiện bất thường (`totalNano === 0 && totalACM > 0 && rawNanoData.length > 0`), tự động kích hoạt lọc phụ theo `Trade Date` thực tế, khôi phục thành công đúng 471 lots Nano.
+   - Hiển thị badge trực quan `Khớp Trade Date` trên ô Nano (icon `AlertTriangle`, không dùng emoji thô).
+2. **Nút Xem Nhanh Nhật Ký Tóm Tắt (Quick Log Summary)**:
+   - Đặt nút bấm `Nhật ký tóm tắt` ngay **TRƯỚC** khối `Thời điểm check gần nhất:` trên màn hình Trading Operation Console.
+   - Parser thông minh trích xuất từ log gốc: Giờ hoàn thành tải dữ liệu 4 nguồn (MS, CQG, ACM, CCP), trạng thái rào cản đồng bộ, cảnh báo bất thường sàn chưa cắt phiên, khung giờ lọc lệnh và kết luận đối chiếu (Khớp/Lệch).
+   - Hỗ trợ 2 tab: Tóm tắt trực quan (Timeline Cards) và Log kỹ thuật chi tiết (Raw Logs có tìm kiếm & sao chép).
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [recon-number-parser.helper.ts](file:///backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts):
+  * Bổ sung đọc cột `Trade Date` (`tradeDateIdx`) và gán `tradeDateStr: tradeDateVal ? \`${tradeDateVal} ${gio}\` : undefined`, giữ nguyên `ngayGio` theo `Trading Day`.
+- [klgd-recon.service.ts](file:///backend/src/modules/reconciliation/services/klgd-recon.service.ts):
+  * Bổ sung trường `acmSessionAnomaly` và `acmAnomalyNote` trong `CheckKLGDResult`.
+  * Bộ phòng vệ Smart Anomaly Re-check: Tự động phục hồi `nanoData` theo `tradeDateStr` và gán cờ cảnh báo khi sàn chưa cắt phiên.
+- [recon-jobs.handler.ts](file:///backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  * Ghi log cảnh báo ` [ACM CHƯA CẮT PHIÊN]` vào tiến trình thực thi job khi phát hiện cờ anomaly.
+- [reconLogParser.ts](file:///frontend/src/app/trading-manager/utils/reconLogParser.ts) [NEW]:
+  * Helper thuần túy bóc tách các mốc thời gian tải file, rào cản, anomaly và kết luận đối soát từ danh sách log thô.
+- [ReconLogSummaryModal.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx) [NEW]:
+  * Component Modal hiển thị bản tóm tắt tiến trình 4 nguồn tải dữ liệu và kết luận đối soát, tab log thô có thanh tìm kiếm.
+- [LegacyReconSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  * Bổ sung nút `[ Nhật ký tóm tắt ]` trước `Thời điểm check gần nhất:`.
+  * Tích hợp `ReconLogSummaryModal`, tự động đồng bộ theo lượt đang xem (dropdown hoặc lượt mới nhất).
+  * Ô Nano hiển thị badge cảnh báo `Khớp Trade Date` khi `isAcmAnomaly === true`.
+- [deploy_bundle.js](file:///backend/src/scripts/deploy_bundle.js):
+  * Thêm các file mới vào danh sách bundle triển khai tự động lên Ubuntu 10.0.0.26.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `npm run build` (`nest build`) biên dịch thành công 100% (exit code 0).
+- Frontend: `npm run build` (`next build`) biên dịch thành công 100% (exit code 0).
+- Triển khai máy chủ Ubuntu 10.0.0.26: Chạy `deploy_bundle.js`, giải nén, biên dịch và reload PM2 `mxv-backend` & `mxv-frontend` thành công.
+
+---
+
+## [2026-09-22T08:35] FEAT: Lưu Trữ Cấu Hình Chu Kỳ & Thời Điểm Vận Hành Vào MongoDB & Đồng Bộ Hai Chiều Bot Backend
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để các ô cấu hình đang bị lưu tạm trong bộ nhớ trình duyệt (`useState`) tại Trading Manager:
+  1. Tab 3 (Backup & Thống kê):
+     - `[v] Backup định kỳ (phút)` (`backupPeriodic`, `backupPeriodicMinutes`) $\rightarrow$ Lưu vào `bot_backup_periodic_enabled` và `bot_backup_periodic_minutes`.
+     - `[v] Thời điểm backup` (`enableBackupTime`, `backupTime`) $\rightarrow$ Lưu vào `bot_backup_time_enabled` và `bot_backup_time`.
+     - `[v] Thời điểm tạo thống kê` (`enableStatTime`, `statTime`) $\rightarrow$ Lưu vào `bot_stat_time_enabled` và `bot_stat_time`.
+  2. Tab 1 (Đối chiếu trong ca):
+     - `[v] Check định kỳ (phút)` (`checkPeriodic`, `intervalMinutes`) $\rightarrow$ Lưu vào `bot_periodic_check_enabled` và `bot_periodic_check_frequency`.
+  3. Bot Backend:
+     - Tự động nạp động các giá trị cấu hình từ MongoDB `system_settings` để tính thời gian đếm ngược quét định kỳ, kích hoạt reset task `CHECK_KLGD` theo chu kỳ người dùng đặt, và tự động đồng bộ giờ chạy `RPA_DOWNLOAD_MS` cùng `RUN_LOT_MACRO`.
+
+### 2. Danh sách file chỉnh sửa
+- [recon-console-summary.service.ts](file:///backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
+  * Cập nhật hàm tính `nextScanInSeconds`: đọc động `bot_periodic_check_frequency` và `bot_periodic_check_enabled` từ CSDL `system_settings`.
+  * Trả về cờ `isPeriodicEnabled` và `periodicFrequency` trong `shiftInfo` và `schedule`.
+- [bot-engine.service.ts](file:///backend/src/modules/bot-engine/bot-engine.service.ts):
+  * Cập nhật Pass 1: kiểm tra cờ `bot_periodic_check_enabled` (nếu false thì bỏ qua không reset lặp) và áp dụng chu kỳ phút `bot_periodic_check_frequency` từ CSDL thay vì hardcode 60 phút.
+- [scheduler.service.ts](file:///backend/src/modules/bot-engine/scheduler.service.ts):
+  * Đọc `bot_backup_time_enabled`, `bot_backup_time`, `bot_stat_time_enabled`, `bot_stat_time` từ MongoDB `system_settings`.
+  * Tự động điều chỉnh cron giờ chạy hàng ngày của tác vụ `RPA_DOWNLOAD_MS` và `RUN_LOT_MACRO` tương ứng theo cấu hình người dùng.
+- [LegacyBackupThongKeSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  * Tự động nạp 6 settings từ `GET /api/v1/system-settings` khi mount trang.
+  * Thêm cơ chế Auto-save (Debounced 600ms): tự động lưu ngay lập tức khi tick/untick checkbox và debounced khi thay đổi số phút hoặc chọn giờ.
+- [LegacyReconSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  * Tự động nạp `bot_periodic_check_enabled` và `bot_periodic_check_frequency` từ `system_settings` khi mount trang.
+  * Gắn hàm `saveSetting` khi toggle `checkPeriodic` và `debouncedSaveSetting` khi thay đổi `intervalMinutes`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` biên dịch thành công 100% (exit code 0).
+- Frontend: `next build` (Next.js Turbopack) biên dịch thành công 100% (exit code 0).
+- Deploy Server Ubuntu 10.0.0.26: Cập nhật bundle và reload PM2 `mxv-backend` & `mxv-frontend` thành công.
+
+---
+
+## [2026-09-22T08:25] FEAT: Bổ Sung Nút Lấy Tỷ Giá Mới Nhất (CoreCCP & M-System) & Tự Động Trích Xuất Lưu Database
+
+### 1. Mục tiêu thay đổi
+- Đáp ứng yêu cầu của USER:
+  1. Thêm nút `[ Lấy Tỷ Giá Mới Nhất ]` trên thanh công cụ Nguồn dữ liệu tại Tab 2 `Thống Kê Số Lot & GTGD CoreCCP` ([CcpLotStatisticsSection.tsx](file:///frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)) ngay cạnh `[ Tải Lên File Thủ Công ]`.
+  2. Bổ sung tính năng lấy và lưu tỷ giá vào CSDL MongoDB (`system_settings`) cho cả M-System và CoreCCP tại Tab Cấu hình ([TradingManagerConfigSection.tsx](file:///frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)).
+  3. Cập nhật Thẻ 4 "4. Tỷ Giá CCP" để hiển thị tỷ giá động thực tế đang dùng kèm nguồn gốc và thời điểm đồng bộ (thay thế chuỗi hardcode `25.920 đ`).
+  4. Tự động trích xuất tỷ giá CoreCCP từ các báo cáo ngày (`TTTT.csv` hoặc `TTM.csv` theo tỷ lệ VND/USD) khi thư mục ngày không có file tỷ giá độc lập, tự động lưu vào MongoDB `system_settings` (`ccp_usd_exchange_rate`, `usd_exchange_rate`, `exchange_rates_last_synced`).
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-classifier.helper.ts](file:///backend/src/modules/ccp-statistics/helpers/ccp-classifier.helper.ts):
+  * Thêm hàm `extractExchangeRateFromCcpReports(ttttBuffer?, ttmBuffer?)`: Tự động tìm tỷ giá USD thực tế bằng cách tính tỷ lệ Lãi lỗ thực tế VND / USD (trong TTTT) hoặc Lãi lỗ dự kiến VND / USD (trong TTM).
+- [ccp-lot-statistics.service.ts](file:///backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  * Mở rộng `CcpDailyScanResult` trả về `dbExchangeRates` (usd, ccpUsd, lastSynced, detectedRate, detectedSource).
+  * Thêm phương thức `syncAndSaveExchangeRates(dateStr?)`: Đồng bộ tỷ giá từ tệp ngày CCP hoặc file upload và lưu vào `system_settings`.
+  * Cập nhật `processCcpLotStatistics()`: Ưu tiên tỷ giá File tải lên $\rightarrow$ Trích xuất từ tệp CCP ngày $\rightarrow$ Database MongoDB (`ccp_usd_exchange_rate` || `usd_exchange_rate`) $\rightarrow$ Fallback.
+- [ccp-statistics.controller.ts](file:///backend/src/modules/ccp-statistics/ccp-statistics.controller.ts):
+  * Thêm endpoint `POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate`: Nhận `{ date?: string }`, đồng bộ và lưu tỷ giá vào MongoDB.
+  * Thêm endpoint `POST /api/v1/ccp-statistics/lot-statistics/upload-tygia`: Cho phép upload riêng lẻ file tỷ giá Excel/CSV và tự động lưu vào MongoDB.
+- [CcpLotStatisticsSection.tsx](file:///frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+  * Bổ sung nút `[ Lấy Tỷ Giá Mới Nhất ]` trên thanh Nguồn dữ liệu cạnh `[ Tải Lên File Thủ Công ]`.
+  * Cập nhật Thẻ 4 "4. Tỷ Giá CCP": Hiển thị linh hoạt tỷ giá thực tế từ tệp ngày / CSDL kèm thời điểm đồng bộ.
+  * Tại chế độ tải file thủ công: Thêm nút "Lưu vào CSDL" khi chọn file tỷ giá.
+- [TradingManagerConfigSection.tsx](file:///frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+  * Cụm 1 "Cấu hình tỷ giá": Thêm ô nhập `Tỷ giá CoreCCP (USD/VND)`, nút `[ Đồng bộ từ M-System ]` và `[ Đồng bộ từ CoreCCP ]`.
+  * Tự động lưu `ccp_usd_exchange_rate`, `usd_exchange_rate`, `exchange_rates_last_synced` vào CSDL MongoDB.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` biên dịch thành công 100% (exit code 0).
+- Frontend: `next build` (Next.js Turbopack) biên dịch thành công 100% (exit code 0).
+- Kiểm tra bóc tách tỷ giá thực tế ngày 21/09: `TTTT.csv` và `TTM.csv` bóc tách chính xác tỷ giá `26.000 đ/USD`, khớp 100% với kiểm toán thực tế.
+
+---
+
+
+
+### 1. Mục tiêu thay đổi
+- Đáp ứng chỉ đạo của USER: Bổ sung bộ nút chuyển đổi trực quan (View Mode Switcher) giữa **Chế độ Người dùng (Business / Operations View)** và **Chế độ Kỹ thuật (Technical / Console View)** tại màn hình Tab 5 `Hàng đợi & Logs` của Trading Manager.
+- Khắc phục tình trạng khi người dùng truy cập màn hình chỉ thấy một khoảng trống console "Chưa chọn tác vụ nào", chuyển thành:
+  1. **Chế độ Người dùng (`USER`)**:
+     - Khi chưa chọn tác vụ: Hiển thị Bảng Tổng Quan Vận Hành Ca Trực gồm 4 thẻ KPI chỉ số (Tổng tác vụ, Thành công, Đang xử lý, Lỗi/Đã hủy) và Hộp hướng dẫn vận hành ca trực.
+     - Khi chọn một tác vụ: Hiển thị Thẻ Chi Tiết Nghiệp Vụ gồm Tên nghiệp vụ tiếng Việt, Badge trạng thái lớn, Nút Tải trọn bộ báo cáo ZIP, Nút Dừng tác vụ khẩn cấp, Form giải Captcha trực quan, Thẻ tóm tắt kết quả nghiệp vụ, và Tiến trình 4 bước thực thi dạng Timeline.
+  2. **Chế độ Kỹ thuật (`TECHNICAL`)**:
+     - Màn hình Live Terminal Console chuẩn dark mode (`#0f172a`, chữ xanh monospace `#34d399`) hiển thị toàn bộ log realtime tự động cuộn.
+     - Nút "Sao chép Log" (copy to clipboard) và "Tải tệp nhật ký (.txt)".
+     - Khung JSON Inspector xem đầy đủ đối tượng `payload` và `result` kỹ thuật để IT debug.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingManagerJobQueueSection.tsx](file:///frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  * Import các icon `UserCheck`, `Code2`, `Copy`, `FileText`, `ArrowRight`, `Info` từ `lucide-react`.
+  * Khai báo state `viewMode` (`'USER' | 'TECHNICAL'`), mặc định là `'USER'`.
+  * Bổ sung Toolbar Switcher `[ Chế độ Người dùng ]  [ Chế độ Kỹ thuật (Console) ]` đặt nổi bật ở trung tâm thanh công cụ.
+  * Tách biệt logic hiển thị của Cột bên trái: Dashboard & Business Card cho Người dùng $\leftrightarrow$ Live Terminal & JSON Payload cho Kỹ thuật.
+  * Bổ sung hàm tiện ích: `handleCopyLogs()` và `handleDownloadLogFile()`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Local Frontend: `npx tsc --noEmit` & `npm run build` (Next.js Turbopack) biên dịch thành công 100%.
+- Triển khai Ubuntu 10.0.0.26: Chạy script `deploy_bundle.js` tải lên máy chủ, build và reload PM2 (`mxv-backend` & `mxv-frontend` đều `online`, exit code 0).
+
+---
+
+## [2026-09-21T16:30] FIX: Kiểm Tra & Đồng Bộ Toàn Diện 20 Báo Cáo Backup MS & 9 File Backup CQG
+
+### 1. Mục tiêu thay đổi
+- Rà soát và hoàn thiện luồng kiểm tra (Audit) và tải báo cáo tự động cho 2 phân hệ **Backup MS (20 báo cáo)** và **Backup CQG (9 files)** trên Tab "Backup – Thống kê - GTT":
+  1. Xử lý các báo cáo thiếu trong `switch (target)` của RPA Handler: Bổ sung `TTCDH` (`downloadTTCDH`) và `DSQLKQ` (`downloadDSQLKQ`).
+  2. Bổ sung từ điển alias tương thích giữa Frontend và Backend cho: `market truoc 6h` (`Markettruoc6h`), `TLQHSKQ` (`TLKQHSKQ`), `QLTKGD âm KQ` (`QLTKGDAmKQ`), `NKTTHT` (`NKTHT`).
+  3. Mở rộng regex pattern cho `scanMsBackupFiles`: Cho phép nhận diện chuẩn các file trên ổ đĩa kể cả khi có dấu cách, gạch dưới hoặc lệch ký tự viết tắt (`NKTTHT` vs `NKTHT`).
+  4. Xác nhận luồng Backup CQG (9 files): Quét chuẩn `FR1, FR2, PS1, PS2, OP1, OP2, OD1, OD2, AS` kèm cơ chế tự động resolve thư mục ngày xuyên nền tảng trên Linux Ubuntu.
+
+### 2. Danh sách file chỉnh sửa
+- [rpa-download.handler.ts](file:///backend/src/modules/bot-engine/handlers/rpa-download.handler.ts):
+  * Bổ sung case xử lý tải `TTCDH` và `DSQLKQ`.
+  * Hỗ trợ alias tên báo cáo từ Frontend (`market truoc 6h`, `TLQHSKQ`, `QLTKGD âm KQ`, `NKTTHT`).
+- [file-audit.handler.ts](file:///backend/src/modules/bot-engine/handlers/file-audit.handler.ts):
+  * Cập nhật `REQUIRED_MS_FILES`: Đổi key chuẩn `NKTTHT`, bổ sung regex patterns cho các báo cáo đặc thù.
+  * Nâng cấp `scanMsBackupFiles`: Hỗ trợ khớp theo regex patterns.
+- [deploy_bundle.js](file:///backend/src/scripts/deploy_bundle.js):
+  * Bổ sung `rpa-download.handler.ts` và toàn bộ các file mới sửa đổi vào gói bundle triển khai.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` biên dịch thành công 100%.
+- Frontend: `npx tsc --noEmit` biên dịch thành công 100%.
+
+---
+
+## [2026-09-21T16:15] FIX: Căn Chỉnh Thời Điểm Check & Đảm Bảo Luôn Hiển Thị Đồng Hồ Đếm Ngược Check Định Kỳ
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để hiện tượng trên giao diện không nhìn thấy đồng hồ đếm ngược của "Check định kỳ":
+  1. Trước khi sửa mốc thời gian, `lastCheckedTime` ở Backend bị lấy mốc `08:03` sáng làm `elapsedSeconds` vượt quá 60 phút, trả về `nextScanInSeconds = 0`.
+  2. Tại Frontend, điều kiện `{checkPeriodic && countdownSeconds > 0 && ...}` khi `countdownSeconds === 0` làm toàn bộ badge đếm ngược bị ẩn biến mất hoàn toàn.
+  3. Khi người dùng điều chỉnh số phút `intervalMinutes` (ví dụ 60, 30, 15 phút), Frontend chưa tính toán lại đếm ngược theo giá trị nhập này.
+- Đảm bảo khi tích chọn `[x] Check định kỳ`: Luôn luôn hiển thị huy hiệu trạng thái rõ ràng (đếm lùi `Quét lại sau: Xp Ys`, hoặc `Đến lịch quét định kỳ`, hoặc `Tự động đang tắt` khi Master Switch OFF).
+
+### 2. Danh sách file chỉnh sửa
+- [LegacyReconSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  * Import icon `PauseCircle` từ `lucide-react`.
+  * Bổ sung `useEffect` tự động tính toán số giây đếm ngược `countdownSeconds` linh hoạt: Nếu server chưa có hoặc trả về 0, tự động lấy khoảng cách từ lần chạy gần nhất (`runs[0]?.createdAt`) và `intervalMinutes`.
+  * Cập nhật khối hiển thị cạnh `Check định kỳ (phút)`:
+    - Khi `!autoReconActive`: Hiển thị badge đỏ `<PauseCircle size={14} /> Tự động đang tắt`.
+    - Khi `countdownSeconds > 0`: Hiển thị badge xanh `<Clock size={14} /> Quét lại sau: Xp Ys`.
+    - Khi `countdownSeconds <= 0`: Hiển thị badge cam `<RefreshCw size={14} className="animate-spin" /> Đến lịch quét định kỳ`.
+- [recon-console-summary.service.ts](file:///backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
+  * Ưu tiên `klgdJob?.createdAt` trước `taskKlgd?.checkedAt` giúp `nextScanInSeconds` trả về đúng số giây còn lại tính từ lượt chạy gần nhất.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` biên dịch thành công 100%.
+- Frontend: `npx tsc --noEmit` và `next build` biên dịch thành công 100%.
+
+---
+
+## [2026-09-21T16:00] FIX: Chuẩn Hóa Mã Báo Cáo CoreCCP, Sửa Regex Quét File Audit, Khắc Phục Đường Dẫn Audit Xuyên Nền Tảng & Đối Soát Khớp Lệnh ACM CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Rà soát và sửa chữa toàn diện các lỗi liên quan đến tải và đối soát báo cáo CoreCCP:
+  1. Fix lỗi người dùng chọn tải "TTM trước 4h20", "QL TT TKGD trước 4h20", "DSTKGD ACM" nhưng bot đăng nhập xong thoát ngay sau 1s mà không tải file (do lệch mã key giữa Frontend và Backend).
+  2. Fix lỗi ấn nút "Kiểm tra" báo `CoreCCP: 0/8 files OK` do đường dẫn ổ đĩa `M:\` không được resolve xuyên nền tảng trên Linux và hardcode `total: 8`.
+  3. Fix lỗi regex pattern trong File Audit báo thiếu (MISSING) các file `HH.csv`, `TTM_PRE1620.csv`, `QLTTTKGD_PRE1620.csv`, `HD.csv` khi bot tải về thư mục ngày theo ca dạng phẳng.
+  4. Fix lỗi đối soát chi tiết dòng lệnh (Trade-by-trade) báo `LỆCH` giả khi các giao dịch tự doanh/liên thông ACM (68 lots) đã được ghi nhận đầy đủ trên CoreCCP nhưng hàm so khớp chưa so chéo với `dsgdCcp`.
+
+### 2. Danh sách file chỉnh sửa
+- [LegacyBackupThongKeSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  * Cập nhật `CORE_CCP_REPORTS_LIST`: Đổi `TTM_BEFORE_420` -> `TTM_PRE1620`, `QLTTTKGD_BEFORE_420` -> `QLTTTKGD_PRE1620`, `DSTKGD_ACM` -> `DSTKGD` để đồng bộ 100% với danh mục Backend `DEFAULT_CCP_REPORTS`.
+- [ccp-ce-download.handler.ts](file:///backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts):
+  * Bổ sung từ điển `REPORT_CODE_ALIASES` khi phân giải danh sách báo cáo cần tải từ payload, đảm bảo tương thích ngược 2 chiều cho cả key cũ và key mới.
+- [file-audit.handler.ts](file:///backend/src/modules/bot-engine/handlers/file-audit.handler.ts):
+  * Mở rộng regex pattern cho `TTM_PRE1620` (`/ttm.*1620/i`, `/^ttm_pre/i`), `QLTTTKGD_PRE1620` (`/ql.*tt.*tkgd.*1620/i`, `/^qltttkgd_pre/i`), `HH` (`/^(hh|commodity)\.(xlsx|csv)$/i`, `/^hh\b/i`), `HD` (`/^hd\b/i`).
+  * Nâng cấp `scanCcpBackupFiles`: Tự động kiểm tra trực tiếp cả `${key}.csv`, `${key}.xlsx` và chuyển đổi đuôi `.xlsx` <-> `.csv` khi tìm file chính xác.
+- [bot-engine.controller.ts](file:///backend/src/modules/bot-engine/bot-engine.controller.ts):
+  * Cập nhật `auditCcpBackup` và `auditMsBackup`: Sử dụng `resolveDailySubfolder` và `resolveStoragePathCrossPlatform` để tự động chuyển đổi đường dẫn ổ đĩa mạng `M:\`, `C:\` sang đường dẫn mount Linux tương ứng.
+  * Thay thế giá trị hardcode `total: 8` bằng `REQUIRED_CCP_FILES.length` (23).
+- [klgd-recon.service.ts](file:///backend/src/modules/reconciliation/services/klgd-recon.service.ts):
+  * Bổ sung bước kiểm tra chéo lệnh ACM với danh sách giao dịch CoreCCP (`ccpDsgdRecords` từ `CcpExcelParser.parseDSGD`) trước khi kết luận lệnh lệch, loại bỏ hoàn toàn cảnh báo lệch giả khi tổng khối lượng đã khớp tuyệt đối (937 = 869 + 68).
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` biên dịch thành công 100%, không phát sinh lỗi lint/type.
+- Frontend: `next build` biên dịch production thành công 100% với toàn bộ 25 route tĩnh & động.
+
+---
+
+## [2026-09-21T14:15] FEAT & REFACTOR: Tách Biệt & Thu Gọn Hàng Đợi Trading Manager (Chỉ Hiện Tác Vụ Khớp Lệnh, Pre-EOD, CCP, Macro, Ký Quỹ Âm)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"giúp tôi chỉ hiện hàng đợi của trading thôi còn muốn xem hết thì vào bot-config"*.
+- Đảm bảo phân hệ "Hàng đợi & Logs" tại màn hình Trading Manager (`/trading-manager`) chỉ hiển thị các tác vụ thuộc phạm vi quản lý và giám sát của Trading Manager, không bị lẫn các tác vụ định kỳ của toàn hệ thống (như SOD ca sáng, checklist ca trực, crawler tải báo cáo M-System rải rác...).
+- Bổ sung nút liên kết nhanh mở sang phân hệ Quản lý Bot toàn diện (`/admin/bot-config`) cho người dùng khi muốn xem hoặc quản trị toàn bộ các tác vụ của hệ thống.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-engine.controller.ts](file:///backend/src/modules/bot-engine/bot-engine.controller.ts):
+  * Bổ sung query parameter `@Query('jobTypes') jobTypes?: string` vào endpoint `GET /api/v1/bot-engine/jobs`.
+  * Khi có tham số `jobTypes`, query MongoDB sẽ tự động lọc `query['jobType'] = { $in: types }` ngay tại tầng cơ sở dữ liệu, đảm bảo không bị các job checklist khác chiếm mất hạn mức 50 bản ghi mới nhất.
+- [page.tsx](file:///frontend/src/app/trading-manager/page.tsx):
+  * Cập nhật hàm `pollActiveJobs`: Truyền `jobTypes=${TRADING_JOB_TYPES}` để badge nhấp nháy đỏ trên Tab Hàng Đợi chỉ đếm các tác vụ đang chạy thuộc nghiệp vụ Trading Manager.
+- [TradingManagerJobQueueSection.tsx](file:///frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  * Định nghĩa danh mục chuẩn `TRADING_JOB_TYPES` gồm 10 loại tác vụ: `CHECK_KLGD`, `CHECK_PRE_EOD`, `CHECK_CQG_SYNC`, `SCAN_NEGATIVE_MARGIN`, `DOWNLOAD_CCP_REPORT`, `DOWNLOAD_CE_REPORT`, `CHECK_EOD_CCP`, `RUN_LOT_MACRO`, `RUN_VALUE_MACRO`, `RUN_MACRO`.
+  * Cập nhật `fetchJobs`: Tự động lọc từ API theo `jobTypes`.
+  * Cập nhật `filteredJobs` và counter stats (`processingCount`, `completedCount`, `failedCount`): Chỉ tính toán trên các tác vụ thuộc `TRADING_JOB_TYPES`.
+  * Bổ sung nút bấm trực tiếp trên Toolbar: *"Toàn bộ Bot & Hàng đợi"* (icon SVG `ExternalLink`) dẫn tới `/admin/bot-config`.
+- [deploy_bundle.js](file:///backend/src/scripts/deploy_bundle.js):
+  * Bổ sung `bot-engine.controller.ts`, `trading-manager/page.tsx` và toàn bộ thư mục `trading-manager/components/job-queue` vào gói deploy.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` thành công 100%, không phát sinh lỗi lint/type.
+- Frontend: `next build` biên dịch production thành công 100% với 25 route tĩnh & động.
+
+---
+
+## [2026-09-21T14:05] FEAT: Tích Hợp Tab "Hàng Đợi & Logs" (Job Queue & Terminal Console) Vào Bàn Giám Sát Trading Manager
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Đưa phân hệ **"Hàng đợi & Logs"** (đang có ở `/admin/bot-config` -> Tab Hàng đợi & Logs) ra trực tiếp màn hình điều hành trung tâm **Trading Manager** (`/trading-manager`).
+- Giúp người trực ca dễ dàng giám sát các tác vụ bot chạy nền (Check KLGD, Pre-EOD, Tải báo cáo CoreCCP, Ghép CQG, Chạy Macro...), xem trực tiếp dòng log terminal thời gian thực, hủy/dừng tác vụ kẹt hoặc giải captcha thủ công mà không phải chuyển trang.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingManagerJobQueueSection.tsx](file:///frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  * Tạo mới component chuyên dụng 2 cột: Console Logs & Terminal bên trái + Hàng đợi Jobs bên phải.
+  * Tích hợp bản đồ tên nghiệp vụ chuẩn hóa tiếng Việt cho toàn bộ các loại job của Trading Manager (`CHECK_KLGD`, `CHECK_PRE_EOD`, `CHECK_CQG_SYNC`, `DOWNLOAD_CCP_REPORT`, `CHECK_EOD_CCP`, `RUN_LOT_MACRO`, `RUN_VALUE_MACRO`, `SCAN_NEGATIVE_MARGIN`...).
+  * Live Terminal Output nền tối `#0f172a`, chữ xanh `#34d399`, tự động cuộn và polling log mỗi 2.5s khi job đang chạy.
+  * Bộ lọc linh hoạt: Lọc trạng thái (Tất cả, Đang chạy, Thành công, Lỗi/Hủy), lọc theo từ khóa, lọc theo ngày làm việc hiện tại.
+  * Hỗ trợ dừng tác vụ khẩn cấp (Modal nhập lý do hủy an toàn), xử lý giải mã Captcha thủ công, và tải file ZIP nén báo cáo kết xuất.
+  * Sử dụng 100% icon SVG từ `lucide-react` theo Rule 5 AGENTS.md.
+- [page.tsx](file:///frontend/src/app/trading-manager/page.tsx):
+  * Thêm Tab thứ 5: **Hàng đợi & Logs** với icon `Terminal`.
+  * Bổ sung cơ chế polling nhẹ nhàng (8s/lần) số lượng background jobs đang chạy (`PROCESSING`, `AWAITING_CAPTCHA`, `PENDING`) để hiển thị badge nhấp nháy đỏ (`animate-pulse`) trên Tab, giúp người vận hành nhận biết ngay lập tức dù đang đứng ở Tab khác.
+  * Render `TradingManagerJobQueueSection` khi kích hoạt Tab.
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend: `next build` biên dịch thành công 100%, TypeScript pass, exit code 0.
+- Triển khai máy chủ: Đã đồng bộ lên máy chủ Ubuntu 10.0.0.26 qua `deploy_to_ubuntu.js`, build thành công và PM2 `mxv-backend`, `mxv-frontend` đều `online`.
+
+---
+
+## [2026-09-21T13:55] FEAT & FIX: Tự Động Parse Đường Dẫn Backup Sang Ổ M:\ (Windows) & Sửa Regex Nhận Diện File Macro (.xlsm)
+
+### 1. Mục tiêu thay đổi
+- Khắc phục tình trạng các đường dẫn thư mục backup hiển thị dạng mount nội bộ Linux `/mnt/qlgd-it/...` gây khó hiểu cho người dùng trực ca (vốn chỉ sử dụng máy tính Windows với ổ mạng `M:\`).
+- Đồng bộ hóa toàn bộ 7 đường dẫn trên màn hình Cấu hình Vận hành (`TradingManagerConfigSection.tsx`) về định dạng chuẩn `M:\Tailieuchung\QLGD-IT\...` giống mục CoreCCP.
+- Khắc phục lỗi kiểm tra tệp tin Macro (`.xlsm`) bị báo lỗi đỏ: *"Đường dẫn là một tập tin, nhưng yêu cầu chỉ định thư mục."* do thiếu đuôi mở rộng `.xlsm` trong regex kiểm tra.
+- Tăng cường khả năng tương thích chéo nền tảng (Windows $\leftrightarrow$ Ubuntu Linux) cho `bot_backup_path_cqg`, `bot_backup_path_acm` và hàm tính thư mục ngày `resolveDailySubfolder`.
+
+### 2. Danh sách file chỉnh sửa
+- [TradingManagerConfigSection.tsx](file:///frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+  * Tích hợp hàm `parseWindowsStoragePath` để tự động parse mọi đường dẫn Linux `/mnt/qlgd-it/...` thành dạng chuẩn Windows `M:\Tailieuchung\QLGD-IT\...` ngay khi tải cấu hình.
+  * Thêm nút bấm 1-click **"Chuẩn hóa ổ M:\"** ngay trên thanh tiêu đề khối cấu hình.
+  * Nâng cấp giao diện hiển thị trạng thái kiểm tra đường dẫn: Hiển thị thêm dòng ánh xạ máy chủ `(Ánh xạ máy chủ: /mnt/qlgd-it/...)` giúp người dùng hiểu rõ liên kết giữa ổ `M:\` và máy chủ Ubuntu.
+- [system-settings.service.ts](file:///backend/src/modules/system-settings/system-settings.service.ts):
+  * Bổ sung `.xlsm` và `.xlsb` vào regex nhận diện tệp tin `hasFileExt` trong hàm `verifyStoragePath`:
+    `/\.(xlsx|xls|xlsm|xlsb|csv|txt|json|pdf|xml|doc|docx)$/i`.
+  * Giúp 2 file Macro thống kê số lot & giá trị được nhận diện chính xác là tệp tin, kiểm tra quyền đọc/ghi thành công (màu xanh).
+- [bot-path.helper.ts](file:///backend/src/modules/bot-engine/helpers/bot-path.helper.ts):
+  * Bọc `baseDir` bằng `resolveStoragePathCrossPlatform(baseDir)` bên trong `resolveDailySubfolder(baseDir, dateInput)` để đảm bảo tương thích chéo nền tảng.
+- [klgd-recon.service.ts](file:///backend/src/modules/reconciliation/services/klgd-recon.service.ts):
+  * Bọc `cqgBackupBase` và `acmBackupBase` qua `resolveStoragePathCrossPlatform`.
+- [pre-eod-recon.service.ts](file:///backend/src/modules/reconciliation/services/pre-eod-recon.service.ts):
+  * Bọc `msBackupBase`, `cqgBackupBase`, và `acmBackupBase` qua `resolveStoragePathCrossPlatform`.
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` biên dịch thành công 100%, exit code 0.
+- Frontend: `next build` biên dịch thành công 100%, TypeScript pass, exit code 0.
+- Triển khai máy chủ: Đã sync toàn bộ code lên máy chủ Ubuntu 10.0.0.26 qua `deploy_to_ubuntu.js`, build thành công và PM2 `mxv-backend`, `mxv-frontend` đều `online`.
+
+---
+
+## [2026-09-21T08:25] FEAT: Cải Tiến Giao Diện Quét Thư Mục Ngày CCP: Thêm Cảnh Báo Mount & Chuẩn Hóa Trạng Thái File
+
+### 1. Mục tiêu thay đổi
+- Khắc phục tình trạng gây hiểu lầm khi quét thư mục ngày của CoreCCP:
+  * Khi thư mục ngày không đọc được (do ổ đĩa mạng `/mnt/qlgd-it` bị mất kết nối hoặc thư mục chưa tạo), hệ thống trước đó chỉ báo `CHƯA ĐỦ FILE BẮT BUỘC (DSGD)`, đồng thời hiển thị chữ `TÙY CHỌN` và `DÙNG MẶC ĐỊNH` cho các thẻ còn lại khiến người vận hành lầm tưởng là đã quét xong và các file đó không quan trọng.
+- Thêm cảnh báo màu đỏ trực quan khi ổ đĩa mạng / thư mục ngày không thể truy cập (`scanResult.exists === false`).
+- Chuẩn hóa toàn bộ 4 thẻ tệp: Thể hiện rõ ràng trạng thái file trên đĩa (`ĐÃ CÓ FILE` vs `CHƯA TÌM THẤY`), mức độ bắt buộc và cảnh báo ảnh hưởng nghiệp vụ (nếu thiếu TTM/TTTT sẽ tính số lot = 0).
+
+### 2. Danh sách file chỉnh sửa
+- [CcpLotStatisticsSection.tsx](file:///frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+  * Bổ sung Alert Banner cảnh báo lỗi kết nối ổ đĩa mạng `/mnt/qlgd-it` khi `!scanResult.exists`.
+  * Cập nhật badge & mô tả cho 4 thẻ:
+    - DSGD: `ĐÃ CÓ FILE` (Xanh) vs `THIẾU FILE (BẮT BUỘC)` (Đỏ).
+    - TTM: `ĐÃ CÓ FILE` (Xanh) vs `CHƯA TÌM THẤY` (Cam) kèm cảnh báo sẽ tính mở = 0.
+    - TTTT: `ĐÃ CÓ FILE` (Xanh) vs `CHƯA TÌM THẤY` (Cam) kèm cảnh báo sẽ tính tất toán = 0.
+    - Tỷ giá: `ĐÃ CÓ TỆP` (Xanh) vs `DÙNG DATABASE` (Xanh dương) kèm hiển thị tỷ giá CSDL.
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend: `next build` biên dịch thành công, exit code 0.
+
+---
+
+## [2026-09-21T08:15] REFACTOR: Gom Nhóm Tải Hợp Đồng Hàng Hóa Chuẩn Động Trên Giao Diện & Backend Crawler
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Gom 3 checkbox fix cứng hợp đồng lẻ (`HĐ CP2CO`, `HĐ PL1NY`, `HĐ SI5CO`) trên giao diện thành 1 mục duy nhất: **`[x] Hợp đồng hàng hóa (HĐ *.xlsx)`**.
+- Cấu hình Backend crawler tự động tải toàn bộ danh mục hợp đồng phát sinh từ bảng `HH` (thay vì chỉ tải 3 mã cố định của Nano ACM).
+
+### 2. Danh sách file chỉnh sửa
+- [LegacyBackupThongKeSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx): Cập nhật `CORE_CCP_REPORTS_LIST`, thay thế 3 mã hợp đồng thành `{ key: 'HD', name: 'Hợp đồng hàng hóa', filename: 'HĐ *.xlsx', group: 'PRODUCT', phase: 2 }`.
+- [ccp-ce-downloader.service.ts](file:///backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  * Cập nhật danh mục `DEFAULT_CCP_REPORTS` có mã báo cáo `HD` (`Hợp đồng hàng hóa`).
+  * Trong vòng lặp `run()`: Bổ sung xử lý khi gặp mã `HD` hoặc `HD_*` $\rightarrow$ Tự động gọi `downloadCommodityAndContracts(page, systemUrl, outputDir, logCb)` để duyệt bảng `HH` và tải toàn bộ các file `HĐ <UACODE>.xlsx`.
+- [file-audit.handler.ts](file:///backend/src/modules/bot-engine/handlers/file-audit.handler.ts): Cập nhật `REQUIRED_CCP_FILES` với pattern kiểm tra hợp đồng `HĐ *.xlsx` linh hoạt.
+- [deploy_bundle.js](file:///backend/src/scripts/deploy_bundle.js): Thêm `file-audit.handler.ts` vào danh sách đồng bộ lên máy chủ Ubuntu.
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` thành công, exit code 0.
+- Frontend: `next build` biên dịch thành công, TypeScript pass, exit code 0.
+
+---
+
+## [2026-09-18T18:45] FIX: Khắc Phục Lỗi Hiển Thị [object Object] Tại Ô Tiêu Đề Báo Cáo Excel Do Ép Kiểu RichText
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi hiển thị chuỗi `[object Object]` tại ô tiêu đề (dòng 1, cột A merged) trong các file Excel thống kê (ví dụ: `Thong ke so lot giao dich LME 2026.xlsx`).
+
+### 2. Nguyên nhân kỹ thuật (Root Cause)
+- Trong file template gốc của QLGD, ô tiêu đề `A1` không phải là chuỗi văn bản thuần (`string`) mà là một đối tượng **`RichText`** của thư viện ExcelJS:
+  ```json
+  {
+    "richText": [
+      { "text": "THỐNG KÊ SỐ LOT GIAO DỊCH LME TẠI MXV\n" },
+      { "font": { "italic": true, "size": 10, ... }, "text": "(tháng 12/2025)" }
+    ]
+  }
+  ```
+- Khi chạy script sinh template, lệnh `titleCell.value = String(titleCell.value).replace(...)` đã ép kiểu đối tượng `richText` thành chuỗi trong JavaScript, biến nội dung ô thành `"[object Object]"`.
+
+### 3. Giải pháp & Danh sách file chỉnh sửa
+- File chỉnh sửa: [generate_standard_ccp_template_and_run.js](file:///backend/scripts/generate_standard_ccp_template_and_run.js).
+- Bổ sung hàm helper `updateTitleRichText(cell)`:
+  * Kiểm tra kiểu dữ liệu: Nếu là `string` thì thay thế chuỗi như bình thường.
+  * Nếu là `cell.value.richText` (mảng các đoạn text con có định dạng font riêng), duyệt qua từng đoạn `part.text` và thay thế `12/2025` $\rightarrow$ `09/2026`, giữ nguyên 100% định dạng font in nghiêng, cỡ chữ và màu sắc gốc.
+- Đã chạy lại script tái tạo và cập nhật toàn bộ 12 file cho cả 2 folder `inputExampleCppFull` và `inputExampleCppFull_2`.
+- Đã kiểm tra lại thuộc tính ô `A1` của các file sau khi sinh: Text hiển thị chuẩn xác `THỐNG KÊ SỐ LOT GIAO DỊCH LME TẠI MXV (tháng 09/2026)`, không còn bị `[object Object]`.
+
+---
+
+## [2026-09-18T18:40] CHORE: Dọn Dẹp Toàn Bộ File Rác & Chuẩn Hóa Cấu Trúc review_output Theo QLGD
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Dọn dẹp toàn bộ 11 file Excel tàn dư cũ nằm ở root và các thư mục `Backup_Snapshots` trong cả 2 thư mục:
+  * `backend/src/modules/ccp-statistics/inputExampleCppFull/review_output`
+  * `backend/src/modules/ccp-statistics/inputExampleCppFull_2/review_output`
+- Trả lại cấu trúc cây thư mục tinh gọn, chuẩn mực 100% đồng nhất với thư mục mẫu của QLGD (`Input&Ouput_Example/Output`).
+
+### 2. Danh sách các file/folder đã xóa
+- `DSGD T09.2026 CCP.xlsx` (File cũ đặt tên sai chuẩn)
+- 10 file cũ nằm phẳng ở root: `Thong ke so lot/gia tri...`
+- Toàn bộ thư mục `Backup_Snapshots/` ở root và trong các thư mục con.
+
+---
+
+## [2026-09-18T18:35] FEAT: Nâng Cấp Cơ Chế Tỷ Giá 3 Tầng (File -> Database -> Fallback) & Đồng Bộ Tự Động Cho CCP Statistics
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuyển đổi cơ chế lấy tỷ giá ngoại tệ trong [ccp-lot-statistics.service.ts](file:///backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts) từ fallback tĩnh sang mô hình **3 tầng chuẩn Data-Driven**:
+  1. **Tầng 1 (Ưu tiên cao nhất - File thực tế)**: Đọc tỷ giá từ file `Tỷ giá.xlsx` nếu có tải lên (ví dụ: `26,420`). Tự động đồng bộ các tỷ giá (USD, JPY, MYR, CNY) vào bảng `system_settings` trong Database MongoDB để toàn bộ hệ thống (EOD, Margin, Thống kê) dùng chung.
+  2. **Tầng 2 (Lấy từ Database khi thiếu file)**: Nếu không có file tỷ giá đính kèm, tự động đọc từ Database qua `this.settingsService.getSetting('usd_exchange_rate')` thay vì dùng số gán cứng.
+  3. **Tầng 3 (Fallback an toàn)**: Chỉ áp dụng giá trị mặc định (`25,920`) khi Database hoàn toàn chưa có cấu hình.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-lot-statistics.service.ts](file:///backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts) (Cập nhật logic bóc tách và truy vấn tỷ giá 3 tầng tại L186-L235)
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- NestJS Backend: `nest build` thành công, exit code 0.
+- Bảo đảm tính phòng vệ (defensive programming): Kiểm tra an toàn `this.settingsService` tránh crash trong các unit test mock.
+
+---
+
+## [2026-09-18T18:25] FEAT: Tái Tạo Template Output Chuẩn 100% Theo QLGD & Chạy Lại Kết Xuất Báo Cáo CCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuẩn hóa toàn bộ cấu trúc và định dạng template kết xuất báo cáo CCP theo đúng 100% định dạng mẫu do phòng Quản lý Giao dịch (QLGD) tự làm tại `src/modules/ccp-statistics/Input&Ouput_Example/Output`.
+- Khắc phục lỗi sinh template dạng phẳng trước đây (thiếu 2 thư mục con, thiếu file GTGD theo TVKD, file DSGD đặt tên sai có chữ CCP).
+- Tái tạo toàn bộ 12 file template cho năm 2026 với sheet `T09.2026` và chạy lại quá trình kết xuất cho cả 2 bộ dữ liệu:
+  1. `backend/src/modules/ccp-statistics/inputExampleCppFull`
+  2. `backend/src/modules/ccp-statistics/inputExampleCppFull_2`
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [generate_standard_ccp_template_and_run.js](file:///backend/scripts/generate_standard_ccp_template_and_run.js) (Tạo mới: script tự động sinh template chuẩn và kết xuất)
+- [test_calc_and_compare_example.js](file:///backend/scripts/test_calc_and_compare_example.js) (Cập nhật: script đối soát toàn diện giữa logic hệ thống và output mẫu của QLGD)
+- Thư mục [inputExampleCppFull/review_output](file:///backend/src/modules/ccp-statistics/inputExampleCppFull/review_output) (Tái tạo đầy đủ 12 file)
+- Thư mục [inputExampleCppFull_2/review_output](file:///backend/src/modules/ccp-statistics/inputExampleCppFull_2/review_output) (Tái tạo đầy đủ 12 file)
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Tóm tắt nội dung thực hiện
+1. **Cấu trúc Thư Mục Output Chuẩn 100% Giống QLGD**:
+   - `DSGD T09.2026.xlsx` (File DSGD thô lũy kế cả tháng, chỉ chứa 1 sheet duy nhất `T09.2026`, chuẩn 28 cột của M-System).
+   - Thư mục `Thống kê lot giao dịch/`:
+     * `Thong ke so lot giao dich 2026.xlsx`
+     * `Thong ke so lot giao dich ACM 2026.xlsx`
+     * `Thong ke so lot giao dich LME 2026.xlsx`
+     * `Thong ke so lot giao dich Options 2026.xlsx`
+     * `Thong ke so lot giao dich Spread 2026.xlsx`
+   - Thư mục `Thống kê giá trị giao dịch/`:
+     * `Thong ke gia tri giao dich 2026 theo TVKD.xlsx`
+     * `Thong ke gia tri giao dich 2026.xlsx`
+     * `Thong ke gia tri giao dich ACM 2026.xlsx`
+     * `Thong ke gia tri giao dich LME 2026.xlsx`
+     * `Thong ke gia tri giao dich Options 2026.xlsx`
+     * `Thong ke gia tri giao dich Spread 2026.xlsx`
+2. **Quy Chuẩn Dữ Liệu Sheet `T09.2026`**:
+   - Nhân bản từ sheet gốc `T12.2025` của QLGD để giữ trọn vẹn 100% font chữ, border, căn lề, màu sắc, công thức SUM.
+   - Sửa tiêu đề thành `(tháng 09/2026)`.
+   - Sinh đúng 22 ngày làm việc trong tháng 09/2026 (từ 01/09/2026 đến 30/09/2026, loại trừ Thứ Bảy và Chủ Nhật).
+   - Clear dữ liệu mẫu cũ để sẵn sàng nhận ghi số liệu phiên 17/09/2026.
+   - Áp dụng hàm `fixSharedFormulas` bảo vệ ExcelJS chống lỗi shared formula clone.
+3. **Kết Quả Chạy Output**:
+   - Cả 2 bộ dữ liệu `inputExampleCppFull` (101 dòng DSGD) và `inputExampleCppFull_2` (75 dòng DSGD) đều ghi thành công 100% không phát sinh bất kỳ lỗi nào (`errors: 0`).
+   - Ghi chính xác dòng ngày 17/09/2026 vào tất cả các file tương ứng (Lot ACM, GTGD ACM, Sổ thường, LME, Spread và GTGD theo TVKD).
+   - File `DSGD T09.2026.xlsx` đã append chuẩn xác các dòng khớp lệnh thô.
+
+---
+
+
+### 1. Mục tiêu thay đổi
+1. **Khắc phục lỗi logic Thống kê CCP theo C# Ground Truth**:
+   - Đối chiếu trực tiếp mã nguồn C# gốc (`operate-transaction-app/Services/BackupService.cs:L412-L425` và `FileUtils.cs:L4360-L4650`).
+   - Sửa thuật toán gom Lot ACM và LME trong `ccp-accumulator.helper.ts`: Chỉ tính các tài khoản kết thúc bằng `-A` cho file thống kê ACM và loại trừ tài khoản `-A` khỏi các file thường.
+   - Kiểm chứng trên mẫu dữ liệu chuẩn mới `inputExampleCppFull_2` (ngày 17/09/2026): Tổng Lot ACM đạt **115 lot** (SI5CO: 41 + PL1NY: 48 + CP2CO: 26), Tổng TVKD = **115 lot** (TVKD 003: 28, 011: 26, 012: 5, 045: 12, 048: 13, 086: 13, 088: 18), khớp số học tuyệt đối 100%.
+2. **Bổ sung Giao diện Tải 25 Báo Cáo CoreCCP (VNCLEAR Maker)**:
+   - Thêm danh sách checkbox 25 báo cáo VNCLEAR tại cột thứ 3 "3. Backup CoreCCP (25 Báo cáo)" trên Tab 2 `Backup – Thống kê – GTT` ([LegacyBackupThongKeSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)).
+   - Bổ sung bảng chọn chi tiết 25 báo cáo kèm các nút chọn nhanh Đợt 1 / Đợt 2 / Tất cả tại Tab 4 `Báo Cáo & Đối Chiếu CoreCCP` ([CoreCcpBackupSection.tsx](file:///frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx)).
+3. **Triển khai & Đồng bộ Production (Ubuntu 10.0.0.26)**:
+   - Đồng bộ Backend NestJS, Frontend Next.js và module `frontend/src/features/tkgd`.
+   - Build thành công cả NestJS và Next.js (Turbopack/TypeScript) với mã thoát 0.
+   - Tải lại PM2: `mxv-backend` (Online) & `mxv-frontend` (Online).
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-accumulator.helper.ts](file:///backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts)
+- [LegacyBackupThongKeSection.tsx](file:///frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)
+- [CoreCcpBackupSection.tsx](file:///frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx)
+- [deploy_bundle.js](file:///backend/src/scripts/deploy_bundle.js)
+- [CHANGELOG_AI.md](file:///CHANGELOG_AI.md)
+
+### 3. Xác nhận Build & Kiểm thử
+- Local TypeScript check: Pass 100% không lỗi.
+- Remote Ubuntu Build: `nest build` thành công, `next build` hoàn tất 26/26 route tĩnh & động.
+- PM2 Status: `mxv-backend` (id 0) Online, `mxv-frontend` (id 1) Online.
+
+---
+
+## [2026-09-18T11:52] FEAT: Triển Khai Master Switch Dừng/Bật Tự Động Cho Trading Manager
+
+### 1. Mục tiêu thay đổi
+- Cung cấp cơ chế Master Switch (Circuit Breaker) cho phép Người vận hành ca trực có thể bấm Dừng / Bật hoàn toàn tính năng tự động chạy trực tiếp trên giao diện của 2 phân hệ:
+  1. Tab 1: **Check GD – EOD – Sync**: Bật/Tắt tự động đối chiếu trong ca.
+  2. Tab 2: **Backup – Thống kê – GTT**: Bật/Tắt tự động tải báo cáo theo giờ/chu kỳ.
+- Không cần phải truy cập thủ công vào trang cấu hình nội bộ `/bot-config` để bật/tắt từng job.
+- Thêm nút tiện ích **"Hôm nay"** nhanh tại ô chọn ngày trên Tab 2 để chống nhầm lẫn phiên làm việc khi vừa soi lịch sử ở Tab 1.
+
+### 2. Chi tiết phân tích & chỉnh sửa
+1. **Backend - Cổng Chặn Trigger Level**:
+   - `bot-engine.service.ts`: Trong phương thức `@Cron` `handleBotChecks()`, kiểm tra setting `bot_auto_recon_enabled` (mặc định `'true'`). Nếu bằng `'false'`, ghi log debug và return ngay lập tức, ngăn bot tự động quét và sinh job trong ca.
+   - `scheduler.service.ts`: Trong phương thức `@Cron` `checkSchedule()`, kiểm tra setting `bot_auto_backup_enabled` (mặc định `'true'`). Nếu bằng `'false'`, ghi log debug và return ngay lập tức, ngăn bot tự động kích hoạt tải báo cáo hoặc chạy thống kê theo giờ.
+   - **Cam kết an toàn tuyệt đối**: Không thay đổi bất kỳ logic bóc tách số liệu, đối soát hay Playwright download nào; các nút bấm thủ công của người dùng trên UI vẫn thực thi 100% bình thường.
+2. **Frontend - Nút Toggle Switch Trực Quan**:
+   - `LegacyReconSection.tsx`: Đọc và cập nhật `bot_auto_recon_enabled` qua API `/api/v1/system-settings`. Hiển thị badge trạng thái động `[🟢 Tự động: BẬT]` / `[⏸️ Tự động: ĐÃ DỪNG]` ngay trên thanh Toolbar đối chiếu.
+   - `LegacyBackupThongKeSection.tsx`: Đọc và cập nhật `bot_auto_backup_enabled`. Hiển thị badge trạng thái động `[🟢 Tự động Backup: BẬT]` / `[⏸️ Tự động Backup: ĐÃ DỪNG]` trên Header Bar Tab 2. Thêm nút "Hôm nay" cạnh ô date input.
+3. **Đồng bộ & Triển khai lên Production Server (Ubuntu 10.0.0.26)**:
+   - SFTP upload và đồng bộ cả Frontend và Backend.
+   - Rebuild sạch và reload PM2 `mxv-backend` và `mxv-frontend` thành công 100% (Exit code 0).
+
+### 3. Danh sách file chỉnh sửa
+- `backend/src/modules/bot-engine/bot-engine.service.ts`
+- `backend/src/modules/bot-engine/scheduler.service.ts`
+- `frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx`
+- `frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx`
+- `docs/BAN_THIET_KE_MASTER_SWITCH_TAT_BAT_TU_DONG_TRADING_MANAGER.md`
+- `CHANGELOG_AI.md`
+
+### 4. Xác nhận Build & Kiểm thử
+- Local Backend (`nest build`): Thành công 100% (Exit code: 0).
+- Local Frontend (`next build`): Thành công 100% (Exit code: 0).
+- Remote Ubuntu Build & PM2 Reload: Thành công 100% (Exit code: 0).
+
+---
+
+
+## [2026-09-18T11:06] FIX: Khôi Phục 100% Chuẩn Gốc Contract getConsoleSummary & Sửa Lỗi Lọc Job Theo Ngày
+
+### 1. Mục tiêu thay đổi
+- Sửa triệt để hiện tượng trên màn hình Trading Manager (/trading-manager) bảng số liệu bị về 0 và thời điểm check hiển thị --/-- --:-- khi lọc ngày lịch sử hoặc xem lượt cũ.
+- Soi dòng-từng-dòng đối chiếu với file gốc trước khi tách service (reconciliation.service.backup.ts:L5027-L5543), khôi phục 100% cấu trúc hợp đồng dữ liệu chuẩn mà không dùng bất kỳ logic fallback chắp vá nào.
+
+### 2. Chi tiết phân tích & chỉnh sửa
+1. Khôi phục chuẩn Root Keys & Sub-Objects:
+   - Khôi phục object klgd với đầy đủ 17 trường chuẩn gốc (totals, executedAt, status, logs, isWaitingFiles, waitingMessage, mismatchedTrades, mismatchedTTM, mismatchedTTTT...).
+   - Khôi phục object shiftInfo với đầy đủ 7 trường chuẩn gốc (lastCheckedAt, nextScanInSeconds, frequencyMinutes, shiftLogId, shiftName...).
+   - Khôi phục trường currentJobId: klgdJob?._id?.toString() || null.
+   - Khôi phục object preEod với đầy đủ 18 trường chuẩn gốc.
+2. Khắc phục câu Query lọc theo ngày (targetDate):
+   - Thay thế câu lệnh query lấy job toàn cục findOne({ jobType: 'CHECK_KLGD' }) bằng query có điều kiện ngày chặt chẽ dateFilterCondition (createdAt trong ngày VN/UTC hoặc payload date tương ứng).
+   - Ngăn chặn triệt để việc lấy nhầm job của ngày hôm nay (18/09) ép unshift vào mảng runs của ngày lịch sử (11/09).
+3. Công cụ tự động kiểm toán (audit_get_console_summary_diff.js):
+   - So khớp tự động 100% tất cả các Root Keys, sub-keys của klgd, shiftInfo, preEod, negativeMargin, ccpSummary.
+   - Khẳng định 7/7 khối logic nghiệp vụ lõi đều đạt PASS 100%.
+
+### 3. Danh sách file chỉnh sửa
+- backend/src/modules/reconciliation/services/recon-console-summary.service.ts
+- backend/src/scripts/audit_get_console_summary_diff.js
+- CHANGELOG_AI.md
+
+### 4. Xác nhận Build & Kiểm thử
+- Backend Build (nest build): Thành công 100% (Exit code: 0).
+- Frontend Build (next build): Thành công 100% (Exit code: 0).
+- Audit Script Diff (audit_get_console_summary_diff.js): 100% PASS tất cả các key và khối logic.
+
+---
+
 - Tối ưu hóa triệt để hiệu năng: Chuyển đổi bộ phân loại sang **Single-Pass O(N)** duyệt trong 1 vòng lặp duy nhất.
 - Triển khai cơ chế **Zero-Lot Bypass**: Tự động bỏ qua (Skip) việc mở và ghi vào các file lũy kế của những phân hệ chưa có giao dịch (`totalSoLot === 0`), giảm thời gian xử lý từ 15-20s xuống còn 1-2s và ngăn việc ghi đè các dòng số 0 rác vào các file chưa go-live.
 - Dọn sạch các pattern phỏng đoán (`SP/SPREAD` và dấu nối) khỏi hàm bóc tách mã hàng hóa `getMaHHFromCcpMaHD`, bảo đảm tuân thủ 100% ground truth từ Macro cũ của MXV.
@@ -13281,3 +13822,17 @@ export interface CheckKLGDResult {
 
 
 
+
+
+## [2026-09-21] Tách biệt độc lập tải Hàng hóa (HH) và Hợp đồng (HD) trong Bot CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Tối ưu hóa hàm `downloadCommodityAndContracts()`: Bỏ qua bước kết xuất file `HH.xlsx` khi chạy mục `HD`.
+- Đảm bảo tính độc lập: Mục `HH` chuyên trách tải file `HH.xlsx`, mục `HD` chỉ chuyên trách duyệt và kết xuất các file `HĐ *.xlsx`, tránh việc tải lặp và ghi đè file `HH.xlsx` 2 lần.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts): Comment lại khối lệnh kết xuất `HH.xlsx` ở đầu hàm `downloadCommodityAndContracts()`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- Đặt khối `try { this.triggerExportDownload(page, ...); ... hhDest = 'HH.xlsx' }` vào trong comment block.
+- Hàm trả về `{ hhPath: undefined, contractFiles }`, caller nhận danh sách file hợp đồng an toàn mà không ảnh hưởng bất kỳ luồng xử lý nào khác.

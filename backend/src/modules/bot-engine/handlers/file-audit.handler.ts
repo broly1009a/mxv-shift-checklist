@@ -17,7 +17,7 @@ import {
   getAcmBackupBase,
 } from '../helpers/bot-path.helper';
 
-export const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
+export const REQUIRED_MS_FILES: Array<{ key: string; filename: string; patterns?: RegExp[] }> = [
   { key: 'DSGD', filename: 'DSGD.xlsx' },
   { key: 'DSLCK', filename: 'DSLCK.xlsx' },
   { key: 'DSLDK', filename: 'DSLDK.xlsx' },
@@ -29,12 +29,12 @@ export const REQUIRED_MS_FILES: Array<{ key: string; filename: string }> = [
   { key: 'DSTKGD-LME', filename: 'DSTKGD-LME.xlsx' },
   { key: 'DSTKGD-Spread', filename: 'DSTKGD-Spread.xlsx' },
   { key: 'DSTrader', filename: 'DSTrader.xlsx' },
-  { key: 'Markettruoc6h', filename: 'market truoc 6 h.csv' },
-  { key: 'NKTHT', filename: 'NKTHT.xlsx' },
+  { key: 'Markettruoc6h', filename: 'market truoc 6h.csv', patterns: [/market.*truoc.*6.*h/i] },
+  { key: 'NKTTHT', filename: 'NKTTHT.xlsx', patterns: [/^nktt?ht\./i] },
   { key: 'NR', filename: 'NR.xlsx' },
   { key: 'QLTKGD', filename: 'QLTKGD.xlsx' },
-  { key: 'QLTKGDAmKQ', filename: 'QLTKGDAmKQ.xlsx' },
-  { key: 'TLKQHSKQ', filename: 'TLKQHSKQ.xlsx' },
+  { key: 'QLTKGDAmKQ', filename: 'QLTKGDAmKQ.xlsx', patterns: [/qltkgd.*am.*kq/i, /qltkgdamkq/i] },
+  { key: 'TLKQHSKQ', filename: 'TLKQHSKQ.xlsx', patterns: [/tlk?qhskq/i] },
   { key: 'TTCDH', filename: 'TTCDH.xlsx' },
   { key: 'TTM', filename: 'TTM.xlsx' },
   { key: 'TTTT', filename: 'TTTT.xlsx' },
@@ -122,7 +122,7 @@ export const REQUIRED_CCP_FILES: Array<{
     key: 'TTM_PRE1620',
     name: 'Trạng thái mở trước 16h20',
     filename: 'TTM truoc 4h20.xlsx',
-    patterns: [/ttm.*4h20/i, /ttm.*16h/i],
+    patterns: [/ttm.*4h20/i, /ttm.*16h/i, /ttm.*1620/i, /^ttm_pre/i],
     optional: true,
   },
   {
@@ -143,7 +143,7 @@ export const REQUIRED_CCP_FILES: Array<{
     key: 'QLTTTKGD_PRE1620',
     name: 'Quản lý trạng thái TKGD trước 16h20',
     filename: 'QL TT TKGD truoc 4h20.xlsx',
-    patterns: [/ql.*tt.*tkgd.*4h20/i],
+    patterns: [/ql.*tt.*tkgd.*4h20/i, /ql.*tt.*tkgd.*1620/i, /^qltttkgd_pre/i],
     optional: true,
   },
   {
@@ -190,25 +190,14 @@ export const REQUIRED_CCP_FILES: Array<{
     key: 'HH',
     name: 'Danh mục hàng hóa',
     filename: 'HH.xlsx',
-    patterns: [/^hh\.xlsx$/i, /commodity/i],
+    patterns: [/^(hh|commodity)\.(xlsx|csv)$/i, /^hh\b/i, /commodity/i],
   },
   {
-    key: 'HD_CP2CO',
-    name: 'Hợp đồng Đồng Nano ACM (CP2CO)',
-    filename: 'HĐ CP2CO.xlsx',
-    patterns: [/cp2co/i],
-  },
-  {
-    key: 'HD_PL1NY',
-    name: 'Hợp đồng Bạch kim Nano ACM (PL1NY)',
-    filename: 'HĐ PL1NY.xlsx',
-    patterns: [/pl1ny/i],
-  },
-  {
-    key: 'HD_SI5CO',
-    name: 'Hợp đồng Bạc Nano ACM (SI5CO)',
-    filename: 'HĐ SI5CO.xlsx',
-    patterns: [/si5co/i],
+    key: 'HD',
+    name: 'Hợp đồng hàng hóa',
+    filename: 'HĐ *.xlsx',
+    patterns: [/^hđ\s+/i, /^hd_/i, /^hd\b/i, /contracts?/i],
+    optional: true,
   },
 ];
 
@@ -266,7 +255,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       ? fs.readdirSync(backupPath)
       : [];
 
-    return REQUIRED_MS_FILES.map(({ key, filename }) => {
+    return REQUIRED_MS_FILES.map(({ key, filename, patterns }) => {
       const exactPath = path.join(backupPath, filename);
       if (fs.existsSync(exactPath)) {
         const stat = fs.statSync(exactPath);
@@ -280,7 +269,9 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
       const normalizedTarget = filename.toLowerCase().replace(/\s+/g, '');
       const matchedFile = existingFiles.find(
-        (f) => f.toLowerCase().replace(/\s+/g, '') === normalizedTarget,
+        (f) =>
+          f.toLowerCase().replace(/\s+/g, '') === normalizedTarget ||
+          (patterns && patterns.some((p) => p.test(f))),
       );
 
       if (matchedFile) {
@@ -288,7 +279,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
         const stat = fs.statSync(matchedPath);
         return {
           key,
-          filename,
+          filename: matchedFile,
           status: stat.size > 0 ? ('OK' as const) : ('MISSING' as const),
           lastModified: stat.mtime,
         };
@@ -317,19 +308,31 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       : [];
 
     return REQUIRED_CCP_FILES.map(({ key, name, filename, patterns }) => {
-      // 1. Kiểm tra exact filename (.csv hoặc .xlsx)
-      const exactCsv = path.join(backupPath, filename);
-      const exactXlsx = path.join(backupPath, filename.replace(/\.csv$/, '.xlsx'));
+      // 1. Kiểm tra exact filename (.csv, .xlsx, hoặc {code}.csv)
+      const exactOrig = path.join(backupPath, filename);
+      const exactCsv = path.join(backupPath, filename.replace(/\.xlsx$/i, '.csv'));
+      const exactXlsx = path.join(backupPath, filename.replace(/\.csv$/i, '.xlsx'));
+      const exactCodeCsv = path.join(backupPath, `${key}.csv`);
+      const exactCodeXlsx = path.join(backupPath, `${key}.xlsx`);
 
       let chosenPath = '';
       let chosenName = '';
 
-      if (fs.existsSync(exactCsv)) {
-        chosenPath = exactCsv;
+      if (fs.existsSync(exactOrig)) {
+        chosenPath = exactOrig;
         chosenName = filename;
+      } else if (fs.existsSync(exactCsv)) {
+        chosenPath = exactCsv;
+        chosenName = path.basename(exactCsv);
       } else if (fs.existsSync(exactXlsx)) {
         chosenPath = exactXlsx;
         chosenName = path.basename(exactXlsx);
+      } else if (fs.existsSync(exactCodeCsv)) {
+        chosenPath = exactCodeCsv;
+        chosenName = path.basename(exactCodeCsv);
+      } else if (fs.existsSync(exactCodeXlsx)) {
+        chosenPath = exactCodeXlsx;
+        chosenName = path.basename(exactCodeXlsx);
       } else {
         // 2. Quét pattern trong danh sách existingFiles
         const matched = existingFiles.find((f) => {

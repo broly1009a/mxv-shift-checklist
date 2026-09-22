@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
 import CcpLotStatisticsSection from './CcpLotStatisticsSection';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
+import { CORE_CCP_REPORTS_LIST } from '../legacy-ms-cqg/LegacyBackupThongKeSection';
 
 export interface CoreCcpBackupSectionProps {
   token: string | null;
@@ -37,6 +38,12 @@ export default function CoreCcpBackupSection({
   const [triggeringSection, setTriggeringSection] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState<any>(null);
   const [showLogModal, setShowLogModal] = useState(false);
+
+  // 25 Reports selection state
+  const [selectedReports, setSelectedReports] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, true]))
+  );
+  const [showReportsPanel, setShowReportsPanel] = useState(true);
 
   const fmt = (n: any) => {
     if (n === undefined || n === null) return '0';
@@ -63,9 +70,15 @@ export default function CoreCcpBackupSection({
     fetchSummary();
   }, [fetchSummary]);
 
-  // Trigger Playwright Download 4 CoreCCP files
-  const handleTriggerCcpDownload = async () => {
+  // Trigger Playwright Download CoreCCP files (hỗ trợ chọn báo cáo tùy ý)
+  const handleTriggerCcpDownload = async (overrideReports?: string[]) => {
     if (!token || triggering) return;
+    const chosen = overrideReports || Object.keys(selectedReports).filter((k) => selectedReports[k]);
+    if (chosen.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo CoreCCP để tải!');
+      return;
+    }
+
     setTriggering(true);
     setTriggeringSection('ccp-download');
 
@@ -78,7 +91,7 @@ export default function CoreCcpBackupSection({
         },
         body: JSON.stringify({
           date: selectedDate,
-          reports: ['QLTTTKGD', 'EOD', 'NR', 'TTTT'],
+          reports: chosen,
         }),
       });
 
@@ -95,7 +108,7 @@ export default function CoreCcpBackupSection({
         return;
       }
 
-      toast.loading('Robot Playwright đang tải 4 báo cáo CoreCCP, vui lòng chờ...', { id: 'ccp-job-progress' });
+      toast.loading(`Robot Playwright đang tải ${chosen.length} báo cáo CoreCCP, vui lòng chờ...`, { id: 'ccp-job-progress' });
 
       const startTime = Date.now();
       const MAX_WAIT_MS = 180000;
@@ -203,7 +216,7 @@ export default function CoreCcpBackupSection({
             await fetchSummary();
             break;
           }
-        } catch {}
+        } catch { }
       }
 
       if (!isDone) {
@@ -236,8 +249,8 @@ export default function CoreCcpBackupSection({
       {/* SUB-TABS NAVIGATION: 1. ĐỐI SOÁT & TẢI 4 FILE | 2. THỐNG KÊ LOT & GTGD */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap' }}>
         {[
-          { key: 'EOD_RECON', label: '1. Đối Soát Ký Quỹ & EOD (Tải 4 File & Kiểm Tra)', icon: ShieldCheck, color: '#3b82f6' },
-          { key: 'LOT_STATS', label: '2. Thống Kê Số Lot & GTGD CoreCCP (Thay Thế Macro)', icon: TrendingUp, color: '#10b981' },
+          { key: 'EOD_RECON', label: '1. Đối Soát Ký Quỹ & EOD', icon: ShieldCheck, color: '#3b82f6' },
+          { key: 'LOT_STATS', label: '2. Thống Kê Số Lot & GTGD CoreCCP', icon: TrendingUp, color: '#10b981' },
         ].map(({ key, label, icon: Icon, color }) => (
           <button
             key={key}
@@ -310,7 +323,7 @@ export default function CoreCcpBackupSection({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={handleTriggerCcpDownload}
+                onClick={() => handleTriggerCcpDownload()}
                 disabled={triggering}
                 className="btn btn-secondary"
                 style={{
@@ -451,6 +464,137 @@ export default function CoreCcpBackupSection({
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                 {totalMismatched > 0 ? 'Phát hiện chênh lệch số dư' : 'Khớp 100% công thức chuẩn'}
               </span>
+            </div>
+          </div>
+
+          {/* BẢNG CHỌN 25 BÁO CÁO BACKUP CORECCP (VNCLEAR MAKER) */}
+          <div className="glass-panel" style={{ padding: '16px 20px', border: '1px solid rgba(16, 185, 129, 0.3)', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '8px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FileSpreadsheet size={18} color="#10b981" />
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Bộ Báo Cáo Backup CoreCCP (25 File VNCLEAR Maker)
+                </h4>
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    color: '#10b981',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {Object.values(selectedReports).filter(Boolean).length}/25 báo cáo đã chọn
+                </span>
+              </div>
+
+              {/* Nút lọc nhanh theo Đợt & Action */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginRight: '4px' }}>
+                  <input
+                    type="checkbox"
+                    checked={Object.values(selectedReports).every(Boolean)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelectedReports(Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, checked])));
+                    }}
+                    style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
+                  />
+                  <span>Tất cả</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, r.phase === 1]));
+                    setSelectedReports(next);
+                  }}
+                  style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '5px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', cursor: 'pointer', color: '#f59e0b', fontWeight: 700 }}
+                  title="Chỉ chọn 2 file trước 16h20: QL TT TKGD truoc 4h20, TTM truoc 4h20"
+                >
+                  Đợt 1 (16h20 - 2 file)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, r.phase === 2]));
+                    setSelectedReports(next);
+                  }}
+                  style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '5px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', cursor: 'pointer', color: '#3b82f6', fontWeight: 700 }}
+                  title="Chọn 23 file EOD cuối ngày"
+                >
+                  Đợt 2 (EOD - 23 file)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTriggerCcpDownload()}
+                  disabled={triggering}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    padding: '5px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: '#10b981',
+                    borderColor: '#10b981',
+                  }}
+                >
+                  {triggering && triggeringSection === 'ccp-download' ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Đang tải...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={13} />
+                      <span>Tải Các Báo Cáo Đã Chọn</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Grid 25 Checkboxes */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '6px 12px' }}>
+              {CORE_CCP_REPORTS_LIST.map((rep) => (
+                <label
+                  key={rep.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.76rem',
+                    color: selectedReports[rep.key] ? 'var(--text-primary)' : 'var(--text-muted)',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: selectedReports[rep.key] ? 'rgba(16, 185, 129, 0.06)' : 'transparent',
+                    border: `1px solid ${selectedReports[rep.key] ? 'rgba(16, 185, 129, 0.25)' : 'transparent'}`,
+                  }}
+                  title={`${rep.filename} (${rep.groupLabel})`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!selectedReports[rep.key]}
+                    onChange={() => setSelectedReports((prev) => ({ ...prev, [rep.key]: !prev[rep.key] }))}
+                    style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {rep.name}
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                      {rep.groupLabel}
+                    </span>
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
 

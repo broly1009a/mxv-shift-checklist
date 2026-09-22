@@ -270,7 +270,7 @@ async function run() {
     console.log('======================================================================\n');
 
     if (result.errors && result.errors.length > 0) {
-      console.log('⚠️ Cảnh báo / lỗi phát sinh trong phiên:');
+      console.log(' Cảnh báo / lỗi phát sinh trong phiên:');
       result.errors.forEach((e) => console.log(`   - ${e}`));
       console.log('');
     }
@@ -328,7 +328,7 @@ async function run() {
       console.log('   - Panel g3.w0 được bảo vệ an toàn.');
       console.log(`   📂 File thực tế được lưu tại: ${destDir}`);
     } else {
-      console.log('   ⚠️ Vẫn còn file chưa khớp hoặc chưa tải được, vui lòng kiểm tra lại log chi tiết ở trên.');
+      console.log('    Vẫn còn file chưa khớp hoặc chưa tải được, vui lòng kiểm tra lại log chi tiết ở trên.');
     }
   } catch (err: any) {
     console.error(`❌ Lỗi thực thi: ${err.message}`);

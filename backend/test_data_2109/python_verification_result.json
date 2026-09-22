@@ -1,0 +1,235 @@
+{
+  "totalTrades": 30,
+  "totalLot": 67.0,
+  "totalUsd": 453944.0,
+  "totalGtgd25920": 11766228480,
+  "totalGtgd26000": 11802544000,
+  "diffVnd": 36315520,
+  "tvkd": {
+    "011": {
+      "soLot": 9.0,
+      "gtgd_25920": 1556612640,
+      "gtgd_26000": 1561417000,
+      "gtgd_usd": 60054.5,
+      "tradeCount": 9,
+      "orderTypes": [
+        "LMT",
+        "MKT"
+      ],
+      "isFull4Types": false,
+      "missingTypes": [
+        "STP",
+        "STL"
+      ],
+      "ttm": {
+        "klMua": 0,
+        "klBan": 0,
+        "totalLot": 0,
+        "laiLoVnd": 0
+      },
+      "tttt": {
+        "klMua": 5.0,
+        "klBan": 5.0,
+        "totalLot": 10.0,
+        "laiLoVnd": 1950000.0
+      },
+      "byHH": {
+        "SI5CO": {
+          "soLot": 9.0,
+          "gtgd_25920": 1556612640,
+          "gtgd_26000": 1561417000
+        }
+      }
+    },
+    "036": {
+      "soLot": 2.0,
+      "gtgd_25920": 352110240,
+      "gtgd_26000": 353197000,
+      "gtgd_usd": 13584.5,
+      "tradeCount": 2,
+      "orderTypes": [
+        "LMT",
+        "MKT"
+      ],
+      "isFull4Types": false,
+      "missingTypes": [
+        "STP",
+        "STL"
+      ],
+      "ttm": {
+        "klMua": 7.0,
+        "klBan": 9.0,
+        "totalLot": 16.0,
+        "laiLoVnd": -81393000.0
+      },
+      "tttt": {
+        "klMua": 0,
+        "klBan": 0,
+        "totalLot": 0,
+        "laiLoVnd": 0
+      },
+      "byHH": {
+        "SI5CO": {
+          "soLot": 2.0,
+          "gtgd_25920": 352110240,
+          "gtgd_26000": 353197000
+        }
+      }
+    },
+    "045": {
+      "soLot": 48.0,
+      "gtgd_25920": 8473260960,
+      "gtgd_26000": 8499413000,
+      "gtgd_usd": 326900.5,
+      "tradeCount": 11,
+      "orderTypes": [
+        "LMT",
+        "MKT"
+      ],
+      "isFull4Types": false,
+      "missingTypes": [
+        "STP",
+        "STL"
+      ],
+      "ttm": {
+        "klMua": 5.0,
+        "klBan": 5.0,
+        "totalLot": 10.0,
+        "laiLoVnd": -39819000.0
+      },
+      "tttt": {
+        "klMua": 43.0,
+        "klBan": 43.0,
+        "totalLot": 86.0,
+        "laiLoVnd": 150709000.0
+      },
+      "byHH": {
+        "CP2CO": {
+          "soLot": 40.0,
+          "gtgd_25920": 6962630400,
+          "gtgd_26000": 6984120000
+        },
+        "SI5CO": {
+          "soLot": 6.0,
+          "gtgd_25920": 1043305920,
+          "gtgd_26000": 1046526000
+        },
+        "PL1NY": {
+          "soLot": 2.0,
+          "gtgd_25920": 467324640,
+          "gtgd_26000": 468767000
+        }
+      }
+    },
+    "048": {
+      "soLot": 1.0,
+      "gtgd_25920": 172018080,
+      "gtgd_26000": 172549000,
+      "gtgd_usd": 6636.499999999999,
+      "tradeCount": 1,
+      "orderTypes": [
+        "MKT"
+      ],
+      "isFull4Types": false,
+      "missingTypes": [
+        "LMT",
+        "STP",
+        "STL"
+      ],
+      "ttm": {
+        "klMua": 3.0,
+        "klBan": 12.0,
+        "totalLot": 15.0,
+        "laiLoVnd": -77415000.0
+      },
+      "tttt": {
+        "klMua": 0,
+        "klBan": 0,
+        "totalLot": 0,
+        "laiLoVnd": 0
+      },
+      "byHH": {
+        "SI5CO": {
+          "soLot": 1.0,
+          "gtgd_25920": 172018080,
+          "gtgd_26000": 172549000
+        }
+      }
+    },
+    "076": {
+      "soLot": 3.0,
+      "gtgd_25920": 517116960,
+      "gtgd_26000": 518713000,
+      "gtgd_usd": 19950.5,
+      "tradeCount": 3,
+      "orderTypes": [
+        "LMT",
+        "MKT"
+      ],
+      "isFull4Types": false,
+      "missingTypes": [
+        "STP",
+        "STL"
+      ],
+      "ttm": {
+        "klMua": 0.0,
+        "klBan": 1.0,
+        "totalLot": 1.0,
+        "laiLoVnd": -260000.0
+      },
+      "tttt": {
+        "klMua": 1.0,
+        "klBan": 1.0,
+        "totalLot": 2.0,
+        "laiLoVnd": 13000.0
+      },
+      "byHH": {
+        "SI5CO": {
+          "soLot": 3.0,
+          "gtgd_25920": 517116960,
+          "gtgd_26000": 518713000
+        }
+      }
+    },
+    "086": {
+      "soLot": 4.0,
+      "gtgd_25920": 695109600,
+      "gtgd_26000": 697255000,
+      "gtgd_usd": 26817.5,
+      "tradeCount": 4,
+      "orderTypes": [
+        "LMT",
+        "MKT"
+      ],
+      "isFull4Types": false,
+      "missingTypes": [
+        "STP",
+        "STL"
+      ],
+      "ttm": {
+        "klMua": 49.0,
+        "klBan": 14.0,
+        "totalLot": 63.0,
+        "laiLoVnd": -219856000.0
+      },
+      "tttt": {
+        "klMua": 2.0,
+        "klBan": 2.0,
+        "totalLot": 4.0,
+        "laiLoVnd": -4641000.0
+      },
+      "byHH": {
+        "CP2CO": {
+          "soLot": 1.0,
+          "gtgd_25920": 174208320,
+          "gtgd_26000": 174746000
+        },
+        "SI5CO": {
+          "soLot": 3.0,
+          "gtgd_25920": 520901280,
+          "gtgd_26000": 522509000
+        }
+      }
+    }
+  }
+}

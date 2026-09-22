@@ -49,7 +49,7 @@ async function getCredentialsFromDB() {
     }
     await mongoose.disconnect();
   } catch (err) {
-    console.log(`⚠️ Không thể kết nối MongoDB (${err.message}). Dùng fallback mặc định.`);
+    console.log(` Không thể kết nối MongoDB (${err.message}). Dùng fallback mặc định.`);
   }
   return null;
 }
@@ -86,7 +86,7 @@ async function safeNavigate(page, url, timeoutMs = 25000) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
   } catch (err) {
-    console.log(`     ⚠️ Cảnh báo điều hướng: ${err.message}`);
+    console.log(`      Cảnh báo điều hướng: ${err.message}`);
   }
   await page.waitForTimeout(800);
   await dismissModalBackdrop(page);
@@ -165,7 +165,7 @@ async function processRowAndDownloadContract(page, row, outputDir) {
 
     // 1. Click icon Thao tác trên dòng
     const actionBtn = row.locator("xpath=.//button[contains(@class, 'MuiIconButton-root')]").first();
-    await actionBtn.scrollIntoViewIfNeeded().catch(() => {});
+    await actionBtn.scrollIntoViewIfNeeded().catch(() => { });
     await actionBtn.click({ force: true });
 
     // 2. Chờ modal và chuyển sang Tab #tab-1
@@ -194,16 +194,16 @@ async function processRowAndDownloadContract(page, row, outputDir) {
       const dlPromise = page.waitForEvent('download', { timeout: 25000 }).catch(() => null);
 
       console.log(`     👉 Mở menu & Bấm chọn 'Xuất tất cả'...`);
-      await modalExportBtn.scrollIntoViewIfNeeded().catch(() => {});
+      await modalExportBtn.scrollIntoViewIfNeeded().catch(() => { });
       await modalExportBtn.click({ force: true });
 
       // Định vị option 'Xuất tất cả' và kích hoạt click ngay lập tức qua native DOM (không hover/sleep chờ đợi)
       const exportAllItem = page.locator("li:visible:has-text('Xuất tất cả'), [role='menuitem']:visible:has-text('Xuất tất cả'), li:visible:has-text('Export all')").last();
-      await exportAllItem.waitFor({ state: 'visible', timeout: 2500 }).catch(() => {});
+      await exportAllItem.waitFor({ state: 'visible', timeout: 2500 }).catch(() => { });
 
       // Click ngay tức thì
-      await exportAllItem.evaluate((el) => el.click()).catch(() => {});
-      await exportAllItem.click({ force: true, timeout: 500 }).catch(() => {});
+      await exportAllItem.evaluate((el) => el.click()).catch(() => { });
+      await exportAllItem.click({ force: true, timeout: 500 }).catch(() => { });
 
       const dl = await dlPromise;
       let ok = false;
@@ -295,7 +295,7 @@ async function main() {
       console.log(`   ℹ️ Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`);
 
       if (rowCount === 0) {
-        console.log(`   ⚠️ Bảng không có dòng nào, kết thúc.`);
+        console.log(`    Bảng không có dòng nào, kết thúc.`);
         break;
       }
 
@@ -324,12 +324,12 @@ async function main() {
 
       console.log(`➡️ Đang bấm nút 'Tới trang tiếp theo' từ "${currentRange}"...`);
       // Cuộn để nút nằm chắc chắn trong viewport
-      await paginationContainer.scrollIntoViewIfNeeded().catch(() => {});
+      await paginationContainer.scrollIntoViewIfNeeded().catch(() => { });
       await page.waitForTimeout(300);
 
       // Kích hoạt click trực tiếp qua native DOM để chuyển trang tức thì
-      await nextBtn.evaluate((b) => b.click()).catch(() => {});
-      await nextBtn.click({ timeout: 800 }).catch(() => {});
+      await nextBtn.evaluate((b) => b.click()).catch(() => { });
+      await nextBtn.click({ timeout: 800 }).catch(() => { });
 
       // Chờ text phân trang THAY ĐỔI
       let pageTurned = false;
@@ -344,9 +344,9 @@ async function main() {
 
         if (Date.now() - tWaitStart > 2000 && !pageTurned) {
           console.log(`   👉 Thử kích hoạt lại click trên nút và span...`);
-          await nextBtn.evaluate((b) => b.click()).catch(() => {});
+          await nextBtn.evaluate((b) => b.click()).catch(() => { });
           const nextSpan = paginationContainer.locator("xpath=.//span[@aria-label='Tới trang tiếp theo']").first();
-          if (await nextSpan.isVisible().catch(() => false)) await nextSpan.click().catch(() => {});
+          if (await nextSpan.isVisible().catch(() => false)) await nextSpan.click().catch(() => { });
         }
         await page.waitForTimeout(400);
       }

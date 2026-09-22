@@ -463,20 +463,25 @@ export class PreEodReconService {
     targetDate.setDate(targetDate.getDate() - 1);
     targetDate.setHours(0, 0, 0, 0);
 
-    const msBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ),
     );
-    const cqgBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_cqg',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    const cqgBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      ),
     );
-    const acmBackupBase =
+    const acmBackupBase = resolveStoragePathCrossPlatform(
       (await this.settingsService.getSetting('bot_backup_path_acm', '')) ||
-      msBackupBase.replace(
-        /Backup MS[\\/]Futures/i,
-        (match) => (match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM'),
-      );
+        msBackupBase.replace(
+          /Backup MS[\\/]Futures/i,
+          (match) => (match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM'),
+        ),
+    );
 
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');

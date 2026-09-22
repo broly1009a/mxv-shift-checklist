@@ -50,6 +50,8 @@ export interface CheckKLGDResult {
     differCCP_TTTT?: number;
     ccpStatus?: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
     ccpErrorMessage?: string;
+    acmSessionAnomaly?: boolean;
+    acmAnomalyNote?: string;
   };
   totalTTM?: number;
   totalOP?: number;
@@ -104,6 +106,8 @@ export interface CheckKLGDResult {
   passed?: boolean;
   isWaitingFiles?: boolean;
   message?: string;
+  acmSessionAnomaly?: boolean;
+  acmAnomalyNote?: string;
 }
 
 @Injectable()
@@ -280,6 +284,53 @@ export class KlgdReconService {
     nanoData.forEach((gd) => {
       totalNano += gd.klGiaoDich;
     });
+
+    // ── BỘ PHÒNG VỆ THẨM ĐỊNH BẤT THƯỜNG (ACM Anomaly Re-check) ─────────────
+    // Chỉ kích hoạt khi thỏa mãn bất thường: totalACM > 0 (M-System có tự doanh)
+    // nhưng totalNano === 0 (Nano không nhận diện được lệnh nào theo logic cũ)
+    let acmSessionAnomaly = false;
+    let acmAnomalyNote = '';
+
+    if (totalNano === 0 && totalACM > 0 && rawNanoData.length > 0) {
+      // Quét các lệnh trong rawNanoData xem có lệnh nào có tradeDateStr thuộc phiên hôm nay không
+      const candidates = rawNanoData.filter((gd) => {
+        if (!gd.tradeDateStr) return false;
+        const tradeTime = parseTradeDateTime(gd.tradeDateStr, tradingDate);
+        if (!tradeTime) return false;
+        if (tradeTime < sessionStart) return false;
+        if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
+          pendingSyncTrades.push({
+            source: 'ACM',
+            maLenh: gd.maLenh,
+            maTKGD: gd.maTKGD,
+            maHD: gd.maHD,
+            giaKhop: gd.giaKhop,
+            klGiaoDich: gd.klGiaoDich,
+            ngayGio: gd.tradeDateStr,
+            cutoffTime: effectiveCutoffTime.toISOString(),
+            note: `Giao dịch ACM khớp lúc ${gd.tradeDateStr}, sau mốc chốt dữ liệu M-System (${effectiveCutoffTime.toLocaleTimeString('vi-VN')})`,
+          });
+          return false;
+        }
+        return tradeTime <= nanoUpperBound;
+      });
+
+      if (candidates.length > 0) {
+        acmSessionAnomaly = true;
+        let recheckLots = 0;
+        candidates.forEach((c) => {
+          recheckLots += c.klGiaoDich;
+        });
+
+        acmAnomalyNote = `[ACM CHƯA CẮT PHIÊN] Phát hiện sàn ACM chưa cắt phiên kế toán (Trading Day bị kẹt ngày cũ). Đã tự động kích hoạt cơ chế đối soát phụ theo Trade Date thực tế: ghi nhận ${recheckLots} lots Nano (${candidates.length} lệnh).`;
+        this.logger.warn(`[Recon KLGD] ${acmAnomalyNote}`);
+
+        // Áp dụng danh sách nanoData đã thẩm định theo Trade Date
+        nanoData.length = 0;
+        nanoData.push(...candidates);
+        totalNano = recheckLots;
+      }
+    }
 
     const differ = Math.abs(totalFR - totalDSGD);
     const differACM = Math.abs(totalNano - totalACM);
@@ -501,7 +552,6 @@ export class KlgdReconService {
     const checkTtmFlag = options?.checkTtm !== false;
     const checkTtttFlag = options?.checkTttt !== false;
 
-    const finalMismatchedTrades = checkKlgdFlag ? mismatchedTrades : [];
     const finalDiffer = checkKlgdFlag ? differ : 0;
     const finalDifferACM = checkKlgdFlag ? differACM : 0;
     const finalMismatchedTTM = checkTtmFlag ? mismatchedTTM : [];
@@ -512,11 +562,13 @@ export class KlgdReconService {
     let totalCCP_TTM: number | undefined;
     let totalCCP_TTTT: number | undefined;
     let ccpStatus: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED' = files.ccpStatus || 'IDLE';
+    let ccpDsgdRecords: any[] = [];
 
     if (files.dsgdCcp) {
       try {
         const parsed = CcpExcelParser.parseDSGD(files.dsgdCcp, tradingDate, sessionStart, checkTime);
         totalCCP_DSGD = parsed.totalKhop;
+        ccpDsgdRecords = parsed.records || [];
         ccpStatus = 'COMPLETED';
       } catch (err: any) {
         this.logger.warn(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
@@ -539,6 +591,24 @@ export class KlgdReconService {
       } catch (err: any) {
         this.logger.warn(`[Recon] Lỗi parse TTTT CoreCCP: ${err.message}`);
       }
+    }
+
+    // Nếu có CoreCCP DSGD, loại bỏ các lệnh ACM đã được ghi nhận trên CoreCCP
+    let finalMismatchedTrades = checkKlgdFlag ? [...mismatchedTrades] : [];
+    if (finalMismatchedTrades.length > 0 && ccpDsgdRecords.length > 0) {
+      finalMismatchedTrades = finalMismatchedTrades.filter((m) => {
+        if (m.source !== 'ACM') return true;
+        const cleanAcc = m.maTKGD.replace(/[-\s]/g, '').trim().toUpperCase();
+        const existsInCcp = ccpDsgdRecords.some((r) => {
+          const ccpAcc = String(r.soTK || '').replace(/[-\s]/g, '').trim().toUpperCase();
+          const accMatch =
+            ccpAcc === cleanAcc ||
+            (cleanAcc.endsWith('A') && ccpAcc === cleanAcc.slice(0, -1)) ||
+            (ccpAcc.endsWith('A') && cleanAcc === ccpAcc.slice(0, -1));
+          return accMatch && Number(r.klKhop) === Number(m.klGiaoDich);
+        });
+        return !existsInCcp;
+      });
     }
 
     let evaluatedDifferACM = finalDifferACM;
@@ -587,6 +657,8 @@ export class KlgdReconService {
         differCCP_TTM,
         differCCP_TTTT,
         ccpStatus: files.dsgdCcp || files.ttmCcp || files.ttttCcp ? 'COMPLETED' : ccpStatus,
+        acmSessionAnomaly,
+        acmAnomalyNote: acmSessionAnomaly ? acmAnomalyNote : undefined,
       },
       totalTTM: files.ttm ? totalTTM : 0,
       totalOP: files.op || files.op1 || files.op2 ? totalOP : 0,
@@ -609,6 +681,8 @@ export class KlgdReconService {
       sessionStart,
       checkTime,
       passed: !hasDiscrepancy,
+      acmSessionAnomaly,
+      acmAnomalyNote: acmSessionAnomaly ? acmAnomalyNote : undefined,
     };
   }
 
@@ -627,16 +701,19 @@ export class KlgdReconService {
         'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
       ),
     );
-    const cqgBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_cqg',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+    const cqgBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      ),
     );
-    const acmBackupBase =
+    const acmBackupBase = resolveStoragePathCrossPlatform(
       (await this.settingsService.getSetting('bot_backup_path_acm', '')) ||
-      msBackupBase.replace(
-        /Backup MS[\\/]Futures/i,
-        (match) => (match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM'),
-      );
+        msBackupBase.replace(
+          /Backup MS[\\/]Futures/i,
+          (match) => (match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM'),
+        ),
+    );
 
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');

@@ -850,6 +850,7 @@ export function parseNano(buffer: Buffer): any[] {
   const klGiaoDichIdx = header.indexOf('volume');
   const giaKhopIdx = header.indexOf('price');
   const ngayIdx = header.indexOf('trading day');
+  const tradeDateIdx = header.indexOf('trade date');
   const gioIdx = header.indexOf('trade time');
   const maGDIdx = header.indexOf('trade id');
 
@@ -877,6 +878,7 @@ export function parseNano(buffer: Buffer): any[] {
     const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
     const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
     const ngay = ngayIdx !== -1 ? String(row[ngayIdx] || '').trim() : '';
+    const tradeDateVal = tradeDateIdx !== -1 ? String(row[tradeDateIdx] || '').trim() : '';
     const gio = gioIdx !== -1 ? String(row[gioIdx] || '').trim() : '';
     const maGD = String(row[maGDIdx] || '').trim();
 
@@ -889,6 +891,7 @@ export function parseNano(buffer: Buffer): any[] {
       klGiaoDich,
       giaKhop,
       ngayGio: `${ngay} ${gio}`,
+      tradeDateStr: tradeDateVal ? `${tradeDateVal} ${gio}` : undefined,
       maGD,
       combinedKey: `${maTKGD}${maGD}${klGiaoDich}`,
     });

@@ -58,6 +58,20 @@ export class BotEngineService {
     }
 
     this.isProcessing = true;
+
+    // Check Master Switch: bot_auto_recon_enabled
+    const autoReconSetting = await this.settingsService.getSetting(
+      'bot_auto_recon_enabled',
+      'true',
+    );
+    if (autoReconSetting === 'false') {
+      this.logger.debug(
+        'Automated checklist bot runner is paused by user switch (bot_auto_recon_enabled=false).',
+      );
+      this.isProcessing = false;
+      return;
+    }
+
     this.logger.debug('Starting automated checklist bot runner check...');
 
     try {
@@ -79,7 +93,21 @@ export class BotEngineService {
         role: 'ADMIN',
       };
 
-      // Pass 1: Periodic task reset pass based on frequencyMinutes
+      // Pass 1: Periodic task reset pass based on frequencyMinutes (Ưu tiên system_settings)
+      const periodicEnabledStr = await this.settingsService.getSetting(
+        'bot_periodic_check_enabled',
+        'true',
+      );
+      const isPeriodicEnabled = periodicEnabledStr !== 'false';
+      const periodicFreqStr = await this.settingsService.getSetting(
+        'bot_periodic_check_frequency',
+        '',
+      );
+      const customFreqMin =
+        periodicFreqStr && !isNaN(parseInt(periodicFreqStr, 10)) && parseInt(periodicFreqStr, 10) > 0
+          ? parseInt(periodicFreqStr, 10)
+          : null;
+
       for (const log of activeLogs) {
         let hasReset = false;
         for (const task of log.details) {
@@ -88,6 +116,14 @@ export class BotEngineService {
             task.frequencyMinutesSnapshot &&
             task.frequencyMinutesSnapshot > 0
           ) {
+            // Nếu là tác vụ đối chiếu khớp lệnh trong phiên (CHECK_KLGD), tuân thủ switch của người dùng
+            const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
+            if (isKlgdTask && !isPeriodicEnabled) {
+              continue; // Người dùng đã tắt check định kỳ trên UI
+            }
+
+            const effectiveFrequency = isKlgdTask && customFreqMin ? customFreqMin : task.frequencyMinutesSnapshot;
+
             const isResolved = ['PASSED', 'FAILED', 'NEEDS_ATTENTION'].includes(
               task.status,
             );
@@ -100,16 +136,16 @@ export class BotEngineService {
               if (lastCheckedTime) {
                 const diffMs = Date.now() - new Date(lastCheckedTime).getTime();
                 const diffMin = diffMs / (60 * 1000);
-                if (diffMin >= task.frequencyMinutesSnapshot) {
+                if (diffMin >= effectiveFrequency) {
                   this.logger.log(
-                    `[Bot] Periodic reset for Task [${task.taskId}] in ShiftLog [${log._id}] (Frequency: ${task.frequencyMinutesSnapshot}m, Stale for: ${Math.round(diffMin)}m).`,
+                    `[Bot] Periodic reset for Task [${task.taskId}] in ShiftLog [${log._id}] (Frequency: ${effectiveFrequency}m, Stale for: ${Math.round(diffMin)}m).`,
                   );
                   await this.shiftsService.updateTaskStatus(
                     log._id.toString(),
                     task.taskId,
                     'PENDING',
                     systemUser,
-                    `[Hệ thống tự động] Reset định kỳ ${task.frequencyMinutesSnapshot} phút để quét lại.`,
+                    `[Hệ thống tự động] Reset định kỳ ${effectiveFrequency} phút để quét lại.`,
                     true,
                   );
                   hasReset = true;

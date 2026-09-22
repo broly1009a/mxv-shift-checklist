@@ -940,13 +940,28 @@ export class RpaDownloaderService {
   }
 
   async downloadTLKQHSKQ(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL khách hàng', 'QL TKGD', 'TLKQ HSKQ'],
-      destFile,
-      undefined,
-      'TLKQHSKQ',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/clientManagement/marginRatioMultiplier',
+        destFile,
+        undefined,
+        90000,
+        'TLKQHSKQ',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `gotoAndDownload hash navigation failed for TLKQHSKQ, falling back to navigateAndDownload: ${err}`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL khách hàng', 'QL TKGD', 'TLKQ HSKQ'],
+        destFile,
+        undefined,
+        'TLKQHSKQ',
+        /marginRatioMultiplier/,
+      );
+    }
   }
 
   async downloadNR(page: Page, destFile: string) {

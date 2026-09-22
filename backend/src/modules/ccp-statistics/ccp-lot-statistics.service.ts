@@ -16,6 +16,9 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CcpLotRunHistory } from '../../schemas/ccp-lot-run-history.schema';
 import * as XLSX from 'xlsx';
 import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
@@ -36,6 +39,7 @@ import {
   CcpTtmRow,
   CcpTtttRow,
   CcpDsgdClassified,
+  extractExchangeRateFromCcpReports,
 } from './helpers/ccp-classifier.helper';
 import {
   writeCcpLotToAccumulator,
@@ -73,6 +77,16 @@ export interface CcpDailyScanResult {
     tttt?: CcpDailyFileInfo;
     tyGia?: CcpDailyFileInfo & { fromDate?: string };
     maHD?: CcpDailyFileInfo & { fromDate?: string };
+  };
+  dbExchangeRates?: {
+    usd: number;
+    ccpUsd?: number;
+    jpy?: number;
+    myr?: number;
+    cny?: number;
+    lastSynced?: string;
+    detectedRate?: number;
+    detectedSource?: string;
   };
 }
 
@@ -165,7 +179,11 @@ const REQUIRED_ORDER_TYPES = ['MKT', 'LMT', 'STP', 'STL'];
 export class CcpLotStatisticsService {
   private readonly logger = new Logger(CcpLotStatisticsService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    @InjectModel(CcpLotRunHistory.name)
+    private readonly runHistoryModel: Model<CcpLotRunHistory>,
+  ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
   // PUBLIC: Main Entry Point
@@ -183,14 +201,92 @@ export class CcpLotStatisticsService {
     const warnings: string[] = [];
     this.logger.log(`[CCP] Bắt đầu thống kê lot ngày ${params.ngayGD}`);
 
-    // ── 1. Parse tỷ giá ───────────────────────────────────────────────────
+    // ── 1. Parse tỷ giá (Ưu tiên File -> Trích xuất TTTT/TTM -> Database -> Fallback) ────────────
     let tyGiaMap: CcpTyGiaMap = {};
     if (files.tyGia) {
       tyGiaMap = this.parseTyGiaFile(files.tyGia);
       this.logger.log(`[CCP] Đọc tỷ giá từ file: ${JSON.stringify(tyGiaMap)}`);
+
+      // Tự động đồng bộ tỷ giá mới vào Database (system_settings) để toàn hệ thống dùng chung
+      if (this.settingsService) {
+        try {
+          const nowIso = new Date().toISOString();
+          if (tyGiaMap['USD']) {
+            await this.settingsService.setSetting('usd_exchange_rate', String(tyGiaMap['USD']));
+            await this.settingsService.setSetting('ccp_usd_exchange_rate', String(tyGiaMap['USD']));
+            await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+            await this.settingsService.setSetting('exchange_rate_source', 'Tệp Tỷ giá tải lên');
+          }
+          if (tyGiaMap['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', String(tyGiaMap['JPY']));
+          if (tyGiaMap['MYR']) await this.settingsService.setSetting('myr_exchange_rate', String(tyGiaMap['MYR']));
+          if (tyGiaMap['CNY']) await this.settingsService.setSetting('rmb_exchange_rate', String(tyGiaMap['CNY']));
+          this.logger.log(`[CCP] Đã tự động đồng bộ tỷ giá từ file vào Database (system_settings)`);
+        } catch (saveErr: any) {
+          this.logger.warn(`[CCP] Không thể đồng bộ tỷ giá vào Database: ${saveErr.message}`);
+        }
+      }
     } else {
-      this.logger.log('[CCP] Không có file tỷ giá, áp dụng tỷ giá mặc định USD = 25,920 VND');
-      warnings.push('Sử dụng tỷ giá mặc định 1 USD = 25.920 đ');
+      // 1B. Thử trích xuất tỷ giá CoreCCP trực tiếp từ báo cáo TTTT hoặc TTM trong ngày
+      let extractedRate: number | null = null;
+      let extractedSource: string | null = null;
+      if (files.tttt || files.ttm) {
+        const extracted = extractExchangeRateFromCcpReports(files.tttt, files.ttm);
+        if (extracted.usdRate && extracted.usdRate > 0) {
+          extractedRate = extracted.usdRate;
+          extractedSource = extracted.source;
+          this.logger.log(`[CCP] Đã tự động trích xuất tỷ giá từ ${extracted.source}: 1 USD = ${extractedRate.toLocaleString('vi-VN')} đ`);
+        }
+      }
+
+      // Đọc tỷ giá từ Database (SystemSettings)
+      let dbUsdRate = 25920;
+      let dbJpyRate = 170;
+      let dbMyrRate = 6383;
+      let dbRmbRate = 3871;
+
+      if (this.settingsService) {
+        try {
+          const [ccpUsdStr, usdStr, jpyStr, myrStr, rmbStr] = await Promise.all([
+            this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
+            this.settingsService.getSetting('usd_exchange_rate', '25920'),
+            this.settingsService.getSetting('jpy_exchange_rate', '170'),
+            this.settingsService.getSetting('myr_exchange_rate', '6383'),
+            this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+          ]);
+          dbUsdRate = parseFloat(ccpUsdStr) || parseFloat(usdStr) || 25920;
+          dbJpyRate = parseFloat(jpyStr) || 170;
+          dbMyrRate = parseFloat(myrStr) || 6383;
+          dbRmbRate = parseFloat(rmbStr) || 3871;
+        } catch (dbErr: any) {
+          this.logger.warn(`[CCP] Không thể đọc tỷ giá từ Database: ${dbErr.message}`);
+        }
+      }
+
+      if (extractedRate) {
+        tyGiaMap['USD'] = extractedRate;
+        warnings.push(`Sử dụng tỷ giá thực tế trích xuất từ báo cáo ${extractedSource}: 1 USD = ${extractedRate.toLocaleString('vi-VN')} đ`);
+        // Lưu vào CSDL để tái sử dụng
+        if (this.settingsService) {
+          try {
+            const nowIso = new Date().toISOString();
+            await this.settingsService.setSetting('ccp_usd_exchange_rate', String(extractedRate));
+            await this.settingsService.setSetting('usd_exchange_rate', String(extractedRate));
+            await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+            await this.settingsService.setSetting('exchange_rate_source', `Trích xuất từ ${extractedSource}`);
+            this.logger.log(`[CCP] Đã lưu tỷ giá trích xuất ${extractedRate} vào CSDL MongoDB (system_settings)`);
+          } catch (err: any) {
+            this.logger.warn(`[CCP] Lỗi lưu tỷ giá vào DB: ${err.message}`);
+          }
+        }
+      } else {
+        tyGiaMap['USD'] = dbUsdRate;
+        this.logger.log(`[CCP] Sử dụng tỷ giá từ Database: USD=${dbUsdRate.toLocaleString('vi-VN')}, JPY=${dbJpyRate}, MYR=${dbMyrRate}`);
+        warnings.push(`Sử dụng tỷ giá từ cấu hình Database: 1 USD = ${dbUsdRate.toLocaleString('vi-VN')} đ`);
+      }
+
+      tyGiaMap['JPY'] = dbJpyRate;
+      tyGiaMap['MYR'] = dbMyrRate;
+      tyGiaMap['CNY'] = dbRmbRate;
     }
     // Mặc định tỷ giá USD quy đổi nếu file tỷ giá thiếu
     tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;
@@ -1076,11 +1172,157 @@ export class CcpLotStatisticsService {
       }
 
       result.canProcess = !!result.files.dsgd?.present;
+
+      // 6. Kiểm tra tỷ giá CSDL & Trích xuất tỷ giá từ file ngày (nếu có)
+      let dbUsdRate = 25920;
+      let dbCcpUsdRate = 25920;
+      let dbJpyRate = 170;
+      let dbMyrRate = 6383;
+      let dbRmbRate = 3871;
+      let lastSynced = '';
+
+      if (this.settingsService) {
+        try {
+          const [ccpUsdStr, usdStr, jpyStr, myrStr, rmbStr, syncedStr] = await Promise.all([
+            this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
+            this.settingsService.getSetting('usd_exchange_rate', '25920'),
+            this.settingsService.getSetting('jpy_exchange_rate', '170'),
+            this.settingsService.getSetting('myr_exchange_rate', '6383'),
+            this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+            this.settingsService.getSetting('exchange_rates_last_synced', ''),
+          ]);
+          dbUsdRate = parseFloat(usdStr) || 25920;
+          dbCcpUsdRate = parseFloat(ccpUsdStr) || dbUsdRate;
+          dbJpyRate = parseFloat(jpyStr) || 170;
+          dbMyrRate = parseFloat(myrStr) || 6383;
+          dbRmbRate = parseFloat(rmbStr) || 3871;
+          lastSynced = syncedStr;
+        } catch {
+          // ignore
+        }
+      }
+
+      // Trích xuất tỷ giá ngày từ file TTTT hoặc TTM nếu có
+      let detectedRate: number | undefined;
+      let detectedSource: string | undefined;
+      if (result.files.tttt?.path || result.files.ttm?.path) {
+        try {
+          const ttttBuf = result.files.tttt?.path ? fs.readFileSync(result.files.tttt.path) : undefined;
+          const ttmBuf = result.files.ttm?.path ? fs.readFileSync(result.files.ttm.path) : undefined;
+          const extracted = extractExchangeRateFromCcpReports(ttttBuf, ttmBuf);
+          if (extracted.usdRate) {
+            detectedRate = extracted.usdRate;
+            detectedSource = extracted.source || undefined;
+          }
+        } catch {
+          // ignore
+        }
+      } else if (result.files.tyGia?.path) {
+        try {
+          const buf = fs.readFileSync(result.files.tyGia.path);
+          const parsed = this.parseTyGiaFile(buf);
+          if (parsed['USD']) {
+            detectedRate = parsed['USD'];
+            detectedSource = result.files.tyGia.filename;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      result.dbExchangeRates = {
+        usd: dbUsdRate,
+        ccpUsd: dbCcpUsdRate,
+        jpy: dbJpyRate,
+        myr: dbMyrRate,
+        cny: dbRmbRate,
+        lastSynced,
+        detectedRate,
+        detectedSource,
+      };
     } catch (err: any) {
       this.logger.warn(`[CCP] Lỗi khi quét thư mục ${folderToScan}: ${err.message}`);
     }
 
     return result;
+  }
+
+  /**
+   * Đồng bộ và lưu tỷ giá mới nhất từ tệp ngày CoreCCP (hoặc file tỷ giá tải lên) vào CSDL MongoDB.
+   */
+  async syncAndSaveExchangeRates(dateStr?: string): Promise<{
+    success: boolean;
+    usdRate: number;
+    source: string;
+    lastSynced: string;
+    message: string;
+  }> {
+    const targetDate = dateStr || new Date().toISOString().split('T')[0];
+    const scan = await this.scanDailyFiles(targetDate);
+
+    let rateToSave: number | null = null;
+    let source = '';
+
+    // 1. Kiểm tra file tỷ giá riêng biệt
+    if (scan.files.tyGia?.path && fs.existsSync(scan.files.tyGia.path)) {
+      try {
+        const buffer = fs.readFileSync(scan.files.tyGia.path);
+        const rates = this.parseTyGiaFile(buffer);
+        if (rates['USD'] && rates['USD'] > 0) {
+          rateToSave = rates['USD'];
+          source = `Tệp ${scan.files.tyGia.filename}`;
+        }
+      } catch (e: any) {
+        this.logger.warn(`Lỗi đọc file tỷ giá: ${e.message}`);
+      }
+    }
+
+    // 2. Tự động trích xuất từ báo cáo TTTT hoặc TTM của CoreCCP
+    if (!rateToSave) {
+      let ttttBuf: Buffer | undefined;
+      let ttmBuf: Buffer | undefined;
+      if (scan.files.tttt?.path && fs.existsSync(scan.files.tttt.path)) {
+        ttttBuf = fs.readFileSync(scan.files.tttt.path);
+      }
+      if (scan.files.ttm?.path && fs.existsSync(scan.files.ttm.path)) {
+        ttmBuf = fs.readFileSync(scan.files.ttm.path);
+      }
+      const extracted = extractExchangeRateFromCcpReports(ttttBuf, ttmBuf);
+      if (extracted.usdRate) {
+        rateToSave = extracted.usdRate;
+        source = `Trích xuất từ tệp CCP ${extracted.source}`;
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (rateToSave && rateToSave > 0) {
+      if (this.settingsService) {
+        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(rateToSave));
+        await this.settingsService.setSetting('usd_exchange_rate', String(rateToSave));
+        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rate_source', source);
+      }
+      this.logger.log(`[CCP] Đã đồng bộ tỷ giá thành công: 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (Nguồn: ${source})`);
+      return {
+        success: true,
+        usdRate: rateToSave,
+        source,
+        lastSynced: nowIso,
+        message: `Đã cập nhật tỷ giá CoreCCP 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (${source}) và lưu vào CSDL MongoDB.`,
+      };
+    } else {
+      const currentUsdStr = await this.settingsService.getSetting('ccp_usd_exchange_rate', '');
+      const fallbackUsdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
+      const currentUsd = parseFloat(currentUsdStr) || parseFloat(fallbackUsdStr) || 25920;
+      return {
+        success: false,
+        usdRate: currentUsd,
+        source: 'CSDL Hiện Tại (Không tìm thấy tệp tỷ giá mới trong ngày)',
+        lastSynced: nowIso,
+        message: `Không tìm thấy tệp tỷ giá hay báo cáo TTTT/TTM ngày ${targetDate} để bóc tách. Đang giữ tỷ giá CSDL: 1 USD = ${currentUsd.toLocaleString('vi-VN')} đ.`,
+      };
+    }
   }
 
   /**
@@ -1149,5 +1391,79 @@ export class CcpLotStatisticsService {
       { dsgdCcp, ttm, tttt, tyGia, maHD },
       { ngayGD: dateStr },
     );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // RUN HISTORY: Lưu & Truy vấn lịch sử chạy tổng hợp
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Lưu 1 bản ghi lịch sử chạy vào MongoDB + ghi file JSON backup vào thư mục CCP.
+   */
+  async saveRunHistory(params: {
+    sessionDate: string;
+    action: 'PROCESS' | 'WRITE';
+    result: any;
+    accumulatorLogs?: string[];
+    accumulatorPaths?: Record<string, string>;
+    userId?: any;
+    username?: string;
+  }): Promise<CcpLotRunHistory> {
+    // 1. Lưu vào MongoDB
+    const doc = await this.runHistoryModel.create({
+      sessionDate: params.sessionDate,
+      action: params.action,
+      result: params.result,
+      accumulatorLogs: params.accumulatorLogs || [],
+      accumulatorPaths: params.accumulatorPaths,
+      userId: params.userId,
+      username: params.username,
+    });
+
+    // 2. Ghi file JSON backup vào thư mục CCP ngày
+    try {
+      const ccpBase = await getCcpBackupBase(this.settingsService);
+      if (ccpBase) {
+        const targetDate = new Date(params.sessionDate);
+        const year = targetDate.getFullYear().toString();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        const dailyDir = resolveStoragePathCrossPlatform(path.join(ccpBase, subFolder));
+
+        if (fs.existsSync(dailyDir)) {
+          const now = new Date();
+          const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+          const jsonFileName = `ccp_lot_run_${params.action}_${hhmm}.json`;
+          const jsonPath = path.join(dailyDir, jsonFileName);
+
+          fs.writeFileSync(jsonPath, JSON.stringify(doc.toObject(), null, 2), 'utf8');
+          this.logger.log(`[RunHistory] Đã ghi JSON backup: ${jsonPath}`);
+
+          // Cập nhật đường dẫn file JSON backup vào document
+          doc.jsonBackupPath = jsonPath;
+          await doc.save();
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`[RunHistory] Không thể ghi JSON backup: ${err.message}`);
+    }
+
+    return doc;
+  }
+
+  /**
+   * Truy vấn danh sách lịch sử chạy theo ngày phiên, mới nhất trước.
+   */
+  async getRunHistory(
+    sessionDate: string,
+    limit = 20,
+  ): Promise<CcpLotRunHistory[]> {
+    return this.runHistoryModel
+      .find({ sessionDate })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
   }
 }

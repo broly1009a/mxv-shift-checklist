@@ -440,10 +440,6 @@ export class ReconConsoleSummaryService {
     let runs: any[] = [];
 
     if (this.botJobModel) {
-      const klgdPromise = jobId
-        ? this.botJobModel.findById(jobId).lean().exec()
-        : this.botJobModel.findOne({ jobType: 'CHECK_KLGD' }).sort({ createdAt: -1 }).lean().exec();
-
       const dayStartVN = new Date(`${targetDate}T00:00:00.000+07:00`);
       const dayEndVN = new Date(`${targetDate}T23:59:59.999+07:00`);
       const dayStartUTC = new Date(`${targetDate}T00:00:00.000Z`);
@@ -451,40 +447,98 @@ export class ReconConsoleSummaryService {
       const minDate = new Date(Math.min(dayStartVN.getTime(), dayStartUTC.getTime()));
       const maxDate = new Date(Math.max(dayEndVN.getTime(), dayEndUTC.getTime()));
 
+      const nowVN = new Date(Date.now() + 7 * 3600 * 1000);
+      const todayStr = nowVN.toISOString().split('T')[0];
+      const isToday = targetDate === todayStr;
+
+      const dateFilterCondition = {
+        $or: [
+          { createdAt: { $gte: minDate, $lte: maxDate } },
+          { 'payload.targetDate': { $in: [targetDate, slashDate] } },
+          { 'payload.sessionDay': { $in: [targetDate, slashDate] } },
+          { 'payload.shiftDate': { $in: [targetDate, slashDate] } },
+          { 'payload.date': { $in: [targetDate, slashDate] } },
+        ],
+      };
+
+      const klgdPromise = jobId
+        ? this.botJobModel.findById(jobId).lean().exec()
+        : this.botJobModel
+            .findOne({
+              jobType: 'CHECK_KLGD',
+              ...dateFilterCondition,
+            })
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
+
+      const preEodPromise = this.botJobModel
+        .findOne({
+          jobType: 'CHECK_PRE_EOD',
+          ...dateFilterCondition,
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
+      const marginPromise = this.botJobModel
+        .findOne({
+          jobType: {
+            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MM'],
+          },
+          ...dateFilterCondition,
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
       const pastRunsPromise = this.botJobModel
         .find({
           jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] },
-          $or: [
-            { createdAt: { $gte: minDate, $lte: maxDate } },
-            { 'payload.targetDate': { $in: [targetDate, slashDate] } },
-            { 'payload.sessionDay': { $in: [targetDate, slashDate] } },
-            { 'payload.shiftDate': { $in: [targetDate, slashDate] } },
-            { 'payload.date': { $in: [targetDate, slashDate] } },
-          ],
+          ...dateFilterCondition,
         })
         .sort({ createdAt: -1 })
         .limit(50)
         .lean()
         .exec();
 
-      const [loadedKlgd, loadedPreEod, loadedMargin, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns] =
+      let [loadedKlgd, loadedPreEod, loadedMargin, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns] =
         await Promise.all([
           klgdPromise,
-          this.botJobModel.findOne({ jobType: 'CHECK_PRE_EOD' }).sort({ createdAt: -1 }).lean().exec(),
-          this.botJobModel
-            .findOne({
-              jobType: {
-                $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MM'],
-              },
-            })
-            .sort({ createdAt: -1 })
-            .lean()
-            .exec(),
-          this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC' }).sort({ createdAt: -1 }).lean().exec(),
-          this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT' }).sort({ createdAt: -1 }).lean().exec(),
-          this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP' }).sort({ createdAt: -1 }).lean().exec(),
+          preEodPromise,
+          marginPromise,
+          this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
+          this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
+          this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           pastRunsPromise,
         ]);
+
+      if (!loadedKlgd && isToday && !jobId) {
+        loadedKlgd = await this.botJobModel.findOne({ jobType: 'CHECK_KLGD' }).sort({ createdAt: -1 }).lean().exec();
+      }
+      if (!loadedPreEod && isToday) {
+        loadedPreEod = await this.botJobModel.findOne({ jobType: 'CHECK_PRE_EOD' }).sort({ createdAt: -1 }).lean().exec();
+      }
+      if (!loadedMargin && isToday) {
+        loadedMargin = await this.botJobModel
+          .findOne({
+            jobType: {
+              $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MM'],
+            },
+          })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec();
+      }
+      if (!loadedCqgSync && isToday) {
+        loadedCqgSync = await this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC' }).sort({ createdAt: -1 }).lean().exec();
+      }
+      if (!loadedCcpDl && isToday) {
+        loadedCcpDl = await this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT' }).sort({ createdAt: -1 }).lean().exec();
+      }
+      if (!loadedCcpCheck && isToday) {
+        loadedCcpCheck = await this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP' }).sort({ createdAt: -1 }).lean().exec();
+      }
 
       klgdJob = loadedKlgd;
       preEodJob = loadedPreEod;
@@ -529,44 +583,54 @@ export class ReconConsoleSummaryService {
         });
       }
 
-      // Đảm bảo klgdJob hiện tại luôn có trong runs nếu chưa có
+      // Đảm bảo klgdJob hiện tại luôn có trong runs nếu chưa có (chỉ unshift nếu jobId được chỉ định hoặc job thuộc ngày targetDate)
       if (klgdJob && !runs.some((r) => r.id === String(klgdJob._id || klgdJob.jobId))) {
-        const payload = klgdJob.payload
-          ? typeof klgdJob.payload.toObject === 'function'
-            ? klgdJob.payload.toObject()
-            : klgdJob.payload
-          : {};
-        const res = payload.result || {};
-        const totals = res.totals || {};
-        const created = new Date(klgdJob.createdAt || Date.now());
-        const vnDate = new Date(created.getTime() + 7 * 3600 * 1000);
-        const timeStr = `${String(vnDate.getUTCHours()).padStart(2, '0')}:${String(vnDate.getUTCMinutes()).padStart(2, '0')}`;
-        const dateStrFormatted = `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')}`;
-        const differ = totals.differ || 0;
-        const differACM = totals.differACM || 0;
-        const hasDiscrepancy = differ !== 0 || differACM !== 0;
+        const jobCreated = new Date(klgdJob.createdAt || Date.now());
+        const isJobInTargetDate = jobCreated >= minDate && jobCreated <= maxDate;
+        if (jobId || isJobInTargetDate) {
+          const payload = klgdJob.payload
+            ? typeof klgdJob.payload.toObject === 'function'
+              ? klgdJob.payload.toObject()
+              : klgdJob.payload
+            : {};
+          const res = payload.result || {};
+          const totals = res.totals || {};
+          const created = new Date(klgdJob.createdAt || Date.now());
+          const vnDate = new Date(created.getTime() + 7 * 3600 * 1000);
+          const timeStr = `${String(vnDate.getUTCHours()).padStart(2, '0')}:${String(vnDate.getUTCMinutes()).padStart(2, '0')}`;
+          const dateStrFormatted = `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')}`;
+          const differ = totals.differ || 0;
+          const differACM = totals.differACM || 0;
+          const hasDiscrepancy = differ !== 0 || differACM !== 0;
 
-        runs.unshift({
-          id: String(klgdJob._id || klgdJob.jobId),
-          jobId: String(klgdJob._id || klgdJob.jobId),
-          time: timeStr,
-          label: `${dateStrFormatted} ${timeStr}`,
-          createdAt: klgdJob.createdAt || new Date(),
-          status: klgdJob.status || 'COMPLETED',
-          hasDiscrepancy,
-          totals: {
-            dsgd: totals.totalDSGD || 0,
-            fr: totals.totalFR || 0,
-            acm: totals.totalACM || 0,
-            nano: totals.totalNano || 0,
-            ccp: totals.totalCCP_DSGD || 0,
-          },
-        });
+          runs.unshift({
+            id: String(klgdJob._id || klgdJob.jobId),
+            jobId: String(klgdJob._id || klgdJob.jobId),
+            time: timeStr,
+            label: `${dateStrFormatted} ${timeStr}`,
+            createdAt: klgdJob.createdAt || new Date(),
+            status: klgdJob.status || 'COMPLETED',
+            hasDiscrepancy,
+            totals: {
+              dsgd: totals.totalDSGD || 0,
+              fr: totals.totalFR || 0,
+              acm: totals.totalACM || 0,
+              nano: totals.totalNano || 0,
+              ccp: totals.totalCCP_DSGD || 0,
+            },
+          });
+        }
       }
     }
 
     // 3. Xử lý Payload KLGD
-    const klgdPayload = klgdJob?.payload || {};
+    const klgdPayload = klgdJob
+      ? typeof klgdJob.toObject === 'function'
+        ? klgdJob.toObject().payload || {}
+        : klgdJob.payload && typeof klgdJob.payload.toObject === 'function'
+          ? klgdJob.payload.toObject()
+          : klgdJob.payload || {}
+      : {};
     const klgdResult = klgdPayload.result || {};
     const klgdTotals = klgdResult.totals || {
       totalDSGD: 0,
@@ -592,7 +656,13 @@ export class ReconConsoleSummaryService {
     };
 
     // 4. Xử lý Payload Pre-EOD
-    const preEodPayload = preEodJob?.payload || {};
+    const preEodPayload = preEodJob
+      ? typeof preEodJob.toObject === 'function'
+        ? preEodJob.toObject().payload || {}
+        : preEodJob.payload && typeof preEodJob.payload.toObject === 'function'
+          ? preEodJob.payload.toObject()
+          : preEodJob.payload || {}
+      : {};
     const preEodResult = preEodPayload.result || {};
     const preEodTotals = preEodResult.totals || {
       totalACM_MS: 0,
@@ -604,7 +674,13 @@ export class ReconConsoleSummaryService {
     };
 
     // 5. Xử lý Payload Margin
-    const marginPayload = marginJob?.payload || {};
+    const marginPayload = marginJob
+      ? typeof marginJob.toObject === 'function'
+        ? marginJob.toObject().payload || {}
+        : marginJob.payload && typeof marginJob.payload.toObject === 'function'
+          ? marginJob.payload.toObject()
+          : marginJob.payload || {}
+      : {};
     const marginResult = marginPayload.result || {};
 
     const rawNegativeIMR: string[] =
@@ -621,12 +697,28 @@ export class ReconConsoleSummaryService {
           ? marginResult.eodResult.negativeBalanceAccs
           : preEodResult.eodResult?.negativeBalanceAccs || [];
 
-    // 6. Tính toán đếm ngược chu kỳ 60 phút
-    const frequencyMinutes = taskKlgd?.frequencyMinutesSnapshot || 60;
+    // 6. Tính toán đếm ngược chu kỳ đối chiếu định kỳ (Ưu tiên system_settings -> Snapshot task -> 60m)
+    const periodicEnabledStr = await this.settingsService.getSetting(
+      'bot_periodic_check_enabled',
+      'true',
+    );
+    const periodicFreqStr = await this.settingsService.getSetting(
+      'bot_periodic_check_frequency',
+      '',
+    );
+    const isPeriodicEnabled = periodicEnabledStr !== 'false';
+    const frequencyMinutes =
+      periodicFreqStr && !isNaN(parseInt(periodicFreqStr, 10)) && parseInt(periodicFreqStr, 10) > 0
+        ? parseInt(periodicFreqStr, 10)
+        : taskKlgd?.frequencyMinutesSnapshot || 60;
+
     const lastCheckedTime =
-      taskKlgd?.checkedAt || taskKlgd?.updatedAt || klgdJob?.createdAt;
+      klgdJob?.createdAt || taskKlgd?.checkedAt || taskKlgd?.updatedAt;
     let nextScanInSeconds = 0;
-    if (lastCheckedTime) {
+
+    if (!isPeriodicEnabled) {
+      nextScanInSeconds = 0;
+    } else if (lastCheckedTime) {
       const elapsedSeconds = Math.floor(
         (Date.now() - new Date(lastCheckedTime).getTime()) / 1000,
       );
@@ -702,24 +794,72 @@ export class ReconConsoleSummaryService {
     const isViewingHistorical = !!(jobId && latestRunId && jobId !== latestRunId);
 
     return {
+      success: true,
       date: targetDate,
+      serverTime: new Date().toISOString(),
+      runs,
+      currentJobId: klgdJob?._id?.toString() || null,
       selectedJobId: jobId || latestRunId,
       isViewingHistorical,
       currentShift: {
         id: shiftLog?._id?.toString() || null,
-        name: shiftLog?.shiftSlotId?.slotName || 'Chưa mở ca trực',
+        name: shiftLog?.shiftSlotId?.slotName || shiftLog?.shiftSlotSnapshot?.name || 'Chưa mở ca trực',
         type: shiftLog?.shiftSlotId?.slotType || 'UNKNOWN',
         status: shiftLog?.status || 'OFF',
         startTime: shiftLog?.shiftSlotId?.startTime || '07:00',
         endTime: shiftLog?.shiftSlotId?.endTime || '15:00',
       },
-      runs,
+      shiftInfo: {
+        shiftLogId: shiftLog?._id?.toString(),
+        shiftDate: shiftLog?.shiftDate || slashDate,
+        shiftName: shiftLog?.shiftSlotSnapshot?.name || shiftLog?.shiftSlotId?.slotName || 'Ca Trực Đang Hoạt Động',
+        status: shiftLog?.status || 'UNKNOWN',
+        taskKlgdStatus: taskKlgd?.status || 'PENDING',
+        taskPreEodStatus: taskPreEod?.status || 'PENDING',
+        frequencyMinutes,
+        isPeriodicEnabled,
+        lastCheckedAt: lastCheckedTime
+          ? new Date(lastCheckedTime).toISOString()
+          : null,
+        nextScanInSeconds,
+      },
       schedule: {
         frequencyMinutes,
+        isPeriodicEnabled,
         nextScanInSeconds,
         lastExecutedAt: lastCheckedTime
           ? new Date(lastCheckedTime).toISOString()
           : null,
+      },
+      botStatus: {
+        isOnline: true,
+        klgdJobStatus: klgdJob?.status || 'IDLE',
+        preEodJobStatus: preEodJob?.status || 'IDLE',
+      },
+      klgd: {
+        jobId: klgdJob?._id?.toString() || null,
+        executedAt: klgdJob?.createdAt
+          ? new Date(klgdJob.createdAt).toISOString()
+          : null,
+        status: klgdJob?.status || (taskKlgd ? taskKlgd.status : 'IDLE'),
+        error: klgdJob?.error || null,
+        logs: klgdJob?.logs || [],
+        isWaitingFiles: !!klgdResult.isWaitingFiles,
+        waitingMessage: klgdResult.message,
+        totals: klgdTotals,
+        mismatchedTradesCount:
+          klgdResult.mismatchedTradesTotal ||
+          (klgdResult.mismatchedTrades || []).length,
+        mismatchedTradesTotal:
+          klgdResult.mismatchedTradesTotal ||
+          (klgdResult.mismatchedTrades || []).length,
+        mismatchedTrades: klgdResult.mismatchedTrades || [],
+        mismatchedTTMCount: (klgdResult.mismatchedTTM || []).length,
+        mismatchedTTM: klgdResult.mismatchedTTM || [],
+        mismatchedTTTTCount: (klgdResult.mismatchedTTTT || []).length,
+        mismatchedTTTT: klgdResult.mismatchedTTTT || [],
+        sessionStart: klgdResult.sessionStart,
+        checkTime: klgdResult.checkTime,
       },
       intraday: {
         jobId: klgdJob?._id?.toString() || null,
@@ -758,6 +898,11 @@ export class ReconConsoleSummaryService {
         executedAt: preEodJob?.createdAt
           ? new Date(preEodJob.createdAt).toISOString()
           : null,
+        error: preEodJob?.error || null,
+        logs: preEodJob?.logs || [],
+        isWaitingFiles: !!preEodResult.isWaitingFiles,
+        passed: preEodResult.passed !== false,
+        totals: preEodTotals,
         acm: {
           msVolume: preEodTotals.totalACM_MS,
           straitsVolume: preEodTotals.totalACM_Straits,
@@ -768,9 +913,19 @@ export class ReconConsoleSummaryService {
           cqgVolume: preEodTotals.totalCQG_FR,
           differ: preEodTotals.differCQG,
         },
-        mismatchedTradesCount: (preEodResult.mismatchedTrades || []).length,
+        mismatchedTradesCount:
+          preEodResult.mismatchedTradesTotal ||
+          (preEodResult.mismatchedTrades || []).length,
+        mismatchedTradesTotal:
+          preEodResult.mismatchedTradesTotal ||
+          (preEodResult.mismatchedTrades || []).length,
         mismatchedTrades: preEodResult.mismatchedTrades || [],
-        mismatchedPositionsCount: (preEodResult.mismatchedPositions || []).length,
+        mismatchedPositionsCount:
+          preEodResult.mismatchedPositionsTotal ||
+          (preEodResult.mismatchedPositions || []).length,
+        mismatchedPositionsTotal:
+          preEodResult.mismatchedPositionsTotal ||
+          (preEodResult.mismatchedPositions || []).length,
         mismatchedPositions: preEodResult.mismatchedPositions || [],
         mismatchedEODCount: (
           marginResult.eodResult?.mismatchedEOD ||

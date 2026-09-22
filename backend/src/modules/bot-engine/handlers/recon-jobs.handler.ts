@@ -689,6 +689,9 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         });
         log(`Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
       }
+      if (result.acmSessionAnomaly && result.acmAnomalyNote) {
+        log(` ${result.acmAnomalyNote}`);
+      }
       if (result.isWaitingFiles) {
         log(result.message || '[Đang chờ dữ liệu] Đang chờ cập nhật đầy đủ file đối chiếu.');
       } else {

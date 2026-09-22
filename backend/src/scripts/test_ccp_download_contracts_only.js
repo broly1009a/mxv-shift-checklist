@@ -55,7 +55,7 @@ async function getCredentialsFromDB() {
     }
     await mongoose.disconnect();
   } catch (err) {
-    console.log(`⚠️ Không thể kết nối MongoDB (${err.message}). Dùng fallback mặc định.`);
+    console.log(` Không thể kết nối MongoDB (${err.message}). Dùng fallback mặc định.`);
   }
   return null;
 }
@@ -92,7 +92,7 @@ async function safeNavigate(page, url, timeoutMs = 25000) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
   } catch (err) {
-    console.log(`     ⚠️ Cảnh báo điều hướng: ${err.message}`);
+    console.log(`      Cảnh báo điều hướng: ${err.message}`);
   }
   await page.waitForTimeout(800);
   await dismissModalBackdrop(page);
@@ -229,14 +229,14 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
         // Đảm bảo không còn modal nào sót lại trước khi mở dòng mới
         const lingeringModal = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')").first();
         if (await lingeringModal.isVisible({ timeout: 300 }).catch(() => false)) {
-          console.log(`     ⚠️ Có modal chưa đóng từ lượt trước, đang đóng...`);
+          console.log(`      Có modal chưa đóng từ lượt trước, đang đóng...`);
           await closeModal();
         }
 
         // 1. Click icon đầu tiên trong cột Thao tác trên Bảng chính
         const actionBtn = row.locator("xpath=.//button[contains(@class, 'MuiIconButton-root')]").first();
         if (!(await actionBtn.isVisible({ timeout: 2500 }).catch(() => false))) {
-          console.log(`     ⚠️ Không tìm thấy nút Thao tác cho ${uacode}`);
+          console.log(`      Không tìm thấy nút Thao tác cho ${uacode}`);
           results.push({ file: contractFileName, ok: false, size: '0', time: '0', note: 'Không thấy nút thao tác' });
           continue;
         }
@@ -254,7 +254,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
           await page.waitForTimeout(800);
           await waitForTableLoadingComplete(page, 10000);
         } else {
-          console.log(`     ⚠️ Không thấy Tab 'Thông tin hợp đồng' (#tab-1)`);
+          console.log(`      Không thấy Tab 'Thông tin hợp đồng' (#tab-1)`);
         }
 
         // 3. Kiểm tra xem bảng bên trong #tabpanel-1 có dữ liệu không
@@ -279,16 +279,16 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
           // 1. Click trực tiếp vào nút 'Kết xuất' để mở Menu Popover
           // 1. Click mở menu & bấm chọn 'Xuất tất cả' ngay tức thì
           console.log(`     👉 Mở menu & Bấm chọn 'Xuất tất cả'...`);
-          await page.bringToFront().catch(() => {});
-          await modalExportBtn.scrollIntoViewIfNeeded().catch(() => {});
+          await page.bringToFront().catch(() => { });
+          await modalExportBtn.scrollIntoViewIfNeeded().catch(() => { });
           await modalExportBtn.click({ force: true });
 
           // 2. Định vị option 'Xuất tất cả' và click ngay lập tức qua native DOM (không hover/sleep chờ đợi)
           const exportAllItem = page.locator("li:visible:has-text('Xuất tất cả'), [role='menuitem']:visible:has-text('Xuất tất cả'), li:visible:has-text('Export all')").last();
-          await exportAllItem.waitFor({ state: 'visible', timeout: 2500 }).catch(() => {});
+          await exportAllItem.waitFor({ state: 'visible', timeout: 2500 }).catch(() => { });
 
-          await exportAllItem.evaluate((el) => el.click()).catch(() => {});
-          await exportAllItem.click({ force: true, timeout: 500 }).catch(() => {});
+          await exportAllItem.evaluate((el) => el.click()).catch(() => { });
+          await exportAllItem.click({ force: true, timeout: 500 }).catch(() => { });
 
           const dl = await dlPromise;
           let ok = false;
@@ -377,7 +377,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
       await page.waitForTimeout(600);
       pageNum++;
     } else {
-      console.log(`   ⚠️ Sau 8s vị trí vẫn là "${currentRange}". Dừng để tránh lặp trang.`);
+      console.log(`    Sau 8s vị trí vẫn là "${currentRange}". Dừng để tránh lặp trang.`);
       break;
     }
   }

@@ -17,6 +17,8 @@
  *   col[21] = Mã thành viên  ← TVKD 3 ký tự
  */
 
+import * as XLSX from 'xlsx';
+
 export interface CcpDsgdRow {
   raw: any[];
   maTKGD: string;
@@ -371,3 +373,87 @@ export function getCcpHhSpec(maHH: string, overrides?: CcpHhSpec[]): CcpHhSpec |
   const upper = maHH.toUpperCase();
   return list.find((h) => h.maHH === upper);
 }
+
+/**
+ * Trích xuất tỷ giá USD/VND thực tế từ báo cáo TTTT hoặc TTM của CoreCCP.
+ * Bằng cách lấy tỷ lệ giữa Lãi lỗ thực tế VND / Ngoại tệ (USD) hoặc Lãi lỗ dự kiến VND / USD.
+ */
+export function extractExchangeRateFromCcpReports(
+  ttttBuffer?: Buffer,
+  ttmBuffer?: Buffer,
+): { usdRate: number | null; source: string | null } {
+  // 1. Ưu tiên kiểm tra TTTT (Lãi lỗ thực tế khớp tất toán)
+  if (ttttBuffer) {
+    try {
+      const wb = XLSX.read(ttttBuffer, { type: 'buffer' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      if (rows && rows.length > 1) {
+        const headerRow = rows[0].map((h: any) => String(h || '').trim().toLowerCase());
+        let colUsd = -1;
+        let colVnd = -1;
+        for (let j = 0; j < headerRow.length; j++) {
+          const h = headerRow[j];
+          if (h.includes('lãi lỗ thực tế') && h.includes('vnd')) {
+            colVnd = j;
+          } else if (h.includes('lãi lỗ thực tế')) {
+            colUsd = j;
+          }
+        }
+        if (colUsd !== -1 && colVnd !== -1) {
+          for (let i = 1; i < rows.length; i++) {
+            const usd = parseFloat(rows[i][colUsd]);
+            const vnd = parseFloat(rows[i][colVnd]);
+            if (!isNaN(usd) && !isNaN(vnd) && usd !== 0 && vnd !== 0) {
+              const rate = Math.round(Math.abs(vnd / usd));
+              if (rate >= 20000 && rate <= 35000) {
+                return { usdRate: rate, source: 'TTTT (Lãi lỗ thực tế)' };
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Kiểm tra TTM (Lãi lỗ dự kiến vị thế mở) nếu TTTT không có
+  if (ttmBuffer) {
+    try {
+      const wb = XLSX.read(ttmBuffer, { type: 'buffer' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      if (rows && rows.length > 1) {
+        const headerRow = rows[0].map((h: any) => String(h || '').trim().toLowerCase());
+        let colUsd = -1;
+        let colVnd = -1;
+        for (let j = 0; j < headerRow.length; j++) {
+          const h = headerRow[j];
+          if (h.includes('lãi lỗ dự kiến') && h.includes('vnd')) {
+            colVnd = j;
+          } else if (h.includes('lãi lỗ dự kiến')) {
+            colUsd = j;
+          }
+        }
+        if (colUsd !== -1 && colVnd !== -1) {
+          for (let i = 1; i < rows.length; i++) {
+            const usd = parseFloat(rows[i][colUsd]);
+            const vnd = parseFloat(rows[i][colVnd]);
+            if (!isNaN(usd) && !isNaN(vnd) && usd !== 0 && vnd !== 0) {
+              const rate = Math.round(Math.abs(vnd / usd));
+              if (rate >= 20000 && rate <= 35000) {
+                return { usdRate: rate, source: 'TTM (Lãi lỗ dự kiến)' };
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { usdRate: null, source: null };
+}
+

@@ -134,7 +134,15 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     if (Array.isArray(reports) && reports.length > 0) {
       // payload.reports có thể là string[] (mã code) hoặc CcpReportConfig[]
       if (typeof reports[0] === 'string') {
-        const codes = (reports as unknown as string[]).map((c) => c.toUpperCase());
+        const REPORT_CODE_ALIASES: Record<string, string> = {
+          TTM_BEFORE_420: 'TTM_PRE1620',
+          QLTTTKGD_BEFORE_420: 'QLTTTKGD_PRE1620',
+          DSTKGD_ACM: 'DSTKGD',
+        };
+        const codes = (reports as unknown as string[]).map((c) => {
+          const upper = String(c || '').trim().toUpperCase();
+          return REPORT_CODE_ALIASES[upper] || upper;
+        });
         resolvedReports = defaultReports.filter((r) =>
           codes.includes(r.code.toUpperCase()),
         );

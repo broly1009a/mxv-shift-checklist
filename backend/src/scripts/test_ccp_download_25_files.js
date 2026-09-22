@@ -81,7 +81,7 @@ async function getCredentialsFromDB() {
     }
     await mongoose.disconnect();
   } catch (err) {
-    console.log(`⚠️ Không thể kết nối MongoDB để lấy credentials (${err.message}). Dùng fallback mặc định.`);
+    console.log(` Không thể kết nối MongoDB để lấy credentials (${err.message}). Dùng fallback mặc định.`);
   }
   return null;
 }
@@ -111,7 +111,7 @@ async function dismissModalBackdrop(page) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(200);
     }
-  } catch {}
+  } catch { }
 }
 
 /** Điều hướng an toàn không bị treo bởi Realtime Socket hay API nền UAT */
@@ -119,7 +119,7 @@ async function safeNavigate(page, url, timeoutMs = 25000) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
   } catch (err) {
-    console.log(`     ⚠️ Cảnh báo điều hướng: ${err.message} (tiếp tục thao tác...)`);
+    console.log(`      Cảnh báo điều hướng: ${err.message} (tiếp tục thao tác...)`);
   }
   await page.waitForTimeout(800);
   await dismissModalBackdrop(page);
@@ -136,12 +136,12 @@ async function waitForTableLoadingComplete(page, maxTimeoutMs = 30000) {
     try {
       const noData = page.locator("xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')] | //*[text()='Không có dữ liệu']").first();
       if (await noData.isVisible({ timeout: 150 }).catch(() => false)) return true;
-    } catch {}
+    } catch { }
 
     const spinners = await page.locator(spinnerSel).all();
     let visible = 0;
     for (const s of spinners) {
-      try { if (await s.isVisible()) visible++; } catch {}
+      try { if (await s.isVisible()) visible++; } catch { }
     }
 
     if (visible === 0) {
@@ -163,7 +163,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
   const activeExportSel = "xpath=//button[(contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Export') or .//svg[@data-testid='FileDownloadIcon' or @data-testid='DownloadIcon']) and not(@disabled) and not(contains(@class, 'Mui-disabled'))]";
   try {
     await page.waitForSelector(activeExportSel, { timeout: 15000 });
-  } catch {}
+  } catch { }
 
   let exportBtn = page.locator("xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Export')] | //button[contains(@aria-label, 'Export') or contains(@aria-label, 'Kết xuất')]").first();
   if (!(await exportBtn.isVisible({ timeout: 2500 }).catch(() => false))) {
@@ -171,7 +171,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
   }
 
   if (!(await exportBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-    console.log(`     ⚠️ Không tìm thấy nút Kết xuất.`);
+    console.log(`      Không tìm thấy nút Kết xuất.`);
     return false;
   }
 
@@ -185,7 +185,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
     try {
       await exportBtn.hover({ force: true });
       await page.waitForTimeout(300);
-    } catch {}
+    } catch { }
 
     const exportAllOption = page.locator("xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả'] | //*[contains(text(), 'Export all')]").first();
     if (await exportAllOption.isVisible({ timeout: 1500 }).catch(() => false)) {
@@ -216,7 +216,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
       }
     }
   } catch (e) {
-    console.log(`     ⚠️ Lỗi tải file: ${e.message}`);
+    console.log(`      Lỗi tải file: ${e.message}`);
   }
   return false;
 }
@@ -425,7 +425,7 @@ async function processCommodityAndContracts(page, baseUrl, outputDir) {
 
       const viewBtn = row.locator("xpath=.//td[@data-column-id='actions']//button[@aria-label='Xem']").first();
       if (!(await viewBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
-        console.log(`     ⚠️ Không tìm thấy nút Xem cho ${uacode}`);
+        console.log(`      Không tìm thấy nút Xem cho ${uacode}`);
         continue;
       }
       await viewBtn.click({ force: true });
@@ -474,7 +474,7 @@ async function processCommodityAndContracts(page, baseUrl, outputDir) {
       await page.waitForTimeout(500);
     }
   } catch (err) {
-    console.log(`  ⚠️ Lỗi khi xuất hợp đồng trong modal: ${err.message}`);
+    console.log(`   Lỗi khi xuất hợp đồng trong modal: ${err.message}`);
   }
 
   return results;
@@ -573,7 +573,7 @@ async function main() {
     await page.fill("input[name='username'], input[type='text']", username);
     await page.fill("input[name='password'], input[type='password']", password);
     await page.click("button[type='submit'], button:has-text('Đăng nhập')");
-    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => { });
     await page.waitForTimeout(1000);
     console.log(`✅ Đăng nhập thành công!\n`);
 
@@ -584,19 +584,19 @@ async function main() {
       try {
         const r1 = await processRiskStatus(page, baseUrl, outputDir, true);
         allSummary.push(...r1);
-      } catch (e) { console.log(`⚠️ Lỗi cụm Risk: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi cụm Risk: ${e.message}`); }
 
       try {
         const r2 = await processSingleScreen(page, `${baseUrl}/ORDERS/OPEN_POSITION`, path.join(outputDir, 'TTM truoc 4h20.xlsx'));
         allSummary.push(r2);
-      } catch (e) { console.log(`⚠️ Lỗi TTM truoc 4h20: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi TTM truoc 4h20: ${e.message}`); }
 
     } else if (reportArg === 'commodity') {
       // Chỉ chạy riêng cụm Hàng hóa & Hợp đồng
       try {
         const r = await processCommodityAndContracts(page, baseUrl, outputDir);
         allSummary.push(...r);
-      } catch (e) { console.log(`⚠️ Lỗi cụm Commodity: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi cụm Commodity: ${e.message}`); }
 
     } else {
       // Mặc định hoặc phase=eod: TẢI ĐẦY ĐỦ BỘ 25 FILE (Từng cụm độc lập)
@@ -606,73 +606,73 @@ async function main() {
       try {
         const rOrder = await processOrderBook(page, baseUrl, outputDir);
         allSummary.push(...rOrder);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 1: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 1: ${e.message}`); }
 
       // 2. Cụm Lệnh MM (4 file)
       try {
         const rOrderMM = await processOrderBookMM(page, baseUrl, outputDir);
         allSummary.push(...rOrderMM);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 2: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 2: ${e.message}`); }
 
       // 3. Khớp lệnh thường (1 file)
       try {
         const rDsgd = await processSingleScreen(page, `${baseUrl}/ORDERS/ORDERMATCH_DETAIL`, path.join(outputDir, 'DSGD CCP.xlsx'), null, 'Lệnh và vị thế', 'Danh sách giao dịch');
         allSummary.push(rDsgd);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 3: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 3: ${e.message}`); }
 
       // 4. Khớp lệnh MM (1 file)
       try {
         const rDsgdMM = await processSingleScreen(page, `${baseUrl}/ORDERS/ORDERMATCH_DETAIL_MM`, path.join(outputDir, 'DSGD MM CCP.xlsx'), null, 'Lệnh và vị thế', 'Danh sách giao dịch MM');
         allSummary.push(rDsgdMM);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 4: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 4: ${e.message}`); }
 
       // 5. Trạng thái mở cuối ngày (1 file)
       try {
         const rTtm = await processSingleScreen(page, `${baseUrl}/ORDERS/OPEN_POSITION`, path.join(outputDir, 'TTM CCP.xlsx'), null, 'Lệnh và vị thế', 'Trạng thái mở');
         allSummary.push(rTtm);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 5: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 5: ${e.message}`); }
 
       // 6. Trạng thái tất toán (1 file - Chuyển ngay sang tab 'Lịch sử tất toán')
       try {
         const rTttt = await processSingleScreen(page, `${baseUrl}/ORDERS/PNL_EXECUTED`, path.join(outputDir, 'TTTT.xlsx'), 'Lịch sử tất toán', 'Lệnh và vị thế', 'Trạng thái tất toán');
         allSummary.push(rTttt);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 6: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 6: ${e.message}`); }
 
       // 7. Cụm Trạng thái rủi ro (2 file)
       try {
         const rRisk = await processRiskStatus(page, baseUrl, outputDir, false);
         allSummary.push(...rRisk);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 7: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 7: ${e.message}`); }
 
       // 8. Cụm Quản lý ký quỹ (2 file)
       try {
         const rMargin = await processMarginManagement(page, baseUrl, outputDir);
         allSummary.push(...rMargin);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 8: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 8: ${e.message}`); }
 
       // 9. Nộp rút tiền (1 file)
       try {
         const rNr = await processSingleScreen(page, `${baseUrl}/CASHTRANFER/CASHTRANFER_HIST`, path.join(outputDir, 'NR.xlsx'), null, 'Quản lý tiền', 'Lịch sử nộp rút tiền');
         allSummary.push(rNr);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 9: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 9: ${e.message}`); }
 
       // 10. Danh sách TKGD (1 file - xuất tất cả không filter)
       try {
         const rDstkgd = await processSingleScreen(page, `${baseUrl}/ACCOUNTMNG/ACCOUNTS_INFO`, path.join(outputDir, 'DSTKGD ACM.xlsx'), null, 'Quản lý tài khoản', 'Danh sách tài khoản giao dịch');
         allSummary.push(rDstkgd);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 10: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 10: ${e.message}`); }
 
       // 11. Giá thanh toán (1 file)
       try {
         const rGtt = await processSingleScreen(page, `${baseUrl}/PRODUCT/SETTLEMENT`, path.join(outputDir, 'GTT CCP.xlsx'), null, 'Quản lý sản phẩm', 'Giá thanh toán');
         allSummary.push(rGtt);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 11: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 11: ${e.message}`); }
 
       // 12. Cụm Hàng hóa & Hợp đồng modal (HH + HĐ CP2CO, PL1NY, SI5CO...)
       try {
         const rComm = await processCommodityAndContracts(page, baseUrl, outputDir);
         allSummary.push(...rComm);
-      } catch (e) { console.log(`⚠️ Lỗi Cụm 12: ${e.message}`); }
+      } catch (e) { console.log(` Lỗi Cụm 12: ${e.message}`); }
     }
 
   } catch (err) {

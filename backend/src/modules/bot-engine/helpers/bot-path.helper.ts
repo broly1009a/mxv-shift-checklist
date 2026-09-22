@@ -106,8 +106,9 @@ export function resolveDailySubfolder(
   const month = String(dateObj.getMonth() + 1).padStart(2, '0');
   const day = String(dateObj.getDate()).padStart(2, '0');
 
+  const resolvedBase = resolveStoragePathCrossPlatform(baseDir);
   const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-  const fullPath = path.join(baseDir, subFolder);
+  const fullPath = path.join(resolvedBase, subFolder);
 
   return { subFolder, fullPath };
 }

@@ -339,13 +339,25 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     outputFileName: 'HH.xlsx',
   },
   {
+    code: 'HD',
+    name: 'Hợp đồng hàng hóa',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HĐ *.xlsx',
+  },
+
+  // ── Legacy Contract Aliases ───────────────────────────────────────────────
+  {
     code: 'HD_CP2CO',
     name: 'Hợp đồng Đồng Nano ACM (CP2CO)',
     parentMenu: 'Quản lý sản phẩm',
     childMenu: 'Quản lý hàng hóa, hợp đồng',
     commodityCode: 'CP2CO',
     cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: true,
+    enabled: false,
     phase: 'EOD',
     outputFileName: 'HĐ CP2CO.xlsx',
   },
@@ -356,7 +368,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     childMenu: 'Quản lý hàng hóa, hợp đồng',
     commodityCode: 'PL1NY',
     cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: true,
+    enabled: false,
     phase: 'EOD',
     outputFileName: 'HĐ PL1NY.xlsx',
   },
@@ -367,7 +379,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     childMenu: 'Quản lý hàng hóa, hợp đồng',
     commodityCode: 'SI5CO',
     cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: true,
+    enabled: false,
     phase: 'EOD',
     outputFileName: 'HĐ SI5CO.xlsx',
   },
@@ -1517,6 +1529,14 @@ export class CcpCeDownloaderService {
       // Vòng lặp tải từng loại báo cáo
       for (const report of reportsToRun) {
         this.log(`\n>>> BAO CAO: ${report.name.toUpperCase()} (${report.code}) <<<`, logCb);
+
+        if (report.code === 'HD' || report.code.startsWith('HD_')) {
+          this.log(`  [Commodity & Contracts] Kích hoạt tải động toàn bộ hợp đồng từ bảng HH...`, logCb);
+          await this.downloadCommodityAndContracts(page, systemUrl, outputDir, logCb);
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
+        }
+
         for (const interval of intervals) {
           await this.downloadReport(page, report, systemUrl, interval, outputDir, opts, logCb);
           await new Promise((r) => setTimeout(r, 500));
@@ -2148,7 +2168,9 @@ export class CcpCeDownloaderService {
     const contractFiles: string[] = [];
     let hhPath: string | undefined;
 
-    // 1. Tải file HH.xlsx từ nút Kết xuất trên bảng chính
+    // 1. Bỏ qua tải HH.xlsx tại đây (đã được xử lý riêng bởi mục báo cáo 'HH')
+    // Để mục 'HD' chỉ chuyên trách tải các file Hợp đồng HĐ *.xlsx
+    /*
     try {
       this.log('  [HH] Xuất file danh mục hàng hóa (HH.xlsx)...', logCb);
       const hhDest = path.join(outputDir, 'HH.xlsx');
@@ -2163,6 +2185,7 @@ export class CcpCeDownloaderService {
     } catch (err: any) {
       this.log(`  [Warn] Lỗi xuất HH.xlsx: ${err.message}`, logCb);
     }
+    */
 
     // 2. Duyệt từng dòng trong bảng hàng hóa để mở Modal -> Tab "Thông tin hợp đồng" -> Xuất HĐ <UACODE>.xlsx
     try {

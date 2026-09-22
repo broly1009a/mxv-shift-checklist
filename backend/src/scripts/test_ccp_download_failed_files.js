@@ -51,7 +51,7 @@ async function getCredentialsFromDB() {
     }
     await mongoose.disconnect();
   } catch (err) {
-    console.log(`⚠️ Không thể kết nối MongoDB (${err.message}). Dùng fallback.`);
+    console.log(` Không thể kết nối MongoDB (${err.message}). Dùng fallback.`);
   }
   return null;
 }
@@ -81,14 +81,14 @@ async function dismissModalBackdrop(page) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(200);
     }
-  } catch {}
+  } catch { }
 }
 
 async function safeNavigate(page, url, timeoutMs = 25000) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
   } catch (err) {
-    console.log(`     ⚠️ Cảnh báo điều hướng: ${err.message}`);
+    console.log(`      Cảnh báo điều hướng: ${err.message}`);
   }
   await page.waitForTimeout(800);
   await dismissModalBackdrop(page);
@@ -105,12 +105,12 @@ async function waitForTableLoadingComplete(page, maxTimeoutMs = 30000) {
     try {
       const noData = page.locator("xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')] | //*[text()='Không có dữ liệu']").first();
       if (await noData.isVisible({ timeout: 150 }).catch(() => false)) return true;
-    } catch {}
+    } catch { }
 
     const spinners = await page.locator(spinnerSel).all();
     let visible = 0;
     for (const s of spinners) {
-      try { if (await s.isVisible()) visible++; } catch {}
+      try { if (await s.isVisible()) visible++; } catch { }
     }
 
     if (visible === 0) {
@@ -131,7 +131,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
   const activeExportSel = "xpath=//button[(contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Export') or .//svg[@data-testid='FileDownloadIcon' or @data-testid='DownloadIcon']) and not(@disabled) and not(contains(@class, 'Mui-disabled'))]";
   try {
     await page.waitForSelector(activeExportSel, { timeout: 15000 });
-  } catch {}
+  } catch { }
 
   let exportBtn = page.locator("xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Export')] | //button[contains(@aria-label, 'Export') or contains(@aria-label, 'Kết xuất')]").first();
   if (!(await exportBtn.isVisible({ timeout: 2500 }).catch(() => false))) {
@@ -139,7 +139,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
   }
 
   if (!(await exportBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-    console.log(`     ⚠️ Không tìm thấy nút Kết xuất.`);
+    console.log(`      Không tìm thấy nút Kết xuất.`);
     return false;
   }
 
@@ -153,7 +153,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
     try {
       await exportBtn.hover({ force: true });
       await page.waitForTimeout(300);
-    } catch {}
+    } catch { }
 
     const exportAllOption = page.locator("xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả'] | //*[contains(text(), 'Export all')]").first();
     if (await exportAllOption.isVisible({ timeout: 1500 }).catch(() => false)) {
@@ -184,7 +184,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
       }
     }
   } catch (e) {
-    console.log(`     ⚠️ Lỗi tải file: ${e.message}`);
+    console.log(`      Lỗi tải file: ${e.message}`);
   }
   return false;
 }
@@ -248,7 +248,7 @@ async function testTTTT(page, baseUrl, outputDir) {
     const sz = fs.existsSync(fileName) ? (fs.statSync(fileName).size / 1024).toFixed(1) : '0';
     const duration = ((Date.now() - tStart) / 1000).toFixed(1);
     if (!ok) {
-      console.log(`   ⚠️ TTTT.xlsx: Server UAT không nhả file (Bỏ qua theo chỉ đạo của Maker)`);
+      console.log(`    TTTT.xlsx: Server UAT không nhả file (Bỏ qua theo chỉ đạo của Maker)`);
     } else {
       console.log(`   ✅ THÀNH CÔNG: TTTT.xlsx (${sz} KB) trong ${duration}s`);
     }
@@ -341,7 +341,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
           // 2. Thử nút 'Đóng' ở footer (scrollIntoView trước khi click)
           const closeBtn = page.locator("button.button-element:has-text('Đóng'), button:has-text('Đóng')").last();
           if (await closeBtn.isVisible({ timeout: 500 }).catch(() => false)) {
-            await closeBtn.scrollIntoViewIfNeeded().catch(() => {});
+            await closeBtn.scrollIntoViewIfNeeded().catch(() => { });
             await closeBtn.click({ force: true });
             await page.waitForTimeout(400);
           }
@@ -352,7 +352,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
         }
 
         const allModalTitles = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')");
-        await allModalTitles.first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
+        await allModalTitles.first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => { });
         await page.waitForTimeout(400);
       };
 
@@ -360,14 +360,14 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
         // Đảm bảo không còn modal nào sót lại trước khi mở dòng mới
         const lingeringModal = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')").first();
         if (await lingeringModal.isVisible({ timeout: 300 }).catch(() => false)) {
-          console.log(`     ⚠️ Có modal chưa đóng từ lượt trước, đang đóng...`);
+          console.log(`      Có modal chưa đóng từ lượt trước, đang đóng...`);
           await closeModal();
         }
 
         // 1. Click icon đầu tiên trong cột Thao tác (Sửa/Xem)
         const actionBtn = row.locator("xpath=.//button[contains(@class, 'MuiIconButton-root')]").first();
         if (!(await actionBtn.isVisible({ timeout: 2500 }).catch(() => false))) {
-          console.log(`     ⚠️ Không tìm thấy nút Thao tác cho ${uacode}`);
+          console.log(`      Không tìm thấy nút Thao tác cho ${uacode}`);
           continue;
         }
         await actionBtn.click({ force: true });
@@ -383,7 +383,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
           await page.waitForTimeout(800);
           await waitForTableLoadingComplete(page, 10000);
         } else {
-          console.log(`     ⚠️ Không thấy Tab 'Thông tin hợp đồng' (#tab-1)`);
+          console.log(`      Không thấy Tab 'Thông tin hợp đồng' (#tab-1)`);
         }
 
         // 3. Kiểm tra xem bảng bên trong #tabpanel-1 có dữ liệu không
@@ -407,8 +407,8 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
 
           // Ưu tiên Cách 2: Click trực tiếp vào nút 'Kết xuất' để bung Menu Popover ngay từ đầu
           console.log(`     👉 Click trực tiếp nút 'Kết xuất' để mở menu...`);
-          await page.bringToFront().catch(() => {});
-          await modalExportBtn.scrollIntoViewIfNeeded().catch(() => {});
+          await page.bringToFront().catch(() => { });
+          await modalExportBtn.scrollIntoViewIfNeeded().catch(() => { });
           await modalExportBtn.click({ force: true });
           await page.waitForTimeout(600);
 
@@ -422,7 +422,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
 
           if (await exportAll.isVisible({ timeout: 3000 }).catch(() => false)) {
             console.log(`     👉 Menu đã mở: Bấm chọn 'Xuất tất cả'...`);
-            await exportAll.hover().catch(() => {});
+            await exportAll.hover().catch(() => { });
             await exportAll.click();
             await page.waitForTimeout(400);
 
@@ -431,7 +431,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
               await exportAll.click({ force: true });
             }
           } else {
-            console.log(`     ⚠️ Không thấy option 'Xuất tất cả' trong menu`);
+            console.log(`      Không thấy option 'Xuất tất cả' trong menu`);
           }
 
           const dl = await dlPromise;
@@ -445,7 +445,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
           console.log(`     ${ok ? '✅ THÀNH CÔNG' : '❌ THẤT BẠI'}: ${contractFileName} (${sz} KB) trong ${dur}s`);
           results.push({ file: contractFileName, ok, size: sz, time: dur });
         } else {
-          console.log(`     ⚠️ Không tìm thấy nút Kết xuất bên trong #tabpanel-1`);
+          console.log(`      Không tìm thấy nút Kết xuất bên trong #tabpanel-1`);
           results.push({ file: contractFileName, ok: false, size: '0', time: '0' });
         }
 
@@ -454,7 +454,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
 
       } catch (e) {
         console.log(`     ❌ Lỗi xử lý ${contractFileName}: ${e.message}`);
-        await page.keyboard.press('Escape').catch(() => {});
+        await page.keyboard.press('Escape').catch(() => { });
         results.push({ file: contractFileName, ok: false, size: '0', time: '0' });
       }
     }
@@ -514,7 +514,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
       await page.waitForTimeout(600);
       pageNum++;
     } else {
-      console.log(`   ⚠️ Sau 8s vị trí vẫn là "${currentRange}". Dừng để tránh lặp trang.`);
+      console.log(`    Sau 8s vị trí vẫn là "${currentRange}". Dừng để tránh lặp trang.`);
       break;
     }
   }
@@ -557,7 +557,7 @@ async function main() {
     await page.fill("input[name='username'], input[type='text']", username);
     await page.fill("input[name='password'], input[type='password']", password);
     await page.click("button[type='submit'], button:has-text('Đăng nhập')");
-    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => { });
     await page.waitForTimeout(1000);
     console.log(`✅ Đăng nhập thành công!\n`);
 
@@ -583,7 +583,7 @@ async function main() {
     console.table(summary.map((s, i) => ({
       STT: i + 1,
       'Tên Tệp': s.file,
-      'Trạng Thái': s.ok ? '✅ Thành công' : (s.note ? '⚠️ Bỏ qua (Server)' : '❌ Thất bại'),
+      'Trạng Thái': s.ok ? '✅ Thành công' : (s.note ? ' Bỏ qua (Server)' : '❌ Thất bại'),
       'Kích Thước (KB)': s.size,
       'Thời Gian (s)': s.time,
       'Ghi Chú': s.note || '',

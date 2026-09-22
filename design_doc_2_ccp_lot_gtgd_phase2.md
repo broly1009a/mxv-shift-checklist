@@ -417,7 +417,7 @@ pathSpreadCumulative:  p.pathSpreadCumulative  || '',  // pathSpreadLot
 pathLmeCumulative:     p.pathLmeCumulative     || '',  // pathLmeLot
 pathOptionsCumulative: p.pathOptionsCumulative || '',  // pathOptionsLot
 pathDsgdCumulative:    p.pathDsgdCumulative    || '',  // raw DSGD lũy kế
-pathGtgdNormal:        p.pathGtgdNormal        || '',  // ⚠️ Đã có key, cần chắc chắn map đúng
+pathGtgdNormal:        p.pathGtgdNormal        || '',  //  Đã có key, cần chắc chắn map đúng
 pathGtgdSpread:        p.pathGtgdSpread        || '',  // Mới
 pathGtgdLme:           p.pathGtgdLme           || '',  // Mới
 pathGtgdOptions:       p.pathGtgdOptions       || '',  // Mới

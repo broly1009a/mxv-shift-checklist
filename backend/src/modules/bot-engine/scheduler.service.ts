@@ -201,6 +201,18 @@ export class SchedulerService implements OnModuleInit {
     timeZone: 'Asia/Saigon',
   })
   async checkSchedule() {
+    // Check Master Switch: bot_auto_backup_enabled
+    const autoBackupSetting = await this.settingsService.getSetting(
+      'bot_auto_backup_enabled',
+      'true',
+    );
+    if (autoBackupSetting === 'false') {
+      this.logger.debug(
+        'Dynamic bot scheduler is paused by user switch (bot_auto_backup_enabled=false).',
+      );
+      return;
+    }
+
     const nowVN = new Date(new Date().getTime() + 7 * 60 * 60 * 1000); // Vietnam time (GMT+7)
     const todayStr = nowVN.toISOString().split('T')[0];
     const currentHourStr = String(nowVN.getUTCHours()).padStart(2, '0');
@@ -221,6 +233,40 @@ export class SchedulerService implements OnModuleInit {
 
     if (!Array.isArray(tasks) || tasks.length === 0) {
       return;
+    }
+
+    // Đọc các cấu hình thời điểm vận hành động từ system_settings (Tab Backup & Thống kê)
+    const [backupTime, backupTimeEnabled, statTime, statTimeEnabled] = await Promise.all([
+      this.settingsService.getSetting('bot_backup_time', ''),
+      this.settingsService.getSetting('bot_backup_time_enabled', 'true'),
+      this.settingsService.getSetting('bot_stat_time', ''),
+      this.settingsService.getSetting('bot_stat_time_enabled', 'true'),
+    ]);
+
+    // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS)
+    if (backupTime && /^\d{2}:\d{2}$/.test(backupTime)) {
+      const rpaTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_MS');
+      if (rpaTask) {
+        rpaTask.time = backupTime;
+        rpaTask.enabled = backupTimeEnabled !== 'false';
+      }
+    }
+
+    // 2. Đồng bộ giờ thống kê động (RUN_LOT_MACRO / RUN_VALUE_MACRO)
+    if (statTime && /^\d{2}:\d{2}$/.test(statTime)) {
+      let statTask = tasks.find((t) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO');
+      if (statTask) {
+        statTask.time = statTime;
+        statTask.enabled = statTimeEnabled !== 'false';
+      } else {
+        tasks.push({
+          id: 'AUTO_GENERATE_STATISTICS',
+          name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
+          enabled: statTimeEnabled !== 'false',
+          time: statTime,
+          jobType: 'RUN_LOT_MACRO',
+        });
+      }
     }
 
     // Find active shift log to link tasks

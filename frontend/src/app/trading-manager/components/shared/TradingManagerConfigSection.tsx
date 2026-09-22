@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { parseWindowsStoragePath } from '@/components/admin/SmartPathInput';
 
 export interface TradingManagerConfigSectionProps {
   token: string | null;
@@ -34,6 +35,11 @@ export default function TradingManagerConfigSection({
   const [usdSettlementRateSell, setUsdSettlementRateSell] = useState<number>(26100);
   const [usdSettlementRateBuy, setUsdSettlementRateBuy] = useState<number>(26100);
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(26100);
+  const [ccpUsdExchangeRate, setCcpUsdExchangeRate] = useState<number>(26000);
+  const [exchangeRatesLastSynced, setExchangeRatesLastSynced] = useState<string>('');
+  const [exchangeRateSource, setExchangeRateSource] = useState<string>('');
+  const [syncingMsRate, setSyncingMsRate] = useState<boolean>(false);
+  const [syncingCcpRate, setSyncingCcpRate] = useState<boolean>(false);
   const [currencyUnit, setCurrencyUnit] = useState<string>('USD/VND');
 
   // Session time
@@ -56,7 +62,7 @@ export default function TradingManagerConfigSection({
 
   // Path check statuses
   const [pathChecking, setPathChecking] = useState<Record<string, boolean>>({});
-  const [pathStatus, setPathStatus] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [pathStatus, setPathStatus] = useState<Record<string, { ok: boolean; msg: string; resolvedPath?: string }>>({});
 
   // Negative Margin Monitored Accounts
   const [negativeAccounts, setNegativeAccounts] = useState<string[]>([]);
@@ -87,24 +93,33 @@ export default function TradingManagerConfigSection({
         });
       }
 
+      const toWindowsM = (p: string) => {
+        if (!p) return '';
+        const parsed = parseWindowsStoragePath(p);
+        return parsed?.suggestedPath || p;
+      };
+
       setUsdSettlementRateSell(Number(map.usd_settlement_rate_sell || map.usd_exchange_rate || 26100));
       setUsdSettlementRateBuy(Number(map.usd_settlement_rate_buy || map.usd_exchange_rate || 26100));
       setUsdExchangeRate(Number(map.usd_exchange_rate || 26100));
+      setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || map.usd_exchange_rate || 26000));
+      setExchangeRatesLastSynced(map.exchange_rates_last_synced || '');
+      setExchangeRateSource(map.exchange_rate_source || '');
       setSessionStartTime(map.session_start_time || '05:00');
       setSessionEndTime(map.session_end_time || '05:00');
 
-      setReconFolderCheckPath(map.recon_folder_check_path || '');
-      setReconResultFolderPath(map.recon_result_folder_path || '');
-      setMorningMsDataPath(map.morning_ms_data_path || '');
-      setGttImportPath(map.gtt_import_path || '');
-      setBotBackupPathCqg(map.bot_backup_path_cqg || '');
-      setBotBackupPathMs(map.bot_backup_path_ms || '');
-      setBotBackupPathAcm(map.bot_backup_path_acm || '');
-      setBotLotMacroPath(map.bot_macro_lot_path || map.bot_lot_macro_path || '');
-      setBotMacroValuePath(map.bot_macro_value_path || '');
-      setNewsTeamStatPath(map.news_team_stat_path || '');
-      setBotBackupPathCcp(map.bot_backup_path_ccp || '');
-      setBotBackupPathCe(map.bot_backup_path_ce || '');
+      setReconFolderCheckPath(toWindowsM(map.recon_folder_check_path || ''));
+      setReconResultFolderPath(toWindowsM(map.recon_result_folder_path || ''));
+      setMorningMsDataPath(toWindowsM(map.morning_ms_data_path || ''));
+      setGttImportPath(toWindowsM(map.gtt_import_path || ''));
+      setBotBackupPathCqg(toWindowsM(map.bot_backup_path_cqg || ''));
+      setBotBackupPathMs(toWindowsM(map.bot_backup_path_ms || ''));
+      setBotBackupPathAcm(toWindowsM(map.bot_backup_path_acm || ''));
+      setBotLotMacroPath(toWindowsM(map.bot_macro_lot_path || map.bot_lot_macro_path || ''));
+      setBotMacroValuePath(toWindowsM(map.bot_macro_value_path || ''));
+      setNewsTeamStatPath(toWindowsM(map.news_team_stat_path || ''));
+      setBotBackupPathCcp(toWindowsM(map.bot_backup_path_ccp || ''));
+      setBotBackupPathCe(toWindowsM(map.bot_backup_path_ce || ''));
 
       if (map.negative_margin_monitored_accounts) {
         try {
@@ -131,6 +146,65 @@ export default function TradingManagerConfigSection({
     fetchConfig();
   }, [token]);
 
+  // Sync tỷ giá từ M-System crawler
+  const handleSyncMsRate = async () => {
+    if (!token) return;
+    setSyncingMsRate(true);
+    const toastId = toast.loading('Đang khởi động bot đồng bộ tỷ giá từ M-System...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/sync-usd-rate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.rate) {
+        setUsdExchangeRate(data.rate);
+        const nowIso = new Date().toISOString();
+        setExchangeRatesLastSynced(nowIso);
+        setExchangeRateSource('M-System Crawler');
+        toast.success(`Đã đồng bộ tỷ giá từ M-System: 1 USD = ${Number(data.rate).toLocaleString('vi-VN')} đ`, { id: toastId });
+      } else {
+        toast.error(data.message || 'Không thể đồng bộ tỷ giá từ M-System', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message}`, { id: toastId });
+    } finally {
+      setSyncingMsRate(false);
+    }
+  };
+
+  // Sync tỷ giá từ CoreCCP
+  const handleSyncCcpRate = async () => {
+    if (!token) return;
+    setSyncingCcpRate(true);
+    const toastId = toast.loading('Đang trích xuất tỷ giá từ báo cáo CoreCCP (TTTT/TTM)...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/sync-exchange-rate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.data?.usdRate) {
+        const rate = data.data.usdRate;
+        setCcpUsdExchangeRate(rate);
+        setUsdExchangeRate(rate);
+        setExchangeRatesLastSynced(data.data.lastSynced || new Date().toISOString());
+        setExchangeRateSource(data.data.source || 'CoreCCP Reports');
+        toast.success(data.message || `Đã cập nhật tỷ giá CoreCCP: 1 USD = ${rate.toLocaleString('vi-VN')} đ`, { id: toastId });
+      } else {
+        toast.error(data.message || 'Không tìm thấy tỷ giá mới từ CoreCCP', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi: ${err.message}`, { id: toastId });
+    } finally {
+      setSyncingCcpRate(false);
+    }
+  };
+
   // Save full configuration directly to MongoDB system_settings (Bot Config)
   const handleSaveConfig = async () => {
     if (!token) return;
@@ -142,6 +216,9 @@ export default function TradingManagerConfigSection({
         { key: 'usd_settlement_rate_sell', value: String(usdSettlementRateSell) },
         { key: 'usd_settlement_rate_buy', value: String(usdSettlementRateBuy) },
         { key: 'usd_exchange_rate', value: String(usdExchangeRate) },
+        { key: 'ccp_usd_exchange_rate', value: String(ccpUsdExchangeRate) },
+        { key: 'exchange_rates_last_synced', value: exchangeRatesLastSynced },
+        { key: 'exchange_rate_source', value: exchangeRateSource },
         { key: 'session_start_time', value: sessionStartTime },
         { key: 'session_end_time', value: sessionEndTime },
         { key: 'recon_folder_check_path', value: reconFolderCheckPath },
@@ -203,6 +280,7 @@ export default function TradingManagerConfigSection({
         [key]: {
           ok: !!data.canWrite || !!data.exists,
           msg: data.message || (data.exists ? 'Đường dẫn hợp lệ' : 'Đường dẫn không tồn tại'),
+          resolvedPath: data.resolvedPath,
         },
       }));
     } catch (err: any) {
@@ -315,8 +393,8 @@ export default function TradingManagerConfigSection({
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px' }}>
-              {/* Cụm trái: Tỷ giá thanh toán */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '14px', flexWrap: 'wrap' }}>
+              {/* Cụm 1: Tỷ giá thanh toán */}
               <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -355,11 +433,11 @@ export default function TradingManagerConfigSection({
                 </div>
               </div>
 
-              {/* Cụm phải: Tỷ giá quy đổi */}
+              {/* Cụm 2: Tỷ giá quy đổi M-System */}
               <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    Tỷ giá quy đổi
+                    Tỷ giá M-System
                   </span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>USD/VND</span>
                 </div>
@@ -374,6 +452,61 @@ export default function TradingManagerConfigSection({
                   />
                 </div>
               </div>
+
+              {/* Cụm 3: Tỷ giá CoreCCP */}
+              <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>
+                    Tỷ giá CoreCCP
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: '#10b981', fontFamily: 'monospace' }}>USD/VND</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Áp dụng:</label>
+                  <input
+                    type="number"
+                    value={ccpUsdExchangeRate}
+                    onChange={(e) => setCcpUsdExchangeRate(Number(e.target.value))}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', borderColor: '#10b981' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Thanh công cụ đồng bộ tỷ giá */}
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px dashed var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleSyncMsRate}
+                  disabled={syncingMsRate}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  title="Tự động crawl trang quản lý tỷ giá trên M-System"
+                >
+                  <RefreshCw size={12} className={syncingMsRate ? 'animate-spin' : ''} />
+                  <span>{syncingMsRate ? 'Đang cào M-System...' : 'Đồng bộ từ M-System'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSyncCcpRate}
+                  disabled={syncingCcpRate}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px', borderColor: '#10b981', color: '#10b981' }}
+                  title="Tự động bóc tách tỷ giá từ tệp ngày CoreCCP (TTTT/TTM)"
+                >
+                  <RefreshCw size={12} className={syncingCcpRate ? 'animate-spin' : ''} />
+                  <span>{syncingCcpRate ? 'Đang trích xuất CCP...' : 'Đồng bộ từ CoreCCP'}</span>
+                </button>
+              </div>
+
+              {exchangeRatesLastSynced && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  Lần đồng bộ gần nhất: {new Date(exchangeRatesLastSynced).toLocaleTimeString('vi-VN')} {new Date(exchangeRatesLastSynced).toLocaleDateString('vi-VN')} ({exchangeRateSource || 'Hệ thống'})
+                </span>
+              )}
             </div>
           </div>
 
@@ -603,16 +736,42 @@ export default function TradingManagerConfigSection({
 
       {/* SECTION 3: CÁC ĐƯỜNG DẪN HOẠT ĐỘNG THỰC TẾ (HỆ THỐNG SỬ DỤNG) */}
       <div className="glass-panel" style={{ padding: '22px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Folder size={18} color="#10b981" />
             <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Đường Dẫn Thư Mục Backup & Thống Kê Hoạt Động
+              Đường Dẫn Thư Mục Backup & Thống Kê Hoạt Động (Chuẩn Ổ M:\)
             </h4>
           </div>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            7 đường dẫn đang hoạt động trong hệ thống
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const toWindowsM = (p: string) => {
+                  if (!p) return '';
+                  const parsed = parseWindowsStoragePath(p);
+                  return parsed?.suggestedPath || p;
+                };
+                setBotBackupPathMs((p) => toWindowsM(p));
+                setBotBackupPathCqg((p) => toWindowsM(p));
+                setBotBackupPathAcm((p) => toWindowsM(p));
+                setBotBackupPathCcp((p) => toWindowsM(p));
+                setBotBackupPathCe((p) => toWindowsM(p));
+                setBotLotMacroPath((p) => toWindowsM(p));
+                setBotMacroValuePath((p) => toWindowsM(p));
+                toast.success('Đã chuẩn hóa toàn bộ đường dẫn về định dạng ổ M:\\ (Windows)!');
+              }}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.72rem', padding: '3px 10px', height: '26px', display: 'flex', alignItems: 'center', gap: '5px' }}
+              title="Chuyển đổi toàn bộ đường dẫn sang định dạng chuẩn ổ M:\ (Windows)"
+            >
+              <RefreshCw size={12} />
+              <span>Chuẩn hóa ổ M:\</span>
+            </button>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+              7 đường dẫn đang hoạt động trong hệ thống
+            </span>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -688,19 +847,26 @@ export default function TradingManagerConfigSection({
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {status && (
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          fontFamily: 'monospace',
-                          color: status.ok ? '#10b981' : '#ef4444',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        {status.ok ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-                        {status.msg}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontFamily: 'monospace',
+                            color: status.ok ? '#10b981' : '#ef4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {status.ok ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                          <span>{status.msg}</span>
+                        </span>
+                        {status.resolvedPath && status.resolvedPath !== item.val && (
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                            (Ánh xạ máy chủ: {status.resolvedPath})
+                          </span>
+                        )}
+                      </div>
                     )}
                     <button
                       type="button"

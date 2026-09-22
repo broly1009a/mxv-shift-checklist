@@ -429,7 +429,7 @@ async function inspectScreenData(page, parentName, childName, subGroupName = nul
     for (const tab of tabLocators) {
       const text = (await tab.textContent() || '').trim();
       const isSelected = (await tab.getAttribute('aria-selected')) === 'true' ||
-                         ((await tab.getAttribute('class')) || '').includes('Mui-selected');
+        ((await tab.getAttribute('class')) || '').includes('Mui-selected');
       if (text) {
         screenData.tabs.push({ name: text, isSelected, columns: [] });
       }
@@ -683,7 +683,7 @@ async function main() {
           );
 
           if (!clicked) {
-            console.log(`  ⚠️ Không thể mở màn hình: "${item.name}"`);
+            console.log(`   Không thể mở màn hình: "${item.name}"`);
             continue;
           }
 

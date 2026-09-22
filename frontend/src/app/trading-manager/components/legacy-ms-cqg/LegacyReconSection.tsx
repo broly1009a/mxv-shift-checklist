@@ -26,9 +26,12 @@ import {
   ChevronRight,
   RotateCcw,
   History,
+  PauseCircle,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
+import { ReconLogSummaryModal } from './ReconLogSummaryModal';
 
 export interface LegacyReconSectionProps {
   token: string | null;
@@ -79,8 +82,13 @@ export default function LegacyReconSection({
   }, [selectedRunJobId]);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
+  const [showSummaryLogModal, setShowSummaryLogModal] = useState<boolean>(false);
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
+
+  // Master Switch: Tự động đối chiếu (bot_auto_recon_enabled)
+  const [autoReconActive, setAutoReconActive] = useState<boolean>(true);
+  const [updatingAutoRecon, setUpdatingAutoRecon] = useState<boolean>(false);
 
 
   // Sound Beeper
@@ -113,6 +121,92 @@ export default function LegacyReconSection({
     setSelectedDate(dateStr);
   }, []);
 
+  // Lưu cấu hình vào system_settings
+  const saveSetting = useCallback(async (key: string, value: string) => {
+    if (!token) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ key, value }),
+      });
+    } catch (err: any) {
+      console.warn(`Lỗi lưu setting ${key}:`, err);
+    }
+  }, [token]);
+
+  const debouncedTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const debouncedSaveSetting = useCallback((key: string, value: string, delayMs = 600) => {
+    if (debouncedTimersRef.current[key]) {
+      clearTimeout(debouncedTimersRef.current[key]);
+    }
+    debouncedTimersRef.current[key] = setTimeout(() => {
+      saveSetting(key, value);
+    }, delayMs);
+  }, [saveSetting]);
+
+  // Fetch system settings (bot_auto_recon_enabled, bot_periodic_check_enabled, bot_periodic_check_frequency)
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE_URL}/api/v1/system-settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const map = Object.fromEntries(data.map((item: any) => [item.key, item.value]));
+          if (map.bot_auto_recon_enabled !== undefined) {
+            setAutoReconActive(map.bot_auto_recon_enabled !== 'false');
+          }
+          if (map.bot_periodic_check_enabled !== undefined) {
+            setCheckPeriodic(map.bot_periodic_check_enabled !== 'false');
+          }
+          if (map.bot_periodic_check_frequency !== undefined) {
+            const freq = Number(map.bot_periodic_check_frequency);
+            if (!isNaN(freq) && freq > 0) setIntervalMinutes(freq);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [token]);
+
+  // Toggle bot_auto_recon_enabled
+  const handleToggleAutoRecon = async () => {
+    if (!token || updatingAutoRecon) return;
+    const nextVal = !autoReconActive;
+    setUpdatingAutoRecon(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          key: 'bot_auto_recon_enabled',
+          value: nextVal ? 'true' : 'false',
+        }),
+      });
+      if (res.ok) {
+        setAutoReconActive(nextVal);
+        if (nextVal) {
+          toast.success('Đã BẬT tự động đối chiếu trong phiên!');
+        } else {
+          toast.error('Đã TẮT (DỪNG) tự động đối chiếu trong phiên!');
+        }
+      } else {
+        toast.error('Không thể cập nhật cấu hình tự động đối chiếu.');
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi cập nhật tự động: ${err.message}`);
+    } finally {
+      setUpdatingAutoRecon(false);
+    }
+  };
+
   // Fetch Console Summary Data
   const fetchConsoleSummary = useCallback(async (date?: string, silent: boolean = false, jobId?: string | null) => {
     if (!token) return;
@@ -138,7 +232,7 @@ export default function LegacyReconSection({
 
       const data = await res.json();
       setSummaryData(data);
-      if (data.shiftInfo?.nextScanInSeconds !== undefined) {
+      if (data.shiftInfo?.nextScanInSeconds !== undefined && data.shiftInfo.nextScanInSeconds > 0) {
         setCountdownSeconds(data.shiftInfo.nextScanInSeconds);
       }
 
@@ -166,38 +260,52 @@ export default function LegacyReconSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  // Format last checked time (e.g., "08/09 14:00")
-  const lastCheckedFormatted = useMemo(() => {
-    const d = summaryData?.shiftInfo?.lastCheckedAt || summaryData?.klgd?.executedAt;
-    if (!d) return '--/-- --:--';
-    const dateObj = new Date(d);
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const hours = String(dateObj.getHours()).padStart(2, '0');
-    const mins = String(dateObj.getMinutes()).padStart(2, '0');
-    return `${day}/${month} ${hours}:${mins}`;
-  }, [summaryData]);
-
   // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
   const serverRuns = summaryData?.runs || [];
   const runs = useMemo(() => {
     if (serverRuns && serverRuns.length > 0) return serverRuns;
     // Fallback: nếu server chưa kịp trả về danh sách runs nhưng đã có lượt check hiển thị
-    if (summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt || (lastCheckedFormatted && lastCheckedFormatted !== '--/-- --:--')) {
+    if (summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt) {
       const execTime = summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt || new Date().toISOString();
       const currentId = selectedRunJobId || summaryData?.currentJobId || summaryData?.klgd?.jobId || 'current-latest';
-      const timePart = lastCheckedFormatted.includes(' ') ? lastCheckedFormatted.split(' ')[1] : lastCheckedFormatted;
+      const dateObj = new Date(execTime);
+      let timePart = '--:--';
+      let labelPart = 'Hiện tại';
+      if (!isNaN(dateObj.getTime())) {
+        const vnDate = new Date(dateObj.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+        const day = String(vnDate.getDate()).padStart(2, '0');
+        const month = String(vnDate.getMonth() + 1).padStart(2, '0');
+        const hours = String(vnDate.getHours()).padStart(2, '0');
+        const mins = String(vnDate.getMinutes()).padStart(2, '0');
+        timePart = `${hours}:${mins}`;
+        labelPart = `${day}/${month} ${timePart}`;
+      }
       return [{
         id: currentId,
         jobId: currentId,
         time: timePart,
-        label: lastCheckedFormatted !== '--/-- --:--' ? lastCheckedFormatted : 'Hiện tại',
+        label: labelPart,
         createdAt: execTime,
         status: summaryData?.klgd?.status || 'COMPLETED',
       }];
     }
     return [];
-  }, [serverRuns, summaryData, lastCheckedFormatted, selectedRunJobId]);
+  }, [serverRuns, summaryData, selectedRunJobId]);
+
+  // Format thời điểm check hiển thị (Đồng bộ theo lượt đang xem hoặc lượt mới nhất theo giờ Việt Nam)
+  const lastCheckedFormatted = useMemo(() => {
+    const selectedRun = selectedRunJobId ? runs.find((r: any) => r.id === selectedRunJobId) : runs[0];
+    const d = selectedRun?.createdAt || summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt;
+    if (!d) return '--/-- --:--';
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) return '--/-- --:--';
+    const vnDate = new Date(dateObj.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const day = String(vnDate.getDate()).padStart(2, '0');
+    const month = String(vnDate.getMonth() + 1).padStart(2, '0');
+    const hours = String(vnDate.getHours()).padStart(2, '0');
+    const mins = String(vnDate.getMinutes()).padStart(2, '0');
+    return `${day}/${month} ${hours}:${mins}`;
+  }, [runs, selectedRunJobId, summaryData]);
   const isViewingHistorical = summaryData?.isViewingHistorical || false;
   const currentRunIndex = useMemo(() => {
     if (!runs || runs.length === 0) return -1;
@@ -244,7 +352,27 @@ export default function LegacyReconSection({
     return () => clearInterval(interval);
   }, [checkPeriodic, selectedDate, fetchConsoleSummary]);
 
-  // Countdown Timer
+  // Countdown Timer & Tính toán đếm ngược chu kỳ định kỳ
+  useEffect(() => {
+    const serverNextScan = summaryData?.shiftInfo?.nextScanInSeconds;
+    if (serverNextScan !== undefined && serverNextScan > 0) {
+      setCountdownSeconds(serverNextScan);
+      return;
+    }
+
+    // Fallback tính toán từ thời điểm chạy gần nhất và intervalMinutes
+    const execTime = runs[0]?.createdAt || summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt;
+    if (execTime) {
+      const elapsedSeconds = Math.floor((Date.now() - new Date(execTime).getTime()) / 1000);
+      const totalFrequencySeconds = (intervalMinutes || 60) * 60;
+      const remainingSeconds = Math.max(0, totalFrequencySeconds - elapsedSeconds);
+      setCountdownSeconds(remainingSeconds);
+    } else {
+      setCountdownSeconds((intervalMinutes || 60) * 60);
+    }
+  }, [summaryData, intervalMinutes, runs]);
+
+  // Bộ đếm nhịp 1 giây giảm dần
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
@@ -507,6 +635,8 @@ export default function LegacyReconSection({
   const cqgFR = totals.totalFR || 0;
   const acmStraits = totals.totalACM || 0;
   const nanoLots = totals.totalNano || 0;
+  const isAcmAnomaly = totals.acmSessionAnomaly || summaryData?.klgd?.acmSessionAnomaly;
+  const acmAnomalyNote = totals.acmAnomalyNote || summaryData?.klgd?.acmAnomalyNote;
 
   const msTTM = totals.totalTTM_MS || totals.totalTTM || 0;
   const cqgTTM = totals.totalTTM_CQG || totals.totalOP || 0;
@@ -860,7 +990,11 @@ export default function LegacyReconSection({
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  onClick={() => setCheckPeriodic(!checkPeriodic)}
+                  onClick={() => {
+                    const nextVal = !checkPeriodic;
+                    setCheckPeriodic(nextVal);
+                    saveSetting('bot_periodic_check_enabled', nextVal ? 'true' : 'false');
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -886,7 +1020,11 @@ export default function LegacyReconSection({
                   min={1}
                   max={180}
                   value={intervalMinutes}
-                  onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+                  onChange={(e) => {
+                    const num = Number(e.target.value);
+                    setIntervalMinutes(num);
+                    debouncedSaveSetting('bot_periodic_check_frequency', String(num));
+                  }}
                   className="form-input"
                   style={{
                     width: '80px',
@@ -898,27 +1036,85 @@ export default function LegacyReconSection({
                   }}
                 />
 
-                {checkPeriodic && countdownSeconds > 0 && (
-                  <span style={{
+                {checkPeriodic && (
+                  !autoReconActive ? (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                    }}>
+                      <PauseCircle size={14} />
+                      <span>Tự động đang tắt</span>
+                    </span>
+                  ) : countdownSeconds > 0 ? (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                      color: '#0284c7',
+                      border: '1px solid rgba(2, 132, 199, 0.3)',
+                    }}>
+                      <Clock size={14} />
+                      <span>Quét lại sau: <strong>{Math.floor(countdownSeconds / 60)}p {countdownSeconds % 60}s</strong></span>
+                    </span>
+                  ) : (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      color: '#d97706',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                    }}>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Đến lịch quét định kỳ</span>
+                    </span>
+                  )
+                )}
+              </div>
+
+              {/* Bên phải: Thời điểm check gần nhất (Giao diện cũ) + Bộ lọc xem lại lượt check bên cạnh */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                {/* Nút Xem Nhanh Log Tóm Tắt */}
+                <button
+                  type="button"
+                  onClick={() => setShowSummaryLogModal(true)}
+                  title="Xem tóm tắt tiến trình tải dữ liệu và kết quả đối soát của lượt này"
+                  style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    fontSize: '0.75rem',
+                    fontSize: '0.82rem',
                     fontWeight: 700,
-                    backgroundColor: 'rgba(2, 132, 199, 0.12)',
-                    color: '#0284c7',
-                    border: '1px solid rgba(2, 132, 199, 0.3)',
-                  }}>
-                    <Clock size={14} />
-                    <span>Quét lại sau: <strong>{Math.floor(countdownSeconds / 60)}p {countdownSeconds % 60}s</strong></span>
-                  </span>
-                )}
-              </div>
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <FileText size={14} style={{ color: '#0ea5e9' }} />
+                  <span>Nhật ký tóm tắt</span>
+                </button>
 
-              {/* Bên phải: Thời điểm check gần nhất (Giao diện cũ) + Bộ lọc xem lại lượt check bên cạnh */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                 {/* 1. Giao diện gốc cũ: Thời điểm check gần nhất */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
@@ -1157,8 +1353,29 @@ export default function LegacyReconSection({
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#f59e0b' }}>
                       {fmt(acmStraits)}
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-muted)' }}>
-                      {fmt(nanoLots)}
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: isAcmAnomaly ? '#10b981' : 'var(--text-muted)' }}>
+                      <div>{fmt(nanoLots)}</div>
+                      {isAcmAnomaly && (
+                        <div
+                          title={acmAnomalyNote || 'Sàn ACM chưa cắt phiên kế toán. Đã tự động đối soát theo Trade Date thực tế.'}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            marginTop: '4px',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                            color: '#d97706',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                          }}
+                        >
+                          <AlertTriangle size={10} />
+                          <span>Khớp Trade Date</span>
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
                       {ccpStatus === 'LOADING' ? (
@@ -1309,6 +1526,46 @@ export default function LegacyReconSection({
                   Hôm nay
                 </button>
               </div>
+
+              {/* Master Switch: Tự động đối chiếu */}
+              <button
+                type="button"
+                onClick={handleToggleAutoRecon}
+                disabled={updatingAutoRecon}
+                className="btn"
+                style={{
+                  height: '42px',
+                  padding: '8px 14px',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s',
+                  backgroundColor: autoReconActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                  color: autoReconActive ? '#10b981' : '#ef4444',
+                  border: autoReconActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                  cursor: 'pointer',
+                }}
+                title={autoReconActive ? 'Click để TẮT (DỪNG) tự động đối chiếu trong ca' : 'Click để BẬT lại tự động đối chiếu trong ca'}
+              >
+                {updatingAutoRecon ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: autoReconActive ? '#10b981' : '#ef4444',
+                      display: 'inline-block',
+                    }}
+                    className={autoReconActive ? 'animate-pulse' : ''}
+                  />
+                )}
+                <span>{autoReconActive ? 'Tự động: BẬT' : 'Tự động: ĐÃ DỪNG'}</span>
+              </button>
 
               {/* Check thủ công */}
               <button
@@ -1852,6 +2109,15 @@ export default function LegacyReconSection({
           handleTriggerRun('CHECK_KLGD', 'TABLE1');
         }}
         isRetrying={triggering}
+      />
+
+      <ReconLogSummaryModal
+        isOpen={showSummaryLogModal}
+        onClose={() => setShowSummaryLogModal(false)}
+        logs={displayLogs}
+        runLabel={isViewingHistorical ? `Lượt đang xem (${lastCheckedFormatted})` : `Lượt mới nhất (${lastCheckedFormatted})`}
+        runTime={lastCheckedFormatted}
+        summaryData={summaryData}
       />
     </>
   );
