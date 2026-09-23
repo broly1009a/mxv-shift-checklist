@@ -1539,12 +1539,44 @@ export class BotEngineController {
    * 4. Compare and return report
    */
   @Post('run-gtt-check')
-  async runGttCheck(@Body() body: { downloadMarketCsv?: boolean } = {}) {
+  async runGttCheck(
+    @Body() body: { downloadMarketCsv?: boolean; async?: boolean } = {},
+  ) {
+    if (this.gttService.getIsRunning()) {
+      return {
+        success: true,
+        isRunning: true,
+        message: 'Tiến trình kiểm tra GTT đang chạy trên hệ thống.',
+        report: this.gttService.getLatestReport(),
+      };
+    }
+
+    if (body.async) {
+      // Chạy ngầm trong background, không block HTTP request
+      this.gttService
+        .runFullGttCheck({
+          downloadMarketCsv: body.downloadMarketCsv ?? false,
+        })
+        .catch((err) => {
+          this.logger.error(
+            `[Background GTT Check] Lỗi: ${err.message}`,
+            err.stack,
+          );
+        });
+
+      return {
+        success: true,
+        isRunning: true,
+        message: 'Đã khởi động tiến trình kiểm tra GTT ngầm.',
+        report: this.gttService.getLatestReport(),
+      };
+    }
+
     try {
       const report = await this.gttService.runFullGttCheck({
         downloadMarketCsv: body.downloadMarketCsv ?? false,
       });
-      return { success: true, report };
+      return { success: true, isRunning: false, report };
     } catch (err: any) {
       throw new HttpException(
         `Kiểm tra GTT thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -1559,13 +1591,22 @@ export class BotEngineController {
   @Get('gtt-report')
   async getGttReport() {
     const report = this.gttService.getLatestReport();
-    if (!report) {
+    const isRunning = this.gttService.getIsRunning();
+    const currentLogs = this.gttService.getCurrentLogs();
+    if (!report && !isRunning) {
       return {
         success: false,
+        isRunning: false,
+        currentLogs: [],
         message: 'Chưa có báo cáo GTT nào. Hãy chạy kiểm tra GTT trước.',
       };
     }
-    return { success: true, report };
+    return {
+      success: true,
+      isRunning,
+      currentLogs,
+      report,
+    };
   }
 
   /**

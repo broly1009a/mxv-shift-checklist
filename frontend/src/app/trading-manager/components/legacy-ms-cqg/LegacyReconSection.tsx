@@ -1064,7 +1064,7 @@ export default function LegacyReconSection({
                     title="Dừng khẩn cấp tiến trình đối soát của Bot"
                   >
                     <Square size={13} fill={cancellingBot ? 'none' : '#dc2626'} className={cancellingBot ? 'animate-pulse' : ''} />
-                    <span>{cancellingBot ? 'Đang dừng...' : 'Dừng bot'}</span>
+                    <span>{cancellingBot ? 'Đang dừng...' : 'Stop'}</span>
                   </button>
                 </div>
               </div>

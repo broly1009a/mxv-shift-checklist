@@ -114,19 +114,21 @@ export function resolveDailySubfolder(
 }
 
 export async function getMsBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  return settingsService.getSetting(
+  const raw = await settingsService.getSetting(
     'bot_backup_path_ms',
     process.env.DEFAULT_BACKUP_PATH_MS ||
     'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
   );
+  return resolveStoragePathCrossPlatform(raw);
 }
 
 export async function getCqgBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  return settingsService.getSetting(
+  const raw = await settingsService.getSetting(
     'bot_backup_path_cqg',
     process.env.DEFAULT_BACKUP_PATH_CQG ||
     'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
   );
+  return resolveStoragePathCrossPlatform(raw);
 }
 
 export async function getAcmBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
@@ -140,15 +142,16 @@ export async function getAcmBackupBase(settingsService: { getSetting: (key: stri
   } else {
     acmBackupBase = path.join(acmBackupBase, 'ACM');
   }
-  return acmBackupBase;
+  return resolveStoragePathCrossPlatform(acmBackupBase);
 }
 
 export async function getCcpBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  return settingsService.getSetting(
+  const raw = await settingsService.getSetting(
     'bot_backup_path_ccp',
     process.env.DEFAULT_BACKUP_PATH_CCP ||
     'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
   );
+  return resolveStoragePathCrossPlatform(raw);
 }
 
 /**

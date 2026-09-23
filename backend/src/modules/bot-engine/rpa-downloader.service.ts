@@ -11,6 +11,7 @@ import {
   MSystemTabNavigatorHelper,
   MS_REPORT_FILE_PATTERNS,
   MS_EXPORT_BUTTON_SELECTORS,
+  MS_SPECIFIC_EXPORT_BUTTON_SELECTORS,
 } from './helpers/msystem-tab-navigator.helper';
 
 @Injectable()
@@ -770,7 +771,13 @@ export class RpaDownloaderService {
       });
 
       this.logger.log('Clicking CSV/Excel download icon/button...');
-      await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+      const specificExportBtn = page.locator(MS_SPECIFIC_EXPORT_BUTTON_SELECTORS).first();
+      const hasSpecific = await specificExportBtn.isVisible({ timeout: 2000 }).catch(() => false);
+      if (hasSpecific) {
+        await specificExportBtn.click({ force: true });
+      } else {
+        await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+      }
 
       const download = await downloadPromise;
       await this.saveAndValidateDownload(download, downloadPath, expectedTargetKey);
@@ -3757,6 +3764,9 @@ export class RpaDownloaderService {
       const spinnerSelectors = [
         '.wpfe-pre-bootstrap-loading-spinner-container',
         '.wpfe-app-loading-image',
+        'mat-spinner',
+        '.mat-mdc-progress-spinner',
+        '.wpfe-loading-spinner',
       ];
       for (const sel of spinnerSelectors) {
         const els = page.locator(sel);
@@ -4038,10 +4048,23 @@ export class RpaDownloaderService {
       await okBtn.waitFor({ state: 'visible', timeout: 10000 });
       await okBtn.click();
 
-      // Bước 8 (C#): Chờ 10s cho dữ liệu load ban đầu
-      this.logger.log(`[CQG] Chờ dữ liệu load ban đầu (10s)...`);
-      await this.waitForCqgNotLoading(page, 30000);
-      await page.waitForTimeout(10000);
+      // Bước 8 (C#): Chờ dữ liệu bảng đồng bộ xong (Dynamic Wait)
+      // Chờ tối thiểu 4s, tối đa 16s hoặc cho đến khi con quay loading của widget biến mất
+      this.logger.log(`[CQG] Chờ dữ liệu bảng "${tabLabel}" đồng bộ từ máy chủ CQG Gateway...`);
+      await this.waitForCqgNotLoading(page, 16000);
+
+      const widgetSpinnerSelector =
+        "wpfe-widget-tab-control:has(.wpfe-tab-header-active) mat-spinner, wpfe-widget-tab-control:has(.wpfe-tab-header-active) .mat-mdc-progress-spinner, wpfe-widget-tab-control:has(.wpfe-tab-header-active) .wpfe-loading-spinner";
+      const startWait = Date.now();
+      while (Date.now() - startWait < 16000) {
+        await page.waitForTimeout(500);
+        const hasSpinner = await page.locator(widgetSpinnerSelector).first().isVisible().catch(() => false);
+        // Đợi tối thiểu 4s để bảng kịp kích hoạt kết nối WebSocket ban đầu
+        if (!hasSpinner && Date.now() - startWait >= 4000) {
+          break;
+        }
+      }
+      this.logger.log(`[CQG] Bảng "${tabLabel}" đã sẵn sàng sau ${((Date.now() - startWait) / 1000).toFixed(1)}s.`);
 
       const ellipsisXPath =
         `//wpfe-widget-tab-control[@data-help-id='g1.w431']//mat-icon[@data-mat-icon-name='ellipsis-v']` +
@@ -4384,7 +4407,7 @@ export class RpaDownloaderService {
         process.env.PLAYWRIGHT_HEADLESS !== 'false';
       const launchOptions: any = {
         headless: isHeadless,
-        slowMo: isHeadless ? 0 : 200,
+        slowMo: isHeadless ? 0 : 50,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -4393,7 +4416,14 @@ export class RpaDownloaderService {
           '--disable-infobars',
           '--disable-extensions',
           '--start-maximized',
-          '--disk-cache-size=104857600',
+          '--ignore-gpu-blocklist',
+          '--enable-gpu-rasterization',
+          '--enable-zero-copy',
+          '--disk-cache-size=209715200',
+          '--enable-features=V8CodeCache,WebAssembly',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
           '--disable-session-crashed-bubble',
           '--hide-crash-restore-bubble',
         ],
@@ -4455,9 +4485,9 @@ export class RpaDownloaderService {
           return 'TIMEOUT';
         };
 
-        let state = await detectState(30000);
+        let state = await detectState(15000);
         if (state === 'TIMEOUT') {
-          this.logger.log(`[CQG] Bản web bị quay spinner lâu, tự động reload lại trang...`);
+          this.logger.log(`[CQG] Bản web bị quay spinner quá 15s, tự động reload lại trang để nạp từ Disk Cache...`);
           await page.reload({ waitUntil: 'commit', timeout: 60000 }).catch(() =>
             page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 }),
           );

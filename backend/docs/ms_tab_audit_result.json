@@ -4,199 +4,219 @@
     "name": "Danh sách giao dịch CoreCCP",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.9s",
+    "file": "DSGD.xlsx (481.8 KB)",
+    "elapsed": "4.1s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/transactionList",
     "hash": "#/orderManagement/transactionList",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSGD.xlsx (481.8 KB)"
   },
   {
     "key": "TTM",
     "name": "Báo cáo Vị thế mở (TTM)",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "TTM.xlsx (937.3 KB)",
+    "elapsed": "16.4s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/openPositionInfo",
     "hash": "#/positionManagement/openPositionInfo",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: TTM.xlsx (937.3 KB)"
   },
   {
     "key": "TTTT",
     "name": "Trạng thái tất toán (TTTT)",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "TTTT.xlsx (281.0 KB)",
+    "elapsed": "3.2s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/finalPositionInfo",
     "hash": "#/positionManagement/finalPositionInfo",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: TTTT.xlsx (281.0 KB)"
   },
   {
     "key": "TTCDH",
     "name": "Trạng thái tất toán chờ đáo hạn LME",
     "subTab": "Trạng thái tất toán chờ đáo hạn LME",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "TTCDH.xlsx (19.0 KB)",
+    "elapsed": "4.1s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/finalPositionInfo",
     "hash": "#/positionManagement/finalPositionInfo",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: TTCDH.xlsx (19.0 KB)"
   },
   {
     "key": "QLTKGD",
     "name": "Quản lý tài khoản giao dịch (QLTKGD)",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "QLTKGD.xlsx (3719.1 KB)",
+    "elapsed": "35.5s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/marginStatusManagement",
     "hash": "#/clientManagement/marginStatusManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: QLTKGD.xlsx (3719.1 KB)"
   },
   {
     "key": "QLTKGDAmKQ",
     "name": "QL TKGD âm ký quỹ",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "QLTKGDAmKQ.xlsx (8.4 KB)",
+    "elapsed": "2.4s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/negativeMarginManagement",
     "hash": "#/clientManagement/negativeMarginManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: QLTKGDAmKQ.xlsx (8.4 KB)"
   },
   {
     "key": "NKTTHT",
     "name": "Nhật ký thao tác hệ thống",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "NKTTHT.xlsx (209.2 KB)",
+    "elapsed": "3.1s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/systemManagement/activityHistory",
     "hash": "#/systemManagement/activityHistory",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: NKTTHT.xlsx (209.2 KB)"
   },
   {
     "key": "DSTKGD-Futures",
     "name": "Danh sách TKGD - Futures",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "DSTKGD-Futures.xlsx (4284.1 KB)",
+    "elapsed": "12.0s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
     "hash": "#/clientManagement/investorManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSTKGD-Futures.xlsx (4284.1 KB)"
   },
   {
     "key": "DSTKGD-Spread",
     "name": "Danh sách TKGD - Spread",
     "subTab": "Spreads",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "DSTKGD-Spread.xlsx (12.8 KB)",
+    "elapsed": "4.0s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
     "hash": "#/clientManagement/investorManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSTKGD-Spread.xlsx (12.8 KB)"
   },
   {
     "key": "DSTKGD-LME",
     "name": "Danh sách TKGD - LME",
     "subTab": "LME",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "DSTKGD-LME.xlsx (10.7 KB)",
+    "elapsed": "4.0s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
     "hash": "#/clientManagement/investorManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSTKGD-LME.xlsx (10.7 KB)"
   },
   {
     "key": "DSTKGD-ACM",
     "name": "Danh sách TKGD - ACM",
     "subTab": "ACM",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "DSTKGD-ACM.xlsx (650.7 KB)",
+    "elapsed": "5.4s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
     "hash": "#/clientManagement/investorManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSTKGD-ACM.xlsx (650.7 KB)"
   },
   {
     "key": "TLKQHSKQ",
     "name": "Tỉ lệ ký quỹ và Hiệu số ký quỹ (TLKQHSKQ)",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "TLKQHSKQ.xlsx (4039.0 KB)",
+    "elapsed": "13.8s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/marginRatioMultiplier",
     "hash": "#/clientManagement/marginRatioMultiplier",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: TLKQHSKQ.xlsx (4039.0 KB)"
   },
   {
     "key": "DSQLKQ",
     "name": "Danh sách quản lý ký quỹ (DSQLKQ)",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "DSQLKQ.xlsx (329.7 KB)",
+    "elapsed": "4.9s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/marginList",
     "hash": "#/positionManagement/marginList",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSQLKQ.xlsx (329.7 KB)"
   },
   {
     "key": "NR",
     "name": "Lịch sử giao dịch tiền TKGD (NR)",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "NR.xlsx (56.4 KB)",
+    "elapsed": "2.2s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/marginMoneyTransHistory",
     "hash": "#/clientManagement/marginMoneyTransHistory",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: NR.xlsx (56.4 KB)"
   },
   {
     "key": "DSTrader",
     "name": "Danh sách Trader hoạt động",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "DSTrader.xlsx (1200.9 KB)",
+    "elapsed": "5.0s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/traderManagement",
     "hash": "#/clientManagement/traderManagement",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSTrader.xlsx (1200.9 KB)"
   },
   {
     "key": "Markettruoc6h",
     "name": "Báo cáo Market trước 6h",
     "subTab": null,
     "status": "PASS",
-    "elapsed": "1.8s",
+    "file": "Markettruoc6h.csv (168.8 KB)",
+    "elapsed": "2.5s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderCreating",
     "hash": "#/orderManagement/orderCreating",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: Markettruoc6h.csv (168.8 KB)"
   },
   {
     "key": "DSLDK",
     "name": "Danh sách lệnh đã khớp",
     "subTab": "Lệnh đã khớp",
     "status": "PASS",
-    "elapsed": "3.3s",
+    "file": "DSLDK.xlsx (423.4 KB)",
+    "elapsed": "5.0s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
     "hash": "#/orderManagement/orderList",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSLDK.xlsx (423.4 KB)"
   },
   {
     "key": "DSLCK",
     "name": "Danh sách lệnh chờ khớp",
     "subTab": "Lệnh chờ khớp",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "DSLCK.xlsx (372.8 KB)",
+    "elapsed": "5.6s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
     "hash": "#/orderManagement/orderList",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSLCK.xlsx (372.8 KB)"
   },
   {
     "key": "DSLH",
     "name": "Danh sách lệnh đã hủy",
     "subTab": "Lệnh đã hủy",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "DSLH.xlsx (281.7 KB)",
+    "elapsed": "4.5s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
     "hash": "#/orderManagement/orderList",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSLH.xlsx (281.7 KB)"
   },
   {
     "key": "DSLK",
     "name": "Danh sách lệnh khác",
     "subTab": "Lệnh khác",
     "status": "PASS",
-    "elapsed": "3.6s",
+    "file": "DSLK.xlsx (120.0 KB)",
+    "elapsed": "4.2s",
     "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
     "hash": "#/orderManagement/orderList",
-    "note": "Mượt, URL & Nút xuất chuẩn"
+    "note": "Tải thành công: DSLK.xlsx (120.0 KB)"
   }
 ]

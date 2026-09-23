@@ -11,6 +11,8 @@ import {
   Database,
   AlertTriangle,
   Loader2,
+  UserCheck,
+  Wrench,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
@@ -44,6 +46,23 @@ export default function CoreCcpBackupSection({
     Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, true]))
   );
   const [showReportsPanel, setShowReportsPanel] = useState(true);
+
+  // Chế độ hiển thị: USER (Mặc định tinh gọn cho Vận hành) vs EXPERT (Đầy đủ cho IT Kỹ thuật)
+  const [viewMode, setViewMode] = useState<'USER' | 'EXPERT'>('USER');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('core_ccp_view_mode') as 'USER' | 'EXPERT';
+      if (saved) setViewMode(saved);
+    }
+  }, []);
+
+  const handleToggleViewMode = (mode: 'USER' | 'EXPERT') => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('core_ccp_view_mode', mode);
+    }
+  };
 
   const fmt = (n: any) => {
     if (n === undefined || n === null) return '0';
@@ -247,42 +266,348 @@ export default function CoreCcpBackupSection({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* SUB-TABS NAVIGATION: 1. ĐỐI SOÁT & TẢI 4 FILE | 2. THỐNG KÊ LOT & GTGD */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap' }}>
-        {[
-          { key: 'EOD_RECON', label: '1. Đối Soát Ký Quỹ & EOD', icon: ShieldCheck, color: '#3b82f6' },
-          { key: 'LOT_STATS', label: '2. Thống Kê Số Lot & GTGD CoreCCP', icon: TrendingUp, color: '#10b981' },
-        ].map(({ key, label, icon: Icon, color }) => (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {[
+            { key: 'EOD_RECON', label: '1. Đối Soát Ký Quỹ & EOD', icon: ShieldCheck, color: '#3b82f6' },
+            { key: 'LOT_STATS', label: '2. Thống Kê Số Lot & GTGD CoreCCP', icon: TrendingUp, color: '#10b981' },
+          ].map(({ key, label, icon: Icon, color }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveSubTab(key as any)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                borderRadius: '8px 8px 0 0',
+                border: 'none',
+                borderBottom: activeSubTab === key ? `2px solid ${color}` : '2px solid transparent',
+                color: activeSubTab === key ? color : 'var(--text-secondary)',
+                backgroundColor: activeSubTab === key ? `${color}15` : 'transparent',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <Icon size={16} color={activeSubTab === key ? color : 'var(--text-muted)'} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* VIEW MODE TOGGLE SWITCH: USER vs EXPERT */}
+        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-input)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
           <button
-            key={key}
             type="button"
-            onClick={() => setActiveSubTab(key as any)}
+            onClick={() => handleToggleViewMode('USER')}
             style={{
+              padding: '6px 14px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              backgroundColor: viewMode === 'USER' ? '#10b981' : 'transparent',
+              color: viewMode === 'USER' ? '#ffffff' : 'var(--text-secondary)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              borderRadius: '8px 8px 0 0',
-              border: 'none',
-              borderBottom: activeSubTab === key ? `2px solid ${color}` : '2px solid transparent',
-              color: activeSubTab === key ? color : 'var(--text-secondary)',
-              backgroundColor: activeSubTab === key ? `${color}15` : 'transparent',
-              cursor: 'pointer',
+              gap: '6px',
               transition: 'all 0.2s',
             }}
           >
-            <Icon size={16} color={activeSubTab === key ? color : 'var(--text-muted)'} />
-            <span>{label}</span>
+            <UserCheck size={14} />
+            <span>Vận Hành</span>
           </button>
-        ))}
+
+          <button
+            type="button"
+            onClick={() => handleToggleViewMode('EXPERT')}
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              backgroundColor: viewMode === 'EXPERT' ? '#3b82f6' : 'transparent',
+              color: viewMode === 'EXPERT' ? '#ffffff' : 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Wrench size={14} />
+            <span>Kỹ Thuật (IT)</span>
+          </button>
+        </div>
       </div>
 
-      {/* SUBTAB 1: ĐỐI SOÁT KÝ QUỸ & EOD (MÀN HÌNH TẢI 4 FILE VÀ KIỂM TRA CHUẨN) */}
+      {/* SUBTAB 1: ĐỐI SOÁT KÝ QUỸ & EOD */}
       {activeSubTab === 'EOD_RECON' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* CORECCP CONTROL & ACTION HEADER */}
-          <div
+        viewMode === 'USER' ? (
+          /* USER MODE VIEW FOR SUB-TAB 1 */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Header & Main Action */}
+            <div
+              className="glass-panel"
+              style={{
+                padding: '20px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+                borderLeft: '4px solid #3b82f6',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                  <span
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      color: '#60a5fa',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    VNCLEAR CoreCCP
+                  </span>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Đối Soát Số Dư & Ký Quỹ Cuối Ngày (EOD)
+                  </h3>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Đối chiếu số dư tài khoản QLTTKGD CoreCCP với báo cáo EOD Balance theo công thức chuẩn 4 thành phần.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={handleTriggerCcpCheck}
+                  disabled={triggering}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    padding: '10px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                    cursor: triggering ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {triggering && triggeringSection === 'ccp-check' ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Đang Chạy Đối Soát EOD...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={16} fill="currentColor" />
+                      <span>Chạy Đối Soát EOD CoreCCP</span>
+                    </>
+                  )}
+                </button>
+
+                {filesCount < 4 && (
+                  <button
+                    type="button"
+                    onClick={() => handleTriggerCcpDownload(['QLTTKGD', 'EOD', 'NR', 'TTTT'])}
+                    disabled={triggering}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      padding: '9px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: triggering ? 'not-allowed' : 'pointer',
+                    }}
+                    title="Tải lại 4 báo cáo CoreCCP cần thiết"
+                  >
+                    {triggering && triggeringSection === 'ccp-download' ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                    <span>Tải Lại 4 File</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 4 KPI Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* Card 1: Tình trạng số dư */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tình Trạng Số Dư EOD
+                  </span>
+                  <ShieldCheck size={18} color={totalMismatched > 0 ? '#ef4444' : '#10b981'} />
+                </div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 900, color: totalMismatched > 0 ? '#ef4444' : '#10b981' }}>
+                  {totalMismatched > 0 ? `LỆCH ${totalMismatched} TK` : 'KHỚP HOÀN TOÀN 100%'}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {totalMismatched > 0 ? 'Phát hiện chênh lệch cần kiểm tra' : 'Không có chênh lệch công thức EOD'}
+                </span>
+              </div>
+
+              {/* Card 2: Tài khoản âm ký quỹ */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tài Khoản Âm Ký Quỹ
+                  </span>
+                  <AlertTriangle size={18} color={totalNegative > 0 ? '#ef4444' : '#10b981'} />
+                </div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 900, color: totalNegative > 0 ? '#ef4444' : '#10b981' }}>
+                  {totalNegative > 0 ? `${totalNegative} TK ÂM TIỀN` : 'AN TOÀN (0 TK)'}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {totalNegative > 0 ? 'Yêu cầu xử lý nộp ký quỹ bổ sung' : 'Tất cả tài khoản đều đủ ký quỹ'}
+                </span>
+              </div>
+
+              {/* Card 3: Tiến trình tệp báo cáo */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tệp Báo Cáo Sẵn Sàng
+                  </span>
+                  <FileSpreadsheet size={18} color={filesCount === 4 ? '#10b981' : '#f59e0b'} />
+                </div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 900, color: filesCount === 4 ? '#10b981' : '#f59e0b' }}>
+                  {filesCount}/4 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tệp</span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                  {[
+                    { name: 'QLTTKGD', ok: filesPresent?.qltkgd },
+                    { name: 'EOD', ok: filesPresent?.eod },
+                    { name: 'NR', ok: filesPresent?.nr },
+                    { name: 'TTTT', ok: filesPresent?.tttt },
+                  ].map((f) => (
+                    <span
+                      key={f.name}
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: f.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        color: f.ok ? '#10b981' : '#ef4444',
+                      }}
+                    >
+                      {f.name}: {f.ok ? 'OK' : 'Thiếu'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 4: Tổng tài khoản */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tổng Tài Khoản Ghi Nhận
+                  </span>
+                  <Database size={18} color="#3b82f6" />
+                </div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+                  {fmt(totalAccounts)} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>TK</span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Dữ liệu đối chiếu phiên: {selectedDate}
+                </span>
+              </div>
+            </div>
+
+            {/* Result: Banner Khớp 100% HOẶC Bảng Lệch */}
+            {totalMismatched === 0 ? (
+              <div
+                className="glass-panel"
+                style={{
+                  padding: '40px 24px',
+                  textAlign: 'center',
+                  backgroundColor: 'rgba(16, 185, 129, 0.04)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  borderRadius: '12px',
+                }}
+              >
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldCheck size={32} color="#10b981" />
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10b981', margin: '0 0 6px 0' }}>
+                    TẤT CẢ SỐ DƯ ĐỀU KHỚP HOÀN TOÀN 100%
+                  </h4>
+                  <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '600px' }}>
+                    Hệ thống đã tự động đối chiếu số dư giữa báo cáo QLTTKGD CoreCCP và báo cáo EOD Balance của M-System. Không phát hiện bất kỳ sai lệch nào.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="glass-panel" style={{ padding: '20px', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertTriangle size={20} color="#ef4444" />
+                    <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#ef4444', margin: 0 }}>
+                      DANH SÁCH {totalMismatched} TÀI KHOẢN PHÁT SINH CHÊNH LỆCH SỐ DƯ
+                    </h4>
+                  </div>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    Phiên đối chiếu: {selectedDate}
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, width: '150px' }}>Mã TKGD</th>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, textAlign: 'right' }}>Số Dư Tính Toán (VND)</th>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, textAlign: 'right' }}>Số Dư Báo Cáo EOD (VND)</th>
+                        <th style={{ padding: '10px 16px', fontWeight: 700, textAlign: 'right', width: '180px' }}>Chênh Lệch (VND)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(ccp?.mismatchedAccounts || []).map((item: any, idx: number) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'rgba(239, 68, 68, 0.04)', fontFamily: 'monospace', fontSize: '0.82rem' }}>
+                          <td style={{ padding: '10px 16px', fontWeight: 800, color: '#f87171' }}>{item.maTKGD}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>{fmt(item.calculatedBalance)}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>{fmt(item.eodBalance)}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 800, color: '#ef4444' }}>{fmt(item.differ)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* EXPERT MODE VIEW FOR SUB-TAB 1 (BẢO LƯU 100% CODE CŨ) */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* CORECCP CONTROL & ACTION HEADER */}
+            <div
             className="glass-panel"
             style={{
               padding: '20px 24px',
@@ -884,6 +1209,7 @@ export default function CoreCcpBackupSection({
             </div>
           </div>
         </div>
+        )
       )}
 
       {/* SUBTAB 2: THỐNG KÊ SỐ LOT & GTGD (THAY THẾ MACRO) */}
@@ -892,6 +1218,8 @@ export default function CoreCcpBackupSection({
           token={token}
           selectedDate={selectedDate}
           onOpenGuide={onOpenGuide}
+          viewMode={viewMode}
+          onToggleViewMode={handleToggleViewMode}
         />
       )}
 

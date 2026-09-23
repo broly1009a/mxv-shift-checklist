@@ -35,6 +35,8 @@ export interface CcpLotStatisticsSectionProps {
   token: string | null;
   selectedDate: string;
   onOpenGuide?: () => void;
+  viewMode?: 'USER' | 'EXPERT';
+  onToggleViewMode?: (mode: 'USER' | 'EXPERT') => void;
 }
 
 interface CcpHhStat {
@@ -99,9 +101,13 @@ interface CcpLotResultData {
   totalKltt: number;
   totalTtttLot: number;
   acmLot: number;
+  normalLot?: number;
   spreadLot?: number;
   lmeLot?: number;
   optionsLot?: number;
+  bacThoiLot?: number;
+  bacThoiGtgd?: number;
+  byType?: any;
   tyGiaUsed: Record<string, number>;
   warnings: string[];
 }
@@ -110,7 +116,21 @@ export default function CcpLotStatisticsSection({
   token,
   selectedDate,
   onOpenGuide,
+  viewMode: propViewMode,
+  onToggleViewMode,
 }: CcpLotStatisticsSectionProps) {
+  // Chế độ giao diện: USER (Mặc định tinh gọn cho Vận hành) vs EXPERT (Đầy đủ cho IT Kỹ thuật)
+  const [internalViewMode, setInternalViewMode] = useState<'USER' | 'EXPERT'>('USER');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('core_ccp_view_mode') as 'USER' | 'EXPERT';
+      if (saved) setInternalViewMode(saved);
+    }
+  }, []);
+
+  const currentViewMode = propViewMode || internalViewMode;
+
   // Data source mode: AUTO_DETECT (quét thư mục ngày) vs MANUAL_UPLOAD (chọn file tay)
   const [dataSourceMode, setDataSourceMode] = useState<'AUTO_DETECT' | 'MANUAL_UPLOAD'>('AUTO_DETECT');
   const [scanResult, setScanResult] = useState<CcpDailyScanResult | null>(null);
@@ -497,16 +517,254 @@ export default function CcpLotStatisticsSection({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* ── 1. ACTION & FILE INPUT PANEL ── */}
-      <div
-        className="glass-panel"
-        style={{
-          padding: '20px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
-        }}
-      >
+      {currentViewMode === 'USER' ? (
+        /* ── GIAO DIỆN VẬN HÀNH (USER MODE): TINH GỌN, 2 BƯỚC RÕ RÀNG, CHUẨN DOANH NGHIỆP ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header & 2-Step Action Bar */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              borderLeft: '4px solid #10b981',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  CoreCCP VNCLEAR
+                </span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Thống Kê Số Lot & Giá Trị Giao Dịch (Toàn Thị Trường)
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Tự động tổng hợp số lot và giá trị giao dịch của toàn bộ 5 phân hệ (Thường, ACM, Spread, LME, Options) từ thư mục ngày và cập nhật 10 sổ lũy kế Excel.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.74rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: scanResult?.canProcess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: scanResult?.canProcess ? '#10b981' : '#ef4444', fontWeight: 700 }}>
+                  Thư mục ngày: {ngayGD} ({scanResult?.canProcess ? 'Sẵn sàng' : 'Chưa có file DSGD'})
+                </span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>•</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                  DSGD: {scanResult?.files.dsgd?.present ? '✓' : '✗'} | TTM: {scanResult?.files.ttm?.present ? '✓' : '✗'} | TTTT: {scanResult?.files.tttt?.present ? '✓' : '✗'} | Tỷ giá: 1 USD = {fmtNum(scanResult?.dbExchangeRates?.detectedRate || result?.tyGiaUsed?.['USD'] || 26000)} đ
+                </span>
+              </div>
+            </div>
+
+            {/* 2-Step Action Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleProcessDaily}
+                disabled={loading || !scanResult?.canProcess}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.86rem',
+                  fontWeight: 800,
+                  padding: '10px 22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                  cursor: loading || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                  backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
+                }}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Tổng Hợp...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={16} fill="currentColor" />
+                    <span>Bước 1: Tổng Hợp Dữ Liệu Ngày</span>
+                  </>
+                )}
+              </button>
+
+              {result && (
+                <button
+                  type="button"
+                  onClick={handleWriteAccumulator}
+                  disabled={writingAccumulator}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.86rem',
+                    fontWeight: 800,
+                    padding: '10px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: 'rgba(59, 130, 246, 0.4)',
+                    color: '#60a5fa',
+                    cursor: writingAccumulator ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {writingAccumulator ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Đang Ghi File...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Bước 2: Ghi Vào 10 File Lũy Kế Excel</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* User Mode: Accumulator Logs (nếu có) */}
+          {accumulatorLogs.length > 0 && (
+            <div
+              className="glass-panel"
+              style={{
+                padding: '14px 18px',
+                backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={16} color="#10b981" />
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
+                  Nhật Ký Ghi Các File Lũy Kế Excel CoreCCP:
+                </span>
+              </div>
+              <div
+                style={{
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3px',
+                }}
+              >
+                {accumulatorLogs.map((log, idx) => (
+                  <div key={idx}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* User Mode: 4 KPI Cards (khi có result) */}
+          {result && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* Total Lot */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tổng Số Lot Toàn Thị Trường
+                  </span>
+                  <TrendingUp size={18} color="#10b981" />
+                </div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#10b981' }}>
+                  {fmtNum(result.totalSoLot)} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Lot</span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  <span>Thường: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.normalLot)}</strong></span> |
+                  <span>ACM: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.acmLot)}</strong></span> |
+                  <span>Spread: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.spreadLot)}</strong></span> |
+                  <span>LME: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.lmeLot)}</strong></span> |
+                  <span>Options: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.optionsLot)}</strong></span>
+                </div>
+              </div>
+
+              {/* Total GTGD */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tổng Giá Trị Giao Dịch
+                  </span>
+                  <DollarSign size={18} color="#3b82f6" />
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#3b82f6' }}>
+                  {fmtCur(result.totalGiaTri)}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Tỷ giá quy đổi: 1 USD = {fmtNum(result.tyGiaUsed['USD'] || 25920)} đ
+                </span>
+              </div>
+
+              {/* Vị Thế & 4 Loại Lệnh */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Vị Thế & 4 Loại Lệnh
+                  </span>
+                  {orderTypesSummary && orderTypesSummary.missingCount === 0 ? (
+                    <CheckCircle2 size={18} color="#10b981" />
+                  ) : (
+                    <AlertTriangle size={18} color="#ef4444" />
+                  )}
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: orderTypesSummary && orderTypesSummary.missingCount === 0 ? '#10b981' : '#ef4444' }}>
+                  {orderTypesSummary && orderTypesSummary.missingCount === 0 ? 'ĐỦ 4 LOẠI LỆNH CHUẨN' : `${orderTypesSummary?.missingCount || 0} TVKD THIẾU LỆNH`}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  TTM: {fmtNum(result.totalTtmMua)} Mua / {fmtNum(result.totalTtmBan)} Bán | TTTT: {fmtNum(result.totalKltt ?? result.totalTtttLot ?? 0)} Lot
+                </span>
+              </div>
+
+              {/* Trạng Thái Ghi Sổ Lũy Kế */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Ghi 10 File Lũy Kế Excel
+                  </span>
+                  <Save size={18} color={accumulatorLogs.length > 0 ? '#10b981' : '#8b5cf6'} />
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: accumulatorLogs.length > 0 ? '#10b981' : '#8b5cf6' }}>
+                  {accumulatorLogs.length > 0 ? 'ĐÃ GHI THÀNH CÔNG VÀO EXCEL' : 'SẴN SÀNG GHI SỔ'}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Zero-Lot Bypass: Bật (tự động bỏ qua phân hệ 0 lot)
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── GIAO DIỆN KỸ THUẬT (EXPERT MODE): BẢO LƯU 100% CẤU HÌNH VÀ THÀNH PHẦN CHI TIẾT CỦA IT ── */
+        <>
+          {/* ── 1. ACTION & FILE INPUT PANEL ── */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '18px',
+            }}
+          >
         {/* Title Bar */}
         <div
           style={{
@@ -1236,7 +1494,7 @@ export default function CcpLotStatisticsSection({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Cấu Hình Đường Dẫn File Lũy Kế ACM Excel
+                Cấu Hình Đường Dẫn 10 File Lũy Kế Excel CoreCCP
               </span>
               <button
                 type="button"
@@ -1386,7 +1644,7 @@ export default function CcpLotStatisticsSection({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckCircle2 size={16} color="#10b981" />
             <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
-              Nhật Ký Ghi File Lũy Kế ACM:
+              Nhật Ký Ghi Các File Lũy Kế Excel CoreCCP:
             </span>
           </div>
           <div
@@ -1415,7 +1673,7 @@ export default function CcpLotStatisticsSection({
           <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                Tổng Số Lot ACM (DSGD)
+                Tổng Số Lot Toàn Thị Trường
               </span>
               <TrendingUp size={18} color="#10b981" />
             </div>
@@ -1506,6 +1764,8 @@ export default function CcpLotStatisticsSection({
             </span>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* ── 4. DATA TABLE VIEW & TOGGLE ── */}

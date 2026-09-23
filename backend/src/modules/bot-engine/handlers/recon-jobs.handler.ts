@@ -145,17 +145,22 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
     const defaultMsPath = path.join(process.cwd(), 'data', 'backup', 'ms', 'futures');
     const defaultCqgPath = path.join(process.cwd(), 'data', 'backup', 'cqg', 'futures');
-    const msBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      defaultMsPath,
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        defaultMsPath,
+      ),
     );
-    const cqgBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_cqg',
-      defaultCqgPath,
+    const cqgBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        defaultCqgPath,
+      ),
     );
-    const acmBackupBase = (
-      await this.settingsService.getSetting('bot_backup_path_acm', '')
-    ) || path.join(path.dirname(msBackupBase), 'ACM');
+    const acmBackupBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_backup_path_acm', '')) ||
+        path.join(path.dirname(msBackupBase), 'ACM'),
+    );
     // CCP base path: Ưu tiên lấy từ bot_credentials_ccp.outputDir -> bot_backup_path_ccp -> default
     let ccpOutputDirFromCreds = '';
     const credCcpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');

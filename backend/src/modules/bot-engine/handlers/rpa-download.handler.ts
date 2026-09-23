@@ -5,7 +5,7 @@ import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interf
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { parseJobPayload, getMsBackupBase } from '../helpers/bot-path.helper';
+import { parseJobPayload, getMsBackupBase, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
 
 @Injectable()
 export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
@@ -104,9 +104,10 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const { browser, page } =
       await this.rpaDownloaderService.loginMSystem(tempDir);
 
-    const backupMsBase =
+    const rawBackupMs =
       payload.backupPathMs ||
       (await getMsBackupBase(this.settingsService));
+    const backupMsBase = resolveStoragePathCrossPlatform(rawBackupMs);
 
     let destFolder: string | null = null;
     if (backupMsBase) {
@@ -268,15 +269,13 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         const failedSummary = failedTargets
           .map((f) => `${f.target} (${f.error})`)
           .join('; ');
-        if (successfulTargets.length === 0) {
-          throw new Error(
-            `Tải toàn bộ ${targets.length} báo cáo thất bại: ${failedSummary}`,
-          );
-        }
         job.logs.push(
           `[${new Date().toISOString()}] Hoàn tất ${successfulTargets.length}/${targets.length} báo cáo MS. Có ${failedTargets.length} báo cáo gặp sự cố: ${failedSummary}`,
         );
         await job.save();
+        throw new Error(
+          `Có ${failedTargets.length}/${targets.length} báo cáo MS tải thất bại: ${failedSummary}`,
+        );
       } else {
         job.logs.push(
           `[${new Date().toISOString()}] Hoàn tất thành công toàn bộ ${successfulTargets.length}/${targets.length} báo cáo MS về thư mục Backup!`,

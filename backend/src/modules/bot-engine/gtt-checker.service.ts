@@ -20,12 +20,15 @@ export interface GttDataRow {
 
 export interface GttReport {
   runAt: string;
+  completedAt?: string;
+  durationMs?: number;
   totalContracts: number;
   matched: number;
   diffCount: number;
   msOnlyCount: number;
   cqgOnlyCount: number;
   rows: GttDataRow[];
+  logs?: string[];
   marketCsvPath: string | null;
   gttFilePath: string | null;
   hangHoaFilePath?: string | null;
@@ -35,6 +38,24 @@ export interface GttReport {
 export class GttCheckerService {
   private readonly logger = new Logger(GttCheckerService.name);
   private latestReport: GttReport | null = null;
+  private isRunning: boolean = false;
+  private currentLogs: string[] = [];
+  private currentStartTime: number = 0;
+
+  getIsRunning(): boolean {
+    return this.isRunning;
+  }
+
+  getCurrentLogs(): string[] {
+    return this.currentLogs;
+  }
+
+  private logStep(msg: string) {
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+    const line = `[${timeStr}] ${msg}`;
+    this.logger.log(msg);
+    this.currentLogs.push(line);
+  }
 
   // Configured paths
   private readonly workDir = path.join(process.cwd(), 'temp', 'gtt');
@@ -830,17 +851,26 @@ export class GttCheckerService {
       gttXlsxPath?: string;
     } = {},
   ): Promise<GttReport> {
+    if (this.isRunning) {
+      throw new Error('Tiến trình kiểm tra GTT đang chạy trên hệ thống. Vui lòng đợi.');
+    }
+
     const runAt = new Date().toISOString();
-    this.logger.log('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
+    this.isRunning = true;
+    this.currentLogs = [];
+    this.currentStartTime = Date.now();
 
-    const downloadMarketCsv = !!options.downloadMarketCsv;
-    const chromePath = this.getChromeExecutablePath();
+    try {
+      this.logStep('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
 
-    if (downloadMarketCsv) {
-      // =========================================================================
-      // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
-      // =========================================================================
-      this.logger.log('Đăng nhập M-System và tải file báo cáo...');
+      const downloadMarketCsv = !!options.downloadMarketCsv;
+      const chromePath = this.getChromeExecutablePath();
+
+      if (downloadMarketCsv) {
+        // =========================================================================
+        // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
+        // =========================================================================
+        this.logStep('Đăng nhập M-System và tải file báo cáo...');
 
       let msUrl = 'https://msadmin.mxv.com.vn/';
       let msUser = process.env.MS_USER || '';
@@ -1062,7 +1092,7 @@ export class GttCheckerService {
       );
     }
 
-    this.logger.log(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
+    this.logStep(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
     const launchOptions: any = {
       headless: true,
       args: [
@@ -1072,6 +1102,11 @@ export class GttCheckerService {
         '--disable-blink-features=AutomationControlled',
         '--disable-infobars',
         '--disable-extensions',
+        '--disk-cache-size=209715200',
+        '--ignore-gpu-blocklist',
+        '--enable-gpu-rasterization',
+        '--enable-zero-copy',
+        '--enable-features=V8CodeCache,WebAssembly',
       ],
     };
     if (chromePath) {
@@ -1244,35 +1279,53 @@ export class GttCheckerService {
     const msOnlyCount = rows.filter((r) => r.status === 'MS_ONLY').length;
     const cqgOnlyCount = rows.filter((r) => r.status === 'CQG_ONLY').length;
 
-    const report: GttReport = {
-      runAt,
-      totalContracts: rows.length,
-      matched,
-      diffCount,
-      msOnlyCount,
-      cqgOnlyCount,
-      rows,
-      marketCsvPath: this.marketCsvPath,
-      gttFilePath: fs.existsSync(this.trangThaiMoPath)
-        ? this.trangThaiMoPath
-        : this.gttXlsxPath,
-      hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
-        ? this.hangHoaXlsxPath
-        : null,
-    };
+    const durationMs = Date.now() - this.currentStartTime;
+    const completedAt = new Date().toISOString();
+    const durationSec = Math.round(durationMs / 1000);
+    const durationStr =
+      durationSec >= 60
+        ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`
+        : `${durationSec}s`;
 
-    // Save report to disk
-    fs.writeFileSync(
-      this.reportJsonPath,
-      JSON.stringify(report, null, 2),
-      'utf8',
+    this.logStep(
+      `=== HOÀN TẤT ĐỐI SOÁT GTT (${durationStr}): ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`,
     );
-    this.latestReport = report;
 
-    this.logger.log(
-      `=== HOÀN TẤT ĐỐI SOÁT GTT: ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`,
-    );
-    return report;
+      const report: GttReport = {
+        runAt,
+        completedAt,
+        durationMs,
+        totalContracts: rows.length,
+        matched,
+        diffCount,
+        msOnlyCount,
+        cqgOnlyCount,
+        rows,
+        logs: [...this.currentLogs],
+        marketCsvPath: this.marketCsvPath,
+        gttFilePath: fs.existsSync(this.trangThaiMoPath)
+          ? this.trangThaiMoPath
+          : this.gttXlsxPath,
+        hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
+          ? this.hangHoaXlsxPath
+          : null,
+      };
+
+      // Save report to disk
+      fs.writeFileSync(
+        this.reportJsonPath,
+        JSON.stringify(report, null, 2),
+        'utf8',
+      );
+      this.latestReport = report;
+
+      return report;
+    } catch (err: any) {
+      this.logStep(`[LỖI GTT] ${err.message}`);
+      throw err;
+    } finally {
+      this.isRunning = false;
+    }
   }
 
   /**

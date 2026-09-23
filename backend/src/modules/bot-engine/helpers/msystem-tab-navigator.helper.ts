@@ -44,6 +44,21 @@ export const MS_REPORT_FILE_PATTERNS: Record<string, RegExp> = {
 };
 
 /**
+ * Selector ưu tiên cho nút xuất file Excel / CSV cụ thể trên M-System (loại trừ button.btn-info generic)
+ */
+export const MS_SPECIFIC_EXPORT_BUTTON_SELECTORS = [
+  'button.ladda-button:has(i.fa-file-excel)',
+  'button:has(i.fa-file-excel)',
+  'button.ladda-button:has(i.fa-file-csv)',
+  'button:has(i.fa-file-csv)',
+  'i.fa-file-excel',
+  'i.fa-file-csv',
+  "button:has-text('Xuất file')",
+  "button:has-text('Xuất Excel')",
+  "button[title*='Export' i]",
+].join(', ');
+
+/**
  * Selector phổ biến cho nút xuất file Excel / CSV trên M-System (Angular UI)
  */
 export const MS_EXPORT_BUTTON_SELECTORS = [
@@ -217,7 +232,13 @@ export class MSystemTabNavigatorHelper {
     const downloadPromise = page.waitForEvent('download', { timeout });
 
     log.log('[TabNavigator] Bấm nút xuất file Excel/CSV...');
-    await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+    const specificExportBtn = page.locator(MS_SPECIFIC_EXPORT_BUTTON_SELECTORS).first();
+    const hasSpecific = await specificExportBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    if (hasSpecific) {
+      await specificExportBtn.click({ force: true });
+    } else {
+      await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+    }
 
     const download = await downloadPromise;
     return await this.saveAndValidateDownload(download, downloadPath, expectedTargetKey, log);

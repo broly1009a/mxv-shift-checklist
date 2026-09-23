@@ -71,6 +71,10 @@ const filesToDeploy = [
   'frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx',
   'CHANGELOG_AI.md',
   'docs/BAN_THIET_KE_MASTER_SWITCH_TAT_BAT_TU_DONG_TRADING_MANAGER.md',
+  'backend/docs/BAO_CAO_TONG_HOP_BUG_RPA_BACKUP_VA_DOI_CHIEU.md',
+  'backend/src/scripts/verify_fix_scenarios.js',
+  'backend/src/scripts/test_ms_tab_downloads.js',
+  'backend/src/scripts/test_cqg_tab_downloads.js',
 ];
 
 for (const rel of filesToDeploy) {

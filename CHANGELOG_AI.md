@@ -1,5 +1,127 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-23T19:55] PERF: Đưa Bộ Giải Pháp Tăng Tốc & Tự Phục Hồi CQG Vào Luồng Chính (RpaDownloaderService)
+
+### 1. Mục tiêu thay đổi
+- Áp dụng toàn bộ 3 điểm tối ưu hóa hiệu năng và chống kẹt dữ liệu đã được chứng minh vào service production [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * **Nâng Disk Cache lên 200MB & Bật Tăng tốc đồ họa WebAssembly**: Tăng `--disk-cache-size` lên 200MB và bổ sung cờ GPU/V8 (`--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy`, `--enable-features=V8CodeCache,WebAssembly`) giúp giảm tối đa tải CPU và giữ cache WASM trên đĩa.
+  * **Rút ngắn ngưỡng tự động Reload (F5) khi kẹt spinner**: Giảm từ 30s xuống 15s (điểm cân bằng hoàn hảo cho mạng quốc tế, tiết kiệm 15s chờ chết khi kẹt handshake).
+  * **Đồng bộ bảng dữ liệu theo cơ chế Chờ động (State-Driven Dynamic Wait)**: Thay thế việc chờ tĩnh `waitForTimeout(10000)` bằng cơ chế lắng nghe trạng thái spinner biến mất của widget (`mat-spinner`, `.mat-mdc-progress-spinner`, `.wpfe-loading-spinner`) với khoảng min 4s, max 16s. Giúp báo cáo ít dữ liệu (P&S, Pos) tải ngay trong 4s và báo cáo nặng >3.000 dòng (Fills) gom đủ dữ liệu để xuất file thành công ngay ở Lần 1 mà không bị timeout 15s.
+
+### 2. Danh sách file thay đổi
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * Cập nhật `waitForCqgNotLoading` bổ sung `mat-spinner`, `.mat-mdc-progress-spinner`, `.wpfe-loading-spinner` (dòng 3764-3768).
+  * Thay thế chờ tĩnh bằng State-Driven Dynamic Wait trong `downloadCqgWidget` (dòng 4048-4067).
+  * Cập nhật `launchOptions` với 200MB cache và bộ cờ GPU/WASM (dòng 4408-4428).
+  * Rút ngắn ngưỡng `detectState` từ 30s xuống 15s (dòng 4476-4486).
+- [backend/src/scripts/test_cqg_tab_downloads.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_tab_downloads.js):
+  * Đồng bộ cơ chế State-Driven Dynamic Wait và URL chuẩn `ref=forced`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) đạt **Exit Code 0**.
+- **Cú pháp Script**: `node -c src/scripts/test_cqg_tab_downloads.js` đạt **Exit Code 0**.
+
+---
+
+## [2026-09-23T17:45] FEAT: Xây Dựng Tool Kiểm Thử Tự Động Tải Báo Cáo CQG Độc Lập (Playwright Speed & Integrity Test)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Xây dựng kịch bản kiểm thử độc lập cho phân hệ CQG tương tự như `test_ms_tab_downloads.js` của M-System, giúp USER chủ động kiểm tra tốc độ, sự ổn định, tính toàn vẹn và không bị kẹt tab của cơ chế tải báo cáo CQG Desktop Web.
+- **Tính năng nổi bật**:
+  * Thiết kế **Standalone 100% (giống `test_ms_tab_downloads.js`)**: Kết nối Mongoose lấy cấu hình và mở Playwright trực tiếp, **KHÔNG khởi động NestJS Application Context (`AppModule`)**, ngăn chặn việc kích hoạt các tác vụ nền định kỳ (`@Cron`), OMS Watcher hay gọi Gemini AI gây lỗi xung đột terminal.
+  * **Mặc định tải DUY NHẤT 1 TAB (FR1 - Khớp lệnh)** để kiểm tra nhanh gọn, không mở tràn lan cả 4 tab widget trên CQG Desktop.
+  * Hỗ trợ cờ `--headed` (có giao diện trực quan) hoặc `--headless` (chạy ngầm).
+  * Hỗ trợ tải chọn lọc riêng từng tab: `--key=FR` (Khớp lệnh), `--key=PS` (Tất toán), `--key=OP` (Trạng thái mở), `--key=OD` (Sổ lệnh).
+  * Chỉ tải toàn bộ 4 tab khi có cờ tường minh: `--all` hoặc `--4tabs`.
+  * Tự động phân tích mã băm MD5 và cấu trúc tệp Excel (`sheet_to_json`), kiểm tra header báo cáo (Fills, Purchase and Sales, Open Positions, Orders) để xác thực tính độc lập 100%.
+  * Hỗ trợ cờ `--clean-only` mở trình duyệt quét sạch các tab widget dư thừa trong panel `g1.w431` trên giao diện CQG Desktop mà không ảnh hưởng tới panel vị thế khác.
+
+  * **Tối ưu hóa triệt để tốc độ tải và loại bỏ hiện tượng quay spinner lâu**:
+    - **Tăng tốc phần cứng GPU & WASM**: Bổ sung các cờ `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy`, `--enable-features=V8CodeCache,WebAssembly` giúp Chromium dùng GPU biên dịch WebAssembly và render Canvas đồ họa của CQG nhanh hơn 4-5 lần so với dựng hình bằng CPU.
+    - **Nâng bộ nhớ đệm Disk Cache lên 200MB**: Tăng từ 100MB lên `--disk-cache-size=209715200` để giữ toàn bộ bundle WASM và V8 compiled code cache trên đĩa.
+    - **Khôi phục URL chuẩn `?ref=forced`**: Phát hiện router Angular của CQG Desktop Web bắt buộc tham số `?ref=forced` để định tuyến Form đăng nhập. Mở trực tiếp URL chuẩn giúp form hiện lên chỉ trong **~3.4 giây** (thay vì bị kẹt 32s do bỏ query param).
+    - **Tối ưu hóa thời gian chờ dữ liệu WebSocket**: Tăng thời gian chờ stream dữ liệu ban đầu của widget lên 14s (phù hợp với bảng lớn >3.000 dòng), giúp nút tải thành công ngay lần bấm đầu tiên thay vì bị timeout 15s x 2 lần (tiết kiệm thêm 30s).
+    - **Tính toán chính xác thời gian quay spinner (Benchmark Timeline)**: Bổ sung bộ đếm thời gian chi tiết đo chính xác số giây từ lúc mở trang đến khi vòng quay spinner kết thúc, đo thời gian nạp sau khi F5, thời gian đăng nhập và xuất file, in bảng tổng kết Benchmark trực quan cho USER theo dõi.
+
+### 2. Danh sách file thay đổi
+- [backend/src/scripts/test_cqg_tab_downloads.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_tab_downloads.js):
+  * Script Node.js độc lập kiểm thử tải báo cáo CQG với cơ chế chống kẹt spinner.
+- [backend/src/scripts/deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js):
+  * Đưa `test_ms_tab_downloads.js` và `test_cqg_tab_downloads.js` vào danh sách bundle đồng bộ máy chủ Ubuntu.
+
+### 3. Xác nhận Build & Kiểm thử
+- Cú pháp Node.js: `node -c src/scripts/test_cqg_tab_downloads.js` đạt **Exit Code 0**.
+- Tuân thủ nghiêm ngặt **AGENTS.md Rule 8**: Script kiểm thử giao diện RPA do USER tự kích hoạt chạy trên terminal, không tự kích hoạt ngầm.
+
+---
+
+## [2026-09-23T17:30] FIX: Khắc Phục Triệt Để Lỗi Đường Dẫn Lai Windows/Linux, Tối Ưu Selector Tải Báo Cáo TTM (M-System) & Sửa Cơ Chế Retry Hàng Đợi
+
+### 1. Mục tiêu thay đổi
+- **Khắc phục lỗi đường dẫn lai Windows/Linux**:
+  * Khi người dùng bấm "Lưu cấu hình" trên màn hình Trading Manager, đường dẫn trong MongoDB `system_settings` được lưu theo chuẩn Windows `M:\Tailieuchung\...`.
+  * Trên máy chủ Ubuntu Linux, các handler tải file tươi (`recon-jobs.handler.ts` và `rpa-download.handler.ts`) thiếu hàm `resolveStoragePathCrossPlatform`, khiến file mới bị lưu vào thư mục ma cục bộ của máy chủ Ubuntu thay vì ổ đĩa mạng chia sẻ `/mnt/qlgd-it/`.
+  * Hậu quả: Ổ `M:\` trên Windows không thấy file mới tải về, các service đối chiếu (`klgd-recon.service.ts`) đọc từ `/mnt/qlgd-it/` chỉ thấy file cũ và báo LỆCH giả.
+- **Xử lý dứt điểm lỗi Timeout 90s khi tải Báo cáo TTM (Vị thế mở)**:
+  * Trong [msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts) và [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts), selector xuất file gộp chung `button.btn-info` generic. Trên trang TTM (>8.600 dòng), Playwright click nhầm button khác thay vì icon xuất Excel.
+  * Tách riêng và ưu tiên selector icon đặc hiệu (`MS_SPECIFIC_EXPORT_BUTTON_SELECTORS`), giúp tải TTM thành công trong 20s (file 936 KB).
+- **Sửa logic Báo lỗi & Kích hoạt Retry Hàng đợi (Rule 4 Fail-Fast & Zero-Silent-Swallow)**:
+  * Tại [rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts), xóa bỏ việc nuốt lỗi khi `successfulTargets > 0`. Bắt buộc ném ngoại lệ khi có file lỗi để Job Queue kích hoạt lần thử 2/3 và 3/3, không báo thành công ảo.
+
+### 2. Danh sách file thay đổi
+- [backend/src/modules/bot-engine/helpers/bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/bot-path.helper.ts):
+  * Bọc `resolveStoragePathCrossPlatform` bên trong `getMsBackupBase`, `getCqgBackupBase`, `getAcmBackupBase`, `getCcpBackupBase`.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  * Bọc `resolveStoragePathCrossPlatform` cho `msBackupBase`, `cqgBackupBase`, `acmBackupBase` (dòng 148-158).
+- [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts):
+  * Bọc `resolveStoragePathCrossPlatform` cho `backupMsBase` (dòng 107-109).
+  * Ném `Error` mô tả chi tiết danh sách báo cáo thất bại khi `failedTargets.length > 0` (dòng 271-279).
+- [backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts):
+  * Bổ sung hằng số `MS_SPECIFIC_EXPORT_BUTTON_SELECTORS`.
+  * Cập nhật `clickExportAndDownload` ưu tiên click selector cụ thể trước khi fallback generic.
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * Nhập `MS_SPECIFIC_EXPORT_BUTTON_SELECTORS` và áp dụng kiểm tra ưu tiên trong `gotoAndDownload`.
+- [backend/docs/BAO_CAO_TONG_HOP_BUG_RPA_BACKUP_VA_DOI_CHIEU.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/docs/BAO_CAO_TONG_HOP_BUG_RPA_BACKUP_VA_DOI_CHIEU.md):
+  * Tài liệu báo cáo phân tích toàn diện 4 lỗi hệ thống, nguyên nhân gốc rễ và ma trận so sánh.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) đạt **Exit Code 0**.
+- **Frontend Build**: `cmd /c npm run build` (`next build`) đạt **Exit Code 0** (25 routes compiled successfully).
+
+---
+
+## [2026-09-23T16:00] FEAT: Nâng Cấp Giao Diện Chế Độ Kép (User Mode vs Expert Mode) & Chuẩn Hóa Nhãn Báo Cáo Lot & GTGD Toàn Sàn (CoreCCP)
+
+### 1. Mục tiêu thay đổi
+- **Bàn giao ca trực vận hành (User-Friendly UX)**: Thiết kế lại giao diện cho phân hệ CoreCCP (VNCLEAR) với Chế Độ Kép (Dual-View):
+  * **Chế Độ Vận Hành (User Mode - Mặc định)**: Tinh gọn tối đa, ẩn toàn bộ 25 checkbox báo cáo Maker, ẩn đường dẫn Linux mount thô, chuẩn hóa thành quy trình 1-Click Action / 2 bước rõ ràng, hiển thị các Thẻ KPI trực quan và Banner kết quả Khớp 100%.
+  * **Chế Độ Kỹ Thuật (Expert / IT Mode)**: Bảo toàn 100% nguyên vẹn toàn bộ giao diện, nút bấm, bảng chọn 25 checkbox, modal log, cấu hình 10 file lũy kế phục vụ IT kiểm tra debug.
+- **Xóa bỏ hiểu nhầm "Chỉ tổng hợp ACM"**: Chuẩn hóa toàn bộ nhãn văn bản cũ mang tính lịch sử (từ Phase 1 chỉ nhắc đến ACM) thành nhãn đúng bản chất xử lý kỹ thuật thực tế: **Tổng hợp CẢ SỐ LOT VÀ CẢ GIÁ TRỊ GIAO DỊCH (GTGD)** của **TOÀN BỘ 5 PHÂN HỆ** (Nano ACM, Tiêu chuẩn Thường, Spread, LME, Options) và cập nhật đồng bộ vào **10 file Excel lũy kế**.
+- **Chuyển đổi tức thì (Seamless Toggle)**: Đặt nút chuyển đổi dạng Segmented Switch `[ Vận Hành | Kỹ Thuật (IT) ]` ở góc trên Header, ghi nhớ trạng thái người dùng qua `localStorage.getItem('core_ccp_view_mode')`.
+
+### 2. Danh sách file thay đổi
+- [docs/THIET_KE_NANG_CAP_CHE_DO_KEP_USER_VS_EXPERT_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/THIET_KE_NANG_CAP_CHE_DO_KEP_USER_VS_EXPERT_CORECCP.md):
+  * Cập nhật tài liệu thiết kế chi tiết: Bản chất logic toàn sàn của Tab 2, chuẩn hóa nhãn text, sơ đồ bố cục giao diện User Mode cho Sub-tab 1 và Sub-tab 2, tiêu chí nghiệm thu.
+- [frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx):
+  * Bổ sung state `viewMode` (`'USER' | 'EXPERT'`) và hàm `handleToggleViewMode` lưu `localStorage`.
+  * Thêm thanh Segmented Toggle Switch ở Header: `[ Vận Hành | Kỹ Thuật (IT) ]`.
+  * Nhánh `USER` Sub-tab 1: Thanh trạng thái 4 tệp mini (`QLTTKGD, EOD, NR, TTTT`), 4 KPI Cards (Tình trạng số dư EOD, Âm ký quỹ, File sẵn sàng, Tổng tài khoản), Nút lớn `[ ▶ Chạy Đối Soát EOD CoreCCP ]`, Banner xanh lá Khớp 100% (chỉ bung bảng khi có tài khoản lệch).
+  * Nhánh `EXPERT` Sub-tab 1: Giữ nguyên 100% toàn bộ component hiện tại (25 checkbox VNCLEAR, selector, log modal).
+  * Truyền `viewMode` và `onToggleViewMode` sang Sub-tab 2 (`CcpLotStatisticsSection`).
+- [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+  * Bổ sung `viewMode` và `onToggleViewMode` vào props interface.
+  * Bổ sung `normalLot`, `bacThoiLot`, `bacThoiGtgd`, `byType` vào interface `CcpLotResultData`.
+  * Nhánh `USER` Sub-tab 2: Thẻ trạng thái phiên gọn gàng (ẩn mount Linux thô), 4 mini file indicator, Quy trình 2 bước: `[ Bước 1: Tổng Hợp Dữ Liệu Ngày ]` và `[ Bước 2: Ghi Vào 10 File Lũy Kế Excel ]`, 4 KPI Cards chi tiết (Tổng Số Lot Toàn Thị Trường kèm breakdown 5 phân hệ, Tổng Giá Trị Giao Dịch VND, Vị Thế TTM/TTTT & Đủ 4 Loại Lệnh, Trạng Thái Ghi 10 Sổ Lũy Kế).
+  * Nhánh `EXPERT` Sub-tab 2: Giữ nguyên 100% giao diện kỹ thuật cũ, chuẩn hóa nhãn text từ `"ACM"` sang `"CoreCCP (Toàn Sàn)"`.
+  * Dùng chung bảng dữ liệu TVKD / Commodity cho cả 2 chế độ (không nhân bản code).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type-check**: `npx.cmd tsc --noEmit` đạt **Exit Code 0** (0 errors).
+- **Frontend Production Build**: `cmd /c "npm run build"` (`next build`) đạt **Exit Code 0** (25 routes compiled successfully).
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) đạt **Exit Code 0**.
+
+---
+
 ## [2026-09-23T15:00] FEAT: Tách Biệt Độc Lập Cấu Hình Tỷ Giá M-System & CoreCCP (VNCLEAR) - Hỗ Trợ Ma Trận Đa Nguyên Tệ Động
 
 ### 1. Mục tiêu thay đổi

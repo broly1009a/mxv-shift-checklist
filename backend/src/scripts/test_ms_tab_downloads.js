@@ -302,10 +302,19 @@ async function run20TabsValidation() {
   console.log(`- Tài khoản     : ${username}`);
 
   const isHeadless = !process.argv.includes('--headed') && process.env.HEADED !== 'true';
+  const doDownload = process.argv.includes('--download') || process.env.DOWNLOAD === 'true';
   const keyArg = process.argv.find((a) => a.startsWith('--key='));
   const targetKey = keyArg ? keyArg.split('=')[1].trim().toLowerCase() : null;
   const limitArg = process.argv.find((a) => a.startsWith('--limit='));
   const limitCount = limitArg ? parseInt(limitArg.split('=')[1], 10) : null;
+  const outArg = process.argv.find((a) => a.startsWith('--dest=') || a.startsWith('--out='));
+
+  const downloadDir = outArg
+    ? path.resolve(outArg.split('=')[1].trim())
+    : path.join(__dirname, '..', '..', 'temp', 'test_ms_downloads');
+  if (doDownload && !fs.existsSync(downloadDir)) {
+    fs.mkdirSync(downloadDir, { recursive: true });
+  }
 
   const edgePaths = [
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -455,32 +464,63 @@ async function run20TabsValidation() {
           exportBtnFound = plusOrCsv;
         }
 
+        let downloadInfo = null;
+        if (exportBtnFound && doDownload) {
+          try {
+            console.log(`   [Download] Đang chờ và kích hoạt tải file cho: ${rep.key}...`);
+            const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+
+            // Ưu tiên các selector icon file/excel/csv trước để tránh click nhầm nút btn-info khác
+            const specificExportBtn = page.locator("button:has(i.fa-file-excel), button:has(i.fa-file-csv), button.ladda-button:has(i.fa-file-excel), button.ladda-button:has(i.fa-file-csv), i.fa-file-excel, i.fa-file-csv, button:has-text('Xuất file'), button:has-text('Xuất Excel'), button[title*='Export' i]").first();
+            const hasSpecific = await specificExportBtn.isVisible({ timeout: 2000 }).catch(() => false);
+            if (hasSpecific) {
+              await specificExportBtn.click({ force: true });
+            } else {
+              await page.locator(EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+            }
+
+            const download = await downloadPromise;
+            const suggestedName = download.suggestedFilename();
+            const ext = path.extname(suggestedName) || '.xlsx';
+            const savePath = path.join(downloadDir, `${rep.key}${ext}`);
+            await download.saveAs(savePath);
+            const sizeKb = (fs.statSync(savePath).size / 1024).toFixed(1);
+            downloadInfo = `${rep.key}${ext} (${sizeKb} KB)`;
+            console.log(`   📥 [Download] Đã lưu file: ${downloadInfo} (Gốc: ${suggestedName})`);
+          } catch (dlErr) {
+            console.error(`   ❌ [Download] Lỗi khi tải file ${rep.key}: ${dlErr.message}`);
+            downloadInfo = `Lỗi tải: ${dlErr.message}`;
+          }
+        }
+
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        const passed = urlValid && exportBtnFound;
+        const passed = urlValid && exportBtnFound && (!doDownload || (downloadInfo && !downloadInfo.startsWith('Lỗi')));
 
         if (passed) {
-          console.log(`    PASS (${elapsed}s) | URL: ${currentUrl} | Nút xuất: Có`);
+          console.log(`    PASS (${elapsed}s) | URL: ${currentUrl} | Nút xuất: Có${downloadInfo ? ` | File: ${downloadInfo}` : ''}`);
           results.push({
             key: rep.key,
             name: rep.name,
             subTab: rep.subTab || null,
             status: 'PASS',
+            file: downloadInfo || '-',
             elapsed: `${elapsed}s`,
             fullUrl: currentUrl,
             hash: currentUrl.split('#')[1] ? `#${currentUrl.split('#')[1]}` : '',
-            note: 'Mượt, URL & Nút xuất chuẩn',
+            note: downloadInfo ? `Tải thành công: ${downloadInfo}` : 'Mượt, URL & Nút xuất chuẩn',
           });
         } else {
-          console.log(`    FAIL (${elapsed}s) | URL: ${currentUrl} | urlValid: ${urlValid}, exportBtn: ${exportBtnFound}`);
+          console.log(`    FAIL (${elapsed}s) | URL: ${currentUrl} | urlValid: ${urlValid}, exportBtn: ${exportBtnFound}${downloadInfo ? ` | ${downloadInfo}` : ''}`);
           results.push({
             key: rep.key,
             name: rep.name,
             subTab: rep.subTab || null,
             status: 'FAIL',
+            file: downloadInfo || '-',
             elapsed: `${elapsed}s`,
             fullUrl: currentUrl,
             hash: currentUrl.split('#')[1] ? `#${currentUrl.split('#')[1]}` : '',
-            note: `urlValid=${urlValid}, exportBtn=${exportBtnFound}`,
+            note: downloadInfo || `urlValid=${urlValid}, exportBtn=${exportBtnFound}`,
           });
         }
       } catch (err) {
@@ -510,6 +550,7 @@ async function run20TabsValidation() {
         Mã: r.key,
         'Tên báo cáo': r.name,
         'Trạng thái': r.status,
+        'File tải': r.file || '-',
         'Thời gian': r.elapsed,
         'Hash URL': r.hash,
       }))
