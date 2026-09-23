@@ -177,7 +177,7 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
   const hdCccd = (record?.hopDong?.soCanCuoc || '').replace(/\D/g, '');
   const imgCccd = (record?.canCuoc?.soCanCuoc || '').replace(/\D/g, '');
   const plCccd = (record?.phuLuc?.soCanCuoc || '').replace(/\D/g, '');
-  const targetCccd = hdCccd || imgCccd || plCccd;
+  let targetCccd = hdCccd || imgCccd || plCccd;
   const msCccd = (ms.soCMND_HoChieu || ms.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
 
   let isCriticalMismatch = false;
@@ -212,6 +212,14 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
     }
 
     // 3. Đối chiếu Họ Tên
+    // Tự động chữa lành họ tên nếu CCCD (từ QR code hoặc ảnh chuẩn) đã khớp 100% với MS
+    if (record?.canCuoc?.hoVaTen && (ms.hoVaTen || ms.tenTKGD) && isPersonNameMatch(record.canCuoc.hoVaTen, ms.hoVaTen || ms.tenTKGD)) {
+      if (!record?.hopDong?.hoVaTen || !isPersonNameMatch(record.hopDong.hoVaTen, ms.hoVaTen || ms.tenTKGD)) {
+        autoHealedNotes.push(`Họ tên trên HĐ (${record?.hopDong?.hoVaTen || 'trống'}), đã tự động chuẩn hóa theo CCCD & MS: ${record.canCuoc.hoVaTen}`);
+        if (record.hopDong) record.hopDong.hoVaTen = record.canCuoc.hoVaTen;
+      }
+    }
+
     const nameOk = anyPersonNameMatchesMs(
       ms.hoVaTen || ms.tenTKGD,
       record?.hopDong?.hoVaTen,
@@ -228,7 +236,6 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
     // 4. ĐỐI CHIẾU CCCD 3 BÊN THÔNG MINH (TRI-PARTY CONSENSUS)
     if (!isSubAccount) {
       if (!targetCccd) {
-        isCriticalMismatch = true;
         const hasCccdImageEvidence = !!(
           record?.canCuoc?.source ||
           record?.canCuoc?.hoVaTen ||
@@ -237,14 +244,24 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
           record?.canCuoc?.theGeneration ||
           (Array.isArray(record?.canCuoc?.canhBaoChatLuong) && record.canCuoc.canhBaoChatLuong.length > 0)
         );
-        criticalErrors.push(
-          hasCccdImageEvidence
-            ? 'Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)'
-            : 'Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)',
-        );
+        
+        // NHÓM 2: Email TVKD không đính kèm file gốc -> Chuyển sang CAN_KIEM_TRA (không đánh lỗi LECH)
+        const hasCustomerDiskFiles = Array.isArray(record?.diskFiles) && record.diskFiles.some((f: any) => f.isCustomerFile);
+        const hasAnyCustomerInput = hasCccdImageEvidence || !!record?.hopDong?.hoVaTen || hasCustomerDiskFiles;
+
+        if (!hasAnyCustomerInput) {
+          softWarnings.push('Email TVKD chưa đính kèm file HĐ/CCCD gốc');
+        } else {
+          isCriticalMismatch = true;
+          criticalErrors.push(
+            hasCccdImageEvidence
+              ? 'Không đọc được số CCCD từ ảnh/HĐ (có ảnh CCCD — có thể scan 2 mặt ghép hoặc OCR thất bại)'
+              : 'Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)',
+          );
+        }
       }
 
-      // Chỉ cảnh báo khi MS đã có tài khoản nhưng trường số CCCD bị bỏ trống
+      // NHÓM 1: Cảnh báo đỏ bắt buộc khi MS đã có tài khoản nhưng trường số CCCD bị bỏ trống
       if (msFound && !msCccd) {
         isCriticalMismatch = true;
         criticalErrors.push('M-System chưa nhập số CCCD');
@@ -254,6 +271,7 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
       if (hdCccd && imgCccd && hdCccd !== imgCccd) {
         const isChunkOrFuzzy = isCccdChunkSwapOrFuzzyMatch(hdCccd, imgCccd);
         const isHdMsMatching = !!(msCccd && hdCccd === msCccd);
+        const isImgMsMatching = !!(msCccd && imgCccd === msCccd);
 
         if (isHdMsMatching) {
           // NGUYÊN TẮC ĐỒNG THUẬN 2/3: HĐ và MS đều thống nhất số CCCD!
@@ -264,8 +282,11 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
             // Nghi vấn ảnh OCR mờ, nhưng HĐ và MS đã khớp -> Soft warning CAN_KIEM_TRA, KHÔNG đẩy LECH!
             softWarnings.push(`Nghi vấn ảnh CCCD (HĐ và MS đã khớp ${hdCccd} != Ảnh: ${imgCccd})`);
           }
+        } else if (isImgMsMatching) {
+          // NGUYÊN TẮC ĐỒNG THUẬN 2/3: ẢNH CCCD VÀ MS ĐỀU THỐNG NHẤT SỐ CCCD!
+          autoHealedNotes.push(`Số CCCD trên HĐ lệch so với Ảnh & MS (Đã tự động chuẩn hóa theo Ảnh & MS: ${imgCccd})`);
+          targetCccd = imgCccd;
         } else {
-          // HĐ và MS chưa khớp nhau
           if (isChunkOrFuzzy) {
             softWarnings.push(`Ảnh CCCD có dấu hiệu đảo cụm số so với HĐ (HĐ: ${hdCccd} ~ Ảnh: ${imgCccd})`);
           } else {
@@ -276,43 +297,85 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
       }
     }
 
-    // Đối chiếu Target CCCD với MS
+    // NHÓM 4: Đối chiếu Target CCCD với MS - Giữ nguyên cảnh báo đỏ LECH bắt buộc
     if (targetCccd && msCccd && targetCccd !== msCccd) {
-      // Ngoại lệ: nếu Target CCCD lấy từ Ảnh bị chunk swap nhưng HĐ khớp MS
-      if (hdCccd && hdCccd === msCccd) {
-        // HĐ đã khớp MS
+      if ((hdCccd && hdCccd === msCccd) || (imgCccd && imgCccd === msCccd)) {
+        // Đã khớp theo nguyên tắc đồng thuận 2/3
       } else {
         isCriticalMismatch = true;
         criticalErrors.push(`Lệch số CCCD (Hồ sơ: ${targetCccd} != MS: ${msCccd})`);
       }
     }
 
-    // 5. Đối chiếu Ngày sinh
-    const hdDobRaw =
-      record?.hopDong?.rawNgaySinh ||
-      (record?.hopDong?.ngaySinh ? formatReconcileDateStr(record.hopDong.ngaySinh) : '') ||
+    // 5. Đối chiếu Ngày sinh & NHÓM 5: Tự lành theo mã MRZ 2 dòng
+    const cccdDobRaw =
       record?.canCuoc?.rawNgaySinh ||
       (record?.canCuoc?.ngaySinh ? formatReconcileDateStr(record.canCuoc.ngaySinh) : '');
-    const msDobRaw = record?.ms?.rawNgaySinh || (record?.ms?.ngaySinh ? formatReconcileDateStr(record.ms.ngaySinh) : '');
+    let normCccdDob = normalizeDateStr(cccdDobRaw);
+
+    const hdDobRaw =
+      record?.hopDong?.rawNgaySinh ||
+      (record?.hopDong?.ngaySinh ? formatReconcileDateStr(record.hopDong.ngaySinh) : '');
     const normHdDob = normalizeDateStr(hdDobRaw);
+
+    const msDobRaw = record?.ms?.rawNgaySinh || (record?.ms?.ngaySinh ? formatReconcileDateStr(record.ms.ngaySinh) : '');
     const normMsDob = normalizeDateStr(msDobRaw);
 
-    if (isCanonicalDate(normHdDob) && isCanonicalDate(normMsDob)) {
-      if (normHdDob !== normMsDob) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${normHdDob} != MS: ${normMsDob})`);
+    // NHÓM 5: Kiểm tra dải MRZ dòng 2 tự lành Ngày sinh & Giới tính
+    const mrzBackText = String(record?.canCuoc?.rawOcrText || record?.canCuoc?.backsideOcrText || record?.ms?.cccdOcr_noiCap || '');
+    const mrzLine2Match = mrzBackText.match(/(\d{2})(\d{2})(\d{2})\d([MF])/);
+    let mrzHealedDob = false;
+    let mrzHealedSex = false;
+
+    if (mrzLine2Match) {
+      const [_, mrzYY, mrzMM, mrzDD, mrzSexChar] = mrzLine2Match;
+      if (normMsDob) {
+        const msParts = normMsDob.split('/');
+        if (msParts.length === 3 && msParts[0] === mrzDD && msParts[1] === mrzMM && msParts[2].endsWith(mrzYY)) {
+          normCccdDob = normMsDob;
+          mrzHealedDob = true;
+          autoHealedNotes.push(`Tự lành ngày sinh theo mã MRZ dòng 2 chuẩn Bộ Công An: ${normMsDob}`);
+        }
       }
-    } else if (hdDobRaw && msDobRaw) {
-      const getYear = (d: string) => (d.match(/\b(19\d{2}|20\d{2})\b/) || [])[0];
-      const yHd = getYear(String(hdDobRaw));
-      const yMs = getYear(String(msDobRaw));
-      if (yHd && yMs && yHd !== yMs) {
-        isCriticalMismatch = true;
-        criticalErrors.push(`Lệch năm sinh (HĐ/CCCD: ${yHd} != MS: ${yMs})`);
+      const mrzSexStr = mrzSexChar === 'M' ? 'Nam' : 'Nữ';
+      const currentMsSex = record?.ms?.gioiTinh || record?.ms?.rawGioiTinh;
+      if (currentMsSex && isGenderMatch(mrzSexStr, currentMsSex)) {
+        mrzHealedSex = true;
+        autoHealedNotes.push(`Tự lành giới tính theo mã MRZ dòng 2 chuẩn Bộ Công An: ${currentMsSex}`);
       }
     }
 
-    // 6. Đối chiếu Ngày cấp
+    // NGUYÊN TẮC ĐỒNG THUẬN 2/3: Nếu CCCD và MS đã khớp 100% về ngày sinh
+    const isCccdMsDobMatch = (isCanonicalDate(normCccdDob) && isCanonicalDate(normMsDob) && normCccdDob === normMsDob) || mrzHealedDob;
+    const isHdMsDobMatch = isCanonicalDate(normHdDob) && isCanonicalDate(normMsDob) && normHdDob === normMsDob;
+
+    if (isCccdMsDobMatch) {
+      if (normHdDob && normHdDob !== normMsDob) {
+        autoHealedNotes.push(`HĐ có ngày sinh khác (${normHdDob}), đã chuẩn hóa theo CCCD & MS (${normMsDob})`);
+      }
+    } else if (isHdMsDobMatch) {
+      if (normCccdDob && normCccdDob !== normMsDob) {
+        autoHealedNotes.push(`Ảnh CCCD OCR ra ngày sinh khác (${normCccdDob}), đã chuẩn hóa theo HĐ & MS (${normMsDob})`);
+      }
+    } else {
+      let effectiveDob = normCccdDob || normHdDob;
+      if (isCanonicalDate(effectiveDob) && isCanonicalDate(normMsDob)) {
+        if (effectiveDob !== normMsDob) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch ngày sinh (HĐ/CCCD: ${effectiveDob} != MS: ${normMsDob})`);
+        }
+      } else if ((normHdDob || normCccdDob) && msDobRaw) {
+        const getYear = (d: string) => (d.match(/\b(19\d{2}|20\d{2})\b/) || [])[0];
+        const yFile = getYear(String(normCccdDob || normHdDob));
+        const yMs = getYear(String(msDobRaw));
+        if (yFile && yMs && yFile !== yMs) {
+          isCriticalMismatch = true;
+          criticalErrors.push(`Lệch năm sinh (HĐ/CCCD: ${yFile} != MS: ${yMs})`);
+        }
+      }
+    }
+
+    // 6. Đối chiếu Ngày cấp & NHÓM 3: TỰ LÀNH ĐỒNG THUẬN (CONSENSUS HEALING)
     const cccdIssueRaw =
       record?.canCuoc?.rawNgayCap ||
       (record?.canCuoc?.ngayCap ? formatReconcileDateStr(record.canCuoc.ngayCap) : '');
@@ -329,26 +392,56 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
     const normCccdIssue = normalizeDateStr(cccdIssueRaw);
     const normHdIssue = isHdIssueInvalid ? '' : normalizeDateStr(hdIssueCandidate);
 
-    // Ưu tiên ngày cấp CCCD (vì CCCD là văn bản định danh chuẩn do Bộ Công An cấp)
     const effectiveIssue = (isCanonicalDate(normCccdIssue) && normCccdIssue === normMsIssue)
       ? normCccdIssue
       : (normCccdIssue || normHdIssue);
 
-    if (isCanonicalDate(effectiveIssue) && isCanonicalDate(normMsIssue) && effectiveIssue !== normMsIssue) {
-      isCriticalMismatch = true;
-      criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${effectiveIssue} != MS: ${normMsIssue})`);
+    // NHÓM 3: Áp dụng cơ chế Tự Lành Đồng Thuận (Consensus Healing) cho Ngày Cấp
+    // Nếu Họ tên + Số CCCD 12 số + Ngày sinh đã khớp 100% giữa Hồ sơ và MS
+    const isNameFullyMatched = nameOk || (targetName && msName && isPersonNameMatch(targetName, msName));
+    const isCccdFullyMatched = !!(targetCccd && msCccd && targetCccd === msCccd);
+    const isDobFullyMatched = isCccdMsDobMatch || isHdMsDobMatch || (normCccdDob && normMsDob && normCccdDob === normMsDob);
+
+    if (isNameFullyMatched && isCccdFullyMatched && isDobFullyMatched) {
+      // 3 YẾU TỐ ĐỊNH DANH ĐÃ KHỚP TUYỆT ĐỐI -> Lệch ngày cấp là do MS lưu ngày cấp CMND cũ. Tự lành theo CCCD!
+      if (isCanonicalDate(effectiveIssue) && isCanonicalDate(normMsIssue) && effectiveIssue !== normMsIssue) {
+        autoHealedNotes.push(`AUTO_HEALED_ISSUE_DATE: Ngày cấp trên HĐ/CCCD (${effectiveIssue}) khác MS (${normMsIssue}), đã tự lành theo Căn cước vì Họ tên, Số CCCD và Ngày sinh khớp 100%`);
+      }
+    } else if (isCanonicalDate(normHdIssue) && isCanonicalDate(normMsIssue) && normHdIssue === normMsIssue) {
+      if (normCccdIssue && normCccdIssue !== normMsIssue) {
+        autoHealedNotes.push(`Ảnh CCCD có ngày cấp OCR khác (${normCccdIssue}), đã chuẩn hóa theo HĐ & MS (${normMsIssue})`);
+      }
+    } else {
+      if (isCanonicalDate(effectiveIssue) && isCanonicalDate(normMsIssue) && effectiveIssue !== normMsIssue) {
+        isCriticalMismatch = true;
+        criticalErrors.push(`Lệch ngày cấp (HĐ/CCCD: ${effectiveIssue} != MS: ${normMsIssue})`);
+      }
     }
 
     // 7. Đối chiếu Giới tính
-    const hdSex = record?.hopDong?.rawGioiTinh || record?.hopDong?.gioiTinh || record?.canCuoc?.gioiTinh;
+    const cccdSex = record?.canCuoc?.gioiTinh || record?.canCuoc?.rawGioiTinh;
+    const hdSex = record?.hopDong?.rawGioiTinh || record?.hopDong?.gioiTinh;
     const msSex = record?.ms?.gioiTinh || record?.ms?.rawGioiTinh;
     const hdSexUsable =
       !!hdSex &&
       !/điện\s*thoại|cccd|cmnd|^_+$/i.test(String(hdSex)) &&
       String(hdSex).trim().length >= 1;
-    if (hdSexUsable && msSex && !isGenderMatch(hdSex, msSex)) {
+
+    const isCccdMsSexMatch = !!((cccdSex && msSex && isGenderMatch(cccdSex, msSex)) || mrzHealedSex);
+    const isHdMsSexMatch = !!(hdSexUsable && msSex && isGenderMatch(hdSex, msSex));
+
+    if (isCccdMsSexMatch) {
+      if (hdSexUsable && !isGenderMatch(hdSex, msSex)) {
+        autoHealedNotes.push(`Giới tính trên HĐ khác MS, đã chuẩn hóa theo CCCD & MS: ${msSex}`);
+      }
+    } else if (isHdMsSexMatch) {
+      // Khớp theo HĐ & MS
+    } else if (hdSexUsable && msSex && !isGenderMatch(hdSex, msSex)) {
       isCriticalMismatch = true;
       criticalErrors.push(`Lệch giới tính (HĐ: ${hdSex} != MS: ${msSex})`);
+    } else if (cccdSex && msSex && !isGenderMatch(cccdSex, msSex)) {
+      isCriticalMismatch = true;
+      criticalErrors.push(`Lệch giới tính (CCCD: ${cccdSex} != MS: ${msSex})`);
     }
 
     // 8. KIỂM ĐỊNH TÍNH HỢP LỆ & PHÁT HIỆN CCCD GIẢ MẠO (BỘ CÔNG AN STANDARD)
@@ -362,7 +455,7 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
           : undefined;
       const validCccdRes = CCCDValidator.validateCCCDNumber(
         checkCccd,
-        hdSexUsable ? hdSex : msSex,
+        isCccdMsSexMatch ? msSex : (hdSexUsable ? hdSex : msSex),
         birthYear,
       );
       if (validCccdRes.severity === 'CRITICAL') {

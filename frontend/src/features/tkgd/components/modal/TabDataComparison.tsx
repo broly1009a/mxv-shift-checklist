@@ -63,7 +63,20 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     },
     {
       label: 'Số CCCD / Hộ chiếu',
-      left: inspectRecord.hopDong?.soCanCuoc || inspectRecord.canCuoc?.soCanCuoc || '-',
+      left: (() => {
+        const hdCccd = (inspectRecord.hopDong?.soCanCuoc || '').trim();
+        const imgCccd = (inspectRecord.canCuoc?.soCanCuoc || '').trim();
+        const msCccd = (inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc || '').trim();
+        // Đồng thuận 2/3: nếu ảnh CCCD và MS khớp nhau -> hiển thị theo CCCD/MS
+        if (imgCccd && msCccd && imgCccd.replace(/\D/g, '') === msCccd.replace(/\D/g, '')) {
+          return imgCccd;
+        }
+        // Đồng thuận 2/3: nếu HĐ và MS khớp nhau -> hiển thị theo HĐ/MS
+        if (hdCccd && msCccd && hdCccd.replace(/\D/g, '') === msCccd.replace(/\D/g, '')) {
+          return hdCccd;
+        }
+        return hdCccd || imgCccd || '-';
+      })(),
       right: inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc || '-',
     },
     {
@@ -129,6 +142,18 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
             : (inspectRecord.hopDong?.ngaySinh && formatDateStr(inspectRecord.hopDong.ngaySinh) !== '-')
               ? formatDateStr(inspectRecord.hopDong.ngaySinh)
               : '-';
+
+        const msIssue =
+          (inspectRecord.ms?.rawNgayCap && formatDateStr(inspectRecord.ms.rawNgayCap) !== '-')
+            ? formatDateStr(inspectRecord.ms.rawNgayCap)
+            : (inspectRecord.ms?.ngayCap && formatDateStr(inspectRecord.ms.ngayCap) !== '-')
+              ? formatDateStr(inspectRecord.ms.ngayCap)
+              : '-';
+
+        // Tri-party Consensus 2/3: nếu HĐ và MS đồng thuận ngày cấp mà ảnh CCCD bị OCR nhầm (vd số 5 thành số 8)
+        if (hdIssue !== '-' && msIssue !== '-' && hdIssue === msIssue) {
+          return hdIssue;
+        }
 
         // Nếu HĐ lấy nhầm Ngày cấp trùng với Ngày sinh (lỗi bảng TVKD 003), ưu tiên CCCD
         if (hdIssue !== '-' && hdIssue === hdDob && cccdIssue !== '-') {
@@ -488,66 +513,70 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
         </div>
       )}
 
-      {/* Cảnh Báo LỆCH DỮ LIỆU */}
-      {inspectRecord.ketLuan?.trangThai === 'LECH' && (
-        <div
-          style={{
-            padding: '14px 18px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <X size={18} color="#ef4444" />
-            <strong style={{ color: '#ef4444', fontSize: '0.85rem' }}>
-              PHÁT HIỆN SAI LỆCH DỮ LIỆU / LỖI ĐỊNH DẠNG HỒ SƠ
-            </strong>
+      {/* Cảnh Báo LỆCH DỮ LIỆU - Tự động triệt tiêu lỗi stale nếu dữ liệu thực tế trên MS đã có đầy đủ */}
+      {(() => {
+        if (inspectRecord.ketLuan?.trangThai !== 'LECH') return null;
+        const msHasCccd = !!(inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc);
+        const msFound = !!(inspectRecord.ms?.isFoundOnMS || inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.hoVaTen);
+        const rawErrors = inspectRecord.ketLuan?.danhSachLoi || [];
+        const displayErrors = rawErrors.filter((err) => {
+          if (msHasCccd && err.includes('M-System chưa nhập số CCCD')) return false;
+          if (msFound && err.includes('chưa được tạo trên M-System')) return false;
+          return true;
+        });
+
+        // Nếu tất cả lỗi chỉ là lỗi vết cũ (stale) đã được đồng bộ chuẩn trên MS thì không hiển thị khung đỏ
+        if (displayErrors.length === 0) return null;
+
+        return (
+          <div
+            style={{
+              padding: '14px 18px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <X size={18} color="#ef4444" />
+              <strong style={{ color: '#ef4444', fontSize: '0.85rem' }}>
+                PHÁT HIỆN SAI LỆCH DỮ LIỆU / LỖI ĐỊNH DẠNG HỒ SƠ
+              </strong>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+              Hồ sơ này không đạt tiêu chuẩn đối soát do các nguyên nhân sau:
+            </p>
+            <ul style={{ margin: 0, paddingLeft: '22px', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
+              {displayErrors.map((err, eIdx) => (
+                <li key={eIdx}>{err}</li>
+              ))}
+            </ul>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <button
+                onClick={onSwitchToAttachments}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <ImageIcon size={13} /> Chuyển sang Tab Hồ Sơ & Ảnh CCCD để đối chiếu gốc &rarr;
+              </button>
+            </div>
           </div>
-          <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-            Hồ sơ này không đạt tiêu chuẩn đối soát do các nguyên nhân sau:
-          </p>
-          {(() => {
-            const msHasCccd = !!(inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc);
-            const rawErrors = inspectRecord.ketLuan?.danhSachLoi || [];
-            const displayErrors = rawErrors.filter((err) => {
-              if (msHasCccd && err.includes('M-System chưa nhập số CCCD')) return false;
-              return true;
-            });
-            if (displayErrors.length === 0) return null;
-            return (
-              <ul style={{ margin: 0, paddingLeft: '22px', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
-                {displayErrors.map((err, eIdx) => (
-                  <li key={eIdx}>{err}</li>
-                ))}
-              </ul>
-            );
-          })()}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-            <button
-              onClick={onSwitchToAttachments}
-              style={{
-                padding: '5px 12px',
-                borderRadius: '6px',
-                backgroundColor: '#ef4444',
-                color: '#fff',
-                border: 'none',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <ImageIcon size={13} /> Chuyển sang Tab Hồ Sơ & Ảnh CCCD để đối chiếu gốc &rarr;
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

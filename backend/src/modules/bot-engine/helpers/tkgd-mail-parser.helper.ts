@@ -43,12 +43,12 @@ export function extractBaseAccountCode(code: string): string {
 export function isNamedContractImage(fileName?: string): boolean {
   if (!fileName) return false;
   const n = fileName.toLowerCase().trim();
-  // Prefix HD / HĐ (kể cả Unicode)
-  if (/^(hd|hđ|hợp)([_\s.\-]|$)/i.test(n)) return true;
+  // Prefix HD / HĐ / HDMTK / HĐMTK / Hợp đồng
+  if (/^(hd|hđ)(mtk)?([_\s.\-]|$)/i.test(n)) return true;
   if (/^(hop[\s_-]*dong|hopdong|contract)([_\s.\-]|$)/i.test(n)) return true;
-  if (/\b(hop[\s_-]*dong|hopdong|hợp[\s_-]*đồng|hop\s*dong|contract)\b/i.test(n)) return true;
-  if (/hợp\s*đồng|hop\s*dong/i.test(n)) return true;
-  if (/(^|[_\s\-])hd[_\s\-]/i.test(n) && !/cccd|cmnd/i.test(n)) return true;
+  if (/\b(hop[\s_-]*dong|hopdong|hợp[\s_-]*đồng|hop\s*dong|contract|hdmtk|hđmtk)\b/i.test(n)) return true;
+  if (/hợp\s*đồng|hop\s*dong|hđmtk|hdmtk/i.test(n)) return true;
+  if (/(^|[_\s\-])(hd|hđ)(mtk)?[_\s\-]/i.test(n) && !/cccd|cmnd/i.test(n)) return true;
   if (n.includes('mxv') && /\.(pdf|jpe?g|png|webp)$/i.test(n) && !/cccd/i.test(n)) return true;
   return false;
 }
@@ -120,6 +120,47 @@ export function isNamedCccdImage(fileName?: string): boolean {
   );
 }
 
+/**
+ * Nhận diện file ảnh CCCD có tiền tố MT/MS của khách hàng (Mặt Trước / Mặt Sau)
+ * ví dụ: CCCD_MS_068C2600349_Đoàn Văn Thưởng.png, CCCD_MT_...
+ */
+export function isCustomerCccdMsOrMt(fileName?: string): boolean {
+  if (!fileName) return false;
+  const n = fileName.toLowerCase();
+  if (/^[0-9a-z]{3,15}_ms_(cccd|chuky|chu_ky|signature)/i.test(n)) {
+    return false;
+  }
+  return (
+    /(^|[^a-z0-9])cccd[-_\s]*(ms|mt)([^a-z0-9]|$)/i.test(n) ||
+    /[-_\s]cccd[-_\s]*(ms|mt)[-_\s]/i.test(n) ||
+    /^(ms|mt)[-_\s]+[0-9a-z]{3,15}/i.test(n)
+  );
+}
+
+/**
+ * Nhận diện file ảnh thumbnail tải về từ M-System (RPA)
+ * ví dụ: 068C2600349_MS_CCCD_truoc.jpg, 068C2600349_MS_ChuKy.png
+ */
+export function isMSystemThumbnailFile(fileName?: string, accountCode?: string): boolean {
+  if (!fileName) return false;
+  if (isCustomerCccdMsOrMt(fileName)) return false;
+  const lower = fileName.toLowerCase();
+  if (
+    lower.includes('_ms_cccd_') ||
+    lower.includes('_ms_chuky') ||
+    lower.includes('_ms_chu_ky') ||
+    lower.includes('_ms_signature')
+  ) {
+    return true;
+  }
+  if (accountCode) {
+    const accPrefix = accountCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (lower.startsWith(`${accPrefix}_ms_`)) return true;
+  }
+  return /^[0-9a-z]{3,15}_ms_/i.test(fileName);
+}
+
+
 import { isCccdPdfFile } from './tkgd-document-classifier.helper';
 
 export function isNamedCccdPdf(fileName?: string): boolean {
@@ -168,10 +209,13 @@ export function isLikelyEmailLogoImage(
   if (dims?.width && dims?.height) {
     const minSide = Math.min(dims.width, dims.height);
     const maxSide = Math.max(dims.width, dims.height);
-    // Thẻ CCCD scan thường >= ~500px cạnh ngắn; logo mail hay < 400
-    if (minSide < 400 || maxSide < 520) return true;
-  } else if (size !== undefined && size < 55_000) {
-    return true;
+    // Thẻ CCCD scan thường >= ~500px cạnh ngắn; logo mail hay < 300px hoặc banner siêu mỏng
+    if (minSide < 300 || maxSide < 420) return true;
+  } else if (size !== undefined) {
+    // Nếu chưa có dims: chỉ loại các file generic outlook quá nhỏ hoặc ảnh icon < 20KB
+    // KHÔNG loại ảnh chụp JPEG bình thường (như HXH.jpg 48KB) vì ảnh CCCD nén thực tế thường từ 25KB-55KB
+    if (isGenericOutlookImageName(lower) && size < 45_000) return true;
+    if (size < 20_000) return true;
   }
   return false;
 }
@@ -317,6 +361,13 @@ export function scoreCccdImageCandidate(opts: {
   ) {
     return -1000;
   }
+  if (isMSystemThumbnailFile(fileName)) {
+    // M-System thumbnail: hạ điểm ưu tiên để luôn nhường chỗ cho file khách gửi
+    // nhưng vẫn giữ điểm dương (> 0) để làm fallback nếu khách không gửi ảnh
+    let score = 20;
+    if (isNamedCccdFront(fileName) || isNamedCccdBack(fileName)) score += 10;
+    return score;
+  }
   let score = 0;
   if (isNamedCccdImage(fileName)) score += 80;
   if (isNamedCccdFront(fileName) || isNamedCccdBack(fileName)) score += 40;
@@ -376,7 +427,7 @@ export function isIgnoredEmailAttachment(
   }
 
   const isImage =
-    /\.(png|jpe?g|gif|webp|bmp)$/i.test(lower) || isGenericOutlookImageName(lower);
+    /\.(png|jpe?g|gif|webp|bmp|paint|heic|heif)$/i.test(lower) || isGenericOutlookImageName(lower);
   if (!isImage) return false;
 
   if (dims && !isLikelyCccdAspect(dims.width, dims.height)) {
@@ -407,6 +458,8 @@ export function pickCccdImagePaths(
 ): { frontPath?: string; backPath?: string; isCompositeFront?: boolean } {
   const scored = candidates
     .map((c) => {
+      if (c.name.toLowerCase().endsWith('.pdf')) return null;
+      if (c.name.toLowerCase().includes('_auto_temp.')) return null;
       if (isNamedContractImage(c.name)) return null;
       const dims = probeImageDimensions(c.filePath);
       if (isIgnoredEmailAttachment(c.name, c.size, dims)) {
@@ -451,14 +504,44 @@ export function pickCccdImagePaths(
     }
   }
 
-  // Fallback cuối: CHỈ nhận ảnh không tên nếu đủ lớn / gần tỉ lệ thẻ — không nhận logo hash
-  for (const c of scored) {
-    if (frontPath) break;
-    if (c.filePath === backPath) continue;
-    if (isNamedContractImage(c.name)) continue;
-    if (isLikelyEmailLogoImage(c.name, c.size, c.dims)) continue;
-    if ((c.score || 0) < 80) continue; // yêu cầu tín hiệu mạnh (tỉ lệ + size)
-    frontPath = c.filePath;
+  // Pass 3: Xử lý các ảnh ứng viên không có từ khóa "CCCD" trong tên (tên viết tắt như HXH.jpg/HXH1.jpg,
+  // 1.jpg/2.jpg, photo.jpg...) nhưng có kích thước và tỉ lệ chuẩn thẻ CCCD
+  if (!frontPath || !backPath) {
+    const unnamedCandidates = scored.filter(
+      (c) =>
+        c.filePath !== frontPath &&
+        c.filePath !== backPath &&
+        !isNamedContractImage(c.name) &&
+        !isLikelyEmailLogoImage(c.name, c.size, c.dims) &&
+        (c.dims ? isLikelyCccdAspect(c.dims.width, c.dims.height) : (c.size || 0) >= 25_000),
+    );
+
+    if (unnamedCandidates.length > 0) {
+      // Sắp xếp phân định mặt trước / sau thông minh:
+      // - Nếu có cặp: file không số hoặc số 1 -> front, file có số 2 hoặc có số -> back
+      unnamedCandidates.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aHas1 = /1\b|(?:\D|^)1(?:\.|$)/.test(aName);
+        const bHas1 = /1\b|(?:\D|^)1(?:\.|$)/.test(bName);
+        const aHas2 = /2\b|(?:\D|^)2(?:\.|$)/.test(aName);
+        const bHas2 = /2\b|(?:\D|^)2(?:\.|$)/.test(bName);
+        if (aHas1 && bHas2) return -1;
+        if (bHas1 && aHas2) return 1;
+        if (!aHas1 && bHas1) return -1; // vd: HXH.jpg vs HXH1.jpg -> HXH trước
+        if (aHas1 && !bHas1) return 1;
+        return aName.localeCompare(bName);
+      });
+
+      for (const c of unnamedCandidates) {
+        if (!frontPath) {
+          frontPath = c.filePath;
+        } else if (!backPath && c.filePath !== frontPath) {
+          backPath = c.filePath;
+          break;
+        }
+      }
+    }
   }
 
   const frontName = scored.find((c) => c.filePath === frontPath)?.name || '';
@@ -623,6 +706,12 @@ export function isLikelyValidPersonName(name?: string): boolean {
     /để\s*thực\s*hiện/i,
     /được\s*quét|cam\s*scanner|camscanner/i,
     /^(lối|loi|error|null|undefined|n\/a|none)$/i,
+    /sở\s*tài\s*chính|sở\s*kế\s*hoạch/i,
+    /thành\s*lập|giấy\s*phép|đại\s*diện/i,
+    /sixes|etrift|sassi|carb\.\.\./i,
+    /sa\s*2c|kaui|ene\s*kau/i,
+    /[#§@&=+*~|\\_]/,
+    /\.{3,}/,
     /mã\s*tiểu\s*khoản|mở\s*tài\s*khoản\s*tkgd/i,
     /^[0-9A-Z]{3,4}[0-9]{7}/i, // chuỗi trông giống mã tài khoản
     /^[-:\s/\\.,|]+$/,
@@ -884,7 +973,15 @@ export function dispatchAttachmentsForAccount(
   // Helper kiểm tra file có phải ảnh hay không
   const isImageFile = (attName: string) => {
     const fn = (attName || '').toLowerCase();
-    return fn.endsWith('.jpg') || fn.endsWith('.jpeg') || fn.endsWith('.png') || fn.endsWith('.webp');
+    return (
+      fn.endsWith('.jpg') ||
+      fn.endsWith('.jpeg') ||
+      fn.endsWith('.png') ||
+      fn.endsWith('.webp') ||
+      fn.endsWith('.paint') ||
+      fn.endsWith('.heic') ||
+      fn.endsWith('.heif')
+    );
   };
 
   // 1. Lọc các tệp thuộc về khách hàng này theo tên tệp (Mã TK hoặc Họ tên không dấu)

@@ -22,6 +22,15 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
    - Đối với các file test script (như `test_tkgd_module...`, script RPA cào dữ liệu, Playwright, bot crawler hoặc test tool độc lập...), AI chuẩn bị code hoàn chỉnh, kiểm tra tính đúng đắn và viết hướng dẫn chi tiết lệnh chạy (kèm các cờ tham số như chạy có giao diện `--headed` hoặc không giao diện).
    - **AI tuyệt đối không tự ý kích hoạt chạy ngầm các file test script**; **PHẢI ĐỂ USER TỰ CHẠY** trực tiếp trên terminal của mình để USER chủ động quan sát log, giao diện trình duyệt và kiểm thử thực tế.
 
+5. **Quy Tắc Tái Sử Dụng Công Cụ Kiểm Tra Chuẩn (Zero Throwaway Scripts Rule)**:
+   - **Tuyệt đối KHÔNG tạo các file script tạm bợ rải rác** (như `_test_eval_...`, `_inspect_...`, `_check_...`) mỗi khi USER yêu cầu kiểm tra hoặc bóc tách lại một tài khoản TKGD.
+   - **Bắt buộc 100% tái sử dụng công cụ kiểm tra chuẩn duy nhất của hệ thống**: [tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/tkgd_case_inspector.js).
+   - Mọi thao tác kiểm tra, so sánh đối chiếu, bóc tách thử nghiệm hoặc cập nhật lại hồ sơ đều thực hiện qua công cụ chuẩn này với các tham số:
+     - `node src/scripts/tkgd_case_inspector.js --inspect <MÃ_TKGD>`: Xem chi tiết đối chiếu và file thực tế của tài khoản.
+     - `node src/scripts/tkgd_case_inspector.js --test <MÃ_TKGD>`: Chạy bóc tách kiểm tra thử nghiệm ngay trên Ubuntu.
+     - `node src/scripts/tkgd_case_inspector.js --reparse <MÃ_TKGD>`: Bóc tách lại và cập nhật chính thức vào Database.
+     - `node src/scripts/tkgd_case_inspector.js --fetch --code <MÃ_TKGD>`: Đồng bộ dữ liệu mới nhất của tài khoản từ DB vào cache.
+
 ---
 
 

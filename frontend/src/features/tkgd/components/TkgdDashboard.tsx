@@ -397,6 +397,11 @@ export const TkgdDashboard: React.FC = () => {
               onRunReconcile={handleRunReconcile}
               autoStatus={autoStatus}
               onToggleAutoPipeline={handleToggleAutoPipeline}
+              batchDate={dateFilter}
+              onRefreshData={() => {
+                fetchRecords();
+                fetchStats();
+              }}
             />
           )}
         </div>

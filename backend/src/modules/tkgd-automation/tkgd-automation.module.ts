@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TkgdAutomationController } from './tkgd-automation.controller';
 import { TkgdAutomationService } from './tkgd-automation.service';
+import { TkgdDevRemediationService } from './services/tkgd-dev-remediation.service';
 import { TkgdUserConfig, TkgdUserConfigSchema } from '../../schemas/tkgd-user-config.schema';
 import { RawAccountMail, RawAccountMailSchema } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordSchema } from '../../schemas/clean-account-record.schema';
@@ -18,7 +19,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     ]),
   ],
   controllers: [TkgdAutomationController],
-  providers: [TkgdAutomationService],
-  exports: [TkgdAutomationService],
+  providers: [TkgdAutomationService, TkgdDevRemediationService],
+  exports: [TkgdAutomationService, TkgdDevRemediationService],
 })
 export class TkgdAutomationModule {}

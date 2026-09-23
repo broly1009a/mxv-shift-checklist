@@ -117,13 +117,25 @@ async function main() {
 
   // Truy vấn hồ sơ cần re-scrape
   const query: any = {
-    'reconciliationResult.status': 'LECH',
-    'reconciliationResult.criticalErrors': { $regex: 'chưa nhập số CCCD', $options: 'i' },
-    // Ưu tiên hồ sơ có hoVaTen trên MS (scraper đọc được tên nhưng không đọc CCCD)
     $or: [
-      { 'ms.soCMND_HoChieu': { $exists: false } },
-      { 'ms.soCMND_HoChieu': '' },
-      { 'ms.soCMND_HoChieu': null },
+      { 'ketLuan.trangThai': 'LECH' },
+      { 'reconciliationResult.status': 'LECH' },
+      { trangThaiDoiSoat: 'LECH' },
+    ],
+    $and: [
+      {
+        $or: [
+          { 'ketLuan.danhSachLoi': { $regex: 'chưa nhập số CCCD', $options: 'i' } },
+          { 'reconciliationResult.criticalErrors': { $regex: 'chưa nhập số CCCD', $options: 'i' } },
+        ],
+      },
+      {
+        $or: [
+          { 'ms.soCMND_HoChieu': { $exists: false } },
+          { 'ms.soCMND_HoChieu': '' },
+          { 'ms.soCMND_HoChieu': null },
+        ],
+      },
     ],
   };
 
@@ -291,6 +303,14 @@ async function main() {
         {
           $set: {
             ms: newMs,
+            ketLuan: {
+              trangThai: newResult.finalStatus,
+              danhSachLoi: newResult.finalErrors,
+              reconciledAt: new Date(),
+            },
+            trangThaiDoiSoat: newResult.finalStatus,
+            lyDoLoi: newResult.finalErrors.join('; '),
+            daDoiSoat: true,
             reconciliationResult: {
               status: newResult.finalStatus,
               criticalErrors: newResult.criticalErrors,

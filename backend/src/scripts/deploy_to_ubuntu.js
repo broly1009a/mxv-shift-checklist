@@ -166,8 +166,23 @@ const specificFiles = [
   },
   {
     local: path.join(repoRoot, 'backend/assets/templates/Auto Data mail.xlsm'),
-
     remote: '/opt/mxv-checklist/backend/assets/templates/Auto Data mail.xlsm',
+  },
+  {
+    local: path.join(repoRoot, 'backend/package.json'),
+    remote: '/opt/mxv-checklist/backend/package.json',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/reconcile_and_audit_records.ts'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/reconcile_and_audit_records.ts',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_cccd_fraud_detection.ts'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_cccd_fraud_detection.ts',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/rescrape_ms_missing_cccd.ts'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/rescrape_ms_missing_cccd.ts',
   },
   {
     local: path.join(repoRoot, 'frontend/src/app/admin/tkgd-dashboard/page.tsx'),

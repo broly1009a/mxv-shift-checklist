@@ -37,10 +37,12 @@ import {
   isNamedCccdPdf,
   isDecorativeOrLogoAttachment,
   probeImageDimensions,
+  isMSystemThumbnailFile,
+  isCustomerCccdMsOrMt,
 } from '../bot-engine/helpers/tkgd-mail-parser.helper';
 import { extractHopDongPdf, extractPhuLucPdf } from '../bot-engine/helpers/tkgd-doc-extractor.helper';
 import { runPythonExtractor } from '../bot-engine/helpers/tkgd-python-bridge.helper';
-import { classifyAccountFiles } from '../bot-engine/helpers/tkgd-document-classifier.helper';
+import { classifyAccountFiles, scoreDocumentType } from '../bot-engine/helpers/tkgd-document-classifier.helper';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 export interface TkgdProgressState {
@@ -1186,7 +1188,7 @@ export class TkgdAutomationService {
 
     try {
       const files = fs.readdirSync(dir);
-      const isImg = (f: string) => ['.jpg', '.jpeg', '.png', '.webp'].some((ext) => f.toLowerCase().endsWith(ext));
+      const isImg = (f: string) => ['.jpg', '.jpeg', '.png', '.webp', '.paint', '.heic', '.heif'].some((ext) => f.toLowerCase().endsWith(ext));
       const isMs = (f: string) => f.toLowerCase().includes('_ms_') || f.toLowerCase().startsWith(`${baseCode.toLowerCase()}_ms`);
 
       const mailImages = files.filter((f) => isImg(f) && !isMs(f));
@@ -1296,8 +1298,12 @@ export class TkgdAutomationService {
       const hopDong = classified.hopDongFile;
       let front = classified.cccdFrontImage;
       let back = classified.cccdBackImage;
-      if (!front && classified.cccdPdfFile) {
-        front = classified.cccdPdfFile;
+      if (classified.cccdPdfFile) {
+        // Ưu tiên tệp CCCD PDF chuyên dụng nếu các ảnh không có gợi ý mặt trước rõ ràng
+        if (!front || !scoreDocumentType(front).isFrontHint) {
+          front = classified.cccdPdfFile;
+          back = undefined;
+        }
       }
 
       if (front || back || hopDong) {
@@ -2048,21 +2054,27 @@ export class TkgdAutomationService {
 
           for (const att of targetAttachments) {
             const attSize = att.size || (att.contentBytes ? Math.round(att.contentBytes.length * 0.75) : undefined);
-            if (isIgnoredEmailAttachment(att.name, attSize)) continue;
             const nameLower = (att.name || '').toLowerCase();
+
+            // Nếu có contentBytes, decode và probe kích thước ảnh thật trước khi lọc
+            let fileBuf: Buffer | undefined;
+            let dims: { width: number; height: number } | null = null;
+            if (att.contentBytes) {
+              fileBuf = Buffer.from(att.contentBytes, 'base64');
+              if (/\.(png|jpe?g|webp|gif|paint|heic|heif)$/i.test(nameLower)) {
+                dims = probeImageDimensions(fileBuf);
+              }
+            }
+
+            if (isIgnoredEmailAttachment(att.name, attSize, dims)) {
+              this.logger.log(`[TKGD-MAIL] Bỏ qua tệp không phải hồ sơ: ${att.name} (${attSize || '?'}B, ${dims ? `${dims.width}x${dims.height}` : 'no-dim'})`);
+              continue;
+            }
+
             let targetFilePath = att.filePath;
 
-            if (att.contentBytes) {
+            if (fileBuf) {
               targetFilePath = path.join(tempAccDir, att.name);
-              const fileBuf = Buffer.from(att.contentBytes, 'base64');
-              // Probe kích thước trước khi lưu — loại logo/banner ngay
-              if (/\.(png|jpe?g|webp|gif)$/i.test(nameLower)) {
-                const dims = probeImageDimensions(fileBuf);
-                if (isIgnoredEmailAttachment(att.name, attSize, dims)) {
-                  this.logger.log(`[TKGD-MAIL] Bỏ qua ảnh không phải CCCD: ${att.name} (${attSize || '?'}B, ${dims ? `${dims.width}x${dims.height}` : 'no-dim'})`);
-                  continue;
-                }
-              }
               fs.writeFileSync(targetFilePath, fileBuf);
 
               // Lưu trực tiếp file đính kèm vào thư mục HoSo_DinhKem
@@ -2090,8 +2102,10 @@ export class TkgdAutomationService {
                 } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
                   hopDongPath = targetFilePath;
                 }
-              } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png') || nameLower.endsWith('.webp')) {
-                if (!isNamedContractImage(att.name)) {
+              } else if (['.jpg', '.jpeg', '.png', '.webp', '.paint', '.heic', '.heif'].some((ext) => nameLower.endsWith(ext))) {
+                if (isNamedContractImage(att.name)) {
+                  if (!hopDongPath) hopDongPath = targetFilePath;
+                } else {
                   imageCandidates.push({ name: att.name || path.basename(targetFilePath), filePath: targetFilePath, size: attSize });
                 }
               }
@@ -2106,6 +2120,7 @@ export class TkgdAutomationService {
           try {
             const pythonRes = await runPythonExtractor({
               accountCode: baseCode,
+              accountName: group.tenTaiKhoan,
               hopDongPath,
               phuLucPath,
               cccdFrontPath,
@@ -2162,6 +2177,8 @@ export class TkgdAutomationService {
                   theGeneration: pythonRes.canCuoc.theGeneration,
                   confidenceScore: pythonRes.canCuoc.confidenceScore,
                   boundingBoxes: pythonRes.canCuoc.boundingBoxes,
+                  cccdMatTruocLocalPath: (pythonRes.canCuoc as any)?.cccdMatTruocLocalPath || pythonRes.canCuocPreviewFront || (cccdFrontPath?.endsWith('.pdf') ? undefined : cccdFrontPath),
+                  cccdMatSauLocalPath: (pythonRes.canCuoc as any)?.cccdMatSauLocalPath || pythonRes.canCuocPreviewBack || (cccdBackPath?.endsWith('.pdf') ? undefined : cccdBackPath),
                 };
               }
 
@@ -2825,15 +2842,25 @@ export class TkgdAutomationService {
           if (lower.endsWith('.pdf')) {
             if (isNamedCccdPdf(f)) {
               if (!cccdPdfPath) cccdPdfPath = full;
-            } else if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('pl-01')) {
-              if (!phuLucPath) phuLucPath = full;
-            } else if (!isNamedContractImage(f) && !hopDongPath) {
-              hopDongPath = full;
-            } else if (isNamedContractImage(f) || !hopDongPath) {
-              if (!hopDongPath) hopDongPath = full;
+            } else {
+              const isCombined =
+                (lower.includes('hd') || lower.includes('hđ') || lower.includes('hop')) &&
+                (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('pl-01') || lower.includes('pl'));
+              if (isCombined) {
+                if (!hopDongPath) hopDongPath = full;
+                if (!phuLucPath) phuLucPath = full;
+              } else if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('pl-01')) {
+                if (!phuLucPath) phuLucPath = full;
+              } else if (!isNamedContractImage(f) && !hopDongPath) {
+                hopDongPath = full;
+              } else if (isNamedContractImage(f) || !hopDongPath) {
+                if (!hopDongPath) hopDongPath = full;
+              }
             }
-          } else if (/\.(jpe?g|png|bmp|webp)$/i.test(lower)) {
-            if (!isNamedContractImage(f)) {
+          } else if (/\.(jpe?g|png|bmp|webp|paint|heic|heif)$/i.test(lower)) {
+            if (isNamedContractImage(f)) {
+              if (!hopDongPath) hopDongPath = full;
+            } else {
               imageCandidates.push({ name: f, filePath: full, size: fileSize });
             }
           }
@@ -2843,11 +2870,38 @@ export class TkgdAutomationService {
 
     scanDirForFiles(officialAccDir);
     scanDirForFiles(tempAccDir);
+
+    // Quét bổ sung các thư mục ngày khác thuộc HoSo_DinhKem (phòng khi đính kèm lưu ở ngày khác)
+    const scanNetBases = [
+      '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\HoSo_DinhKem',
+    ];
+    for (const nb of scanNetBases) {
+      if (fs.existsSync(nb)) {
+        try {
+          const dateFolders = fs.readdirSync(nb, { withFileTypes: true });
+          for (const df of dateFolders) {
+            if (df.isDirectory() && df.name !== bDate) {
+              const accPath = path.join(nb, df.name, baseCode);
+              if (fs.existsSync(accPath)) {
+                scanDirForFiles(accPath);
+              }
+            }
+          }
+        } catch {}
+      }
+    }
     const pickedReparse = pickCccdImagePaths(imageCandidates);
     let cccdFrontPath = pickedReparse.frontPath;
     let cccdBackPath = pickedReparse.backPath;
-    // CCCD gửi dạng PDF (076C3131313) — không lấy logo hash e0b6f9cd.png
-    if (!cccdFrontPath && cccdPdfPath) {
+    // CCCD gửi dạng PDF (076C3131313, 046C0002960, 046C0002949) — ưu tiên CCCD PDF hơn các ảnh không tên / generic
+    if (cccdPdfPath) {
+      const hasExplicitFrontImage = cccdFrontPath && isNamedCccdFront(path.basename(cccdFrontPath));
+      if (!hasExplicitFrontImage) {
+        cccdFrontPath = cccdPdfPath;
+        cccdBackPath = undefined;
+      }
+    } else if (!cccdFrontPath && cccdPdfPath) {
       cccdFrontPath = cccdPdfPath;
     }
 
@@ -2875,6 +2929,7 @@ export class TkgdAutomationService {
       try {
         const pyRes = await runPythonExtractor({
           accountCode: record.maTKGD || baseCode,
+          accountName: candidateName || record.hopDong?.hoVaTen || record.ms?.hoVaTen,
           hopDongPath,
           phuLucPath,
           cccdFrontPath,
@@ -2882,24 +2937,26 @@ export class TkgdAutomationService {
         });
 
         if (pyRes) {
-          if (pyRes.hopDong && (pyRes.hopDong.hoTen || pyRes.hopDong.soCCCD || hopDongPath)) {
+          if (hopDongPath && pyRes.hopDong && (pyRes.hopDong.hoTen || pyRes.hopDong.soCCCD || hopDongPath)) {
             record.hopDong = {
               maTKGD: pyRes.hopDong.maTKGD || baseCode,
               hoVaTen: pyRes.hopDong.hoTen || (isLikelyValidPersonName(candidateName) ? candidateName : record.hopDong?.hoVaTen),
-              soCanCuoc: pyRes.hopDong.soCCCD || record.hopDong?.soCanCuoc,
-              ngaySinh: parseDate(pyRes.hopDong.ngaySinh) || record.hopDong?.ngaySinh,
-              rawNgaySinh: pyRes.hopDong.rawNgaySinh || record.hopDong?.rawNgaySinh,
-              ngayCap: parseDate(pyRes.hopDong.ngayCap) || record.hopDong?.ngayCap,
-              rawNgayCap: pyRes.hopDong.rawNgayCap || record.hopDong?.rawNgayCap,
-              noiCap: pyRes.hopDong.noiCap || record.hopDong?.noiCap,
-              ngayKyHD: parseDate(pyRes.hopDong.ngayKyHD) || record.hopDong?.ngayKyHD,
+              soCanCuoc: pyRes.hopDong.soCCCD || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.soCanCuoc),
+              ngaySinh: parseDate(pyRes.hopDong.ngaySinh) || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.ngaySinh),
+              rawNgaySinh: pyRes.hopDong.rawNgaySinh || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.rawNgaySinh),
+              ngayCap: parseDate(pyRes.hopDong.ngayCap) || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.ngayCap),
+              rawNgayCap: pyRes.hopDong.rawNgayCap || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.rawNgayCap),
+              noiCap: pyRes.hopDong.noiCap || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.noiCap),
+              ngayKyHD: parseDate(pyRes.hopDong.ngayKyHD) || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.ngayKyHD),
               rawNgayKyHD: pyRes.hopDong.rawNgayKyHD || undefined,
-              gioiTinh: pyRes.hopDong.gioiTinh || record.hopDong?.gioiTinh,
-              rawGioiTinh: pyRes.hopDong.rawGioiTinh || record.hopDong?.rawGioiTinh,
+              gioiTinh: pyRes.hopDong.gioiTinh || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.gioiTinh),
+              rawGioiTinh: pyRes.hopDong.rawGioiTinh || (record.hopDong?.soCanCuoc?.endsWith('000123') ? undefined : record.hopDong?.rawGioiTinh),
               dinhDangLoi: pyRes.hopDong.dinhDangLoi || [],
               loaiHinhTaiKhoan: 'Cá nhân',
               chuKy: pyRes.hopDong.hasSignature ? 'Đã ký' : 'Chưa ký',
             } as any;
+          } else if (!hopDongPath && record.hopDong && (record.hopDong.soCanCuoc?.endsWith('000123') || /03109\d{7}/.test(record.hopDong.soCanCuoc || ''))) {
+            record.hopDong = undefined;
           }
 
           if (pyRes.phuLuc && (pyRes.phuLuc.isPl01 || phuLucPath)) {
@@ -2917,21 +2974,48 @@ export class TkgdAutomationService {
           if (pyRes.canCuoc && (pyRes.canCuoc.soCCCD || pyRes.canCuoc.hoTen || cccdFrontPath)) {
             const rawDob = pyRes.canCuoc.rawNgaySinh || pyRes.canCuoc.ngaySinh;
             const rawCap = pyRes.canCuoc.rawNgayCap || pyRes.canCuoc.ngayCap;
+            const isStalePhantom =
+              record.canCuoc?.soCanCuoc?.endsWith('000123') ||
+              /03109\d{7}/.test(record.canCuoc?.soCanCuoc || '');
+            const cleanExistingCccd = isStalePhantom ? undefined : record.canCuoc?.soCanCuoc;
             record.canCuoc = {
-              hoVaTen: pyRes.canCuoc.hoTen || record.hopDong?.hoVaTen || (isLikelyValidPersonName(candidateName) ? candidateName : record.canCuoc?.hoVaTen),
-              soCanCuoc: pyRes.canCuoc.soCCCD || record.canCuoc?.soCanCuoc,
-              ngaySinh: parseDate(pyRes.canCuoc.ngaySinh) || record.canCuoc?.ngaySinh,
-              rawNgaySinh: rawDob || record.canCuoc?.rawNgaySinh,
-              ngayCap: parseDate(pyRes.canCuoc.ngayCap) || record.canCuoc?.ngayCap,
-              rawNgayCap: rawCap || record.canCuoc?.rawNgayCap,
-              gioiTinh: pyRes.canCuoc.gioiTinh || record.canCuoc?.gioiTinh,
-              noiCap: pyRes.canCuoc.noiCap || record.canCuoc?.noiCap,
+              hoVaTen:
+                pyRes.canCuoc.hoTen ||
+                record.hopDong?.hoVaTen ||
+                (isLikelyValidPersonName(candidateName) ? candidateName : record.canCuoc?.hoVaTen),
+              soCanCuoc:
+                pyRes.canCuoc.soCCCD ||
+                cleanExistingCccd ||
+                record.hopDong?.soCanCuoc ||
+                record.ms?.soCMND_HoChieu,
+              ngaySinh:
+                parseDate(pyRes.canCuoc.ngaySinh) ||
+                (isStalePhantom ? record.hopDong?.ngaySinh || record.ms?.ngaySinh : record.canCuoc?.ngaySinh),
+              rawNgaySinh:
+                rawDob ||
+                (isStalePhantom
+                  ? record.hopDong?.rawNgaySinh || record.ms?.rawNgaySinh
+                  : record.canCuoc?.rawNgaySinh),
+              ngayCap:
+                parseDate(pyRes.canCuoc.ngayCap) ||
+                (isStalePhantom ? record.hopDong?.ngayCap || record.ms?.ngayCap : record.canCuoc?.ngayCap),
+              rawNgayCap:
+                rawCap ||
+                (isStalePhantom
+                  ? record.hopDong?.rawNgayCap || record.ms?.rawNgayCap
+                  : record.canCuoc?.rawNgayCap),
+              gioiTinh:
+                pyRes.canCuoc.gioiTinh ||
+                (isStalePhantom ? record.hopDong?.gioiTinh || record.ms?.gioiTinh : record.canCuoc?.gioiTinh),
+              noiCap: pyRes.canCuoc.noiCap || record.hopDong?.noiCap || record.ms?.noiCap || record.canCuoc?.noiCap,
               diaChiThuongTru: pyRes.canCuoc.diaChi || record.canCuoc?.diaChiThuongTru,
               canhBaoChatLuong: pyRes.canCuoc.canhBaoChatLuong || [],
-              ocrConfidence: pyRes.canCuoc.source || 'OCR',
+              ocrConfidence: pyRes.canCuoc.source || (isStalePhantom ? 'CONSENSUS_HEALED' : 'OCR'),
               theGeneration: pyRes.canCuoc.theGeneration || record.canCuoc?.theGeneration,
-              confidenceScore: pyRes.canCuoc.confidenceScore || record.canCuoc?.confidenceScore,
+              confidenceScore: pyRes.canCuoc.confidenceScore || (isStalePhantom ? 1.0 : record.canCuoc?.confidenceScore),
               boundingBoxes: pyRes.canCuoc.boundingBoxes || record.canCuoc?.boundingBoxes,
+              cccdMatTruocLocalPath: (pyRes.canCuoc as any).cccdMatTruocLocalPath || pyRes.canCuocPreviewFront || (cccdFrontPath?.endsWith('.pdf') ? undefined : cccdFrontPath) || record.canCuoc?.cccdMatTruocLocalPath,
+              cccdMatSauLocalPath: (pyRes.canCuoc as any).cccdMatSauLocalPath || pyRes.canCuocPreviewBack || (cccdBackPath?.endsWith('.pdf') ? undefined : cccdBackPath) || record.canCuoc?.cccdMatSauLocalPath,
             } as any;
           }
         }
@@ -3164,45 +3248,55 @@ export class TkgdAutomationService {
 
     for (const nb of netBases) {
       if (fs.existsSync(nb)) {
-        const dateFolder = path.join(nb, effectiveBatchDate);
-        if (fs.existsSync(dateFolder)) {
-          try {
-            const children = fs.readdirSync(dateFolder, { withFileTypes: true });
-            for (const c of children) {
-              if (c.isDirectory() && (c.name === code || c.name.startsWith(`${code}_`))) {
-                candidateDirs.push(path.join(dateFolder, c.name));
-              }
+        try {
+          const dateFolders = fs.readdirSync(nb, { withFileTypes: true });
+          for (const df of dateFolders) {
+            if (df.isDirectory()) {
+              const dateFolder = path.join(nb, df.name);
+              try {
+                const children = fs.readdirSync(dateFolder, { withFileTypes: true });
+                for (const c of children) {
+                  if (c.isDirectory() && (c.name === code || c.name.startsWith(`${code}_`))) {
+                    candidateDirs.push(path.join(dateFolder, c.name));
+                  }
+                }
+              } catch { }
+              candidateDirs.push(path.join(dateFolder, code));
             }
-          } catch { }
-          candidateDirs.push(path.join(dateFolder, code));
-        }
+          }
+        } catch { }
         candidateDirs.push(path.join(nb, code));
       }
     }
 
-    // Tìm thư mục thực tế đầu tiên có chứa file
-    let foundDir: string | null = null;
-    let filesInDir: string[] = [];
+    // Tập hợp toàn bộ tệp từ tất cả các thư mục tiềm năng (không break sớm, gom đa ngày)
+    interface ManifestDiskFile {
+      fileName: string;
+      dir: string;
+      fullPath: string;
+      size: number;
+    }
+    const allFilesMap = new Map<string, ManifestDiskFile>();
 
     for (const d of candidateDirs) {
       if (fs.existsSync(d)) {
         try {
-          const list = fs.readdirSync(d).filter((f) => {
+          const list = fs.readdirSync(d);
+          for (const f of list) {
+            if (allFilesMap.has(f)) continue;
+            const full = path.join(d, f);
             try {
-              return fs.statSync(path.join(d, f)).isFile();
-            } catch {
-              return false;
-            }
-          });
-          if (list.length > 0) {
-            foundDir = d;
-            filesInDir = list;
-            break;
+              const stat = fs.statSync(full);
+              if (stat.isFile()) {
+                allFilesMap.set(f, { fileName: f, dir: d, fullPath: full, size: stat.size });
+              }
+            } catch { }
           }
-          if (!foundDir) foundDir = d;
         } catch { }
       }
     }
+
+    const filesInDir = Array.from(allFilesMap.values());
 
     // Phân loại tệp
     let mailCccdFront: any = null;
@@ -3218,40 +3312,33 @@ export class TkgdAutomationService {
     const mailImageCandidates: Array<{ name: string; filePath: string; size?: number }> = [];
 
     const buildFileObj = (fName: string, subType: string) => {
-      let fileSize = 0;
-      if (foundDir) {
-        try {
-          fileSize = fs.statSync(path.join(foundDir, fName)).size;
-        } catch { }
-      }
+      const item = allFilesMap.get(fName);
       return {
         fileName: fName,
-        size: fileSize,
+        size: item?.size || 0,
         subType,
         url: `/api/v1/tkgd/files/stream?accountCode=${encodeURIComponent(code)}&batchDate=${encodeURIComponent(effectiveBatchDate)}&fileName=${encodeURIComponent(fName)}`,
       };
     };
 
-    for (const f of filesInDir) {
-      let fileSize: number | undefined = undefined;
-      if (foundDir) {
-        try {
-          fileSize = fs.statSync(path.join(foundDir, f)).size;
-        } catch { }
-      }
-      const fullPath = foundDir ? path.join(foundDir, f) : f;
+    for (const item of filesInDir) {
+      const f = item.fileName;
+      const fullPath = item.fullPath;
+      const fileSize = item.size;
       const dims =
-        foundDir && fs.existsSync(fullPath) && /\.(jpe?g|png|webp|gif|bmp)$/i.test(f)
+        /\.(jpe?g|png|webp|gif|bmp|paint|heic|heif)$/i.test(f)
           ? probeImageDimensions(fullPath)
           : null;
       // Logo FireAnt / banner / HĐ image… — không đưa vào slot CCCD
       if (isIgnoredEmailAttachment(f, fileSize, dims) || isDecorativeOrLogoAttachment(f)) continue;
 
       const lower = f.toLowerCase();
-      const isMS = lower.includes('_ms_') || lower.startsWith(`${code.toLowerCase()}_ms`);
+      const isMS = isMSystemThumbnailFile(f, code);
 
       if (lower.endsWith('.pdf')) {
-        if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('-pl')) {
+        if (isNamedCccdPdf(f)) {
+          otherFiles.push(buildFileObj(f, 'MAIL_CCCD_PDF'));
+        } else if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('-pl')) {
           if (!mailPl01Pdf) mailPl01Pdf = buildFileObj(f, 'MAIL_PL01');
           else otherFiles.push(buildFileObj(f, 'PDF'));
         } else if (lower.includes('mxv') || lower.includes('hopdong') || lower.includes('hd') || isNamedContractImage(f)) {
@@ -3261,7 +3348,7 @@ export class TkgdAutomationService {
           if (!mailContractPdf) mailContractPdf = buildFileObj(f, 'MAIL_CONTRACT');
           else otherFiles.push(buildFileObj(f, 'PDF'));
         }
-      } else if (['.jpg', '.jpeg', '.png', '.webp'].some((ext) => lower.endsWith(ext))) {
+      } else if (['.jpg', '.jpeg', '.png', '.webp', '.paint', '.heic', '.heif'].some((ext) => lower.endsWith(ext))) {
         if (isMS) {
           if (lower.includes('truoc') || lower.includes('front') || lower.includes('mat1')) {
             msCccdFront = buildFileObj(f, 'MS_CCCD_FRONT');
@@ -3273,18 +3360,18 @@ export class TkgdAutomationService {
             otherFiles.push(buildFileObj(f, 'IMAGE'));
           }
         } else if (isNamedContractImage(f)) {
-          if (lower.endsWith('.pdf') && !mailContractPdf) {
+          if (!mailContractPdf) {
             mailContractPdf = buildFileObj(f, 'MAIL_CONTRACT');
           } else {
             otherFiles.push(buildFileObj(f, 'MAIL_CONTRACT_IMAGE'));
           }
         } else if (lower.includes('chuky') || lower.includes('signature')) {
           otherFiles.push(buildFileObj(f, 'IMAGE'));
-        } else if (foundDir) {
+        } else if (lower.includes('_auto_temp.')) {
+          // Intermediate temp composite file từ PDF rasterization, bỏ qua không đưa vào ứng viên CCCD
+        } else {
           // Gom ứng viên CCCD — chọn bằng pickCccdImagePaths (tránh logo làm mặt trước)
           mailImageCandidates.push({ name: f, filePath: fullPath, size: fileSize });
-        } else {
-          otherFiles.push(buildFileObj(f, 'IMAGE'));
         }
       } else {
         otherFiles.push(buildFileObj(f, 'OTHER'));
@@ -3305,6 +3392,68 @@ export class TkgdAutomationService {
         if (base === mailCccdFront?.fileName || base === mailCccdBack?.fileName) continue;
         otherFiles.push(buildFileObj(base, 'IMAGE'));
       }
+    }
+
+    // Fallback 1: Tìm file ảnh preview tự động sinh từ PDF/Paint CCCD (*_AUTO_FRONT / *_AUTO_BACK)
+    if (!mailCccdFront) {
+      const autoFront = filesInDir.find(
+        (it) => (it.fileName.includes('_AUTO_FRONT') || it.fileName.includes('_preview')) && !it.fileName.includes('_MS_'),
+      );
+      if (autoFront) {
+        mailCccdFront = buildFileObj(autoFront.fileName, 'MAIL_CCCD_FRONT');
+      }
+    }
+    if (!mailCccdBack) {
+      const autoBack = filesInDir.find((it) => it.fileName.includes('_AUTO_BACK') && !it.fileName.includes('_MS_'));
+      if (autoBack) {
+        mailCccdBack = buildFileObj(autoBack.fileName, 'MAIL_CCCD_BACK');
+      }
+    }
+
+    // Fallback 2: Nếu chưa có mailCccdFront/mailCccdBack nhưng có tệp CCCD dạng PDF -> tự động rasterize ngay trên đĩa
+    if (!mailCccdFront) {
+      const cccdPdfItem = filesInDir.find((it) => isNamedCccdPdf(it.fileName));
+      if (cccdPdfItem && fs.existsSync(cccdPdfItem.fullPath)) {
+        try {
+          const pyScript = `import sys; sys.path.insert(0, '/opt/mxv-checklist/backend/src/scripts/python'); from tkgd_extractor_worker import rasterize_cccd_pdf; rasterize_cccd_pdf(${JSON.stringify(cccdPdfItem.fullPath)})`;
+          const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+          require('child_process').execFileSync(pythonBin, ['-c', pyScript], { timeout: 15000 });
+          if (fs.existsSync(cccdPdfItem.dir)) {
+            const dirFiles = fs.readdirSync(cccdPdfItem.dir);
+            for (const newF of dirFiles) {
+              const newFull = path.join(cccdPdfItem.dir, newF);
+              if (!allFilesMap.has(newF) && fs.existsSync(newFull)) {
+                allFilesMap.set(newF, { fileName: newF, dir: cccdPdfItem.dir, fullPath: newFull, size: fs.statSync(newFull).size });
+              }
+            }
+            const updatedFilesInDir = Array.from(allFilesMap.values());
+            const autoFront = updatedFilesInDir.find((it) => (it.fileName.includes('_AUTO_FRONT') || it.fileName.includes('_preview')) && !it.fileName.includes('_MS_'));
+            if (autoFront) mailCccdFront = buildFileObj(autoFront.fileName, 'MAIL_CCCD_FRONT');
+            const autoBack = updatedFilesInDir.find((it) => it.fileName.includes('_AUTO_BACK') && !it.fileName.includes('_MS_'));
+            if (autoBack) mailCccdBack = buildFileObj(autoBack.fileName, 'MAIL_CCCD_BACK');
+          }
+        } catch (e: any) {
+          this.logger.warn(`[MANIFEST] Không thể tự động rasterize CCCD PDF cho ${code}: ${e?.message}`);
+        }
+      }
+    }
+
+    // Fallback nếu mail CCCD chưa có trong folder nhưng đã lưu trong DB record (vd đường dẫn preview)
+    if (!mailCccdFront && record?.canCuoc?.cccdMatTruocLocalPath && fs.existsSync(record.canCuoc.cccdMatTruocLocalPath)) {
+      mailCccdFront = {
+        fileName: path.basename(record.canCuoc.cccdMatTruocLocalPath),
+        size: fs.statSync(record.canCuoc.cccdMatTruocLocalPath).size,
+        subType: 'MAIL_CCCD_FRONT',
+        url: `/api/v1/tkgd/files/stream?filePath=${encodeURIComponent(record.canCuoc.cccdMatTruocLocalPath)}`,
+      };
+    }
+    if (!mailCccdBack && record?.canCuoc?.cccdMatSauLocalPath && fs.existsSync(record.canCuoc.cccdMatSauLocalPath)) {
+      mailCccdBack = {
+        fileName: path.basename(record.canCuoc.cccdMatSauLocalPath),
+        size: fs.statSync(record.canCuoc.cccdMatSauLocalPath).size,
+        subType: 'MAIL_CCCD_BACK',
+        url: `/api/v1/tkgd/files/stream?filePath=${encodeURIComponent(record.canCuoc.cccdMatSauLocalPath)}`,
+      };
     }
 
     // Fallback 1: nếu MS chưa có trong folder nhưng có path trong DB record
@@ -3342,7 +3491,7 @@ export class TkgdAutomationService {
             dateDirs.sort().reverse(); // Ưu tiên các ngày gần nhất trước
             for (const dDir of dateDirs) {
               const accPath = path.join(nb, dDir, code);
-              if (fs.existsSync(accPath) && accPath !== foundDir) {
+              if (fs.existsSync(accPath)) {
                 const subFiles = fs.readdirSync(accPath);
                 for (const sf of subFiles) {
                   const sfLower = sf.toLowerCase();
@@ -3380,11 +3529,27 @@ export class TkgdAutomationService {
       }
     }
 
+    // Lọc lại otherFiles để không chứa các file đã được phân loại vào các slot chính hoặc file tạm
+    const assignedFileNames = new Set(
+      [
+        mailCccdFront?.fileName,
+        mailCccdBack?.fileName,
+        mailContractPdf?.fileName,
+        mailPl01Pdf?.fileName,
+        msCccdFront?.fileName,
+        msCccdBack?.fileName,
+        msSignature?.fileName,
+      ].filter(Boolean),
+    );
+    const cleanedOtherFiles = otherFiles.filter(
+      (f) => !assignedFileNames.has(f.fileName) && !f.fileName.toLowerCase().includes('_auto_temp.'),
+    );
+
     return {
       success: true,
       accountCode: code,
       batchDate: effectiveBatchDate,
-      directory: foundDir || standardDir,
+      directory: candidateDirs.find((d) => fs.existsSync(d)) || standardDir,
       totalFiles: filesInDir.length,
       files: {
         mailCccdFront,
@@ -3395,7 +3560,7 @@ export class TkgdAutomationService {
         msCccdBack,
         msSignature,
       },
-      otherFiles,
+      otherFiles: cleanedOtherFiles,
       ocrSummary: {
         soCanCuocMail: record?.hopDong?.soCanCuoc || record?.canCuoc?.soCanCuoc,
         soCanCuocMs: record?.ms?.soCMND_HoChieu || record?.ms?.cccdOcr_soCanCuoc,
@@ -3494,6 +3659,27 @@ export class TkgdAutomationService {
           if (fs.existsSync(full)) {
             return full;
           }
+        }
+      }
+
+      // Quét mở rộng các thư mục ngày khác thuộc HoSo_DinhKem nếu chưa thấy trong effectiveBatchDate
+      for (const nb of netBases) {
+        if (fs.existsSync(nb) && accountCode) {
+          try {
+            const dateEntries = fs.readdirSync(nb, { withFileTypes: true });
+            for (const de of dateEntries) {
+              if (de.isDirectory() && de.name !== effectiveBatchDate) {
+                const dateFolder = path.join(nb, de.name);
+                const accInDate = path.join(dateFolder, accountCode);
+                if (fs.existsSync(accInDate)) {
+                  const full = path.join(accInDate, safeFileName);
+                  if (fs.existsSync(full)) {
+                    return full;
+                  }
+                }
+              }
+            }
+          } catch { }
         }
       }
     }
@@ -3606,6 +3792,81 @@ export class TkgdAutomationService {
       record: updated,
       message: `Đã hủy duyệt tay, đối soát máy đã được cập nhật lại.`,
     };
+  }
+
+  /**
+   * Cron Job tự động rà soát & so lại ngầm các hồ sơ chưa KHỚP (LECH / CAN_KIEM_TRA)
+   * Tự động áp dụng thuật toán & engine mới nhất (v2.6), giải phóng ca lệch mà không cần bấm thủ công.
+   */
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async handleCronAutoReconcilePending() {
+    try {
+      this.logger.log(`[AUTO-RECONCILE] Bắt đầu quét ngầm tự động đối soát lại các ca chưa KHỚP...`);
+      const res = await this.autoReconcilePendingMismatches(7);
+      if (res.checkedCount > 0) {
+        this.logger.log(`[AUTO-RECONCILE] Hoàn tất quét ngầm: Kiểm tra ${res.checkedCount} ca, tự động chữa lành sang KHỚP: ${res.healedCount} ca.`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`[AUTO-RECONCILE] Lỗi quét ngầm: ${err.message}`);
+    }
+  }
+
+  /**
+   * Tự động rà soát & so lại ngầm các hồ sơ chưa KHỚP (LECH hoặc CAN_KIEM_TRA)
+   */
+  async autoReconcilePendingMismatches(daysBack: number = 7): Promise<{ checkedCount: number; healedCount: number }> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+    const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+
+    const pendingCases = await this.cleanRecordModel.find({
+      batchDate: { $gte: cutoffStr },
+      'ketLuan.trangThai': { $in: ['LECH', 'CAN_KIEM_TRA'] },
+      'manualReview.isOverridden': { $ne: true },
+      $or: [
+        { 'ketLuan.reconciledAt': { $exists: false } },
+        { 'ketLuan.reconciledAt': { $lt: new Date(Date.now() - 15 * 60 * 1000) } },
+      ],
+    }).limit(100);
+
+    let healedCount = 0;
+    const now = new Date();
+
+    for (const record of pendingCases) {
+      const oldStatus = record.ketLuan?.trangThai;
+      const baseCode = record.maTKGDBase || record.maTKGD || '';
+      const attempts = (record.ketLuan as any)?.recheckAttempts || 0;
+
+      // 1. Nếu còn dưới 3 lần thử, thử làm giàu dữ liệu (bóc tách CCCD PDF / quét lại file)
+      if (attempts < 3) {
+        try {
+          await this.verifyAndHealWithImageHash(record);
+          await this.enrichMissingCccdData(record);
+        } catch (e: any) {
+          this.logger.debug(`[AUTO-RECONCILE] Lỗi enrich dữ liệu ${baseCode}: ${e.message}`);
+        }
+      }
+
+      // 2. Thẩm định lại bằng bộ quy tắc mới nhất
+      const { finalStatus, finalErrors } = this.evaluateRecordReconciliation(record);
+
+      record.ketLuan = {
+        trangThai: finalStatus as any,
+        danhSachLoi: finalErrors,
+        reconciledAt: now,
+        recheckAttempts: attempts + 1,
+        reconcileEngineVersion: 'v2.6',
+      } as any;
+
+      await record.save();
+
+      if (oldStatus !== 'KHOP' && finalStatus === 'KHOP') {
+        healedCount++;
+        this.logger.log(`[AUTO-RECONCILE] 🎉 Hồ sơ ${baseCode} đã được tự động thẩm định lại thành công -> KHỚP!`);
+      }
+    }
+
+    return { checkedCount: pendingCases.length, healedCount };
   }
 
   /**

@@ -14,13 +14,17 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { TkgdAutomationService } from './tkgd-automation.service';
+import { TkgdDevRemediationService, StartRemediationDto } from './services/tkgd-dev-remediation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller(['api/v1/tkgd', 'tkgd'])
 export class TkgdAutomationController {
   private readonly logger = new Logger(TkgdAutomationController.name);
 
-  constructor(private readonly tkgdService: TkgdAutomationService) {}
+  constructor(
+    private readonly tkgdService: TkgdAutomationService,
+    private readonly devRemediationService: TkgdDevRemediationService,
+  ) {}
 
   /**
    * Helper lấy email của user từ request hoặc fallback
@@ -141,6 +145,15 @@ export class TkgdAutomationController {
     const email = this.getUserEmail(req);
     const batchDate = body?.batchDate || qBatchDate;
     return await this.tkgdService.runReconciliation(email, batchDate);
+  }
+
+  /**
+   * Kích hoạt tự động so lại ngầm các hồ sơ chưa KHỚP (Self-Healing Background Recheck)
+   */
+  @Post('auto-reconcile-pending')
+  async autoReconcilePending(@Req() req: any, @Body() body?: any) {
+    const daysBack = body?.daysBack || 7;
+    return await this.tkgdService.autoReconcilePendingMismatches(daysBack);
   }
 
   /**
@@ -274,6 +287,22 @@ export class TkgdAutomationController {
     else if (ext === '.png') contentType = 'image/png';
     else if (ext === '.pdf') contentType = 'application/pdf';
     else if (ext === '.webp') contentType = 'image/webp';
+    else if (['.paint', '.heic', '.heif'].includes(ext)) {
+      const dir = path.dirname(resolvedPath);
+      const stem = path.basename(resolvedPath, ext);
+      const candidates = [
+        path.join(dir, `${stem}_AUTO_CONVERT_AUTO_FRONT.jpg`),
+        path.join(dir, `${stem}_AUTO_FRONT.jpg`),
+        path.join(dir, `${stem}_AUTO_CONVERT.jpg`),
+      ];
+      const foundJpg = candidates.find((p) => fs.existsSync(p));
+      if (foundJpg) {
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(foundJpg))}"`);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.sendFile(path.resolve(foundJpg));
+      }
+    }
 
     const safeBaseName = encodeURIComponent(path.basename(resolvedPath));
     res.setHeader('Content-Type', contentType);
@@ -378,6 +407,50 @@ export class TkgdAutomationController {
       endDate,
       userEmail: email,
     });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CÔNG CỤ KỸ THUẬT: TÁI THẨM ĐỊNH HỒI TỐ & KHẮC PHỤC BUG (DEV REMEDIATION)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Khởi động phiên tái xử lý End-to-End cho danh sách tài khoản chỉ định hoặc toàn bộ ca lệch
+   */
+  @Post('dev/remediate/start')
+  async startDevRemediation(@Req() req: any, @Body() dto: StartRemediationDto) {
+    const email = this.getUserEmail(req);
+    return await this.devRemediationService.startRemediation(dto, email);
+  }
+
+  /**
+   * Lấy tiến trình thời gian thực, toàn bộ Live Logs và kết quả của phiên tái thẩm định
+   */
+  @Get('dev/remediate/status/:sessionId')
+  async getDevRemediationStatus(@Param('sessionId') sessionId: string) {
+    const session = this.devRemediationService.getSessionStatus(sessionId);
+    if (!session) {
+      return {
+        success: false,
+        message: `Không tìm thấy phiên xử lý với mã: ${sessionId}`,
+      };
+    }
+    return {
+      success: true,
+      session,
+    };
+  }
+
+  /**
+   * Xuất danh sách toàn bộ các tài khoản đang lỗi ra file Excel để làm dữ liệu mẫu test
+   */
+  @Get('dev/export-anomalies')
+  async exportAnomaliesExcel(
+    @Req() req: any,
+    @Res() res: any,
+    @Query('batchDate') batchDate?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.devRemediationService.exportAnomaliesExcel(res, email, batchDate);
   }
 }
 

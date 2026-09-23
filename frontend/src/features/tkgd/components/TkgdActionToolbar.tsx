@@ -16,8 +16,10 @@ import {
   AlertCircle,
   X,
   PlayCircle,
+  Terminal,
 } from 'lucide-react';
 import { SprintMode, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
+import { TkgdDevRemediationModal } from './modal/TkgdDevRemediationModal';
 
 interface TkgdActionToolbarProps {
   sprintMode: SprintMode;
@@ -34,6 +36,8 @@ interface TkgdActionToolbarProps {
   onRunReconcile: () => void;
   autoStatus?: TkgdAutoPipelineStatus | null;
   onToggleAutoPipeline?: (enabled: boolean) => void;
+  batchDate?: string;
+  onRefreshData?: () => void;
 }
 
 export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
@@ -51,9 +55,12 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
   onRunReconcile,
   autoStatus,
   onToggleAutoPipeline,
+  batchDate,
+  onRefreshData,
 }) => {
   const [showAdvancedActions, setShowAdvancedActions] = useState<boolean>(false);
   const [showRunConfigModal, setShowRunConfigModal] = useState<boolean>(false);
+  const [showDevModal, setShowDevModal] = useState<boolean>(false);
   const [timeRangeMode, setTimeRangeMode] = useState<'TODAY' | 'CUSTOM'>('TODAY');
   const [customFromDateTime, setCustomFromDateTime] = useState<string>('');
   const [customToDateTime, setCustomToDateTime] = useState<string>('');
@@ -261,7 +268,32 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           <span>Tải File Excel</span>
         </button>
 
-        {/* 3. THAO TÁC NÂNG CAO (Dropdown / Menu Popover) */}
+        {/* 3. CÔNG CỤ KỸ THUẬT: KHẮC PHỤC BUG & QUÉT LẠI HỒI TỐ (DEV TOOL) */}
+        <button
+          onClick={() => setShowDevModal(true)}
+          disabled={isProcessing}
+          title="Công cụ kỹ thuật: Tái thẩm định hồi tố từ file gốc & cào lại MS cho các tài khoản bị lỗi sau khi nâng cấp mã nguồn"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 14px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            color: '#ef4444',
+            fontWeight: 700,
+            fontSize: '0.76rem',
+            cursor: isProcessing ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          className="hover:bg-red-500 hover:text-white"
+        >
+          <Terminal size={14} />
+          <span>Khắc Phục Bug (Dev)</span>
+        </button>
+
+        {/* 4. THAO TÁC NÂNG CAO (Dropdown / Menu Popover) */}
         <div style={{ position: 'relative' }}>
           <button
             id="tutorial-tkgd-advanced-btn"
@@ -378,7 +410,8 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
 
               <div style={{ borderTop: '1px solid var(--border-color)', margin: '2px 0' }} />
 
-              {/* Section 2: Chạy Thủ Công Từng Bước */}
+              {/* [TẠM ẨN THEO YÊU CẦU TỐI ƯU GIAO DIỆN - THAO TÁC RỜI RẠC ÍT DÙNG, ĐÃ TỰ ĐỘNG HÓA 100%]
+              Section 2: Chạy Thủ Công Từng Bước
               <div>
                 <div
                   style={{
@@ -393,7 +426,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                   Chạy Thủ Công Từng Bước
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {/* Nút 1: Quét Mail */}
                   <button
                     onClick={() => {
                       setShowAdvancedActions(false);
@@ -423,7 +455,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                     </span>
                   </button>
 
-                  {/* Nút 2: Cào M-System */}
                   <button
                     onClick={() => {
                       setShowAdvancedActions(false);
@@ -451,23 +482,8 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                       <Globe size={13} color="#8b5cf6" />
                       <span>2. Cào M-System Riêng</span>
                     </span>
-                    {pendingMsCount > 0 && (
-                      <span
-                        style={{
-                          fontSize: '0.66rem',
-                          padding: '1px 6px',
-                          borderRadius: '10px',
-                          backgroundColor: '#f59e0b',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                        }}
-                      >
-                        {pendingMsCount}
-                      </span>
-                    )}
                   </button>
 
-                  {/* Nút 3: Đối Soát Chéo */}
                   <button
                     onClick={() => {
                       setShowAdvancedActions(false);
@@ -497,6 +513,38 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                     </span>
                   </button>
                 </div>
+              </div>
+              */}
+
+              {/* Thông báo chu trình tự động 1-Click tinh gọn */}
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.45,
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 700,
+                    color: '#3b82f6',
+                    marginBottom: '3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <Zap size={13} fill="#3b82f6" /> Chu trình 1-Click Tinh Gọn
+                </div>
+                <span>
+                  Các thao tác riêng lẻ (Quét mail, cào MS, đối soát) đã được tự động hóa trọn gói qua nút{' '}
+                  <strong style={{ color: '#10b981' }}>"Quét & Chạy Ngay"</strong> hoặc chế độ{' '}
+                  <strong style={{ color: '#10b981' }}>Tự Động 24/7</strong>.
+                </span>
               </div>
 
               <div style={{ borderTop: '1px solid var(--border-color)', margin: '2px 0' }} />
@@ -898,6 +946,14 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL KỸ THUẬT: TÁI THẨM ĐỊNH HỒI TỐ & KHẮC PHỤC BUG (DEV REMEDIATION CONSOLE) */}
+      <TkgdDevRemediationModal
+        isOpen={showDevModal}
+        onClose={() => setShowDevModal(false)}
+        batchDate={batchDate}
+        onRefreshData={onRefreshData}
+      />
     </>
   );
 };

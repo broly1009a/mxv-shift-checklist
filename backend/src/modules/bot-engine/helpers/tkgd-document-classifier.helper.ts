@@ -143,9 +143,20 @@ export function classifyAccountFiles(fileNames: string[]): ClassifiedDocuments {
     if (ext === '.pdf') {
       pdfCandidates.push({ name: f, score });
     } else if (imageExts.includes(ext)) {
-      // Bỏ qua các ảnh logo nhỏ, icon
+      // Bỏ qua các ảnh logo nhỏ, icon, chữ ký mail, generic outlook
       const lower = f.toLowerCase();
-      if (!lower.includes('logo') && !lower.includes('icon') && !lower.startsWith('image00')) {
+      const isJunkSignature =
+        /^(image\d*|img\d*|picture\d*|photo\d*|signature.*|sign.*|chuky.*|logo.*|icon.*|banner.*|footer.*|header.*|attachment.*)\.(png|jpg|jpeg|webp|gif)$/i.test(
+          f,
+        ) ||
+        lower.includes('logo') ||
+        lower.includes('icon') ||
+        lower.includes('chuky') ||
+        lower.includes('signature') ||
+        lower.includes('sign') ||
+        lower.startsWith('image0');
+
+      if (!isJunkSignature) {
         imageCandidates.push({ name: f, score });
       }
     }
@@ -155,7 +166,7 @@ export function classifyAccountFiles(fileNames: string[]): ClassifiedDocuments {
   for (const p of pdfCandidates) {
     const { cccdScore, contractScore, appendixScore } = p.score;
 
-    // Ưu tiên 1: File PDF CCCD (Ví dụ: 157_CCCD Phung Dac Long.pdf)
+    // Ưu tiên 1: File PDF CCCD (Ví dụ: 157_CCCD Phung Dac Long.pdf, CCCD NGUYỄN THỊ THANH HẰNG.pdf)
     if (cccdScore > 0 && cccdScore > contractScore && cccdScore > appendixScore) {
       if (!result.cccdPdfFile) {
         result.cccdPdfFile = p.name;
@@ -163,7 +174,14 @@ export function classifyAccountFiles(fileNames: string[]): ClassifiedDocuments {
       continue;
     }
 
-    // Ưu tiên 2: File Phụ lục PL01
+    // Ưu tiên 2: Tệp kết hợp Hợp đồng + Phụ lục (Ví dụ: HĐ + PL01 046C0002949.pdf, HĐ+PL01 046C0002960.pdf)
+    if (contractScore > 0 && appendixScore > 0) {
+      if (!result.hopDongFile) result.hopDongFile = p.name;
+      if (!result.phuLucFile) result.phuLucFile = p.name;
+      continue;
+    }
+
+    // Ưu tiên 3: File Phụ lục PL01 độc lập
     if (appendixScore > 0 && appendixScore > contractScore) {
       if (!result.phuLucFile) {
         result.phuLucFile = p.name;
@@ -171,7 +189,7 @@ export function classifyAccountFiles(fileNames: string[]): ClassifiedDocuments {
       continue;
     }
 
-    // Ưu tiên 3: File Hợp đồng
+    // Ưu tiên 4: File Hợp đồng độc lập
     if (contractScore > 0 || !result.hopDongFile) {
       if (!result.hopDongFile) {
         result.hopDongFile = p.name;
@@ -199,8 +217,9 @@ export function classifyAccountFiles(fileNames: string[]): ClassifiedDocuments {
     }
   }
 
-  // Nếu chưa xác định được mặt trước / mặt sau qua tên file
-  if (imageCandidates.length > 0) {
+  // Nếu chưa xác định được mặt trước / mặt sau qua tên file:
+  // CHỈ fallback gán ảnh tự do nếu KHÔNG có cccdPdfFile (nếu có cccdPdfFile, nó là nguồn CCCD chính thức)
+  if (!result.cccdPdfFile && imageCandidates.length > 0) {
     if (!result.cccdFrontImage) {
       result.cccdFrontImage = imageCandidates[0].name;
     }

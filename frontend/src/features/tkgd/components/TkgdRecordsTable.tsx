@@ -168,10 +168,13 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                 return (
                   <React.Fragment key={r._id}>
                     <tr
+                      onDoubleClick={() => onInspect(r)}
+                      title="Nhấp đúp chuột vào dòng để xem chi tiết đối soát"
                       style={{
                         borderBottom: '1px solid var(--border-color)',
                         color: 'var(--text-primary)',
                         backgroundColor: isExpanded ? 'rgba(59, 130, 246, 0.04)' : undefined,
+                        cursor: 'pointer',
                       }}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                     >
@@ -509,32 +512,50 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                         </td>
                       )}
 
-                      {/* Cột Thao Tác */}
+                      {/* Cột Thao Tác - Tối ưu UX: Gom về 1 nút chính trực quan, comment lại các nút phụ ít dùng */}
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          {/* NÚT CỐT LÕI DUY NHẤT: Xem chi tiết & Đối soát hồ sơ */}
                           <button
                             id={index === 0 ? 'tutorial-tkgd-inspect-btn' : undefined}
                             data-tutorial="inspect-btn"
                             onClick={() => onInspect(r)}
-                            title="So sánh trực quan Outlook vs M-System"
+                            title="Xem chi tiết hồ sơ & đối chiếu 3 bên (HĐ - CCCD - M-System)"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '32px',
-                              height: '32px',
+                              gap: '6px',
+                              padding: '6px 12px',
                               borderRadius: '8px',
-                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              color: '#3b82f6',
-                              border: '1px solid rgba(59, 130, 246, 0.3)',
+                              backgroundColor: isLech
+                                ? 'rgba(239, 68, 68, 0.1)'
+                                : isCanKiemTra
+                                  ? 'rgba(245, 158, 11, 0.1)'
+                                  : 'rgba(59, 130, 246, 0.1)',
+                              color: isLech
+                                ? '#ef4444'
+                                : isCanKiemTra
+                                  ? '#d97706'
+                                  : '#3b82f6',
+                              border: isLech
+                                ? '1px solid rgba(239, 68, 68, 0.3)'
+                                : isCanKiemTra
+                                  ? '1px solid rgba(245, 158, 11, 0.35)'
+                                  : '1px solid rgba(59, 130, 246, 0.3)',
                               cursor: 'pointer',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap',
                               transition: 'all 0.15s ease',
                             }}
-                            className="hover:scale-110 hover:bg-blue-500 hover:text-white"
+                            className="hover:scale-105 active:scale-95"
                           >
-                            <Eye size={15} />
+                            <Eye size={14} />
+                            <span>Xem đối soát</span>
                           </button>
 
+                          {/* [TẠM ẨN THEO YÊU CẦU TỐI ƯU GIAO DIỆN - DỄ BẤM NHẦM / ÍT DÙNG]
+                          Cào lại dữ liệu M-System riêng cho 1 tài khoản
                           <button
                             onClick={() => onSyncMSystem(targetCode)}
                             disabled={isProcessing}
@@ -559,7 +580,10 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                               className={syncingRowCode === targetCode ? 'animate-spin' : ''}
                             />
                           </button>
+                          */}
 
+                          {/* [TẠM ẨN THEO YÊU CẦU TỐI ƯU GIAO DIỆN - GỌI PYTHON OCR NẶNG TẢI SERVER]
+                          Quét lại email & bóc tách lại file (HĐ, CCCD, PL01)
                           {onReparseAccount && (
                             <button
                               onClick={() => onReparseAccount(r._id, targetCode)}
@@ -586,7 +610,10 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                               />
                             </button>
                           )}
+                          */}
 
+                          {/* [TẠM ẨN THEO YÊU CẦU TỐI ƯU GIAO DIỆN - TRÙNG LẶP VỚI MODAL XEM CHI TIẾT]
+                          Mở rộng dòng accordion
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : r._id)}
                             title={isExpanded ? 'Thu gọn dòng' : 'Mở rộng dòng'}
@@ -605,6 +632,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           >
                             {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                           </button>
+                          */}
                         </div>
                       </td>
                     </tr>

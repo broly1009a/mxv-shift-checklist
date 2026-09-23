@@ -89,6 +89,12 @@ export class CanCuocSubDoc {
 
   @Prop({ type: Object })
   boundingBoxes?: Record<string, any>;
+
+  @Prop()
+  cccdMatTruocLocalPath?: string;
+
+  @Prop()
+  cccdMatSauLocalPath?: string;
 }
 export const CanCuocSubDocSchema = SchemaFactory.createForClass(CanCuocSubDoc);
 

@@ -370,17 +370,22 @@ export class TkgdMailIngestService {
 
           for (const att of targetAttachments) {
             const attSize = att.size || (att.contentBytes ? Math.round(att.contentBytes.length * 0.75) : undefined);
-            if (isIgnoredEmailAttachment(att.name, attSize)) continue;
             const nameLower = (att.name || '').toLowerCase();
+
+            let fileBuf: Buffer | undefined;
+            let dims: { width: number; height: number } | null = null;
+            if (att.contentBytes) {
+              fileBuf = Buffer.from(att.contentBytes, 'base64');
+              if (/\.(png|jpe?g|webp|gif|paint|heic|heif)$/i.test(nameLower)) {
+                dims = probeImageDimensions(fileBuf);
+              }
+            }
+
+            if (isIgnoredEmailAttachment(att.name, attSize, dims)) continue;
             let targetFilePath = att.filePath;
 
-            if (att.contentBytes) {
+            if (fileBuf) {
               targetFilePath = path.join(tempAccDir, att.name);
-              const fileBuf = Buffer.from(att.contentBytes, 'base64');
-              if (/\.(png|jpe?g|webp|gif)$/i.test(nameLower)) {
-                const dims = probeImageDimensions(fileBuf);
-                if (isIgnoredEmailAttachment(att.name, attSize, dims)) continue;
-              }
               fs.writeFileSync(targetFilePath, fileBuf);
 
               if (officialAccDir) {
@@ -403,8 +408,10 @@ export class TkgdMailIngestService {
                 } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
                   hopDongPath = targetFilePath;
                 }
-              } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png') || nameLower.endsWith('.webp')) {
-                if (!isNamedContractImage(att.name)) {
+              } else if (['.jpg', '.jpeg', '.png', '.webp', '.paint', '.heic', '.heif'].some((ext) => nameLower.endsWith(ext))) {
+                if (isNamedContractImage(att.name)) {
+                  if (!hopDongPath) hopDongPath = targetFilePath;
+                } else {
                   imageCandidates.push({ name: att.name || path.basename(targetFilePath), filePath: targetFilePath, size: attSize });
                 }
               }

@@ -63,7 +63,11 @@ export interface PythonExtractorResult {
     theGeneration?: string;
     confidenceScore?: number;
     boundingBoxes?: Record<string, any>;
+    cccdMatTruocLocalPath?: string;
+    cccdMatSauLocalPath?: string;
   };
+  canCuocPreviewFront?: string;
+  canCuocPreviewBack?: string;
   warnings?: string[];
 }
 

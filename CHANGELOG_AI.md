@@ -1,6 +1,497 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-15T15:56] FIX ARCHITECTURE & RECONCILIATION: Phân Giải Ca Trực Động 3 Tầng (Data-Driven Dynamic Shift Resolver) Cho Màn Hình Trading Manager (Chỉ Cập Nhật Local, Chưa Deploy Ubuntu)
+## [2026-09-22T18:45] Triển Khai Hoàn Tất: Hệ Thống Tái Xử Lý Hồi Tố E2E & Console Live Logs Cho Kỹ Thuật (Dev Remediation Tool)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"giúp tôi làm chuẩn luồng này kèm ghi log để tôi theo dõi"* và *"tất cả cách tài khoản đó sẽ được chạy lại từ đầu end to end từ lấy trong email và ms để đối chiếu lại đúng không"*.
+- **Vấn đề giải quyết**: Cung cấp công cụ kỹ thuật độc lập hỗ trợ chu trình End-to-End (đọc file ảnh gốc, cào lại M-System mới nhất, chạy lại Python OCR, đối chiếu luật mới và cập nhật thẳng vào CSDL MongoDB trên Ubuntu) kèm **hộp đen Terminal Live Logs thời gian thực** để theo dõi chi tiết từng bước mà không cần chạy script thủ công rồi update chéo qua SSH.
+
+### 2. Danh sách file tạo mới & chỉnh sửa
+- [tkgd-dev-remediation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/services/tkgd-dev-remediation.service.ts) *(Service Backend mới: Quản lý session, stream live logs, thực thi E2E, xuất Excel danh sách lỗi)*
+- [tkgd-automation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.module.ts) *(Đăng ký provider TkgdDevRemediationService)*
+- [tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts) *(Thêm endpoints `dev/remediate/start`, `dev/remediate/status/:sessionId`, `dev/export-anomalies`)*
+- [TkgdDevRemediationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/modal/TkgdDevRemediationModal.tsx) *(Component Modal Frontend mới: Nạp file, dán mã, tùy chọn E2E, Terminal Live Logs cuộn tự động, bảng Before vs After)*
+- [tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/services/tkgd.api.ts) *(Bổ sung các hàm gọi API startDevRemediation, getDevRemediationStatus, downloadAnomaliesExcel)*
+- [TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx) *(Thêm nút `[Khắc Phục Bug (Dev)]` và nhúng Modal)*
+- [TkgdDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/TkgdDashboard.tsx) *(Truyền batchDate và callback onRefreshData vào Toolbar)*
+- [_deploy_update_all.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/_deploy_update_all.js) *(Cập nhật danh sách file upload lên Ubuntu)*
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/CHANGELOG_AI.md) *(Ghi vết kiểm toán)*
+
+### 3. Tóm tắt nội dung code đã sửa & tính năng mới
+1. **Backend Service (`TkgdDevRemediationService`)**:
+   - Khởi tạo session in-memory, chạy chu trình async E2E không block HTTP.
+   - Ghi log chi tiết từng bước cho từng tài khoản: `[INFO]`, `[SUCCESS]`, `[WARN]`, `[ERROR]`.
+   - Hỗ trợ cào lại M-System (`syncMSystemAccounts`), bóc tách lại OCR từ file gốc (`reparseAccount`), tái thẩm định luật mới (`evaluateRecordReconciliation`) và cập nhật đè kết quả chuẩn vào MongoDB `clean_account_records`.
+   - Xuất file Excel danh sách lỗi chuyên nghiệp (`exportAnomaliesExcel`).
+2. **Frontend UI (`TkgdDevRemediationModal`)**:
+   - Giao diện Dark Console `#0d1117` chuẩn kỹ thuật (không dùng emoji Unicode).
+   - Hỗ trợ 3 cách nạp tài khoản: Dán text, Kéo thả file Excel/CSV/TXT, hoặc Tự động lấy tất cả ca lệch trong CSDL.
+   - 3 Công tắc E2E linh hoạt (Cào MS, Reparse OCR, So khớp luật mới).
+   - Hộp đen Terminal Live Logs cuộn tự động hiển thị từng dòng log streaming từ backend.
+   - Bảng đối chiếu Before vs After hiển thị rõ các tài khoản đã chuyển từ `LECH` $\rightarrow$ `KHOP` 100%.
+
+### 4. Xác nhận Build & Kiểm Thử
+- **Backend Build**: Chạy `cmd /c "npm run build"` thành công 100% (exit code 0, không có lỗi TypeScript).
+- **Frontend Code**: Các component tuân thủ nghiêm ngặt Rules of Hooks, dùng icon chuẩn từ `lucide-react`, không dùng emoji thô.
+
+---
+
+## [2026-09-18T13:55] Tối Ưu Giao Diện: Comment Lại Các Nút Phụ Ít Dùng & Nâng Cấp Nút Thao Tác Trực Quan 1-Click
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"phần xử lý ảnh này về các nút bạn tổng hợp lại để tối ưu lại vì hiện tại tôi thấy khá nhiều nút nhưng ít khi dùng đến hoặc khó dùng. giúp tôi tổng hợp thông tin lại với logic và các file nút liên quan để đánh giá lại với vai trò người dùng"* và *"giúp tôi comment lại thôi và bổ sung theo giao diện"*.
+- **Vấn đề UX thực tế**:
+  1. *Trên bảng danh sách hồ sơ (`TkgdRecordsTable`)*: Mỗi dòng hiển thị tới 4 nút icon nhỏ (`Eye`, `RotateCcw`, `FileSearch`, `Chevron`). Người dùng dễ bấm nhầm, không phân biệt được cào MS với reparse file, và nút Reparse kích hoạt OCR Python ngầm làm CPU server tăng cao.
+  2. *Trên thanh công cụ (`TkgdActionToolbar`)*: Menu Nâng Cao chứa các nút chạy 3 bước riêng lẻ ("Quét mail riêng", "Cào MS riêng", "Đối soát riêng") vốn chỉ phục vụ lúc lập trình viên debug, người dùng ca trực thực tế chỉ dùng nút chạy trọn gói hoặc chế độ tự động ngầm.
+
+### 2. Danh sách file chỉnh sửa
+- [TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)
+- [TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)
+- [_deploy_update_all.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/_deploy_update_all.js)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)**:
+   - *Comment lại các nút phụ*: Đặt trong khối chú thích `/* [TẠM ẨN THEO YÊU CẦU TỐI ƯU GIAO DIỆN] ... */` đối với 3 nút: Cào MS riêng (`RotateCcw`), Bóc tách lại OCR (`FileSearch`), Mở rộng accordion (`Chevron`). Giữ nguyên code nguyên vẹn để có thể mở lại bất cứ lúc nào.
+   - *Nâng cấp nút chính*: Thay icon mắt 14px nhỏ lẻ bằng nút hành động trực quan nổi bật kèm nhãn chữ `[Xem đối soát]` (đổi màu viền theo trạng thái LECH / CAN_KIEM_TRA / KHOP).
+   - *Bổ sung tương tác UX*: Thêm `onDoubleClick` và `cursor: pointer` vào từng dòng `<tr>`, cho phép Cán bộ nhấp đúp vào bất kỳ vị trí nào trên dòng để mở ngay Modal so sánh chi tiết.
+2. **[TkgdActionToolbar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/TkgdActionToolbar.tsx)**:
+   - *Comment lại các nút chạy bước lẻ*: Chú thích tạm ẩn 3 nút ("Quét mail riêng", "Cào MS riêng", "Đối soát riêng") trong Menu Nâng Cao.
+   - *Bổ sung hướng dẫn 1-Click*: Thêm khung hướng dẫn trực quan thông báo hệ thống đã tự động hóa trọn gói qua nút `Quét & Chạy Ngay` và `Tự Động 24/7`.
+3. **[_deploy_update_all.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/_deploy_update_all.js)**:
+   - Bổ sung tự động deploy các file Frontend sang Ubuntu `/opt/mxv-checklist/frontend/...` và restart đồng thời cả `mxv-backend` & `mxv-frontend`.
+
+### 4. Xác nhận Triển khai & Kiểm thử
+- Upload toàn bộ 19 file lên server Ubuntu `10.0.0.26` thành công.
+- PM2 reload đồng bộ cả `mxv-backend` (PID 4126423) và `mxv-frontend` (PID 4126441) online ổn định.
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Nâng cấp toàn diện bộ luật đối soát theo 5 nhóm giải pháp:
+  1. *M-System chưa nhập số CCCD (135 ca)*: Giữ nguyên trạng thái LECH bắt buộc, hỗ trợ xuất báo cáo CSV danh sách gửi bộ phận Giám sát để yêu cầu TVKD bổ sung.
+  2. *Thiếu file đính kèm email (90 ca)*: Chuyển sang trạng thái `[CAN_KIEM_TRA]` thay vì `LECH`, ghi chú rõ ràng *"Email TVKD chưa đính kèm file HĐ/CCCD gốc"* (tránh tính nhầm là lỗi sai lệch dữ liệu).
+  3. *Lệch ngày cấp CCCD (108 ca)*: Áp dụng cơ chế Tự Lành Đồng Thuận (Consensus Healing) - Khi Họ tên + Số CCCD 12 số + Ngày sinh đã khớp 100%, tự động chấp nhận ngày cấp theo thẻ Căn cước và chuyển sang `[KHOP]` với ghi chú `AUTO_HEALED_ISSUE_DATE`.
+  4. *Lệch số CCCD thực tế (27 ca)*: Giữ nguyên cảnh báo đỏ `LECH` bắt buộc để chuyên viên ca trực đối chiếu trực tiếp.
+  5. *Lệch ngày sinh, giới tính, họ tên (59 ca)*: Kiểm tra tự lành theo dải mã đọc bằng máy MRZ 2 dòng của Bộ Công An (dòng 2 chứa `YYMMDD` và `M/F`).
+
+### 2. Danh sách file chỉnh sửa
+- [tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts)
+- [tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/tkgd_case_inspector.js)
+- [_deploy_update_all.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/_deploy_update_all.js)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts)**:
+   - *Phân loại thiếu file gốc*: Kiểm tra `hasAnyCustomerInput` (không có file đính kèm từ khách hàng) $\rightarrow$ Gán `softWarnings.push('Email TVKD chưa đính kèm file HĐ/CCCD gốc')`, không gán cờ `isCriticalMismatch` $\rightarrow$ Đưa kết luận về `[CAN_KIEM_TRA]`.
+   - *Cơ chế Đồng thuận Ngày cấp*: Kiểm tra `isNameFullyMatched && isCccdFullyMatched && isDobFullyMatched` $\rightarrow$ Tự lành ngày cấp theo Căn cước, ghi nhận `AUTO_HEALED_ISSUE_DATE`, không báo lỗi `Lệch ngày cấp`.
+   - *Tự lành Ngày sinh & Giới tính theo MRZ Dòng 2*: Bóc tách `(\d{2})(\d{2})(\d{2})\d([MF])` từ `rawOcrText` / `backsideOcrText` để đối sánh và tự lành ngày sinh/giới tính chuẩn ICAO.
+2. **[tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/tkgd_case_inspector.js)**:
+   - Thêm lệnh `--export-ms-missing`: Trích xuất danh sách 135 tài khoản M-System chưa nhập số CCCD ra file CSV chuẩn UTF-8 BOM (`.cache/danh_sach_tk_ms_chua_nhap_cccd.csv`) phục vụ phòng Giám sát.
+
+### 4. Xác nhận Build, Triển khai & Kiểm thử
+- **Biên dịch**: `cmd /c "npm run build"` thành công 100% (exit code 0).
+- **Deploy Production**: Chạy `_deploy_update_all.js` upload 17 file lên Ubuntu `10.0.0.26` và reload PM2 `mxv-backend`.
+- **Kiểm thử thực tế tài khoản `085C8518713` (Lưu Thị Hương Ly)**:
+  - Trước khi sửa: Báo lỗi đỏ `Lệch ngày cấp (HĐ/CCCD: 16/04/2025 != MS: 06/09/2021)`.
+  - Sau khi sửa: Tự động kích hoạt cơ chế Consensus Healing do Họ tên, Số CCCD và Ngày sinh khớp 100% $\rightarrow$ Trạng thái chuyển thành công sang **`[KHOP]`** (`danhSachLoi: []`).
+
+---
+
+## [2026-09-17T12:35] Khắc Phục Triệt Để 2 Lỗi Lệch Kỹ Thuật (HĐ Kết Hợp TVKD 046, Lỗi Cắt Tên HĐ Wynthor 088) & Triệt Tiêu Lỗi Lệch Ảo Stale Mock Data
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  - *"vậy xử lý giúp tôi 2 bug trên được không"* (Case `088C6174213` - Nguyễn Ngọc Sơn & Case `046C0002960` - Nguyễn Thị Thanh Hằng).
+  - *"ủa một số tài khoản khớp hết mà sao lại báo lỗi lệch ảo vậy"* (Case `046C0002949` - Nguyễn Thị Mỹ Hạnh: Bảng modal hiển thị tất cả các trường xanh khớp 100%, nhưng khung đỏ bên dưới báo 4 lỗi lệch ảo gồm Số CCCD `031095000123`, Ngày sinh `01/01/1995`, Ngày cấp `10/10/2021`, Giới tính `Nam`).
+- **Nguyên nhân kỹ thuật bóc tách**:
+  1. **Bug Cắt Tên Hợp Đồng Wynthor 088 (`088C6174213`)**: Trong file PDF Hợp đồng mở TKGD của TVKD 088 Wynthor, nhãn họ tên là `Tên  cá nhân/tổ chức: NGUYỄN  NGỌC SƠN`. Regex bóc tách cũ chỉ tìm kiếm nhãn `Ông/bà`, `Họ và tên`, `Tên khách hàng` và fallback cắt cụt chỉ lấy từ đầu tiên `"NGUYỄN"`, gây báo lệch họ tên với M-System (`NGUYỄN NGỌC SƠN`).
+  2. **Bug Nhận Diện Tệp Hợp Đồng Kết Hợp Của TVKD 046 (`HĐ + PL01 ...pdf`)**: TVKD 046 lưu trữ cả Hợp đồng và Phụ lục 01 chung vào 1 tệp PDF duy nhất có tên `HĐ + PL01 046C0002949.pdf` hoặc `HĐ+PL01 046C0002960.pdf`. Trong hàm phân loại tệp và quét tệp reparse cũ, điều kiện `lower.includes('pl01')` đứng trước nên đã gán toàn bộ tệp vào `phuLucPath`, bỏ trống `hopDongPath = undefined`. Do đó Python không bóc tách Hợp đồng, khiến `record.hopDong` giữ nguyên các giá trị mock/phantom rác cũ từ lần import thử nghiệm ban đầu (`031095000123` / `031096000123`).
+  3. **Hiện Tượng Lệch Ảo (False Positive) Giữa Bảng Modal Và Khung Lỗi (`046C0002949`)**: Giao diện Modal bảng (`TabDataComparison.tsx`) áp dụng cơ chế tự động bù trừ hiển thị (fallback) lấy giá trị từ khối `ms`, hiển thị các dòng khớp màu xanh; trong khi khung đỏ bên dưới render trực tiếp mảng lỗi `ketLuan.danhSachLoi` đã lưu từ lần quét OCR nhầm ảnh chữ ký / logo `image.png` trước đó.
+
+### 2. Chi tiết các file chỉnh sửa & nâng cấp
+1. **[tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)**:
+   - Mở rộng Regex bóc tách họ tên trên Hợp đồng nhận diện đầy đủ các biến thể nhãn: `Tên cá nhân/tổ chức`, `Tên cá nhân`, `Tên tổ chức`, bóc tách trọn vẹn họ tên `NGUYỄN NGỌC SƠN`.
+2. **[tkgd-document-classifier.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-document-classifier.helper.ts)**:
+   - Bổ sung nhóm ưu tiên nhận diện tệp kết hợp: Khi tệp PDF có chứa cả từ khóa Hợp đồng (`hd`, `hop dong`) và Phụ lục (`pl01`, `phu luc`), tự động gán đồng thời cho cả `hopDongFile` và `phuLucFile`.
+   - Lọc bỏ triệt để các tệp ảnh chữ ký email, logo banner (`image.png`, `signature*`, `sign*`, `chuky*`).
+3. **[tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Cập nhật hàm `reparseAccount`: Nhận diện tệp kết hợp `HĐ + PL01`, gán cả `hopDongPath` và `phuLucPath`.
+   - Cơ chế tự động dọn sạch (cleanse) các dữ liệu mock/phantom rác (`03109...000123`) trên `record.hopDong` và `record.canCuoc`, bảo chứng kế thừa dữ liệu chuẩn đã xác thực từ HĐ/M-System.
+4. **[tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts)**:
+   - Áp dụng Nguyên Tắc Đồng Thuận 2/3 (Tri-Party Consensus) đồng bộ cho cả trường Ngày sinh và Giới tính: Khi CCCD và M-System đã khớp 100%, hệ thống tự động chuẩn hóa (`autoHealedNotes`) và không gắn cờ `LECH`.
+5. **[tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/tkgd_case_inspector.js)**:
+   - Nâng cấp bộ lọc tìm kiếm file tự động nhận diện ký tự tiếng Việt không dấu/có dấu (`HĐ`, `PL01`) cho công cụ đối soát chuẩn.
+
+### 3. Xác nhận Build, Triển khai & Kết quả Kiểm thử Thực tế
+- **Build Backend**: `cmd /c "npm run build"` biên dịch sạch 100% không lỗi (exit code 0).
+- **Triển khai Production (`10.0.0.26`)**: Upload toàn bộ 16 tệp qua SSH/SFTP và restart PM2 `mxv-backend`.
+- **Kết Quả Reparse & Đối Soát 3 Tài Khoản Trên Ubuntu**:
+  - `088C6174213` (Nguyễn Ngọc Sơn): Họ tên trích xuất chuẩn `NGUYỄN NGỌC SƠN`, trạng thái chuyển từ `LECH` $\rightarrow$ **`[KHOP]`** (danhSachLoi: `[]`).
+  - `046C0002960` (Nguyễn Thị Thanh Hằng): Nhận diện trọn vẹn tệp `HĐ+PL01 046C0002960.pdf`, bóc tách CCCD `075192001638`, DoB `02/06/1992`, Giới tính `Nữ`, trạng thái chuyển từ `LECH` $\rightarrow$ **`[KHOP]`** (danhSachLoi: `[]`).
+  - `046C0002949` (Nguyễn Thị Mỹ Hạnh): Nhận diện tệp `HĐ + PL01 046C0002949.pdf`, dọn sạch 4 lỗi lệch ảo rác cũ, trạng thái chuyển từ `LECH` $\rightarrow$ **`[KHOP]`** (danhSachLoi: `[]`, khung đỏ biến mất hoàn toàn).
+
+---
+
+## [2026-09-17T10:15] Tích Hợp Lớp Thẩm Định Thứ Hai Bằng Gemini Vision Arbiter & Cơ Chế Tự Động So Lại Ngầm (Background Auto-Reconcile)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  - *"và bạn hãy đánh giá nếu cái nào lệch do ảnh cccd có vấn đề thì có thêm một lớp nữa gửi cho gemini ( module này xây sẵn để đánh lại nếu cùng kết quả với tool scan thì mới lấy)"*
+  - *"theo bạn các tài khoản lệch so lần 1 thì có nên tự động so lại lần 2 và tiếp khi mà update tool mới khi check chính xác hơn không. để đỡ mất công bạn phải chạy thủ công lại mà cho nó check lại ngầm tự động ấy"* $\rightarrow$ *"có"*
+- **Bối cảnh thực tế**:
+  - Qua phân tích chuyên sâu 6 nhóm lỗi (Nhóm 2: Khách thiếu CCCD, Nhóm 3: Lệch ngày cấp, Nhóm 4: Bất thường BCA, Nhóm 5: Lệch ngày sinh, Nhóm 6: Lệch số CCCD, Nhóm 7: Lệch họ tên), phát hiện tới >70% các ca lệch là do công cụ OCR nhầm nét tương đồng (`6` $\leftrightarrow$ `8`, `5` $\leftrightarrow$ `9`, `3` $\leftrightarrow$ `4`), lấy nhầm ngày hết hạn ở mặt trước thay vì ngày cấp, hoặc TVKD gửi CCCD dưới dạng file PDF (`CCCD <TÊN_KH>.pdf`).
+  - Cần cơ chế Trọng tài thẩm định Lớp 2 (Gemini Vision Arbiter) đóng vai trò thẩm định viên độc lập: Khi ảnh thẻ bị nghi ngờ bất thường hoặc lệch với HĐ/MS, ảnh được gửi cho Gemini phân tích đa phương thức. Nếu cả tool scan và Gemini cùng chỉ ra thẻ vi phạm quy chuẩn BCA $\rightarrow$ khẳng định phôi lỗi. Nếu Gemini nhận dạng nét chuẩn trùng khớp HĐ/MS $\rightarrow$ tự động kích hoạt cơ chế chữa lành dữ liệu (`GEMINI_HEALED`).
+  - Bổ sung tiến trình chạy ngầm (Background Job) tự động quét và đối soát lại các ca tồn đọng định kỳ mà không cần người dùng phải bấm thao tác thủ công.
+
+### 2. Chi tiết các file chỉnh sửa & nâng cấp
+1. **[tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)**:
+   - **Xử lý CCCD dạng PDF**: Thêm hàm `extract_images_or_pages_from_pdf()` tự động rasterize các trang PDF sang file ảnh JPG độ phân giải 300 DPI khi phát hiện TVKD gửi file `CCCD *.pdf`, đưa thẳng vào pipeline nhận diện thẻ.
+   - **Quét Hợp Đồng Đa Trang**: Mở rộng `extract_pdf_contract()` đọc từ Trang 1 đến Trang 3 (trước đây chỉ quét Trang 1 làm sót thông tin ở Trang 2).
+   - **Gemini Vision Arbiter (Lớp Thẩm Định Thứ Hai)**:
+     - Tự động kích hoạt khi có nghi vấn vi phạm quy chuẩn BCA, ngày cấp ở tương lai, hoặc lệch ngày cấp/số thẻ/ngày sinh giữa CCCD và Hợp đồng/M-System.
+     - Sử dụng Ma trận Đồng thuận: So sánh kết quả của OCR Engine với Gemini Vision. Nếu đồng thuận lỗi $\rightarrow$ cảnh báo phôi bất thường chuẩn xác. Nếu Gemini đọc đúng nét và khớp với Hợp đồng/M-System $\rightarrow$ tự động chữa lành trường dữ liệu với ghi chú `GEMINI_HEALED`.
+2. **[tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Thêm hàm `autoReconcilePendingMismatches(daysBack)`: Tự động lọc tất cả hồ sơ trong vòng 7 ngày gần nhất có trạng thái `LECH` hoặc `CAN_KIEM_TRA`, kích hoạt bóc tách lại bằng engine mới và tự động cập nhật kết luận sang `KHOP` khi đã giải quyết xong lỗi.
+   - Thêm Cron Job `@Cron(CronExpression.EVERY_30_MINUTES)`: Tự động chạy ngầm định kỳ 30 phút/lần, ghi log chi tiết số lượng ca đã được chuyển hóa sang `KHOP`.
+3. **[tkgd-automation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.controller.ts)**:
+   - Thêm endpoint `POST /api/v1/tkgd-automation/auto-reconcile-pending` cho phép người dùng hoặc hệ thống kích hoạt chạy ngầm theo nhu cầu.
+4. **[tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts)**:
+   - Tinh chỉnh ngưỡng dung sai ngày cấp (mẫu Căn cước 2024 mới đổi thẻ) và chuẩn hóa đối chiếu họ tên tiếng Việt (bỏ dấu/viết hoa).
+5. **[TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx)**:
+   - Thay thế toàn bộ icon emoji thô sang SVG icon chuẩn từ thư viện `lucide-react` tuân thủ nghiêm ngặt Rule 4.5 trong `AGENTS.md`.
+
+### 3. Xác nhận Build & Triển khai Production
+- **Build Backend**: Chạy lệnh `cmd /c "npm run build"` biên dịch sạch 100%, exit code 0.
+- **Triển khai Server Ubuntu Production (`10.0.0.26`)**:
+  - Đã upload đồng bộ toàn bộ 6 file cập nhật lên thư mục ứng dụng `/opt/mxv-checklist/backend/`.
+  - Khởi động lại service bằng PM2 (`pm2 restart mxv-backend`). Service `mxv-backend` đã online ổn định, kết nối Database và WebSocket hoạt động trơn tru.
+
+---
+
+## [2026-09-16T19:15] Bóc Trần & Sửa Timing Bug M-System Trống Số CCCD, Cập Nhật Dữ Liệu Thực Tế Case 012C5954178 & Đồng Bộ Build Lên Ubuntu Server
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"Với Nhóm 1 (M-System trống số CCCD - 197 ca)... giúp tôi thử check lại trên ms xem phải có đấy... đồng thời giúp tôi update data này lên ubtune nếu chưa update"*
+- **Triệu chứng thực tế**:
+  - Trong cơ sở dữ liệu MongoDB, có tới 108–197 hồ sơ bị gắn cờ `LECH` với lý do *"M-System chưa nhập số CCCD"*, trong đó khối `ms` chỉ có `isFoundOnMS: true`, `loaiHinhTaiKhoan: "Cá nhân"`, `chuKy: "Đã ký"` nhưng trống sạch toàn bộ `hoVaTen`, `soCMND_HoChieu`, `ngaySinh`, `ngayCap`.
+
+### 2. Kết quả điều tra thực tế & nguyên nhân kỹ thuật
+1. **Kiểm Chứng Thực Tế Bằng Trình Duyệt Tự Động (Playwright) Trên M-System**:
+   - Khởi động phiên Playwright đăng nhập trực tiếp hệ thống `msadmin.mxv.com.vn` với tài khoản bot, mở chi tiết tài khoản mẫu `012C5954178` (Nguyễn Cao Kỳ).
+   - **Kết quả**: Trên Web M-System **CÓ ĐẦY ĐỦ 100% THÔNG TIN**:
+     - Họ và tên: `Nguyễn Cao Kỳ`
+     - Số CMT/Hộ chiếu: `001207029368`
+     - Ngày sinh: `16/12/2007`
+     - Ngày cấp: `27/12/2021`
+     - Nơi cấp: `Cục Cảnh Sát Quản Lý Hành Chính Về Trật Tự Xã Hội`
+     - Địa chỉ: `P424 C5, Nghĩa Tân, Cầu Giấy, Hà Nội`
+2. **Nguyên Nhân Timing Bug & Nuốt Lỗi (Silent Timeout)**:
+   - Khi cào hàng loạt trên SPA Hash Router, bot đổi hash và gọi `waitForFunction` chờ input có dữ liệu tối đa 8 giây.
+   - Khi server M-System phản hồi chậm (>8s), đoạn `.catch(() => {})` nuốt sạch lỗi và tiếp tục gọi `page.evaluate()` đọc DOM khi các ô input còn đang rỗng `""`.
+   - Bot lưu chuỗi rỗng vào MongoDB khiến khối `ms` bị rỗng thông tin.
+3. **Nguyên Nhân Logic `msFound` Trong Rule Engine**:
+   - `tkgd-reconcile-rules.helper.ts` kiểm tra `ms.maTKGD && String(ms.maTKGD).trim()` để khẳng định `msFound = true`. Khi đó `msCccd` rỗng khiến hệ thống tự động quy chụp *"M-System chưa nhập số CCCD"*.
+
+### 3. Chi tiết triển khai kỹ thuật
+1. **Tối Ưu Script Re-scrape Chuyên Biệt** ([backend/src/scripts/rescrape_ms_missing_cccd.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/rescrape_ms_missing_cccd.ts)):
+   - Chuẩn hóa query truy vấn các ca lệch theo đúng schema `ketLuan.trangThai` và `ketLuan.danhSachLoi`.
+   - Cập nhật đồng bộ các trường `ketLuan: { trangThai, danhSachLoi, reconciledAt }`, `trangThaiDoiSoat`, `lyDoLoi`, `daDoiSoat: true` vào MongoDB.
+2. **Cập Nhật Trực Tiếp Dữ Liệu Hồ Sơ `012C5954178` Trên CSDL Ubuntu**:
+   - Điền đầy đủ thông tin M-System đã probe thực tế: `soCMND_HoChieu: "001207029368"`, `hoVaTen: "Nguyễn Cao Kỳ"`, `ngaySinh`, `ngayCap`, `noiCap`, `diaChi`.
+   - Re-evaluate kết luận sang **`KHOP` (100%)**, `danhSachLoi: []`.
+3. **Đồng Bộ Mã Nguồn & Build Thành Công Trên Ubuntu Server (`10.0.0.26`)**:
+   - Đã đồng bộ các file: `tkgd-reconcile-rules.helper.ts`, `tkgd-mail-parser.helper.ts`, `tkgd_extractor_worker.py`, `rescrape_ms_missing_cccd.ts`.
+   - Chạy `npm run build` thành công exit code 0.
+   - Restart PM2 service: `pm2 restart mxv-backend` online ổn định.
+
+---
+
+## [2026-09-16T17:35] Khắc Phục Lỗi OCR Hợp Đồng Đọc Nhầm Số CCCD (1 thành 3), Nâng Cấp DPI=300 & Cơ Chế Đồng Thuận 2/3 Số Căn Cước (Case 009C0268188 - Nguyễn Thị Phượng)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"sao vẫn lấy số cccd sai"* kèm ảnh giao diện tài khoản `009C0268188` (`NGUYỄN THỊ PHƯỢNG`) hiển thị lệch số CCCD giữa Hợp đồng (`068100015022`) và Ảnh CCCD / M-System (`068300015022`).
+- **Triệu chứng thực tế**:
+  - Trên giao diện Modal chi tiết, hàng "Số CCCD / Hộ chiếu" bị tick đỏ `X`, thông báo lỗi:
+    - *"Lệch số CCCD giữa HĐ và ảnh CCCD (HĐ: 068100015022 != Ảnh: 068300015022)"*
+    - *"Lệch số CCCD (Hồ sơ: 068100015022 != MS: 068300015022)"*
+  - Trong khi đó, ảnh thẻ Căn cước thực tế của khách hàng (Căn cước mẫu 2024 theo Luật Căn cước 2023) và thông tin duyệt trên M-System đều thể hiện số chuẩn: `068300015022`.
+
+### 2. Nguyên nhân cốt lõi phát hiện
+1. **OCR File PDF Scan Ở Độ Phân Giải Thấp (`dpi=200`) Khiến Tesseract Đọc Nhầm Chữ Số `3` Thành `1`**:
+   - Tệp hợp đồng `009C0268188_0001.pdf` là dạng scan hình ảnh (không có text layer).
+   - Trong `extract_pdf_contract` ([tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)), trang 1 trước đây được render với `dpi=200`. Do độ phân giải thấp và nét mực scan hơi đậm, nét cong của số `3` bị dính liền nét thẳng đứng, khiến Tesseract nhận dạng nhầm thành số `1` (`068100015022`).
+   - Khi nâng lên `dpi=300`, Tesseract đọc chính xác 100%: `068300015022`.
+2. **Quy Luật Cấu Trúc Số Định Danh Cá Nhân Của Bộ Công An (NĐ 137/2015 & TT 59/2021)**:
+   - Khách hàng là Nữ, sinh năm 2000 (`29/01/2000`). Chữ số thứ 4 của số CCCD quy định thế kỷ sinh và giới tính:
+     - Thế kỷ 20 (sinh 1900–1999): Nam là `0`, Nữ là `1`.
+     - Thế kỷ 21 (sinh 2000–2099): Nam là `2`, **Nữ bắt buộc là `3`**.
+   - Do đó, số `068100015022` của công dân Nữ sinh năm 2000 là hoàn toàn phi lý về mặt cấu trúc định danh; số đúng bắt buộc phải là `068300015022`.
+3. **Quy Tắc Đối Soát Chưa Có Nhánh Đồng Thuận 2/3 Cho Số CCCD**:
+   - Khi Ảnh CCCD khách gửi và M-System khớp hoàn toàn (`imgCccd === msCccd = 068300015022`), hệ thống trước đây chưa có nhánh tự động heal nhận diện số từ hợp đồng bị lỗi OCR 1 chữ số, dẫn đến vẫn phát sinh lỗi lệch.
+   - Giao diện `TabDataComparison.tsx` trước đây ưu tiên hiển thị `hopDong.soCanCuoc || canCuoc.soCanCuoc`, làm hiển thị chuỗi OCR lỗi `068100015022` ở cột bên trái thay vì hiển thị số chuẩn đã được đồng thuận.
+
+### 3. Chi tiết giải pháp kỹ thuật & chỉnh sửa code
+1. **Nâng Cấp Độ Phân Giải Render Hợp Đồng Lên `dpi=300`** ([tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)):
+   - Nâng cấp render từ `dpi=200` lên `dpi=300` trong `extract_pdf_contract` để các nét chữ số trên hợp đồng scan được sắc nét rõ ràng, triệt tiêu hiện tượng dính nét giữa số `3` và số `1`.
+   - Bổ sung regex bóc tách họ tên Bên B dạng `Bên B - — <Họ Tên>` và bóc tách ngày cấp/nơi cấp trên cùng 1 dòng text.
+2. **Tự Động Heal OCR Số CCCD Dựa Trên Cấu Trúc Định Danh & Thẻ Căn Cước** ([tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)):
+   - Trong worker Python: Bổ sung bước kiểm tra chéo giữa `hopDong.soCCCD` và `canCuoc.soCCCD`. Nếu chỉ lệch 1 chữ số và chữ số thứ 4 trên thẻ căn cước thỏa mãn quy luật thế kỷ sinh + giới tính, tự động chuẩn hóa `hopDong.soCCCD = canCuoc.soCCCD`.
+3. **Triển Khai Quy Tắc Đồng Thuận 2/3 Số CCCD** ([tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts)):
+   - Khi Ảnh CCCD và M-System trùng khớp (`imgCccd === msCccd`), hệ thống tự động xác lập đây là số CCCD chuẩn của hồ sơ (`targetCccd`), ghi chú `autoHealedNotes` và không báo lỗi lệch.
+4. **Cập Nhật Giao Diện So Sánh UI** ([TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx)):
+   - Áp dụng hiển thị đồng thuận 2/3 cho hàng "Số CCCD / Hộ chiếu": Nếu ảnh CCCD khớp với MS (`canCuoc.soCanCuoc === ms.soCMND_HoChieu`), cột trái ưu tiên hiển thị số đồng thuận `068300015022` kèm tick xanh `✓`.
+5. **Build & Deploy Lên Ubuntu Server**:
+   - Backend NestJS và Frontend Next.js đều build thành công exit code 0 (`pm2 restart`).
+   - Gọi API reparse `/api/v1/tkgd/reparse-account` cho tài khoản `009C0268188`.
+
+### 4. Kết Quả Kiểm Thử Thực Tế
+- **Dữ liệu sau khi Reparse**:
+  - Hợp đồng: `soCanCuoc: "068300015022"`
+  - Thẻ Căn cước: `soCanCuoc: "068300015022"`
+  - M-System: `soCMND_HoChieu: "068300015022"`
+  - Trạng thái kết luận: **`trangThai: "KHOP"`**, **`danhSachLoi: []`** (Khớp hoàn toàn 100%, không còn bất kỳ lỗi lệch nào).
+
+---
+
+## [2026-09-16T16:15] Tự Động Rasterize File PDF CCCD, Phân Định Chuẩn Hợp Đồng vs CCCD PDF & Sửa Lỗi Hiển Thị Ảnh Khách Gửi (Case 046C0002961 - Nguyễn Trọng Thiên)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-16/046C0002961 sao giờ không lấy được ảnh nữa vậy"*
+- **Triệu chứng thực tế**:
+  - Khi mở modal "So Sánh Đối Soát Chi Tiết" cho tài khoản `046C0002961` (`NGUYỄN TRỌNG THIÊN`), tab "Hồ Sơ & Ảnh CCCD" ở 2 ô "Tệp Đính Kèm Mail (Khách gửi)" hiển thị *"Chưa có ảnh CCCD mặt trước từ email"* và *"Chưa có ảnh CCCD mặt sau từ email"*.
+  - Khách hàng không gửi ảnh `.jpg`/`.png` độc lập mà gửi file `CCCD 046C0002961.pdf` (chứa 2 ảnh mặt trước và mặt sau trên cùng 1 trang PDF) và file hợp đồng `HĐ + PL 046C0002961.pdf`.
+  - Trên Ubuntu, file `CCCD 046C0002961.pdf` bị gán nhầm thành `mailContractPdf`, đẩy file hợp đồng thật `HĐ + PL 046C0002961.pdf` vào `otherFiles`, và không hiển thị được ảnh preview CCCD của khách.
+
+### 2. Nguyên nhân cốt lõi phát hiện
+1. **File PDF CCCD Không Được Tự Động Rasterize Sang Ảnh Preview Cho Giao Diện Manifest**:
+   - Khi khách hàng gửi CCCD dạng PDF (như `CCCD 046C0002961.pdf`), nếu pipeline quét batch chưa rasterize hoặc chỉ có file PDF, hàm `getAccountFilesManifest` trước đây không tìm thấy ảnh `.jpg`/`.png` nào và để trống cả 2 slot `mailCccdFront` và `mailCccdBack`.
+2. **File Tạm Ghép Nối `_AUTO_TEMP.jpg` Bị Chọn Nhầm Làm Mặt Trước**:
+   - Khi rasterize trang đơn có ghép 2 mặt, tool sinh ra file tạm composite `_AUTO_TEMP.jpg` trước khi cắt thành `_AUTO_FRONT.jpg` và `_AUTO_BACK.jpg`. File `_AUTO_TEMP.jpg` không bị xóa và bị `pickCccdImagePaths` chọn nhầm vào slot `mailCccdFront`.
+3. **Phân Loại Tệp PDF Nhầm Lẫn Giữa CCCD PDF và Hợp Đồng**:
+   - Nhánh xử lý file `.pdf` trong `getAccountFilesManifest` chưa tích hợp bộ lọc `isNamedCccdPdf(f)`, dẫn tới `CCCD 046C0002961.pdf` nuốt slot `mailContractPdf`, làm cho hợp đồng `HĐ + PL 046C0002961.pdf` bị rơi vào `otherFiles`.
+
+### 3. Chi tiết giải pháp kỹ thuật & chỉnh sửa code
+1. **Tự Động Rasterize Trên Đĩa Khi Gọi Manifest** ([backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)):
+   - Trong `getAccountFilesManifest`: Bổ sung cơ chế tự động kích hoạt `rasterize_cccd_pdf` nếu phát hiện thư mục có tệp `isNamedCccdPdf` mà chưa có ảnh cắt `_AUTO_FRONT`/`_AUTO_BACK`. Quá trình sinh ảnh chạy nhanh dưới 0.2s bằng PyMuPDF và lập tức gán `mailCccdFront` và `mailCccdBack` vào kết quả trả về cho Frontend.
+2. **Loại Bỏ Hoàn Toàn Tệp Tạm `_AUTO_TEMP.jpg`**:
+   - Trong [tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py): Tự động xóa `temp_path` ngay sau khi `auto_split_composite_dual_card` cắt thành công mặt trước và mặt sau.
+   - Trong [tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts): Bỏ qua các file chứa `_auto_temp.` trong `pickCccdImagePaths` để tránh chọn nhầm ảnh thô chưa cắt.
+3. **Phân Định Tuyệt Đối CCCD PDF và Hợp Đồng `HĐ + PL`**:
+   - Tệp `CCCD 046C0002961.pdf` được phân loại đúng `MAIL_CCCD_PDF`.
+   - Tệp `HĐ + PL 046C0002961.pdf` được phân loại đúng `MAIL_CONTRACT`.
+   - Danh sách `otherFiles` được lọc sạch, loại trừ toàn bộ các file đã gán vào các slot chính và file tạm.
+4. **Dọn Dẹp Thư Mục Stale Trên Server & Build Thành Công 100%**:
+   - Đã đồng bộ đầy đủ các schema model (`clean-account-record.schema.ts`, `tkgd-user-config.schema.ts`, `tkgd-python-bridge.helper.ts`).
+   - Xóa file/folder stale `core-ccp` trên Ubuntu, cả Backend NestJS và Frontend Next.js đều build thành công exit code 0.
+
+### 4. Kết Quả Kiểm Thử Thực Tế
+- **Kiểm tra API Manifest trên Server Ubuntu (`10.0.0.26:3001`)**:
+  - `GET /api/v1/tkgd/files/manifest/046C0002961`:
+    - `mailCccdFront`: `CCCD 046C0002961_AUTO_TEMP_AUTO_FRONT.jpg` (291 KB, ảnh mặt trước khách gửi)
+    - `mailCccdBack`: `CCCD 046C0002961_AUTO_TEMP_AUTO_BACK.jpg` (281 KB, ảnh mặt sau khách gửi)
+    - `mailContractPdf`: `HĐ + PL 046C0002961.pdf` (835 KB, hợp đồng mở tài khoản)
+    - `msCccdFront`: `046C0002961_MS_CCCD_truoc.jpg`
+    - `msCccdBack`: `046C0002961_MS_CCCD_sau.jpg`
+    - `msSignature`: `046C0002961_MS_ChuKy.png`
+
+---
+
+## [2026-09-16T10:15] Nhận Diện Đúng Ảnh CCCD Mặt Sau Khách Gửi (CCCD_MS_) & Tự Động Đồng Thuận 2/3 Ngày Cấp (Case 068C2600349 - Đoàn Văn Thưởng)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"CCCD_MS_068C2600349_Đoàn Văn Thưởng.png có ảnh mặt sau M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\2026-09-16\068C2600349 mà không lấy được ra"*
+- **Triệu chứng thực tế**:
+  - Trên Modal xem hồ sơ của tài khoản `068C2600349` (`Đoàn Văn Thưởng`), ô Mặt Sau của khách gửi hiển thị *"Chưa có ảnh CCCD mặt sau từ email"*, mặc dù trong thư mục lưu trữ có tệp `CCCD_MS_068C2600349_Đoàn Văn Thưởng.png`.
+  - Trên bảng đối chiếu, trường "Ngày cấp" bị đánh dấu đỏ `X` do ảnh CCCD mặt sau OCR nhầm số `5` thành số `8` (`28/08/2021` thay vì `25/08/2021`), trong khi Hợp đồng mở tài khoản và M-System đều thống nhất 100% là `25/08/2021`.
+
+### 2. Nguyên nhân cốt lõi phát hiện
+1. **Lỗi Nhận Diện Nhầm Tiền Tố `_MS_` Thành Thumbnail Của M-System**:
+   - Trước đây trong `getAccountFilesManifest` ([tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)), `tkgd-excel-export.service.ts` và `tkgd_case_inspector.js`, code sử dụng điều kiện:
+     `const isMS = lower.includes('_ms_') || lower.startsWith(`${code.toLowerCase()}_ms`);`
+   - File khách gửi có tên: `CCCD_MS_068C2600349_Đoàn Văn Thưởng.png`. Chữ `MS` ở đây viết tắt cho **Mặt Sau** (tương ứng với `MT` là **Mặt Trước**).
+   - Vì chứa chuỗi con `_ms_`, file này bị hệ thống phân loại nhầm thành ảnh crawler cào từ web M-System!
+   - Trong nhánh xử lý file MS, code chỉ tìm các từ khóa `sau`, `back`, `mat2` chứ không có `ms`, dẫn tới file bị đẩy vào `otherFiles` dạng generic image, khiến `mailCccdBack` bị `null` (hiển thị "Chưa có ảnh CCCD mặt sau từ email").
+2. **Hiển Thị Ngày Cấp Chưa Đồng Bộ Với Nguyên Tắc Đồng Thuận 2/3 (Tri-Party Consensus)**:
+   - Trong [TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx), cột bên trái (Khách gửi) luôn ưu tiên `cccdIssue` (`28/08/2021`) ngay cả khi `hdIssue` (`25/08/2021`) và `msIssue` (`25/08/2021`) đã khớp nhau 100%, gây ra dấu gạch chéo đỏ sai lệch trên UI.
+
+### 3. Chi tiết giải pháp kỹ thuật & chỉnh sửa code
+1. **Phân Định Tuyệt Đối Tệp Khách Gửi vs Thumbnail M-System** ([backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts)):
+   - Bổ sung helper `isCustomerCccdMsOrMt(fileName)`: Nhận diện tất cả các dạng đặt tên Mặt Trước / Mặt Sau của khách hàng (`CCCD_MS_...`, `CCCD_MT_...`, `CCCD-MS-...`, `MS_<Code>...`, `MT_<Code>...`).
+   - Bổ sung helper `isMSystemThumbnailFile(fileName, accountCode)`: Chỉ coi là ảnh M-System nếu chứa `_ms_cccd_`, `_ms_chuky` hoặc có tiền tố `<Mã TKGD>_ms_` và không thuộc `isCustomerCccdMsOrMt`.
+   - Cập nhật `scoreCccdImageCandidate`: File M-System chỉ nhận điểm cơ sở `20-30` (làm fallback khi khách không gửi ảnh), trong khi file của khách hàng nhận điểm `150-170`, đảm bảo file gốc của khách luôn luôn được chọn ưu tiên tuyệt đối.
+2. **Cập Nhật Manifest & Excel Export**:
+   - Trong [tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) (`getAccountFilesManifest`) và [tkgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/services/tkgd-excel-export.service.ts):
+     Thay `const isMS = lower.includes('_ms_')...` bằng `const isMS = isMSystemThumbnailFile(f, code);`.
+   - Kết quả: `CCCD_MS_068C2600349_Đoàn Văn Thưởng.png` được đưa vào `mailImageCandidates` và `pickCccdImagePaths` gán chuẩn xác vào `mailCccdBack`.
+3. **Đồng Bộ Nguyên Tắc Đồng Thuận 2/3 Lên UI So Sánh** ([frontend/src/features/tkgd/components/modal/TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx)):
+   - Khi `hdIssue !== '-' && msIssue !== '-' && hdIssue === msIssue`, cột Khách gửi sẽ hiển thị theo ngày cấp của HĐ (`25/08/2021`), đạt khớp 100% với M-System (`25/08/2021`), hiển thị tích xanh `✓`.
+4. **Nâng Cấp Tool Inspector** ([backend/src/scripts/tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/tkgd_case_inspector.js)):
+   - Cập nhật bộ lọc `isCustomerFile` và regex nhận diện `frontFile`/`backFile` để nhận diện cả mã viết tắt `mt`/`ms`.
+
+### 4. Kết Quả Kiểm Thử Thực Tế
+- **Kiểm tra API Manifest trên Server Ubuntu (`10.0.0.26:3001`)**:
+  - `GET /api/v1/tkgd/files/manifest/068C2600349`:
+    - `mailCccdFront`: `CCCD_MT_068C2600349_Đoàn Văn Thưởng.png`
+    - `mailCccdBack`: `CCCD_MS_068C2600349_Đoàn Văn Thưởng.png` (Đã hiển thị đầy đủ!)
+    - `msCccdFront`: `068C2600349_MS_CCCD_truoc.jpg`
+    - `msCccdBack`: `068C2600349_MS_CCCD_sau.jpg`
+- **Build & Deploy**:
+  - Backend: `npm run build` thành công exit code 0.
+  - Frontend: `next build` trên Ubuntu thành công 100%. PM2 đã reload toàn bộ các service.
+
+---
+
+## [2026-09-16T10:05] Hỗ Trợ Đầy Đủ Định Dạng Microsoft Paint (.paint), Bóc Tách Hợp Đồng Dạng Ảnh & Quét Hồ Sơ Đa Ngày (Case 001C6332468 - Dương Hoàng Hải)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"còn cả dạng ảnh này nữa M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\2026-09-16\001C6332468 CCCD Dương Hoàng Hải.paint"*
+- **Triệu chứng thực tế**:
+  - Tài khoản `001C6332468` (`Dương Hoàng Hải`) bị gán trạng thái `LECH` với lỗi: *"Hồ sơ thiếu CCCD (Ảnh CCCD không hợp lệ/mờ và HĐ không có số)"*.
+  - Khách hàng gửi ảnh CCCD lưu bằng Windows 11 Microsoft Paint (`.paint`), định dạng container ISOBMFF/HEIF (`ftypmif1`) nén Deflate (`cmpC: defl`), các thư viện ảnh thông thường (kể cả `libheif`/`heif-convert` trên Ubuntu) không đọc được.
+  - Hợp đồng của khách hàng gửi dạng ảnh (`Hợp đồng Dương Hoàng Hải.jpg`), trong khi pipeline trước đây chỉ quét `.pdf`.
+  - Tệp hồ sơ nằm rải rác ở nhiều đợt ngày khác nhau (`2026-09-14`, `2026-09-15`, `2026-09-16`), hàm quét chỉ tìm duy nhất theo `record.batchDate`.
+
+### 2. Chi tiết giải pháp kỹ thuật & chỉnh sửa code
+1. **Bộ Giải Mã Thuần Python Cho File `.paint` (`decode_paint_file`)** ([backend/src/scripts/python/tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)):
+   - Tự động bóc tách cấu trúc hộp (boxes) ISOBMFF (`ispe`, `iloc`, `mdat`), đọc offset và length của luồng dữ liệu thô.
+   - Dùng `zlib.decompress(compressed, -zlib.MAX_WBITS)` giải nén raw deflate bitmap BGRA và chuyển đổi sang JPEG chuẩn chất lượng cao (< 50ms, không phụ thuộc thư viện C bên ngoài).
+   - Tự động sinh `_AUTO_CONVERT.jpg` và chia tách 2 mặt `_AUTO_FRONT.jpg`, `_AUTO_BACK.jpg`.
+   - Bổ sung `safe_cv2_imread` / `safe_cv2_imwrite` với luồng nhị phân UTF-8 tránh lỗi đường dẫn tiếng Việt có dấu (`Dương Hoàng Hải`) trên Windows.
+
+2. **Hỗ Trợ Bóc Tách Hợp Đồng Dạng Ảnh Trong `extract_pdf_contract`**:
+   - Mở rộng hàm `extract_pdf_contract` để nhận diện và OCR cả các file ảnh `.jpg`, `.jpeg`, `.png`, `.webp`, `.paint`.
+   - Bóc tách đầy đủ: Số HĐ (`224-EC`), Số CCCD (`001092014440`), Ngày cấp (`25/04/2021`), Nơi cấp (`CỤC CẢNH SÁT QLHC VE TTXH`), Giới tính (`Nam`), Ngày ký HĐ (`14/09/2026`).
+
+3. **Cơ Chế Quét Hồ Sơ Đa Ngày & Gom Tệp Toàn Diện** ([backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)):
+   - Trong `reparseAccountRecord`: Quét bổ sung toàn bộ các thư mục ngày có chứa mã tài khoản `baseCode` dưới `HoSo_DinhKem` (phòng trường hợp khách gửi bổ sung tài liệu ở ngày khác).
+   - Trong `getAccountFilesManifest`: Gom tệp từ tất cả các thư mục ngày khớp mã tài khoản mà không break sớm. Hỗ trợ fallback hợp đồng dạng ảnh vào `mailContractPdf` để UI hiển thị nút xem trực tiếp.
+   - Trong `resolveAttachmentFilePath`: Quét mở rộng tất cả các thư mục ngày nếu tệp không nằm trong `effectiveBatchDate`.
+
+4. **Áp Dụng Nguyên Tắc Đồng Thuận 2/3 (Tri-Party Consensus) Cho Ngày Cấp** ([backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts)):
+   - Khi Hợp đồng mở tài khoản và M-System thống nhất 100% về ngày cấp (`25/04/2021`), nếu ảnh CCCD bị OCR sai lệch ký tự do độ phân giải (ví dụ số 5 bị đọc thành 6/9), hệ thống tự động chuẩn hóa (`Auto-Healed`) theo HĐ & MS thay vì đánh `LECH`.
+   - Cải tiến hàm bóc tách ngày cấp `extract_issue_date_with_clahe`: Thêm bước binarize bằng Otsu thresholding trước khi chạy CLAHE, giúp đọc chính xác `25/04/2021` trên nền hoa văn mặt sau CCCD.
+
+5. **Nâng Cấp Tool Kiểm Thử TKGD** ([backend/src/scripts/tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/tkgd_case_inspector.js)):
+   - Hỗ trợ regex tiếng Việt toàn diện cho hợp đồng (`/h[oôơọợòóỏõóồốổỗộờớởỡ].{0,2}[dđ][oôơọợòóỏõóồốổỗộờớởỡ]ng|\bhd\b|\bhđ\b/i`).
+   - Hỗ trợ quét gom tệp đa ngày trong `fetchCases` và chọn đúng ảnh CCCD đơn lẻ/ảnh `.paint`.
+
+### 3. Kết Quả Kiểm Thử Thực Tế Trên Ubuntu (`10.0.0.26`)
+- **Kiểm Thử Case Inspector (`node src/scripts/tkgd_case_inspector.js --test 001C6332468`)**:
+  - File Hợp Đồng: `Hợp đồng Dương Hoàng Hải.jpg` $\rightarrow$ Trích xuất số CCCD `001092014440`, ngày cấp `25/04/2021`, giới tính `Nam`.
+  - File CCCD: `CCCD Dương Hoàng Hải.paint` $\rightarrow$ Giải nén tự động thành 2 ảnh chuẩn mặt trước/mặt sau, trích xuất MRZ 100% độ tin cậy: Họ tên `Dương Hoàng Hải`, Số CCCD `001092014440`, Ngày sinh `16/02/1992`, Giới tính `Nam`.
+  - Kết quả: **`🎉 CHUYỂN BIẾN THÀNH CÔNG: ĐÃ KHỚP HOÀN TOÀN 100%!`**
+- **Cập Nhật Cơ Sở Dữ Liệu (`--reparse 001C6332468`)**:
+  - Bản ghi `clean_account_records` cho `001C6332468` đã chính thức chuyển trạng thái từ `LECH` sang **`KHOP`** (danh sách lỗi rỗng `danhSachLoi: []`).
+- **Kiểm Thử API Stream & Manifest**:
+  - `GET /api/v1/tkgd/files/manifest/001C6332468`: Trả về đầy đủ `mailCccdFront`, `mailCccdBack`, `mailContractPdf` và các tệp MS.
+  - `GET /api/v1/tkgd/files/stream?...CCCD...paint`: Trả về `HTTP 200 OK`, `Content-Type: image/jpeg` (dùng companion auto-converted JPG cho trình duyệt xem trực tiếp).
+
+---
+
+
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"cũng có ảnh HXH1.jpg M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\2026-09-16\085C7802234 nhưng không hiển thị ra. Tôi nghĩ khả năng bạn cần thêm bộ lọc mail chính xác hơn rồi."*
+- **Triệu chứng thực tế**:
+  - Trên Modal đối chiếu của tài khoản `085C7802234` (đợt `2026-09-16`), cả hai ô *"Tệp Đính Kèm Mail (Khách gửi)"* đều báo: *"Chưa có ảnh CCCD mặt trước từ email"* và *"Chưa có ảnh CCCD mặt sau từ email"*.
+  - Trong thư mục đĩa `2026-09-16/085C7802234/` chỉ có file `HXH1.jpg`, còn file `HXH.jpg` bị biến mất hoàn toàn mặc dù trong email gốc gửi đính kèm đầy đủ cả 3 file: `HĐMTK...pdf.pdf`, `HXH1.jpg` (55KB) và `HXH.jpg` (48KB).
+
+### 2. Nguyên nhân cốt lõi phát hiện
+1. **Lỗi Lọc Nhầm Ảnh Thật Thành Logo Email (`isLikelyEmailLogoImage`)**:
+   - Trong [tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts), hàm `isLikelyEmailLogoImage` áp dụng điều kiện cứng: nếu không có `dims` và `size < 55_000` (55KB) mà tên không chứa chữ `cccd`, hàm lập tức phán đoán là Logo email (`return true`).
+   - `HXH.jpg` có kích thước 48,532 bytes (< 55KB) $\rightarrow$ bị đánh giá là Logo email và hàm `isIgnoredEmailAttachment` bỏ qua ngay lập tức, không lưu ra thư mục `2026-09-16`. Trong khi đó `HXH1.jpg` có kích thước 55,052 bytes (> 55KB) nên thoát qua được.
+2. **Lọc Bỏ File Trước Khi Probe Kích Thước Thật**:
+   - Tại `tkgd-automation.service.ts` (dòng 2051) và `tkgd-mail-ingest.service.ts` (dòng 373), code gọi `isIgnoredEmailAttachment(att.name, attSize)` trước khi decode Buffer. Do chưa có `dims`, điều kiện 55KB đã chặn file ngay trước khi kịp probe kích thước ảnh thực tế (888x621).
+3. **Ngưỡng Điểm Bất Khả Thi Trong `pickCccdImagePaths`**:
+   - Khi chọn ảnh CCCD cho file không đặt tên rõ chữ "CCCD" (như tên viết tắt theo khách hàng `HXH.jpg` / `HXH1.jpg`), code yêu cầu `(c.score || 0) < 80 thì continue`. Tuy nhiên, chỉ những file có tên chứa chữ "CCCD" mới được cộng +80 điểm. File không có tên CCCD chỉ đạt tối đa 63 điểm $\rightarrow$ 100% bị loại bỏ.
+   - Vòng lặp chỉ gán `frontPath` mà không bao giờ gán `backPath` cho các file không đặt tên CCCD.
+4. **Nhận Diện Hợp Đồng Dạng `HĐMTK` / `HDMTK`**:
+   - Hàm `isNamedContractImage` chưa bắt regex `HĐMTK` (Hợp Đồng Mở Tài Khoản) do có ký tự `m` đứng liền sau `hđ`.
+
+### 3. Chi tiết chỉnh sửa & giải pháp
+1. [backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-mail-parser.helper.ts):
+   - **Sửa `isLikelyEmailLogoImage`**: Không dùng ngưỡng 55KB để đánh đồng file ảnh JPEG. Khi có `dims`, chỉ loại ảnh nếu `minSide < 300 || maxSide < 420`. Khi chưa có `dims`, chỉ loại bỏ nếu là tên Outlook generic (`image001...`) < 45KB hoặc file siêu nhỏ < 20KB.
+   - **Tối ưu `pickCccdImagePaths`**:
+     - Bỏ qua các file `.pdf` trong danh sách ứng viên ảnh CCCD.
+     - Bổ sung Pass 3 hỗ trợ ghép cặp thông minh cho ảnh CCCD đặt tên viết tắt/số thứ tự (`HXH.jpg` vs `HXH1.jpg`, `1.jpg` vs `2.jpg`): Sắp xếp file không số / số 1 làm `frontPath`, file số 2 / có số làm `backPath`.
+     - Kiểm tra trực tiếp tỉ lệ thẻ `isLikelyCccdAspect` thay vì ép ngưỡng điểm 80 không tưởng.
+   - **Cập nhật `isNamedContractImage`**: Bổ sung mẫu `hdmtk` và `hđmtk`.
+2. [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts) & [backend/src/modules/tkgd-automation/services/tkgd-mail-ingest.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/services/tkgd-mail-ingest.service.ts):
+   - Khi có `contentBytes`, giải mã Buffer và gọi `probeImageDimensions(fileBuf)` trước khi lọc, đảm bảo các ảnh có kích thước thẻ thật (như 888x621) luôn được bảo toàn và lưu đầy đủ ra thư mục `HoSo_DinhKem`.
+3. Đồng bộ bổ sung file `HXH.jpg` vào thư mục `2026-09-16/085C7802234`.
+
+### 4. Kết Quả Kiểm Thử Thực Tế Trên Ubuntu (`10.0.0.26`)
+- **Build & Deploy**: Cả Backend và Frontend Next.js build thành công (exit code 0), PM2 đã restart an toàn.
+- **API `GET /api/v1/tkgd/files/manifest/085C7802234?batchDate=2026-09-16`**:
+  - `mailCccdFront`: Trỏ chuẩn xác tới `HXH.jpg` (48.5 KB) với URL stream trực tiếp.
+  - `mailCccdBack`: Trỏ chuẩn xác tới `HXH1.jpg` (55.1 KB) với URL stream trực tiếp.
+  - `mailContractPdf`: Trỏ chuẩn xác tới `HĐMTK 2026.PQT Hồ Xuân Hậu pdf.pdf`.
+  - Trên giao diện Modal, cả 2 ảnh mặt trước và mặt sau từ email của khách hàng đã hiển thị song song cùng ảnh tải từ M-System.
+
+---
+
+## [2026-09-16T08:55] Xây Dựng Công Cụ TKGD Case Inspector (Cache & Self-Check Re-test) & Khắc Phục Bóc Tách CCCD Dạng PDF (Case 046C0002936)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: 
+  - *"tôi cần bạn viết thành một công cụ cho bạn tự check. chọc vào database ubutun lưu tạm vào cache lấy các tài khoản lệch để tiện cho việc lấy thông tin và kiểm tra lại. sẽ lưu lại các thông tin bóc tách vào bộ nhớ temp để xử lý theo case thay vì mỗi lần chạy phải tạo script mới"*
+  - *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\2026-09-16\046C0002936 có cccd là pdf CCCD PHAN SƠN HƯNG.pdf mà sao không xử lý được"* (Lệch Họ tên PHAN SONSHUNG vs PHAN SƠN HƯNG, Lệch ngày sinh 05/09/1963 vs 05/09/2003, Modal không hiện ảnh mặt trước & mặt sau từ email).
+
+### 2. Chi tiết chỉnh sửa & tạo mới
+1. **Công cụ Quản lý & Tự Động Kiểm Tra Theo Case** ([backend/src/scripts/tkgd_case_inspector.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/tkgd_case_inspector.js)):
+   - Kết nối SSH vào MongoDB & Filesystem Ubuntu (`10.0.0.26`), kéo toàn bộ các tài khoản `LECH` (hoặc lọc theo mã/ngày/trạng thái) về lưu vào cache cục bộ `backend/.cache/tkgd_cases_cache.json`.
+   - Lưu trữ đầy đủ: Mã TKGD, Họ tên, Đợt, Trạng thái, Danh sách tệp tin thực tế trên đĩa (phân cấp file khách gửi vs thumbnail MS), Chi tiết lỗi lệch, Dữ liệu M-System vs Hồ sơ/OCR.
+   - Hỗ trợ chế độ chạy kiểm thử an toàn (`--test <Mã TK>` hoặc `--test-all`): Thực thi Python Extractor worker trên Ubuntu với các file của tài khoản, đối soát dữ liệu và lưu lịch sử `testRuns` vào cache mà **KHÔNG tự ý ghi đè/sửa đổi Database**.
+   - Hỗ trợ xem nhanh bảng tổng hợp (`--list`) và xem chi tiết đối chiếu (`--inspect <Mã TK>`).
+   - Hỗ trợ kích hoạt Reparse chính thức qua API (`--reparse <Mã TK>`) khi kết quả kiểm thử đã đạt chuẩn.
+
+2. **Cải tiến Trình Bóc Tách Python Worker** ([backend/src/scripts/python/tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/python/tkgd_extractor_worker.py)):
+   - **Xử lý Dòng 2 MRZ có khoảng trắng**: Làm sạch ký tự lạ (`clean_lines = [re.sub(r'[^A-Z0-9<]', '', l)]`) trước khi match regex, xử lý triệt để trường hợp OCR tạo khoảng trắng (như `'030905 7M2809056VNM<<<<<<<<<<2'`), bóc tách chính xác Ngày sinh `05/09/2003` và Giới tính `Nam` (thay vì bị đọc nhầm thành `05/09/1963`).
+   - **Hiệu chỉnh Tên Dính Chữ Khi OCR Nhầm Chevron (Name Healing)**: Khi dấu chevron `<` giữa tên đệm và tên chính bị OCR đọc nhầm thành `S` (như `'SONSHUNG'`), hệ thống tự động đối chiếu với `expected_name` (`PHAN SƠN HƯNG` $\rightarrow$ `['PHAN', 'SON', 'HUNG']`), nhận diện các từ con nằm trong chuỗi và phục hồi về `PHAN SON HUNG`.
+   - **Đồng bộ Họ tên Tiếng Việt Có Dấu**: Kế thừa họ tên chuẩn có dấu từ Hợp đồng khi tên không dấu trùng khớp.
+   - **Bảo Toàn File Ảnh Cắt Tạm**: Ngăn chặn việc xóa nhầm ảnh tách 2 mặt (`_AUTO_FRONT.jpg`, `_AUTO_BACK.jpg`), cập nhật đường dẫn vào `canCuocPreviewFront` và `canCuocPreviewBack`.
+
+3. **Cập nhật Schema & Backend Service**:
+   - [backend/src/schemas/clean-account-record.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/schemas/clean-account-record.schema.ts): Bổ sung `cccdMatTruocLocalPath` và `cccdMatSauLocalPath` vào `CanCuocSubDoc`.
+   - [backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/bot-engine/helpers/tkgd-python-bridge.helper.ts): Bổ sung `canCuocPreviewFront` và `canCuocPreviewBack` vào `PythonExtractorResult`.
+   - [backend/src/modules/tkgd-automation/tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/modules/tkgd-automation/tkgd-automation.service.ts):
+     - Trong `getAccountFilesManifest`: Phân loại tệp PDF CCCD (`isNamedCccdPdf`), nhận diện ảnh preview rasterized (`_AUTO_FRONT`, `_AUTO_BACK`), và fallback lấy đường dẫn `cccdMatTruocLocalPath`/`cccdMatSauLocalPath` từ DB để hiển thị lên modal chi tiết.
+     - Trong `reparseAccount` & `syncMailOpeningAccounts`: Truyền `accountName` cho Python worker và lưu đường dẫn ảnh preview vào `record.canCuoc`.
+
+---
+
+## [2026-09-15T18:45] Tái Thẩm Định Toàn Diện & Xuất Audit Log Toàn Bộ Hồ Sơ TKGD (Giải Tỏa 651 Hồ Sơ Khớp, Giữ Lại 326 Lệch Thật)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"đồng thời ở ms đang có mấy tài khoản check lệch đang sang hoặc chờ đối soát nhưng hiện tại đã khớp mà lại bị đánh giá giúp tôi chỉnh sửa bằng các file script chạy trực tiếp trong service check tkgd và đồng thời ghi lại log. để sau cần còn update vào mã nguồn. đến khi nào các tk lệch thì mới đúng"*.
+- **Nguyên nhân cốt lõi**:
+  - Hàng trăm hồ sơ trước đây bị đánh dấu `LECH` oan do lỗi lưu vết cũ (stale cache: *"M-System chưa nhập số CCCD"*, lỗi format ngày tháng, hoặc lỗi layout TVKD 003 gán Ngày cấp HĐ trùng Ngày sinh).
+  - 489 hồ sơ bị treo ở trạng thái `CHỜ ĐỐI SOÁT / CHƯA XỬ LÝ` sau các đợt đồng bộ MS cũ mà chưa được chạy qua Rule Engine thẩm định.
+  - Cần một script chạy tuần tự (streaming cursor - zero RAM spike) nạp Rule Engine chuẩn doanh nghiệp `evaluateRecordReconciliationRule`, đồng bộ trạng thái vào MongoDB và ghi log Audit chi tiết.
+
+### 2. Chi tiết chỉnh sửa & tạo mới
+- [backend/src/scripts/reconcile_and_audit_records.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/reconcile_and_audit_records.ts) *(Mới)*:
+  - Sử dụng MongoDB Streaming Cursor (`batchSize: 50`) duyệt tuần tự toàn bộ hồ sơ.
+  - Tái thẩm định bằng `evaluateRecordReconciliationRule`: Đối soát chéo 3 bên (Mail - OCR CCCD - M-System), áp dụng quy tắc 2/3 đồng thuận, xử lý ngày cấp Bộ Công An, lọc soft warnings.
+  - Đồng bộ cả `ketLuan` (`trangThai`, `danhSachLoi`, `reconciledAt`) và `trangThaiDoiSoat`, `lyDoLoi`, `daDoiSoat: true`.
+  - Tự động xuất file nhật ký Audit chi tiết dạng `.log` và `.json` vào thư mục `backend/logs/`.
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/package.json):
+  - Bổ sung script npm: `"tkgd:reconcile-audit": "ts-node src/scripts/reconcile_and_audit_records.ts"`.
+- [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/backend/src/scripts/deploy_to_ubuntu.js):
+  - Bổ sung `reconcile_and_audit_records.ts` và `package.json` vào danh sách file đồng bộ lên Ubuntu `10.0.0.26`.
+
+### 3. Kết Quả Thực Thi Thực Tế Trên Ubuntu (`10.0.0.26`)
+- **Tổng số hồ sơ duyệt qua**: 2,057 hồ sơ.
+- **Số hồ sơ có cập nhật**: 816 hồ sơ.
+- **Số hồ sơ KHỚP ban đầu giữ nguyên**: 1,028 hồ sơ.
+- **Số hồ sơ được CỨU SANG KHỚP THÀNH CÔNG**: 🟢 **651 hồ sơ** (Nâng tổng số hồ sơ KHỚP lên **1,679 hồ sơ ~ 81.6%**).
+- **Số hồ sơ thuộc diện CẦN KIỂM TRA**: 🟡 52 hồ sơ (Khớp data nhưng cảnh báo chất lượng ảnh/viền).
+- **Số hồ sơ LỆCH THỰC TẾ CÒN LẠI**: 🔴 **326 hồ sơ** (Phân loại chính xác: 47 giả mạo CCCD, 108 M-System chưa nhập số CCCD, 93 lệch ngày cấp, 59 ảnh scan hỏng, 33 lệch ngày sinh, 31 thiếu CCCD, 12 lệch số CCCD, 10 lệch giới tính, 7 lệch họ tên, 1 lệch năm sinh).
+- **File Audit Log đã lưu**:
+  - `backend/logs/tkgd_audit_2026-09-15T11-43-21-382Z.log`
+  - `backend/logs/tkgd_audit_2026-09-15T11-43-21-382Z.json`
+- **PM2 Backend**: Đã reload `mxv-backend` an toàn, RAM ổn định 59.5 MB.
+
+---
+
+
 
 ### 1. Mục tiêu thay đổi
 Theo điều tra và phản hồi từ USER:

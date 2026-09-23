@@ -1,0 +1,18 @@
+const { Client } = require('ssh2');
+const fs = require('fs');
+const path = require('path');
+
+const conn = new Client();
+conn.on('ready', () => {
+  conn.sftp((err, sftp) => {
+    const localPy = path.resolve(__dirname, 'inspect_046.py');
+    const remotePy = '/tmp/inspect_046.py';
+    sftp.writeFile(remotePy, fs.readFileSync(localPy), (err) => {
+      conn.exec('python3 /tmp/inspect_046.py', (err, stream) => {
+        stream.on('data', (d) => process.stdout.write(d.toString()));
+        stream.stderr.on('data', (d) => process.stderr.write(d.toString()));
+        stream.on('close', () => conn.end());
+      });
+    });
+  });
+}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });

@@ -42,7 +42,9 @@
     "test:email-filter": "ts-node src/test-email-filter.ts",
     "test:ccp-download": "ts-node src/test-ccp-download.ts",
     "test:acm": "ts-node src/tests/test-acm-download.ts",
-    "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
+    "start:sftp": "ts-node src/scripts/run-mock-sftp.ts",
+    "tkgd:reconcile-audit": "ts-node src/scripts/reconcile_and_audit_records.ts",
+    "tkgd:case-inspector": "node src/scripts/tkgd_case_inspector.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

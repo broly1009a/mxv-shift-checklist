@@ -17,6 +17,7 @@ import {
   isNamedCccdFront,
   isNamedCccdBack,
   probeImageDimensions,
+  isMSystemThumbnailFile,
 } from '../../bot-engine/helpers/tkgd-mail-parser.helper';
 
 @Injectable()
@@ -179,7 +180,7 @@ export class TkgdExcelExportService {
       }
       if (isIgnoredEmailAttachment(f, fileSize)) continue;
       const lower = f.toLowerCase();
-      const isMS = lower.includes('_ms_') || lower.startsWith(`${code.toLowerCase()}_ms`);
+      const isMS = isMSystemThumbnailFile(f, code);
 
       if (lower.endsWith('.pdf')) {
         if (lower.includes('pl01') || lower.includes('phuluc') || lower.includes('-pl')) {

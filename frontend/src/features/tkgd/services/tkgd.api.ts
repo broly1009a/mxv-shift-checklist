@@ -287,6 +287,67 @@ export const tkgdApi = {
     }
     return res.json();
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DEV REMEDIATION (CÔNG CỤ KỸ THUẬT KHẮC PHỤC BUG)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async startDevRemediation(
+    payload: {
+      accountCodes?: string[];
+      targetAllAnomalies?: boolean;
+      options?: {
+        crawlMSystem?: boolean;
+        reparseOcr?: boolean;
+        reconcileRules?: boolean;
+        batchDate?: string;
+      };
+    },
+    token?: string | null,
+    userEmail?: string,
+  ): Promise<{ sessionId: string }> {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/dev/remediate/start`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Không thể khởi động phiên tái xử lý');
+    }
+    return res.json();
+  },
+
+  async getDevRemediationStatus(
+    sessionId: string,
+    token?: string | null,
+    userEmail?: string,
+  ) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/dev/remediate/status/${encodeURIComponent(sessionId)}`, {
+      headers: getHeaders(token, userEmail),
+    });
+    if (!res.ok) {
+      throw new Error('Không thể lấy trạng thái phiên tái xử lý');
+    }
+    return res.json();
+  },
+
+  async downloadAnomaliesExcel(batchDate?: string, token?: string | null, userEmail?: string) {
+    const url = `${API_BASE_URL}/api/v1/tkgd/dev/export-anomalies${batchDate ? `?batchDate=${encodeURIComponent(batchDate)}` : ''}`;
+    const res = await fetch(url, { headers: getHeaders(token, userEmail) });
+    if (!res.ok) {
+      throw new Error('Không thể xuất file danh sách tài khoản lỗi');
+    }
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `TKGD_Danh_Sach_Loi_${batchDate || 'All'}_${Date.now()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+  },
 };
 
 
