@@ -229,7 +229,7 @@ Vị trí cột mới nằm giữa cột **Nano** và cột **Chênh lệch / Tr
 | **3** | **Trạng thái tất toán (TTTT)**| `85` | `85` | `-` | `-` | **`85`** *(hoặc spinner)* | `KHỚP TẤT TOÁN` |
 
 ### 5.2. Nguyên Tắc Thiết Kế Tuân Thủ `AGENTS.md`
-1. **Tuyệt đối không dùng Unicode Emoji thô (`📁`, `💡`, `⚡`, ``, `🟢`...)**:
+1. **Tuyệt đối không dùng Unicode Emoji thô (`📁`, `💡`, ``, ``, `🟢`...)**:
    - Sử dụng icon SVG chuẩn từ thư viện **`lucide-react`**:
      - Header cột CoreCCP: `<ShieldCheck size={15} className="text-purple-500" />`
      - Trạng thái đang tải: `<Loader2 size={14} className="animate-spin text-purple-400" />`

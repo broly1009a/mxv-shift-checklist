@@ -33,7 +33,7 @@ Hiện tại, màn hình `/admin/bot-config` đang quản lý 9 tab chức năng
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                       CẤU HÌNH HỆ THỐNG RPA & ROBOT (/admin/bot-config)                                          │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [Top Bar]: 🟢 Agent Online (vps-trading-01 | Linux)   [📅 Ngày phiên: 14/09/2026 ▼]   [⚡ Pipeline: Tải & Chạy Thống Kê] [🔄 Làm mới]  │
+│ [Top Bar]: 🟢 Agent Online (vps-trading-01 | Linux)   [📅 Ngày phiên: 14/09/2026 ▼]   [ Pipeline: Tải & Chạy Thống Kê] [🔄 Làm mới]  │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ [Tabs]:                                                                                                                          │
 │ 1. Trung tâm Tải & File Matrix (Mới) | 2. Thống kê Lot & Giá trị | 3. Đối chiếu & GTT | 4. Backup & Macro | 5. Kết nối | 6. Queue (2)│
@@ -46,7 +46,7 @@ Hiện tại, màn hình `/admin/bot-config` đang quản lý 9 tab chức năng
 │ │   [✓] DSGD.xlsx (2.4 MB - 04:31)                       │ │ [X] Tải bộ báo cáo CoreCCP (DSGD, TTM, TTTT, Tỷ giá)            │ │
 │ │   [✓] TTM.xlsx (1.1 MB - 04:31)                        │ │ [X] Tải bộ báo cáo Đối chiếu (NKTTHT, QLTKGD, NR, Markettruoc6h) │ │
 │ │   [✓] TTTT.xlsx (850 KB - 04:32)                       │ │                                                                  │ │
-│ │ • CQG Reports (4/4 Sẵn sàng):                          │ │ [📥 Bắt đầu Tải Báo Cáo]    [⚡ Tải & Tự Động Thống Kê CoreCCP]  │ │
+│ │ • CQG Reports (4/4 Sẵn sàng):                          │ │ [📥 Bắt đầu Tải Báo Cáo]    [ Tải & Tự Động Thống Kê CoreCCP]  │ │
 │ │   [✓] FR1 + FR2 (Đã gộp FR.xlsx)                       │ │                                                                  │ │
 │ │   [✓] PS1 + PS2 (Đã gộp PS.xlsx)                       │ │ ---------------------------------------------------------------- │ │
 │ │ • CoreCCP Reference Files:                             │ │ 📤 KÉO THẢ UPLOAD BỔ SUNG FILE (NẾU MẠNG LỖI)                    │ │
@@ -56,7 +56,7 @@ Hiện tại, màn hình `/admin/bot-config` đang quản lý 9 tab chức năng
 │ └────────────────────────────────────────────────────────┘ └──────────────────────────────────────────────────────────────────┘ │
 │                                                                                                                                  │
 │ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
-│ │ ⚡ TIẾN TRÌNH & HÀNG ĐỢI JOBS GẦN NHẤT (JOB QUEUE STREAM)                                                                      │ │
+│ │  TIẾN TRÌNH & HÀNG ĐỢI JOBS GẦN NHẤT (JOB QUEUE STREAM)                                                                      │ │
 │ │ [Job #66e4a] RPA_DOWNLOAD_REPORTS | Status: COMPLETED | 14/14 Files downloaded | Execution time: 42s                         │ │
 │ │ [Job #66e4b] CORECCP_LOT_STATISTICS | Status: COMPLETED | 2 Lots | 336,441,600 VND | Output: ThongKe_14.09.2026.xlsx         │ │
 │ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │

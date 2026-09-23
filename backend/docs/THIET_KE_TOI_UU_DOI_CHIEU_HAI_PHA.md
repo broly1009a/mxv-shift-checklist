@@ -76,7 +76,7 @@ Tại phiên chạy lúc **11:18 - 11:23 ngày 15/09/2026**, hệ thống phát 
    - Thời điểm khớp lệnh thực tế trên sàn CBOT: **`11:19:43.628`**.
 3. **Nhật ký Playwright Bot Runner**:
    - `[11:19:43.551]  Đạt ngưỡng timeout rào cản (50s). Kích hoạt xuất dữ liệu cho các nguồn đã sẵn sàng...`
-   - `[11:19:43.551] MS ⚡ [Pha 2] Kích hoạt xuất DSGD.xlsx...`
+   - `[11:19:43.551] MS  [Pha 2] Kích hoạt xuất DSGD.xlsx...`
    - `[11:19:57.636] CQG CQG1 đã đăng nhập và sẵn sàng xuất FR1. Chờ rào cản đồng bộ...`
 
 #### B. Phân Tích Bản Chất Sai Lệch Toán Học:
@@ -194,7 +194,7 @@ Click Xuất M-System         Click Xuất ACM                 Click Xuất Core
     1. Không phát tín hiệu `barrierTriggerResolve()`.
     2. Kích hoạt Abort Controller: đóng sạch toàn bộ 4 trình duyệt ngay lập tức.
     3. Không để CQG mất thêm 2.5 phút tải vô ích.
-    4. Ghi log cảnh báo: `❌ Dừng quy trình đối soát do nguồn [ACM] không thể tải dữ liệu tươi (${err.message}). Tránh phát sinh chênh lệch giả do dữ liệu cũ.`
+    4. Ghi log cảnh báo: ` Dừng quy trình đối soát do nguồn [ACM] không thể tải dữ liệu tươi (${err.message}). Tránh phát sinh chênh lệch giả do dữ liệu cũ.`
   - **Tính linh hoạt (Toggleability)**: Nếu người dùng muốn quay lại cơ chế chịu lỗi cũ để đối chiếu tạm thời, **chỉ cần đổi `REQUIRE_ALL_SOURCES_FRESH = false`**, code sẽ chạy lại 100% như ban đầu.
 
 ---

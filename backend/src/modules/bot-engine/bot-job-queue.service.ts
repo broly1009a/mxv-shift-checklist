@@ -298,6 +298,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             this.logger.log(
               `[QUEUE_GUARD] Đã hủy Job ${job.jobType} (${job._id}) do ca trực ${shiftLogId} đã chốt.`,
             );
+            this.shiftsGateway.emitJobStatusUpdated(job._id.toString(), {
+              status: 'CANCELLED',
+              jobType: job.jobType,
+              shiftLogId,
+              taskId,
+              error: job.error,
+              logs: job.logs,
+            });
             this.isProcessing = false;
             return;
           }
@@ -326,6 +334,14 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               this.logger.log(
                 `[QUEUE_GUARD] Đã hủy Job audit ${job.jobType} (${job._id}) do tác vụ [${taskId}] đã hoàn thành.`,
               );
+              this.shiftsGateway.emitJobStatusUpdated(job._id.toString(), {
+                status: 'CANCELLED',
+                jobType: job.jobType,
+                shiftLogId,
+                taskId,
+                error: job.error,
+                logs: job.logs,
+              });
               this.isProcessing = false;
               return;
             }
@@ -379,6 +395,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             await this.botJobModel.updateOne(
               { _id: job._id },
               { $set: { logs: job.logs } },
+            );
+            this.shiftsGateway.emitJobLogUpdated(
+              job._id.toString(),
+              job.logs,
+              'PROCESSING',
             );
           } catch {
             // Chạy nền an toàn: Bỏ qua lỗi tạm thời, không làm gián đoạn Job
@@ -832,8 +853,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           taskId,
         },
       );
+      this.shiftsGateway.emitJobStatusUpdated(job._id.toString(), {
+        status,
+        jobType: job.jobType,
+        shiftLogId,
+        taskId,
+        result: payload?.result,
+        error: job.error,
+        logs: job.logs,
+      });
       this.logger.log(
-        `Emitted dashboard-updated WS event for job ${job._id} (${status})`,
+        `Emitted dashboard-updated & job-status-updated WS event for job ${job._id} (${status})`,
       );
     } catch (err: any) {
       this.logger.error(`Lỗi phát sự kiện Realtime WebSocket: ${err.message}`);
@@ -971,6 +1001,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   async scanAcmBackupFiles(backupPath: string, targetDate: Date = new Date()) {
     return this.fileAuditHandler.scanAcmBackupFiles(backupPath, targetDate);
+  }
+
+  async scanCcpBackupFiles(backupPath: string, targetDate: Date = new Date()) {
+    return this.fileAuditHandler.scanCcpBackupFiles(backupPath, targetDate);
   }
 
   async getJobForTask(

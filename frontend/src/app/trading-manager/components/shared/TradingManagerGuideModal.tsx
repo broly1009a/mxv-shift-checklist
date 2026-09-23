@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   BookOpen,
@@ -30,24 +31,36 @@ export default function TradingManagerGuideModal({
   isOpen,
   onClose,
 }: TradingManagerGuideModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [guideTab, setGuideTab] = useState<'WORKFLOW' | 'FORMULAS' | 'ORDER_TYPES' | 'ALL_TABS'>('WORKFLOW');
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  return (
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
+      onClick={onClose}
       style={{
         position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(6px)',
-        zIndex: 9999,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(9, 14, 26, 0.75)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        zIndex: 999999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '20px',
+        boxSizing: 'border-box',
       }}
-      onClick={onClose}
     >
       <div
         className="glass-panel"
@@ -596,6 +609,7 @@ export default function TradingManagerGuideModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

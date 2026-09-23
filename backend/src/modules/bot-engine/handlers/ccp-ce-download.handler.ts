@@ -81,18 +81,23 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     }
 
     // outputDir: ưu tiên payload -> credentials DB -> thư mục ca trực theo ngày
-    let rawOutputDir: string = payload.outputDir || creds.outputDir;
-    if (!rawOutputDir || rawOutputDir === 'backupCCP' || rawOutputDir === 'backupCE') {
+    let baseDir: string = payload.outputDir || creds.outputDir;
+    if (!baseDir || baseDir === 'backupCCP' || baseDir === 'backupCE') {
       const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
       const defaultSettingPath = isCcp
         ? 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'
         : 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
-      const baseSetting = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
-      const [sY, sM, sD] = startDate.includes('-')
-        ? startDate.split('-')
-        : startDate.split('/').reverse();
-      const subFolder = path.join(sY, `T${sM}.${sY}`, `${sD}.${sM}`);
-      rawOutputDir = path.join(baseSetting, subFolder);
+      baseDir = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
+    }
+
+    const [sY, sM, sD] = startDate.includes('-')
+      ? startDate.split('-')
+      : startDate.split('/').reverse();
+    const subFolder = path.join(sY, `T${sM}.${sY}`, `${sD}.${sM}`);
+
+    let rawOutputDir = baseDir;
+    if (!/\d{2}\.\d{2}$/.test(rawOutputDir.trim())) {
+      rawOutputDir = path.join(baseDir, subFolder);
     }
     const outputDir: string = resolveStoragePathCrossPlatform(rawOutputDir);
     if (!fs.existsSync(outputDir)) {
@@ -129,7 +134,15 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     if (Array.isArray(reports) && reports.length > 0) {
       // payload.reports có thể là string[] (mã code) hoặc CcpReportConfig[]
       if (typeof reports[0] === 'string') {
-        const codes = (reports as unknown as string[]).map((c) => c.toUpperCase());
+        const REPORT_CODE_ALIASES: Record<string, string> = {
+          TTM_BEFORE_420: 'TTM_PRE1620',
+          QLTTTKGD_BEFORE_420: 'QLTTTKGD_PRE1620',
+          DSTKGD_ACM: 'DSTKGD',
+        };
+        const codes = (reports as unknown as string[]).map((c) => {
+          const upper = String(c || '').trim().toUpperCase();
+          return REPORT_CODE_ALIASES[upper] || upper;
+        });
         resolvedReports = defaultReports.filter((r) =>
           codes.includes(r.code.toUpperCase()),
         );
@@ -142,15 +155,22 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     // ─── Thực thi tải báo cáo ──────────────────────────────────────────────
     let success = false;
     try {
-      success = await this.ccpCeDownloaderService.run({
-        systemUrl: creds.url,
-        username: creds.username,
-        password: creds.password,
-        startDate,
-        endDate,
-        outputDir,
-        reports: resolvedReports,
-      });
+      success = await this.ccpCeDownloaderService.run(
+        {
+          systemUrl: creds.url,
+          username: creds.username,
+          password: creds.password,
+          startDate,
+          endDate,
+          outputDir,
+          reports: resolvedReports,
+        },
+        async (msg: string) => {
+          job.logs = job.logs || [];
+          job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+          await job.save().catch(() => {});
+        },
+      );
     } catch (err: any) {
       job.logs.push(
         `${logPrefix} [${systemLabel}] LỖI khi tải báo cáo: ${err?.message || String(err)}`,

@@ -26,12 +26,20 @@ export interface CcpReportConfig {
   parentMenu: string;
   /** Tên menu con cần click */
   childMenu: string;
-  /** Tab cần chuyển sang (ví dụ TTTT: "Lịch sử tất toán") */
+  /** Nhóm con cấp 2 (ví dụ: Tra cứu tổng hợp) */
+  subGroup?: string;
+  /** Tab cần chuyển sang (ví dụ TTTT: "Lịch sử tất toán", DSL: "Lệnh đã khớp") */
   tabName?: string;
   /** URL trực tiếp đã học — dùng để điều hướng nhanh; rỗng = phải click menu */
   cachedUrl?: string;
   /** Bật/tắt báo cáo này trong lần chạy */
   enabled: boolean;
+  /** Giai đoạn chạy: PRE_1620 (trước 16h20) | EOD (cuối ngày) | BOTH */
+  phase?: 'PRE_1620' | 'EOD' | 'BOTH';
+  /** Tên file xuất ra khớp chuẩn 100% với tên Maker lưu trữ */
+  outputFileName?: string;
+  /** Mã hàng hóa (dành riêng cho các file Hợp đồng) */
+  commodityCode?: string;
 }
 
 export interface DateInterval {
@@ -68,75 +76,334 @@ export interface CcpRunOptions {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Báo cáo mặc định — chỉ định nghĩa NĂNG LỰC (capabilities), không hardcode URL DB
+// Báo cáo mặc định — 25 BÁO CÁO THỰC TẾ HÀNG NGÀY CỦA MAKER (VNCLEAR CORECCP)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
+  // ── 1. NHÓM LỆNH THƯỜNG (/ORDERS/ORDERBOOK) ────────────────────────────────
   {
-    code: 'EOD',
-    name: 'Kết quả EOD',
-    parentMenu: 'Vận hành',
-    childMenu: 'Kết quả EOD',
-    cachedUrl: '/EOD/ACCTMARGIN_HIST',
+    code: 'DSL',
+    name: 'Danh sách lệnh (Tất cả)',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh',
+    tabName: 'Tất cả',
+    cachedUrl: '/ORDERS/ORDERBOOK',
     enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSL CCP.xlsx',
   },
   {
-    code: 'QLTTTKGD',
-    name: 'Quản lý trạng thái TKGD',
+    code: 'DSLDK',
+    name: 'Danh sách lệnh đã khớp',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh',
+    tabName: 'Lệnh đã khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLDK CCP.xlsx',
+  },
+  {
+    code: 'DSLCK',
+    name: 'Danh sách lệnh chờ khớp',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh',
+    tabName: 'Lệnh chờ khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLCK CCP.xlsx',
+  },
+  {
+    code: 'DSLDH',
+    name: 'Danh sách lệnh đã hủy',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh',
+    tabName: 'Lệnh đã hủy',
+    cachedUrl: '/ORDERS/ORDERBOOK',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLDH CCP.xlsx',
+  },
+  {
+    code: 'DSGD',
+    name: 'Danh sách giao dịch',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách giao dịch',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSGD CCP.xlsx',
+  },
+
+  // ── 2. NHÓM LỆNH MARKET MAKER (/ORDERS/ORDERBOOK_MM) ───────────────────────
+  {
+    code: 'DSL_MM',
+    name: 'Danh sách lệnh MM (Tất cả)',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh MM',
+    tabName: 'Tất cả',
+    cachedUrl: '/ORDERS/ORDERBOOK_MM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSL MM CCP.xlsx',
+  },
+  {
+    code: 'DSLDK_MM',
+    name: 'Danh sách lệnh MM đã khớp',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh MM',
+    tabName: 'Lệnh đã khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK_MM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLDK MM CCP.xlsx',
+  },
+  {
+    code: 'DSLCK_MM',
+    name: 'Danh sách lệnh MM chờ khớp',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh MM',
+    tabName: 'Lệnh chờ khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK_MM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLCK MM CCP.xlsx',
+  },
+  {
+    code: 'DSLDH_MM',
+    name: 'Danh sách lệnh MM đã hủy',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách lệnh MM',
+    tabName: 'Lệnh đã hủy',
+    cachedUrl: '/ORDERS/ORDERBOOK_MM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLDH MM CCP.xlsx',
+  },
+  {
+    code: 'DSGD_MM',
+    name: 'Danh sách giao dịch MM',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Danh sách giao dịch MM',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL_MM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSGD MM CCP.xlsx',
+  },
+
+  // ── 3. NHÓM VỊ THẾ & LÃI LỖ ───────────────────────────────────────────────
+  {
+    code: 'TTM_PRE1620',
+    name: 'Trạng thái mở trước 16h20',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Trạng thái mở',
+    cachedUrl: '/ORDERS/OPEN_POSITION',
+    enabled: true,
+    phase: 'PRE_1620',
+    outputFileName: 'TTM truoc 4h20.xlsx',
+  },
+  {
+    code: 'TTM',
+    name: 'Trạng thái mở cuối ngày',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Trạng thái mở',
+    cachedUrl: '/ORDERS/OPEN_POSITION',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'TTM CCP.xlsx',
+  },
+  {
+    code: 'TTTT',
+    name: 'Trạng thái tất toán vị thế',
+    parentMenu: 'Lệnh và vị thế',
+    subGroup: 'Tra cứu tổng hợp',
+    childMenu: 'Trạng thái tất toán',
+    tabName: 'Lịch sử tất toán',
+    cachedUrl: '/ORDERS/PNL_EXECUTED',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'TTTT.xlsx',
+  },
+
+  // ── 4. NHÓM RỦI RO & KÝ QUỸ ───────────────────────────────────────────────
+  {
+    code: 'QLTTTKGD_PRE1620',
+    name: 'Quản lý trạng thái TKGD trước 16h20',
     parentMenu: 'Quản lý rủi ro',
     childMenu: 'Quản lý trạng thái TKGD',
     tabName: 'Danh sách trạng thái TKGD',
     cachedUrl: '/RISKMNG/ACCTMARGIN_ALL',
     enabled: true,
+    phase: 'PRE_1620',
+    outputFileName: 'QL TT TKGD truoc 4h20.xlsx',
   },
+  {
+    code: 'QLTTTKGD',
+    name: 'Quản lý trạng thái TKGD cuối ngày',
+    parentMenu: 'Quản lý rủi ro',
+    childMenu: 'Quản lý trạng thái TKGD',
+    tabName: 'Danh sách trạng thái TKGD',
+    cachedUrl: '/RISKMNG/ACCTMARGIN_ALL',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'QL TT TKGD.xlsx',
+  },
+  {
+    code: 'QLTTTVKD',
+    name: 'Quản lý trạng thái TKTVKD',
+    parentMenu: 'Quản lý rủi ro',
+    childMenu: 'Quản lý trạng thái TKGD',
+    tabName: 'Danh sách trạng thái TKTVKD',
+    cachedUrl: '/RISKMNG/ACCTMARGIN_ALL',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'QL TT TVKD.xlsx',
+  },
+  {
+    code: 'DSQLKQ_TKGD',
+    name: 'Quản lý ký quỹ TKGD',
+    parentMenu: 'Quản lý rủi ro',
+    childMenu: 'Quản lý trạng thái TKGD',
+    tabName: 'Danh sách trạng thái TKGD',
+    cachedUrl: '/RISKMNG/ACCTMARGIN_ALL',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSQLKQ TKGD.xlsx',
+  },
+  {
+    code: 'DSQLKQ_TVKD',
+    name: 'Quản lý ký quỹ TVKD',
+    parentMenu: 'Quản lý rủi ro',
+    childMenu: 'Quản lý trạng thái TKGD',
+    tabName: 'Danh sách trạng thái TKTVKD',
+    cachedUrl: '/RISKMNG/ACCTMARGIN_ALL',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSQLKQ TVKD.xlsx',
+  },
+
+  // ── 5. NHÓM TIỀN & TÀI KHOẢN ──────────────────────────────────────────────
   {
     code: 'NR',
     name: 'Lịch sử nộp rút tiền',
-    parentMenu: 'Quản lý tiền',
-    childMenu: 'Lịch sử nộp rút tiền',
+    parentMenu: 'Nộp rút tiền',
+    childMenu: 'Lịch sử Nộp/ Rút tiền',
     cachedUrl: '/CASHTRANFER/CASHTRANFER_HIST',
     enabled: true,
+    phase: 'EOD',
+    outputFileName: 'NR.xlsx',
   },
   {
-    code: 'DSL',
-    name: 'Lịch sử lệnh',
-    parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Lịch sử lệnh',
-    cachedUrl: '', // CoreCCP không có direct URL, dùng click menu
+    code: 'DSTKGD',
+    name: 'Danh sách tài khoản giao dịch',
+    parentMenu: 'Quản lý tài khoản',
+    childMenu: 'Danh sách tài khoản giao dịch',
+    cachedUrl: '/ACCOUNTMNG/ACCOUNTS_INFO',
     enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSTKGD ACM.xlsx',
+  },
+
+  // ── 6. NHÓM HÀNG HÓA, HỢP ĐỒNG & GIÁ ──────────────────────────────────────
+  {
+    code: 'GTT',
+    name: 'Quản lý giá thanh toán',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý giá thanh toán',
+    cachedUrl: '/PRODUCT/SETTLEMENT',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'GTT CCP.xlsx',
   },
   {
-    code: 'DSGD',
-    name: 'Lịch sử giao dịch',
-    parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '', // CoreCCP không có direct URL, dùng click menu
+    code: 'HH',
+    name: 'Danh mục hàng hóa',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    cachedUrl: '/PRODUCT/COMMODITY',
     enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HH.xlsx',
   },
   {
-    code: 'TTTT',
-    name: 'Trạng thái tất toán',
-    parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Trạng thái tất toán',
-    tabName: 'Lịch sử tất toán',
-    cachedUrl: '/ORDERS/PNL_EXECUTED',
+    code: 'HD',
+    name: 'Hợp đồng hàng hóa',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    cachedUrl: '/PRODUCT/COMMODITY',
     enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HĐ *.xlsx',
+  },
+
+  // ── Legacy Contract Aliases ───────────────────────────────────────────────
+  {
+    code: 'HD_CP2CO',
+    name: 'Hợp đồng Đồng Nano ACM (CP2CO)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    commodityCode: 'CP2CO',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: false,
+    phase: 'EOD',
+    outputFileName: 'HĐ CP2CO.xlsx',
   },
   {
-    code: 'TTM',
-    name: 'Trạng thái mở',
-    parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Trạng thái mở',
-    cachedUrl: '/ORDERS/OPEN_POSITION',
-    enabled: true,
+    code: 'HD_PL1NY',
+    name: 'Hợp đồng Bạch kim Nano ACM (PL1NY)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    commodityCode: 'PL1NY',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: false,
+    phase: 'EOD',
+    outputFileName: 'HĐ PL1NY.xlsx',
   },
+  {
+    code: 'HD_SI5CO',
+    name: 'Hợp đồng Bạc Nano ACM (SI5CO)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    commodityCode: 'SI5CO',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: false,
+    phase: 'EOD',
+    outputFileName: 'HĐ SI5CO.xlsx',
+  },
+
+  // ── Legacy Aliases ────────────────────────────────────────────────────────
   {
     code: 'LSGTT',
     name: 'Lịch sử giá thanh toán',
     parentMenu: 'Quản lý sản phẩm',
     childMenu: 'Quản lý lịch sử giá thanh toán',
     cachedUrl: '/PRODUCT/SETTLEMENT_HIST',
-    enabled: true,
+    enabled: false,
+    phase: 'EOD',
+    outputFileName: 'LSGTT.xlsx',
+  },
+  {
+    code: 'EOD',
+    name: 'Kết quả EOD (Vận hành)',
+    parentMenu: 'Vận hành',
+    childMenu: 'Kết quả EOD',
+    cachedUrl: '/EOD/ACCTMARGIN_HIST',
+    enabled: false,
+    phase: 'EOD',
+    outputFileName: 'EOD.xlsx',
   },
 ];
 
@@ -144,17 +411,17 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
   {
     code: 'DSL',
     name: 'Lịch sử lệnh (CE)',
-    parentMenu: 'Lệnh và vị thế',
+    parentMenu: 'Quản lý sổ lệnh',
     childMenu: 'Lịch sử lệnh',
-    cachedUrl: '',
+    cachedUrl: '/ORDERS/ORDERBOOK_ALL',
     enabled: true,
   },
   {
     code: 'DSGD',
-    name: 'Lịch sử giao dịch (CE)',
-    parentMenu: 'Lệnh và vị thế',
-    childMenu: 'Lịch sử giao dịch',
-    cachedUrl: '',
+    name: 'Danh sách giao dịch (CE)',
+    parentMenu: 'Quản lý sổ lệnh',
+    childMenu: 'Danh sách giao dịch',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
     enabled: true,
   },
 ];
@@ -491,7 +758,7 @@ export class CcpCeDownloaderService {
     if (targetUrl) {
       try {
         this.log(`[Nav] Direct URL den trang bao cao: ${targetUrl}`, logCb);
-        await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 15_000 });
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
         await page.waitForTimeout(1000);
         await this.dismissModalBackdrop(page);
 
@@ -537,8 +804,8 @@ export class CcpCeDownloaderService {
         childCandidates.push('Lịch sử nộp rút tiền', 'Lịch sử Nộp/ Rút tiền');
       } else if (report.childMenu === 'Lịch sử lệnh' || report.childMenu === 'Danh sách lệnh') {
         childCandidates.push('Lịch sử lệnh', 'Danh sách lệnh');
-      } else if (report.childMenu === 'Lịch sử giao dịch' || report.childMenu === 'Danh sách giao dịch') {
-        childCandidates.push('Lịch sử giao dịch', 'Danh sách giao dịch');
+      } else if (report.childMenu === 'Danh sách giao dịch' || report.childMenu === 'Lịch sử giao dịch') {
+        childCandidates.push('Danh sách giao dịch', 'Danh sách giao dịch MM', 'Lịch sử giao dịch');
       } else if (report.childMenu === 'Trạng thái mở' || report.childMenu === 'Vị thế mở') {
         childCandidates.push('Trạng thái mở', 'Vị thế mở', 'Danh sách trạng thái mở');
       }
@@ -571,11 +838,14 @@ export class CcpCeDownloaderService {
       }
 
       const learnedUrl = page.url();
-      this.log(`[Nav] Menu click thanh cong -> URL: ${learnedUrl}`, logCb);
+      if (learnedUrl.includes('/DASHBOARD') || learnedUrl.endsWith('.vn/') || learnedUrl.endsWith('.vn')) {
+        throw new Error(`[Fail-Fast] Không thể điều hướng đến báo cáo ${report.name} (${report.code}). Trình duyệt vẫn đang ở Dashboard (${learnedUrl})!`);
+      }
+      this.log(`[Nav] Điều hướng thành công -> URL: ${learnedUrl}`, logCb);
       return learnedUrl;
     } catch (e: any) {
-      this.log(`[Nav] Loi dieu huong den ${report.childMenu}: ${e?.message}`, logCb);
-      return page.url();
+      this.log(`[Nav] Lỗi điều hướng đến ${report.childMenu}: ${e?.message}`, logCb);
+      throw e;
     }
   }
 
@@ -1259,6 +1529,14 @@ export class CcpCeDownloaderService {
       // Vòng lặp tải từng loại báo cáo
       for (const report of reportsToRun) {
         this.log(`\n>>> BAO CAO: ${report.name.toUpperCase()} (${report.code}) <<<`, logCb);
+
+        if (report.code === 'HD' || report.code.startsWith('HD_')) {
+          this.log(`  [Commodity & Contracts] Kích hoạt tải động toàn bộ hợp đồng từ bảng HH...`, logCb);
+          await this.downloadCommodityAndContracts(page, systemUrl, outputDir, logCb);
+          await new Promise((r) => setTimeout(r, 500));
+          continue;
+        }
+
         for (const interval of intervals) {
           await this.downloadReport(page, report, systemUrl, interval, outputDir, opts, logCb);
           await new Promise((r) => setTimeout(r, 500));
@@ -1560,10 +1838,10 @@ export class CcpCeDownloaderService {
       const targetReports: CcpReportConfig[] = [
         {
           code: 'DSGD',
-          name: 'Lịch sử giao dịch',
+          name: 'Danh sách giao dịch',
           parentMenu: 'Lệnh và vị thế',
-          childMenu: 'Lịch sử giao dịch',
-          cachedUrl: '',
+          childMenu: 'Danh sách giao dịch',
+          cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
           enabled: true,
         },
         {
@@ -1631,7 +1909,7 @@ export class CcpCeDownloaderService {
 
     if (resultFiles.dsgd && fs.existsSync(resultFiles.dsgd)) {
       try {
-        const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd));
+        const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd), tradingDate);
         klgd = parsed.totalKhop || 0;
       } catch (e: any) {
         this.log(`[CCP KLGD] Lỗi bóc tách DSGD: ${e.message}`, logCb);
@@ -1639,7 +1917,7 @@ export class CcpCeDownloaderService {
     }
     if (resultFiles.ttm && fs.existsSync(resultFiles.ttm)) {
       try {
-        const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm));
+        const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm), tradingDate);
         ttm = parsed.totalTTM || 0;
       } catch (e: any) {
         this.log(`[CCP KLGD] Lỗi bóc tách TTM: ${e.message}`, logCb);
@@ -1647,7 +1925,7 @@ export class CcpCeDownloaderService {
     }
     if (resultFiles.tttt && fs.existsSync(resultFiles.tttt)) {
       try {
-        const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt));
+        const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt), tradingDate);
         tttt = parsed.totalTTTT || 0;
       } catch (e: any) {
         this.log(`[CCP KLGD] Lỗi bóc tách TTTT: ${e.message}`, logCb);
@@ -1741,10 +2019,10 @@ export class CcpCeDownloaderService {
 
     const repDSGD: CcpReportConfig = {
       code: 'DSGD',
-      name: 'Lịch sử giao dịch',
+      name: 'Danh sách giao dịch',
       parentMenu: 'Lệnh và vị thế',
-      childMenu: 'Lịch sử giao dịch',
-      cachedUrl: '',
+      childMenu: 'Danh sách giao dịch',
+      cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
       enabled: true,
     };
 
@@ -1824,7 +2102,7 @@ export class CcpCeDownloaderService {
 
       if (resultFiles.dsgd && fs.existsSync(resultFiles.dsgd)) {
         try {
-          const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd));
+          const parsed = CcpExcelParser.parseDSGD(fs.readFileSync(resultFiles.dsgd), tradingDate);
           klgd = parsed.totalKhop || 0;
         } catch (e: any) {
           this.log(`[CCP KLGD] Lỗi bóc tách DSGD: ${e.message}`, logCb);
@@ -1832,7 +2110,7 @@ export class CcpCeDownloaderService {
       }
       if (resultFiles.ttm && fs.existsSync(resultFiles.ttm)) {
         try {
-          const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm));
+          const parsed = CcpExcelParser.parseTTM(fs.readFileSync(resultFiles.ttm), tradingDate);
           ttm = parsed.totalTTM || 0;
         } catch (e: any) {
           this.log(`[CCP KLGD] Lỗi bóc tách TTM: ${e.message}`, logCb);
@@ -1840,7 +2118,7 @@ export class CcpCeDownloaderService {
       }
       if (resultFiles.tttt && fs.existsSync(resultFiles.tttt)) {
         try {
-          const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt));
+          const parsed = CcpExcelParser.parseTTTT(fs.readFileSync(resultFiles.tttt), tradingDate);
           tttt = parsed.totalTTTT || 0;
         } catch (e: any) {
           this.log(`[CCP KLGD] Lỗi bóc tách TTTT: ${e.message}`, logCb);
@@ -1867,4 +2145,443 @@ export class CcpCeDownloaderService {
       close,
     };
   }
+
+  // ── COMMODITY & CONTRACTS BATCH DOWNLOAD ─────────────────────────────────
+
+  /**
+   * Tải danh mục hàng hóa (HH.xlsx) và duyệt động từng mã hàng hóa để mở Modal ->
+   * Tab "Thông tin hợp đồng" -> Bấm "Kết xuất" -> Lưu HĐ <UACODE>.xlsx.
+   * Hoàn toàn Zero-Hardcode dựa trên DOM thực tế từ USER.
+   */
+  async downloadCommodityAndContracts(
+    page: Page,
+    systemUrl: string,
+    outputDir: string,
+    logCb?: (m: string) => void,
+  ): Promise<{ hhPath?: string; contractFiles: string[] }> {
+    this.log('\n[Commodity & Contracts] Bắt đầu xử lý Quản lý hàng hóa, hợp đồng...', logCb);
+    const targetUrl = this.resolveReportUrl('/PRODUCT/COMMODITY', systemUrl);
+    await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+    await this.dismissModalBackdrop(page);
+    await this.waitForTableLoadingComplete(page, 20_000);
+
+    const contractFiles: string[] = [];
+    let hhPath: string | undefined;
+
+    // 1. Bỏ qua tải HH.xlsx tại đây (đã được xử lý riêng bởi mục báo cáo 'HH')
+    // Để mục 'HD' chỉ chuyên trách tải các file Hợp đồng HĐ *.xlsx
+    /*
+    try {
+      this.log('  [HH] Xuất file danh mục hàng hóa (HH.xlsx)...', logCb);
+      const hhDest = path.join(outputDir, 'HH.xlsx');
+      const dl = await this.triggerExportDownload(page, 20_000, false, logCb);
+      if (dl && dl !== 'NO_DATA') {
+        await dl.saveAs(hhDest);
+        if (fs.existsSync(hhDest) && fs.statSync(hhDest).size > 0) {
+          hhPath = hhDest;
+          this.log(`  ✓ Đã lưu: ${hhDest} (${fs.statSync(hhDest).size} bytes)`, logCb);
+        }
+      }
+    } catch (err: any) {
+      this.log(`  [Warn] Lỗi xuất HH.xlsx: ${err.message}`, logCb);
+    }
+    */
+
+    // 2. Duyệt từng dòng trong bảng hàng hóa để mở Modal -> Tab "Thông tin hợp đồng" -> Xuất HĐ <UACODE>.xlsx
+    try {
+      let pageNum = 1;
+      const processedCodes = new Set<string>();
+
+      // Thử mở rộng 'Số bản ghi mỗi trang' lên 100 (để hiển thị trọn vẹn tất cả hàng hóa nếu có)
+      try {
+        const rowsPerPageSelect = page.locator("xpath=//div[contains(@class, 'MuiTablePagination-root') and not(ancestor::div[@id='tabpanel-1'])]//div[@role='combobox' or contains(@class, 'MuiSelect-select')]").first();
+        if (await rowsPerPageSelect.isVisible({ timeout: 2500 }).catch(() => false)) {
+          const currentVal = (await rowsPerPageSelect.textContent())?.trim();
+          if (currentVal !== '100') {
+            await rowsPerPageSelect.scrollIntoViewIfNeeded().catch(() => { });
+            await rowsPerPageSelect.click();
+            await page.waitForTimeout(500);
+            const opt100 = page.locator("xpath=//li[@role='option' and (text()='100' or text()='50' or contains(text(), 'Tất cả'))]").last();
+            if (await opt100.isVisible({ timeout: 1500 }).catch(() => false)) {
+              const optText = (await opt100.textContent())?.trim();
+              this.log(`  [Pagination] Mở rộng hiển thị: '${optText}' bản ghi mỗi trang`, logCb);
+              await opt100.click();
+              await page.waitForTimeout(1000);
+              await this.waitForTableLoadingComplete(page, 15000);
+            } else {
+              await page.keyboard.press('Escape');
+            }
+          }
+        }
+      } catch (err: any) {
+        this.log(`  [Pagination] Giữ nguyên phân trang mặc định: ${err.message}`, logCb);
+      }
+
+      // Helper đóng modal an toàn
+      const closeModal = async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const hasModal = await page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')").first().isVisible({ timeout: 500 }).catch(() => false);
+          if (!hasModal) break;
+
+          const closeX = page.locator("xpath=//*[name()='svg'][path[starts-with(@d, 'M19 6.41')]]").last();
+          if (await closeX.isVisible({ timeout: 500 }).catch(() => false)) {
+            await closeX.click({ force: true });
+            await page.waitForTimeout(400);
+          }
+
+          const closeBtn = page.locator("button.button-element:has-text('Đóng'), button:has-text('Đóng')").last();
+          if (await closeBtn.isVisible({ timeout: 500 }).catch(() => false)) {
+            await closeBtn.scrollIntoViewIfNeeded().catch(() => {});
+            await closeBtn.click({ force: true });
+            await page.waitForTimeout(400);
+          }
+
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
+        }
+
+        const allModalTitles = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')");
+        await allModalTitles.first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
+        await page.waitForTimeout(400);
+      };
+
+      while (true) {
+        await this.waitForTableLoadingComplete(page, 15000);
+        const rows = page.locator("xpath=//div[contains(@class, 'crud-grid-container') and not(ancestor::div[@id='tabpanel-1'])]//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]");
+        const rowCount = await rows.count();
+        this.log(`\n  [Commodity Page ${pageNum}] Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`, logCb);
+
+        for (let i = 0; i < rowCount; i++) {
+          const row = rows.nth(i);
+          const codeCell = row.locator("xpath=.//td[@data-column-id='UACODE']").first();
+          const uacode = (await codeCell.textContent())?.trim();
+          if (!uacode) continue;
+
+          if (processedCodes.has(uacode)) {
+            this.log(`  ℹ️ Mã [${uacode}] đã được xử lý ở trang trước -> Bỏ qua`, logCb);
+            continue;
+          }
+          processedCodes.add(uacode);
+
+          this.log(`\n  >>> Xử lý hợp đồng mã hàng hóa: [${uacode}] <<<`, logCb);
+
+          // Đảm bảo không còn modal sót lại từ lượt trước
+          const lingeringModal = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa')").first();
+          if (await lingeringModal.isVisible({ timeout: 300 }).catch(() => false)) {
+            await closeModal();
+          }
+
+          // Click icon Xem/Thao tác trên Bảng chính
+          const viewBtn = row.locator("xpath=.//button[contains(@class, 'MuiIconButton-root')]").first();
+          if (!(await viewBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+            this.log(`  [Warn] Không thấy nút Thao tác cho ${uacode}`, logCb);
+            continue;
+          }
+          await viewBtn.click({ force: true });
+          await page.waitForTimeout(800);
+
+          // Chờ Modal xuất hiện & click Tab "Thông tin hợp đồng" (#tab-1)
+          const modalTitle = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa')").first();
+          await modalTitle.waitFor({ state: 'visible', timeout: 5_000 });
+
+          const contractTab = page.locator("xpath=//button[@id='tab-1' or contains(., 'Thông tin hợp đồng')]").first();
+          if (await contractTab.isVisible({ timeout: 4_000 })) {
+            await contractTab.click({ force: true });
+            await page.waitForTimeout(800);
+            await this.waitForTableLoadingComplete(page, 15_000);
+
+            // Kiểm tra bảng có dữ liệu hay rỗng (Không có dữ liệu, 0-0 trên 0)
+            const tabpanel = page.locator("#tabpanel-1");
+            const noData = tabpanel.locator("xpath=.//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first();
+            if (await noData.isVisible({ timeout: 1500 }).catch(() => false)) {
+              this.log(`  ℹ️ Hàng hóa [${uacode}] không có hợp đồng (0-0 trên 0) -> Bỏ qua`, logCb);
+              await closeModal();
+              continue;
+            }
+
+            // Nút Kết xuất trong #tabpanel-1: ƯU TIÊN CÁCH 2 NGAY TỪ ĐẦU
+            const modalExportBtn = tabpanel.locator("button.button-element:has-text('Kết xuất')").first();
+            if (await modalExportBtn.isVisible({ timeout: 3_000 })) {
+              const contractFileName = `HĐ ${uacode}.xlsx`;
+              const contractDest = path.join(outputDir, contractFileName);
+              this.log(`  [Export] Ưu tiên Cách 2: Mở menu -> Bấm chọn Xuất tất cả -> ${contractFileName}...`, logCb);
+
+              const dlPromise = page.waitForEvent('download', { timeout: 25_000 }).catch(() => null);
+
+              // 1. Click mở menu
+              await page.bringToFront().catch(() => {});
+              await modalExportBtn.scrollIntoViewIfNeeded().catch(() => {});
+              await modalExportBtn.click({ force: true });
+
+              // 2. Định vị option 'Xuất tất cả' và kích hoạt click ngay tức thì qua native DOM
+              const exportAll = page.locator("li:visible:has-text('Xuất tất cả'), [role='menuitem']:visible:has-text('Xuất tất cả'), li:visible:has-text('Export all')").last();
+              await exportAll.waitFor({ state: 'visible', timeout: 2500 }).catch(() => {});
+
+              await exportAll.evaluate((el: any) => el.click()).catch(() => {});
+              await exportAll.click({ force: true, timeout: 500 }).catch(() => {});
+
+              const dl = await dlPromise;
+              if (dl) {
+                await dl.saveAs(contractDest);
+                if (fs.existsSync(contractDest) && fs.statSync(contractDest).size > 0) {
+                  contractFiles.push(contractDest);
+                  this.log(`  ✓ Đã lưu hợp đồng: ${contractDest} (${fs.statSync(contractDest).size} bytes)`, logCb);
+                }
+              }
+            }
+          }
+
+          // Đóng modal sau khi xử lý xong
+          await closeModal();
+        }
+
+        // ── KIỂM TRA VÀ CHUYỂN TRANG (Next Page - Chuẩn Material-UI MRT) ──
+        const paginationContainer = page.locator("xpath=//div[contains(@class, 'MuiTablePagination-root') and not(ancestor::div[@id='tabpanel-1'])]").first();
+        const displayedRangeEl = paginationContainer.locator("xpath=.//span[contains(text(), 'trên') or contains(@class, 'MuiTablePagination-displayedRows')]").first();
+        const currentRange = (await displayedRangeEl.textContent().catch(() => ''))?.trim() || '';
+
+        const nextBtn = paginationContainer.locator("xpath=.//button[@aria-label='Tới trang tiếp theo']").first();
+        const isNextAvailable = await nextBtn.isVisible({ timeout: 2000 }).catch(() => false);
+
+        if (!isNextAvailable) {
+          this.log(`\n  [Pagination] Đã duyệt hết tất cả các trang (chỉ có 1 trang hoặc không có thanh phân trang).`, logCb);
+          break;
+        }
+
+        const isNextDisabled = await nextBtn.evaluate((b: any) => b.disabled || b.classList.contains('Mui-disabled') || b.getAttribute('aria-disabled') === 'true').catch(() => true);
+
+        if (isNextDisabled) {
+          this.log(`\n  [Pagination] Đã duyệt hết tất cả các trang (Vị trí: "${currentRange}" - Nút Next đã bị disable).`, logCb);
+          break;
+        }
+
+        this.log(`\n  [Pagination] Bấm nút 'Tới trang tiếp theo' (Vị trí hiện tại: "${currentRange}")...`, logCb);
+        await paginationContainer.scrollIntoViewIfNeeded().catch(() => { });
+        await page.waitForTimeout(300);
+
+        // Kích hoạt click trực tiếp qua native DOM để chuyển trang tức thì
+        await nextBtn.evaluate((b: any) => b.click()).catch(() => { });
+        await nextBtn.click({ timeout: 800 }).catch(() => { });
+
+        // Chờ xác nhận vị trí phân trang THAY ĐỔI
+        let pageTurned = false;
+        const tWaitStart = Date.now();
+        while (Date.now() - tWaitStart < 8000) {
+          const newRange = (await displayedRangeEl.textContent().catch(() => ''))?.trim() || '';
+          if (newRange && newRange !== currentRange) {
+            this.log(`  [Pagination] Chuyển trang thành công: "${currentRange}" -> "${newRange}"`, logCb);
+            pageTurned = true;
+            break;
+          }
+
+          if (Date.now() - tWaitStart > 2000 && !pageTurned) {
+            await nextBtn.evaluate((b: any) => b.click()).catch(() => { });
+            const nextSpan = paginationContainer.locator("xpath=.//span[@aria-label='Tới trang tiếp theo']").first();
+            if (await nextSpan.isVisible().catch(() => false)) {
+              await nextSpan.click().catch(() => { });
+            }
+          }
+          await page.waitForTimeout(400);
+        }
+
+        if (pageTurned) {
+          await this.waitForTableLoadingComplete(page, 15000);
+          await page.waitForTimeout(600);
+          pageNum++;
+        } else {
+          this.log(`  [Pagination] Sau 8s vị trí vẫn là "${currentRange}". Dừng để tránh lặp trang.`, logCb);
+          break;
+        }
+      }
+    } catch (err: any) {
+      this.log(`  [Warn] Lỗi duyệt danh mục hàng hóa & hợp đồng: ${err.message}`, logCb);
+    }
+
+    return { hhPath, contractFiles };
+  }
+
+  // ── TRỌN BỘ 25 FILE MAKER (CORECCP BATCH DOWNLOADER) ──────────────────────
+
+  /**
+   * Tải trọn vẹn hoặc theo đợt bộ 25 file báo cáo thực tế hàng ngày của Maker.
+   * Áp dụng kỹ thuật In-page tab switching và gom cụm để tối ưu tốc độ (~35-45s).
+   */
+  async downloadBatch25CcpReports(params: {
+    systemUrl: string;
+    username: string;
+    password: string;
+    outputDir: string;
+    phase?: 'PRE_1620' | 'EOD' | 'ALL';
+    tradingDate?: string;
+    headless?: boolean;
+    reports?: string[];
+  }, logCb?: (m: string) => void): Promise<{
+    success: boolean;
+    downloadedFiles: string[];
+    failedFiles: string[];
+  }> {
+    const { systemUrl, username, password, outputDir } = params;
+    const phase = params.phase || 'ALL';
+    const isHeaded = params.headless === false;
+
+    fs.mkdirSync(outputDir, { recursive: true });
+
+    this.log('='.repeat(60), logCb);
+    this.log(`[CORECCP BATCH 25] Bắt đầu tiến trình tải báo cáo Maker (Phase: ${phase})`, logCb);
+    this.log(`Thư mục lưu: ${outputDir}`, logCb);
+    this.log('='.repeat(60), logCb);
+
+    let browser: Browser | null = null;
+    let context: BrowserContext | null = null;
+    const downloadedFiles: string[] = [];
+    const failedFiles: string[] = [];
+
+    const helperDownloadTab = async (page: Page, tabSelector: string, destFileName: string) => {
+      try {
+        const tabElem = page.locator(tabSelector).first();
+        if (await tabElem.isVisible({ timeout: 2_000 })) {
+          await tabElem.click({ force: true });
+          await page.waitForTimeout(600);
+        }
+        const dest = path.join(outputDir, destFileName);
+        const dl = await this.triggerExportDownload(page, 25_000, false, logCb);
+        if (dl && dl !== 'NO_DATA') {
+          await dl.saveAs(dest);
+          if (fs.existsSync(dest) && fs.statSync(dest).size > 0) {
+            downloadedFiles.push(dest);
+            this.log(`  ✓ Đã tải: ${destFileName} (${fs.statSync(dest).size} bytes)`, logCb);
+            return true;
+          }
+        }
+      } catch (err: any) {
+        this.log(`  [Warn] Lỗi tải ${destFileName}: ${err.message}`, logCb);
+      }
+      failedFiles.push(destFileName);
+      return false;
+    };
+
+    const helperDownloadDirect = async (page: Page, relativeUrl: string, destFileName: string, tabName?: string) => {
+      try {
+        const fullUrl = this.resolveReportUrl(relativeUrl, systemUrl);
+        await page.goto(fullUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+        await this.dismissModalBackdrop(page);
+        await this.waitForTableLoadingComplete(page, 20_000);
+
+        if (tabName) {
+          const tab = page.locator(`xpath=//*[self::button or self::div][contains(text(), '${tabName}')]`).first();
+          if (await tab.isVisible({ timeout: 2_000 })) {
+            await tab.click({ force: true });
+            await page.waitForTimeout(600);
+          }
+        }
+
+        const dest = path.join(outputDir, destFileName);
+        const dl = await this.triggerExportDownload(page, 25_000, false, logCb);
+        if (dl && dl !== 'NO_DATA') {
+          await dl.saveAs(dest);
+          if (fs.existsSync(dest) && fs.statSync(dest).size > 0) {
+            downloadedFiles.push(dest);
+            this.log(`  ✓ Đã tải: ${destFileName} (${fs.statSync(dest).size} bytes)`, logCb);
+            return true;
+          }
+        }
+      } catch (err: any) {
+        this.log(`  [Warn] Lỗi tải ${destFileName}: ${err.message}`, logCb);
+      }
+      failedFiles.push(destFileName);
+      return false;
+    };
+
+    try {
+      const chromePath = this.getChromeExecutablePath();
+      const launchOptions: any = {
+        headless: !isHeaded,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      };
+      if (chromePath) launchOptions.executablePath = chromePath;
+
+      browser = await chromium.launch(launchOptions);
+      context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1366, height: 768 } });
+      const page = await context.newPage();
+
+      // Đăng nhập
+      await this.loginVnclear(page, systemUrl, username, password, logCb);
+
+      if (phase === 'PRE_1620') {
+        // ── ĐỢT 1: TRƯỚC 16H20 (2 FILE) ──
+        this.log('\n>>> ĐỢT 1: GIÁM SÁT TRƯỚC 16H20 (2 FILE) <<<', logCb);
+        await helperDownloadDirect(page, '/RISKMNG/ACCTMARGIN_ALL', 'QL TT TKGD truoc 4h20.xlsx', 'trạng thái TKGD');
+        await helperDownloadDirect(page, '/ORDERS/OPEN_POSITION', 'TTM truoc 4h20.xlsx');
+
+      } else {
+        // ── ĐỢT 2: CUỐI NGÀY EOD HOẶC TẤT CẢ (23 - 25 FILE) ──
+        this.log('\n>>> BẮT ĐẦU TẢI TRỌN BỘ CÁC FILE CHÍNH CỦA MAKER <<<', logCb);
+
+        // 1. Cụm Lệnh thường (/ORDERS/ORDERBOOK -> 4 file)
+        const orderUrl = this.resolveReportUrl('/ORDERS/ORDERBOOK', systemUrl);
+        await page.goto(orderUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+        await this.dismissModalBackdrop(page);
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Tất cả')]", 'DSL CCP.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Lệnh đã khớp')]", 'DSLDK CCP.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Lệnh chờ khớp')]", 'DSLCK CCP.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Lệnh đã hủy')]", 'DSLDH CCP.xlsx');
+
+        // 2. Cụm Lệnh MM (/ORDERS/ORDERBOOK_MM -> 4 file)
+        const mmUrl = this.resolveReportUrl('/ORDERS/ORDERBOOK_MM', systemUrl);
+        await page.goto(mmUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+        await this.dismissModalBackdrop(page);
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Tất cả')]", 'DSL MM CCP.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Lệnh đã khớp')]", 'DSLDK MM CCP.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Lệnh chờ khớp')]", 'DSLCK MM CCP.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'Lệnh đã hủy')]", 'DSLDH MM CCP.xlsx');
+
+        // 3. Khớp lệnh thường & MM
+        await helperDownloadDirect(page, '/ORDERS/ORDERMATCH_DETAIL', 'DSGD CCP.xlsx');
+        await helperDownloadDirect(page, '/ORDERS/ORDERBOOK_ALL_MM', 'DSGD MM CCP.xlsx');
+
+        // 4. Vị thế mở cuối ngày & Tất toán
+        await helperDownloadDirect(page, '/ORDERS/OPEN_POSITION', 'TTM CCP.xlsx');
+        await helperDownloadDirect(page, '/ORDERS/PNL_EXECUTED', 'TTTT.xlsx', 'Lịch sử tất toán');
+
+        // 5. Cụm Trạng thái rủi ro (2 file)
+        const riskUrl = this.resolveReportUrl('/RISKMNG/ACCTMARGIN_ALL', systemUrl);
+        await page.goto(riskUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+        await this.dismissModalBackdrop(page);
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'trạng thái TKGD')]", 'QL TT TKGD.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'trạng thái TKTVKD')]", 'QL TT TVKD.xlsx');
+
+        // 6. Cụm Quản lý ký quỹ (2 file)
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'trạng thái TKGD')]", 'DSQLKQ TKGD.xlsx');
+        await helperDownloadTab(page, "xpath=//button[@role='tab' and contains(., 'trạng thái TKTVKD')]", 'DSQLKQ TVKD.xlsx');
+
+        // 7. Nộp rút tiền & Danh sách TKGD & Giá thanh toán
+        await helperDownloadDirect(page, '/CASHTRANFER/CASHTRANFER_HIST', 'NR.xlsx');
+        await helperDownloadDirect(page, '/ACCOUNTMNG/ACCOUNTS_INFO', 'DSTKGD ACM.xlsx');
+        await helperDownloadDirect(page, '/PRODUCT/SETTLEMENT', 'GTT CCP.xlsx');
+
+        // 8. Cụm Hàng hóa & Modal Hợp đồng
+        const commResult = await this.downloadCommodityAndContracts(page, systemUrl, outputDir, logCb);
+        if (commResult.hhPath) downloadedFiles.push(commResult.hhPath);
+        downloadedFiles.push(...commResult.contractFiles);
+      }
+
+      this.log(`\n[CORECCP BATCH 25] HOÀN TẤT: Thành công ${downloadedFiles.length} file, Thất bại ${failedFiles.length} file.`, logCb);
+      return {
+        success: failedFiles.length === 0,
+        downloadedFiles,
+        failedFiles,
+      };
+    } catch (err: any) {
+      this.log(`[CORECCP BATCH 25] Lỗi tiến trình: ${err.message}`, logCb);
+      return {
+        success: false,
+        downloadedFiles,
+        failedFiles,
+      };
+    } finally {
+      await context?.close().catch(() => {});
+      await browser?.close().catch(() => {});
+    }
+  }
 }
+

@@ -252,7 +252,7 @@ async function runTest() {
 
       // Pha 2: Export
       exportTimes.ms = new Date();
-      console.log(` -> [MS] ⚡ [PHA 2 BẮN TÍN HIỆU TẢI DSGD] lúc: ${exportTimes.ms.toISOString()}`);
+      console.log(` -> [MS]  [PHA 2 BẮN TÍN HIỆU TẢI DSGD] lúc: ${exportTimes.ms.toISOString()}`);
     } catch (err) {
       console.error(` -> [MS]  Lỗi: ${err.message}`);
       readyState.ms = true;
@@ -310,7 +310,7 @@ async function runTest() {
 
       // Pha 2: Export
       exportTimes.acm = new Date();
-      console.log(` -> [ACM] ⚡ [PHA 2 BẮN TÍN HIỆU TẢI STRAITS.CSV] lúc: ${exportTimes.acm.toISOString()}`);
+      console.log(` -> [ACM]  [PHA 2 BẮN TÍN HIỆU TẢI STRAITS.CSV] lúc: ${exportTimes.acm.toISOString()}`);
     } catch (err) {
       console.error(` -> [ACM]  Lỗi: ${err.message}`);
       readyState.acm = true;
@@ -346,7 +346,7 @@ async function runTest() {
 
       // Pha 2: Export
       exportTimes.ccp = new Date();
-      console.log(` -> [CCP] ⚡ [PHA 2 BẮN TÍN HIỆU TẢI CCP_DSGD] lúc: ${exportTimes.ccp.toISOString()}`);
+      console.log(` -> [CCP]  [PHA 2 BẮN TÍN HIỆU TẢI CCP_DSGD] lúc: ${exportTimes.ccp.toISOString()}`);
     } catch (err) {
       console.error(` -> [CCP]  Lỗi: ${err.message}`);
       readyState.ccp = true;
@@ -394,7 +394,7 @@ async function runTest() {
 
       // Pha 2: Export
       exportTimes.cqg = new Date();
-      console.log(` -> [CQG] ⚡ [PHA 2 BẮN TÍN HIỆU TẢI FR1.XLSX] lúc: ${exportTimes.cqg.toISOString()}`);
+      console.log(` -> [CQG]  [PHA 2 BẮN TÍN HIỆU TẢI FR1.XLSX] lúc: ${exportTimes.cqg.toISOString()}`);
     } catch (err) {
       console.error(` -> [CQG]  Lỗi: ${err.message}`);
       readyState.cqg = true;

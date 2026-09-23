@@ -5,17 +5,19 @@ import {
   Body,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
   Res,
   HttpException,
   HttpStatus,
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
 import * as fs from 'fs';
 import { CcpStatisticsService } from './ccp-statistics.service';
 import { CcpLotStatisticsService } from './ccp-lot-statistics.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -26,6 +28,7 @@ export class CcpStatisticsController {
   constructor(
     private readonly ccpStatisticsService: CcpStatisticsService,
     private readonly ccpLotStatisticsService: CcpLotStatisticsService,
+    private readonly settingsService: SystemSettingsService,
   ) {}
 
   // ─── Existing: CCP Pilot Statistics ──────────────────────────────────────
@@ -253,6 +256,15 @@ export class CcpStatisticsController {
       result: any;         // CcpLotResult (serialized)
       pathAcmLot?: string;
       pathAcmGtgd?: string;
+      pathNormalLot?: string;
+      pathSpreadLot?: string;
+      pathLmeLot?: string;
+      pathOptionsLot?: string;
+      pathDsgdCumulative?: string;
+      pathGtgdNormal?: string;
+      pathGtgdSpread?: string;
+      pathGtgdLme?: string;
+      pathGtgdOptions?: string;
     },
   ) {
     if (!body?.result) {
@@ -262,19 +274,25 @@ export class CcpStatisticsController {
       );
     }
 
-    // Lấy paths: uu tiên từ body, fallback sang config trong DB
-    let pathAcmLot = body.pathAcmLot;
-    let pathAcmGtgd = body.pathAcmGtgd;
+    const config = await this.ccpLotStatisticsService.getConfig();
+    const paths = {
+      pathAcmLot: body.pathAcmLot || config.pathAcmLot || config.pathAcmCumulative || '',
+      pathAcmGtgd: body.pathAcmGtgd || config.pathAcmGtgd || config.pathGtgdAcm || '',
+      pathNormalLot: body.pathNormalLot || config.pathNormalLot || config.pathNormalCumulative || '',
+      pathSpreadLot: body.pathSpreadLot || config.pathSpreadLot || config.pathSpreadCumulative || '',
+      pathLmeLot: body.pathLmeLot || config.pathLmeLot || config.pathLmeCumulative || '',
+      pathOptionsLot: body.pathOptionsLot || config.pathOptionsLot || config.pathOptionsCumulative || '',
+      pathDsgdCumulative: body.pathDsgdCumulative || config.pathDsgdCumulative || '',
+      pathGtgdNormal: body.pathGtgdNormal || config.pathGtgdNormal || '',
+      pathGtgdSpread: body.pathGtgdSpread || config.pathGtgdSpread || '',
+      pathGtgdLme: body.pathGtgdLme || config.pathGtgdLme || '',
+      pathGtgdOptions: body.pathGtgdOptions || config.pathGtgdOptions || '',
+    };
 
-    if (!pathAcmLot || !pathAcmGtgd) {
-      const config = await this.ccpLotStatisticsService.getConfig();
-      pathAcmLot = pathAcmLot || config.pathAcmCumulative || '';
-      pathAcmGtgd = pathAcmGtgd || config.pathGtgdAcm || '';
-    }
-
-    if (!pathAcmLot && !pathAcmGtgd) {
+    const hasAnyPath = Object.values(paths).some((p) => p && String(p).trim().length > 0);
+    if (!hasAnyPath) {
       throw new HttpException(
-        'Chưa cấu hình đường dẫn file lũy kế (pathAcmLot / pathGtgdAcm). Vui lòng vào Cấu hình đường dẫn để thiết lập.',
+        'Chưa cấu hình bất kỳ đường dẫn file lũy kế nào. Vui lòng vào Cấu hình đường dẫn để thiết lập.',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -289,7 +307,8 @@ export class CcpStatisticsController {
     try {
       const writeResult = await this.ccpLotStatisticsService.writeToAccumulator(
         result,
-        { pathAcmLot, pathAcmGtgd },
+        paths,
+        undefined, // dsgdBuffer (nếu upload)
         jobLogs,
       );
 
@@ -357,6 +376,67 @@ export class CcpStatisticsController {
         `Lỗi xử lý file từ thư mục ngày: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  /**
+   * POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate
+   *
+   * Đồng bộ và lưu tỷ giá mới nhất từ tệp ngày CoreCCP (hoặc file tỷ giá tải lên) vào CSDL MongoDB.
+   * Body: { date?: string }
+   */
+  @Post('lot-statistics/sync-exchange-rate')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async syncExchangeRate(@Body() body: { date?: string }) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const result = await this.ccpLotStatisticsService.syncAndSaveExchangeRates(targetDate);
+      return {
+        success: result.success,
+        data: result,
+        message: result.message,
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi đồng bộ tỷ giá: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ccp-statistics/lot-statistics/upload-tygia
+   *
+   * Tải lên riêng lẻ file tỷ giá Excel/CSV, bóc tách và tự động lưu ngay vào CSDL MongoDB.
+   */
+  @Post('lot-statistics/upload-tygia')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadTyGiaFile(@UploadedFile() file: any) {
+    if (!file || !file.buffer) {
+      throw new HttpException('Vui lòng chọn file tỷ giá.', HttpStatus.BAD_REQUEST);
+    }
+    try {
+      const rates = this.ccpLotStatisticsService.parseTyGiaFile(file.buffer);
+      const nowIso = new Date().toISOString();
+      const usdRate = rates['USD'] || 0;
+      if (usdRate > 0) {
+        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(usdRate));
+        await this.settingsService.setSetting('usd_exchange_rate', String(usdRate));
+        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname}`);
+        if (rates['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', String(rates['JPY']));
+        if (rates['MYR']) await this.settingsService.setSetting('myr_exchange_rate', String(rates['MYR']));
+        if (rates['CNY']) await this.settingsService.setSetting('rmb_exchange_rate', String(rates['CNY']));
+      }
+      return {
+        success: true,
+        rates,
+        lastSynced: nowIso,
+        message: `Đã bóc tách thành công tỷ giá từ tệp ${file.originalname}: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ`,
+      };
+    } catch (err: any) {
+      throw new HttpException(`Lỗi xử lý file tỷ giá: ${err.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

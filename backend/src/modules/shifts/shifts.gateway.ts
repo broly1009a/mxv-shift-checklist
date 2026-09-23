@@ -102,4 +102,27 @@ export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
     }
   }
+
+  emitJobLogUpdated(jobId: string, logs: string[], status?: string) {
+    if (this.server) {
+      this.server.emit('job-log-updated', { jobId, logs, status });
+    }
+  }
+
+  emitJobStatusUpdated(
+    jobId: string,
+    data: {
+      status: string;
+      jobType?: string;
+      shiftLogId?: string | null;
+      taskId?: string | null;
+      result?: any;
+      error?: string;
+      logs?: string[];
+    },
+  ) {
+    if (this.server) {
+      this.server.emit('job-status-updated', { jobId, ...data });
+    }
+  }
 }

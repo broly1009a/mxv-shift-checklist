@@ -19,6 +19,7 @@ import {
   DownloadCloud,
   Folder,
 } from 'lucide-react';
+import SmartPathInput from '@/components/admin/SmartPathInput';
 
 interface ConnectionSettingsProps {
   token: string;
@@ -1074,20 +1075,25 @@ export default function ConnectionSettings({
 
             {/* outputDir CCP */}
             <div>
-              <label style={labelStyle}>Thư mục lưu báo cáo CCP</label>
-              <div style={{ position: 'relative' }}>
-                <Folder size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  className="form-input"
-                  style={{ paddingLeft: '38px' }}
-                  placeholder="backupCCP"
-                  value={cppOutputDir}
-                  onChange={(e) => setCppOutputDir(e.target.value)}
-                />
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Tên thư mục (tương đối) hoặc đường dẫn tuyệt đối để lưu file báo cáo tải về từ CoreCCP.
+              <SmartPathInput
+                value={cppOutputDir}
+                onChange={setCppOutputDir}
+                label="Thư mục lưu báo cáo CCP (outputDir):"
+                placeholder="vd: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures (hoặc backupCCP)"
+                targetType="folder"
+                presets={[
+                  {
+                    name: 'Mặc định ổ M Backup CCP',
+                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+                  },
+                  {
+                    name: 'Mặc định local (backupCCP)',
+                    path: 'backupCCP',
+                  },
+                ]}
+              />
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Đường dẫn thư mục (tuyệt đối ổ M / Linux mount hoặc tương đối) để robot lưu file báo cáo tải về từ CoreCCP.
               </p>
             </div>
           </div>
@@ -1172,20 +1178,25 @@ export default function ConnectionSettings({
 
             {/* outputDir CE */}
             <div>
-              <label style={labelStyle}>Thư mục lưu báo cáo CE</label>
-              <div style={{ position: 'relative' }}>
-                <Folder size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  className="form-input"
-                  style={{ paddingLeft: '38px' }}
-                  placeholder="backupCE"
-                  value={ceOutputDir}
-                  onChange={(e) => setCeOutputDir(e.target.value)}
-                />
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Tên thư mục (tương đối) hoặc đường dẫn tuyệt đối để lưu file báo cáo tải về từ CoreEX.
+              <SmartPathInput
+                value={ceOutputDir}
+                onChange={setCeOutputDir}
+                label="Thư mục lưu báo cáo CE (outputDir):"
+                placeholder="vd: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures (hoặc backupCE)"
+                targetType="folder"
+                presets={[
+                  {
+                    name: 'Mặc định ổ M Backup CE',
+                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
+                  },
+                  {
+                    name: 'Mặc định local (backupCE)',
+                    path: 'backupCE',
+                  },
+                ]}
+              />
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Đường dẫn thư mục (tuyệt đối ổ M / Linux mount hoặc tương đối) để robot lưu file báo cáo tải về từ CoreEX.
               </p>
             </div>
           </div>

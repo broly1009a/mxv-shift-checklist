@@ -16,6 +16,9 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { CcpLotRunHistory } from '../../schemas/ccp-lot-run-history.schema';
 import * as XLSX from 'xlsx';
 import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
@@ -25,6 +28,8 @@ import {
   parseCcpDsgdRow,
   parseCcpTtmRow,
   parseCcpTtttRow,
+  buildCcpHeaderMap,
+  resolveColIdx,
   classifyCcpDsgd,
   getMaHHFromCcpMaHD,
   getCcpHhSpec,
@@ -34,10 +39,14 @@ import {
   CcpTtmRow,
   CcpTtttRow,
   CcpDsgdClassified,
+  extractExchangeRateFromCcpReports,
 } from './helpers/ccp-classifier.helper';
 import {
   writeCcpLotToAccumulator,
   writeCcpGtgdToAccumulator,
+  writeCcpTypedLotToAccumulator,
+  writeCcpTypedValueToAccumulator,
+  appendCcpRawDsgd,
   CcpAccumulatorPaths,
 } from './helpers/ccp-accumulator.helper';
 import {
@@ -46,6 +55,7 @@ import {
   resolveDailySubfolder,
   resolveBotTargetDate,
   resolveStoragePathCrossPlatform,
+  resolveDynamicPath,
 } from '../bot-engine/helpers/bot-path.helper';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -65,7 +75,18 @@ export interface CcpDailyScanResult {
     dsgd?: CcpDailyFileInfo;
     ttm?: CcpDailyFileInfo;
     tttt?: CcpDailyFileInfo;
-    tyGia?: CcpDailyFileInfo;
+    tyGia?: CcpDailyFileInfo & { fromDate?: string };
+    maHD?: CcpDailyFileInfo & { fromDate?: string };
+  };
+  dbExchangeRates?: {
+    usd: number;
+    ccpUsd?: number;
+    jpy?: number;
+    myr?: number;
+    cny?: number;
+    lastSynced?: string;
+    detectedRate?: number;
+    detectedSource?: string;
   };
 }
 
@@ -114,10 +135,21 @@ export interface CcpLotResult {
   totalTtttLot: number;  // TTTT: tổng lot tất toán (mua + bán)
   // Phân loại (phase 2: khi có Spread/LME/Options)
   acmLot: number;
-  spreadLot: number; // future
-  lmeLot: number;    // future
-  optionsLot: number; // future
-  normalLot: number;  // future
+  spreadLot: number;
+  lmeLot: number;
+  optionsLot: number;
+  normalLot: number;
+  bacThoiLot?: number;
+  bacThoiGtgd?: number;
+  // Thống kê phân hệ độc lập (Phase 2)
+  byType?: {
+    acm: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    normal: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    spread: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    lme: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    options: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number };
+    bacThoi?: { byTvkd: CcpTvkdStat[]; totalSoLot: number; totalGiaTri: number; isStandby: boolean };
+  };
   // Metadata
   tyGiaUsed: CcpTyGiaMap;
   warnings: string[];
@@ -129,6 +161,7 @@ export interface CcpLotInput {
   ttm?: Buffer;              // optional
   tttt?: Buffer;             // optional
   tyGia?: Buffer;            // optional – file Tỷ giá.xlsx từ CCP
+  maHD?: Buffer;             // optional – file Mã HĐ CCP / Hàng hóa (/PRODUCT/COMMODITY)
 }
 
 export interface CcpLotParams {
@@ -146,7 +179,11 @@ const REQUIRED_ORDER_TYPES = ['MKT', 'LMT', 'STP', 'STL'];
 export class CcpLotStatisticsService {
   private readonly logger = new Logger(CcpLotStatisticsService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    @InjectModel(CcpLotRunHistory.name)
+    private readonly runHistoryModel: Model<CcpLotRunHistory>,
+  ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
   // PUBLIC: Main Entry Point
@@ -164,44 +201,199 @@ export class CcpLotStatisticsService {
     const warnings: string[] = [];
     this.logger.log(`[CCP] Bắt đầu thống kê lot ngày ${params.ngayGD}`);
 
-    // ── 1. Parse tỷ giá ───────────────────────────────────────────────────
+    // ── 1. Parse tỷ giá (Ưu tiên File -> Trích xuất TTTT/TTM -> Database -> Fallback) ────────────
     let tyGiaMap: CcpTyGiaMap = {};
     if (files.tyGia) {
       tyGiaMap = this.parseTyGiaFile(files.tyGia);
       this.logger.log(`[CCP] Đọc tỷ giá từ file: ${JSON.stringify(tyGiaMap)}`);
+
+      // Tự động đồng bộ tỷ giá mới vào Database (system_settings) để toàn hệ thống dùng chung
+      if (this.settingsService) {
+        try {
+          const nowIso = new Date().toISOString();
+          if (tyGiaMap['USD']) {
+            await this.settingsService.setSetting('usd_exchange_rate', String(tyGiaMap['USD']));
+            await this.settingsService.setSetting('ccp_usd_exchange_rate', String(tyGiaMap['USD']));
+            await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+            await this.settingsService.setSetting('exchange_rate_source', 'Tệp Tỷ giá tải lên');
+          }
+          if (tyGiaMap['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', String(tyGiaMap['JPY']));
+          if (tyGiaMap['MYR']) await this.settingsService.setSetting('myr_exchange_rate', String(tyGiaMap['MYR']));
+          if (tyGiaMap['CNY']) await this.settingsService.setSetting('rmb_exchange_rate', String(tyGiaMap['CNY']));
+          this.logger.log(`[CCP] Đã tự động đồng bộ tỷ giá từ file vào Database (system_settings)`);
+        } catch (saveErr: any) {
+          this.logger.warn(`[CCP] Không thể đồng bộ tỷ giá vào Database: ${saveErr.message}`);
+        }
+      }
     } else {
-      this.logger.warn('[CCP] Không có file tỷ giá, GTGD sẽ không quy đổi được về VND');
-      warnings.push('Không có file tỷ giá – GTGD tính theo đơn vị gốc × 1');
+      // 1B. Thử trích xuất tỷ giá CoreCCP trực tiếp từ báo cáo TTTT hoặc TTM trong ngày
+      let extractedRate: number | null = null;
+      let extractedSource: string | null = null;
+      if (files.tttt || files.ttm) {
+        const extracted = extractExchangeRateFromCcpReports(files.tttt, files.ttm);
+        if (extracted.usdRate && extracted.usdRate > 0) {
+          extractedRate = extracted.usdRate;
+          extractedSource = extracted.source;
+          this.logger.log(`[CCP] Đã tự động trích xuất tỷ giá từ ${extracted.source}: 1 USD = ${extractedRate.toLocaleString('vi-VN')} đ`);
+        }
+      }
+
+      // Đọc tỷ giá từ Database (SystemSettings)
+      let dbUsdRate = 25920;
+      let dbJpyRate = 170;
+      let dbMyrRate = 6383;
+      let dbRmbRate = 3871;
+
+      if (this.settingsService) {
+        try {
+          const [ccpUsdStr, usdStr, jpyStr, myrStr, rmbStr] = await Promise.all([
+            this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
+            this.settingsService.getSetting('usd_exchange_rate', '25920'),
+            this.settingsService.getSetting('jpy_exchange_rate', '170'),
+            this.settingsService.getSetting('myr_exchange_rate', '6383'),
+            this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+          ]);
+          dbUsdRate = parseFloat(ccpUsdStr) || parseFloat(usdStr) || 25920;
+          dbJpyRate = parseFloat(jpyStr) || 170;
+          dbMyrRate = parseFloat(myrStr) || 6383;
+          dbRmbRate = parseFloat(rmbStr) || 3871;
+        } catch (dbErr: any) {
+          this.logger.warn(`[CCP] Không thể đọc tỷ giá từ Database: ${dbErr.message}`);
+        }
+      }
+
+      if (extractedRate) {
+        tyGiaMap['USD'] = extractedRate;
+        warnings.push(`Sử dụng tỷ giá thực tế trích xuất từ báo cáo ${extractedSource}: 1 USD = ${extractedRate.toLocaleString('vi-VN')} đ`);
+        // Lưu vào CSDL để tái sử dụng
+        if (this.settingsService) {
+          try {
+            const nowIso = new Date().toISOString();
+            await this.settingsService.setSetting('ccp_usd_exchange_rate', String(extractedRate));
+            await this.settingsService.setSetting('usd_exchange_rate', String(extractedRate));
+            await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+            await this.settingsService.setSetting('exchange_rate_source', `Trích xuất từ ${extractedSource}`);
+            this.logger.log(`[CCP] Đã lưu tỷ giá trích xuất ${extractedRate} vào CSDL MongoDB (system_settings)`);
+          } catch (err: any) {
+            this.logger.warn(`[CCP] Lỗi lưu tỷ giá vào DB: ${err.message}`);
+          }
+        }
+      } else {
+        tyGiaMap['USD'] = dbUsdRate;
+        this.logger.log(`[CCP] Sử dụng tỷ giá từ Database: USD=${dbUsdRate.toLocaleString('vi-VN')}, JPY=${dbJpyRate}, MYR=${dbMyrRate}`);
+        warnings.push(`Sử dụng tỷ giá từ cấu hình Database: 1 USD = ${dbUsdRate.toLocaleString('vi-VN')} đ`);
+      }
+
+      tyGiaMap['JPY'] = dbJpyRate;
+      tyGiaMap['MYR'] = dbMyrRate;
+      tyGiaMap['CNY'] = dbRmbRate;
     }
+    // Mặc định tỷ giá USD quy đổi nếu file tỷ giá thiếu
+    tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;
     // VND luôn = 1
     tyGiaMap['VND'] = tyGiaMap['VND'] ?? 1;
 
+    // ── 1B. Parse file Mã HĐ / Quy chuẩn Hàng hóa CCP (doCao) ──────────────
+    if (files.maHD) {
+      try {
+        const parsedSpecs = this.parseCcpCommoditySpecFile(files.maHD);
+        this.logger.log(`[CCP] Đọc thành công ${parsedSpecs.length} quy chuẩn hàng hóa (doCao) từ file CCP`);
+        params.hhOverrides = [...(params.hhOverrides ?? []), ...parsedSpecs];
+      } catch (err: any) {
+        this.logger.warn(`[CCP] Không thể bóc tách file Mã HĐ CCP: ${err.message}`);
+      }
+    }
+
     // ── 2. Parse file DSGD ────────────────────────────────────────────────
-    const dsgdRows = this.parseRawRows(files.dsgdCcp).map(parseCcpDsgdRow);
-    const mmRows = files.dsgdMmCcp
-      ? this.parseRawRows(files.dsgdMmCcp).map(parseCcpDsgdRow)
-      : [];
+    const dsgdParsed = this.parseRawRowsWithHeaders(files.dsgdCcp);
+    const dsgdHeaderMap = buildCcpHeaderMap(dsgdParsed.headers);
+    const dsgdRows = dsgdParsed.rows.map((r) => parseCcpDsgdRow(r, dsgdHeaderMap));
+
+    let mmRows: CcpDsgdRow[] = [];
+    if (files.dsgdMmCcp) {
+      const mmParsed = this.parseRawRowsWithHeaders(files.dsgdMmCcp);
+      const mmHeaderMap = buildCcpHeaderMap(mmParsed.headers);
+      mmRows = mmParsed.rows.map((r) => parseCcpDsgdRow(r, mmHeaderMap));
+    }
     const allDsgd = [...dsgdRows, ...mmRows];
     this.logger.debug(`[CCP] DSGD rows: ${dsgdRows.length} + MM: ${mmRows.length}`);
 
     // ── 3. Parse TTM / TTTT ───────────────────────────────────────────────
-    const ttmRows = files.ttm ? this.parseRawRows(files.ttm).map(parseCcpTtmRow) : [];
-    const ttttRows = files.tttt ? this.parseRawRows(files.tttt).map(parseCcpTtttRow) : [];
+    let ttmRows: CcpTtmRow[] = [];
+    if (files.ttm) {
+      const ttmParsed = this.parseRawRowsWithHeaders(files.ttm);
+      const ttmHeaderMap = buildCcpHeaderMap(ttmParsed.headers);
+      ttmRows = ttmParsed.rows.map((r) => parseCcpTtmRow(r, ttmHeaderMap));
+    }
+
+    let ttttRows: CcpTtttRow[] = [];
+    if (files.tttt) {
+      const ttttParsed = this.parseRawRowsWithHeaders(files.tttt);
+      const ttttHeaderMap = buildCcpHeaderMap(ttttParsed.headers);
+      ttttRows = ttttParsed.rows.map((r) => parseCcpTtttRow(r, ttttHeaderMap));
+    }
     this.logger.debug(`[CCP] TTM rows: ${ttmRows.length}, TTTT rows: ${ttttRows.length}`);
 
     // ── 4. Phân loại DSGD ─────────────────────────────────────────────────
     const classified = classifyCcpDsgd(allDsgd);
+    const bacThoiRows = classified.bacThoi || [];
+    const hasBacThoi = bacThoiRows.length > 0;
+    const bacThoiLot = this.sumLot(bacThoiRows);
+    const bacThoiGtgd = this.calcGtgd(bacThoiRows, tyGiaMap, params);
+
     this.logger.debug(
-      `[CCP] Phân loại: ACM=${classified.acm.length}, Spread=${classified.spread.length}, LME=${classified.lme.length}, Normal=${classified.normal.length}`,
+      `[CCP] Phân loại: ACM=${classified.acm.length}, Spread=${classified.spread.length}, LME=${classified.lme.length}, BacThoi=${bacThoiRows.length}, Normal=${classified.normal.length}`,
     );
     if (classified.spread.length > 0 || classified.lme.length > 0 || classified.normal.length > 0) {
       warnings.push(
         `Phát hiện tài khoản non-ACM: Spread=${classified.spread.length}, LME=${classified.lme.length}, Normal=${classified.normal.length} – Phase 2 support.`,
       );
     }
+    if (hasBacThoi) {
+      const msg = `[CCP STANDBY] Phát hiện ${bacThoiRows.length} giao dịch tài khoản Bạc thỏi (-M) với ${bacThoiLot} lot, GTGD: ${bacThoiGtgd.toLocaleString('vi-VN')} VND. Tạm thời tách riêng lưu vào Database (MongoDB) & File audit Standby (chưa ghi vào file Sổ thường).`;
+      warnings.push(msg);
+      jobLogs?.push(msg);
+      this.logger.warn(msg);
+    }
 
-    // ── 5. Tính toán per TVKD ─────────────────────────────────────────────
+    // ── 5. Tính toán per TVKD & Phân hệ độc lập (Phase 2) ────────────────
     const byTvkd = this.calcPerTvkd(allDsgd, ttmRows, ttttRows, tyGiaMap, params, warnings);
+
+    const byType = {
+      acm: {
+        byTvkd: this.calcPerTvkd(classified.acm, ttmRows, ttttRows, tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.acm),
+        totalGiaTri: this.calcGtgd(classified.acm, tyGiaMap, params),
+      },
+      normal: {
+        byTvkd: this.calcPerTvkd(classified.normal, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.normal),
+        totalGiaTri: this.calcGtgd(classified.normal, tyGiaMap, params),
+      },
+      spread: {
+        byTvkd: this.calcPerTvkd(classified.spread, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.spread),
+        totalGiaTri: this.calcGtgd(classified.spread, tyGiaMap, params),
+      },
+      lme: {
+        byTvkd: this.calcPerTvkd(classified.lme, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.lme),
+        totalGiaTri: this.calcGtgd(classified.lme, tyGiaMap, params),
+      },
+      options: {
+        byTvkd: this.calcPerTvkd(classified.options, [], [], tyGiaMap, params, []),
+        totalSoLot: this.sumLot(classified.options),
+        totalGiaTri: this.calcGtgd(classified.options, tyGiaMap, params),
+      },
+      bacThoi: hasBacThoi
+        ? {
+            byTvkd: this.calcPerTvkd(bacThoiRows, [], [], tyGiaMap, params, []),
+            totalSoLot: bacThoiLot,
+            totalGiaTri: bacThoiGtgd,
+            isStandby: true,
+          }
+        : undefined,
+    };
 
     // ── 6. Tổng hợp ───────────────────────────────────────────────────────
     const totalSoLot = byTvkd.reduce((s, r) => s + r.soLot, 0);
@@ -213,6 +405,7 @@ export class CcpLotStatisticsService {
     const result: CcpLotResult = {
       ngayGD,
       byTvkd,
+      byType,
       totalSoLot,
       totalGiaTri,
       totalTtmMua,
@@ -225,6 +418,8 @@ export class CcpLotStatisticsService {
       lmeLot: this.sumLot(classified.lme),
       optionsLot: this.sumLot(classified.options),
       normalLot: this.sumLot(classified.normal),
+      bacThoiLot,
+      bacThoiGtgd,
       tyGiaUsed: tyGiaMap,
       warnings,
     };
@@ -251,35 +446,178 @@ export class CcpLotStatisticsService {
   async writeToAccumulator(
     result: CcpLotResult,
     paths: CcpAccumulatorPaths,
+    dsgdBuffer?: Buffer,
     jobLogs?: string[],
   ): Promise<{ lotUpdated: boolean; gtgdUpdated: boolean; errors: string[] }> {
     const errors: string[] = [];
     let lotUpdated = false;
     let gtgdUpdated = false;
 
-    if (paths.pathAcmLot) {
+    // ── 1. Phase 1: ACM Lot & GTGD (giữ nguyên tương thích) ────────────────
+    const resolvedAcmLotPath = (paths.pathAcmLot || (paths as any).pathAcmCumulative)
+      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmLot || (paths as any).pathAcmCumulative, result.ngayGD))
+      : undefined;
+    const resolvedAcmGtgdPath = (paths.pathAcmGtgd || (paths as any).pathGtgdAcm)
+      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd || (paths as any).pathGtgdAcm, result.ngayGD))
+      : undefined;
+
+    if (resolvedAcmLotPath) {
       try {
-        await writeCcpLotToAccumulator(result, paths.pathAcmLot, jobLogs);
+        await writeCcpLotToAccumulator(result, resolvedAcmLotPath, jobLogs);
         lotUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi lot vào: ${paths.pathAcmLot}`);
+        this.logger.log(`[CCP-ACC] Đã ghi lot ACM vào: ${resolvedAcmLotPath}`);
       } catch (err: any) {
-        const msg = `Lỗi ghi file lũy kế lot: ${err.message}`;
+        const msg = `Lỗi ghi file lũy kế lot ACM: ${err.message}`;
         errors.push(msg);
         this.logger.error(msg);
         jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
       }
     }
 
-    if (paths.pathAcmGtgd) {
+    if (resolvedAcmGtgdPath) {
       try {
-        await writeCcpGtgdToAccumulator(result, paths.pathAcmGtgd, jobLogs);
+        await writeCcpGtgdToAccumulator(result, resolvedAcmGtgdPath, jobLogs);
         gtgdUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi GTGD vào: ${paths.pathAcmGtgd}`);
+        this.logger.log(`[CCP-ACC] Đã ghi GTGD ACM vào: ${resolvedAcmGtgdPath}`);
       } catch (err: any) {
-        const msg = `Lỗi ghi file lũy kế GTGD: ${err.message}`;
+        const msg = `Lỗi ghi file lũy kế GTGD ACM: ${err.message}`;
         errors.push(msg);
         this.logger.error(msg);
         jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 2. Phase 2: Số Lot theo phân hệ (Normal, Spread, LME, Options) ─────
+    const typedLots: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
+      { key: 'NormalLot', rawPath: paths.pathNormalLot || (paths as any).pathNormalCumulative, type: 'normal' },
+      { key: 'SpreadLot', rawPath: paths.pathSpreadLot || (paths as any).pathSpreadCumulative, type: 'spread' },
+      { key: 'LmeLot',    rawPath: paths.pathLmeLot || (paths as any).pathLmeCumulative,       type: 'lme' },
+      { key: 'OptionsLot',rawPath: paths.pathOptionsLot || (paths as any).pathOptionsCumulative, type: 'options' },
+    ];
+
+    for (const { key, rawPath, type } of typedLots) {
+      if (!rawPath) continue;
+
+      // Zero-Lot Bypass: Nếu phân hệ này không có lot phát sinh (totalSoLot === 0),
+      // tự động bỏ qua (Skip), không mở và không ghi đè số 0 vào file Excel lũy kế.
+      const typeStats = (result as any).byType?.[type];
+      if (!typeStats || typeStats.totalSoLot <= 0) {
+        this.logger.debug(`[CCP-ACC] Bỏ qua ghi lot ${key}: 0 lot phát sinh.`);
+        continue;
+      }
+
+      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+      try {
+        await writeCcpTypedLotToAccumulator(result, resolved, type, jobLogs);
+        lotUpdated = true;
+        this.logger.log(`[CCP-ACC] Đã ghi lot ${key} vào: ${resolved}`);
+      } catch (err: any) {
+        const msg = `Lỗi ghi file lũy kế lot ${key}: ${err.message}`;
+        errors.push(msg);
+        this.logger.error(msg);
+        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 3. Phase 2: GTGD theo phân hệ (Normal, Spread, LME, Options) ───────
+    const typedGtgd: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
+      { key: 'GtgdNormal',  rawPath: paths.pathGtgdNormal,  type: 'normal' },
+      { key: 'GtgdSpread',  rawPath: paths.pathGtgdSpread,  type: 'spread' },
+      { key: 'GtgdLme',     rawPath: paths.pathGtgdLme,     type: 'lme' },
+      { key: 'GtgdOptions', rawPath: paths.pathGtgdOptions, type: 'options' },
+    ];
+
+    for (const { key, rawPath, type } of typedGtgd) {
+      if (!rawPath) continue;
+
+      // Zero-Lot Bypass: Nếu phân hệ này không có GTGD phát sinh, tự động bỏ qua.
+      const typeStats = (result as any).byType?.[type];
+      if (!typeStats || typeStats.totalGiaTri <= 0) {
+        this.logger.debug(`[CCP-ACC] Bỏ qua ghi GTGD ${key}: 0 VND phát sinh.`);
+        continue;
+      }
+
+      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+      try {
+        await writeCcpTypedValueToAccumulator(result, resolved, type, jobLogs);
+        gtgdUpdated = true;
+        this.logger.log(`[CCP-ACC] Đã ghi GTGD ${key} vào: ${resolved}`);
+      } catch (err: any) {
+        const msg = `Lỗi ghi file lũy kế GTGD ${key}: ${err.message}`;
+        errors.push(msg);
+        this.logger.error(msg);
+        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 4. Phase 2: Raw DSGD Lũy Kế ───────────────────────────────────────
+    if (paths.pathDsgdCumulative && dsgdBuffer) {
+      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathDsgdCumulative, result.ngayGD));
+      try {
+        await appendCcpRawDsgd(dsgdBuffer, resolved, result.ngayGD, jobLogs);
+        this.logger.log(`[CCP-ACC] Đã ghi lũy kế DSGD Raw vào: ${resolved}`);
+      } catch (err: any) {
+        const msg = `Lỗi ghi file raw DSGD lũy kế: ${err.message}`;
+        errors.push(msg);
+        this.logger.error(msg);
+        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+      }
+    }
+
+    // ── 5. Standby: Ghi File Audit Bạc Thỏi (-M) nếu phát sinh giao dịch ──
+    const bacThoiData = (result as any).byType?.bacThoi;
+    if (bacThoiData && bacThoiData.totalSoLot > 0) {
+      try {
+        const anyRefPath =
+          paths.pathNormalLot ||
+          (paths as any).pathNormalCumulative ||
+          paths.pathAcmLot ||
+          (paths as any).pathAcmCumulative ||
+          paths.pathDsgdCumulative;
+        if (anyRefPath) {
+          const resolvedRef = resolveStoragePathCrossPlatform(
+            resolveDynamicPath(anyRefPath, result.ngayGD),
+          );
+          const targetDir = path.dirname(resolvedRef);
+          if (fs.existsSync(targetDir)) {
+            const dateStr =
+              result.ngayGD instanceof Date
+                ? `${result.ngayGD.getFullYear()}${String(result.ngayGD.getMonth() + 1).padStart(2, '0')}${String(result.ngayGD.getDate()).padStart(2, '0')}`
+                : String(result.ngayGD).replace(/[^0-9]/g, '').slice(0, 8);
+            const auditFilePath = path.join(targetDir, `Standby_Bac_Thoi_${dateStr}.txt`);
+
+            const lines: string[] = [
+              '================================================================================',
+              'BÁO CÁO KIỂM TOÁN TÀI KHOẢN BẠC THỎI NIÊM YẾT (-M) [CHẾ ĐỘ STANDBY]',
+              `Ngày giao dịch: ${result.ngayGD instanceof Date ? result.ngayGD.toLocaleDateString('vi-VN') : result.ngayGD}`,
+              `Thời gian hệ thống ghi nhận: ${new Date().toLocaleString('vi-VN')}`,
+              'Trạng thái: Chờ quyết định chính thức từ MXV về việc tách sổ riêng hay gộp vào Sổ thường.',
+              '--------------------------------------------------------------------------------',
+              `TỔNG SỐ LOT BẠC THỎI: ${bacThoiData.totalSoLot} lot`,
+              `TỔNG GIÁ TRỊ GIAO DỊCH: ${bacThoiData.totalGiaTri.toLocaleString('vi-VN')} VND`,
+              '--------------------------------------------------------------------------------',
+              'CHI TIẾT THEO THÀNH VIÊN KINH DOANH (TVKD):',
+            ];
+
+            for (const tvkd of bacThoiData.byTvkd || []) {
+              lines.push(
+                `- TVKD ${tvkd.tvkd} (${tvkd.tenThanhVien || 'N/A'}): ${tvkd.soLot} lot | ${tvkd.giaTri.toLocaleString('vi-VN')} VND`,
+              );
+              for (const hh of tvkd.byHH || []) {
+                lines.push(
+                  `    + Mã hàng: ${hh.maHH} - Số lot: ${hh.soLot} - GTGD: ${hh.giaTri.toLocaleString('vi-VN')} VND`,
+                );
+              }
+            }
+            lines.push('================================================================================');
+
+            fs.writeFileSync(auditFilePath, lines.join('\n'), 'utf-8');
+            this.logger.log(`[CCP-STANDBY] Đã ghi file audit Bạc thỏi (-M) vào: ${auditFilePath}`);
+            jobLogs?.push(`[CCP-STANDBY] Đã xuất file audit Bạc thỏi (-M): ${path.basename(auditFilePath)}`);
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[CCP-STANDBY] Không thể ghi file audit Bạc thỏi: ${err.message}`);
       }
     }
 
@@ -299,26 +637,51 @@ export class CcpLotStatisticsService {
     try {
       const p = JSON.parse(raw);
       return {
-        pathAcmCumulative: p.pathAcmCumulative || '',
-        pathNormalCumulative: p.pathNormalCumulative || '',
-        pathSpreadCumulative: p.pathSpreadCumulative || '',
-        pathLmeCumulative: p.pathLmeCumulative || '',
-        pathOptionsCumulative: p.pathOptionsCumulative || '',
-        pathGtgdAcm: p.pathGtgdAcm || '',
+        // Phase 1
+        pathAcmLot: p.pathAcmLot || p.pathAcmCumulative || '',
+        pathAcmGtgd: p.pathAcmGtgd || p.pathGtgdAcm || '',
+        pathAcmCumulative: p.pathAcmCumulative || p.pathAcmLot || '',
+        pathGtgdAcm: p.pathGtgdAcm || p.pathAcmGtgd || '',
+        // Phase 2 - Số Lot
+        pathNormalLot: p.pathNormalLot || p.pathNormalCumulative || '',
+        pathSpreadLot: p.pathSpreadLot || p.pathSpreadCumulative || '',
+        pathLmeLot: p.pathLmeLot || p.pathLmeCumulative || '',
+        pathOptionsLot: p.pathOptionsLot || p.pathOptionsCumulative || '',
+        pathNormalCumulative: p.pathNormalCumulative || p.pathNormalLot || '',
+        pathSpreadCumulative: p.pathSpreadCumulative || p.pathSpreadLot || '',
+        pathLmeCumulative: p.pathLmeCumulative || p.pathLmeLot || '',
+        pathOptionsCumulative: p.pathOptionsCumulative || p.pathOptionsLot || '',
+        // Phase 2 - Raw DSGD
+        pathDsgdCumulative: p.pathDsgdCumulative || '',
+        // Phase 2 - GTGD
         pathGtgdNormal: p.pathGtgdNormal || '',
+        pathGtgdSpread: p.pathGtgdSpread || '',
+        pathGtgdLme: p.pathGtgdLme || '',
+        pathGtgdOptions: p.pathGtgdOptions || '',
+        // Cấu hình chung
         ccpApiBaseUrl: p.ccpApiBaseUrl || '',
         updateCumulative: p.updateCumulative === true || p.updateCumulative === 'true',
         bot_backup_path_ccp: ccpBackupPath,
       };
     } catch {
       return {
+        pathAcmLot: '',
+        pathAcmGtgd: '',
         pathAcmCumulative: '',
+        pathGtgdAcm: '',
+        pathNormalLot: '',
+        pathSpreadLot: '',
+        pathLmeLot: '',
+        pathOptionsLot: '',
         pathNormalCumulative: '',
         pathSpreadCumulative: '',
         pathLmeCumulative: '',
         pathOptionsCumulative: '',
-        pathGtgdAcm: '',
+        pathDsgdCumulative: '',
         pathGtgdNormal: '',
+        pathGtgdSpread: '',
+        pathGtgdLme: '',
+        pathGtgdOptions: '',
         ccpApiBaseUrl: '',
         updateCumulative: false,
         bot_backup_path_ccp: ccpBackupPath,
@@ -459,7 +822,7 @@ export class CcpLotStatisticsService {
       const doCao = hhSpec?.doCao ?? 1;
       const currency = hhSpec?.tienTe ?? 'USD';
       const tyGia = tyGiaMap[currency] ?? tyGiaMap['USD'] ?? 1;
-      const gtgd = row.klKhop * row.giaKhop * doCao * tyGia;
+      const gtgd = Math.round(row.klKhop * row.giaKhop * doCao * tyGia);
 
       if (!hhMap.has(maHH)) hhMap.set(maHH, { soLot: 0, giaTri: 0 });
       const entry = hhMap.get(maHH)!;
@@ -503,8 +866,8 @@ export class CcpLotStatisticsService {
 
       const tyGia = tyGiaMap[currency] ?? tyGiaMap['USD'] ?? 1;
 
-      // GTGD = KL × Giá × doCao × tyGia
-      total += row.klKhop * row.giaKhop * doCao * tyGia;
+      // GTGD = KL × Giá × doCao × tyGia (làm tròn số nguyên VND)
+      total += Math.round(row.klKhop * row.giaKhop * doCao * tyGia);
     }
     return total;
   }
@@ -522,6 +885,18 @@ export class CcpLotStatisticsService {
     const ws = wb.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
     return rows.slice(1); // bỏ header
+  }
+
+  /**
+   * Parse buffer Excel → trả về cả headers và data rows
+   */
+  private parseRawRowsWithHeaders(buffer: Buffer): { headers: any[]; rows: any[][] } {
+    const wb = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const all = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+    if (all.length === 0) return { headers: [], rows: [] };
+    return { headers: all[0] || [], rows: all.slice(1) };
   }
 
   /**
@@ -544,6 +919,46 @@ export class CcpLotStatisticsService {
       }
     }
     return map;
+  }
+
+  /**
+   * Parse file Mã Hàng hóa / Hợp đồng CCP (xuất từ /PRODUCT/COMMODITY).
+   *
+   * Cấu trúc file (đã xác nhận từ file mẫu Mã HĐ CCP_14_06.xlsx):
+   *   col[1] = Mã hàng hóa (PL1NY, CP2CO, SI5CO, SIV...)
+   *   col[5] = Tên hàng hóa tiếng Việt
+   *   col[7] = Độ lớn hợp đồng (5, 1000, 100, 1200...) -> chính là doCao
+   *   col[8] = Đơn vị đo lường (Pound, kg, Lô...)
+   *   col[14] = Tiền tệ (USD, VND...)
+   */
+  parseCcpCommoditySpecFile(buffer: Buffer): CcpHhSpec[] {
+    const { headers, rows } = this.parseRawRowsWithHeaders(buffer);
+    const headerMap = buildCcpHeaderMap(headers);
+
+    const idxMaHH = resolveColIdx(headerMap, ['mahanghoa', 'mahh', 'symbol'], 1);
+    const idxTenHH = resolveColIdx(headerMap, ['tenhanghoatiengviet', 'tenhh', 'name'], 5);
+    const idxDoCao = resolveColIdx(headerMap, ['dolonhopdong', 'docao', 'multiplier', 'contractsize'], 7);
+    const idxDonVi = resolveColIdx(headerMap, ['donvidoluong', 'donvi', 'unit'], 8);
+    const idxTienTe = resolveColIdx(headerMap, ['tiente', 'currency'], 14);
+
+    const specs: CcpHhSpec[] = [];
+    for (const row of rows) {
+      const maHH = String(row[idxMaHH] ?? '').trim().toUpperCase();
+      if (!maHH) continue;
+      const doCao = parseFloat(String(row[idxDoCao] ?? '1').replace(/,/g, ''));
+      const tienTe = String(row[idxTienTe] ?? 'USD').trim().toUpperCase() || 'USD';
+      const tenHH = String(row[idxTenHH] ?? maHH).trim();
+      const donVi = String(row[idxDonVi] ?? '').trim();
+
+      specs.push({
+        maHH,
+        tenHH,
+        doCao: isNaN(doCao) || doCao <= 0 ? 1 : doCao,
+        donVi,
+        tienTe,
+      });
+    }
+    return specs;
   }
 
   /**
@@ -590,9 +1005,11 @@ export class CcpLotStatisticsService {
 
     let targetFolder = '';
     let candidateFolders: string[] = [];
+    let dateObj = new Date();
 
     try {
-      const { dateObj } = resolveBotTargetDate({ targetDate: dateStr });
+      const resolved = resolveBotTargetDate({ targetDate: dateStr });
+      dateObj = resolved.dateObj;
       const ccpSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(ccpBaseRaw), dateObj);
       const msSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(msBaseRaw), dateObj);
       candidateFolders = [ccpSub.fullPath, msSub.fullPath];
@@ -615,7 +1032,9 @@ export class CcpLotStatisticsService {
             (f) =>
               /^DSGD.*\.xlsx$/i.test(f) ||
               /^DSGD.*\.xls$/i.test(f) ||
-              /^DSGD.*\.csv$/i.test(f),
+              /^DSGD.*\.csv$/i.test(f) ||
+              /^ORDERMATCH.*\.xlsx$/i.test(f) ||
+              /^ORDERMATCH.*\.csv$/i.test(f),
           );
           if (hasDsgd) {
             folderToScan = folder;
@@ -664,6 +1083,9 @@ export class CcpLotStatisticsService {
         /^DSGD(?!\s*MM).*\.csv$/i,
         /^DSGD(?!\s*MM).*\.xlsx$/i,
         /^DSGD(?!\s*MM).*\.xls$/i,
+        /^ORDERMATCH_DETAIL.*\.xlsx$/i,
+        /^ORDERMATCH.*\.xlsx$/i,
+        /^ORDERMATCH.*\.csv$/i,
         /^DSGD.*\.csv$/i,
         /^DSGD.*\.xlsx$/i,
         /^DSGD.*\.xls$/i,
@@ -674,6 +1096,8 @@ export class CcpLotStatisticsService {
         /^TTM.*\.xlsx$/i,
         /^TTM.*\.xls$/i,
         /^TTM.*\.csv$/i,
+        /^OPEN_POSITION.*\.xlsx$/i,
+        /^OPEN_POSITION.*\.csv$/i,
       ]);
 
       // 3. TTTT (tùy chọn)
@@ -681,21 +1105,267 @@ export class CcpLotStatisticsService {
         /^TTTT.*\.xlsx$/i,
         /^TTTT.*\.xls$/i,
         /^TTTT.*\.csv$/i,
+        /^PNL_EXECUTED.*\.xlsx$/i,
+        /^PNL_EXECUTED.*\.csv$/i,
       ]);
 
-      // 4. Tỷ giá (tùy chọn)
+      // 4. Tỷ giá (tùy chọn) - ưu tiên ngày hiện tại
       result.files.tyGia = findFile([
         /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i,
         /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xls$/i,
         /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.csv$/i,
       ]);
 
+      // Nếu ngày hiện tại chưa có file tỷ giá -> Quét tìm file tỷ giá gần nhất từ các ngày trước
+      if (!result.files.tyGia) {
+        for (const candidateFolder of candidateFolders) {
+          const baseFolder = path.dirname(candidateFolder);
+          const nearestTyGia = this.findLatestFileInHistory(
+            baseFolder,
+            dateObj,
+            [
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xls$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.csv$/i,
+            ],
+            30,
+          );
+          if (nearestTyGia) {
+            result.files.tyGia = nearestTyGia;
+            this.logger.log(
+              `[CCP] Ngày ${dateStr} chưa có file tỷ giá, tự động sử dụng tỷ giá gần nhất từ ngày ${nearestTyGia.fromDate} (${nearestTyGia.filename})`,
+            );
+            break;
+          }
+        }
+      }
+
+      // 5. Mã HĐ / Quy chuẩn Hàng hóa doCao (tùy chọn) - ưu tiên ngày hiện tại
+      result.files.maHD = findFile([
+        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xlsx$/i,
+        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xls$/i,
+        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.csv$/i,
+      ]);
+
+      // Nếu ngày hiện tại chưa có file Mã HĐ -> Quét tìm file Mã HĐ gần nhất từ các ngày trước
+      if (!result.files.maHD) {
+        for (const candidateFolder of candidateFolders) {
+          const baseFolder = path.dirname(candidateFolder);
+          const nearestMaHD = this.findLatestFileInHistory(
+            baseFolder,
+            dateObj,
+            [
+              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xlsx$/i,
+              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xls$/i,
+              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.csv$/i,
+            ],
+            60,
+          );
+          if (nearestMaHD) {
+            result.files.maHD = nearestMaHD;
+            this.logger.log(
+              `[CCP] Tự động sử dụng file quy chuẩn hàng hóa (doCao) gần nhất từ ngày ${nearestMaHD.fromDate} (${nearestMaHD.filename})`,
+            );
+            break;
+          }
+        }
+      }
+
       result.canProcess = !!result.files.dsgd?.present;
+
+      // 6. Kiểm tra tỷ giá CSDL & Trích xuất tỷ giá từ file ngày (nếu có)
+      let dbUsdRate = 25920;
+      let dbCcpUsdRate = 25920;
+      let dbJpyRate = 170;
+      let dbMyrRate = 6383;
+      let dbRmbRate = 3871;
+      let lastSynced = '';
+
+      if (this.settingsService) {
+        try {
+          const [ccpUsdStr, usdStr, jpyStr, myrStr, rmbStr, syncedStr] = await Promise.all([
+            this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
+            this.settingsService.getSetting('usd_exchange_rate', '25920'),
+            this.settingsService.getSetting('jpy_exchange_rate', '170'),
+            this.settingsService.getSetting('myr_exchange_rate', '6383'),
+            this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+            this.settingsService.getSetting('exchange_rates_last_synced', ''),
+          ]);
+          dbUsdRate = parseFloat(usdStr) || 25920;
+          dbCcpUsdRate = parseFloat(ccpUsdStr) || dbUsdRate;
+          dbJpyRate = parseFloat(jpyStr) || 170;
+          dbMyrRate = parseFloat(myrStr) || 6383;
+          dbRmbRate = parseFloat(rmbStr) || 3871;
+          lastSynced = syncedStr;
+        } catch {
+          // ignore
+        }
+      }
+
+      // Trích xuất tỷ giá ngày từ file TTTT hoặc TTM nếu có
+      let detectedRate: number | undefined;
+      let detectedSource: string | undefined;
+      if (result.files.tttt?.path || result.files.ttm?.path) {
+        try {
+          const ttttBuf = result.files.tttt?.path ? fs.readFileSync(result.files.tttt.path) : undefined;
+          const ttmBuf = result.files.ttm?.path ? fs.readFileSync(result.files.ttm.path) : undefined;
+          const extracted = extractExchangeRateFromCcpReports(ttttBuf, ttmBuf);
+          if (extracted.usdRate) {
+            detectedRate = extracted.usdRate;
+            detectedSource = extracted.source || undefined;
+          }
+        } catch {
+          // ignore
+        }
+      } else if (result.files.tyGia?.path) {
+        try {
+          const buf = fs.readFileSync(result.files.tyGia.path);
+          const parsed = this.parseTyGiaFile(buf);
+          if (parsed['USD']) {
+            detectedRate = parsed['USD'];
+            detectedSource = result.files.tyGia.filename;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      result.dbExchangeRates = {
+        usd: dbUsdRate,
+        ccpUsd: dbCcpUsdRate,
+        jpy: dbJpyRate,
+        myr: dbMyrRate,
+        cny: dbRmbRate,
+        lastSynced,
+        detectedRate,
+        detectedSource,
+      };
     } catch (err: any) {
       this.logger.warn(`[CCP] Lỗi khi quét thư mục ${folderToScan}: ${err.message}`);
     }
 
     return result;
+  }
+
+  /**
+   * Đồng bộ và lưu tỷ giá mới nhất từ tệp ngày CoreCCP (hoặc file tỷ giá tải lên) vào CSDL MongoDB.
+   */
+  async syncAndSaveExchangeRates(dateStr?: string): Promise<{
+    success: boolean;
+    usdRate: number;
+    source: string;
+    lastSynced: string;
+    message: string;
+  }> {
+    const targetDate = dateStr || new Date().toISOString().split('T')[0];
+    const scan = await this.scanDailyFiles(targetDate);
+
+    let rateToSave: number | null = null;
+    let source = '';
+
+    // 1. Kiểm tra file tỷ giá riêng biệt
+    if (scan.files.tyGia?.path && fs.existsSync(scan.files.tyGia.path)) {
+      try {
+        const buffer = fs.readFileSync(scan.files.tyGia.path);
+        const rates = this.parseTyGiaFile(buffer);
+        if (rates['USD'] && rates['USD'] > 0) {
+          rateToSave = rates['USD'];
+          source = `Tệp ${scan.files.tyGia.filename}`;
+        }
+      } catch (e: any) {
+        this.logger.warn(`Lỗi đọc file tỷ giá: ${e.message}`);
+      }
+    }
+
+    // 2. Tự động trích xuất từ báo cáo TTTT hoặc TTM của CoreCCP
+    if (!rateToSave) {
+      let ttttBuf: Buffer | undefined;
+      let ttmBuf: Buffer | undefined;
+      if (scan.files.tttt?.path && fs.existsSync(scan.files.tttt.path)) {
+        ttttBuf = fs.readFileSync(scan.files.tttt.path);
+      }
+      if (scan.files.ttm?.path && fs.existsSync(scan.files.ttm.path)) {
+        ttmBuf = fs.readFileSync(scan.files.ttm.path);
+      }
+      const extracted = extractExchangeRateFromCcpReports(ttttBuf, ttmBuf);
+      if (extracted.usdRate) {
+        rateToSave = extracted.usdRate;
+        source = `Trích xuất từ tệp CCP ${extracted.source}`;
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (rateToSave && rateToSave > 0) {
+      if (this.settingsService) {
+        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(rateToSave));
+        await this.settingsService.setSetting('usd_exchange_rate', String(rateToSave));
+        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rate_source', source);
+      }
+      this.logger.log(`[CCP] Đã đồng bộ tỷ giá thành công: 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (Nguồn: ${source})`);
+      return {
+        success: true,
+        usdRate: rateToSave,
+        source,
+        lastSynced: nowIso,
+        message: `Đã cập nhật tỷ giá CoreCCP 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (${source}) và lưu vào CSDL MongoDB.`,
+      };
+    } else {
+      const currentUsdStr = await this.settingsService.getSetting('ccp_usd_exchange_rate', '');
+      const fallbackUsdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
+      const currentUsd = parseFloat(currentUsdStr) || parseFloat(fallbackUsdStr) || 25920;
+      return {
+        success: false,
+        usdRate: currentUsd,
+        source: 'CSDL Hiện Tại (Không tìm thấy tệp tỷ giá mới trong ngày)',
+        lastSynced: nowIso,
+        message: `Không tìm thấy tệp tỷ giá hay báo cáo TTTT/TTM ngày ${targetDate} để bóc tách. Đang giữ tỷ giá CSDL: 1 USD = ${currentUsd.toLocaleString('vi-VN')} đ.`,
+      };
+    }
+  }
+
+  /**
+   * Quét lùi về các ngày trước đó (tối đa maxDays ngày) để tìm file gần nhất
+   * (áp dụng cho Tỷ giá và Mã HĐ / Độ lớn hợp đồng khi ngày hiện tại chưa có file mới).
+   */
+  private findLatestFileInHistory(
+    baseDir: string,
+    targetDate: Date,
+    patterns: RegExp[],
+    maxDays = 30,
+  ): (CcpDailyFileInfo & { fromDate?: string }) | undefined {
+    if (!fs.existsSync(baseDir)) return undefined;
+
+    for (let dayOffset = 1; dayOffset <= maxDays; dayOffset++) {
+      const prevDate = new Date(targetDate);
+      prevDate.setDate(prevDate.getDate() - dayOffset);
+
+      try {
+        const sub = resolveDailySubfolder(baseDir, prevDate);
+        if (fs.existsSync(sub.fullPath)) {
+          const files = fs.readdirSync(sub.fullPath);
+          for (const pattern of patterns) {
+            const match = files.find((f) => pattern.test(f));
+            if (match) {
+              const fpath = path.join(sub.fullPath, match);
+              const stat = fs.statSync(fpath);
+              const dStr = prevDate.toISOString().slice(0, 10);
+              return {
+                present: true,
+                filename: match,
+                size: stat.size,
+                path: fpath,
+                fromDate: dStr,
+              };
+            }
+          }
+        }
+      } catch {
+        // continue
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -715,10 +1385,85 @@ export class CcpLotStatisticsService {
     const ttm = scan.files.ttm?.path ? fs.readFileSync(scan.files.ttm.path) : undefined;
     const tttt = scan.files.tttt?.path ? fs.readFileSync(scan.files.tttt.path) : undefined;
     const tyGia = scan.files.tyGia?.path ? fs.readFileSync(scan.files.tyGia.path) : undefined;
+    const maHD = scan.files.maHD?.path ? fs.readFileSync(scan.files.maHD.path) : undefined;
 
     return this.processCcpLotStatistics(
-      { dsgdCcp, ttm, tttt, tyGia },
+      { dsgdCcp, ttm, tttt, tyGia, maHD },
       { ngayGD: dateStr },
     );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // RUN HISTORY: Lưu & Truy vấn lịch sử chạy tổng hợp
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Lưu 1 bản ghi lịch sử chạy vào MongoDB + ghi file JSON backup vào thư mục CCP.
+   */
+  async saveRunHistory(params: {
+    sessionDate: string;
+    action: 'PROCESS' | 'WRITE';
+    result: any;
+    accumulatorLogs?: string[];
+    accumulatorPaths?: Record<string, string>;
+    userId?: any;
+    username?: string;
+  }): Promise<CcpLotRunHistory> {
+    // 1. Lưu vào MongoDB
+    const doc = await this.runHistoryModel.create({
+      sessionDate: params.sessionDate,
+      action: params.action,
+      result: params.result,
+      accumulatorLogs: params.accumulatorLogs || [],
+      accumulatorPaths: params.accumulatorPaths,
+      userId: params.userId,
+      username: params.username,
+    });
+
+    // 2. Ghi file JSON backup vào thư mục CCP ngày
+    try {
+      const ccpBase = await getCcpBackupBase(this.settingsService);
+      if (ccpBase) {
+        const targetDate = new Date(params.sessionDate);
+        const year = targetDate.getFullYear().toString();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        const dailyDir = resolveStoragePathCrossPlatform(path.join(ccpBase, subFolder));
+
+        if (fs.existsSync(dailyDir)) {
+          const now = new Date();
+          const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+          const jsonFileName = `ccp_lot_run_${params.action}_${hhmm}.json`;
+          const jsonPath = path.join(dailyDir, jsonFileName);
+
+          fs.writeFileSync(jsonPath, JSON.stringify(doc.toObject(), null, 2), 'utf8');
+          this.logger.log(`[RunHistory] Đã ghi JSON backup: ${jsonPath}`);
+
+          // Cập nhật đường dẫn file JSON backup vào document
+          doc.jsonBackupPath = jsonPath;
+          await doc.save();
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`[RunHistory] Không thể ghi JSON backup: ${err.message}`);
+    }
+
+    return doc;
+  }
+
+  /**
+   * Truy vấn danh sách lịch sử chạy theo ngày phiên, mới nhất trước.
+   */
+  async getRunHistory(
+    sessionDate: string,
+    limit = 20,
+  ): Promise<CcpLotRunHistory[]> {
+    return this.runHistoryModel
+      .find({ sessionDate })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
   }
 }
