@@ -299,21 +299,33 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
 
         if (options.checkTtm !== false) {
-          log('MS → Tải bổ sung TTM.xlsx...');
-          await this.rpaDownloaderService.downloadTTM(
-            page,
-            path.join(msDailyPath, 'TTM.xlsx'),
-          );
-          log('MS  Tải TTM.xlsx thành công.');
+          try {
+            log('MS → Tải bổ sung TTM.xlsx...');
+            await page.waitForTimeout(2000);
+            await this.rpaDownloaderService.downloadTTM(
+              page,
+              path.join(msDailyPath, 'TTM.xlsx'),
+            );
+            log('MS  Tải TTM.xlsx thành công.');
+          } catch (ttmErr: any) {
+            log(`MS  Cảnh báo tải TTM: ${ttmErr.message}. Tiếp tục tải TTTT...`);
+            errors.push(`MS TTM: ${ttmErr.message}`);
+          }
         }
 
         if (options.checkTttt !== false) {
-          log('MS → Tải bổ sung TTTT.xlsx...');
-          await this.rpaDownloaderService.downloadTTTT(
-            page,
-            path.join(msDailyPath, 'TTTT.xlsx'),
-          );
-          log('MS  Tải TTTT.xlsx thành công.');
+          try {
+            log('MS → Tải bổ sung TTTT.xlsx...');
+            await page.waitForTimeout(2000);
+            await this.rpaDownloaderService.downloadTTTT(
+              page,
+              path.join(msDailyPath, 'TTTT.xlsx'),
+            );
+            log('MS  Tải TTTT.xlsx thành công.');
+          } catch (ttttErr: any) {
+            log(`MS  Cảnh báo tải TTTT: ${ttttErr.message}`);
+            errors.push(`MS TTTT: ${ttttErr.message}`);
+          }
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);

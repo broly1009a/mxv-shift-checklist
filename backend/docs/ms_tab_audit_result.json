@@ -1,0 +1,202 @@
+[
+  {
+    "key": "DSGD",
+    "name": "Danh sách giao dịch CoreCCP",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.9s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/transactionList",
+    "hash": "#/orderManagement/transactionList",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "TTM",
+    "name": "Báo cáo Vị thế mở (TTM)",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/openPositionInfo",
+    "hash": "#/positionManagement/openPositionInfo",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "TTTT",
+    "name": "Trạng thái tất toán (TTTT)",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/finalPositionInfo",
+    "hash": "#/positionManagement/finalPositionInfo",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "TTCDH",
+    "name": "Trạng thái tất toán chờ đáo hạn LME",
+    "subTab": "Trạng thái tất toán chờ đáo hạn LME",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/finalPositionInfo",
+    "hash": "#/positionManagement/finalPositionInfo",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "QLTKGD",
+    "name": "Quản lý tài khoản giao dịch (QLTKGD)",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/marginStatusManagement",
+    "hash": "#/clientManagement/marginStatusManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "QLTKGDAmKQ",
+    "name": "QL TKGD âm ký quỹ",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/negativeMarginManagement",
+    "hash": "#/clientManagement/negativeMarginManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "NKTTHT",
+    "name": "Nhật ký thao tác hệ thống",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/systemManagement/activityHistory",
+    "hash": "#/systemManagement/activityHistory",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSTKGD-Futures",
+    "name": "Danh sách TKGD - Futures",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
+    "hash": "#/clientManagement/investorManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSTKGD-Spread",
+    "name": "Danh sách TKGD - Spread",
+    "subTab": "Spreads",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
+    "hash": "#/clientManagement/investorManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSTKGD-LME",
+    "name": "Danh sách TKGD - LME",
+    "subTab": "LME",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
+    "hash": "#/clientManagement/investorManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSTKGD-ACM",
+    "name": "Danh sách TKGD - ACM",
+    "subTab": "ACM",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/investorManagement",
+    "hash": "#/clientManagement/investorManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "TLKQHSKQ",
+    "name": "Tỉ lệ ký quỹ và Hiệu số ký quỹ (TLKQHSKQ)",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/marginRatioMultiplier",
+    "hash": "#/clientManagement/marginRatioMultiplier",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSQLKQ",
+    "name": "Danh sách quản lý ký quỹ (DSQLKQ)",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/positionManagement/marginList",
+    "hash": "#/positionManagement/marginList",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "NR",
+    "name": "Lịch sử giao dịch tiền TKGD (NR)",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/marginMoneyTransHistory",
+    "hash": "#/clientManagement/marginMoneyTransHistory",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSTrader",
+    "name": "Danh sách Trader hoạt động",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/clientManagement/traderManagement",
+    "hash": "#/clientManagement/traderManagement",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "Markettruoc6h",
+    "name": "Báo cáo Market trước 6h",
+    "subTab": null,
+    "status": "PASS",
+    "elapsed": "1.8s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderCreating",
+    "hash": "#/orderManagement/orderCreating",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSLDK",
+    "name": "Danh sách lệnh đã khớp",
+    "subTab": "Lệnh đã khớp",
+    "status": "PASS",
+    "elapsed": "3.3s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
+    "hash": "#/orderManagement/orderList",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSLCK",
+    "name": "Danh sách lệnh chờ khớp",
+    "subTab": "Lệnh chờ khớp",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
+    "hash": "#/orderManagement/orderList",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSLH",
+    "name": "Danh sách lệnh đã hủy",
+    "subTab": "Lệnh đã hủy",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
+    "hash": "#/orderManagement/orderList",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  },
+  {
+    "key": "DSLK",
+    "name": "Danh sách lệnh khác",
+    "subTab": "Lệnh khác",
+    "status": "PASS",
+    "elapsed": "3.6s",
+    "fullUrl": "https://msadmin.mxv.com.vn/#/orderManagement/orderList",
+    "hash": "#/orderManagement/orderList",
+    "note": "Mượt, URL & Nút xuất chuẩn"
+  }
+]

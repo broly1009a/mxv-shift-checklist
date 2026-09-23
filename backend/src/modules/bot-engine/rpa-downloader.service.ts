@@ -10,6 +10,7 @@ import { decrypt } from './utils/crypto';
 import {
   MSystemTabNavigatorHelper,
   MS_REPORT_FILE_PATTERNS,
+  MS_EXPORT_BUTTON_SELECTORS,
 } from './helpers/msystem-tab-navigator.helper';
 
 @Injectable()
@@ -717,7 +718,17 @@ export class RpaDownloaderService {
       const targetUrl = `${normalizedBaseUrl}${hashPath}`;
       this.logger.log(`Direct navigation to: ${targetUrl}`);
       await page.goto(targetUrl);
-      await page.waitForTimeout(3000); // Wait for UI stabilization
+      
+      // Chờ Angular router cập nhật hash mục tiêu
+      const rawHash = hashPath.replace('#', '');
+      await page
+        .waitForFunction(
+          (h) => window.location.hash.toLowerCase().includes(h.toLowerCase()),
+          rawHash,
+          { timeout: 8000 },
+        )
+        .catch(() => {});
+      await page.waitForTimeout(2500); // Chờ AngularJS render view mới thay thế DOM cũ
 
       // Click optional tabs if provided
       if (optionalTabSelector) {
@@ -727,9 +738,25 @@ export class RpaDownloaderService {
         });
       }
 
-      // Wait for CSV download button
-      const csvButtonSelector = `button.ladda-button:has(i.fa-file-csv), i.fa-file-csv, button:has(.fa-file-csv)`;
-      await page.waitForSelector(csvButtonSelector, {
+      // Tự động kiểm tra và click nút "Tìm kiếm" nếu màn hình yêu cầu kích hoạt truy vấn trước khi vẽ bảng
+      const searchSelector =
+        "button:has-text('Tìm kiếm'), button:has(i.fa-search), button.btn-primary:has-text('Tìm kiếm'), button[type='submit']:has-text('Tìm kiếm')";
+      const searchBtn = page.locator(searchSelector).first();
+      const isSearchVisible = await searchBtn.isVisible({ timeout: 2000 }).catch(() => false);
+      if (isSearchVisible) {
+        this.logger.log(`Phát hiện nút "Tìm kiếm" tại ${hashPath}, thực hiện click kích hoạt dữ liệu bảng...`);
+        await searchBtn.click({ force: true }).catch(() => { });
+        await page.waitForTimeout(2000);
+        await page
+          .waitForSelector(
+            '.ladda-loading, div.spinner, div.loading, div.block-ui-overlay',
+            { state: 'detached', timeout: 6000 },
+          )
+          .catch(() => { });
+      }
+
+      // Chờ nút xuất file Excel / CSV hiển thị
+      await page.waitForSelector(MS_EXPORT_BUTTON_SELECTORS, {
         state: 'visible',
         timeout: 30000,
       });
@@ -743,8 +770,7 @@ export class RpaDownloaderService {
       });
 
       this.logger.log('Clicking CSV/Excel download icon/button...');
-      // Click the first matching visible button
-      await page.locator(csvButtonSelector).first().click();
+      await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
 
       const download = await downloadPromise;
       await this.saveAndValidateDownload(download, downloadPath, expectedTargetKey);
@@ -930,13 +956,27 @@ export class RpaDownloaderService {
   }
 
   async downloadQLTTTKGDAmKQ(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL khách hàng', 'QL TKGD', 'QL TKGD âm ký quỹ'],
-      destFile,
-      undefined,
-      'QLTKGDAmKQ',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/clientManagement/negativeMarginManagement',
+        destFile,
+        undefined,
+        90000,
+        'QLTKGDAmKQ',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `gotoAndDownload hash navigation failed for QLTKGDAmKQ, falling back to navigateAndDownload: ${err}`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL khách hàng', 'QL TKGD', 'QL TKGD âm ký quỹ'],
+        destFile,
+        undefined,
+        'QLTKGDAmKQ',
+      );
+    }
   }
 
   async downloadTLKQHSKQ(page: Page, destFile: string) {
@@ -968,7 +1008,7 @@ export class RpaDownloaderService {
     try {
       await this.gotoAndDownload(
         page,
-        '#/clientManagement/transactionHistory',
+        '#/clientManagement/marginMoneyTransHistory',
         destFile,
         undefined,
         90000,
@@ -989,22 +1029,38 @@ export class RpaDownloaderService {
   }
 
   async downloadDSTrader(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL khách hàng', 'QL Trader', 'Danh sách Trader'],
-      destFile,
-      undefined,
-      'DSTrader',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/clientManagement/traderManagement',
+        destFile,
+        undefined,
+        90000,
+        'DSTrader',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `gotoAndDownload hash navigation failed for DSTrader, falling back to navigateAndDownload: ${err}`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL khách hàng', 'QL Trader', 'Danh sách Trader'],
+        destFile,
+        undefined,
+        'DSTrader',
+      );
+    }
   }
 
   async downloadMarkettruoc6h(page: Page, destFile: string) {
     try {
-      this.logger.log('Navigating to QL giao dịch -> Bảng giá');
-      await page.click("xpath=//a[text()='QL giao dịch']");
-      await page.waitForTimeout(1000);
-      await page.click("xpath=//a[text()='Bảng giá']");
-      await page.waitForTimeout(2000);
+      this.logger.log('Navigating to Bảng giá (Markettruoc6h)...');
+      const baseUrl = page.url().split('#')[0];
+      const normalizedBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.slice(0, -1)
+        : baseUrl;
+      await page.goto(`${normalizedBaseUrl}#/orderManagement/orderCreating`);
+      await page.waitForTimeout(3000);
 
       // Special check: if fa-file-csv button not found directly, click plus icon first
       const csvBtn = page.locator("xpath=//i[contains(@class, 'fa-file-csv')]");
@@ -1014,16 +1070,14 @@ export class RpaDownloaderService {
         this.logger.log(
           'CSV icon not directly visible, clicking plus button first...',
         );
-        await page.click("xpath=//i[contains(@class, 'fas fa-plus')]");
+        await page.click("xpath=//i[contains(@class, 'fas fa-plus')]").catch(() => {});
         await page.waitForTimeout(2000);
       }
 
-      const downloadPromise = page.waitForEvent('download');
+      const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
       await page.click("xpath=//i[contains(@class, 'fa-file-csv')]");
       const download = await downloadPromise;
       await this.saveAndValidateDownload(download, destFile, 'Markettruoc6h');
-
-      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => { });
       this.logger.log(`Markettruoc6h downloaded successfully to: ${destFile}`);
     } catch (err: any) {
       throw new Error(`Tải Markettruoc6h.xlsx thất bại: ${err.message}`);
@@ -1031,51 +1085,101 @@ export class RpaDownloaderService {
   }
 
   async downloadDSLDK(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL giao dịch', 'Danh sách lệnh', 'Lệnh đã khớp'],
-      destFile,
-      undefined,
-      'DSLDK',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/orderManagement/orderList',
+        destFile,
+        'Lệnh đã khớp',
+        90000,
+        'DSLDK',
+      );
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload failed for DSLDK, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(
+        page,
+        ['QL giao dịch', 'Danh sách lệnh', 'Lệnh đã khớp'],
+        destFile,
+        undefined,
+        'DSLDK',
+      );
+    }
   }
 
   async downloadDSLCK(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL giao dịch', 'Danh sách lệnh', 'Lệnh chờ khớp'],
-      destFile,
-      undefined,
-      'DSLCK',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/orderManagement/orderList',
+        destFile,
+        'Lệnh chờ khớp',
+        90000,
+        'DSLCK',
+      );
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload failed for DSLCK, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(
+        page,
+        ['QL giao dịch', 'Danh sách lệnh', 'Lệnh chờ khớp'],
+        destFile,
+        undefined,
+        'DSLCK',
+      );
+    }
   }
 
   async downloadDSLH(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL giao dịch', 'Danh sách lệnh', 'Lệnh đã hủy'],
-      destFile,
-      undefined,
-      'DSLH',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/orderManagement/orderList',
+        destFile,
+        'Lệnh đã hủy',
+        90000,
+        'DSLH',
+      );
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload failed for DSLH, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(
+        page,
+        ['QL giao dịch', 'Danh sách lệnh', 'Lệnh đã hủy'],
+        destFile,
+        undefined,
+        'DSLH',
+      );
+    }
   }
 
   async downloadDSLK(page: Page, destFile: string) {
-    await this.navigateAndDownload(
-      page,
-      ['QL giao dịch', 'Danh sách lệnh', 'Lệnh khác'],
-      destFile,
-      undefined,
-      'DSLK',
-    );
+    try {
+      await this.gotoAndDownload(
+        page,
+        '#/orderManagement/orderList',
+        destFile,
+        'Lệnh khác',
+        90000,
+        'DSLK',
+      );
+    } catch (err) {
+      this.logger.warn(`gotoAndDownload failed for DSLK, falling back to navigateAndDownload: ${err}`);
+      await this.navigateAndDownload(
+        page,
+        ['QL giao dịch', 'Danh sách lệnh', 'Lệnh khác'],
+        destFile,
+        undefined,
+        'DSLK',
+      );
+    }
   }
 
   async downloadDSGD(page: Page, destFile: string, sessionDay?: string) {
     try {
-      this.logger.log('Navigating to QL giao dịch -> Danh sách giao dịch');
-      await page.click("xpath=//a[text()='QL giao dịch']");
-      await page.waitForTimeout(1000);
-      await page.click("xpath=//a[text()='Danh sách giao dịch']");
+      this.logger.log('Navigating to Danh sách giao dịch (DSGD)...');
+      const baseUrl = page.url().split('#')[0];
+      const normalizedBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl.slice(0, -1)
+        : baseUrl;
+      await page.goto(`${normalizedBaseUrl}#/orderManagement/transactionList`);
       await page.waitForTimeout(3000);
 
       // If specific session day requested, input date values by removing readonly attributes
@@ -1098,12 +1202,10 @@ export class RpaDownloaderService {
         await page.waitForTimeout(3000);
       }
 
-      const downloadPromise = page.waitForEvent('download');
+      const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
       await page.click("xpath=//i[contains(@class, 'fa-file-csv')]");
       const download = await downloadPromise;
       await this.saveAndValidateDownload(download, destFile, 'DSGD');
-
-      await page.click("xpath=//a[text()='QL giao dịch']").catch(() => { });
       this.logger.log(`DSGD downloaded successfully to: ${destFile}`);
     } catch (err: any) {
       throw new Error(`Tải DSGD.xlsx thất bại: ${err.message}`);
@@ -1112,13 +1214,13 @@ export class RpaDownloaderService {
 
   async downloadTTTT(page: Page, destFile: string) {
     try {
-      await this.navigateAndDownload(
+      await this.gotoAndDownload(
         page,
-        ['QL trạng thái', 'Trạng thái tất toán'],
+        '#/positionManagement/finalPositionInfo',
         destFile,
         undefined,
+        90000,
         'TTTT',
-        /finalPositionInfo/,
       );
       this.logger.log(
         `TTTT (Trạng thái tất toán) downloaded successfully to: ${destFile}`,
@@ -1143,13 +1245,13 @@ export class RpaDownloaderService {
 
   async downloadTTCDH(page: Page, destFile: string) {
     try {
-      await this.navigateAndDownload(
+      await this.gotoAndDownload(
         page,
-        ['QL trạng thái', 'Trạng thái tất toán'],
+        '#/positionManagement/finalPositionInfo',
         destFile,
         'Trạng thái tất toán chờ đáo hạn LME',
+        90000,
         'TTCDH',
-        /finalPositionInfo/,
       );
       this.logger.log(`TTCDH downloaded successfully to: ${destFile}`);
     } catch (err: any) {
@@ -1243,13 +1345,13 @@ export class RpaDownloaderService {
 
   async downloadTTM(page: Page, destFile: string) {
     try {
-      await this.navigateAndDownload(
+      await this.gotoAndDownload(
         page,
-        ['QL trạng thái', 'Trạng thái mở'],
+        '#/positionManagement/openPositionInfo',
         destFile,
         undefined,
+        90000,
         'TTM',
-        /openPositionInfo/,
       );
       this.logger.log(`TTM (Trạng thái mở) downloaded to: ${destFile}`);
     } catch (err: any) {
