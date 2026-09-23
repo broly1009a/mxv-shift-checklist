@@ -53,25 +53,54 @@ export class CcpReconService {
     rmbLoss: number;
     rmbGain: number;
   }> {
-    const usdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
-    const myrStr = await this.settingsService.getSetting('myr_exchange_rate', '6383');
-    const jpyStr = await this.settingsService.getSetting('jpy_exchange_rate', '170');
-    const rmbStr = await this.settingsService.getSetting('rmb_exchange_rate', '3871');
+    // 1. Ưu tiên đọc ma trận đa nguyên tệ ccp_exchange_rates_matrix
+    let matrix: Record<string, any> = {};
+    try {
+      const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '');
+      if (matrixStr) matrix = JSON.parse(matrixStr);
+    } catch {
+      matrix = {};
+    }
 
-    const usd = parseFloat(usdStr) || 25920;
-    const myr = parseFloat(myrStr) || 6383;
-    const jpy = parseFloat(jpyStr) || 170;
-    const rmb = parseFloat(rmbStr) || 3871;
+    // 2. Đọc các setting đơn lẻ riêng của CoreCCP (fallback về M-System nếu chưa cấu hình)
+    const [
+      ccpUsdStr, usdStr,
+      ccpMyrStr, myrStr,
+      ccpJpyStr, jpyStr,
+      ccpRmbStr, rmbStr,
+    ] = await Promise.all([
+      this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
+      this.settingsService.getSetting('usd_exchange_rate', '26000'),
+      this.settingsService.getSetting('ccp_myr_exchange_rate', ''),
+      this.settingsService.getSetting('myr_exchange_rate', '6383'),
+      this.settingsService.getSetting('ccp_jpy_exchange_rate', ''),
+      this.settingsService.getSetting('jpy_exchange_rate', '170'),
+      this.settingsService.getSetting('ccp_rmb_exchange_rate', ''),
+      this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+    ]);
+
+    const getRate = (code: string, ccpFallback: string, msFallback: string, defVal: number) => {
+      const item = matrix[code];
+      const conv = item?.conversionRate ? Number(item.conversionRate) : (parseFloat(ccpFallback) || parseFloat(msFallback) || defVal);
+      const buy = item?.buyRate ? Number(item.buyRate) : conv;
+      const sell = item?.sellRate ? Number(item.sellRate) : conv;
+      return { buy, sell, conv };
+    };
+
+    const usd = getRate('USD', ccpUsdStr, usdStr, 26000);
+    const myr = getRate('MYR', ccpMyrStr, myrStr, 6383);
+    const jpy = getRate('JPY', ccpJpyStr, jpyStr, 170);
+    const rmb = getRate('RMB', ccpRmbStr, rmbStr, 3871);
 
     return {
-      usdLoss: usd,
-      usdGain: usd,
-      myrLoss: myr,
-      myrGain: myr,
-      jpyLoss: jpy,
-      jpyGain: jpy,
-      rmbLoss: rmb,
-      rmbGain: rmb,
+      usdLoss: usd.buy,
+      usdGain: usd.sell,
+      myrLoss: myr.buy,
+      myrGain: myr.sell,
+      jpyLoss: jpy.buy,
+      jpyGain: jpy.sell,
+      rmbLoss: rmb.buy,
+      rmbGain: rmb.sell,
     };
   }
 

@@ -4308,6 +4308,9 @@ export class RpaDownloaderService {
       }
     } catch (err: any) {
       this.logger.warn(`[CQG] Không thể hoàn tất Log off qua UI: ${err?.message || err}`);
+    } finally {
+      // Dù logout UI thành công hay thất bại, chủ động dọn dẹp cookies phiên làm việc để không lưu token rác
+      await page.context().clearCookies().catch(() => { });
     }
   }
 
@@ -4361,6 +4364,20 @@ export class RpaDownloaderService {
       if (!fs.existsSync(profileDir))
         fs.mkdirSync(profileDir, { recursive: true });
 
+      // Dọn dẹp file lock mồ côi (SingletonLock) phòng ngừa PM2 restart hoặc crash đột ngột
+      try {
+        const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+        for (const file of lockFiles) {
+          const lockPath = path.join(profileDir, file);
+          if (fs.existsSync(lockPath)) {
+            fs.unlinkSync(lockPath);
+            this.logger.warn(`[CQG] Đã dọn dẹp file lock mồ côi: ${file} trong ${profileDir}`);
+          }
+        }
+      } catch (lockErr: any) {
+        this.logger.warn(`[CQG] Không thể xóa file lock cũ (${lockErr?.message}), tiếp tục khởi chạy...`);
+      }
+
       const executablePath = this.getChromeExecutablePath();
       const isHeadless =
         process.env.HEADLESS_BOT !== 'false' &&
@@ -4412,32 +4429,61 @@ export class RpaDownloaderService {
           );
         }
 
-        // Đợi form đăng nhập xuất hiện (nhờ có persistent disk cache, Angular khởi chạy siêu tốc chỉ 4s)
-        let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
-          state: 'visible',
-          timeout: 60000,
-        }).catch(() => null);
+        // ── Dual-State Router: Lắng nghe đồng thời Form đăng nhập HOẶC Dashboard ──
+        // Nhờ Persistent Disk Cache, bundle JS/WASM tải rất nhanh (4s - 6s).
+        // Nếu trang tự động vào thẳng Workspace (session cũ còn hiệu lực), ta bỏ qua bước điền thông tin đăng nhập,
+        // loại bỏ hoàn toàn nguy cơ bị treo 60s chờ ô userName như trước đây.
+        const detectState = async (timeoutMs: number = 45000): Promise<'LOGIN' | 'DASHBOARD' | 'TIMEOUT'> => {
+          const startTime = Date.now();
+          while (Date.now() - startTime < timeoutMs) {
+            const hasLogin = await page
+              .locator('input[name="userName"], input[name="username"], input[type="password"]')
+              .first()
+              .isVisible()
+              .catch(() => false);
+            if (hasLogin) return 'LOGIN';
 
-        if (!hasLoginForm) {
-          this.logger.log(`[CQG] Bản demo bị quay spinner lâu, tự động reload lại trang...`);
+            const hasDashboard = await page
+              .locator('div.wpfe-logo-image, .wpfe-main-toolbar, //div[text()=\'Ho\']')
+              .first()
+              .isVisible()
+              .catch(() => false);
+            if (hasDashboard) return 'DASHBOARD';
+
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+          return 'TIMEOUT';
+        };
+
+        let state = await detectState(30000);
+        if (state === 'TIMEOUT') {
+          this.logger.log(`[CQG] Bản web bị quay spinner lâu, tự động reload lại trang...`);
           await page.reload({ waitUntil: 'commit', timeout: 60000 }).catch(() =>
             page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 }),
           );
-          await page.waitForSelector('input[name="userName"]', {
-            state: 'visible',
-            timeout: 60000,
-          });
+          state = await detectState(30000);
+          if (state === 'TIMEOUT') {
+            throw new Error(`[CQG] Không tìm thấy Form đăng nhập hoặc Dashboard sau 60s chờ tải trang (${username}).`);
+          }
         }
-        await page.fill('input[name="userName"]', username);
-        await page.fill('input[name="password"]', password);
-        await page.click('button[type="submit"]');
 
-        // Lắng nghe đồng thời logo dashboard và các dialog xung đột phiên cũ (Concurrent session / Take over)
-        await this.waitForCqgDashboardLogo(page, username, 120000);
+        if (state === 'LOGIN') {
+          this.logger.log(`[CQG] Phát hiện form đăng nhập, tiến hành xác thực tài khoản: ${username}...`);
+          await page.fill('input[name="userName"]', username);
+          await page.fill('input[name="password"]', password);
+          await page.click('button[type="submit"]');
 
-        // Chờ các lớp loading sau khi login biến mất hoàn toàn
+          // Lắng nghe đồng thời logo dashboard và các dialog xung đột phiên cũ (Concurrent session / Take over)
+          await this.waitForCqgDashboardLogo(page, username, 120000);
+        } else if (state === 'DASHBOARD') {
+          this.logger.log(`[CQG] Phát hiện phiên làm việc sẵn sàng tại Dashboard cho: ${username}. Tiến hành kiểm tra và xử lý dialog xung đột nếu có...`);
+          // Kiểm tra xử lý nhanh các modal takeover hoặc snackbar còn sót
+          await this.waitForCqgDashboardLogo(page, username, 10000);
+        }
+
+        // Chờ các lớp loading sau khi login/vào workspace biến mất hoàn toàn
         await this.waitForCqgNotLoading(page, 30000);
-        this.logger.log(`[CQG] Đăng nhập thành công: ${username}`);
+        this.logger.log(`[CQG] Trạng thái sẵn sàng cho tài khoản: ${username}`);
         return { browser: context, page };
       } catch (err: any) {
         await context.close().catch(() => { });

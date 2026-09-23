@@ -207,20 +207,39 @@ export class CcpLotStatisticsService {
       tyGiaMap = this.parseTyGiaFile(files.tyGia);
       this.logger.log(`[CCP] Đọc tỷ giá từ file: ${JSON.stringify(tyGiaMap)}`);
 
-      // Tự động đồng bộ tỷ giá mới vào Database (system_settings) để toàn hệ thống dùng chung
+      // Tự động đồng bộ tỷ giá mới vào Database (system_settings) riêng cho CoreCCP (KHÔNG ghi đè M-System)
       if (this.settingsService) {
         try {
           const nowIso = new Date().toISOString();
           if (tyGiaMap['USD']) {
-            await this.settingsService.setSetting('usd_exchange_rate', String(tyGiaMap['USD']));
             await this.settingsService.setSetting('ccp_usd_exchange_rate', String(tyGiaMap['USD']));
+            await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
             await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
-            await this.settingsService.setSetting('exchange_rate_source', 'Tệp Tỷ giá tải lên');
+            await this.settingsService.setSetting('exchange_rate_source', 'Tệp Tỷ giá CoreCCP tải lên');
           }
-          if (tyGiaMap['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', String(tyGiaMap['JPY']));
-          if (tyGiaMap['MYR']) await this.settingsService.setSetting('myr_exchange_rate', String(tyGiaMap['MYR']));
-          if (tyGiaMap['CNY']) await this.settingsService.setSetting('rmb_exchange_rate', String(tyGiaMap['CNY']));
-          this.logger.log(`[CCP] Đã tự động đồng bộ tỷ giá từ file vào Database (system_settings)`);
+          if (tyGiaMap['JPY']) await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(tyGiaMap['JPY']));
+          if (tyGiaMap['MYR']) await this.settingsService.setSetting('ccp_myr_exchange_rate', String(tyGiaMap['MYR']));
+          if (tyGiaMap['CNY'] || tyGiaMap['RMB']) {
+            const rmbVal = tyGiaMap['CNY'] || tyGiaMap['RMB'];
+            await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbVal));
+          }
+
+          // Cập nhật ma trận động ccp_exchange_rates_matrix
+          const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+          let matrix: Record<string, any> = {};
+          try { matrix = JSON.parse(matrixStr || '{}'); } catch { matrix = {}; }
+          for (const [curr, rate] of Object.entries(tyGiaMap)) {
+            if (curr === 'VND') continue;
+            matrix[curr] = {
+              currencyCode: curr,
+              conversionRate: rate,
+              buyRate: matrix[curr]?.buyRate ?? rate,
+              sellRate: matrix[curr]?.sellRate ?? rate,
+              effectiveDate: nowIso.split('T')[0],
+            };
+          }
+          await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
+          this.logger.log(`[CCP] Đã đồng bộ tỷ giá CoreCCP vào Database (ccp_exchange_rates_matrix)`);
         } catch (saveErr: any) {
           this.logger.warn(`[CCP] Không thể đồng bộ tỷ giá vào Database: ${saveErr.message}`);
         }
@@ -246,17 +265,34 @@ export class CcpLotStatisticsService {
 
       if (this.settingsService) {
         try {
-          const [ccpUsdStr, usdStr, jpyStr, myrStr, rmbStr] = await Promise.all([
+          // Ưu tiên đọc từ ma trận ccp_exchange_rates_matrix
+          const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '');
+          let matrix: Record<string, any> = {};
+          if (matrixStr) {
+            try { matrix = JSON.parse(matrixStr); } catch { matrix = {}; }
+          }
+
+          const [ccpUsdStr, usdStr, ccpJpyStr, jpyStr, ccpMyrStr, myrStr, ccpRmbStr, rmbStr] = await Promise.all([
             this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
-            this.settingsService.getSetting('usd_exchange_rate', '25920'),
+            this.settingsService.getSetting('usd_exchange_rate', '26000'),
+            this.settingsService.getSetting('ccp_jpy_exchange_rate', ''),
             this.settingsService.getSetting('jpy_exchange_rate', '170'),
+            this.settingsService.getSetting('ccp_myr_exchange_rate', ''),
             this.settingsService.getSetting('myr_exchange_rate', '6383'),
+            this.settingsService.getSetting('ccp_rmb_exchange_rate', ''),
             this.settingsService.getSetting('rmb_exchange_rate', '3871'),
           ]);
-          dbUsdRate = parseFloat(ccpUsdStr) || parseFloat(usdStr) || 25920;
-          dbJpyRate = parseFloat(jpyStr) || 170;
-          dbMyrRate = parseFloat(myrStr) || 6383;
-          dbRmbRate = parseFloat(rmbStr) || 3871;
+          dbUsdRate = matrix['USD']?.conversionRate || parseFloat(ccpUsdStr) || parseFloat(usdStr) || 26000;
+          dbJpyRate = matrix['JPY']?.conversionRate || parseFloat(ccpJpyStr) || parseFloat(jpyStr) || 170;
+          dbMyrRate = matrix['MYR']?.conversionRate || parseFloat(ccpMyrStr) || parseFloat(myrStr) || 6383;
+          dbRmbRate = matrix['RMB']?.conversionRate || matrix['CNY']?.conversionRate || parseFloat(ccpRmbStr) || parseFloat(rmbStr) || 3871;
+
+          // Nạp các đồng tiền khác từ ma trận (nếu người dùng thêm EUR, SGD...)
+          for (const [code, item] of Object.entries<any>(matrix)) {
+            if (item && item.conversionRate && !tyGiaMap[code]) {
+              tyGiaMap[code] = Number(item.conversionRate);
+            }
+          }
         } catch (dbErr: any) {
           this.logger.warn(`[CCP] Không thể đọc tỷ giá từ Database: ${dbErr.message}`);
         }
@@ -265,15 +301,14 @@ export class CcpLotStatisticsService {
       if (extractedRate) {
         tyGiaMap['USD'] = extractedRate;
         warnings.push(`Sử dụng tỷ giá thực tế trích xuất từ báo cáo ${extractedSource}: 1 USD = ${extractedRate.toLocaleString('vi-VN')} đ`);
-        // Lưu vào CSDL để tái sử dụng
+        // Lưu vào CSDL riêng cho CoreCCP (KHÔNG ghi đè M-System)
         if (this.settingsService) {
           try {
             const nowIso = new Date().toISOString();
             await this.settingsService.setSetting('ccp_usd_exchange_rate', String(extractedRate));
-            await this.settingsService.setSetting('usd_exchange_rate', String(extractedRate));
-            await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+            await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
             await this.settingsService.setSetting('exchange_rate_source', `Trích xuất từ ${extractedSource}`);
-            this.logger.log(`[CCP] Đã lưu tỷ giá trích xuất ${extractedRate} vào CSDL MongoDB (system_settings)`);
+            this.logger.log(`[CCP] Đã lưu tỷ giá trích xuất ${extractedRate} vào CSDL MongoDB (ccp_usd_exchange_rate)`);
           } catch (err: any) {
             this.logger.warn(`[CCP] Lỗi lưu tỷ giá vào DB: ${err.message}`);
           }
@@ -1299,7 +1334,7 @@ export class CcpLotStatisticsService {
     if (rateToSave && rateToSave > 0) {
       if (this.settingsService) {
         await this.settingsService.setSetting('ccp_usd_exchange_rate', String(rateToSave));
-        await this.settingsService.setSetting('usd_exchange_rate', String(rateToSave));
+        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rate_source', source);
       }

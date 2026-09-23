@@ -1669,6 +1669,50 @@ export class BotEngineService {
     return contracts;
   }
 
+  /**
+   * Kiểm tra xem một Job đã hoàn thành nhưng đang ở trạng thái "Chờ file đối chiếu" (isWaitingFiles)
+   * và vẫn còn nằm trong thời gian nghỉ Cooldown hay không.
+   *
+   * @param existingJob Bản ghi job gần nhất trong CSDL
+   * @param cooldownMinutes Thời gian nghỉ tối thiểu (mặc định 15 phút)
+   * @returns true nếu ĐANG NGHỈ (chặn không cho enqueue), false nếu đã hết cooldown hoặc không phải trạng thái chờ file
+   */
+  public isWaitingFilesCooldownActive(
+    existingJob: any,
+    cooldownMinutes: number = 15,
+  ): boolean {
+    if (!existingJob || existingJob.status !== 'COMPLETED') {
+      return false;
+    }
+
+    try {
+      const jobObj =
+        typeof existingJob.toObject === 'function'
+          ? existingJob.toObject()
+          : existingJob;
+      const payload = jobObj.payload || {};
+      const result = payload.result || {};
+
+      if (!result.isWaitingFiles) {
+        return false;
+      }
+
+      const lastRunTime =
+        existingJob.completedAt ||
+        existingJob.updatedAt ||
+        existingJob.createdAt;
+      if (!lastRunTime) {
+        return false;
+      }
+
+      const elapsedMinutes =
+        (Date.now() - new Date(lastRunTime).getTime()) / (60 * 1000);
+      return elapsedMinutes < cooldownMinutes;
+    } catch {
+      return false;
+    }
+  }
+
   private shouldEnqueueNewJob(task: any, existingJob: any): boolean {
     if (!existingJob) {
       return true;
@@ -1682,7 +1726,17 @@ export class BotEngineService {
             ? task.frequencyMinutesSnapshot
             : 15;
 
-        // Bypass cooldown if the task was updated/started after the last job was created/updated.
+        // 1. Chống lặp vô hạn khi thiếu file:
+        // Nếu Job gần nhất kết thúc vì đang chờ file (isWaitingFiles: true),
+        // bắt buộc phải tuân thủ đủ thời gian nghỉ Cooldown (tối thiểu 15 phút), TUYỆT ĐỐI không cho phép bypass.
+        if (this.isWaitingFilesCooldownActive(existingJob, cooldownMinutes)) {
+          this.logger.debug(
+            `[Bot] Cooldown active for Task [${task.taskId}] while waiting for files (cooldown: ${cooldownMinutes}m). Skipping enqueue.`,
+          );
+          return false;
+        }
+
+        // 2. Bypass cooldown if the task was updated/started after the last job was created/updated (ví dụ: User chủ động reset task trên Web).
         // This covers both:
         //   - task.startedAt: set when task is first started by the bot
         //   - task.updatedAt: set when user manually resets task to WAITING/PENDING

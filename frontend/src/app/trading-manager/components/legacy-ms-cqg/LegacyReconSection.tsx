@@ -89,6 +89,7 @@ export default function LegacyReconSection({
   // Master Switch: Tự động đối chiếu (bot_auto_recon_enabled)
   const [autoReconActive, setAutoReconActive] = useState<boolean>(true);
   const [updatingAutoRecon, setUpdatingAutoRecon] = useState<boolean>(false);
+  const [cancellingBot, setCancellingBot] = useState<boolean>(false);
 
 
   // Sound Beeper
@@ -628,6 +629,72 @@ export default function LegacyReconSection({
     }
   };
 
+  // Dừng khẩn cấp tiến trình bot đang chạy
+  const handleEmergencyStopBot = async () => {
+    if (!token || cancellingBot) return;
+
+    let targetJobId = activeJobId || summaryData?.klgd?.jobId || summaryData?.currentJobId;
+
+    if (!targetJobId) {
+      try {
+        const jobsRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=CHECK_KLGD,CHECK_PRE_EOD`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (jobsRes.ok) {
+          const jobs = await jobsRes.json();
+          const activeJob = Array.isArray(jobs)
+            ? jobs.find((j: any) => j.status === 'PROCESSING' || j.status === 'PENDING')
+            : null;
+          if (activeJob) {
+            targetJobId = activeJob._id;
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi tìm job đang chạy:', err);
+      }
+    }
+
+    if (!targetJobId) {
+      toast.error('Không tìm thấy mã tiến trình bot đang chạy để dừng.');
+      return;
+    }
+
+    const confirmed = window.confirm('Bạn có chắc chắn muốn dừng khẩn cấp tiến trình đối soát của Bot không?');
+    if (!confirmed) return;
+
+    setCancellingBot(true);
+    const toastId = toast.loading('Đang gửi lệnh dừng bot...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${targetJobId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason: 'Dừng khẩn cấp bởi người vận hành qua nút Dừng tại Tab Đối soát' }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Không thể dừng tiến trình bot');
+      }
+
+      toast.success('Đã dừng tiến trình đối soát thành công!', { id: toastId });
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('activeTriggerJobId');
+      }
+      setActiveJobId(null);
+      activeJobIdRef.current = null;
+      setTriggering(false);
+      setTriggeringSection(null);
+      await fetchConsoleSummary(selectedDate, true);
+    } catch (err: any) {
+      toast.error(`Lỗi khi dừng bot: ${err.message}`, { id: toastId });
+    } finally {
+      setCancellingBot(false);
+    }
+  };
+
   // Trigger CoreCCP Playwright Download Job
 
   const totals = summaryData?.klgd?.totals || {};
@@ -951,29 +1018,55 @@ export default function LegacyReconSection({
                     </div>
                   </div>
                 </div>
-                {(displayLogs.length > 0 || klgdLogs.length > 0) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {(displayLogs.length > 0 || klgdLogs.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLogModal(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                      }}
+                    >
+                      <Terminal size={14} />
+                      <span>Xem Log tiến trình</span>
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setShowLogModal(true)}
+                    onClick={handleEmergencyStopBot}
+                    disabled={cancellingBot}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
                       padding: '8px 14px',
                       borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-card)',
-                      color: 'var(--text-primary)',
+                      border: '1px solid rgba(220, 38, 38, 0.4)',
+                      backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                      color: '#dc2626',
                       fontSize: '0.8rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                      fontWeight: 700,
+                      cursor: cancellingBot ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 1px 3px rgba(220, 38, 38, 0.1)',
+                      transition: 'all 0.2s',
                     }}
+                    title="Dừng khẩn cấp tiến trình đối soát của Bot"
                   >
-                    <Terminal size={14} />
-                    <span>Xem Log tiến trình</span>
+                    <Square size={13} fill={cancellingBot ? 'none' : '#dc2626'} className={cancellingBot ? 'animate-pulse' : ''} />
+                    <span>{cancellingBot ? 'Đang dừng...' : 'Dừng bot'}</span>
                   </button>
-                )}
+                </div>
               </div>
             ) : null}
 

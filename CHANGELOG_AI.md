@@ -1,5 +1,92 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-23T15:00] FEAT: Tách Biệt Độc Lập Cấu Hình Tỷ Giá M-System & CoreCCP (VNCLEAR) - Hỗ Trợ Ma Trận Đa Nguyên Tệ Động
+
+### 1. Mục tiêu thay đổi
+- **Bảo toàn dữ liệu ca trực M-System**: Giữ nguyên 100% các khóa cấu hình cũ (`usd_exchange_rate`, `usd_settlement_rate_sell`, `usd_settlement_rate_buy`) cho các tác vụ đối chiếu KLGD trong phiên, Pre-EOD và EOD của M-System/CQG.
+- **Xóa bỏ triệt để lỗi ghi đè chéo (Cross-Overwrite Bug)**: Trước đây khi upload file tỷ giá CoreCCP hoặc chạy thống kê Lot VNCLEAR, hệ thống tự động ghi đè tỷ giá CoreCCP (ví dụ JPY 170 đè 168, MYR 6,383 đè 6,268) vào các key M-System làm sai lệch phép tính đối soát của M-System.
+- **Ma trận đa nguyên tệ CoreCCP động (Zero-Hardcoding)**: Lưu trữ ma trận tỷ giá CoreCCP (`ccp_exchange_rates_matrix`) dạng JSON linh hoạt gồm `conversionRate`, `buyRate`, `sellRate` theo đúng cấu trúc màn hình `/SYSCONFIGMNG/CURRENCYEXCHANGERATE` của VNCLEAR. Cho phép trực ca thêm nguyên tệ mới (EUR, SGD, CNY...) trực tiếp trên giao diện chỉ trong 5 giây mà không cần can thiệp mã nguồn.
+- **Tách bạch giao diện Trading Manager (Tab Cấu hình)**: Phân tách rõ ràng thành 2 Card độc lập: Card 1 cho Tỷ giá M-System (MXV) và Card 2 cho Ma trận tỷ giá CoreCCP (VNCLEAR) kèm bảng chỉnh sửa và form thêm nhanh.
+
+### 2. Danh sách file thay đổi
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  * Chặn triệt để việc ghi đè vào `usd_exchange_rate`, `jpy_exchange_rate`, `myr_exchange_rate`.
+  * Ghi vào `ccp_usd_exchange_rate`, `ccp_jpy_exchange_rate`, `ccp_myr_exchange_rate`, `ccp_rmb_exchange_rate` và cập nhật ma trận JSON `ccp_exchange_rates_matrix`.
+  * Ưu tiên đọc ma trận `ccp_exchange_rates_matrix` trước, nạp toàn bộ nguyên tệ động vào `tyGiaMap`.
+- [backend/src/modules/reconciliation/services/ccp-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts):
+  * Cập nhật `getCurrentExchangeRates()`: Đọc ưu tiên từ `ccp_exchange_rates_matrix`, mapping chuẩn `buyRate` (Loss) và `sellRate` (Gain) cho các nguyên tệ USD, JPY, MYR, RMB.
+- [backend/src/modules/ccp-statistics/ccp-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-statistics.controller.ts):
+  * Cập nhật `uploadTyGiaFile`: Chỉ lưu vào `ccp_*` và `ccp_exchange_rates_matrix`, không ghi đè vào `usd_exchange_rate`.
+- [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+  * Xóa bỏ dòng gán đè `setUsdExchangeRate(rate)` khi sync tỷ giá từ CoreCCP.
+  * Bổ sung state `ccpRatesMatrix` và form thêm nhanh `newCurrCode`, `newCurrConversion`, `newCurrBuy`, `newCurrSell`.
+  * Cập nhật `fetchConfig` và `handleSaveConfig` đồng bộ ma trận đa nguyên tệ CoreCCP.
+  * Tách giao diện thành 2 Card độc lập: Card 1 (Tỷ giá M-System MXV) & Card 1.5 (Ma trận Đa nguyên tệ CoreCCP VNCLEAR có bảng chỉnh sửa trực tiếp, badge nguyên tệ, nút xóa và nút thêm mới).
+- [backend/src/scripts/test_exchange_rate_system.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_exchange_rate_system.js):
+  * Bộ test kiểm thử toàn diện 8 Test Suites: Chống ghi đè chéo, ma trận đa nguyên tệ động, mapping Loss/Gain ccp-recon, M-System summary độc lập, parseTyGiaFile, quy đổi GTGD và fallback an toàn khi dữ liệu hỏng.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type-check**: `cmd.exe /c "npx.cmd tsc --noEmit"` thành công 100% (**Exit Code 0**).
+- **Backend Build**: `cmd.exe /c "npm.cmd run build"` (`nest build`) thành công 100% (**Exit Code 0**).
+- **Test Script Syntax**: `node --check src/scripts/test_exchange_rate_system.js` cú pháp chuẩn xác 100% (**Exit Code 0**). Tuân thủ Rule 8 trong `AGENTS.md` (để USER tự chạy test trên terminal).
+
+---
+
+## [2026-09-23T14:15] FEAT: Bổ Sung Nút Dừng Bot Khẩn Cấp (Emergency Stop) Trực Tiếp Trên Banner Đối Soát Tab 1
+
+### 1. Mục tiêu thay đổi
+- Tối ưu hóa trải nghiệm người dùng (UX) và tính kịp thời khi vận hành: Cho phép người trực ca dừng ngay lập tức tiến trình bot đang chạy (`isBotRunning === true`) trực tiếp từ Tab 1 (LegacyReconSection) mà không cần phải chuyển sang Tab 5 (Hàng đợi & Logs).
+- Triển khai cơ chế xác thực an toàn: Có xác nhận (confirm dialog) trước khi gửi tín hiệu hủy, tự động tìm Job ID mục tiêu (dựa trên `activeJobId`, `summaryData?.klgd?.jobId` hoặc query active job từ API backend).
+- Đồng bộ sạch sẽ trạng thái: Xóa `sessionStorage.activeTriggerJobId`, set `triggering = false`, và làm mới dữ liệu console summary ngay lập tức.
+
+### 2. Danh sách file thay đổi
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  * Thêm state `cancellingBot`.
+  * Thêm hàm `handleEmergencyStopBot`: Gọi `POST /api/v1/bot-engine/jobs/${targetJobId}/cancel` với lý do rõ ràng.
+  * Thêm nút "Dừng bot" với icon `Square` từ `lucide-react`, style viền đỏ cảnh báo nổi bật ngay cạnh nút "Xem Log tiến trình".
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend: `npx.cmd tsc --noEmit` thành công 100% với **Exit Code 0**, không có lỗi TypeScript hay Lint.
+
+---
+
+## [2026-09-23T10:55] ENHANCE & FIX: Tối Ưu Router Đăng Nhập Kép (Dual-State Router) & Dọn Dẹp SingletonLock Cho CQG RPA Downloader
+
+### 1. Mục tiêu thay đổi
+- Khắc phục nguy cơ treo cứng 60s - 120s tại hàm `loginCqgAccount` trong [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts) do cơ chế chờ đơn lẻ `input[name="userName"]` khi trình duyệt mở lại bằng Persistent Context đã ở sẵn Dashboard.
+- Tự động dọn dẹp file lock mồ côi (`SingletonLock`, `SingletonCookie`, `SingletonSocket`) trước khi khởi chạy Playwright persistent context để ngăn chặn lỗi crash bot khi server bị restart đột ngột.
+- Đảm bảo xóa sạch cookies phiên (`page.context().clearCookies()`) trong khối `finally` của `logoutCqg` để không lưu lại token/session rác dở dang.
+
+### 2. Danh sách file thay đổi
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * **SingletonLock Cleanup**: Thêm khối kiểm tra và xóa file `SingletonLock`, `SingletonCookie`, `SingletonSocket` trong `profileDir` trước khi gọi `launchPersistentContext`.
+  * **Dual-State Router**: Thay thế đoạn `waitForSelector('input[name="userName"]', { timeout: 60000 })` bằng hàm `detectState` lắng nghe song song hai trạng thái:
+    - Trạng thái `LOGIN`: Nếu thấy `input[name="userName"]` $\rightarrow$ Điền username/password và submit.
+    - Trạng thái `DASHBOARD`: Nếu thấy `div.wpfe-logo-image`, `.wpfe-main-toolbar` hoặc `//div[text()='Ho']` $\rightarrow$ Nhảy thẳng vào xử lý dialog xung đột/tiếp tục làm việc mà không chờ ô login.
+    - Timeout: Chỉ reload tối đa 1 lần nếu trang bị quay spinner quá 30s.
+  * **Cookie Cleanup on Logout**: Bổ sung `await page.context().clearCookies().catch(() => {})` trong khối `finally` của `logoutCqg`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `cmd /c "npm run build"` (`nest build`) thành công 100% (exit code 0).
+
+
+### 1. Mục tiêu thay đổi
+- Khắc phục hiện tượng Bot tự động tạo Job mới liên tục sau mỗi 30-50 giây khi sàn đối tác (M-System, CQG, ACM) bị thiếu file hoặc đang chờ file (`isWaitingFiles: true`).
+- Bổ sung hàm kiểm tra độc lập `isWaitingFilesCooldownActive(existingJob, cooldownMinutes)` và tích hợp vào `shouldEnqueueNewJob` trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts).
+
+### 2. Danh sách file thay đổi
+- [backend/src/modules/bot-engine/bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts):
+  * Thêm helper `isWaitingFilesCooldownActive(existingJob, cooldownMinutes = 15)`: unwrap an toàn payload Mongoose Map, kiểm tra cờ `payload.result.isWaitingFiles`.
+  * Tích hợp vào `shouldEnqueueNewJob`: Khi job gần nhất kết thúc ở trạng thái `isWaitingFiles: true`, BẮT BUỘC phải tuân thủ đủ thời gian nghỉ Cooldown (tối thiểu 15 phút), TUYỆT ĐỐI không cho phép `taskUpdatedAt` bypass cooldown.
+- [backend/src/scripts/test_cooldown_guard.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cooldown_guard.js):
+  * Bộ test mô phỏng thực tế 6 kịch bản (Bao gồm dữ liệu thật từ MongoDB Ubuntu Job `6ab2eeb8...` lúc 04:10:16). Kết quả: **6/6 PASS 100%**.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` thành công 100% (exit code 0).
+- Unit Simulation: `node src/scripts/test_cooldown_guard.js` đạt 6/6 PASS.
+
+---
+
 ## [2026-09-23T08:31] ENHANCE & FIX: Tối Ưu Script Test 20 Báo Cáo M-System (Hỗ Trợ --headed, Lưu Toàn Bộ URL & Chống Kẹt Trang Cũ)
 
 ### 1. Mục tiêu thay đổi

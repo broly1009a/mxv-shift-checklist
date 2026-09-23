@@ -422,12 +422,30 @@ export class CcpStatisticsController {
       const usdRate = rates['USD'] || 0;
       if (usdRate > 0) {
         await this.settingsService.setSetting('ccp_usd_exchange_rate', String(usdRate));
-        await this.settingsService.setSetting('usd_exchange_rate', String(usdRate));
-        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname}`);
-        if (rates['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', String(rates['JPY']));
-        if (rates['MYR']) await this.settingsService.setSetting('myr_exchange_rate', String(rates['MYR']));
-        if (rates['CNY']) await this.settingsService.setSetting('rmb_exchange_rate', String(rates['CNY']));
+        if (rates['JPY']) await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(rates['JPY']));
+        if (rates['MYR']) await this.settingsService.setSetting('ccp_myr_exchange_rate', String(rates['MYR']));
+        if (rates['CNY'] || rates['RMB']) {
+          const rmbVal = rates['CNY'] || rates['RMB'];
+          await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbVal));
+        }
+
+        // Cập nhật ma trận động ccp_exchange_rates_matrix
+        const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+        let matrix: Record<string, any> = {};
+        try { matrix = JSON.parse(matrixStr || '{}'); } catch { matrix = {}; }
+        for (const [curr, rate] of Object.entries(rates)) {
+          if (curr === 'VND') continue;
+          matrix[curr] = {
+            currencyCode: curr,
+            conversionRate: rate,
+            buyRate: matrix[curr]?.buyRate ?? rate,
+            sellRate: matrix[curr]?.sellRate ?? rate,
+            effectiveDate: nowIso.split('T')[0],
+          };
+        }
+        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
       }
       return {
         success: true,
