@@ -201,6 +201,18 @@ const specificFiles = [
     local: path.join(repoRoot, 'frontend/src/context/AuthContext.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/context/AuthContext.tsx',
   },
+  {
+    local: path.join(repoRoot, 'CHANGELOG_AI.md'),
+    remote: '/opt/mxv-checklist/CHANGELOG_AI.md',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_exchange_rate_system.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_exchange_rate_system.js',
+  },
+  {
+    local: path.join(repoRoot, 'docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md'),
+    remote: '/opt/mxv-checklist/docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md',
+  },
 ];
 
 specificFiles.forEach((item) => {
