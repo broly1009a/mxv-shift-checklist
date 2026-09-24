@@ -15,7 +15,7 @@
  *   Phase 2 (tương lai): Thêm Spread (-S), LME (L), Options khi CCP migrate
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CcpLotRunHistory } from '../../schemas/ccp-lot-run-history.schema';
@@ -24,6 +24,8 @@ import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { CcpCeDownloaderService } from '../bot-engine/ccp-ce-downloader.service';
+import { decrypt } from '../bot-engine/utils/crypto';
 import {
   parseCcpDsgdRow,
   parseCcpTtmRow,
@@ -191,6 +193,9 @@ export class CcpLotStatisticsService {
     private readonly settingsService: SystemSettingsService,
     @InjectModel(CcpLotRunHistory.name)
     private readonly runHistoryModel: Model<CcpLotRunHistory>,
+    @Optional()
+    @Inject(forwardRef(() => CcpCeDownloaderService))
+    private readonly ccpCeDownloaderService?: CcpCeDownloaderService,
   ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -1240,9 +1245,9 @@ export class CcpLotStatisticsService {
 
       // 4. Tỷ giá (tùy chọn) - ưu tiên ngày hiện tại
       result.files.tyGia = findFile([
-        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i,
-        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xls$/i,
-        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.csv$/i,
+        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xlsx$/i,
+        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xls$/i,
+        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.csv$/i,
       ]);
 
       // Nếu ngày hiện tại chưa có file tỷ giá -> Quét tìm file tỷ giá gần nhất từ các ngày trước
@@ -1253,9 +1258,9 @@ export class CcpLotStatisticsService {
             baseFolder,
             dateObj,
             [
-              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xlsx$/i,
-              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.xls$/i,
-              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate).*\.csv$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xlsx$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xls$/i,
+              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.csv$/i,
             ],
             30,
           );
@@ -1379,6 +1384,11 @@ export class CcpLotStatisticsService {
   /**
    * Đồng bộ và lưu tỷ giá mới nhất từ tệp ngày CoreCCP (hoặc file tỷ giá tải lên) vào CSDL MongoDB.
    */
+  /**
+   * Đồng bộ và lưu tỷ giá mới nhất từ CoreCCP (/SYSCONFIGMNG/CURRENCYEXCHANGERATE - Tỷ giá CCP.xlsx).
+   * Kích hoạt bot Playwright tải file về đĩa, sau đó bóc tách ma trận đa nguyên tệ và lưu vào MongoDB.
+   * TUYỆT ĐỐI KHÔNG FALLBACK TẠM BỢ SANG FILE TTTT (Zero-Silent-Swallow).
+   */
   async syncAndSaveExchangeRates(dateStr?: string): Promise<{
     success: boolean;
     usdRate: number;
@@ -1388,13 +1398,81 @@ export class CcpLotStatisticsService {
     message: string;
   }> {
     const targetDate = dateStr || new Date().toISOString().split('T')[0];
-    const scan = await this.scanDailyFiles(targetDate);
 
+    // 1. Kích hoạt bot Playwright lên web CoreCCP tải báo cáo Tỷ giá nếu đã có thông tin đăng nhập
+    if (this.ccpCeDownloaderService && this.settingsService) {
+      try {
+        const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+        if (credRaw) {
+          let creds: any = {};
+          try {
+            creds = JSON.parse(decrypt(credRaw));
+          } catch {}
+
+          if (creds.url && creds.username && creds.password) {
+            let baseDir: string = creds.outputDir;
+            if (!baseDir || baseDir === 'backupCCP') {
+              baseDir = await this.settingsService.getSetting(
+                'bot_backup_path_ccp',
+                'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+              );
+            }
+            const [sY, sM, sD] = targetDate.includes('-')
+              ? targetDate.split('-')
+              : targetDate.split('/').reverse();
+            const subFolder = path.join(sY, `T${sM}.${sY}`, `${sD}.${sM}`);
+            let rawOutputDir = baseDir;
+            if (!/\d{2}\.\d{2}$/.test(rawOutputDir.trim())) {
+              rawOutputDir = path.join(baseDir, subFolder);
+            }
+            const outputDir = resolveStoragePathCrossPlatform(rawOutputDir);
+            if (!fs.existsSync(outputDir)) {
+              try {
+                fs.mkdirSync(outputDir, { recursive: true });
+              } catch {}
+            }
+
+            this.logger.log(`[CoreCCP Bot] Bắt đầu tải Tỷ giá nguyên tệ từ ${creds.url} về ${outputDir}...`);
+            await this.ccpCeDownloaderService.run(
+              {
+                systemUrl: creds.url,
+                username: creds.username,
+                password: creds.password,
+                startDate: targetDate,
+                endDate: targetDate,
+                outputDir,
+                reports: [
+                  {
+                    code: 'TYGIA',
+                    name: 'Tỷ giá nguyên tệ',
+                    parentMenu: 'Tham số hệ thống',
+                    childMenu: 'Tỷ giá nguyên tệ',
+                    cachedUrl: '/SYSCONFIGMNG/CURRENCYEXCHANGERATE',
+                    enabled: true,
+                    phase: 'EOD',
+                    outputFileName: 'Tỷ giá CCP.xlsx',
+                  },
+                ],
+                options: {
+                  headless: true,
+                  overwriteExisting: true,
+                },
+              },
+              (msg) => this.logger.log(`[CoreCCP TyGia Bot] ${msg}`),
+            );
+          }
+        }
+      } catch (botErr: any) {
+        this.logger.warn(`[CoreCCP Bot] Không thể tải tỷ giá tự động: ${botErr.message}`);
+      }
+    }
+
+    // 2. Quét file tỷ giá trong thư mục ngày
+    const scan = await this.scanDailyFiles(targetDate);
     let detailsToSave: Record<string, CcpExchangeRateItem> | null = null;
     let rateToSave: number | null = null;
     let source = '';
 
-    // 1. Kiểm tra file tỷ giá riêng biệt (/SYSCONFIGMNG/CURRENCYEXCHANGERATE - Tỷ giá CCP.xlsx)
     if (scan.files.tyGia?.path && fs.existsSync(scan.files.tyGia.path)) {
       try {
         const buffer = fs.readFileSync(scan.files.tyGia.path);
@@ -1411,23 +1489,7 @@ export class CcpLotStatisticsService {
       }
     }
 
-    // 2. Tự động trích xuất từ báo cáo TTTT hoặc TTM của CoreCCP (Fallback phụ chỉ cho USD)
-    if (!rateToSave && !detailsToSave) {
-      let ttttBuf: Buffer | undefined;
-      let ttmBuf: Buffer | undefined;
-      if (scan.files.tttt?.path && fs.existsSync(scan.files.tttt.path)) {
-        ttttBuf = fs.readFileSync(scan.files.tttt.path);
-      }
-      if (scan.files.ttm?.path && fs.existsSync(scan.files.ttm.path)) {
-        ttmBuf = fs.readFileSync(scan.files.ttm.path);
-      }
-      const extracted = extractExchangeRateFromCcpReports(ttttBuf, ttmBuf);
-      if (extracted.usdRate) {
-        rateToSave = extracted.usdRate;
-        source = `Trích xuất từ tệp CCP ${extracted.source}`;
-      }
-    }
-
+    // 3. Xử lý lưu dữ liệu hoặc báo lỗi nếu không tìm thấy file
     const nowIso = new Date().toISOString();
     let updatedMatrix: Record<string, CcpExchangeRateItem> = {};
 
@@ -1482,44 +1544,10 @@ export class CcpLotStatisticsService {
         lastSynced: nowIso,
         message: `Đã cập nhật bảng ma trận tỷ giá CoreCCP (${currenciesSynced}) và lưu vào CSDL MongoDB.`,
       };
-    } else if (rateToSave && rateToSave > 0) {
-      // Fallback USD từ TTTT/TTM
-      updatedMatrix['USD'] = {
-        currencyCode: 'USD',
-        conversionRate: rateToSave,
-        buyRate: updatedMatrix['USD']?.buyRate ?? rateToSave,
-        sellRate: updatedMatrix['USD']?.sellRate ?? rateToSave,
-        effectiveDate: nowIso.split('T')[0],
-      };
-
-      if (this.settingsService) {
-        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(rateToSave));
-        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(updatedMatrix));
-        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
-        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
-        await this.settingsService.setSetting('exchange_rate_source', source);
-      }
-      this.logger.log(`[CCP] Đã đồng bộ tỷ giá USD từ ${source}: 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ`);
-      return {
-        success: true,
-        usdRate: rateToSave,
-        matrix: updatedMatrix,
-        source,
-        lastSynced: nowIso,
-        message: `Đã cập nhật tỷ giá CoreCCP 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (${source}) và lưu vào CSDL MongoDB.`,
-      };
     } else {
-      const currentUsdStr = await this.settingsService.getSetting('ccp_usd_exchange_rate', '');
-      const fallbackUsdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
-      const currentUsd = parseFloat(currentUsdStr) || parseFloat(fallbackUsdStr) || 25920;
-      return {
-        success: false,
-        usdRate: currentUsd,
-        matrix: updatedMatrix,
-        source: 'CSDL Hiện Tại (Không tìm thấy tệp tỷ giá mới trong ngày)',
-        lastSynced: nowIso,
-        message: `Không tìm thấy tệp tỷ giá CoreCCP ngày ${targetDate} để bóc tách. Đang giữ tỷ giá CSDL: 1 USD = ${currentUsd.toLocaleString('vi-VN')} đ.`,
-      };
+      throw new Error(
+        `Không thể đồng bộ tỷ giá: Không tìm thấy tệp 'Tỷ giá CCP.xlsx' từ CoreCCP (/SYSCONFIGMNG/CURRENCYEXCHANGERATE). Vui lòng kiểm tra tài khoản bot CoreCCP hoặc tải tệp tỷ giá lên thủ công.`,
+      );
     }
   }
 

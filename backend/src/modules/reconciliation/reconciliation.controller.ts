@@ -992,8 +992,8 @@ export class ReconciliationController {
   @Permissions('ACCESS_AUTO_SHIFT')
   async syncExchangeRates() {
     try {
-      const rates = await this.reconciliationService.syncAllExchangeRatesFromMSystem();
-      return { success: true, rates };
+      const res = await this.reconciliationService.syncAllExchangeRatesFromMSystem();
+      return { success: true, ...res };
     } catch (err: any) {
       throw new BadRequestException(`Không thể đồng bộ tỷ giá đa tiền tệ: ${err.message}`);
     }

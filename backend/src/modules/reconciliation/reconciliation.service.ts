@@ -329,7 +329,12 @@ export class ReconciliationService {
     return this.reconConsoleSummaryService.syncUsdRateFromMSystem();
   }
 
-  async syncAllExchangeRatesFromMSystem(): Promise<Record<string, number>> {
+  async syncAllExchangeRatesFromMSystem(): Promise<{
+    conversionRates: Record<string, number>;
+    paymentRates: Record<string, { buy: number; sell: number }>;
+    usdRate: number;
+    rates: Record<string, number>;
+  }> {
     return this.reconConsoleSummaryService.syncAllExchangeRatesFromMSystem();
   }
 

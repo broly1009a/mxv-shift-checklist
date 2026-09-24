@@ -1,5 +1,46 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-24T17:30] FEAT: Hoàn Thiện Đồng Bộ Tỷ Giá M-System (4 Cặp Tiền Thanh Toán & Quy Đổi) Và Tỷ Giá Nguyên Tệ CoreCCP (Bot Playwright Active Download)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Triển khai hoàn thiện 2 vấn đề lớn về đồng bộ tỷ giá theo tài liệu thiết kế [TAI_LIEU_THIET_KE_HOAN_THIEN_DONG_BO_TY_GIA_MSYSTEM_VA_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_HOAN_THIEN_DONG_BO_TY_GIA_MSYSTEM_VA_CORECCP.md):
+  1. **Vấn đề 1 (Tỷ giá M-System)**:
+     - Khắc phục giao diện Web bị hardcode chỉ có duy nhất 1 option `USD/VND` ở dropdown Tỷ giá thanh toán, thiếu 3 cặp ngoại tệ `MYR/VND`, `JPY/VND`, `RMB/VND` như Tool C# (`cmbPaymentExchange`).
+     - Khắc phục bot RPA M-System trước đây chỉ đọc Tab mặc định "Tỉ giá quy đổi", chưa click chuyển sang Tab "Tỉ giá thanh toán" để cào giá Mua và Bán cho cả 4 ngoại tệ.
+  2. **Vấn đề 2 (Tỷ giá CoreCCP)**:
+     - Khắc phục nút "Đồng bộ từ CoreCCP" chỉ quét thụ động file offline trong ổ đĩa rồi tự ý fallback bóc tách nhẩm từ file `TTTT.xlsx` (báo cáo tất toán lãi lỗ) khiến tỷ giá thiếu JPY/MYR và báo sai nguồn.
+     - Tích hợp trực tiếp bot Playwright (`CcpCeDownloaderService`) đăng nhập vào CoreCCP VNCLEAR, điều hướng tới menu `/SYSCONFIGMNG/CURRENCYEXCHANGERATE` (Tỷ giá nguyên tệ), xuất file `Tỷ giá CCP.xlsx` về thư mục ngày, bóc tách đầy đủ bảng ma trận đa nguyên tệ và lưu vào MongoDB.
+     - Loại bỏ triệt để fallback sang file TTTT theo chuẩn Zero-Silent-Swallow.
+
+### 2. Danh sách file thay đổi
+- [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+  * L42-L50: Mở rộng state `msPaymentRates` lưu trữ dictionary `{ 'USD/VND': { buy, sell }, 'MYR/VND': { buy, sell }, 'JPY/VND': { buy, sell }, 'RMB/VND': { buy, sell } }`.
+  * L120-L148: Cập nhật `fetchConfig` để đọc và parse `ms_payment_rates` từ MongoDB `system_settings`.
+  * L190-L225: Cập nhật `handleSyncMsRate` gọi POST `/api/v1/reconciliation/sync-exchange-rates` để nhận cả tỷ giá quy đổi lẫn tỷ giá thanh toán M-System của cả 4 cặp tiền.
+  * L330-L345: Cập nhật `handleSaveConfig` lưu `ms_payment_rates` dạng JSON vào CSDL.
+  * L525-L570: Mở rộng selectbox `currencyUnit` đủ 4 options (`USD/VND`, `MYR/VND`, `JPY/VND`, `RMB/VND`), 2 ô input Mua/Bán tự động binding và cho phép chỉnh sửa theo cặp tiền đang chọn.
+- [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
+  * L234-L315: Nâng cấp hàm `syncUsdRateFromMSystem`: Sau khi đọc Tab "Tỉ giá quy đổi", tự động click chuyển sang Tab "Tỉ giá thanh toán" (với selector thông minh ag-Grid/DOM), bóc tách giá Mua/Bán cho USD, MYR, JPY, RMB; lưu đồng thời `usd_exchange_rate`, `ms_payment_rates`, `usd_settlement_rate_buy`, `usd_settlement_rate_sell` vào MongoDB.
+  * L318-L345: Nâng cấp `syncAllExchangeRatesFromMSystem` trả về cả `conversionRates`, `paymentRates`, `usdRate` và `rates` (đảm bảo 100% backward compatibility).
+- [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
+  * L330-L340: Cập nhật kiểu trả về của `syncAllExchangeRatesFromMSystem`.
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts):
+  * L991-L998: Endpoint `POST /sync-exchange-rates` trả về đầy đủ đối tượng kết quả.
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  * L1430-L1440: Cập nhật hàm `downloadReport` ưu tiên sử dụng `report.outputFileName` (ví dụ `Tỷ giá CCP.xlsx`) khi lưu file vào thư mục ngày.
+- [backend/src/modules/ccp-statistics/ccp-statistics.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-statistics.module.ts):
+  * L12-L20: Import `forwardRef(() => BotEngineModule)` để giải quyết phụ thuộc 2 chiều và cho phép inject `CcpCeDownloaderService`.
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  * L18-L26 & L189-L195: Inject `CcpCeDownloaderService` với `@Optional()` và `forwardRef`.
+  * L1245-L1265: Cập nhật regex quét file `tyGia` hỗ trợ cả `TYGIA` (`/^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.(?:xlsx|xls|csv)$/i`).
+  * L1380-L1495: Viết lại `syncAndSaveExchangeRates`: Chủ động gọi `this.ccpCeDownloaderService.run` đăng nhập CoreCCP tải file báo cáo `TYGIA` về thư mục ngày; bóc tách đa nguyên tệ bằng `parseTyGiaDetails`; cập nhật `ccp_exchange_rates_matrix` vào CSDL MongoDB; loại bỏ hoàn toàn fallback sang file TTTT; ném ngoại lệ rõ ràng khi không có file.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
+
+---
+
 ## [2026-09-24T17:01] FEAT: Tách Độc Lập 2 Tác Vụ "Thống Kê Số Lot" & "Thống Kê Giá Trị" Ghi Trực Tiếp 1-Chạm Vào File Excel CoreCCP
 
 ### 1. Mục tiêu thay đổi

@@ -234,8 +234,101 @@ export class ReconConsoleSummaryService {
       }
 
       this.logger.log(
-        `Tìm thấy tỷ giá từ M-System: USD=${usdRate}, MYR=${rates['MYR'] || 'N/A'}, RMB=${rates['RMB'] || 'N/A'}, JPY=${rates['JPY'] || 'N/A'}. Đang cập nhật hệ thống...`,
+        `Tìm thấy tỷ giá quy đổi từ M-System: USD=${usdRate}, MYR=${rates['MYR'] || 'N/A'}, RMB=${rates['RMB'] || 'N/A'}, JPY=${rates['JPY'] || 'N/A'}.`,
       );
+
+      // ── BƯỚC 2: Trích xuất bảng "Tỉ giá thanh toán" (Mua & Bán) ────────
+      let paymentRates: Record<string, { buy: number; sell: number }> = {
+        'USD/VND': { buy: usdRate, sell: usdRate },
+        'MYR/VND': { buy: rates['MYR'] || 6383, sell: rates['MYR'] || 6383 },
+        'JPY/VND': { buy: rates['JPY'] || 170, sell: rates['JPY'] || 170 },
+        'RMB/VND': { buy: rates['RMB'] || 3871, sell: rates['RMB'] || 3871 },
+      };
+
+      try {
+        this.logger.log('Đang chuyển sang Tab "Tỉ giá thanh toán" trên M-System...');
+        const tabCandidates = [
+          page.locator("xpath=//*[self::button or self::div or self::a or self::li][contains(translate(text(), 'TỈ', 'TỶ'), 'TỶ GIÁ THANH TOÁN') or contains(text(), 'Tỉ giá thanh toán') or contains(text(), 'Tỷ giá thanh toán') or contains(text(), 'Thanh toán')]").first(),
+          page.locator('[role="tab"]:has-text("thanh toán")').first(),
+        ];
+
+        let tabFound = false;
+        for (const tabLoc of tabCandidates) {
+          if (await tabLoc.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await tabLoc.click({ force: true });
+            tabFound = true;
+            break;
+          }
+        }
+
+        if (tabFound) {
+          await page.waitForTimeout(3000); // Đợi ag-Grid tải dữ liệu Tab thanh toán
+
+          const parsedPayment = await page.evaluate(() => {
+            const res: Record<string, { buy: number; sell: number }> = {};
+            const agRows = Array.from(document.querySelectorAll('[role="row"]'));
+            for (const row of agRows) {
+              const baseCell = row.querySelector('[col-id="monetaryBase"], [col-id="baseCurrency"], [col-id="currency"]');
+              const counterCell = row.querySelector('[col-id="counterCurrency"], [col-id="quoteCurrency"]');
+              const buyCell = row.querySelector('[col-id="buyRate"], [col-id="exchangeRateBuy"], [col-id="buyExchangeRate"], [col-id="buy"]');
+              const sellCell = row.querySelector('[col-id="sellRate"], [col-id="exchangeRateSell"], [col-id="sellExchangeRate"], [col-id="sell"]');
+
+              const baseVal = (baseCell?.textContent || '').trim().toUpperCase();
+              const counterVal = (counterCell?.textContent || '').trim().toUpperCase();
+
+              if (baseVal && (counterVal === 'VND' || !counterVal)) {
+                let buyVal = parseFloat((buyCell?.textContent || '').trim().replace(/,/g, ''));
+                let sellVal = parseFloat((sellCell?.textContent || '').trim().replace(/,/g, ''));
+
+                if (isNaN(buyVal) || isNaN(sellVal)) {
+                  const cells = Array.from(row.querySelectorAll('.ag-cell, td'));
+                  if (cells.length >= 4) {
+                    const c3 = parseFloat((cells[3]?.textContent || '').trim().replace(/,/g, ''));
+                    const c4 = cells.length >= 5 ? parseFloat((cells[4]?.textContent || '').trim().replace(/,/g, '')) : c3;
+                    if (!isNaN(c3) && c3 > 0) buyVal = c3;
+                    if (!isNaN(c4) && c4 > 0) sellVal = c4;
+                  }
+                }
+
+                if (!isNaN(buyVal) && buyVal > 0) {
+                  const pairKey = `${baseVal}/VND`;
+                  res[pairKey] = {
+                    buy: buyVal,
+                    sell: !isNaN(sellVal) && sellVal > 0 ? sellVal : buyVal,
+                  };
+                }
+              }
+            }
+            if (Object.keys(res).length > 0) return res;
+
+            // Fallback HTML table thông thường
+            const trRows = Array.from(document.querySelectorAll('tr'));
+            for (const tr of trRows) {
+              const tds = Array.from(tr.querySelectorAll('td'));
+              if (tds.length >= 4) {
+                const bCurr = (tds[1]?.textContent || '').trim().toUpperCase();
+                const qCurr = (tds[2]?.textContent || '').trim().toUpperCase();
+                const bRate = parseFloat((tds[3]?.textContent || '').trim().replace(/,/g, ''));
+                const sRate = tds.length >= 5 ? parseFloat((tds[4]?.textContent || '').trim().replace(/,/g, '')) : bRate;
+                if ((qCurr === 'VND' || !qCurr) && !isNaN(bRate) && bRate > 0) {
+                  res[`${bCurr}/VND`] = {
+                    buy: bRate,
+                    sell: !isNaN(sRate) && sRate > 0 ? sRate : bRate,
+                  };
+                }
+              }
+            }
+            return res;
+          });
+
+          if (parsedPayment && Object.keys(parsedPayment).length > 0) {
+            paymentRates = { ...paymentRates, ...parsedPayment };
+            this.logger.log(`[M-System] Đã bóc tách thành công Tỉ giá thanh toán: ${JSON.stringify(paymentRates)}`);
+          }
+        }
+      } catch (payErr: any) {
+        this.logger.warn(`Không thể bóc tách Tab Tỉ giá thanh toán: ${payErr.message}`);
+      }
 
       await this.settingsService.setSetting(
         'usd_exchange_rate',
@@ -250,6 +343,11 @@ export class ReconConsoleSummaryService {
       if (rates['RMB']) {
         await this.settingsService.setSetting('rmb_exchange_rate', rates['RMB'].toString());
       }
+      await this.settingsService.setSetting('ms_payment_rates', JSON.stringify(paymentRates));
+      if (paymentRates['USD/VND']) {
+        await this.settingsService.setSetting('usd_settlement_rate_buy', String(paymentRates['USD/VND'].buy));
+        await this.settingsService.setSetting('usd_settlement_rate_sell', String(paymentRates['USD/VND'].sell));
+      }
       await this.settingsService.setSetting('exchange_rates_last_synced', new Date().toISOString());
 
       return usdRate;
@@ -258,14 +356,28 @@ export class ReconConsoleSummaryService {
     }
   }
 
-  async syncAllExchangeRatesFromMSystem(): Promise<Record<string, number>> {
-    await this.syncUsdRateFromMSystem();
-    const rates = await this.getCurrentExchangeRates();
+  async syncAllExchangeRatesFromMSystem(): Promise<{
+    conversionRates: Record<string, number>;
+    paymentRates: Record<string, { buy: number; sell: number }>;
+    usdRate: number;
+    rates: Record<string, number>;
+  }> {
+    const usdRate = await this.syncUsdRateFromMSystem();
+    const curr = await this.getCurrentExchangeRates();
+    const paymentRatesRaw = await this.settingsService.getSetting('ms_payment_rates', '{}');
+    let paymentRates: Record<string, { buy: number; sell: number }> = {};
+    try { paymentRates = JSON.parse(paymentRatesRaw); } catch {}
+    const conversionRates = {
+      USD: curr.usdGain,
+      MYR: curr.myrGain,
+      JPY: curr.jpyGain,
+      RMB: curr.rmbGain,
+    };
     return {
-      USD: rates.usdGain,
-      MYR: rates.myrGain,
-      JPY: rates.jpyGain,
-      RMB: rates.rmbGain,
+      conversionRates,
+      paymentRates,
+      usdRate,
+      rates: conversionRates,
     };
   }
 

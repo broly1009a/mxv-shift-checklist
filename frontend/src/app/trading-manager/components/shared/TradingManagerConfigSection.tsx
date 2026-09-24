@@ -44,6 +44,12 @@ export default function TradingManagerConfigSection({
   const [usdSettlementRateBuy, setUsdSettlementRateBuy] = useState<number>(26100);
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(26100);
   const [currencyUnit, setCurrencyUnit] = useState<string>('USD/VND');
+  const [msPaymentRates, setMsPaymentRates] = useState<Record<string, { buy: number; sell: number }>>({
+    'USD/VND': { buy: 26100, sell: 26100 },
+    'MYR/VND': { buy: 6383, sell: 6383 },
+    'JPY/VND': { buy: 170, sell: 170 },
+    'RMB/VND': { buy: 3871, sell: 3871 },
+  });
   const [syncingMsRate, setSyncingMsRate] = useState<boolean>(false);
 
   // Exchange rates - CoreCCP (VNCLEAR) Dynamic Matrix
@@ -119,9 +125,32 @@ export default function TradingManagerConfigSection({
         return parsed?.suggestedPath || p;
       };
 
-      setUsdSettlementRateSell(Number(map.usd_settlement_rate_sell || map.usd_exchange_rate || 26100));
-      setUsdSettlementRateBuy(Number(map.usd_settlement_rate_buy || map.usd_exchange_rate || 26100));
+      const sellRate = Number(map.usd_settlement_rate_sell || map.usd_exchange_rate || 26100);
+      const buyRate = Number(map.usd_settlement_rate_buy || map.usd_exchange_rate || 26100);
+      setUsdSettlementRateSell(sellRate);
+      setUsdSettlementRateBuy(buyRate);
       setUsdExchangeRate(Number(map.usd_exchange_rate || 26100));
+
+      if (map.ms_payment_rates) {
+        try {
+          const parsedMsRates = JSON.parse(map.ms_payment_rates);
+          if (parsedMsRates && typeof parsedMsRates === 'object' && Object.keys(parsedMsRates).length > 0) {
+            setMsPaymentRates((prev) => ({
+              ...prev,
+              ...parsedMsRates,
+              'USD/VND': parsedMsRates['USD/VND'] || { buy: buyRate, sell: sellRate },
+            }));
+          }
+        } catch {
+          // ignore parse error
+        }
+      } else {
+        setMsPaymentRates((prev) => ({
+          ...prev,
+          'USD/VND': { buy: buyRate, sell: sellRate },
+        }));
+      }
+
       setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || 26000));
       setExchangeRatesLastSynced(map.ccp_rates_last_synced || map.exchange_rates_last_synced || '');
       setExchangeRateSource(map.exchange_rate_source || '');
@@ -188,23 +217,35 @@ export default function TradingManagerConfigSection({
     fetchConfig();
   }, [token]);
 
-  // Sync tỷ giá từ M-System crawler
+  // Sync tỷ giá từ M-System crawler (Cào cả Tab Quy đổi và Tab Thanh toán)
   const handleSyncMsRate = async () => {
     if (!token) return;
     setSyncingMsRate(true);
     const toastId = toast.loading('Đang khởi động bot đồng bộ tỷ giá từ M-System...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/sync-usd-rate`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/sync-exchange-rates`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok && data.success && data.rate) {
-        setUsdExchangeRate(data.rate);
+      if (res.ok && data.success) {
+        const usdVal = data.usdRate || data.conversionRates?.USD || data.rates?.USD;
+        if (usdVal) setUsdExchangeRate(usdVal);
+
+        if (data.paymentRates && Object.keys(data.paymentRates).length > 0) {
+          setMsPaymentRates((prev) => ({ ...prev, ...data.paymentRates }));
+          if (data.paymentRates['USD/VND']) {
+            setUsdSettlementRateBuy(data.paymentRates['USD/VND'].buy);
+            setUsdSettlementRateSell(data.paymentRates['USD/VND'].sell);
+          }
+        }
         const nowIso = new Date().toISOString();
         setExchangeRatesLastSynced(nowIso);
-        setExchangeRateSource('M-System Crawler');
-        toast.success(`Đã đồng bộ tỷ giá từ M-System: 1 USD = ${Number(data.rate).toLocaleString('vi-VN')} đ`, { id: toastId });
+        setExchangeRateSource('M-System Crawler (Quy đổi & Thanh toán)');
+        toast.success(
+          `Đã đồng bộ tỷ giá từ M-System: 1 USD = ${Number(usdVal || usdExchangeRate).toLocaleString('vi-VN')} đ (Đủ 4 cặp tiền Thanh toán)`,
+          { id: toastId },
+        );
       } else {
         toast.error(data.message || 'Không thể đồng bộ tỷ giá từ M-System', { id: toastId });
       }
@@ -330,8 +371,9 @@ export default function TradingManagerConfigSection({
 
     try {
       const settingsToSave: Array<{ key: string; value: string }> = [
-        { key: 'usd_settlement_rate_sell', value: String(usdSettlementRateSell) },
-        { key: 'usd_settlement_rate_buy', value: String(usdSettlementRateBuy) },
+        { key: 'usd_settlement_rate_sell', value: String(msPaymentRates['USD/VND']?.sell ?? usdSettlementRateSell) },
+        { key: 'usd_settlement_rate_buy', value: String(msPaymentRates['USD/VND']?.buy ?? usdSettlementRateBuy) },
+        { key: 'ms_payment_rates', value: JSON.stringify(msPaymentRates) },
         { key: 'usd_exchange_rate', value: String(usdExchangeRate) },
         { key: 'ccp_usd_exchange_rate', value: String(ccpRatesMatrix['USD']?.conversionRate || ccpUsdExchangeRate) },
         { key: 'ccp_exchange_rates_matrix', value: JSON.stringify(ccpRatesMatrix) },
@@ -534,6 +576,9 @@ export default function TradingManagerConfigSection({
                     style={{ fontSize: '0.75rem', padding: '2px 6px', height: '26px' }}
                   >
                     <option value="USD/VND">USD/VND</option>
+                    <option value="MYR/VND">MYR/VND</option>
+                    <option value="JPY/VND">JPY/VND</option>
+                    <option value="RMB/VND">RMB/VND</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -541,8 +586,20 @@ export default function TradingManagerConfigSection({
                     <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Bán:</label>
                     <input
                       type="number"
-                      value={usdSettlementRateSell}
-                      onChange={(e) => setUsdSettlementRateSell(Number(e.target.value))}
+                      value={msPaymentRates[currencyUnit]?.sell ?? 0}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setMsPaymentRates((prev) => ({
+                          ...prev,
+                          [currencyUnit]: {
+                            buy: prev[currencyUnit]?.buy ?? val,
+                            sell: val,
+                          },
+                        }));
+                        if (currencyUnit === 'USD/VND') {
+                          setUsdSettlementRateSell(val);
+                        }
+                      }}
                       className="form-input"
                       style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
                     />
@@ -551,8 +608,20 @@ export default function TradingManagerConfigSection({
                     <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Mua:</label>
                     <input
                       type="number"
-                      value={usdSettlementRateBuy}
-                      onChange={(e) => setUsdSettlementRateBuy(Number(e.target.value))}
+                      value={msPaymentRates[currencyUnit]?.buy ?? 0}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setMsPaymentRates((prev) => ({
+                          ...prev,
+                          [currencyUnit]: {
+                            buy: val,
+                            sell: prev[currencyUnit]?.sell ?? val,
+                          },
+                        }));
+                        if (currencyUnit === 'USD/VND') {
+                          setUsdSettlementRateBuy(val);
+                        }
+                      }}
                       className="form-input"
                       style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
                     />

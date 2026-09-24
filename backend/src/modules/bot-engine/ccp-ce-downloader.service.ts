@@ -1430,7 +1430,9 @@ export class CcpCeDownloaderService {
     const targetFolder = isDailyShiftFolder ? outputDir : path.join(outputDir, code);
     fs.mkdirSync(targetFolder, { recursive: true });
 
-    const fileName = isDailyShiftFolder ? `${code}.csv` : `${code}${mmyy}${extraSuffix}.csv`;
+    const fileName = (report.outputFileName && isDailyShiftFolder)
+      ? report.outputFileName
+      : (isDailyShiftFolder ? `${code}.csv` : `${code}${mmyy}${extraSuffix}.csv`);
     const destPath = path.join(targetFolder, fileName);
 
     // Kiểm tra file đã tồn tại
