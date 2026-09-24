@@ -39,26 +39,17 @@ export default function TradingManagerConfigSection({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Exchange rates - M-System (MXV)
-  const [usdSettlementRateSell, setUsdSettlementRateSell] = useState<number>(26100);
-  const [usdSettlementRateBuy, setUsdSettlementRateBuy] = useState<number>(26100);
-  const [usdExchangeRate, setUsdExchangeRate] = useState<number>(26100);
+  // Exchange rates - M-System (MXV) - Nạp 100% từ Database MongoDB hoặc Đồng bộ từ M-System
+  const [usdSettlementRateSell, setUsdSettlementRateSell] = useState<number>(0);
+  const [usdSettlementRateBuy, setUsdSettlementRateBuy] = useState<number>(0);
+  const [usdExchangeRate, setUsdExchangeRate] = useState<number>(0);
   const [currencyUnit, setCurrencyUnit] = useState<string>('USD/VND');
-  const [msPaymentRates, setMsPaymentRates] = useState<Record<string, { buy: number; sell: number }>>({
-    'USD/VND': { buy: 26100, sell: 26100 },
-    'MYR/VND': { buy: 6383, sell: 6383 },
-    'JPY/VND': { buy: 170, sell: 170 },
-    'RMB/VND': { buy: 3871, sell: 3871 },
-  });
+  const [msPaymentRates, setMsPaymentRates] = useState<Record<string, { buy: number; sell: number }>>({});
   const [syncingMsRate, setSyncingMsRate] = useState<boolean>(false);
 
-  // Exchange rates - CoreCCP (VNCLEAR) Dynamic Matrix
-  const [ccpUsdExchangeRate, setCcpUsdExchangeRate] = useState<number>(26000);
-  const [ccpRatesMatrix, setCcpRatesMatrix] = useState<Record<string, CcpExchangeRateItem>>({
-    USD: { currencyCode: 'USD', conversionRate: 26000, buyRate: 26000, sellRate: 26000 },
-    JPY: { currencyCode: 'JPY', conversionRate: 170, buyRate: 168, sellRate: 168 },
-    MYR: { currencyCode: 'MYR', conversionRate: 6383, buyRate: 6268, sellRate: 6268 },
-  });
+  // Exchange rates - CoreCCP (VNCLEAR) Dynamic Matrix - Nạp 100% từ Database MongoDB hoặc Đồng bộ từ CoreCCP
+  const [ccpUsdExchangeRate, setCcpUsdExchangeRate] = useState<number>(0);
+  const [ccpRatesMatrix, setCcpRatesMatrix] = useState<Record<string, CcpExchangeRateItem>>({});
   const [newCurrCode, setNewCurrCode] = useState<string>('');
   const [newCurrConversion, setNewCurrConversion] = useState<string>('');
   const [newCurrBuy, setNewCurrBuy] = useState<string>('');
@@ -125,11 +116,11 @@ export default function TradingManagerConfigSection({
         return parsed?.suggestedPath || p;
       };
 
-      const sellRate = Number(map.usd_settlement_rate_sell || map.usd_exchange_rate || 26100);
-      const buyRate = Number(map.usd_settlement_rate_buy || map.usd_exchange_rate || 26100);
+      const sellRate = Number(map.usd_settlement_rate_sell || map.usd_exchange_rate || 0);
+      const buyRate = Number(map.usd_settlement_rate_buy || map.usd_exchange_rate || 0);
       setUsdSettlementRateSell(sellRate);
       setUsdSettlementRateBuy(buyRate);
-      setUsdExchangeRate(Number(map.usd_exchange_rate || 26100));
+      setUsdExchangeRate(Number(map.usd_exchange_rate || 0));
 
       if (map.ms_payment_rates) {
         try {
@@ -138,20 +129,19 @@ export default function TradingManagerConfigSection({
             setMsPaymentRates((prev) => ({
               ...prev,
               ...parsedMsRates,
-              'USD/VND': parsedMsRates['USD/VND'] || { buy: buyRate, sell: sellRate },
+              ...(buyRate > 0 || sellRate > 0 ? { 'USD/VND': parsedMsRates['USD/VND'] || { buy: buyRate, sell: sellRate } } : {}),
             }));
           }
         } catch {
           // ignore parse error
         }
-      } else {
-        setMsPaymentRates((prev) => ({
-          ...prev,
+      } else if (buyRate > 0 || sellRate > 0) {
+        setMsPaymentRates({
           'USD/VND': { buy: buyRate, sell: sellRate },
-        }));
+        });
       }
 
-      setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || 26000));
+      setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || 0));
       setExchangeRatesLastSynced(map.ccp_rates_last_synced || map.exchange_rates_last_synced || '');
       setExchangeRateSource(map.exchange_rate_source || '');
       setSessionStartTime(map.session_start_time || '05:00');
@@ -166,17 +156,18 @@ export default function TradingManagerConfigSection({
         } catch {
           // ignore parse error
         }
-      } else {
-        const usdRate = Number(map.ccp_usd_exchange_rate || 26000);
-        const jpyRate = Number(map.ccp_jpy_exchange_rate || 170);
-        const myrRate = Number(map.ccp_myr_exchange_rate || 6383);
-        const rmbRate = Number(map.ccp_rmb_exchange_rate || 3871);
-        setCcpRatesMatrix({
+      } else if (map.ccp_usd_exchange_rate) {
+        const usdRate = Number(map.ccp_usd_exchange_rate);
+        const jpyRate = Number(map.ccp_jpy_exchange_rate || 0);
+        const myrRate = Number(map.ccp_myr_exchange_rate || 0);
+        const rmbRate = Number(map.ccp_rmb_exchange_rate || 0);
+        const matrix: Record<string, CcpExchangeRateItem> = {
           USD: { currencyCode: 'USD', conversionRate: usdRate, buyRate: usdRate, sellRate: usdRate },
-          JPY: { currencyCode: 'JPY', conversionRate: jpyRate, buyRate: 168, sellRate: 168 },
-          MYR: { currencyCode: 'MYR', conversionRate: myrRate, buyRate: 6268, sellRate: 6268 },
-          RMB: { currencyCode: 'RMB', conversionRate: rmbRate, buyRate: 3871, sellRate: 3871 },
-        });
+        };
+        if (jpyRate > 0) matrix.JPY = { currencyCode: 'JPY', conversionRate: jpyRate, buyRate: jpyRate, sellRate: jpyRate };
+        if (myrRate > 0) matrix.MYR = { currencyCode: 'MYR', conversionRate: myrRate, buyRate: myrRate, sellRate: myrRate };
+        if (rmbRate > 0) matrix.RMB = { currencyCode: 'RMB', conversionRate: rmbRate, buyRate: rmbRate, sellRate: rmbRate };
+        setCcpRatesMatrix(matrix);
       }
 
       setReconFolderCheckPath(toWindowsM(map.recon_folder_check_path || ''));
@@ -775,9 +766,16 @@ export default function TradingManagerConfigSection({
               </tr>
             </thead>
             <tbody>
-              {Object.entries(ccpRatesMatrix).map(([code, item]) => {
-                const isBase = code === 'USD';
-                return (
+              {Object.keys(ccpRatesMatrix).length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Chưa có dữ liệu ma trận tỷ giá CoreCCP trong CSDL. Vui lòng bấm nút <strong>&quot;Đồng bộ từ CoreCCP (Tỷ giá nguyên tệ)&quot;</strong> để bot tự động cào từ web VNCLEAR hoặc tải tệp lên.
+                  </td>
+                </tr>
+              ) : (
+                Object.entries(ccpRatesMatrix).map(([code, item]) => {
+                  const isBase = code === 'USD';
+                  return (
                   <tr key={code} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '10px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -848,8 +846,9 @@ export default function TradingManagerConfigSection({
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
+              })
+            )}
+          </tbody>
           </table>
         </div>
 
