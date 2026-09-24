@@ -639,7 +639,7 @@ export class PreEodReconService {
     let ttttCcpBuffer: Buffer | undefined;
 
     if (fs.existsSync(ccpDailyPath)) {
-      const qltkgdCcpFile = findLatestFile(ccpDailyPath, /qltkgd|qltttkgd/i);
+      const qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
       const eodCcpFile = findLatestFile(ccpDailyPath, /eod/i);
       const ttttCcpFile = findLatestFile(ccpDailyPath, /tttt/i);
 

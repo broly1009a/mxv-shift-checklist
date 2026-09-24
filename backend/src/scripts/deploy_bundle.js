@@ -52,6 +52,7 @@ const filesToDeploy = [
   'backend/src/modules/reconciliation/services/recon-console-summary.service.ts',
   'backend/src/modules/reconciliation/services/klgd-recon.service.ts',
   'backend/src/modules/reconciliation/services/pre-eod-recon.service.ts',
+  'backend/src/modules/reconciliation/services/ccp-recon.service.ts',
   'backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts',
   'backend/src/modules/system-settings/system-settings.service.ts',
   'backend/src/schemas/ccp-lot-run-history.schema.ts',
@@ -62,6 +63,7 @@ const filesToDeploy = [
   'backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts',
   'backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts',
   'frontend/src/app/trading-manager/utils/reconLogParser.ts',
+  'frontend/src/app/trading-manager/utils/tradingDateUtils.ts',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx',
@@ -75,6 +77,11 @@ const filesToDeploy = [
   'backend/src/scripts/verify_fix_scenarios.js',
   'backend/src/scripts/test_ms_tab_downloads.js',
   'backend/src/scripts/test_cqg_tab_downloads.js',
+  'backend/src/scripts/test_gtt_cqg_benchmark.js',
+  'backend/src/modules/bot-engine/gtt-checker.service.ts',
+  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx',
+  'backend/src/modules/bot-engine/handlers/macro-value.handler.ts',
+  'backend/src/modules/bot-engine/handlers/macro-lot.handler.ts',
 ];
 
 for (const rel of filesToDeploy) {
@@ -94,6 +101,12 @@ const srcCcpStats = path.join(rootDir, 'backend/src/modules/ccp-statistics');
 const destCcpStats = path.join(tempDeployDir, 'backend/src/modules/ccp-statistics');
 copyDirRecursive(srcCcpStats, destCcpStats);
 console.log('Copied full backend/src/modules/ccp-statistics folder.');
+
+// 2.05 Toàn bộ thư mục lot-statistics
+const srcLotStats = path.join(rootDir, 'backend/src/modules/lot-statistics');
+const destLotStats = path.join(tempDeployDir, 'backend/src/modules/lot-statistics');
+copyDirRecursive(srcLotStats, destLotStats);
+console.log('Copied full backend/src/modules/lot-statistics folder.');
 
 // 2.1 Toàn bộ thư mục frontend/src/features/tkgd (đồng bộ chuẩn types & components)
 const srcTkgd = path.join(rootDir, 'frontend/src/features/tkgd');

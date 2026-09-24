@@ -1329,50 +1329,94 @@ export class GttCheckerService {
   }
 
   /**
-   * Generates a correction Excel file for mismatched prices.
+   * Generates a comprehensive GTT Excel report with full UI columns
+   * ('Mã HĐ', 'GTT MS', 'GTT CQG', 'Chênh lệch', 'Trạng thái') and M-System import sheet.
    */
   async generateCorrectionFile(
     type: 'settlement' | 'first_match',
   ): Promise<string> {
     const report = this.getLatestReport();
-    if (!report || !report.rows) {
+    if (!report || !report.rows || report.rows.length === 0) {
       throw new Error(
-        'Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.',
+        'Chưa có báo cáo GTT gần nhất. Vui lòng bấm "Check GTT" để đối soát trước.',
       );
     }
 
-    // Filter out only DIFF rows (mismatches)
-    const diffRows = report.rows.filter((r) => r.status === 'DIFF');
-    if (diffRows.length === 0) {
-      throw new Error('Không có hợp đồng nào bị lệch giá để xuất file sửa.');
-    }
-
-    // Prepare data based on typical IT upload tool formats
-    // We map CQG price (as source of truth) for M-System updates
-    const dataToExport = diffRows.map((r) => {
-      if (type === 'settlement') {
-        return {
-          'Mã Hợp Đồng': r.symbol,
-          'Giá Thanh Toán': r.gttCqg,
-        };
-      } else {
-        return {
-          'Mã Hợp Đồng': r.symbol,
-          'Giá Khớp Đầu Tiên': r.gttCqg,
-        };
-      }
+    // Sắp xếp thứ tự ưu tiên: Lệch (DIFF) -> Chỉ MS / Chỉ CQG -> Khớp (MATCH)
+    const sortedRows = [...report.rows].sort((a, b) => {
+      const order: Record<string, number> = {
+        DIFF: 0,
+        MS_ONLY: 1,
+        CQG_ONLY: 2,
+        NO_PRICE: 3,
+        MATCH: 4,
+      };
+      const orderA = order[a.status] ?? 5;
+      const orderB = order[b.status] ?? 5;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.symbol.localeCompare(b.symbol);
     });
 
-    const exportPath = path.join(this.workDir, `sua-gia-${type}.xlsx`);
+    // 1. Sheet 1: Báo cáo đối soát đầy đủ như bảng UI
+    const fullReportData = sortedRows.map((r) => {
+      let statusText = '—';
+      if (r.status === 'MATCH') statusText = 'Khớp';
+      else if (r.status === 'DIFF') {
+        statusText = r.diff !== null ? `Lệch ${r.diff.toLocaleString('vi-VN')}` : 'Lệch';
+      } else if (r.status === 'MS_ONLY') statusText = 'Chỉ MS';
+      else if (r.status === 'CQG_ONLY') statusText = 'Chỉ CQG';
+      else if (r.status === 'NO_PRICE') statusText = 'Không có giá';
 
-    // Use xlsx to write file
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
+      return {
+        'Mã HĐ': r.symbol,
+        'GTT MS': r.gttMs !== null ? r.gttMs : '',
+        'GTT CQG': r.gttCqg !== null ? r.gttCqg : '',
+        'Chênh lệch': r.diff !== null ? r.diff : '',
+        'Trạng thái': statusText,
+      };
+    });
+
+    // 2. Sheet 2: File mẫu nhập vào M-System cho các hợp đồng bị lệch (nếu có)
+    const diffRows = report.rows.filter((r) => r.status === 'DIFF');
+    const importData = diffRows.map((r) => ({
+      contractCode: r.symbol,
+      filledPrice: type === 'first_match' ? (r.gttCqg ?? '') : '',
+      settlePrice: type === 'settlement' ? (r.gttCqg ?? '') : '',
+      'GTT MS': r.gttMs ?? '',
+      'Chênh lệch': r.diff ?? '',
+    }));
+
+    const exportPath = path.join(this.workDir, `bao-cao-gtt-${type}.xlsx`);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+
+    // Sheet 1: DoiSoat_GTT (Đầy đủ 5 cột theo UI)
+    const wsFull = XLSX.utils.json_to_sheet(fullReportData);
+    wsFull['!cols'] = [
+      { wch: 18 }, // Mã HĐ
+      { wch: 16 }, // GTT MS
+      { wch: 16 }, // GTT CQG
+      { wch: 16 }, // Chênh lệch
+      { wch: 20 }, // Trạng thái
+    ];
+    XLSX.utils.book_append_sheet(wb, wsFull, 'DoiSoat_GTT');
+
+    // Sheet 2: Nhap_MSystem_Diff (Chỉ xuất khi có dòng lệch)
+    if (importData.length > 0) {
+      const wsImport = XLSX.utils.json_to_sheet(importData);
+      wsImport['!cols'] = [
+        { wch: 18 }, // contractCode
+        { wch: 16 }, // filledPrice
+        { wch: 16 }, // settlePrice
+        { wch: 16 }, // GTT MS
+        { wch: 16 }, // Chênh lệch
+      ];
+      XLSX.utils.book_append_sheet(wb, wsImport, 'Nhap_MSystem_Diff');
+    }
+
     XLSX.writeFile(wb, exportPath, { compression: true });
 
     this.logger.log(
-      `Created correction Excel file for ${type} at: ${exportPath}`,
+      `Created full GTT report Excel file (${fullReportData.length} contracts, ${diffRows.length} diffs) at: ${exportPath}`,
     );
     return exportPath;
   }

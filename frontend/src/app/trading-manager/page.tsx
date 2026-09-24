@@ -21,6 +21,7 @@ import CoreCcpBackupSection from './components/core-ccp/CoreCcpBackupSection';
 import LegacyBackupThongKeSection from './components/legacy-ms-cqg/LegacyBackupThongKeSection';
 import LegacyReconSection from './components/legacy-ms-cqg/LegacyReconSection';
 import TradingManagerJobQueueSection from './components/job-queue/TradingManagerJobQueueSection';
+import { getInitialTradingSessionDate } from './utils/tradingDateUtils';
 
 export default function TradingManagerPage() {
   const { token } = useAuth();
@@ -54,12 +55,9 @@ export default function TradingManagerPage() {
     klgdStatus: 'IDLE',
   });
 
-  // Khởi tạo ngày hiện tại
+  // Khởi tạo ngày phiên hiện tại (tự động nhận diện ca đêm T-1 trước 06:30 sáng)
   useEffect(() => {
-    const today = new Date();
-    const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
-    const dateStr = vnTime.toISOString().split('T')[0];
-    setSelectedDate(dateStr);
+    setSelectedDate(getInitialTradingSessionDate());
   }, []);
 
   // Polling số lượng tác vụ đang chạy để hiển thị badge nhấp nháy trên Tab (chỉ tính tác vụ Trading Manager)

@@ -8,6 +8,7 @@ import {
   parseJobPayload,
   getMsBackupBase,
   getCqgBackupBase,
+  resolveStoragePathCrossPlatform,
 } from '../helpers/bot-path.helper';
 
 @Injectable()
@@ -59,8 +60,12 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
     await safeSave();
 
     try {
-      const backupMs = payload.backupPathMs || (await getMsBackupBase(this.settingsService));
-      const backupCqg = payload.backupPathCqg || (await getCqgBackupBase(this.settingsService));
+      const backupMs = resolveStoragePathCrossPlatform(
+        payload.backupPathMs || (await getMsBackupBase(this.settingsService)),
+      );
+      const backupCqg = resolveStoragePathCrossPlatform(
+        payload.backupPathCqg || (await getCqgBackupBase(this.settingsService)),
+      );
 
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
       const folderPathMs = path.join(backupMs, subFolder);
@@ -80,13 +85,12 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
       const lotConfig = await this.lotStatisticsService.getConfig();
       const filterLmeKyHan = lotConfig.defaultLmeKyHan || 'M26';
 
-      const lastPartCqgIdx = backupCqg.lastIndexOf('\\');
-      const parentBaseCqg =
-        lastPartCqgIdx > 0 ? backupCqg.substring(0, lastPartCqgIdx) : backupCqg;
+      const parentBaseCqg = path.dirname(backupCqg);
 
-      let pathDsgdCumulative =
+      let pathDsgdCumulative = resolveStoragePathCrossPlatform(
         lotConfig.defaultPathDsgdCumulative ||
-        `${folderPathMs}\\DSGD T${month}.${year}.xlsx`;
+        path.join(folderPathMs, `DSGD T${month}.${year}.xlsx`),
+      );
       if (
         lotConfig.defaultPathDsgdCumulative &&
         /DSGD\s+T\d{2}\.\d{4}\.xlsx$/i.test(pathDsgdCumulative)
@@ -96,21 +100,54 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
           `DSGD T${month}.${year}.xlsx`,
         );
       }
-      const pathNormal =
+      const pathNormal = resolveStoragePathCrossPlatform(
         lotConfig.defaultPathNormal ||
-        `${folderPathCqg}\\Thong ke so lot giao dich ${year} 2.xlsx`;
-      const pathAcm =
+        path.join(folderPathCqg, `Thong ke so lot giao dich ${year} 2.xlsx`),
+      );
+      const pathAcm = resolveStoragePathCrossPlatform(
         lotConfig.defaultPathAcm ||
-        `${parentBaseCqg}\\ACM\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich ACM ${year} 2.xlsx`;
-      const pathLme =
+        path.join(
+          parentBaseCqg,
+          'ACM',
+          year,
+          `T${month}.${year}`,
+          `${day}.${month}`,
+          `Thong ke so lot giao dich ACM ${year} 2.xlsx`,
+        ),
+      );
+      const pathLme = resolveStoragePathCrossPlatform(
         lotConfig.defaultPathLme ||
-        `${parentBaseCqg}\\LME\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich LME ${year}.xlsx`;
-      const pathOptions =
+        path.join(
+          parentBaseCqg,
+          'LME',
+          year,
+          `T${month}.${year}`,
+          `${day}.${month}`,
+          `Thong ke so lot giao dich LME ${year}.xlsx`,
+        ),
+      );
+      const pathOptions = resolveStoragePathCrossPlatform(
         lotConfig.defaultPathOptions ||
-        `${parentBaseCqg}\\Options\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Options ${year}.xlsx`;
-      const pathSpread =
+        path.join(
+          parentBaseCqg,
+          'Options',
+          year,
+          `T${month}.${year}`,
+          `${day}.${month}`,
+          `Thong ke so lot giao dich Options ${year}.xlsx`,
+        ),
+      );
+      const pathSpread = resolveStoragePathCrossPlatform(
         lotConfig.defaultPathSpread ||
-        `${parentBaseCqg}\\Spread\\${year}\\T${month}.${year}\\${day}.${month}\\Thong ke so lot giao dich Spread ${year}.xlsx`;
+        path.join(
+          parentBaseCqg,
+          'Spread',
+          year,
+          `T${month}.${year}`,
+          `${day}.${month}`,
+          `Thong ke so lot giao dich Spread ${year}.xlsx`,
+        ),
+      );
 
       log(`[NestJS Thống kê Số Lốt] Chi tiết các đường dẫn tệp tin xử lý:`);
       log(`   - File DSGD Tuần/Tháng (Cumulative): ${pathDsgdCumulative}`);

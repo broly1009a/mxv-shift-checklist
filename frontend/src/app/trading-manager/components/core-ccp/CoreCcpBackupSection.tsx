@@ -386,7 +386,7 @@ export default function CoreCcpBackupSection({
                   </h3>
                 </div>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Đối chiếu số dư tài khoản QLTTKGD CoreCCP với báo cáo EOD Balance theo công thức chuẩn 4 thành phần.
+                  Đối chiếu số dư tài khoản QLTTTKGD CoreCCP với báo cáo EOD Balance theo công thức chuẩn 4 thành phần.
                 </p>
               </div>
 
@@ -425,7 +425,7 @@ export default function CoreCcpBackupSection({
                 {filesCount < 4 && (
                   <button
                     type="button"
-                    onClick={() => handleTriggerCcpDownload(['QLTTKGD', 'EOD', 'NR', 'TTTT'])}
+                    onClick={() => handleTriggerCcpDownload(['QLTTTKGD', 'EOD', 'NR', 'TTTT'])}
                     disabled={triggering}
                     className="btn btn-secondary"
                     style={{
@@ -497,7 +497,7 @@ export default function CoreCcpBackupSection({
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
                   {[
-                    { name: 'QLTTKGD', ok: filesPresent?.qltkgd },
+                    { name: 'QLTTTKGD', ok: filesPresent?.qltkgd },
                     { name: 'EOD', ok: filesPresent?.eod },
                     { name: 'NR', ok: filesPresent?.nr },
                     { name: 'TTTT', ok: filesPresent?.tttt },
@@ -560,7 +560,7 @@ export default function CoreCcpBackupSection({
                     TẤT CẢ SỐ DƯ ĐỀU KHỚP HOÀN TOÀN 100%
                   </h4>
                   <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '600px' }}>
-                    Hệ thống đã tự động đối chiếu số dư giữa báo cáo QLTTKGD CoreCCP và báo cáo EOD Balance của M-System. Không phát hiện bất kỳ sai lệch nào.
+                    Hệ thống đã tự động đối chiếu số dư giữa báo cáo QLTTTKGD CoreCCP và báo cáo EOD Balance của M-System. Không phát hiện bất kỳ sai lệch nào.
                   </p>
                 </div>
               </div>
@@ -648,7 +648,7 @@ export default function CoreCcpBackupSection({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                onClick={() => handleTriggerCcpDownload()}
+                onClick={() => handleTriggerCcpDownload(['QLTTTKGD', 'EOD', 'NR', 'TTTT'])}
                 disabled={triggering}
                 className="btn btn-secondary"
                 style={{

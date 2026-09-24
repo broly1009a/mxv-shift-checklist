@@ -962,7 +962,7 @@ export class CcpReconService {
       throw new Error(`Thư mục Backup CCP không tồn tại: ${ccpDailyPath}. Vui lòng tải báo cáo CCP trước.`);
     }
 
-    const qltkgdCcpFile = findLatestFile(ccpDailyPath, /qltkgd|qltttkgd/i);
+    const qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
     const eodCcpFile = findLatestFile(ccpDailyPath, /eod/i);
     const ttttCcpFile = findLatestFile(ccpDailyPath, /tttt/i);
     const nrCcpFile = findLatestFile(ccpDailyPath, /nr/i);

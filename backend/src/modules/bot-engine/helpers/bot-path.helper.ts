@@ -91,6 +91,91 @@ export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: st
 }
 
 /**
+ * Xác định Ngày Phiên Giao Dịch thực tế (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
+ * - Một phiên giao dịch mở lúc sessionStart (mặc định 05:00 / 06:30) và kéo dài xuyên đêm tới phiên hôm sau.
+ * - Nếu thời điểm hiện tại < giờ mở phiên (ví dụ 01:42 sáng), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
+ * - Nếu dateInput là ngày hôm nay theo dương lịch, hàm tự động lùi về T-1 khi đang trong ca đêm.
+ * - Nếu dateInput là một ngày quá khứ cụ thể khác hôm nay (người dùng cố ý soi lại lịch sử), hàm giữ nguyên ngày đó.
+ */
+export function resolveTradingSessionDate(
+  dateInput?: string | Date | null,
+  options?: {
+    now?: Date;
+    sessionStartStr?: string;
+    forceExactDate?: boolean;
+  },
+): { dateObj: Date; dateStr: string; isOvernight: boolean } {
+  const nowVN =
+    options?.now ||
+    new Date(
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
+    );
+  const nowYear = nowVN.getFullYear();
+  const nowMonth = String(nowVN.getMonth() + 1).padStart(2, '0');
+  const nowDay = String(nowVN.getDate()).padStart(2, '0');
+  const todayVnStr = `${nowYear}-${nowMonth}-${nowDay}`;
+
+  // Kiểm tra khung giờ ca đêm
+  let sessionHour = 6;
+  let sessionMin = 30;
+  if (options?.sessionStartStr) {
+    const parts = options.sessionStartStr.split(':').map(Number);
+    if (parts.length >= 1 && !isNaN(parts[0])) sessionHour = parts[0];
+    if (parts.length >= 2 && !isNaN(parts[1])) sessionMin = parts[1];
+  }
+
+  const currentHour = nowVN.getHours();
+  const currentMin = nowVN.getMinutes();
+  const isOvernight =
+    currentHour < sessionHour ||
+    (currentHour === sessionHour && currentMin < sessionMin);
+
+  let targetDateObj: Date;
+
+  if (!dateInput) {
+    targetDateObj = new Date(nowVN);
+    targetDateObj.setHours(0, 0, 0, 0);
+    if (isOvernight) {
+      targetDateObj.setDate(targetDateObj.getDate() - 1);
+      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+      }
+    }
+  } else {
+    let parsed: Date;
+    if (dateInput instanceof Date) {
+      parsed = new Date(dateInput);
+    } else {
+      parsed = resolveBotTargetDate({ targetDate: dateInput }).dateObj;
+    }
+    parsed.setHours(0, 0, 0, 0);
+
+    const pY = parsed.getFullYear().toString();
+    const pM = String(parsed.getMonth() + 1).padStart(2, '0');
+    const pD = String(parsed.getDate()).padStart(2, '0');
+    const parsedStr = `${pY}-${pM}-${pD}`;
+
+    if (!options?.forceExactDate && parsedStr === todayVnStr && isOvernight) {
+      // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương lúc nửa đêm -> lùi về T-1 đúng chuẩn C#
+      targetDateObj = new Date(parsed);
+      targetDateObj.setDate(targetDateObj.getDate() - 1);
+      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+      }
+    } else {
+      targetDateObj = parsed;
+    }
+  }
+
+  const y = targetDateObj.getFullYear().toString();
+  const m = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(targetDateObj.getDate()).padStart(2, '0');
+  const dateStr = `${y}-${m}-${d}`;
+
+  return { dateObj: targetDateObj, dateStr, isOvernight };
+}
+
+/**
  * Helper to compute daily backup subfolder (YYYY\TMM.YYYY\DD.MM) and full path.
  */
 export function resolveDailySubfolder(

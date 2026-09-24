@@ -201,7 +201,8 @@ export class KlgdReconService {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
+      // Chuẩn theo Tool C# TransactionCheckingService.cs#L125: Chỉ chặn trên, không chặn dưới đối với DSGD
+      return tradeTime <= dsgdUpperBound;
     });
 
     const effectiveCutoffTime = options?.cutoffTime;
@@ -222,7 +223,7 @@ export class KlgdReconService {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      if (tradeTime < sessionStart) return false;
+      // Chuẩn theo Tool C# TransactionCheckingService.cs#L168: Chỉ chặn trên đối với Nano/ACM
       if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
         pendingSyncTrades.push({
           source: 'ACM',

@@ -13,7 +13,7 @@ import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
 import { CcpCeDownloaderService } from '../../bot-engine/ccp-ce-downloader.service';
 import { TelegramService } from '../../telegram/telegram.service';
 import { findBotTasksInShift } from '../../bot-engine/constants/bot-task-registry';
-import { resolveStoragePathCrossPlatform } from '../../bot-engine/helpers/bot-path.helper';
+import { resolveStoragePathCrossPlatform, resolveTradingSessionDate } from '../../bot-engine/helpers/bot-path.helper';
 import { decrypt } from '../../bot-engine/utils/crypto';
 import {
   findHeaderIndex,
@@ -748,7 +748,7 @@ export class ReconConsoleSummaryService {
     };
 
     if (fs.existsSync(ccpDailyPath)) {
-      const qltkgdFile = findLatestFile(ccpDailyPath, /qltkgd|qltttkgd/i);
+      const qltkgdFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
       const eodFile = findLatestFile(ccpDailyPath, /eod/i);
       const nrFile = findLatestFile(ccpDailyPath, /nr/i);
       const ttttFile = findLatestFile(ccpDailyPath, /tttt/i);
@@ -1011,12 +1011,14 @@ export class ReconConsoleSummaryService {
       throw new Error('Các phân hệ bot queue hoặc shift log chưa sẵn sàng');
     }
 
-    let targetDate = dateStr;
-    if (!targetDate) {
-      const today = new Date();
-      const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
-      targetDate = vnTime.toISOString().split('T')[0];
-    }
+    const sessionStartSetting = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(dateStr, {
+      sessionStartStr: sessionStartSetting,
+    });
+    const targetDate = resolvedSession.dateStr;
 
     const parts = targetDate.split('-');
     const [y, m, d] = parts.length === 3 ? parts : ['', '', ''];

@@ -4346,6 +4346,7 @@ export class RpaDownloaderService {
     > & { cleanOnly?: boolean },
     destDir: string,
     onReadyBarrier?: () => Promise<void>,
+    onReadyBarrierCqg2?: () => Promise<void>,
   ): Promise<{ errors: string[]; downloaded: string[] }> {
     const errors: string[] = [];
     const downloaded: string[] = [];
@@ -4460,9 +4461,6 @@ export class RpaDownloaderService {
         }
 
         // ── Dual-State Router: Lắng nghe đồng thời Form đăng nhập HOẶC Dashboard ──
-        // Nhờ Persistent Disk Cache, bundle JS/WASM tải rất nhanh (4s - 6s).
-        // Nếu trang tự động vào thẳng Workspace (session cũ còn hiệu lực), ta bỏ qua bước điền thông tin đăng nhập,
-        // loại bỏ hoàn toàn nguy cơ bị treo 60s chờ ô userName như trước đây.
         const detectState = async (timeoutMs: number = 45000): Promise<'LOGIN' | 'DASHBOARD' | 'TIMEOUT'> => {
           const startTime = Date.now();
           while (Date.now() - startTime < timeoutMs) {
@@ -4503,15 +4501,12 @@ export class RpaDownloaderService {
           await page.fill('input[name="password"]', password);
           await page.click('button[type="submit"]');
 
-          // Lắng nghe đồng thời logo dashboard và các dialog xung đột phiên cũ (Concurrent session / Take over)
           await this.waitForCqgDashboardLogo(page, username, 120000);
         } else if (state === 'DASHBOARD') {
           this.logger.log(`[CQG] Phát hiện phiên làm việc sẵn sàng tại Dashboard cho: ${username}. Tiến hành kiểm tra và xử lý dialog xung đột nếu có...`);
-          // Kiểm tra xử lý nhanh các modal takeover hoặc snackbar còn sót
           await this.waitForCqgDashboardLogo(page, username, 10000);
         }
 
-        // Chờ các lớp loading sau khi login/vào workspace biến mất hoàn toàn
         await this.waitForCqgNotLoading(page, 30000);
         this.logger.log(`[CQG] Trạng thái sẵn sàng cho tài khoản: ${username}`);
         return { browser: context, page };
@@ -4521,15 +4516,17 @@ export class RpaDownloaderService {
       }
     };
 
-    // ── CQG1: FR1, PS1, OP1, OD1, AS ──────────────────────────────────────────
-    const needCqg1 =
-      reports.cleanOnly ||
-      reports.FR1 ||
-      reports.PS1 ||
-      reports.OP1 ||
-      reports.OD1 ||
-      reports.AS;
-    if (needCqg1) {
+    // ── WORKER CON 1: XỬ LÝ TÀI KHOẢN CQG1 ────────────────────────────────────
+    const runCqg1 = async () => {
+      const needCqg1 =
+        reports.cleanOnly ||
+        reports.FR1 ||
+        reports.PS1 ||
+        reports.OP1 ||
+        reports.OD1 ||
+        reports.AS;
+      if (!needCqg1) return;
+
       const username1 = creds.username1 || creds.usernameCQG1;
       const password1 = creds.password1 || creds.passwordCQG1;
 
@@ -4537,200 +4534,226 @@ export class RpaDownloaderService {
         errors.push(
           'Thiếu thông tin tài khoản CQG1 (username1/password1 trong bot_credentials_cqg).',
         );
-      } else {
-        let browser1: any = null;
-        let page1: Page | null = null;
-        try {
-          const { browser, page } = await loginCqgAccount(
-            username1,
-            password1,
-            '1',
-          );
-          browser1 = browser;
-          page1 = page;
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-
-          const ensureSessionActive1 = async () => {
-            const isLoginScreen = await page
-              .locator('input[name="password"]')
-              .isVisible({ timeout: 2000 })
-              .catch(() => false);
-            if (isLoginScreen) {
-              this.logger.warn(`[CQG1] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username1}...`);
-              await page.fill('input[name="userName"]', username1).catch(() => { });
-              await page.fill('input[name="password"]', password1);
-              await page.click('button[type="submit"]');
-              await this.waitForCqgDashboardLogo(page, username1, 120000);
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-            }
-          };
-
-          if (onReadyBarrier) {
-            try {
-              this.logger.log('[CQG] Đã đăng nhập và sẵn sàng tại màn hình FR1. Kích hoạt tín hiệu rào cản đồng bộ...');
-              await onReadyBarrier();
-            } catch (barrierErr: any) {
-              this.logger.warn(`[CQG] onReadyBarrier warning: ${barrierErr?.message || barrierErr}`);
-              await browser1?.close().catch(() => { });
-              throw new Error(`[CQG] Rào cản đồng bộ đã bị hủy, dừng phiên CQG: ${barrierErr?.message || barrierErr}`);
-            }
-          }
-
-          if (reports.cleanOnly) {
-            this.logger.log('[CQG] Chế độ Clean-Only: Tiến hành dọn dẹp đóng sạch toàn bộ tab thừa trong panel g1.w431...');
-            await this.closeAllOpenCqgWidgetTabs(page);
-            this.logger.log('[CQG] Đã dọn dẹp xong! Giữ trình duyệt mở 8s để bạn quan sát thực tế trên màn hình...');
-            await new Promise((resolve) => setTimeout(resolve, 8000));
-            return { errors, downloaded };
-          }
-
-          if (reports.FR1) {
-            try {
-              await this.downloadCqgFR(page, path.join(destDir, 'FR1.xlsx'), ensureSessionActive1);
-              downloaded.push('FR1.xlsx');
-            } catch (e: any) {
-              errors.push(`FR1: ${e.message}`);
-            }
-          }
-          if (reports.PS1) {
-            try {
-              await this.downloadCqgPS(page, path.join(destDir, 'PS1.xlsx'), ensureSessionActive1);
-              downloaded.push('PS1.xlsx');
-            } catch (e: any) {
-              errors.push(`PS1: ${e.message}`);
-            }
-          }
-          if (reports.OP1) {
-            try {
-              await this.downloadCqgOP(page, path.join(destDir, 'OP1.xlsx'), ensureSessionActive1);
-              downloaded.push('OP1.xlsx');
-            } catch (e: any) {
-              errors.push(`OP1: ${e.message}`);
-            }
-          }
-          if (reports.OD1) {
-            try {
-              await this.downloadCqgOD(page, path.join(destDir, 'OD1.xlsx'), ensureSessionActive1);
-              downloaded.push('OD1.xlsx');
-            } catch (e: any) {
-              errors.push(`OD1: ${e.message}`);
-            }
-          }
-          if (reports.AS) {
-            try {
-              await ensureSessionActive1();
-              await this.downloadCqgAS(page, path.join(destDir, 'AS1.xlsx'));
-              downloaded.push('AS1.xlsx');
-            } catch (e: any) {
-              errors.push(`AS1: ${e.message}`);
-            }
-          }
-        } catch (e: any) {
-          errors.push(`CQG1 login thất bại: ${e.message}`);
-        } finally {
-          if (page1) {
-            await this.logoutCqg(page1).catch(() => { });
-          }
-          if (browser1) await browser1.close().catch(() => { });
-          this.logger.log('[CQG] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG1.');
-          // Khoảng nghỉ 3s để hệ điều hành và file lock profile được giải phóng hoàn toàn
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        }
+        return;
       }
-    }
 
-    // ── CQG2: FR2, PS2, OP2, OD2, AS (đều hỗ trợ AS nếu được chọn) ───────────────
-    const needCqg2 =
-      reports.FR2 || reports.PS2 || reports.OP2 || reports.OD2 || reports.AS;
-    if (needCqg2) {
+      let browser1: any = null;
+      let page1: Page | null = null;
+      try {
+        const { browser, page } = await loginCqgAccount(
+          username1,
+          password1,
+          '1',
+        );
+        browser1 = browser;
+        page1 = page;
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        const ensureSessionActive1 = async () => {
+          const isLoginScreen = await page
+            .locator('input[name="password"]')
+            .isVisible({ timeout: 2000 })
+            .catch(() => false);
+          if (isLoginScreen) {
+            this.logger.warn(`[CQG1] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username1}...`);
+            await page.fill('input[name="userName"]', username1).catch(() => { });
+            await page.fill('input[name="password"]', password1);
+            await page.click('button[type="submit"]');
+            await this.waitForCqgDashboardLogo(page, username1, 120000);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+        };
+
+        if (onReadyBarrier) {
+          try {
+            this.logger.log('[CQG1] Đã đăng nhập và sẵn sàng tại màn hình FR1. Chờ xuất dữ liệu đồng thời...');
+            await onReadyBarrier();
+          } catch (barrierErr: any) {
+            this.logger.warn(`[CQG1] onReadyBarrier warning: ${barrierErr?.message || barrierErr}`);
+            await browser1?.close().catch(() => { });
+            throw new Error(`[CQG1] Tiến trình bị hủy do hệ thống khác gặp sự cố, đóng phiên CQG1: ${barrierErr?.message || barrierErr}`);
+          }
+        }
+
+        if (reports.cleanOnly) {
+          this.logger.log('[CQG1] Chế độ Clean-Only: Tiến hành dọn dẹp đóng sạch toàn bộ tab thừa trong panel g1.w431...');
+          await this.closeAllOpenCqgWidgetTabs(page);
+          this.logger.log('[CQG1] Đã dọn dẹp xong!');
+          return;
+        }
+
+        if (reports.FR1) {
+          try {
+            await this.downloadCqgFR(page, path.join(destDir, 'FR1.xlsx'), ensureSessionActive1);
+            downloaded.push('FR1.xlsx');
+          } catch (e: any) {
+            errors.push(`FR1: ${e.message}`);
+          }
+        }
+        if (reports.PS1) {
+          try {
+            await this.downloadCqgPS(page, path.join(destDir, 'PS1.xlsx'), ensureSessionActive1);
+            downloaded.push('PS1.xlsx');
+          } catch (e: any) {
+            errors.push(`PS1: ${e.message}`);
+          }
+        }
+        if (reports.OP1) {
+          try {
+            await this.downloadCqgOP(page, path.join(destDir, 'OP1.xlsx'), ensureSessionActive1);
+            downloaded.push('OP1.xlsx');
+          } catch (e: any) {
+            errors.push(`OP1: ${e.message}`);
+          }
+        }
+        if (reports.OD1) {
+          try {
+            await this.downloadCqgOD(page, path.join(destDir, 'OD1.xlsx'), ensureSessionActive1);
+            downloaded.push('OD1.xlsx');
+          } catch (e: any) {
+            errors.push(`OD1: ${e.message}`);
+          }
+        }
+        if (reports.AS) {
+          try {
+            await ensureSessionActive1();
+            await this.downloadCqgAS(page, path.join(destDir, 'AS1.xlsx'));
+            downloaded.push('AS1.xlsx');
+          } catch (e: any) {
+            errors.push(`AS1: ${e.message}`);
+          }
+        }
+      } catch (e: any) {
+        errors.push(`CQG1 login thất bại: ${e.message}`);
+      } finally {
+        if (page1) {
+          await this.logoutCqg(page1).catch(() => { });
+        }
+        if (browser1) await browser1.close().catch(() => { });
+        this.logger.log('[CQG1] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG1.');
+      }
+    };
+
+    // ── WORKER CON 2: XỬ LÝ TÀI KHOẢN CQG2 ────────────────────────────────────
+    const runCqg2 = async () => {
+      const needCqg2 =
+        reports.cleanOnly ||
+        reports.FR2 ||
+        reports.PS2 ||
+        reports.OP2 ||
+        reports.OD2 ||
+        reports.AS;
+      if (!needCqg2) return;
+
       const username2 = creds.username2 || creds.usernameCQG2;
       const password2 = creds.password2 || creds.passwordCQG2;
 
       if (!username2 || !password2) {
         errors.push(
-          'Thiếu thông tin tài khoản CQG3 Trade (username2/password2 trong bot_credentials_cqg).',
+          'Thiếu thông tin tài khoản CQG2/CQG3 Trade (username2/password2 trong bot_credentials_cqg).',
         );
-      } else {
-        let browser2: any = null;
-        let page2: Page | null = null;
-        try {
-          const { browser, page } = await loginCqgAccount(
-            username2,
-            password2,
-            '2',
-          );
-          browser2 = browser;
-          page2 = page;
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-
-          const ensureSessionActive2 = async () => {
-            const isLoginScreen = await page
-              .locator('input[name="password"]')
-              .isVisible({ timeout: 2000 })
-              .catch(() => false);
-            if (isLoginScreen) {
-              this.logger.warn(`[CQG2] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username2}...`);
-              await page.fill('input[name="userName"]', username2).catch(() => { });
-              await page.fill('input[name="password"]', password2);
-              await page.click('button[type="submit"]');
-              await this.waitForCqgDashboardLogo(page, username2, 120000);
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-            }
-          };
-
-          if (reports.FR2) {
-            try {
-              await this.downloadCqgFR(page, path.join(destDir, 'FR2.xlsx'), ensureSessionActive2);
-              downloaded.push('FR2.xlsx');
-            } catch (e: any) {
-              errors.push(`FR2: ${e.message}`);
-            }
-          }
-          if (reports.PS2) {
-            try {
-              await this.downloadCqgPS(page, path.join(destDir, 'PS2.xlsx'), ensureSessionActive2);
-              downloaded.push('PS2.xlsx');
-            } catch (e: any) {
-              errors.push(`PS2: ${e.message}`);
-            }
-          }
-          if (reports.OP2) {
-            try {
-              await this.downloadCqgOP(page, path.join(destDir, 'OP2.xlsx'), ensureSessionActive2);
-              downloaded.push('OP2.xlsx');
-            } catch (e: any) {
-              errors.push(`OP2: ${e.message}`);
-            }
-          }
-          if (reports.OD2) {
-            try {
-              await this.downloadCqgOD(page, path.join(destDir, 'OD2.xlsx'), ensureSessionActive2);
-              downloaded.push('OD2.xlsx');
-            } catch (e: any) {
-              errors.push(`OD2: ${e.message}`);
-            }
-          }
-          if (reports.AS) {
-            try {
-              await ensureSessionActive2();
-              await this.downloadCqgAS(page, path.join(destDir, 'AS2.xlsx'));
-              downloaded.push('AS2.xlsx');
-            } catch (e: any) {
-              errors.push(`AS2: ${e.message}`);
-            }
-          }
-        } catch (e: any) {
-          errors.push(`CQG2 login thất bại: ${e.message}`);
-        } finally {
-          if (page2) {
-            await this.logoutCqg(page2).catch(() => { });
-          }
-          if (browser2) await browser2.close().catch(() => { });
-          this.logger.log('[CQG] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG2.');
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
+        return;
       }
-    }
+
+      let browser2: any = null;
+      let page2: Page | null = null;
+      try {
+        const { browser, page } = await loginCqgAccount(
+          username2,
+          password2,
+          '2',
+        );
+        browser2 = browser;
+        page2 = page;
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        const ensureSessionActive2 = async () => {
+          const isLoginScreen = await page
+            .locator('input[name="password"]')
+            .isVisible({ timeout: 2000 })
+            .catch(() => false);
+          if (isLoginScreen) {
+            this.logger.warn(`[CQG2] Phát hiện bị ngắt kết nối phiên, đăng nhập lại: ${username2}...`);
+            await page.fill('input[name="userName"]', username2).catch(() => { });
+            await page.fill('input[name="password"]', password2);
+            await page.click('button[type="submit"]');
+            await this.waitForCqgDashboardLogo(page, username2, 120000);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
+        };
+
+        if (onReadyBarrierCqg2) {
+          try {
+            this.logger.log('[CQG2] Đã đăng nhập và sẵn sàng tại màn hình FR2. Chờ xuất dữ liệu đồng thời...');
+            await onReadyBarrierCqg2();
+          } catch (barrierErr: any) {
+            this.logger.warn(`[CQG2] onReadyBarrier warning: ${barrierErr?.message || barrierErr}`);
+            await browser2?.close().catch(() => { });
+            throw new Error(`[CQG2] Tiến trình bị hủy do hệ thống khác gặp sự cố, đóng phiên CQG2: ${barrierErr?.message || barrierErr}`);
+          }
+        }
+
+        if (reports.cleanOnly) {
+          this.logger.log('[CQG2] Chế độ Clean-Only: Tiến hành dọn dẹp đóng sạch toàn bộ tab thừa trong panel g1.w431...');
+          await this.closeAllOpenCqgWidgetTabs(page);
+          this.logger.log('[CQG2] Đã dọn dẹp xong!');
+          return;
+        }
+
+        if (reports.FR2) {
+          try {
+            await this.downloadCqgFR(page, path.join(destDir, 'FR2.xlsx'), ensureSessionActive2);
+            downloaded.push('FR2.xlsx');
+          } catch (e: any) {
+            errors.push(`FR2: ${e.message}`);
+          }
+        }
+        if (reports.PS2) {
+          try {
+            await this.downloadCqgPS(page, path.join(destDir, 'PS2.xlsx'), ensureSessionActive2);
+            downloaded.push('PS2.xlsx');
+          } catch (e: any) {
+            errors.push(`PS2: ${e.message}`);
+          }
+        }
+        if (reports.OP2) {
+          try {
+            await this.downloadCqgOP(page, path.join(destDir, 'OP2.xlsx'), ensureSessionActive2);
+            downloaded.push('OP2.xlsx');
+          } catch (e: any) {
+            errors.push(`OP2: ${e.message}`);
+          }
+        }
+        if (reports.OD2) {
+          try {
+            await this.downloadCqgOD(page, path.join(destDir, 'OD2.xlsx'), ensureSessionActive2);
+            downloaded.push('OD2.xlsx');
+          } catch (e: any) {
+            errors.push(`OD2: ${e.message}`);
+          }
+        }
+        if (reports.AS) {
+          try {
+            await ensureSessionActive2();
+            await this.downloadCqgAS(page, path.join(destDir, 'AS2.xlsx'));
+            downloaded.push('AS2.xlsx');
+          } catch (e: any) {
+            errors.push(`AS2: ${e.message}`);
+          }
+        }
+      } catch (e: any) {
+        errors.push(`CQG2 login thất bại: ${e.message}`);
+      } finally {
+        if (page2) {
+          await this.logoutCqg(page2).catch(() => { });
+        }
+        if (browser2) await browser2.close().catch(() => { });
+        this.logger.log('[CQG2] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG2.');
+      }
+    };
+
+    // Kích hoạt chạy song song đồng thời cả 2 tài khoản CQG1 và CQG2
+    await Promise.allSettled([runCqg1(), runCqg2()]);
 
     return { errors, downloaded };
   }

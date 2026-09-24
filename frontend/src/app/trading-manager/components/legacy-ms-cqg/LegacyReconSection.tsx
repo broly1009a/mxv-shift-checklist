@@ -32,6 +32,7 @@ import {
 import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { ReconLogSummaryModal } from './ReconLogSummaryModal';
+import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
 export interface LegacyReconSectionProps {
   token: string | null;
@@ -1602,9 +1603,7 @@ export default function LegacyReconSection({
                 <button
                   type="button"
                   onClick={() => {
-                    const today = new Date();
-                    const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
-                    setSelectedDate(vnTime.toISOString().split('T')[0]);
+                    setSelectedDate(getInitialTradingSessionDate());
                   }}
                   className="btn btn-secondary"
                   title="Đặt lại về phiên ngày hôm nay"

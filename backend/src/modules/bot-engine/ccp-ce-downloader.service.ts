@@ -401,7 +401,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     parentMenu: 'Vận hành',
     childMenu: 'Kết quả EOD',
     cachedUrl: '/EOD/ACCTMARGIN_HIST',
-    enabled: false,
+    enabled: true,
     phase: 'EOD',
     outputFileName: 'EOD.xlsx',
   },
@@ -621,22 +621,31 @@ export class CcpCeDownloaderService {
       password,
     );
     await page.click("button[type='submit'], button:has-text('Đăng nhập')");
-    await page.waitForLoadState('networkidle', { timeout: 30_000 });
+    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
     await page.waitForTimeout(1_000);
 
-    if (page.url().toLowerCase().includes('/login')) {
+    // Chờ trình duyệt hoàn tất trao đổi Token SSO: thoát khỏi cả /login và /validate_code?code=...
+    try {
+      await page.waitForURL(
+        (url) => !url.href.includes('validate_code') && !url.pathname.toLowerCase().includes('/login'),
+        { timeout: 25_000 },
+      );
+    } catch { }
+
+    const curUrl = page.url().toLowerCase();
+    if (curUrl.includes('/login') || curUrl.includes('validate_code')) {
       const errLoc = page.locator(
         "//*[contains(@class,'MuiAlert-message') or contains(text(),'không chính xác') or contains(text(),'khóa')]",
       );
-      let errText = 'Ten dang nhap hoac mat khau khong dung.';
+      let errText = 'Tên đăng nhập hoặc mật khẩu không đúng hoặc máy chủ SSO VNCLEAR phản hồi chậm.';
       try {
         if (await errLoc.first().isVisible({ timeout: 1_500 })) {
           errText = (await errLoc.first().textContent()) ?? errText;
         }
       } catch { }
-      throw new Error(`Dang nhap that bai: ${errText.trim()}`);
+      throw new Error(`Đăng nhập thất bại: ${errText.trim()} (URL hiện tại: ${page.url()})`);
     }
-    this.log('Dang nhap thanh cong.', logCb);
+    this.log(`Dang nhap thanh cong. URL sau dang nhap: ${page.url()}`, logCb);
   }
 
   // ── BACKDROP & SIDEBAR ────────────────────────────────────────────────────
@@ -753,6 +762,16 @@ export class CcpCeDownloaderService {
     systemUrl: string,
     logCb?: (m: string) => void,
   ): Promise<string> {
+    // 0. Phòng vệ: Nếu trình duyệt vẫn đang kẹt ở validate_code, chờ cho SSO hoàn tất
+    if (page.url().includes('validate_code')) {
+      this.log(`[Nav] Trình duyệt đang ở chặng SSO validate_code, chờ chuyển hướng...`, logCb);
+      try {
+        await page.waitForURL((url) => !url.href.includes('validate_code'), { timeout: 15_000 });
+      } catch {
+        throw new Error(`[Fail-Fast] Không thể điều hướng đến ${report.name}: SSO VNCLEAR vẫn đang kẹt tại ${page.url()}`);
+      }
+    }
+
     // Thử direct URL
     const targetUrl = this.resolveReportUrl(report.cachedUrl || '', systemUrl);
     if (targetUrl) {
@@ -762,11 +781,24 @@ export class CcpCeDownloaderService {
         await page.waitForTimeout(1000);
         await this.dismissModalBackdrop(page);
 
+        // Chờ nếu direct URL bị redirect tạm sang validate_code
+        if (page.url().includes('validate_code')) {
+          await page.waitForURL((url) => !url.href.includes('validate_code'), { timeout: 10_000 }).catch(() => {});
+        }
+
         const checkElem = page.locator(
           "xpath=//button[contains(., 'Tìm kiếm')] | //button[contains(., 'Kết xuất')] | //input[contains(@class, 'MuiPickersInputBase-input')]",
         ).first();
         if (await checkElem.isVisible({ timeout: 3_000 })) {
-          return targetUrl;
+          const directLearnedUrl = page.url();
+          if (
+            !directLearnedUrl.includes('validate_code') &&
+            !directLearnedUrl.includes('/login') &&
+            !directLearnedUrl.includes('/DASHBOARD')
+          ) {
+            this.log(`[Nav] Direct URL thành công -> URL: ${directLearnedUrl}`, logCb);
+            return directLearnedUrl;
+          }
         } else {
           this.log(`[Nav] Direct URL chua hien bang, fallback sang click Menu...`, logCb);
         }
@@ -837,9 +869,23 @@ export class CcpCeDownloaderService {
         }
       }
 
+      // Đợi bảng hoặc nút Tìm kiếm/Kết xuất của trang báo cáo xuất hiện để đảm bảo trang đã load
+      const reportReady = page.locator(
+        "xpath=//button[contains(., 'Tìm kiếm')] | //button[contains(., 'Kết xuất')] | //input[contains(@class, 'MuiPickersInputBase-input')]",
+      ).first();
+      try {
+        await reportReady.waitFor({ state: 'visible', timeout: 5_000 });
+      } catch { }
+
       const learnedUrl = page.url();
-      if (learnedUrl.includes('/DASHBOARD') || learnedUrl.endsWith('.vn/') || learnedUrl.endsWith('.vn')) {
-        throw new Error(`[Fail-Fast] Không thể điều hướng đến báo cáo ${report.name} (${report.code}). Trình duyệt vẫn đang ở Dashboard (${learnedUrl})!`);
+      if (
+        learnedUrl.includes('/DASHBOARD') ||
+        learnedUrl.endsWith('.vn/') ||
+        learnedUrl.endsWith('.vn') ||
+        learnedUrl.includes('validate_code') ||
+        learnedUrl.includes('/login')
+      ) {
+        throw new Error(`[Fail-Fast] Không thể điều hướng đến báo cáo ${report.name} (${report.code}). Trình duyệt vẫn đang ở URL không hợp lệ (${learnedUrl})!`);
       }
       this.log(`[Nav] Điều hướng thành công -> URL: ${learnedUrl}`, logCb);
       return learnedUrl;
@@ -2028,6 +2074,12 @@ export class CcpCeDownloaderService {
 
     this.log(`[CCP KLGD] Điều hướng đến màn hình DSGD và cấu hình ngày ${tradingDate}...`, logCb);
     await this.navigateToReport(page, repDSGD, systemUrl, logCb);
+
+    const currentUrl = page.url();
+    if (currentUrl.includes('validate_code') || currentUrl.includes('/login')) {
+      throw new Error(`[Fail-Fast] Màn hình DSGD chưa sẵn sàng, trình duyệt đang ở URL: ${currentUrl}`);
+    }
+
     const searchRes = await this.setDateRangeAndSearch(page, repDSGD, tradingDate, tradingDate, {}, logCb);
     isTableEmpty = searchRes === 'EMPTY_TABLE';
     this.log(`[CCP KLGD] Sẵn sàng tại màn hình xuất DSGD. Đang chờ rào cản đồng bộ...`, logCb);

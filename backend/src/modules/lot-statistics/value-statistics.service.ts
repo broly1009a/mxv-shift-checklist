@@ -19,6 +19,7 @@ import {
   ensureBaseFileExists,
 } from '../../common/file-guard.helper';
 import { safeWriteExcel } from './helpers/excel-safe-writer.helper';
+import { resolveStoragePathCrossPlatform } from '../bot-engine/helpers/bot-path.helper';
 
 export function getMaHHFromDsgd(row: ParsedRow): string {
   const maTKGD = toStr(row['Mã TKGD'] ?? row['col4'] ?? '');
@@ -117,19 +118,21 @@ export class ValueStatisticsService {
         'Macro thong ke gia tri giao dich có ACM.xlsm',
       );
 
-    const macroPath =
+    const rawMacroPath =
       payload?.macroPath ||
       (await this.settingsService.getSetting(
         'bot_macro_value_path',
         defaultMacroPath,
       ));
+    const macroPath = resolveStoragePathCrossPlatform(rawMacroPath);
 
-    const targetRoot =
+    const rawTargetRoot =
       payload?.targetRoot ||
       (await this.settingsService.getSetting(
         'bot_lot_macro_target_root',
         'M:\\Quanlygiaodich\\Tai lieu hoat dong',
       ));
+    const targetRoot = resolveStoragePathCrossPlatform(rawTargetRoot);
 
     this.logger.log(`Using Macro template: ${macroPath}`);
     this.logger.log(`Target root: ${targetRoot}`);
@@ -204,7 +207,7 @@ export class ValueStatisticsService {
       ? `${monthStr}.${year}`
       : `T${monthStr}.${year}`;
 
-    const dsgdPath =
+    const dsgdPath = resolveStoragePathCrossPlatform(
       payload?.dsgdPath ||
       path.join(
         msFuturesRoot,
@@ -212,7 +215,8 @@ export class ValueStatisticsService {
         monthFolder,
         `${dayStr}.${monthStr}`,
         'DSGD.xlsx',
-      );
+      ),
+    );
 
     this.logger.log(`Searching for daily DSGD at: ${dsgdPath}`);
     ensureBaseFileExists(dsgdPath);
@@ -300,7 +304,7 @@ export class ValueStatisticsService {
 
     // 5. Update cumulative files
     const paths: ValueAccumulatorPaths = {
-      pathNormal:
+      pathNormal: resolveStoragePathCrossPlatform(
         payload?.pathNormal ||
         (await this.settingsService.getSetting('bot_lot_macro_path_normal')) ||
         path.join(
@@ -308,7 +312,8 @@ export class ValueStatisticsService {
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich ${year}.xlsx`,
         ),
-      pathSpread:
+      ),
+      pathSpread: resolveStoragePathCrossPlatform(
         payload?.pathSpread ||
         (await this.settingsService.getSetting('bot_lot_macro_path_spread')) ||
         path.join(
@@ -318,7 +323,8 @@ export class ValueStatisticsService {
           String(year),
           `Thong ke gia tri giao dich Spread ${year}.xlsx`,
         ),
-      pathLme:
+      ),
+      pathLme: resolveStoragePathCrossPlatform(
         payload?.pathLme ||
         (await this.settingsService.getSetting('bot_lot_macro_path_lme')) ||
         path.join(
@@ -328,7 +334,8 @@ export class ValueStatisticsService {
           String(year),
           `Thong ke gia tri giao dich LME ${year}.xlsx`,
         ),
-      pathOptions:
+      ),
+      pathOptions: resolveStoragePathCrossPlatform(
         payload?.pathOptions ||
         (await this.settingsService.getSetting('bot_lot_macro_path_options')) ||
         path.join(
@@ -336,7 +343,8 @@ export class ValueStatisticsService {
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich Options ${year}.xlsx`,
         ),
-      pathAcm:
+      ),
+      pathAcm: resolveStoragePathCrossPlatform(
         payload?.pathAcm ||
         (await this.settingsService.getSetting('bot_lot_macro_path_acm')) ||
         path.join(
@@ -344,7 +352,8 @@ export class ValueStatisticsService {
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich ACM ${year}.xlsx`,
         ),
-      pathTvkd:
+      ),
+      pathTvkd: resolveStoragePathCrossPlatform(
         payload?.pathTvkd ||
         (await this.settingsService.getSetting('bot_lot_macro_path_tvkd')) ||
         path.join(
@@ -352,6 +361,7 @@ export class ValueStatisticsService {
           'Thong ke gia tri giao dich theo TVKD',
           `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`,
         ),
+      ),
     };
 
     const updateCumulativeStr = await this.settingsService.getSetting('bot_lot_macro_update_cumulative', 'true');
@@ -401,9 +411,9 @@ export class ValueStatisticsService {
       pathTvkd: string;
     }
   ): Promise<any> {
-    const targetRoot = payload.targetRoot;
-    const dsgdPath = payload.dsgdPath;
-    const pathTvkd = payload.pathTvkd;
+    const targetRoot = resolveStoragePathCrossPlatform(payload.targetRoot);
+    const dsgdPath = resolveStoragePathCrossPlatform(payload.dsgdPath);
+    const pathTvkd = resolveStoragePathCrossPlatform(payload.pathTvkd);
 
     // Security guard checks
     const allowedRoot = process.env.BOT_MACRO_TARGET_ROOT || process.env.BOT_LOT_MACRO_TARGET_ROOT || '';
@@ -424,15 +434,16 @@ export class ValueStatisticsService {
 
     // 1. Load configuration and exchange rates from macro workbook
     // NOTE: Uses 'bot_macro_value_path' (same key saved by UI via PUT /value-statistics/config)
-    const macroPath = await this.settingsService.getSetting(
+    const rawMacroPath = await this.settingsService.getSetting(
       'bot_macro_value_path',
       '',
     );
-    if (!macroPath) {
+    if (!rawMacroPath) {
       throw new Error(
         'Chưa cấu hình file Macro cấu hình (bot_macro_value_path) trong cài đặt hệ thống. Vui lòng vào Cài đặt → Thống kê giá trị để lưu đường dẫn file Macro.',
       );
     }
+    const macroPath = resolveStoragePathCrossPlatform(rawMacroPath);
     ensureBaseFileExists(macroPath);
     if (!fs.existsSync(macroPath)) {
       throw new Error(`Không tìm thấy file Macro cấu hình tại: "${macroPath}"`);

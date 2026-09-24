@@ -49,9 +49,10 @@ export const CORE_CCP_REPORTS_LIST: Array<{
   { key: 'TTM', name: 'TTM CCP', filename: 'TTM CCP.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
   { key: 'TTTT', name: 'TTTT', filename: 'TTTT.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
 
-  // 4. Rủi ro & Ký quỹ (5 file)
+  // 4. Rủi ro & Ký quỹ (6 file)
   { key: 'QLTTTKGD_PRE1620', name: 'QL TT TKGD trước 4h20', filename: 'QL TT TKGD truoc 4h20.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 1 },
   { key: 'QLTTTKGD', name: 'QL TT TKGD', filename: 'QL TT TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'EOD', name: 'Kết quả EOD', filename: 'EOD.csv', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
   { key: 'QLTTTVKD', name: 'QL TT TVKD', filename: 'QL TT TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
   { key: 'DSQLKQ_TKGD', name: 'DSQLKQ TKGD', filename: 'DSQLKQ TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
   { key: 'DSQLKQ_TVKD', name: 'DSQLKQ TVKD', filename: 'DSQLKQ TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },

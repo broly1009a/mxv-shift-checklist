@@ -5,7 +5,7 @@ import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interf
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { ValueStatisticsService } from '../../lot-statistics/value-statistics.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { parseJobPayload } from '../helpers/bot-path.helper';
+import { parseJobPayload, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
 
 @Injectable()
 export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
@@ -67,12 +67,13 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
       const dayStr = String(targetDate.getDate()).padStart(2, '0');
 
-      const targetRoot =
+      const rawTargetRoot =
         payload.targetRoot ||
         (await this.settingsService.getSetting(
           'bot_lot_macro_target_root',
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
+      const targetRoot = resolveStoragePathCrossPlatform(rawTargetRoot);
 
       const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
         ? path.join(targetRoot, 'Backup MS', 'Futures')
@@ -81,7 +82,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
         ? `${monthStr}.${year}`
         : `T${monthStr}.${year}`;
 
-      const dsgdPath =
+      const dsgdPath = resolveStoragePathCrossPlatform(
         payload.dsgdPath ||
         path.join(
           msFuturesRoot,
@@ -89,25 +90,29 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
           monthFolder,
           `${dayStr}.${monthStr}`,
           'DSGD.xlsx',
-        );
+        ),
+      );
 
-      const pathNormal =
+      const pathNormal = resolveStoragePathCrossPlatform(
         payload.pathNormal ||
         (await this.settingsService.getSetting('bot_lot_macro_path_normal')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich ${year}.xlsx`,
-        );
+        ),
+      );
 
-      const pathSpread =
+      const pathSpread = resolveStoragePathCrossPlatform(
         payload.pathSpread ||
         (await this.settingsService.getSetting('bot_lot_macro_path_spread')) ||
         path.join(
-          'C:\\Users\\hiepth\\Videos\\Marco thong ke gia tri',
+          targetRoot,
+          'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich Spread ${year}.xlsx`,
-        );
-      const pathLme =
+        ),
+      );
+      const pathLme = resolveStoragePathCrossPlatform(
         payload.pathLme ||
         (await this.settingsService.getSetting('bot_lot_macro_path_lme')) ||
         path.join(
@@ -116,31 +121,35 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
           'LME',
           String(year),
           `Thong ke gia tri giao dich LME ${year}.xlsx`,
-        );
-      const pathOptions =
+        ),
+      );
+      const pathOptions = resolveStoragePathCrossPlatform(
         payload.pathOptions ||
         (await this.settingsService.getSetting('bot_lot_macro_path_options')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich Options ${year}.xlsx`,
-        );
-      const pathAcm =
+        ),
+      );
+      const pathAcm = resolveStoragePathCrossPlatform(
         payload.pathAcm ||
         (await this.settingsService.getSetting('bot_lot_macro_path_acm')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich',
           `Thong ke gia tri giao dich ACM ${year}.xlsx`,
-        );
-      const pathTvkd =
+        ),
+      );
+      const pathTvkd = resolveStoragePathCrossPlatform(
         payload.pathTvkd ||
         (await this.settingsService.getSetting('bot_lot_macro_path_tvkd')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich theo TVKD',
           `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`,
-        );
+        ),
+      );
 
       const defaultMacroPath = fs.existsSync(path.join(process.cwd(), 'marco'))
         ? path.join(
@@ -156,12 +165,13 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
           'Thong ke gia tri giao dich có ACM',
           'Macro thong ke gia tri giao dich có ACM.xlsm',
         );
-      const macroPath =
+      const rawMacroPath =
         payload.macroPath ||
         (await this.settingsService.getSetting(
           'bot_macro_value_path',
           defaultMacroPath,
         ));
+      const macroPath = resolveStoragePathCrossPlatform(rawMacroPath);
 
       log(`[NestJS Thống kê Giá Trị] Chi tiết các đường dẫn tệp tin xử lý:`);
       log(`   - Tệp bản đồ cấu hình (Excel): ${macroPath}`);
@@ -242,12 +252,13 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
       const dayStr = String(targetDate.getDate()).padStart(2, '0');
 
-      const targetRoot =
+      const rawTargetRoot =
         payload.targetRoot ||
         (await this.settingsService.getSetting(
           'bot_lot_macro_target_root',
           'M:\\Quanlygiaodich\\Tai lieu hoat dong',
         ));
+      const targetRoot = resolveStoragePathCrossPlatform(rawTargetRoot);
 
       const msFuturesRoot = fs.existsSync(path.join(targetRoot, 'Backup MS', 'Futures'))
         ? path.join(targetRoot, 'Backup MS', 'Futures')
@@ -256,7 +267,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
         ? `${monthStr}.${year}`
         : `T${monthStr}.${year}`;
 
-      const dsgdPath =
+      const dsgdPath = resolveStoragePathCrossPlatform(
         payload.dsgdPath ||
         path.join(
           msFuturesRoot,
@@ -264,16 +275,18 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
           monthFolder,
           `${dayStr}.${monthStr}`,
           'DSGD.xlsx',
-        );
+        ),
+      );
 
-      const pathTvkd =
+      const pathTvkd = resolveStoragePathCrossPlatform(
         payload.pathTvkd ||
         (await this.settingsService.getSetting('bot_lot_macro_path_tvkd')) ||
         path.join(
           targetRoot,
           'Thong ke gia tri giao dich theo TVKD',
           `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`,
-        );
+        ),
+      );
 
       log(`[NestJS Thống kê TVKD Lũy Kế] Chi tiết các đường dẫn tệp tin xử lý:`);
       log(`   - Thư mục gốc dữ liệu (Target Root): ${targetRoot}`);

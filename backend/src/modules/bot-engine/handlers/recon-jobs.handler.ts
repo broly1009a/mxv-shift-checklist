@@ -8,7 +8,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
-import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate } from '../helpers/bot-path.helper';
+import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 
 @Injectable()
@@ -104,31 +104,19 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
   private async handleCheckKlgdJob(job: any) {
     const payload = parseJobPayload(job);
-    let targetDate: Date;
-    if (payload.sessionDay || payload.targetDate) {
-      const resolved = resolveBotTargetDate(payload);
-      targetDate = resolved.dateObj;
-    } else {
-      // Overnight session logic:
-      // Trong phiên MXV, phiên giao dịch mở lúc ~06:30/07:00 sáng và kéo dài xuyên đêm tới 05:00/06:00 sáng hôm sau.
-      // Nếu job chạy trong khoảng 00:00 - 06:30 sáng (giờ VN), phiên giao dịch thực tế vẫn là phiên của ngày T-1.
-      const nowVnStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
-      const nowVN = new Date(nowVnStr);
-      const currentHour = nowVN.getHours();
-      const currentMin = nowVN.getMinutes();
-      targetDate = new Date(nowVN);
-      targetDate.setHours(0, 0, 0, 0);
-      if (currentHour < 6 || (currentHour === 6 && currentMin < 30)) {
-        targetDate.setDate(targetDate.getDate() - 1);
-      }
-      while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
-        targetDate.setDate(targetDate.getDate() - 1);
-      }
-    }
+    const sessionStartSetting = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolved = resolveTradingSessionDate(
+      payload.sessionDay || payload.targetDate,
+      { sessionStartStr: sessionStartSetting },
+    );
+    const targetDate = resolved.dateObj;
+    const dateStr = resolved.dateStr;
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
     const day = String(targetDate.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
     const log = (msg: string) => {
       this.logger.log(msg);
       job.logs.push(`[${new Date().toISOString()}] ${msg}`);
@@ -194,12 +182,12 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       }
     }
 
-    log(' Khởi động quy trình Đồng bộ 2 Pha (Barrier Synchronization) tải tươi từ MS, CQG, ACM và CoreCCP đồng thời...');
+    log(' Bắt đầu quy trình đối chiếu: Chuẩn bị và đồng bộ tải dữ liệu từ các hệ thống (M-System, CQG, ACM, CoreCCP)...');
     await job.save();
 
     const errors: string[] = [];
 
-    // Cờ kiểm soát rào cản nghiêm ngặt:
+    // Cờ kiểm soát an toàn dữ liệu:
     // true = Bắt buộc cả 4 nguồn sẵn sàng mới xuất file; false = Cho phép dùng file cũ nếu 1 bên lỗi
     const REQUIRE_ALL_SOURCES_FRESH = true;
 
@@ -229,15 +217,22 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       ms: false,
       acm: false,
       ccp: false,
-      cqg: false,
+      cqg1: false,
+      cqg2: false,
     };
 
     const checkAllReadyAndTrigger = () => {
       if (barrierAborted) return;
-      if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg) {
+      if (
+        readyState.ms &&
+        readyState.acm &&
+        readyState.ccp &&
+        readyState.cqg1 &&
+        readyState.cqg2
+      ) {
         if (!barrierAnnounced) {
           barrierAnnounced = true;
-          log(' Tất cả 4 nguồn (MS, CQG, ACM, CoreCCP) đều đã vào vị trí! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
+          log(' Tất cả các hệ thống (M-System, ACM, CoreCCP, CQG1, CQG2) đã sẵn sàng! BẮT ĐẦU ĐỒNG LOẠT XUẤT BÁO CÁO.');
         }
         triggerBarrierResolve();
       }
@@ -247,7 +242,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       if (REQUIRE_ALL_SOURCES_FRESH && !barrierTriggered && !barrierAborted) {
         barrierAborted = true;
         abortReason = `Nguồn [${source}] gặp sự cố: ${errorMsg}`;
-        log(` DỪNG RÀO CẢN ĐỒNG BỘ: ${abortReason}. Đã dừng quy trình để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`);
+        log(` TẠM DỪNG TIẾN TRÌNH: ${abortReason}. Hệ thống tạm dừng để tránh so khớp sai lệch khi chưa đủ dữ liệu các bên.`);
         triggerBarrierReject(new Error(abortReason));
       }
     };
@@ -265,7 +260,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         return;
       }
 
-      log('MS  [Pha 1] Khởi chạy trình duyệt và đăng nhập M-System...');
+      log('MS  [Bước 1: Chuẩn bị] Đang mở trình duyệt và đăng nhập M-System...');
       let browser: any = null;
       let page: any = null;
       try {
@@ -282,14 +277,14 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         }
 
         readyState.ms = true;
-        log('MS  Đã sẵn sàng tại màn hình DSGD. Đang chờ rào cản đồng bộ...');
+        log('MS  Đã mở màn hình Danh sách giao dịch. Đang chờ các hệ thống khác cùng sẵn sàng...');
         checkAllReadyAndTrigger();
 
-        // Chờ tín hiệu rào cản kích hoạt tải Pha 2
+        // Chờ các hệ thống khác cùng sẵn sàng để xuất dữ liệu đồng thời
         await barrierTriggerPromise;
 
         if (options.checkKlgd !== false) {
-          log('MS  [Pha 2] Kích hoạt xuất DSGD.xlsx...');
+          log('MS  [Bước 2: Xuất dữ liệu] Đang tải file DSGD.xlsx...');
           const [dl] = await Promise.all([
             page.waitForEvent('download', { timeout: 45000 }),
             page.click("xpath=//i[contains(@class, 'fa-file-csv')]", { timeout: 15000 }),
@@ -355,7 +350,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         return;
       }
 
-      log('ACM  [Pha 1] Khởi chạy trình duyệt và đăng nhập ACM (giải Captcha)...');
+      log('ACM  [Bước 1: Chuẩn bị] Đang mở trình duyệt và đăng nhập ACM (giải Captcha)...');
       const jobLogFn = (msg: string) => log(`ACM: ${msg}`);
       let browser: any = null;
       let page: any = null;
@@ -402,13 +397,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         await page.waitForSelector(exportBtnSelector, { state: 'visible', timeout: 15000 }).catch(() => { });
 
         readyState.acm = true;
-        log('ACM  Đã sẵn sàng tại màn hình Fill. Đang chờ rào cản đồng bộ...');
+        log('ACM  Đã mở màn hình Khớp lệnh (Fill). Đang chờ các hệ thống khác cùng sẵn sàng...');
         checkAllReadyAndTrigger();
 
-        // Chờ tín hiệu rào cản kích hoạt tải Pha 2
+        // Chờ các hệ thống khác cùng sẵn sàng để xuất dữ liệu đồng thời
         await barrierTriggerPromise;
 
-        log('ACM  [Pha 2] Kích hoạt xuất báo cáo Fill (Straits.csv)...');
+        log('ACM  [Bước 2: Xuất dữ liệu] Đang tải file khớp lệnh Straits.csv (Fill)...');
         const btn = page.locator(exportBtnSelector).first();
         const isVisible = await btn.isVisible().catch(() => false);
         const straitsFile = path.join(acmDailyPath, 'Straits.csv');
@@ -484,7 +479,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         return;
       }
 
-      log('CCP  [Pha 1] Khởi chạy trình duyệt và đăng nhập CoreCCP...');
+      log('CCP  [Bước 1: Chuẩn bị] Đang mở trình duyệt và đăng nhập CoreCCP...');
       const dateFormatted = `${day}/${month}/${year}`;
       let ccpSession: any = null;
       try {
@@ -502,13 +497,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         });
 
         readyState.ccp = true;
-        log('CCP  Đã sẵn sàng tại màn hình DSGD. Đang chờ rào cản đồng bộ...');
+        log('CCP  Đã mở màn hình Danh sách giao dịch. Đang chờ các hệ thống khác cùng sẵn sàng...');
         checkAllReadyAndTrigger();
 
-        // Chờ tín hiệu rào cản kích hoạt tải Pha 2
+        // Chờ các hệ thống khác cùng sẵn sàng để xuất dữ liệu đồng thời
         await barrierTriggerPromise;
 
-        log('CCP  [Pha 2] Kích hoạt xuất báo cáo DSGD CoreCCP...');
+        log('CCP  [Bước 2: Xuất dữ liệu] Đang tải file DSGD từ CoreCCP...');
         const dsgdFile = await ccpSession.triggerExportDsgd();
         log(`CCP  Tải DSGD hoàn tất: ${dsgdFile || 'Không có dữ liệu'}`);
 
@@ -537,7 +532,8 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         options.checkTttt === false
       ) {
         log('CQG ⏭️ Bỏ qua CQG theo tùy chọn.');
-        readyState.cqg = true;
+        readyState.cqg1 = true;
+        readyState.cqg2 = true;
         checkAllReadyAndTrigger();
         return;
       }
@@ -566,20 +562,29 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           filesToDownload.PS2 = true;
         }
 
-        log(`CQG  [Pha 1] Khởi chạy phiên CQG và chuẩn bị tải: ${Object.keys(filesToDownload).join(', ')}...`);
+        log(`CQG  [Bước 1: Chuẩn bị] Mở đồng thời 2 tài khoản CQG1 & CQG2 chuẩn bị tải: ${Object.keys(filesToDownload).join(', ')}...`);
 
-        const onReadyBarrier = async () => {
-          readyState.cqg = true;
-          log('CQG  CQG1 đã đăng nhập và sẵn sàng xuất FR1. Chờ rào cản đồng bộ...');
+        const onReadyBarrierCqg1 = async () => {
+          readyState.cqg1 = true;
+          log('CQG1  Đã vào màn hình FR1. Đang chờ các hệ thống khác cùng sẵn sàng...');
           checkAllReadyAndTrigger();
           await barrierTriggerPromise;
-          log('CQG  [Pha 2] Kích hoạt xuất FR1.xlsx...');
+          log('CQG1  [Bước 2: Xuất dữ liệu] Đang tải file khớp lệnh FR1.xlsx...');
+        };
+
+        const onReadyBarrierCqg2 = async () => {
+          readyState.cqg2 = true;
+          log('CQG2  Đã vào màn hình FR2. Đang chờ các hệ thống khác cùng sẵn sàng...');
+          checkAllReadyAndTrigger();
+          await barrierTriggerPromise;
+          log('CQG2  [Bước 2: Xuất dữ liệu] Đang tải file khớp lệnh FR2.xlsx...');
         };
 
         const result = await this.rpaDownloaderService.downloadCqgBackup(
           filesToDownload,
           cqgDailyPath,
-          onReadyBarrier,
+          onReadyBarrierCqg1,
+          onReadyBarrierCqg2,
         );
 
         if (result.downloaded.length > 0) {
@@ -617,26 +622,33 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         abortBarrierIfStrict('CQG', err.message);
       } finally {
         if (!barrierAborted) {
-          readyState.cqg = true;
+          readyState.cqg1 = true;
+          readyState.cqg2 = true;
           checkAllReadyAndTrigger();
         }
         log('CQG  Đã hoàn tất và đóng trình duyệt CQG.');
       }
     };
 
-    // ── BỘ ĐIỀU KHIỂN RÀO CẢN ĐỒNG BỘ ────────────────────────────────────────
+    // ── BỘ ĐIỀU KHIỂN ĐỒNG BỘ ─────────────────────────────────────────────────
     const startBarrierController = async () => {
       const waitStart = Date.now();
       const maxWaitMs = 70000; // Tối đa 70 giây cho các bên đăng nhập và vào vị trí (CQG cần ~55-60s)
       while (Date.now() - waitStart < maxWaitMs) {
         if (barrierAborted) return;
-        if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg) {
+        if (
+          readyState.ms &&
+          readyState.acm &&
+          readyState.ccp &&
+          readyState.cqg1 &&
+          readyState.cqg2
+        ) {
           break;
         }
         await new Promise((r) => setTimeout(r, 400));
       }
       if (!barrierTriggered && !barrierAborted) {
-        log(' Đạt ngưỡng timeout rào cản (70s). Kích hoạt xuất dữ liệu cho các nguồn đã sẵn sàng...');
+        log(' Hết thời gian chờ chuẩn bị (70s). Bắt đầu xuất file từ các hệ thống đã sẵn sàng...');
         triggerBarrierResolve();
       }
     };
@@ -652,12 +664,12 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     if (barrierAborted) {
-      log(` QUY TRÌNH ĐỐI SOÁT TẠM DỪNG: ${abortReason}. Không thực hiện so khớp để bảo vệ tính toàn vẹn số liệu.`);
+      log(` QUY TRÌNH ĐỐI SOÁT TẠM DỪNG: ${abortReason}. Hệ thống không thực hiện so khớp khi chưa đủ dữ liệu.`);
       payload.result = {
         passed: false,
         isAborted: true,
         error: abortReason,
-        message: `[StrictBarrier] Tạm dừng đối chiếu do thiếu dữ liệu tươi: ${abortReason}`,
+        message: `Tạm dừng đối chiếu do thiếu dữ liệu từ hệ thống: ${abortReason}`,
       };
       await job.save();
       throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] ${abortReason}`);

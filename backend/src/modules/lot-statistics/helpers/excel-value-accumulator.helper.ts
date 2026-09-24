@@ -10,6 +10,7 @@ import { safeWriteExcel } from './excel-safe-writer.helper';
 
 import { ensureBaseFileExists } from '../../../common/file-guard.helper';
 import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
+import { resolveStoragePathCrossPlatform } from '../../bot-engine/helpers/bot-path.helper';
 
 // ─── Commodity Code Mappings matching Sheet1 ranges ─────────────────────────
 
@@ -520,10 +521,21 @@ export async function updateAllValueCumulativeFiles(
   tvkdValues?: Map<string, number>,
   jobLogs?: string[],
 ) {
+  const safePaths: ValueAccumulatorPaths = {
+    pathNormal: resolveStoragePathCrossPlatform(paths.pathNormal),
+    pathSpread: resolveStoragePathCrossPlatform(paths.pathSpread),
+    pathLme: resolveStoragePathCrossPlatform(paths.pathLme),
+    pathOptions: resolveStoragePathCrossPlatform(paths.pathOptions),
+    pathAcm: resolveStoragePathCrossPlatform(paths.pathAcm),
+    pathTvkd: paths.pathTvkd
+      ? resolveStoragePathCrossPlatform(paths.pathTvkd)
+      : undefined,
+  };
+
   // 1. Normal Value Tracker
-  ensureDirExists(paths.pathNormal);
+  ensureDirExists(safePaths.pathNormal);
   await updateValueTrackerFile(
-    paths.pathNormal,
+    safePaths.pathNormal,
     ngayGD,
     NORMAL_COMMODITIES,
     normalGtgdMap,
@@ -532,9 +544,9 @@ export async function updateAllValueCumulativeFiles(
   );
 
   // 2. Spread Value Tracker
-  ensureDirExists(paths.pathSpread);
+  ensureDirExists(safePaths.pathSpread);
   await updateValueTrackerFile(
-    paths.pathSpread,
+    safePaths.pathSpread,
     ngayGD,
     SPREAD_COMMODITIES,
     spreadGtgdMap,
@@ -543,9 +555,9 @@ export async function updateAllValueCumulativeFiles(
   );
 
   // 3. LME Value Tracker
-  ensureDirExists(paths.pathLme);
+  ensureDirExists(safePaths.pathLme);
   await updateValueTrackerFile(
-    paths.pathLme,
+    safePaths.pathLme,
     ngayGD,
     LME_COMMODITIES,
     normalGtgdMap,
@@ -554,9 +566,9 @@ export async function updateAllValueCumulativeFiles(
   );
 
   // 4. Options Value Tracker
-  ensureDirExists(paths.pathOptions);
+  ensureDirExists(safePaths.pathOptions);
   await updateValueTrackerFile(
-    paths.pathOptions,
+    safePaths.pathOptions,
     ngayGD,
     OPTIONS_COMMODITIES,
     normalGtgdMap,
@@ -565,9 +577,9 @@ export async function updateAllValueCumulativeFiles(
   );
 
   // 5. ACM Value Tracker
-  ensureDirExists(paths.pathAcm);
+  ensureDirExists(safePaths.pathAcm);
   await updateValueTrackerFile(
-    paths.pathAcm,
+    safePaths.pathAcm,
     ngayGD,
     ACM_COMMODITIES,
     normalGtgdMap,
@@ -576,10 +588,10 @@ export async function updateAllValueCumulativeFiles(
   );
 
   // 6. TVKD Value Tracker (New)
-  if (paths.pathTvkd && tvkdValues) {
-    ensureDirExists(paths.pathTvkd);
+  if (safePaths.pathTvkd && tvkdValues) {
+    ensureDirExists(safePaths.pathTvkd);
     await updateValueTvkdTrackerFile(
-      paths.pathTvkd,
+      safePaths.pathTvkd,
       ngayGD,
       tvkdValues,
       jobLogs,
