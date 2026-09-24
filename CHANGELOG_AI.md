@@ -1,5 +1,37 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-24T17:01] FEAT: Tách Độc Lập 2 Tác Vụ "Thống Kê Số Lot" & "Thống Kê Giá Trị" Ghi Trực Tiếp 1-Chạm Vào File Excel CoreCCP
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  * Tách module CoreCCP ([CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)) thành 2 nút độc lập: **"Thống Kê Số Lot (CoreCCP)"** và **"Thống Kê Giá Trị (CoreCCP)"**.
+  * Chạy theo cơ chế "1 chạm" (One-Click Execute): Vừa tính toán vừa ghi trực tiếp vào các file Excel lũy kế, không bắt ca trực phải thao tác 2 bước rườm rà (Bước 1 xem trước $\rightarrow$ Bước 2 ghi file).
+  * Bảo toàn 100% luồng 2 bước cũ trong mã nguồn (comment lại khối nút cũ để dự phòng rollback nếu cần).
+  * Viết tài liệu thiết kế kỹ thuật chi tiết làm cơ sở căn cứ: [TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md).
+
+### 2. Danh sách file thay đổi
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  * L490-L620: Bổ sung tham số `targetScope: 'ALL' | 'LOT_ONLY' | 'VALUE_ONLY' = 'ALL'` vào `writeToAccumulator`. Khi `targetScope === 'LOT_ONLY'`, hệ thống chỉ mở và ghi 5 file Số Lot (Normal, ACM, Spread, LME, Options); khi `targetScope === 'VALUE_ONLY'`, hệ thống chỉ mở và ghi 5 file Giá Trị.
+  * L1595-L1720: Bổ sung 2 phương thức xử lý chuyên biệt:
+    + `runLotStatisticsDirect(dateStr)`: Độc lập 100% với tỷ giá, tính toán số lot và ghi thẳng vào các file Số Lot.
+    + `runValueStatisticsDirect(dateStr)`: Đọc tỷ giá từ DB/file ngày, tính toán GTGD quy đổi VND và ghi thẳng vào các file Giá Trị.
+- [backend/src/modules/ccp-statistics/ccp-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-statistics.controller.ts):
+  * L385-L435: Bổ sung 2 endpoints RESTful:
+    + `POST /api/v1/ccp-statistics/lot-statistics/run-lot`
+    + `POST /api/v1/ccp-statistics/lot-statistics/run-value`
+- [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+  * L468-L555: Bổ sung 2 state loading độc lập `runningLot`, `runningValue` và 2 hàm gọi API 1-chạm `handleRunLotDirect`, `handleRunValueDirect`.
+  * L655-L745: Thay thế cụm nút 2 bước ở chế độ USER bằng 2 nút 1-chạm: **"Thống Kê Số Lot (CoreCCP)"** (Xanh ngọc / Layers icon) và **"Thống Kê Giá Trị (CoreCCP)"** (Vàng cam / DollarSign icon). Khối nút cũ được comment lại dự phòng.
+  * L955-L1015: Cập nhật cả ở chế độ EXPERT khi ở nguồn dữ liệu `AUTO_DETECT`.
+- [docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md):
+  * Soạn thảo toàn bộ tài liệu thiết kế kỹ thuật chi tiết đối chiếu C# và TypeScript.
+
+### 3. Kết quả xác nhận Kiểm thử
+- Typecheck Frontend: `node node_modules/typescript/bin/tsc --noEmit` $\rightarrow$ **0 errors (Pass 100%)**.
+- Typecheck Backend: Module `src/modules/ccp-statistics/` $\rightarrow$ **0 errors (Pass 100%)**.
+
+---
+
 ## [2026-09-24T15:56] FIX & VERIFY: Khắc Phục Triệt Để Hiện Tượng Tràn Dòng Sang Tháng Sau (10/1/2026) Khi Nhân Bản Sheet
 
 ### 1. Mục tiêu thay đổi

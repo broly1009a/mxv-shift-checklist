@@ -492,10 +492,14 @@ export class CcpLotStatisticsService {
     paths: CcpAccumulatorPaths,
     dsgdBuffer?: Buffer,
     jobLogs?: string[],
+    targetScope: 'ALL' | 'LOT_ONLY' | 'VALUE_ONLY' = 'ALL',
   ): Promise<{ lotUpdated: boolean; gtgdUpdated: boolean; errors: string[] }> {
     const errors: string[] = [];
     let lotUpdated = false;
     let gtgdUpdated = false;
+
+    const shouldWriteLot = targetScope === 'ALL' || targetScope === 'LOT_ONLY';
+    const shouldWriteValue = targetScope === 'ALL' || targetScope === 'VALUE_ONLY';
 
     // ── 1. Phase 1: ACM Lot & GTGD (giữ nguyên tương thích) ────────────────
     const resolvedAcmLotPath = (paths.pathAcmLot || (paths as any).pathAcmCumulative)
@@ -505,7 +509,7 @@ export class CcpLotStatisticsService {
       ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd || (paths as any).pathGtgdAcm, result.ngayGD))
       : undefined;
 
-    if (resolvedAcmLotPath) {
+    if (shouldWriteLot && resolvedAcmLotPath) {
       try {
         await writeCcpLotToAccumulator(result, resolvedAcmLotPath, jobLogs);
         lotUpdated = true;
@@ -518,7 +522,7 @@ export class CcpLotStatisticsService {
       }
     }
 
-    if (resolvedAcmGtgdPath) {
+    if (shouldWriteValue && resolvedAcmGtgdPath) {
       try {
         await writeCcpGtgdToAccumulator(result, resolvedAcmGtgdPath, jobLogs);
         gtgdUpdated = true;
@@ -532,70 +536,74 @@ export class CcpLotStatisticsService {
     }
 
     // ── 2. Phase 2: Số Lot theo phân hệ (Normal, Spread, LME, Options) ─────
-    const typedLots: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
-      { key: 'NormalLot', rawPath: paths.pathNormalLot || (paths as any).pathNormalCumulative, type: 'normal' },
-      { key: 'SpreadLot', rawPath: paths.pathSpreadLot || (paths as any).pathSpreadCumulative, type: 'spread' },
-      { key: 'LmeLot',    rawPath: paths.pathLmeLot || (paths as any).pathLmeCumulative,       type: 'lme' },
-      { key: 'OptionsLot',rawPath: paths.pathOptionsLot || (paths as any).pathOptionsCumulative, type: 'options' },
-    ];
+    if (shouldWriteLot) {
+      const typedLots: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
+        { key: 'NormalLot', rawPath: paths.pathNormalLot || (paths as any).pathNormalCumulative, type: 'normal' },
+        { key: 'SpreadLot', rawPath: paths.pathSpreadLot || (paths as any).pathSpreadCumulative, type: 'spread' },
+        { key: 'LmeLot',    rawPath: paths.pathLmeLot || (paths as any).pathLmeCumulative,       type: 'lme' },
+        { key: 'OptionsLot',rawPath: paths.pathOptionsLot || (paths as any).pathOptionsCumulative, type: 'options' },
+      ];
 
-    for (const { key, rawPath, type } of typedLots) {
-      if (!rawPath) continue;
+      for (const { key, rawPath, type } of typedLots) {
+        if (!rawPath) continue;
 
-      // Zero-Lot Bypass: Nếu phân hệ này không có lot phát sinh (totalSoLot === 0),
-      // tự động bỏ qua (Skip), không mở và không ghi đè số 0 vào file Excel lũy kế.
-      const typeStats = (result as any).byType?.[type];
-      if (!typeStats || typeStats.totalSoLot <= 0) {
-        this.logger.debug(`[CCP-ACC] Bỏ qua ghi lot ${key}: 0 lot phát sinh.`);
-        continue;
-      }
+        // Zero-Lot Bypass: Nếu phân hệ này không có lot phát sinh (totalSoLot === 0),
+        // tự động bỏ qua (Skip), không mở và không ghi đè số 0 vào file Excel lũy kế.
+        const typeStats = (result as any).byType?.[type];
+        if (!typeStats || typeStats.totalSoLot <= 0) {
+          this.logger.debug(`[CCP-ACC] Bỏ qua ghi lot ${key}: 0 lot phát sinh.`);
+          continue;
+        }
 
-      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
-      try {
-        await writeCcpTypedLotToAccumulator(result, resolved, type, jobLogs);
-        lotUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi lot ${key} vào: ${resolved}`);
-      } catch (err: any) {
-        const msg = `Lỗi ghi file lũy kế lot ${key}: ${err.message}`;
-        errors.push(msg);
-        this.logger.error(msg);
-        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+        const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+        try {
+          await writeCcpTypedLotToAccumulator(result, resolved, type, jobLogs);
+          lotUpdated = true;
+          this.logger.log(`[CCP-ACC] Đã ghi lot ${key} vào: ${resolved}`);
+        } catch (err: any) {
+          const msg = `Lỗi ghi file lũy kế lot ${key}: ${err.message}`;
+          errors.push(msg);
+          this.logger.error(msg);
+          jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+        }
       }
     }
 
     // ── 3. Phase 2: GTGD theo phân hệ (Normal, Spread, LME, Options) ───────
-    const typedGtgd: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
-      { key: 'GtgdNormal',  rawPath: paths.pathGtgdNormal,  type: 'normal' },
-      { key: 'GtgdSpread',  rawPath: paths.pathGtgdSpread,  type: 'spread' },
-      { key: 'GtgdLme',     rawPath: paths.pathGtgdLme,     type: 'lme' },
-      { key: 'GtgdOptions', rawPath: paths.pathGtgdOptions, type: 'options' },
-    ];
+    if (shouldWriteValue) {
+      const typedGtgd: Array<{ key: string; rawPath?: string; type: 'normal' | 'spread' | 'lme' | 'options' }> = [
+        { key: 'GtgdNormal',  rawPath: paths.pathGtgdNormal,  type: 'normal' },
+        { key: 'GtgdSpread',  rawPath: paths.pathGtgdSpread,  type: 'spread' },
+        { key: 'GtgdLme',     rawPath: paths.pathGtgdLme,     type: 'lme' },
+        { key: 'GtgdOptions', rawPath: paths.pathGtgdOptions, type: 'options' },
+      ];
 
-    for (const { key, rawPath, type } of typedGtgd) {
-      if (!rawPath) continue;
+      for (const { key, rawPath, type } of typedGtgd) {
+        if (!rawPath) continue;
 
-      // Zero-Lot Bypass: Nếu phân hệ này không có GTGD phát sinh, tự động bỏ qua.
-      const typeStats = (result as any).byType?.[type];
-      if (!typeStats || typeStats.totalGiaTri <= 0) {
-        this.logger.debug(`[CCP-ACC] Bỏ qua ghi GTGD ${key}: 0 VND phát sinh.`);
-        continue;
-      }
+        // Zero-Lot Bypass: Nếu phân hệ này không có GTGD phát sinh, tự động bỏ qua.
+        const typeStats = (result as any).byType?.[type];
+        if (!typeStats || typeStats.totalGiaTri <= 0) {
+          this.logger.debug(`[CCP-ACC] Bỏ qua ghi GTGD ${key}: 0 VND phát sinh.`);
+          continue;
+        }
 
-      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
-      try {
-        await writeCcpTypedValueToAccumulator(result, resolved, type, jobLogs);
-        gtgdUpdated = true;
-        this.logger.log(`[CCP-ACC] Đã ghi GTGD ${key} vào: ${resolved}`);
-      } catch (err: any) {
-        const msg = `Lỗi ghi file lũy kế GTGD ${key}: ${err.message}`;
-        errors.push(msg);
-        this.logger.error(msg);
-        jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+        const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+        try {
+          await writeCcpTypedValueToAccumulator(result, resolved, type, jobLogs);
+          gtgdUpdated = true;
+          this.logger.log(`[CCP-ACC] Đã ghi GTGD ${key} vào: ${resolved}`);
+        } catch (err: any) {
+          const msg = `Lỗi ghi file lũy kế GTGD ${key}: ${err.message}`;
+          errors.push(msg);
+          this.logger.error(msg);
+          jobLogs?.push(`[CCP-ACC ERROR] ${msg}`);
+        }
       }
     }
 
-    // ── 4. Phase 2: Raw DSGD Lũy Kế ───────────────────────────────────────
-    if (paths.pathDsgdCumulative && dsgdBuffer) {
+    // ── 4. Phase 2: Raw DSGD Lũy Kế (Chỉ ghi khi Scope là ALL hoặc LOT_ONLY) ───
+    if (shouldWriteLot && paths.pathDsgdCumulative && dsgdBuffer) {
       const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathDsgdCumulative, result.ngayGD));
       try {
         await appendCcpRawDsgd(dsgdBuffer, resolved, result.ngayGD, jobLogs);
@@ -1581,6 +1589,135 @@ export class CcpLotStatisticsService {
       { dsgdCcp, ttm, tttt, tyGia, maHD },
       { ngayGD: dateStr },
     );
+  }
+
+  /**
+   * Tự động tổng hợp và ghi TRỰC TIẾP vào các file SỐ LOT (CoreCCP).
+   * Độc lập 100% với tỷ giá.
+   */
+  async runLotStatisticsDirect(dateStr: string, user?: { id?: any; username?: string }) {
+    const jobLogs: string[] = [];
+    jobLogs.push(`[CoreCCP Lot] Bắt đầu tổng hợp và ghi trực tiếp Số Lot ngày: ${dateStr}`);
+
+    // 1. Đọc và tính toán số liệu từ thư mục ngày
+    const result = await this.processDailyFiles(dateStr);
+    jobLogs.push(`[CoreCCP Lot] Tổng hợp số lot hoàn tất: ${result.totalSoLot?.toLocaleString('vi-VN')} lot`);
+
+    // 2. Lấy cấu hình đường dẫn file Số Lot
+    const config = await this.getConfig();
+    const paths: CcpAccumulatorPaths = {
+      pathAcmLot: config.pathAcmLot || config.pathAcmCumulative || '',
+      pathNormalLot: config.pathNormalLot || config.pathNormalCumulative || '',
+      pathSpreadLot: config.pathSpreadLot || config.pathSpreadCumulative || '',
+      pathLmeLot: config.pathLmeLot || config.pathLmeCumulative || '',
+      pathOptionsLot: config.pathOptionsLot || config.pathOptionsCumulative || '',
+      pathDsgdCumulative: config.pathDsgdCumulative || '',
+    };
+
+    // 3. Đọc buffer DSGD nếu cấu hình có ghi file DSGD thô lũy kế
+    let dsgdBuffer: Buffer | undefined;
+    if (paths.pathDsgdCumulative) {
+      try {
+        const scan = await this.scanDailyFiles(dateStr);
+        if (scan.files.dsgd?.path && fs.existsSync(scan.files.dsgd.path)) {
+          dsgdBuffer = fs.readFileSync(scan.files.dsgd.path);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[CoreCCP Lot] Không thể nạp dsgdBuffer: ${err.message}`);
+      }
+    }
+
+    // 4. Ghi trực tiếp các file Số Lot (scope = LOT_ONLY)
+    const writeResult = await this.writeToAccumulator(
+      result,
+      paths,
+      dsgdBuffer,
+      jobLogs,
+      'LOT_ONLY',
+    );
+
+    // 5. Lưu lịch sử chạy
+    try {
+      await this.saveRunHistory({
+        sessionDate: dateStr,
+        action: 'WRITE',
+        result,
+        accumulatorLogs: jobLogs,
+        accumulatorPaths: paths as any,
+        userId: user?.id,
+        username: user?.username || 'SYSTEM',
+      });
+    } catch (histErr: any) {
+      this.logger.warn(`[CoreCCP Lot] Lưu run history thất bại: ${histErr.message}`);
+    }
+
+    return {
+      success: writeResult.errors.length === 0,
+      lotUpdated: writeResult.lotUpdated,
+      errors: writeResult.errors,
+      logs: jobLogs,
+      result,
+      message: writeResult.errors.length === 0
+        ? `Đã ghi thành công các file Số Lot ngày ${dateStr} (${result.totalSoLot?.toLocaleString('vi-VN')} lot)`
+        : `Ghi file Số Lot hoàn tất nhưng có cảnh báo: ${writeResult.errors.join('; ')}`,
+    };
+  }
+
+  /**
+   * Tự động quy đổi tỷ giá và ghi TRỰC TIẾP vào các file GIÁ TRỊ GIAO DỊCH (CoreCCP).
+   */
+  async runValueStatisticsDirect(dateStr: string, user?: { id?: any; username?: string }) {
+    const jobLogs: string[] = [];
+    jobLogs.push(`[CoreCCP GTGD] Bắt đầu tổng hợp và ghi trực tiếp Giá Trị Giao Dịch ngày: ${dateStr}`);
+
+    // 1. Đọc và tính toán số liệu GTGD từ thư mục ngày
+    const result = await this.processDailyFiles(dateStr);
+    jobLogs.push(`[CoreCCP GTGD] Tính toán GTGD hoàn tất: ${result.totalGiaTri?.toLocaleString('vi-VN')} VND`);
+
+    // 2. Lấy cấu hình đường dẫn file Giá Trị
+    const config = await this.getConfig();
+    const paths: CcpAccumulatorPaths = {
+      pathAcmGtgd: config.pathAcmGtgd || config.pathGtgdAcm || '',
+      pathGtgdNormal: config.pathGtgdNormal || '',
+      pathGtgdSpread: config.pathGtgdSpread || '',
+      pathGtgdLme: config.pathGtgdLme || '',
+      pathGtgdOptions: config.pathGtgdOptions || '',
+    };
+
+    // 3. Ghi trực tiếp các file Giá Trị (scope = VALUE_ONLY)
+    const writeResult = await this.writeToAccumulator(
+      result,
+      paths,
+      undefined,
+      jobLogs,
+      'VALUE_ONLY',
+    );
+
+    // 4. Lưu lịch sử chạy
+    try {
+      await this.saveRunHistory({
+        sessionDate: dateStr,
+        action: 'WRITE',
+        result,
+        accumulatorLogs: jobLogs,
+        accumulatorPaths: paths as any,
+        userId: user?.id,
+        username: user?.username || 'SYSTEM',
+      });
+    } catch (histErr: any) {
+      this.logger.warn(`[CoreCCP GTGD] Lưu run history thất bại: ${histErr.message}`);
+    }
+
+    return {
+      success: writeResult.errors.length === 0,
+      gtgdUpdated: writeResult.gtgdUpdated,
+      errors: writeResult.errors,
+      logs: jobLogs,
+      result,
+      message: writeResult.errors.length === 0
+        ? `Đã ghi thành công các file Giá Trị Giao Dịch ngày ${dateStr}`
+        : `Ghi file Giá Trị hoàn tất nhưng có cảnh báo: ${writeResult.errors.join('; ')}`,
+    };
   }
 
   // ──────────────────────────────────────────────────────────────────────────

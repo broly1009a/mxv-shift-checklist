@@ -465,6 +465,90 @@ export default function CcpLotStatisticsSection({
     }
   };
 
+  // ─── 1-CHẠM: Thống Kê Số Lot Trực Tiếp (CoreCCP) ──────────────────────────
+  const [runningLot, setRunningLot] = useState<boolean>(false);
+  const handleRunLotDirect = async () => {
+    if (!token) return;
+    if (!scanResult?.canProcess) {
+      toast.error('Chưa tìm thấy file DSGD trong thư mục ngày. Vui lòng kiểm tra lại!');
+      return;
+    }
+
+    setRunningLot(true);
+    setAccumulatorLogs([]);
+    const toastId = toast.loading(`Đang tính toán và ghi file Số Lot ngày ${ngayGD}...`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/run-lot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ date: ngayGD }),
+      });
+
+      const data = await res.json();
+      if (data?.logs && Array.isArray(data.logs)) {
+        setAccumulatorLogs(data.logs);
+      }
+      if (res.ok && data?.success) {
+        if (data?.result) setResult(data.result);
+        toast.success(
+          data.message || `Đã ghi thành công các file Số Lot ngày ${ngayGD} (${data.result?.totalSoLot?.toLocaleString('vi-VN')} lot)`,
+          { id: toastId },
+        );
+      } else {
+        toast.error(data?.message || 'Có lỗi khi ghi file Số Lot', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối máy chủ: ' + err.message, { id: toastId });
+    } finally {
+      setRunningLot(false);
+    }
+  };
+
+  // ─── 1-CHẠM: Thống Kê Giá Trị Giao Dịch Trực Tiếp (CoreCCP) ───────────────
+  const [runningValue, setRunningValue] = useState<boolean>(false);
+  const handleRunValueDirect = async () => {
+    if (!token) return;
+    if (!scanResult?.canProcess) {
+      toast.error('Chưa tìm thấy file DSGD trong thư mục ngày. Vui lòng kiểm tra lại!');
+      return;
+    }
+
+    setRunningValue(true);
+    setAccumulatorLogs([]);
+    const toastId = toast.loading(`Đang tính toán và ghi file Giá Trị Giao Dịch ngày ${ngayGD}...`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/run-value`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ date: ngayGD }),
+      });
+
+      const data = await res.json();
+      if (data?.logs && Array.isArray(data.logs)) {
+        setAccumulatorLogs(data.logs);
+      }
+      if (res.ok && data?.success) {
+        if (data?.result) setResult(data.result);
+        toast.success(
+          data.message || `Đã ghi thành công các file Giá Trị Giao Dịch ngày ${ngayGD}`,
+          { id: toastId },
+        );
+      } else {
+        toast.error(data?.message || 'Có lỗi khi ghi file Giá Trị', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối máy chủ: ' + err.message, { id: toastId });
+    } finally {
+      setRunningValue(false);
+    }
+  };
+
   // Formatter helpers
   const fmtNum = (v?: number) => (v !== undefined && v !== null ? v.toLocaleString('vi-VN') : '0');
   const fmtCur = (v?: number) => (v !== undefined && v !== null ? `${v.toLocaleString('vi-VN')} đ` : '0 đ');
@@ -568,12 +652,13 @@ export default function CcpLotStatisticsSection({
               </div>
             </div>
 
-            {/* 2-Step Action Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* 1-Click Action Buttons: Tách Độc Lập Số Lot & Giá Trị Giao Dịch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Nút 1: Thống Kê Số Lot (1-Chạm Ghi Trực Tiếp) */}
               <button
                 type="button"
-                onClick={handleProcessDaily}
-                disabled={loading || !scanResult?.canProcess}
+                onClick={handleRunLotDirect}
+                disabled={runningLot || runningValue || !scanResult?.canProcess}
                 className="btn btn-primary"
                 style={{
                   fontSize: '0.86rem',
@@ -584,57 +669,79 @@ export default function CcpLotStatisticsSection({
                   gap: '8px',
                   borderRadius: '8px',
                   boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-                  cursor: loading || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                  cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
                   backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
                 }}
               >
-                {loading ? (
+                {runningLot ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Đang Tổng Hợp...</span>
+                    <span>Đang Ghi File Số Lot...</span>
                   </>
                 ) : (
                   <>
-                    <Play size={16} fill="currentColor" />
-                    <span>Bước 1: Tổng Hợp Dữ Liệu Ngày</span>
+                    <Layers size={16} />
+                    <span>Thống Kê Số Lot (CoreCCP)</span>
                   </>
                 )}
               </button>
 
+              {/* Nút 2: Thống Kê Giá Trị (1-Chạm Ghi Trực Tiếp) */}
+              <button
+                type="button"
+                onClick={handleRunValueDirect}
+                disabled={runningLot || runningValue || !scanResult?.canProcess}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.86rem',
+                  fontWeight: 800,
+                  padding: '10px 22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderColor: 'rgba(245, 158, 11, 0.4)',
+                  color: '#f59e0b',
+                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+                  cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {runningValue ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Ghi File Giá Trị...</span>
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={16} />
+                    <span>Thống Kê Giá Trị (CoreCCP)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* LUỒNG CŨ 2 BƯỚC (DỰ PHÒNG ROLLBACK - TẠM ẨN) */}
+            {/*
+            <div style={{ display: 'none', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleProcessDaily}
+                disabled={loading || !scanResult?.canProcess}
+              >
+                Bước 1: Tổng Hợp Dữ Liệu Ngày
+              </button>
               {result && (
                 <button
                   type="button"
                   onClick={handleWriteAccumulator}
                   disabled={writingAccumulator}
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.86rem',
-                    fontWeight: 800,
-                    padding: '10px 20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                    borderColor: 'rgba(59, 130, 246, 0.4)',
-                    color: '#60a5fa',
-                    cursor: writingAccumulator ? 'not-allowed' : 'pointer',
-                  }}
                 >
-                  {writingAccumulator ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Đang Ghi File...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} />
-                      <span>Bước 2: Ghi Vào 10 File Lũy Kế Excel</span>
-                    </>
-                  )}
+                  Bước 2: Ghi Vào 10 File Lũy Kế Excel
                 </button>
               )}
             </div>
+            */}
           </div>
 
           {/* User Mode: Accumulator Logs (nếu có) */}
@@ -844,34 +951,67 @@ export default function CcpLotStatisticsSection({
             </button>
 
             {dataSourceMode === 'AUTO_DETECT' ? (
-              <button
-                type="button"
-                onClick={handleProcessDaily}
-                disabled={loading || !scanResult?.canProcess}
-                className="btn btn-primary"
-                style={{
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  padding: '8px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: loading || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
-                  backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
-                }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin" />
-                    <span>Đang Tổng Hợp...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play size={15} />
-                    <span>Tổng Hợp Từ Thư Mục Backup</span>
-                  </>
-                )}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleRunLotDirect}
+                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                    backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
+                  }}
+                >
+                  {runningLot ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Đang Ghi Lot...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers size={15} />
+                      <span>Thống Kê Số Lot</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRunValueDirect}
+                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    color: '#f59e0b',
+                  }}
+                >
+                  {runningValue ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Đang Ghi GTGD...</span>
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign size={15} />
+                      <span>Thống Kê Giá Trị</span>
+                    </>
+                  )}
+                </button>
+              </>
             ) : (
               <button
                 type="button"

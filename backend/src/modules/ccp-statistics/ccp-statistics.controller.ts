@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
@@ -374,6 +375,56 @@ export class CcpStatisticsController {
     } catch (err: any) {
       throw new HttpException(
         `Lỗi xử lý file từ thư mục ngày: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ccp-statistics/lot-statistics/run-lot
+   *
+   * Tự động đọc file từ thư mục ngày, tính số lot và GHI TRỰC TIẾP vào 5 file Số Lot.
+   * Body: { date?: string }
+   */
+  @Post('lot-statistics/run-lot')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runLotDirect(
+    @Body() body: { date?: string },
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runLotStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi thống kê và ghi file Số Lot: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ccp-statistics/lot-statistics/run-value
+   *
+   * Tự động đọc file từ thư mục ngày, quy đổi tỷ giá và GHI TRỰC TIẾP vào 5 file Giá Trị.
+   * Body: { date?: string }
+   */
+  @Post('lot-statistics/run-value')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runValueDirect(
+    @Body() body: { date?: string },
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runValueStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi thống kê và ghi file Giá Trị: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
