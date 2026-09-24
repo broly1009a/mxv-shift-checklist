@@ -22,7 +22,7 @@ import re
 import shutil
 import argparse
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Đảm bảo UTF-8 cho Windows console
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -245,16 +245,28 @@ def run_test(source_file: str, target_sheet: str, use_safe_copy: bool = True):
         has_formulas = formula_count > 0 and tong_row > 0
         results.append(("ASSERT 5: Công thức SUM hàng ngang và dòng TỔNG được giữ nguyên", has_formulas, f"Tìm thấy {formula_count} công thức hàng ngang, dòng Tổng tại Row {tong_row}"))
 
-        # ASSERT 6: Không còn ngày rác từ tháng cũ
-        old_month_dates = []
+        # ASSERT 6: Kiểm tra chính xác chuỗi ngày làm việc và loại bỏ triệt để ngày tràn sang tháng sau (như 10/1)
+        def next_workday(d):
+            cur = d + timedelta(days=1)
+            while cur.weekday() >= 5:
+                cur += timedelta(days=1)
+            return cur
+
+        sim_d = exp_first_date
+        out_of_month_dates = []
         for r in range(first_date_row, tong_row if tong_row > 0 else ws.max_row + 1):
             cv = ws.cell(row=r, column=date_col).value
-            if isinstance(cv, datetime) and cv.month != t_month:
-                old_month_dates.append((r, cv))
+            if r > first_date_row:
+                if isinstance(cv, datetime):
+                    sim_d = cv
+                elif isinstance(cv, str) and 'WORKDAY' in cv.upper():
+                    sim_d = next_workday(sim_d)
+            if sim_d.month != t_month:
+                out_of_month_dates.append((r, sim_d.strftime('%Y-%m-%d')))
 
-        no_old_dates = len(old_month_dates) == 0
-        old_date_sample = f"Phát hiện ngày tháng cũ tại dòng: {old_month_dates}" if old_month_dates else f"Không còn bất kỳ dòng rác mang ngày tháng khác {t_month}"
-        results.append(("ASSERT 6: Đã loại bỏ các dòng phụ chèn tay ngày tháng cũ", no_old_dates, old_date_sample))
+        no_out_of_month = len(out_of_month_dates) == 0
+        overflow_detail = f"Phát hiện dòng mang ngày ngoài tháng {t_month}: {out_of_month_dates}" if out_of_month_dates else f"Khớp chính xác {tong_row - first_date_row} ngày trong tháng {t_month}, không có ngày nào tràn sang tháng sau"
+        results.append(("ASSERT 6: Không còn ngày tràn sang tháng sau (như 10/1/2026)", no_out_of_month, overflow_detail))
 
         wb_check.close()
         print_summary(results)

@@ -11,7 +11,7 @@ import sys
 import os
 import re
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Thiết lập UTF-8 cho stdout/stderr để tránh lỗi charmap trên Windows console
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -158,41 +158,77 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
         col_letter = 'B' if date_col == 2 else 'A'
         print(f"[INFO] Phat hien date_col={col_letter}, first_date_row={first_date_row}, start_clean_col={start_clean_col}. Cap nhat moc ngay dau thang tai {col_letter}{first_date_row}: {first_date_val.strftime('%Y-%m-%d')}")
 
-        # 7. Xóa trắng dữ liệu giao dịch cũ của các ngày trong tháng (giữ nguyên công thức và tiêu đề)
+        # 7. Đồng bộ chính xác 100% số ngày làm việc trong tháng (loại bỏ triệt để ngày tràn sang tháng sau như 10/1/2026)
+        def get_month_workdays(year, month):
+            workdays = []
+            d = datetime(year, month, 1)
+            while d.month == month:
+                if d.weekday() < 5:  # Thứ 2 đến Thứ 6
+                    workdays.append(d)
+                d += timedelta(days=1)
+            return workdays
+
+        month_workdays = get_month_workdays(target_year, target_month)
+        num_workdays = len(month_workdays)
+        last_date_row = first_date_row + num_workdays - 1
+        print(f"[INFO] Thang {target_month:02d}/{target_year} co {num_workdays} ngay lam viec (Row {first_date_row} den Row {last_date_row})")
+
+        # Tìm dòng TỔNG / TOTAL hiện tại của sheet
+        old_tong_row = None
+        for r in range(first_date_row, min(new_sheet.max_row, 70) + 1):
+            c1 = str(new_sheet.cell(row=r, column=1).value or '').upper()
+            c2 = str(new_sheet.cell(row=r, column=2).value or '').upper()
+            if any(k in c1 or k in c2 for k in ['TỔNG', 'TOTAL', 'TONG']):
+                old_tong_row = r
+                break
+
+        if not old_tong_row:
+            old_tong_row = new_sheet.max_row
+
+        print(f"[INFO] Dong tong cong cu tai Row {old_tong_row}")
+
+        # Nếu sheet mẫu có nhiều dòng hơn số ngày làm việc của tháng mới (ví dụ tháng 8/7 có dòng tràn sang tháng sau như 10/1 hoặc ngày 29/8 chèn tay)
+        # -> Xóa toàn bộ các dòng dư thừa ở giữa last_date_row và old_tong_row
+        if old_tong_row > last_date_row + 1:
+            excess_rows = old_tong_row - (last_date_row + 1)
+            print(f"[INFO] Phat hien va xoa {excess_rows} dong du thua tu Row {last_date_row + 1} den Row {old_tong_row - 1} de khong tran ngay sang thang sau...")
+            new_sheet.delete_rows(last_date_row + 1, excess_rows)
+        elif old_tong_row < last_date_row + 1:
+            # Nếu tháng mới có nhiều ngày làm việc hơn tháng mẫu -> chèn thêm dòng tương ứng
+            missing_rows = (last_date_row + 1) - old_tong_row
+            print(f"[INFO] Chen them {missing_rows} dong lam viec con thieu vao truoc dong tong cong...")
+            new_sheet.insert_rows(old_tong_row, missing_rows)
+
+        # Cập nhật chuẩn hóa chuỗi ngày =WORKDAY(...) từ first_date_row đến last_date_row
+        new_sheet.cell(row=first_date_row, column=date_col).value = month_workdays[0]
+        if date_col == 2:
+            new_sheet.cell(row=first_date_row, column=1).value = 1
+
+        for r in range(first_date_row + 1, last_date_row + 1):
+            prev_r = r - 1
+            new_sheet.cell(row=r, column=date_col).value = f"=WORKDAY({col_letter}{prev_r},1)"
+            if date_col == 2:
+                new_sheet.cell(row=r, column=1).value = (r - first_date_row + 1)
+
+        # Cập nhật công thức dòng TỔNG (cố định chuẩn xác tại last_date_row + 1)
+        new_tong_row = last_date_row + 1
+        for c in range(1, new_sheet.max_column + 1):
+            cell = new_sheet.cell(row=new_tong_row, column=c)
+            if cell.value and str(cell.value).startswith('='):
+                c_letter = openpyxl.utils.get_column_letter(c)
+                cell.value = f"=SUM({c_letter}{first_date_row}:{c_letter}{last_date_row})"
+
+        # 8. Xóa trắng dữ liệu giao dịch cũ của các ngày trong tháng (giữ nguyên công thức và tiêu đề)
         if clean_data:
             print(f"[INFO] Dang don dep du lieu ngay cu tu cot {start_clean_col} (giu nguyen cong thuc)...")
-            
-            # Giới hạn tối đa row 60 (bảng tháng chỉ có tối đa 31 ngày + dòng tổng)
-            max_row = min(new_sheet.max_row, 60)
             max_col = new_sheet.max_column
-            rows_to_delete = []
-
-            for r in range(first_date_row, max_row + 1):
-                cell_date = new_sheet.cell(row=r, column=date_col).value
-                str_date = str(cell_date).upper() if cell_date else ""
-                
-                # Bỏ qua và dừng lại khi gặp dòng TỔNG / TOTAL
-                if "TỔNG" in str_date or "TOTAL" in str_date or "TONG" in str_date:
-                    print(f"[INFO] Dung don dep tai dong tong cong: Row {r}")
-                    break
-
-                # Xóa các dòng giao dịch phụ phát sinh ngoài giờ (ví dụ phiên Thứ 7 chèn cứng tay ngày của tháng cũ)
-                if isinstance(cell_date, datetime) and cell_date.month != target_month:
-                    print(f"[INFO] Phat hien dong du thua tu thang {cell_date.month} tai Row {r} -> Danh dau xoa dong")
-                    rows_to_delete.append(r)
-                    continue
-
-                # Xóa trắng các ô dữ liệu (từ start_clean_col), giữ nguyên công thức bắt đầu bằng '='
+            for r in range(first_date_row, last_date_row + 1):
                 for c in range(start_clean_col, max_col + 1):
                     cell = new_sheet.cell(row=r, column=c)
                     if cell.value is not None:
                         val_str = str(cell.value)
                         if not val_str.startswith('='):
                             cell.value = None
-
-            # Xóa các dòng dư thừa từ dưới lên trên để không lệch index
-            for r in reversed(rows_to_delete):
-                new_sheet.delete_rows(r, 1)
 
         # 8. Lưu lại file hoàn chỉnh an toàn (Atomic Safe Save qua local temp file)
         print(f"[INFO] Dang luu file an toan qua atomic temp...")
