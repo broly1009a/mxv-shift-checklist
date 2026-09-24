@@ -348,6 +348,17 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     phase: 'EOD',
     outputFileName: 'HĐ *.xlsx',
   },
+  // ── 7. NHÓM THAM SỐ HỆ THỐNG (/SYSCONFIGMNG/CURRENCYEXCHANGERATE) ─────────
+  {
+    code: 'TYGIA',
+    name: 'Tỷ giá nguyên tệ',
+    parentMenu: 'Tham số hệ thống',
+    childMenu: 'Tỷ giá nguyên tệ',
+    cachedUrl: '/SYSCONFIGMNG/CURRENCYEXCHANGERATE',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'Tỷ giá CCP.xlsx',
+  },
 
   // ── Legacy Contract Aliases ───────────────────────────────────────────────
   {
@@ -814,6 +825,8 @@ export class CcpCeDownloaderService {
       const parentCandidates = [report.parentMenu];
       if (report.parentMenu === 'Quản lý tiền' || report.parentMenu === 'Nộp rút tiền') {
         parentCandidates.push('Quản lý tiền', 'Nộp rút tiền');
+      } else if (report.parentMenu === 'Tham số hệ thống' || report.parentMenu === 'Quản lý tham số') {
+        parentCandidates.push('Tham số hệ thống', 'Quản lý tham số');
       }
 
       let parentElem: ReturnType<Page['locator']> | null = null;
@@ -840,6 +853,8 @@ export class CcpCeDownloaderService {
         childCandidates.push('Danh sách giao dịch', 'Danh sách giao dịch MM', 'Lịch sử giao dịch');
       } else if (report.childMenu === 'Trạng thái mở' || report.childMenu === 'Vị thế mở') {
         childCandidates.push('Trạng thái mở', 'Vị thế mở', 'Danh sách trạng thái mở');
+      } else if (report.childMenu === 'Tỷ giá nguyên tệ' || report.childMenu === 'Tỷ giá tiền tệ') {
+        childCandidates.push('Tỷ giá nguyên tệ', 'Tỷ giá tiền tệ');
       }
 
       let childElem: ReturnType<Page['locator']> | null = null;
@@ -946,7 +961,7 @@ export class CcpCeDownloaderService {
     }
 
     // ── Điền DatePicker: "Từ ngày" và "Đến ngày" (Chuẩn count >= 3 từ Python) ─
-    if (report.code !== 'QLTTTKGD') {
+    if (report.code !== 'QLTTTKGD' && report.code !== 'TYGIA') {
       await this.fillDatePicker(page, startDate, endDate, logCb);
     }
 
@@ -2310,7 +2325,7 @@ export class CcpCeDownloaderService {
           if (!uacode) continue;
 
           if (processedCodes.has(uacode)) {
-            this.log(`  ℹ️ Mã [${uacode}] đã được xử lý ở trang trước -> Bỏ qua`, logCb);
+            this.log(`  Mã [${uacode}] đã được xử lý ở trang trước -> Bỏ qua`, logCb);
             continue;
           }
           processedCodes.add(uacode);
@@ -2346,7 +2361,7 @@ export class CcpCeDownloaderService {
             const tabpanel = page.locator("#tabpanel-1");
             const noData = tabpanel.locator("xpath=.//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first();
             if (await noData.isVisible({ timeout: 1500 }).catch(() => false)) {
-              this.log(`  ℹ️ Hàng hóa [${uacode}] không có hợp đồng (0-0 trên 0) -> Bỏ qua`, logCb);
+              this.log(`  Hàng hóa [${uacode}] không có hợp đồng (0-0 trên 0) -> Bỏ qua`, logCb);
               await closeModal();
               continue;
             }

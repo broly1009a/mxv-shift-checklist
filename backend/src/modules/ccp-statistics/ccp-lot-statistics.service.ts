@@ -94,6 +94,14 @@ export interface CcpTyGiaMap {
   [currency: string]: number; // 'USD' → 25920
 }
 
+export interface CcpExchangeRateItem {
+  currencyCode: string;
+  conversionRate: number;
+  buyRate: number;
+  sellRate: number;
+  effectiveDate?: string;
+}
+
 /** Thống kê per HH trong mỗi TVKD */
 export interface CcpHhStat {
   maHH: string;    // SI5CO, PL1NY, CP2CO...
@@ -228,14 +236,15 @@ export class CcpLotStatisticsService {
           const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
           let matrix: Record<string, any> = {};
           try { matrix = JSON.parse(matrixStr || '{}'); } catch { matrix = {}; }
-          for (const [curr, rate] of Object.entries(tyGiaMap)) {
+          const tyGiaDetails = this.parseTyGiaDetails(files.tyGia);
+          for (const [curr, item] of Object.entries(tyGiaDetails)) {
             if (curr === 'VND') continue;
             matrix[curr] = {
               currencyCode: curr,
-              conversionRate: rate,
-              buyRate: matrix[curr]?.buyRate ?? rate,
-              sellRate: matrix[curr]?.sellRate ?? rate,
-              effectiveDate: nowIso.split('T')[0],
+              conversionRate: item.conversionRate,
+              buyRate: item.buyRate ?? item.conversionRate,
+              sellRate: item.sellRate ?? item.conversionRate,
+              effectiveDate: item.effectiveDate || nowIso.split('T')[0],
             };
           }
           await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
@@ -936,22 +945,99 @@ export class CcpLotStatisticsService {
 
   /**
    * Parse file Tỷ giá CCP (xuất từ /SYSCONFIGMNG/CURRENCYEXCHANGERATE).
-   *
-   * Cấu trúc file (đã xác nhận từ file mẫu Tỷ giá_14.06.xlsx):
-   *   col[0] = Nguyên tệ (USD, JPY, MYR, CNY, VND)
-   *   col[1] = Tỷ giá quy đổi  ← dùng cái này
-   *   col[2] = Tỷ giá Mua
-   *   col[3] = Tỷ giá Bán
+   * Trả về chi tiết từng nguyên tệ với đầy đủ 3 cột:
+   *   - conversionRate (Tỷ giá quy đổi)
+   *   - buyRate (Tỷ giá Mua)
+   *   - sellRate (Tỷ giá Bán)
+   */
+  parseTyGiaDetails(buffer: Buffer): Record<string, CcpExchangeRateItem> {
+    const { headers, rows } = this.parseRawRowsWithHeaders(buffer);
+    const headerMap = buildCcpHeaderMap(headers);
+
+    const idxCurrency = resolveColIdx(headerMap, ['nguyente', 'tiente', 'matiiente', 'currency', 'loaitien', 'symbol'], -1);
+    const idxConversion = resolveColIdx(headerMap, ['tygiaquydoi', 'quydoi', 'conversionrate', 'tygia', 'rate'], -1);
+    const idxBuy = resolveColIdx(headerMap, ['tygiamua', 'mua', 'buyrate', 'bid'], -1);
+    const idxSell = resolveColIdx(headerMap, ['tygiaban', 'ban', 'sellrate', 'ask'], -1);
+    const idxDate = resolveColIdx(headerMap, ['ngaytao', 'ngay', 'date', 'createddate'], -1);
+
+    const validCurrencyRegex = /^(USD|JPY|MYR|CNY|RMB|EUR|GBP|SGD|AUD|CAD|CHF|NZD|HKD|KRW|THB|VND)$/i;
+    const result: Record<string, CcpExchangeRateItem> = {};
+
+    for (const row of rows) {
+      if (!row || row.length === 0) continue;
+
+      let currency = '';
+      let cIdx = idxCurrency;
+
+      if (cIdx >= 0 && row[cIdx]) {
+        const val = String(row[cIdx]).trim().toUpperCase();
+        if (validCurrencyRegex.test(val)) {
+          currency = val;
+        }
+      }
+
+      // Fallback: nếu chưa xác định được cột qua header, quét từng ô trong dòng để tìm mã tiền tệ
+      if (!currency) {
+        for (let col = 0; col < Math.min(row.length, 5); col++) {
+          const val = String(row[col] ?? '').trim().toUpperCase();
+          if (validCurrencyRegex.test(val)) {
+            currency = val;
+            cIdx = col;
+            break;
+          }
+        }
+      }
+
+      if (!currency || currency === 'VND') continue;
+      const normalizedCurr = currency === 'CNY' ? 'RMB' : currency;
+
+      const convIdx = idxConversion >= 0 ? idxConversion : (cIdx >= 0 ? cIdx + 1 : 1);
+      const buyIdx = idxBuy >= 0 ? idxBuy : (cIdx >= 0 ? cIdx + 2 : 2);
+      const sellIdx = idxSell >= 0 ? idxSell : (cIdx >= 0 ? cIdx + 3 : 3);
+      const dateIdx = idxDate >= 0 ? idxDate : (cIdx >= 0 ? cIdx + 4 : 4);
+
+      const convVal = parseFloat(String(row[convIdx] ?? '0').replace(/,/g, ''));
+      if (isNaN(convVal) || convVal <= 0) continue;
+
+      const buyValRaw = parseFloat(String(row[buyIdx] ?? '0').replace(/,/g, ''));
+      const sellValRaw = parseFloat(String(row[sellIdx] ?? '0').replace(/,/g, ''));
+
+      const buyRate = !isNaN(buyValRaw) && buyValRaw > 0 ? buyValRaw : convVal;
+      const sellRate = !isNaN(sellValRaw) && sellValRaw > 0 ? sellValRaw : convVal;
+
+      let effDate = '';
+      if (dateIdx >= 0 && row[dateIdx]) {
+        const rawDate = String(row[dateIdx]).trim();
+        const dateMatch = rawDate.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+        if (dateMatch) {
+          effDate = `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`;
+        }
+      }
+      if (!effDate) {
+        effDate = new Date().toISOString().split('T')[0];
+      }
+
+      result[normalizedCurr] = {
+        currencyCode: normalizedCurr,
+        conversionRate: convVal,
+        buyRate,
+        sellRate,
+        effectiveDate: effDate,
+      };
+    }
+
+    return result;
+  }
+
+  /**
+   * Parse file Tỷ giá CCP (xuất từ /SYSCONFIGMNG/CURRENCYEXCHANGERATE).
+   * Trả về map tỷ giá quy đổi: { USD: 26000, JPY: 170, MYR: 6383... }
    */
   parseTyGiaFile(buffer: Buffer): CcpTyGiaMap {
-    const rows = this.parseRawRows(buffer);
+    const details = this.parseTyGiaDetails(buffer);
     const map: CcpTyGiaMap = {};
-    for (const row of rows) {
-      const currency = String(row[0] ?? '').trim().toUpperCase();
-      const rate = parseFloat(String(row[1] ?? '0').replace(/,/g, ''));
-      if (currency && !isNaN(rate) && rate > 0) {
-        map[currency] = rate;
-      }
+    for (const [code, item] of Object.entries(details)) {
+      map[code] = item.conversionRate;
     }
     return map;
   }
@@ -1288,6 +1374,7 @@ export class CcpLotStatisticsService {
   async syncAndSaveExchangeRates(dateStr?: string): Promise<{
     success: boolean;
     usdRate: number;
+    matrix?: Record<string, CcpExchangeRateItem>;
     source: string;
     lastSynced: string;
     message: string;
@@ -1295,25 +1382,29 @@ export class CcpLotStatisticsService {
     const targetDate = dateStr || new Date().toISOString().split('T')[0];
     const scan = await this.scanDailyFiles(targetDate);
 
+    let detailsToSave: Record<string, CcpExchangeRateItem> | null = null;
     let rateToSave: number | null = null;
     let source = '';
 
-    // 1. Kiểm tra file tỷ giá riêng biệt
+    // 1. Kiểm tra file tỷ giá riêng biệt (/SYSCONFIGMNG/CURRENCYEXCHANGERATE - Tỷ giá CCP.xlsx)
     if (scan.files.tyGia?.path && fs.existsSync(scan.files.tyGia.path)) {
       try {
         const buffer = fs.readFileSync(scan.files.tyGia.path);
-        const rates = this.parseTyGiaFile(buffer);
-        if (rates['USD'] && rates['USD'] > 0) {
-          rateToSave = rates['USD'];
-          source = `Tệp ${scan.files.tyGia.filename}`;
+        const details = this.parseTyGiaDetails(buffer);
+        if (Object.keys(details).length > 0) {
+          detailsToSave = details;
+          if (details['USD']) {
+            rateToSave = details['USD'].conversionRate;
+          }
+          source = `Tệp ${scan.files.tyGia.filename} (Tỷ giá nguyên tệ CoreCCP)`;
         }
       } catch (e: any) {
         this.logger.warn(`Lỗi đọc file tỷ giá: ${e.message}`);
       }
     }
 
-    // 2. Tự động trích xuất từ báo cáo TTTT hoặc TTM của CoreCCP
-    if (!rateToSave) {
+    // 2. Tự động trích xuất từ báo cáo TTTT hoặc TTM của CoreCCP (Fallback phụ chỉ cho USD)
+    if (!rateToSave && !detailsToSave) {
       let ttttBuf: Buffer | undefined;
       let ttmBuf: Buffer | undefined;
       if (scan.files.tttt?.path && fs.existsSync(scan.files.tttt.path)) {
@@ -1330,18 +1421,81 @@ export class CcpLotStatisticsService {
     }
 
     const nowIso = new Date().toISOString();
+    let updatedMatrix: Record<string, CcpExchangeRateItem> = {};
 
-    if (rateToSave && rateToSave > 0) {
+    if (this.settingsService) {
+      try {
+        const currentMatrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+        try { updatedMatrix = JSON.parse(currentMatrixStr || '{}'); } catch { updatedMatrix = {}; }
+      } catch {}
+    }
+
+    if (detailsToSave && Object.keys(detailsToSave).length > 0) {
+      // Cập nhật ma trận từ tệp Tỷ giá nguyên tệ CoreCCP
+      for (const [code, item] of Object.entries(detailsToSave)) {
+        updatedMatrix[code] = {
+          currencyCode: code,
+          conversionRate: item.conversionRate,
+          buyRate: item.buyRate ?? item.conversionRate,
+          sellRate: item.sellRate ?? item.conversionRate,
+          effectiveDate: item.effectiveDate || nowIso.split('T')[0],
+        };
+      }
+
       if (this.settingsService) {
-        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(rateToSave));
+        if (detailsToSave['USD']?.conversionRate) {
+          await this.settingsService.setSetting('ccp_usd_exchange_rate', String(detailsToSave['USD'].conversionRate));
+        }
+        if (detailsToSave['JPY']?.conversionRate) {
+          await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(detailsToSave['JPY'].conversionRate));
+        }
+        if (detailsToSave['MYR']?.conversionRate) {
+          await this.settingsService.setSetting('ccp_myr_exchange_rate', String(detailsToSave['MYR'].conversionRate));
+        }
+        const rmbRate = detailsToSave['RMB']?.conversionRate || detailsToSave['CNY']?.conversionRate;
+        if (rmbRate) {
+          await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbRate));
+        }
+        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(updatedMatrix));
         await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rate_source', source);
       }
-      this.logger.log(`[CCP] Đã đồng bộ tỷ giá thành công: 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (Nguồn: ${source})`);
+
+      const usdRate = detailsToSave['USD']?.conversionRate || rateToSave || 26000;
+      const currenciesSynced = Object.keys(detailsToSave).join(', ');
+      this.logger.log(`[CCP] Đã đồng bộ ma trận tỷ giá thành công (${currenciesSynced}): Nguồn ${source}`);
+
+      return {
+        success: true,
+        usdRate,
+        matrix: updatedMatrix,
+        source,
+        lastSynced: nowIso,
+        message: `Đã cập nhật bảng ma trận tỷ giá CoreCCP (${currenciesSynced}) và lưu vào CSDL MongoDB.`,
+      };
+    } else if (rateToSave && rateToSave > 0) {
+      // Fallback USD từ TTTT/TTM
+      updatedMatrix['USD'] = {
+        currencyCode: 'USD',
+        conversionRate: rateToSave,
+        buyRate: updatedMatrix['USD']?.buyRate ?? rateToSave,
+        sellRate: updatedMatrix['USD']?.sellRate ?? rateToSave,
+        effectiveDate: nowIso.split('T')[0],
+      };
+
+      if (this.settingsService) {
+        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(rateToSave));
+        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(updatedMatrix));
+        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rate_source', source);
+      }
+      this.logger.log(`[CCP] Đã đồng bộ tỷ giá USD từ ${source}: 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ`);
       return {
         success: true,
         usdRate: rateToSave,
+        matrix: updatedMatrix,
         source,
         lastSynced: nowIso,
         message: `Đã cập nhật tỷ giá CoreCCP 1 USD = ${rateToSave.toLocaleString('vi-VN')} đ (${source}) và lưu vào CSDL MongoDB.`,
@@ -1353,9 +1507,10 @@ export class CcpLotStatisticsService {
       return {
         success: false,
         usdRate: currentUsd,
+        matrix: updatedMatrix,
         source: 'CSDL Hiện Tại (Không tìm thấy tệp tỷ giá mới trong ngày)',
         lastSynced: nowIso,
-        message: `Không tìm thấy tệp tỷ giá hay báo cáo TTTT/TTM ngày ${targetDate} để bóc tách. Đang giữ tỷ giá CSDL: 1 USD = ${currentUsd.toLocaleString('vi-VN')} đ.`,
+        message: `Không tìm thấy tệp tỷ giá CoreCCP ngày ${targetDate} để bóc tách. Đang giữ tỷ giá CSDL: 1 USD = ${currentUsd.toLocaleString('vi-VN')} đ.`,
       };
     }
   }

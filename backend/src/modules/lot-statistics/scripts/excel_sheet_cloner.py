@@ -112,44 +112,87 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
         elif first_date_val.weekday() == 6:  # Chủ Nhật
             first_date_val = datetime(target_year, target_month, 2)
 
-        for (r, c) in [(5, 2), (6, 2), (6, 1)]:
-            v = new_sheet.cell(row=r, column=c).value
-            if isinstance(v, datetime) or (isinstance(v, str) and re.match(r'^\d{4}-\d{2}-\d{2}', str(v))):
-                new_sheet.cell(row=r, column=c).value = first_date_val
-                col_letter = 'B' if c == 2 else 'A'
-                print(f"[INFO] Cap nhat moc ngay dau thang tai {col_letter}{r}: {first_date_val.strftime('%Y-%m-%d')}")
+        # Tự động xác định cột ngày (date_col), dòng bắt đầu (first_date_row) và cột xóa dữ liệu (start_clean_col):
+        # - Nếu Cột 2 (B) chứa ngày tháng/WORKDAY -> date_col = 2, start_clean_col = 3 (Bảng Thống kê Số Lot có cột STT ở A)
+        # - Nếu Cột 1 (A) chứa ngày tháng/WORKDAY -> date_col = 1, start_clean_col = 2 (Bảng Thống kê Giá Trị: Normal, Spread, LME, Options, ACM)
+        date_col = 1
+        start_clean_col = 2
+        first_date_row = 6
+
+        found_date = False
+        for test_r in range(4, 9):
+            c1 = new_sheet.cell(row=test_r, column=1).value
+            c2 = new_sheet.cell(row=test_r, column=2).value
+            
+            # Kiểm tra Cột B trước (Bảng Số Lot)
+            if isinstance(c2, datetime):
+                date_col = 2
+                start_clean_col = 3
+                first_date_row = test_r
+                found_date = True
                 break
+            elif isinstance(c2, str) and 'WORKDAY' in c2.upper():
+                date_col = 2
+                start_clean_col = 3
+                m = re.search(r'WORKDAY\s*\(\s*[A-Z]+(\d+)', c2, re.IGNORECASE)
+                first_date_row = int(m.group(1)) if m else test_r - 1
+                found_date = True
+                break
+            
+            # Kiểm tra Cột A (Bảng Giá Trị)
+            if isinstance(c1, datetime):
+                date_col = 1
+                start_clean_col = 2
+                first_date_row = test_r
+                found_date = True
+                break
+            elif isinstance(c1, str) and 'WORKDAY' in c1.upper():
+                date_col = 1
+                start_clean_col = 2
+                m = re.search(r'WORKDAY\s*\(\s*[A-Z]+(\d+)', c1, re.IGNORECASE)
+                first_date_row = int(m.group(1)) if m else test_r - 1
+                found_date = True
+                break
+
+        new_sheet.cell(row=first_date_row, column=date_col).value = first_date_val
+        col_letter = 'B' if date_col == 2 else 'A'
+        print(f"[INFO] Phat hien date_col={col_letter}, first_date_row={first_date_row}, start_clean_col={start_clean_col}. Cap nhat moc ngay dau thang tai {col_letter}{first_date_row}: {first_date_val.strftime('%Y-%m-%d')}")
 
         # 7. Xóa trắng dữ liệu giao dịch cũ của các ngày trong tháng (giữ nguyên công thức và tiêu đề)
         if clean_data:
-            print("[INFO] Dang don dep du lieu ngay cu (giu nguyen cong thuc)...")
+            print(f"[INFO] Dang don dep du lieu ngay cu tu cot {start_clean_col} (giu nguyen cong thuc)...")
             
-            # Giới hạn tối đa row 50 (bảng tháng chỉ có tối đa 31 ngày + dòng tổng)
-            max_row = min(new_sheet.max_row, 50)
+            # Giới hạn tối đa row 60 (bảng tháng chỉ có tối đa 31 ngày + dòng tổng)
+            max_row = min(new_sheet.max_row, 60)
             max_col = new_sheet.max_column
-            cell_b5 = new_sheet.cell(row=5, column=2).value
+            rows_to_delete = []
 
-            for r in range(5, max_row + 1):
-                cell_a = new_sheet.cell(row=r, column=1).value
-                cell_b = new_sheet.cell(row=r, column=2).value
+            for r in range(first_date_row, max_row + 1):
+                cell_date = new_sheet.cell(row=r, column=date_col).value
+                str_date = str(cell_date).upper() if cell_date else ""
                 
                 # Bỏ qua và dừng lại khi gặp dòng TỔNG / TOTAL
-                str_a = str(cell_a).upper() if cell_a else ""
-                str_b = str(cell_b).upper() if cell_b else ""
-                if "TỔNG" in str_a or "TOTAL" in str_a or "TONG" in str_a or "TỔNG" in str_b or "TOTAL" in str_b or "TONG" in str_b:
+                if "TỔNG" in str_date or "TOTAL" in str_date or "TONG" in str_date:
                     print(f"[INFO] Dung don dep tai dong tong cong: Row {r}")
                     break
 
-                # Bỏ qua các dòng chỉ chứa nhãn/tiêu đề
-                # Chỉ xóa các ô số liệu (cột 3 trở đi cho Lot, cột 2 trở đi cho Value)
-                start_clean_col = 3 if cell_b5 is not None else 2
+                # Xóa các dòng giao dịch phụ phát sinh ngoài giờ (ví dụ phiên Thứ 7 chèn cứng tay ngày của tháng cũ)
+                if isinstance(cell_date, datetime) and cell_date.month != target_month:
+                    print(f"[INFO] Phat hien dong du thua tu thang {cell_date.month} tai Row {r} -> Danh dau xoa dong")
+                    rows_to_delete.append(r)
+                    continue
+
+                # Xóa trắng các ô dữ liệu (từ start_clean_col), giữ nguyên công thức bắt đầu bằng '='
                 for c in range(start_clean_col, max_col + 1):
                     cell = new_sheet.cell(row=r, column=c)
                     if cell.value is not None:
                         val_str = str(cell.value)
-                        # Giữ nguyên toàn bộ ô công thức bắt đầu bằng '='
                         if not val_str.startswith('='):
                             cell.value = None
+
+            # Xóa các dòng dư thừa từ dưới lên trên để không lệch index
+            for r in reversed(rows_to_delete):
+                new_sheet.delete_rows(r, 1)
 
         # 8. Lưu lại file hoàn chỉnh an toàn (Atomic Safe Save qua local temp file)
         print(f"[INFO] Dang luu file an toan qua atomic temp...")

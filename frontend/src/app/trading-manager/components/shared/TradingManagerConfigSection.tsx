@@ -219,7 +219,7 @@ export default function TradingManagerConfigSection({
   const handleSyncCcpRate = async () => {
     if (!token) return;
     setSyncingCcpRate(true);
-    const toastId = toast.loading('Đang trích xuất tỷ giá từ báo cáo CoreCCP (TTTT/TTM)...');
+    const toastId = toast.loading('Đang đồng bộ tỷ giá từ CoreCCP (Tỷ giá nguyên tệ)...');
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/sync-exchange-rate`, {
         method: 'POST',
@@ -230,22 +230,28 @@ export default function TradingManagerConfigSection({
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (res.ok && data.success && data.data?.usdRate) {
+      if (res.ok && data.success && data.data) {
         const rate = data.data.usdRate;
-        setCcpUsdExchangeRate(rate);
-        setCcpRatesMatrix((prev) => ({
-          ...prev,
-          USD: {
-            currencyCode: 'USD',
-            conversionRate: rate,
-            buyRate: prev['USD']?.buyRate ?? rate,
-            sellRate: prev['USD']?.sellRate ?? rate,
-            effectiveDate: new Date().toISOString().split('T')[0],
-          },
-        }));
+        if (rate) setCcpUsdExchangeRate(rate);
+
+        // Cập nhật toàn bộ ma trận đa nguyên tệ nếu backend trả về matrix
+        if (data.data.matrix && Object.keys(data.data.matrix).length > 0) {
+          setCcpRatesMatrix(data.data.matrix);
+        } else if (rate) {
+          setCcpRatesMatrix((prev) => ({
+            ...prev,
+            USD: {
+              currencyCode: 'USD',
+              conversionRate: rate,
+              buyRate: prev['USD']?.buyRate ?? rate,
+              sellRate: prev['USD']?.sellRate ?? rate,
+              effectiveDate: new Date().toISOString().split('T')[0],
+            },
+          }));
+        }
         setExchangeRatesLastSynced(data.data.lastSynced || new Date().toISOString());
-        setExchangeRateSource(data.data.source || 'CoreCCP Reports');
-        toast.success(data.message || `Đã cập nhật tỷ giá CoreCCP: 1 USD = ${rate.toLocaleString('vi-VN')} đ`, { id: toastId });
+        setExchangeRateSource(data.data.source || 'CoreCCP (Tỷ giá nguyên tệ)');
+        toast.success(data.message || `Đã cập nhật bảng tỷ giá CoreCCP thành công`, { id: toastId });
       } else {
         toast.error(data.message || 'Không tìm thấy tỷ giá mới từ CoreCCP', { id: toastId });
       }
@@ -679,10 +685,10 @@ export default function TradingManagerConfigSection({
               disabled={syncingCcpRate}
               className="btn btn-secondary"
               style={{ fontSize: '0.74rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#10b981', color: '#10b981' }}
-              title="Tự động bóc tách tỷ giá từ tệp ngày CoreCCP (TTTT/TTM)"
+              title="Tự động bóc tách tỷ giá từ màn hình Tỷ giá nguyên tệ CoreCCP (/SYSCONFIGMNG/CURRENCYEXCHANGERATE)"
             >
               <RefreshCw size={13} className={syncingCcpRate ? 'animate-spin' : ''} />
-              <span>{syncingCcpRate ? 'Đang trích xuất...' : 'Đồng bộ từ CoreCCP (TTTT/TTM)'}</span>
+              <span>{syncingCcpRate ? 'Đang đồng bộ...' : 'Đồng bộ từ CoreCCP (Tỷ giá nguyên tệ)'}</span>
             </button>
           </div>
         </div>

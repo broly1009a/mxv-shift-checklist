@@ -417,41 +417,49 @@ export class CcpStatisticsController {
       throw new HttpException('Vui lòng chọn file tỷ giá.', HttpStatus.BAD_REQUEST);
     }
     try {
+      const details = this.ccpLotStatisticsService.parseTyGiaDetails(file.buffer);
       const rates = this.ccpLotStatisticsService.parseTyGiaFile(file.buffer);
       const nowIso = new Date().toISOString();
-      const usdRate = rates['USD'] || 0;
-      if (usdRate > 0) {
-        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(usdRate));
-        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
-        await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname}`);
+      const usdRate = rates['USD'] || details['USD']?.conversionRate || 0;
+
+      const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+      let matrix: Record<string, any> = {};
+      try { matrix = JSON.parse(matrixStr || '{}'); } catch { matrix = {}; }
+
+      if (Object.keys(details).length > 0) {
+        for (const [curr, item] of Object.entries(details)) {
+          if (curr === 'VND') continue;
+          matrix[curr] = {
+            currencyCode: curr,
+            conversionRate: item.conversionRate,
+            buyRate: item.buyRate ?? item.conversionRate,
+            sellRate: item.sellRate ?? item.conversionRate,
+            effectiveDate: item.effectiveDate || nowIso.split('T')[0],
+          };
+        }
+        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
+
+        if (usdRate > 0) {
+          await this.settingsService.setSetting('ccp_usd_exchange_rate', String(usdRate));
+        }
         if (rates['JPY']) await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(rates['JPY']));
         if (rates['MYR']) await this.settingsService.setSetting('ccp_myr_exchange_rate', String(rates['MYR']));
         if (rates['CNY'] || rates['RMB']) {
           const rmbVal = rates['CNY'] || rates['RMB'];
           await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbVal));
         }
-
-        // Cập nhật ma trận động ccp_exchange_rates_matrix
-        const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
-        let matrix: Record<string, any> = {};
-        try { matrix = JSON.parse(matrixStr || '{}'); } catch { matrix = {}; }
-        for (const [curr, rate] of Object.entries(rates)) {
-          if (curr === 'VND') continue;
-          matrix[curr] = {
-            currencyCode: curr,
-            conversionRate: rate,
-            buyRate: matrix[curr]?.buyRate ?? rate,
-            sellRate: matrix[curr]?.sellRate ?? rate,
-            effectiveDate: nowIso.split('T')[0],
-          };
-        }
-        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
+        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname}`);
       }
+
+      const syncedCount = Object.keys(details).length;
       return {
         success: true,
         rates,
+        matrix,
         lastSynced: nowIso,
-        message: `Đã bóc tách thành công tỷ giá từ tệp ${file.originalname}: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ`,
+        message: `Đã bóc tách thành công ${syncedCount} nguyên tệ từ tệp ${file.originalname}: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ`,
       };
     } catch (err: any) {
       throw new HttpException(`Lỗi xử lý file tỷ giá: ${err.message}`, HttpStatus.INTERNAL_SERVER_ERROR);

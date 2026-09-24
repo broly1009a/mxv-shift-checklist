@@ -153,7 +153,7 @@ def run_live_test():
                     try:
                         download_obj = trigger_export_download(page, print)
                         if download_obj == "NO_DATA":
-                            print(f"  ℹ️ Bỏ qua {code} do không có dữ liệu trong khoảng ngày đã chọn.")
+                            print(f"  Bỏ qua {code} do không có dữ liệu trong khoảng ngày đã chọn.")
                         elif download_obj:
                             dest_file = os.path.join(OUTPUT_DIR, code, f"{code}{mmyy}.csv")
                             os.makedirs(os.path.dirname(dest_file), exist_ok=True)

@@ -169,7 +169,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
 
       const toast = page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(@role, 'alert')][contains(., 'Không có dữ liệu') or contains(., 'không có dữ liệu')]").first();
       if (await toast.isVisible({ timeout: 150 }).catch(() => false)) {
-        console.log(`     ℹ️ Hệ thống báo: "Không có dữ liệu"`);
+        console.log(`     Hệ thống báo: "Không có dữ liệu"`);
         return 'NO_DATA';
       }
 
@@ -296,7 +296,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
       }
     }
   } catch (err) {
-    console.log(`   ℹ️ Giữ nguyên phân trang mặc định: ${err.message}`);
+    console.log(`   Giữ nguyên phân trang mặc định: ${err.message}`);
   }
 
   while (true) {
@@ -305,7 +305,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
 
     const rows = page.locator("xpath=//div[contains(@class, 'crud-grid-container') and not(ancestor::div[@id='tabpanel-1'])]//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]");
     const rowCount = await rows.count();
-    console.log(`   ℹ️ Trang ${pageNum} có ${rowCount} hàng hóa`);
+    console.log(`   Trang ${pageNum} có ${rowCount} hàng hóa`);
 
     for (let i = 0; i < rowCount; i++) {
       totalProcessed++;
@@ -315,7 +315,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
       if (!uacode) continue;
 
       if (processedCodes.has(uacode)) {
-        console.log(`  ℹ️ Mã [${uacode}] (#${totalProcessed}) đã xử lý ở trang trước -> Bỏ qua`);
+        console.log(`  Mã [${uacode}] (#${totalProcessed}) đã xử lý ở trang trước -> Bỏ qua`);
         continue;
       }
       processedCodes.add(uacode);
@@ -392,7 +392,7 @@ async function testCommodityContracts(page, baseUrl, outputDir) {
         const hasNoData = await noData.isVisible({ timeout: 1500 }).catch(() => false);
 
         if (hasNoData) {
-          console.log(`     ℹ️ Hàng hóa [${uacode}] không có hợp đồng (Bảng báo: Không có dữ liệu, 0-0 trên 0) -> Bỏ qua`);
+          console.log(`     Hàng hóa [${uacode}] không có hợp đồng (Bảng báo: Không có dữ liệu, 0-0 trên 0) -> Bỏ qua`);
           await closeModal();
           results.push({ file: contractFileName, ok: false, size: '0', time: '0', note: 'Không có dữ liệu (0-0 trên 0)' });
           continue;

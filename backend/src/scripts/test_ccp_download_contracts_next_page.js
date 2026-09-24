@@ -182,7 +182,7 @@ async function processRowAndDownloadContract(page, row, outputDir) {
     const tabpanel = page.locator("#tabpanel-1");
     const noData = tabpanel.locator("xpath=.//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first();
     if (await noData.isVisible({ timeout: 1000 }).catch(() => false)) {
-      console.log(`     ℹ️ Hàng hóa [${uacode}] không có hợp đồng (0-0 trên 0) -> Bỏ qua`);
+      console.log(`     Hàng hóa [${uacode}] không có hợp đồng (0-0 trên 0) -> Bỏ qua`);
       await closeModal();
       return { file: contractFileName, ok: false, note: '0-0 trên 0' };
     }
@@ -292,7 +292,7 @@ async function main() {
       // Lấy danh sách dòng hàng hóa trên trang hiện tại
       const rows = page.locator("xpath=//div[contains(@class, 'crud-grid-container') and not(ancestor::div[@id='tabpanel-1'])]//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]");
       const rowCount = await rows.count();
-      console.log(`   ℹ️ Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`);
+      console.log(`   Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`);
 
       if (rowCount === 0) {
         console.log(`    Bảng không có dòng nào, kết thúc.`);

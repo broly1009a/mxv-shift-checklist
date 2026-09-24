@@ -853,7 +853,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
         if (webReportsOk) {
           await logAndSave(
-            `ℹ️ Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`,
+            `Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`,
           );
         } else {
           await logAndSave(

@@ -41,7 +41,7 @@ export function ensureMonthSheetExists(
   const fileName = path.basename(excelFilePath);
   const startTime = Date.now();
 
-  const startMsg = `[Auto-Clone] ℹ️ Đang kiểm tra / tự động sinh Sheet '${targetSheetName}' cho: ${fileName}...`;
+  const startMsg = `[Auto-Clone] Đang kiểm tra / tự động sinh Sheet '${targetSheetName}' cho: ${fileName}...`;
   logger.log(startMsg);
   jobLogs?.push(startMsg);
 

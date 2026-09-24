@@ -298,7 +298,7 @@ async function main() {
       fs.writeFileSync(outputJson, JSON.stringify(report, null, 2), 'utf-8');
       console.log(`💾 Kết quả đã lưu: ${outputJson}`);
     } else {
-      console.log('ℹ️  Dry-run mode: không ghi file');
+      console.log(' Dry-run mode: không ghi file');
     }
 
     // 6. Exit code dựa trên validation

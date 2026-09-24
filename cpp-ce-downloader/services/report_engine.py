@@ -103,7 +103,7 @@ class ReportEngine:
             )
 
             if download_result == "NO_DATA":
-                self.log(f"  ℹ️ Khoảng {start_date} -> {end_date} không có dữ liệu.")
+                self.log(f"  Khoảng {start_date} -> {end_date} không có dữ liệu.")
                 return True
             elif download_result:
                 download_result.save_as(dest_path)
@@ -204,7 +204,7 @@ class ReportEngine:
                 self.log(f"  [🎉 Thành công Safety Net Level {depth}] Đã hợp nhất file thành công: {final_dest_path} ({size_bytes:,} bytes)")
                 return True
         else:
-            self.log(f"  ℹ️ Khoảng ngày {start_date} -> {end_date} không có dữ liệu báo cáo.")
+            self.log(f"  Khoảng ngày {start_date} -> {end_date} không có dữ liệu báo cáo.")
             return True
 
         return False
@@ -280,7 +280,7 @@ class ReportEngine:
                 )
 
                 if download_result == "NO_DATA":
-                    self.log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống xác nhận không có dữ liệu.")
+                    self.log(f"  Bỏ qua tạo file {file_name} do hệ thống xác nhận không có dữ liệu.")
                     return True
                 elif download_result:
                     download_result.save_as(dest_path)
@@ -312,7 +312,7 @@ class ReportEngine:
                         timeout_ms=m_timeout
                     )
                     if download_result == "NO_DATA":
-                        self.log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống xác nhận không có dữ liệu.")
+                        self.log(f"  Bỏ qua tạo file {file_name} do hệ thống xác nhận không có dữ liệu.")
                         return True
                     elif download_result:
                         download_result.save_as(dest_path)

@@ -551,7 +551,7 @@ async function inspectScreenData(page, parentName, childName, subGroupName = nul
         }
       }
     } else {
-      console.log('   ℹ️ Màn hình không có Bảng dữ liệu chuẩn (Form cấu hình hoặc Dashboard).');
+      console.log('   Màn hình không có Bảng dữ liệu chuẩn (Form cấu hình hoặc Dashboard).');
     }
   } catch (err) {
     console.log(`   Lỗi khi quét bảng: ${err.message}`);
