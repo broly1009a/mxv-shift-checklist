@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, forwardRef, Optional } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
@@ -8,6 +8,8 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
+import { EmailWatcherService } from '../email-watcher.service';
+import { findLatestFile } from '../../reconciliation/helpers/recon-number-parser.helper';
 import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 
@@ -23,8 +25,12 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     private readonly settingsService: SystemSettingsService,
     private readonly rpaDownloaderService: RpaDownloaderService,
     private readonly cqgSyncService: CqgSyncService,
+    @Optional()
     @Inject(forwardRef(() => CcpCeDownloaderService))
-    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
+    private readonly ccpCeDownloaderService?: CcpCeDownloaderService,
+    @Optional()
+    @Inject(forwardRef(() => EmailWatcherService))
+    private readonly emailWatcherService?: EmailWatcherService,
   ) { }
 
   onModuleInit() {
@@ -221,6 +227,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       cqg2: false,
     };
 
+    const BARRIER_TIMEOUT_MS = 120_000;
+    const barrierTimer = setTimeout(() => {
+      if (!barrierTriggered && !barrierAborted) {
+        abortBarrierIfStrict('ĐỒNG BỘ NGUỒN', 'Hết thời gian chờ các hệ thống cùng sẵn sàng (120s timeout)');
+      }
+    }, BARRIER_TIMEOUT_MS);
+
     const checkAllReadyAndTrigger = () => {
       if (barrierAborted) return;
       if (
@@ -230,6 +243,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         readyState.cqg1 &&
         readyState.cqg2
       ) {
+        clearTimeout(barrierTimer);
         if (!barrierAnnounced) {
           barrierAnnounced = true;
           log(' Tất cả các hệ thống (M-System, ACM, CoreCCP, CQG1, CQG2) đã sẵn sàng! BẮT ĐẦU ĐỒNG LOẠT XUẤT BÁO CÁO.');
@@ -239,6 +253,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     };
 
     const abortBarrierIfStrict = (source: string, errorMsg: string) => {
+      clearTimeout(barrierTimer);
       if (REQUIRE_ALL_SOURCES_FRESH && !barrierTriggered && !barrierAborted) {
         barrierAborted = true;
         abortReason = `Nguồn [${source}] gặp sự cố: ${errorMsg}`;
@@ -254,7 +269,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         options.checkTtm === false &&
         options.checkTttt === false
       ) {
-        log('MS ⏭️ Bỏ qua M-System theo tùy chọn.');
+        log('MS  Bỏ qua M-System theo tùy chọn.');
         readyState.ms = true;
         checkAllReadyAndTrigger();
         return;
@@ -344,7 +359,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     // ── 2. WORKER ACM (STRAITS NANO) ─────────────────────────────────────────
     const runWorkerAcm = async () => {
       if (options.checkKlgd === false) {
-        log('ACM ⏭️ Bỏ qua ACM theo tùy chọn.');
+        log('ACM  Bỏ qua ACM theo tùy chọn.');
         readyState.acm = true;
         checkAllReadyAndTrigger();
         return;
@@ -407,39 +422,39 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         const btn = page.locator(exportBtnSelector).first();
         const isVisible = await btn.isVisible().catch(() => false);
         const straitsFile = path.join(acmDailyPath, 'Straits.csv');
-        const fillFile = path.join(acmDailyPath, 'Fill.xlsx');
+        // const fillFile = path.join(acmDailyPath, 'Fill.xlsx');
 
         if (isVisible) {
           const dlPromise = page.waitForEvent('download', { timeout: 35000 });
           await btn.click();
           const dl = await dlPromise;
           await dl.saveAs(straitsFile);
-          // Tạo bản sao Fill.xlsx để tương thích hoàn toàn các parser cũ
-          try {
-            fs.copyFileSync(straitsFile, fillFile);
-          } catch { }
+          // // Tạo bản sao Fill.xlsx để tương thích hoàn toàn các parser cũ (Tạm comment: đối chiếu ACM hiện tại chỉ nhận diện Straits.csv)
+          // try {
+          //   fs.copyFileSync(straitsFile, fillFile);
+          // } catch { }
           log('ACM  Tải Straits.csv (Fill) thành công.');
         } else {
           // Fallback tải chuẩn
-          await this.rpaDownloaderService.downloadAcmReport(page, fillFile, fillUrl, jobLogFn);
-          try {
-            if (fs.existsSync(fillFile)) fs.copyFileSync(fillFile, straitsFile);
-          } catch { }
-          log('ACM  Tải báo cáo Fill qua fallback thành công.');
+          await this.rpaDownloaderService.downloadAcmReport(page, straitsFile, fillUrl, jobLogFn);
+          // try {
+          //   if (fs.existsSync(fillFile)) fs.copyFileSync(fillFile, straitsFile);
+          // } catch { }
+          log('ACM  Tải báo cáo Straits.csv qua fallback thành công.');
         }
 
-        // Tải bổ sung Order nếu cần
-        try {
-          await this.rpaDownloaderService.downloadAcmReport(
-            page,
-            path.join(acmDailyPath, 'Order.xlsx'),
-            orderUrl,
-            jobLogFn,
-          );
-          log('ACM  Tải Order.xlsx thành công.');
-        } catch (orderErr: any) {
-          log(`ACM  Không thể tải Order.xlsx: ${orderErr.message}`);
-        }
+        // // Tải bổ sung Order nếu cần (Tạm comment để tối ưu tốc độ bot, giảm 60-90s và tránh lỗi 502 ALB do đối chiếu chỉ dùng Straits.csv)
+        // try {
+        //   await this.rpaDownloaderService.downloadAcmReport(
+        //     page,
+        //     path.join(acmDailyPath, 'Order.xlsx'),
+        //     orderUrl,
+        //     jobLogFn,
+        //   );
+        //   log('ACM  Tải Order.xlsx thành công.');
+        // } catch (orderErr: any) {
+        //   log(`ACM  Không thể tải Order.xlsx: ${orderErr.message}`);
+        // }
       } catch (err: any) {
         errors.push(`ACM: ${err.message}`);
         log(`ACM  Lỗi: ${err.message}`);
@@ -456,9 +471,17 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
     // ── 3. WORKER CORECCP (VNCLEAR) ──────────────────────────────────────────
     const runWorkerCcp = async () => {
+      const ccpService = this.ccpCeDownloaderService;
+      if (!ccpService) {
+        log('CCP  Dịch vụ CcpCeDownloaderService chưa được khởi tạo. Bỏ qua.');
+        readyState.ccp = true;
+        checkAllReadyAndTrigger();
+        return;
+      }
+
       const credRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
       if (!credRaw) {
-        log('CCP ⏭️ Chưa cấu hình tài khoản CoreCCP. Bỏ qua.');
+        log('CCP  Chưa cấu hình tài khoản CoreCCP. Bỏ qua.');
         readyState.ccp = true;
         checkAllReadyAndTrigger();
         return;
@@ -473,7 +496,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         return;
       }
       if (!creds.url || !creds.username || !creds.password) {
-        log('CCP ⏭️ Cấu hình CoreCCP thiếu url/username/password. Bỏ qua.');
+        log('CCP  Cấu hình CoreCCP thiếu url/username/password. Bỏ qua.');
         readyState.ccp = true;
         checkAllReadyAndTrigger();
         return;
@@ -483,7 +506,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       const dateFormatted = `${day}/${month}/${year}`;
       let ccpSession: any = null;
       try {
-        ccpSession = await this.ccpCeDownloaderService.prepareKlgdSession({
+        ccpSession = await ccpService.prepareKlgdSession({
           systemUrl: creds.url,
           username: creds.username,
           password: creds.password,
@@ -531,7 +554,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         options.checkTtm === false &&
         options.checkTttt === false
       ) {
-        log('CQG ⏭️ Bỏ qua CQG theo tùy chọn.');
+        log('CQG  Bỏ qua CQG theo tùy chọn.');
         readyState.cqg1 = true;
         readyState.cqg2 = true;
         checkAllReadyAndTrigger();
@@ -978,21 +1001,98 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
   private async handleCheckEodMmJob(job: any) {
     const payload = parseJobPayload(job);
-    let targetDate = new Date();
-    if (payload.sessionDay) {
-      targetDate = new Date(payload.sessionDay);
+    
+    // NGHIỆP VỤ EOD: EOD là đối chiếu chốt số liệu phiên hôm trước (T-1).
+    // Bất kể kích hoạt tự động hay bấm nút "Check" từ giao diện ca trực ngày hôm nay,
+    // phiên EOD cần đối soát BẮT BUỘC là ngày làm việc liền trước (T-1).
+    // Ví dụ: Ca trực ngày 25/09 bấm check EOD -> phiên cần vào bốc file là ngày 24/09 (thư mục 24.09).
+    const nowVN = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    const todayStr = nowVN.toISOString().split('T')[0];
+
+    let targetDate: Date;
+    const inputDateStr = payload.sessionDay || todayStr;
+
+    // Nếu ngày truyền vào là hôm nay hoặc ngày tương lai (hoặc chạy trong ca hiện tại không có cờ exactSessionDate),
+    // BẮT BUỘC phải lùi về phiên làm việc liền trước (T-1)
+    if (inputDateStr >= todayStr || !payload.isExactSessionDate) {
+      const prev = new Date(inputDateStr);
+      prev.setDate(prev.getDate() - 1);
+      // Bỏ qua cuối tuần nếu cần (Chủ nhật/Thứ bảy -> lùi về Thứ sáu)
+      while (prev.getDay() === 0 || prev.getDay() === 6) {
+        prev.setDate(prev.getDate() - 1);
+      }
+      targetDate = prev;
     } else {
-      targetDate = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+      targetDate = new Date(inputDateStr);
     }
+
     const dateStr = targetDate.toISOString().split('T')[0];
     job.logs.push(
-      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD M-System ngày ${dateStr}...`,
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu EOD M-System ngày phiên ${dateStr} (lùi từ ngày ca trực ${inputDateStr})...`,
     );
     await job.save();
 
+    // ── KIỂM TRA FILE EOD VÀ KÍCH HOẠT DỰ PHÒNG LẤY TỪ MAIL NẾU THIẾU ────────
+    try {
+      const msBackupBase = resolveStoragePathCrossPlatform(
+        await this.settingsService.getSetting(
+          'bot_backup_path_ms',
+          'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        ),
+      );
+      const year = targetDate.getFullYear().toString();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+      const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+      const msDailyPath = path.join(msBackupBase, subFolder);
+
+      if (!fs.existsSync(msDailyPath)) {
+        fs.mkdirSync(msDailyPath, { recursive: true });
+      }
+
+      // Kiểm tra file EOD trong đúng thư mục phiên
+      let existingEod = findLatestFile(msDailyPath, /eod/i);
+
+      // Dự phòng: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu trong thư mục chưa có file EOD
+
+      // Dự phòng 2: Tự động tải từ email Outlook M365 nếu vẫn chưa có
+      if (!existingEod) {
+        if (this.emailWatcherService) {
+          job.logs.push(
+            `[${new Date().toISOString()}] Chưa tìm thấy file EOD trong thư mục Backup MS (${msDailyPath}). Đang kích hoạt luồng ngoại lệ: Tự động tải file EOD từ hòm thư Outlook M365 (it.support@mxv.vn)...`,
+          );
+          await job.save();
+
+          const mailRes = await this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath);
+          if (mailRes.success) {
+            job.logs.push(
+              `[${new Date().toISOString()}] Đã tải thành công file EOD từ email về thư mục: ${mailRes.data?.downloadedFiles?.map((f) => path.basename(f)).join(', ') || 'file EOD'}`,
+            );
+          } else {
+            job.logs.push(
+              `[${new Date().toISOString()}] Không thể tải file EOD từ email: ${mailRes.message}`,
+            );
+          }
+          await job.save();
+        } else {
+          job.logs.push(
+            `[${new Date().toISOString()}] Chưa tìm thấy file EOD trong thư mục Backup MS và dịch vụ EmailWatcher chưa sẵn sàng.`,
+          );
+          await job.save();
+        }
+      } else {
+        job.logs.push(
+          `[${new Date().toISOString()}] Đã tìm thấy file EOD sẵn có trong thư mục Backup MS phiên ${dateStr}: ${path.basename(existingEod)}`,
+        );
+        await job.save();
+      }
+    } catch (checkErr: any) {
+      this.logger.warn(`Lỗi tiền kiểm tra / tải file EOD từ mail: ${checkErr.message}`);
+    }
+
     try {
       const result = await this.reconciliationService.runAutoCheckEodMm(targetDate);
-      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD M-System.`);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD M-System ngày phiên ${dateStr}.`);
 
       const MAX_PREVIEW = 30;
       const mismatchedEodAll = result.eodResult?.mismatchedEOD ?? [];
@@ -1010,16 +1110,18 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         if (mismatchedEodAll.length > 0) {
           job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch công thức EOD (QLTKGD vs EOD.csv):`);
           mismatchedEodAll.slice(0, MAX_PREVIEW).forEach((d: any) => {
-            const sysTag = d.system ? `[${d.system}]` : '[MS]';
             job.logs.push(
-              `- ${sysTag} TK ${d.maTKGD}: Tính toán ${d.calculatedBalance} vs EOD ${d.eodBalance} (Lệch: ${d.differ})`,
+              `- TK ${d.maTKGD}: Tính toán ${d.calculatedBalance} vs EOD ${d.eodBalance} (Lệch: ${d.differ})`,
             );
           });
         }
-        await job.save();
-        throw new Error(
-          `Phát hiện bất thường EOD MS: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+        job.logs.push(
+          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu EOD MS: Phát hiện ${totalNegative} tài khoản âm ký quỹ/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
         );
+        await job.save();
+      } else {
+        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu EOD MS: Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm.`);
+        await job.save();
       }
       return result;
     } catch (err: any) {
@@ -1078,9 +1180,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       await job.save();
 
       if (totalNegative > 0 || totalMismatchedEod > 0) {
-        throw new Error(
-          `Phát hiện bất thường EOD CoreCCP: ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+        job.logs.push(
+          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu EOD CoreCCP: Phát hiện ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD. Đã lưu kết quả đối soát.`,
         );
+        await job.save();
+      } else {
+        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu EOD CoreCCP: Tất cả tài khoản khớp số dư hoàn hảo.`);
+        await job.save();
       }
       return result;
     } catch (err: any) {
@@ -1135,7 +1241,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             .map((d: any) => `TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)}`)
             .join(' | ');
           job.logs.push(
-            `[${new Date().toISOString()}]  Phát hiện ${cqgResultAll.length} TK lệch số dư CQG (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+            `[${new Date().toISOString()}] ⚠️ Phát hiện ${cqgResultAll.length} TK lệch số dư CQG (vượt ngưỡng ${LOG_THRESHOLD}). ` +
             `Chi tiết xem CSV email. Preview: ${preview}`,
           );
         } else {
@@ -1146,10 +1252,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             );
           });
         }
-        await job.save();
-        throw new Error(
-          `Phát hiện lệch số dư CQG: ${totalMismatched} tài khoản lệch vượt ngưỡng $100.`,
+        job.logs.push(
+          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu số dư CQG: Phát hiện ${totalMismatched} tài khoản lệch vượt ngưỡng $100. Đã lưu kết quả đối soát.`,
         );
+        await job.save();
+      } else {
+        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu số dư CQG: Khớp hoàn toàn 100%.`);
+        await job.save();
       }
       return result;
     } catch (err: any) {

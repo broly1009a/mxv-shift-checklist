@@ -1233,8 +1233,23 @@ export class RpaDownloaderService {
         `TTTT (Trạng thái tất toán) downloaded successfully to: ${destFile}`,
       );
     } catch (err: any) {
-      this.logger.error(`Tải TTTT (Trạng thái tất toán) thất bại: ${err.message}`);
-      throw err;
+      this.logger.warn(
+        `gotoAndDownload hash navigation failed for TTTT (${err.message}), falling back to navigateAndDownload via Sidebar...`,
+      );
+      try {
+        await this.navigateAndDownload(
+          page,
+          ['QL trạng thái', 'Trạng thái tất toán'],
+          destFile,
+          undefined,
+          'TTTT',
+          /finalPositionInfo/,
+        );
+        this.logger.log(`TTTT (Trạng thái tất toán) downloaded via Sidebar fallback to: ${destFile}`);
+      } catch (fallbackErr: any) {
+        this.logger.error(`Tải TTTT (Trạng thái tất toán) thất bại cả 2 phương thức: ${fallbackErr.message}`);
+        throw fallbackErr;
+      }
     }
   }
 
@@ -1360,10 +1375,20 @@ export class RpaDownloaderService {
         90000,
         'TTM',
       );
-      this.logger.log(`TTM (Trạng thái mở) downloaded to: ${destFile}`);
+      this.logger.log(`TTM (Trạng thái mở) tải thành công: ${destFile}`);
     } catch (err: any) {
-      this.logger.error(`Tải TTM (Trạng thái mở) thất bại: ${err.message}`);
-      throw err;
+      this.logger.warn(
+        `gotoAndDownload cho TTM gặp sự cố (${err.message}), chuyển sang fallback click Menu Sidebar...`,
+      );
+      await this.navigateAndDownload(
+        page,
+        ['QL trạng thái', 'Trạng thái mở'],
+        destFile,
+        undefined,
+        'TTM',
+        /openPositionInfo/,
+      );
+      this.logger.log(`TTM (Trạng thái mở) tải thành công qua Sidebar fallback: ${destFile}`);
     }
   }
 
@@ -2147,6 +2172,7 @@ export class RpaDownloaderService {
   }
 
   private cachedGeminiModels: { list: string[]; fetchedAt: number } | null = null;
+  private lastSuccessfulGeminiModel: string = '';
 
   /**
    * Lấy danh sách các model Gemini đang hoạt động trực tiếp từ Google API theo API key.
@@ -2248,21 +2274,39 @@ export class RpaDownloaderService {
   ): Promise<string> {
     const log = this.getLogFn(jobLogs);
 
+    // Nạp model thành công gần nhất (Last-Known-Good) từ cache RAM hoặc Database
+    if (!this.lastSuccessfulGeminiModel) {
+      try {
+        this.lastSuccessfulGeminiModel = await this.settingsService.getSetting(
+          'bot_last_successful_gemini_model',
+          '',
+        );
+      } catch { }
+    }
+
     // Lấy danh sách model động trực tiếp từ Google API
     const dynamicModels = await this.getAvailableGeminiModels(apiKey);
-    const candidateModels =
+    let candidateModels =
       dynamicModels.length > 0
-        ? dynamicModels.slice(0, 8)
+        ? dynamicModels.slice(0, 10)
         : [
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-3.5-flash-lite',
+          'gemini-3.5-flash',
           'gemini-3.8-flash',
           'gemini-3.7-flash',
-          'gemini-3.5-flash',
-          'gemini-3.1-flash-lite',
-          'gemini-2.5-flash-lite',
-          'gemini-2.5-flash',
+          'gemini-3.6-flash',
           'gemini-flash-latest',
-          'gemini-2.5-pro',
         ];
+
+    // Ưu tiên số 1: Đưa model đã giải thành công gần nhất lên đầu danh sách để gọi trúng ngay trong 1 hit (0-2s)
+    if (this.lastSuccessfulGeminiModel) {
+      candidateModels = [
+        this.lastSuccessfulGeminiModel,
+        ...candidateModels.filter((m) => m !== this.lastSuccessfulGeminiModel),
+      ];
+    }
 
     for (const model of candidateModels) {
       try {
@@ -2271,7 +2315,7 @@ export class RpaDownloaderService {
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
           {
             method: 'POST',
-            signal: AbortSignal.timeout(8000), // Khống chế timeout 8s tối đa, tránh treo bot 103s khi Google quá tải
+            signal: AbortSignal.timeout(8000), // Khống chế timeout 8s tối đa, tránh treo bot khi Google quá tải
             headers: {
               'Content-Type': 'application/json',
             },
@@ -2307,6 +2351,13 @@ export class RpaDownloaderService {
         const solvedCode = text ? text.replace(/[\s\r\n`"']/g, '') : '';
         if (solvedCode) {
           await log(`Nhận diện Captcha từ Gemini (${model}) thành công: "${solvedCode}"`);
+          // Cập nhật ngay model thành công này làm ưu tiên hàng đầu cho các lần gọi kế tiếp
+          if (this.lastSuccessfulGeminiModel !== model) {
+            this.lastSuccessfulGeminiModel = model;
+            await this.settingsService
+              .setSetting('bot_last_successful_gemini_model', model)
+              .catch(() => { });
+          }
           return solvedCode;
         }
       } catch (err: any) {
@@ -2314,7 +2365,7 @@ export class RpaDownloaderService {
         await log(`Gemini model ${model} lỗi (${err.message}). Đang chuyển model dự phòng...`);
       }
     }
-    throw new Error('Các model Gemini đều phản hồi bận (503) hoặc không nhận diện được.');
+    throw new Error('Các model Gemini đều phản hồi bận (503/429) hoặc không nhận diện được.');
   }
 
   /**

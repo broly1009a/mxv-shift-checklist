@@ -469,6 +469,61 @@ function formatDmY(d: Date): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+/** Lấy ngày hiện tại theo múi giờ Việt Nam (Asia/Ho_Chi_Minh) */
+export function getTodayVnDate(): { y: number; m: number; d: number; ymd: string; dmy: string } {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const ymd = formatter.format(now);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dd = String(d).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  return {
+    y,
+    m,
+    d,
+    ymd: `${y}-${mm}-${dd}`,
+    dmy: `${dd}/${mm}/${y}`,
+  };
+}
+
+/** Chuẩn hóa chuỗi ngày (YYYY-MM-DD, DD/MM/YYYY, DD.MM.YYYY, DD.MM) sang YYYY-MM-DD */
+export function normalizeDateToYmd(s?: string): string | null {
+  if (!s || !s.trim()) return null;
+  const clean = s.trim().split('T')[0];
+  const sep = clean.includes('-') ? '-' : clean.includes('/') ? '/' : clean.includes('.') ? '.' : null;
+  if (!sep) return null;
+  const parts = clean.split(sep).map(Number);
+  if (parts.length === 3) {
+    if (parts[0] > 1000) {
+      return `${parts[0]}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
+    }
+    return `${parts[2]}-${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}`;
+  }
+  if (parts.length === 2) {
+    const curYear = getTodayVnDate().y;
+    return `${curYear}-${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+/** Kiểm tra 1 chuỗi ngày có phải là ngày hôm nay hay không */
+export function isTodayDate(dateStr?: string): boolean {
+  if (!dateStr || !dateStr.trim()) return true;
+  const ymd = normalizeDateToYmd(dateStr);
+  if (!ymd) return false;
+  return ymd === getTodayVnDate().ymd;
+}
+
+/** Kiểm tra khoảng ngày [startDate, endDate] có phải là tải cho duy nhất ngày hôm nay hay không */
+export function isTodayDateRange(startDate?: string, endDate?: string): boolean {
+  return isTodayDate(startDate) && isTodayDate(endDate);
+}
+
 /** Sinh danh sách các khoảng ngày theo tháng trong khoảng startDate → endDate */
 export function generateMonthlyIntervals(startDate: string, endDate: string): DateInterval[] {
   const intervals: DateInterval[] = [];
@@ -930,39 +985,64 @@ export class CcpCeDownloaderService {
 
     // ── Nếu báo cáo có tabName hoặc là TTTT: click tab trước ────────────────
     const url = page.url();
-    if (url.includes('PNL_EXECUTED') || report.tabName || report.code === 'TTTT') {
+    const targetTabName = report.tabName || (report.code === 'TTTT' || url.includes('PNL_EXECUTED') ? 'Lịch sử tất toán' : '');
+    if (targetTabName) {
       try {
-        const historyTab = page.locator("xpath=//*[self::button or self::div or self::span][contains(text(), 'Lịch sử tất toán')]").first();
-        if (await historyTab.isVisible({ timeout: 2_000 })) {
-          await historyTab.click({ force: true });
+        const tabElem = page.locator(`xpath=//*[self::button or self::div or self::span][normalize-space(text())='${targetTabName}' or contains(text(), '${targetTabName}')]`).first();
+        if (await tabElem.isVisible({ timeout: 2_000 })) {
+          await tabElem.click({ force: true });
           await page.waitForTimeout(1500);
-          this.log(`[Filter] Da click tab: Lich su tat toan`, logCb);
+          this.log(`[Filter] Da click tab: ${targetTabName}`, logCb);
         }
       } catch { }
     }
 
-    // ── DSGD: Xóa ô "Ngày hệ thống" nếu có ──────────────────────────────
-    if (report.code === 'DSGD') {
-      try {
-        const sysDateInput = page.locator(
-          "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Ngày hệ thống')]]//input" +
-          " | //label[contains(text(), 'Ngày hệ thống')]/following-sibling::div//input",
-        ).first();
-        if (await sysDateInput.isVisible({ timeout: 1_000 })) {
-          await sysDateInput.click({ force: true });
-          await page.waitForTimeout(150);
-          await page.keyboard.press('Control+A');
-          await page.keyboard.press('Backspace');
-          await page.waitForTimeout(150);
-          await page.keyboard.press('Tab');
-          this.log('[Filter] Da xoa o Ngay he thong (DSGD)', logCb);
-        }
-      } catch { }
+    // ── Kiểm tra nếu là ngày HÔM NAY: Không cần filter ngày, tải trực tiếp ──
+    const isToday = isTodayDateRange(startDate, endDate);
+    if (isToday) {
+      this.log(`[Filter] Ngày tải là HÔM NAY (${startDate || 'mặc định'}) -> Bỏ qua lọc ngày vì CoreCCP đã mặc định hôm nay. Cứ thế tải trực tiếp.`, logCb);
+
+      const hasCustomFilters = Boolean(filters.memberCode || filters.acctNo || filters.exchange);
+      if (!hasCustomFilters) {
+        // Kiểm tra xem bảng có dữ liệu hay "Không có dữ liệu"
+        try {
+          const noDataInTable = page.locator(
+            "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]",
+          ).first();
+          if (await noDataInTable.isVisible({ timeout: 600 })) {
+            this.log('[Filter] Bảng báo cáo hiển thị "Không có dữ liệu" -> Tiếp tục kết xuất tải file mẫu.', logCb);
+            return 'EMPTY_TABLE';
+          }
+        } catch { }
+        return 'OK';
+      }
     }
 
-    // ── Điền DatePicker: "Từ ngày" và "Đến ngày" (Chuẩn count >= 3 từ Python) ─
-    if (report.code !== 'QLTTTKGD' && report.code !== 'TYGIA') {
-      await this.fillDatePicker(page, startDate, endDate, logCb);
+    // ── NẾU KHÁC HÔM NAY: MỚI FILTER THEO NGÀY ──────────────────────────────
+    if (!isToday) {
+      // ── DSGD: Xóa ô "Ngày hệ thống" nếu có ──────────────────────────────
+      if (report.code === 'DSGD') {
+        try {
+          const sysDateInput = page.locator(
+            "xpath=//div[contains(@class, 'MuiFormControl-root') or contains(@class, 'MuiPickersInputBase-root')][.//label[contains(text(), 'Ngày hệ thống')]]//input" +
+            " | //label[contains(text(), 'Ngày hệ thống')]/following-sibling::div//input",
+          ).first();
+          if (await sysDateInput.isVisible({ timeout: 1_000 })) {
+            await sysDateInput.click({ force: true });
+            await page.waitForTimeout(150);
+            await page.keyboard.press('Control+A');
+            await page.keyboard.press('Backspace');
+            await page.waitForTimeout(150);
+            await page.keyboard.press('Tab');
+            this.log('[Filter] Da xoa o Ngay he thong (DSGD)', logCb);
+          }
+        } catch { }
+      }
+
+      // ── Điền DatePicker: "Từ ngày" và "Đến ngày" (Chuẩn count >= 3 từ Python) ─
+      if (report.code !== 'QLTTTKGD' && report.code !== 'TYGIA') {
+        await this.fillDatePicker(page, startDate, endDate, logCb);
+      }
     }
 
     // ── Bật bộ lọc nếu chưa hiển thị ────────────────────────────────────
@@ -1202,24 +1282,34 @@ export class CcpCeDownloaderService {
       return null;
     };
 
-    // Phương án 1: Di chuột (Hover) -> "Xuất tất cả" (Python base_report_page.py:L375-406)
+    // Phương án 1: Mở menu 'Xuất tất cả' (Thử hover trước, nếu không mở thì click nút Kết xuất để mở Menu MUI)
     try {
-      await exportBtn.hover({ timeout: 5_000, force: true });
-      await page.waitForTimeout(400);
-
       const exportAllOption = page.locator(
         "xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']" +
         " | //*[self::li or self::div or self::span or self::p][contains(text(), 'Export all')]",
       ).first();
 
-      if (await exportAllOption.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      // 1. Thử hover trước
+      await exportBtn.hover({ timeout: 2_000, force: true }).catch(() => {});
+      await page.waitForTimeout(250);
+
+      let isMenuVisible = await exportAllOption.isVisible({ timeout: 1_000 }).catch(() => false);
+
+      // 2. Nếu hover không mở menu (chuẩn của Button MUI), click vào nút Kết xuất để kích hoạt mở Dropdown Menu
+      if (!isMenuVisible) {
+        await exportBtn.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(350);
+        isMenuVisible = await exportAllOption.isVisible({ timeout: 1_500 }).catch(() => false);
+      }
+
+      if (isMenuVisible) {
         const res = await triggerExportWithToastCheck(() => exportAllOption.click({ force: true }));
         await this.dismissModalBackdrop(page);
         return res;
       }
     } catch { }
 
-    // Phương án 2: Double-click nút Kết xuất (Python base_report_page.py:L407-425)
+    // Phương án 2: Double-click nút Kết xuất (nếu là nút download trực tiếp không có dropdown)
     try {
       const res = await triggerExportWithToastCheck(() => exportBtn.dblclick({ force: true }));
       await this.dismissModalBackdrop(page);
@@ -1555,12 +1645,28 @@ export class CcpCeDownloaderService {
     const reportsToRun = (runOpts.reports ?? (this.isCoreExSystem(systemUrl) ? DEFAULT_CE_REPORTS : DEFAULT_CCP_REPORTS))
       .filter((r) => r.enabled);
 
-    const intervals = generateMonthlyIntervals(startDate, endDate);
+    const todayDmy = formatDmY(new Date());
+    const effStartDate = startDate || todayDmy;
+    const effEndDate = endDate || todayDmy;
+    const isTodayJob = isTodayDateRange(effStartDate, effEndDate);
+
+    const intervals = isTodayJob
+      ? [{
+          startStr: todayDmy,
+          endStr: todayDmy,
+          mmyy: `${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getFullYear()).slice(-2)}`,
+        }]
+      : generateMonthlyIntervals(effStartDate, effEndDate);
 
     this.log('='.repeat(60), logCb);
     this.log(`BAT DAU TAI BAO CAO VNCLEAR (${this.isCoreExSystem(systemUrl) ? 'CoreEX' : 'CoreCCP'})`, logCb);
     this.log(`He thong: ${systemUrl}`, logCb);
-    this.log(`Khoang: ${startDate} -> ${endDate} (${intervals.length} thang)`, logCb);
+    this.log(
+      isTodayJob
+        ? `Khoang: HOM NAY (${effStartDate}) - Mac dinh CoreCCP, bo qua filter ngay`
+        : `Khoang: ${effStartDate} -> ${effEndDate} (${intervals.length} thang)`,
+      logCb,
+    );
     this.log(`Thu muc luu: ${outputDir}`, logCb);
     this.log('='.repeat(60), logCb);
 
@@ -2097,9 +2203,21 @@ export class CcpCeDownloaderService {
       throw new Error(`[Fail-Fast] Màn hình DSGD chưa sẵn sàng, trình duyệt đang ở URL: ${currentUrl}`);
     }
 
-    const searchRes = await this.setDateRangeAndSearch(page, repDSGD, tradingDate, tradingDate, {}, logCb);
-    isTableEmpty = searchRes === 'EMPTY_TABLE';
-    this.log(`[CCP KLGD] Sẵn sàng tại màn hình xuất DSGD. Đang chờ rào cản đồng bộ...`, logCb);
+    const isToday = isTodayDate(tradingDate);
+    if (isToday) {
+      this.log(`[CCP KLGD] Phiên hôm nay (${tradingDate}) -> Giữ nguyên bảng giao dịch mặc định (bỏ qua filter để bảo toàn 100% dữ liệu realtime).`, logCb);
+      await this.waitForTableLoadingComplete(page, 15_000);
+      try {
+        const noData = page.locator(
+          "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
+        ).first();
+        isTableEmpty = await noData.isVisible({ timeout: 600 }).catch(() => false);
+      } catch { }
+    } else {
+      const searchRes = await this.setDateRangeAndSearch(page, repDSGD, tradingDate, tradingDate, {}, logCb);
+      isTableEmpty = searchRes === 'EMPTY_TABLE';
+    }
+    this.log(`[CCP KLGD] Sẵn sàng tại màn hình xuất DSGD (${isTableEmpty ? 'chưa có dữ liệu' : 'có dữ liệu'}). Đang chờ rào cản đồng bộ...`, logCb);
 
     const triggerExportDsgd = async (): Promise<string | null> => {
       if (!page || page.isClosed()) return null;
@@ -2146,8 +2264,42 @@ export class CcpCeDownloaderService {
           try {
             this.log(`[CCP KLGD] Đang tải báo cáo bổ sung ${rep.name} (${rep.code})...`, logCb);
             await this.navigateToReport(page, rep, systemUrl, logCb);
-            const sRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
-            const emptyTbl = sRes === 'EMPTY_TABLE';
+
+            let emptyTbl = false;
+
+            if (rep.code === 'TTM') {
+              // TTM: Snapshot vị thế mở của ngày hôm nay, không có datepicker
+              await this.waitForTableLoadingComplete(page, 15_000);
+              try {
+                const noData = page.locator("xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data')]").first();
+                emptyTbl = await noData.isVisible({ timeout: 600 }).catch(() => false);
+              } catch { }
+            } else if (rep.code === 'TTTT') {
+              // TTTT: Chuyển tab 'Lịch sử tất toán'
+              const tabSettled = page.locator("xpath=//*[self::button or self::div or self::span][contains(text(), 'Lịch sử tất toán')]").first();
+              if (await tabSettled.isVisible({ timeout: 2_000 }).catch(() => false)) {
+                await tabSettled.click({ force: true });
+                await page.waitForTimeout(1_000);
+              }
+              if (isToday) {
+                await this.waitForTableLoadingComplete(page, 15_000);
+                try {
+                  const noData = page.locator("xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data')]").first();
+                  emptyTbl = await noData.isVisible({ timeout: 600 }).catch(() => false);
+                } catch { }
+              } else {
+                const sRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
+                emptyTbl = sRes === 'EMPTY_TABLE';
+              }
+            } else {
+              if (isToday) {
+                await this.waitForTableLoadingComplete(page, 15_000);
+              } else {
+                const sRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
+                emptyTbl = sRes === 'EMPTY_TABLE';
+              }
+            }
+
             const dl = await this.triggerExportDownload(page, opts.downloadTimeoutMs, emptyTbl, logCb);
             if (dl && dl !== 'NO_DATA') {
               const targetDest = rep.code === 'TTM' ? ttmDestPath : ttttDestPath;

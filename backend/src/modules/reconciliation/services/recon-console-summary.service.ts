@@ -240,9 +240,9 @@ export class ReconConsoleSummaryService {
       // ── BƯỚC 2: Trích xuất bảng "Tỉ giá thanh toán" (Mua & Bán) ────────
       let paymentRates: Record<string, { buy: number; sell: number }> = {
         'USD/VND': { buy: usdRate, sell: usdRate },
-        'MYR/VND': { buy: rates['MYR'] || 6383, sell: rates['MYR'] || 6383 },
-        'JPY/VND': { buy: rates['JPY'] || 170, sell: rates['JPY'] || 170 },
-        'RMB/VND': { buy: rates['RMB'] || 3871, sell: rates['RMB'] || 3871 },
+        'MYR/VND': { buy: rates['MYR'] || 0, sell: rates['MYR'] || 0 },
+        'JPY/VND': { buy: rates['JPY'] || 0, sell: rates['JPY'] || 0 },
+        'RMB/VND': { buy: rates['RMB'] || 0, sell: rates['RMB'] || 0 },
       };
 
       try {
@@ -391,15 +391,15 @@ export class ReconConsoleSummaryService {
     rmbLoss: number;
     rmbGain: number;
   }> {
-    const usdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
-    const myrStr = await this.settingsService.getSetting('myr_exchange_rate', '6383');
-    const jpyStr = await this.settingsService.getSetting('jpy_exchange_rate', '170');
-    const rmbStr = await this.settingsService.getSetting('rmb_exchange_rate', '3871');
+    const usdStr = await this.settingsService.getSetting('usd_exchange_rate', '');
+    const myrStr = await this.settingsService.getSetting('myr_exchange_rate', '');
+    const jpyStr = await this.settingsService.getSetting('jpy_exchange_rate', '');
+    const rmbStr = await this.settingsService.getSetting('rmb_exchange_rate', '');
 
-    const usd = parseFloat(usdStr) || 25920;
-    const myr = parseFloat(myrStr) || 6383;
-    const jpy = parseFloat(jpyStr) || 170;
-    const rmb = parseFloat(rmbStr) || 3871;
+    const usd = parseFloat(usdStr) || 0;
+    const myr = parseFloat(myrStr) || 0;
+    const jpy = parseFloat(jpyStr) || 0;
+    const rmb = parseFloat(rmbStr) || 0;
 
     return {
       usdLoss: usd,
@@ -416,9 +416,10 @@ export class ReconConsoleSummaryService {
   async getCurrentUsdRate(): Promise<number> {
     const usdRateStr = await this.settingsService.getSetting(
       'usd_exchange_rate',
-      '25920',
+      '',
     );
-    return parseFloat(usdRateStr) || 25920;
+    const rate = parseFloat(usdRateStr);
+    return isNaN(rate) ? 0 : rate;
   }
 
   async saveUsdRate(rate: number): Promise<void> {
@@ -624,33 +625,6 @@ export class ReconConsoleSummaryService {
           this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           pastRunsPromise,
         ]);
-
-      if (!loadedKlgd && isToday && !jobId) {
-        loadedKlgd = await this.botJobModel.findOne({ jobType: 'CHECK_KLGD' }).sort({ createdAt: -1 }).lean().exec();
-      }
-      if (!loadedPreEod && isToday) {
-        loadedPreEod = await this.botJobModel.findOne({ jobType: 'CHECK_PRE_EOD' }).sort({ createdAt: -1 }).lean().exec();
-      }
-      if (!loadedMargin && isToday) {
-        loadedMargin = await this.botJobModel
-          .findOne({
-            jobType: {
-              $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MM'],
-            },
-          })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec();
-      }
-      if (!loadedCqgSync && isToday) {
-        loadedCqgSync = await this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC' }).sort({ createdAt: -1 }).lean().exec();
-      }
-      if (!loadedCcpDl && isToday) {
-        loadedCcpDl = await this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT' }).sort({ createdAt: -1 }).lean().exec();
-      }
-      if (!loadedCcpCheck && isToday) {
-        loadedCcpCheck = await this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP' }).sort({ createdAt: -1 }).lean().exec();
-      }
 
       klgdJob = loadedKlgd;
       preEodJob = loadedPreEod;
@@ -905,6 +879,30 @@ export class ReconConsoleSummaryService {
     const latestRunId = runs.length > 0 ? runs[0].id : null;
     const isViewingHistorical = !!(jobId && latestRunId && jobId !== latestRunId);
 
+    // 8. Xác định Job EOD mới nhất của ngày hôm nay (giữa CHECK_EOD_MM và CHECK_PRE_EOD)
+    const eodCandidates = [marginJob, preEodJob].filter(Boolean);
+    const latestEodJob = eodCandidates.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0] || null;
+
+    const latestEodPayload = latestEodJob
+      ? typeof latestEodJob.toObject === 'function'
+        ? latestEodJob.toObject().payload || {}
+        : latestEodJob.payload && typeof latestEodJob.payload.toObject === 'function'
+          ? latestEodJob.payload.toObject()
+          : latestEodJob.payload || {}
+      : {};
+    const latestEodResult = latestEodPayload.result || {};
+
+    const resolvedMismatchedEOD =
+      latestEodResult.eodResult?.mismatchedEOD ||
+      latestEodResult.mismatchedEOD ||
+      marginResult.eodResult?.mismatchedEOD ||
+      marginResult.mismatchedEOD ||
+      preEodResult.eodResult?.mismatchedEOD ||
+      preEodResult.mismatchedEOD ||
+      [];
+
     return {
       success: true,
       date: targetDate,
@@ -1005,15 +1003,15 @@ export class ReconConsoleSummaryService {
         mismatchedTTTT: klgdResult.mismatchedTTTT || [],
       },
       preEod: {
-        jobId: preEodJob?._id?.toString() || null,
-        status: preEodJob?.status || (taskPreEod ? taskPreEod.status : 'IDLE'),
-        executedAt: preEodJob?.createdAt
-          ? new Date(preEodJob.createdAt).toISOString()
+        jobId: latestEodJob?._id?.toString() || null,
+        status: latestEodJob?.status || (taskPreEod ? taskPreEod.status : 'IDLE'),
+        executedAt: latestEodJob?.createdAt
+          ? new Date(latestEodJob.createdAt).toISOString()
           : null,
-        error: preEodJob?.error || null,
-        logs: preEodJob?.logs || [],
-        isWaitingFiles: !!preEodResult.isWaitingFiles,
-        passed: preEodResult.passed !== false,
+        error: latestEodJob?.error || null,
+        logs: latestEodJob?.logs || [],
+        isWaitingFiles: !!(latestEodResult.isWaitingFiles || preEodResult.isWaitingFiles),
+        passed: (latestEodResult.passed !== undefined ? latestEodResult.passed !== false : preEodResult.passed !== false),
         totals: preEodTotals,
         acm: {
           msVolume: preEodTotals.totalACM_MS,
@@ -1039,40 +1037,34 @@ export class ReconConsoleSummaryService {
           preEodResult.mismatchedPositionsTotal ||
           (preEodResult.mismatchedPositions || []).length,
         mismatchedPositions: preEodResult.mismatchedPositions || [],
-        mismatchedEODCount: (
-          marginResult.eodResult?.mismatchedEOD ||
-          marginResult.mismatchedEOD ||
-          preEodResult.eodResult?.mismatchedEOD ||
-          preEodResult.mismatchedEOD ||
-          []
-        ).length,
-        mismatchedEOD:
-          marginResult.eodResult?.mismatchedEOD ||
-          marginResult.mismatchedEOD ||
-          preEodResult.eodResult?.mismatchedEOD ||
-          preEodResult.mismatchedEOD ||
-          [],
+        mismatchedEODCount: resolvedMismatchedEOD.length,
+        mismatchedEOD: resolvedMismatchedEOD,
         cqgResultCount: (
           cqgSyncJob?.payload?.result?.cqgResult ||
-          marginResult.cqgResult ||
-          preEodResult.cqgResult ||
           []
         ).length,
         cqgResult:
           cqgSyncJob?.payload?.result?.cqgResult ||
-          marginResult.cqgResult ||
-          preEodResult.cqgResult ||
           [],
       },
       negativeMargin: {
-        jobId: marginJob?._id?.toString() || preEodJob?._id?.toString(),
-        executedAt: (marginJob?.createdAt || preEodJob?.createdAt)
-          ? new Date(marginJob?.createdAt || preEodJob?.createdAt).toISOString()
+        jobId: marginJob?._id?.toString() || null,
+        executedAt: marginJob?.createdAt
+          ? new Date(marginJob.createdAt).toISOString()
           : null,
+        status: marginJob?.status || 'IDLE',
         negativeIMRAccCount: rawNegativeIMR.length,
         negativeIMRAcc: rawNegativeIMR,
         negativeBalanceCount: rawNegativeBalance.length,
         negativeBalanceAccs: rawNegativeBalance,
+      },
+      cqgSync: {
+        jobId: cqgSyncJob?._id?.toString() || null,
+        executedAt: cqgSyncJob?.createdAt
+          ? new Date(cqgSyncJob.createdAt).toISOString()
+          : null,
+        status: cqgSyncJob?.status || 'IDLE',
+        cqgResult: cqgSyncJob?.payload?.result?.cqgResult || [],
       },
       ccpSummary: {
         downloadJob: {

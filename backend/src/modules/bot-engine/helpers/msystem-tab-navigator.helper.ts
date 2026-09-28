@@ -44,15 +44,28 @@ export const MS_REPORT_FILE_PATTERNS: Record<string, RegExp> = {
 };
 
 /**
- * Selector ưu tiên cho nút xuất file Excel / CSV cụ thể trên M-System (loại trừ button.btn-info generic)
+ * Selector ưu tiên cho nút xuất file Excel / CSV cụ thể trên M-System (hỗ trợ cả fa-file-csv, fas fa-file-csv, fa-file-excel)
  */
 export const MS_SPECIFIC_EXPORT_BUTTON_SELECTORS = [
-  'button.ladda-button:has(i.fa-file-excel)',
-  'button:has(i.fa-file-excel)',
+  'button:has(i[class*="fa-file-csv"])',
+  'button:has(i[class*="fa-file-excel"])',
+  'button.ladda-button:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i[class*="fa-file-excel"])',
+  'button.btn-ghost-primary:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i.fas.fa-file-csv)',
   'button.ladda-button:has(i.fa-file-csv)',
+  'button.ladda-button:has(i.fas.fa-file-excel)',
+  'button.ladda-button:has(i.fa-file-excel)',
+  'button:has(i.fas.fa-file-csv)',
   'button:has(i.fa-file-csv)',
-  'i.fa-file-excel',
+  'button:has(i.fas.fa-file-excel)',
+  'button:has(i.fa-file-excel)',
+  'i[class*="fa-file-csv"]',
+  'i[class*="fa-file-excel"]',
+  'i.fas.fa-file-csv',
   'i.fa-file-csv',
+  'i.fas.fa-file-excel',
+  'i.fa-file-excel',
   "button:has-text('Xuất file')",
   "button:has-text('Xuất Excel')",
   "button[title*='Export' i]",
@@ -62,13 +75,25 @@ export const MS_SPECIFIC_EXPORT_BUTTON_SELECTORS = [
  * Selector phổ biến cho nút xuất file Excel / CSV trên M-System (Angular UI)
  */
 export const MS_EXPORT_BUTTON_SELECTORS = [
-  'button.ladda-button:has(i.fa-file-excel)',
-  'button:has(i.fa-file-excel)',
+  'button:has(i[class*="fa-file-csv"])',
+  'button:has(i[class*="fa-file-excel"])',
+  'button.ladda-button:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i[class*="fa-file-excel"])',
+  'button.btn-ghost-primary:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i.fas.fa-file-csv)',
   'button.ladda-button:has(i.fa-file-csv)',
+  'button.ladda-button:has(i.fas.fa-file-excel)',
+  'button.ladda-button:has(i.fa-file-excel)',
+  'button:has(i.fas.fa-file-csv)',
   'button:has(i.fa-file-csv)',
-  'button.btn-info',
-  'i.fa-file-excel',
+  'button:has(i.fas.fa-file-excel)',
+  'button:has(i.fa-file-excel)',
+  'i[class*="fa-file-csv"]',
+  'i[class*="fa-file-excel"]',
+  'i.fas.fa-file-csv',
   'i.fa-file-csv',
+  'i.fas.fa-file-excel',
+  'i.fa-file-excel',
   "button:has-text('Xuất file')",
   "button:has-text('Xuất Excel')",
   "button[title*='Export' i]",

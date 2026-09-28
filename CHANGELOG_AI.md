@@ -1,5 +1,725 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-28T08:48] BUGFIX: Chuẩn Hóa Lùi Ngày Cuối Tuần Theo C# & Thêm Bộ Lọc Tự Thích Ứng Cho File DSGD CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER dựa trên đối chứng mã nguồn Tool C# (`operate-transaction-app`) và file thực tế CoreCCP:
+  1. **Fix 1 (`resolveTradingSessionDate`)**: Chuẩn hóa logic ngày giao dịch khi chạy vào Thứ 7 / Chủ Nhật tự động lùi về ngày làm việc gần nhất (Thứ 6), đồng bộ với hành vi C# của `BackupService.cs#L111-L114` và `TransactionCheckingService.cs#L64-L67`.
+  2. **Fix 2 (`CcpExcelParser.parseDSGD`)**: Thêm bộ lọc tự thích ứng (Self-Adaptive Trader Guard) cho cột "Người đặt lệnh". Khi file DSGD của CoreCCP bị kết xuất trộn lẫn (vừa có lệnh TVKD vừa có lệnh sàn liên thông để trống người đặt lệnh), bot tự động loại bỏ các dòng trống để tránh tính lặp (double counting) các lệnh sàn đã nằm trong `totalACM` của M-System.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/bot-path.helper.ts#L135-L168):
+  - Chuyển vòng lặp `while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6)` ra ngoài khối `if (isOvernight)`, xử lý chính xác cho cả ban ngày Thứ 7 / Chủ Nhật và khi người dùng chọn ngày hôm nay trên giao diện.
+- [ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts#L8-L15,L168-L236):
+  - Bổ sung trường `nguoiDatLenh?: string` vào interface `CcpTradeRecord`.
+  - Nhận diện cột `Người đặt lệnh` (`nguoiDatLenhIdx`).
+  - Phát hiện cờ `hasMixedTraderRows` (khi file đồng thời có cả dòng trống và dòng có dữ liệu).
+  - Chỉ tính các dòng có Người đặt lệnh hợp lệ khi phát hiện file trộn lẫn; giữ nguyên 100% logic cũ đối với file thuần TVKD hoặc khi không có cột.
+
+### 3. Xác nhận Build
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Thành công 100%).
+
+---
+
+## [2026-09-26T17:28] REFACTOR & BUGFIX: Bỏ Hẳn Bộ Lọc Ngày Cho Phiên Realtime Trong prepareKlgdSession & Tối Ưu Nút Kết Xuất
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu đánh giá sâu và sửa triệt để từ USER: Trong tác vụ `CHECK_KLGD` thời gian thực của CoreCCP, không thực hiện bất kỳ thao tác lọc ngày nào cho phiên hôm nay (DSGD, TTM, TTTT), giữ nguyên bảng mặc định của hệ thống và kết xuất trực tiếp.
+- Cải tiến hàm `triggerExportDownload` để xử lý mở dropdown menu "Xuất tất cả" của Material-UI bằng cả hover và click, loại bỏ nguy cơ trượt menu.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L1285-L1305):
+  - `triggerExportDownload`: Bổ sung click mở menu MUI nếu hover không mở được option "Xuất tất cả".
+  - `prepareKlgdSession`: Bỏ qua hoàn toàn `setDateRangeAndSearch` khi chạy ngày hôm nay cho cả 3 báo cáo (DSGD, TTM, TTTT), chỉ chờ tải bảng và chuyển sang kết xuất.
+- [test_check_klgd_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_check_klgd_playwright.js#L342-L375): Cập nhật helper `clickExportOption` tương ứng.
+
+### 3. Xác nhận Build
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Thành công 100%).
+
+---
+
+## [2026-09-26T17:16] NEW FEATURE: Xây Dựng Tool Kiểm Thử Playwright Trực Quan Cho CheckKLGD (test_check_klgd_playwright.js)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Viết file test chạy thử quy trình đối soát khớp lệnh trong phiên (`CHECK_KLGD`) bằng Playwright (`test_check_klgd_playwright.js`).
+- Cho phép người dùng quan sát trực quan tận mắt (`--headed`, slowMo) quy trình đăng nhập, điều hướng, xuất file và bóc tách dữ liệu của từng nguồn (CoreCCP, M-System, Straits ACM, CQG).
+- Kiểm chứng thực tế tại sao báo cáo DSGD ngày 26/09 trên CoreCCP có dữ liệu mà tải về bị rỗng (xác thực nguyên nhân do việc clear ô ngày/bấm Tìm kiếm vs xuất trực tiếp).
+
+### 2. Danh sách file chỉnh sửa
+- [test_check_klgd_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_check_klgd_playwright.js): Script kiểm thử Playwright độc lập, tự động đọc credentials từ MongoDB, tải file và kiểm tra dung lượng + số dòng.
+- [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json#L52): Thêm lệnh `npm run test:check-klgd`.
+
+### 3. Tóm tắt nội dung & Tính năng
+1. Hỗ trợ chạy các chế độ:
+   - `--source=ccp`: Kiểm thử riêng CoreCCP (tải DSGD, TTM, TTTT).
+   - `--source=ms`: Kiểm thử riêng M-System (tải DSGD).
+   - `--source=acm`: Kiểm thử riêng Straits ACM (tải Straits.csv).
+   - `--source=all`: Kiểm thử đồng thời các nguồn.
+   - `--headed` / `--headless`: Mở Chrome trực quan hoặc chạy ngầm.
+   - `--date=DD/MM/YYYY`: Chỉ định ngày cần kiểm tra.
+   - `--keep-open`: Giữ trình duyệt mở để người dùng quan sát UI sau khi tải.
+2. Kiểm tra tính toàn vẹn của file tải về:
+   - Đọc qua `XLSX` (SheetJS), in số dòng, in header và 2 dòng bản ghi mẫu.
+   - Cảnh báo rõ ràng nếu file bị rỗng (0 dòng) hoặc thành công.
+
+---
+
+## [2026-09-26T17:10] CRITICAL BUGFIX: Xử Lý Triệt Để Sự Cố Treo Hàng Đợi BotJob Queue & Tự Phục Hồi Cờ isProcessing
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố theo phản ánh của USER: Hàng đợi tác vụ của Checklist bị kẹt toàn bộ (thêm job nào cũng không chạy, nằm ở trạng thái PENDING với attempts: 0).
+- Kiểm chứng và làm rõ nghi vấn có phải do module TKGD gây nghẽn hay không.
+- Bổ sung cơ chế tự phục hồi (Self-Healing) cho cờ `isProcessing` và Timeout rào cản đồng bộ 4 nguồn trong `ReconJobsHandler`.
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+1. **Module TKGD hoàn toàn KHÔNG liên quan đến hàng đợi Checklist**:
+   - Module TKGD chạy Cron độc lập trên các collection riêng (`clean_account_records`, `raw_account_mails`), không sử dụng collection `bot_jobs` hay `BotJobQueueService`.
+2. **Tiến trình Playwright cũ bị treo từ 21:11:10 tối 25/09**:
+   - Job `6ab680afe3d0f7b1851bb393` (`CHECK_KLGD`) lúc 21:11 tối hôm trước bị kẹt rào cản đồng bộ hoặc kết nối CDP Playwright (PID con `2967822` giữ profile `cqg_profile_1` suốt 19 tiếng).
+   - Hàm `await handler.execute(job, context)` bị treo vô hạn, không bao giờ hoàn thành và không ném lỗi.
+   - Khi người vận hành bấm "Hủy tác vụ" trên giao diện lúc 16:24:46, bản ghi trong DB chuyển thành `CANCELLED`, nhưng trong code `bot-job-queue.service.ts`:
+     - Do job đã bị `cleanupStuckJobs` đổi sang `PENDING` trước đó, luồng rơi vào nhánh `if (job.status === 'PENDING') return;` mà **không hề giải phóng cờ `isProcessing = false`** trong RAM.
+     - Vòng lặp `processQueue()` mỗi 10 giây kiểm tra `if (this.isProcessing) return;` nên liên tục thoát sớm, bỏ mặc toàn bộ Job mới trong trạng thái `PENDING` (`attempts: 0`).
+3. **Thiếu Timeout tại rào cản đồng bộ 4 nguồn (`barrierTriggerPromise`)**:
+   - Trong `recon-jobs.handler.ts#L207-L220`, `barrierTriggerPromise` không có bất kỳ bộ đếm thời gian (Timeout) nào. Nếu 1 bên đối tác gặp sự cố mà không kích hoạt `abortBarrierIfStrict`, Promise này treo vĩnh viễn.
+
+### 3. Chi tiết các sửa đổi
+1. **Bổ sung Timeout 120s cho rào cản đồng bộ 4 bên** ([recon-jobs.handler.ts#L225-L255](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L225-L255)):
+   - Thêm `BARRIER_TIMEOUT_MS = 120_000` (2 phút). Nếu quá 2 phút các hệ thống chưa cùng sẵn sàng, tự động hủy rào cản và báo lỗi rõ ràng thay vì treo ngầm vô tận.
+2. **Cơ chế Tự Phục Hồi (Self-Healing) Cờ `isProcessing`** ([bot-job-queue.service.ts#L240-L248](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts#L240-L248)):
+   - Trong `processQueue()`: Tự động kiểm tra `if (this.isProcessing && this.activeJobs.size === 0) { this.isProcessing = false; }` để giải phóng ngay cờ treo mồ côi.
+   - Trong `cancelJob()`: Giải phóng cờ `isProcessing = false` nếu không còn job active khi hủy job PENDING.
+   - Trong `cleanupStuckJobs()`: Đảm bảo reset `this.isProcessing = false` khi dọn dẹp các job treo.
+3. **Thao tác giải phóng tức thời trên máy chủ Ubuntu (10.0.0.26)**:
+   - Dọn sạch tiến trình Chromium mồ côi `chrome-headless-shell`.
+   - Khởi động lại `mxv-backend`. Hàng đợi đã tự động kích hoạt trở lại ngay lập tức: Job `6ab78f8ee3d0f7b1851bb488` đã xử lý xong và Job `6ab78fa9e3d0f7b1851bb48a` (`CHECK_KLGD`) hiện đang chạy (`PROCESSING`).
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend: `nest build` $\rightarrow$ Mã thoát 0 (Thành công 100%).
+- Kiểm tra MongoDB thực tế: Hàng đợi đã thông luồng và tự động xử lý các job kế tiếp bình thường.
+
+---
+
+## [2026-09-26T17:00] OPTIMIZATION: Bỏ Qua Bộ Lọc Ngày Khi Tải Báo Cáo CoreCCP/CoreEX Cho Ngày Hôm Nay
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Trong luồng tải báo cáo CoreCCP (`CcpCeDownloaderService.run` và `setDateRangeAndSearch`), nếu tải dữ liệu cho **ngày hôm nay** thì không cần lọc ngày (không clear "Ngày hệ thống", không gõ DatePicker, không bấm "Tìm kiếm" nếu không có filter cột riêng) mà cứ thế xuất file tải về luôn, vì trên hệ thống CoreCCP mặc định khi mở màn hình đã hiển thị dữ liệu của ngày hôm nay. Chỉ khi truyền ngày **khác hôm nay** thì mới thực hiện lọc ngày.
+
+### 2. Chi tiết thực hiện (Code-First Grounding)
+1. **Bổ sung các hàm tiện ích ngày tháng theo múi giờ Việt Nam** ([ccp-ce-downloader.service.ts#L472-L525](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L472-L525)):
+   - `getTodayVnDate()`: Lấy ngày hiện tại chuẩn giờ Việt Nam (`Asia/Ho_Chi_Minh`).
+   - `normalizeDateToYmd(s)`: Chuẩn hóa mọi định dạng ngày (`YYYY-MM-DD`, `DD/MM/YYYY`, `DD.MM.YYYY`, `DD.MM`).
+   - `isTodayDate(dateStr)` & `isTodayDateRange(startDate, endDate)`: Kiểm tra chính xác xem khoảng ngày yêu cầu có phải là ngày hôm nay hay không.
+2. **Cập nhật `setDateRangeAndSearch`** ([ccp-ce-downloader.service.ts#L980-L1040](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L980-L1040)):
+   - Khi `isTodayDateRange(startDate, endDate) === true`:
+     - Ghi log: `[Filter] Ngày tải là HÔM NAY (${startDate}) -> Bỏ qua lọc ngày vì CoreCCP đã mặc định hôm nay. Cứ thế tải trực tiếp.`
+     - Nếu không có bộ lọc tùy biến (`memberCode`, `acctNo`, `exchange`): Bỏ qua hoàn toàn việc xóa "Ngày hệ thống", bỏ qua `fillDatePicker`, bỏ qua nút "Tìm kiếm", kiểm tra trạng thái bảng và chuyển thẳng sang kết xuất tải file.
+     - Vẫn đảm bảo chuyển tab chính xác nếu báo cáo yêu cầu (như tab `Lịch sử tất toán` của TTTT hay `Lệnh đã khớp` của DSLDK).
+   - Khi `isTodayDateRange(startDate, endDate) === false` (khác hôm nay):
+     - Giữ nguyên luồng lọc lịch sử: Xóa "Ngày hệ thống" (đối với DSGD), điền DatePicker "Từ ngày" - "Đến ngày", áp dụng filter và bấm "Tìm kiếm".
+3. **Cập nhật hàm điều phối `run()`** ([ccp-ce-downloader.service.ts#L1635-L1655](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L1635-L1655)):
+   - Nhận diện `isTodayJob`: Nếu là hôm nay, chỉ sinh đúng 1 khoảng duy nhất cho ngày hôm nay và ghi log: `Khoang: HOM NAY (...) - Mac dinh CoreCCP, bo qua filter ngay`.
+
+### 3. Xác nhận Build/Kiểm thử
+- Backend: `nest build` $\rightarrow$ Mã thoát 0 (Thành công 100%).
+- Frontend: `next build` $\rightarrow$ Mã thoát 0 (Thành công 100%).
+
+---
+
+## [2026-09-26T16:30] BUGFIX & UI OVERHAUL: Khắc Phục Mất Dữ Liệu GTT Khi Tải Lại Trang & Nâng Cấp Giao Diện Modal Nhật Ký GTT
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố theo phản ánh của USER: Sau khi bấm "Check GTT" hoàn tất, nếu người dùng tải lại trang (reload) thì bảng kết quả GTT bị mất sạch trên giao diện và hiển thị thông báo "Chưa có dữ liệu đối chiếu giá thanh toán".
+- Nâng cấp và chuẩn hóa toàn diện giao diện Modal "Nhật ký kiểm tra Giá thanh toán (GTT)" theo phong cách Enterprise Developer Terminal, khắc phục hoàn toàn tình trạng lệch tông màu (màu trắng - xám đục - đen xen kẽ lộn xộn).
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+1. **Lệch Ngày Phiên vs Ngày Dương Lịch (Trading Session vs Calendar Date)**:
+   - Khi chạy "Check GTT" ([LegacyGttCheckerSection.tsx#L130-L137](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx#L130-L137)), hệ thống không gửi kèm ngày phiên `targetDate: selectedDate`.
+   - Backend `GttCheckerService` ([gtt-checker.service.ts#L858](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/gtt-checker.service.ts#L858)) chỉ lưu `runAt = new Date().toISOString()`.
+   - Vào cuối tuần (Thứ 7 / CN) hoặc ca đêm trước 06:30 sáng, hàm `getInitialTradingSessionDate()` trên Frontend đặt `selectedDate` là ngày phiên T-1 (ví dụ `2026-09-25`), trong khi ngày chạy thực tế theo lịch là `2026-09-26`.
+   - Khi tải lại trang, Frontend gọi `GET /api/v1/bot-engine/gtt-report?date=2026-09-25`.
+   - Controller ([bot-engine.controller.ts#L1629-L1638](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts#L1629-L1638)) so sánh nghiêm ngặt `reportDateStr` (`2026-09-26`) !== `targetDateStr` (`2026-09-25`), dẫn đến trả về `report: null` và xóa sạch dữ liệu trên UI.
+2. **Giao diện Modal Nhật Ký (Log Viewer) Bị Vỡ Màu**:
+   - Thẻ bọc ngoài dùng class `.glass-panel` với `var(--bg-surface)` bị ép màu trắng trong Light Mode, trong khi thân terminal màu đen `#090e1a`.
+   - Thanh công cụ tìm kiếm dùng nền mờ `rgba(0, 0, 0, 0.2)` đè lên nền sáng tạo thành vệt xám đục, ô input màu trắng viền mỏng không tương thích.
+
+### 3. Chi tiết các sửa đổi
+1. **Backend** ([gtt-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/gtt-checker.service.ts) & [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)):
+   - Bổ sung `targetDate` và `sessionDate` vào `GttReport` và tham số của `runFullGttCheck`.
+   - Tự động chuẩn hóa ngày phiên bằng `resolveTradingSessionDate(options.targetDate)`.
+   - Cập nhật API `GET /api/v1/bot-engine/gtt-report`: So khớp thông minh giữa `sessionDate`, `targetDate`, ngày chạy thực tế và ngày dương lịch hôm nay (`todayVnStr`), bảo đảm kết quả GTT vừa chạy trong phiên luôn được lưu giữ và tải lại chính xác 100%.
+2. **Frontend** ([LegacyGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx)):
+   - Trong `handleCheckGtt`: Truyền đầy đủ `targetDate: selectedDate` khi gọi POST `run-gtt-check`.
+   - Thiết kế lại 100% Modal Nhật ký kiểm tra theo chuẩn Developer Terminal Dark Card:
+     - Header đồng nhất `#161f36` với icon Terminal trong khung xanh dương `#38bdf8`, tag định danh `Phiên {selectedDate}`, giờ chạy và nút đóng tiện lợi.
+     - Toolbar `#0f172a` với thanh tìm kiếm `#1e293b` viền `#334155`, focus ring `#38bdf8`, badge số dòng log và nút sao chép tương tác mượt mà.
+     - Terminal body `#060913` hiển thị số dòng rõ ràng, highlight syntax chuyên nghiệp (Xanh cho thành công/khớp, Đỏ cho lỗi, Vàng cho cảnh báo/lệch, Xanh dương cho header `===`).
+     - Footer `#131d31` hiển thị đầy đủ chip thống kê màu: Tổng hợp đồng, Số khớp, Số lệch, Thiếu giá và nút Đóng.
+
+### 4. Xác nhận Build/Kiểm thử
+- Backend: `nest build` $\rightarrow$ Mã thoát 0 (Thành công 100%).
+- Frontend: `next build` $\rightarrow$ Mã thoát 0 (Thành công 100%).
+
+---
+
+## [2026-09-25T17:28] MIGRATION: Bóc Tách Và Chuẩn Hóa 8 File Template CCP Output Từ Template Gốc Của M-System
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Bóc tách từng template chuẩn từ thư mục `Thong ke so lot giao dich` và `Thong ke gia tri giao dich` sang thư mục `Thong ke ccp/output/` để thay thế hoàn toàn 8 file template ảo (ngày 17/9 và 18/9), đưa về cấu trúc chuẩn mực 2 sheet `['TONGHOP' / 'Tổng hợp', 'T09.2026']` giống hệt file ACM.
+- Giải mã cơ chế lọc "Tài khoản âm ký quỹ MỚI" của Tool C# IT Tool (`TransactionCheckingService.cs#L490`): Phân biệt rõ giữa tài khoản âm mới và danh sách tài khoản âm cố hữu đã biết (`NagativeMarginAccs`).
+
+### 2. Chi tiết thực hiện
+- Đã sao lưu toàn bộ 8 file cũ vào: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/output/Backup_Templates_20260925/`.
+- Chuyển đổi thành công 8 file template chuẩn:
+  1. `Thong ke so lot giao dich 2026.xlsx`: `['TONGHOP', 'T09.2026']` (162 cột chuẩn).
+  2. `Thong ke so lot giao dich LME 2026.xlsx`: `['Tổng hợp', 'T09.2026']` (74 cột chuẩn).
+  3. `Thong ke so lot giao dich Options 2026.xlsx`: `['Tổng hợp', 'T09.2026']` (82 cột chuẩn).
+  4. `Thong ke so lot giao dich Spread 2026.xlsx`: `['Tổng hợp', 'T09.2026']` (94 cột chuẩn).
+  5. `Thong ke gia tri giao dich 2026.xlsx`: `['TONGHOP', 'T09.2026']` (69 cột chuẩn).
+  6. `Thong ke gia tri giao dich LME 2026.xlsx`: `['Tổng hợp', 'T09.2026']` (11 cột chuẩn).
+  7. `Thong ke gia tri giao dich Options 2026.xlsx`: `['Tổng hợp', 'T09.2026']` (18 cột chuẩn).
+  8. `Thong ke gia tri giao dich Spread 2026.xlsx`: `['Tổng hợp', 'T09.2026']` (11 cột chuẩn).
+
+---
+
+## [2026-09-25T17:11] REFACTOR: Bảo Tồn Logic Đọc File CoreCCP Dưới Dạng Comment Phục Vụ Tách Module Độc Lập
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo của USER: *"comment lại chứ không được xóa đi vì nhỡ sau bê ra làm module khác"*.
+- Giữ nguyên toàn bộ logic quét thư mục, đọc buffer file `qltkgdCcp`, `eodCcp`, `ttttCcp` và bóc tách dữ liệu CoreCCP dưới dạng block comment có ghi chú rõ ràng tại [pre-eod-recon.service.ts#L663-L690](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L663-L690), không xóa bỏ mã nguồn để sẵn sàng tái sử dụng khi mở rộng module CoreCCP độc lập.
+
+---
+
+## [2026-09-25T16:58] BUGFIX: Chuẩn Hóa Logic Hiển Thị 3 Khối Con EOD (Bám Sát Nghiệp Vụ C# IT Tool - Không Báo Giả Khi Chưa Chạy)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện nghiêm túc chỉ đạo của USER: *"lấy job mới nhất của ngày hôm nay nếu nay chưa chạy thì không hiện nhé"*, bám sát tuyệt đối luồng nghiệp vụ của tool C# gốc (`operate-transaction-app`), chấm dứt việc tự ý fallback chéo giữa các tác vụ độc lập.
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+1. **Tool C# gốc**: 3 khối kiểm tra EOD tương ứng với 3 nút độc lập:
+   - Khối 1: `btnCheckDSGDTruocEOD_Click` $\rightarrow$ `SCAN_NEGATIVE_MARGIN` / `CHECK_EOD_MM`.
+   - Khối 2: `btnEODResult_Click` $\rightarrow$ `CHECK_EOD_MM` / `CHECK_EOD`.
+   - Khối 3: `btnCheckCQGSync_Click` $\rightarrow$ `CHECK_CQG_SYNC`.
+   - Khi ca trực mới bắt đầu hoặc chưa bấm nút nào $\rightarrow$ Bảng tương ứng hoàn toàn trống, không hiển thị giờ chạy giả định.
+2. **Lỗi trong code cũ**:
+   - Trong `recon-console-summary.service.ts`: Khối 2 (`preEod`) và Khối 3 (`cqgSync`) tự ý fallback lấy thời gian từ `preEodJob.createdAt` (Job `CHECK_PRE_EOD` chạy lúc **09:47:06 sáng**).
+   - Dẫn đến việc dù người dùng ca chiều chưa bấm Check CQG Sync hay vừa bấm Check EOD MM lúc 16:34:13, giao diện vẫn bị kẹt ở thời gian cũ `(09:47:06 25/09)` và hiển thị thông báo "khớp hoàn toàn" từ sáng.
+
+### 3. Chi tiết các sửa đổi bám sát nghiệp vụ
+1. **Backend** ([recon-console-summary.service.ts#L880-L1070](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L880-L1070)):
+   - **Khối 1 (`negativeMargin`)**: Chỉ đọc từ `marginJob` (`CHECK_EOD_MM` / `SCAN_NEGATIVE_MARGIN`). Nếu hôm nay chưa chạy $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
+   - **Khối 2 (`preEod` - Kết quả chạy EOD)**: Lấy Job EOD mới nhất của ngày hôm nay (`latestEodJob` giữa `CHECK_EOD_MM` và `CHECK_PRE_EOD`). Nếu hôm nay chưa chạy $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
+   - **Khối 3 (`cqgSync` - Kết quả đồng bộ số dư CQG)**: **Chỉ đọc duy nhất** từ `cqgSyncJob` (`CHECK_CQG_SYNC`). Nếu hôm nay chưa chạy $\rightarrow$ `executedAt: null`, `status: 'IDLE'`. Bỏ 100% fallback sang `preEodJob`.
+2. **Frontend** ([LegacyReconSection.tsx#L768-L774](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L768-L774)):
+   - `hasExecutedCqgSync`: Chỉ bật `true` khi `summaryData?.cqgSync?.executedAt` tồn tại và status khác `IDLE`. Bỏ hoàn toàn fallback sang `preEod`.
+   - Header và bảng của 3 khối chỉ hiển thị kết quả và thời gian khi `hasExecuted` là `true`. Nếu hôm nay chưa chạy $\rightarrow$ Hiển thị khung chờ với hướng dẫn bấm "Check" để bắt đầu đối soát.
+
+---
+
+## [2026-09-25T16:50] FEATURE & ENHANCEMENT: Mở Rộng Hàng Đợi Tác Vụ Trading Manager - Hiển Thị Toàn Bộ Tác Vụ Hệ Thống & Xem Log Trực Tiếp Không Cần Vào Bot-Config
+
+### 1. Mục tiêu thay đổi
+- Đáp ứng yêu cầu của USER: Hiển thị đầy đủ tất cả các tác vụ trong Hàng Đợi (Job Queue) của màn hình Trading Manager (như `CHECK_EOD_MM`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...), cho phép kiểm soát viên xem trực tiếp tiến trình và nhật ký log thực thi ngay tại chỗ mà không cần phải chuyển sang trang `/admin/bot-config`.
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+- Trong [TradingManagerJobQueueSection.tsx#L32-L51](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L32-L51), mảng `TRADING_JOB_TYPES` chỉ chứa 18 tác vụ tĩnh và thiếu các tác vụ cốt lõi: `CHECK_EOD_MM`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...
+- Hàm `fetchJobs` và `filteredJobs` thực hiện lọc kép theo `TRADING_JOB_TYPES`, khiến các tác vụ ngoài danh sách này hoàn toàn biến mất khỏi Hàng Đợi của Trading Manager, buộc người dùng phải mở sang trang Quản trị Bot (`/admin/bot-config`) mới thấy được Job.
+
+### 3. Các thay đổi kỹ thuật chi tiết
+1. **Mở rộng danh mục tác vụ & Chuẩn hóa nhãn tiếng Việt** ([TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx)):
+   - Bổ sung vào `TRADING_JOB_TYPES`: `CHECK_EOD_MM`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `RUN_VALUE_TVKD_MACRO`, `VERIFY_EMAIL`, `EMAIL_PARSER`, `EMAIL_PARSE`, `TKGD_EXTRACT`, `TKGD_RECONCILE`.
+   - Cập nhật hàm `getJobLabel` hiển thị tên tiếng Việt rõ nghĩa và chuyên nghiệp cho tất cả các loại Job.
+2. **Bổ sung bộ chọn Phạm Vi Tác Vụ (Scope Selector)**:
+   - Thêm bộ chuyển đổi: **"Toàn bộ hệ thống"** (`jobScope === 'ALL'`) vs **"Chỉ Trading"** (`jobScope === 'TRADING'`).
+   - Mặc định là **"Toàn bộ hệ thống"**: Gọi API `${API_BASE_URL}/api/v1/bot-engine/jobs` (lấy 100% tất cả các Job trong CSDL MongoDB giống hệt `/admin/bot-config`), cho phép người dùng theo dõi và xem log của mọi tác vụ.
+3. **Bổ sung Dropdown Lọc Theo Loại Tác Vụ Cụ Thể**:
+   - Tự động gom danh sách loại tác vụ thực tế từ CSDL (`availableJobTypes`), cho phép lọc nhanh xem riêng từng loại Job (như chỉ xem EOD MM, chỉ xem KLGD, chỉ xem RPA...).
+4. **Xác nhận Build & Deploy**:
+   - Frontend Next.js build thành công 100% (`next build` - Exit code 0).
+   - Đã đồng bộ và deploy lên máy chủ `10.0.0.26`, PM2 reload `mxv-frontend`.
+
+---
+
+## [2026-09-25T16:40] BUGFIX: Chấm Dứt Hiện Tượng Retry 3 Lần Lặp Lại Vô Ích Trong Các Job Đối Chiếu EOD & CQG Sync
+
+### 1. Mục tiêu thay đổi
+- Khắc phục hiện tượng Job đối chiếu EOD M-System (`CHECK_EOD`), EOD CoreCCP và CQG Sync chạy lặp lại 3 lần (`Attempt 1/3`, `Attempt 2/3`, `Attempt 3/3`) rồi mới dừng khi phát hiện có tài khoản âm margin hoặc lệch công thức số dư.
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+- Trong các handler cũ ([recon-jobs.handler.ts#L1116-L1118](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1116-L1118)), khi phát hiện `totalNegative > 0 || totalMismatchedEod > 0`, code lại thực hiện câu lệnh `throw new Error(...)`.
+- Bộ điều phối hàng đợi [bot-job-queue.service.ts#L444](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts#L444) bắt được Exception này và coi đây là "Lỗi kỹ thuật hệ thống (Crash/Network Error)", từ đó kích hoạt chính sách tự động thử lại 3 lần (`maxAttempts = 3`).
+- Do các file Excel nguồn là dữ liệu tĩnh trên ổ đĩa, cả 3 lần chạy lại đều cho kết quả giống hệt nhau, gây lãng phí tài nguyên và làm người dùng phải chờ đợi không cần thiết.
+
+### 3. Các thay đổi kỹ thuật chi tiết
+1. **Chuẩn hóa luồng trả về của các tác vụ đối chiếu** ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)):
+   - Trong `handleCheckEodJob`, `handleCheckEodCcpJob`, và `handleCheckCqgSyncJob`:
+     * Khi có tài khoản âm margin hoặc chênh lệch nghiệp vụ, ghi nhận chi tiết cảnh báo vào `job.logs`, lưu kết quả vào `job.payload.result` và thực hiện `return result` ngay (giống như logic chuẩn của `CHECK_PRE_EOD` và `CHECK_KLGD`).
+     * Tuyệt đối không `throw Error` đối với kết quả đối soát nghiệp vụ.
+   - Nhờ đó, Job sẽ hoàn tất ngay trong 1 lần chạy duy nhất (Completed kèm cảnh báo nghiệp vụ), không còn bị retry lặp lại 3 lần.
+2. **Xác nhận Build & Deploy**:
+   - Backend NestJS build thành công 100% (`npm run build`).
+   - Đã đồng bộ và deploy lên máy chủ `10.0.0.26`, PM2 reload `mxv-backend`.
+
+---
+
+## [2026-09-25T16:30] BUGFIX: Khắc Phục Lỗi Đường Dẫn File Lũy Kế CCP (Thiếu Thư Mục output/) & Bổ Sung Smart Path Resolver
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi khi người dùng bấm **"Ghi file Số Lot"** và **"Ghi file Giá Trị"** trên giao diện Trading Manager:
+  * *"Ghi file Số Lot hoàn tất nhưng có cảnh báo: Lỗi ghi file lũy kế lot ACM: File lũy kế lot ACM CCP không tồn tại: "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/Thong ke so lot giao dich ACM 2026.xlsx". Vui lòng kiểm tra cấu hình đường dẫn."*
+  * *"Ghi file Giá Trị hoàn tất nhưng có cảnh báo: Lỗi ghi file lũy kế GTGD ACM: File lũy kế GTGD ACM CCP không tồn tại: "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/Thong ke gia tri giao dich ACM 2026.xlsx". Vui lòng kiểm tra cấu hình đường dẫn."*
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+- **Kiểm tra thực tế hệ thống lưu trữ trên máy chủ Ubuntu (`10.0.0.26`)**:
+  * Thư mục cha: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/`
+  * Tất cả 10 file Excel lũy kế thành phẩm thực tế đang nằm trong thư mục con `output/`:
+    `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/output/`
+    (gồm: `Thong ke so lot giao dich ACM 2026.xlsx`, `Thong ke gia tri giao dich ACM 2026.xlsx`, `Thong ke so lot giao dich 2026.xlsx`, v.v.).
+- **Nguyên nhân gốc rễ**:
+  * Bản ghi cấu hình trong MongoDB `system_settings` (`ccp_lot_statistics_config`) trước đó được lưu với đường dẫn trỏ trực tiếp vào thư mục cha:
+    `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp\Thong ke so lot giao dich ACM ${YYYY}.xlsx` (thiếu `output\`).
+  * Khi backend gọi `ensureBaseFileExists(filePath)` và `fs.existsSync(filePath)`, kiểm tra thất bại vì file nằm trong `output/` $\rightarrow$ ném ngoại lệ cảnh báo.
+
+### 3. Các thay đổi kỹ thuật chi tiết
+1. **Bổ sung Smart Path Resolver cho CCP Accumulator** ([ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts)):
+   - Thêm hàm `resolveCcpAccumulatorFilePath(filePath, jobLogs?)`:
+     * Nếu file tồn tại tại `filePath` $\rightarrow$ giữ nguyên.
+     * Nếu không tìm thấy, tự động kiểm tra xem có tồn tại trong thư mục con `output/` không (`path.join(dir, 'output', base)`).
+     * Ngược lại, nếu đường dẫn có chứa `output/` nhưng file ở thư mục cha, tự động fallback lên thư mục cha.
+   - Áp dụng vào toàn bộ 5 hàm ghi file: `writeCcpLotToAccumulator`, `writeCcpGtgdToAccumulator`, `writeCcpTypedLotToAccumulator`, `writeCcpTypedValueToAccumulator`, `appendCcpRawDsgd`.
+2. **Cập nhật Service Backend** ([ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts)):
+   - Trong `writeToAccumulator`: Áp dụng `resolveCcpAccumulatorFilePath` cho tất cả các đường dẫn resolved (Phase 1, Phase 2 Lot, GTGD, Raw DSGD).
+   - Trong `getConfig`: Thiết lập giá trị mặc định chuẩn có thư mục con `output\`.
+3. **Cập nhật UI Frontend** ([CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)):
+   - Thêm nút tiện ích **"Nạp Mặc Định (output/)"** (`handleApplyDefaultOutputPaths`) kèm icon `RotateCcw` để người dùng có thể tự động điền bộ 10 đường dẫn chuẩn chỉ bằng 1 cú nhấp chuột.
+   - Cập nhật toàn bộ các placeholder hướng dẫn trỏ đúng vào thư mục `output\`.
+4. **Cập nhật CSDL MongoDB trên máy chủ `10.0.0.26`**:
+   - Đã cập nhật trực tiếp key `ccp_lot_statistics_config` trong collection `system_settings` (database `mxv_shift_checklist` và `checklist`) trỏ đúng vào thư mục `output\`.
+5. **Xác nhận Build & Deploy**:
+   - Backend NestJS build thành công 100% (`npm run build`).
+   - Frontend Next.js build thành công 100% (`next build`).
+   - Đã đóng gói và đồng bộ lên production server `10.0.0.26`.
+
+---
+
+## [2026-09-25T16:10] REFACTOR & BUGFIX: Chuẩn Hóa 100% Theo Tool C# - Lưu Đúng Thư Mục Phiên & Check EOD Xỏ Đúng Thư Mục
+
+### 1. Mục tiêu thay đổi
+- Bám sát 100% mã nguồn Tool C# gốc (`operate-transaction-app/Utils/FIleUtils.cs#GetEODResult` & `TransactionCheckingService.cs#CheckEOD`):
+  1. **Lưu file EOD đúng ngày**: Khi tải file EOD từ mail Outlook, tự động bóc tách ngày phiên (`ngày phiên YYYY-MM-DD` hoặc `eod.YYYY-MM-DD.csv`) và lưu thẳng vào đúng thư mục phiên `Backup MS/Futures/YYYY/T{MM}.{YYYY}/{DD}.{MM}/eod.YYYY-MM-DD.csv`.
+  2. **Check EOD xỏ đúng thư mục**: Khi chạy đối chiếu EOD phiên nào, trỏ thẳng vào thư mục phiên đó, đọc đồng bộ bộ 3 file: `QLTKGD.xlsx`, `eod.{YYYY}-{MM}-{DD}.csv`, `TTTT.xlsx`. Tuyệt đối không copy file qua lại giữa các ngày, không nhảy thư mục.
+  3. **Chuẩn hóa công thức EOD theo C#**: Đọc đúng `Lãi lỗ thực tế` từ `TTTT.xlsx` quy đổi theo loại tiền tệ (USD, JPY, MYR) và đọc `Phí dịch vụ thanh toán (VND)` từ `QLTKGD.xlsx`, khắc phục hoàn toàn tình trạng báo lệch số dư do không tính lãi lỗ hợp đồng.
+
+### 2. Các thay đổi kỹ thuật chi tiết
+1. **Lưu file EOD từ Email về đúng thư mục phiên** ([email-watcher.service.ts#L980-L990](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L980-L990)):
+   - Tự động nhận diện `sessionDateFromMail` từ email M-System. Bất kể caller truyền `customDir` thế nào, file đính kèm EOD luôn được lưu chuẩn xác vào thư mục phiên của ngày trong email (`resolveDailySubfolder(msBackupBase, sessionDateFromMail)`).
+2. **Check EOD xỏ vào đúng thư mục phiên** ([recon-jobs.handler.ts#L1026-L1085](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1026-L1085) & [pre-eod-recon.service.ts#L620-L665](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L620-L665)):
+   - Xác định đúng `targetDate` phiên cần đối soát. Trỏ trực tiếp vào thư mục phiên `.../Backup MS/Futures/YYYY/T{MM}.{YYYY}/{DD}.{MM}/`.
+   - Nếu trong thư mục phiên chưa có file `eod`, gọi email watcher tải thẳng về thư mục này. Tuyệt đối không tự ý copy file giữa các ngày.
+3. **Chuẩn hóa bóc tách Lãi lỗ thực tế theo C#** ([ccp-recon.service.ts#L425-L505](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts#L425-L505)):
+   - Port 1:1 từ `FIleUtils.cs` (lines 1831-1926): Bóc `Lãi lỗ thực tế` từng mã hợp đồng trong `TTTT.xlsx`, gom theo tài khoản và phân loại tiền tệ (JRU/OSE -> JPY, FCPO/BMD -> MYR, còn lại -> USD).
+   - Lấy `Phí dịch vụ thanh toán (VND)` trực tiếp từ cột `QLTKGD.xlsx`.
+   - Kết quả: Tất cả tài khoản khớp 100% với số dư EOD của M-System (chênh lệch = 0).
+4. **Deploy & Build**:
+   - Backend và Frontend build sạch sẽ 100%.
+   - Đã deploy lên Ubuntu Server `10.0.0.26` và reload PM2 (`mxv-backend`, `mxv-frontend`).
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu & Phản hồi từ USER**:
+  1. Loại bỏ cơ chế "Self-Healing tự copy file EOD từ thư mục ngày kế tiếp (T+1) sang ngày phiên (T-1)": Đây là cơ chế tự suy diễn, vô lý và làm xáo trộn cấu trúc file lưu trữ. Thư mục phiên nào thì chỉ đọc đúng thư mục đó.
+  2. Khắc phục sự cố nút **"Lấy File EOD từ Email (it.support)"** trên giao diện không tải được file về thư mục Backup M-System.
+  3. Giải thích rõ nguyên nhân bảng "Kết quả chạy EOD" hiển thị lệch 2 tài khoản `003C0531975` (-75) và `012C0113545` (-137.5).
+
+### 2. Nguyên nhân kỹ thuật phát hiện (Code-First Grounding)
+1. **Lỗi nút "Lấy File EOD từ Email" không lưu file**:
+   - Khi kiểm tra thực tế hòm thư Microsoft 365 (`it.support@mxv.vn`):
+     * Lúc `09:36:53 (25/09)`: Môi trường Staging gửi email test `[STG] MXV M-System - Thông báo kết quả chạy EOD hệ thống - ngày phiên 2026-09-24` với nội dung **chạy EOD không thành công** $\rightarrow$ Email này **hoàn toàn KHÔNG có file đính kèm (`hasAttachments: false`)**.
+     * Lúc `00:08:21 (25/09)`: M-System thật gửi email `MXV M-System - Thông báo kết quả chạy EOD hệ thống - ngày phiên 2026-09-24` $\rightarrow$ Email này **CÓ file đính kèm (`hasAttachments: true`)** là file `eod.2026-09-24.csv` (8.36 MB).
+   - Trong code cũ [email-watcher.service.ts#L930](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L930), hàm chỉ lấy `candidates[0]` (email mới nhất) mà **không kiểm tra `em.hasAttachments === true`**, dẫn tới việc bốc trúng email STG không có tệp đính kèm $\rightarrow$ Tải về `0` file (`downloadedFiles: []`).
+
+### 3. Các thay đổi kỹ thuật chi tiết
+1. **Loại bỏ cơ chế Self-Healing copy ngày kế tiếp** ([recon-jobs.handler.ts#L1044-L1070](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1044-L1070)):
+   - Xóa bỏ hoàn toàn đoạn quét và copy file `eod` từ thư mục ngày T+1 sang thư mục phiên.
+   - Dọn sạch file `eod.2026-09-24.csv` bị copy nhầm vào thư mục `25.09` trên server Ubuntu.
+2. **Nâng cấp bộ lọc Email EOD chuẩn xác** ([email-watcher.service.ts#L925-L960](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L925-L960)):
+   - **Bắt buộc email ứng viên phải có tệp đính kèm** (`em.hasAttachments === true`).
+   - Ưu tiên loại bỏ email môi trường Staging `[STG]` khi đã có email chính thức từ Production.
+   - Nếu tìm thấy email báo lỗi/không có file đính kèm, hàm trả về cảnh báo rõ ràng thay vì âm thầm báo thành công 0 file.
+   - Tự động đối chiếu cả ngày ca trực và ngày phiên (T-1) để match chuẩn xác email EOD.
+
+### 4. Kiểm chứng thực tế
+- Đã test gọi API `/api/v1/bot-engine/fetch-eod-email`:
+  `{"success": true, "message": "Đã tải 1 tệp đính kèm từ email \"MXV M-System - Thông báo kết quả chạy EOD hệ thống - ngày phiên 2026-09-24\" về /mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T09.2026/24.09", "downloadedFiles": [".../eod.2026-09-24.csv"]}` $\rightarrow$ **Thành công 100%**.
+- Đã deploy bản mới lên Ubuntu Server `10.0.0.26` và reload PM2 (`mxv-backend`, `mxv-frontend`).
+
+---
+
+## [2026-09-25T14:15] OPTIMIZATION & BUGFIX: Căn Chỉnh Đối Soát EOD Chuẩn Phiên T-1, Cơ Chế Last-Known-Good Captcha Model & Chuẩn Hóa Thời Lượng Job
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Xử lý triệt để lỗi đối soát EOD báo lệch ảo 641 tài khoản do so sánh chéo phiên (đọc `QLTKGD.xlsx` ngày hôm nay so với `eod.YYYY-MM-DD.csv` của phiên hôm qua).
+  2. Phân tích nguyên nhân thời lượng chạy Job hiển thị > 8 phút (~498s) và tối ưu.
+  3. Áp dụng cơ chế ghi nhớ model giải Captcha thành công gần nhất (Last-Known-Good Model / MRU Cache) để tránh lãng phí 15s - 25s "dò mìn" qua 5 model lỗi (omni, 3.8, 3.7, 3.6).
+  4. Tối ưu Worker Straits ACM: Loại bỏ việc tải thừa file `Order.xlsx` (tiết kiệm thêm 60-90s) và bỏ copy giả mạo đuôi `.xlsx` từ file `.csv`.
+
+### 2. Các thay đổi kỹ thuật chi tiết
+1. **Chuẩn hóa ngày phiên T-1 cho Job EOD M-System** ([recon-jobs.handler.ts#L985-L1082](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L985-L1082)):
+   - Tự động xác định `targetDate` là T-1 khi job chạy tự động.
+   - Thêm cơ chế tự phục hồi (Self-Healing): Quét thư mục ngày kế tiếp (T+1), nếu phát hiện file `eod.YYYY-MM-DD.csv` bị lưu nhầm thì tự động copy về đúng thư mục ngày phiên T-1.
+   - Thêm thông điệp log phân biệt rõ ràng: Các tài khoản chênh lệch là "Lệch thực do nghiệp vụ" (giao dịch phát sinh sau 05:00 sáng), không phải "lệch ảo do đọc nhầm phiên".
+2. **Cơ chế tự phục hồi trong Service EOD** ([pre-eod-recon.service.ts#L641-L661](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L641-L661)):
+   - Tự động tìm và khôi phục file EOD từ thư mục ngày T+1 trước khi fallback sang email M365.
+3. **Bóc tách ngày phiên từ Email EOD** ([email-watcher.service.ts#L942-L966](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L942-L966)):
+   - Trích xuất ngày phiên thực tế từ tiêu đề / nội dung email (`ngày phiên 2026-09-24` hoặc `eod.2026-09-24.csv`) để lưu đúng thư mục ngày phiên.
+4. **Cơ chế Last-Known-Good Captcha Model** ([rpa-downloader.service.ts#L2174-L2343](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts#L2174-L2343)):
+   - Thêm biến `lastSuccessfulGeminiModel` (lưu trong RAM & MongoDB setting `bot_last_successful_gemini_model`).
+   - Đưa model thành công gần nhất lên vị trí ưu tiên số 1 (Index 0). Lần gọi sau gọi trúng ngay lập tức chỉ mất 1 - 2 giây, triệt tiêu hoàn toàn 14 giây chờ dò mìn qua 5 model lỗi.
+5. **Tối ưu Worker ACM** ([recon-jobs.handler.ts#L411-L435](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L411-L435)):
+   - Loại bỏ việc tải thừa file `Order.xlsx` (tiết kiệm thêm 60-90 giây, triệt tiêu nguy cơ dính 502 ALB ACM).
+   - Loại bỏ lệnh copy đổi tên giả mạo `.xlsx` từ file CSV `Straits.csv`.
+6. **Sửa lỗi tính toán và hiển thị thời lượng Job** ([reconLogParser.ts#L108-L325](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/utils/reconLogParser.ts#L108-L325) & [ReconLogSummaryModal.tsx#L302-L311](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx#L302-L311)):
+   - Lọc bỏ mốc `Job enqueued` khi xếp hàng chờ, chỉ tính `firstIso` từ lúc worker thực sự nhận việc (`Starting attempt`).
+   - Thời lượng thực tế bot chạy trả về đúng **94s** thay vì con số ảo **498s** (đã bao gồm 6 phút 43 giây chờ queue).
+   - Thêm trường `durationFormatted`: Hiển thị dạng thân thiện `1m 34s (94s)` trên UI modal.
+
+### 3. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)
+- [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts)
+- [backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)
+- [frontend/src/app/trading-manager/utils/reconLogParser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/utils/reconLogParser.ts)
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx)
+- [backend/src/scripts/deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js)
+
+### 4. Kết quả xác nhận Kiểm thử & Build
+- Backend: `nest build` $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Giải thích lỗi và hỗ trợ sửa: `Object is possibly 'undefined'. @[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts:L492]`.
+- **Nguyên nhân cốt lõi**:
+  - Trong [ReconJobsHandler](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L28-L30), dependency `ccpCeDownloaderService` được inject dưới dạng `@Optional()` và có kiểu dữ liệu `CcpCeDownloaderService | undefined`.
+  - Tại hàm nội bộ `runWorkerCcp` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L492)), code gọi trực tiếp `this.ccpCeDownloaderService.prepareKlgdSession(...)` mà không kiểm tra (guard) giá trị có tồn tại hay không, dẫn đến TypeScript compiler cảnh báo lỗi `TS2532: Object is possibly 'undefined'`.
+- **Giải pháp**:
+  - Gán `const ccpService = this.ccpCeDownloaderService;` ở đầu worker `runWorkerCcp`.
+  - Kiểm tra guard `if (!ccpService)`: Nếu chưa được inject hoặc không tồn tại, log cảnh báo thân thiện, set `readyState.ccp = true; checkAllReadyAndTrigger(); return;` theo đúng thiết kế fail-safe / non-blocking của barrier.
+  - Sử dụng biến `ccpService` đã được TypeScript tự động thu hẹp kiểu (type narrowing) thành `CcpCeDownloaderService` an toàn 100%.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): L464-L498.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Typecheck: `npx tsc --noEmit` $\rightarrow$ `recon-jobs.handler.ts` **0 lỗi**.
+- Backend build: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+## [2026-09-25T09:50] FEATURE & UI/UX: Chuẩn Hóa 3 Khối EOD (Âm Ký Quỹ, Kết Quả EOD, Đồng Bộ Số Dư CQG) Theo Phiên Hôm Nay
+
+### 1. Mục tiêu thay đổi
+- **Phát hiện & Yêu cầu từ USER**: *"vậy dựa vào gtt giúp tôi bổ sung logic hiển thị thêm cho component con trên"*.
+- **Phân tích vấn đề thực tế**:
+  1. Trong [recon-console-summary.service.ts#L628-L656](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L628-L656), khi hôm nay chưa có job nào chạy, code có đoạn fallback tự ý truy vấn `botJobModel.findOne({ jobType: ... }).sort({ createdAt: -1 })` mà không có điều kiện lọc ngày, dẫn đến việc âm thầm nạp kết quả của ngày hôm qua hoặc ngày cũ lên giao diện hôm nay.
+  2. Trên giao diện [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx), 3 khối con ("Tài khoản âm ký quỹ mới", "Kết quả chạy EOD", "Kết quả đồng bộ số dư CQG") khi mảng rỗng (chưa chạy) lại tự động hiển thị icon tick xanh *"An Toàn: Không có tài khoản âm ký quỹ mới"* và *"Số dư tài khoản đồng bộ khớp hoàn toàn giữa MS và CQG"*, gây hiểu nhầm nguy hiểm là hôm nay đã kiểm tra và an toàn.
+- **Giải pháp thực thi (Chuẩn hóa toàn diện giống GTT)**:
+  1. **Tầng Backend API** ([recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts)):
+     - Loại bỏ toàn bộ các fallback kéo job cũ từ ngày hôm qua vào phiên hôm nay. Nếu phiên hôm nay chưa chạy, `preEodJob`, `marginJob`, `cqgSyncJob` sẽ trả về `null` và `status: 'IDLE'`.
+     - Bổ sung trường `cqgSync: { jobId, executedAt, status }` trong summary object.
+  2. **Tầng Frontend UI** ([LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)):
+     - Thêm cờ kiểm tra thực thi cho từng khối: `hasExecutedMargin`, `hasExecutedEod`, `hasExecutedCqgSync`.
+     - **Khi phiên hôm nay chưa chạy**: Hiển thị trạng thái chờ kiểm tra sạch sẽ với icon đồng hồ trung tính:
+       * Khối Âm ký quỹ: *"Chưa chạy kiểm tra tài khoản âm ký quỹ phiên này. Bấm 'Check' để quét."*
+       * Khối Kết quả EOD: *"Chưa chạy đối chiếu EOD phiên này. Bấm 'Check' để bắt đầu đối soát."*
+       * Khối Đồng bộ CQG: *"Chưa chạy đồng bộ số dư CQG phiên này. Bấm 'Check' để kiểm tra."*
+     - **Khi phiên hôm nay đã chạy**:
+       * Hiển thị đầy đủ số liệu lệch (nếu có lỗi) hoặc tick xanh (nếu khớp hoàn toàn/an toàn).
+       * Hiển thị nhãn thời gian kiểm tra thực tế: `Kiểm tra lúc: HH:mm:ss DD/MM` ở cả header và trong bảng kết quả.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts): L628-L665, L1040-L1055.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx): L764-L790, L1945-L2255.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**, 25/25 static pages compiled.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"được giúp tôi thêm thêm bỏ sung nhưng mà log ra nên để thuật ngữ người dùng thay vì quá máy móc kỹ thuật"*.
+- **Giải pháp kỹ thuật (Clean Single-Pass Supplementary Download)**:
+  1. Trong [rpa-download.handler.ts#L288-L345](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts#L288-L345):
+     - Sau khi duyệt hết danh sách 20 báo cáo lần 1, nếu có báo cáo bị gián đoạn hoặc nghẽn mạng tạm thời (ví dụ dính 429 Rate Limit), bot không ném lỗi ngay mà **tự động tạm dừng 3 giây** để đường truyền và Rate Limit của M-System ổn định hoàn toàn.
+     - **Tự động kích hoạt Vòng tải bổ sung** (duyệt đúng 1 lần các file trong `failedTargets` qua phương thức chuẩn `rpaDownloaderService.downloadByTarget`).
+     - Nếu tải thành công ở vòng bổ sung: Lập tức sao lưu vào thư mục Backup MS, chuyển sang danh sách thành công và xóa khỏi danh sách lỗi.
+     - Giúp toàn bộ 20/20 báo cáo được tải về trọn vẹn ngay trong Lượt 1 mà không cần phải tắt mở lại trình duyệt sang Lượt 2.
+  2. **Chuẩn hóa thông điệp nhật ký (User-Friendly Logs)**:
+     - Toàn bộ thông điệp ghi log được biên tập bằng ngôn ngữ tự nhiên, dễ hiểu, tránh các thuật ngữ kỹ thuật máy móc:
+       * `Có X báo cáo chưa tải xong. Tạm nghỉ 3 giây và tự động tải lại bổ sung...`
+       * `[Tải bổ sung] Đang tải lại báo cáo: X...`
+       * `[Tải bổ sung] Đã lưu thành công X vào thư mục Backup.`
+       * `[Tải bổ sung] Báo cáo X vẫn chưa tải được: ...`
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts): L288-L345.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"api lấy ra Giá thanh toán (GTT M-System vs CQG) này giúp tôi sửa lại đầu api chỉ lấy ra gtt của phiên hôm nay vì hiện tại user bảo để hiện cả phiên hôm qua dễ nhìn nhầm. nếu hôm nay chưa chạy thì để trống"*.
+- **Giải pháp thực thi**:
+  1. **Tầng Backend API** ([bot-engine.controller.ts#L1592](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts#L1592)):
+     - Cập nhật endpoint `@Get('gtt-report')` nhận tham số `@Query('date') dateQuery?: string`.
+     - So sánh ngày thực tế của báo cáo gần nhất (`report.runAt` / `report.completedAt` theo múi giờ Việt Nam UTC+7) với ngày mục tiêu (mặc định là ngày hôm nay `YYYY-MM-DD`).
+     - **Nếu hôm nay chưa chạy đối soát GTT** (báo cáo lưu trên đĩa là của phiên hôm qua hoặc ngày cũ): API chủ động trả về `report: null` kèm thông báo: `Phiên ngày YYYY-MM-DD chưa chạy đối soát GTT. Báo cáo gần nhất là của ngày ...`.
+  2. **Tầng Frontend UI** ([LegacyGttCheckerSection.tsx#L70](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx#L70)):
+     - Cập nhật `fetchGttReport`: Gửi kèm `selectedDate` lên API và gán `setGttReport(data.report || null)`.
+     - Khi phiên hôm nay chưa chạy (`gttReport === null`): Bảng dữ liệu hiển thị trạng thái trống sạch sẽ *"Chưa có dữ liệu đối chiếu giá thanh toán. Bấm 'Check GTT' để kiểm tra."*, ẩn nhãn thời gian và vô hiệu hóa nút *"Tạo file nhập GTT"*, loại bỏ 100% rủi ro nhìn nhầm số liệu của phiên hôm qua.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts): L1592-L1645.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx): L70-L105.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**, 25/25 static pages compiled.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Phát hiện từ USER**: 
+  - Khi bot tải liên tiếp 14 báo cáo quá nhanh, API backend của M-System (`https://msapi.mxv.com.vn/position/admin/open`) kích hoạt cơ chế WAF Rate Limiting trả về lỗi: `vendor-network-DSg34y-G.js:2 GET https://msapi.mxv.com.vn/position/admin/open?limit=20&offset=0 429 (Too Many Requests)`.
+  - Kết quả: Bảng Trạng thái mở bị trắng dữ liệu (`0 to 0 of 0`), khi bot click nút xuất file thì M-System hiện thông báo lỗi *"Download file không thành công"* và không kích hoạt sự kiện download. Khi người dùng chờ một lúc và bấm F5 reload lại trang thì dữ liệu lại hiển thị bình thường.
+- **Giải pháp kỹ thuật (Anti-Throttling & Self-Healing)**:
+  1. **Tầng RPA Service** ([rpa-downloader.service.ts#L1368](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts#L1368)):
+     - Trong `downloadTTM`: Bổ sung cơ chế phát hiện bảng trống `"0 to 0 of 0"` hoặc thông báo lỗi `toast-error` / `alert-danger` do 429.
+     - Khi phát hiện 429, bot tự động tạm dừng 6 giây để cửa sổ Rate Limit reset, sau đó tự động gọi `page.reload()` (F5) nạp lại bảng dữ liệu trước khi bấm nút xuất file.
+     - Hỗ trợ tối đa 3 lần thử lại (`maxAttempts = 3`) với delay tăng dần (7 giây).
+  2. **Tầng Job Queue Handler** ([rpa-download.handler.ts#L270](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts#L270)):
+     - Thêm khoảng nghỉ nhẹ (Pacing Delay) `await page.waitForTimeout(1500);` (1.5s) giữa các lần tải báo cáo để dòng truy vấn mượt mà, không làm nghẽn API Gateway của M-System.
+  3. **Tầng Test Script** ([test_ms_download_all_20_reports.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ms_download_all_20_reports.js)):
+     - Bổ sung kiểm tra `"0 to 0 of 0"`, dừng 6s và F5 reload nạp lại dữ liệu, đồng thời thêm khoảng nghỉ 2s giữa các file.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): L1368-L1435.
+- [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts): L270-L272.
+- [backend/src/scripts/test_ms_download_all_20_reports.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ms_download_all_20_reports.js): L304-L320.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm.cmd run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"giúp tôi lưu các file test quan trọng vào ngữ cảnh của ai lần sau bạn có thể gợi ý cho tôi mà test thay vì phải code mới"*.
+- **Giải pháp thực thi**:
+  1. Cập nhật trực tiếp vào file chỉ thị cốt lõi của trợ lý AI [`.agents/AGENTS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md) mục `## 9. Danh Mục Test Scripts Chuẩn Hóa Của Dự Án (Standard Test Scripts Registry)` để AI luôn tự động đọc được toàn bộ danh sách script kiểm thử mỗi khi bắt đầu phiên làm việc.
+  2. Tạo sổ tay tra cứu tập trung cho lập trình viên tại [`docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md).
+  3. Bổ sung các lệnh tắt NPM trong [`backend/package.json`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json) (`npm run test:ms-20`, `npm run test:ms-ttm`, `npm run test:cqg-parallel`, `npm run test:ccp-25`, `npm run test:tkgd-pipeline`, `npm run test:pre-eod`).
+  4. Sửa chuẩn hóa [test_ms_download_all_20_reports.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ms_download_all_20_reports.js) khớp 100% logic của `rpa-downloader.service.ts` (sửa 7 URL bị lệch, thêm cơ chế tự động tái kết nối `ensureLoggedIn` và fallback qua Sidebar).
+
+### 2. Danh sách file chỉnh sửa
+- [`.agents/AGENTS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md): Bổ sung Section 9 lưu trữ vĩnh viễn danh mục test scripts cho AI Assistant.
+- [`docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md): Tạo mới tài liệu sổ tay tra cứu.
+- [`backend/package.json`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json): Bổ sung 6 lệnh chạy tắt NPM kiểm thử.
+- [`backend/src/scripts/test_ms_download_all_20_reports.js`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ms_download_all_20_reports.js): Chuẩn hóa 20 URL/SubTab và cơ chế phục hồi phiên.
+
+---
+
+## [2026-09-25T08:24] REVERT & OPTIMIZE: Giữ Thứ Tự Vào URL Trực Tiếp Trước Cho TTM & TTTT (Kèm Dự Phòng Sidebar Khi Lỗi)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: *"thôi vậy thì cho vào url trước đi cho nhanh đổi lại như ttm và ttt như cũ"*.
+- **Cơ chế thực thi**:
+  1. Giữ nguyên tính đồng bộ tốc độ cao của hệ thống: Thử điều hướng trực tiếp bằng URL hash (`gotoAndDownload`) trước để tải file nhanh nhất có thể.
+  2. Kèm cơ chế an toàn: Nếu vào URL hash gặp sự cố (ví dụ không bắt được nút do route chưa tải), bot tự động chuyển sang fallback bấm nút Menu Sidebar (`navigateAndDownload` qua `['QL trạng thái', 'Trạng thái mở']` hoặc `['QL trạng thái', 'Trạng thái tất toán']`).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * L1222-L1254: `downloadTTTT`: Chạy `gotoAndDownload('#/positionManagement/finalPositionInfo')` trước $\rightarrow$ Lỗi fallback sang `navigateAndDownload(['QL trạng thái', 'Trạng thái tất toán'])`.
+  * L1368-L1399: `downloadTTM`: Chạy `gotoAndDownload('#/positionManagement/openPositionInfo')` trước $\rightarrow$ Lỗi fallback sang `navigateAndDownload(['QL trạng thái', 'Trạng thái mở'])`.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm.cmd run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  - Tại khối **"Kết quả chạy EOD"** trên giao diện [LegacyReconSection.tsx#L2007](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2007): Khi bấm nút "Check" chạy đối chiếu số liệu EOD (`CHECK_EOD_MM`), nếu hệ thống kiểm tra trong thư mục Backup MS cục bộ mà chưa có file EOD (`eod.YYYY-MM-DD.csv`, `EOD.csv`), hệ thống sẽ **tự động quét và lấy file EOD từ mail Outlook M365 (`it.support@mxv.vn`) về thư mục luôn**.
+  - Đây là luồng ngoại lệ dự phòng (vì tính năng quét mail định kỳ của bot hiện đang tạm tắt). Yêu cầu bổ sung cơ chế này thông minh, liền mạch, **không phá vỡ cấu trúc luồng chính ổn định** của hệ thống.
+- **Giải pháp kỹ thuật (Zero-Breaking Architecture)**:
+  1. **Tầng Bot Job Queue / Worker Handler** ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)):
+     - Khi `handleCheckEodMmJob` khởi chạy, bot tự động resolve đường dẫn thư mục `msDailyPath` của ngày phiên (`year/Tmonth.year/day.month`).
+     - Dùng `findLatestFile(msDailyPath, /eod/i)` kiểm tra xem file EOD đã có trên đĩa chưa.
+     - **Nếu ĐÃ CÓ**: Ghi log `📁 Đã tìm thấy file EOD sẵn có trong thư mục Backup MS` và tiếp tục đối soát tức thì (không tốn thời gian gọi API M365).
+     - **Nếu CHƯA CÓ**: Ghi log thông báo kích hoạt luồng ngoại lệ và gọi `emailWatcherService.fetchEodEmail(dateStr, msDailyPath)`. File EOD đính kèm được tải trực tiếp về `msDailyPath`. Toàn bộ log này được stream real-time qua WebSocket lên giao diện cho USER quan sát.
+  2. **Tầng Core Service Reconciliation** ([pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)):
+     - Trong `runAutoCheckEodMm(tradingDate)`: Kiểm tra `eodPath = findLatestFile(msDailyPath, /eod/i)`. Nếu chưa có, kích hoạt fallback gọi `this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath)`.
+     - Phục hồi lại lệnh gọi tính toán đối soát `this.ccpReconService.checkEOD(...)` đối chiếu chi tiết 4 thành phần số liệu (`QLTKGD.xlsx` vs `EOD.csv` và CoreCCP nếu có), trả về đầy đủ `eodResult` (danh sách tài khoản lệch, âm margin, âm số dư) để hiển thị chi tiết lên bảng UI Frontend thay vì chỉ trả về đối tượng rỗng.
+  3. **Tầng Frontend UI** ([LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)):
+     - Bổ sung `title` tooltip mô tả trực quan cơ chế dự phòng tự động tải file EOD cho nút "Check" tại khối "Kết quả chạy EOD".
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  * L1-L30: Inject `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
+  * L998-L1052: Bổ sung logic kiểm tra file EOD trong thư mục Backup MS; tự động gọi `emailWatcherService.fetchEodEmail` khi chưa có file, kèm log real-time rõ ràng.
+- [backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts):
+  * L1-L36: Inject `@Optional() @Inject(forwardRef(() => CcpReconService)) private readonly ccpReconService?: CcpReconService` và `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
+  * L632-L700: Cập nhật `runAutoCheckEodMm`: Bổ sung fallback tự động tải EOD từ email nếu thiếu file, và gọi `this.ccpReconService.checkEOD(...)` trả về đầy đủ `eodResult`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  * L2014: Thêm tooltip `title` trực quan trên nút "Check" của khối "Kết quả chạy EOD".
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm.cmd run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `cmd /c npm.cmd run build` (`next build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+## [2026-09-24T18:22] FIX & OPTIMIZE: Sửa Triệt Để Lỗi Tải Báo Cáo TTM (FontAwesome fas fa-file-csv) & Cơ Chế Skip File Khi Retry
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. USER cung cấp HTML và ảnh thực tế của nút xuất file trên trang Trạng thái mở (`#/positionManagement/openPositionInfo`):
+     `<button class="ladda-button btn btn-ghost-primary active" ...><span class="ladda-label"><i class="fas fa-file-csv"></i></span></button>`.
+  2. USER đặt vấn đề: *"hiện tại tôi đang thấy tải lỗi mỗi TTM mà cứ tải lại toàn bộ liên tục xem có phải bug (vì nếu tải lại thì nên tải lại file TTM thôi đúng không)"*.
+- **Nguyên nhân kỹ thuật đã giải quyết**:
+  1. **Lỗi Selector icon `fas fa-file-csv`**: Giao diện M-System dùng FontAwesome 5 Solid (`<i class="fas fa-file-csv"></i>`). Selector cũ chỉ tìm `i.fa-file-csv` hoặc `button.btn-info`. Class `btn-info` xuất hiện trước nút xuất file trong cây DOM khiến bot click nhầm vào nút Tìm kiếm/Filter, không phát sinh download và timeout 90s.
+  2. **Tải lại toàn bộ 20 file khi retry**: Vòng lặp `for (const target of targets)` không kiểm tra file đã có trong thư mục Backup. Khi 1 file lỗi, queue kích hoạt `Attempt 2/3` và tải lại toàn bộ 19 file đã thành công.
+  3. **Thiếu fallback cho TTM**: Hàm `downloadTTM` chỉ có `gotoAndDownload` mà không có fallback sang Sidebar `['QL trạng thái', 'Trạng thái mở']`.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts):
+  * L49-L85: Cập nhật `MS_SPECIFIC_EXPORT_BUTTON_SELECTORS` và `MS_EXPORT_BUTTON_SELECTORS`:
+    - Thêm selector chuẩn xác khớp HTML thực tế: `button:has(i[class*="fa-file-csv"])`, `button:has(i.fas.fa-file-csv)`, `button.ladda-button:has(i[class*="fa-file-csv"])`, `button.btn-ghost-primary:has(i[class*="fa-file-csv"])`.
+    - Loại bỏ class generic `button.btn-info` khỏi mảng selector để tránh click nhầm nút Tìm kiếm/Bộ lọc.
+- [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
+  * L1353-L1380: Nâng cấp `downloadTTM` thêm khối fallback: Nếu `gotoAndDownload` thất bại, tự động chuyển sang điều hướng Sidebar qua menu `['QL trạng thái', 'Trạng thái mở']` với pattern regex `/openPositionInfo/`.
+- [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts):
+  * L140-L157: Thêm bước kiểm tra thông minh ở đầu vòng lặp: Nếu file `finalBackupFile` đã tồn tại trong thư mục Backup MS (`stats.size > 100 bytes`), bot tự động ghi log skip và chuyển sang file tiếp theo. Nhờ đó các lần retry (Attempt 2/3) **chỉ tải duy nhất các file còn thiếu hoặc bị lỗi (như TTM)**.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**:
+  1. Kiểm tra nguyên nhân bot `TASK_CHECK_EOD_sb1` (`EMAIL_PARSER` / `EMAIL_PARSE`) không quét được email kết quả EOD từ M-System và không lấy được file EOD về server.
+  2. Viết test script chẩn đoán luồng hoạt động M365 Graph API.
+  3. Thêm một đầu API backend và đưa thành nút bấm trên màn hình **"Backup – Thống kê – GTT"** ([LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)) để người dùng có thể chủ động bấm lấy file EOD từ hòm thư về thư mục Backup M-System.
+- **Nguyên nhân kỹ thuật đã xác minh qua script chẩn đoán**:
+  1. **Token M365 bị trống**: CSDL MongoDB (`system_settings`) chưa có `m365_refresh_token` (hoặc đã hết hạn mà chưa được cấp lại qua SSO Reauthorize).
+  2. **Lỗi Endpoint Graph API**: Trước đây code gọi cố định `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages`, đối với Delegated Token (tài khoản cá nhân), Graph API từ chối với mã lỗi 403 Forbidden. Cần ưu tiên gọi qua `https://graph.microsoft.com/v1.0/me/messages` và `/me/messages/{id}/attachments`.
+  3. **Cửa sổ thời gian 12h quá ngắn**: Email EOD thường gửi cuối ngày (17h-19h), khi bot ca sáng quét (>12h) đã bị Graph API loại bỏ. Đã nâng lên 48-72h.
+  4. **Chuẩn hóa chuỗi so khớp**: Dấu gạch ngang trong subject có thể là En-dash `–` thay vì Hyphen `-`. Đã thêm hàm `normalizeStr` làm sạch.
+  5. **Nhận diện loại bot**: Hỗ trợ đồng thời cả `EMAIL_PARSE` và `EMAIL_PARSER`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [backend/src/scripts/test_m365_eod_email.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_m365_eod_email.ts): *(Tạo mới)* Script chẩn đoán toàn diện kết nối M365, kiểm tra hiệu lực Refresh Token, kiểm tra quyền Graph API, quét tìm email EOD và đối chiếu cấu hình.
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json): Thêm script `"test:eod-email": "ts-node src/scripts/test_m365_eod_email.ts"`.
+- [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts):
+  * L5: Import `resolveDailySubfolder`.
+  * L188-L225: Nâng cấp `downloadAttachments` tự động thử endpoint `/me/messages/{id}/attachments` trước khi fallback sang `/users/{email}`.
+  * L570-L640: Nâng cấp `checkEmailTaskDelegated` mở rộng thời gian quét lên 48 giờ, ưu tiên endpoint `/me/messages`, normalize ký tự En-dash/Em-dash và hỗ trợ so khớp người gửi linh hoạt.
+  * L812-L950: Bổ sung method `fetchEodEmail(targetDateStr?, customDir?)` chuyên dụng để quét và tải file EOD từ M365 về đúng thư mục Backup MS ngày tương ứng (`resolveDailySubfolder`).
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  * L2130-L2152: Thêm endpoint `POST /api/v1/bot-engine/fetch-eod-email` nhận `targetDate` và `customDir`, gọi `this.emailWatcherService.fetchEodEmail(...)`.
+- [backend/src/modules/bot-engine/bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts):
+  * L239: Hỗ trợ cả `checkType === 'EMAIL_PARSE' || checkType === 'EMAIL_PARSER'`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  * L17: Import icon `Mail` từ `lucide-react`.
+  * L249: Thêm state `fetchingEodEmail`.
+  * L352-L380: Thêm handler `handleFetchEodEmail` gọi API `POST /api/v1/bot-engine/fetch-eod-email`, hiển thị toast loading/success/error và tự động làm mới trạng thái thư mục backup MS qua `handleAuditMsBackup()`.
+  * L933-L962: Tích hợp nút bấm trực quan **"Lấy File EOD từ Email (it.support)"** trong khối Cột 1 (Backup MS).
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `cmd /c npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
+
+---
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Phản ánh API `https://10.0.0.26/api/v1/bot-engine/jobs/6ab4f7965c9b1f507981910f/download-zip` không hoạt động khi bấm nút "Tải Báo Cáo (ZIP)" trong [TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx).
+- **Nguyên nhân kỹ thuật đã xác minh**:
+  1. API backend [bot-engine.controller.ts#L1921](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts#L1921) trước đây **chỉ kiểm tra duy nhất một đường dẫn cố định** `temp/reports/${jobId}`. Khi chạy trên môi trường thực tế (PM2/Ubuntu) hoặc các Job khác loại (`DOWNLOAD_CCP_REPORT`, `DOWNLOAD_CE_REPORT`, `CAST_DOWNLOAD_REPORTS`, `RUN_LOT_MACRO`...):
+     - Các file báo cáo được lưu thẳng vào thư mục Backup (`destFolder` / `outputDir`) hoặc file kết quả `result.outputPath`, không hề nằm trong thư mục tạm `temp/reports/${jobId}`.
+     - Ngay cả với M-System, sau khi tải về, file đã được copy sang thư mục Backup MS (`destFolder`), và thư mục `temp/` có thể đã bị dọn dẹp dẫn đến 404: *"Thư mục lưu trữ báo cáo của Job này không tồn tại hoặc đã bị xóa"*.
+  2. Frontend hiển thị nút "Tải Báo Cáo (ZIP)" tràn lan cho mọi job `COMPLETED`, kể cả những job không sinh tệp (như verify email, ping agent).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  * L52: Import `parseJobPayload`.
+  * L1904-L1965: Tái cấu trúc hàm `downloadJobZip` với cơ chế quét đa nguồn (Multi-Source Resolution):
+    - Quét Thư mục tạm `temp/reports/${jobId}`.
+    - Quét Thư mục đích trong `payload` & `result` (`destFolder`, `outputDir`, `backupFolder`, `targetFolder`, `tempDir`).
+    - Quét File đơn lẻ (`result.outputPath`, `result.filePath`, `payload.outputPath`) và mảng file (`result.downloadedFiles`, `payload.files`).
+    - Tự động suy diễn Thư mục Backup ngày (`resolveDailySubfolder`) dựa theo loại Job (`MS`, `CCP`, `CE`, `CAST`) và ngày ca trực (`sessionDay`, `targetDate`, `startDate`).
+    - Lọc file hợp lệ, đóng gói nén ZIP qua `JSZip` với compression `DEFLATE` và trả về `Content-Disposition: attachment; filename=BaoCao_${job.jobType}_${jobId}.zip`.
+    - Thông báo lỗi rõ ràng nếu không tìm thấy tệp thay vì crash.
+- [frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  * L256-L270: Thêm hàm helper `hasDownloadableReports(job)` để kiểm tra chính xác các tác vụ thực sự có sinh ra tệp báo cáo.
+  * L272-L290: Nâng cấp `handleDownloadZip` tự động bóc tách tên file chuẩn từ header `Content-Disposition` do server trả về thay vì gán tên chung.
+  * L655 & L980: Ràng buộc hiển thị nút "Tải Báo Cáo (ZIP)" theo `hasDownloadableReports(selectedJob)`.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `cmd /c npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
+
+---
+
+## [2026-09-24T17:50] REFACTOR: Triệt Để Loại Bỏ Mọi Hardcode & Magic Numbers Tỷ Giá (Zero-Hardcoding Standard)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: "giúp tôi kiểm tra xem đoạn nào còn hardcode không", phát hiện `let dbUsdRate = 25920; let dbJpyRate = 170; let dbMyrRate = 6383; let dbRmbRate = 3871;` và yêu cầu làm sạch toàn bộ các vị trí hardcode tỷ giá trong hệ thống.
+- **Tuân thủ quy chuẩn**: Universal Zero-Hardcoding Standard (AGENTS.md Mục 8) và Fail-Fast & Zero-Silent-Swallow:
+  * Không gán cứng magic numbers (`25920`, `25220`, `26000`, `6383`, `3871`, `170`) trong biến khởi tạo hoặc fallback mặc định.
+  * Mọi tỷ giá phải lấy 100% động từ CSDL MongoDB (`system_settings`) hoặc từ Live Bot Crawler.
+  * Nếu CSDL chưa có dữ liệu và file báo cáo chưa tải về, hệ thống báo lỗi rõ ràng (Fail-Fast) yêu cầu cấu hình/đồng bộ, không âm thầm fallback về số ảo.
+
+### 2. Danh sách file chỉnh sửa
+- [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
+  * L275-L278 & L291-L302: Khởi tạo các biến `dbUsdRate = 0`, `dbJpyRate = 0`, `dbMyrRate = 0`, `dbRmbRate = 0`; đọc `system_settings` không dùng default string tĩnh `26000`, `170`, `6383`, `3871`; kiểm tra `dbUsdRate > 0`, nếu không có ném ngoại lệ rõ ràng.
+  * L341: Xóa bỏ `tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;`, thay bằng fail-fast check `if (!tyGiaMap['USD'] || tyGiaMap['USD'] <= 0) throw new Error(...)`.
+  * L1311-L1335 (trong `scanDailyFiles`): Đổi biến khởi tạo về `0`, loại bỏ các fallback `25920`, `170`, `6383`, `3871`.
+- [backend/src/modules/reconciliation/services/ccp-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts):
+  * L65-L105: Đổi các fallback `getSetting` từ `26000`, `6383`, `170`, `3871` thành chuỗi rỗng `''`; hàm `getRate` fallback về `0` thay vì magic numbers.
+- [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
+  * L243-L245: Bảng `paymentRates` khởi tạo fallback `0` thay vì `6383`, `170`, `3871`.
+  * L394-L403: Hàm `getCurrentExchangeRates` đọc `system_settings` fallback `0`.
+  * L417-L422: Hàm `getCurrentUsdRate` đọc `usd_exchange_rate` không fallback `25920`, trả về `0` nếu chưa cấu hình.
+- [backend/src/modules/reconciliation/services/cqg-sync-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/cqg-sync-recon.service.ts):
+  * L210: Đổi `if (!effectiveRate || effectiveRate === 25220)` thành `if (!effectiveRate || effectiveRate <= 0)` và fail-fast ném Error nếu không tìm thấy tỷ giá.
+  * L742-L763: Đổi `let usdRate = 25220;` thành `0`, đọc động từ service/DB, không fallback `25920`.
+- [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts):
+  * L659 & L750: Thay thế fallback `25220` bằng `await this.reconciliationService.getCurrentUsdRate()`.
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  * L258-L260: Xóa fallback `25220`, đọc giá trị thực từ CSDL MongoDB.
+- [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+  * L820 & L1840: Xóa bỏ `|| 25920`, hiển thị động `result.tyGiaUsed?.['USD'] ? fmtNum(...) : 'Chưa có'`.
+  * L1411: Xóa bỏ `|| 25920` trong text hiển thị trạng thái DB.
+- [frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/ReconciliationModal.tsx):
+  * L84: Khởi tạo `useState<number>(0)` thay vì `25220`.
+- [frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx):
+  * L22 & L311: Khởi tạo `reconUsdRate = 0`, placeholder `"0"`. Bổ sung useEffect tự động nạp tỷ giá từ API `/api/v1/reconciliation/usd-rate`.
+- [frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx):
+  * L29: Khởi tạo `useState(0)` thay vì `25220`.
+- [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
+  * L87: Khởi tạo `useState(0)` thay vì `25220`.
+
+### 3. Kết quả xác nhận Kiểm thử & Build
+- Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (Thành công 100%)**.
+- Frontend: `cmd /c npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
+
+---
+
 ## [2026-09-24T17:30] FEAT: Hoàn Thiện Đồng Bộ Tỷ Giá M-System (4 Cặp Tiền Thanh Toán & Quy Đổi) Và Tỷ Giá Nguyên Tệ CoreCCP (Bot Playwright Active Download)
 
 ### 1. Mục tiêu thay đổi

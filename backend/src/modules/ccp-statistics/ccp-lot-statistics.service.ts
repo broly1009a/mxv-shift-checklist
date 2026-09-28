@@ -49,6 +49,7 @@ import {
   writeCcpTypedLotToAccumulator,
   writeCcpTypedValueToAccumulator,
   appendCcpRawDsgd,
+  resolveCcpAccumulatorFilePath,
   CcpAccumulatorPaths,
 } from './helpers/ccp-accumulator.helper';
 import {
@@ -272,10 +273,10 @@ export class CcpLotStatisticsService {
       }
 
       // Đọc tỷ giá từ Database (SystemSettings)
-      let dbUsdRate = 25920;
-      let dbJpyRate = 170;
-      let dbMyrRate = 6383;
-      let dbRmbRate = 3871;
+      let dbUsdRate = 0;
+      let dbJpyRate = 0;
+      let dbMyrRate = 0;
+      let dbRmbRate = 0;
 
       if (this.settingsService) {
         try {
@@ -288,18 +289,18 @@ export class CcpLotStatisticsService {
 
           const [ccpUsdStr, usdStr, ccpJpyStr, jpyStr, ccpMyrStr, myrStr, ccpRmbStr, rmbStr] = await Promise.all([
             this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
-            this.settingsService.getSetting('usd_exchange_rate', '26000'),
+            this.settingsService.getSetting('usd_exchange_rate', ''),
             this.settingsService.getSetting('ccp_jpy_exchange_rate', ''),
-            this.settingsService.getSetting('jpy_exchange_rate', '170'),
+            this.settingsService.getSetting('jpy_exchange_rate', ''),
             this.settingsService.getSetting('ccp_myr_exchange_rate', ''),
-            this.settingsService.getSetting('myr_exchange_rate', '6383'),
+            this.settingsService.getSetting('myr_exchange_rate', ''),
             this.settingsService.getSetting('ccp_rmb_exchange_rate', ''),
-            this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+            this.settingsService.getSetting('rmb_exchange_rate', ''),
           ]);
-          dbUsdRate = matrix['USD']?.conversionRate || parseFloat(ccpUsdStr) || parseFloat(usdStr) || 26000;
-          dbJpyRate = matrix['JPY']?.conversionRate || parseFloat(ccpJpyStr) || parseFloat(jpyStr) || 170;
-          dbMyrRate = matrix['MYR']?.conversionRate || parseFloat(ccpMyrStr) || parseFloat(myrStr) || 6383;
-          dbRmbRate = matrix['RMB']?.conversionRate || matrix['CNY']?.conversionRate || parseFloat(ccpRmbStr) || parseFloat(rmbStr) || 3871;
+          dbUsdRate = Number(matrix['USD']?.conversionRate) || parseFloat(ccpUsdStr) || parseFloat(usdStr) || 0;
+          dbJpyRate = Number(matrix['JPY']?.conversionRate) || parseFloat(ccpJpyStr) || parseFloat(jpyStr) || 0;
+          dbMyrRate = Number(matrix['MYR']?.conversionRate) || parseFloat(ccpMyrStr) || parseFloat(myrStr) || 0;
+          dbRmbRate = Number(matrix['RMB']?.conversionRate) || Number(matrix['CNY']?.conversionRate) || parseFloat(ccpRmbStr) || parseFloat(rmbStr) || 0;
 
           // Nạp các đồng tiền khác từ ma trận (nếu người dùng thêm EUR, SGD...)
           for (const [code, item] of Object.entries<any>(matrix)) {
@@ -327,20 +328,24 @@ export class CcpLotStatisticsService {
             this.logger.warn(`[CCP] Lỗi lưu tỷ giá vào DB: ${err.message}`);
           }
         }
-      } else {
+      } else if (dbUsdRate > 0) {
         tyGiaMap['USD'] = dbUsdRate;
         this.logger.log(`[CCP] Sử dụng tỷ giá từ Database: USD=${dbUsdRate.toLocaleString('vi-VN')}, JPY=${dbJpyRate}, MYR=${dbMyrRate}`);
         warnings.push(`Sử dụng tỷ giá từ cấu hình Database: 1 USD = ${dbUsdRate.toLocaleString('vi-VN')} đ`);
+      } else {
+        throw new Error('Chưa cấu hình tỷ giá USD trong hệ thống và không tìm thấy file Tỷ giá CCP. Vui lòng đồng bộ hoặc cấu hình tỷ giá trong Cài đặt Quản lý Giao dịch.');
       }
 
-      tyGiaMap['JPY'] = dbJpyRate;
-      tyGiaMap['MYR'] = dbMyrRate;
-      tyGiaMap['CNY'] = dbRmbRate;
+      if (dbJpyRate > 0) tyGiaMap['JPY'] = dbJpyRate;
+      if (dbMyrRate > 0) tyGiaMap['MYR'] = dbMyrRate;
+      if (dbRmbRate > 0) tyGiaMap['CNY'] = dbRmbRate;
     }
-    // Mặc định tỷ giá USD quy đổi nếu file tỷ giá thiếu
-    tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;
+    // Fail-fast nếu tỷ giá USD thiếu
+    if (!tyGiaMap['USD'] || tyGiaMap['USD'] <= 0) {
+      throw new Error('Tỷ giá USD chưa được cấu hình hoặc tải về từ hệ thống.');
+    }
     // VND luôn = 1
-    tyGiaMap['VND'] = tyGiaMap['VND'] ?? 1;
+    tyGiaMap['VND'] = 1;
 
     // ── 1B. Parse file Mã HĐ / Quy chuẩn Hàng hóa CCP (doCao) ──────────────
     if (files.maHD) {
@@ -508,10 +513,10 @@ export class CcpLotStatisticsService {
 
     // ── 1. Phase 1: ACM Lot & GTGD (giữ nguyên tương thích) ────────────────
     const resolvedAcmLotPath = (paths.pathAcmLot || (paths as any).pathAcmCumulative)
-      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmLot || (paths as any).pathAcmCumulative, result.ngayGD))
+      ? resolveCcpAccumulatorFilePath(resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmLot || (paths as any).pathAcmCumulative, result.ngayGD)), jobLogs)
       : undefined;
     const resolvedAcmGtgdPath = (paths.pathAcmGtgd || (paths as any).pathGtgdAcm)
-      ? resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd || (paths as any).pathGtgdAcm, result.ngayGD))
+      ? resolveCcpAccumulatorFilePath(resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathAcmGtgd || (paths as any).pathGtgdAcm, result.ngayGD)), jobLogs)
       : undefined;
 
     if (shouldWriteLot && resolvedAcmLotPath) {
@@ -560,7 +565,10 @@ export class CcpLotStatisticsService {
           continue;
         }
 
-        const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+        const resolved = resolveCcpAccumulatorFilePath(
+          resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD)),
+          jobLogs,
+        );
         try {
           await writeCcpTypedLotToAccumulator(result, resolved, type, jobLogs);
           lotUpdated = true;
@@ -593,7 +601,10 @@ export class CcpLotStatisticsService {
           continue;
         }
 
-        const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD));
+        const resolved = resolveCcpAccumulatorFilePath(
+          resolveStoragePathCrossPlatform(resolveDynamicPath(rawPath, result.ngayGD)),
+          jobLogs,
+        );
         try {
           await writeCcpTypedValueToAccumulator(result, resolved, type, jobLogs);
           gtgdUpdated = true;
@@ -609,7 +620,10 @@ export class CcpLotStatisticsService {
 
     // ── 4. Phase 2: Raw DSGD Lũy Kế (Chỉ ghi khi Scope là ALL hoặc LOT_ONLY) ───
     if (shouldWriteLot && paths.pathDsgdCumulative && dsgdBuffer) {
-      const resolved = resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathDsgdCumulative, result.ngayGD));
+      const resolved = resolveCcpAccumulatorFilePath(
+        resolveStoragePathCrossPlatform(resolveDynamicPath(paths.pathDsgdCumulative, result.ngayGD)),
+        jobLogs,
+      );
       try {
         await appendCcpRawDsgd(dsgdBuffer, resolved, result.ngayGD, jobLogs);
         this.logger.log(`[CCP-ACC] Đã ghi lũy kế DSGD Raw vào: ${resolved}`);
@@ -691,30 +705,31 @@ export class CcpLotStatisticsService {
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
     );
+    const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
     try {
       const p = JSON.parse(raw);
       return {
         // Phase 1
-        pathAcmLot: p.pathAcmLot || p.pathAcmCumulative || '',
-        pathAcmGtgd: p.pathAcmGtgd || p.pathGtgdAcm || '',
-        pathAcmCumulative: p.pathAcmCumulative || p.pathAcmLot || '',
-        pathGtgdAcm: p.pathGtgdAcm || p.pathAcmGtgd || '',
+        pathAcmLot: p.pathAcmLot || p.pathAcmCumulative || `${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`,
+        pathAcmGtgd: p.pathAcmGtgd || p.pathGtgdAcm || `${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`,
+        pathAcmCumulative: p.pathAcmCumulative || p.pathAcmLot || `${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`,
+        pathGtgdAcm: p.pathGtgdAcm || p.pathAcmGtgd || `${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`,
         // Phase 2 - Số Lot
-        pathNormalLot: p.pathNormalLot || p.pathNormalCumulative || '',
-        pathSpreadLot: p.pathSpreadLot || p.pathSpreadCumulative || '',
-        pathLmeLot: p.pathLmeLot || p.pathLmeCumulative || '',
-        pathOptionsLot: p.pathOptionsLot || p.pathOptionsCumulative || '',
-        pathNormalCumulative: p.pathNormalCumulative || p.pathNormalLot || '',
-        pathSpreadCumulative: p.pathSpreadCumulative || p.pathSpreadLot || '',
-        pathLmeCumulative: p.pathLmeCumulative || p.pathLmeLot || '',
-        pathOptionsCumulative: p.pathOptionsCumulative || p.pathOptionsLot || '',
+        pathNormalLot: p.pathNormalLot || p.pathNormalCumulative || `${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`,
+        pathSpreadLot: p.pathSpreadLot || p.pathSpreadCumulative || `${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`,
+        pathLmeLot: p.pathLmeLot || p.pathLmeCumulative || `${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`,
+        pathOptionsLot: p.pathOptionsLot || p.pathOptionsCumulative || `${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`,
+        pathNormalCumulative: p.pathNormalCumulative || p.pathNormalLot || `${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`,
+        pathSpreadCumulative: p.pathSpreadCumulative || p.pathSpreadLot || `${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`,
+        pathLmeCumulative: p.pathLmeCumulative || p.pathLmeLot || `${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`,
+        pathOptionsCumulative: p.pathOptionsCumulative || p.pathOptionsLot || `${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`,
         // Phase 2 - Raw DSGD
-        pathDsgdCumulative: p.pathDsgdCumulative || '',
+        pathDsgdCumulative: p.pathDsgdCumulative || `${defaultOut}\\DSGD T\${MM}.\${YYYY} CCP.xlsx`,
         // Phase 2 - GTGD
-        pathGtgdNormal: p.pathGtgdNormal || '',
-        pathGtgdSpread: p.pathGtgdSpread || '',
-        pathGtgdLme: p.pathGtgdLme || '',
-        pathGtgdOptions: p.pathGtgdOptions || '',
+        pathGtgdNormal: p.pathGtgdNormal || `${defaultOut}\\Thong ke gia tri giao dich \${YYYY}.xlsx`,
+        pathGtgdSpread: p.pathGtgdSpread || `${defaultOut}\\Thong ke gia tri giao dich Spread \${YYYY}.xlsx`,
+        pathGtgdLme: p.pathGtgdLme || `${defaultOut}\\Thong ke gia tri giao dich LME \${YYYY}.xlsx`,
+        pathGtgdOptions: p.pathGtgdOptions || `${defaultOut}\\Thong ke gia tri giao dich Options \${YYYY}.xlsx`,
         // Cấu hình chung
         ccpApiBaseUrl: p.ccpApiBaseUrl || '',
         updateCumulative: p.updateCumulative === true || p.updateCumulative === 'true',
@@ -722,23 +737,23 @@ export class CcpLotStatisticsService {
       };
     } catch {
       return {
-        pathAcmLot: '',
-        pathAcmGtgd: '',
-        pathAcmCumulative: '',
-        pathGtgdAcm: '',
-        pathNormalLot: '',
-        pathSpreadLot: '',
-        pathLmeLot: '',
-        pathOptionsLot: '',
-        pathNormalCumulative: '',
-        pathSpreadCumulative: '',
-        pathLmeCumulative: '',
-        pathOptionsCumulative: '',
-        pathDsgdCumulative: '',
-        pathGtgdNormal: '',
-        pathGtgdSpread: '',
-        pathGtgdLme: '',
-        pathGtgdOptions: '',
+        pathAcmLot: `${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`,
+        pathAcmGtgd: `${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`,
+        pathAcmCumulative: `${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`,
+        pathGtgdAcm: `${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`,
+        pathNormalLot: `${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`,
+        pathSpreadLot: `${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`,
+        pathLmeLot: `${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`,
+        pathOptionsLot: `${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`,
+        pathNormalCumulative: `${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`,
+        pathSpreadCumulative: `${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`,
+        pathLmeCumulative: `${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`,
+        pathOptionsCumulative: `${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`,
+        pathDsgdCumulative: `${defaultOut}\\DSGD T\${MM}.\${YYYY} CCP.xlsx`,
+        pathGtgdNormal: `${defaultOut}\\Thong ke gia tri giao dich \${YYYY}.xlsx`,
+        pathGtgdSpread: `${defaultOut}\\Thong ke gia tri giao dich Spread \${YYYY}.xlsx`,
+        pathGtgdLme: `${defaultOut}\\Thong ke gia tri giao dich LME \${YYYY}.xlsx`,
+        pathGtgdOptions: `${defaultOut}\\Thong ke gia tri giao dich Options \${YYYY}.xlsx`,
         ccpApiBaseUrl: '',
         updateCumulative: false,
         bot_backup_path_ccp: ccpBackupPath,
@@ -1308,28 +1323,28 @@ export class CcpLotStatisticsService {
       result.canProcess = !!result.files.dsgd?.present;
 
       // 6. Kiểm tra tỷ giá CSDL & Trích xuất tỷ giá từ file ngày (nếu có)
-      let dbUsdRate = 25920;
-      let dbCcpUsdRate = 25920;
-      let dbJpyRate = 170;
-      let dbMyrRate = 6383;
-      let dbRmbRate = 3871;
+      let dbUsdRate = 0;
+      let dbCcpUsdRate = 0;
+      let dbJpyRate = 0;
+      let dbMyrRate = 0;
+      let dbRmbRate = 0;
       let lastSynced = '';
 
       if (this.settingsService) {
         try {
           const [ccpUsdStr, usdStr, jpyStr, myrStr, rmbStr, syncedStr] = await Promise.all([
             this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
-            this.settingsService.getSetting('usd_exchange_rate', '25920'),
-            this.settingsService.getSetting('jpy_exchange_rate', '170'),
-            this.settingsService.getSetting('myr_exchange_rate', '6383'),
-            this.settingsService.getSetting('rmb_exchange_rate', '3871'),
+            this.settingsService.getSetting('usd_exchange_rate', ''),
+            this.settingsService.getSetting('jpy_exchange_rate', ''),
+            this.settingsService.getSetting('myr_exchange_rate', ''),
+            this.settingsService.getSetting('rmb_exchange_rate', ''),
             this.settingsService.getSetting('exchange_rates_last_synced', ''),
           ]);
-          dbUsdRate = parseFloat(usdStr) || 25920;
+          dbUsdRate = parseFloat(usdStr) || 0;
           dbCcpUsdRate = parseFloat(ccpUsdStr) || dbUsdRate;
-          dbJpyRate = parseFloat(jpyStr) || 170;
-          dbMyrRate = parseFloat(myrStr) || 6383;
-          dbRmbRate = parseFloat(rmbStr) || 3871;
+          dbJpyRate = parseFloat(jpyStr) || 0;
+          dbMyrRate = parseFloat(myrStr) || 0;
+          dbRmbRate = parseFloat(rmbStr) || 0;
           lastSynced = syncedStr;
         } catch {
           // ignore

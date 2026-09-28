@@ -1,4 +1,9 @@
-const { Client } = require('ssh2');
+let Client;
+try {
+  Client = require('ssh2').Client;
+} catch {
+  Client = require('c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/node_modules/ssh2').Client;
+}
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -41,7 +46,9 @@ function copyDirRecursive(srcDir, destDir) {
 const filesToDeploy = [
   'backend/src/modules/bot-engine/bot-engine.controller.ts',
   'backend/src/modules/bot-engine/bot-engine.service.ts',
+  'backend/src/modules/bot-engine/bot-job-queue.service.ts',
   'backend/src/modules/bot-engine/scheduler.service.ts',
+  'backend/src/modules/bot-engine/email-watcher.service.ts',
   'backend/src/modules/bot-engine/ccp-ce-downloader.service.ts',
   'backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts',
   'backend/src/modules/bot-engine/handlers/rpa-download.handler.ts',
@@ -82,6 +89,7 @@ const filesToDeploy = [
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx',
   'backend/src/modules/bot-engine/handlers/macro-value.handler.ts',
   'backend/src/modules/bot-engine/handlers/macro-lot.handler.ts',
+  'backend/src/scripts/test_check_klgd_playwright.js',
 ];
 
 for (const rel of filesToDeploy) {

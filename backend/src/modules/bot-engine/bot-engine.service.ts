@@ -236,7 +236,7 @@ export class BotEngineService {
             `[Bot] Checking Task [${task.taskId}] via ${checkType}. Target: "${target}"`,
           );
 
-          if (checkType === 'EMAIL_PARSE') {
+          if (checkType === 'EMAIL_PARSE' || checkType === 'EMAIL_PARSER') {
             // checkResult = await this.emailWatcherService.checkEmailTask(
             checkResult = await this.emailWatcherService.checkEmailTaskDelegated(
               target,

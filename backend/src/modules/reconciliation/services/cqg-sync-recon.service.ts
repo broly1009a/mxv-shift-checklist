@@ -207,16 +207,19 @@ export class CqgSyncReconService {
     }>
   > {
     let effectiveRate = usdExchangeRate;
-    if (!effectiveRate || effectiveRate === 25220) {
+    if (!effectiveRate || effectiveRate <= 0) {
       if (this.reconConsoleSummaryService) {
         effectiveRate = await this.reconConsoleSummaryService.getCurrentUsdRate();
       } else {
         const usdRateStr = await this.settingsService.getSetting(
           'usd_exchange_rate',
-          '25920',
+          '',
         );
-        effectiveRate = parseFloat(usdRateStr) || 25920;
+        effectiveRate = parseFloat(usdRateStr) || 0;
       }
+    }
+    if (!effectiveRate || effectiveRate <= 0) {
+      throw new Error('Chưa cấu hình tỷ giá USD để quy đổi số dư tài khoản CQG sang VND.');
     }
     // 1. Parse QLTKGD.xlsx
     const qltkgdWorkbook = XLSX.read(files.qltkgd, { type: 'buffer' });
@@ -739,7 +742,7 @@ export class CqgSyncReconService {
     if (!accountsBalancesPath)
       throw new Error('Không tìm thấy file Accounts_Balances.xlsx từ CQG');
 
-    let usdRate = 25220;
+    let usdRate = 0;
     try {
       this.logger.log('Đang tự động đồng bộ tỷ giá USD từ M-System...');
       if (this.reconConsoleSummaryService) {
@@ -747,19 +750,27 @@ export class CqgSyncReconService {
       } else {
         const usdRateStr = await this.settingsService.getSetting(
           'usd_exchange_rate',
-          '25920',
+          '',
         );
-        usdRate = parseFloat(usdRateStr) || 25920;
+        usdRate = parseFloat(usdRateStr) || 0;
       }
     } catch (err: any) {
       this.logger.warn(
         `Không thể đồng bộ tỷ giá USD tự động (sẽ sử dụng tỷ giá cấu hình): ${err.message}`,
       );
-      const usdRateStr = await this.settingsService.getSetting(
-        'usd_exchange_rate',
-        '25920',
-      );
-      usdRate = parseFloat(usdRateStr) || 25920;
+      if (this.reconConsoleSummaryService) {
+        usdRate = await this.reconConsoleSummaryService.getCurrentUsdRate();
+      } else {
+        const usdRateStr = await this.settingsService.getSetting(
+          'usd_exchange_rate',
+          '',
+        );
+        usdRate = parseFloat(usdRateStr) || 0;
+      }
+    }
+
+    if (!usdRate || usdRate <= 0) {
+      throw new Error('Không thể xác định tỷ giá USD từ M-System hoặc cấu hình CSDL để chạy đối chiếu số dư CQG.');
     }
 
     // Chạy check EOD CQG (Balance Reconciliation) - Hoàn toàn không phụ thuộc file eod.csv

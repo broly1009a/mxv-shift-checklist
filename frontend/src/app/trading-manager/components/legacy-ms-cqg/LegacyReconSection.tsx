@@ -764,6 +764,28 @@ export default function LegacyReconSection({
   // Negative Margin Accounts
   const negativeMarginAccounts: string[] = summaryData?.negativeMargin?.negativeIMRAcc || [];
 
+  // Trạng thái đã thực thi phiên kiểm tra cho từng khối con (tránh hiển thị kết quả giả định / kết quả cũ)
+  const hasExecutedMargin = !!(summaryData?.negativeMargin?.executedAt && summaryData?.negativeMargin?.status !== 'IDLE');
+  const hasExecutedEod = !!(summaryData?.preEod?.executedAt && summaryData?.preEod?.status !== 'IDLE');
+  const hasExecutedCqgSync = !!(summaryData?.cqgSync?.executedAt && summaryData?.cqgSync?.status !== 'IDLE');
+
+  const formatSubCheckTime = (iso?: string | null) => {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const vn = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const hh = String(vn.getHours()).padStart(2, '0');
+      const mm = String(vn.getMinutes()).padStart(2, '0');
+      const ss = String(vn.getSeconds()).padStart(2, '0');
+      const dd = String(vn.getDate()).padStart(2, '0');
+      const mo = String(vn.getMonth() + 1).padStart(2, '0');
+      return `${hh}:${mm}:${ss} ${dd}/${mo}`;
+    } catch {
+      return '';
+    }
+  };
+
   // Format number
   const fmt = (n: number) => {
     if (n === undefined || n === null) return '0';
@@ -1917,9 +1939,16 @@ export default function LegacyReconSection({
                   backgroundColor: 'var(--bg-input)',
                   borderBottom: '1px solid var(--border-color)',
                 }}>
-                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    Tài khoản âm ký quỹ mới (EOD)
-                  </h5>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      Tài khoản âm ký quỹ mới (EOD)
+                    </h5>
+                    {hasExecutedMargin && summaryData?.negativeMargin?.executedAt && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                        ({formatSubCheckTime(summaryData.negativeMargin.executedAt)})
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleTriggerRun('CHECK_EOD_MM', 'dsgd')}
@@ -1956,11 +1985,22 @@ export default function LegacyReconSection({
                         fontWeight: 700,
                         borderBottom: '1px solid var(--border-color)',
                       }}>
-                        <th style={{ padding: '10px 16px' }}>TKGD âm KQ mới ({negativeMarginAccounts.length})</th>
+                        <th style={{ padding: '10px 16px' }}>TKGD âm KQ mới ({hasExecutedMargin ? negativeMarginAccounts.length : 0})</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {negativeMarginAccounts.length > 0 ? (
+                      {!hasExecutedMargin ? (
+                        <tr>
+                          <td style={{ padding: '36px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <Clock size={24} color="var(--text-muted)" />
+                              <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                                Chưa chạy kiểm tra tài khoản âm ký quỹ phiên này. Bấm “Check” để quét.
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : negativeMarginAccounts.length > 0 ? (
                         negativeMarginAccounts.map((acc, idx) => (
                           <tr key={idx} style={{
                             borderBottom: '1px solid var(--border-color)',
@@ -1978,12 +2018,17 @@ export default function LegacyReconSection({
                         ))
                       ) : (
                         <tr>
-                          <td style={{ padding: '40px 16px', textAlign: 'center' }}>
+                          <td style={{ padding: '36px 16px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                               <ShieldCheck size={28} color="#10b981" />
                               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
                                 An Toàn: Không có tài khoản âm ký quỹ mới
                               </span>
+                              {summaryData?.negativeMargin?.executedAt && (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                  Kiểm tra lúc: {formatSubCheckTime(summaryData.negativeMargin.executedAt)}
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2003,14 +2048,22 @@ export default function LegacyReconSection({
                   backgroundColor: 'var(--bg-input)',
                   borderBottom: '1px solid var(--border-color)',
                 }}>
-                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    Kết quả chạy EOD
-                  </h5>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      Kết quả chạy EOD
+                    </h5>
+                    {hasExecutedEod && summaryData?.preEod?.executedAt && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                        ({formatSubCheckTime(summaryData.preEod.executedAt)})
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleTriggerRun('CHECK_EOD_MM', 'eod')}
                     disabled={triggering}
                     className="btn btn-secondary"
+                    title="Chạy đối chiếu EOD (Tự động tải file EOD từ mail Outlook nếu chưa có trong thư mục Backup MS)"
                     style={{
                       fontSize: '0.75rem',
                       padding: '6px 14px',
@@ -2048,12 +2101,19 @@ export default function LegacyReconSection({
                       </tr>
                     </thead>
                     <tbody>
-                      {((summaryData?.preEod?.mismatchedEOD && summaryData.preEod.mismatchedEOD.length > 0) ||
-                        (summaryData?.preEod?.mismatchedPositions && summaryData.preEod.mismatchedPositions.length > 0)) ? (
-                        (summaryData?.preEod?.mismatchedEOD?.length > 0
-                          ? summaryData.preEod.mismatchedEOD
-                          : summaryData.preEod.mismatchedPositions
-                        ).map((p: any, idx: number) => (
+                      {!hasExecutedEod ? (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <Clock size={24} color="var(--text-muted)" />
+                              <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                                Chưa chạy đối chiếu EOD phiên này. Bấm “Check” để bắt đầu đối soát.
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (summaryData?.preEod?.mismatchedEOD && summaryData.preEod.mismatchedEOD.length > 0) ? (
+                        summaryData.preEod.mismatchedEOD.map((p: any, idx: number) => (
                           <tr key={idx} style={{
                             borderBottom: '1px solid var(--border-color)',
                             backgroundColor: 'rgba(239, 68, 68, 0.05)',
@@ -2064,33 +2124,38 @@ export default function LegacyReconSection({
                             <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
                               {p.system && (
                                 <span style={{
-                                  display: 'inline-block',
-                                  padding: '1px 6px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 800,
-                                  marginRight: '6px',
-                                  backgroundColor: p.system === 'CCP' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                  color: p.system === 'CCP' ? '#a855f7' : '#3b82f6',
-                                  border: `1px solid ${p.system === 'CCP' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                                   display: 'inline-block',
+                                   padding: '1px 6px',
+                                   borderRadius: '4px',
+                                   fontSize: '0.7rem',
+                                   fontWeight: 800,
+                                   marginRight: '6px',
+                                   backgroundColor: p.system === 'CCP' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                   color: p.system === 'CCP' ? '#a855f7' : '#3b82f6',
+                                   border: `1px solid ${p.system === 'CCP' ? 'rgba(168, 85, 247, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
                                 }}>
                                   [{p.system}]
                                 </span>
                               )}
                               {p.maTKGD || p.account || '--'}
                             </td>
-                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>{fmt(p.calculatedBalance ?? p.msPosition ?? 0)}</td>
-                            <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>{fmt(p.eodBalance ?? p.cqgPosition ?? 0)} {p.differ !== undefined ? `(Lệch: ${fmt(p.differ)})` : ''}</td>
+                            <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>{fmt(p.calculatedBalance ?? 0)}</td>
+                            <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>{fmt(p.eodBalance ?? 0)} {p.differ !== undefined ? `(Lệch: ${fmt(p.differ)})` : ''}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center' }}>
+                          <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                               <CheckCircle size={28} color="#10b981" />
                               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
-                                Tất cả vị thế và kết quả EOD khớp hoàn toàn (MS & CCP)
+                                Tất cả số dư tài khoản khớp hoàn toàn với kết quả chạy EOD (MS & CCP)
                               </span>
+                              {summaryData?.preEod?.executedAt && (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                  Kiểm tra lúc: {formatSubCheckTime(summaryData.preEod.executedAt)}
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2111,9 +2176,16 @@ export default function LegacyReconSection({
                 backgroundColor: 'var(--bg-input)',
                 borderBottom: '1px solid var(--border-color)',
               }}>
-                <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  Kết quả đồng bộ số dư CQG
-                </h5>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Kết quả đồng bộ số dư CQG
+                  </h5>
+                  {hasExecutedCqgSync && summaryData?.cqgSync?.executedAt && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      ({formatSubCheckTime(summaryData.cqgSync.executedAt)})
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => handleTriggerRun('CHECK_CQG_SYNC', 'balance')}
@@ -2156,8 +2228,19 @@ export default function LegacyReconSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {summaryData?.preEod?.cqgResult && summaryData.preEod.cqgResult.length > 0 ? (
-                      summaryData.preEod.cqgResult.map((item: any, idx: number) => (
+                    {!hasExecutedCqgSync ? (
+                      <tr>
+                        <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <Clock size={24} color="var(--text-muted)" />
+                            <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                              Chưa chạy đồng bộ số dư CQG phiên này. Bấm “Check” để kiểm tra.
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : ((summaryData?.cqgSync?.cqgResult && summaryData.cqgSync.cqgResult.length > 0) || (summaryData?.preEod?.cqgResult && summaryData.preEod.cqgResult.length > 0)) ? (
+                      ((summaryData?.cqgSync?.cqgResult && summaryData.cqgSync.cqgResult.length > 0) ? summaryData.cqgSync.cqgResult : summaryData.preEod.cqgResult).map((item: any, idx: number) => (
                         <tr key={idx} style={{
                           borderBottom: '1px solid var(--border-color)',
                           backgroundColor: 'rgba(239, 68, 68, 0.05)',
@@ -2180,6 +2263,11 @@ export default function LegacyReconSection({
                             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
                               Số dư tài khoản đồng bộ khớp hoàn toàn giữa MS và CQG
                             </span>
+                            {summaryData?.cqgSync?.executedAt && (
+                              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                Kiểm tra lúc: {formatSubCheckTime(summaryData.cqgSync.executedAt)}
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>

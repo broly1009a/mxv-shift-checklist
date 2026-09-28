@@ -13,6 +13,7 @@ import {
   Search,
   Copy,
   Check,
+  Terminal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
@@ -66,20 +67,21 @@ export default function LegacyGttCheckerSection({
     setMounted(true);
   }, []);
 
-  // 1. Tải báo cáo GTT gần nhất từ server (chống mất dữ liệu khi chuyển tab)
+  // 1. Tải báo cáo GTT phiên hôm nay (hoặc ngày được chọn) từ server
   const fetchGttReport = async (isManual = false) => {
     if (!token) return;
     if (isManual) setRefreshing(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/gtt-report`, {
+      const url = selectedDate && selectedDate.trim().length >= 10
+        ? `${API_BASE_URL}/api/v1/bot-engine/gtt-report?date=${selectedDate.trim().slice(0, 10)}`
+        : `${API_BASE_URL}/api/v1/bot-engine/gtt-report`;
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
       const data = await res.json();
 
-      if (data.report) {
-        setGttReport(data.report);
-      }
+      setGttReport(data.report || null);
       if (Array.isArray(data.currentLogs)) {
         setLiveLogs(data.currentLogs);
       }
@@ -91,7 +93,11 @@ export default function LegacyGttCheckerSection({
       }
 
       if (isManual) {
-        toast.success('Đã làm mới dữ liệu Giá thanh toán!');
+        if (data.report) {
+          toast.success('Đã làm mới dữ liệu Giá thanh toán!');
+        } else {
+          toast(data.message || 'Phiên hôm nay chưa chạy đối soát GTT.');
+        }
       }
     } catch {
       // Bỏ qua lỗi ngầm khi unmount hoặc mạng gián đoạn
@@ -100,10 +106,10 @@ export default function LegacyGttCheckerSection({
     }
   };
 
-  // Tự động load dữ liệu ngay khi component mount (hoặc khi quay lại tab)
+  // Tự động load dữ liệu ngay khi component mount hoặc khi chọn ngày khác
   useEffect(() => {
     fetchGttReport(false);
-  }, [token]);
+  }, [token, selectedDate]);
 
   // Polling tự động mỗi 2.5s khi hệ thống đang chạy ngầm
   useEffect(() => {
@@ -128,7 +134,11 @@ export default function LegacyGttCheckerSection({
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ downloadMarketCsv: true, async: true }),
+        body: JSON.stringify({
+          downloadMarketCsv: true,
+          async: true,
+          targetDate: selectedDate,
+        }),
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -626,7 +636,7 @@ export default function LegacyGttCheckerSection({
               bottom: 0,
               width: '100vw',
               height: '100vh',
-              backgroundColor: 'rgba(9, 14, 26, 0.75)',
+              backgroundColor: 'rgba(5, 8, 18, 0.78)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
               zIndex: 999999,
@@ -638,39 +648,72 @@ export default function LegacyGttCheckerSection({
             }}
           >
             <div
-              className="glass-panel"
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%',
-                maxWidth: '820px',
-                maxHeight: '85vh',
+                maxWidth: '850px',
+                maxHeight: '86vh',
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                borderRadius: '14px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05)',
                 overflow: 'hidden',
-                backgroundColor: 'var(--bg-surface, #1e293b)',
+                backgroundColor: '#0d1322',
+                color: '#f8fafc',
               }}
             >
               {/* MODAL HEADER */}
               <div
                 style={{
-                  padding: '16px 20px',
-                  borderBottom: '1px solid var(--border-color)',
+                  padding: '14px 20px',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  backgroundColor: 'var(--bg-input, #0f172a)',
+                  backgroundColor: '#161f36',
+                  flexShrink: 0,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <FileText size={18} style={{ color: '#3b82f6' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#38bdf8',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Terminal size={18} />
+                  </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800 }}>
-                      Nhật ký kiểm tra Giá thanh toán (GTT)
-                    </h3>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc' }}>
+                        Nhật ký kiểm tra Giá thanh toán (GTT)
+                      </h3>
+                      {selectedDate && (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.25)',
+                          }}
+                        >
+                          Phiên {selectedDate}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
                       {formattedRunTime
                         ? `Lần chạy: ${formattedRunTime} ${formattedDuration ? `(${formattedDuration})` : ''}`
                         : 'Nhật ký tiến trình thực thi'}
@@ -681,13 +724,26 @@ export default function LegacyGttCheckerSection({
                   type="button"
                   onClick={() => setShowLogModal(false)}
                   style={{
-                    background: 'transparent',
-                    border: 'none',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     cursor: 'pointer',
-                    color: 'var(--text-muted)',
+                    color: '#94a3b8',
                     padding: '6px',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.color = '#ffffff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.color = '#94a3b8';
+                  }}
+                  title="Đóng (Esc)"
                 >
                   <X size={18} />
                 </button>
@@ -697,15 +753,16 @@ export default function LegacyGttCheckerSection({
               <div
                 style={{
                   padding: '10px 20px',
-                  borderBottom: '1px solid var(--border-color)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '12px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                  backgroundColor: '#0f172a',
+                  flexShrink: 0,
                 }}
               >
-                <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
+                <div style={{ position: 'relative', flex: 1, maxWidth: '340px' }}>
                   <Search
                     size={14}
                     style={{
@@ -713,7 +770,7 @@ export default function LegacyGttCheckerSection({
                       left: '10px',
                       top: '50%',
                       transform: 'translateY(-50%)',
-                      color: 'var(--text-muted)',
+                      color: '#64748b',
                     }}
                   />
                   <input
@@ -723,34 +780,60 @@ export default function LegacyGttCheckerSection({
                     onChange={(e) => setLogSearch(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '5px 10px 5px 30px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-input)',
-                      color: 'var(--text-primary)',
+                      padding: '6px 10px 6px 32px',
+                      borderRadius: '7px',
+                      border: '1px solid #334155',
+                      backgroundColor: '#1e293b',
+                      color: '#f8fafc',
                       fontSize: '0.76rem',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
                     }}
+                    onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
+                    onBlur={(e) => (e.target.style.borderColor = '#334155')}
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      color: '#94a3b8',
+                      fontFamily: 'monospace',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                    }}
+                  >
                     {filteredLogs.length} dòng log
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyLogs}
-                    className="btn btn-secondary"
                     style={{
                       fontSize: '0.74rem',
-                      padding: '4px 10px',
+                      padding: '5px 12px',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '5px',
+                      gap: '6px',
+                      borderRadius: '7px',
+                      border: copiedLog ? '1px solid #10b981' : '1px solid #334155',
+                      backgroundColor: copiedLog ? 'rgba(16, 185, 129, 0.18)' : '#1e293b',
+                      color: copiedLog ? '#34d399' : '#e2e8f0',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!copiedLog) e.currentTarget.style.backgroundColor = '#2d3748';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!copiedLog) e.currentTarget.style.backgroundColor = '#1e293b';
                     }}
                   >
-                    {copiedLog ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                    <span>{copiedLog ? 'Đã chép' : 'Sao chép'}</span>
+                    {copiedLog ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                    <span>{copiedLog ? 'Đã sao chép' : 'Sao chép'}</span>
                   </button>
                 </div>
               </div>
@@ -761,40 +844,71 @@ export default function LegacyGttCheckerSection({
                   flex: 1,
                   overflowY: 'auto',
                   padding: '16px 20px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.76rem',
-                  lineHeight: 1.6,
-                  backgroundColor: '#090e1a',
+                  fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                  fontSize: '0.78rem',
+                  lineHeight: 1.65,
+                  backgroundColor: '#060913',
                   color: '#e2e8f0',
                 }}
               >
                 {filteredLogs.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '30px', color: '#64748b', fontStyle: 'italic' }}>
+                  <div style={{ textAlign: 'center', padding: '36px', color: '#64748b', fontStyle: 'italic' }}>
                     {logSearch ? 'Không tìm thấy dòng log nào khớp với từ khóa.' : 'Chưa có nhật ký nào được ghi lại.'}
                   </div>
                 ) : (
                   filteredLogs.map((line, idx) => {
-                    const isError = line.includes('[LỖI') || line.includes('ERROR') || line.includes('thất bại');
-                    const isSuccess = line.includes('THÀNH CÔNG') || line.includes('HOÀN TẤT') || line.includes('khớp');
-                    const isWarn = line.includes('WARN') || line.includes('CẢNH BÁO') || line.includes('chậm');
+                    const isError =
+                      line.includes('[LỖI') ||
+                      line.includes('ERROR') ||
+                      line.includes('thất bại') ||
+                      line.includes('Timeout');
+                    const isSuccess =
+                      line.includes('THÀNH CÔNG') ||
+                      line.includes('HOÀN TẤT') ||
+                      line.includes('khớp') ||
+                      line.includes('thành công');
+                    const isWarn =
+                      line.includes('WARN') ||
+                      line.includes('CẢNH BÁO') ||
+                      line.includes('chậm') ||
+                      line.includes('lệch') ||
+                      line.includes('thiếu');
+                    const isHeader = line.includes('===');
 
                     return (
                       <div
                         key={idx}
                         style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          padding: '2px 0',
                           whiteSpace: 'pre-wrap',
                           wordBreak: 'break-all',
-                          color: isError
-                            ? '#ef4444'
+                          color: isHeader
+                            ? '#60a5fa'
+                            : isError
+                            ? '#f87171'
                             : isSuccess
-                            ? '#10b981'
+                            ? '#34d399'
                             : isWarn
-                            ? '#f59e0b'
+                            ? '#fbbf24'
                             : '#cbd5e1',
-                          padding: '1px 0',
+                          fontWeight: isHeader ? 700 : 400,
                         }}
                       >
-                        {line}
+                        <span
+                          style={{
+                            color: '#475569',
+                            userSelect: 'none',
+                            minWidth: '28px',
+                            textAlign: 'right',
+                            fontSize: '0.72rem',
+                          }}
+                        >
+                          {idx + 1}
+                        </span>
+                        <span style={{ flex: 1 }}>{line}</span>
                       </div>
                     );
                   })
@@ -804,26 +918,112 @@ export default function LegacyGttCheckerSection({
               {/* MODAL FOOTER */}
               <div
                 style={{
-                  padding: '10px 20px',
-                  borderTop: '1px solid var(--border-color)',
+                  padding: '12px 20px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  backgroundColor: 'var(--bg-input, #0f172a)',
-                  fontSize: '0.74rem',
-                  color: 'var(--text-muted)',
+                  backgroundColor: '#131d31',
+                  fontSize: '0.76rem',
+                  flexShrink: 0,
+                  flexWrap: 'wrap',
+                  gap: '10px',
                 }}
               >
-                <span>
-                  {gttReport
-                    ? `Kết quả: ${gttReport.matched} khớp, ${gttReport.diffCount} lệch`
-                    : 'Bấm “Check GTT” để kiểm tra giá thanh toán'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {gttReport ? (
+                    <>
+                      <span
+                        style={{
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          color: '#60a5fa',
+                          fontWeight: 600,
+                          fontSize: '0.72rem',
+                        }}
+                      >
+                        Tổng: {gttReport.totalContracts} hợp đồng
+                      </span>
+                      <span
+                        style={{
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          color: '#34d399',
+                          fontWeight: 600,
+                          fontSize: '0.72rem',
+                        }}
+                      >
+                        {gttReport.matched} khớp
+                      </span>
+                      {gttReport.diffCount > 0 ? (
+                        <span
+                          style={{
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: '#f87171',
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                          }}
+                        >
+                          {gttReport.diffCount} lệch
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(100, 116, 139, 0.15)',
+                            border: '1px solid rgba(100, 116, 139, 0.3)',
+                            color: '#94a3b8',
+                            fontSize: '0.72rem',
+                          }}
+                        >
+                          0 lệch
+                        </span>
+                      )}
+                      {(gttReport.msOnlyCount > 0 || gttReport.cqgOnlyCount > 0) && (
+                        <span
+                          style={{
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                            color: '#fbbf24',
+                            fontSize: '0.72rem',
+                          }}
+                        >
+                          {gttReport.msOnlyCount + gttReport.cqgOnlyCount} thiếu giá
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: '#94a3b8' }}>
+                      Bấm “Check GTT” để kiểm tra giá thanh toán
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowLogModal(false)}
-                  className="btn btn-secondary"
-                  style={{ fontSize: '0.74rem', padding: '4px 14px' }}
+                  style={{
+                    fontSize: '0.76rem',
+                    padding: '5px 16px',
+                    borderRadius: '7px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#e2e8f0',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#334155')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#1e293b')}
                 >
                   Đóng
                 </button>

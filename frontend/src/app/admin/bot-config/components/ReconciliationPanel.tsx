@@ -19,7 +19,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
   // Reconciliation states
   const [reconSampleDates, setReconSampleDates] = useState<any[]>([]);
   const [reconSelectedPath, setReconSelectedPath] = useState('');
-  const [reconUsdRate, setReconUsdRate] = useState(25220);
+  const [reconUsdRate, setReconUsdRate] = useState(0);
   const [reconRunning, setReconRunning] = useState(false);
   const [reconResult, setReconResult] = useState<any>(null);
   const [reconAutoRunning, setReconAutoRunning] = useState(false);
@@ -75,7 +75,17 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
         }
       })
       .catch(console.error);
-  }, [token]);
+    fetch(`${apiBaseUrl}/api/v1/reconciliation/usd-rate`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.rate) {
+          setReconUsdRate(data.rate);
+        }
+      })
+      .catch(console.error);
+  }, [token, apiBaseUrl]);
 
   // Run local test with sample path
   const handleRunReconTest = async () => {
@@ -308,7 +318,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
                 onChange={(e) => setReconUsdRate(Number(e.target.value))}
                 className="form-input"
                 style={{ fontSize: '0.75rem', padding: '8px 12px' }}
-                placeholder="25220"
+                placeholder="0"
               />
             </div>
             <button

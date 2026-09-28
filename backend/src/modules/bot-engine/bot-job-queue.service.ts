@@ -240,6 +240,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processQueue() {
+    // Tự động phục hồi cờ isProcessing nếu không có Job nào đang thực sự chạy trong RAM
+    if (this.isProcessing && this.activeJobs.size === 0) {
+      this.logger.warn('[QUEUE] Cờ isProcessing bị kẹt khi không có Job active -> Tự động giải phóng.');
+      this.isProcessing = false;
+    }
+
     if (this.isProcessing) {
       return;
     }
@@ -505,6 +511,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         },
       );
       await this.syncJobToChecklist(job, 'CANCELLED', cancelReason);
+      if (this.activeJobs.size === 0) {
+        this.isProcessing = false;
+      }
       this.logger.log(`[JOB_CANCEL] Đã hủy job PENDING: ${jobId}`);
       return { success: true, message: 'Đã hủy tác vụ đang chờ trong hàng đợi.', job };
     }
@@ -989,6 +998,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           await this.syncJobToChecklist(job, 'PENDING', reason);
         } else {
           await this.syncJobToChecklist(job, 'FAILED', reason);
+        }
+        if (this.activeJobs.size === 0) {
+          this.isProcessing = false;
         }
       }
     }

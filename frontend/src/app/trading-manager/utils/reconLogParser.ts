@@ -10,6 +10,7 @@ export interface ParsedReconLogSummary {
   startTime?: string;
   endTime?: string;
   durationSeconds?: number;
+  durationFormatted?: string;
   barrierStatus: 'SYNCED' | 'TIMEOUT' | 'ABORTED' | 'PENDING';
   barrierTime?: string;
   downloads: {
@@ -107,6 +108,7 @@ export function parseReconJobLogs(logs: string[] = [], summaryData?: any): Parse
   }
 
   let firstIso: string | undefined;
+  let fallbackFirstIso: string | undefined;
   let lastIso: string | undefined;
 
   for (const rawLine of logs) {
@@ -114,7 +116,12 @@ export function parseReconJobLogs(logs: string[] = [], summaryData?: any): Parse
     const { timeStr, isoTime, cleanLine } = extractTimestamp(rawLine);
 
     if (isoTime) {
-      if (!firstIso) firstIso = isoTime;
+      if (!fallbackFirstIso) fallbackFirstIso = isoTime;
+      // Bỏ qua mốc "Job enqueued" lúc xếp hàng đợi, chỉ lấy mốc khi worker thực sự nhận việc ("Starting attempt", "Bắt đầu chạy"...)
+      const isQueueWaitingLog = cleanLine.includes('Job enqueued') || cleanLine.includes('Enqueued');
+      if (!firstIso && !isQueueWaitingLog) {
+        firstIso = isoTime;
+      }
       lastIso = isoTime;
     }
 
@@ -295,12 +302,21 @@ export function parseReconJobLogs(logs: string[] = [], summaryData?: any): Parse
     result.reconResult.verdictText = 'KHỚP HOÀN TOÀN';
   }
 
-  // Tính tổng thời lượng chạy
-  if (firstIso && lastIso) {
-    const tStart = new Date(firstIso).getTime();
+  // Tính tổng thời lượng chạy (ưu tiên mốc thực thi, fallback mốc xếp hàng đợi nếu log không có mốc thực thi)
+  const effectiveStartIso = firstIso || fallbackFirstIso;
+  if (effectiveStartIso && lastIso) {
+    const tStart = new Date(effectiveStartIso).getTime();
     const tEnd = new Date(lastIso).getTime();
     if (!isNaN(tStart) && !isNaN(tEnd) && tEnd >= tStart) {
       result.durationSeconds = Math.round((tEnd - tStart) / 1000);
+      const s = result.durationSeconds;
+      if (s < 60) {
+        result.durationFormatted = `${s}s`;
+      } else {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        result.durationFormatted = sec > 0 ? `${m}m ${sec}s (${s}s)` : `${m}m (${s}s)`;
+      }
       result.endTime = new Date(lastIso).toLocaleTimeString('vi-VN', {
         hour: '2-digit',
         minute: '2-digit',

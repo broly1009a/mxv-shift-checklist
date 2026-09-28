@@ -64,6 +64,7 @@ Thumbs.db
 
 # MXV IT Tool local source code
 it-tool-src/
+tool-C#/
 
 # MXV Bot Temporary & Debug Files
 backend/temp/

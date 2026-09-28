@@ -73,10 +73,11 @@ async function runVisualTest() {
   ];
   let executablePath = edgePaths.find((p) => fs.existsSync(p)) || null;
 
-  const isHeadless = process.env.HEADED !== 'true';
+  const isHeadless = !process.argv.includes('--headed') && process.env.HEADED !== 'true';
+  console.log(isHeadless ? 'Chế độ: Headless (Chạy ngầm ẩn trình duyệt)' : 'Chế độ: Headed (Hiển thị cửa sổ trình duyệt trực quan)');
   const launchOptions = {
     headless: isHeadless,
-    slowMo: isHeadless ? 0 : 200,
+    slowMo: isHeadless ? 0 : 250,
     args: ['--start-maximized'],
   };
   if (executablePath) {
@@ -171,8 +172,20 @@ async function runVisualTest() {
     await page.screenshot({ path: snapLogin, fullPage: false });
     console.log(`📸 Đã chụp snapshot Dashboard: ${snapLogin}`);
 
-    // Nút xuất file (nút màu xanh có icon file/csv)
-    const exportBtnSelector = "button:has(i.fa-file-excel), button:has(i.fa-file-csv), button.btn-info, i.fa-file-excel, i.fa-file-csv";
+    // Nút xuất file (hỗ trợ cả fas fa-file-csv, fa-file-excel, ladda-button, btn-ghost-primary)
+    const exportBtnSelector = [
+      'button:has(i[class*="fa-file-csv"])',
+      'button:has(i[class*="fa-file-excel"])',
+      'button.ladda-button:has(i[class*="fa-file-csv"])',
+      'button.btn-ghost-primary:has(i[class*="fa-file-csv"])',
+      'button:has(i.fas.fa-file-csv)',
+      'button:has(i.fa-file-csv)',
+      'i[class*="fa-file-csv"]',
+      'i.fas.fa-file-csv',
+      'i.fa-file-csv',
+      'button:has(i.fa-file-excel)',
+      'button.btn-info',
+    ].join(', ');
 
     // -------------------------------------------------------------
     // BƯỚC 2: ĐIỀU HƯỚNG & TẢI TTM (Trạng thái mở)

@@ -14,6 +14,7 @@ import {
   Loader2,
   FileSpreadsheet,
   FileText,
+  Mail,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -247,6 +248,7 @@ export default function LegacyBackupThongKeSection({
   const [valueMacroLoading, setValueMacroLoading] = useState<boolean>(false);
   const [downloadingMs, setDownloadingMs] = useState<boolean>(false);
   const [downloadingCqg, setDownloadingCqg] = useState<boolean>(false);
+  const [fetchingEodEmail, setFetchingEodEmail] = useState<boolean>(false);
 
   // Modal xem nhanh nhật ký tóm tắt Backup MS / CQG
   const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
@@ -347,6 +349,37 @@ export default function LegacyBackupThongKeSection({
       toast.error(`Lỗi tải MS: ${err.message}`, { id: toastId });
     } finally {
       setDownloadingMs(false);
+    }
+  };
+
+  // Lấy file EOD từ Email M365 (it.support@mxv.vn)
+  const handleFetchEodEmail = async () => {
+    if (!token || fetchingEodEmail) return;
+    setFetchingEodEmail(true);
+    const toastId = toast.loading('Đang quét hòm thư Outlook M365 và tải file EOD...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/fetch-eod-email`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetDate: selectedDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Lỗi HTTP ${res.status}`);
+      }
+      if (data.success) {
+        toast.success(data.message || 'Tải file EOD từ email thành công!', { id: toastId, duration: 6000 });
+        await handleAuditMsBackup();
+      } else {
+        toast.error(data.message || 'Không tìm thấy email EOD trong hòm thư.', { id: toastId, duration: 6000 });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi tải file EOD: ${err.message}`, { id: toastId, duration: 6000 });
+    } finally {
+      setFetchingEodEmail(false);
     }
   };
 
@@ -933,6 +966,37 @@ export default function LegacyBackupThongKeSection({
                   <span>Nhật ký</span>
                 </button>
               </div>
+
+              {/* Nút Lấy file EOD từ Email M365 */}
+              <div style={{ width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={handleFetchEodEmail}
+                  disabled={fetchingEodEmail || downloadingMs || auditingMs}
+                  className="btn"
+                  style={{
+                    width: '100%',
+                    fontSize: '0.8rem',
+                    padding: '7px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                    color: '#0ea5e9',
+                    border: '1px solid rgba(14, 165, 233, 0.35)',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  title="Quét hòm thư Outlook M365 (it.support@mxv.vn) và tải file kết quả EOD về thư mục Backup M-System"
+                >
+                  {fetchingEodEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  <span>{fetchingEodEmail ? 'Đang quét & tải file EOD...' : 'Lấy File EOD từ Email (it.support)'}</span>
+                </button>
+              </div>
+
               {auditMsResult && (
                 <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
                   {auditMsResult.summary ? `MS: ${auditMsResult.summary.ok}/${auditMsResult.summary.total} files OK` : 'Hoàn tất'}

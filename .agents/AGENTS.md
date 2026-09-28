@@ -201,6 +201,46 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
      - *Câu hỏi 2*: "Nếu người dùng đổi tên, đổi mã task, hoặc phân cấp lại cây cha - con trong Database, hệ thống có tự thích ứng mà không bị gãy không?"
    - Nếu câu trả lời cho bất kỳ câu nào là **"KHÔNG (phải vào code thêm ID/sửa mảng)"** $\rightarrow$ Đoạn code đó **VI PHẠM NGUYÊN TẮC** và bắt buộc phải được tái cấu trúc lại ngay lập tức.
 
+---
+
+## 9. Danh Mục Test Scripts Chuẩn Hóa Của Dự Án (Standard Test Scripts Registry)
+
+Để tránh việc phải viết lại test script mới mỗi lần debug hoặc kiểm thử, AI Assistant và Lập trình viên BẮT BUỘC tra cứu và ưu tiên gợi ý các file test chuẩn hóa đã có sẵn trong dự án:
+
+### 1. Nhóm Crawler / RPA M-System
+| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
+| :--- | :--- | :--- |
+| **`test_ms_download_all_20_reports.js`** | `node src/scripts/test_ms_download_all_20_reports.js --headed`<br/>*hoặc* `npm run test:ms-20` | Tải và kiểm chứng toàn bộ **20 báo cáo M-System** (Bao gồm selector FontAwesome 5 `fas fa-file-csv`, tự động đăng nhập lại khi trùng phiên `ensureLoggedIn`, fallback Sidebar). Lưu file tại `temp/test_20_reports/`. |
+| **`test_ms_download_ttm_tttt.js`** | `node src/scripts/test_ms_download_ttm_tttt.js --headed`<br/>*hoặc* `npm run test:ms-ttm` | Chuyên biệt kiểm tra tải nhanh 2 file cốt lõi **`TTM` (Trạng thái mở)** và **`TTTT` (Trạng thái tất toán)**, chụp ảnh snapshot màn hình và đọc thẩm định cấu trúc cột Excel. |
+| **`test_ms_tab_downloads.js`** | `node src/scripts/test_ms_tab_downloads.js --headed` | Kiểm tra điều hướng và tải các sub-tab con đặc thù trên M-System (Spreads, LME, ACM, Chờ đáo hạn). |
+
+### 2. Nhóm Crawler / RPA CQG
+| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
+| :--- | :--- | :--- |
+| **`test_cqg_parallel_standalone.js`** | `node src/scripts/test_cqg_parallel_standalone.js --headed`<br/>*hoặc* `npm run test:cqg-parallel` | Khởi chạy song song 2 tài khoản CQG1 và CQG3/CQG2 tải file `FR1` và `FR2` đồng thời, đo benchmark thời gian xuất và độ lệch mtime giữa 2 file. |
+| **`test_cqg_tab_downloads.js`** | `node src/scripts/test_cqg_tab_downloads.js --headed` | Kiểm tra tải các tab widget CQG: `FR` (Fills), `PS` (Positions), `OP` (Open Positions), `OD` (Orders). |
+
+### 3. Nhóm Email M365 Graph API & Báo Cáo EOD
+| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
+| :--- | :--- | :--- |
+| **`test_m365_eod_email.ts`** | `ts-node src/scripts/test_m365_eod_email.ts`<br/>*hoặc* `npm run test:eod-email` | Chẩn đoán toàn diện kết nối Microsoft 365, kiểm tra hiệu lực Refresh Token, quyền Graph API `/me/messages`, quét và tải thử file `EOD.csv` từ `it.support@mxv.vn`. |
+| **`test_outlook_fetch_tkgd_mails.ts`** | `ts-node src/scripts/test_outlook_fetch_tkgd_mails.ts` | Quét hòm thư và kiểm tra tải các email kèm file đính kèm hồ sơ mở TKGD từ khách hàng. |
+
+### 4. Nhóm Core CCP & Thống Kê Lot / Giá Trị (Macro)
+| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
+| :--- | :--- | :--- |
+| **`test_ccp_download_25_files.js`** | `node src/scripts/test_ccp_download_25_files.js --headed`<br/>*hoặc* `npm run test:ccp-25` | Tải toàn bộ 25 báo cáo từ CoreCCP (`https://uat-coreccp.mxv.com.vn`), tự động xử lý phân trang và chọn rổ báo cáo. |
+| **`test_ccp_statistics_suite.ts`** | `ts-node src/scripts/test_ccp_statistics_suite.ts` | Bộ kiểm thử nghiệp vụ tính toán Thống kê Lot và Giá trị giao dịch CCP theo logic C# Macro sang TypeScript. |
+
+### 5. Nhóm Đối Chiếu Số Liệu & TKGD (Reconciliation & Pipelines)
+| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
+| :--- | :--- | :--- |
+| **`run_auto_check_pre_eod_active.ts`** | `ts-node src/scripts/run_auto_check_pre_eod_active.ts`<br/>*hoặc* `npm run test:pre-eod` | Kích hoạt và kiểm thử toàn trình quy trình Đối chiếu Pre-EOD 3 bên (MS vs CQG vs Straits/ACM). |
+| **`run_tkgd_pipeline.ts`** | `ts-node src/scripts/run_tkgd_pipeline.ts`<br/>*hoặc* `npm run test:tkgd-pipeline` | Chạy toàn trình pipeline đối soát hồ sơ mở TKGD: Quét mail $\rightarrow$ Cào M-System $\rightarrow$ OCR CCCD/Hợp đồng $\rightarrow$ Đối soát dữ liệu. |
+| **`test_tkgd_end_to_end.ts`** | `ts-node src/scripts/test_tkgd_end_to_end.ts` | Kiểm thử E2E tích hợp cho module TKGD. |
+
+---
+
 
 
 

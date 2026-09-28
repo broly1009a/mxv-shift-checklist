@@ -26,7 +26,7 @@ export default function SystemSchedulerSettings({
 
   // System parameters states
   const [sessionStartTime, setSessionStartTime] = useState('05:00');
-  const [usdExchangeRate, setUsdExchangeRate] = useState(25220);
+  const [usdExchangeRate, setUsdExchangeRate] = useState(0);
   const [botAutoRecoveryEnabled, setBotAutoRecoveryEnabled] = useState(true);
 
   // Scheduler state

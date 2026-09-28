@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -20,7 +20,8 @@ import {
   parseTTTTForRecon,
   parsePSForRecon,
 } from '../helpers/recon-number-parser.helper';
-import { EODMismatchedItem } from './ccp-recon.service';
+import { EODMismatchedItem, CcpReconService } from './ccp-recon.service';
+import { EmailWatcherService } from '../../bot-engine/email-watcher.service';
 
 @Injectable()
 export class PreEodReconService {
@@ -30,6 +31,12 @@ export class PreEodReconService {
     private readonly settingsService: SystemSettingsService,
     private readonly telegramService: TelegramService,
     private readonly marginCheckerService: MarginCheckerService,
+    @Optional()
+    @Inject(forwardRef(() => CcpReconService))
+    private readonly ccpReconService?: CcpReconService,
+    @Optional()
+    @Inject(forwardRef(() => EmailWatcherService))
+    private readonly emailWatcherService?: EmailWatcherService,
   ) {}
 
   private buildPreEodEmailHtml(
@@ -625,13 +632,36 @@ export class PreEodReconService {
 
     const msDailyPath = path.join(msBackupBase, subFolder);
     const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
-    const eodPath = findLatestFile(msDailyPath, /eod/i);
+    let eodPath = findLatestFile(msDailyPath, /eod/i);
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
 
     if (!fs.existsSync(qltkgdPath))
       throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
-    if (!eodPath) throw new Error('Không tìm thấy file eod.csv / eod.xlsx từ email M-System');
 
+    // Dự phòng: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu trong thư mục phiên chưa có file EOD
+
+    // Dự phòng 2: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu vẫn chưa có file EOD
+    if (!eodPath && this.emailWatcherService) {
+      try {
+        const dateStr = `${year}-${month}-${day}`;
+        this.logger.log(`[EOD-FALLBACK] Chưa có file EOD tại ${msDailyPath}, đang thử tải từ email M365...`);
+        const mailRes = await this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath);
+        if (mailRes.success) {
+          eodPath = findLatestFile(msDailyPath, /eod/i);
+          this.logger.log(`[EOD-FALLBACK] Đã tải file EOD thành công: ${eodPath}`);
+        } else {
+          this.logger.warn(`[EOD-FALLBACK] Không tải được EOD từ email: ${mailRes.message}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[EOD-FALLBACK] Lỗi khi cố gắng tải EOD từ email: ${err.message}`);
+      }
+    }
+
+    if (!eodPath)
+      throw new Error(`Không tìm thấy file eod.csv / eod.xlsx từ email M-System hoặc thư mục ${msDailyPath}`);
+
+    // [RESERVED FOR FUTURE MODULE]: Giữ lại logic đọc và bóc tách file CoreCCP phục vụ tách module sau này
+    /*
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
     let qltkgdCcpBuffer: Buffer | undefined;
@@ -653,9 +683,42 @@ export class PreEodReconService {
         ttttCcpBuffer = fs.readFileSync(ttttCcpFile);
       }
     }
+    */
+
+    let eodResult: any = null;
+    let negativeBalanceAccs: string[] = [];
+    let negativeIMRAcc: string[] = [];
+    let mismatchedEOD: any[] = [];
+    // let mismatchedMs: any[] = [];
+    // let mismatchedCcp: any[] = [];
+
+    if (this.ccpReconService) {
+      eodResult = await this.ccpReconService.checkEOD({
+        qltkgd: fs.readFileSync(qltkgdPath),
+        eod: fs.readFileSync(eodPath),
+        tttt: fs.existsSync(ttttPath) ? fs.readFileSync(ttttPath) : undefined,
+        // qltkgdCcp: qltkgdCcpBuffer,
+        // eodCcp: eodCcpBuffer,
+        // ttttCcp: ttttCcpBuffer,
+      });
+
+      negativeBalanceAccs = eodResult?.negativeBalanceAccs || [];
+      negativeIMRAcc = eodResult?.negativeIMRAcc || [];
+      mismatchedEOD = eodResult?.mismatchedEOD || [];
+      // mismatchedMs = mismatchedEOD.filter((m: any) => m.system === 'MS' || !m.system);
+      // mismatchedCcp = mismatchedEOD.filter((m: any) => m.system === 'CCP');
+    }
 
     return {
       success: true,
+      eodResult,
+      totals: {
+        totalNegativeBalance: negativeBalanceAccs.length,
+        totalNegativeIMR: negativeIMRAcc.length,
+        totalMismatchedEOD: mismatchedEOD.length,
+        totalMismatchedMs: mismatchedEOD.length,
+        totalMismatchedCcp: 0,
+      },
       tradingDate,
       msDailyPath,
       eodPath,

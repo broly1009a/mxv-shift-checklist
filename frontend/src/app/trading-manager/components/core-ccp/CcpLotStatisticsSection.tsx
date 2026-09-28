@@ -26,6 +26,7 @@ import {
   FileText,
   BookOpen,
   Folder,
+  RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
@@ -289,6 +290,24 @@ export default function CcpLotStatisticsSection({
     } finally {
       setSavingConfig(false);
     }
+  };
+
+  // Nạp nhanh bộ đường dẫn mặc định chuẩn (trỏ vào thư mục con output/)
+  const handleApplyDefaultOutputPaths = () => {
+    const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
+    setBackupPathCcp('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures');
+    setPathAcmLot(`${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`);
+    setPathAcmGtgd(`${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`);
+    setPathNormalLot(`${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`);
+    setPathSpreadLot(`${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`);
+    setPathLmeLot(`${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`);
+    setPathOptionsLot(`${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`);
+    setPathGtgdNormal(`${defaultOut}\\Thong ke gia tri giao dich \${YYYY}.xlsx`);
+    setPathGtgdSpread(`${defaultOut}\\Thong ke gia tri giao dich Spread \${YYYY}.xlsx`);
+    setPathGtgdLme(`${defaultOut}\\Thong ke gia tri giao dich LME \${YYYY}.xlsx`);
+    setPathGtgdOptions(`${defaultOut}\\Thong ke gia tri giao dich Options \${YYYY}.xlsx`);
+    setPathDsgdCumulative(`${defaultOut}\\DSGD T\${MM}.\${YYYY} CCP.xlsx`);
+    toast.success('Đã nạp bộ đường dẫn mặc định chuẩn (thư mục output). Vui lòng bấm "Lưu Cấu Hình" để xác nhận.');
   };
 
   // Đồng bộ tỷ giá mới nhất từ tệp ngày CoreCCP hoặc M-System và lưu vào CSDL
@@ -817,7 +836,7 @@ export default function CcpLotStatisticsSection({
                   {fmtCur(result.totalGiaTri)}
                 </div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Tỷ giá quy đổi: 1 USD = {fmtNum(result.tyGiaUsed['USD'] || 25920)} đ
+                  Tỷ giá quy đổi: 1 USD = {result.tyGiaUsed?.['USD'] ? `${fmtNum(result.tyGiaUsed['USD'])} đ` : 'Chưa có'}
                 </span>
               </div>
 
@@ -1408,7 +1427,9 @@ export default function CcpLotStatisticsSection({
                     ? `${scanResult.files.tyGia.filename} (${(scanResult.files.tyGia.size / 1024).toFixed(1)} KB)`
                     : scanResult?.dbExchangeRates?.detectedRate
                     ? `1 USD = ${scanResult.dbExchangeRates.detectedRate.toLocaleString('vi-VN')} đ (${scanResult.dbExchangeRates.detectedSource || 'từ tệp ngày'})`
-                    : `1 USD = ${(scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || 25920).toLocaleString('vi-VN')} đ ${scanResult?.dbExchangeRates?.lastSynced ? `(Đã lưu DB: ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleTimeString('vi-VN')} ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleDateString('vi-VN')})` : ''}`}
+                    : (scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd)
+                    ? `1 USD = ${(scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd).toLocaleString('vi-VN')} đ ${scanResult?.dbExchangeRates?.lastSynced ? `(Đã lưu DB: ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleTimeString('vi-VN')} ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleDateString('vi-VN')})` : ''}`
+                    : 'Chưa cấu hình tỷ giá USD trong DB'}
                 </span>
               </div>
             </div>
@@ -1632,20 +1653,32 @@ export default function CcpLotStatisticsSection({
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 Cấu Hình Đường Dẫn 10 File Lũy Kế Excel CoreCCP
               </span>
-              <button
-                type="button"
-                onClick={handleSaveConfig}
-                disabled={savingConfig}
-                className="btn btn-primary"
-                style={{ fontSize: '0.75rem', padding: '5px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                {savingConfig ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                <span>Lưu Cấu Hình</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleApplyDefaultOutputPaths}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  title="Điền tự động đường dẫn chuẩn trỏ vào thư mục con output/"
+                >
+                  <RotateCcw size={13} />
+                  <span>Nạp Mặc Định (output/)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  disabled={savingConfig}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.75rem', padding: '5px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {savingConfig ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                  <span>Lưu Cấu Hình</span>
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1675,14 +1708,14 @@ export default function CcpLotStatisticsSection({
                 value={pathAcmLot}
                 onChange={setPathAcmLot}
                 label="File Số Lot ACM (pathAcmLot):"
-                placeholder="M:\...\Thong ke so lot giao dich ACM ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich ACM ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathAcmGtgd}
                 onChange={setPathAcmGtgd}
                 label="File Giá Trị Giao Dịch ACM (pathAcmGtgd):"
-                placeholder="M:\...\Thong ke gia tri giao dich ACM ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich ACM ${YYYY}.xlsx"
                 targetType="file"
               />
 
@@ -1694,28 +1727,28 @@ export default function CcpLotStatisticsSection({
                 value={pathNormalLot}
                 onChange={setPathNormalLot}
                 label="File Số Lot Futures Thường (pathNormalLot):"
-                placeholder="M:\...\Thong ke so lot giao dich ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathSpreadLot}
                 onChange={setPathSpreadLot}
                 label="File Số Lot Spread (pathSpreadLot):"
-                placeholder="M:\...\Thong ke so lot giao dich Spread ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich Spread ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathLmeLot}
                 onChange={setPathLmeLot}
                 label="File Số Lot LME (pathLmeLot):"
-                placeholder="M:\...\Thong ke so lot giao dich LME ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich LME ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathOptionsLot}
                 onChange={setPathOptionsLot}
                 label="File Số Lot Options (pathOptionsLot):"
-                placeholder="M:\...\Thong ke so lot giao dich Options ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich Options ${YYYY}.xlsx"
                 targetType="file"
               />
 
@@ -1727,28 +1760,28 @@ export default function CcpLotStatisticsSection({
                 value={pathGtgdNormal}
                 onChange={setPathGtgdNormal}
                 label="File GTGD Thường (pathGtgdNormal):"
-                placeholder="M:\...\Thong ke gia tri giao dich ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathGtgdSpread}
                 onChange={setPathGtgdSpread}
                 label="File GTGD Spread (pathGtgdSpread):"
-                placeholder="M:\...\Thong ke gia tri giao dich Spread ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich Spread ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathGtgdLme}
                 onChange={setPathGtgdLme}
                 label="File GTGD LME (pathGtgdLme):"
-                placeholder="M:\...\Thong ke gia tri giao dich LME ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich LME ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathGtgdOptions}
                 onChange={setPathGtgdOptions}
                 label="File GTGD Options (pathGtgdOptions):"
-                placeholder="M:\...\Thong ke gia tri giao dich Options ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich Options ${YYYY}.xlsx"
                 targetType="file"
               />
 
@@ -1760,7 +1793,7 @@ export default function CcpLotStatisticsSection({
                 value={pathDsgdCumulative}
                 onChange={setPathDsgdCumulative}
                 label="File DSGD CCP Lũy Kế Tháng (pathDsgdCumulative):"
-                placeholder="M:\...\DSGD T${MM}.${YYYY} CCP.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\DSGD T${MM}.${YYYY} CCP.xlsx"
                 targetType="file"
               />
             </div>
@@ -1837,7 +1870,7 @@ export default function CcpLotStatisticsSection({
               {fmtCur(result.totalGiaTri)}
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              Tỷ giá quy đổi: 1 USD = {fmtNum(result.tyGiaUsed['USD'] || 25920)} đ
+              Tỷ giá quy đổi: 1 USD = {result.tyGiaUsed?.['USD'] ? `${fmtNum(result.tyGiaUsed['USD'])} đ` : 'Chưa có'}
             </span>
           </div>
 

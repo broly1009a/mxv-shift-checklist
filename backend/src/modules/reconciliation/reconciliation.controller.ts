@@ -656,7 +656,7 @@ export class ReconciliationController {
     @Body('targetDate') targetDate?: string,
     @Body('usdRate') usdRateRaw?: number,
   ) {
-    const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
+    const usdRate = usdRateRaw ? Number(usdRateRaw) : await this.reconciliationService.getCurrentUsdRate();
     this.logger.log(
       `Starting auto reconciliation via RPA for date: ${targetDate || 'today'}`,
     );
@@ -747,7 +747,7 @@ export class ReconciliationController {
     @Body('tradingDate') tradingDateStr?: string,
     @Body('sessionStart') sessionStartStr?: string,
   ) {
-    const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+    const usdRate = usdRateStr ? parseFloat(usdRateStr) : await this.reconciliationService.getCurrentUsdRate();
     if (usdRateStr && !isNaN(usdRate)) {
       await this.reconciliationService.saveUsdRate(usdRate);
     }

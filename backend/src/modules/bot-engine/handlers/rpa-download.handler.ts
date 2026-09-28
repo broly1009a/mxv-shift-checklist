@@ -137,6 +137,24 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       for (const target of targets) {
         const filename = this.getReportFileName(target);
         const destFile = path.join(tempDir, filename);
+        const finalBackupFile = destFolder ? path.join(destFolder, filename) : null;
+
+        // Skip check: Nếu file đã tồn tại hợp lệ trong thư mục Backup MS (ví dụ từ attempt trước), bỏ qua để tiết kiệm thời gian
+        if (finalBackupFile && fs.existsSync(finalBackupFile)) {
+          const stats = fs.statSync(finalBackupFile);
+          if (stats.size > 100) {
+            this.logger.log(
+              `[SKIP] Báo cáo ${target} (${filename}) đã tồn tại trong thư mục Backup (${(stats.size / 1024).toFixed(1)} KB), bỏ qua không tải lại.`,
+            );
+            job.logs.push(
+              `[${new Date().toISOString()}] Báo cáo ${target} (${filename}) đã có trong Backup (${(stats.size / 1024).toFixed(1)} KB), bỏ qua.`,
+            );
+            successfulTargets.push(target);
+            await job.save();
+            continue;
+          }
+        }
+
         job.logs.push(
           `[${new Date().toISOString()}] Downloading report: ${target} (as ${filename})...`,
         );
@@ -249,6 +267,9 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
                 `[${new Date().toISOString()}] Copied ${filename} to ${finalBackupFile}`,
               );
             }
+
+            // Giãn cách nhẹ 1.5s giữa các báo cáo để tránh API Gateway 429 Too Many Requests
+            await page.waitForTimeout(1500);
           } else {
             throw new Error(`File ${filename} không tồn tại sau khi tải!`);
           }
@@ -263,6 +284,62 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         }
 
         await job.save();
+      }
+
+      // VÒNG TẢI BỔ SUNG (FAST RETRY): Nếu có báo cáo tạm thời bị nghẽn mạng/gián đoạn, tự động quay lại tải nốt
+      if (failedTargets.length > 0) {
+        this.logger.log(
+          `Có ${failedTargets.length} báo cáo chưa hoàn tất. Tạm nghỉ 3 giây để hệ thống ổn định và tự động tải bổ sung...`,
+        );
+        job.logs.push(
+          `[${new Date().toISOString()}] Có ${failedTargets.length} báo cáo chưa tải xong. Tạm nghỉ 3 giây và tự động tải lại bổ sung...`,
+        );
+        await job.save();
+        await page.waitForTimeout(3000);
+
+        const retryQueue = [...failedTargets];
+        for (const item of retryQueue) {
+          const filename = this.getReportFileName(item.target);
+          const destFile = path.join(tempDir, filename);
+
+          try {
+            this.logger.log(`[Tải bổ sung] Đang tải lại: ${item.target}...`);
+            job.logs.push(
+              `[${new Date().toISOString()}] [Tải bổ sung] Đang tải lại báo cáo: ${item.target}...`,
+            );
+            await job.save();
+
+            await this.rpaDownloaderService.downloadByTarget(
+              page,
+              item.target,
+              destFile,
+              sessionDay,
+            );
+
+            if (fs.existsSync(destFile)) {
+              if (destFolder) {
+                const finalBackupFile = path.join(destFolder, filename);
+                fs.copyFileSync(destFile, finalBackupFile);
+                job.logs.push(
+                  `[${new Date().toISOString()}] [Tải bổ sung] Đã lưu thành công ${filename} vào thư mục Backup.`,
+                );
+              }
+              successfulTargets.push(item.target);
+              const idx = failedTargets.findIndex((f) => f.target === item.target);
+              if (idx !== -1) failedTargets.splice(idx, 1);
+              this.logger.log(`[Tải bổ sung] Báo cáo ${item.target} đã tải thành công!`);
+            }
+          } catch (retryErr: any) {
+            this.logger.warn(
+              `[Tải bổ sung] Báo cáo ${item.target} vẫn chưa tải được: ${retryErr.message}`,
+            );
+            job.logs.push(
+              `[${new Date().toISOString()}] [Tải bổ sung] Báo cáo ${item.target} vẫn chưa tải được: ${retryErr.message}`,
+            );
+          }
+          await page.waitForTimeout(1500);
+          await job.save();
+        }
       }
 
       if (failedTargets.length > 0) {

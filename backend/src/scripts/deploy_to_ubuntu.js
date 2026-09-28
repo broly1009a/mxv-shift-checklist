@@ -213,6 +213,22 @@ const specificFiles = [
     local: path.join(repoRoot, 'docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md'),
     remote: '/opt/mxv-checklist/docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md',
   },
+  {
+    local: path.join(repoRoot, 'docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md'),
+    remote: '/opt/mxv-checklist/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md',
+  },
+  {
+    local: path.join(repoRoot, 'backend/package.json'),
+    remote: '/opt/mxv-checklist/backend/package.json',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_ms_download_all_20_reports.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_ms_download_all_20_reports.js',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_m365_eod_email.ts'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_m365_eod_email.ts',
+  },
 ];
 
 specificFiles.forEach((item) => {

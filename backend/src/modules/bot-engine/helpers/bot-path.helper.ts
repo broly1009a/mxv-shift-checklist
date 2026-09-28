@@ -137,9 +137,11 @@ export function resolveTradingSessionDate(
     targetDateObj.setHours(0, 0, 0, 0);
     if (isOvernight) {
       targetDateObj.setDate(targetDateObj.getDate() - 1);
-      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
-      }
+    }
+    // Chuẩn Tool C# BackupService.cs#L111-L114 & TransactionCheckingService.cs#L64-L67:
+    // Thứ 7 hoặc Chủ Nhật luôn lùi về ngày làm việc gần nhất (Thứ 6)
+    while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+      targetDateObj.setDate(targetDateObj.getDate() - 1);
     }
   } else {
     let parsed: Date;
@@ -155,10 +157,12 @@ export function resolveTradingSessionDate(
     const pD = String(parsed.getDate()).padStart(2, '0');
     const parsedStr = `${pY}-${pM}-${pD}`;
 
-    if (!options?.forceExactDate && parsedStr === todayVnStr && isOvernight) {
-      // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương lúc nửa đêm -> lùi về T-1 đúng chuẩn C#
+    if (!options?.forceExactDate && parsedStr === todayVnStr) {
+      // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương -> lùi ca đêm & cuối tuần đúng chuẩn C#
       targetDateObj = new Date(parsed);
-      targetDateObj.setDate(targetDateObj.getDate() - 1);
+      if (isOvernight) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+      }
       while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
         targetDateObj.setDate(targetDateObj.getDate() - 1);
       }

@@ -8,6 +8,8 @@ import { decrypt } from './utils/crypto';
 import { chromium, Page } from 'playwright-core';
 import * as XLSX from 'xlsx';
 
+import { resolveTradingSessionDate } from './helpers/bot-path.helper';
+
 export interface GttDataRow {
   symbol: string;
   gttMs: number | null;
@@ -32,6 +34,8 @@ export interface GttReport {
   marketCsvPath: string | null;
   gttFilePath: string | null;
   hangHoaFilePath?: string | null;
+  targetDate?: string;
+  sessionDate?: string;
 }
 
 @Injectable()
@@ -849,11 +853,16 @@ export class GttCheckerService {
     options: {
       downloadMarketCsv?: boolean;
       gttXlsxPath?: string;
+      targetDate?: string;
     } = {},
   ): Promise<GttReport> {
     if (this.isRunning) {
       throw new Error('Tiến trình kiểm tra GTT đang chạy trên hệ thống. Vui lòng đợi.');
     }
+
+    const resolvedSession = resolveTradingSessionDate(options.targetDate);
+    const sessionDate = resolvedSession.dateStr;
+    const targetDate = options.targetDate ? options.targetDate.trim().slice(0, 10) : sessionDate;
 
     const runAt = new Date().toISOString();
     this.isRunning = true;
@@ -1309,6 +1318,8 @@ export class GttCheckerService {
         hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
           ? this.hangHoaXlsxPath
           : null,
+        targetDate,
+        sessionDate,
       };
 
       // Save report to disk
