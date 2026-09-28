@@ -44,6 +44,10 @@ function copyDirRecursive(srcDir, destDir) {
 
 // 1. Files cần copy
 const filesToDeploy = [
+  'backend/src/database/database.module.ts',
+  'backend/src/database/seed.service.ts',
+  'backend/sso-auto-assign.config.json',
+  'backend/src/modules/auth/auth.service.ts',
   'backend/src/modules/bot-engine/bot-engine.controller.ts',
   'backend/src/modules/bot-engine/bot-engine.service.ts',
   'backend/src/modules/bot-engine/bot-job-queue.service.ts',
@@ -61,6 +65,7 @@ const filesToDeploy = [
   'backend/src/modules/reconciliation/services/pre-eod-recon.service.ts',
   'backend/src/modules/reconciliation/services/ccp-recon.service.ts',
   'backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts',
+  'backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts',
   'backend/src/modules/system-settings/system-settings.service.ts',
   'backend/src/schemas/ccp-lot-run-history.schema.ts',
   'backend/src/modules/tkgd-automation/tkgd-automation.service.ts',

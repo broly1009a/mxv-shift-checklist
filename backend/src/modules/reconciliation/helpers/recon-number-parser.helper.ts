@@ -271,10 +271,14 @@ export function convertLMESymbol(
 
   let adjustedDateStr = formatDDMMYYYY(adjustedDate);
   const dayoffMap = new Map<string, string>();
-  holidays.forEach((h) => {
-    const parts = h.split(',');
-    if (parts.length >= 2) {
-      dayoffMap.set(parts[0].trim(), parts[1].trim());
+  holidays.forEach((h: any) => {
+    if (typeof h === 'string') {
+      const parts = h.split(',');
+      if (parts.length >= 2) {
+        dayoffMap.set(parts[0].trim(), parts[1].trim());
+      }
+    } else if (h && typeof h === 'object' && h.originalDate && h.replacementDate) {
+      dayoffMap.set(String(h.originalDate).trim(), String(h.replacementDate).trim());
     }
   });
 

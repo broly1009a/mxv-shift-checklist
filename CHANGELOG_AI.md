@@ -1,6 +1,126 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-28T08:48] BUGFIX: Chuẩn Hóa Lùi Ngày Cuối Tuần Theo C# & Thêm Bộ Lọc Tự Thích Ứng Cho File DSGD CoreCCP
+## [2026-09-28T14:55] BUGFIX & DATA INTEGRITY: Khắc Phục Triệt Để Nuốt Lỗi Tải DSGD M-System & Chuẩn Hóa Fail-Fast Data Integrity Gate
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Khắc phục triệt để lỗi bot tải thất bại file `DSGD.xlsx` của M-System (Timeout) nhưng hệ thống lại coi là lỗi bổ trợ "non-blocking", tiếp tục lấy file cũ ra đối chiếu và báo **LỆCH GIẢ (False Positive)** thay vì kích hoạt cơ chế chạy lại (Retry Attempt 2, 3) của Job Queue.
+- Loại bỏ hoàn toàn quan niệm sai lệch coi các file nghiệp vụ cốt lõi (DSGD, TTM, TTTT, FR, OP, PS, Straits) là "non-blocking".
+- Nâng cấp độ tin cậy thao tác click nút xuất file DSGD trên giao diện M-System: Chuyển từ click thẻ icon `<i>` sang click trực tiếp thẻ `<button>` (`button:has(i[class*="fa-file-csv"])`) có chờ bảng tải xong, triệt tiêu hiện tượng click trượt thi thoảng gặp phải do race condition.
+
+### 2. Danh sách file chỉnh sửa
+- [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L300-L355,L717-L755):
+  - **Chuẩn hóa thao tác click tải DSGD**:
+    - Dùng selector cấp button: `button:has(i[class*='fa-file-csv']), button.ladda-button:has(i[class*='fa-file-csv']), button.btn-ghost-primary:has(i[class*='fa-file-csv'])`.
+    - Thêm `waitForSelector` (timeout 20s) và chờ 1.5s để bảng dữ liệu Angular ổn định trước khi click.
+    - Gắn nhãn lỗi chính xác: `errors.push('MS DSGD: ...')`.
+  - **Xây dựng Fail-Fast Data Integrity Gate**:
+    - Bắt buộc kiểm tra toàn bộ lỗi phát sinh từ các nguồn: `MS` (hoặc `MS DSGD`), `CQG` (hoặc `FR`), `ACM` (hoặc `Straits`), `CoreCCP`.
+    - Nếu có bất kỳ nguồn nào thiếu file dữ liệu tươi được yêu cầu: Lập tức `throw new Error('[PARTNER_SERVICE_UNAVAILABLE] ...')` để dừng job ngay (Fail-Fast), **TUYỆT ĐỐI CẤM** đối chiếu với file cũ trên đĩa.
+    - Kích hoạt cơ chế tự động thử lại (Retry Attempt 2, Attempt 3) của BullMQ để chạy lại quy trình tải file từ đầu.
+
+### 3. Xác nhận Build
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Thành công 100%).
+
+---
+
+
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Đánh giá và **tắt hoàn toàn tiến trình tự động khởi tạo dữ liệu mẫu (`SeedService`)** trong môi trường vận hành thực tế.
+- Ngăn chặn triệt để rủi ro mỗi lần build hoặc restart server:
+  - Tự động xóa các phòng ban cũ hoặc legacy templates (`deleteMany`).
+  - Ghi đè cấu hình giờ ca trực (`shiftSlots`), quyền hạn vai trò (`roles`) hoặc quan hệ phòng ban cha-con đã được Quản trị viên tinh chỉnh trên giao diện Web.
+- Tối ưu hóa thời gian khởi động của Backend NestJS (bỏ qua hàng loạt query và ghi MongoDB lúc khởi động).
+
+### 2. Danh sách file chỉnh sửa
+- [database.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/database/database.module.ts#L31-L35):
+  - Comment hoàn toàn `SeedService` khỏi `providers` và `exports` của `DatabaseModule`.
+- [seed.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/database/seed.service.ts#L38-L73):
+  - Khóa tiến trình `onApplicationBootstrap`: Ghi log `Database Seeding is DISABLED for operational safety` và `return` ngay lập tức.
+  - Comment toàn bộ khối gọi hàm seed, giữ lại mã nguồn sạch sẽ để tái sử dụng khi cần khởi tạo môi trường mới.
+- [.env (Local)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/.env#L27) & `.env (Ubuntu 10.0.0.26)`:
+  - Chuyển `ENABLE_AUTO_SEED=true` $\rightarrow$ `ENABLE_AUTO_SEED=false`.
+- [deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js#L46-L49):
+  - Bổ sung `'backend/src/database/database.module.ts'` và `'backend/src/database/seed.service.ts'` vào danh sách `filesToDeploy`.
+
+### 3. Xác nhận Build
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Thành công 100%).
+- Ubuntu Server: `ENABLE_AUTO_SEED=false` đã được cập nhật trực tiếp trên `.env`.
+
+---
+
+
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Bổ sung logic **tự động duyệt 100% tài khoản có đuôi `@mxv.vn`** khi đăng nhập SSO hoặc Microsoft 365, không yêu cầu Admin phải kích hoạt thủ công.
+- Khắc phục triệt để lỗi người dùng gặp thông báo `"Tài khoản của bạn đang chờ Admin kích hoạt và gán phòng ban."` hoặc `"Tài khoản đã được tạo tự động từ Microsoft 365 và đang chờ Admin kích hoạt, gán phòng ban."`.
+- Chuẩn hóa cơ chế tìm kiếm tài khoản hỗ trợ cả username ngắn (`tubui`) và email đầy đủ (`tubui@mxv.vn`) để tránh sinh trùng lặp bản ghi trong MongoDB.
+- Tự động gán phòng ban hợp lệ (`sso-auto-assign.config.json` hoặc fallback phòng ban `QLGD_OPS` / phòng ban đầu tiên) để thỏa mãn ràng buộc nghiệp vụ: tài khoản kích hoạt bắt buộc phải có phòng ban.
+
+### 2. Danh sách file chỉnh sửa
+- [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/auth/auth.service.ts#L195-L290):
+  - Nhập `Logger` từ `@nestjs/common` và khởi tạo `private readonly logger = new Logger(AuthService.name)`.
+  - Cập nhật hàm `validateMicrosoftSSO`:
+    - Tìm kiếm tài khoản tồn tại theo query `$or: [{ username }, { username: normalizedEmail }]`.
+    - Với tài khoản đã tồn tại: Nếu `!user.isActive`, tự động đặt `user.isActive = true` và tự động gán phòng ban nếu đang trống.
+    - Với tài khoản mới: Tự động khởi tạo với `isActive = true`, gán role, title, fullName và departmentId tương ứng từ cấu hình `sso-auto-assign.config.json` hoặc fallback `QLGD_OPS`.
+    - Trực tiếp trả về User đã kích hoạt để hoàn tất đăng nhập thay vì ném ngoại lệ chờ Admin duyệt.
+- [deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js#L47):
+  - Bổ sung `'backend/src/modules/auth/auth.service.ts'` vào danh sách `filesToDeploy` để đảm bảo gói deploy đồng bộ lên server.
+
+### 3. Xác nhận Build
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Thành công 100%).
+
+---
+
+
+
+### 1. Mục tiêu tài liệu
+- Cập nhật và mở rộng toàn diện tài liệu kiến trúc kỹ thuật theo các trao đổi chuyên sâu với USER:
+  1. **Đánh giá giải pháp Flat Task cho UAT**: Tạo ca trực mới chỉ chứa các task bot độc lập (không có task con, không phụ thuộc) để cấp nhịp tự động cho Trading Manager mà không làm phát sinh trễ SLA ảo hay xáo trộn Template gốc.
+  2. **Chiến lược dài hạn đưa Trading Manager thành Primary Operation Hub**: Tách rời hoàn toàn các tác vụ đối chiếu nặng ra khỏi ca trực; Trading Manager tự vận hành chu kỳ 24/5.
+  3. **Cơ chế Hậu Kiểm Thụ Động (Passive Verification / Link-to-Latest)**: Bot ca trực chỉ kiểm tra và tái sử dụng kết quả chạy gần nhất từ Trading Manager để tick `PASSED`, triệt tiêu 100% nguy cơ chạy lặp lại hoặc xung đột tài nguyên.
+  4. **Đánh giá mức độ thay đổi hệ thống**: Khẳng định hệ thống đã sẵn sàng 85-90% về mặt kiến trúc; chỉ cần tinh chỉnh nhẹ ~100-150 dòng code ở Backend mà không cần sửa Frontend.
+  5. **Lộ trình 2 giai đoạn**: Phân định rõ hành động cho Giai đoạn UAT (0 code change) và Giai đoạn Chuẩn hóa trước Go-Live.
+
+### 2. Danh sách file tạo mới / cập nhật
+- [DANH_GIA_LUONG_TU_DONG_TRADING_MANAGER_VA_TUONG_QUAN_CA_TRUC.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/DANH_GIA_LUONG_TU_DONG_TRADING_MANAGER_VA_TUONG_QUAN_CA_TRUC.md):
+  - Bổ sung 7 chương hoàn chỉnh kèm sơ đồ Sequence Diagram Mermaid chi tiết về luồng Link-to-Latest và ma trận so sánh.
+
+## [2026-09-28T10:48] FEATURE & ALIGNMENT: Kết Nối Cấu Hình "Danh Sách TKGD Âm KQ" và "Danh Sách Ngày Nghỉ LME" Vào Backend Chuẩn C#
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER về việc kích hoạt và kết nối 2 bảng cấu hình đang có sẵn trên UI (`TradingManagerConfigSection.tsx`) vào các service Backend để hệ thống hoạt động đúng 100% chuẩn C#:
+  1. **Danh sách TKGD âm KQ (`negative_margin_monitored_accounts`)**: 
+     - Lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi cấu hình khỏi danh sách "Tài khoản âm ký quỹ mới (EOD)" (chuẩn `FormMain.cs#L1625` và `TransactionCheckingService.cs#L576-L585`). 
+     - Khi tất cả tài khoản âm quét được từ file EOD đều đã nằm trong danh sách theo dõi thì UI hiển thị "An Toàn: Không có tài khoản âm ký quỹ mới" (thay vì cảnh báo đỏ nhầm 14 tài khoản).
+  2. **Danh sách ngày nghỉ LME (`lme_holiday_replacements`)**:
+     - Nạp cấu hình mapping ngày nghỉ LME (`originalDate` -> `replacementDate`) từ CSDL vào các hàm đối chiếu `checkKLGD` và `checkPreEOD` (thay vì truyền cứng mảng rỗng `[]`).
+     - Hỗ trợ cả định dạng mảng object `{ originalDate, replacementDate }` từ Web UI và chuỗi `"dd/MM/yyyy,dd/MM/yyyy"` từ file cấu hình C# cũ trong `convertLMESymbol`.
+
+### 2. Danh sách file chỉnh sửa
+- [.gitignore](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.gitignore#L67):
+  - Bổ sung `tool-C#/` vào danh sách ignore của Git theo yêu cầu của USER.
+- [recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts#L271-L283):
+  - Bổ sung khả năng nhận diện cả đối tượng `{ originalDate, replacementDate }` và chuỗi phân cách dấu phẩy trong `convertLMESymbol`.
+- [cqg-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts#L211-L223):
+  - Đồng bộ logic nhận diện ngày nghỉ LME cho parser tĩnh của CQG.
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/klgd-recon.service.ts#L826-L838):
+  - Đọc key `lme_holiday_replacements` từ `settingsService` và truyền danh sách ngày nghỉ vào `checkKLGD` thay vì truyền mảng rỗng `[]`.
+- [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L558-L575):
+  - Đọc key `lme_holiday_replacements` từ `settingsService` và truyền vào `checkPreEOD` thay vì truyền mảng rỗng `[]`.
+- [recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L785-L806,L1050-L1065):
+  - Đọc key `negative_margin_monitored_accounts` từ `settingsService` và lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi để tính `newNegativeIMR` và `newNegativeBalance`.
+  - Cập nhật payload `negativeMargin` trả về `negativeIMRAcc` là các tài khoản mới, kèm theo `totalRawNegativeIMRCount` và `monitoredAccounts`.
+- [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1104-L1135):
+  - Cập nhật log đối chiếu EOD MS: Ghi rõ số lượng tài khoản âm mới phát sinh và số lượng tài khoản đã nằm trong danh sách theo dõi.
+
+### 3. Xác nhận Build
+- Backend: `npm.cmd run build` (`nest build`) $\rightarrow$ Exit code 0 (Thành công 100%).
+- Frontend: `npx.cmd tsc --noEmit` $\rightarrow$ Exit code 0 (Thành công 100%).
+
+---
+
 
 ### 1. Mục tiêu thay đổi
 - Thực hiện yêu cầu của USER dựa trên đối chứng mã nguồn Tool C# (`operate-transaction-app`) và file thực tế CoreCCP:

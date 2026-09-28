@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -17,6 +18,7 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly exchangeCodes = new Map<
     string,
     { token: string; user: any; expiresAt: number }
@@ -191,34 +193,26 @@ export class AuthService {
   }
 
   async validateMicrosoftSSO(email: string, fullName: string): Promise<any> {
-    if (!email || !email.endsWith('@mxv.vn')) {
+    if (!email || !email.toLowerCase().trim().endsWith('@mxv.vn')) {
       throw new UnauthorizedException(
         'Email không thuộc tên miền Sở MXV (@mxv.vn)',
       );
     }
 
-    const username = email.split('@')[0].toLowerCase();
+    const normalizedEmail = email.toLowerCase().trim();
+    const username = normalizedEmail.split('@')[0];
 
-    // Check if user already exists
-    const user = await this.userModel
-      .findOne({ username })
-      .populate({
-        path: 'departmentId',
-        populate: { path: 'parentDepartmentId' },
-      })
-      .exec();
+    // Helper: Tìm phòng ban dự phòng nếu user chưa được gán phòng ban
+    const getFallbackDepartmentId = async () => {
+      const defaultDept = await this.departmentModel
+        .findOne({ code: 'QLGD_OPS' })
+        .exec();
+      if (defaultDept) return defaultDept._id;
+      const anyDept = await this.departmentModel.findOne().exec();
+      return anyDept ? anyDept._id : null;
+    };
 
-    if (user) {
-      // User exists - check activation status
-      if (!user.isActive) {
-        throw new UnauthorizedException(
-          'Tài khoản của bạn đang chờ Admin kích hoạt và gán phòng ban.',
-        );
-      }
-      return user;
-    }
-
-    // User does not exist - read mapping config to see if we should auto-assign
+    // Đọc cấu hình gán tự động từ sso-auto-assign.config.json (nếu có)
     let autoAssignedUser: any = null;
     try {
       const configPath = path.join(
@@ -228,7 +222,9 @@ export class AuthService {
       if (fs.existsSync(configPath)) {
         const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         const matched = configData.find(
-          (item: any) => item.email.toLowerCase() === email.toLowerCase(),
+          (item: any) =>
+            item.email?.toLowerCase().trim() === normalizedEmail ||
+            item.email?.toLowerCase().trim().split('@')[0] === username,
         );
         if (matched) {
           let departmentId = null;
@@ -244,15 +240,77 @@ export class AuthService {
             role: matched.role || 'STAFF',
             departmentId,
             fullName: matched.fullName || fullName,
-            isActive: true, // Activated immediately!
+            title: matched.title || '',
           };
         }
       }
     } catch (err) {
-      console.error('Error loading sso-auto-assign.config.json:', err);
+      this.logger.error('Error loading sso-auto-assign.config.json:', err);
     }
 
-    // User does not exist - create automatically
+    // 1. Kiểm tra tài khoản đã tồn tại chưa (tìm kiếm theo cả username và email)
+    const user = await this.userModel
+      .findOne({
+        $or: [{ username }, { username: normalizedEmail }],
+      })
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
+      .exec();
+
+    if (user) {
+      let hasChange = false;
+
+      // Tự động duyệt / kích hoạt 100% tài khoản @mxv.vn
+      if (!user.isActive) {
+        user.isActive = true;
+        hasChange = true;
+        this.logger.log(
+          `[SSO @mxv.vn] Tự động duyệt & kích hoạt tài khoản: ${user.username}`,
+        );
+      }
+
+      // Tự động gán phòng ban nếu chưa có
+      if (!user.departmentId) {
+        const deptId =
+          autoAssignedUser?.departmentId || (await getFallbackDepartmentId());
+        if (deptId) {
+          user.departmentId = deptId;
+          hasChange = true;
+          this.logger.log(
+            `[SSO @mxv.vn] Tự động gán phòng ban cho user ${user.username}: ${deptId}`,
+          );
+        }
+      }
+
+      // Cập nhật chức danh hoặc họ tên chuẩn nếu có từ cấu hình
+      if (autoAssignedUser) {
+        if (autoAssignedUser.title && !user.title) {
+          user.title = autoAssignedUser.title;
+          hasChange = true;
+        }
+        if (autoAssignedUser.fullName && user.fullName.includes('(M365)')) {
+          user.fullName = autoAssignedUser.fullName;
+          hasChange = true;
+        }
+      }
+
+      if (hasChange) {
+        await user.save();
+        return this.userModel
+          .findById(user._id)
+          .populate({
+            path: 'departmentId',
+            populate: { path: 'parentDepartmentId' },
+          })
+          .exec();
+      }
+
+      return user;
+    }
+
+    // 2. Tài khoản chưa tồn tại - Tự động tạo mới và duyệt 100% tài khoản @mxv.vn
     const dummyHash = await bcrypt.hash(
       process.env.DUMMY_SSO_PASS || 'dummy_sso_pass_2026',
       10,
@@ -260,38 +318,41 @@ export class AuthService {
     const isInitialAdmin =
       username === 'admin_sso' && process.env.NODE_ENV !== 'production';
 
+    const departmentId =
+      autoAssignedUser?.departmentId || (await getFallbackDepartmentId());
+    const role = autoAssignedUser
+      ? autoAssignedUser.role
+      : isInitialAdmin
+        ? 'ADMIN'
+        : 'STAFF';
+    const resolvedFullName =
+      autoAssignedUser?.fullName ||
+      fullName ||
+      `${username.charAt(0).toUpperCase() + username.slice(1)} (MXV)`;
+    const resolvedTitle = autoAssignedUser?.title || '';
+
     const newUser = new this.userModel({
       username,
       passwordHash: dummyHash,
-      fullName: autoAssignedUser
-        ? autoAssignedUser.fullName
-        : fullName ||
-          `${username.charAt(0).toUpperCase() + username.slice(1)} (M365)`,
-      departmentId: autoAssignedUser ? autoAssignedUser.departmentId : null,
-      role: autoAssignedUser
-        ? autoAssignedUser.role
-        : isInitialAdmin
-          ? 'ADMIN'
-          : 'STAFF',
-      isActive: autoAssignedUser ? true : isInitialAdmin ? true : false,
+      fullName: resolvedFullName,
+      title: resolvedTitle,
+      departmentId,
+      role,
+      isActive: true, // Tự động duyệt 100% tài khoản @mxv.vn
     });
 
     await newUser.save();
-
-    if (autoAssignedUser) {
-      // Return the created user directly (no need to throw wait exception since isActive = true)
-      return this.userModel
-        .findById(newUser._id)
-        .populate({
-          path: 'departmentId',
-          populate: { path: 'parentDepartmentId' },
-        })
-        .exec();
-    }
-
-    throw new UnauthorizedException(
-      'Tài khoản đã được tạo tự động từ Microsoft 365 và đang chờ Admin kích hoạt, gán phòng ban.',
+    this.logger.log(
+      `[SSO @mxv.vn] Tự động tạo mới và kích hoạt tài khoản: ${username} (${resolvedFullName})`,
     );
+
+    return this.userModel
+      .findById(newUser._id)
+      .populate({
+        path: 'departmentId',
+        populate: { path: 'parentDepartmentId' },
+      })
+      .exec();
   }
 
   async updateProfile(userId: string, data: any): Promise<any> {

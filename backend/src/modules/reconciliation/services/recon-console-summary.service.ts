@@ -783,6 +783,26 @@ export class ReconConsoleSummaryService {
           ? marginResult.eodResult.negativeBalanceAccs
           : preEodResult.eodResult?.negativeBalanceAccs || [];
 
+    // Lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi cấu hình (Chuẩn C# FormMain.cs#L1625)
+    const monitoredAccsStr = await this.settingsService.getSetting(
+      'negative_margin_monitored_accounts',
+      '[]',
+    );
+    let monitoredAccounts: string[] = [];
+    try {
+      monitoredAccounts = JSON.parse(monitoredAccsStr) || [];
+    } catch {}
+    const monitoredSet = new Set(
+      monitoredAccounts.map((a: string) => String(a || '').trim().toUpperCase()),
+    );
+
+    const newNegativeIMR = rawNegativeIMR.filter(
+      (acc: string) => !monitoredSet.has(String(acc || '').trim().toUpperCase()),
+    );
+    const newNegativeBalance = rawNegativeBalance.filter(
+      (acc: string) => !monitoredSet.has(String(acc || '').trim().toUpperCase()),
+    );
+
     // 6. Tính toán đếm ngược chu kỳ đối chiếu định kỳ (Ưu tiên system_settings -> Snapshot task -> 60m)
     const periodicEnabledStr = await this.settingsService.getSetting(
       'bot_periodic_check_enabled',
@@ -1053,10 +1073,13 @@ export class ReconConsoleSummaryService {
           ? new Date(marginJob.createdAt).toISOString()
           : null,
         status: marginJob?.status || 'IDLE',
-        negativeIMRAccCount: rawNegativeIMR.length,
-        negativeIMRAcc: rawNegativeIMR,
-        negativeBalanceCount: rawNegativeBalance.length,
-        negativeBalanceAccs: rawNegativeBalance,
+        negativeIMRAccCount: newNegativeIMR.length,
+        negativeIMRAcc: newNegativeIMR,
+        totalRawNegativeIMRCount: rawNegativeIMR.length,
+        allNegativeIMRAcc: rawNegativeIMR,
+        negativeBalanceCount: newNegativeBalance.length,
+        negativeBalanceAccs: newNegativeBalance,
+        monitoredAccounts,
       },
       cqgSync: {
         jobId: cqgSyncJob?._id?.toString() || null,

@@ -300,9 +300,25 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
         if (options.checkKlgd !== false) {
           log('MS  [Bước 2: Xuất dữ liệu] Đang tải file DSGD.xlsx...');
+          const exportBtnSelector = [
+            "button:has(i[class*='fa-file-csv'])",
+            "button.ladda-button:has(i[class*='fa-file-csv'])",
+            "button.btn-ghost-primary:has(i[class*='fa-file-csv'])",
+            "button:has(i.fas.fa-file-csv)",
+            "button:has(i.fa-file-csv)",
+            "xpath=//i[contains(@class, 'fa-file-csv')]",
+          ].join(', ');
+
+          // Chờ nút xuất file hiển thị và ổn định
+          await page
+            .waitForSelector(exportBtnSelector, { state: 'visible', timeout: 20000 })
+            .catch(() => {});
+          await page.waitForTimeout(1500);
+
+          const exportBtn = page.locator(exportBtnSelector).first();
           const [dl] = await Promise.all([
             page.waitForEvent('download', { timeout: 45000 }),
-            page.click("xpath=//i[contains(@class, 'fa-file-csv')]", { timeout: 15000 }),
+            exportBtn.click({ timeout: 15000 }),
           ]);
 
           await this.rpaDownloaderService.saveAndValidateDownload(
@@ -323,7 +339,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             );
             log('MS  Tải TTM.xlsx thành công.');
           } catch (ttmErr: any) {
-            log(`MS  Cảnh báo tải TTM: ${ttmErr.message}. Tiếp tục tải TTTT...`);
+            log(`MS  Lỗi tải TTM: ${ttmErr.message}`);
             errors.push(`MS TTM: ${ttmErr.message}`);
           }
         }
@@ -338,12 +354,12 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             );
             log('MS  Tải TTTT.xlsx thành công.');
           } catch (ttttErr: any) {
-            log(`MS  Cảnh báo tải TTTT: ${ttttErr.message}`);
+            log(`MS  Lỗi tải TTTT: ${ttttErr.message}`);
             errors.push(`MS TTTT: ${ttttErr.message}`);
           }
         }
       } catch (err: any) {
-        errors.push(`MS: ${err.message}`);
+        errors.push(`MS DSGD: ${err.message}`);
         log(`MS  Lỗi: ${err.message}`);
         abortBarrierIfStrict('M-System', err.message);
       } finally {
@@ -698,21 +714,50 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] ${abortReason}`);
     }
 
-    // ── MA TRẬN KIỂM TRA FILE CỐT LÕI (MANDATORY CORE FILES GATE) ───────────
-    if (options.checkKlgd !== false) {
-      const coreErrors = errors.filter(
-        (e) =>
-          e.includes('CQG1') ||
-          e.includes('CQG2') ||
-          e.includes('FR1') ||
-          e.includes('FR2') ||
-          e.includes('DSGD') ||
-          e.includes('Straits') ||
-          e.includes('ACM'),
-      );
-      if (coreErrors.length > 0) {
-        const errorMsg = `Thiếu file dữ liệu cốt lõi do lỗi tải/đăng nhập: ${coreErrors.join(' | ')}. Dừng đối chiếu để bảo vệ tính toàn vẹn số liệu và tránh báo lệch giả.`;
-        log(` DỪNG ĐỐI SOÁT: ${errorMsg}`);
+    // ── MA TRẬN KIỂM SOÁT TOÀN VẸN DỮ LIỆU ĐỐI SOÁT (FAIL-FAST DATA INTEGRITY GATE) ──
+    if (errors.length > 0) {
+      const blockingErrors: string[] = [];
+
+      for (const errStr of errors) {
+        // 1. Lỗi liên quan đến Khớp lệnh (DSGD, FR, Straits, CCP)
+        if (options.checkKlgd !== false) {
+          if (
+            errStr.includes('MS') ||
+            errStr.includes('DSGD') ||
+            errStr.includes('ACM') ||
+            errStr.includes('Straits') ||
+            errStr.includes('CQG') ||
+            errStr.includes('FR') ||
+            (errStr.includes('CCP') && !errStr.includes('TTM') && !errStr.includes('TTTT'))
+          ) {
+            blockingErrors.push(errStr);
+            continue;
+          }
+        }
+
+        // 2. Lỗi liên quan đến Trạng thái mở (TTM, OP)
+        if (options.checkTtm !== false) {
+          if (errStr.includes('TTM') || errStr.includes('OP')) {
+            blockingErrors.push(errStr);
+            continue;
+          }
+        }
+
+        // 3. Lỗi liên quan đến Tất toán vị thế (TTTT, PS)
+        if (options.checkTttt !== false) {
+          if (errStr.includes('TTTT') || errStr.includes('PS')) {
+            blockingErrors.push(errStr);
+            continue;
+          }
+        }
+
+        // Bất kỳ lỗi hệ thống nào khác phát sinh từ 4 nguồn chính
+        blockingErrors.push(errStr);
+      }
+
+      if (blockingErrors.length > 0) {
+        const errorMsg = `Thiếu dữ liệu đồng bộ tươi do lỗi từ hệ thống: ${blockingErrors.join(' | ')}. Dừng đối chiếu để bảo vệ tính toàn vẹn số liệu và kích hoạt cơ chế chạy lại (Retry).`;
+        log(` DỪNG ĐỐI SOÁT (FAIL-FAST): ${errorMsg}`);
         payload.result = {
           passed: false,
           isAborted: true,
@@ -724,11 +769,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       }
     }
 
-    if (errors.length > 0) {
-      log(` Có ${errors.length} lỗi/cảnh báo bổ trợ (non-blocking), tiếp tục đối chiếu với dữ liệu sẵn có...`);
-    } else {
-      log(' Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
-    }
+    log(' Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
 
     try {
       const result = await this.reconciliationService.runAutoCheckKLGD(targetDate, options);
@@ -1101,12 +1142,31 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       job.markModified('payload');
       await job.save();
 
-      const totalNegative =
-        (result.eodResult?.negativeBalanceAccs?.length || 0) +
-        (result.eodResult?.negativeIMRAcc?.length || 0);
+      const monitoredAccsStr = await this.settingsService.getSetting(
+        'negative_margin_monitored_accounts',
+        '[]',
+      );
+      let monitoredAccounts: string[] = [];
+      try {
+        monitoredAccounts = JSON.parse(monitoredAccsStr) || [];
+      } catch {}
+      const monitoredSet = new Set(
+        monitoredAccounts.map((a: string) => String(a || '').trim().toUpperCase()),
+      );
+
+      const rawNegIMR: string[] = result.eodResult?.negativeIMRAcc || [];
+      const newNegIMR = rawNegIMR.filter(
+        (acc: string) => !monitoredSet.has(String(acc || '').trim().toUpperCase()),
+      );
+      const rawNegBal: string[] = result.eodResult?.negativeBalanceAccs || [];
+      const newNegBal = rawNegBal.filter(
+        (acc: string) => !monitoredSet.has(String(acc || '').trim().toUpperCase()),
+      );
+
+      const totalNegativeNew = newNegIMR.length + newNegBal.length;
       const totalMismatchedEod = mismatchedEodAll.length;
 
-      if (totalNegative > 0 || totalMismatchedEod > 0) {
+      if (totalNegativeNew > 0 || totalMismatchedEod > 0) {
         if (mismatchedEodAll.length > 0) {
           job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch công thức EOD (QLTKGD vs EOD.csv):`);
           mismatchedEodAll.slice(0, MAX_PREVIEW).forEach((d: any) => {
@@ -1115,12 +1175,18 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
             );
           });
         }
+        const noteMonitored = rawNegIMR.length > newNegIMR.length
+          ? ` (${rawNegIMR.length - newNegIMR.length} TK đã nằm trong danh sách theo dõi)`
+          : '';
         job.logs.push(
-          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu EOD MS: Phát hiện ${totalNegative} tài khoản âm ký quỹ/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu EOD MS: Phát hiện ${totalNegativeNew} tài khoản âm ký quỹ/số dư MỚI${noteMonitored}, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
         );
         await job.save();
       } else {
-        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu EOD MS: Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm.`);
+        const noteMonitored = rawNegIMR.length > 0
+          ? ` (${rawNegIMR.length} TK âm đã nằm trong danh sách theo dõi)`
+          : '';
+        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu EOD MS: Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm ký quỹ mới${noteMonitored}.`);
         await job.save();
       }
       return result;

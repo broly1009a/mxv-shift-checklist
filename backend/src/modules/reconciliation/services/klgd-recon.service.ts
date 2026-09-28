@@ -826,6 +826,15 @@ export class KlgdReconService {
       cutoffTime: options?.cutoffTime || dsgdCutoffTime,
     };
 
-    return this.checkKLGD(files, tradingDate, [], sessionStartStr, reconOptions);
+    const lmeHolidaysStr = await this.settingsService.getSetting(
+      'lme_holiday_replacements',
+      '[]',
+    );
+    let lmeHolidays: any[] = [];
+    try {
+      lmeHolidays = JSON.parse(lmeHolidaysStr) || [];
+    } catch {}
+
+    return this.checkKLGD(files, tradingDate, lmeHolidays, sessionStartStr, reconOptions);
   }
 }
