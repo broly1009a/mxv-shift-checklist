@@ -1,0 +1,40 @@
+{
+  "accountCode": "003C3493899",
+  "timestamp": "2026-09-29T10:11:00.251272",
+  "frontPath": null,
+  "backPath": "M:/Tailieuchung/QLGD-IT/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-29/003C3493899/003C3493899_MS_CCCD_sau.jpg",
+  "anomalyReasons": [
+    "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+  ],
+  "toolScanData": {
+    "soCCCD": "068194004026",
+    "hoTen": "NGUYEN THI VAN LAN",
+    "ngaySinh": "26/08/1994",
+    "gioiTinh": "Nữ",
+    "ngayCap": null,
+    "noiCap": "Cục Cảnh sát quản lý hành chính về trật tự xã hội",
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "geminiData": null,
+  "finalData": {
+    "soCCCD": "068194004026",
+    "hoTen": "NGUYEN THI VAN LAN",
+    "ngaySinh": "26/08/1994",
+    "gioiTinh": "Nữ",
+    "ngayCap": null,
+    "noiCap": "Cục Cảnh sát quản lý hành chính về trật tự xã hội",
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "autoHealed": false,
+  "healedFields": []
+}

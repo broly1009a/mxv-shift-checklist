@@ -1,0 +1,40 @@
+{
+  "accountCode": "001C8936311",
+  "timestamp": "2026-09-29T10:12:30.707803",
+  "frontPath": "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\HoSo_DinhKem\\2026-09-22\\001C8936311\\001C8936311_MS_CCCD_truoc.jpg",
+  "backPath": "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\HoSo_DinhKem\\2026-09-22\\001C8936311\\001C8936311_MS_CCCD_sau.jpg",
+  "anomalyReasons": [
+    "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+  ],
+  "toolScanData": {
+    "soCCCD": "038094011628",
+    "hoTen": "NGUYEN VAN CONG",
+    "ngaySinh": "16/01/1994",
+    "gioiTinh": "Nam",
+    "ngayCap": null,
+    "noiCap": null,
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "geminiData": null,
+  "finalData": {
+    "soCCCD": "038094011628",
+    "hoTen": "NGUYEN VAN CONG",
+    "ngaySinh": "16/01/1994",
+    "gioiTinh": "Nam",
+    "ngayCap": null,
+    "noiCap": null,
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "autoHealed": false,
+  "healedFields": []
+}

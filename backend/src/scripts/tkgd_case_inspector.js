@@ -29,10 +29,17 @@
  */
 
 const { Client } = require('ssh2');
+const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Cấu hình kết nối SSH Ubuntu (có thể cấu hình qua biến môi trường)
+// Tự động nhận diện chế độ chạy Local (Windows / ổ M:) hoặc Remote SSH (Ubuntu)
+const IS_LOCAL_MODE =
+  process.argv.includes('--local') ||
+  process.env.TKGD_LOCAL === 'true' ||
+  (process.platform === 'win32' && !process.argv.includes('--ubuntu') && !process.argv.includes('--ssh'));
+
+// Cấu hình kết nối SSH Ubuntu (khi không chạy chế độ Local)
 const SSH_CONFIG = {
   host: process.env.UBUNTU_HOST || '10.0.0.26',
   port: parseInt(process.env.UBUNTU_PORT || '22', 10),
@@ -108,9 +115,210 @@ function executeSshCommand(cmd) {
 }
 
 // ============================================================================
-// 1. FETCH CASES TỪ UBUNTU DB VÀ FILESYSTEM
+// 1. FETCH CASES (HỖ TRỢ CẢ LOCAL VÀ UBUNTU SSH)
 // ============================================================================
+function processFetchedRecords(records, { statusFilter, dateFilter, codeFilter }) {
+  const cache = loadCache();
+  cache.lastUpdated = new Date().toISOString();
+  cache.filter = { status: statusFilter, date: dateFilter, code: codeFilter };
+
+  const summary = {
+    total: records.length,
+    byStatus: {},
+    byErrorType: {
+      lechHoTen: 0,
+      lechNgaySinh: 0,
+      lechCCCD: 0,
+      lechGioiTinh: 0,
+      lechNgayCap: 0,
+      thieuCCCD: 0,
+      other: 0,
+    },
+  };
+
+  records.forEach((r) => {
+    const st = r.ketLuan?.trangThai || 'UNKNOWN';
+    summary.byStatus[st] = (summary.byStatus[st] || 0) + 1;
+
+    const errs = r.ketLuan?.danhSachLoi || [];
+    const joinedErrs = errs.join(' ');
+    if (/Lệch họ tên/i.test(joinedErrs)) summary.byErrorType.lechHoTen++;
+    if (/Lệch ngày sinh/i.test(joinedErrs)) summary.byErrorType.lechNgaySinh++;
+    if (/Lệch số CCCD/i.test(joinedErrs)) summary.byErrorType.lechCCCD++;
+    if (/Lệch giới tính/i.test(joinedErrs)) summary.byErrorType.lechGioiTinh++;
+    if (/Lệch ngày cấp/i.test(joinedErrs)) summary.byErrorType.lechNgayCap++;
+    if (/thiếu CCCD|Không đọc được/i.test(joinedErrs)) summary.byErrorType.thieuCCCD++;
+
+    const existingTestRuns = cache.accounts[r.maTKGD]?.testRuns || [];
+    cache.accounts[r.maTKGD] = {
+      ...r,
+      testRuns: existingTestRuns,
+    };
+  });
+
+  cache.summary = summary;
+  saveCache(cache);
+
+  console.log(`\n======================================================`);
+  console.log(`[SUCCESS] Đã tải thành công ${records.length} hồ sơ vào cache!`);
+  console.log(`- Trạng thái:`, summary.byStatus);
+  console.log(`- Phân loại lỗi lệch:`, summary.byErrorType);
+  console.log(`======================================================\n`);
+
+  printAccountList(cache);
+}
+
+async function fetchCasesLocal(options = {}) {
+  const codeFilter = options.code || null;
+  const statusFilter = options.status || (codeFilter ? 'ALL' : 'LECH');
+  const dateFilter = options.date || null;
+
+  console.log(`\n======================================================`);
+  console.log(`[FETCH-LOCAL] Đang kết nối trực tiếp MongoDB & quét thư mục ổ đĩa M:\\...`);
+  console.log(`[FETCH-LOCAL] Bộ lọc: Trạng thái=${statusFilter}, Ngày=${dateFilter || 'TẤT CẢ'}, Mã TKGD=${codeFilter || 'TẤT CẢ'}`);
+  console.log(`======================================================\n`);
+
+  const { MongoClient } = require('mongodb');
+  const candidateUris = [
+    process.env.MONGODB_URI,
+    'mongodb://127.0.0.1:27017/trading_mxv',
+    'mongodb://127.0.0.1:27017/mxv_shift_checklist',
+    'mongodb+srv://broly1009a_db_user:C1m2altuPaseoDOx@devs.bqtaxow.mongodb.net/mxv_shift_checklist?retryWrites=true&w=majority',
+  ].filter(Boolean);
+
+  let client = null;
+  let col = null;
+  let usedUri = '';
+
+  for (const uri of candidateUris) {
+    try {
+      const c = new MongoClient(uri, { serverSelectionTimeoutMS: 3000 });
+      await c.connect();
+      const testCol = c.db().collection('clean_account_records');
+      const count = await testCol.countDocuments();
+      if (count > 0 || !client) {
+        if (client) await client.close();
+        client = c;
+        col = testCol;
+        usedUri = uri;
+        if (count > 0) break;
+      } else {
+        await c.close();
+      }
+    } catch (e) {}
+  }
+
+  if (!col) {
+    throw new Error('Không thể kết nối tới MongoDB local hoặc Atlas.');
+  }
+  console.log(`[FETCH-LOCAL] Kết nối MongoDB thành công: ${usedUri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`);
+
+  const query = {};
+  if (statusFilter !== 'ALL') {
+    query['ketLuan.trangThai'] = statusFilter;
+  }
+  if (dateFilter) {
+    query.batchDate = dateFilter;
+  }
+  if (codeFilter) {
+    query.$or = [{ maTKGD: codeFilter }, { maTKGDBase: codeFilter }];
+  }
+
+  const records = await col.find(query).sort({ batchDate: -1, createdAt: -1 }).toArray();
+  await client.close();
+
+  const bases = [
+    'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\HoSo_DinhKem',
+    '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem',
+    path.join(process.cwd(), 'data', 'temp_tkgd_attachments'),
+    path.resolve(__dirname, '../../data/temp_tkgd_attachments'),
+  ];
+
+  const results = [];
+  for (const r of records) {
+    const accCode = r.maTKGD || r.maTKGDBase;
+    const batchDate = r.batchDate || '';
+    let folderPath = '';
+    const diskFiles = [];
+
+    if (accCode) {
+      const targetDirs = [];
+      for (const base of bases) {
+        if (!fs.existsSync(base)) continue;
+        if (batchDate && fs.existsSync(path.join(base, batchDate, accCode))) {
+          targetDirs.push(path.join(base, batchDate, accCode));
+        }
+        if (fs.existsSync(path.join(base, accCode))) {
+          targetDirs.push(path.join(base, accCode));
+        }
+        try {
+          const subdirs = fs.readdirSync(base);
+          for (const d of subdirs) {
+            const p = path.join(base, d, accCode);
+            if (fs.existsSync(p) && !targetDirs.includes(p)) targetDirs.push(p);
+          }
+        } catch {}
+      }
+      folderPath = targetDirs[0] || (batchDate ? path.join(bases[0], batchDate, accCode) : '');
+
+      const seen = new Set();
+      for (const tDir of targetDirs) {
+        try {
+          const list = fs.readdirSync(tDir);
+          for (const f of list) {
+            if (seen.has(f)) continue;
+            seen.add(f);
+            const fp = path.join(tDir, f);
+            const stat = fs.statSync(fp);
+            if (!stat.isFile()) continue;
+            diskFiles.push({
+              name: f,
+              path: fp,
+              sizeBytes: stat.size,
+              isCustomerFile: (() => {
+                const lower = f.toLowerCase();
+                if (lower.includes('chuky') || lower.includes('signature')) return false;
+                if (/(^|[^a-z0-9])cccd[-_\s]*(ms|mt)([^a-z0-9]|$)/i.test(lower)) return true;
+                if (/^(ms|mt)[-_\s]+[0-9a-z]{3,15}/i.test(lower)) return true;
+                if (/^[0-9a-z]{3,15}_ms_/i.test(f) || lower.includes('_ms_cccd_')) return false;
+                return !f.includes('_MS_');
+              })(),
+              isCccd: /cccd|cmnd|can.?cuoc/i.test(f),
+              isContract: /h[oôơọợòóỏõóồốổỗộờớởỡ].{0,2}[dđ][oôơọợòóỏõóồốổỗộờớởỡ]ng|\bhd\b|\bhđ\b|-mxv\.pdf$/i.test(f) || (f.toLowerCase().endsWith('.pdf') && !/cccd|cmnd|can.?cuoc|pl01|phu.?luc/i.test(f)),
+              isPl01: /pl01|phu.?luc/i.test(f),
+              ext: path.extname(f).toLowerCase(),
+            });
+          }
+        } catch {}
+      }
+    }
+
+    results.push({
+      _id: String(r._id),
+      maTKGD: r.maTKGD,
+      maTKGDBase: r.maTKGDBase,
+      batchDate: r.batchDate,
+      hoTen: r.hoTen || r.ms?.hoVaTen || r.hopDong?.hoTen || '',
+      folderPath,
+      diskFiles,
+      ketLuan: r.ketLuan || {},
+      hopDong: r.hopDong || {},
+      canCuoc: r.canCuoc || {},
+      phuLuc: r.phuLuc || {},
+      ms: r.ms || {},
+      noiDungMail: r.noiDungMail || {},
+      updatedAt: r.updatedAt || r.createdAt,
+    });
+  }
+
+  processFetchedRecords(results, { statusFilter, dateFilter, codeFilter });
+}
+
 async function fetchCases(options = {}) {
+  if (IS_LOCAL_MODE) {
+    return await fetchCasesLocal(options);
+  }
+
   const statusFilter = options.status || 'LECH';
   const dateFilter = options.date || null;
   const codeFilter = options.code || null;
@@ -206,13 +414,13 @@ cd /opt/mxv-checklist/backend && node -e '
               isCustomerFile: (() => {
                 const lower = f.toLowerCase();
                 if (lower.includes("chuky") || lower.includes("signature")) return false;
-                if (/(^|[^a-z0-9])cccd[-_\s]*(ms|mt)([^a-z0-9]|$)/i.test(lower)) return true;
-                if (/^(ms|mt)[-_\s]+[0-9a-z]{3,15}/i.test(lower)) return true;
+                if (/(^|[^a-z0-9])cccd[-_\\s]*(ms|mt)([^a-z0-9]|$)/i.test(lower)) return true;
+                if (/^(ms|mt)[-_\\s]+[0-9a-z]{3,15}/i.test(lower)) return true;
                 if (/^[0-9a-z]{3,15}_ms_/i.test(f) || lower.includes('_ms_cccd_')) return false;
                 return !f.includes("_MS_");
               })(),
               isCccd: /cccd|cmnd|can.?cuoc/i.test(f),
-              isContract: /h[oôơọợòóỏõóồốổỗộờớởỡ].{0,2}[dđ][oôơọợòóỏõóồốổỗộờớởỡ]ng|\\bhd\\b|\\bhđ\\b/i.test(f),
+              isContract: /h[oôơọợòóỏõóồốổỗộờớởỡ].{0,2}[dđ][oôơọợòóỏõóồốổỗộờớởỡ]ng|\\\\bhd\\\\b|\\\\bhđ\\\\b/i.test(f),
               isPl01: /pl01|phu.?luc/i.test(f),
               ext: path.extname(f).toLowerCase()
             });
@@ -263,57 +471,7 @@ cd /opt/mxv-checklist/backend && node -e '
 
     const jsonStr = stdout.substring(sIdx + startTag.length, eIdx);
     const records = JSON.parse(jsonStr);
-
-    const cache = loadCache();
-    cache.lastUpdated = new Date().toISOString();
-    cache.filter = { status: statusFilter, date: dateFilter, code: codeFilter };
-
-    // Tổng hợp summary
-    const summary = {
-      total: records.length,
-      byStatus: {},
-      byErrorType: {
-        lechHoTen: 0,
-        lechNgaySinh: 0,
-        lechCCCD: 0,
-        lechGioiTinh: 0,
-        lechNgayCap: 0,
-        thieuCCCD: 0,
-        other: 0,
-      },
-    };
-
-    records.forEach((r) => {
-      const st = r.ketLuan?.trangThai || 'UNKNOWN';
-      summary.byStatus[st] = (summary.byStatus[st] || 0) + 1;
-
-      const errs = r.ketLuan?.danhSachLoi || [];
-      const joinedErrs = errs.join(' ');
-      if (/Lệch họ tên/i.test(joinedErrs)) summary.byErrorType.lechHoTen++;
-      if (/Lệch ngày sinh/i.test(joinedErrs)) summary.byErrorType.lechNgaySinh++;
-      if (/Lệch số CCCD/i.test(joinedErrs)) summary.byErrorType.lechCCCD++;
-      if (/Lệch giới tính/i.test(joinedErrs)) summary.byErrorType.lechGioiTinh++;
-      if (/Lệch ngày cấp/i.test(joinedErrs)) summary.byErrorType.lechNgayCap++;
-      if (/thiếu CCCD|Không đọc được/i.test(joinedErrs)) summary.byErrorType.thieuCCCD++;
-
-      // Lưu hoặc update vào cache (giữ lại testRuns cũ nếu có)
-      const existingTestRuns = cache.accounts[r.maTKGD]?.testRuns || [];
-      cache.accounts[r.maTKGD] = {
-        ...r,
-        testRuns: existingTestRuns,
-      };
-    });
-
-    cache.summary = summary;
-    saveCache(cache);
-
-    console.log(`\n======================================================`);
-    console.log(`[SUCCESS] Đã tải thành công ${records.length} hồ sơ vào cache!`);
-    console.log(`- Trạng thái:`, summary.byStatus);
-    console.log(`- Phân loại lỗi lệch:`, summary.byErrorType);
-    console.log(`======================================================\n`);
-
-    printAccountList(cache);
+    processFetchedRecords(records, { statusFilter, dateFilter, codeFilter });
   } catch (err) {
     console.error('[FETCH] Kết nối thất bại:', err.message);
   }
@@ -446,7 +604,8 @@ async function runTestOnAccount(code, options = {}) {
   const diskFiles = acc.diskFiles || [];
   const hdFile =
     diskFiles.find((f) => f.isContract && f.ext === '.pdf')?.path ||
-    diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ)/i.test(f.name) && f.ext === '.pdf')?.path ||
+    diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ|-mxv)/i.test(f.name) && f.ext === '.pdf')?.path ||
+    diskFiles.find((f) => f.ext === '.pdf' && !f.isCccd && !f.isPl01)?.path ||
     diskFiles.find((f) => f.isContract && ['.jpg', '.jpeg', '.png', '.webp', '.paint'].includes(f.ext))?.path ||
     diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ)/i.test(f.name) && ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.paint'].includes(f.ext))?.path ||
     '';
@@ -520,14 +679,55 @@ except Exception as e:
 `;
 
   try {
-    const { stdout, stderr } = await executeSshCommand(remoteTestCmd);
+    let stdout = '';
+    let stderr = '';
+
+    if (IS_LOCAL_MODE) {
+      console.log(`[TEST-RUN] Đang thực thi Python Extractor cục bộ...`);
+      const pythonScript = `
+import sys, json, os
+null = None
+true = True
+false = False
+sys.path.append(r"${path.resolve(__dirname, 'python').replace(/\\/g, '/')}")
+from tkgd_extractor_worker import process_account_files
+
+code = ${JSON.stringify(acc.maTKGD || '')}
+name = ${JSON.stringify(acc.hoTen || '')}
+hd = ${JSON.stringify(hdFile ? hdFile.replace(/\\/g, '/') : null)}
+pl = ${JSON.stringify(plFile ? plFile.replace(/\\/g, '/') : null)}
+front = ${JSON.stringify(frontFile ? frontFile.replace(/\\/g, '/') : null)}
+back = ${JSON.stringify(backFile ? backFile.replace(/\\/g, '/') : null)}
+
+try:
+    res = process_account_files(hopdong=hd, phuluc=pl, front=front, back=back, code=code, name=name)
+    print("###EXTRACT_START###" + json.dumps(res, ensure_ascii=False) + "###EXTRACT_END###")
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    print("###EXTRACT_ERR###" + str(e) + "###EXTRACT_END###")
+`;
+      const pyExec = process.platform === 'win32' ? 'python' : 'python3';
+      const pyRun = spawnSync(pyExec, ['-c', pythonScript], {
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+        cwd: path.resolve(__dirname, '../../'),
+      });
+      stdout = pyRun.stdout || '';
+      stderr = pyRun.stderr || '';
+    } else {
+      const res = await executeSshCommand(remoteTestCmd);
+      stdout = res.stdout;
+      stderr = res.stderr;
+    }
+
     const startTag = '###EXTRACT_START###';
     const endTag = '###EXTRACT_END###';
     const sIdx = stdout.indexOf(startTag);
     const eIdx = stdout.indexOf(endTag);
 
     if (sIdx === -1 || eIdx === -1) {
-      console.error('[TEST-RUN] Lỗi thực thi Python worker trên Ubuntu:');
+      console.error('[TEST-RUN] Lỗi thực thi Python worker:');
       console.error(stderr || stdout);
       return;
     }
@@ -667,9 +867,60 @@ except Exception as e:
 }
 
 // ============================================================================
-// 5. CHÍNH THỨC CẬP NHẬT DATABASE QUA API REPARSE TRÊN UBUNTU
+// 5. CHÍNH THỨC CẬP NHẬT DATABASE QUA API REPARSE (LOCAL & UBUNTU)
 // ============================================================================
+async function reparseAccountLocal(code, fallbackBatchDate = '') {
+  const cache = loadCache();
+  const acc = cache.accounts ? cache.accounts[code] : null;
+  const recordId = acc ? acc._id : '';
+  const batchDate = (acc && acc.batchDate) ? acc.batchDate : (fallbackBatchDate || '');
+
+  console.log(`\n[REPARSE-LOCAL] Đang gửi yêu cầu Reparse cho ${code}...`);
+
+  const payload = { accountCode: code };
+  if (recordId) payload.recordId = recordId;
+  if (batchDate) payload.batchDate = batchDate;
+  const postData = JSON.stringify(payload);
+
+  const http = require('http');
+  const tryPost = (port) => new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port,
+      path: '/api/v1/tkgd/reparse-account',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'x-user-email': 'hieptruong@mxv.vn',
+      },
+      timeout: 15000,
+    }, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => resolve({ status: res.statusCode, data }));
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+
+  try {
+    const res = await tryPost(3001).catch(() => tryPost(3000));
+    console.log(`[REPARSE-LOCAL] Kết quả API:`, res.data);
+    console.log(`[REPARSE-LOCAL] Hoàn tất reparse cho ${code}. Bạn có thể fetch lại để kiểm tra:`);
+    console.log(`  node src/scripts/tkgd_case_inspector.js --fetch --code ${code}`);
+  } catch (err) {
+    console.log(`[REPARSE-LOCAL] Backend server không chạy trên port 3001/3000 (${err.message}).`);
+    console.log(`Gợi ý: Khởi động backend NestJS bằng: "npm run start:dev"`);
+  }
+}
+
 async function reparseOnUbuntu(code, fallbackBatchDate = '') {
+  if (IS_LOCAL_MODE) {
+    return await reparseAccountLocal(code, fallbackBatchDate);
+  }
+
   const cache = loadCache();
   const acc = cache.accounts ? cache.accounts[code] : null;
   const recordId = acc ? acc._id : '';
@@ -709,7 +960,6 @@ req.write(postData);
 req.end();
 '
 `;
-
 
   try {
     const { stdout, stderr } = await executeSshCommand(remoteCmd);
@@ -1334,12 +1584,12 @@ Lệnh khả dụng:
   }
 
   if (args.includes('--fetch')) {
-    const statusIdx = args.indexOf('--status');
-    const status = statusIdx !== -1 && args[statusIdx + 1] ? args[statusIdx + 1] : 'LECH';
-    const dateIdx = args.indexOf('--date');
-    const date = dateIdx !== -1 && args[dateIdx + 1] ? args[dateIdx + 1] : null;
     const codeIdx = args.indexOf('--code');
     const code = codeIdx !== -1 && args[codeIdx + 1] ? args[codeIdx + 1] : null;
+    const statusIdx = args.indexOf('--status');
+    const status = statusIdx !== -1 && args[statusIdx + 1] ? args[statusIdx + 1] : (code ? 'ALL' : 'LECH');
+    const dateIdx = args.indexOf('--date');
+    const date = dateIdx !== -1 && args[dateIdx + 1] ? args[dateIdx + 1] : null;
     await fetchCases({ status, date, code });
     return;
   }

@@ -1,0 +1,51 @@
+{
+  "name": "mxv-account-opening-reconciler",
+  "version": "1.0.0",
+  "description": "MXV Account Opening Reconciler - Automated Verification & Tri-Party Reconciliation Service",
+  "author": "MXV TTBT & IT Development",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main",
+    "test:realtime": "node src/scripts/test_tkgd_persistent_ms_realtime.js",
+    "test:benchmark": "node src/scripts/simulate_tkgd_realistic_benchmark.js",
+    "test:benchmark:infra": "node src/scripts/simulate_tkgd_realistic_benchmark.js --api http://localhost:3005",
+    "test:benchmark:all": "node src/scripts/simulate_tkgd_realistic_benchmark.js --api http://localhost:3005 --concurrency 20 --export-md ./BENCHMARK_REPORT.md",
+    "test:ms-images": "node src/scripts/test_ms_images_benchmark.js",
+    "tunnel": "node src/scripts/start_dev_tunnel.js"
+  },
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/mongoose": "^11.0.4",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^6.1.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "dotenv": "^17.3.1",
+    "exceljs": "^4.4.0",
+    "mongoose": "^8.23.0",
+    "nodemailer": "^8.0.3",
+    "pdf-parse": "^1.1.1",
+    "playwright-core": "^1.58.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7",
+    "@types/nodemailer": "^7.0.10",
+    "@types/pdf-parse": "^1.1.5",
+    "source-map-support": "^0.5.21",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3"
+  }
+}

@@ -24,13 +24,14 @@ export const tkgdTutorialSteps: TutorialStep[] = [
   },
   {
     target: '#tutorial-tkgd-auto-btn',
-    title: 'Nút Chạy Tự Động Toàn Bộ',
+    title: 'Nút Check Đối Soát',
     icon: Zap,
     description:
-      'Nút bấm mặc định hàng ngày: Chỉ cần 1 lần click, bot sẽ tự động quét email mới, cào các tài khoản chưa có trên M-System, đối chiếu dữ liệu 3 chiều và chốt kết quả.',
+      'Nút bấm mặc định hàng ngày: Chỉ cần 1 lần click, bot sẽ tự động quét email mới, cào tài khoản trên M-System, đối chiếu dữ liệu 3 chiều và chốt kết quả.',
     placement: 'bottom',
     padding: 8,
   },
+  /*
   {
     target: '#tutorial-tkgd-sprint-mode',
     title: 'Chế Độ Bóc Tách: Nhanh vs Đầy Đủ',
@@ -40,6 +41,7 @@ export const tkgdTutorialSteps: TutorialStep[] = [
     placement: 'bottom',
     padding: 8,
   },
+  */
   {
     target: '#tutorial-tkgd-excel-btn',
     title: 'Xuất Báo Cáo Excel Chuẩn TTBT',
@@ -135,10 +137,10 @@ export const tkgdConfigTutorialSteps: TutorialStep[] = [
   },
   {
     target: '#tutorial-tkgd-config-storage',
-    title: '4. Thư Mục Lưu Trữ Mạng (Ổ M:\\)',
+    title: '4. Thư Mục Lưu Trữ Báo Cáo & Hồ Sơ',
     icon: Download,
     description:
-      'Đường dẫn mạng chia sẻ thư mục lưu file Excel kết quả đối soát trên máy Windows và server Linux để toàn bộ phòng nghiệp vụ có thể mở và sử dụng ngay.',
+      'Đường dẫn thư mục dùng chung (ổ đĩa mạng hoặc phân vùng máy trạm) lưu file Excel kết quả đối soát và tệp hồ sơ để phòng nghiệp vụ mở và sử dụng ngay.',
     placement: 'top',
     padding: 8,
   },

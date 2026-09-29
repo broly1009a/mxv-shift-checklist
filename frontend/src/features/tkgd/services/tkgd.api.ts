@@ -1,5 +1,18 @@
-import { API_BASE_URL } from '@/context/AuthContext';
-import { CleanRecord, TkgdStats, AccountManifest, TkgdProgressState, TkgdAutoPipelineStatus, RunPipelineOptions } from '../types/tkgd.types';
+import { API_BASE_URL as ROOT_API_BASE_URL } from '@/context/AuthContext';
+
+// Hỗ trợ cụm Microservice độc lập (PORT 3005) nếu được khai báo trong ENV, mặc định fallback về Backend chính
+const API_BASE_URL = process.env.NEXT_PUBLIC_TKGD_API_URL || ROOT_API_BASE_URL;
+import {
+  CleanRecord,
+  TkgdStats,
+  AccountManifest,
+  TkgdProgressState,
+  TkgdAutoPipelineStatus,
+  RunPipelineOptions,
+  TkgdAnalyticsSummary,
+  TkgdShiftType,
+  TkgdTimeRangeType,
+} from '../types/tkgd.types';
 
 function getHeaders(token?: string | null, userEmail?: string): HeadersInit {
   return {
@@ -46,6 +59,28 @@ export const tkgdApi = {
     const res = await fetch(url, { headers: getHeaders(token, userEmail) });
     if (!res.ok) {
       throw new Error('Không thể tải dữ liệu thống kê');
+    }
+    return res.json();
+  },
+
+  async getAnalyticsSummary(
+    params: {
+      batchDate?: string;
+      shift?: TkgdShiftType;
+      range?: TkgdTimeRangeType;
+    },
+    token?: string | null,
+    userEmail?: string
+  ): Promise<{ success: boolean; data: TkgdAnalyticsSummary }> {
+    const qs = new URLSearchParams();
+    if (params.batchDate) qs.append('batchDate', params.batchDate);
+    if (params.shift) qs.append('shift', params.shift);
+    if (params.range) qs.append('range', params.range);
+
+    const url = `${API_BASE_URL}/api/v1/tkgd/analytics/summary?${qs.toString()}`;
+    const res = await fetch(url, { headers: getHeaders(token, userEmail) });
+    if (!res.ok) {
+      throw new Error('Không thể tải báo cáo phân tích thống kê');
     }
     return res.json();
   },
@@ -347,6 +382,50 @@ export const tkgdApi = {
     a.click();
     window.URL.revokeObjectURL(blobUrl);
     document.body.removeChild(a);
+  },
+
+  async bulkReEvaluate(recordIds: string[], token?: string | null, userEmail?: string) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/bulk/re-evaluate`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify({ recordIds }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Lỗi tái thẩm định hàng loạt');
+    }
+    return res.json();
+  },
+
+  async bulkSyncMSystem(accountCodes: string[], token?: string | null, userEmail?: string) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/bulk/sync-msystem`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify({ accountCodes }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Lỗi cào lại M-System hàng loạt');
+    }
+    return res.json();
+  },
+
+  async bulkReRunE2E(
+    recordIds: string[],
+    options?: { reparseOcr?: boolean; resyncMSystem?: boolean; reEvaluate?: boolean },
+    token?: string | null,
+    userEmail?: string,
+  ) {
+    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/bulk/re-run-e2e`, {
+      method: 'POST',
+      headers: getHeaders(token, userEmail),
+      body: JSON.stringify({ recordIds, options }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Lỗi chạy lại E2E hàng loạt');
+    }
+    return res.json();
   },
 };
 

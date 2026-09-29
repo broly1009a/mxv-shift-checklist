@@ -23,6 +23,28 @@ import { runPythonExtractor } from '../../bot-engine/helpers/tkgd-python-bridge.
 import { getTkgdAttachmentDirectory } from '../../bot-engine/helpers/tkgd-reconcile-exporter.helper';
 import { decrypt } from '../../bot-engine/utils/crypto';
 
+export interface StagedAccountInfo {
+  baseCode: string;
+  targetAccountCode: string;
+  maTVKD: string;
+  group: any;
+  mailInfo: {
+    messageId: string;
+    subject: string;
+    senderEmail: string;
+    senderName: string;
+    receivedDateTime: Date;
+    bodyRawText: string;
+  };
+  attachFiles: {
+    hopDongPath?: string;
+    phuLucPath?: string;
+    cccdFrontPath?: string;
+    cccdBackPath?: string;
+  };
+  recordId: string;
+}
+
 function parseDate(dStr?: string): Date | undefined {
   if (!dStr) return undefined;
   const s = dStr.trim().replace(/-/g, '/');
@@ -97,21 +119,22 @@ export class TkgdMailIngestService {
   }
 
   /**
-   * Nạp và bóc tách email yêu cầu mở TKGD từ Outlook vào MongoDB
+   * Helper: Quét danh sách email từ Graph API hoặc fallback thư mục mạng
    */
-  async syncMailOpeningAccounts(userEmail: string, batchDate?: string) {
-    this.progressService.updateProgress(userEmail, {
-      isProcessing: true,
-      taskType: 'MAIL',
-      current: 0,
-      total: 1,
-      percent: 10,
-      stage: 'Đang kết nối Outlook và quét email mở TKGD...',
-    });
-
-    // Lấy raw config trực tiếp từ DB (không dùng DTO đã mask) để có raw tokens
-    const rawConfig = await this.configService.getModel().findOne({ userEmail }).lean();
-    const todayStr = batchDate || new Date().toISOString().slice(0, 10);
+  private async fetchEmailsFromGraphOrDisk(
+    userEmail: string,
+    todayStr: string,
+    rawConfig: any,
+    config: any,
+  ): Promise<Array<{
+    messageId: string;
+    subject: string;
+    senderEmail: string;
+    senderName: string;
+    receivedDateTime: Date;
+    bodyRawText: string;
+    attachments: any[];
+  }>> {
     let emailList: Array<{
       messageId: string;
       subject: string;
@@ -126,9 +149,9 @@ export class TkgdMailIngestService {
     let refreshToken = rawConfig?.outlook?.refreshToken;
     let clientId = rawConfig?.outlook?.clientId || process.env.MICROSOFT_CLIENT_ID || '';
     let tenantId = rawConfig?.outlook?.tenantId || process.env.MICROSOFT_TENANT_ID || 'common';
-    let clientSecret = rawConfig?.outlook?.clientSecret || (await this.configService.getRawClientSecret(userEmail)) || process.env.MICROSOFT_CLIENT_SECRET || '';;
+    let clientSecret = rawConfig?.outlook?.clientSecret || (await this.configService.getRawClientSecret(userEmail)) || process.env.MICROSOFT_CLIENT_SECRET || '';
 
-    // Fallback: nếu user chưa có refresh token riêng, mượn refresh token từ system_settings
+    // Fallback: mượn refresh token từ system_settings
     if (!refreshToken && this.settingsService) {
       try {
         const sysToken = await this.settingsService.getSetting('m365_refresh_token');
@@ -140,9 +163,6 @@ export class TkgdMailIngestService {
         this.logger.warn(`[TKGD-MAIL] Không thể lấy m365_refresh_token từ system_settings: ${err.message}`);
       }
     }
-
-    // Dùng config DTO để lấy targetMailbox và attachmentSavePath
-    const config = await this.configService.getUserConfig(userEmail);
 
     if (refreshToken) {
       try {
@@ -296,6 +316,27 @@ export class TkgdMailIngestService {
         }
       }
     }
+
+    return emailList;
+  }
+
+  /**
+   * Nạp và bóc tách email yêu cầu mở TKGD từ Outlook vào MongoDB
+   */
+  async syncMailOpeningAccounts(userEmail: string, batchDate?: string) {
+    this.progressService.updateProgress(userEmail, {
+      isProcessing: true,
+      taskType: 'MAIL',
+      current: 0,
+      total: 1,
+      percent: 10,
+      stage: 'Đang kết nối Outlook và quét email mở TKGD...',
+    });
+
+    const rawConfig = await this.configService.getModel().findOne({ userEmail }).lean();
+    const todayStr = batchDate || new Date().toISOString().slice(0, 10);
+    const config = await this.configService.getUserConfig(userEmail);
+    const emailList = await this.fetchEmailsFromGraphOrDisk(userEmail, todayStr, rawConfig, config);
 
     // 3. Bóc tách nội dung email và hồ sơ đính kèm rồi lưu vào MongoDB
     let processedCount = 0;
@@ -575,6 +616,218 @@ export class TkgdMailIngestService {
       success: true,
       count: processedCount,
       message: `Đã nạp và bóc tách thành công ${processedCount} hồ sơ từ email Outlook!`,
+    };
+  }
+
+  /**
+   * Bước 1 của Realtime Parallel Pipeline:
+   * Quét email mới, tải tệp đính kèm về ổ đĩa, bốc tách mã TKGD và tạo bản ghi sơ bộ CleanAccountRecord.
+   * KHÔNG chạy OCR tại bước này để cho phép OCR và M-System chạy SONG SONG ở bước tiếp theo!
+   */
+  async stageMailOpeningAccounts(userEmail: string, batchDate?: string): Promise<{
+    success: boolean;
+    stagedAccounts: StagedAccountInfo[];
+    message: string;
+  }> {
+    const rawConfig = await this.configService.getModel().findOne({ userEmail }).lean();
+    const todayStr = batchDate || new Date().toISOString().slice(0, 10);
+    const config = await this.configService.getUserConfig(userEmail);
+
+    const emailList = await this.fetchEmailsFromGraphOrDisk(userEmail, todayStr, rawConfig, config);
+    const stagedAccounts: StagedAccountInfo[] = [];
+
+    for (const mail of emailList) {
+      await this.rawMailModel.findOneAndUpdate(
+        { messageId: mail.messageId },
+        {
+          $set: {
+            messageId: mail.messageId,
+            subject: mail.subject,
+            senderEmail: mail.senderEmail,
+            senderName: mail.senderName,
+            receivedDateTime: mail.receivedDateTime,
+            bodyRawText: mail.bodyRawText,
+            attachments: (mail.attachments || []).map((a: any) => ({
+              name: a.name,
+              contentType: a.contentType,
+              size: a.size,
+              filePath: a.filePath,
+            })),
+            status: 'PARSED',
+          },
+        },
+        { upsert: true }
+      );
+
+      const accountGroups = parseAccountOpeningEmailMulti(mail.bodyRawText);
+      if (!accountGroups || accountGroups.length === 0) continue;
+
+      for (let gIdx = 0; gIdx < accountGroups.length; gIdx++) {
+        const group = accountGroups[gIdx];
+        const baseCode = group.maTKGDBase;
+        if (!baseCode) continue;
+
+        const targetAccountCode = group.maTKGDFutures || group.maTKGDACM || baseCode;
+        const maTVKD = group.maTVKD || (targetAccountCode ? targetAccountCode.substring(0, 3) : '003');
+        const targetAttachments = dispatchAttachmentsForAccount(group as any, mail.attachments || []);
+
+        let hopDongPath: string | undefined = undefined;
+        let phuLucPath: string | undefined = undefined;
+        let cccdFrontPath: string | undefined = undefined;
+        let cccdBackPath: string | undefined = undefined;
+
+        if (targetAttachments.length > 0) {
+          const tempAccDir = path.join(process.cwd(), 'data', 'temp_tkgd_attachments', baseCode);
+          if (!fs.existsSync(tempAccDir)) fs.mkdirSync(tempAccDir, { recursive: true });
+
+          const officialAccDir = getTkgdAttachmentDirectory(
+            config.documentProcessing?.attachmentSavePath || config.storage?.windowsPath,
+            todayStr,
+            baseCode,
+          );
+          if (officialAccDir && !fs.existsSync(officialAccDir)) {
+            try {
+              fs.mkdirSync(officialAccDir, { recursive: true });
+            } catch { }
+          }
+
+          const imageCandidates: Array<{ name: string; filePath: string; size?: number }> = [];
+          let cccdPdfPath: string | undefined;
+
+          for (const att of targetAttachments) {
+            const attSize = att.size || (att.contentBytes ? Math.round(att.contentBytes.length * 0.75) : undefined);
+            const nameLower = (att.name || '').toLowerCase();
+
+            let fileBuf: Buffer | undefined;
+            let dims: { width: number; height: number } | null = null;
+            if (att.contentBytes) {
+              fileBuf = Buffer.from(att.contentBytes, 'base64');
+              if (/\.(png|jpe?g|webp|gif|paint|heic|heif)$/i.test(nameLower)) {
+                dims = probeImageDimensions(fileBuf);
+              }
+            }
+
+            if (isIgnoredEmailAttachment(att.name, attSize, dims)) continue;
+            let targetFilePath = att.filePath;
+
+            if (fileBuf) {
+              targetFilePath = path.join(tempAccDir, att.name);
+              fs.writeFileSync(targetFilePath, fileBuf);
+
+              if (officialAccDir) {
+                try {
+                  fs.writeFileSync(path.join(officialAccDir, att.name), fileBuf);
+                } catch { }
+              }
+            } else if (targetFilePath && fs.existsSync(targetFilePath) && officialAccDir) {
+              try {
+                fs.copyFileSync(targetFilePath, path.join(officialAccDir, path.basename(targetFilePath)));
+              } catch { }
+            }
+
+            if (targetFilePath && fs.existsSync(targetFilePath)) {
+              if (nameLower.endsWith('.pdf')) {
+                if (isNamedCccdPdf(att.name)) {
+                  if (!cccdPdfPath) cccdPdfPath = targetFilePath;
+                } else if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
+                  phuLucPath = targetFilePath;
+                } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
+                  hopDongPath = targetFilePath;
+                }
+              } else if (['.jpg', '.jpeg', '.png', '.webp', '.paint', '.heic', '.heif'].some((ext) => nameLower.endsWith(ext))) {
+                if (isNamedContractImage(att.name)) {
+                  if (!hopDongPath) hopDongPath = targetFilePath;
+                } else {
+                  imageCandidates.push({ name: att.name || path.basename(targetFilePath), filePath: targetFilePath, size: attSize });
+                }
+              }
+            }
+          }
+
+          const picked = pickCccdImagePaths(imageCandidates);
+          cccdFrontPath = picked.frontPath || cccdPdfPath;
+          cccdBackPath = picked.backPath;
+        }
+
+        const noiDungMailData = {
+          maTKGD_Futures: group.maTKGDFutures || baseCode,
+          maTKGD_ACM: group.maTKGDACM || (group.hasACMRequest ? `${baseCode}-A` : undefined),
+          maTKGD_LME: group.hasLMERequest ? `${baseCode}-L` : undefined,
+          maTKGD_Spread: group.hasSpreadRequest ? `${baseCode}-S` : undefined,
+          tenTaiKhoan: group.tenTaiKhoan || '',
+          hasACMRequest: group.hasACMRequest,
+          hasLMERequest: group.hasLMERequest,
+          hasSpreadRequest: group.hasSpreadRequest,
+          receivedDateTime: mail.receivedDateTime || new Date(),
+        };
+
+        const existingRecord = await this.cleanRecordModel.findOne({
+          batchDate: todayStr,
+          $or: [
+            { maTKGDBase: baseCode },
+            { maTKGD: targetAccountCode },
+            { 'noiDungMail.maTKGD_Futures': baseCode },
+          ],
+        });
+
+        let savedRecord: any;
+        if (existingRecord) {
+          const currentNoiDung = (existingRecord.noiDungMail as any)?.toObject
+            ? (existingRecord.noiDungMail as any).toObject()
+            : existingRecord.noiDungMail || {};
+          existingRecord.noiDungMail = {
+            ...currentNoiDung,
+            ...noiDungMailData,
+          } as any;
+          if (!existingRecord.maTKGDBase) existingRecord.maTKGDBase = baseCode;
+          if (!existingRecord.batchDate) existingRecord.batchDate = todayStr;
+          savedRecord = await existingRecord.save();
+        } else {
+          savedRecord = await this.cleanRecordModel.create({
+            batchDate: todayStr,
+            maTVKD,
+            maTKGD: targetAccountCode,
+            maTKGDBase: baseCode,
+            noiDungMail: noiDungMailData as any,
+            ms: {
+              maTKGD: baseCode,
+              isFoundOnMS: false,
+            } as any,
+            ketLuan: {
+              trangThai: 'CHUA_XU_LY',
+              danhSachLoi: ['Đang chờ xử lý song song OCR + M-System'],
+            } as any,
+          });
+        }
+
+        stagedAccounts.push({
+          baseCode,
+          targetAccountCode,
+          maTVKD,
+          group,
+          mailInfo: {
+            messageId: mail.messageId,
+            subject: mail.subject,
+            senderEmail: mail.senderEmail,
+            senderName: mail.senderName,
+            receivedDateTime: mail.receivedDateTime,
+            bodyRawText: mail.bodyRawText,
+          },
+          attachFiles: {
+            hopDongPath,
+            phuLucPath,
+            cccdFrontPath,
+            cccdBackPath,
+          },
+          recordId: savedRecord._id.toString(),
+        });
+      }
+    }
+
+    return {
+      success: true,
+      stagedAccounts,
+      message: `Đã staging ${stagedAccounts.length} hồ sơ tài khoản thành công.`,
     };
   }
 }

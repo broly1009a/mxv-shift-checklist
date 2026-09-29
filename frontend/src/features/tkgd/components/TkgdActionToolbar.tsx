@@ -112,8 +112,8 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           }}
           title={
             autoStatus?.enabled
-              ? `Chế độ tự động đang BẬT (${autoStatus?.executionMode === 'INSTANT_STREAM' ? 'Liền mạch: Tự động cào MS & đối soát tức thì từng TK mới' : `Định kỳ mỗi ${autoStatus.intervalMinutes || 5} phút`}). Nhấp để TẮT.`
-              : 'Chế độ tự động đang TẮT. Nhấp để BẬT tự động quét mail & cào MS ngầm 24/7.'
+              ? `Chế độ tự động đang BẬT (${autoStatus?.executionMode === 'INSTANT_STREAM' ? 'Liền mạch: Tự động đồng bộ MS & đối soát tức thì từng TK mới' : `Định kỳ mỗi ${autoStatus.intervalMinutes || 5} phút`}). Nhấp để TẮT.`
+              : 'Chế độ tự động đang TẮT. Nhấp để BẬT tự động quét mail & đồng bộ MS ngầm 24/7.'
           }
           style={{
             display: 'inline-flex',
@@ -211,22 +211,22 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           </div>
         </div>
 
-        {/* 1. NÚT CHẠY THỦ CÔNG: QUÉT & CHẠY NGAY (Manual Run) */}
+        {/* 1. NÚT CHECK NGẮN GỌN (Thay cho Chạy Tự Động Toàn Bộ / Quét & Chạy Ngay) */}
         <button
           id="tutorial-tkgd-auto-btn"
           onClick={() => setShowRunConfigModal(true)}
           disabled={isProcessing}
-          title="Kích hoạt quét và chạy thủ công ngay lúc này: Quét Mail -> Cào M-System -> Đối Soát Chéo -> Xuất Excel"
+          title="Nhấp để quét và đối soát tự động ngay lúc này"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '8px 16px',
+            padding: '8px 18px',
             borderRadius: '10px',
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             color: '#ffffff',
             fontWeight: 700,
-            fontSize: '0.8rem',
+            fontSize: '0.82rem',
             border: 'none',
             cursor: isProcessing ? 'not-allowed' : 'pointer',
             boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
@@ -239,7 +239,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           ) : (
             <Zap size={14} fill="#fef08a" color="#fef08a" />
           )}
-          <span>{isProcessing ? 'Đang chạy...' : 'Quét & Chạy Ngay'}</span>
+          <span>{isProcessing ? 'Đang check...' : 'Check'}</span>
         </button>
 
         {/* 2. TIỆN ÍCH: TẢI FILE EXCEL */}
@@ -268,7 +268,9 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           <span>Tải File Excel</span>
         </button>
 
+        {/* [CÁC NÚT KỸ THUẬT PHỤ ĐÃ COMMENT ẨN ĐỂ TRÁNH RƯỜM RÀ CHO USER CA TRỰC]
         {/* 3. CÔNG CỤ KỸ THUẬT: KHẮC PHỤC BUG & QUÉT LẠI HỒI TỐ (DEV TOOL) */}
+        {/*
         <button
           onClick={() => setShowDevModal(true)}
           disabled={isProcessing}
@@ -292,8 +294,10 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           <Terminal size={14} />
           <span>Khắc Phục Bug (Dev)</span>
         </button>
+        */}
 
-        {/* 4. THAO TÁC NÂNG CAO (Dropdown / Menu Popover) */}
+        {/* [TẠM ẨN TOÀN BỘ CÁC NÚT THAO TÁC NÂNG CAO/PHÂN MẢNH THEO YÊU CẦU ĐƠN GIẢN HÓA GIAO DIỆN CA TRỰC] */}
+        {/*
         <div style={{ position: 'relative' }}>
           <button
             id="tutorial-tkgd-advanced-btn"
@@ -326,7 +330,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
             />
           </button>
 
-          {/* Dropdown Menu Nội Dung Nâng Cao */}
           {showAdvancedActions && (
             <div
               style={{
@@ -346,7 +349,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
               }}
               className="animate-fade-in"
             >
-              {/* Section 1: Chế độ chạy */}
               <div>
                 <div
                   style={{
@@ -410,146 +412,6 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
 
               <div style={{ borderTop: '1px solid var(--border-color)', margin: '2px 0' }} />
 
-              {/* [TẠM ẨN THEO YÊU CẦU TỐI ƯU GIAO DIỆN - THAO TÁC RỜI RẠC ÍT DÙNG, ĐÃ TỰ ĐỘNG HÓA 100%]
-              Section 2: Chạy Thủ Công Từng Bước
-              <div>
-                <div
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    color: 'var(--text-muted)',
-                    textTransform: 'uppercase',
-                    marginBottom: '6px',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  Chạy Thủ Công Từng Bước
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    onClick={() => {
-                      setShowAdvancedActions(false);
-                      onSyncMail();
-                    }}
-                    disabled={isProcessing}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-input)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'left',
-                    }}
-                    className="hover:border-blue-400 hover:text-blue-500"
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Mail size={13} color="#3b82f6" />
-                      <span>1. Quét Mail Riêng</span>
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowAdvancedActions(false);
-                      onSyncMSystem();
-                    }}
-                    disabled={isProcessing}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-input)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'left',
-                    }}
-                    className="hover:border-purple-400 hover:text-purple-500"
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Globe size={13} color="#8b5cf6" />
-                      <span>2. Cào M-System Riêng</span>
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowAdvancedActions(false);
-                      onRunReconcile();
-                    }}
-                    disabled={isProcessing}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-input)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'left',
-                    }}
-                    className="hover:border-emerald-400 hover:text-emerald-500"
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <RefreshCw size={13} color="#10b981" />
-                      <span>3. Chạy Đối Soát Riêng</span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-              */}
-
-              {/* Thông báo chu trình tự động 1-Click tinh gọn */}
-              <div
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  fontSize: '0.72rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.45,
-                }}
-              >
-                <div
-                  style={{
-                    fontWeight: 700,
-                    color: '#3b82f6',
-                    marginBottom: '3px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                >
-                  <Zap size={13} fill="#3b82f6" /> Chu trình 1-Click Tinh Gọn
-                </div>
-                <span>
-                  Các thao tác riêng lẻ (Quét mail, cào MS, đối soát) đã được tự động hóa trọn gói qua nút{' '}
-                  <strong style={{ color: '#10b981' }}>"Quét & Chạy Ngay"</strong> hoặc chế độ{' '}
-                  <strong style={{ color: '#10b981' }}>Tự Động 24/7</strong>.
-                </span>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', margin: '2px 0' }} />
-
-              {/* Section 3: Tùy biến hiển thị KPI */}
               <button
                 onClick={toggleStats}
                 style={{
@@ -575,6 +437,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
             </div>
           )}
         </div>
+        */}
       </div>
 
       {/* =========================================================================
@@ -636,10 +499,10 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Cấu Hình Quét & Chạy Thủ Công
+                    Cấu Hình Kiểm Tra (Check)
                   </h3>
                   <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Kích hoạt quét email và đối soát dữ liệu theo yêu cầu ngay lập tức
+                    Kiểm tra đối soát hồ sơ mở tài khoản ngay lập tức
                   </p>
                 </div>
               </div>
@@ -674,7 +537,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                   }}
                 >
                   <Calendar size={14} color="#3b82f6" />
-                  <span>1. Khoảng Thời Gian Quét Email Outlook:</span>
+                  <span>1. Khoảng Thời Gian Tiếp Nhận Hồ Sơ:</span>
                 </label>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -712,7 +575,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                         </span>
                       </div>
                       <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Chỉ quét các email yêu cầu mở TKGD được nhận trong ngày hôm nay
+                        Kiểm tra các hồ sơ yêu cầu mở TKGD được tiếp nhận trong ngày hôm nay
                       </p>
                     </div>
                     <div
@@ -819,7 +682,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                 </div>
               </div>
 
-              {/* Mục 2: Cơ Chế Bóc Tách Smart Skip */}
+              {/* Mục 2: Cơ Chế Xử Lý Hồ Sơ */}
               <div>
                 <label
                   style={{
@@ -833,7 +696,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                   }}
                 >
                   <CheckCircle2 size={14} color="#10b981" />
-                  <span>2. Cơ Chế Bóc Tách OCR (Smart Skip):</span>
+                  <span>2. Tùy Chọn Xử Lý Hồ Sơ:</span>
                 </label>
 
                 <div
@@ -856,10 +719,10 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                     />
                     <div>
                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Chỉ bóc tách hồ sơ mới (Tự động bỏ qua hồ sơ đã có HĐ & CCCD)
+                        Chỉ kiểm tra hồ sơ mới (Bỏ qua hồ sơ đã thẩm định xong)
                       </span>
                       <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Tự động kiểm tra cơ sở dữ liệu để bỏ qua các hồ sơ đã OCR thành công trước đó. Giúp chu trình chạy siêu tốc trong vài giây thay vì 5 phút.
+                        Tự động sử dụng dữ liệu đã kiểm tra hợp lệ trước đó để hoàn thành tức thì trong vài giây.
                       </p>
                     </div>
                   </label>
@@ -881,7 +744,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                     >
                       <AlertCircle size={14} style={{ flexShrink: 0 }} />
                       <span>
-                        Bạn đang chọn <strong>Bóc tách lại từ đầu</strong>: Hệ thống sẽ gọi lại Python OCR cho toàn bộ hồ sơ trong khoảng thời gian này (mất từ 3 đến 5 phút).
+                        Bạn đang chọn <strong>Kiểm tra lại toàn bộ từ đầu</strong>: Hệ thống sẽ đọc lại từng tài liệu hồ sơ trong khoảng thời gian này (mất từ 1 đến 3 phút).
                       </span>
                     </div>
                   )}
@@ -939,7 +802,7 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
                   }}
                 >
                   <PlayCircle size={14} />
-                  <span>Bắt Đầu Chạy Ngay</span>
+                  <span>Check</span>
                 </button>
               </div>
             </div>

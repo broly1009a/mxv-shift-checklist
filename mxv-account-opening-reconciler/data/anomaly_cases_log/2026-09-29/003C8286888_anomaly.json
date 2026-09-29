@@ -1,0 +1,40 @@
+{
+  "accountCode": "003C8286888",
+  "timestamp": "2026-09-29T10:10:37.583609",
+  "frontPath": null,
+  "backPath": "M:/Tailieuchung/QLGD-IT/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD/HoSo_DinhKem/2026-09-29/003C8286888/003C8286888_MS_CCCD_sau.jpg",
+  "anomalyReasons": [
+    "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+  ],
+  "toolScanData": {
+    "soCCCD": "031090002368",
+    "hoTen": "HOANG DUC",
+    "ngaySinh": "26/09/1990",
+    "gioiTinh": "Nam",
+    "ngayCap": null,
+    "noiCap": null,
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "geminiData": null,
+  "finalData": {
+    "soCCCD": "031090002368",
+    "hoTen": "HOANG DUC",
+    "ngaySinh": "26/09/1990",
+    "gioiTinh": "Nam",
+    "ngayCap": null,
+    "noiCap": null,
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "autoHealed": false,
+  "healedFields": []
+}

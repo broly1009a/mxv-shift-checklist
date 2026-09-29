@@ -38,28 +38,76 @@ import {
   ChevronRight,
   X,
   HelpCircle,
+  RotateCcw,
+  HardDrive,
+  UserCheck,
+  Settings,
+  Sparkles,
+  Info,
 } from 'lucide-react';
 import { useTutorial } from '@/context/TutorialContext';
 import { tkgdConfigTutorialSteps } from '@/tutorials/tkgdTutorial';
 
 export default function TkgdConfigPanel() {
   const { user, token } = useAuth();
-  const { startTutorial, resetTutorial } = useTutorial();
+  const { startTutorial } = useTutorial();
+
+  // Tab State: Vận hành ca trực (mặc định) vs Kỹ thuật & IT (hỗ trợ URL param ?subtab=...)
+  const [activeTab, setActiveTab] = useState<'OPERATIONS' | 'ADVANCED'>('OPERATIONS');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const sub = p.get('subtab')?.toLowerCase();
+      if (sub === 'advanced' || sub === 'kythuat' || sub === 'it') {
+        setActiveTab('ADVANCED');
+      } else if (sub === 'operations' || sub === 'vanhanh') {
+        setActiveTab('OPERATIONS');
+      }
+    } catch {}
+
+    const handlePop = () => {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        const sub = p.get('subtab')?.toLowerCase();
+        if (sub === 'advanced' || sub === 'kythuat' || sub === 'it') {
+          setActiveTab('ADVANCED');
+        } else {
+          setActiveTab('OPERATIONS');
+        }
+      } catch {}
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  const handleSubTabChange = (newSubTab: 'OPERATIONS' | 'ADVANCED') => {
+    setActiveTab(newSubTab);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('subtab', newSubTab.toLowerCase());
+        window.history.replaceState(null, '', url.toString());
+      } catch {}
+    }
+  };
 
   // State cấu hình
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form Fields
+  // Profile
   const [fullName, setFullName] = useState('');
-  const [department, setDepartment] = useState('Thanh toán bù trừ');
+  const [department, setDepartment] = useState('');
+
+  // M-System credentials
+  const [msUrl, setMsUrl] = useState('https://msadmin.mxv.com.vn/');
   const [msUsername, setMsUsername] = useState('');
   const [msPassword, setMsPassword] = useState('');
   const [msPin, setMsPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showPin, setShowPin] = useState(false);
-
-  // Has existing password/pin
   const [hasExistingPassword, setHasExistingPassword] = useState(false);
   const [hasExistingPin, setHasExistingPin] = useState(false);
 
@@ -111,7 +159,7 @@ export default function TkgdConfigPanel() {
   const [testingMs, setTestingMs] = useState(false);
   const [msTestResult, setMsTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Load config from Backend (Tự động nhận diện Auto-Auth)
+  // Load config from Backend
   const fetchConfig = async () => {
     setLoading(true);
     try {
@@ -171,16 +219,14 @@ export default function TkgdConfigPanel() {
     }
   };
 
-  // Modal xác nhận chuyển đổi chế độ vận hành (null: đóng; true: muốn bật Auto; false: muốn chuyển Thủ công)
+  // Modal xác nhận chuyển đổi chế độ vận hành
   const [pendingModeChange, setPendingModeChange] = useState<boolean | null>(null);
 
-  // Yêu cầu chuyển chế độ -> Mở Modal xác nhận
   const requestModeChange = (targetState: boolean) => {
     if (targetState === autoPipelineEnabled || togglingAuto) return;
     setPendingModeChange(targetState);
   };
 
-  // Thực thi chuyển đổi sau khi người dùng xác nhận
   const executeToggleAutoMode = async (nextState: boolean) => {
     setPendingModeChange(null);
     setTogglingAuto(true);
@@ -197,7 +243,7 @@ export default function TkgdConfigPanel() {
       const data = await res.json();
       if (res.ok) {
         setAutoPipelineEnabled(data.enabled);
-        toast.success(data.message || (nextState ? 'Đã kích hoạt chế độ Vận Hành Tự Động 24/7' : 'Đã chuyển sang chế độ Vận Hành Thủ Công'));
+        toast.success(data.message || (nextState ? 'Đã kích hoạt chế độ Vận Hành Tự Động 24/7' : 'Đã chuyển sang chế độ Vận Hành Theo Yêu Cầu'));
       } else {
         toast.error(data.message || 'Không thể thay đổi chế độ vận hành');
       }
@@ -264,6 +310,28 @@ export default function TkgdConfigPanel() {
     } finally {
       setDisconnectingOutlook(false);
     }
+  };
+
+  // Khôi phục mặc định chuẩn của Sở
+  const handleResetToDefault = () => {
+    if (!confirm('Khôi phục toàn bộ tham số về giá trị mặc định chuẩn của Sở MXV?')) return;
+    setWindowsPath('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD');
+    setLinuxPath('/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD');
+    setTargetMailbox('clearing.acc@mxv.vn');
+    setAutoHighlightExcel(true);
+    setAutoDownloadMailAttachments(true);
+    setAutoSaveMSystemImages(true);
+    setAttachmentSavePath('');
+    setAutoExtractPdf(true);
+    setEnableOcrCccd(true);
+    setEnableTripleCheckCccd(true);
+    setCheckSignatureRequired(true);
+    setAutoIntervalMinutes(5);
+    setAutoBatchSize(50);
+    setAutoSyncMSystem(true);
+    setAutoExportExcel(true);
+    setExecutionMode('BATCH');
+    toast.success('Đã nạp lại cấu hình mặc định chuẩn Sở. Vui lòng bấm "Lưu Cấu Hình" để áp dụng!');
   };
 
   // Handle Save
@@ -348,1506 +416,1017 @@ export default function TkgdConfigPanel() {
 
   // Test M-System login
   const handleTestMs = async () => {
+    if (!msUsername) {
+      toast.error('Vui lòng nhập Username M-System');
+      return;
+    }
+    if (!msPassword && !hasExistingPassword) {
+      toast.error('Vui lòng nhập Mật khẩu M-System');
+      return;
+    }
+    if (!msPin && !hasExistingPin) {
+      toast.error('Vui lòng nhập Mã PIN');
+      return;
+    }
+
     setTestingMs(true);
     setMsTestResult(null);
     try {
-      const payload: any = {};
-      if (msUsername) payload.username = msUsername;
-      if (msPassword) payload.password = msPassword;
-      if (msPin) payload.pin = msPin;
-
-      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/test-ms`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/test-ms-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'x-user-email': user?.email || 'hieptruong@mxv.vn',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          url: msUrl,
+          username: msUsername,
+          password: msPassword || undefined,
+          pin: msPin || undefined,
+        }),
       });
 
       const data = await res.json();
-      setMsTestResult(data);
-      if (data.success) {
-        toast.success('Kết nối M-System thành công!');
+      if (res.ok && data.success) {
+        setMsTestResult({ success: true, message: data.message || 'Đăng nhập M-System thành công!' });
+        toast.success('Thử nghiệm: Đăng nhập M-System thành công!');
       } else {
+        setMsTestResult({ success: false, message: data.message || 'Đăng nhập thất bại. Kiểm tra lại thông tin.' });
         toast.error(data.message || 'Đăng nhập M-System thất bại');
       }
     } catch (err: any) {
-      setMsTestResult({ success: false, message: err.message });
-      toast.error('Lỗi khi kiểm tra: ' + err.message);
+      setMsTestResult({ success: false, message: 'Lỗi kết nối: ' + err.message });
+      toast.error('Không thể kiểm tra đăng nhập M-System');
     } finally {
       setTestingMs(false);
     }
   };
 
+  // Test Outlook connection
+  const [testingOutlook, setTestingOutlook] = useState(false);
+  const handleTestOutlook = async () => {
+    setTestingOutlook(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/test-outlook-connection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-user-email': user?.email || 'hieptruong@mxv.vn',
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Kết nối hòm thư Outlook thành công!');
+      } else {
+        toast.error(data.message || 'Không thể kết nối Outlook');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kiểm tra Outlook: ' + err.message);
+    } finally {
+      setTestingOutlook(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '360px', gap: '16px' }}>
+        <Loader2 className="animate-spin" size={36} color="#10b981" />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Đang nạp cấu hình đối soát TKGD...</span>
+      </div>
+    );
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '9px 12px',
+    borderRadius: '8px',
+    border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-input)',
+    color: 'var(--text-primary)',
+    fontSize: '0.85rem',
+    outline: 'none',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
+  };
+
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
     fontWeight: 600,
     color: 'var(--text-secondary)',
     marginBottom: '6px',
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '10px 14px',
-    fontSize: '0.875rem',
-    backgroundColor: 'var(--bg-input)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '10px',
-    color: 'var(--text-primary)',
-    outline: 'none',
-    transition: 'border-color 0.2s ease',
-  };
-
   const cardStyle: React.CSSProperties = {
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '16px',
-    padding: '24px',
-    boxShadow: 'var(--shadow-sm)',
+    padding: '20px',
+    borderRadius: '12px',
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <Loader2 size={32} className="animate-spin text-emerald-500" style={{ margin: '0 auto 12px auto' }} />
-        <p style={{ margin: 0, fontSize: '0.875rem' }}>Đang nạp cấu hình đối soát TKGD...</p>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Action bar */}
+    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Header thanh công cụ & Tác vụ */}
       <div
         id="tutorial-tkgd-config-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '16px 20px',
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '14px',
-          border: '1px solid var(--border-color)',
+          flexWrap: 'wrap',
+          gap: '12px',
+          paddingBottom: '16px',
+          borderBottom: '1px solid var(--border-color)',
         }}
       >
-        <div>
-          <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Cấu Hình Thông Số Bot & Quy Trình Bóc Tách
-          </h3>
-          <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            Thiết lập tài khoản M-System, hòm thư Outlook, thư mục ổ M:\ và cơ chế đối soát 3 chiều.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+            }}
+          >
+            <Settings size={22} color="#10b981" />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Cấu Hình Phân Hệ Đối Soát Mở TKGD
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Quản lý tài khoản bot M-System, kết nối hòm thư, thư mục lưu trữ báo cáo & hồ sơ và chế độ vận hành
+            </p>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Nút xem tour hướng dẫn */}
           <button
             type="button"
-            onClick={() => {
-              resetTutorial('tkgd-config');
-              startTutorial('tkgd-config', tkgdConfigTutorialSteps);
-            }}
-            title="Xem hướng dẫn từng bước cấu hình Bot"
+            onClick={() => startTutorial('tkgd-config', tkgdConfigTutorialSteps)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '10px 16px',
-              borderRadius: '10px',
+              padding: '8px 14px',
+              borderRadius: '8px',
               backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
               color: '#3b82f6',
-              fontWeight: 700,
-              fontSize: '0.85rem',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
             }}
-            className="hover:bg-blue-500 hover:text-white"
           >
-            <HelpCircle size={16} />
-            <span>Hướng Dẫn Cấu Hình</span>
+            <HelpCircle size={15} />
+            <span>Hướng dẫn</span>
           </button>
+
+          {/* Nút Lưu cấu hình */}
           <button
-            type="submit"
             id="tutorial-tkgd-config-save-btn"
+            type="button"
+            onClick={() => handleSave()}
             disabled={saving}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '10px 22px',
-              borderRadius: '10px',
-              backgroundColor: '#10b981',
+              gap: '6px',
+              padding: '8px 18px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#ffffff',
-              fontWeight: 700,
               fontSize: '0.85rem',
+              fontWeight: 700,
               border: 'none',
               cursor: saving ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
             }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            <span>{saving ? 'Đang lưu...' : 'Lưu Cấu Hình'}</span>
+            <span>Lưu Cấu Hình</span>
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
-        {/* Card 0: CHẾ ĐỘ VẬN HÀNH HỆ THỐNG (ENTERPRISE CLEAN REDESIGN) */}
-        <div
-          id="tutorial-tkgd-config-operation-mode"
+      {/* THANH CHUYỂN TAB: Vận Hành Ca Trực vs Cấu Hình Kỹ Thuật IT */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '4px',
+          borderRadius: '10px',
+          backgroundColor: 'var(--bg-input)',
+          border: '1px solid var(--border-color)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => handleSubTabChange('OPERATIONS')}
           style={{
-            ...cardStyle,
-            gridColumn: '1 / -1',
-            border: autoPipelineEnabled
-              ? '1px solid rgba(16, 185, 129, 0.35)'
-              : '1px solid var(--border-color)',
-            background: 'var(--bg-card)',
-            position: 'relative',
-            overflow: 'hidden',
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: 'none',
+            backgroundColor: activeTab === 'OPERATIONS' ? '#10b981' : 'transparent',
+            color: activeTab === 'OPERATIONS' ? '#ffffff' : 'var(--text-secondary)',
+            transition: 'all 0.2s ease',
           }}
-          className="glass-panel"
         >
-          {/* Header thống nhất, loại bỏ switch trùng lặp */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid var(--border-color)',
-              paddingBottom: '14px',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div
+          <UserCheck size={18} />
+          <span>VẬN HÀNH CA TRỰC (TTBT)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSubTabChange('ADVANCED')}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: 'none',
+            backgroundColor: activeTab === 'ADVANCED' ? '#3b82f6' : 'transparent',
+            color: activeTab === 'ADVANCED' ? '#ffffff' : 'var(--text-secondary)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <Cpu size={18} />
+          <span>CẤU HÌNH KỸ THUẬT & IT</span>
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* TAB 1: VẬN HÀNH CA TRỰC (DÀNH CHO CHUYÊN VIÊN NGHIỆP VỤ TTBT) */}
+      {/* ========================================================================= */}
+      {activeTab === 'OPERATIONS' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* 1. CHẾ ĐỘ VẬN HÀNH HỆ THỐNG */}
+          <div id="tutorial-tkgd-config-operation-mode" style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Clock color="#10b981" size={20} />
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    1. Chế Độ Vận Hành Hệ Thống
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    Kiểm soát tự động hóa quét mail và đồng bộ dữ liệu M-System
+                  </span>
+                </div>
+              </div>
+
+              {/* Huy hiệu trạng thái */}
+              <span
                 style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-input)',
-                  border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-color)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                  color: autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)',
+                  border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-color)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  color: autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)',
+                  gap: '6px',
                 }}
               >
-                <Bot size={20} />
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: autoPipelineEnabled ? '#10b981' : '#94a3b8',
+                  }}
+                  className={autoPipelineEnabled ? 'animate-pulse' : ''}
+                />
+                <span>{autoPipelineEnabled ? 'Đang Tự Động 24/7' : 'Đang Theo Yêu Cầu'}</span>
+              </span>
+            </div>
+
+            {/* 2 Lựa chọn vận hành lớn */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              {/* Lựa chọn 1: Tự động 24/7 */}
+              <div
+                onClick={() => requestModeChange(true)}
+                style={{
+                  padding: '16px',
+                  borderRadius: '10px',
+                  border: autoPipelineEnabled ? '2px solid #10b981' : '1px solid var(--border-color)',
+                  backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-input)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: autoPipelineEnabled ? '#10b981' : 'var(--text-primary)', fontWeight: 700 }}>
+                    <PlayCircle size={18} />
+                    <span>Vận Hành Tự Động 24/7</span>
+                  </div>
+                  <input
+                    type="radio"
+                    name="mode_radio_fe"
+                    checked={autoPipelineEnabled}
+                    onChange={() => requestModeChange(true)}
+                  />
+                </div>
+                <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  Hệ thống tự động kiểm tra hòm thư, tải hợp đồng, đồng bộ dữ liệu M-System và cập nhật file Excel định kỳ.
+                </p>
               </div>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                  Chế Độ Vận Hành Hệ Thống (Operation Mode)
-                </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Lựa chọn cơ chế quét hòm thư M365, bóc tách hồ sơ và đồng bộ dữ liệu đối soát.
+
+              {/* Lựa chọn 2: Theo yêu cầu (Thủ công) */}
+              <div
+                onClick={() => requestModeChange(false)}
+                style={{
+                  padding: '16px',
+                  borderRadius: '10px',
+                  border: !autoPipelineEnabled ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                  backgroundColor: !autoPipelineEnabled ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-input)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: !autoPipelineEnabled ? '#3b82f6' : 'var(--text-primary)', fontWeight: 700 }}>
+                    <PauseCircle size={18} />
+                    <span>Vận Hành Theo Yêu Cầu (Khuyến nghị khi test)</span>
+                  </div>
+                  <input
+                    type="radio"
+                    name="mode_radio_fe"
+                    checked={!autoPipelineEnabled}
+                    onChange={() => requestModeChange(false)}
+                  />
+                </div>
+                <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  Hệ thống chỉ chạy khi chuyên viên ca trực bấm nút <strong>[Check]</strong> hoặc chọn tài khoản rồi bấm <strong>[Check lại]</strong>.
                 </p>
               </div>
             </div>
 
-            {/* Status Pill Badge trực quan */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 14px',
-                borderRadius: '20px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-input)',
-                color: autoPipelineEnabled ? '#059669' : 'var(--text-muted)',
-                border: autoPipelineEnabled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
-              }}
-            >
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: autoPipelineEnabled ? '#10b981' : '#94a3b8',
-                }}
-                className={autoPipelineEnabled ? 'animate-pulse' : ''}
-              />
-              <span>{autoPipelineEnabled ? 'Đang Vận Hành Tự Động 24/7' : 'Đang Ở Chế Độ Thủ Công'}</span>
-            </div>
-          </div>
-
-          {/* 2 Chế Độ Lựa Chọn Dạng Segmented Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            {/* Thẻ 1: Tự Động 24/7 */}
-            <div
-              onClick={() => requestModeChange(true)}
-              style={{
-                padding: '18px',
-                borderRadius: '12px',
-                border: autoPipelineEnabled ? '2px solid #10b981' : '1px solid var(--border-color)',
-                backgroundColor: autoPipelineEnabled ? 'rgba(16, 185, 129, 0.04)' : 'var(--bg-input)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-              className="hover:border-emerald-400"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <PlayCircle size={20} color={autoPipelineEnabled ? '#10b981' : 'var(--text-secondary)'} />
-                  <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                    Tự Động Hóa 24/7
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                      color: '#059669',
-                    }}
-                  >
-                    Khuyến nghị
-                  </span>
-                </div>
-                <div
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    border: autoPipelineEnabled ? '5px solid #10b981' : '2px solid var(--border-color)',
-                    backgroundColor: '#ffffff',
-                    transition: 'all 0.2s ease',
-                  }}
-                />
-              </div>
-
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Hệ thống tự động chạy ngầm theo chu kỳ định kỳ. Chuyên viên chỉ cần theo dõi và kiểm tra kết quả đối soát trên bàn làm việc.
-              </p>
-
-              {/* Stepper Quy Trình Mini Thanh Lịch */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  flexWrap: 'wrap',
-                  paddingTop: '6px',
-                  fontSize: '0.72rem',
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
-                  Hòm thư M365
-                </span>
-                <ChevronRight size={13} color="var(--text-muted)" />
-                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
-                  Bóc tách OCR
-                </span>
-                <ChevronRight size={13} color="var(--text-muted)" />
-                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
-                  Đối chiếu M-System
-                </span>
-                <ChevronRight size={13} color="var(--text-muted)" />
-                <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 500 }}>
-                  Cập nhật Excel
-                </span>
-              </div>
-            </div>
-
-            {/* Thẻ 2: Thủ Công On-Demand */}
-            <div
-              onClick={() => requestModeChange(false)}
-              style={{
-                padding: '18px',
-                borderRadius: '12px',
-                border: !autoPipelineEnabled ? '2px solid #3b82f6' : '1px solid var(--border-color)',
-                backgroundColor: !autoPipelineEnabled ? 'rgba(59, 130, 246, 0.04)' : 'var(--bg-input)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-              className="hover:border-blue-400"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <SlidersHorizontal size={20} color={!autoPipelineEnabled ? '#3b82f6' : 'var(--text-secondary)'} />
-                  <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                    Vận Hành Thủ Công (Theo yêu cầu)
-                  </span>
-                </div>
-                <div
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    border: !autoPipelineEnabled ? '5px solid #3b82f6' : '2px solid var(--border-color)',
-                    backgroundColor: '#ffffff',
-                    transition: 'all 0.2s ease',
-                  }}
-                />
-              </div>
-
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Bot ở trạng thái nghỉ hoàn toàn. Các tác vụ quét hòm thư, cào M-System và đối soát chỉ thực thi khi chuyên viên bấm nút kích hoạt trên thanh công cụ.
-              </p>
-
-              <div style={{ paddingTop: '6px' }}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    fontSize: '0.72rem',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  Phù hợp khi bảo trì hòm thư hoặc chạy kiểm thử từng đợt riêng biệt
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Chi tiết cài đặt nâng cao khi ở chế độ Tự Động */}
-          {autoPipelineEnabled && (
-            <div
-              style={{
-                padding: '16px 18px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-              }}
-            >
-              {/* Lựa chọn Chế Độ Tự Động Hóa: Batch vs Instant Stream */}
-              <div>
-                <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                  <Cpu size={14} color="#3b82f6" />
-                  <span>Phương Thức Thực Thi Tự Động (Execution Mode):</span>
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-                  {/* Card 1: Batch Mode */}
-                  <div
-                    onClick={() => setExecutionMode('BATCH')}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      border: executionMode === 'BATCH' ? '2px solid #3b82f6' : '1px solid var(--border-color)',
-                      backgroundColor: executionMode === 'BATCH' ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-card)',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem', color: executionMode === 'BATCH' ? '#2563eb' : 'var(--text-primary)' }}>
-                        <Layers size={16} color={executionMode === 'BATCH' ? '#2563eb' : '#64748b'} />
-                        <span>Theo Đợt (Batch Mode)</span>
-                      </div>
-                      {executionMode === 'BATCH' && <CheckCircle2 size={16} color="#3b82f6" />}
-                    </div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                      Quét email theo mẻ định kỳ → Cào M-System toàn bộ danh sách chờ → Chạy đối soát tổng và xuất file Excel chốt ca.
-                    </div>
-                  </div>
-
-                  {/* Card 2: Instant Stream Mode */}
-                  <div
-                    onClick={() => setExecutionMode('INSTANT_STREAM')}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      border: executionMode === 'INSTANT_STREAM' ? '2px solid #10b981' : '1px solid var(--border-color)',
-                      backgroundColor: executionMode === 'INSTANT_STREAM' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-card)',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem', color: executionMode === 'INSTANT_STREAM' ? '#059669' : 'var(--text-primary)' }}>
-                        <Zap size={16} color={executionMode === 'INSTANT_STREAM' ? '#10b981' : '#64748b'} />
-                        <span>Liền Mạch Tức Thì (Instant Stream )</span>
-                      </div>
-                      {executionMode === 'INSTANT_STREAM' && <CheckCircle2 size={16} color="#10b981" />}
-                    </div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                      Xử lý cuốn chiếu tức thì A-Z từng hồ sơ: Mail về → Bóc tách OCR → Cào MS ngay → Đối soát chéo 3 bên ngay → Khớp 100% thời gian thực (Zero Lag).
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                <Clock size={15} color="#10b981" />
-                <span>Tham Số Vận Hành Định Kỳ:</span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            {/* Tham số chi tiết khi bật tự động */}
+            {autoPipelineEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', paddingTop: '8px' }}>
                 <div>
-                  <label style={labelStyle}>Chu kỳ quét mail tự động</label>
+                  <label style={labelStyle}>Tần suất quét tự động</label>
                   <select
                     style={inputStyle}
                     value={autoIntervalMinutes}
                     onChange={(e) => setAutoIntervalMinutes(Number(e.target.value))}
                   >
-                    <option value={3}>3 phút / lần (Siêu nhanh)</option>
-                    <option value={5}>5 phút / lần (Khuyến nghị chuẩn)</option>
-                    <option value={10}>10 phút / lần</option>
-                    <option value={15}>15 phút / lần</option>
-                    <option value={30}>30 phút / lần</option>
+                    <option value={3}>Mỗi 3 phút</option>
+                    <option value={5}>Mỗi 5 phút (Chuẩn)</option>
+                    <option value={10}>Mỗi 10 phút</option>
+                    <option value={15}>Mỗi 15 phút</option>
+                    <option value={30}>Mỗi 30 phút</option>
                   </select>
                 </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={autoExportExcel}
+                      onChange={(e) => setAutoExportExcel(e.target.checked)}
+                    />
+                    <span>Tự động xuất file Excel vào thư mục lưu trữ sau mỗi chu kỳ</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. TÀI KHOẢN M-SYSTEM CÁ NHÂN */}
+          <div id="tutorial-tkgd-config-ms" style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <KeyRound color="#10b981" size={20} />
                 <div>
-                  <label style={labelStyle}>Số lượng hồ sơ xử lý mỗi lượt</label>
-                  <select
-                    style={inputStyle}
-                    value={autoBatchSize}
-                    onChange={(e) => setAutoBatchSize(Number(e.target.value))}
-                  >
-                    <option value={20}>20 hồ sơ / lượt</option>
-                    <option value={50}>50 hồ sơ / lượt (Khuyến nghị chuẩn)</option>
-                    <option value={100}>100 hồ sơ / lượt</option>
-                  </select>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    2. Tài Khoản M-System Cá Nhân
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    Dùng để đăng nhập M-System đồng bộ dữ liệu Nhà đầu tư và ảnh đối chiếu
+                  </span>
                 </div>
               </div>
 
-              {/* Checkboxes tuỳ chọn */}
-              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', paddingTop: '2px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={autoSyncMSystem}
-                    onChange={(e) => setAutoSyncMSystem(e.target.checked)}
-                    style={{ accentColor: '#10b981' }}
-                  />
-                  <span>Tự động đồng bộ cổng M-System sau khi bóc tách mail</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={autoExportExcel}
-                    onChange={(e) => setAutoExportExcel(e.target.checked)}
-                    style={{ accentColor: '#10b981' }}
-                  />
-                  <span>Tự động cập nhật file Excel đối soát mới nhất</span>
-                </label>
-              </div>
-
-              {/* Thông tin mốc thời gian lần quét cuối */}
-              {autoLastRunTime > 0 && (
-                <div
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    fontSize: '0.75rem',
-                    color: '#059669',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981' }} className="animate-pulse" />
-                    <span>Lần quét gần nhất: <strong>{new Date(autoLastRunTime).toLocaleString('vi-VN')}</strong></span>
-                  </div>
-                  <div>
-                    Số hồ sơ xử lý đợt gần nhất: <strong>{autoLastProcessedCount} hồ sơ</strong>
-                  </div>
-                </div>
+              {hasExistingPassword && (
+                <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600 }}>
+                  ✓ Đã lưu mật khẩu mã hóa
+                </span>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Card 1: Thông tin nhân sự */}
-        <div id="tutorial-tkgd-config-profile" style={cardStyle} className="glass-panel">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <Sliders color="#3b82f6" size={20} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              1. Thông Tin Chuyên Viên
-            </h3>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Họ và tên chuyên viên</label>
-            <input
-              type="text"
-              style={inputStyle}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="VD: Trương Hoàng Hiệp"
-            />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Phòng ban / Bộ phận</label>
-            <input
-              type="text"
-              style={inputStyle}
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              placeholder="VD: Thanh toán bù trừ"
-            />
-          </div>
-        </div>
-
-        {/* Card 2: Tài khoản M-System */}
-        <div id="tutorial-tkgd-config-ms" style={cardStyle} className="glass-panel">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <KeyRound color="#10b981" size={20} />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                2. Tài Khoản M-System Cá Nhân
-              </h3>
-            </div>
-            {hasExistingPassword && (
-              <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600 }}>
-                ✓ Đã có mật khẩu mã hóa
-              </span>
-            )}
-          </div>
-
-          <div>
-            <label style={labelStyle}>Tên đăng nhập (Username M-System)</label>
-            <input
-              type="text"
-              style={inputStyle}
-              value={msUsername}
-              onChange={(e) => setMsUsername(e.target.value)}
-              placeholder="VD: hiepth"
-            />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Mật khẩu M-System</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                style={{ ...inputStyle, paddingRight: '40px' }}
-                value={msPassword}
-                onChange={(e) => setMsPassword(e.target.value)}
-                placeholder={hasExistingPassword ? '•••••••• (Để trống nếu giữ nguyên)' : 'Nhập mật khẩu M-System'}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Mã PIN giao dịch (nếu có)</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPin ? 'text' : 'password'}
-                style={{ ...inputStyle, paddingRight: '40px' }}
-                value={msPin}
-                onChange={(e) => setMsPin(e.target.value)}
-                placeholder={hasExistingPin ? '•••• (Để trống nếu giữ nguyên)' : 'Nhập mã PIN nếu có'}
-                maxLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPin(!showPin)}
-                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '6px' }}>
-            <button
-              type="button"
-              onClick={handleTestMs}
-              disabled={testingMs || !msUsername}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: testingMs || !msUsername ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {testingMs ? <Loader2 size={14} className="animate-spin text-blue-500" /> : <Send size={14} color="#3b82f6" />}
-              <span>{testingMs ? 'Đang kiểm tra đăng nhập...' : 'Kiểm Tra Đăng Nhập MS'}</span>
-            </button>
-            {msTestResult && (
-              <span style={{ fontSize: '0.75rem', color: msTestResult.success ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                {msTestResult.success ? '✓ Thành công' : '✕ Thất bại'}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Card 3: Hộp thư Outlook Độc Lập */}
-        <div id="tutorial-tkgd-config-outlook" style={cardStyle} className="glass-panel">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Mail color="#8b5cf6" size={20} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                  3. Tài Khoản Outlook Nhận Mail (Độc Lập)
-                </h3>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  Tách biệt 100% — Không chia sẻ token với Checklist bot
-                </span>
+                <label style={labelStyle}>Tên đăng nhập (Username M-System)</label>
+                <input
+                  type="text"
+                  style={inputStyle}
+                  value={msUsername}
+                  onChange={(e) => setMsUsername(e.target.value)}
+                  placeholder="VD: mxvsupport"
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Mật khẩu đăng nhập</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    style={{ ...inputStyle, paddingRight: '36px' }}
+                    value={msPassword}
+                    onChange={(e) => setMsPassword(e.target.value)}
+                    placeholder={hasExistingPassword ? '••••••••••• (Để trống nếu giữ nguyên)' : 'Nhập mật khẩu M-System'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Mã PIN giao dịch (6 số)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPin ? 'text' : 'password'}
+                    maxLength={6}
+                    style={{ ...inputStyle, paddingRight: '36px', letterSpacing: showPin ? 'normal' : '2px' }}
+                    value={msPin}
+                    onChange={(e) => setMsPin(e.target.value)}
+                    placeholder={hasExistingPin ? '•••••• (Đã lưu)' : 'Nhập 6 số PIN'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPin(!showPin)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
-            {hasRefreshToken ? (
-              <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: '12px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <ShieldCheck size={13} />
-                Đã kết nối
-              </span>
-            ) : (
-              <span style={{ fontSize: '0.7rem', padding: '3px 8px', borderRadius: '12px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <AlertTriangle size={13} />
-                Chưa cấp quyền
-              </span>
-            )}
+
+            {/* Nút Test M-System Login */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', paddingTop: '4px' }}>
+              <button
+                type="button"
+                onClick={handleTestMs}
+                disabled={testingMs}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: testingMs ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {testingMs ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
+                <span>{testingMs ? 'Đang thử đăng nhập M-System...' : 'Kiểm Tra Đăng Nhập M-System'}</span>
+              </button>
+
+              {msTestResult && (
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: msTestResult.success ? '#10b981' : '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {msTestResult.success ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                  <span>{msTestResult.message}</span>
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Trạng thái kết nối chi tiết */}
-          <div style={{
-            padding: '12px 14px',
-            borderRadius: '8px',
-            backgroundColor: hasRefreshToken ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-            border: `1px solid ${hasRefreshToken ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}>
-            {hasRefreshToken ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle2 size={15} />
-                    Tài khoản Microsoft: <strong>{authorizedEmail || targetMailbox}</strong>
-                  </span>
-                  {tokenRenewedAt && (
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={12} />
-                      Cấp lúc: {new Date(tokenRenewedAt).toLocaleString('vi-VN')}
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                  <button
-                    type="button"
-                    onClick={handleConnectOutlook}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                      border: '1px solid #3b82f6',
-                      color: '#3b82f6',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
-                  >
-                    <RefreshCw size={12} />
-                    Đổi / Cấp lại tài khoản
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDisconnectOutlook}
-                    disabled={disconnectingOutlook}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid #ef4444',
-                      color: '#ef4444',
-                      borderRadius: '6px',
-                      cursor: disconnectingOutlook ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
-                  >
-                    {disconnectingOutlook ? <Loader2 size={12} className="animate-spin" /> : <Unlink size={12} />}
-                    Ngắt kết nối
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: '0.75rem', color: '#f59e0b', lineHeight: 1.4 }}>
-                  Hệ thống chưa có Token để truy cập hộp thư. Vui lòng bấm nút bên dưới để đăng nhập tài khoản Microsoft Office 365 của phòng TTBT (hỗ trợ đọc email, quét file hợp đồng/CCCD).
-                </div>
+          {/* 3. HỘP THƯ OUTLOOK NGHIỆP VỤ */}
+          <div id="tutorial-tkgd-config-outlook" style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Mail color="#3b82f6" size={20} />
                 <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    3. Hộp Thư Nghiệp Vụ Nhận Hồ Sơ
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    Hòm thư tiếp nhận email mở tài khoản từ các Thành viên Kinh doanh (TVKD)
+                  </span>
+                </div>
+              </div>
+
+              {/* Trạng thái kết nối */}
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '16px',
+                  backgroundColor: hasRefreshToken ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                  color: hasRefreshToken ? '#10b981' : '#ef4444',
+                  border: hasRefreshToken ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {hasRefreshToken ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+                <span>{hasRefreshToken ? 'Đã Kết Nối Microsoft 365' : 'Chưa Kết Nối'}</span>
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Địa chỉ hòm thư tiếp nhận hồ sơ</label>
+                <input
+                  type="text"
+                  style={inputStyle}
+                  value={targetMailbox}
+                  onChange={(e) => setTargetMailbox(e.target.value)}
+                  placeholder="clearing.acc@mxv.vn"
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleTestOutlook}
+                  disabled={testingOutlook}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '9px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    color: '#3b82f6',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: testingOutlook ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {testingOutlook ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm Tra Kết Nối Hòm Thư</span>
+                </button>
+
+                {!hasRefreshToken && (
                   <button
                     type="button"
                     onClick={handleConnectOutlook}
                     style={{
-                      padding: '8px 16px',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      backgroundColor: '#2563eb',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
-                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+                      padding: '9px 16px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      color: '#ffffff',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
                     }}
                   >
                     <Link2 size={14} />
-                    Đăng Nhập & Cấp Quyền Hòm Thư Outlook
+                    <span>Ủy Quyền Outlook 365</span>
                   </button>
-                </div>
-              </>
-            )}
+                )}
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label style={labelStyle}>Hòm thư theo dõi (Target Mailbox)</label>
-            <input
-              type="email"
-              style={inputStyle}
-              value={targetMailbox}
-              onChange={(e) => setTargetMailbox(e.target.value)}
-              placeholder="clearing.acc@mxv.vn"
-            />
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-              Địa chỉ email phòng ban nhận thư đăng ký mở TKGD từ các TVKD.
-            </span>
-          </div>
+          {/* 4. THƯ MỤC LƯU TRỮ BÁO CÁO & HỒ SƠ */}
+          <div id="tutorial-tkgd-config-storage" style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <HardDrive color="#f59e0b" size={20} />
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  4. Thư Mục Lưu Trữ Báo Cáo & Hồ Sơ Mạng
+                </h3>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  Đường dẫn thư mục dùng chung (ổ đĩa mạng hoặc phân vùng lưu trữ) để xuất file Excel và lưu trữ hồ sơ
+                </span>
+              </div>
+            </div>
 
-          {/* Collapsible: Cấu hình Azure App nâng cao */}
-          <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px', marginTop: '4px' }}>
-            <button
-              type="button"
-              onClick={() => setShowAdvancedAzure(!showAdvancedAzure)}
+            {/* Ô nhập thân thiện, không gán cứng tên ổ đĩa */}
+            <div>
+              <label style={labelStyle}>Đường dẫn thư mục lưu trữ (Windows / Ổ đĩa mạng)</label>
+              <input
+                type="text"
+                style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.82rem' }}
+                value={windowsPath}
+                onChange={(e) => setWindowsPath(e.target.value)}
+                placeholder="VD: Z:\ThanhToanBuTru\Mo TKGD hoặc M:\Tailieuchung\..."
+              />
+            </div>
+
+            {/* Bảng ghi chú quy tắc lưu trữ rõ ràng */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, fontSize: '0.78rem' }}>
+                <Info size={14} />
+                <span>Quy tắc lưu trữ tự động của hệ thống:</span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                • <strong>Báo cáo Excel</strong>: Lưu trực tiếp file <code>Auto Data mail_YYYYMMDD.xlsx</code> tại thư mục trên.<br />
+                • <strong>Tệp scan Hợp đồng & Ảnh CCCD</strong>: Hệ thống tự động gom vào thư mục con <code>HoSo_DinhKem\&lt;Ngày&gt;\&lt;Mã_TKGD&gt;\</code> một cách ngăn nắp.
+              </p>
+            </div>
+
+            {/* Tùy chọn tô màu Excel */}
+            <div
+              id="tutorial-tkgd-config-excel"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                width: '100%',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                padding: '4px 0',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Key size={13} color="#8b5cf6" />
-                Cấu hình Azure App ID riêng (Tùy chọn nâng cao)
-              </span>
-              {showAdvancedAzure ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-
-            {showAdvancedAzure && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', padding: '12px', backgroundColor: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  Mặc định hệ thống tự động sử dụng Azure App của MXV. Bạn chỉ cần điền nếu phòng TTBT có App Registration riêng trên portal.azure.com.
-                </span>
-                <div>
-                  <label style={labelStyle}>Client ID (App ID)</label>
-                  <input
-                    type="text"
-                    style={inputStyle}
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                    placeholder="Mặc định: Sử dụng từ hệ thống"
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Tenant ID (Directory ID)</label>
-                  <input
-                    type="text"
-                    style={inputStyle}
-                    value={tenantId}
-                    onChange={(e) => setTenantId(e.target.value)}
-                    placeholder="Mặc định: Sử dụng từ hệ thống"
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Client Secret</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showClientSecret ? 'text' : 'password'}
-                      style={{ ...inputStyle, paddingRight: '40px' }}
-                      value={clientSecret}
-                      onChange={(e) => setClientSecret(e.target.value)}
-                      placeholder={hasClientSecret ? '•••••••• (Đã có Secret, để trống nếu giữ nguyên)' : 'Nhập Client Secret'}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowClientSecret(!showClientSecret)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                    >
-                      {showClientSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
+              <div>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
+                  Tự động tô màu kết quả đối soát trong file Excel
+                </p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Tô <strong style={{ color: '#10b981' }}>Xanh lá</strong> cho các ô khớp 100%, và màu <strong style={{ color: '#ef4444' }}>Cam / Đỏ</strong> cho các ô sai lệch hoặc thiếu thông tin.
+                </p>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Card 4: Thư mục lưu trữ & Tùy chọn xử lý Excel */}
-        <div id="tutorial-tkgd-config-storage" style={cardStyle} className="glass-panel">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <FolderSync color="#f59e0b" size={20} />
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                4. Thư Mục Lưu File Đối Soát & Xử Lý Excel (Ổ M:\)
-              </h3>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                Đường dẫn xuất file Auto Data mail_YYYYMMDD.xlsx và quy tắc định dạng
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Đường dẫn mạng trên Windows (Ổ M:\)</label>
-            <input
-              type="text"
-              style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.78rem' }}
-              value={windowsPath}
-              onChange={(e) => setWindowsPath(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label style={labelStyle}>Đường dẫn trên Server Linux (PM2 Mount)</label>
-            <input
-              type="text"
-              style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.78rem' }}
-              value={linuxPath}
-              onChange={(e) => setLinuxPath(e.target.value)}
-            />
-          </div>
-
-          {/* Tùy chọn xử lý kết quả Excel */}
-          <div
-            id="tutorial-tkgd-config-excel"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 14px',
-              borderRadius: '10px',
-              backgroundColor: 'var(--bg-input)',
-              border: '1px solid var(--border-color)',
-              marginTop: '4px',
-            }}
-          >
-            <div style={{ paddingRight: '14px' }}>
-              <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                Tự động tô màu kết quả đối soát trong file Excel
-              </p>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Tô màu <strong style={{ color: '#10b981' }}>Xanh lá</strong> cho các ô dữ liệu khớp hoàn toàn, và màu <strong style={{ color: '#f59e0b' }}>Cam</strong> / <strong style={{ color: '#ef4444' }}>Đỏ</strong> cho các ô sai lệch hoặc thiếu thông tin.
-              </p>
-            </div>
-
-            <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
               <input
                 type="checkbox"
                 checked={autoHighlightExcel}
                 onChange={(e) => setAutoHighlightExcel(e.target.checked)}
-                style={{ opacity: 0, width: 0, height: 0 }}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
-              <div
-                style={{
-                  width: '44px',
-                  height: '22px',
-                  backgroundColor: autoHighlightExcel ? '#10b981' : 'var(--border-color)',
-                  borderRadius: '22px',
-                  position: 'relative',
-                  transition: 'background-color 0.2s',
-                }}
-              >
-                <div
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    backgroundColor: '#ffffff',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '3px',
-                    left: autoHighlightExcel ? '24px' : '3px',
-                    transition: 'left 0.2s',
-                  }}
-                />
-              </div>
-            </label>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Card 5: Cấu hình tải tệp đính kèm, ảnh CCCD M-System, OCR & Đối chiếu 3 chiều (Full width) */}
-      <div id="tutorial-tkgd-config-processing" style={cardStyle} className="glass-panel">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FolderDown color="#0ea5e9" size={22} />
-            <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                5. Cấu Hình Tải Tệp Đính Kèm, Lưu File Ảnh CCCD & Đối Chiếu 3 Chiều
+      {/* ========================================================================= */}
+      {/* TAB 2: CẤU HÌNH KỸ THUẬT & IT (DÀNH CHO QUẢN TRỊ VIÊN HẠ TẦNG) */}
+      {/* ========================================================================= */}
+      {activeTab === 'ADVANCED' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* IT Card 1: Thông tin nhân sự */}
+          <div id="tutorial-tkgd-config-profile" style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <Sliders color="#3b82f6" size={20} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                1. Thông Tin Chuyên Viên Vận Hành
               </h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Tự động hóa toàn diện từ tải file email, trích xuất ảnh CCCD/chữ ký M-System đến bóc tách PDF và OCR.
-              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Họ và tên chuyên viên</label>
+                <input
+                  type="text"
+                  style={inputStyle}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="VD: Trương Hoàng Hiệp"
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Phòng ban / Bộ phận</label>
+                <input
+                  type="text"
+                  style={inputStyle}
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="VD: Thanh toán bù trừ"
+                />
+              </div>
             </div>
           </div>
-          <span
-            style={{
-              fontSize: '0.7rem',
-              padding: '3px 10px',
-              borderRadius: '20px',
-              backgroundColor: 'rgba(14, 165, 233, 0.12)',
-              color: '#0ea5e9',
-              border: '1px solid rgba(14, 165, 233, 0.3)',
-              fontWeight: 700,
-            }}
-          >
-            Tự động hóa toàn diện
-          </span>
-        </div>
 
-        {/* Khối A: Quản lý tải về & Thư mục lưu trữ hồ sơ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0ea5e9', fontWeight: 700, fontSize: '0.85rem' }}>
-            <FolderSync size={16} />
-            <span>A. Quản Lý Tải Về & Lưu Trữ Hồ Sơ (Ổ M:\ hoặc Thư Mục Riêng)</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-            {/* Toggle: Tải từ mail */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ paddingRight: '14px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                  Tự động tải tệp đính kèm & ảnh từ Mail Outlook về máy
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Tải toàn bộ file Hợp đồng (*-mxv.pdf), Phụ lục 01 (*-PL01.pdf) và ảnh CCCD từ email vào thư mục hồ sơ.
-                </p>
+          {/* IT Card 2: Microsoft 365 Azure OAuth */}
+          <div style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Key color="#8b5cf6" size={20} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  2. Cấu Hình Microsoft Azure App (OAuth2 Client)
+                </h3>
               </div>
-              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={autoDownloadMailAttachments}
-                  onChange={(e) => setAutoDownloadMailAttachments(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                />
-                <div
+
+              {hasRefreshToken && (
+                <button
+                  type="button"
+                  onClick={handleDisconnectOutlook}
+                  disabled={disconnectingOutlook}
                   style={{
-                    width: '44px',
-                    height: '22px',
-                    backgroundColor: autoDownloadMailAttachments ? '#0ea5e9' : 'var(--border-color)',
-                    borderRadius: '22px',
-                    position: 'relative',
-                    transition: 'background-color 0.2s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '3px',
-                      left: autoDownloadMailAttachments ? '24px' : '3px',
-                      transition: 'left 0.2s',
-                    }}
-                  />
-                </div>
-              </label>
+                  <Unlink size={13} />
+                  <span>Hủy liên kết Token</span>
+                </button>
+              )}
             </div>
 
-            {/* Toggle: Tải ảnh từ M-System */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ paddingRight: '14px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                  Tự động trích xuất & lưu ảnh CCCD / Chữ ký từ M-System về máy
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Tải ảnh CCCD mặt trước, mặt sau và ảnh chữ ký mẫu đang lưu trên M-System về cùng thư mục để đối chiếu.
-                </p>
-              </div>
-              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Client ID (Application ID)</label>
                 <input
-                  type="checkbox"
-                  checked={autoSaveMSystemImages}
-                  onChange={(e) => setAutoSaveMSystemImages(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
+                  type="text"
+                  style={{ ...inputStyle, fontFamily: 'monospace' }}
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder="Azure App Client ID"
                 />
-                <div
-                  style={{
-                    width: '44px',
-                    height: '22px',
-                    backgroundColor: autoSaveMSystemImages ? '#0ea5e9' : 'var(--border-color)',
-                    borderRadius: '22px',
-                    position: 'relative',
-                    transition: 'background-color 0.2s',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '3px',
-                      left: autoSaveMSystemImages ? '24px' : '3px',
-                      transition: 'left 0.2s',
-                    }}
+              </div>
+
+              <div>
+                <label style={labelStyle}>Tenant ID (Directory ID)</label>
+                <input
+                  type="text"
+                  style={{ ...inputStyle, fontFamily: 'monospace' }}
+                  value={tenantId}
+                  onChange={(e) => setTenantId(e.target.value)}
+                  placeholder="common hoặc Tenant ID"
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Client Secret (Mã bí mật)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showClientSecret ? 'text' : 'password'}
+                    style={{ ...inputStyle, paddingRight: '36px', fontFamily: 'monospace' }}
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                    placeholder={hasClientSecret ? '••••••••••• (Đã lưu Secret)' : 'Nhập Azure Client Secret'}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowClientSecret(!showClientSecret)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    {showClientSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-              </label>
+              </div>
             </div>
           </div>
 
-          {/* Đường dẫn thư mục lưu trữ hồ sơ tải về */}
-          <div style={{ marginTop: '4px' }}>
-            <label style={labelStyle}>Đường dẫn thư mục lưu trữ tệp đính kèm & file ảnh CCCD (Tùy chọn):</label>
-            <input
-              type="text"
-              value={attachmentSavePath}
-              onChange={(e) => setAttachmentSavePath(e.target.value)}
-              placeholder="Để trống = Mặc định gom vào thư mục HoSo_DinhKem trên ổ M:\ theo ngày và mã TKGD (Khuyến nghị)"
-              style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.78rem' }}
-            />
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-              Ví dụ: <code>M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Mo TKGD\HoSo_DinhKem\</code>
-            </span>
-          </div>
-        </div>
+          {/* IT Card 3: Hạ tầng Server Linux Mount & Tệp đính kèm tùy chọn */}
+          <div style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <HardDrive color="#0ea5e9" size={20} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                3. Hạ Tầng Server Linux Mount & Đường Dẫn Nâng Cao
+              </h3>
+            </div>
 
-        {/* Khối B: Động cơ bóc tách dữ liệu PDF & OCR */}
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8b5cf6', fontWeight: 700, fontSize: '0.85rem' }}>
-            <Scan size={16} />
-            <span>B. Động Cơ Bóc Tách Dữ Liệu (PDF & OCR Nhận Diện CCCD)</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-            {/* Toggle: Bóc tách PDF */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ paddingRight: '14px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                  Tự động đọc & bóc tách PDF Hợp đồng & Phụ lục PL01
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Bóc tách siêu tốc (~0.04s) lấy Số HĐ, Ngày ký, CCCD, Ngày sinh, Nơi cấp từ PDF scan.
-                </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Đường dẫn Server Linux (PM2 Mount)</label>
+                <input
+                  type="text"
+                  style={{ ...inputStyle, fontFamily: 'monospace' }}
+                  value={linuxPath}
+                  onChange={(e) => setLinuxPath(e.target.value)}
+                  placeholder="/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD"
+                />
               </div>
-              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+
+              <div>
+                <label style={labelStyle}>Đường dẫn thư mục lưu trữ tệp đính kèm riêng (Tùy chọn)</label>
+                <input
+                  type="text"
+                  style={{ ...inputStyle, fontFamily: 'monospace' }}
+                  value={attachmentSavePath}
+                  onChange={(e) => setAttachmentSavePath(e.target.value)}
+                  placeholder="Để trống = Mặc định gom vào thư mục con HoSo_DinhKem trong thư mục lưu trữ"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* IT Card 4: Động cơ OCR & Bóc tách PDF */}
+          <div id="tutorial-tkgd-config-processing" style={cardStyle} className="glass-panel">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <Scan color="#8b5cf6" size={20} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                4. Động Cơ Bóc Tách PDF & Nhận Diện OCR CCCD
+              </h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={autoExtractPdf}
                   onChange={(e) => setAutoExtractPdf(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <div
-                  style={{
-                    width: '44px',
-                    height: '22px',
-                    backgroundColor: autoExtractPdf ? '#8b5cf6' : 'var(--border-color)',
-                    borderRadius: '22px',
-                    position: 'relative',
-                    transition: 'background-color 0.2s',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '3px',
-                      left: autoExtractPdf ? '24px' : '3px',
-                      transition: 'left 0.2s',
-                    }}
-                  />
-                </div>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>Tự động đọc & bóc tách PDF Hợp đồng & PL01 (~0.04s)</span>
               </label>
-            </div>
 
-            {/* Toggle: Quét OCR ảnh CCCD */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ paddingRight: '14px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                  Tự động nhận diện OCR ảnh CCCD (Mặt trước / Mặt sau)
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Trích xuất số CMND/CCCD, họ tên, ngày cấp từ ảnh. Tự động so khớp với M-System.
-                </p>
-              </div>
-              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={enableOcrCccd}
                   onChange={(e) => setEnableOcrCccd(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <div
-                  style={{
-                    width: '44px',
-                    height: '22px',
-                    backgroundColor: enableOcrCccd ? '#8b5cf6' : 'var(--border-color)',
-                    borderRadius: '22px',
-                    position: 'relative',
-                    transition: 'background-color 0.2s',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '3px',
-                      left: enableOcrCccd ? '24px' : '3px',
-                      transition: 'left 0.2s',
-                    }}
-                  />
-                </div>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>Kích hoạt công nghệ OCR bóc tách ảnh thẻ CCCD</span>
               </label>
-            </div>
-          </div>
-        </div>
 
-        {/* Khối C: Quy tắc đối chiếu chéo */}
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 700, fontSize: '0.85rem' }}>
-            <ShieldCheck size={16} />
-            <span>C. Quy Tắc Đối Chiếu Chéo (Triple Cross-Validation)</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-            {/* Toggle: Đối chiếu 3 chiều */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ paddingRight: '14px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                  Đối chiếu chéo 3 chiều (Mail CCCD vs MS CCCD vs MS Form)
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Kiểm tra số CCCD trên hồ sơ gửi qua mail, ảnh CCCD cào từ M-System và biểu mẫu M-System có trùng khớp 100%.
-                </p>
-              </div>
-              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={enableTripleCheckCccd}
                   onChange={(e) => setEnableTripleCheckCccd(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <div
-                  style={{
-                    width: '44px',
-                    height: '22px',
-                    backgroundColor: enableTripleCheckCccd ? '#10b981' : 'var(--border-color)',
-                    borderRadius: '22px',
-                    position: 'relative',
-                    transition: 'background-color 0.2s',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '3px',
-                      left: enableTripleCheckCccd ? '24px' : '3px',
-                      transition: 'left 0.2s',
-                    }}
-                  />
-                </div>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>Thẩm định CCCD 3 chiều (Dải MRZ vs Mặt trước vs HĐ)</span>
               </label>
-            </div>
 
-            {/* Toggle: Kiểm tra chữ ký */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ paddingRight: '14px' }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 3px 0' }}>
-                  Bắt buộc kiểm tra chữ ký mẫu trên M-System
-                </p>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  Yêu cầu phải có chữ ký mẫu hợp lệ trên M-System mới đánh dấu hồ sơ đạt trạng thái Khớp.
-                </p>
-              </div>
-              <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={checkSignatureRequired}
                   onChange={(e) => setCheckSignatureRequired(e.target.checked)}
-                  style={{ opacity: 0, width: 0, height: 0 }}
                 />
-                <div
-                  style={{
-                    width: '44px',
-                    height: '22px',
-                    backgroundColor: checkSignatureRequired ? '#10b981' : 'var(--border-color)',
-                    borderRadius: '22px',
-                    position: 'relative',
-                    transition: 'background-color 0.2s',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '3px',
-                      left: checkSignatureRequired ? '24px' : '3px',
-                      transition: 'left 0.2s',
-                    }}
-                  />
-                </div>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>Kiểm tra sự tồn tại của chữ ký khách hàng</span>
               </label>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* MODAL XÁC NHẬN CHUYỂN ĐỔI CHẾ ĐỘ VẬN HÀNH (ENTERPRISE CONFIRMATION DIALOG) */}
+          {/* IT Card 5: Nút khôi phục chuẩn Sở */}
+          <div style={{ ...cardStyle, border: '1px dashed #f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Khôi Phục Cấu Hình Chuẩn Của Sở MXV
+                </h4>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                  Nếu các tham số bị sửa sai lệch, bấm nút này để đưa toàn bộ đường dẫn và cờ kỹ thuật về trạng thái chuẩn vận hành.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleResetToDefault}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  color: '#f59e0b',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <RotateCcw size={15} />
+                <span>Khôi Phục Chuẩn Sở</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Nhận Đổi Chế Độ Vận Hành */}
       {pendingModeChange !== null && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backgroundColor: 'rgba(0,0,0,0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 9999,
             padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPendingModeChange(null);
           }}
         >
           <div
             style={{
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '480px',
               width: '100%',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+              maxWidth: '460px',
+              backgroundColor: 'var(--bg-card)',
+              borderRadius: '14px',
+              border: '1px solid var(--border-color)',
+              padding: '22px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '20px',
+              gap: '16px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
             }}
-            className="animate-in fade-in zoom-in-95 duration-150"
           >
-            {/* Header Modal */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: pendingModeChange ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                    color: pendingModeChange ? '#059669' : '#d97706',
-                    border: pendingModeChange ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
-                    flexShrink: 0,
-                  }}
-                >
-                  {pendingModeChange ? <PlayCircle size={24} /> : <AlertTriangle size={24} />}
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {pendingModeChange ? 'Kích Hoạt Chế Độ Tự Động 24/7?' : 'Tạm Dừng Chế Độ Tự Động 24/7?'}
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    {pendingModeChange ? 'Xác nhận chuyển sang tiến trình quét ngầm liên tục' : 'Xác nhận chuyển về vận hành thủ công'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPendingModeChange(null)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  borderRadius: '6px',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: pendingModeChange ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <X size={18} />
-              </button>
+                {pendingModeChange ? <PlayCircle size={20} color="#10b981" /> : <PauseCircle size={20} color="#3b82f6" />}
+              </div>
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {pendingModeChange ? 'Kích Hoạt Vận Hành Tự Động 24/7?' : 'Chuyển Sang Vận Hành Theo Yêu Cầu?'}
+              </h4>
             </div>
 
-            {/* Nội dung diễn giải tác động */}
-            <div
-              style={{
-                backgroundColor: 'var(--bg-input)',
-                borderRadius: '10px',
-                padding: '14px 16px',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.82rem',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.55,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-              }}
-            >
-              {pendingModeChange ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
-                    <span>Hệ thống sẽ chạy ngầm và quét hòm thư M365 định kỳ <strong>mỗi {autoIntervalMinutes} phút</strong>.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
-                    <span>Tự động bóc tách OCR, đối chiếu M-System và cập nhật dữ liệu sẵn sàng cho ca trực.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: '#10b981', fontWeight: 700 }}>•</span>
-                    <span>Chuyên viên không cần kích hoạt thủ công từng lần trên Dashboard.</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>•</span>
-                    <span>Hệ thống sẽ <strong>tạm ngừng hoàn toàn</strong> việc tự động quét ngầm hòm thư M365 và M-System.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>•</span>
-                    <span>Các hồ sơ mở tài khoản mới gửi đến sẽ <strong>chờ chuyên viên bấm nút quét thủ công</strong> tại bàn làm việc.</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>•</span>
-                    <span>Bạn có thể kích hoạt lại chế độ tự động 24/7 bất cứ lúc nào.</span>
-                  </div>
-                </>
-              )}
-            </div>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {pendingModeChange
+                ? `Hệ thống sẽ bắt đầu tự động quét hòm thư clearing.acc@mxv.vn và đồng bộ dữ liệu M-System định kỳ mỗi ${autoIntervalMinutes} phút. Bạn có muốn kích hoạt ngay?`
+                : 'Hệ thống sẽ tạm dừng các chu trình quét ngầm. Từ bây giờ bạn sẽ bấm nút [Check] trên bảng điều khiển mỗi khi muốn đối soát. Bạn có chắc chắn muốn chuyển?'}
+            </p>
 
-            {/* Actions Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => setPendingModeChange(null)}
-                disabled={togglingAuto}
                 style={{
-                  padding: '9px 18px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-color)',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
                   backgroundColor: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.85rem',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.82rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'background-color 0.15s',
                 }}
               >
                 Hủy bỏ
@@ -1856,34 +1435,23 @@ export default function TkgdConfigPanel() {
               <button
                 type="button"
                 onClick={() => executeToggleAutoMode(pendingModeChange)}
-                disabled={togglingAuto}
                 style={{
-                  padding: '9px 20px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: pendingModeChange ? '#10b981' : '#f59e0b',
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  backgroundColor: pendingModeChange ? '#10b981' : '#3b82f6',
                   color: '#ffffff',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  cursor: togglingAuto ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: pendingModeChange
-                    ? '0 4px 12px rgba(16, 185, 129, 0.25)'
-                    : '0 4px 12px rgba(245, 158, 11, 0.25)',
-                  transition: 'transform 0.1s, opacity 0.15s',
+                  border: 'none',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
                 }}
               >
-                {togglingAuto && <Loader2 size={15} className="animate-spin" />}
-                <span>
-                  {pendingModeChange ? 'Xác Nhận Kích Hoạt 24/7' : 'Xác Nhận Tạm Dừng'}
-                </span>
+                Xác Nhận Thay Đổi
               </button>
             </div>
           </div>
         </div>
       )}
-    </form>
+    </div>
   );
 }

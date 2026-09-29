@@ -9,12 +9,14 @@ import {
   Res,
   UseGuards,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { TkgdAutomationService } from './tkgd-automation.service';
 import { TkgdDevRemediationService, StartRemediationDto } from './services/tkgd-dev-remediation.service';
+import { TkgdRealtimePipelineService } from './services/tkgd-realtime-pipeline.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller(['api/v1/tkgd', 'tkgd'])
@@ -24,6 +26,7 @@ export class TkgdAutomationController {
   constructor(
     private readonly tkgdService: TkgdAutomationService,
     private readonly devRemediationService: TkgdDevRemediationService,
+    @Optional() private readonly realtimePipelineService?: TkgdRealtimePipelineService,
   ) {}
 
   /**
@@ -217,12 +220,77 @@ export class TkgdAutomationController {
   }
 
   /**
+   * Kích hoạt chu trình Realtime Parallel Pipeline tức thì (Song song OCR + M-System)
+   */
+  @Post('realtime-pipeline/run')
+  async runRealtimePipeline(@Req() req: any) {
+    const email = this.getUserEmail(req);
+    if (!this.realtimePipelineService) {
+      return { success: false, message: 'Realtime Pipeline Service chưa sẵn sàng.' };
+    }
+    return await this.realtimePipelineService.runRealtimeCycle(email);
+  }
+
+  /**
+   * Khởi động luồng Short-polling Realtime Stream (mặc định 15s)
+   */
+  @Post('realtime-stream/start')
+  async startRealtimeStream(@Req() req: any, @Body() body?: any) {
+    const email = this.getUserEmail(req);
+    if (!this.realtimePipelineService) {
+      return { success: false, message: 'Realtime Pipeline Service chưa sẵn sàng.' };
+    }
+    const intervalSec = Number(body?.intervalSeconds) || 15;
+    return this.realtimePipelineService.startMailStream(email, intervalSec);
+  }
+
+  /**
+   * Dừng luồng Short-polling Realtime Stream
+   */
+  @Post('realtime-stream/stop')
+  async stopRealtimeStream(@Req() req: any) {
+    const email = this.getUserEmail(req);
+    if (!this.realtimePipelineService) {
+      return { success: false, message: 'Realtime Pipeline Service chưa sẵn sàng.' };
+    }
+    return this.realtimePipelineService.stopMailStream(email);
+  }
+
+  /**
+   * Kiểm tra trạng thái luồng Realtime Stream
+   */
+  @Get('realtime-stream/status')
+  async getRealtimeStreamStatus(@Req() req: any) {
+    const email = this.getUserEmail(req);
+    const active = this.realtimePipelineService ? this.realtimePipelineService.isStreamActive(email) : false;
+    return {
+      success: true,
+      active,
+      userEmail: email,
+    };
+  }
+
+  /**
    * Lấy số lượng thống kê phục vụ Dynamic Badge (số hồ sơ chờ cào MS, số khớp, lệch)
    */
   @Get('stats')
   async getStats(@Req() req: any, @Query('batchDate') batchDate?: string) {
     const email = this.getUserEmail(req);
     return await this.tkgdService.getTkgdStats(email, batchDate);
+  }
+
+  /**
+   * Lấy báo cáo thống kê đa chiều phục vụ Dashboard Thống Kê & Bàn Giao Ca
+   */
+  @Get('analytics/summary')
+  async getAnalyticsSummary(
+    @Req() req: any,
+    @Query('batchDate') batchDate?: string,
+    @Query('shift') shift?: string,
+    @Query('range') range?: string,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.getAnalyticsSummary(email, batchDate, shift, range);
   }
 
   /**
@@ -344,9 +412,41 @@ export class TkgdAutomationController {
   async reEvaluateRecord(
     @Req() req: any,
     @Param('id') id: string,
+    @Query('forceReparse') forceReparse?: string,
   ) {
     const email = this.getUserEmail(req);
-    return await this.tkgdService.reEvaluateRecord(id, email);
+    return await this.tkgdService.reEvaluateRecord(id, email, forceReparse === 'true');
+  }
+
+  /**
+   * Tái thẩm định hàng loạt theo danh sách ID
+   */
+  @Post('bulk/re-evaluate')
+  async bulkReEvaluate(@Req() req: any, @Body('recordIds') recordIds: string[]) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.bulkReEvaluate(recordIds, email);
+  }
+
+  /**
+   * Cào lại M-System hàng loạt theo danh sách mã tài khoản
+   */
+  @Post('bulk/sync-msystem')
+  async bulkSyncMSystem(@Req() req: any, @Body('accountCodes') accountCodes: string[]) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.bulkSyncMSystem(accountCodes, email);
+  }
+
+  /**
+   * Chạy lại toàn trình E2E hàng loạt (Quét mail -> Cào MS -> Tái thẩm định)
+   */
+  @Post('bulk/re-run-e2e')
+  async bulkReRunE2E(
+    @Req() req: any,
+    @Body('recordIds') recordIds: string[],
+    @Body('options') options?: any,
+  ) {
+    const email = this.getUserEmail(req);
+    return await this.tkgdService.bulkReRunE2E(recordIds, email, options);
   }
 
   /**

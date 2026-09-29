@@ -1,0 +1,40 @@
+{
+  "accountCode": "001C0580611",
+  "timestamp": "2026-09-29T10:12:34.447714",
+  "frontPath": "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\HoSo_DinhKem\\2026-09-21\\001C0580611\\001C0580611_MS_CCCD_truoc.jpg",
+  "backPath": "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD\\HoSo_DinhKem\\2026-09-21\\001C0580611\\001C0580611_MS_CCCD_sau.jpg",
+  "anomalyReasons": [
+    "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+  ],
+  "toolScanData": {
+    "soCCCD": "025094006410",
+    "hoTen": "PHAM TRUNG IEN",
+    "ngaySinh": "02/04/1994",
+    "gioiTinh": "Nam",
+    "ngayCap": null,
+    "noiCap": null,
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "geminiData": null,
+  "finalData": {
+    "soCCCD": "025094006410",
+    "hoTen": "PHAM TRUNG IEN",
+    "ngaySinh": "02/04/1994",
+    "gioiTinh": "Nam",
+    "ngayCap": null,
+    "noiCap": null,
+    "diaChi": null,
+    "source": "MRZ",
+    "canhBaoChatLuong": [],
+    "anomalyReasons": [
+      "Thiếu ngày cấp trên thẻ CCCD (MRZ không có ngày cấp)"
+    ]
+  },
+  "autoHealed": false,
+  "healedFields": []
+}

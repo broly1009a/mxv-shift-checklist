@@ -210,7 +210,26 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
      - *Câu hỏi 2*: "Nếu người dùng đổi tên, đổi mã task, hoặc phân cấp lại cây cha - con trong Database, hệ thống có tự thích ứng mà không bị gãy không?"
    - Nếu câu trả lời cho bất kỳ câu nào là **"KHÔNG (phải vào code thêm ID/sửa mảng)"** $\rightarrow$ Đoạn code đó **VI PHẠM NGUYÊN TẮC** và bắt buộc phải được tái cấu trúc lại ngay lập tức.
 
+---
 
+## 9. Strict Anti-Steering & Dynamic Form Template Standard (Quy Tắc Tuyệt Đối Cấm Dắt Mũi & Chuẩn Hóa Bộ Mẫu Form Template Động)
 
+Để đảm bảo AI Assistant luôn tư vấn và xây dựng hệ thống theo tiêu chuẩn kiến trúc phần mềm Enterprise thực thụ, tuyệt đối không lười biếng, phòng thủ tiêu cực hoặc dắt mũi người dùng:
 
+1. **Tuyệt Đối Cấm Tư Duy Phòng Thủ Tiêu Cực (No Defensive/Lazy Fallbacks)**:
+   - Nghiêm cấm AI sử dụng lý do *"sợ người dùng cấu hình sai"*, *"sợ nghẽn hệ thống"* hoặc *"khó kiểm soát"* để biện minh cho việc giữ lại mã nguồn hardcode, duy trì bộ lọc ngầm chết, hoặc tước quyền cấu hình của người dùng.
+   - Khi có rủi ro người dùng nhập sai dữ liệu $\rightarrow$ **Giải pháp duy nhất được chấp nhận là: Xây dựng Bộ Bắt Lỗi & Kiểm Soát Chặt Chẽ (Strict Validation Engine & Guardrails)**, tuyệt đối không được phép "chữa cháy" bằng cách code chết giá trị mặc định vào backend.
 
+2. **Quy Chuẩn Bộ Mẫu Động (Form Template Pattern - Dynamic 100%)**:
+   - Đối với tất cả các nghiệp vụ có tính chất quy tắc, luật đối soát, bộ lọc (như: Quét email, bóc tách tệp, regex tài khoản, phân loại hồ sơ, cào dữ liệu):
+     - **Bắt buộc 100%** thiết kế theo mô hình **Quản lý Bộ Mẫu Form (Form Templates)** trong CSDL (MongoDB/PostgreSQL).
+     - Cho phép người dùng/Admin: Tạo mới, Chỉnh sửa, Sao chép, Xóa và **Chuyển đổi qua lại giữa các Bộ Mẫu đang kích hoạt (`isActive`)** trực tiếp trên giao diện UI mà không cần chạm vào 1 dòng code backend hay restart server.
+
+3. **Quy Chuẩn Bắt Lỗi Hai Tầng Bắt Buộc (Two-Tier Validation Engine)**:
+   - Mọi form cấu hình động bắt buộc phải đi kèm Validation Engine chặt chẽ ở cả Frontend (Client-side UX) và Backend (Server-side Integrity):
+     - **Anti-Flood / Anti-Abuse**: Kiểm tra độ dài tối thiểu của từ khóa/mẫu nhận diện, chặn các từ khóa quá ngắn, rác hoặc quá phổ biến có thể gây nghẽn băng thông/API rate limit.
+     - **Anti-Injection / Syntax Safety**: Kiểm tra và làm sạch các ký tự đặc biệt có thể phá vỡ cú pháp của dịch vụ bên thứ 3 (như KQL Microsoft Graph, SQL/NoSQL Injection, ReDoS).
+     - **Business Constraint**: Đảm bảo luôn có ít nhất 1 Bộ Mẫu hợp lệ ở trạng thái kích hoạt; không cho phép xóa Bộ Mẫu đang được áp dụng nếu chưa chỉ định Bộ Mẫu thay thế.
+
+4. **Tôn Trọng Tuyệt Đối Định Hướng Kiến Trúc Của USER**:
+   - AI Assistant là người đồng hành kỹ thuật (Pair Programmer). Khi USER đã chỉ đạo hướng thiết kế động hoặc yêu cầu tính năng, AI phải tập trung thiết kế kiến trúc chuẩn hóa cao nhất cho hướng đó, tuyệt đối không bàn lùi, không lái USER về các giải pháp tạm bợ, chắp vá dễ dãi cho AI.
