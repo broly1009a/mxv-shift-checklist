@@ -300,22 +300,43 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
         if (options.checkKlgd !== false) {
           log('MS  [Bước 2: Xuất dữ liệu] Đang tải file DSGD.xlsx...');
-          const exportBtnSelector = [
+          const exportCandidates = [
             "button:has(i[class*='fa-file-csv'])",
             "button.ladda-button:has(i[class*='fa-file-csv'])",
             "button.btn-ghost-primary:has(i[class*='fa-file-csv'])",
             "button:has(i.fas.fa-file-csv)",
             "button:has(i.fa-file-csv)",
+            "button.ladda-button",
+            "i[class*='fa-file-csv']",
+            "i.fa-file-csv",
+            "i.fas.fa-file-csv",
             "xpath=//i[contains(@class, 'fa-file-csv')]",
-          ].join(', ');
+            "xpath=//button[contains(., 'Xuất') or contains(., 'Export')]",
+          ];
 
-          // Chờ nút xuất file hiển thị và ổn định
-          await page
-            .waitForSelector(exportBtnSelector, { state: 'visible', timeout: 20000 })
-            .catch(() => {});
+          // Chờ bảng giao dịch ổn định trước khi tìm nút xuất
           await page.waitForTimeout(1500);
 
-          const exportBtn = page.locator(exportBtnSelector).first();
+          let exportBtn: any = null;
+          for (const sel of exportCandidates) {
+            try {
+              const loc = page.locator(sel).first();
+              if (await loc.isVisible().catch(() => false)) {
+                exportBtn = loc;
+                break;
+              }
+            } catch {}
+          }
+
+          // Fallback: nếu chưa thấy ngay, chờ selector an toàn (CSS thuần) trong 10s
+          if (!exportBtn) {
+            const fallbackCss = "button:has(i[class*='fa-file-csv']), button.ladda-button, i[class*='fa-file-csv']";
+            await page
+              .waitForSelector(fallbackCss, { state: 'visible', timeout: 10000 })
+              .catch(() => {});
+            exportBtn = page.locator(fallbackCss).first();
+          }
+
           const [dl] = await Promise.all([
             page.waitForEvent('download', { timeout: 45000 }),
             exportBtn.click({ timeout: 15000 }),
@@ -938,22 +959,48 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       targetDate.setUTCHours(0, 0, 0, 0);
       dateStr = targetDate.toISOString().split('T')[0];
     }
+
+    // 1. Tính toán ngày phiên T-1 (lùi weekend)
+    const t1Date = new Date(targetDate);
+    t1Date.setDate(t1Date.getDate() - 1);
+    while (t1Date.getDay() === 0 || t1Date.getDay() === 6) {
+      t1Date.setDate(t1Date.getDate() - 1);
+    }
+    t1Date.setHours(0, 0, 0, 0);
+    const t1DateStr = t1Date.toISOString().split('T')[0];
+
     job.logs.push(
-      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD tự động ngày ${dateStr}...`,
+      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD ngày ca trực ${dateStr} (Phiên T-1: ${t1DateStr})...`,
     );
+    await job.save();
+
+    // 2. Kích hoạt Auto-Merge file thô CQG cho phiên T-1 (FR1+FR2 -> FR, PS1+PS2 -> PS)
+    try {
+      job.logs.push(
+        `[${new Date().toISOString()}] CQG → Ghép nối các file thô (FR, PS) phiên T-1 (${t1Date.toLocaleDateString('vi-VN')})...`,
+      );
+      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(
+        t1Date,
+        ['FR', 'PS'],
+        true,
+      );
+      for (const l of mergeResult.logs) {
+        job.logs.push(`[${new Date().toISOString()}] CQG Merge: ${l}`);
+      }
+      if (mergeResult.success) {
+        job.logs.push(`[${new Date().toISOString()}] CQG  Ghép file CQG phiên T-1 hoàn tất.`);
+      }
+    } catch (mergeErr: any) {
+      job.logs.push(`[${new Date().toISOString()}] CQG Merge Cảnh báo: ${mergeErr.message}`);
+    }
     await job.save();
 
     try {
       const result = await this.reconciliationService.runAutoCheckPreEOD(targetDate);
-      if (result.sessionStart && result.checkTime) {
-        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
-          timeZone: 'Asia/Ho_Chi_Minh',
-        });
-        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
-          timeZone: 'Asia/Ho_Chi_Minh',
-        });
+      if (result.targetDate) {
+        const t1DisplayStr = new Date(result.targetDate).toLocaleDateString('vi-VN');
         job.logs.push(
-          `[${new Date().toISOString()}] Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`,
+          `[${new Date().toISOString()}] Dữ liệu đối chiếu chốt phiên T-1: ${t1DisplayStr}`,
         );
       }
       if (result.isWaitingFiles) {
@@ -965,6 +1012,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         job.logs.push(
           `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
         );
+        if (result.totals) {
+          job.logs.push(
+            `[${new Date().toISOString()}] Tổng kết KLGD: ` +
+            `ACM MS ${result.totals.totalACM_MS} vs Straits ${result.totals.totalACM_Straits} (Lệch: ${result.totals.differACM}) | ` +
+            `CQG MS ${result.totals.totalCQG_MS} vs FR ${result.totals.totalCQG_FR} (Lệch: ${result.totals.differCQG})`,
+          );
+        }
       }
 
       const LOG_THRESHOLD = 50;
@@ -1030,12 +1084,15 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         );
         await job.save();
       }
+
+      this.appendOvernightLog(t1DateStr, result, job.logs);
       return result;
     } catch (err: any) {
       job.logs.push(
         `[${new Date().toISOString()}] Lỗi đối chiếu Pre-EOD tự động: ${err.message}`,
       );
       await job.save();
+      this.appendOvernightLog(t1DateStr, null, job.logs, err.message);
       throw err;
     }
   }

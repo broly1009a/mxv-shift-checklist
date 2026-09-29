@@ -1,5 +1,192 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-09-29T14:48] FIX & AUDIT: Khắc Phục Triệt Để Lệch Giả Đối Chiếu Khớp Lệnh Ca Đêm (00:00 - 06:00) Chuẩn C# TransactionCheckingService
+
+### 1. Mục tiêu thay đổi
+- Khắc phục hiện tượng bot chạy đối chiếu khớp lệnh định kỳ (`CHECK_KLGD`) trong ca đêm (từ 00:00 đến 06:00 sáng) liên tục báo lệch giả số lượng lớn (lệch 80 lot lúc 00:36, lệch 151 lot lúc 02:21, lệch 1.295 lot lúc 04:43) trong khi đến 06:13 sáng lại khớp hoàn toàn 0 lot, và tool C# chạy đối chiếu trong đêm vẫn luôn khớp chính xác.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  1. CQG Desktop chỉ xuất cột giờ phút giây (không có ngày, ví dụ `00:36:49.123`) cho các lệnh phát sinh trong ngày hôm nay (sau 00:00).
+  2. Trong mã nguồn C# ([TransactionCheckingService.cs#L140-L156](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L140-L156)): `fullDateTime = time.Date + itemTimeOnly`. C# lấy ngày hiện tại của thời điểm kiểm tra (`29/09`) gán cho các lệnh chỉ có giờ, tạo thành `29/09/2026 00:36:49`. Vì `29/09 00:36:49 > sessionStart (28/09 05:00)`, C# giữ lại trọn vẹn 100% lệnh đêm.
+  3. Trong NestJS: `parseCqgDateTime` và `parseTradeDateTime` trước đây gán `defaultDate` (`28/09/2026`) cho các lệnh chỉ có giờ, tạo thành `28/09/2026 00:36:49`. Khi so sánh `tradeTime < sessionStart` (`28/09 00:36 < 28/09 05:00`), hệ thống đánh giá là lệnh của hôm trước nên **loại bỏ sạch 178+ lệnh CQG đêm**, trong khi M-System xuất có đủ ngày `29-09-2026` và chỉ chặn trên nên giữ nguyên $\rightarrow$ Dẫn đến lệch giả 80 đến 1.295 lot.
+  4. Trên CoreCCP: `isTodayDate('28/09/2026')` trả về `false` khi kiểm tra rạng sáng 29/09, kích hoạt tìm kiếm theo khoảng ngày `28/09 -> 28/09`, lọc mất các lệnh sau 00:00 trên CoreCCP.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts#L134-L142):
+  - `parseCqgDateTime`: Thêm logic tự động bù ngày `if (hours < 6) result.setDate(result.getDate() + 1);` cho chuỗi chỉ có giờ của phiên `defaultDate`.
+  - `parseTradeDateTime`: Bổ sung điều kiện tương tự khi chuỗi chỉ có giờ (`parts.length === 1 && str.includes(':') && defaultDate && hr < 6`).
+- [cqg-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts#L148-L154):
+  - `CqgExcelParser.parseCqgDateTime`: Đồng bộ thêm logic `if (hours < 6) result.setDate(result.getDate() + 1);`.
+- [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L614-L635):
+  - Bổ sung hàm `isTodayOrCurrentSession(dateStr)`: Nhận diện cả ngày hôm nay và phiên ca đêm T-1 (khung giờ 00:00 - 07:00 VN) là phiên realtime đang hoạt động.
+  - Áp dụng `isTodayOrCurrentSession` tại `prepareKlgdSession` và `downloadAndExtractKlgdMetrics` để giữ nguyên bảng mặc định realtime cho DSGD trên CoreCCP.
+- [test_overnight_cqg_time_fix.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_overnight_cqg_time_fix.ts) *(Mới)*:
+  - Bộ test case xác minh: Nhận diện lệnh ca đêm, đối chiếu `sessionStart`, chuỗi time-only, CoreCCP session và kiểm tra thực tế trên file `FR.xlsx`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend Build: `npm.cmd run build` (`nest build`) $\rightarrow$ Exit code 0 (Biên dịch thành công 100%).
+
+---
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi sập Playwright CSS engine khi tải file DSGD M-System: `Unsupported token "@class" while parsing css selector` do commit `6d8f132f` vô tình ghép phần tử `xpath=//i[contains(@class, 'fa-file-csv')]` vào mảng CSS selector và `.join(', ')`.
+- Tách biệt hoàn toàn cơ chế duyệt selector: Không bao giờ nối CSS và XPath trên cùng một chuỗi, duyệt từng selector độc lập qua vòng lặp kiểm tra `isVisible()`.
+- Xây dựng bộ test script tự động kiểm tra cú pháp và độ hợp lệ của toàn bộ selector Playwright trong hệ thống, phát hiện ngay các selector hỏng trước khi triển khai lên máy chủ.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L303-L340):
+  - Thay thế chuỗi `.join(', ')` gây lỗi bằng mảng `exportCandidates`.
+  - Duyệt an toàn qua từng locator ứng viên: CSS selector chạy qua CSS parser, XPath chạy qua XPath parser độc lập, lấy phần tử đầu tiên hiển thị trên DOM.
+  - Fallback an toàn với CSS thuần được chờ tối đa 10s.
+- [test_check_klgd_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_check_klgd_playwright.js#L480-L525):
+  - Đồng bộ logic duyệt `exportCandidates` giống handler thực tế, in log chẩn đoán selector nào được match và tải file thành công.
+- [test_verify_playwright_selectors.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_verify_playwright_selectors.js) *(Mới)*:
+  - Quét tĩnh (Static Audit) mã nguồn các file bot engine phát hiện ngay các mẫu nối mảng `.join(', ')` chứa XPath.
+  - Khởi tạo trực tiếp Playwright selector compiler để xác nhận mọi selector đều hợp lệ và biên dịch thành công 100%.
+
+### 3. Xác nhận Build
+- Backend: `npm.cmd run build` (`nest build`) $\rightarrow$ Exit code 0 (Build thành công 100%).
+
+---
+
+## [2026-09-28T18:22] FEATURE: Xây Dựng Component Hiển Thị Chi Tiết Chênh Lệch Pre-EOD Chuẩn C# IT Tool
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Tạo một component riêng biệt cho phân hệ **Check Pre-EOD** đặt ngay sau khối `{/* KHUNG 2 CỘT SONG SONG: CHECK DSGD TRƯỚC EOD & KẾT QUẢ CHẠY EOD */}` trong [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx) để hiển thị chi tiết các thông tin chênh lệch tương tự UI của C# IT Tool (`TransactionCheckingService.CheckPreEOD`).
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx) *(Mới)*:
+  - Header Toolbar trực quan: Title, Timestamp thời điểm chạy kiểm tra (`executedAt`), Badge trạng thái (Chờ tệp / Khớp hoàn toàn / Phát hiện lệch), Nút "Check Pre-EOD" với trạng thái spin, Nút "Sao chép" clipboard và Nút "Xem Log" bot.
+  - **4 Khối Metric KPI chuẩn C# Part 1**:
+    1. `ACM / Tự Doanh (MS vs Straits)`: MS lot vs Straits lot, Chênh lệch lot.
+    2. `CQG / Khách Hàng (MS vs FR)`: MS lot vs FR lot, Chênh lệch lot.
+    3. `Lệnh Khớp Lệch (Trades)`: Số lượng lệnh chênh lệch giữa MS và CQG FR.
+    4. `Vị Thế Net Lệch (Positions)`: Số lượng vị thế tất toán ròng lệch giữa MS (TTTT) và CQG (PS).
+  - **Subtab 1: Chi tiết lệnh lệch khớp lệnh (Mismatched Trades)**:
+    - Bảng hiển thị 8 cột chuẩn C#: `Nguồn`, `Mã lệnh`, `Mã TKGD`, `Mã HĐ`, `Giá khớp`, `Khối lượng`, `Thời gian khớp`, `Lý do lệch`.
+    - Bộ lọc nguồn: `Tất cả` | `CQG` | `M-System`.
+    - Ô tìm kiếm thời gian thực theo mã TKGD, mã HĐ, mã lệnh, lý do lệch.
+  - **Subtab 2: Chi tiết lệch vị thế tất toán net (TTTT vs PS)**:
+    - Bảng hiển thị 5 cột chuẩn C#: `Mã TKGD`, `Mã HĐ`, `Vị thế MS (TTTT)`, `Vị thế CQG (PS)`, `Chênh lệch (Lệch)`.
+    - Ô tìm kiếm thời gian thực theo mã TKGD, mã HĐ.
+  - Tuân thủ 100% nguyên tắc UI Enterprise của `AGENTS.md`: Zero Unicode emoji, 100% SVG từ `lucide-react`, thiết kế Glassmorphism hài hòa.
+- [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  - Import `LegacyPreEodDiffSection`.
+  - Nhúng component ngay sau khối 2 cột song song ("Tài khoản âm ký quỹ mới" & "Kết quả chạy EOD") và trước "Kết quả đồng bộ số dư CQG".
+  - Kết nối với `summaryData?.preEod`, nút kích hoạt `handleTriggerRun('CHECK_PRE_EOD', 'pre-eod-diff')`.
+  - Tích hợp modal xem log chi tiết `TradingManagerLogModal` khi nhấn "Xem Log" của Pre-EOD.
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend: `next build` $\rightarrow$ Exit code 0 (Compiled successfully, TypeScript check passed, 25/25 routes static/dynamic).
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Hoàn thành không có lỗi).
+
+---
+
+## [2026-09-28T18:05] FEATURE: Xây Dựng Subtab Riêng Biệt Cho Phân Hệ Tải & Đối Soát Báo Cáo Sàn CoreEX (CE) & ACM
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Tạo một subtab riêng biệt tương tự màn hình Backup MS – CQG – CCP để phục vụ việc tải và đối soát các file báo cáo người dùng đang backup thủ công cho 2 phân hệ:
+  - **Sàn CoreEX (CE)**: Khớp với dữ liệu thực tế tại `Pictures/Dữ liệu chuẩn ngày 25/25.09 CE/25.09` (10 file).
+  - **Đối tác ACM**: Khớp với dữ liệu thực tế tại `Pictures/Dữ liệu chuẩn ngày 25/25.09 ACM` (4 file Web & SFTP).
+- Bảo đảm tính độc lập tuyệt đối: Viết tách biệt, không can thiệp hay làm gián đoạn luồng nghiệp vụ chính của hệ thống MS – CQG – CoreCCP.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [CeAcmBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx):
+  - Component độc lập giao diện Enterprise Glassmorphism với 100% SVG icon từ `lucide-react`.
+  - **Cột 1: Backup Sàn CoreEX (CE)**: Hỗ trợ tích chọn 10 báo cáo chuẩn (`DSGD ACM CE.xlsx`, `DSL ACM CE.xlsx`, `DSLCK ACM CE.xlsx`, `DSLDK ACM CE.xlsx`, `DSLH ACM CE.xlsx`, `GTT ACM.xlsx`, `HH ACM.xlsx`, `HĐ CP2CO.xlsx`, `HĐ PL1NY.xlsx`, `HĐ SI5CO.xlsx`), các nút lọc nhanh Sổ lệnh / Hàng hóa, nút tải dữ liệu, nút kiểm tra file và bảng kết quả audit trạng thái file trong thư mục ca trực.
+  - **Cột 2: Backup Đối tác ACM**: Hỗ trợ tích chọn 4 file chuẩn (`Fill.xlsx / Fill.xls`, `Order.xlsx / Order.xls`, `EOD FO trades_...csv` Straits EOD, `..._10017890000.xls`), nút tải tự động, nút kiểm tra thư mục và bảng audit chi tiết.
+  - Tích hợp Modal xem nhật ký real-time của Robot khi tải báo cáo CE và ACM.
+- [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  - Bổ sung thanh điều hướng Subtab:
+    - **Subtab 1**: `Backup MS – CQG – CCP (Hiện tại)` (Giữ nguyên vẹn 100% luồng chạy hiện có).
+    - **Subtab 2**: `Backup CE – ACM (Phân hệ mới)` (Hiển thị component `CeAcmBackupSection`).
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/file-audit.handler.ts):
+  - Định nghĩa danh mục `REQUIRED_CE_FILES` chuẩn 10 file báo cáo sàn CE.
+  - Xây dựng phương thức `scanCeBackupFiles` quét và kiểm tra kích thước, trạng thái tồn tại của file CE.
+  - Nâng cấp `scanAcmBackupFiles` để tự động nhận diện cả định dạng `.xls` và `.xlsx` cho 2 file `Order` và `Fill`.
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+  - Bổ sung delegation method `scanCeBackupFiles` kết nối tới Handler.
+- [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - Mở rộng mảng `DEFAULT_CE_REPORTS` bao quát đủ 10 loại báo cáo sàn CE với cấu hình `outputFileName` chuẩn xác.
+- [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  - Bổ sung endpoint `POST /api/v1/bot-engine/audit-ce-backup` (quét thư mục backup CE).
+  - Bổ sung endpoint `POST /api/v1/bot-engine/trigger-ce-download` (đưa yêu cầu tải CE vào BullMQ).
+  - Bổ sung endpoint `POST /api/v1/bot-engine/trigger-acm-download` (đưa yêu cầu tải ACM vào BullMQ).
+- [test_ce_acm_backup_flow.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ce_acm_backup_flow.js):
+  - Test script tự động quét và đối chiếu toàn bộ 10 file CE và 4 file ACM từ dataset thực tế của User ngày 25/09/2026.
+  - Kiểm tra độ khớp tên file, regex pattern và kích thước dữ liệu.
+- [output_test_ce_acm_backup.txt](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/output_test_ce_acm_backup.txt):
+  - File kết quả ghi vết toàn diện việc đối chiếu dữ liệu thực tế (10/10 file CE OK, 4/4 file ACM OK).
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Thành công 100%).
+- Frontend: `next build` $\rightarrow$ Exit code 0 (Thành công 100%, 25/25 route và static pages tối ưu hóa hoàn chỉnh).
+
+---
+
+## [2026-09-28T17:40] TEST & BENCHMARK: Đối Chiếu Khớp Lệnh & Vị Thế Pre-EOD Giữa Mã Nguồn C# Gốc và NestJS Node.js (Dataset Ngày 25/09/2026)
+
+### 1. Mục tiêu kiểm thử & đối chiếu
+- Theo chỉ đạo trực tiếp của USER: Chạy thực nghiệm song song hai engine độc lập (**C# Native Runner** qua `csc.exe` tích hợp Windows và **Node.js NestJS Service**) với tập dữ liệu thực tế ngày 25/09/2026 tại `Pictures/Dữ liệu chuẩn ngày 25`.
+- Kiểm chứng tính tương thích và độ chính xác tuyệt đối giữa code NestJS mới và C# IT Tool gốc.
+
+### 2. Danh sách file tác động & công cụ
+- [CheckPreEodRunner.cs](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/CheckPreEodRunner.cs):
+  - Chuẩn hóa hàm `GetNormalizedAccount` (xử lý đuôi `F`, `L` $\rightarrow$ `-L`, `S` $\rightarrow$ `-S`, chuẩn hóa in hoa) đồng bộ với `recon-number-parser.helper.ts`.
+  - Chuẩn hóa `FormatPriceForComparison`: Loại bỏ số 0 dư thừa ở phần thập phân để khóa `CombinedKey` đồng nhất giữa float64 của JS và decimal của C#.
+  - Bổ sung `ConvertLMESymbol` vào luồng phân tích file `PS.xlsx` (CQG).
+  - Sử dụng trực tiếp giá trị số thực từ `cell.Value` trong EPPlus để tránh hiểu nhầm dấu phân cách hàng nghìn `.` trong định dạng số Việt Nam.
+  - Chuẩn hóa đọc vị thế P&L tất toán tại cột 8 của `PS.xlsx` khớp 100% với `TTTT.xlsx`.
+- [test_pre_eod_node.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/test_pre_eod_node.js):
+  - Script độc lập thực thi `PreEodReconService.prototype.checkPreEOD` với cùng bộ dữ liệu ngày 25/09.
+
+### 3. Kết quả đối chứng thực tế
+- **Khối lượng giao dịch:**
+  - ACM MS (đuôi A): **3,193 lot** (C#) = **3,193 lot** (Node.js)
+  - ACM Straits CSV: **3,368 lot** (C#) = **3,368 lot** (Node.js) $\rightarrow$ Lệch ACM: **175 lot**
+  - CQG MS (đuôi khác A): **8,577 lot** (C#) = **8,577 lot** (Node.js)
+  - CQG FR: **8,577 lot** (C#) = **8,577 lot** (Node.js) $\rightarrow$ Lệch CQG: **0 lot**
+- **Chi tiết Khớp lệnh:**
+  - C# và Node.js đều trả về **0 lệnh lệch** (Khớp lệnh giữa MS và CQG trùng khớp 100%).
+- **Chi tiết Vị thế Tất toán Net:**
+  - C# và Node.js đều phát hiện **đúng 3 vị thế net lệch** hoàn toàn giống nhau đến từng đơn vị:
+    1. TK `001C0120435` | HĐ `LRCF27`: MS = `-29,330`, CQG = `-29,360` $\rightarrow$ Lệch: `30`
+    2. TK `002C0811111` | HĐ `ZCEZ26`: MS = `-1,712.5`, CQG = `-1,637.5` $\rightarrow$ Lệch: `-75`
+    3. TK `012C6676677` | HĐ `ZSEF27`: MS = `237.5`, CQG = `362.5` $\rightarrow$ Lệch: `-125`
+
+---
+
+## [2026-09-28T15:45] REFACTOR & COMPLIANCE: Chuẩn Hóa Module Đối Chiếu Cuối Ngày Pre-EOD Theo Mã Nguồn C# Gốc & Trading Manager
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuẩn hóa toàn diện module `CheckPreEOD` bám sát 100% mã nguồn C# chuẩn (`operate-transaction-app/Services/TransactionCheckingService.cs#CheckPreEOD`).
+- Khắc phục các khiếm khuyết nghiêm trọng trong implementation cũ:
+  1. **Tính ngày T-1 bỏ quên cuối tuần**: Chuyển sang vòng lặp lùi ngày làm việc (nếu Thứ 2 thì lùi qua Thứ 7, Chủ Nhật về Thứ 6).
+  2. **Cắt cúp giờ phút sai lệch**: Loại bỏ hoàn toàn bộ lọc thời gian `sessionStart` và `checkTime` trong `checkPreEOD` (vốn chỉ áp dụng cho `checkKLGD` trong phiên), bảo đảm lấy trọn vẹn 100% giao dịch của phiên T-1 không làm rớt lệnh.
+  3. **Tự động ghép file thô CQG (`autoMergeMissingFiles`)**: Tự động gộp `FR1 + FR2 -> FR.xlsx` và `PS1 + PS2 -> PS.xlsx` cho thư mục phiên T-1 trước khi quét kiểm tra file, giải quyết triệt để lỗi thiếu file khi ca đêm chỉ mới tải file thô.
+  4. **Kiểm tra tên file ACM Trades**: Xác thực tên file Straits CSV phải chứa đúng chuỗi `${dd}${MM}${yyyy}` của phiên T-1 theo đúng logic C#.
+  5. **Chuẩn hóa đối soát Vị thế Net**: Đọc `TTTT.xlsx` (M-System) vs `PS.xlsx` (CQG), lọc bỏ tài khoản tự doanh đuôi `A` của MS, nhóm theo `Account_Symbol`, so sánh chênh lệch `Math.abs(diff) > 0.001`.
+  6. **Đồng bộ Job Handler & UI Trading Manager**: Chuẩn hóa `handleCheckPreEodJob` theo pattern của `checkKLGD` (bảo vệ preview truncation 30/50, lưu `payload.result`, gửi thông báo Telegram chi tiết, ghi overnight log).
+
+### 2. Danh sách file chỉnh sửa
+- [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts):
+  - Inject `CqgSyncService` (`@Optional() @Inject(forwardRef(() => CqgSyncService))`).
+  - Hàm `checkPreEOD`: Tính ngày T-1 lùi weekend; validate tên file ACM; đọc toàn bộ DSGD (tách khối lượng ACM và CQG); đọc Straits CSV; đọc CQG FR (loại trừ `ZWAZCE`); tìm lệnh lệch 2 chiều CombinedKey; tính lệch Vị thế Net TTTT vs PS; trả về `tradingDate` và `targetDate`.
+  - Hàm `runAutoCheckPreEOD`: Tự động gọi `autoMergeMissingFiles(targetDate, ['FR', 'PS'], true)`; quét thư mục phiên T-1; kiểm tra 5 file cốt lõi (`DSGD.xlsx`, `TTTT.xlsx`, `Straits.csv`, `FR.xlsx`, `PS.xlsx`); gửi Telegram format chi tiết.
+- [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  - Cập nhật `handleCheckPreEodJob`: Xác định ngày T-1 chuẩn; tự động auto-merge CQG; ghi log chi tiết; truncate preview 30/50 nếu lệch nhiều; ghi overnight log.
+- [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts) & [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts):
+  - Đồng bộ signature và cập nhật format ghi chú phiên T-1.
+- [run_auto_check_pre_eod_active.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/run_auto_check_pre_eod_active.ts):
+  - Đồng bộ log format theo `result.targetDate`.
+- [deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js):
+  - Bổ sung các file reconciliation vào danh sách deploy.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend: `nest build` $\rightarrow$ Exit code 0 (Build thành công 100%).
+- Frontend: `next build` $\rightarrow$ Exit code 0 (Build production bundle thành công 100%, 25/25 trang tĩnh).
+
+---
+
 ## [2026-09-28T14:55] BUGFIX & DATA INTEGRITY: Khắc Phục Triệt Để Nuốt Lỗi Tải DSGD M-System & Chuẩn Hóa Fail-Fast Data Integrity Gate
 
 ### 1. Mục tiêu thay đổi

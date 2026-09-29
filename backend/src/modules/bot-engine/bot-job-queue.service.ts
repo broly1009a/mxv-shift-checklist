@@ -1019,6 +1019,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     return this.fileAuditHandler.scanCcpBackupFiles(backupPath, targetDate);
   }
 
+  async scanCeBackupFiles(backupPath: string, targetDate: Date = new Date()) {
+    return this.fileAuditHandler.scanCeBackupFiles(backupPath, targetDate);
+  }
+
   async getJobForTask(
     taskId: string,
     shiftLogId?: string,

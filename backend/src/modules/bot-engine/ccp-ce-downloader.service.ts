@@ -420,20 +420,107 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
 
 export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
   {
-    code: 'DSL',
-    name: 'Lịch sử lệnh (CE)',
-    parentMenu: 'Quản lý sổ lệnh',
-    childMenu: 'Lịch sử lệnh',
-    cachedUrl: '/ORDERS/ORDERBOOK_ALL',
-    enabled: true,
-  },
-  {
     code: 'DSGD',
     name: 'Danh sách giao dịch (CE)',
     parentMenu: 'Quản lý sổ lệnh',
-    childMenu: 'Danh sách giao dịch',
-    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL',
+    childMenu: 'Lịch sử khớp lệnh liên thông chi tiết',
+    cachedUrl: '/ORDERS/ORDERMATCH_DETAIL_ACM',
     enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSGD ACM CE.xlsx',
+  },
+  {
+    code: 'DSL',
+    name: 'Sổ lệnh (CE)',
+    parentMenu: 'Quản lý sổ lệnh',
+    childMenu: 'Lịch sử sổ lệnh liên thông',
+    cachedUrl: '/ORDERS/ORDERBOOK_ALL_ACM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSL ACM CE.xlsx',
+  },
+  {
+    code: 'DSLCK',
+    name: 'Lệnh chờ khớp (CE)',
+    parentMenu: 'Quản lý sổ lệnh',
+    childMenu: 'Lệnh chờ khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK_WAITING',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLCK ACM CE.xlsx',
+  },
+  {
+    code: 'DSLDK',
+    name: 'Lệnh điều kiện (CE)',
+    parentMenu: 'Quản lý sổ lệnh',
+    childMenu: 'Lệnh điều kiện',
+    cachedUrl: '/ORDERS/ORDERBOOK_COND',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLDK ACM CE.xlsx',
+  },
+  {
+    code: 'DSLH',
+    name: 'Lệnh hủy (CE)',
+    parentMenu: 'Quản lý sổ lệnh',
+    childMenu: 'Lệnh hủy',
+    cachedUrl: '/ORDERS/ORDERBOOK_CANCEL',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'DSLH ACM CE.xlsx',
+  },
+  {
+    code: 'GTT',
+    name: 'Giá thanh toán (CE)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý giá thanh toán',
+    cachedUrl: '/PRODUCT/SETTLEMENT',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'GTT ACM.xlsx',
+  },
+  {
+    code: 'HH',
+    name: 'Hàng hóa (CE)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa liên thông (ACM)',
+    cachedUrl: '/PRODUCT/COMMODITY_ACM',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HH ACM.xlsx',
+  },
+  {
+    code: 'HD_CP2CO',
+    name: 'Hợp đồng CP2CO (Đồng Nano)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    commodityCode: 'CP2CO',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HĐ CP2CO.xlsx',
+  },
+  {
+    code: 'HD_PL1NY',
+    name: 'Hợp đồng PL1NY (Bạch kim Nano)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    commodityCode: 'PL1NY',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HĐ PL1NY.xlsx',
+  },
+  {
+    code: 'HD_SI5CO',
+    name: 'Hợp đồng SI5CO (Bạc Nano)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    commodityCode: 'SI5CO',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HĐ SI5CO.xlsx',
   },
 ];
 
@@ -522,6 +609,26 @@ export function isTodayDate(dateStr?: string): boolean {
 /** Kiểm tra khoảng ngày [startDate, endDate] có phải là tải cho duy nhất ngày hôm nay hay không */
 export function isTodayDateRange(startDate?: string, endDate?: string): boolean {
   return isTodayDate(startDate) && isTodayDate(endDate);
+}
+
+/** Kiểm tra 1 chuỗi ngày có phải là phiên hôm nay hoặc phiên giao dịch đêm đang chạy hay không */
+export function isTodayOrCurrentSession(dateStr?: string): boolean {
+  if (!dateStr || !dateStr.trim()) return true;
+  const ymd = normalizeDateToYmd(dateStr);
+  if (!ymd) return false;
+  const today = getTodayVnDate();
+  if (ymd === today.ymd) return true;
+
+  // Nếu đang trong khung giờ đêm / rạng sáng (00:00 - 07:00 VN),
+  // phiên T-1 vẫn đang là phiên giao dịch realtime hoạt động trên sàn và CoreCCP
+  const now = new Date();
+  const vnHour = (now.getUTCHours() + 7) % 24;
+  if (vnHour < 7) {
+    const yesterdayVn = new Date(now.getTime() + 7 * 3600 * 1000 - 24 * 3600 * 1000);
+    const yYmd = `${yesterdayVn.getUTCFullYear()}-${String(yesterdayVn.getUTCMonth() + 1).padStart(2, '0')}-${String(yesterdayVn.getUTCDate()).padStart(2, '0')}`;
+    if (ymd === yYmd) return true;
+  }
+  return false;
 }
 
 /** Sinh danh sách các khoảng ngày theo tháng trong khoảng startDate → endDate */
@@ -2036,8 +2143,20 @@ export class CcpCeDownloaderService {
         this.log(`[CCP KLGD] Đang tải báo cáo ${rep.name} (${rep.code})...`, logCb);
         try {
           await this.navigateToReport(page, rep, systemUrl, logCb);
-          const searchRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
-          const isTableEmpty = searchRes === 'EMPTY_TABLE';
+          let isTableEmpty = false;
+          if (rep.code === 'DSGD' && isTodayOrCurrentSession(tradingDate)) {
+            this.log(`[CCP KLGD] DSGD phiên hiện tại (${tradingDate}) -> Giữ nguyên bảng giao dịch mặc định realtime.`, logCb);
+            await this.waitForTableLoadingComplete(page, 15_000);
+            try {
+              const noData = page.locator(
+                "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
+              ).first();
+              isTableEmpty = await noData.isVisible({ timeout: 600 }).catch(() => false);
+            } catch { }
+          } else {
+            const searchRes = await this.setDateRangeAndSearch(page, rep, tradingDate, tradingDate, {}, logCb);
+            isTableEmpty = searchRes === 'EMPTY_TABLE';
+          }
 
           const dl = await this.triggerExportDownload(page, opts.downloadTimeoutMs, isTableEmpty, logCb);
           if (dl && dl !== 'NO_DATA') {
@@ -2203,9 +2322,9 @@ export class CcpCeDownloaderService {
       throw new Error(`[Fail-Fast] Màn hình DSGD chưa sẵn sàng, trình duyệt đang ở URL: ${currentUrl}`);
     }
 
-    const isToday = isTodayDate(tradingDate);
+    const isToday = isTodayOrCurrentSession(tradingDate);
     if (isToday) {
-      this.log(`[CCP KLGD] Phiên hôm nay (${tradingDate}) -> Giữ nguyên bảng giao dịch mặc định (bỏ qua filter để bảo toàn 100% dữ liệu realtime).`, logCb);
+      this.log(`[CCP KLGD] Phiên hiện tại/hôm nay (${tradingDate}) -> Giữ nguyên bảng giao dịch mặc định (bỏ qua filter để bảo toàn 100% dữ liệu realtime).`, logCb);
       await this.waitForTableLoadingComplete(page, 15_000);
       try {
         const noData = page.locator(

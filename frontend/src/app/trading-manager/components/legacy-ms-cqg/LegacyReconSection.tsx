@@ -32,6 +32,7 @@ import {
 import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { ReconLogSummaryModal } from './ReconLogSummaryModal';
+import LegacyPreEodDiffSection from './LegacyPreEodDiffSection';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
 export interface LegacyReconSectionProps {
@@ -83,6 +84,7 @@ export default function LegacyReconSection({
   }, [selectedRunJobId]);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
+  const [preEodLogModalOpen, setPreEodLogModalOpen] = useState<boolean>(false);
   const [showSummaryLogModal, setShowSummaryLogModal] = useState<boolean>(false);
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
@@ -2166,6 +2168,14 @@ export default function LegacyReconSection({
               </div>
             </div>
 
+            {/* KHUNG CHI TIẾT ĐỐI CHIẾU PRE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM) */}
+            <LegacyPreEodDiffSection
+              preEodData={summaryData?.preEod}
+              onTriggerCheck={() => handleTriggerRun('CHECK_PRE_EOD', 'pre-eod-diff')}
+              triggering={triggering && triggeringSection === 'pre-eod-diff'}
+              onOpenLogs={() => setPreEodLogModalOpen(true)}
+            />
+
             {/* KHUNG DƯỚI CÙNG: KẾT QUẢ ĐỒNG BỘ SỐ DƯ CQG */}
             <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
               <div style={{
@@ -2298,6 +2308,19 @@ export default function LegacyReconSection({
         runLabel={isViewingHistorical ? `Lượt đang xem (${lastCheckedFormatted})` : `Lượt mới nhất (${lastCheckedFormatted})`}
         runTime={lastCheckedFormatted}
         summaryData={summaryData}
+      />
+
+      <TradingManagerLogModal
+        isOpen={preEodLogModalOpen}
+        onClose={() => setPreEodLogModalOpen(false)}
+        jobId={summaryData?.preEod?.jobId}
+        status={summaryData?.preEod?.status || 'COMPLETED'}
+        logs={summaryData?.preEod?.logs || []}
+        onRetry={() => {
+          setPreEodLogModalOpen(false);
+          handleTriggerRun('CHECK_PRE_EOD', 'pre-eod-diff');
+        }}
+        isRetrying={triggering}
       />
     </>
   );

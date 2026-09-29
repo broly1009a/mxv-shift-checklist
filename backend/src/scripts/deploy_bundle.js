@@ -63,6 +63,9 @@ const filesToDeploy = [
   'backend/src/modules/reconciliation/services/recon-console-summary.service.ts',
   'backend/src/modules/reconciliation/services/klgd-recon.service.ts',
   'backend/src/modules/reconciliation/services/pre-eod-recon.service.ts',
+  'backend/src/modules/reconciliation/reconciliation.service.ts',
+  'backend/src/modules/reconciliation/reconciliation.controller.ts',
+  'backend/src/scripts/run_auto_check_pre_eod_active.ts',
   'backend/src/modules/reconciliation/services/ccp-recon.service.ts',
   'backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts',
   'backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts',
@@ -79,6 +82,8 @@ const filesToDeploy = [
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx',
+  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx',
+  'frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx',
   'frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx',
   'frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx',
   'frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx',
@@ -95,6 +100,7 @@ const filesToDeploy = [
   'backend/src/modules/bot-engine/handlers/macro-value.handler.ts',
   'backend/src/modules/bot-engine/handlers/macro-lot.handler.ts',
   'backend/src/scripts/test_check_klgd_playwright.js',
+  'backend/src/tests/test_overnight_cqg_time_fix.ts',
 ];
 
 for (const rel of filesToDeploy) {
@@ -107,6 +113,14 @@ if (fs.existsSync(srcJobQueue)) {
   const destJobQueue = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/job-queue');
   copyDirRecursive(srcJobQueue, destJobQueue);
   console.log('Copied full frontend job-queue folder.');
+}
+
+// 1.2 Toàn bộ thư mục frontend ce-acm
+const srcCeAcm = path.join(rootDir, 'frontend/src/app/trading-manager/components/ce-acm');
+if (fs.existsSync(srcCeAcm)) {
+  const destCeAcm = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/ce-acm');
+  copyDirRecursive(srcCeAcm, destCeAcm);
+  console.log('Copied full frontend ce-acm folder.');
 }
 
 // 2. Toàn bộ thư mục ccp-statistics (bao gồm cả inputExampleCppFull_2 và review_output)

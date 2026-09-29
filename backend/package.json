@@ -21,6 +21,7 @@
     "test:checklist": "ts-node src/test-checklist-logic.ts",
     "test:bot": "ts-node src/test-bot-engine.ts",
     "test:post-eod": "ts-node src/test-post-eod.ts",
+    "test:selectors": "node src/scripts/test_verify_playwright_selectors.js",
     "test:rpa": "ts-node src/test-rpa-flow.ts",
     "test:oms-playwright": "ts-node src/test-oms-playwright.ts",
     "test:ms-login": "ts-node src/test-ms-login.ts",

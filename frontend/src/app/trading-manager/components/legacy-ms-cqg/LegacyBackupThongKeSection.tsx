@@ -15,12 +15,15 @@ import {
   FileSpreadsheet,
   FileText,
   Mail,
+  Layers,
+  Database,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/context/AuthContext';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
 import BackupLogSummaryModal from './BackupLogSummaryModal';
+import CeAcmBackupSection from '../ce-acm/CeAcmBackupSection';
 
 // Danh sách 25 báo cáo VNCLEAR / CoreCCP theo chuẩn Ground Truth Maker
 export const CORE_CCP_REPORTS_LIST: Array<{
@@ -79,6 +82,9 @@ export default function LegacyBackupThongKeSection({
   selectedDate,
   onSelectDate,
 }: LegacyBackupThongKeSectionProps) {
+  // Subtab điều hướng phân hệ backup: MS-CQG-CCP vs CE-ACM
+  const [backupSubTab, setBackupSubTab] = useState<'MS_CQG_CCP' | 'CE_ACM'>('MS_CQG_CCP');
+
   // Checkbox settings
   const [backupPeriodic, setBackupPeriodic] = useState<boolean>(true);
   const [backupPeriodicMinutes, setBackupPeriodicMinutes] = useState<number>(60);
@@ -887,8 +893,79 @@ export default function LegacyBackupThongKeSection({
         </div>
       </div>
 
-      {/* ===== SECTION 1: BACKUP MS, BACKUP CQG & BACKUP CORECCP (3 PHÂN HỆ) ===== */}
-      <div className="glass-panel" style={{ padding: '16px 20px' }}>
+      {/* ===== SUBTAB SWITCHER: MS-CQG-CCP vs CE-ACM ===== */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '2px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setBackupSubTab('MS_CQG_CCP')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            borderRadius: '8px 8px 0 0',
+            border: 'none',
+            borderBottom: backupSubTab === 'MS_CQG_CCP' ? '2px solid #10b981' : '2px solid transparent',
+            color: backupSubTab === 'MS_CQG_CCP' ? '#10b981' : 'var(--text-secondary)',
+            backgroundColor: backupSubTab === 'MS_CQG_CCP' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Database size={16} color={backupSubTab === 'MS_CQG_CCP' ? '#10b981' : 'var(--text-muted)'} />
+          <span>Backup MS – CQG – CCP (Hiện tại)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setBackupSubTab('CE_ACM')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            borderRadius: '8px 8px 0 0',
+            border: 'none',
+            borderBottom: backupSubTab === 'CE_ACM' ? '2px solid #3b82f6' : '2px solid transparent',
+            color: backupSubTab === 'CE_ACM' ? '#3b82f6' : 'var(--text-secondary)',
+            backgroundColor: backupSubTab === 'CE_ACM' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Layers size={16} color={backupSubTab === 'CE_ACM' ? '#3b82f6' : 'var(--text-muted)'} />
+          <span>Backup CE – ACM (Phân hệ mới)</span>
+          <span
+            style={{
+              fontSize: '0.66rem',
+              fontWeight: 800,
+              padding: '1px 6px',
+              borderRadius: '10px',
+              backgroundColor: backupSubTab === 'CE_ACM' ? '#3b82f6' : 'rgba(59, 130, 246, 0.15)',
+              color: backupSubTab === 'CE_ACM' ? '#ffffff' : '#3b82f6',
+            }}
+          >
+            MỚI
+          </span>
+        </button>
+      </div>
+
+      {backupSubTab === 'MS_CQG_CCP' ? (
+        <>
+          {/* ===== SECTION 1: BACKUP MS, BACKUP CQG & BACKUP CORECCP (3 PHÂN HỆ) ===== */}
+          <div className="glass-panel" style={{ padding: '16px 20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '16px' }}>
           {/* CỘT 1: BACKUP MS (20 BÁO CÁO) */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -1370,6 +1447,14 @@ export default function LegacyBackupThongKeSection({
           Cấu Hình Bot Toàn Diện
         </Link>
       </div>
+        </>
+      ) : (
+        <CeAcmBackupSection
+          token={token}
+          selectedDate={selectedDate}
+          onSelectDate={onSelectDate}
+        />
+      )}
 
       {/* Modal Tóm Tắt Nhật Ký Tải Báo Cáo MS / CQG */}
       <BackupLogSummaryModal

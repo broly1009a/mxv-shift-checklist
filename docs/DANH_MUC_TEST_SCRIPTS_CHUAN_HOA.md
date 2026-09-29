@@ -9,6 +9,7 @@ Tài liệu này tổng hợp toàn bộ các test script chuẩn hóa độc l�
 | Báo Cáo / Module | Lệnh Chạy (Terminal) | Lệnh Tắt NPM (trong thư mục `backend`) | Mục Đích & Ghi Chú |
 | :--- | :--- | :--- | :--- |
 | **Toàn bộ 20 Báo cáo M-System** | `node src/scripts/test_ms_download_all_20_reports.js --headed` | `npm run test:ms-20` | Kiểm tra tải toàn bộ 20 file về `temp/test_20_reports/`. Đã hỗ trợ selector FontAwesome 5 `fas fa-file-csv`, tự động phục hồi phiên `ensureLoggedIn` và fallback Sidebar. |
+| **Kiểm Thử Cú Pháp Toàn Bộ Selector Bot** | `node src/scripts/test_verify_playwright_selectors.js` | `npm run test:selectors` | Quét tĩnh mã nguồn và chạy Playwright selector compiler để thẩm định cú pháp 100% selector, triệt tiêu lỗi trộn CSS/XPath. |
 | **Trạng thái mở (TTM) & Tất toán (TTTT)** | `node src/scripts/test_ms_download_ttm_tttt.js --headed` | `npm run test:ms-ttm` | Kiểm thử nhanh 2 báo cáo cốt lõi `TTM` và `TTTT`, chụp ảnh snapshot và thẩm định cấu trúc cột Excel. |
 | **Các Tab con M-System (Spreads, LME, ACM)** | `node src/scripts/test_ms_tab_downloads.js --headed` | - | Kiểm tra chuyển đổi các sub-tab con trong `investorManagement` và `finalPositionInfo`. |
 

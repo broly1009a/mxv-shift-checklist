@@ -480,14 +480,52 @@ async function testMSystem(creds, cliConfig, browser) {
     await page.waitForTimeout(2000);
 
     // Tải DSGD
-    console.log(`[MS] Bấm tải file DSGD qua icon CSV/Excel...`);
+    console.log(`[MS] Bấm tải file DSGD qua các selector ứng viên...`);
+    const exportCandidates = [
+      "button:has(i[class*='fa-file-csv'])",
+      "button.ladda-button:has(i[class*='fa-file-csv'])",
+      "button.btn-ghost-primary:has(i[class*='fa-file-csv'])",
+      "button:has(i.fas.fa-file-csv)",
+      "button:has(i.fa-file-csv)",
+      "button.ladda-button",
+      "i[class*='fa-file-csv']",
+      "i.fa-file-csv",
+      "i.fas.fa-file-csv",
+      "xpath=//i[contains(@class, 'fa-file-csv')]",
+      "xpath=//button[contains(., 'Xuất') or contains(., 'Export')]",
+    ];
+
+    let exportBtn = null;
+    let matchedSelector = null;
+    for (const sel of exportCandidates) {
+      try {
+        const loc = page.locator(sel).first();
+        if (await loc.isVisible().catch(() => false)) {
+          exportBtn = loc;
+          matchedSelector = sel;
+          console.log(`[MS] ✅ Tìm thấy nút xuất DSGD hợp lệ với selector: "${sel}"`);
+          break;
+        }
+      } catch (err) {
+        console.warn(`[MS] ⚠️ Selector không hợp lệ hoặc lỗi phân tích: "${sel}" - ${err.message}`);
+      }
+    }
+
+    if (!exportBtn) {
+      console.log(`[MS] ℹ️ Chưa thấy nút ngay, chờ selector an toàn fallback trong 10s...`);
+      const fallbackCss = "button:has(i[class*='fa-file-csv']), button.ladda-button, i[class*='fa-file-csv']";
+      await page.waitForSelector(fallbackCss, { state: 'visible', timeout: 10000 }).catch(() => {});
+      exportBtn = page.locator(fallbackCss).first();
+      matchedSelector = fallbackCss;
+    }
+
     const [downloadMs] = await Promise.all([
-      page.waitForEvent('download', { timeout: 35000 }),
-      page.click("xpath=//i[contains(@class, 'fa-file-csv')] | //button[contains(., 'Xuất') or contains(., 'Export')]"),
+      page.waitForEvent('download', { timeout: 45000 }),
+      exportBtn.click({ timeout: 15000 }),
     ]);
 
     await downloadMs.saveAs(msDest);
-    console.log(`[MS] ✅ Đã lưu file M-System DSGD: ${msDest}`);
+    console.log(`[MS] ✅ Đã tải và lưu file M-System DSGD (bằng "${matchedSelector}"): ${msDest}`);
     results.dsgd = inspectExcelFile(msDest, 'M-SYSTEM DSGD');
 
     if (cliConfig.keepOpen) {
