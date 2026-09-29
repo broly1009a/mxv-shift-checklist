@@ -132,6 +132,12 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
     const ms = Math.round((secondsVal - seconds) * 1000);
 
     const result = new Date(defaultDate);
+    // Chuẩn Tool C# TransactionCheckingService.cs#L143 (fullDateTime = time.Date + itemTimeOnly):
+    // CQG Desktop chỉ hiển thị giờ (không có ngày) cho các lệnh phát sinh sau 00:00 của ngày hôm nay.
+    // Đối với phiên giao dịch T (defaultDate), các lệnh sau nửa đêm (hours < 6) thuộc về ngày hôm sau của phiên (defaultDate + 1 ngày).
+    if (hours < 6) {
+      result.setDate(result.getDate() + 1);
+    }
     result.setHours(hours, minutes, seconds, ms);
     return result;
   }
@@ -208,6 +214,10 @@ export function parseTradeDateTime(
   const ms = Math.round((secVal - sec) * 1000);
 
   const result = new Date(year, month - 1, day, hr, min, sec, ms);
+  // Nếu chỉ có giờ:phút:giây và phát sinh sau 00:00 rạng sáng (hr < 6) của phiên defaultDate, cộng thêm 1 ngày
+  if (parts.length === 1 && str.includes(':') && defaultDate && hr < 6) {
+    result.setDate(result.getDate() + 1);
+  }
   return isNaN(result.getTime()) ? null : result;
 }
 
@@ -271,10 +281,14 @@ export function convertLMESymbol(
 
   let adjustedDateStr = formatDDMMYYYY(adjustedDate);
   const dayoffMap = new Map<string, string>();
-  holidays.forEach((h) => {
-    const parts = h.split(',');
-    if (parts.length >= 2) {
-      dayoffMap.set(parts[0].trim(), parts[1].trim());
+  holidays.forEach((h: any) => {
+    if (typeof h === 'string') {
+      const parts = h.split(',');
+      if (parts.length >= 2) {
+        dayoffMap.set(parts[0].trim(), parts[1].trim());
+      }
+    } else if (h && typeof h === 'object' && h.originalDate && h.replacementDate) {
+      dayoffMap.set(String(h.originalDate).trim(), String(h.replacementDate).trim());
     }
   });
 

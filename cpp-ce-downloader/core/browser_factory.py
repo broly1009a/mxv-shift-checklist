@@ -21,13 +21,13 @@ def launch_browser_resilient(p: Playwright, headless: bool, log=print) -> Browse
     try:
         return p.chromium.launch(headless=headless)
     except Exception:
-        log("  ℹ️ Playwright Chromium không sẵn có. Đang chuyển sang Google Chrome hệ thống...")
+        log("  Playwright Chromium không sẵn có. Đang chuyển sang Google Chrome hệ thống...")
 
     # 2. Fallback 1: Google Chrome
     try:
         return p.chromium.launch(headless=headless, channel="chrome")
     except Exception:
-        log("  ℹ️ Google Chrome không sẵn có. Đang chuyển sang Microsoft Edge hệ thống...")
+        log("  Google Chrome không sẵn có. Đang chuyển sang Microsoft Edge hệ thống...")
 
     # 3. Fallback 2: Microsoft Edge (Máy Windows 10/11 luôn sẵn có 100%)
     try:

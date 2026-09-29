@@ -26,6 +26,7 @@ import {
   FileText,
   BookOpen,
   Folder,
+  RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
@@ -35,6 +36,8 @@ export interface CcpLotStatisticsSectionProps {
   token: string | null;
   selectedDate: string;
   onOpenGuide?: () => void;
+  viewMode?: 'USER' | 'EXPERT';
+  onToggleViewMode?: (mode: 'USER' | 'EXPERT') => void;
 }
 
 interface CcpHhStat {
@@ -99,9 +102,13 @@ interface CcpLotResultData {
   totalKltt: number;
   totalTtttLot: number;
   acmLot: number;
+  normalLot?: number;
   spreadLot?: number;
   lmeLot?: number;
   optionsLot?: number;
+  bacThoiLot?: number;
+  bacThoiGtgd?: number;
+  byType?: any;
   tyGiaUsed: Record<string, number>;
   warnings: string[];
 }
@@ -110,7 +117,21 @@ export default function CcpLotStatisticsSection({
   token,
   selectedDate,
   onOpenGuide,
+  viewMode: propViewMode,
+  onToggleViewMode,
 }: CcpLotStatisticsSectionProps) {
+  // Chế độ giao diện: USER (Mặc định tinh gọn cho Vận hành) vs EXPERT (Đầy đủ cho IT Kỹ thuật)
+  const [internalViewMode, setInternalViewMode] = useState<'USER' | 'EXPERT'>('USER');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('core_ccp_view_mode') as 'USER' | 'EXPERT';
+      if (saved) setInternalViewMode(saved);
+    }
+  }, []);
+
+  const currentViewMode = propViewMode || internalViewMode;
+
   // Data source mode: AUTO_DETECT (quét thư mục ngày) vs MANUAL_UPLOAD (chọn file tay)
   const [dataSourceMode, setDataSourceMode] = useState<'AUTO_DETECT' | 'MANUAL_UPLOAD'>('AUTO_DETECT');
   const [scanResult, setScanResult] = useState<CcpDailyScanResult | null>(null);
@@ -269,6 +290,24 @@ export default function CcpLotStatisticsSection({
     } finally {
       setSavingConfig(false);
     }
+  };
+
+  // Nạp nhanh bộ đường dẫn mặc định chuẩn (trỏ vào thư mục con output/)
+  const handleApplyDefaultOutputPaths = () => {
+    const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
+    setBackupPathCcp('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures');
+    setPathAcmLot(`${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`);
+    setPathAcmGtgd(`${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`);
+    setPathNormalLot(`${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`);
+    setPathSpreadLot(`${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`);
+    setPathLmeLot(`${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`);
+    setPathOptionsLot(`${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`);
+    setPathGtgdNormal(`${defaultOut}\\Thong ke gia tri giao dich \${YYYY}.xlsx`);
+    setPathGtgdSpread(`${defaultOut}\\Thong ke gia tri giao dich Spread \${YYYY}.xlsx`);
+    setPathGtgdLme(`${defaultOut}\\Thong ke gia tri giao dich LME \${YYYY}.xlsx`);
+    setPathGtgdOptions(`${defaultOut}\\Thong ke gia tri giao dich Options \${YYYY}.xlsx`);
+    setPathDsgdCumulative(`${defaultOut}\\DSGD T\${MM}.\${YYYY} CCP.xlsx`);
+    toast.success('Đã nạp bộ đường dẫn mặc định chuẩn (thư mục output). Vui lòng bấm "Lưu Cấu Hình" để xác nhận.');
   };
 
   // Đồng bộ tỷ giá mới nhất từ tệp ngày CoreCCP hoặc M-System và lưu vào CSDL
@@ -445,6 +484,90 @@ export default function CcpLotStatisticsSection({
     }
   };
 
+  // ─── 1-CHẠM: Thống Kê Số Lot Trực Tiếp (CoreCCP) ──────────────────────────
+  const [runningLot, setRunningLot] = useState<boolean>(false);
+  const handleRunLotDirect = async () => {
+    if (!token) return;
+    if (!scanResult?.canProcess) {
+      toast.error('Chưa tìm thấy file DSGD trong thư mục ngày. Vui lòng kiểm tra lại!');
+      return;
+    }
+
+    setRunningLot(true);
+    setAccumulatorLogs([]);
+    const toastId = toast.loading(`Đang tính toán và ghi file Số Lot ngày ${ngayGD}...`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/run-lot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ date: ngayGD }),
+      });
+
+      const data = await res.json();
+      if (data?.logs && Array.isArray(data.logs)) {
+        setAccumulatorLogs(data.logs);
+      }
+      if (res.ok && data?.success) {
+        if (data?.result) setResult(data.result);
+        toast.success(
+          data.message || `Đã ghi thành công các file Số Lot ngày ${ngayGD} (${data.result?.totalSoLot?.toLocaleString('vi-VN')} lot)`,
+          { id: toastId },
+        );
+      } else {
+        toast.error(data?.message || 'Có lỗi khi ghi file Số Lot', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối máy chủ: ' + err.message, { id: toastId });
+    } finally {
+      setRunningLot(false);
+    }
+  };
+
+  // ─── 1-CHẠM: Thống Kê Giá Trị Giao Dịch Trực Tiếp (CoreCCP) ───────────────
+  const [runningValue, setRunningValue] = useState<boolean>(false);
+  const handleRunValueDirect = async () => {
+    if (!token) return;
+    if (!scanResult?.canProcess) {
+      toast.error('Chưa tìm thấy file DSGD trong thư mục ngày. Vui lòng kiểm tra lại!');
+      return;
+    }
+
+    setRunningValue(true);
+    setAccumulatorLogs([]);
+    const toastId = toast.loading(`Đang tính toán và ghi file Giá Trị Giao Dịch ngày ${ngayGD}...`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/run-value`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ date: ngayGD }),
+      });
+
+      const data = await res.json();
+      if (data?.logs && Array.isArray(data.logs)) {
+        setAccumulatorLogs(data.logs);
+      }
+      if (res.ok && data?.success) {
+        if (data?.result) setResult(data.result);
+        toast.success(
+          data.message || `Đã ghi thành công các file Giá Trị Giao Dịch ngày ${ngayGD}`,
+          { id: toastId },
+        );
+      } else {
+        toast.error(data?.message || 'Có lỗi khi ghi file Giá Trị', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối máy chủ: ' + err.message, { id: toastId });
+    } finally {
+      setRunningValue(false);
+    }
+  };
+
   // Formatter helpers
   const fmtNum = (v?: number) => (v !== undefined && v !== null ? v.toLocaleString('vi-VN') : '0');
   const fmtCur = (v?: number) => (v !== undefined && v !== null ? `${v.toLocaleString('vi-VN')} đ` : '0 đ');
@@ -497,16 +620,277 @@ export default function CcpLotStatisticsSection({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* ── 1. ACTION & FILE INPUT PANEL ── */}
-      <div
-        className="glass-panel"
-        style={{
-          padding: '20px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
-        }}
-      >
+      {currentViewMode === 'USER' ? (
+        /* ── GIAO DIỆN VẬN HÀNH (USER MODE): TINH GỌN, 2 BƯỚC RÕ RÀNG, CHUẨN DOANH NGHIỆP ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header & 2-Step Action Bar */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              borderLeft: '4px solid #10b981',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  CoreCCP VNCLEAR
+                </span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Thống Kê Số Lot & Giá Trị Giao Dịch (Toàn Thị Trường)
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Tự động tổng hợp số lot và giá trị giao dịch của toàn bộ 5 phân hệ (Thường, ACM, Spread, LME, Options) từ thư mục ngày và cập nhật 10 sổ lũy kế Excel.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.74rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: scanResult?.canProcess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: scanResult?.canProcess ? '#10b981' : '#ef4444', fontWeight: 700 }}>
+                  Thư mục ngày: {ngayGD} ({scanResult?.canProcess ? 'Sẵn sàng' : 'Chưa có file DSGD'})
+                </span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>•</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                  DSGD: {scanResult?.files.dsgd?.present ? '✓' : '✗'} | TTM: {scanResult?.files.ttm?.present ? '✓' : '✗'} | TTTT: {scanResult?.files.tttt?.present ? '✓' : '✗'} | Tỷ giá: 1 USD = {fmtNum(scanResult?.dbExchangeRates?.detectedRate || result?.tyGiaUsed?.['USD'] || 26000)} đ
+                </span>
+              </div>
+            </div>
+
+            {/* 1-Click Action Buttons: Tách Độc Lập Số Lot & Giá Trị Giao Dịch */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Nút 1: Thống Kê Số Lot (1-Chạm Ghi Trực Tiếp) */}
+              <button
+                type="button"
+                onClick={handleRunLotDirect}
+                disabled={runningLot || runningValue || !scanResult?.canProcess}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.86rem',
+                  fontWeight: 800,
+                  padding: '10px 22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                  cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                  backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
+                }}
+              >
+                {runningLot ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Ghi File Số Lot...</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers size={16} />
+                    <span>Thống Kê Số Lot (CoreCCP)</span>
+                  </>
+                )}
+              </button>
+
+              {/* Nút 2: Thống Kê Giá Trị (1-Chạm Ghi Trực Tiếp) */}
+              <button
+                type="button"
+                onClick={handleRunValueDirect}
+                disabled={runningLot || runningValue || !scanResult?.canProcess}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.86rem',
+                  fontWeight: 800,
+                  padding: '10px 22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderColor: 'rgba(245, 158, 11, 0.4)',
+                  color: '#f59e0b',
+                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+                  cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {runningValue ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Ghi File Giá Trị...</span>
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={16} />
+                    <span>Thống Kê Giá Trị (CoreCCP)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* LUỒNG CŨ 2 BƯỚC (DỰ PHÒNG ROLLBACK - TẠM ẨN) */}
+            {/*
+            <div style={{ display: 'none', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleProcessDaily}
+                disabled={loading || !scanResult?.canProcess}
+              >
+                Bước 1: Tổng Hợp Dữ Liệu Ngày
+              </button>
+              {result && (
+                <button
+                  type="button"
+                  onClick={handleWriteAccumulator}
+                  disabled={writingAccumulator}
+                >
+                  Bước 2: Ghi Vào 10 File Lũy Kế Excel
+                </button>
+              )}
+            </div>
+            */}
+          </div>
+
+          {/* User Mode: Accumulator Logs (nếu có) */}
+          {accumulatorLogs.length > 0 && (
+            <div
+              className="glass-panel"
+              style={{
+                padding: '14px 18px',
+                backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={16} color="#10b981" />
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
+                  Nhật Ký Ghi Các File Lũy Kế Excel CoreCCP:
+                </span>
+              </div>
+              <div
+                style={{
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3px',
+                }}
+              >
+                {accumulatorLogs.map((log, idx) => (
+                  <div key={idx}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* User Mode: 4 KPI Cards (khi có result) */}
+          {result && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* Total Lot */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tổng Số Lot Toàn Thị Trường
+                  </span>
+                  <TrendingUp size={18} color="#10b981" />
+                </div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#10b981' }}>
+                  {fmtNum(result.totalSoLot)} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Lot</span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  <span>Thường: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.normalLot)}</strong></span> |
+                  <span>ACM: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.acmLot)}</strong></span> |
+                  <span>Spread: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.spreadLot)}</strong></span> |
+                  <span>LME: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.lmeLot)}</strong></span> |
+                  <span>Options: <strong style={{ color: 'var(--text-primary)' }}>{fmtNum(result.optionsLot)}</strong></span>
+                </div>
+              </div>
+
+              {/* Total GTGD */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Tổng Giá Trị Giao Dịch
+                  </span>
+                  <DollarSign size={18} color="#3b82f6" />
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#3b82f6' }}>
+                  {fmtCur(result.totalGiaTri)}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Tỷ giá quy đổi: 1 USD = {result.tyGiaUsed?.['USD'] ? `${fmtNum(result.tyGiaUsed['USD'])} đ` : 'Chưa có'}
+                </span>
+              </div>
+
+              {/* Vị Thế & 4 Loại Lệnh */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Vị Thế & 4 Loại Lệnh
+                  </span>
+                  {orderTypesSummary && orderTypesSummary.missingCount === 0 ? (
+                    <CheckCircle2 size={18} color="#10b981" />
+                  ) : (
+                    <AlertTriangle size={18} color="#ef4444" />
+                  )}
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: orderTypesSummary && orderTypesSummary.missingCount === 0 ? '#10b981' : '#ef4444' }}>
+                  {orderTypesSummary && orderTypesSummary.missingCount === 0 ? 'ĐỦ 4 LOẠI LỆNH CHUẨN' : `${orderTypesSummary?.missingCount || 0} TVKD THIẾU LỆNH`}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  TTM: {fmtNum(result.totalTtmMua)} Mua / {fmtNum(result.totalTtmBan)} Bán | TTTT: {fmtNum(result.totalKltt ?? result.totalTtttLot ?? 0)} Lot
+                </span>
+              </div>
+
+              {/* Trạng Thái Ghi Sổ Lũy Kế */}
+              <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Ghi 10 File Lũy Kế Excel
+                  </span>
+                  <Save size={18} color={accumulatorLogs.length > 0 ? '#10b981' : '#8b5cf6'} />
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 900, color: accumulatorLogs.length > 0 ? '#10b981' : '#8b5cf6' }}>
+                  {accumulatorLogs.length > 0 ? 'ĐÃ GHI THÀNH CÔNG VÀO EXCEL' : 'SẴN SÀNG GHI SỔ'}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Zero-Lot Bypass: Bật (tự động bỏ qua phân hệ 0 lot)
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── GIAO DIỆN KỸ THUẬT (EXPERT MODE): BẢO LƯU 100% CẤU HÌNH VÀ THÀNH PHẦN CHI TIẾT CỦA IT ── */
+        <>
+          {/* ── 1. ACTION & FILE INPUT PANEL ── */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '18px',
+            }}
+          >
         {/* Title Bar */}
         <div
           style={{
@@ -586,34 +970,67 @@ export default function CcpLotStatisticsSection({
             </button>
 
             {dataSourceMode === 'AUTO_DETECT' ? (
-              <button
-                type="button"
-                onClick={handleProcessDaily}
-                disabled={loading || !scanResult?.canProcess}
-                className="btn btn-primary"
-                style={{
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  padding: '8px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: loading || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
-                  backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
-                }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin" />
-                    <span>Đang Tổng Hợp...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play size={15} />
-                    <span>Tổng Hợp Từ Thư Mục Backup</span>
-                  </>
-                )}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleRunLotDirect}
+                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                    backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
+                  }}
+                >
+                  {runningLot ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Đang Ghi Lot...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers size={15} />
+                      <span>Thống Kê Số Lot</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRunValueDirect}
+                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    color: '#f59e0b',
+                  }}
+                >
+                  {runningValue ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Đang Ghi GTGD...</span>
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign size={15} />
+                      <span>Thống Kê Giá Trị</span>
+                    </>
+                  )}
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -1010,7 +1427,9 @@ export default function CcpLotStatisticsSection({
                     ? `${scanResult.files.tyGia.filename} (${(scanResult.files.tyGia.size / 1024).toFixed(1)} KB)`
                     : scanResult?.dbExchangeRates?.detectedRate
                     ? `1 USD = ${scanResult.dbExchangeRates.detectedRate.toLocaleString('vi-VN')} đ (${scanResult.dbExchangeRates.detectedSource || 'từ tệp ngày'})`
-                    : `1 USD = ${(scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || 25920).toLocaleString('vi-VN')} đ ${scanResult?.dbExchangeRates?.lastSynced ? `(Đã lưu DB: ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleTimeString('vi-VN')} ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleDateString('vi-VN')})` : ''}`}
+                    : (scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd)
+                    ? `1 USD = ${(scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd).toLocaleString('vi-VN')} đ ${scanResult?.dbExchangeRates?.lastSynced ? `(Đã lưu DB: ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleTimeString('vi-VN')} ${new Date(scanResult.dbExchangeRates.lastSynced).toLocaleDateString('vi-VN')})` : ''}`
+                    : 'Chưa cấu hình tỷ giá USD trong DB'}
                 </span>
               </div>
             </div>
@@ -1234,20 +1653,32 @@ export default function CcpLotStatisticsSection({
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Cấu Hình Đường Dẫn File Lũy Kế ACM Excel
+                Cấu Hình Đường Dẫn 10 File Lũy Kế Excel CoreCCP
               </span>
-              <button
-                type="button"
-                onClick={handleSaveConfig}
-                disabled={savingConfig}
-                className="btn btn-primary"
-                style={{ fontSize: '0.75rem', padding: '5px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                {savingConfig ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                <span>Lưu Cấu Hình</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleApplyDefaultOutputPaths}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  title="Điền tự động đường dẫn chuẩn trỏ vào thư mục con output/"
+                >
+                  <RotateCcw size={13} />
+                  <span>Nạp Mặc Định (output/)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  disabled={savingConfig}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.75rem', padding: '5px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {savingConfig ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                  <span>Lưu Cấu Hình</span>
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1277,14 +1708,14 @@ export default function CcpLotStatisticsSection({
                 value={pathAcmLot}
                 onChange={setPathAcmLot}
                 label="File Số Lot ACM (pathAcmLot):"
-                placeholder="M:\...\Thong ke so lot giao dich ACM ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich ACM ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathAcmGtgd}
                 onChange={setPathAcmGtgd}
                 label="File Giá Trị Giao Dịch ACM (pathAcmGtgd):"
-                placeholder="M:\...\Thong ke gia tri giao dich ACM ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich ACM ${YYYY}.xlsx"
                 targetType="file"
               />
 
@@ -1296,28 +1727,28 @@ export default function CcpLotStatisticsSection({
                 value={pathNormalLot}
                 onChange={setPathNormalLot}
                 label="File Số Lot Futures Thường (pathNormalLot):"
-                placeholder="M:\...\Thong ke so lot giao dich ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathSpreadLot}
                 onChange={setPathSpreadLot}
                 label="File Số Lot Spread (pathSpreadLot):"
-                placeholder="M:\...\Thong ke so lot giao dich Spread ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich Spread ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathLmeLot}
                 onChange={setPathLmeLot}
                 label="File Số Lot LME (pathLmeLot):"
-                placeholder="M:\...\Thong ke so lot giao dich LME ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich LME ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathOptionsLot}
                 onChange={setPathOptionsLot}
                 label="File Số Lot Options (pathOptionsLot):"
-                placeholder="M:\...\Thong ke so lot giao dich Options ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke so lot giao dich Options ${YYYY}.xlsx"
                 targetType="file"
               />
 
@@ -1329,28 +1760,28 @@ export default function CcpLotStatisticsSection({
                 value={pathGtgdNormal}
                 onChange={setPathGtgdNormal}
                 label="File GTGD Thường (pathGtgdNormal):"
-                placeholder="M:\...\Thong ke gia tri giao dich ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathGtgdSpread}
                 onChange={setPathGtgdSpread}
                 label="File GTGD Spread (pathGtgdSpread):"
-                placeholder="M:\...\Thong ke gia tri giao dich Spread ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich Spread ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathGtgdLme}
                 onChange={setPathGtgdLme}
                 label="File GTGD LME (pathGtgdLme):"
-                placeholder="M:\...\Thong ke gia tri giao dich LME ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich LME ${YYYY}.xlsx"
                 targetType="file"
               />
               <SmartPathInput
                 value={pathGtgdOptions}
                 onChange={setPathGtgdOptions}
                 label="File GTGD Options (pathGtgdOptions):"
-                placeholder="M:\...\Thong ke gia tri giao dich Options ${YYYY}.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\Thong ke gia tri giao dich Options ${YYYY}.xlsx"
                 targetType="file"
               />
 
@@ -1362,7 +1793,7 @@ export default function CcpLotStatisticsSection({
                 value={pathDsgdCumulative}
                 onChange={setPathDsgdCumulative}
                 label="File DSGD CCP Lũy Kế Tháng (pathDsgdCumulative):"
-                placeholder="M:\...\DSGD T${MM}.${YYYY} CCP.xlsx"
+                placeholder="M:\...\Thong ke ccp\output\DSGD T${MM}.${YYYY} CCP.xlsx"
                 targetType="file"
               />
             </div>
@@ -1386,7 +1817,7 @@ export default function CcpLotStatisticsSection({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckCircle2 size={16} color="#10b981" />
             <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
-              Nhật Ký Ghi File Lũy Kế ACM:
+              Nhật Ký Ghi Các File Lũy Kế Excel CoreCCP:
             </span>
           </div>
           <div
@@ -1415,7 +1846,7 @@ export default function CcpLotStatisticsSection({
           <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                Tổng Số Lot ACM (DSGD)
+                Tổng Số Lot Toàn Thị Trường
               </span>
               <TrendingUp size={18} color="#10b981" />
             </div>
@@ -1439,7 +1870,7 @@ export default function CcpLotStatisticsSection({
               {fmtCur(result.totalGiaTri)}
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              Tỷ giá quy đổi: 1 USD = {fmtNum(result.tyGiaUsed['USD'] || 25920)} đ
+              Tỷ giá quy đổi: 1 USD = {result.tyGiaUsed?.['USD'] ? `${fmtNum(result.tyGiaUsed['USD'])} đ` : 'Chưa có'}
             </span>
           </div>
 
@@ -1506,6 +1937,8 @@ export default function CcpLotStatisticsSection({
             </span>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* ── 4. DATA TABLE VIEW & TOGGLE ── */}

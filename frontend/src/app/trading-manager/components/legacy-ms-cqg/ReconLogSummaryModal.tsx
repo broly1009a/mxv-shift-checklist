@@ -305,7 +305,7 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
                         Thời lượng
                       </div>
                       <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0ea5e9' }}>
-                        {parsed.durationSeconds}s
+                        {parsed.durationFormatted || `${parsed.durationSeconds}s`}
                       </div>
                     </div>
                   )}

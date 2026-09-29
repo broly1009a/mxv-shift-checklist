@@ -202,7 +202,7 @@ async function triggerExportDownload(page, destFilePath, timeoutMs = 45000) {
 
       const toast = page.locator("xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(@role, 'alert')][contains(., 'Không có dữ liệu') or contains(., 'không có dữ liệu') or contains(., 'No data') or contains(., 'No records')]").first();
       if (await toast.isVisible({ timeout: 150 }).catch(() => false)) {
-        console.log(`     ℹ️ Hệ thống báo: "Không có dữ liệu"`);
+        console.log(`     Hệ thống báo: "Không có dữ liệu"`);
         return 'NO_DATA';
       }
       await page.waitForTimeout(200);
@@ -411,7 +411,7 @@ async function processCommodityAndContracts(page, baseUrl, outputDir) {
   try {
     const rows = page.locator("xpath=//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]");
     const rowCount = await rows.count();
-    console.log(`  ℹ️ Tìm thấy ${rowCount} dòng hàng hóa trong bảng`);
+    console.log(`  Tìm thấy ${rowCount} dòng hàng hóa trong bảng`);
 
     for (let i = 0; i < rowCount; i++) {
       const row = rows.nth(i);
@@ -503,7 +503,7 @@ async function processSingleScreen(page, url, fileName, tabName = null, parentMe
     if (parentMenu && childMenu) {
       const hasBtn = await page.locator("xpath=//button[contains(., 'Kết xuất') or contains(., 'Xuất CSV') or contains(., 'Export')] | //button[contains(@aria-label, 'Export') or contains(@aria-label, 'Kết xuất')]").first().isVisible({ timeout: 2000 }).catch(() => false);
       if (!hasBtn) {
-        console.log(`   ℹ️ Không thấy nút Kết xuất trên URL trực tiếp, điều hướng qua Menu [${parentMenu} > ${childMenu}]...`);
+        console.log(`   Không thấy nút Kết xuất trên URL trực tiếp, điều hướng qua Menu [${parentMenu} > ${childMenu}]...`);
         const parentElem = page.locator(`xpath=//span[text()='${parentMenu}'] | //span[contains(text(), '${parentMenu}')]`).first();
         if (await parentElem.isVisible({ timeout: 2000 }).catch(() => false)) {
           await parentElem.click({ force: true });

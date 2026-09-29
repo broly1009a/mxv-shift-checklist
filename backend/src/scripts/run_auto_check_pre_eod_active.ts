@@ -37,14 +37,9 @@ async function main() {
 
     // Format the note as JSON exactly like getReconciliationJson for PRE_EOD
     let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
-    if (result.sessionStart && result.checkTime) {
-      const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-      });
-      const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-      });
-      note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+    if (result.targetDate) {
+      const t1Str = new Date(result.targetDate).toLocaleDateString('vi-VN');
+      note += `• Ngày phiên đối chiếu T-1: ${t1Str}\n`;
     }
     const totals = result.totals || {};
     note += `• Khớp lệnh tự doanh (MS vs Straits): ${totals.totalACM_MS || 0} vs ${totals.totalACM_Straits || 0} lot (Chênh lệch: ${totals.differACM || 0} lot)\n`;

@@ -29,8 +29,10 @@ import { ExchangeHoliday, ExchangeHolidaySchema } from '../schemas/exchange-holi
       { name: ExchangeHoliday.name, schema: ExchangeHolidaySchema },
     ]),
   ],
-  providers: [SeedService],
-  exports: [MongooseModule, SeedService],
+  // TẮT HOÀN TOÀN SeedService KHI ĐÃ ĐI VÀO VẬN HÀNH THỰC TẾ
+  // (Mở lại comment nếu cần khởi tạo dữ liệu mẫu cho môi trường mới)
+  providers: [/* SeedService */],
+  exports: [MongooseModule /*, SeedService */],
 })
 export class DatabaseModule {}
 

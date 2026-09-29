@@ -1,0 +1,57 @@
+========================================================================================
+   KIỂM THỬ ĐỐI CHIẾU DỮ LIỆU BACKUP PHÂN HỆ COREEX (CE) & ĐỐI TÁC ACM (DATASET NGÀY 25)
+   Thời gian thực thi: 18:07:34 28/9/2026
+========================================================================================
+
+----------------------------------------------------------------------------------------
+1. PHÂN HỆ BACKUP SÀN COREEX (CE) - 10 BÁO CÁO CHUẨN
+----------------------------------------------------------------------------------------
+Thư mục nguồn CE: "C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Pictures\Dữ liệu chuẩn ngày 25\25.09 CE\25.09"
+Tổng số file/thư mục quét được trong thư mục CE: 11
+
+Kết quả đối chiếu 10 file CE theo chuẩn cấu hình Bot:
+STT  Mã Code     Tên Báo Cáo                       File Thực Tế              Kích Thước    Trạng Thái
+---------------------------------------------------------------------------------------------------------
+1    DSGD        Danh sách giao dịch CE            DSGD ACM CE.xlsx          53.86 KB      ĐẦY ĐỦ (OK)
+2    DSL         Sổ lệnh tổng hợp CE               DSL ACM CE.xlsx           246.03 KB     ĐẦY ĐỦ (OK)
+3    DSLCK       Lệnh chờ khớp CE                  DSLCK ACM CE.xlsx         7.86 KB       ĐẦY ĐỦ (OK)
+4    DSLDK       Lệnh điều kiện CE                 DSLDK ACM CE.xlsx         73.46 KB      ĐẦY ĐỦ (OK)
+5    DSLH        Lệnh hủy CE                       DSLH ACM CE.xlsx          200.32 KB     ĐẦY ĐỦ (OK)
+6    GTT         Giá thanh toán ACM                GTT ACM.xlsx              24.74 KB      ĐẦY ĐỦ (OK)
+7    HH          Hàng hóa ACM                      HH ACM.xlsx               19.62 KB      ĐẦY ĐỦ (OK)
+8    HD_CP2CO    Hợp đồng CP2CO (Đồng Nano)        HĐ CP2CO.xlsx             35.96 KB      ĐẦY ĐỦ (OK)
+9    HD_PL1NY    Hợp đồng PL1NY (Bạch kim Nano)    HĐ PL1NY.xlsx             26.09 KB      ĐẦY ĐỦ (OK)
+10   HD_SI5CO    Hợp đồng SI5CO (Bạc Nano)         HĐ SI5CO.xlsx             28.5 KB       ĐẦY ĐỦ (OK)
+---------------------------------------------------------------------------------------------------------
+=> TỔNG KẾT PHÂN HỆ CE: 10/10 file HỢP LỆ (100%).
+=> ĐÁNH GIÁ CE: 100% file backup thủ công của User TRÙNG KHỚP HOÀN TOÀN với cấu hình download của Robot!
+
+
+----------------------------------------------------------------------------------------
+2. PHÂN HỆ BACKUP ĐỐI TÁC ACM (WEB & SFTP) - 4 FILE CHUẨN
+----------------------------------------------------------------------------------------
+Thư mục nguồn ACM: "C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Pictures\Dữ liệu chuẩn ngày 25\25.09 ACM"
+Tổng số file quét được trong thư mục ACM (kèm subfolder): 8
+
+Kết quả đối chiếu 4 file ACM theo chuẩn cấu hình Bot:
+STT  Mã Code     Loại Báo Cáo                          File Thực Tế Khớp                            Kích Thước    Trạng Thái
+-----------------------------------------------------------------------------------------------------------------------------
+1    FILL        Báo cáo Khớp lệnh ACM (Web)           Fill.xls                                     455 KB        ĐẦY ĐỦ (OK)
+2    ORDER       Sổ lệnh ACM (Web)                     Order.xls                                    1.7 MB        ĐẦY ĐỦ (OK)
+3    SFTP_CSV    Straits EOD CSV (SFTP)                EOD FO trades_PT Straits Financial Indonesia - 10017890000_25092026.csv206.7 KB      ĐẦY ĐỦ (OK)
+4    SFTP_XLS    Báo cáo TK 10017890000 (SFTP XLS)     2026-09-25_10017890000.xls                   1.45 MB       ĐẦY ĐỦ (OK)
+-----------------------------------------------------------------------------------------------------------------------------
+=> TỔNG KẾT PHÂN HỆ ACM: 4/4 file HỢP LỆ (100%).
+=> ĐÁNH GIÁ ACM: 100% file backup thủ công của User (gồm cả Web Order/Fill và SFTP Straits/XLS) TRÙNG KHỚP HOÀN TOÀN với cấu hình download của Robot!
+
+
+========================================================================================
+3. KẾT LUẬN & ĐÁNH GIÁ MÀN HÌNH SUBTAB MỚI "BACKUP CE – ACM"
+========================================================================================
+• Màn hình giao diện mới "CeAcmBackupSection.tsx" hỗ trợ tích chọn đầy đủ 10/10 file CE
+  và 4/4 file ACM đúng với thực tế người dùng đang backup thủ công.
+• Cơ chế quét kiểm tra file (audit-ce-backup & audit-acm-backup) nhận diện chính xác
+  cả định dạng đuôi mở rộng .xlsx và .xls, hỗ trợ đường dẫn ổ M: và đường dẫn local.
+• Luồng chạy được thiết kế độc lập 100%, bảo đảm không gây ảnh hưởng tới luồng đối chiếu
+  chính MS – CQG – CoreCCP.
+========================================================================================

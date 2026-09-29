@@ -11,7 +11,7 @@ import sys
 import os
 import re
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Thiết lập UTF-8 cho stdout/stderr để tránh lỗi charmap trên Windows console
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
@@ -112,42 +112,121 @@ def clone_month_sheet(excel_path: str, target_sheet_name: str, clean_data: bool 
         elif first_date_val.weekday() == 6:  # Chủ Nhật
             first_date_val = datetime(target_year, target_month, 2)
 
-        for (r, c) in [(5, 2), (6, 2), (6, 1)]:
-            v = new_sheet.cell(row=r, column=c).value
-            if isinstance(v, datetime) or (isinstance(v, str) and re.match(r'^\d{4}-\d{2}-\d{2}', str(v))):
-                new_sheet.cell(row=r, column=c).value = first_date_val
-                col_letter = 'B' if c == 2 else 'A'
-                print(f"[INFO] Cap nhat moc ngay dau thang tai {col_letter}{r}: {first_date_val.strftime('%Y-%m-%d')}")
+        # Tự động xác định cột ngày (date_col), dòng bắt đầu (first_date_row) và cột xóa dữ liệu (start_clean_col):
+        # - Nếu Cột 2 (B) chứa ngày tháng/WORKDAY -> date_col = 2, start_clean_col = 3 (Bảng Thống kê Số Lot có cột STT ở A)
+        # - Nếu Cột 1 (A) chứa ngày tháng/WORKDAY -> date_col = 1, start_clean_col = 2 (Bảng Thống kê Giá Trị: Normal, Spread, LME, Options, ACM)
+        date_col = 1
+        start_clean_col = 2
+        first_date_row = 6
+
+        found_date = False
+        for test_r in range(4, 9):
+            c1 = new_sheet.cell(row=test_r, column=1).value
+            c2 = new_sheet.cell(row=test_r, column=2).value
+            
+            # Kiểm tra Cột B trước (Bảng Số Lot)
+            if isinstance(c2, datetime):
+                date_col = 2
+                start_clean_col = 3
+                first_date_row = test_r
+                found_date = True
+                break
+            elif isinstance(c2, str) and 'WORKDAY' in c2.upper():
+                date_col = 2
+                start_clean_col = 3
+                m = re.search(r'WORKDAY\s*\(\s*[A-Z]+(\d+)', c2, re.IGNORECASE)
+                first_date_row = int(m.group(1)) if m else test_r - 1
+                found_date = True
+                break
+            
+            # Kiểm tra Cột A (Bảng Giá Trị)
+            if isinstance(c1, datetime):
+                date_col = 1
+                start_clean_col = 2
+                first_date_row = test_r
+                found_date = True
+                break
+            elif isinstance(c1, str) and 'WORKDAY' in c1.upper():
+                date_col = 1
+                start_clean_col = 2
+                m = re.search(r'WORKDAY\s*\(\s*[A-Z]+(\d+)', c1, re.IGNORECASE)
+                first_date_row = int(m.group(1)) if m else test_r - 1
+                found_date = True
                 break
 
-        # 7. Xóa trắng dữ liệu giao dịch cũ của các ngày trong tháng (giữ nguyên công thức và tiêu đề)
+        new_sheet.cell(row=first_date_row, column=date_col).value = first_date_val
+        col_letter = 'B' if date_col == 2 else 'A'
+        print(f"[INFO] Phat hien date_col={col_letter}, first_date_row={first_date_row}, start_clean_col={start_clean_col}. Cap nhat moc ngay dau thang tai {col_letter}{first_date_row}: {first_date_val.strftime('%Y-%m-%d')}")
+
+        # 7. Đồng bộ chính xác 100% số ngày làm việc trong tháng (loại bỏ triệt để ngày tràn sang tháng sau như 10/1/2026)
+        def get_month_workdays(year, month):
+            workdays = []
+            d = datetime(year, month, 1)
+            while d.month == month:
+                if d.weekday() < 5:  # Thứ 2 đến Thứ 6
+                    workdays.append(d)
+                d += timedelta(days=1)
+            return workdays
+
+        month_workdays = get_month_workdays(target_year, target_month)
+        num_workdays = len(month_workdays)
+        last_date_row = first_date_row + num_workdays - 1
+        print(f"[INFO] Thang {target_month:02d}/{target_year} co {num_workdays} ngay lam viec (Row {first_date_row} den Row {last_date_row})")
+
+        # Tìm dòng TỔNG / TOTAL hiện tại của sheet
+        old_tong_row = None
+        for r in range(first_date_row, min(new_sheet.max_row, 70) + 1):
+            c1 = str(new_sheet.cell(row=r, column=1).value or '').upper()
+            c2 = str(new_sheet.cell(row=r, column=2).value or '').upper()
+            if any(k in c1 or k in c2 for k in ['TỔNG', 'TOTAL', 'TONG']):
+                old_tong_row = r
+                break
+
+        if not old_tong_row:
+            old_tong_row = new_sheet.max_row
+
+        print(f"[INFO] Dong tong cong cu tai Row {old_tong_row}")
+
+        # Nếu sheet mẫu có nhiều dòng hơn số ngày làm việc của tháng mới (ví dụ tháng 8/7 có dòng tràn sang tháng sau như 10/1 hoặc ngày 29/8 chèn tay)
+        # -> Xóa toàn bộ các dòng dư thừa ở giữa last_date_row và old_tong_row
+        if old_tong_row > last_date_row + 1:
+            excess_rows = old_tong_row - (last_date_row + 1)
+            print(f"[INFO] Phat hien va xoa {excess_rows} dong du thua tu Row {last_date_row + 1} den Row {old_tong_row - 1} de khong tran ngay sang thang sau...")
+            new_sheet.delete_rows(last_date_row + 1, excess_rows)
+        elif old_tong_row < last_date_row + 1:
+            # Nếu tháng mới có nhiều ngày làm việc hơn tháng mẫu -> chèn thêm dòng tương ứng
+            missing_rows = (last_date_row + 1) - old_tong_row
+            print(f"[INFO] Chen them {missing_rows} dong lam viec con thieu vao truoc dong tong cong...")
+            new_sheet.insert_rows(old_tong_row, missing_rows)
+
+        # Cập nhật chuẩn hóa chuỗi ngày =WORKDAY(...) từ first_date_row đến last_date_row
+        new_sheet.cell(row=first_date_row, column=date_col).value = month_workdays[0]
+        if date_col == 2:
+            new_sheet.cell(row=first_date_row, column=1).value = 1
+
+        for r in range(first_date_row + 1, last_date_row + 1):
+            prev_r = r - 1
+            new_sheet.cell(row=r, column=date_col).value = f"=WORKDAY({col_letter}{prev_r},1)"
+            if date_col == 2:
+                new_sheet.cell(row=r, column=1).value = (r - first_date_row + 1)
+
+        # Cập nhật công thức dòng TỔNG (cố định chuẩn xác tại last_date_row + 1)
+        new_tong_row = last_date_row + 1
+        for c in range(1, new_sheet.max_column + 1):
+            cell = new_sheet.cell(row=new_tong_row, column=c)
+            if cell.value and str(cell.value).startswith('='):
+                c_letter = openpyxl.utils.get_column_letter(c)
+                cell.value = f"=SUM({c_letter}{first_date_row}:{c_letter}{last_date_row})"
+
+        # 8. Xóa trắng dữ liệu giao dịch cũ của các ngày trong tháng (giữ nguyên công thức và tiêu đề)
         if clean_data:
-            print("[INFO] Dang don dep du lieu ngay cu (giu nguyen cong thuc)...")
-            
-            # Giới hạn tối đa row 50 (bảng tháng chỉ có tối đa 31 ngày + dòng tổng)
-            max_row = min(new_sheet.max_row, 50)
+            print(f"[INFO] Dang don dep du lieu ngay cu tu cot {start_clean_col} (giu nguyen cong thuc)...")
             max_col = new_sheet.max_column
-            cell_b5 = new_sheet.cell(row=5, column=2).value
-
-            for r in range(5, max_row + 1):
-                cell_a = new_sheet.cell(row=r, column=1).value
-                cell_b = new_sheet.cell(row=r, column=2).value
-                
-                # Bỏ qua và dừng lại khi gặp dòng TỔNG / TOTAL
-                str_a = str(cell_a).upper() if cell_a else ""
-                str_b = str(cell_b).upper() if cell_b else ""
-                if "TỔNG" in str_a or "TOTAL" in str_a or "TONG" in str_a or "TỔNG" in str_b or "TOTAL" in str_b or "TONG" in str_b:
-                    print(f"[INFO] Dung don dep tai dong tong cong: Row {r}")
-                    break
-
-                # Bỏ qua các dòng chỉ chứa nhãn/tiêu đề
-                # Chỉ xóa các ô số liệu (cột 3 trở đi cho Lot, cột 2 trở đi cho Value)
-                start_clean_col = 3 if cell_b5 is not None else 2
+            for r in range(first_date_row, last_date_row + 1):
                 for c in range(start_clean_col, max_col + 1):
                     cell = new_sheet.cell(row=r, column=c)
                     if cell.value is not None:
                         val_str = str(cell.value)
-                        # Giữ nguyên toàn bộ ô công thức bắt đầu bằng '='
                         if not val_str.startswith('='):
                             cell.value = None
 

@@ -53,25 +53,54 @@ export class CcpReconService {
     rmbLoss: number;
     rmbGain: number;
   }> {
-    const usdStr = await this.settingsService.getSetting('usd_exchange_rate', '25920');
-    const myrStr = await this.settingsService.getSetting('myr_exchange_rate', '6383');
-    const jpyStr = await this.settingsService.getSetting('jpy_exchange_rate', '170');
-    const rmbStr = await this.settingsService.getSetting('rmb_exchange_rate', '3871');
+    // 1. Ưu tiên đọc ma trận đa nguyên tệ ccp_exchange_rates_matrix
+    let matrix: Record<string, any> = {};
+    try {
+      const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '');
+      if (matrixStr) matrix = JSON.parse(matrixStr);
+    } catch {
+      matrix = {};
+    }
 
-    const usd = parseFloat(usdStr) || 25920;
-    const myr = parseFloat(myrStr) || 6383;
-    const jpy = parseFloat(jpyStr) || 170;
-    const rmb = parseFloat(rmbStr) || 3871;
+    // 2. Đọc các setting đơn lẻ riêng của CoreCCP (fallback về M-System nếu chưa cấu hình)
+    const [
+      ccpUsdStr, usdStr,
+      ccpMyrStr, myrStr,
+      ccpJpyStr, jpyStr,
+      ccpRmbStr, rmbStr,
+    ] = await Promise.all([
+      this.settingsService.getSetting('ccp_usd_exchange_rate', ''),
+      this.settingsService.getSetting('usd_exchange_rate', ''),
+      this.settingsService.getSetting('ccp_myr_exchange_rate', ''),
+      this.settingsService.getSetting('myr_exchange_rate', ''),
+      this.settingsService.getSetting('ccp_jpy_exchange_rate', ''),
+      this.settingsService.getSetting('jpy_exchange_rate', ''),
+      this.settingsService.getSetting('ccp_rmb_exchange_rate', ''),
+      this.settingsService.getSetting('rmb_exchange_rate', ''),
+    ]);
+
+    const getRate = (code: string, ccpFallback: string, msFallback: string) => {
+      const item = matrix[code];
+      const conv = item?.conversionRate ? Number(item.conversionRate) : (parseFloat(ccpFallback) || parseFloat(msFallback) || 0);
+      const buy = item?.buyRate ? Number(item.buyRate) : conv;
+      const sell = item?.sellRate ? Number(item.sellRate) : conv;
+      return { buy, sell, conv };
+    };
+
+    const usd = getRate('USD', ccpUsdStr, usdStr);
+    const myr = getRate('MYR', ccpMyrStr, myrStr);
+    const jpy = getRate('JPY', ccpJpyStr, jpyStr);
+    const rmb = getRate('RMB', ccpRmbStr, rmbStr);
 
     return {
-      usdLoss: usd,
-      usdGain: usd,
-      myrLoss: myr,
-      myrGain: myr,
-      jpyLoss: jpy,
-      jpyGain: jpy,
-      rmbLoss: rmb,
-      rmbGain: rmb,
+      usdLoss: usd.buy,
+      usdGain: usd.sell,
+      myrLoss: myr.buy,
+      myrGain: myr.sell,
+      jpyLoss: jpy.buy,
+      jpyGain: jpy.sell,
+      rmbLoss: rmb.buy,
+      rmbGain: rmb.sell,
     };
   }
 
@@ -394,8 +423,11 @@ export class CcpReconService {
               const laiLoMYRIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ MYR', ['Lãi/lỗ MYR']);
               const phiDVIdx = findHeaderIndex(qltkgdHeader, 'Phí dịch vụ thanh toán (VND)', ['Phí DV thanh toán', 'Phí thanh toán', 'Payment Fee']);
 
-              // Parse TTTT MS file nếu có để trích xuất phí DV thanh toán theo từng tài khoản
-              const ttttFeeMap = new Map<string, number>();
+              // Parse TTTT MS file để tính Lãi lỗ thực tế theo từng tài khoản & loại tiền tệ (Chuẩn C# FileUtils.GetEODResult)
+              const ttttLaiLoUsdMap = new Map<string, number>();
+              const ttttLaiLoJpyMap = new Map<string, number>();
+              const ttttLaiLoMyrMap = new Map<string, number>();
+
               if (files.tttt) {
                 try {
                   const ttttWorkbook = XLSX.read(files.tttt, { type: 'buffer' });
@@ -407,30 +439,44 @@ export class CcpReconService {
                       const ttttAccIdx = findHeaderIndex(ttttHeader, 'Mã TKGD', [
                         'Mã tài khoản',
                         'Mã tiểu khoản',
-                        'Số tiểu khoản',
                         'Investor Code',
                         'InvestorCode',
                         'Account',
                       ]);
-                      const ttttFeeIdx = findHeaderIndex(ttttHeader, 'Phí dịch vụ thanh toán (VND)', [
-                        'Phí dịch vụ thanh toán',
-                        'Phí DV thanh toán',
-                        'Phí thanh toán',
-                        'Payment Fee',
+                      const ttttHdIdx = findHeaderIndex(ttttHeader, 'Mã HĐ', [
+                        'Mã hợp đồng',
+                        'Contract',
+                        'Symbol',
                       ]);
-                      if (ttttAccIdx !== -1 && ttttFeeIdx !== -1) {
+                      const ttttLaiLoIdx = findHeaderIndex(ttttHeader, 'Lãi lỗ thực tế', [
+                        'Lãi/lỗ thực tế',
+                        'Lãi lỗ',
+                        'Realized P/L',
+                        'Realized PL',
+                      ]);
+
+                      if (ttttAccIdx !== -1 && ttttLaiLoIdx !== -1) {
                         for (let i = 1; i < ttttRows.length; i++) {
                           const r = ttttRows[i];
                           if (!r || r.length === 0) continue;
                           const a = String(r[ttttAccIdx] || '').trim();
-                          const f = parseFloat(r[ttttFeeIdx]) || 0;
-                          if (a) ttttFeeMap.set(a, (ttttFeeMap.get(a) || 0) + f);
+                          const hd = ttttHdIdx !== -1 ? String(r[ttttHdIdx] || '').trim().toUpperCase() : '';
+                          const pl = parseFloat(r[ttttLaiLoIdx]) || 0;
+                          if (!a || isNaN(pl)) continue;
+
+                          if (hd.startsWith('JRU') || hd.startsWith('RSS') || hd.includes('TOCOM') || hd.includes('OSE')) {
+                            ttttLaiLoJpyMap.set(a, (ttttLaiLoJpyMap.get(a) || 0) + pl);
+                          } else if (hd.startsWith('FCPO') || hd.includes('BMD')) {
+                            ttttLaiLoMyrMap.set(a, (ttttLaiLoMyrMap.get(a) || 0) + pl);
+                          } else {
+                            ttttLaiLoUsdMap.set(a, (ttttLaiLoUsdMap.get(a) || 0) + pl);
+                          }
                         }
                       }
                     }
                   }
                 } catch (e: any) {
-                  this.logger.warn(`Không thể đọc phí dịch vụ từ file TTTT MS: ${e.message}`);
+                  this.logger.warn(`Không thể đọc lãi lỗ từ file TTTT MS: ${e.message}`);
                 }
               }
 
@@ -445,14 +491,19 @@ export class CcpReconService {
                   const nopRut = nopRutIdx !== -1 ? parseFloat(qRow[nopRutIdx]) || 0 : 0;
                   const phiGD = phiGDIdx !== -1 ? parseFloat(qRow[phiGDIdx]) || 0 : 0;
                   const phiQC = phiQCIdx !== -1 ? parseFloat(qRow[phiQCIdx]) || 0 : 0;
-                  const laiLoVND = laiLoVNDIdx !== -1 ? parseFloat(qRow[laiLoVNDIdx]) || 0 : 0;
-                  const laiLoUSD = laiLoUSDIdx !== -1 ? parseFloat(qRow[laiLoUSDIdx]) || 0 : 0;
-                  const laiLoJPY = laiLoJPYIdx !== -1 ? parseFloat(qRow[laiLoJPYIdx]) || 0 : 0;
-                  const laiLoMYR = laiLoMYRIdx !== -1 ? parseFloat(qRow[laiLoMYRIdx]) || 0 : 0;
-                  let phiDV = phiDVIdx !== -1 ? parseFloat(qRow[phiDVIdx]) || 0 : 0;
-                  if (ttttFeeMap.has(acc)) {
-                    phiDV = ttttFeeMap.get(acc) || 0;
-                  }
+                  const phiDV = phiDVIdx !== -1 ? parseFloat(qRow[phiDVIdx]) || 0 : 0;
+
+                  // Ưu tiên lãi lỗ tính từ TTTT.xlsx (chuẩn C# FileUtils.cs), nếu không có TTTT thì fallback sang cột QLTKGD
+                  const laiLoUSD = ttttLaiLoUsdMap.has(acc)
+                    ? (ttttLaiLoUsdMap.get(acc) || 0)
+                    : (laiLoUSDIdx !== -1 ? parseFloat(qRow[laiLoUSDIdx]) || 0 : 0);
+                  const laiLoJPY = ttttLaiLoJpyMap.has(acc)
+                    ? (ttttLaiLoJpyMap.get(acc) || 0)
+                    : (laiLoJPYIdx !== -1 ? parseFloat(qRow[laiLoJPYIdx]) || 0 : 0);
+                  const laiLoMYR = ttttLaiLoMyrMap.has(acc)
+                    ? (ttttLaiLoMyrMap.get(acc) || 0)
+                    : (laiLoMYRIdx !== -1 ? parseFloat(qRow[laiLoMYRIdx]) || 0 : 0);
+                  const laiLoVND = (laiLoVNDIdx !== -1 ? parseFloat(qRow[laiLoVNDIdx]) || 0 : 0);
 
                   const tyGiaUSD = (phiQC + laiLoUSD < 0) ? effectiveRates.usdLoss : effectiveRates.usdGain;
                   const tyGiaJPY = (laiLoJPY < 0) ? effectiveRates.jpyLoss : effectiveRates.jpyGain;
@@ -933,7 +984,7 @@ export class CcpReconService {
       throw new Error(`Thư mục Backup CCP không tồn tại: ${ccpDailyPath}. Vui lòng tải báo cáo CCP trước.`);
     }
 
-    const qltkgdCcpFile = findLatestFile(ccpDailyPath, /qltkgd|qltttkgd/i);
+    const qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
     const eodCcpFile = findLatestFile(ccpDailyPath, /eod/i);
     const ttttCcpFile = findLatestFile(ccpDailyPath, /tttt/i);
     const nrCcpFile = findLatestFile(ccpDailyPath, /nr/i);

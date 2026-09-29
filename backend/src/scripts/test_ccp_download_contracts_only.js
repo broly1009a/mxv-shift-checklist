@@ -162,7 +162,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
       }
     }
   } catch (err) {
-    console.log(`   ℹ️ Giữ nguyên phân trang mặc định: ${err.message}`);
+    console.log(`   Giữ nguyên phân trang mặc định: ${err.message}`);
   }
 
   while (true) {
@@ -173,7 +173,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
 
     const rows = page.locator("xpath=//div[contains(@class, 'crud-grid-container') and not(ancestor::div[@id='tabpanel-1'])]//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]");
     const rowCount = await rows.count();
-    console.log(`   ℹ️ Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`);
+    console.log(`   Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`);
 
     for (let i = 0; i < rowCount; i++) {
       totalProcessed++;
@@ -185,7 +185,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
       if (!uacode) continue;
 
       if (processedCodes.has(uacode)) {
-        console.log(`  ℹ️ Mã [${uacode}] (#${totalProcessed}) đã được xử lý ở trang trước -> Bỏ qua`);
+        console.log(`  Mã [${uacode}] (#${totalProcessed}) đã được xử lý ở trang trước -> Bỏ qua`);
         continue;
       }
       processedCodes.add(uacode);
@@ -263,7 +263,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
         const hasNoData = await noData.isVisible({ timeout: 1500 }).catch(() => false);
 
         if (hasNoData) {
-          console.log(`     ℹ️ Hàng hóa [${uacode}] không có hợp đồng (Bảng báo: Không có dữ liệu, 0-0 trên 0) -> Bỏ qua`);
+          console.log(`     Hàng hóa [${uacode}] không có hợp đồng (Bảng báo: Không có dữ liệu, 0-0 trên 0) -> Bỏ qua`);
           await closeModal();
           results.push({ file: contractFileName, ok: false, size: '0', time: '0', note: 'Không có dữ liệu (0-0 trên 0)' });
           continue;
@@ -307,7 +307,7 @@ async function downloadAllContractsAcrossPages(page, baseUrl, outputDir) {
             results.push({ file: contractFileName, ok: false, size: `${sz} KB`, time: `${elapsed}s`, note: 'Không có file tải về' });
           }
         } else {
-          console.log(`     ℹ️ Không tìm thấy nút Kết xuất bên trong #tabpanel-1 -> Bỏ qua`);
+          console.log(`     Không tìm thấy nút Kết xuất bên trong #tabpanel-1 -> Bỏ qua`);
           results.push({ file: contractFileName, ok: false, size: '0', time: '0', note: 'Không có nút kết xuất' });
         }
 

@@ -138,16 +138,20 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
           TTM_BEFORE_420: 'TTM_PRE1620',
           QLTTTKGD_BEFORE_420: 'QLTTTKGD_PRE1620',
           DSTKGD_ACM: 'DSTKGD',
+          QLTTKGD: 'QLTTTKGD',
         };
         const codes = (reports as unknown as string[]).map((c) => {
           const upper = String(c || '').trim().toUpperCase();
           return REPORT_CODE_ALIASES[upper] || upper;
         });
-        resolvedReports = defaultReports.filter((r) =>
-          codes.includes(r.code.toUpperCase()),
-        );
+        resolvedReports = defaultReports
+          .filter((r) => codes.includes(r.code.toUpperCase()))
+          .map((r) => ({ ...r, enabled: true }));
       } else {
-        resolvedReports = reports as unknown as CcpReportConfig[];
+        resolvedReports = (reports as unknown as CcpReportConfig[]).map((r) => ({
+          ...r,
+          enabled: true,
+        }));
       }
     }
     // undefined = dùng tất cả mặc định trong service

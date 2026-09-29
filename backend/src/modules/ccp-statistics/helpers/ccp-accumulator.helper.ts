@@ -33,6 +33,47 @@ export interface CcpAccumulatorPaths {
   pathGtgdOptions?: string;     // "Thong ke gia tri giao dich Options [year].xlsx"
 }
 
+// ─── Smart Path Resolver ─────────────────────────────────────────────────────
+
+/**
+ * Tự động phân giải đường dẫn file lũy kế thông minh (Smart Path Resolver):
+ * 1. Nếu file tồn tại tại filePath -> Trả về filePath.
+ * 2. Nếu không tìm thấy tại filePath, tự động kiểm tra xem có nằm trong thư mục con "output/" không.
+ * 3. Nếu đường dẫn đã có "/output/" nhưng file lại nằm ở thư mục cha, tự động kiểm tra thư mục cha.
+ * Giúp hệ thống tự động thích ứng với cả 2 cấu trúc thư mục mà không gây gián đoạn vận hành.
+ */
+export function resolveCcpAccumulatorFilePath(filePath: string, jobLogs?: string[]): string {
+  if (!filePath) return filePath;
+  if (fs.existsSync(filePath)) {
+    return filePath;
+  }
+
+  const dir = path.dirname(filePath);
+  const base = path.basename(filePath);
+
+  // Thử 1: Kiểm tra trong thư mục con 'output'
+  const outputCandidate = path.join(dir, 'output', base);
+  if (fs.existsSync(outputCandidate)) {
+    const msg = `Tự động nhận diện file lũy kế trong thư mục con "output": "${outputCandidate}"`;
+    jobLogs?.push(`[CCP-ACC] ${msg}`);
+    console.log(`[CCP-ACC] ${msg}`);
+    return outputCandidate;
+  }
+
+  // Thử 2: Nếu dir đang kết thúc bằng 'output', thử kiểm tra thư mục cha
+  if (path.basename(dir).toLowerCase() === 'output') {
+    const parentCandidate = path.join(path.dirname(dir), base);
+    if (fs.existsSync(parentCandidate)) {
+      const msg = `Tự động nhận diện file lũy kế trong thư mục cha: "${parentCandidate}"`;
+      jobLogs?.push(`[CCP-ACC] ${msg}`);
+      console.log(`[CCP-ACC] ${msg}`);
+      return parentCandidate;
+    }
+  }
+
+  return filePath;
+}
+
 // ─── Private Helpers ─────────────────────────────────────────────────────────
 
 function backupFile(filePath: string): void {
@@ -113,6 +154,7 @@ export async function writeCcpLotToAccumulator(
   filePath: string,
   jobLogs?: string[],
 ): Promise<void> {
+  filePath = resolveCcpAccumulatorFilePath(filePath, jobLogs);
   ensureBaseFileExists(filePath);
 
   if (!fs.existsSync(filePath)) {
@@ -294,6 +336,7 @@ export async function writeCcpGtgdToAccumulator(
   filePath: string,
   jobLogs?: string[],
 ): Promise<void> {
+  filePath = resolveCcpAccumulatorFilePath(filePath, jobLogs);
   ensureBaseFileExists(filePath);
 
   if (!fs.existsSync(filePath)) {
@@ -410,6 +453,7 @@ export async function writeCcpTypedLotToAccumulator(
   tradeType: 'normal' | 'spread' | 'lme' | 'options',
   jobLogs?: string[],
 ): Promise<void> {
+  filePath = resolveCcpAccumulatorFilePath(filePath, jobLogs);
   ensureBaseFileExists(filePath);
 
   if (!fs.existsSync(filePath)) {
@@ -552,6 +596,7 @@ export async function writeCcpTypedValueToAccumulator(
   tradeType: 'normal' | 'spread' | 'lme' | 'options',
   jobLogs?: string[],
 ): Promise<void> {
+  filePath = resolveCcpAccumulatorFilePath(filePath, jobLogs);
   ensureBaseFileExists(filePath);
 
   if (!fs.existsSync(filePath)) {
@@ -667,6 +712,7 @@ export async function appendCcpRawDsgd(
   ngayGD: Date,
   jobLogs?: string[],
 ): Promise<void> {
+  targetFilePath = resolveCcpAccumulatorFilePath(targetFilePath, jobLogs);
   ensureBaseFileExists(targetFilePath);
   backupFile(targetFilePath);
 

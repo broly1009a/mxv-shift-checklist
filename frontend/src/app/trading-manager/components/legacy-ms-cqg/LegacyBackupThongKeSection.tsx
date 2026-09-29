@@ -14,12 +14,16 @@ import {
   Loader2,
   FileSpreadsheet,
   FileText,
+  Mail,
+  Layers,
+  Database,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/context/AuthContext';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
 import BackupLogSummaryModal from './BackupLogSummaryModal';
+import CeAcmBackupSection from '../ce-acm/CeAcmBackupSection';
 
 // Danh sách 25 báo cáo VNCLEAR / CoreCCP theo chuẩn Ground Truth Maker
 export const CORE_CCP_REPORTS_LIST: Array<{
@@ -49,9 +53,10 @@ export const CORE_CCP_REPORTS_LIST: Array<{
   { key: 'TTM', name: 'TTM CCP', filename: 'TTM CCP.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
   { key: 'TTTT', name: 'TTTT', filename: 'TTTT.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
 
-  // 4. Rủi ro & Ký quỹ (5 file)
+  // 4. Rủi ro & Ký quỹ (6 file)
   { key: 'QLTTTKGD_PRE1620', name: 'QL TT TKGD trước 4h20', filename: 'QL TT TKGD truoc 4h20.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 1 },
   { key: 'QLTTTKGD', name: 'QL TT TKGD', filename: 'QL TT TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'EOD', name: 'Kết quả EOD', filename: 'EOD.csv', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
   { key: 'QLTTTVKD', name: 'QL TT TVKD', filename: 'QL TT TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
   { key: 'DSQLKQ_TKGD', name: 'DSQLKQ TKGD', filename: 'DSQLKQ TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
   { key: 'DSQLKQ_TVKD', name: 'DSQLKQ TVKD', filename: 'DSQLKQ TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
@@ -77,6 +82,9 @@ export default function LegacyBackupThongKeSection({
   selectedDate,
   onSelectDate,
 }: LegacyBackupThongKeSectionProps) {
+  // Subtab điều hướng phân hệ backup: MS-CQG-CCP vs CE-ACM
+  const [backupSubTab, setBackupSubTab] = useState<'MS_CQG_CCP' | 'CE_ACM'>('MS_CQG_CCP');
+
   // Checkbox settings
   const [backupPeriodic, setBackupPeriodic] = useState<boolean>(true);
   const [backupPeriodicMinutes, setBackupPeriodicMinutes] = useState<number>(60);
@@ -246,6 +254,7 @@ export default function LegacyBackupThongKeSection({
   const [valueMacroLoading, setValueMacroLoading] = useState<boolean>(false);
   const [downloadingMs, setDownloadingMs] = useState<boolean>(false);
   const [downloadingCqg, setDownloadingCqg] = useState<boolean>(false);
+  const [fetchingEodEmail, setFetchingEodEmail] = useState<boolean>(false);
 
   // Modal xem nhanh nhật ký tóm tắt Backup MS / CQG
   const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
@@ -346,6 +355,37 @@ export default function LegacyBackupThongKeSection({
       toast.error(`Lỗi tải MS: ${err.message}`, { id: toastId });
     } finally {
       setDownloadingMs(false);
+    }
+  };
+
+  // Lấy file EOD từ Email M365 (it.support@mxv.vn)
+  const handleFetchEodEmail = async () => {
+    if (!token || fetchingEodEmail) return;
+    setFetchingEodEmail(true);
+    const toastId = toast.loading('Đang quét hòm thư Outlook M365 và tải file EOD...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/fetch-eod-email`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetDate: selectedDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `Lỗi HTTP ${res.status}`);
+      }
+      if (data.success) {
+        toast.success(data.message || 'Tải file EOD từ email thành công!', { id: toastId, duration: 6000 });
+        await handleAuditMsBackup();
+      } else {
+        toast.error(data.message || 'Không tìm thấy email EOD trong hòm thư.', { id: toastId, duration: 6000 });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi tải file EOD: ${err.message}`, { id: toastId, duration: 6000 });
+    } finally {
+      setFetchingEodEmail(false);
     }
   };
 
@@ -853,8 +893,79 @@ export default function LegacyBackupThongKeSection({
         </div>
       </div>
 
-      {/* ===== SECTION 1: BACKUP MS, BACKUP CQG & BACKUP CORECCP (3 PHÂN HỆ) ===== */}
-      <div className="glass-panel" style={{ padding: '16px 20px' }}>
+      {/* ===== SUBTAB SWITCHER: MS-CQG-CCP vs CE-ACM ===== */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '2px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setBackupSubTab('MS_CQG_CCP')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            borderRadius: '8px 8px 0 0',
+            border: 'none',
+            borderBottom: backupSubTab === 'MS_CQG_CCP' ? '2px solid #10b981' : '2px solid transparent',
+            color: backupSubTab === 'MS_CQG_CCP' ? '#10b981' : 'var(--text-secondary)',
+            backgroundColor: backupSubTab === 'MS_CQG_CCP' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Database size={16} color={backupSubTab === 'MS_CQG_CCP' ? '#10b981' : 'var(--text-muted)'} />
+          <span>Backup MS – CQG – CCP (Hiện tại)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setBackupSubTab('CE_ACM')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            borderRadius: '8px 8px 0 0',
+            border: 'none',
+            borderBottom: backupSubTab === 'CE_ACM' ? '2px solid #3b82f6' : '2px solid transparent',
+            color: backupSubTab === 'CE_ACM' ? '#3b82f6' : 'var(--text-secondary)',
+            backgroundColor: backupSubTab === 'CE_ACM' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Layers size={16} color={backupSubTab === 'CE_ACM' ? '#3b82f6' : 'var(--text-muted)'} />
+          <span>Backup CE – ACM (Phân hệ mới)</span>
+          <span
+            style={{
+              fontSize: '0.66rem',
+              fontWeight: 800,
+              padding: '1px 6px',
+              borderRadius: '10px',
+              backgroundColor: backupSubTab === 'CE_ACM' ? '#3b82f6' : 'rgba(59, 130, 246, 0.15)',
+              color: backupSubTab === 'CE_ACM' ? '#ffffff' : '#3b82f6',
+            }}
+          >
+            MỚI
+          </span>
+        </button>
+      </div>
+
+      {backupSubTab === 'MS_CQG_CCP' ? (
+        <>
+          {/* ===== SECTION 1: BACKUP MS, BACKUP CQG & BACKUP CORECCP (3 PHÂN HỆ) ===== */}
+          <div className="glass-panel" style={{ padding: '16px 20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '16px' }}>
           {/* CỘT 1: BACKUP MS (20 BÁO CÁO) */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -932,6 +1043,37 @@ export default function LegacyBackupThongKeSection({
                   <span>Nhật ký</span>
                 </button>
               </div>
+
+              {/* Nút Lấy file EOD từ Email M365 */}
+              <div style={{ width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={handleFetchEodEmail}
+                  disabled={fetchingEodEmail || downloadingMs || auditingMs}
+                  className="btn"
+                  style={{
+                    width: '100%',
+                    fontSize: '0.8rem',
+                    padding: '7px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                    color: '#0ea5e9',
+                    border: '1px solid rgba(14, 165, 233, 0.35)',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  title="Quét hòm thư Outlook M365 (it.support@mxv.vn) và tải file kết quả EOD về thư mục Backup M-System"
+                >
+                  {fetchingEodEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  <span>{fetchingEodEmail ? 'Đang quét & tải file EOD...' : 'Lấy File EOD từ Email (it.support)'}</span>
+                </button>
+              </div>
+
               {auditMsResult && (
                 <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
                   {auditMsResult.summary ? `MS: ${auditMsResult.summary.ok}/${auditMsResult.summary.total} files OK` : 'Hoàn tất'}
@@ -1305,6 +1447,14 @@ export default function LegacyBackupThongKeSection({
           Cấu Hình Bot Toàn Diện
         </Link>
       </div>
+        </>
+      ) : (
+        <CeAcmBackupSection
+          token={token}
+          selectedDate={selectedDate}
+          onSelectDate={onSelectDate}
+        />
+      )}
 
       {/* Modal Tóm Tắt Nhật Ký Tải Báo Cáo MS / CQG */}
       <BackupLogSummaryModal

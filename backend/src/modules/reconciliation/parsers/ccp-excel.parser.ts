@@ -6,6 +6,7 @@ export interface CcpTradeRecord {
   soHieuLenh?: string;
   thoiGianKhop?: string;
   loaiLenh?: string;
+  nguoiDatLenh?: string;
   giaKhop: number;
   klKhop: number;
 }
@@ -169,9 +170,31 @@ export class CcpExcelParser {
       'Ngay phien', 'Session Date', 'Ngày GD', 'Ngay GD', 'Trading Date', 'Date', 'Ngày giao dịch', 'Ngay giao dich',
     ]);
     const loaiLenhIdx = this.findHeaderIndex(header, 'Loại lệnh', ['Loai lenh', 'Side', 'Type', 'Mua/Bán', 'Mua/Ban']);
+    const nguoiDatLenhIdx = this.findHeaderIndex(header, 'Người đặt lệnh', [
+      'Nguoi dat lenh', 'Trader', 'User', 'Mã người đặt', 'NguoiDatLenh',
+    ]);
 
     if (klKhopIdx === -1) {
       return { totalKhop: 0, records: [] };
+    }
+
+    // Kiểm tra xem file có hiện tượng trộn lẫn (vừa có dòng TVKD vừa có dòng trống của lệnh sàn liên thông) hay không
+    let hasMixedTraderRows = false;
+    if (nguoiDatLenhIdx !== -1) {
+      let hasEmpty = false;
+      let hasFilled = false;
+      for (let i = 1; i < rows.length; i++) {
+        const val = String(rows[i]?.[nguoiDatLenhIdx] || '').trim();
+        if (!val) {
+          hasEmpty = true;
+        } else {
+          hasFilled = true;
+        }
+        if (hasEmpty && hasFilled) {
+          hasMixedTraderRows = true;
+          break;
+        }
+      }
     }
 
     let effSessionStart = sessionStart;
@@ -217,6 +240,15 @@ export class CcpExcelParser {
         }
       }
 
+      // 3. Trader Guard: Nếu phát hiện file bị trộn lẫn lệnh sàn liên thông (có dòng trống cột Người đặt lệnh),
+      // chỉ tính các lệnh do TVKD đặt (có Người đặt lệnh) để tránh tính lặp (double-count) các lệnh sàn đã có trong M-System
+      if (hasMixedTraderRows && nguoiDatLenhIdx !== -1) {
+        const traderVal = String(row[nguoiDatLenhIdx] || '').trim();
+        if (!traderVal) {
+          continue;
+        }
+      }
+
       const kl = this.parseNumber(row[klKhopIdx]);
       if (kl === 0 && (!row[soTKIdx] || String(row[soTKIdx]).trim() === '')) continue;
 
@@ -227,6 +259,7 @@ export class CcpExcelParser {
         soHieuLenh: soHieuLenhIdx !== -1 ? String(row[soHieuLenhIdx] || '').trim() : undefined,
         thoiGianKhop: thoiGianKhopIdx !== -1 ? String(row[thoiGianKhopIdx] || '').trim() : undefined,
         loaiLenh: loaiLenhIdx !== -1 ? String(row[loaiLenhIdx] || '').trim() : undefined,
+        nguoiDatLenh: nguoiDatLenhIdx !== -1 ? String(row[nguoiDatLenhIdx] || '').trim() : undefined,
         giaKhop: giaKhopIdx !== -1 ? this.parseNumber(row[giaKhopIdx]) : 0,
         klKhop: kl,
       });

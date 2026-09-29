@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -20,7 +20,9 @@ import {
   parseTTTTForRecon,
   parsePSForRecon,
 } from '../helpers/recon-number-parser.helper';
-import { EODMismatchedItem } from './ccp-recon.service';
+import { EODMismatchedItem, CcpReconService } from './ccp-recon.service';
+import { EmailWatcherService } from '../../bot-engine/email-watcher.service';
+import { CqgSyncService } from '../../bot-engine/cqg-sync.service';
 
 @Injectable()
 export class PreEodReconService {
@@ -30,6 +32,15 @@ export class PreEodReconService {
     private readonly settingsService: SystemSettingsService,
     private readonly telegramService: TelegramService,
     private readonly marginCheckerService: MarginCheckerService,
+    @Optional()
+    @Inject(forwardRef(() => CcpReconService))
+    private readonly ccpReconService?: CcpReconService,
+    @Optional()
+    @Inject(forwardRef(() => EmailWatcherService))
+    private readonly emailWatcherService?: EmailWatcherService,
+    @Optional()
+    @Inject(forwardRef(() => CqgSyncService))
+    private readonly cqgSyncService?: CqgSyncService,
   ) {}
 
   private buildPreEodEmailHtml(
@@ -177,7 +188,6 @@ export class PreEodReconService {
     acmTradesName: string,
     tradingDate: Date,
     holidays: string[] = [],
-    sessionStartStr: string = '05:00',
   ): Promise<{
     passed: boolean;
     totals: {
@@ -205,55 +215,29 @@ export class PreEodReconService {
       cqgPosition: number;
       differ: number;
     }>;
-    sessionStart?: Date;
-    checkTime?: Date;
+    tradingDate: Date;
+    targetDate: Date;
   }> {
-    if (sessionStartStr) {
-      await this.settingsService.setSetting(
-        'session_start_time',
-        sessionStartStr,
+    // 1. Xác định ngày phiên T-1 (lùi ngày làm việc, bỏ qua Thứ Bảy và Chủ Nhật)
+    const d = new Date(tradingDate);
+    d.setDate(d.getDate() - 1);
+    while (d.getDay() === 0 || d.getDay() === 6) {
+      d.setDate(d.getDate() - 1);
+    }
+    const dayStr = String(d.getDate()).padStart(2, '0');
+    const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+    const yearStr = d.getFullYear().toString();
+    const expectedDateStr = `${dayStr}${monthStr}${yearStr}`;
+
+    // Kiểm tra tên file ACM Trades đúng ngày T-1
+    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
+      throw new Error(
+        `File ACM Trades (${acmTradesName}) không đúng ngày T-1 (${dayStr}/${monthStr}/${yearStr}). Vui lòng kiểm tra lại.`,
       );
     }
-    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
 
-    const isPastDateOrDateOnly =
-      (tradingDate.getHours() === 0 &&
-        tradingDate.getMinutes() === 0 &&
-        tradingDate.getSeconds() === 0) ||
-      (tradingDate.getUTCHours() === 0 &&
-        tradingDate.getUTCMinutes() === 0 &&
-        tradingDate.getUTCSeconds() === 0);
-
-    const sessionStart = new Date(tradingDate);
-    let checkTime: Date;
-
-    if (isPastDateOrDateOnly) {
-      sessionStart.setHours(sHour, sMin, 0, 0);
-      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
-        sessionStart.setDate(sessionStart.getDate() - 1);
-      }
-      checkTime = new Date(sessionStart);
-      checkTime.setDate(checkTime.getDate() + 1);
-    } else {
-      checkTime = new Date(tradingDate);
-      sessionStart.setHours(sHour, sMin, 0, 0);
-      if (checkTime < sessionStart) {
-        sessionStart.setDate(sessionStart.getDate() - 1);
-      }
-      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
-        sessionStart.setDate(sessionStart.getDate() - 1);
-      }
-    }
-
-    const rawDsgdData = parseDSGD(files.dsgd);
-    const dsgdUpperBound = checkTime;
-    const dsgdData = rawDsgdData.filter((gd) => {
-      if (!gd.ngayGio) return true;
-      const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
-      if (!tradeTime) return true;
-      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
-    });
-
+    // 2. Parse DSGD từ M-System (lấy trọn vẹn toàn bộ giao dịch phiên T-1, không lọc giờ phút)
+    const dsgdData = parseDSGD(files.dsgd);
     let totalACM_MS = 0;
     let totalCQG_MS = 0;
     dsgdData.forEach((gd) => {
@@ -264,6 +248,7 @@ export class PreEodReconService {
       }
     });
 
+    // 3. Parse file ACM Straits CSV
     let acmStraitsData: any = { totalVolume: 0 };
     try {
       acmStraitsData = parseStraitsCsv(files.acmTrades);
@@ -275,14 +260,8 @@ export class PreEodReconService {
     const totalACM_Straits = acmStraitsData.totalVolume || 0;
     const differACM = Math.abs(totalACM_MS - totalACM_Straits);
 
-    const rawFrData = parseFR(files.cqgFr, tradingDate, holidays);
-    const frData = rawFrData.filter((fr) => {
-      if (!fr.time) return true;
-      const tradeTime = parseCqgDateTime(fr.time, tradingDate);
-      if (!tradeTime) return true;
-      return tradeTime >= sessionStart && tradeTime <= checkTime;
-    });
-
+    // 4. Parse file CQG FR (lấy trọn vẹn toàn bộ giao dịch phiên T-1, không lọc giờ phút, loại trừ symbol ZWAZCE)
+    const frData = parseFR(files.cqgFr, tradingDate, holidays);
     let totalCQG_FR = 0;
     frData.forEach((fr) => {
       if (fr.symbol !== 'ZWAZCE') {
@@ -291,6 +270,7 @@ export class PreEodReconService {
     });
     const differCQG = Math.abs(totalCQG_MS - totalCQG_FR);
 
+    // 5. Tìm kiếm chênh lệch khớp lệnh 2 chiều (CombinedKey)
     const mismatchedTrades: Array<{
       source: 'MSystem' | 'CQG';
       maLenh?: string;
@@ -302,6 +282,7 @@ export class PreEodReconService {
       reason: string;
     }> = [];
 
+    // Chiều 1: Từ CQG FR sang M-System DSGD
     frData.forEach((fr) => {
       if (fr.symbol === 'ZWAZCE') return;
       const existsInDSGD = dsgdData.some(
@@ -321,6 +302,7 @@ export class PreEodReconService {
       }
     });
 
+    // Chiều 2: Từ M-System DSGD sang CQG FR (bỏ qua tài khoản tự doanh kết thúc đuôi 'A')
     dsgdData.forEach((gd) => {
       if (gd.maTKGD.toUpperCase().endsWith('A')) return;
       const existsInFR = frData.some((fr) => fr.combinedKey === gd.combinedKey);
@@ -338,6 +320,7 @@ export class PreEodReconService {
       }
     });
 
+    // 6. Đối soát Vị thế Tất toán Net (M-System TTTT vs CQG PS)
     const ttttList = parseTTTTForRecon(files.tttt);
     const psList = parsePSForRecon(files.cqgPs, tradingDate, holidays);
 
@@ -453,15 +436,35 @@ export class PreEodReconService {
       },
       mismatchedTrades,
       mismatchedPositions,
-      sessionStart,
-      checkTime,
+      tradingDate,
+      targetDate: d,
     };
   }
 
   async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
+    // 1. Xác định phiên T-1 (lùi ngày làm việc, bỏ qua Thứ 7 và Chủ Nhật)
     const targetDate = new Date(tradingDate);
     targetDate.setDate(targetDate.getDate() - 1);
+    while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
     targetDate.setHours(0, 0, 0, 0);
+
+    // 2. Tự động kích hoạt ghép file thô CQG (FR1 + FR2 -> FR, PS1 + PS2 -> PS) nếu có
+    if (this.cqgSyncService) {
+      try {
+        this.logger.log(
+          `[PreEOD] Kiểm tra và tự động gộp file thô CQG cho ngày T-1 (${targetDate.toLocaleDateString('vi-VN')})...`,
+        );
+        await this.cqgSyncService.autoMergeMissingFiles(
+          targetDate,
+          ['FR', 'PS'],
+          true,
+        );
+      } catch (mergeErr: any) {
+        this.logger.warn(`[PreEOD] Không thể auto-merge file CQG: ${mergeErr.message}`);
+      }
+    }
 
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
@@ -502,24 +505,10 @@ export class PreEodReconService {
     const cqgFrPath = resolveCqgFile(cqgDailyPath, 'FR', this.logger);
     const cqgPsPath = resolveCqgFile(cqgDailyPath, 'PS', this.logger);
 
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
-
-    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
-    const sessionStart = new Date(targetDate);
-    sessionStart.setHours(sHour, sMin, 0, 0);
-    while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
-      sessionStart.setDate(sessionStart.getDate() - 1);
-    }
-    const checkTime = new Date(sessionStart);
-    checkTime.setDate(checkTime.getDate() + 1);
-
     const missingFiles: string[] = [];
     if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
     if (!fs.existsSync(ttttPath)) missingFiles.push(`TTTT.xlsx`);
-    if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx / Straits.csv)`);
+    if (!acmTradesPath) missingFiles.push(`ACM Trades (Straits.csv)`);
     if (!cqgFrPath) missingFiles.push(`CQG FR`);
     if (!cqgPsPath) missingFiles.push(`CQG Positions/PS`);
 
@@ -527,26 +516,30 @@ export class PreEodReconService {
       return {
         passed: true,
         isWaitingFiles: true,
-        sessionStart,
-        checkTime,
-        message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
+        tradingDate,
+        targetDate,
+        message: `[Đang chờ dữ liệu] Thư mục backup phiên T-1 ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
         totals: {
-          totalDSGD: 0,
-          totalFR: 0,
-          totalACM: 0,
-          totalNano: 0,
-          differ: 0,
+          totalACM_MS: 0,
+          totalACM_Straits: 0,
           differACM: 0,
-          totalTTTT: 0,
-          totalPS: 0,
-          differTTTT: 0,
+          totalCQG_MS: 0,
+          totalCQG_FR: 0,
+          differCQG: 0,
         },
         mismatchedTrades: [],
         mismatchedPositions: [],
-        mismatchedTTM: [],
-        mismatchedTTTT: [],
       };
     }
+
+    const lmeHolidaysStr = await this.settingsService.getSetting(
+      'lme_holiday_replacements',
+      '[]',
+    );
+    let lmeHolidays: any[] = [];
+    try {
+      lmeHolidays = JSON.parse(lmeHolidaysStr) || [];
+    } catch {}
 
     const result = await this.checkPreEOD(
       {
@@ -557,21 +550,11 @@ export class PreEodReconService {
         cqgPs: fs.readFileSync(cqgPsPath!),
       },
       path.basename(acmTradesPath!),
-      targetDate,
-      [],
-      sessionStartStr,
+      tradingDate,
+      lmeHolidays,
     );
 
-    let telegramMsg = ` <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - ${day}/${month}/${year}]</b>\n`;
-    if (result.sessionStart && result.checkTime) {
-      const startStr = result.sessionStart.toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-      });
-      const endStr = result.checkTime.toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-      });
-      telegramMsg += `• Khoảng thời gian lọc: <code>${startStr}</code> đến <code>${endStr}</code>\n`;
-    }
+    let telegramMsg = ` <b>[ĐỐI CHIẾU PRE-EOD TỰ ĐỘNG - Phiên T-1: ${day}/${month}/${year}]</b>\n`;
     telegramMsg += `• Trạng thái: ${result.passed ? '✓ Khớp hoàn toàn' : '<b>PHÁT HIỆN LỆCH KHỚP LỆNH/VỊ THẾ</b>'}\n`;
     telegramMsg += `• ACM (M-System vs Straits): MS <code>${result.totals.totalACM_MS}</code> vs Partner <code>${result.totals.totalACM_Straits}</code> (Lệch: <b>${result.totals.differACM}</b>)\n`;
     telegramMsg += `• CQG (M-System vs CQG): MS <code>${result.totals.totalCQG_MS}</code> vs Partner <code>${result.totals.totalCQG_FR}</code> (Lệch: <b>${result.totals.differCQG}</b>)\n`;
@@ -625,13 +608,36 @@ export class PreEodReconService {
 
     const msDailyPath = path.join(msBackupBase, subFolder);
     const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
-    const eodPath = findLatestFile(msDailyPath, /eod/i);
+    let eodPath = findLatestFile(msDailyPath, /eod/i);
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
 
     if (!fs.existsSync(qltkgdPath))
       throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
-    if (!eodPath) throw new Error('Không tìm thấy file eod.csv / eod.xlsx từ email M-System');
 
+    // Dự phòng: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu trong thư mục phiên chưa có file EOD
+
+    // Dự phòng 2: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu vẫn chưa có file EOD
+    if (!eodPath && this.emailWatcherService) {
+      try {
+        const dateStr = `${year}-${month}-${day}`;
+        this.logger.log(`[EOD-FALLBACK] Chưa có file EOD tại ${msDailyPath}, đang thử tải từ email M365...`);
+        const mailRes = await this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath);
+        if (mailRes.success) {
+          eodPath = findLatestFile(msDailyPath, /eod/i);
+          this.logger.log(`[EOD-FALLBACK] Đã tải file EOD thành công: ${eodPath}`);
+        } else {
+          this.logger.warn(`[EOD-FALLBACK] Không tải được EOD từ email: ${mailRes.message}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[EOD-FALLBACK] Lỗi khi cố gắng tải EOD từ email: ${err.message}`);
+      }
+    }
+
+    if (!eodPath)
+      throw new Error(`Không tìm thấy file eod.csv / eod.xlsx từ email M-System hoặc thư mục ${msDailyPath}`);
+
+    // [RESERVED FOR FUTURE MODULE]: Giữ lại logic đọc và bóc tách file CoreCCP phục vụ tách module sau này
+    /*
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
     let qltkgdCcpBuffer: Buffer | undefined;
@@ -639,7 +645,7 @@ export class PreEodReconService {
     let ttttCcpBuffer: Buffer | undefined;
 
     if (fs.existsSync(ccpDailyPath)) {
-      const qltkgdCcpFile = findLatestFile(ccpDailyPath, /qltkgd|qltttkgd/i);
+      const qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
       const eodCcpFile = findLatestFile(ccpDailyPath, /eod/i);
       const ttttCcpFile = findLatestFile(ccpDailyPath, /tttt/i);
 
@@ -653,9 +659,42 @@ export class PreEodReconService {
         ttttCcpBuffer = fs.readFileSync(ttttCcpFile);
       }
     }
+    */
+
+    let eodResult: any = null;
+    let negativeBalanceAccs: string[] = [];
+    let negativeIMRAcc: string[] = [];
+    let mismatchedEOD: any[] = [];
+    // let mismatchedMs: any[] = [];
+    // let mismatchedCcp: any[] = [];
+
+    if (this.ccpReconService) {
+      eodResult = await this.ccpReconService.checkEOD({
+        qltkgd: fs.readFileSync(qltkgdPath),
+        eod: fs.readFileSync(eodPath),
+        tttt: fs.existsSync(ttttPath) ? fs.readFileSync(ttttPath) : undefined,
+        // qltkgdCcp: qltkgdCcpBuffer,
+        // eodCcp: eodCcpBuffer,
+        // ttttCcp: ttttCcpBuffer,
+      });
+
+      negativeBalanceAccs = eodResult?.negativeBalanceAccs || [];
+      negativeIMRAcc = eodResult?.negativeIMRAcc || [];
+      mismatchedEOD = eodResult?.mismatchedEOD || [];
+      // mismatchedMs = mismatchedEOD.filter((m: any) => m.system === 'MS' || !m.system);
+      // mismatchedCcp = mismatchedEOD.filter((m: any) => m.system === 'CCP');
+    }
 
     return {
       success: true,
+      eodResult,
+      totals: {
+        totalNegativeBalance: negativeBalanceAccs.length,
+        totalNegativeIMR: negativeIMRAcc.length,
+        totalMismatchedEOD: mismatchedEOD.length,
+        totalMismatchedMs: mismatchedEOD.length,
+        totalMismatchedCcp: 0,
+      },
       tradingDate,
       msDailyPath,
       eodPath,

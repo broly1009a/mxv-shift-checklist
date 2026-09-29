@@ -18,6 +18,7 @@ import {
 } from '../../../common/file-guard.helper';
 import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
 import { safeWriteExcel } from './excel-safe-writer.helper';
+import { resolveStoragePathCrossPlatform } from '../../bot-engine/helpers/bot-path.helper';
 export interface AccumulatorPaths {
   pathDsgdCumulative: string; // DSGD T[MM].[YYYY].xlsx
   pathNormal: string; // Thong ke so lot giao dich 2026 2.xlsx
@@ -720,19 +721,40 @@ export async function updateAllCumulativeFiles(
   paths: AccumulatorPaths,
   jobLogs?: string[],
 ) {
+  const safePaths: AccumulatorPaths = {
+    pathDsgdCumulative: paths.pathDsgdCumulative
+      ? resolveStoragePathCrossPlatform(paths.pathDsgdCumulative)
+      : '',
+    pathNormal: paths.pathNormal
+      ? resolveStoragePathCrossPlatform(paths.pathNormal)
+      : '',
+    pathAcm: paths.pathAcm
+      ? resolveStoragePathCrossPlatform(paths.pathAcm)
+      : '',
+    pathLme: paths.pathLme
+      ? resolveStoragePathCrossPlatform(paths.pathLme)
+      : '',
+    pathOptions: paths.pathOptions
+      ? resolveStoragePathCrossPlatform(paths.pathOptions)
+      : '',
+    pathSpread: paths.pathSpread
+      ? resolveStoragePathCrossPlatform(paths.pathSpread)
+      : '',
+  };
+
   // 1. Append raw DSGD
-  if (paths.pathDsgdCumulative) {
+  if (safePaths.pathDsgdCumulative) {
     await appendRawDsgd(
       dailyDsgdBuffer,
-      paths.pathDsgdCumulative,
+      safePaths.pathDsgdCumulative,
       result.ngayGD,
     );
   }
 
   // 2. Update LME
-  if (paths.pathLme) {
+  if (safePaths.pathLme) {
     await updateTvkdTrackerFile(
-      paths.pathLme,
+      safePaths.pathLme,
       classifiedDsgd.dsgdLme,
       result.ngayGD,
       'LME',
@@ -741,9 +763,9 @@ export async function updateAllCumulativeFiles(
   }
 
   // 3. Update Options
-  if (paths.pathOptions) {
+  if (safePaths.pathOptions) {
     await updateTvkdTrackerFile(
-      paths.pathOptions,
+      safePaths.pathOptions,
       classifiedDsgd.dsgdOptions,
       result.ngayGD,
       'Options',
@@ -752,9 +774,9 @@ export async function updateAllCumulativeFiles(
   }
 
   // 4. Update Spread
-  if (paths.pathSpread) {
+  if (safePaths.pathSpread) {
     await updateTvkdTrackerFile(
-      paths.pathSpread,
+      safePaths.pathSpread,
       classifiedDsgd.dsgdSpread,
       result.ngayGD,
       'Spread',
@@ -763,9 +785,9 @@ export async function updateAllCumulativeFiles(
   }
 
   // 5. Update ACM
-  if (paths.pathAcm) {
+  if (safePaths.pathAcm) {
     await updateAcmTrackerFile(
-      paths.pathAcm,
+      safePaths.pathAcm,
       classifiedDsgd,
       ttttAcmRows,
       ttmAcmRows,
@@ -775,9 +797,9 @@ export async function updateAllCumulativeFiles(
   }
 
   // 6. Update Normal
-  if (paths.pathNormal) {
+  if (safePaths.pathNormal) {
     await updateNormalTrackerFile(
-      paths.pathNormal,
+      safePaths.pathNormal,
       result,
       classifiedDsgd,
       lmeExpiredLot,

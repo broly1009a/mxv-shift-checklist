@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Activity,
@@ -28,10 +28,12 @@ import {
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
 
-// Danh sách các tác vụ thuộc nghiệp vụ Trading Manager
+// Danh sách các tác vụ thuộc nghiệp vụ Trading Manager & Hệ thống liên quan
 export const TRADING_JOB_TYPES = [
   'CHECK_KLGD',
   'CHECK_PRE_EOD',
+  'CHECK_EOD_MM',
+  'CHECK_EOD',
   'CHECK_CQG_SYNC',
   'SCAN_NEGATIVE_MARGIN',
   'DOWNLOAD_CCP_REPORT',
@@ -40,6 +42,10 @@ export const TRADING_JOB_TYPES = [
   'RUN_LOT_MACRO',
   'RUN_VALUE_MACRO',
   'RUN_MACRO',
+  'RUN_LOT_TVKD_MACRO',
+  'RUN_VALUE_TVKD_MACRO',
+  'AUTO_CHECK_SOD',
+  'DOWNLOAD_CAST',
   'RPA_DOWNLOAD_REPORTS',
   'FILE_AUDIT_MS',
   'FILE_AUDIT_CQG',
@@ -48,6 +54,11 @@ export const TRADING_JOB_TYPES = [
   'CREATE_GTT_FILE',
   'CHECK_GTT',
   'GENERATE_IMPORT_GTT_FILE',
+  'VERIFY_EMAIL',
+  'EMAIL_PARSER',
+  'EMAIL_PARSE',
+  'TKGD_EXTRACT',
+  'TKGD_RECONCILE',
 ];
 
 export interface BotJob {
@@ -80,6 +91,8 @@ export default function TradingManagerJobQueueSection({
   const [loadingLogs, setLoadingLogs] = useState(false);
 
   // Filters
+  const [jobScope, setJobScope] = useState<'ALL' | 'TRADING'>('ALL');
+  const [selectedJobTypeFilter, setSelectedJobTypeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PENDING'>('ALL');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [filterTodayOnly, setFilterTodayOnly] = useState<boolean>(false);
@@ -107,17 +120,32 @@ export default function TradingManagerJobQueueSection({
 
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch jobs list (chỉ lấy các tác vụ thuộc Trading Manager)
+  // Danh sách các loại jobType hiện có trong danh sách jobs để đưa vào dropdown filter
+  const availableJobTypes = useMemo(() => {
+    const set = new Set<string>();
+    jobs.forEach((j) => {
+      if (j.jobType) set.add(j.jobType);
+    });
+    return Array.from(set).sort();
+  }, [jobs]);
+
+  // Fetch jobs list (mặc định lấy toàn bộ hệ thống hoặc lọc theo Trading Manager)
   const fetchJobs = useCallback(async (silent: boolean = false) => {
     if (!token) return;
     if (!silent) setLoadingJobs(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=${TRADING_JOB_TYPES.join(',')}`, {
+      const url = jobScope === 'ALL'
+        ? `${API_BASE_URL}/api/v1/bot-engine/jobs`
+        : `${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=${TRADING_JOB_TYPES.join(',')}`;
+
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const rawData: BotJob[] = await res.json();
-        const data = Array.isArray(rawData) ? rawData.filter((j) => TRADING_JOB_TYPES.includes(j.jobType)) : [];
+        const data = Array.isArray(rawData)
+          ? (jobScope === 'ALL' ? rawData : rawData.filter((j) => TRADING_JOB_TYPES.includes(j.jobType)))
+          : [];
         setJobs(data);
 
         // Update active jobs count to parent
@@ -133,7 +161,7 @@ export default function TradingManagerJobQueueSection({
     } finally {
       if (!silent) setLoadingJobs(false);
     }
-  }, [token, onActiveCountChange]);
+  }, [token, jobScope, onActiveCountChange]);
 
   // Fetch job detail (logs & payload)
   const fetchJobDetail = useCallback(async (jobId: string, silent: boolean = false) => {
@@ -253,6 +281,26 @@ export default function TradingManagerJobQueueSection({
     }
   };
 
+  // Kiểm tra tác vụ có file báo cáo để tải về không
+  const hasDownloadableReports = (job: any): boolean => {
+    if (!job || job.status !== 'COMPLETED') return false;
+    const type = (job.jobType || '').toUpperCase();
+    if (
+      type.includes('DOWNLOAD') ||
+      type.includes('MACRO') ||
+      type.includes('RPA') ||
+      type.includes('CCP') ||
+      type.includes('CE') ||
+      type.includes('CAST') ||
+      type.includes('RECON') ||
+      type.includes('AUDIT')
+    ) {
+      return true;
+    }
+    const payload = job.payload || {};
+    return !!(payload.targets || payload.destFolder || payload.outputDir || payload.result?.outputPath || payload.result?.downloadedFiles);
+  };
+
   // Tải file nén ZIP báo cáo
   const handleDownloadZip = async (jobId: string) => {
     if (!token) return;
@@ -263,13 +311,22 @@ export default function TradingManagerJobQueueSection({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Không thể tải file nén');
+        throw new Error(data.message || 'Không thể tải file nén báo cáo');
       }
+
+      // Đọc filename từ Content-Disposition header nếu server có trả về
+      const disposition = res.headers.get('content-disposition');
+      let filename = `BaoCao_MXV_${jobId}.zip`;
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="?([^";]+)"?/);
+        if (match && match[1]) filename = match[1].trim();
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `BaoCao_MXV_${jobId}.zip`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -315,16 +372,31 @@ export default function TradingManagerJobQueueSection({
         return 'Đối Chiếu Khớp Lệnh (Trong Phiên)';
       case 'CHECK_PRE_EOD':
         return 'Đối Chiếu Pre-EOD (Cuối Ngày)';
+      case 'CHECK_EOD_MM':
+      case 'CHECK_EOD':
+        return 'Đối Chiếu EOD M-System';
       case 'CHECK_CQG_SYNC':
         return 'Đồng Bộ & Ghép File CQG';
       case 'DOWNLOAD_CCP_REPORT':
         return 'Tải Báo Cáo CoreCCP (VNCLEAR)';
+      case 'DOWNLOAD_CE_REPORT':
+        return 'Tải Báo Cáo CE CoreCCP';
       case 'CHECK_EOD_CCP':
         return 'Đối Chiếu EOD CoreCCP';
       case 'RUN_LOT_MACRO':
         return 'Chạy Excel Macro Số Lot';
       case 'RUN_VALUE_MACRO':
         return 'Chạy Excel Macro Giá Trị';
+      case 'RUN_LOT_TVKD_MACRO':
+        return 'Thống Kê Số Lot TVKD (Macro)';
+      case 'RUN_VALUE_TVKD_MACRO':
+        return 'Thống Kê Giá Trị TVKD (Macro)';
+      case 'AUTO_CHECK_SOD':
+        return 'Kiểm Tra Đầu Ngày SOD';
+      case 'DOWNLOAD_CAST':
+        return 'Tải Báo Cáo Phí CAST';
+      case 'RUN_MACRO':
+        return 'Chạy Excel Macro Tổng Hợp';
       case 'SCAN_NEGATIVE_MARGIN':
         return 'Quét Ký Quỹ Âm MM';
       case 'RPA_DOWNLOAD_REPORTS':
@@ -343,6 +415,14 @@ export default function TradingManagerJobQueueSection({
         return 'Đối Chiếu Giá Thanh Toán (GTT)';
       case 'GENERATE_IMPORT_GTT_FILE':
         return 'Tạo File Nhập GTT (Import)';
+      case 'VERIFY_EMAIL':
+      case 'EMAIL_PARSER':
+      case 'EMAIL_PARSE':
+        return 'Quét & Bóc Tách Email';
+      case 'TKGD_EXTRACT':
+        return 'Bóc Tách Hồ Sơ Mở TKGD';
+      case 'TKGD_RECONCILE':
+        return 'Đối Soát Hồ Sơ Mở TKGD';
       default:
         return jobType;
     }
@@ -398,8 +478,11 @@ export default function TradingManagerJobQueueSection({
 
   // Filter jobs
   const filteredJobs = jobs.filter((job) => {
-    // Chỉ hiển thị tác vụ thuộc Trading Manager
-    if (!TRADING_JOB_TYPES.includes(job.jobType)) return false;
+    // Phạm vi tác vụ (Chỉ Trading vs Toàn bộ)
+    if (jobScope === 'TRADING' && !TRADING_JOB_TYPES.includes(job.jobType)) return false;
+
+    // Lọc theo Loại Tác Vụ Cụ Thể (Dropdown)
+    if (selectedJobTypeFilter !== 'ALL' && job.jobType !== selectedJobTypeFilter) return false;
 
     // Status Filter
     if (statusFilter === 'PROCESSING' && job.status !== 'PROCESSING' && job.status !== 'AWAITING_CAPTCHA') return false;
@@ -427,11 +510,11 @@ export default function TradingManagerJobQueueSection({
 
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
-  // Counter stats (chỉ tính các job thuộc Trading Manager)
-  const tradingJobs = jobs.filter((j) => TRADING_JOB_TYPES.includes(j.jobType));
-  const processingCount = tradingJobs.filter((j) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA').length;
-  const completedCount = tradingJobs.filter((j) => j.status === 'COMPLETED').length;
-  const failedCount = tradingJobs.filter((j) => j.status === 'FAILED' || j.status === 'CANCELLED' || j.status === 'ABORTED').length;
+  // Counter stats
+  const scopedJobs = jobScope === 'ALL' ? jobs : jobs.filter((j) => TRADING_JOB_TYPES.includes(j.jobType));
+  const processingCount = scopedJobs.filter((j) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA').length;
+  const completedCount = scopedJobs.filter((j) => j.status === 'COMPLETED').length;
+  const failedCount = scopedJobs.filter((j) => j.status === 'FAILED' || j.status === 'CANCELLED' || j.status === 'ABORTED').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
@@ -448,9 +531,75 @@ export default function TradingManagerJobQueueSection({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Bộ chọn Phạm Vi: Toàn Bộ Hệ Thống vs Chỉ Trading */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '2px',
+              borderRadius: '6px',
+              backgroundColor: 'var(--bg-input, #0f172a)',
+              border: '1px solid var(--border-color)',
+              marginRight: '4px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setJobScope('ALL')}
+              style={{
+                padding: '4px 10px',
+                fontSize: '0.72rem',
+                fontWeight: jobScope === 'ALL' ? 800 : 500,
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: jobScope === 'ALL' ? '#3b82f6' : 'transparent',
+                color: jobScope === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              title="Hiển thị tất cả tác vụ hệ thống (Checklist ca trực, RPA, EOD MM, CoreCCP, SOD, Macro...)"
+            >
+              Toàn bộ hệ thống
+            </button>
+            <button
+              type="button"
+              onClick={() => setJobScope('TRADING')}
+              style={{
+                padding: '4px 10px',
+                fontSize: '0.72rem',
+                fontWeight: jobScope === 'TRADING' ? 800 : 500,
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: jobScope === 'TRADING' ? '#3b82f6' : 'transparent',
+                color: jobScope === 'TRADING' ? '#ffffff' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              title="Chỉ hiển thị các tác vụ thuộc phân hệ Trading Manager"
+            >
+              Chỉ Trading
+            </button>
+          </div>
+
+          {/* Dropdown Lọc Loại Tác Vụ Cụ Thể */}
+          <select
+            value={selectedJobTypeFilter}
+            onChange={(e) => setSelectedJobTypeFilter(e.target.value)}
+            className="form-input"
+            style={{ height: '30px', fontSize: '0.75rem', padding: '2px 8px', maxWidth: '210px' }}
+            title="Lọc nhanh theo loại tác vụ cụ thể"
+          >
+            <option value="ALL">-- Tất cả loại tác vụ --</option>
+            {availableJobTypes.map((type) => (
+              <option key={type} value={type}>
+                {getJobLabel(type)}
+              </option>
+            ))}
+          </select>
+
           {/* Nút lọc Status */}
           {[
-            { id: 'ALL', label: `Tất cả (${jobs.length})` },
+            { id: 'ALL', label: `Tất cả (${scopedJobs.length})` },
             { id: 'PROCESSING', label: `Đang chạy (${processingCount})`, color: '#0284c7' },
             { id: 'COMPLETED', label: `Thành công (${completedCount})`, color: '#10b981' },
             { id: 'FAILED', label: `Lỗi / Hủy (${failedCount})`, color: '#ef4444' },
@@ -652,7 +801,7 @@ export default function TradingManagerJobQueueSection({
                     )}
 
                     {/* Nút Tải ZIP nếu hoàn thành */}
-                    {selectedJob.status === 'COMPLETED' && (
+                    {hasDownloadableReports(selectedJob) && (
                       <button
                         type="button"
                         onClick={() => handleDownloadZip(selectedJob._id)}
@@ -976,7 +1125,7 @@ export default function TradingManagerJobQueueSection({
                     )}
 
                     {/* Nút Tải ZIP nếu có */}
-                    {selectedJob.status === 'COMPLETED' && (
+                    {hasDownloadableReports(selectedJob) && (
                       <button
                         type="button"
                         onClick={() => handleDownloadZip(selectedJob._id)}

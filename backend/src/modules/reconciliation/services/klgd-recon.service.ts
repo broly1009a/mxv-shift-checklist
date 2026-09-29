@@ -201,7 +201,8 @@ export class KlgdReconService {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      return tradeTime >= sessionStart && tradeTime <= dsgdUpperBound;
+      // Chuẩn theo Tool C# TransactionCheckingService.cs#L125: Chỉ chặn trên, không chặn dưới đối với DSGD
+      return tradeTime <= dsgdUpperBound;
     });
 
     const effectiveCutoffTime = options?.cutoffTime;
@@ -222,7 +223,7 @@ export class KlgdReconService {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      if (tradeTime < sessionStart) return false;
+      // Chuẩn theo Tool C# TransactionCheckingService.cs#L168: Chỉ chặn trên đối với Nano/ACM
       if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
         pendingSyncTrades.push({
           source: 'ACM',
@@ -825,6 +826,15 @@ export class KlgdReconService {
       cutoffTime: options?.cutoffTime || dsgdCutoffTime,
     };
 
-    return this.checkKLGD(files, tradingDate, [], sessionStartStr, reconOptions);
+    const lmeHolidaysStr = await this.settingsService.getSetting(
+      'lme_holiday_replacements',
+      '[]',
+    );
+    let lmeHolidays: any[] = [];
+    try {
+      lmeHolidays = JSON.parse(lmeHolidaysStr) || [];
+    } catch {}
+
+    return this.checkKLGD(files, tradingDate, lmeHolidays, sessionStartStr, reconOptions);
   }
 }

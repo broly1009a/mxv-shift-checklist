@@ -81,7 +81,7 @@ export default function ReconciliationModal({
     ps2: null
   });
 
-  const [usdRate, setUsdRate] = useState<number>(25220);
+  const [usdRate, setUsdRate] = useState<number>(0);
   const [syncingRate, setSyncingRate] = useState<boolean>(false);
 
   const handleSyncUsdRate = async () => {

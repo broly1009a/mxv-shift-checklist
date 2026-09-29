@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import * as express from 'express';
@@ -380,6 +381,56 @@ export class CcpStatisticsController {
   }
 
   /**
+   * POST /api/v1/ccp-statistics/lot-statistics/run-lot
+   *
+   * Tự động đọc file từ thư mục ngày, tính số lot và GHI TRỰC TIẾP vào 5 file Số Lot.
+   * Body: { date?: string }
+   */
+  @Post('lot-statistics/run-lot')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runLotDirect(
+    @Body() body: { date?: string },
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runLotStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi thống kê và ghi file Số Lot: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ccp-statistics/lot-statistics/run-value
+   *
+   * Tự động đọc file từ thư mục ngày, quy đổi tỷ giá và GHI TRỰC TIẾP vào 5 file Giá Trị.
+   * Body: { date?: string }
+   */
+  @Post('lot-statistics/run-value')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runValueDirect(
+    @Body() body: { date?: string },
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runValueStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi thống kê và ghi file Giá Trị: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
    * POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate
    *
    * Đồng bộ và lưu tỷ giá mới nhất từ tệp ngày CoreCCP (hoặc file tỷ giá tải lên) vào CSDL MongoDB.
@@ -417,23 +468,49 @@ export class CcpStatisticsController {
       throw new HttpException('Vui lòng chọn file tỷ giá.', HttpStatus.BAD_REQUEST);
     }
     try {
+      const details = this.ccpLotStatisticsService.parseTyGiaDetails(file.buffer);
       const rates = this.ccpLotStatisticsService.parseTyGiaFile(file.buffer);
       const nowIso = new Date().toISOString();
-      const usdRate = rates['USD'] || 0;
-      if (usdRate > 0) {
-        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(usdRate));
-        await this.settingsService.setSetting('usd_exchange_rate', String(usdRate));
+      const usdRate = rates['USD'] || details['USD']?.conversionRate || 0;
+
+      const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+      let matrix: Record<string, any> = {};
+      try { matrix = JSON.parse(matrixStr || '{}'); } catch { matrix = {}; }
+
+      if (Object.keys(details).length > 0) {
+        for (const [curr, item] of Object.entries(details)) {
+          if (curr === 'VND') continue;
+          matrix[curr] = {
+            currencyCode: curr,
+            conversionRate: item.conversionRate,
+            buyRate: item.buyRate ?? item.conversionRate,
+            sellRate: item.sellRate ?? item.conversionRate,
+            effectiveDate: item.effectiveDate || nowIso.split('T')[0],
+          };
+        }
+        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
+
+        if (usdRate > 0) {
+          await this.settingsService.setSetting('ccp_usd_exchange_rate', String(usdRate));
+        }
+        if (rates['JPY']) await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(rates['JPY']));
+        if (rates['MYR']) await this.settingsService.setSetting('ccp_myr_exchange_rate', String(rates['MYR']));
+        if (rates['CNY'] || rates['RMB']) {
+          const rmbVal = rates['CNY'] || rates['RMB'];
+          await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbVal));
+        }
+        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
         await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname}`);
-        if (rates['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', String(rates['JPY']));
-        if (rates['MYR']) await this.settingsService.setSetting('myr_exchange_rate', String(rates['MYR']));
-        if (rates['CNY']) await this.settingsService.setSetting('rmb_exchange_rate', String(rates['CNY']));
       }
+
+      const syncedCount = Object.keys(details).length;
       return {
         success: true,
         rates,
+        matrix,
         lastSynced: nowIso,
-        message: `Đã bóc tách thành công tỷ giá từ tệp ${file.originalname}: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ`,
+        message: `Đã bóc tách thành công ${syncedCount} nguyên tệ từ tệp ${file.originalname}: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ`,
       };
     } catch (err: any) {
       throw new HttpException(`Lỗi xử lý file tỷ giá: ${err.message}`, HttpStatus.INTERNAL_SERVER_ERROR);

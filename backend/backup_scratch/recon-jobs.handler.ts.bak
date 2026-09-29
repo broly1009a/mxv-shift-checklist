@@ -153,7 +153,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         options.checkTtm === false &&
         options.checkTttt === false
       ) {
-        log('MS ⏭️ Bỏ qua tải M-System (không chọn KLGD, TTM & TTTT).');
+        log('MS  Bỏ qua tải M-System (không chọn KLGD, TTM & TTTT).');
         return;
       }
       log('MS → Đăng nhập M-System...');
@@ -167,7 +167,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           );
           log('MS  Tải DSGD.xlsx thành công.');
         } else {
-          log('MS ⏭️ Bỏ qua tải DSGD.xlsx theo tùy chọn.');
+          log('MS  Bỏ qua tải DSGD.xlsx theo tùy chọn.');
         }
 
         if (options.checkTtm !== false) {
@@ -178,7 +178,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           );
           log('MS  Tải TTM.xlsx thành công.');
         } else {
-          log('MS ⏭️ Bỏ qua tải TTM.xlsx theo tùy chọn.');
+          log('MS  Bỏ qua tải TTM.xlsx theo tùy chọn.');
         }
 
         if (options.checkTttt !== false) {
@@ -189,7 +189,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           );
           log('MS  Tải TTTT.xlsx thành công.');
         } else {
-          log('MS ⏭️ Bỏ qua tải TTTT.xlsx theo tùy chọn.');
+          log('MS  Bỏ qua tải TTTT.xlsx theo tùy chọn.');
         }
       } catch (err: any) {
         errors.push(`MS: ${err.message}`);
@@ -205,7 +205,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         options.checkTtm === false &&
         options.checkTttt === false
       ) {
-        log('CQG ⏭️ Bỏ qua tải CQG theo tùy chọn.');
+        log('CQG  Bỏ qua tải CQG theo tùy chọn.');
         return;
       }
       const filesToDownload: {
@@ -261,7 +261,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
     const downloadAcm = async () => {
       if (options.checkKlgd === false) {
-        log('ACM ⏭️ Bỏ qua tải ACM theo tùy chọn.');
+        log('ACM  Bỏ qua tải ACM theo tùy chọn.');
         return;
       }
       log('ACM → Đăng nhập ACM để tải báo cáo Fill (Nano trades)...');

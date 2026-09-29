@@ -8,6 +8,8 @@ import { decrypt } from './utils/crypto';
 import { chromium, Page } from 'playwright-core';
 import * as XLSX from 'xlsx';
 
+import { resolveTradingSessionDate } from './helpers/bot-path.helper';
+
 export interface GttDataRow {
   symbol: string;
   gttMs: number | null;
@@ -20,21 +22,44 @@ export interface GttDataRow {
 
 export interface GttReport {
   runAt: string;
+  completedAt?: string;
+  durationMs?: number;
   totalContracts: number;
   matched: number;
   diffCount: number;
   msOnlyCount: number;
   cqgOnlyCount: number;
   rows: GttDataRow[];
+  logs?: string[];
   marketCsvPath: string | null;
   gttFilePath: string | null;
   hangHoaFilePath?: string | null;
+  targetDate?: string;
+  sessionDate?: string;
 }
 
 @Injectable()
 export class GttCheckerService {
   private readonly logger = new Logger(GttCheckerService.name);
   private latestReport: GttReport | null = null;
+  private isRunning: boolean = false;
+  private currentLogs: string[] = [];
+  private currentStartTime: number = 0;
+
+  getIsRunning(): boolean {
+    return this.isRunning;
+  }
+
+  getCurrentLogs(): string[] {
+    return this.currentLogs;
+  }
+
+  private logStep(msg: string) {
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+    const line = `[${timeStr}] ${msg}`;
+    this.logger.log(msg);
+    this.currentLogs.push(line);
+  }
 
   // Configured paths
   private readonly workDir = path.join(process.cwd(), 'temp', 'gtt');
@@ -828,19 +853,33 @@ export class GttCheckerService {
     options: {
       downloadMarketCsv?: boolean;
       gttXlsxPath?: string;
+      targetDate?: string;
     } = {},
   ): Promise<GttReport> {
+    if (this.isRunning) {
+      throw new Error('Tiến trình kiểm tra GTT đang chạy trên hệ thống. Vui lòng đợi.');
+    }
+
+    const resolvedSession = resolveTradingSessionDate(options.targetDate);
+    const sessionDate = resolvedSession.dateStr;
+    const targetDate = options.targetDate ? options.targetDate.trim().slice(0, 10) : sessionDate;
+
     const runAt = new Date().toISOString();
-    this.logger.log('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
+    this.isRunning = true;
+    this.currentLogs = [];
+    this.currentStartTime = Date.now();
 
-    const downloadMarketCsv = !!options.downloadMarketCsv;
-    const chromePath = this.getChromeExecutablePath();
+    try {
+      this.logStep('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
 
-    if (downloadMarketCsv) {
-      // =========================================================================
-      // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
-      // =========================================================================
-      this.logger.log('Đăng nhập M-System và tải file báo cáo...');
+      const downloadMarketCsv = !!options.downloadMarketCsv;
+      const chromePath = this.getChromeExecutablePath();
+
+      if (downloadMarketCsv) {
+        // =========================================================================
+        // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
+        // =========================================================================
+        this.logStep('Đăng nhập M-System và tải file báo cáo...');
 
       let msUrl = 'https://msadmin.mxv.com.vn/';
       let msUser = process.env.MS_USER || '';
@@ -1062,7 +1101,7 @@ export class GttCheckerService {
       );
     }
 
-    this.logger.log(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
+    this.logStep(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
     const launchOptions: any = {
       headless: true,
       args: [
@@ -1072,6 +1111,11 @@ export class GttCheckerService {
         '--disable-blink-features=AutomationControlled',
         '--disable-infobars',
         '--disable-extensions',
+        '--disk-cache-size=209715200',
+        '--ignore-gpu-blocklist',
+        '--enable-gpu-rasterization',
+        '--enable-zero-copy',
+        '--enable-features=V8CodeCache,WebAssembly',
       ],
     };
     if (chromePath) {
@@ -1244,82 +1288,146 @@ export class GttCheckerService {
     const msOnlyCount = rows.filter((r) => r.status === 'MS_ONLY').length;
     const cqgOnlyCount = rows.filter((r) => r.status === 'CQG_ONLY').length;
 
-    const report: GttReport = {
-      runAt,
-      totalContracts: rows.length,
-      matched,
-      diffCount,
-      msOnlyCount,
-      cqgOnlyCount,
-      rows,
-      marketCsvPath: this.marketCsvPath,
-      gttFilePath: fs.existsSync(this.trangThaiMoPath)
-        ? this.trangThaiMoPath
-        : this.gttXlsxPath,
-      hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
-        ? this.hangHoaXlsxPath
-        : null,
-    };
+    const durationMs = Date.now() - this.currentStartTime;
+    const completedAt = new Date().toISOString();
+    const durationSec = Math.round(durationMs / 1000);
+    const durationStr =
+      durationSec >= 60
+        ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`
+        : `${durationSec}s`;
 
-    // Save report to disk
-    fs.writeFileSync(
-      this.reportJsonPath,
-      JSON.stringify(report, null, 2),
-      'utf8',
+    this.logStep(
+      `=== HOÀN TẤT ĐỐI SOÁT GTT (${durationStr}): ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`,
     );
-    this.latestReport = report;
 
-    this.logger.log(
-      `=== HOÀN TẤT ĐỐI SOÁT GTT: ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`,
-    );
-    return report;
+      const report: GttReport = {
+        runAt,
+        completedAt,
+        durationMs,
+        totalContracts: rows.length,
+        matched,
+        diffCount,
+        msOnlyCount,
+        cqgOnlyCount,
+        rows,
+        logs: [...this.currentLogs],
+        marketCsvPath: this.marketCsvPath,
+        gttFilePath: fs.existsSync(this.trangThaiMoPath)
+          ? this.trangThaiMoPath
+          : this.gttXlsxPath,
+        hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
+          ? this.hangHoaXlsxPath
+          : null,
+        targetDate,
+        sessionDate,
+      };
+
+      // Save report to disk
+      fs.writeFileSync(
+        this.reportJsonPath,
+        JSON.stringify(report, null, 2),
+        'utf8',
+      );
+      this.latestReport = report;
+
+      return report;
+    } catch (err: any) {
+      this.logStep(`[LỖI GTT] ${err.message}`);
+      throw err;
+    } finally {
+      this.isRunning = false;
+    }
   }
 
   /**
-   * Generates a correction Excel file for mismatched prices.
+   * Generates a comprehensive GTT Excel report with full UI columns
+   * ('Mã HĐ', 'GTT MS', 'GTT CQG', 'Chênh lệch', 'Trạng thái') and M-System import sheet.
    */
   async generateCorrectionFile(
     type: 'settlement' | 'first_match',
   ): Promise<string> {
     const report = this.getLatestReport();
-    if (!report || !report.rows) {
+    if (!report || !report.rows || report.rows.length === 0) {
       throw new Error(
-        'Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.',
+        'Chưa có báo cáo GTT gần nhất. Vui lòng bấm "Check GTT" để đối soát trước.',
       );
     }
 
-    // Filter out only DIFF rows (mismatches)
-    const diffRows = report.rows.filter((r) => r.status === 'DIFF');
-    if (diffRows.length === 0) {
-      throw new Error('Không có hợp đồng nào bị lệch giá để xuất file sửa.');
-    }
-
-    // Prepare data based on typical IT upload tool formats
-    // We map CQG price (as source of truth) for M-System updates
-    const dataToExport = diffRows.map((r) => {
-      if (type === 'settlement') {
-        return {
-          'Mã Hợp Đồng': r.symbol,
-          'Giá Thanh Toán': r.gttCqg,
-        };
-      } else {
-        return {
-          'Mã Hợp Đồng': r.symbol,
-          'Giá Khớp Đầu Tiên': r.gttCqg,
-        };
-      }
+    // Sắp xếp thứ tự ưu tiên: Lệch (DIFF) -> Chỉ MS / Chỉ CQG -> Khớp (MATCH)
+    const sortedRows = [...report.rows].sort((a, b) => {
+      const order: Record<string, number> = {
+        DIFF: 0,
+        MS_ONLY: 1,
+        CQG_ONLY: 2,
+        NO_PRICE: 3,
+        MATCH: 4,
+      };
+      const orderA = order[a.status] ?? 5;
+      const orderB = order[b.status] ?? 5;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.symbol.localeCompare(b.symbol);
     });
 
-    const exportPath = path.join(this.workDir, `sua-gia-${type}.xlsx`);
+    // 1. Sheet 1: Báo cáo đối soát đầy đủ như bảng UI
+    const fullReportData = sortedRows.map((r) => {
+      let statusText = '—';
+      if (r.status === 'MATCH') statusText = 'Khớp';
+      else if (r.status === 'DIFF') {
+        statusText = r.diff !== null ? `Lệch ${r.diff.toLocaleString('vi-VN')}` : 'Lệch';
+      } else if (r.status === 'MS_ONLY') statusText = 'Chỉ MS';
+      else if (r.status === 'CQG_ONLY') statusText = 'Chỉ CQG';
+      else if (r.status === 'NO_PRICE') statusText = 'Không có giá';
 
-    // Use xlsx to write file
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
+      return {
+        'Mã HĐ': r.symbol,
+        'GTT MS': r.gttMs !== null ? r.gttMs : '',
+        'GTT CQG': r.gttCqg !== null ? r.gttCqg : '',
+        'Chênh lệch': r.diff !== null ? r.diff : '',
+        'Trạng thái': statusText,
+      };
+    });
+
+    // 2. Sheet 2: File mẫu nhập vào M-System cho các hợp đồng bị lệch (nếu có)
+    const diffRows = report.rows.filter((r) => r.status === 'DIFF');
+    const importData = diffRows.map((r) => ({
+      contractCode: r.symbol,
+      filledPrice: type === 'first_match' ? (r.gttCqg ?? '') : '',
+      settlePrice: type === 'settlement' ? (r.gttCqg ?? '') : '',
+      'GTT MS': r.gttMs ?? '',
+      'Chênh lệch': r.diff ?? '',
+    }));
+
+    const exportPath = path.join(this.workDir, `bao-cao-gtt-${type}.xlsx`);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+
+    // Sheet 1: DoiSoat_GTT (Đầy đủ 5 cột theo UI)
+    const wsFull = XLSX.utils.json_to_sheet(fullReportData);
+    wsFull['!cols'] = [
+      { wch: 18 }, // Mã HĐ
+      { wch: 16 }, // GTT MS
+      { wch: 16 }, // GTT CQG
+      { wch: 16 }, // Chênh lệch
+      { wch: 20 }, // Trạng thái
+    ];
+    XLSX.utils.book_append_sheet(wb, wsFull, 'DoiSoat_GTT');
+
+    // Sheet 2: Nhap_MSystem_Diff (Chỉ xuất khi có dòng lệch)
+    if (importData.length > 0) {
+      const wsImport = XLSX.utils.json_to_sheet(importData);
+      wsImport['!cols'] = [
+        { wch: 18 }, // contractCode
+        { wch: 16 }, // filledPrice
+        { wch: 16 }, // settlePrice
+        { wch: 16 }, // GTT MS
+        { wch: 16 }, // Chênh lệch
+      ];
+      XLSX.utils.book_append_sheet(wb, wsImport, 'Nhap_MSystem_Diff');
+    }
+
     XLSX.writeFile(wb, exportPath, { compression: true });
 
     this.logger.log(
-      `Created correction Excel file for ${type} at: ${exportPath}`,
+      `Created full GTT report Excel file (${fullReportData.length} contracts, ${diffRows.length} diffs) at: ${exportPath}`,
     );
     return exportPath;
   }

@@ -44,16 +44,56 @@ export const MS_REPORT_FILE_PATTERNS: Record<string, RegExp> = {
 };
 
 /**
+ * Selector ưu tiên cho nút xuất file Excel / CSV cụ thể trên M-System (hỗ trợ cả fa-file-csv, fas fa-file-csv, fa-file-excel)
+ */
+export const MS_SPECIFIC_EXPORT_BUTTON_SELECTORS = [
+  'button:has(i[class*="fa-file-csv"])',
+  'button:has(i[class*="fa-file-excel"])',
+  'button.ladda-button:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i[class*="fa-file-excel"])',
+  'button.btn-ghost-primary:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i.fas.fa-file-csv)',
+  'button.ladda-button:has(i.fa-file-csv)',
+  'button.ladda-button:has(i.fas.fa-file-excel)',
+  'button.ladda-button:has(i.fa-file-excel)',
+  'button:has(i.fas.fa-file-csv)',
+  'button:has(i.fa-file-csv)',
+  'button:has(i.fas.fa-file-excel)',
+  'button:has(i.fa-file-excel)',
+  'i[class*="fa-file-csv"]',
+  'i[class*="fa-file-excel"]',
+  'i.fas.fa-file-csv',
+  'i.fa-file-csv',
+  'i.fas.fa-file-excel',
+  'i.fa-file-excel',
+  "button:has-text('Xuất file')",
+  "button:has-text('Xuất Excel')",
+  "button[title*='Export' i]",
+].join(', ');
+
+/**
  * Selector phổ biến cho nút xuất file Excel / CSV trên M-System (Angular UI)
  */
 export const MS_EXPORT_BUTTON_SELECTORS = [
-  'button.ladda-button:has(i.fa-file-excel)',
-  'button:has(i.fa-file-excel)',
+  'button:has(i[class*="fa-file-csv"])',
+  'button:has(i[class*="fa-file-excel"])',
+  'button.ladda-button:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i[class*="fa-file-excel"])',
+  'button.btn-ghost-primary:has(i[class*="fa-file-csv"])',
+  'button.ladda-button:has(i.fas.fa-file-csv)',
   'button.ladda-button:has(i.fa-file-csv)',
+  'button.ladda-button:has(i.fas.fa-file-excel)',
+  'button.ladda-button:has(i.fa-file-excel)',
+  'button:has(i.fas.fa-file-csv)',
   'button:has(i.fa-file-csv)',
-  'button.btn-info',
-  'i.fa-file-excel',
+  'button:has(i.fas.fa-file-excel)',
+  'button:has(i.fa-file-excel)',
+  'i[class*="fa-file-csv"]',
+  'i[class*="fa-file-excel"]',
+  'i.fas.fa-file-csv',
   'i.fa-file-csv',
+  'i.fas.fa-file-excel',
+  'i.fa-file-excel',
   "button:has-text('Xuất file')",
   "button:has-text('Xuất Excel')",
   "button[title*='Export' i]",
@@ -191,6 +231,23 @@ export class MSystemTabNavigatorHelper {
     const timeout = options?.customTimeoutMs ?? 90000;
     const log = options?.logger ?? console;
 
+    // Tự động kiểm tra và click nút "Tìm kiếm" nếu màn hình yêu cầu kích hoạt truy vấn trước khi vẽ bảng
+    const searchSelector =
+      "button:has-text('Tìm kiếm'), button:has(i.fa-search), button.btn-primary:has-text('Tìm kiếm'), button[type='submit']:has-text('Tìm kiếm')";
+    const searchBtn = page.locator(searchSelector).first();
+    const isSearchVisible = await searchBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    if (isSearchVisible) {
+      log.log('[TabNavigator] Phát hiện nút "Tìm kiếm", kích hoạt click để tải dữ liệu bảng...');
+      await searchBtn.click({ force: true }).catch(() => { });
+      await page.waitForTimeout(2000);
+      await page
+        .waitForSelector(
+          '.ladda-loading, div.spinner, div.loading, div.block-ui-overlay',
+          { state: 'detached', timeout: 6000 },
+        )
+        .catch(() => { });
+    }
+
     await page.waitForSelector(MS_EXPORT_BUTTON_SELECTORS, {
       state: 'visible',
       timeout: 30000,
@@ -200,7 +257,13 @@ export class MSystemTabNavigatorHelper {
     const downloadPromise = page.waitForEvent('download', { timeout });
 
     log.log('[TabNavigator] Bấm nút xuất file Excel/CSV...');
-    await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+    const specificExportBtn = page.locator(MS_SPECIFIC_EXPORT_BUTTON_SELECTORS).first();
+    const hasSpecific = await specificExportBtn.isVisible({ timeout: 2000 }).catch(() => false);
+    if (hasSpecific) {
+      await specificExportBtn.click({ force: true });
+    } else {
+      await page.locator(MS_EXPORT_BUTTON_SELECTORS).first().click({ force: true });
+    }
 
     const download = await downloadPromise;
     return await this.saveAndValidateDownload(download, downloadPath, expectedTargetKey, log);
@@ -219,37 +282,52 @@ export class MSystemTabNavigatorHelper {
     log.log(`[TabNavigator] Bắt đầu điều hướng: ${menuSteps.join(' -> ')}`);
 
     // 1. Click từng menu trong chuỗi menuSteps
+    // Giới hạn tìm kiếm trong Sidebar (aside, .sidebar, nav.sidebar-nav, app-sidebar) để tránh bắt nhầm text trong bảng dữ liệu
+    const sidebarPrefix = `xpath=(//aside | //nav[contains(@class, 'sidebar')] | //*[@class and contains(@class, 'sidebar')] | //app-sidebar)`;
+
     for (let i = 0; i < menuSteps.length; i++) {
       const menu = menuSteps[i];
-      const selector = `xpath=//*[self::a or self::span or self::li or self::div][normalize-space(text())='${menu}' or contains(text(), '${menu}')]`;
+      const scopedSelector = `${sidebarPrefix}//*[self::a or self::span or self::li or self::div][normalize-space(text())='${menu}' or contains(text(), '${menu}')]`;
+      const fallbackSelector = `xpath=//*[self::a or self::span or self::li or self::div][normalize-space(text())='${menu}' or contains(text(), '${menu}')]`;
 
-      // Kiểm tra nếu là menu cha cấp trên: chỉ bỏ qua click nếu menu con cấp tiếp theo ĐÃ hiển thị sẵn
+      // Kiểm tra nếu là menu cha cấp trên: chỉ bỏ qua click nếu menu con cấp tiếp theo ĐÃ hiển thị sẵn trên sidebar
       if (i < menuSteps.length - 1) {
         const nextMenu = menuSteps[i + 1];
-        const nextSelector = `xpath=//*[self::a or self::span or self::li or self::div][normalize-space(text())='${nextMenu}' or contains(text(), '${nextMenu}')]`;
+        const nextScopedSelector = `${sidebarPrefix}//*[self::a or self::span or self::li or self::div][normalize-space(text())='${nextMenu}' or contains(text(), '${nextMenu}')]`;
         const isNextVisible = await page
-          .locator(nextSelector)
+          .locator(nextScopedSelector)
           .first()
           .isVisible()
           .catch(() => false);
 
         if (isNextVisible) {
           log.log(
-            `[TabNavigator] Menu con kế tiếp "${nextMenu}" đã hiển thị sẵn. Bỏ qua click "${menu}".`,
+            `[TabNavigator] Menu con kế tiếp "${nextMenu}" đã hiển thị sẵn trên Sidebar. Bỏ qua click "${menu}".`,
           );
           continue;
         }
       }
 
-      await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
-      await page.click(selector, { force: true });
+      // Ưu tiên selector trong Sidebar, fallback sang selector chung nếu cấu trúc DOM khác biệt
+      let activeSelector = scopedSelector;
+      const isScopedVisible = await page
+        .locator(scopedSelector)
+        .first()
+        .isVisible({ timeout: 2000 })
+        .catch(() => false);
+      if (!isScopedVisible) {
+        activeSelector = fallbackSelector;
+      }
+
+      await page.waitForSelector(activeSelector, { state: 'visible', timeout: 15000 });
+      await page.click(activeSelector, { force: true });
       await page.waitForTimeout(1000);
     }
 
-    // 2. Đợi URL hash thay đổi theo mẫu dự kiến (tránh race condition giữa các trang SPA)
+    // 2. Đợi URL hash thay đổi theo mẫu dự kiến (Fail-Fast: không nuốt lỗi để tránh xuất file sai trang)
     if (options?.expectedHashPattern) {
       log.log(`[TabNavigator] Đợi URL hash khớp mẫu: ${options.expectedHashPattern}`);
-      await page.waitForURL(options.expectedHashPattern, { timeout: 15000 }).catch(() => { });
+      await page.waitForURL(options.expectedHashPattern, { timeout: 15000 });
     }
 
     // 3. Nếu có chỉ định sub-tab (ví dụ: Chờ đáo hạn LME, Spreads, ACM)

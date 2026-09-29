@@ -173,43 +173,13 @@ export class ReconciliationService {
     acmTradesName: string = '',
     tradingDate: Date = new Date(),
     holidays: string[] = [],
-    sessionStartStr: string = '05:00',
-  ): Promise<{
-    passed: boolean;
-    totals: {
-      totalACM_MS: number;
-      totalACM_Straits: number;
-      differACM: number;
-      totalCQG_MS: number;
-      totalCQG_FR: number;
-      differCQG: number;
-    };
-    mismatchedTrades: Array<{
-      source: 'MSystem' | 'CQG';
-      maLenh?: string;
-      maTKGD: string;
-      maHD: string;
-      giaKhop: number;
-      klGiaoDich: number;
-      ngayGio: string;
-      reason: string;
-    }>;
-    mismatchedPositions: Array<{
-      account: string;
-      symbol: string;
-      msPosition: number;
-      cqgPosition: number;
-      differ: number;
-    }>;
-    sessionStart?: Date;
-    checkTime?: Date;
-  }> {
+    sessionStartStr?: string,
+  ): Promise<any> {
     return this.preEodReconService.checkPreEOD(
       files as any,
       acmTradesName,
       tradingDate,
       holidays,
-      sessionStartStr,
     );
   }
 
@@ -329,7 +299,12 @@ export class ReconciliationService {
     return this.reconConsoleSummaryService.syncUsdRateFromMSystem();
   }
 
-  async syncAllExchangeRatesFromMSystem(): Promise<Record<string, number>> {
+  async syncAllExchangeRatesFromMSystem(): Promise<{
+    conversionRates: Record<string, number>;
+    paymentRates: Record<string, { buy: number; sell: number }>;
+    usdRate: number;
+    rates: Record<string, number>;
+  }> {
     return this.reconConsoleSummaryService.syncAllExchangeRatesFromMSystem();
   }
 

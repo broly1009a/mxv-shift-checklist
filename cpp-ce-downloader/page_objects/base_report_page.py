@@ -226,7 +226,7 @@ class BaseReportPage(BasePage):
             "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
         ).first
         if no_data_in_table.is_visible(timeout=600):
-            self.log("  ℹ️ [Search Result] Bảng đã trả về 'Không có dữ liệu' -> Bỏ qua bước lọc cột và chuyển sang xử lý kết xuất.")
+            self.log("  [Search Result] Bảng đã trả về 'Không có dữ liệu' -> Bỏ qua bước lọc cột và chuyển sang xử lý kết xuất.")
             return
 
         # 4. Điền lọc 'Mã thành viên' ở cột bộ lọc trong bảng Material React Table (nếu ô top form chưa có và bảng thực sự có cột này)
@@ -234,7 +234,7 @@ class BaseReportPage(BasePage):
             mb_code = member_code.strip()
             th_member = self.page.locator("xpath=//th[@data-column-id='MEMBERCODE' or @data-column-id='MEMBER_CODE'] | //th[contains(., 'Mã thành viên')]").first
             if th_member.count() == 0:
-                self.log("  ℹ️ Giao diện/Bảng không có cột 'Mã thành viên' -> Tự động bỏ qua lọc Mã thành viên.")
+                self.log("  Giao diện/Bảng không có cột 'Mã thành viên' -> Tự động bỏ qua lọc Mã thành viên.")
             else:
                 self.wait_for_table_loading_complete(30000)
                 self.log(f"  [Filter Column] Lọc Mã thành viên: '{mb_code}'...")
@@ -339,7 +339,7 @@ class BaseReportPage(BasePage):
             "xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
         ).first
         if no_data_elem.is_visible(timeout=800):
-            self.log("  ℹ️ [Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh.")
+            self.log("  [Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh.")
             return "NO_DATA"
 
         # Tìm nút 'Kết xuất'

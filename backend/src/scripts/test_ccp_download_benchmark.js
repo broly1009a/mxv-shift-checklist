@@ -446,7 +446,7 @@ async function setDateRangeAndSearch(page, startDate, endDate, reportCode) {
     "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]"
   ).first();
   if (await noDataInTable.isVisible({ timeout: 600 }).catch(() => false)) {
-    console.log("  ℹ️ [Search Result] Bảng hiển thị 0 bản ghi -> Bỏ qua lọc cột, tiến hành kết xuất...");
+    console.log("  [Search Result] Bảng hiển thị 0 bản ghi -> Bỏ qua lọc cột, tiến hành kết xuất...");
     isTableEmpty = true;
   }
 
@@ -498,7 +498,7 @@ async function triggerExportDownload(page, timeoutMs = 120000, isTableEmpty = fa
 
         if (await toastLocator.isVisible({ timeout: 150 })) {
           const text = (await toastLocator.textContent()) || '';
-          console.log(`  ℹ️ [Toast Thông Báo] "${text.trim()}" -> Hệ thống từ chối xuất file!`);
+          console.log(`  [Toast Thông Báo] "${text.trim()}" -> Hệ thống từ chối xuất file!`);
           return 'NO_DATA';
         }
       } catch { }
@@ -509,7 +509,7 @@ async function triggerExportDownload(page, timeoutMs = 120000, isTableEmpty = fa
     const res = await downloadPromise;
     if (res) return res;
     if (isTableEmpty) {
-      console.log('  ℹ️ Không có file tải về sau 6s trên bảng rỗng -> Coi như Không có dữ liệu.');
+      console.log('  Không có file tải về sau 6s trên bảng rỗng -> Coi như Không có dữ liệu.');
       return 'NO_DATA';
     }
     return null;
@@ -564,7 +564,7 @@ async function downloadSingleReport(page, report, startDateStr, endDateStr, outp
   const durationSec = ((Date.now() - itemStart) / 1000).toFixed(1);
 
   if (downloadResult === 'NO_DATA') {
-    console.log(`  ℹ️ Bỏ qua tạo file do hệ thống xác nhận không có dữ liệu (${durationSec}s).`);
+    console.log(`  Bỏ qua tạo file do hệ thống xác nhận không có dữ liệu (${durationSec}s).`);
     return {
       code: report.code,
       name: report.name,

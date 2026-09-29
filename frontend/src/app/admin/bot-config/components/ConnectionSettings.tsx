@@ -84,7 +84,7 @@ export default function ConnectionSettings({
 
   // System parameters states
   const [sessionStartTime, setSessionStartTime] = useState('05:00');
-  const [usdExchangeRate, setUsdExchangeRate] = useState(25220);
+  const [usdExchangeRate, setUsdExchangeRate] = useState(0);
 
   // Password visibility states
   const [showMsystemPassword, setShowMsystemPassword] = useState(false);

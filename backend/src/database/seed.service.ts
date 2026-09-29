@@ -36,10 +36,22 @@ export class SeedService implements OnApplicationBootstrap {
   ) { }
 
   async onApplicationBootstrap() {
-    const isAutoSeedEnabled = process.env.ENABLE_AUTO_SEED !== 'false';
+    // =========================================================================
+    // VẬN HÀNH THỰC TẾ: TẮT HOÀN TOÀN AUTO-SEED
+    // Khi hệ thống đã vận hành, toàn bộ Users, Departments, ShiftSlots, Templates
+    // đã được Admin cấu hình ổn định trên Web. Việc chạy lại seed mỗi lần restart
+    // có nguy cơ xóa phòng ban cũ hoặc xáo trộn cấu hình người dùng.
+    // =========================================================================
+    this.logger.log(
+      'Database Seeding is DISABLED for operational safety (Hệ thống đang vận hành thực tế).',
+    );
+    return;
+
+    /* ĐOẠN CODE SEED DỰ PHÒNG - CHỈ BẬT KHI KHỞI TẠO MÔI TRƯỜNG MỚI TINH
+    const isAutoSeedEnabled = process.env.ENABLE_AUTO_SEED === 'true';
     if (!isAutoSeedEnabled) {
       this.logger.log(
-        'Automatic database seeding is DISABLED via ENABLE_AUTO_SEED=false. Skipping.',
+        'Automatic database seeding is DISABLED via ENABLE_AUTO_SEED. Skipping.',
       );
       return;
     }
@@ -57,6 +69,7 @@ export class SeedService implements OnApplicationBootstrap {
     } catch (error) {
       this.logger.error('Error seeding database', error);
     }
+    */
   }
 
 

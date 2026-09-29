@@ -21,7 +21,7 @@ async function closeCurrentShift() {
     const openShifts = await shiftLogsCol.find({ status: 'PENDING' }).toArray();
 
     if (openShifts.length === 0) {
-      console.log('ℹ️ Hien tai KHONG CO ca truc nao dang mo (status: PENDING).');
+      console.log('Hien tai KHONG CO ca truc nao dang mo (status: PENDING).');
       await mongoose.disconnect();
       return;
     }

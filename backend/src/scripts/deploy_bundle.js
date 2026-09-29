@@ -1,4 +1,9 @@
-const { Client } = require('ssh2');
+let Client;
+try {
+  Client = require('ssh2').Client;
+} catch {
+  Client = require('c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/node_modules/ssh2').Client;
+}
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -39,9 +44,15 @@ function copyDirRecursive(srcDir, destDir) {
 
 // 1. Files cần copy
 const filesToDeploy = [
+  'backend/src/database/database.module.ts',
+  'backend/src/database/seed.service.ts',
+  'backend/sso-auto-assign.config.json',
+  'backend/src/modules/auth/auth.service.ts',
   'backend/src/modules/bot-engine/bot-engine.controller.ts',
   'backend/src/modules/bot-engine/bot-engine.service.ts',
+  'backend/src/modules/bot-engine/bot-job-queue.service.ts',
   'backend/src/modules/bot-engine/scheduler.service.ts',
+  'backend/src/modules/bot-engine/email-watcher.service.ts',
   'backend/src/modules/bot-engine/ccp-ce-downloader.service.ts',
   'backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts',
   'backend/src/modules/bot-engine/handlers/rpa-download.handler.ts',
@@ -52,7 +63,12 @@ const filesToDeploy = [
   'backend/src/modules/reconciliation/services/recon-console-summary.service.ts',
   'backend/src/modules/reconciliation/services/klgd-recon.service.ts',
   'backend/src/modules/reconciliation/services/pre-eod-recon.service.ts',
+  'backend/src/modules/reconciliation/reconciliation.service.ts',
+  'backend/src/modules/reconciliation/reconciliation.controller.ts',
+  'backend/src/scripts/run_auto_check_pre_eod_active.ts',
+  'backend/src/modules/reconciliation/services/ccp-recon.service.ts',
   'backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts',
+  'backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts',
   'backend/src/modules/system-settings/system-settings.service.ts',
   'backend/src/schemas/ccp-lot-run-history.schema.ts',
   'backend/src/modules/tkgd-automation/tkgd-automation.service.ts',
@@ -62,15 +78,29 @@ const filesToDeploy = [
   'backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts',
   'backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts',
   'frontend/src/app/trading-manager/utils/reconLogParser.ts',
+  'frontend/src/app/trading-manager/utils/tradingDateUtils.ts',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx',
+  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx',
+  'frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx',
   'frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx',
   'frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx',
   'frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx',
   'frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx',
   'CHANGELOG_AI.md',
   'docs/BAN_THIET_KE_MASTER_SWITCH_TAT_BAT_TU_DONG_TRADING_MANAGER.md',
+  'backend/docs/BAO_CAO_TONG_HOP_BUG_RPA_BACKUP_VA_DOI_CHIEU.md',
+  'backend/src/scripts/verify_fix_scenarios.js',
+  'backend/src/scripts/test_ms_tab_downloads.js',
+  'backend/src/scripts/test_cqg_tab_downloads.js',
+  'backend/src/scripts/test_gtt_cqg_benchmark.js',
+  'backend/src/modules/bot-engine/gtt-checker.service.ts',
+  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx',
+  'backend/src/modules/bot-engine/handlers/macro-value.handler.ts',
+  'backend/src/modules/bot-engine/handlers/macro-lot.handler.ts',
+  'backend/src/scripts/test_check_klgd_playwright.js',
+  'backend/src/tests/test_overnight_cqg_time_fix.ts',
 ];
 
 for (const rel of filesToDeploy) {
@@ -85,11 +115,25 @@ if (fs.existsSync(srcJobQueue)) {
   console.log('Copied full frontend job-queue folder.');
 }
 
+// 1.2 Toàn bộ thư mục frontend ce-acm
+const srcCeAcm = path.join(rootDir, 'frontend/src/app/trading-manager/components/ce-acm');
+if (fs.existsSync(srcCeAcm)) {
+  const destCeAcm = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/ce-acm');
+  copyDirRecursive(srcCeAcm, destCeAcm);
+  console.log('Copied full frontend ce-acm folder.');
+}
+
 // 2. Toàn bộ thư mục ccp-statistics (bao gồm cả inputExampleCppFull_2 và review_output)
 const srcCcpStats = path.join(rootDir, 'backend/src/modules/ccp-statistics');
 const destCcpStats = path.join(tempDeployDir, 'backend/src/modules/ccp-statistics');
 copyDirRecursive(srcCcpStats, destCcpStats);
 console.log('Copied full backend/src/modules/ccp-statistics folder.');
+
+// 2.05 Toàn bộ thư mục lot-statistics
+const srcLotStats = path.join(rootDir, 'backend/src/modules/lot-statistics');
+const destLotStats = path.join(tempDeployDir, 'backend/src/modules/lot-statistics');
+copyDirRecursive(srcLotStats, destLotStats);
+console.log('Copied full backend/src/modules/lot-statistics folder.');
 
 // 2.1 Toàn bộ thư mục frontend/src/features/tkgd (đồng bộ chuẩn types & components)
 const srcTkgd = path.join(rootDir, 'frontend/src/features/tkgd');

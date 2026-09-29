@@ -216,6 +216,34 @@ const specificFiles = [
     local: path.join(repoRoot, 'frontend/src/context/AuthContext.tsx'),
     remote: '/opt/mxv-checklist/frontend/src/context/AuthContext.tsx',
   },
+  {
+    local: path.join(repoRoot, 'CHANGELOG_AI.md'),
+    remote: '/opt/mxv-checklist/CHANGELOG_AI.md',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_exchange_rate_system.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_exchange_rate_system.js',
+  },
+  {
+    local: path.join(repoRoot, 'docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md'),
+    remote: '/opt/mxv-checklist/docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md',
+  },
+  {
+    local: path.join(repoRoot, 'docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md'),
+    remote: '/opt/mxv-checklist/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md',
+  },
+  {
+    local: path.join(repoRoot, 'backend/package.json'),
+    remote: '/opt/mxv-checklist/backend/package.json',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_ms_download_all_20_reports.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_ms_download_all_20_reports.js',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_m365_eod_email.ts'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_m365_eod_email.ts',
+  },
 ];
 
 specificFiles.forEach((item) => {

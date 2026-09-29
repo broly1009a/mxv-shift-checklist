@@ -201,6 +201,74 @@ export const REQUIRED_CCP_FILES: Array<{
   },
 ];
 
+export const REQUIRED_CE_FILES: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  patterns: RegExp[];
+}> = [
+  {
+    key: 'DSGD',
+    name: 'Danh sách giao dịch CE',
+    filename: 'DSGD ACM CE.xlsx',
+    patterns: [/dsgd.*acm.*ce/i, /dsgd.*ce/i, /^dsgd\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'DSL',
+    name: 'Sổ lệnh CE',
+    filename: 'DSL ACM CE.xlsx',
+    patterns: [/dsl.*acm.*ce/i, /dsl.*ce/i, /^dsl\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'DSLCK',
+    name: 'Lệnh chờ khớp CE',
+    filename: 'DSLCK ACM CE.xlsx',
+    patterns: [/dslck.*acm.*ce/i, /dslck.*ce/i, /^dslck\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'DSLDK',
+    name: 'Lệnh điều kiện CE',
+    filename: 'DSLDK ACM CE.xlsx',
+    patterns: [/dsldk.*acm.*ce/i, /dsldk.*ce/i, /^dsldk\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'DSLH',
+    name: 'Lệnh hủy CE',
+    filename: 'DSLH ACM CE.xlsx',
+    patterns: [/dslh.*acm.*ce/i, /dslh.*ce/i, /^dslh\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'GTT',
+    name: 'Giá thanh toán ACM',
+    filename: 'GTT ACM.xlsx',
+    patterns: [/gtt.*acm/i, /^gtt\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'HH',
+    name: 'Hàng hóa ACM',
+    filename: 'HH ACM.xlsx',
+    patterns: [/hh.*acm/i, /^hh\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'HD_CP2CO',
+    name: 'Hợp đồng CP2CO (Đồng Nano)',
+    filename: 'HĐ CP2CO.xlsx',
+    patterns: [/hđ.*cp2co/i, /hd.*cp2co/i, /cp2co/i],
+  },
+  {
+    key: 'HD_PL1NY',
+    name: 'Hợp đồng PL1NY (Bạch kim Nano)',
+    filename: 'HĐ PL1NY.xlsx',
+    patterns: [/hđ.*pl1ny/i, /hd.*pl1ny/i, /pl1ny/i],
+  },
+  {
+    key: 'HD_SI5CO',
+    name: 'Hợp đồng SI5CO (Bạc Nano)',
+    filename: 'HĐ SI5CO.xlsx',
+    patterns: [/hđ.*si5co/i, /hd.*si5co/i, /si5co/i],
+  },
+];
+
 @Injectable()
 export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(FileAuditJobHandler.name);
@@ -368,6 +436,83 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     });
   }
 
+  public async scanCeBackupFiles(
+    backupPath: string,
+    targetDate: Date = new Date(),
+  ): Promise<
+    Array<{
+      key: string;
+      name: string;
+      filename: string;
+      actualFile?: string;
+      status: 'OK' | 'MISSING' | 'EMPTY';
+      size?: number;
+      lastModified?: Date;
+    }>
+  > {
+    const existingFiles = fs.existsSync(backupPath)
+      ? fs.readdirSync(backupPath)
+      : [];
+
+    return REQUIRED_CE_FILES.map(({ key, name, filename, patterns }) => {
+      const exactOrig = path.join(backupPath, filename);
+      const exactCsv = path.join(backupPath, filename.replace(/\.xlsx$/i, '.csv'));
+      const exactXls = path.join(backupPath, filename.replace(/\.xlsx$/i, '.xls'));
+      const exactCodeCsv = path.join(backupPath, `${key}.csv`);
+      const exactCodeXlsx = path.join(backupPath, `${key}.xlsx`);
+
+      let chosenPath = '';
+      let chosenName = '';
+
+      if (fs.existsSync(exactOrig)) {
+        chosenPath = exactOrig;
+        chosenName = filename;
+      } else if (fs.existsSync(exactXls)) {
+        chosenPath = exactXls;
+        chosenName = path.basename(exactXls);
+      } else if (fs.existsSync(exactCsv)) {
+        chosenPath = exactCsv;
+        chosenName = path.basename(exactCsv);
+      } else if (fs.existsSync(exactCodeCsv)) {
+        chosenPath = exactCodeCsv;
+        chosenName = path.basename(exactCodeCsv);
+      } else if (fs.existsSync(exactCodeXlsx)) {
+        chosenPath = exactCodeXlsx;
+        chosenName = path.basename(exactCodeXlsx);
+      } else {
+        const matched = existingFiles.find((f) => {
+          if (f.startsWith('~$')) return false;
+          return patterns.some((p) => p.test(f));
+        });
+        if (matched) {
+          chosenPath = path.join(backupPath, matched);
+          chosenName = matched;
+        }
+      }
+
+      if (chosenPath && fs.existsSync(chosenPath)) {
+        const stat = fs.statSync(chosenPath);
+        return {
+          key,
+          name,
+          filename,
+          actualFile: chosenName,
+          status: stat.size > 100 ? ('OK' as const) : ('EMPTY' as const),
+          size: stat.size,
+          lastModified: stat.mtime,
+        };
+      }
+
+      return {
+        key,
+        name,
+        filename,
+        status: 'MISSING' as const,
+        size: 0,
+      };
+    });
+  }
+
   public async scanAcmBackupFiles(
     backupPath: string,
     targetDate: Date = new Date(),
@@ -383,8 +528,8 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     today.setHours(0, 0, 0, 0);
 
     const filesToCheck = [
-      { key: 'ORDER', filename: 'Order.xlsx' },
-      { key: 'FILL', filename: 'Fill.xlsx' },
+      { key: 'ORDER', filename: 'Order.xlsx', alt: 'Order.xls' },
+      { key: 'FILL', filename: 'Fill.xlsx', alt: 'Fill.xls' },
     ];
 
     const results: Array<{
@@ -395,7 +540,16 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     }> = [];
 
     for (const fileItem of filesToCheck) {
-      const filePath = path.join(backupPath, fileItem.filename);
+      let chosenFile = fileItem.filename;
+      let filePath = path.join(backupPath, fileItem.filename);
+      if (!fs.existsSync(filePath) && fileItem.alt) {
+        const altPath = path.join(backupPath, fileItem.alt);
+        if (fs.existsSync(altPath)) {
+          filePath = altPath;
+          chosenFile = fileItem.alt;
+        }
+      }
+
       if (!fs.existsSync(filePath)) {
         results.push({
           key: fileItem.key,
@@ -412,7 +566,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
       results.push({
         key: fileItem.key,
-        filename: fileItem.filename,
+        filename: chosenFile,
         status: isToday ? ('OK' as const) : ('OUTDATED' as const),
         lastModified: stat.mtime,
       });
@@ -853,7 +1007,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
         if (webReportsOk) {
           await logAndSave(
-            `ℹ️ Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`,
+            `Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`,
           );
         } else {
           await logAndSave(

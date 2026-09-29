@@ -41,8 +41,10 @@ const REPORT_OPTIONS = [
   { id: 'DSLH', label: 'Danh sách lệnh hủy (DSLH)', category: 'orders' },
   { id: 'DSLK', label: 'Danh sách lệnh khớp (DSLK)', category: 'orders' },
   { id: 'DSGD', label: 'Danh sách giao dịch CoreCCP (DSGD)', category: 'ccp' },
+  { id: 'DSQLKQ', label: 'Danh sách quản lý ký quỹ (DSQLKQ)', category: 'eod' },
   { id: 'TTM', label: 'Báo cáo Vị thế mở (TTM)', category: 'ccp' },
   { id: 'TTTT', label: 'Tình trạng thanh toán hỗ trợ (TTTT)', category: 'ccp' },
+  { id: 'TTCDH', label: 'Trạng thái tất toán chờ đáo hạn LME (TTCDH)', category: 'ccp' },
 ];
 
 function getPreviousWorkday(d: Date = new Date()): Date {

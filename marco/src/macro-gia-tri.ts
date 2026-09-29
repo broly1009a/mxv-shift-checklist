@@ -276,7 +276,7 @@ async function main() {
       );
       console.log(`💾 Kết quả đã lưu: ${outputPath}`);
     } else {
-      console.log('ℹ️  Dry-run mode: không ghi file');
+      console.log(' Dry-run mode: không ghi file');
     }
 
     console.log(' Hoàn thành!');

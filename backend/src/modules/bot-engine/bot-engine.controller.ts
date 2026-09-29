@@ -43,12 +43,14 @@ import { AgentController } from './bot-agent.controller';
 import { getRelatedTaskIds } from './constants/bot-task-registry';
 import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { REQUIRED_CCP_FILES } from './handlers/file-audit.handler';
+import { REQUIRED_CCP_FILES, REQUIRED_CE_FILES } from './handlers/file-audit.handler';
 import {
   getMsBackupBase,
   getCqgBackupBase,
   resolveDailySubfolder,
   resolveStoragePathCrossPlatform,
+  parseJobPayload,
+  resolveTradingSessionDate,
 } from './helpers/bot-path.helper';
 
 @Controller('api/v1/bot-engine')
@@ -255,9 +257,9 @@ export class BotEngineController {
     );
     const usdExchangeRateStr = await this.settingsService.getSetting(
       'usd_exchange_rate',
-      '25220',
+      '',
     );
-    const usdExchangeRate = parseFloat(usdExchangeRateStr) || 25220;
+    const usdExchangeRate = parseFloat(usdExchangeRateStr) || 0;
 
     const botAutoRecoveryEnabled = (await this.settingsService.getSetting(
       'bot_auto_recovery_enabled',
@@ -1539,12 +1541,46 @@ export class BotEngineController {
    * 4. Compare and return report
    */
   @Post('run-gtt-check')
-  async runGttCheck(@Body() body: { downloadMarketCsv?: boolean } = {}) {
+  async runGttCheck(
+    @Body() body: { downloadMarketCsv?: boolean; async?: boolean; targetDate?: string } = {},
+  ) {
+    if (this.gttService.getIsRunning()) {
+      return {
+        success: true,
+        isRunning: true,
+        message: 'Tiến trình kiểm tra GTT đang chạy trên hệ thống.',
+        report: this.gttService.getLatestReport(),
+      };
+    }
+
+    if (body.async) {
+      // Chạy ngầm trong background, không block HTTP request
+      this.gttService
+        .runFullGttCheck({
+          downloadMarketCsv: body.downloadMarketCsv ?? false,
+          targetDate: body.targetDate,
+        })
+        .catch((err) => {
+          this.logger.error(
+            `[Background GTT Check] Lỗi: ${err.message}`,
+            err.stack,
+          );
+        });
+
+      return {
+        success: true,
+        isRunning: true,
+        message: 'Đã khởi động tiến trình kiểm tra GTT ngầm.',
+        report: this.gttService.getLatestReport(),
+      };
+    }
+
     try {
       const report = await this.gttService.runFullGttCheck({
         downloadMarketCsv: body.downloadMarketCsv ?? false,
+        targetDate: body.targetDate,
       });
-      return { success: true, report };
+      return { success: true, isRunning: false, report };
     } catch (err: any) {
       throw new HttpException(
         `Kiểm tra GTT thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -1557,15 +1593,73 @@ export class BotEngineController {
    * Returns the latest GTT comparison report.
    */
   @Get('gtt-report')
-  async getGttReport() {
+  async getGttReport(@Query('date') dateQuery?: string) {
     const report = this.gttService.getLatestReport();
+    const isRunning = this.gttService.getIsRunning();
+    const currentLogs = this.gttService.getCurrentLogs();
+
+    if (isRunning) {
+      return {
+        success: true,
+        isRunning: true,
+        currentLogs,
+        report: null,
+      };
+    }
+
     if (!report) {
       return {
         success: false,
+        isRunning: false,
+        currentLogs: [],
+        report: null,
         message: 'Chưa có báo cáo GTT nào. Hãy chạy kiểm tra GTT trước.',
       };
     }
-    return { success: true, report };
+
+    // Xác định ngày mục tiêu: nếu client truyền dateQuery (YYYY-MM-DD), ưu tiên dùng dateQuery;
+    // ngược lại, mặc định lấy phiên làm việc hiện tại (theo giờ Việt Nam UTC+7).
+    const resolvedSession = resolveTradingSessionDate(dateQuery);
+    const targetDateStr = resolvedSession.dateStr;
+
+    // Lấy ngày phiên thực tế của báo cáo (ưu tiên targetDate / sessionDate đã ghi nhận khi chạy, fallback runAt)
+    const reportSessionDate = report.targetDate || report.sessionDate;
+    const reportTime = report.runAt || report.completedAt;
+    const reportCalendarDateStr = reportTime
+      ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(reportTime))
+      : null;
+    const todayVnStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+
+    // Kiểm tra tính tương thích ngày:
+    // 1. Khớp sessionDate / targetDate được ghi nhận lúc chạy
+    // 2. Khớp ngày lịch chạy thực tế (reportCalendarDateStr)
+    // 3. Báo cáo vừa chạy trong ngày hôm nay (todayVnStr)
+    // 4. Khớp với dateQuery của client
+    const isMatchingDate =
+      (reportSessionDate && reportSessionDate === targetDateStr) ||
+      (reportCalendarDateStr && reportCalendarDateStr === targetDateStr) ||
+      (reportCalendarDateStr && reportCalendarDateStr === todayVnStr) ||
+      (dateQuery && (
+        (reportSessionDate && reportSessionDate === dateQuery.trim().slice(0, 10)) ||
+        (reportCalendarDateStr && reportCalendarDateStr === dateQuery.trim().slice(0, 10))
+      ));
+
+    if (!isMatchingDate) {
+      return {
+        success: true,
+        isRunning: false,
+        currentLogs: [],
+        report: null,
+        message: `Phiên ngày ${targetDateStr} chưa chạy đối soát GTT. Báo cáo gần nhất là của ngày ${reportSessionDate || reportCalendarDateStr}.`,
+      };
+    }
+
+    return {
+      success: true,
+      isRunning: false,
+      currentLogs,
+      report,
+    };
   }
 
   /**
@@ -1877,38 +1971,134 @@ export class BotEngineController {
       );
     }
 
-    const jobDir = path.join(process.cwd(), 'temp', 'reports', jobId);
-    if (!fs.existsSync(jobDir)) {
-      throw new HttpException(
-        'Thư mục lưu trữ báo cáo của Job này không tồn tại hoặc đã bị xóa.',
-        HttpStatus.NOT_FOUND,
-      );
+    const payload = parseJobPayload(job);
+    const candidateDirs: string[] = [];
+    const candidateFiles: string[] = [];
+
+    // Nguồn 1: Thư mục tạm theo JobId
+    candidateDirs.push(path.join(process.cwd(), 'temp', 'reports', jobId));
+
+    // Nguồn 2: Thư mục đích / file trong payload & result
+    if (payload.destFolder) candidateDirs.push(resolveStoragePathCrossPlatform(payload.destFolder));
+    if (payload.outputDir) candidateDirs.push(resolveStoragePathCrossPlatform(payload.outputDir));
+    if (payload.backupFolder) candidateDirs.push(resolveStoragePathCrossPlatform(payload.backupFolder));
+    if (payload.targetFolder) candidateDirs.push(resolveStoragePathCrossPlatform(payload.targetFolder));
+
+    const result = payload.result || {};
+    if (result.destFolder) candidateDirs.push(resolveStoragePathCrossPlatform(result.destFolder));
+    if (result.outputDir) candidateDirs.push(resolveStoragePathCrossPlatform(result.outputDir));
+    if (result.tempDir) candidateDirs.push(resolveStoragePathCrossPlatform(result.tempDir));
+
+    // File đơn lẻ
+    if (result.outputPath) candidateFiles.push(resolveStoragePathCrossPlatform(result.outputPath));
+    if (result.filePath) candidateFiles.push(resolveStoragePathCrossPlatform(result.filePath));
+    if (payload.outputPath) candidateFiles.push(resolveStoragePathCrossPlatform(payload.outputPath));
+
+    // Mảng file
+    if (Array.isArray(result.downloadedFiles)) {
+      for (const f of result.downloadedFiles) {
+        if (typeof f === 'string') candidateFiles.push(resolveStoragePathCrossPlatform(f));
+        else if (f?.path) candidateFiles.push(resolveStoragePathCrossPlatform(f.path));
+      }
+    }
+    if (Array.isArray(payload.files)) {
+      for (const f of payload.files) {
+        if (typeof f === 'string') candidateFiles.push(resolveStoragePathCrossPlatform(f));
+        else if (f?.path) candidateFiles.push(resolveStoragePathCrossPlatform(f.path));
+      }
     }
 
-    const files = fs.readdirSync(jobDir);
-    if (files.length === 0) {
+    // Nguồn 3: Thư mục Backup ngày tương ứng
+    const dateInput = payload.sessionDay || payload.targetDate || payload.startDate || (job.createdAt ? new Date(job.createdAt) : null);
+    if (dateInput) {
+      try {
+        const jobType = (job.jobType || '').toUpperCase();
+        if (jobType.includes('RPA') || jobType.includes('MS')) {
+          const rawMs = await getMsBackupBase(this.settingsService);
+          if (rawMs) candidateDirs.push(resolveDailySubfolder(rawMs, dateInput).fullPath);
+        } else if (jobType.includes('CCP') || jobType.includes('LOT') || jobType.includes('VALUE')) {
+          const rawCcp = await this.settingsService.getSetting('bot_backup_path_ccp', '');
+          if (rawCcp) candidateDirs.push(resolveDailySubfolder(rawCcp, dateInput).fullPath);
+        } else if (jobType.includes('CE')) {
+          const rawCe = await this.settingsService.getSetting('bot_backup_path_ce', '');
+          if (rawCe) candidateDirs.push(resolveDailySubfolder(rawCe, dateInput).fullPath);
+        } else if (jobType.includes('CAST')) {
+          const rawCast = await this.settingsService.getSetting('bot_backup_path_cast', '');
+          if (rawCast) candidateDirs.push(resolveDailySubfolder(rawCast, dateInput).fullPath);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[DownloadZip] Không thể suy diễn thư mục ngày từ dateInput: ${err.message}`);
+      }
+    }
+
+    // Thu thập các file thực tế tồn tại trên đĩa
+    const fileMap = new Map<string, string>(); // baseFileName -> absolutePath
+
+    // 1. Quét file đơn lẻ
+    for (const filePath of candidateFiles) {
+      if (filePath && fs.existsSync(filePath)) {
+        try {
+          const stat = fs.statSync(filePath);
+          if (stat.isFile() && stat.size > 0) {
+            fileMap.set(path.basename(filePath), filePath);
+          }
+        } catch {}
+      }
+    }
+
+    // 2. Quét các thư mục ứng viên
+    const targets = Array.isArray(payload.targets)
+      ? payload.targets.map((t: string) => t.toLowerCase())
+      : [];
+
+    for (const dir of candidateDirs) {
+      if (!dir || !fs.existsSync(dir)) continue;
+      try {
+        const stat = fs.statSync(dir);
+        if (!stat.isDirectory()) continue;
+
+        const entries = fs.readdirSync(dir);
+        for (const entry of entries) {
+          if (entry.startsWith('.') || entry.endsWith('.tmp')) continue;
+          const fullFilePath = path.join(dir, entry);
+          try {
+            const fStat = fs.statSync(fullFilePath);
+            if (fStat.isFile() && fStat.size > 0) {
+              if (!fileMap.has(entry)) {
+                // Nếu targets rỗng hoặc là thư mục tạm của job hoặc entry khớp target
+                if (targets.length === 0 || dir.includes(jobId) || targets.some(t => entry.toLowerCase().includes(t))) {
+                  fileMap.set(entry, fullFilePath);
+                }
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+    if (fileMap.size === 0) {
       throw new HttpException(
-        'Không có báo cáo nào được tải về trong Job này.',
+        `Không tìm thấy file báo cáo nào của tác vụ (${job.jobType}) để nén tải về. Thư mục lưu trữ cục bộ hoặc thư mục sao lưu theo ngày chưa có tệp hoặc đã bị xóa.`,
         HttpStatus.NOT_FOUND,
       );
     }
 
     const zip = new JSZip();
-    for (const filename of files) {
-      const filePath = path.join(jobDir, filename);
-      const fileStat = fs.statSync(filePath);
-      if (fileStat.isFile()) {
+    for (const [filename, filePath] of fileMap.entries()) {
+      try {
         const fileContent = fs.readFileSync(filePath);
         zip.file(filename, fileContent);
+      } catch (err: any) {
+        this.logger.warn(`[DownloadZip] Không thể đọc file ${filePath}: ${err.message}`);
       }
     }
 
-    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=BaoCao_MXV_${jobId}.zip`,
+      `attachment; filename=BaoCao_${job.jobType}_${jobId}.zip`,
     );
     return res.send(zipBuffer);
   }
@@ -1989,6 +2179,29 @@ export class BotEngineController {
       },
       files: results,
     };
+  }
+
+  /**
+   * Tải trực tiếp file EOD từ hòm thư Microsoft 365 Outlook về thư mục Backup M-System.
+   */
+  @Post('fetch-eod-email')
+  async fetchEodEmail(
+    @Body('targetDate') targetDateStr?: string,
+    @Body('customDir') customDir?: string,
+  ) {
+    try {
+      const result = await this.emailWatcherService.fetchEodEmail(
+        targetDateStr,
+        customDir,
+      );
+      return result;
+    } catch (err: any) {
+      this.logger.error(`Error in fetchEodEmail: ${err.message}`);
+      throw new HttpException(
+        err.message || 'Lỗi khi tải file EOD từ Microsoft 365 Outlook',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
@@ -2850,6 +3063,117 @@ export class BotEngineController {
       startDate: body.startDate,
       endDate: body.endDate,
       outputDir,
+    };
+  }
+
+  /**
+   * Quét nhanh thư mục Backup CoreEX (CE) và trả về trạng thái 10 file báo cáo.
+   * POST /api/v1/bot-engine/audit-ce-backup
+   */
+  @Post('audit-ce-backup')
+  async auditCeBackup(@Body('targetDate') targetDateStr?: string) {
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const backupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ce',
+      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
+    );
+
+    const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, targetDate);
+    const resolvedBackupPath = resolveStoragePathCrossPlatform(backupPath);
+    const scanPath = fs.existsSync(dailyPath) ? dailyPath : resolvedBackupPath;
+
+    if (!fs.existsSync(scanPath)) {
+      return {
+        success: false,
+        backupPath: scanPath,
+        message: `Thư mục backup CE không tồn tại: ${scanPath}`,
+        summary: { total: REQUIRED_CE_FILES.length, ok: 0, missing: REQUIRED_CE_FILES.length, empty: 0 },
+        files: REQUIRED_CE_FILES.map((f) => ({
+          key: f.key,
+          name: f.name,
+          filename: f.filename,
+          status: 'MISSING',
+          size: 0,
+        })),
+      };
+    }
+
+    const results = await this.jobQueueService.scanCeBackupFiles(
+      scanPath,
+      targetDate,
+    );
+    const okCount = results.filter((r: any) => r.status === 'OK').length;
+    const missingCount = results.filter((r: any) => r.status === 'MISSING').length;
+    const emptyCount = results.filter((r: any) => r.status === 'EMPTY').length;
+
+    return {
+      success: true,
+      backupPath: scanPath,
+      summary: {
+        total: results.length,
+        ok: okCount,
+        missing: missingCount,
+        empty: emptyCount,
+      },
+      files: results,
+    };
+  }
+
+  /**
+   * Enqueue Background BotJob để tải báo cáo CoreEX (CE) (hỗ trợ polling trạng thái & logs).
+   * POST /api/v1/bot-engine/trigger-ce-download
+   */
+  @Post('trigger-ce-download')
+  async triggerCeDownload(
+    @Body('date') dateStr?: string,
+    @Body('startDate') startDate?: string,
+    @Body('endDate') endDate?: string,
+    @Body('reports') reports?: string[],
+    @Body('outputDir') outputDir?: string,
+  ) {
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const targetStart = startDate || dateStr || today;
+    const targetEnd = endDate || dateStr || targetStart;
+
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CE_REPORT', {
+      startDate: targetStart,
+      endDate: targetEnd,
+      reports: reports && reports.length > 0 ? reports : undefined,
+      outputDir,
+      sessionDay: targetStart,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu tải báo cáo CoreEX (CE) vào hàng đợi.',
+      jobId: job._id,
+    };
+  }
+
+  /**
+   * Enqueue Background BotJob để tải báo cáo ACM (Web & SFTP).
+   * POST /api/v1/bot-engine/trigger-acm-download
+   */
+  @Post('trigger-acm-download')
+  async triggerAcmDownload(
+    @Body('date') dateStr?: string,
+    @Body('targetDate') targetDateStr?: string,
+    @Body('reports') reports?: string[],
+  ) {
+    const backupPath = await this.jobQueueService.getAcmBackupBase();
+    const effectiveDate = targetDateStr || dateStr || new Date().toISOString();
+
+    const job = await this.jobQueueService.enqueue('FILE_AUDIT_ACM', {
+      backupPath,
+      targetDate: effectiveDate,
+      reports: reports && reports.length > 0 ? reports : undefined,
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu tải và kiểm tra file backup ACM vào hàng đợi.',
+      jobId: job._id,
     };
   }
 }

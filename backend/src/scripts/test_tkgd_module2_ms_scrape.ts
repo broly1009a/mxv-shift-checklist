@@ -286,7 +286,7 @@ async function runModule2Test() {
         // KIỂM TRA ĐÃ CHECK & KHỚP 100% CHƯA (Tránh Duplicate)
         const isAlreadyChecked = record.ketLuan?.trangThai === 'KHOP' && record.ms?.isFoundOnMS === true;
         if (isAlreadyChecked && !isForce) {
-          console.log(`\n⏭️ [BỎ QUA] Tài khoản ${code} (${accountType}) đã KHỚP 100%. Tự động bỏ qua không cào lại (Dùng cờ --force nếu muốn cào lại)!`);
+          console.log(`\n [BỎ QUA] Tài khoản ${code} (${accountType}) đã KHỚP 100%. Tự động bỏ qua không cào lại (Dùng cờ --force nếu muốn cào lại)!`);
           continue;
         }
 

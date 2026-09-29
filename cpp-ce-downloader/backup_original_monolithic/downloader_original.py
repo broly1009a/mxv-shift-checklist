@@ -541,7 +541,7 @@ def trigger_export_download(page: Page, headless: bool = False, log=print):
     if headless:
         no_data_elem = page.locator("xpath=//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first
         if no_data_elem.is_visible(timeout=800):
-            log("  ℹ️ [Headless Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh để tối ưu tốc độ.")
+            log("  [Headless Fast-Skip] Bảng báo cáo không có dữ liệu -> Bỏ qua nhanh để tối ưu tốc độ.")
             return "NO_DATA"
 
     # Tìm nút 'Kết xuất'
@@ -572,11 +572,11 @@ def trigger_export_download(page: Page, headless: bool = False, log=print):
                 if toast_elem.is_visible(timeout=300):
                     toast_text = toast_elem.text_content().strip()
                     if "không có dữ liệu" in toast_text.lower():
-                        log(f"  ℹ️ [Toast Notification] {toast_text}")
+                        log(f"  [Toast Notification] {toast_text}")
                         return "NO_DATA"
             download_obj = download_info.value
         except PlaywrightTimeoutError:
-            log("  ℹ️ [Thông báo] Không có dữ liệu để xuất (VNCLEAR).")
+            log("  [Thông báo] Không có dữ liệu để xuất (VNCLEAR).")
             download_obj = "NO_DATA"
         except Exception as e:
             log(f"   Lỗi khi chọn 'Xuất tất cả': {e}")
@@ -592,11 +592,11 @@ def trigger_export_download(page: Page, headless: bool = False, log=print):
                 if toast_elem.is_visible(timeout=300):
                     toast_text = toast_elem.text_content().strip()
                     if "không có dữ liệu" in toast_text.lower():
-                        log(f"  ℹ️ [Toast Notification] {toast_text}")
+                        log(f"  [Toast Notification] {toast_text}")
                         return "NO_DATA"
             download_obj = download_info.value
         except PlaywrightTimeoutError:
-            log("  ℹ️ [Thông báo] Không có dữ liệu để xuất khi kích đúp.")
+            log("  [Thông báo] Không có dữ liệu để xuất khi kích đúp.")
             download_obj = "NO_DATA"
         except Exception as e:
             log(f"   Lỗi khi kích đúp nút 'Kết xuất': {e}")
@@ -669,7 +669,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
     try:
         download_result = trigger_export_download(page, headless=headless, log=log)
         if download_result == "NO_DATA":
-            log(f"  ℹ️ Bỏ qua tạo file {file_name} do hệ thống không có dữ liệu.")
+            log(f"  Bỏ qua tạo file {file_name} do hệ thống không có dữ liệu.")
             return True
         elif download_result:
             download_result.save_as(dest_path)
@@ -679,7 +679,7 @@ def download_single_report(page: Page, report_cfg: dict, interval: dict, output_
             log(f"   Không thể kích hoạt tải file {file_name}")
             return False
     except PlaywrightTimeoutError:
-        log(f"  ℹ️ Bỏ qua tạo file {file_name} do không có dữ liệu để xuất.")
+        log(f"  Bỏ qua tạo file {file_name} do không có dữ liệu để xuất.")
         return True
     except Exception as e:
         log(f"   Lỗi kết xuất file {file_name}: {e}")
@@ -701,13 +701,13 @@ def launch_browser_resilient(p, headless: bool, log=print):
     try:
         return p.chromium.launch(headless=headless)
     except Exception as e1:
-        log(f"  ℹ️ Playwright Chromium không sẵn có. Đang chuyển sang Google Chrome hệ thống...")
+        log(f"  Playwright Chromium không sẵn có. Đang chuyển sang Google Chrome hệ thống...")
 
     # 2. Fallback 1: Google Chrome
     try:
         return p.chromium.launch(headless=headless, channel="chrome")
     except Exception as e2:
-        log(f"  ℹ️ Google Chrome không sẵn có. Đang chuyển sang Microsoft Edge hệ thống...")
+        log(f"  Google Chrome không sẵn có. Đang chuyển sang Microsoft Edge hệ thống...")
 
     # 3. Fallback 2: Microsoft Edge (Máy Windows 10/11 luôn sẵn có 100%)
     try:

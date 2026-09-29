@@ -21,6 +21,7 @@
     "test:checklist": "ts-node src/test-checklist-logic.ts",
     "test:bot": "ts-node src/test-bot-engine.ts",
     "test:post-eod": "ts-node src/test-post-eod.ts",
+    "test:selectors": "node src/scripts/test_verify_playwright_selectors.js",
     "test:rpa": "ts-node src/test-rpa-flow.ts",
     "test:oms-playwright": "ts-node src/test-oms-playwright.ts",
     "test:ms-login": "ts-node src/test-ms-login.ts",
@@ -47,6 +48,15 @@
     "tkgd:case-inspector": "node src/scripts/tkgd_case_inspector.js",
     "test:benchmark": "node src/scripts/simulate_tkgd_realistic_benchmark.js",
     "test:benchmark:infra": "node src/scripts/simulate_tkgd_realistic_benchmark.js --api http://localhost:3005"
+    "test:eod-email": "ts-node src/scripts/test_m365_eod_email.ts",
+    "test:ms-20": "node src/scripts/test_ms_download_all_20_reports.js",
+    "test:ms-ttm": "node src/scripts/test_ms_download_ttm_tttt.js",
+    "test:cqg-parallel": "node src/scripts/test_cqg_parallel_standalone.js",
+    "test:ccp-25": "node src/scripts/test_ccp_download_25_files.js",
+    "test:tkgd-pipeline": "ts-node src/scripts/run_tkgd_pipeline.ts",
+    "test:pre-eod": "ts-node src/scripts/run_auto_check_pre_eod_active.ts",
+    "test:check-klgd": "node src/scripts/test_check_klgd_playwright.js --headed",
+    "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -45,7 +45,7 @@ def test_cccd_images():
                                 qr_data = d.data.decode('utf-8', errors='ignore')
                                 print(f"  🎯 [QR Code Tìm Thấy!]: {qr_data}")
                         else:
-                            print("  ℹ️ Không phát hiện QR code qua pyzbar")
+                            print("  Không phát hiện QR code qua pyzbar")
                     except Exception as e:
                         print(f"   Lỗi pyzbar: {e}")
 
@@ -57,7 +57,7 @@ def test_cccd_images():
                         print(f"  📝 [Tesseract Text ({len(text)} ký tự)]:")
                         print("     " + "\n     ".join(text.splitlines()[:10]))
                     except Exception as e:
-                        print(f"  ℹ️ Tesseract chưa chạy được (cần cài binary): {e}")
+                        print(f"  Tesseract chưa chạy được (cần cài binary): {e}")
 
 if __name__ == "__main__":
     test_cccd_images()

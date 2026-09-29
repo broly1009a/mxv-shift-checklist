@@ -656,7 +656,7 @@ export class ReconciliationController {
     @Body('targetDate') targetDate?: string,
     @Body('usdRate') usdRateRaw?: number,
   ) {
-    const usdRate = usdRateRaw ? Number(usdRateRaw) : 25220;
+    const usdRate = usdRateRaw ? Number(usdRateRaw) : await this.reconciliationService.getCurrentUsdRate();
     this.logger.log(
       `Starting auto reconciliation via RPA for date: ${targetDate || 'today'}`,
     );
@@ -747,7 +747,7 @@ export class ReconciliationController {
     @Body('tradingDate') tradingDateStr?: string,
     @Body('sessionStart') sessionStartStr?: string,
   ) {
-    const usdRate = usdRateStr ? parseFloat(usdRateStr) : 25220;
+    const usdRate = usdRateStr ? parseFloat(usdRateStr) : await this.reconciliationService.getCurrentUsdRate();
     if (usdRateStr && !isNaN(usdRate)) {
       await this.reconciliationService.saveUsdRate(usdRate);
     }
@@ -916,14 +916,9 @@ export class ReconciliationController {
       const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
 
       let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
-      if (result.sessionStart && result.checkTime) {
-        const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
-          timeZone: 'Asia/Ho_Chi_Minh',
-        });
-        const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
-          timeZone: 'Asia/Ho_Chi_Minh',
-        });
-        note += `• Khoảng thời gian lọc: từ ${startStr} đến ${endStr}\n`;
+      if (result.targetDate) {
+        const t1Str = new Date(result.targetDate).toLocaleDateString('vi-VN');
+        note += `• Ngày phiên đối chiếu T-1: ${t1Str}\n`;
       }
       note += `• Khớp lệnh tự doanh (MS vs Straits): ${result.totals.totalACM_MS} vs ${result.totals.totalACM_Straits} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
       note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalCQG_MS} vs ${result.totals.totalCQG_FR} lot (Chênh lệch: ${result.totals.differCQG} lot)\n`;
@@ -992,8 +987,8 @@ export class ReconciliationController {
   @Permissions('ACCESS_AUTO_SHIFT')
   async syncExchangeRates() {
     try {
-      const rates = await this.reconciliationService.syncAllExchangeRatesFromMSystem();
-      return { success: true, rates };
+      const res = await this.reconciliationService.syncAllExchangeRatesFromMSystem();
+      return { success: true, ...res };
     } catch (err: any) {
       throw new BadRequestException(`Không thể đồng bộ tỷ giá đa tiền tệ: ${err.message}`);
     }
