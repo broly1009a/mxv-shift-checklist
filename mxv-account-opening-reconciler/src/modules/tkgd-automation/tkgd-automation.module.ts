@@ -13,6 +13,7 @@ import { TkgdUserConfig, TkgdUserConfigSchema } from '../../schemas/tkgd-user-co
 import { RawAccountMail, RawAccountMailSchema } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordSchema } from '../../schemas/clean-account-record.schema';
 import { TkgdActivityLog, TkgdActivityLogSchema } from '../../schemas/tkgd-activity-log.schema';
+import { TkgdExtractionLog, TkgdExtractionLogSchema } from '../../schemas/tkgd-extraction-log.schema';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
       { name: RawAccountMail.name, schema: RawAccountMailSchema },
       { name: CleanAccountRecord.name, schema: CleanAccountRecordSchema },
       { name: TkgdActivityLog.name, schema: TkgdActivityLogSchema },
+      { name: TkgdExtractionLog.name, schema: TkgdExtractionLogSchema },
     ]),
     SystemSettingsModule,
   ],

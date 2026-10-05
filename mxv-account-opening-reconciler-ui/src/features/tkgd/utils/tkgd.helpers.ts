@@ -56,12 +56,38 @@ export function formatDateStr(val?: any): string {
 }
 
 /**
+ * Định dạng ngày giờ chi tiết HH:mm:ss DD/MM/YYYY cho Audit Trail & Log
+ */
+export function formatDateTimeStr(val?: any): string {
+  if (!val) return '-';
+  const str = String(val).trim();
+  if (!str || str === '-' || str === 'undefined' || str === 'null') return '-';
+
+  try {
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return str;
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`;
+  } catch {
+    return str;
+  }
+}
+
+/**
  * Làm sạch tên khách hàng từ email, loại bỏ chữ ký và dòng cam kết thừa
  */
 export function cleanMailName(name?: string): string {
   if (!name) return '-';
   let s = name.split(/[\r\n]/)[0].trim();
-  s = s.replace(/\s+(TVKD|Tài khoản|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
+  // Loại bỏ các tiền tố như "Tên tài khoản:", "Tên khách hàng:", "Họ và tên:"
+  s = s.replace(/^(Tên\s*(khách\s*hàng|tài\s*khoản)?|Họ\s*(và\s*)?tên)[\s:–-]+/i, '').trim();
+  // Loại bỏ các hậu tố thừa sau tên
+  s = s.replace(/\s+(TVKD|Mã TKGD|đã đính kèm|đề nghị|cam kết|kính gửi|HĐ|CCCD)[\s\S]*$/i, '').trim();
   return s.replace(/[;,.\-:]+$/, '').trim() || '-';
 }
 

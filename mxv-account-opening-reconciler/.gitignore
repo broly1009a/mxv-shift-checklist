@@ -9,12 +9,15 @@ dist/
 build/
 *.tsbuildinfo
 
-# Browser profiles, caches, locks (Chrome user data)
-data/msystem_browser_profile/
-data/temp_ms_persistent_profile/
-data/temp_tkgd_attachments/
+# Browser profiles, caches, runtime data, anomaly logs & attachments
+data/
 test_screenshots/
 temp/
+scratch/
+debug_*
+*.backup.*
+*.bak
+*.code-workspace
 *.png
 *.jpg
 *.jpeg

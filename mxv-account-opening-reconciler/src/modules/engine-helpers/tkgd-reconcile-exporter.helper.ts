@@ -116,17 +116,29 @@ function isGenderMatch(g1?: string, g2?: string): boolean {
  */
 export function getTkgdOutputDirectory(): string {
   // 1. Nếu có cấu hình tùy chỉnh qua biến môi trường
-  if (process.env.TKGD_OUTPUT_ROOT && fs.existsSync(process.env.TKGD_OUTPUT_ROOT)) {
-    return process.env.TKGD_OUTPUT_ROOT;
+  if (process.env.TKGD_OUTPUT_ROOT) {
+    try {
+      if (!fs.existsSync(process.env.TKGD_OUTPUT_ROOT)) {
+        fs.mkdirSync(process.env.TKGD_OUTPUT_ROOT, { recursive: true });
+      }
+      return process.env.TKGD_OUTPUT_ROOT;
+    } catch { }
   }
 
-  // 2. Môi trường Server Linux (PM2 / Production)
+  if (process.env.ATTACHMENT_STORAGE_PATH) {
+    try {
+      const outputFromAttachment = path.resolve(process.env.ATTACHMENT_STORAGE_PATH, '..', 'output');
+      if (!fs.existsSync(outputFromAttachment)) {
+        fs.mkdirSync(outputFromAttachment, { recursive: true });
+      }
+      return outputFromAttachment;
+    } catch { }
+  }
+
+  // 2. Môi trường Server Linux (ổ chia sẻ /mnt/qlgd-it đã được mount)
   if (process.platform === 'linux') {
     const linuxMnt = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Mo TKGD';
-    try {
-      if (!fs.existsSync(linuxMnt)) fs.mkdirSync(linuxMnt, { recursive: true });
-      return linuxMnt;
-    } catch { }
+    if (fs.existsSync(linuxMnt)) return linuxMnt;
     const linuxFallback = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong';
     if (fs.existsSync(linuxFallback)) return linuxFallback;
   }
@@ -134,31 +146,32 @@ export function getTkgdOutputDirectory(): string {
   // 3. Môi trường máy trạm Windows (có mount ổ M:\)
   if (process.platform === 'win32') {
     const winMnt = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD';
-    try {
-      if (fs.existsSync('M:\\Tailieuchung\\QLGD-IT')) {
+    if (fs.existsSync('M:\\Tailieuchung\\QLGD-IT')) {
+      try {
         if (!fs.existsSync(winMnt)) fs.mkdirSync(winMnt, { recursive: true });
         return winMnt;
-      }
-    } catch { }
+      } catch { }
+    }
 
     const winShortMnt = 'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Mo TKGD';
-    try {
-      if (fs.existsSync('M:\\')) {
+    if (fs.existsSync('M:\\')) {
+      try {
         if (!fs.existsSync(winShortMnt)) fs.mkdirSync(winShortMnt, { recursive: true });
         return winShortMnt;
-      }
-    } catch { }
+      } catch { }
+    }
   }
 
-  // 4. Fallback thư mục output trong project khi test độc lập
-  const localOutput = path.resolve(
-    __dirname,
-    '../../../../../POC/TKGD-Automation/output',
-  );
-  if (!fs.existsSync(localOutput)) {
-    fs.mkdirSync(localOutput, { recursive: true });
+  // 4. Fallback an toàn 100% trong thư mục data/output nội bộ của project (không leo lên /opt)
+  const safeProjectOutput = path.resolve(process.cwd(), 'data', 'output');
+  try {
+    if (!fs.existsSync(safeProjectOutput)) {
+      fs.mkdirSync(safeProjectOutput, { recursive: true });
+    }
+    return safeProjectOutput;
+  } catch {
+    return process.cwd();
   }
-  return localOutput;
 }
 
 /**
@@ -506,7 +519,8 @@ export async function reconcileAndExportToExcel(
     // 3. Ghi vào Sheet "MS"
     // NGHIỆP VỤ MXV: Hồ sơ nhà đầu tư trên M-System quản lý theo mã cơ sở không đuôi (baseCode).
     // Các tiểu khoản (-A, -L, -S) ăn theo hồ sơ gốc nên chỉ cần check và ghi 1 dòng cho mỗi khách hàng.
-    if (sheetMS && ms.isFoundOnMS && baseCode && !writtenMsSet.has(baseCode)) {
+    // if (sheetMS && ms.isFoundOnMS && baseCode && !writtenMsSet.has(baseCode)) {
+    if (sheetMS && (ms.hoVaTen || ms.soCMND_HoChieu) && baseCode && !writtenMsSet.has(baseCode)) {
       writtenMsSet.add(baseCode);
       const row = sheetMS.addRow([
         sttMs++,

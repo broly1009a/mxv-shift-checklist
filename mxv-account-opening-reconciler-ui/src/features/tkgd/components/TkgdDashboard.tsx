@@ -101,6 +101,16 @@ export const TkgdDashboard: React.FC = () => {
     setFilter: setStatusFilter,
     batchDate: dateFilter,
     setBatchDate: setDateFilter,
+    startDate: dateStart,
+    setStartDate: setDateStart,
+    endDate: dateEnd,
+    setEndDate: setDateEnd,
+    sortBy,
+    sortOrder,
+    handleSort,
+    visibleColumns,
+    toggleColumn,
+    setColumnPreset,
     searchTerm: searchQuery,
     setSearchTerm: setSearchQuery,
     isCompactView: compactView,
@@ -136,7 +146,14 @@ export const TkgdDashboard: React.FC = () => {
     handleRunPipelineAll,
     handleRunReconcile,
     handleDownloadExcel,
-  } = useTkgdActions({ onSuccess: fetchRecords, batchDate: dateFilter });
+  } = useTkgdActions({
+    onSuccess: fetchRecords,
+    batchDate: dateFilter,
+    startDate: dateStart,
+    endDate: dateEnd,
+    filter: statusFilter,
+    search: searchQuery,
+  });
 
   // Hook xem phóng to & xoay ảnh CCCD / Chữ ký / PDF
   const {
@@ -632,16 +649,23 @@ export const TkgdDashboard: React.FC = () => {
             />
           )}
 
-          {/* Bộ lọc ngày, trạng thái, tìm kiếm */}
+          {/* Bộ lọc khoảng thời gian, trạng thái, tìm kiếm & quản lý cột */}
           <TkgdFilterBar
             filter={statusFilter}
             setFilter={setStatusFilter}
             batchDate={dateFilter}
             setBatchDate={setDateFilter}
+            startDate={dateStart}
+            setStartDate={setDateStart}
+            endDate={dateEnd}
+            setEndDate={setDateEnd}
             searchTerm={searchQuery}
             setSearchTerm={setSearchQuery}
             isCompactView={compactView}
             toggleCompactView={toggleCompactView}
+            visibleColumns={visibleColumns}
+            toggleColumn={toggleColumn}
+            setColumnPreset={setColumnPreset}
             stats={tkgdStats}
             total={total}
             onResetPage={() => setPage(1)}
@@ -658,6 +682,10 @@ export const TkgdDashboard: React.FC = () => {
             total={total}
             totalPages={totalPages}
             isCompactView={compactView}
+            visibleColumns={visibleColumns}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
             expandedRowId={expandedRowId}
             setExpandedRowId={setExpandedRowId}
             isProcessing={isProcessing}

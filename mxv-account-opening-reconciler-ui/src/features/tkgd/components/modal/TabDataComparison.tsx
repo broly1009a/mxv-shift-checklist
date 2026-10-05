@@ -115,12 +115,17 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     !!inspectRecord.phuLuc ||
     inspectRecord.subAccounts?.some((s) => s.type === 'ACM');
 
+  // const isMsSynced = !!(inspectRecord.ms?.isFoundOnMS || inspectRecord.ms?.hoVaTen || inspectRecord.ms?.soCMND_HoChieu);
+  const isMsSynced = !!(inspectRecord.ms?.hoVaTen || inspectRecord.ms?.soCMND_HoChieu);
+
   const rows = [
     {
       label: 'Mã TKGD (Futures)',
       left: inspectRecord.noiDungMail?.maTKGD_Futures || baseCode,
-      right: inspectRecord.ms?.maTKGD ? inspectRecord.ms.maTKGD.split('-')[0] : baseCode,
-      customMatch: true,
+      right: isMsSynced
+        ? (inspectRecord.ms?.maTKGD ? inspectRecord.ms.maTKGD.split('-')[0] : baseCode)
+        : '-',
+      customMatch: isMsSynced ? true : false,
       leftMeta: { sourceName: 'Email TVKD (Tiêu đề / Body)', method: 'Text Parser', confidence: '100%' },
       rightMeta: { sourceName: 'M-System Web', method: 'Playwright Scraper', confidence: '100%' },
     },
@@ -129,8 +134,8 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
         {
           label: 'Tiểu khoản ACM (-A)',
           left: inspectRecord.noiDungMail?.maTKGD_ACM || `${baseCode}-A`,
-          right: inspectRecord.ms?.maTKGD?.includes('-A') ? inspectRecord.ms.maTKGD : `${baseCode}-A`,
-          customMatch: true,
+          right: isMsSynced && inspectRecord.ms?.maTKGD?.includes('-A') ? inspectRecord.ms.maTKGD : (isMsSynced ? `${baseCode}-A` : '-'),
+          customMatch: isMsSynced ? true : false,
           leftMeta: { sourceName: 'Email TVKD (Yêu cầu ACM)', method: 'Text Parser', confidence: '100%' },
           rightMeta: { sourceName: 'M-System Web', method: 'Playwright Scraper', confidence: '100%' },
         },
@@ -138,11 +143,11 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
           label: 'Phụ lục PL01 (ACM)',
           left: inspectRecord.phuLuc?.chuKy ? 'Đã ký (PL01)' : 'Có đính kèm file PL01',
           right:
-            inspectRecord.ms?.maTKGD?.includes('-A') ||
-              inspectRecord.subAccounts?.some((s) => s.type === 'ACM')
+            isMsSynced && (inspectRecord.ms?.maTKGD?.includes('-A') ||
+              inspectRecord.subAccounts?.some((s) => s.type === 'ACM'))
               ? 'Đã kích hoạt trên MS'
-              : 'Đang xử lý',
-          customMatch: true,
+              : (isMsSynced ? 'Đang xử lý' : '-'),
+          customMatch: isMsSynced ? true : false,
           leftMeta: { sourceName: 'Phụ lục PL01 (PDF)', method: 'PDF Parser', confidence: '98%' },
           rightMeta: { sourceName: 'M-System Web', method: 'Playwright Scraper', confidence: '100%' },
         },
@@ -150,23 +155,77 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
       : []),
     {
       label: 'Họ và tên',
-      left: cleanMailName(
-        inspectRecord.hopDong?.hoVaTen ||
-        inspectRecord.canCuoc?.hoVaTen ||
-        inspectRecord.noiDungMail?.tenTaiKhoan
-      ),
+      left: (() => {
+        const JUNK_NAME_REGEX = /(CÔNG\s*TY|GIA\s*CÁT\s*LỢI|HITECH|PHÚ\s*QUÝ|CCCD|CMND|HỘ\s*CHIẾU|GIỚI\s*TÍNH|NƠI\s*CẤP|ĐỊA\s*CHỈ|NGÀY\s*SINH|CÁ\s*NHÂN|DOANH\s*NGHIỆP|THỰC\s*HIỆN|ĐẶT\s*LỆNH|XÁC\s*NHẬN|MỞ\s*TÀI\s*KHOẢN|HỢP\s*ĐỒNG|BÊN\s*A|BÊN\s*B|ĐẠI\s*DIỆN|KHÁCH\s*HÀNG|KHACH\s*HANG|KHÁCH\s*ÁN|TÊN\s*KHÁCH\s*HÀNG|TEN\s*KHACH\s*HANG|CHỦ\s*TÀI\s*KHOẢN|CHU\s*TAI\s*KHOAN)/i;
+        const normMs = (inspectRecord.ms?.hoVaTen || inspectRecord.ms?.tenTKGD || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/Đ/g, 'd')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+        const isMatchMs = (candidate?: string) => {
+          if (!candidate || candidate === '-') return false;
+          const normCand = candidate
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'd')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
+          return normMs && (normMs === normCand || normMs.includes(normCand) || normCand.includes(normMs));
+        };
+
+        const hdName = inspectRecord.hopDong?.hoVaTen;
+        const imgName = inspectRecord.canCuoc?.hoVaTen;
+        const mailName = inspectRecord.noiDungMail?.tenTaiKhoan;
+
+        // Ưu tiên: nếu HĐ là từ khóa rác biểu mẫu (KHÁCH HÀNG...) hoặc không khớp MS mà CCCD/Mail khớp MS
+        if (imgName && !JUNK_NAME_REGEX.test(imgName) && (!hdName || JUNK_NAME_REGEX.test(hdName) || (normMs && !isMatchMs(hdName) && isMatchMs(imgName)))) {
+          return cleanMailName(imgName);
+        }
+        if (mailName && !JUNK_NAME_REGEX.test(mailName) && (!hdName || JUNK_NAME_REGEX.test(hdName) || (normMs && !isMatchMs(hdName) && isMatchMs(mailName)))) {
+          return cleanMailName(mailName);
+        }
+        if (hdName && !JUNK_NAME_REGEX.test(hdName)) return cleanMailName(hdName);
+        if (imgName && !JUNK_NAME_REGEX.test(imgName)) return cleanMailName(imgName);
+        return cleanMailName(mailName || hdName || '-');
+      })(),
       right: inspectRecord.ms?.hoVaTen || inspectRecord.ms?.tenTKGD || '-',
-      leftMeta: {
-        sourceName: inspectRecord.hopDong?.hoVaTen
-          ? 'Hợp đồng mở TK (PDF)'
-          : inspectRecord.canCuoc?.hoVaTen
-            ? 'Ảnh CCCD Mặt Trước'
-            : 'Email TVKD',
-        method: inspectRecord.hopDong?.hoVaTen
-          ? 'Text Layer PDF'
-          : inspectRecord.canCuoc?.ocrConfidence || 'OCR Engine',
-        confidence: '98%',
-      },
+      leftMeta: (() => {
+        const JUNK = /(CÔNG\s*TY|GIA\s*CÁT\s*LỢI|HITECH|PHÚ\s*QUÝ|CCCD|CMND|HỘ\s*CHIẾU|GIỚI\s*TÍNH|NƠI\s*CẤP|ĐỊA\s*CHỈ|NGÀY\s*SINH|CÁ\s*NHÂN|DOANH\s*NGHIỆP|THỰC\s*HIỆN|ĐẶT\s*LỆNH|XÁC\s*NHẬN|MỞ\s*TÀI\s*KHOẢN|HỢP\s*ĐỒNG|BÊN\s*A|BÊN\s*B|ĐẠI\s*DIỆN|KHÁCH\s*HÀNG|KHACH\s*HANG|KHÁCH\s*ÁN|TÊN\s*KHÁCH\s*HÀNG|TEN\s*KHACH\s*HANG|CHỦ\s*TÀI\s*KHOẢN|CHU\s*TAI\s*KHOAN)/i;
+        const hdName = inspectRecord.hopDong?.hoVaTen;
+        const imgName = inspectRecord.canCuoc?.hoVaTen;
+        const mailName = inspectRecord.noiDungMail?.tenTaiKhoan;
+
+        if (imgName && !JUNK.test(imgName) && (!hdName || JUNK.test(hdName))) {
+          return {
+            sourceName: 'Ảnh CCCD Mặt Trước',
+            method: inspectRecord.canCuoc?.ocrConfidence || 'OCR Vision',
+            confidence: '99%',
+          };
+        }
+        if (mailName && !JUNK.test(mailName) && (!hdName || JUNK.test(hdName))) {
+          return {
+            sourceName: 'Email TVKD (Xác thực với MS)',
+            method: 'Trích xuất Mail & MS',
+            confidence: '100%',
+          };
+        }
+        if (hdName && !JUNK.test(hdName)) {
+          return {
+            sourceName: 'Hợp đồng mở TK (PDF)',
+            method: 'Text Layer PDF',
+            confidence: '98%',
+          };
+        }
+        return {
+          sourceName: 'Email TVKD',
+          method: 'Trích xuất Mail',
+          confidence: '95%',
+        };
+      })(),
       rightMeta: {
         sourceName: 'M-System Web > Tên khách hàng',
         method: 'Playwright Scraper',
@@ -243,7 +302,7 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
           ? formatDateStr(inspectRecord.ms.rawNgaySinh)
           : (inspectRecord.ms?.ngaySinh && formatDateStr(inspectRecord.ms.ngaySinh) !== '-')
             ? formatDateStr(inspectRecord.ms.ngaySinh)
-            : formatDateStr(inspectRecord.canCuoc?.rawNgaySinh || inspectRecord.canCuoc?.ngaySinh),
+            : '-',
       leftMeta: {
         sourceName: inspectRecord.canCuoc?.ngaySinh
           ? 'Ảnh CCCD (MRZ / OCR)'
@@ -312,7 +371,7 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
           ? formatDateStr(inspectRecord.ms.rawNgayCap)
           : (inspectRecord.ms?.ngayCap && formatDateStr(inspectRecord.ms.ngayCap) !== '-')
             ? formatDateStr(inspectRecord.ms.ngayCap)
-            : formatDateStr(inspectRecord.canCuoc?.rawNgayCap || inspectRecord.canCuoc?.ngayCap),
+            : '-',
       leftMeta: {
         sourceName: inspectRecord.canCuoc?.ngayCap ? 'Ảnh CCCD Mặt Sau' : 'Hợp đồng mở TK (PDF)',
         method: inspectRecord.canCuoc?.ngayCap ? 'OCR Vision Engine' : 'PDF Text Layer',
@@ -341,7 +400,6 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
         })(),
       right:
         inspectRecord.ms?.gioiTinh ||
-        inspectRecord.canCuoc?.gioiTinh ||
         (() => {
           const clean = (inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc || '').replace(/\D/g, '');
           if (clean.length === 12) {
@@ -365,7 +423,7 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     {
       label: 'Nơi cấp',
       left: inspectRecord.hopDong?.noiCap || inspectRecord.canCuoc?.noiCap || '-',
-      right: inspectRecord.ms?.noiCap || inspectRecord.canCuoc?.noiCap || '-',
+      right: inspectRecord.ms?.noiCap || '-',
       leftMeta: {
         sourceName: 'Ảnh CCCD / Hợp đồng',
         method: 'OCR / PDF Text',
@@ -392,8 +450,8 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
         {
           label: 'Chất lượng ảnh CCCD',
           left: inspectRecord.canCuoc.canhBaoChatLuong.join('; '),
-          right: 'Yêu cầu đủ 4 góc, không cắt lẹm viền',
-          customMatch: false,
+          right: 'Khuyến nghị ảnh rõ nét, đủ 4 góc',
+          isInfoNotice: true,
         },
       ]
       : []),
@@ -416,19 +474,55 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
         },
       ]
       : []),
+    (() => {
+      const hdDate = formatDateStr(inspectRecord.hopDong?.ngayKyHD);
+      const msDate = formatDateStr(inspectRecord.ms?.ngayThamGia);
+      const effectiveHd = hdDate !== '-' ? hdDate : (msDate !== '-' ? msDate : '-');
+      const plDate = formatDateStr(inspectRecord.phuLuc?.ngayKyHD);
+      const hasBoth = effectiveHd !== '-' && plDate !== '-';
+      const isConsistent = hasBoth ? effectiveHd === plDate : (inspectRecord.phuLuc ? false : true);
+
+      let leftText = '-';
+      if (hasBoth) {
+        leftText = `HĐ: ${effectiveHd} | Phụ lục: ${plDate}`;
+      } else if (effectiveHd !== '-') {
+        leftText = `HĐ: ${effectiveHd}`;
+      } else if (plDate !== '-') {
+        leftText = `Phụ lục: ${plDate}`;
+      }
+
+      let rightText = '-';
+      if (hasBoth) {
+        rightText = isConsistent ? 'Đã đồng nhất ngày ký' : `Lệch ngày (HĐ: ${effectiveHd} != PL: ${plDate})`;
+      } else if (effectiveHd !== '-') {
+        rightText = 'Hợp đồng mở tài khoản';
+      } else if (plDate !== '-') {
+        rightText = 'Phụ lục mở tài khoản';
+      }
+
+      return {
+        label: 'Ngày ký HĐ / Phụ lục',
+        left: leftText,
+        right: rightText,
+        customMatch: isConsistent,
+        leftMeta: { sourceName: 'Hợp đồng & Phụ lục (Chữ ký)', method: 'PDF Parser', confidence: '99%' },
+        rightMeta: { sourceName: 'Đối Soát Tính Nhất Quán Văn Bản', method: 'Rule Engine', confidence: '100%' },
+      };
+    })(),
     {
-      label: 'Ngày ký HĐ / Ngày duyệt MS',
-      left: formatDateStr(inspectRecord.hopDong?.ngayKyHD),
+      label: 'Ngày tham gia MS (Tham chiếu)',
+      left: '(Không yêu cầu trùng ngày ký HĐ)',
       right: formatDateStr(inspectRecord.ms?.ngayThamGia),
       isInfoNotice: true,
-      leftMeta: { sourceName: 'Hợp đồng mở TK (Chữ ký)', method: 'PDF Parser', confidence: '99%' },
+      customMatch: true,
+      leftMeta: { sourceName: 'Quy chế đối soát MXV', method: 'Độc lập ngày ký', confidence: '100%' },
       rightMeta: { sourceName: 'M-System Web > Ngày tham gia', method: 'Playwright Scraper', confidence: '100%' },
     },
     {
       label: 'Chữ ký khách hàng',
       left: inspectRecord.hopDong?.chuKy || 'Đã ký',
-      right: inspectRecord.ms?.chuKy || 'Đã ký',
-      customMatch: true,
+      right: isMsSynced ? (inspectRecord.ms?.chuKy || 'Đã ký') : '-',
+      customMatch: isMsSynced ? true : false,
       leftMeta: { sourceName: 'Hợp đồng mở TK (Ký sống / Điện tử)', method: 'Signature Detector', confidence: '99%' },
       rightMeta: { sourceName: 'M-System Web > Trạng thái ký', method: 'Playwright Scraper', confidence: '100%' },
     },
@@ -451,10 +545,10 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
     }
     if (label.toLowerCase().includes('ngày sinh')) {
       const mYear = s.match(/\b(19\d{2}|20\d{2})\b/);
-      if (s.includes('Theo CCCD') && mYear) {
+      if ((s.includes('Theo CCCD') || s.includes('Năm sinh')) && mYear) {
         return mYear[0];
       }
-      const clean = s.replace(/\s*\(HĐ\)/i, '').trim();
+      const clean = s.replace(/\s*\(HĐ\)/i, '').replace(/\s*\(Năm sinh\)/i, '').trim();
       const formatted = formatDateStr(clean);
       return formatted !== '-' ? formatted : s;
     }
@@ -487,6 +581,28 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {!isMsSynced && (
+        <div
+          style={{
+            padding: '10px 16px',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: '#f59e0b',
+            fontSize: '0.82rem',
+            fontWeight: 500,
+          }}
+        >
+          <Info size={16} />
+          <span>
+            <strong>Chưa đồng bộ M-System:</strong> Tài khoản này chưa được cào dữ liệu từ M-System. Cột &quot;M-System Web &amp; OCR&quot; đang để trống cho đến khi hoàn tất đồng bộ.
+          </span>
+        </div>
+      )}
+
       {/* Bảng so sánh 2 cột */}
       <div
         style={{
@@ -516,26 +632,41 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
             {rows.map((item: any, rowIdx: number) => {
               const normLeft = normalizeForCompare(item.left, item.label);
               const normRight = normalizeForCompare(item.right, item.label);
+
+              // Nhận diện trường hợp ngày sinh 1 bên chỉ có Năm sinh (VD: 2001 (Năm sinh)) và 1 bên có ngày/tháng/năm đầy đủ trùng năm (VD: 10/06/2001)
+              const isDobField = item.label.toLowerCase().includes('ngày sinh');
+              const isYearOnlyLeft = normLeft.length === 4 || String(item.left).includes('Năm sinh');
+              const isYearOnlyRight = normRight.length === 4 || String(item.right).includes('Năm sinh');
+              const isBirthYearMatchOnly =
+                isDobField &&
+                item.left !== '-' &&
+                item.right !== '-' &&
+                normLeft !== normRight &&
+                ((isYearOnlyLeft && normRight.endsWith(`/${normLeft}`)) ||
+                  (isYearOnlyRight && normLeft.endsWith(`/${normRight}`)) ||
+                  (String(item.left).includes('Năm sinh') && normRight.includes(normLeft)) ||
+                  (String(item.right).includes('Năm sinh') && normLeft.includes(normRight)));
+
               const isMatch = item.isInfoNotice
                 ? true
                 : item.customMatch !== undefined
                   ? item.customMatch
                   : item.left !== '-' &&
                   item.right !== '-' &&
-                  (normLeft === normRight ||
-                    (item.label.includes('Ngày sinh') &&
-                      normLeft.length === 4 &&
-                      normRight.endsWith(`/${normLeft}`)));
+                  !isBirthYearMatchOnly &&
+                  normLeft === normRight;
 
-              const isMissingAttachment = !item.isInfoNotice && !isMatch && (item.left === '-' || item.right === '-');
+              const isMissingAttachment =
+                !item.isInfoNotice && !isMatch && !isBirthYearMatchOnly && (item.left === '-' || item.right === '-');
 
               return (
                 <tr
                   key={rowIdx}
                   style={{
                     borderBottom: '1px solid var(--border-color)',
-                    backgroundColor:
-                      !isMatch && !isMissingAttachment && !item.isInfoNotice
+                    backgroundColor: isBirthYearMatchOnly
+                      ? 'rgba(245, 158, 11, 0.05)'
+                      : !isMatch && !isMissingAttachment && !item.isInfoNotice
                         ? 'rgba(239, 68, 68, 0.05)'
                         : undefined,
                   }}
@@ -582,6 +713,25 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
                         title="Ngày ký HĐ và ngày duyệt trên MS là 2 mốc thời gian độc lập theo quy trình MXV"
                       >
                         <Info size={11} /> Thông tin
+                      </span>
+                    ) : isBirthYearMatchOnly ? (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                          color: '#f59e0b',
+                          fontWeight: 800,
+                          fontSize: '0.85rem',
+                          lineHeight: 1,
+                        }}
+                        title="Trùng khớp năm sinh (HĐ chỉ ghi năm sinh, cần chuyên viên đối chiếu mắt ngày tháng)"
+                      >
+                        ?
                       </span>
                     ) : isMatch ? (
                       <span
@@ -697,7 +847,8 @@ export const TabDataComparison: React.FC<TabDataComparisonProps> = ({
       {(() => {
         if (inspectRecord.ketLuan?.trangThai !== 'LECH') return null;
         const msHasCccd = !!(inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.cccdOcr_soCanCuoc);
-        const msFound = !!(inspectRecord.ms?.isFoundOnMS || inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.hoVaTen);
+        // const msFound = !!(inspectRecord.ms?.isFoundOnMS || inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.hoVaTen);
+        const msFound = !!(inspectRecord.ms?.soCMND_HoChieu || inspectRecord.ms?.hoVaTen);
         const rawErrors = inspectRecord.ketLuan?.danhSachLoi || [];
         const displayErrors = rawErrors.filter((err) => {
           if (msHasCccd && err.includes('M-System chưa nhập số CCCD')) return false;

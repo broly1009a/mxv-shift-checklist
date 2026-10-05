@@ -261,6 +261,10 @@ async function main() {
         healTag = ` 🌟 [HEALED: ${healedFields.join(', ')}]`;
       }
       console.log(`✅ [${res.elapsedMs}ms] CCCD: ${cc.soCCCD || '❌'} | Tên: ${cc.hoTen || '❌'} | Sinh: ${cc.ngaySinh || '❌'} | Cấp: ${cc.ngayCap || '❌'} | Nguồn: ${source}${healTag}`);
+      if (warnings.length > 0) {
+        console.log(`   🚨 Cảnh báo chất lượng ảnh:`);
+        warnings.forEach((w) => console.log(`      • ${w}`));
+      }
       if (anomalyReasons.length > 0) {
         console.log(`   ⚠️ Bất thường phát hiện: ${anomalyReasons.join('; ')}`);
       }
@@ -312,6 +316,15 @@ async function main() {
   console.log(`- Tỷ lệ trích xuất GIỚI TÍNH:    ${hasGenderCount}/${n} (${Math.round((hasGenderCount / n) * 100)}%)`);
   console.log(`- Tỷ lệ trích xuất NGÀY CẤP:     ${hasIssueDateCount}/${n} (${Math.round((hasIssueDateCount / n) * 100)}%)`);
   console.log(`- Số ca giải mã qua MRZ:         ${mrzSourceCount}/${n} (${Math.round((mrzSourceCount / n) * 100)}%)`);
+
+  const glareCount = results.filter((r) => (r.warnings || []).some((w) => /lóa|phản quang|glare/i.test(w))).length;
+  const blurCount = results.filter((r) => (r.warnings || []).some((w) => /mờ|nhòe|blur/i.test(w))).length;
+  const oldCardCount = results.filter((r) => (r.warnings || []).some((w) => /căn cước cũ|cmnd/i.test(w))).length;
+  console.log(`----------------------------------------------------------------------------------`);
+  console.log(`🚨 THỐNG KÊ CẢNH BÁO CHẤT LƯỢNG ẢNH:`);
+  console.log(`- Số ca bị gắn cờ LÓA SÁNG:      ${glareCount}/${n} (${Math.round((glareCount / n) * 100)}%)`);
+  console.log(`- Số ca bị gắn cờ MỜ NHÒE:       ${blurCount}/${n} (${Math.round((blurCount / n) * 100)}%)`);
+  console.log(`- Số ca bị gắn cờ CĂN CƯỚC CŨ:   ${oldCardCount}/${n} (${Math.round((oldCardCount / n) * 100)}%)`);
   console.log(`==================================================================================\n`);
 
   // Phân tích các ngoại lệ/vấn đề cần nâng cấp

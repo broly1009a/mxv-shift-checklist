@@ -27,6 +27,9 @@ export interface MSystemInvestorScrapedData {
   cccdMatTruocLocalPath?: string;
   cccdMatSauLocalPath?: string;
   chuKyLocalPath?: string;
+  tenThanhVien?: string;
+  tenMoiGioi?: string;
+  rawInputsLog?: string[];
   isFoundOnMS: boolean;
 }
 
@@ -149,6 +152,12 @@ export async function scrapeInvestorDetailFromMSystem(
     // 1. Điều hướng SPA Hash Router an toàn:
     // Trên Single Page Application (SPA), thay đổi hash khi đang ở cùng domain cần trigger window.location.href
     console.log(`  🔄 Đang chuyển router tới chi tiết: ${investorCode}...`);
+
+    // Dọn sạch mọi toast cũ tồn đọng từ lần chuyển trang trước để không bắt nhầm
+    await page.evaluate(() => {
+      document.querySelectorAll('.Toastify__toast').forEach((el) => el.remove());
+    }).catch(() => {});
+
     await page.evaluate((targetUrl) => {
       window.location.href = targetUrl;
     }, detailUrl).catch(() => { });
@@ -178,15 +187,15 @@ export async function scrapeInvestorDetailFromMSystem(
 
     console.log(`  📍 URL hiện tại sau điều hướng: ${page.url()}`);
 
-    // 1. Kiểm tra nếu tài khoản không tồn tại (trang rỗng / thông báo lỗi)
+    // 1. Kiểm tra nếu tài khoản không tồn tại (Toast lỗi React-Toastify / trang rỗng / thông báo lỗi)
     const notFound = await page
-      .locator('.ant-empty, .ant-result-404, .ant-alert-error')
+      .locator('.Toastify__toast--error, .Toastify__toast:has-text("Có lỗi xảy ra"), .ant-empty, .ant-result-404, .ant-alert-error, .ant-notification-notice-error, .ant-message-error')
       .first()
       .isVisible({ timeout: 2000 })
       .catch(() => false);
 
     if (notFound) {
-      console.log(`   Không tìm thấy tài khoản ${investorCode} trên M-System.`);
+      console.log(`   ⛔ Phát hiện thông báo lỗi / Toastify ("Có lỗi xảy ra") -> Tài khoản ${investorCode} không tồn tại trên M-System.`);
       return result;
     }
 
@@ -289,6 +298,8 @@ export async function scrapeInvestorDetailFromMSystem(
         })(),
         tenTKGD: readInput('input[placeholder="Tên TKGD"]') || readInputByLabel('Tên TKGD'),
         maTKGD: readInput('input[placeholder="Mã TKGD"]') || readInputByLabel('Mã TKGD'),
+        tenThanhVien: readInput('input[placeholder="Tên thành viên"]') || readInputByLabel('Tên thành viên'),
+        tenMoiGioi: readInput('input[placeholder="Tên môi giới"]') || readInputByLabel('Tên môi giới'),
         trangThai: (() => {
           const groups = Array.from(document.querySelectorAll('.form-group, .ant-form-item'));
           for (const g of groups) {
@@ -327,6 +338,8 @@ export async function scrapeInvestorDetailFromMSystem(
     let loaiHinh = (formValues.loaiHinh || '').trim();
     let ngayThamGiaStr = (formValues.ngayThamGiaStr || '').trim();
 
+    const rawMaTKGD = (formValues.maTKGD || '').trim().toUpperCase();
+
     // In log debug — liệt kê tất cả inputs đọc được để chẩn đoán khi bị rỗng
     if (formValues._debug_inputs?.length) {
       console.log(`  🔍 [DEBUG] Các input có dữ liệu trên trang (${formValues._debug_inputs.length} inputs):`);
@@ -334,15 +347,33 @@ export async function scrapeInvestorDetailFromMSystem(
     } else {
       console.log(`  ⚠️  [DEBUG] Không có input nào có dữ liệu — trang chưa render hoặc sai URL!`);
     }
-    console.log(`  📋 page.evaluate() đọc được: hoVaTen="${hoVaTen}", soCMND="${soCMND}", ngaySinh="${ngaySinhStr}", ngayCap="${ngayCapStr}"`);
+    console.log(`  📋 page.evaluate() đọc được: maTKGD="${rawMaTKGD}", hoVaTen="${hoVaTen}", soCMND="${soCMND}", ngaySinh="${ngaySinhStr}", ngayCap="${ngayCapStr}"`);
+
+    // =========================================================================
+    // STRICT IDENTITY ASSERTION (Chống rò rỉ dữ liệu chéo / Stale DOM):
+    // Form M-System bắt buộc phải hiển thị đúng mã TKGD của tài khoản đang cần cào.
+    // Nếu mã trên form khác mã mục tiêu (ví dụ SPA giữ DOM tài khoản cũ) -> Reject ngay!
+    // =========================================================================
+    const targetCode = investorCode.trim().toUpperCase();
+    const targetBaseCode = targetCode.split('-')[0].trim();
+    const isCodeMatch = rawMaTKGD === targetCode || rawMaTKGD === targetBaseCode;
+
+    if (!rawMaTKGD || !isCodeMatch) {
+      if (rawMaTKGD && !isCodeMatch) {
+        console.warn(`  ⛔ [STALE_DOM_REJECTED] Form M-System đang hiển thị mã "${rawMaTKGD}", KHÔNG KHỚP với tài khoản cần cào "${investorCode}". Hủy bỏ để tránh rò rỉ chéo dữ liệu!`);
+      } else {
+        console.log(`  ℹ️  Form M-System không hiển thị mã TKGD hợp lệ cho ${investorCode} (Tài khoản chưa tồn tại hoặc trang chưa sẵn sàng).`);
+      }
+      result.isFoundOnMS = false;
+      return result;
+    }
 
     // Fallback: nếu tenTKGD không đọc được thì dùng hoVaTen
     if (!tenTKGD) {
       tenTKGD = hoVaTen;
     }
 
-
-    // 4. Trích xuất ảnh CMT/CCCD mặt trước, mặt sau và Chữ ký
+    // 4. Trích xuất ảnh CMT/CCCD mặt trước, mặt sau và Chữ ký (CHỈ KHI ĐÃ XÁC NHẬN ĐÚNG TÀI KHOẢN)
     console.log(`  📸 Đang kiểm tra & bóc tách ảnh CCCD / Chữ ký trên M-System...`);
     const path = await import('path');
 
@@ -368,6 +399,9 @@ export async function scrapeInvestorDetailFromMSystem(
       result.isFoundOnMS = true;
       result.tenTKGD = (tenTKGD || hoVaTen).trim();
       result.hoVaTen = hoVaTen.trim();
+      result.tenThanhVien = (formValues.tenThanhVien || '').trim() || undefined;
+      result.tenMoiGioi = (formValues.tenMoiGioi || '').trim() || undefined;
+      result.rawInputsLog = formValues._debug_inputs || [];
       result.soCMND_HoChieu = soCMND.trim();
       result.ngaySinh = parseDateDDMMYYYY(ngaySinhStr);
       result.rawNgaySinh = ngaySinhStr ? ngaySinhStr.trim() : undefined;

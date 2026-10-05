@@ -6,6 +6,10 @@ import { addTkgdNotification } from '../utils/tkgdNotifications';
 
 interface UseTkgdActionsProps {
   batchDate?: string;
+  startDate?: string;
+  endDate?: string;
+  filter?: string;
+  search?: string;
   token?: string | null;
   userEmail?: string;
   onSuccess?: () => Promise<void> | void;
@@ -43,6 +47,10 @@ function playNotificationChime() {
 
 export const useTkgdActions = ({
   batchDate,
+  startDate,
+  endDate,
+  filter,
+  search,
   token,
   userEmail,
   onSuccess,
@@ -299,20 +307,39 @@ export const useTkgdActions = ({
     }
   }, [batchDate, token, userEmail, onSuccess]);
 
-  // Tải file Excel đối soát về máy
+  // Tải file Excel đối soát về máy (hỗ trợ lọc theo ngày, khoảng ngày hoặc xuất toàn bộ DB)
   const handleDownloadExcel = useCallback(async () => {
     try {
-      let blob = await tkgdApi.downloadExcelBlob(token, userEmail);
-      if (!blob) {
-        toast('Chưa có file sẵn trên máy chủ, đang tự động chạy đối soát để tạo file...');
-        await handleRunReconcile();
-        blob = await tkgdApi.downloadExcelBlob(token, userEmail);
-        if (!blob) throw new Error('Không tìm thấy file Excel sau khi chạy đối soát.');
-      }
+      setIsProcessing(true);
+      setProcessingStage('Đang tổng hợp dữ liệu và xuất file Excel đối soát từ máy chủ...');
+
+      const isRange = Boolean(startDate || endDate);
+      const effectiveBatchDate = isRange ? undefined : (batchDate || undefined);
+
+      const blob = await tkgdApi.downloadExcelBlob(token, userEmail, {
+        batchDate: effectiveBatchDate,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        filter: filter && filter !== 'ALL' ? filter : undefined,
+        search: search || undefined,
+      });
+
+      if (!blob) throw new Error('Không thể tải file Excel đối soát từ máy chủ.');
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Auto_Data_mail_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`;
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      let targetDate = `ALL_${todayStr}`;
+      if (startDate && endDate) {
+        targetDate = `${startDate.replace(/[-_ \/]/g, '')}_${endDate.replace(/[-_ \/]/g, '')}`;
+      } else if (effectiveBatchDate) {
+        targetDate = effectiveBatchDate.replace(/[-_ \/]/g, '');
+      }
+
+      a.download = `Auto_Data_mail_${targetDate}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -320,8 +347,11 @@ export const useTkgdActions = ({
       toast.success('Đã tải file Excel kết quả đối soát thành công!');
     } catch (err: any) {
       toast.error('Lỗi khi tải file Excel: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStage('');
     }
-  }, [token, userEmail, handleRunReconcile]);
+  }, [token, userEmail, batchDate, startDate, endDate, filter, search]);
 
   return {
     sprintMode,

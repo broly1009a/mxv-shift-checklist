@@ -8,6 +8,7 @@ import {
   Filter,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Info,
   Clock,
   User,
@@ -18,9 +19,17 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Globe,
+  FileText,
+  ScanLine,
+  Scale,
+  UserCheck,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { tkgdApi } from '../../services/tkgd.api';
+import { ExtractionLogItem } from '../../types/tkgd.types';
 
 interface TkgdActivityLogItem {
   _id: string;
@@ -44,46 +53,91 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
   onClose,
 }) => {
   const { token, user } = useAuth();
-  const [logs, setLogs] = useState<TkgdActivityLogItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [actionFilter, setActionFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [search, setSearch] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'EXTRACTION' | 'ACTIVITY'>('EXTRACTION');
 
-  const fetchLogs = useCallback(async () => {
+  // State cho Tab Bóc Tách & M-System
+  const [extractionLogs, setExtractionLogs] = useState<ExtractionLogItem[]>([]);
+  const [extLoading, setExtLoading] = useState(false);
+  const [extPage, setExtPage] = useState(1);
+  const [extTotalPages, setExtTotalPages] = useState(1);
+  const [extTotal, setExtTotal] = useState(0);
+  const [stageFilter, setStageFilter] = useState('ALL');
+  const [extStatusFilter, setExtStatusFilter] = useState('ALL');
+  const [extSearch, setExtSearch] = useState('');
+  const [expandedExtId, setExpandedExtId] = useState<string | null>(null);
+
+  // State cho Tab Thao Tác Người Dùng
+  const [activityLogs, setActivityLogs] = useState<TkgdActivityLogItem[]>([]);
+  const [actLoading, setActLoading] = useState(false);
+  const [actPage, setActPage] = useState(1);
+  const [actTotalPages, setActTotalPages] = useState(1);
+  const [actTotal, setActTotal] = useState(0);
+  const [actionFilter, setActionFilter] = useState('ALL');
+  const [actStatusFilter, setActStatusFilter] = useState('ALL');
+  const [actSearch, setActSearch] = useState('');
+  const [expandedActId, setExpandedActId] = useState<string | null>(null);
+
+  // 1. Tải log bóc tách & cào M-System
+  const fetchExtractionLogs = useCallback(async () => {
     if (!isOpen) return;
-    setLoading(true);
+    setExtLoading(true);
     try {
-      const res = await tkgdApi.getActivityLogs(
+      const res = await tkgdApi.getAllExtractionLogs(
         {
-          page,
+          page: extPage,
           limit: 15,
-          action: actionFilter,
-          status: statusFilter,
-          search: search.trim() || undefined,
+          stage: stageFilter,
+          status: extStatusFilter,
+          search: extSearch.trim() || undefined,
         },
         token,
         user?.email
       );
-      setLogs(res.data || []);
-      setTotal(res.total || 0);
-      setTotalPages(res.pages || 1);
+      setExtractionLogs(res.data || []);
+      setExtTotal(res.total || 0);
+      setExtTotalPages(res.pages || 1);
     } catch (err) {
-      console.error('Lỗi khi tải nhật ký tác vụ TKGD:', err);
+      console.error('Lỗi khi tải nhật ký bóc tách:', err);
     } finally {
-      setLoading(false);
+      setExtLoading(false);
     }
-  }, [isOpen, page, actionFilter, statusFilter, search, token, user?.email]);
+  }, [isOpen, extPage, stageFilter, extStatusFilter, extSearch, token, user?.email]);
+
+  // 2. Tải log thao tác hệ thống
+  const fetchActivityLogs = useCallback(async () => {
+    if (!isOpen) return;
+    setActLoading(true);
+    try {
+      const res = await tkgdApi.getActivityLogs(
+        {
+          page: actPage,
+          limit: 15,
+          action: actionFilter,
+          status: actStatusFilter,
+          search: actSearch.trim() || undefined,
+        },
+        token,
+        user?.email
+      );
+      setActivityLogs(res.data || []);
+      setActTotal(res.total || 0);
+      setActTotalPages(res.pages || 1);
+    } catch (err) {
+      console.error('Lỗi khi tải nhật ký tác vụ:', err);
+    } finally {
+      setActLoading(false);
+    }
+  }, [isOpen, actPage, actionFilter, actStatusFilter, actSearch, token, user?.email]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchLogs();
+      if (activeTab === 'EXTRACTION') {
+        fetchExtractionLogs();
+      } else {
+        fetchActivityLogs();
+      }
     }
-  }, [isOpen, fetchLogs]);
+  }, [isOpen, activeTab, fetchExtractionLogs, fetchActivityLogs]);
 
   // Đóng bằng phím Escape
   useEffect(() => {
@@ -96,9 +150,44 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const renderActionBadge = (action: string) => {
-    switch (action) {
-      case 'SYNC_MAIL':
+  const formatDate = (isoStr: string) => {
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return '-';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const seconds = String(d.getSeconds()).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds} ${day}/${month}/${year}`;
+    } catch {
+      return '-';
+    }
+  };
+
+  const renderStageIcon = (stage: string) => {
+    switch (stage) {
+      case 'MAIL_INGEST':
+        return <Mail size={15} className="text-blue-400" />;
+      case 'EXTRACT_CONTRACT':
+        return <FileText size={15} className="text-purple-400" />;
+      case 'EXTRACT_CCCD':
+        return <ScanLine size={15} className="text-cyan-400" />;
+      case 'SCRAPE_MSYSTEM':
+        return <Globe size={15} className="text-indigo-400" />;
+      case 'RECONCILE':
+        return <Scale size={15} className="text-amber-400" />;
+      case 'MANUAL_OVERRIDE':
+        return <UserCheck size={15} className="text-emerald-400" />;
+      default:
+        return <Database size={15} className="text-slate-400" />;
+    }
+  };
+
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
         return (
           <span
             style={{
@@ -106,37 +195,19 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
               alignItems: 'center',
               gap: '4px',
               padding: '2px 8px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(59, 130, 246, 0.12)',
-              color: '#3b82f6',
-              fontSize: '0.72rem',
+              borderRadius: '9999px',
+              fontSize: '0.65rem',
               fontWeight: 700,
-            }}
-          >
-            <Mail size={12} />
-            Nạp Email
-          </span>
-        );
-      case 'SYNC_MSYSTEM':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 8px',
-              borderRadius: '6px',
               backgroundColor: 'rgba(16, 185, 129, 0.12)',
               color: '#10b981',
-              fontSize: '0.72rem',
-              fontWeight: 700,
+              border: '1px solid rgba(16, 185, 129, 0.25)',
             }}
           >
-            <Server size={12} />
-            Đồng bộ M-System
+            <CheckCircle2 size={12} />
+            THÀNH CÔNG
           </span>
         );
-      case 'RUN_PIPELINE':
+      case 'WARNING':
         return (
           <span
             style={{
@@ -144,18 +215,20 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
               alignItems: 'center',
               gap: '4px',
               padding: '2px 8px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(99, 102, 241, 0.12)',
-              color: '#6366f1',
-              fontSize: '0.72rem',
+              borderRadius: '9999px',
+              fontSize: '0.65rem',
               fontWeight: 700,
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              color: '#f59e0b',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
             }}
           >
-            <Layers size={12} />
-            Chu Trình Toàn Bộ
+            <AlertTriangle size={12} />
+            CẢNH BÁO
           </span>
         );
-      case 'REPARSE_ACCOUNT':
+      case 'ERROR':
+      case 'FAILED':
         return (
           <span
             style={{
@@ -163,71 +236,16 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
               alignItems: 'center',
               gap: '4px',
               padding: '2px 8px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(234, 88, 12, 0.12)',
-              color: '#ea580c',
-              fontSize: '0.72rem',
+              borderRadius: '9999px',
+              fontSize: '0.65rem',
               fontWeight: 700,
-            }}
-          >
-            <RefreshCw size={12} />
-            Bóc Tách Lại
-          </span>
-        );
-      case 'MANUAL_APPROVE':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 8px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(16, 185, 129, 0.15)',
-              color: '#059669',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-            }}
-          >
-            <ShieldCheck size={12} />
-            Duyệt Tay
-          </span>
-        );
-      case 'REVERT_APPROVE':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 8px',
-              borderRadius: '6px',
               backgroundColor: 'rgba(239, 68, 68, 0.12)',
               color: '#ef4444',
-              fontSize: '0.72rem',
-              fontWeight: 700,
+              border: '1px solid rgba(239, 68, 68, 0.25)',
             }}
           >
-            Hủy Duyệt Tay
-          </span>
-        );
-      case 'CONFIG_UPDATE':
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '2px 8px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(147, 51, 234, 0.12)',
-              color: '#9333ea',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-            }}
-          >
-            <Settings size={12} />
-            Cấu Hình Bot
+            <AlertCircle size={12} />
+            LỖI
           </span>
         );
       default:
@@ -238,32 +256,18 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
               alignItems: 'center',
               gap: '4px',
               padding: '2px 8px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(100, 116, 139, 0.12)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
+              borderRadius: '9999px',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+              color: '#3b82f6',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
             }}
           >
-            {action}
+            <Info size={12} />
+            THÔNG TIN
           </span>
         );
-    }
-  };
-
-  const formatDate = (isoStr: string) => {
-    try {
-      const d = new Date(isoStr);
-      if (isNaN(d.getTime())) return '-';
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      const h = String(d.getHours()).padStart(2, '0');
-      const m = String(d.getMinutes()).padStart(2, '0');
-      const s = String(d.getSeconds()).padStart(2, '0');
-      return `${day}/${month}/${year} ${h}:${m}:${s}`;
-    } catch {
-      return '-';
     }
   };
 
@@ -289,9 +293,9 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
     >
       <div
         style={{
-          width: '950px',
+          width: '1050px',
           maxWidth: '100%',
-          maxHeight: '90vh',
+          maxHeight: '92vh',
           backgroundColor: 'var(--bg-card)',
           borderRadius: '16px',
           border: '1px solid var(--border-color)',
@@ -337,7 +341,7 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
                     color: 'var(--text-primary)',
                   }}
                 >
-                  Nhật Ký Tác Vụ TKGD (Audit Logs)
+                  Trung Tâm Kiểm Toán & Nhật Ký TKGD (Audit Logs)
                 </h3>
                 <span
                   style={{
@@ -349,19 +353,19 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  Độc Lập TTBT
+                  Enterprise Audit
                 </span>
               </div>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                Truy vết toàn bộ lịch sử nạp email, đồng bộ M-System, đối soát và phê duyệt hồ sơ của phân hệ
+                Truy vết toàn diện lịch sử nạp email, trích xuất HĐ, bóc tách CCCD, cào M-System và phê duyệt hồ sơ
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
-              onClick={fetchLogs}
-              disabled={loading}
+              onClick={activeTab === 'EXTRACTION' ? fetchExtractionLogs : fetchActivityLogs}
+              disabled={activeTab === 'EXTRACTION' ? extLoading : actLoading}
               title="Làm mới danh sách log"
               style={{
                 display: 'flex',
@@ -376,7 +380,7 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <RefreshCw size={14} className={loading ? 'animate-spin text-blue-500' : ''} />
+              <RefreshCw size={14} className={(activeTab === 'EXTRACTION' ? extLoading : actLoading) ? 'animate-spin text-blue-500' : ''} />
             </button>
             <button
               onClick={onClose}
@@ -399,274 +403,700 @@ export const TkgdActivityLogsModal: React.FC<TkgdActivityLogsModalProps> = ({
           </div>
         </div>
 
-        {/* Thanh tìm kiếm & Bộ lọc */}
+        {/* Tab Switcher */}
         <div
           style={{
-            padding: '12px 24px',
+            display: 'flex',
+            gap: '8px',
+            padding: '10px 24px',
             borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            backgroundColor: 'var(--bg-card)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                width: '100%',
-                maxWidth: '320px',
-              }}
-            >
-              <Search size={14} style={{ color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                placeholder="Tìm theo tiêu đề, tài khoản, email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') fetchLogs();
-                }}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  backgroundColor: 'transparent',
-                  fontSize: '0.78rem',
-                  color: 'var(--text-primary)',
-                  width: '100%',
-                }}
-              />
-            </div>
-
-            <select
-              value={actionFilter}
-              onChange={(e) => {
-                setActionFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.76rem',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="ALL">Tất cả hành động</option>
-              <option value="SYNC_MAIL">Nạp Email Outlook</option>
-              <option value="SYNC_MSYSTEM">Đồng bộ M-System</option>
-              <option value="RUN_PIPELINE">Chu Trình Toàn Bộ</option>
-              <option value="REPARSE_ACCOUNT">Bóc Tách Lại</option>
-              <option value="MANUAL_APPROVE">Phê Duyệt Tay</option>
-              <option value="REVERT_APPROVE">Hủy Duyệt Tay</option>
-              <option value="CONFIG_UPDATE">Cập Nhật Cấu Hình</option>
-            </select>
-          </div>
-
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-            Tổng cộng: <strong style={{ color: 'var(--text-primary)' }}>{total}</strong> bản ghi
-          </div>
-        </div>
-
-        {/* Danh sách bản ghi Log */}
-        <div style={{ flex: 1, overflowY: 'auto', maxHeight: '550px' }}>
-          {loading ? (
-            <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <RefreshCw size={24} className="animate-spin text-blue-500" style={{ margin: '0 auto 10px' }} />
-              <p style={{ margin: 0, fontSize: '0.8rem' }}>Đang tải nhật ký tác vụ TKGD...</p>
-            </div>
-          ) : logs.length === 0 ? (
-            <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <Clock size={32} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-              <p style={{ margin: 0, fontSize: '0.82rem' }}>Chưa có bản ghi nhật ký tác vụ nào phù hợp.</p>
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-              <thead>
-                <tr
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    borderBottom: '1px solid var(--border-color)',
-                    color: 'var(--text-muted)',
-                    textAlign: 'left',
-                  }}
-                >
-                  <th style={{ padding: '10px 16px', width: '150px' }}>Thời Gian</th>
-                  <th style={{ padding: '10px 16px', width: '140px' }}>Hành Động</th>
-                  <th style={{ padding: '10px 16px' }}>Nội Dung Chi Tiết</th>
-                  <th style={{ padding: '10px 16px', width: '170px' }}>Tài Khoản</th>
-                  <th style={{ padding: '10px 16px', width: '90px', textAlign: 'center' }}>Trạng Thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((item) => (
-                  <React.Fragment key={item._id}>
-                    <tr
-                      onClick={() => setExpandedId(expandedId === item._id ? null : item._id)}
-                      style={{
-                        borderBottom: '1px solid var(--border-color)',
-                        cursor: 'pointer',
-                        backgroundColor:
-                          expandedId === item._id ? 'rgba(59, 130, 246, 0.04)' : 'transparent',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                    >
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        {formatDate(item.createdAt)}
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>{renderActionBadge(item.action)}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                          {item.title}
-                        </div>
-                        <div
-                          style={{
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.74rem',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            maxWidth: '380px',
-                          }}
-                        >
-                          {item.details}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '0.74rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <User size={12} style={{ color: 'var(--text-muted)' }} />
-                          <span>{item.userEmail || 'Hệ thống'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <span
-                          style={{
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
-                            backgroundColor:
-                              item.status === 'SUCCESS'
-                                ? 'rgba(16, 185, 129, 0.12)'
-                                : item.status === 'FAILED'
-                                ? 'rgba(239, 68, 68, 0.12)'
-                                : 'rgba(245, 158, 11, 0.12)',
-                            color:
-                              item.status === 'SUCCESS'
-                                ? '#10b981'
-                                : item.status === 'FAILED'
-                                ? '#ef4444'
-                                : '#f59e0b',
-                          }}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                    {expandedId === item._id && item.metadata && Object.keys(item.metadata).length > 0 && (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          style={{
-                            padding: '12px 24px',
-                            backgroundColor: 'var(--bg-app)',
-                            borderBottom: '1px solid var(--border-color)',
-                          }}
-                        >
-                          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>
-                            DỮ LIỆU ĐÍNH KÈM (METADATA):
-                          </div>
-                          <pre
-                            style={{
-                              margin: 0,
-                              padding: '8px 12px',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid var(--border-color)',
-                              fontSize: '0.72rem',
-                              fontFamily: 'monospace',
-                              color: 'var(--text-secondary)',
-                              overflowX: 'auto',
-                            }}
-                          >
-                            {JSON.stringify(item.metadata, null, 2)}
-                          </pre>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Footer & Phân trang */}
-        <div
-          style={{
-            padding: '12px 24px',
-            borderTop: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             backgroundColor: 'var(--bg-app)',
           }}
         >
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            Trang {page} / {totalPages || 1}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.74rem',
-                color: page <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
-                cursor: page <= 1 ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <ChevronLeft size={14} />
-              Trước
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.74rem',
-                color: page >= totalPages ? 'var(--text-muted)' : 'var(--text-primary)',
-                cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Sau
-              <ChevronRight size={14} />
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveTab('EXTRACTION')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: activeTab === 'EXTRACTION' ? 700 : 500,
+              backgroundColor: activeTab === 'EXTRACTION' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: activeTab === 'EXTRACTION' ? '#3b82f6' : 'var(--text-secondary)',
+              border: activeTab === 'EXTRACTION' ? '1px solid #3b82f6' : '1px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <Layers size={14} />
+            Bóc Tách & Cào M-System ({extTotal})
+          </button>
+          <button
+            onClick={() => setActiveTab('ACTIVITY')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: activeTab === 'ACTIVITY' ? 700 : 500,
+              backgroundColor: activeTab === 'ACTIVITY' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: activeTab === 'ACTIVITY' ? '#3b82f6' : 'var(--text-secondary)',
+              border: activeTab === 'ACTIVITY' ? '1px solid #3b82f6' : '1px solid transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <User size={14} />
+            Thao Tác Người Dùng ({actTotal})
+          </button>
         </div>
+
+        {/* ══════════════════════════════════════════════════════════ */}
+        {/* NỘI DUNG TAB 1: BÓC TÁCH & M-SYSTEM                      */}
+        {/* ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'EXTRACTION' && (
+          <>
+            {/* Bộ lọc Tab Bóc Tách */}
+            <div
+              style={{
+                padding: '12px 24px',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                backgroundColor: 'var(--bg-card)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    width: '100%',
+                    maxWidth: '340px',
+                  }}
+                >
+                  <Search size={14} style={{ color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Tìm theo mã TKGD, tiêu đề, TVKD..."
+                    value={extSearch}
+                    onChange={(e) => setExtSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') fetchExtractionLogs();
+                    }}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-primary)',
+                      width: '100%',
+                    }}
+                  />
+                </div>
+
+                <select
+                  value={stageFilter}
+                  onChange={(e) => {
+                    setStageFilter(e.target.value);
+                    setExtPage(1);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">Tất cả các chặng</option>
+                  <option value="SCRAPE_MSYSTEM">Cào M-System</option>
+                  <option value="MAIL_INGEST">Nạp Email</option>
+                  <option value="EXTRACT_CONTRACT">Trích xuất HĐ</option>
+                  <option value="EXTRACT_CCCD">OCR CCCD</option>
+                  <option value="RECONCILE">Đối soát 3 bên</option>
+                  <option value="MANUAL_OVERRIDE">Phê duyệt tay</option>
+                </select>
+
+                <select
+                  value={extStatusFilter}
+                  onChange={(e) => {
+                    setExtStatusFilter(e.target.value);
+                    setExtPage(1);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">Tất cả trạng thái</option>
+                  <option value="SUCCESS">Thành công</option>
+                  <option value="WARNING">Cảnh báo</option>
+                  <option value="ERROR">Lỗi</option>
+                </select>
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Tổng cộng: <strong style={{ color: 'var(--text-primary)' }}>{extTotal}</strong> sự kiện
+              </div>
+            </div>
+
+            {/* Danh sách Log Bóc Tách */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '16px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: 'var(--bg-app)',
+              }}
+            >
+              {extLoading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={24} className="animate-spin text-blue-500" style={{ margin: '0 auto 12px' }} />
+                  <p style={{ margin: 0, fontSize: '0.85rem' }}>Đang tải nhật ký bóc tách & cào M-System...</p>
+                </div>
+              ) : extractionLogs.length === 0 ? (
+                <div
+                  style={{
+                    padding: '40px',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '12px',
+                    border: '1px dashed var(--border-color)',
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Không tìm thấy bản ghi bóc tách nào phù hợp với bộ lọc hiện tại.
+                  </p>
+                </div>
+              ) : (
+                extractionLogs.map((log, index) => {
+                  const logId = log.id || log._id || String(index);
+                  const isExpanded = expandedExtId === logId;
+
+                  return (
+                    <div
+                      key={logId}
+                      style={{
+                        backgroundColor: 'var(--bg-card)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-color)',
+                        overflow: 'hidden',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {/* Dòng tóm tắt */}
+                      <div
+                        onClick={() => setExpandedExtId(isExpanded ? null : logId)}
+                        style={{
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          gap: '12px',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-input)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {renderStageIcon(log.stage)}
+                          </div>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                              <span
+                                style={{
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                  color: '#3b82f6',
+                                  fontFamily: 'monospace',
+                                  fontWeight: 700,
+                                  fontSize: '0.72rem',
+                                }}
+                              >
+                                {log.maTKGD}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '0.82rem',
+                                  fontWeight: 700,
+                                  color: 'var(--text-primary)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {log.title}
+                              </span>
+                              {renderStatusBadge(log.status)}
+                            </div>
+
+                            {log.details && (
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: '0.72rem',
+                                  color: 'var(--text-muted)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {log.details}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                              {formatDate(log.createdAt)}
+                            </div>
+                            {log.performer && (
+                              <div style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                                Bởi: {log.performer}
+                              </div>
+                            )}
+                          </div>
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                      </div>
+
+                      {/* Chi tiết khi mở rộng */}
+                      {isExpanded && (
+                        <div
+                          style={{
+                            padding: '14px 16px',
+                            borderTop: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-input)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                          }}
+                        >
+                          {/* 10 Thẻ Chip DOM M-System thực tế */}
+                          {log.rawInputsLog && log.rawInputsLog.length > 0 && (
+                            <div>
+                              <span style={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.75rem', display: 'block', marginBottom: '8px' }}>
+                                Toàn bộ các trường DOM đọc trực tiếp từ màn hình M-System ({log.rawInputsLog.length} trường):
+                              </span>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {log.rawInputsLog.map((inp, iIdx) => (
+                                  <div
+                                    key={iIdx}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                                      color: 'var(--text-primary)',
+                                      fontFamily: 'monospace',
+                                      fontSize: '0.7rem',
+                                    }}
+                                  >
+                                    {inp}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Dữ liệu trích xuất có cấu trúc */}
+                          {log.extractedData && Object.keys(log.extractedData).length > 0 && (
+                            <div>
+                              <span style={{ fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block', marginBottom: '6px' }}>
+                                Dữ liệu bóc tách có cấu trúc (Structured Payload):
+                              </span>
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  padding: '12px',
+                                  borderRadius: '8px',
+                                  backgroundColor: 'var(--bg-surface)',
+                                  border: '1px solid var(--border-color)',
+                                  fontSize: '0.7rem',
+                                  color: 'var(--text-secondary)',
+                                  overflowX: 'auto',
+                                  maxHeight: '220px',
+                                }}
+                              >
+                                {JSON.stringify(log.extractedData, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Phân trang Tab Bóc Tách */}
+            <div
+              style={{
+                padding: '12px 24px',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--bg-card)',
+              }}
+            >
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Trang {extPage} / {extTotalPages}
+              </span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  disabled={extPage <= 1}
+                  onClick={() => setExtPage((p) => Math.max(1, p - 1))}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    color: extPage <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                    cursor: extPage <= 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  disabled={extPage >= extTotalPages}
+                  onClick={() => setExtPage((p) => Math.min(extTotalPages, p + 1))}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    color: extPage >= extTotalPages ? 'var(--text-muted)' : 'var(--text-primary)',
+                    cursor: extPage >= extTotalPages ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════ */}
+        {/* NỘI DUNG TAB 2: THAO TÁC NGƯỜI DÙNG                      */}
+        {/* ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'ACTIVITY' && (
+          <>
+            {/* Bộ lọc Tab Thao Tác */}
+            <div
+              style={{
+                padding: '12px 24px',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                backgroundColor: 'var(--bg-card)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    width: '100%',
+                    maxWidth: '340px',
+                  }}
+                >
+                  <Search size={14} style={{ color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Tìm theo hành động, người dùng, chi tiết..."
+                    value={actSearch}
+                    onChange={(e) => setActSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') fetchActivityLogs();
+                    }}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-primary)',
+                      width: '100%',
+                    }}
+                  />
+                </div>
+
+                <select
+                  value={actionFilter}
+                  onChange={(e) => {
+                    setActionFilter(e.target.value);
+                    setActPage(1);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">Tất cả hành động</option>
+                  <option value="SYNC_MAIL">Nạp Email</option>
+                  <option value="SYNC_MSYSTEM">Đồng bộ M-System</option>
+                  <option value="RUN_RECONCILIATION">Chạy Đối Soát</option>
+                  <option value="MANUAL_APPROVE">Duyệt Tay</option>
+                  <option value="REPARSE_ACCOUNT">Quét Lại Hồ Sơ</option>
+                </select>
+
+                <select
+                  value={actStatusFilter}
+                  onChange={(e) => {
+                    setActStatusFilter(e.target.value);
+                    setActPage(1);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">Tất cả trạng thái</option>
+                  <option value="SUCCESS">Thành công</option>
+                  <option value="WARNING">Cảnh báo</option>
+                  <option value="FAILED">Thất bại</option>
+                </select>
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Tổng cộng: <strong style={{ color: 'var(--text-primary)' }}>{actTotal}</strong> bản ghi
+              </div>
+            </div>
+
+            {/* Danh sách Activity Logs */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '16px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: 'var(--bg-app)',
+              }}
+            >
+              {actLoading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={24} className="animate-spin text-blue-500" style={{ margin: '0 auto 12px' }} />
+                  <p style={{ margin: 0, fontSize: '0.85rem' }}>Đang tải nhật ký thao tác...</p>
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <div
+                  style={{
+                    padding: '40px',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '12px',
+                    border: '1px dashed var(--border-color)',
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Không tìm thấy nhật ký thao tác nào.
+                  </p>
+                </div>
+              ) : (
+                activityLogs.map((log) => {
+                  const isExpanded = expandedActId === log._id;
+
+                  return (
+                    <div
+                      key={log._id}
+                      style={{
+                        backgroundColor: 'var(--bg-card)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-color)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        onClick={() => setExpandedActId(isExpanded ? null : log._id)}
+                        style={{
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          gap: '12px',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--bg-input)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <User size={15} className="text-slate-400" />
+                          </div>
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {log.title}
+                              </span>
+                              {renderStatusBadge(log.status)}
+                            </div>
+                            {log.details && (
+                              <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {log.details}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                              {formatDate(log.createdAt)}
+                            </div>
+                            <div style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                              {log.userEmail}
+                            </div>
+                          </div>
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                      </div>
+
+                      {isExpanded && log.metadata && Object.keys(log.metadata).length > 0 && (
+                        <div
+                          style={{
+                            padding: '12px 16px',
+                            borderTop: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-input)',
+                          }}
+                        >
+                          <pre
+                            style={{
+                              margin: 0,
+                              fontSize: '0.7rem',
+                              color: 'var(--text-secondary)',
+                              overflowX: 'auto',
+                              maxHeight: '180px',
+                            }}
+                          >
+                            {JSON.stringify(log.metadata, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Phân trang Tab Thao Tác */}
+            <div
+              style={{
+                padding: '12px 24px',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--bg-card)',
+              }}
+            >
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Trang {actPage} / {actTotalPages}
+              </span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  disabled={actPage <= 1}
+                  onClick={() => setActPage((p) => Math.max(1, p - 1))}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    color: actPage <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                    cursor: actPage <= 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  disabled={actPage >= actTotalPages}
+                  onClick={() => setActPage((p) => Math.min(actTotalPages, p + 1))}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    color: actPage >= actTotalPages ? 'var(--text-muted)' : 'var(--text-primary)',
+                    cursor: actPage >= actTotalPages ? 'not-allowed' : 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

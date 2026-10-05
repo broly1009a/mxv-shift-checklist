@@ -51,6 +51,15 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
     );
   }, [accountManifest?.ocrSummary?.canhBaoChatLuong]);
 
+  const getWarningBadgeText = (warnings: string[]) => {
+    if (!warnings || warnings.length === 0) return '';
+    const first = warnings[0].toLowerCase();
+    if (first.includes('phân giải') || first.includes('quá nhỏ')) return 'Độ phân giải nhỏ';
+    if (first.includes('mờ') || first.includes('nhòe')) return 'Ảnh mờ/nhòe nét';
+    if (first.includes('lẹm') || first.includes('viền') || first.includes('xén')) return 'Mép ảnh sát viền';
+    return warnings.length === 1 ? 'Cảnh báo ảnh' : `${warnings.length} cảnh báo`;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Đường dẫn thư mục lưu trữ thực tế */}
@@ -72,7 +81,10 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
           <Folder size={14} color="#3b82f6" />
           <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Thư mục lưu trữ:</span>
           <code style={{ color: '#3b82f6', fontSize: '0.72rem' }}>
-            {accountManifest?.directory || inspectRecord.ms?.cccdMatTruocLocalPath || 'HoSo_DinhKem'}
+            {accountManifest?.directory ||
+              (inspectRecord.ms?.cccdMatTruocLocalPath
+                ? inspectRecord.ms.cccdMatTruocLocalPath.replace(/[\\\/][^\\\/]+$/, '')
+                : 'HoSo_DinhKem')}
           </code>
         </div>
         <span
@@ -85,7 +97,11 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
             fontSize: '0.7rem',
           }}
         >
-          {accountManifest?.totalFiles !== undefined ? `${accountManifest.totalFiles} tệp hồ sơ` : 'Đang quét tệp...'}
+          {accountManifest?.totalFiles !== undefined
+            ? `${accountManifest.totalFiles} tệp hồ sơ`
+            : inspectRecord.ms?.cccdMatTruocLocalPath
+              ? 'Đã đồng bộ ảnh từ M-System'
+              : 'Đang quét tệp...'}
         </span>
       </div>
 
@@ -206,9 +222,9 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                             alignItems: 'center',
                             gap: '4px',
                           }}
-                          title="Ảnh đính kèm Mail và ảnh trên M-System trùng khớp 100% mã băm MD5. Số CCCD được bảo chứng chéo qua Hợp đồng và MS."
+                          title="Ảnh đính kèm trong Mail và ảnh tải lên M-System trùng khớp 100% (cùng một tệp gốc). Số CCCD được xác thực qua HĐ và MS."
                         >
-                          <ShieldCheck size={12} strokeWidth={2.5} /> Bảo Chứng Ảnh MS (MD5)
+                          <ShieldCheck size={12} strokeWidth={2.5} /> Ảnh Gốc Trùng Khớp (MS)
                         </span>
                       )}
                     </>
@@ -235,7 +251,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                     title="Bấm để xem/ẩn chi tiết cảnh báo chất lượng ảnh"
                   >
                     <AlertTriangle size={12} />
-                    <span>{frontWarnings.length === 1 ? 'Mép ảnh sát viền' : `${frontWarnings.length} cảnh báo viền`}</span>
+                    <span>{getWarningBadgeText(frontWarnings)}</span>
                     {showFrontWarningDetail ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   </button>
                 ) : (
@@ -574,7 +590,7 @@ export const TabAttachmentsViewer: React.FC<TabAttachmentsViewerProps> = ({
                     title="Bấm để xem/ẩn chi tiết cảnh báo chất lượng ảnh"
                   >
                     <AlertTriangle size={12} />
-                    <span>{backWarnings.length === 1 ? 'Mép ảnh sát viền' : `${backWarnings.length} cảnh báo viền`}</span>
+                    <span>{getWarningBadgeText(backWarnings)}</span>
                     {showBackWarningDetail ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   </button>
                 ) : (

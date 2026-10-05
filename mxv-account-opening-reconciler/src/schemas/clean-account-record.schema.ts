@@ -258,8 +258,25 @@ export class MSSubDoc {
   @Prop()
   ketQua?: string;
 
-  @Prop({ default: false })
-  isFoundOnMS: boolean;
+  // @Prop({ default: false })
+  // isFoundOnMS: boolean;
+  @Prop()
+  isFoundOnMS?: boolean;
+
+  @Prop()
+  tenThanhVien?: string;
+
+  @Prop()
+  tenMoiGioi?: string;
+
+  @Prop({ type: [String], default: [] })
+  rawInputsLog?: string[];
+
+  @Prop()
+  crawledAt?: Date;
+
+  @Prop({ default: 0 })
+  crawlAttempts?: number;
 }
 export const MSSubDocSchema = SchemaFactory.createForClass(MSSubDoc);
 
@@ -278,6 +295,9 @@ export class KetLuanDoiSoat {
 
   @Prop()
   reconciledAt?: Date;
+
+  @Prop({ default: false })
+  needsManualReview?: boolean;
 }
 export const KetLuanDoiSoatSchema = SchemaFactory.createForClass(KetLuanDoiSoat);
 
@@ -289,6 +309,18 @@ export class RecordSnapshotSubDoc {
 
   @Prop({ default: 'UPDATE' })
   action: string;
+
+  @Prop()
+  performer?: string;
+
+  @Prop()
+  statusBefore?: string;
+
+  @Prop()
+  statusAfter?: string;
+
+  @Prop()
+  note?: string;
 
   @Prop({ type: Object })
   previousData: Record<string, any>;

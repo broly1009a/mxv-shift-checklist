@@ -15,13 +15,14 @@ export class TkgdConfigService {
   /**
    * Lấy cấu hình của User (Mật khẩu và PIN được che giấu bảo mật)
    */
-  async getUserConfig(userEmail: string) {
-    let config = await this.userConfigModel.findOne({ userEmail }).lean();
+  async getUserConfig(userEmail?: string) {
+    const email = userEmail || 'default@mxv.vn';
+    let config = await this.userConfigModel.findOne({ userEmail: email }).lean();
     if (!config) {
       // Trả về cấu hình mặc định
       return {
-        userEmail,
-        fullName: userEmail.split('@')[0],
+        userEmail: email,
+        fullName: email.split('@')[0],
         department: 'Thanh toán bù trừ',
         msystem: {
           username: '',

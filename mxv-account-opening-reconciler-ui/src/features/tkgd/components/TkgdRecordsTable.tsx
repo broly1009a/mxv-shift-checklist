@@ -22,10 +22,14 @@ import {
   Globe,
   Zap,
   CheckCircle2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
-import { CleanRecord } from '../types/tkgd.types';
+import { CleanRecord, TkgdColumnKey, TkgdSortField, TkgdSortOrder } from '../types/tkgd.types';
 import { cleanMailName, checkIsOldIdCard, getBadgeInfo } from '../utils/tkgd.helpers';
 import { tkgdApi } from '../services/tkgd.api';
+import { DEFAULT_VISIBLE_COLUMNS } from '../hooks/useTkgdData';
 
 interface TkgdRecordsTableProps {
   records: CleanRecord[];
@@ -37,6 +41,10 @@ interface TkgdRecordsTableProps {
   total: number;
   totalPages: number;
   isCompactView: boolean;
+  visibleColumns?: Record<TkgdColumnKey, boolean>;
+  sortBy?: TkgdSortField;
+  sortOrder?: TkgdSortOrder;
+  onSort?: (field: TkgdSortField) => void;
   expandedRowId: string | null;
   setExpandedRowId: (id: string | null) => void;
   isProcessing: boolean;
@@ -57,6 +65,10 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
   total,
   totalPages,
   isCompactView,
+  visibleColumns,
+  sortBy,
+  sortOrder = 'desc',
+  onSort,
   expandedRowId,
   setExpandedRowId,
   isProcessing,
@@ -140,14 +152,14 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
     }
   };
 
-  // Xử lý Tái thẩm định luật mới hàng loạt
+  // Xử lý So khớp lại luật mới hàng loạt
   const handleBulkReEvaluate = async () => {
     if (selectedIds.length === 0 || isBulkRunning) return;
     setIsBulkRunning(true);
-    setBulkStatusMsg(`Đang tái thẩm định ${selectedIds.length} tài khoản...`);
+    setBulkStatusMsg(`Đang so khớp lại ${selectedIds.length} tài khoản...`);
     try {
       const res = await tkgdApi.bulkReEvaluate(selectedIds);
-      setBulkStatusMsg(res.message || 'Tái thẩm định hoàn tất!');
+      setBulkStatusMsg(res.message || 'So khớp lại hoàn tất!');
       setSelectedIds([]);
       onRefresh?.();
       setTimeout(() => setBulkStatusMsg(null), 4000);
@@ -195,6 +207,84 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
     );
   };
 
+  const cols = visibleColumns || (isCompactView ? {
+    stt: true,
+    maTKGD: true,
+    phanHe: true,
+    tenMail: true,
+    hoTenMS: true,
+    soCCCD: true,
+    trangThaiMS: false,
+    snapshot: false,
+    ketLuan: true,
+    thoiGian: false,
+    soSanh: true,
+  } : DEFAULT_VISIBLE_COLUMNS);
+
+  const isColVisible = (key: TkgdColumnKey) => cols[key] !== false;
+
+  const visibleColumnCount = 1 + (
+    (isColVisible('stt') ? 1 : 0) +
+    (isColVisible('maTKGD') ? 1 : 0) +
+    (isColVisible('phanHe') ? 1 : 0) +
+    (isColVisible('tenMail') ? 1 : 0) +
+    (isColVisible('hoTenMS') ? 1 : 0) +
+    (isColVisible('soCCCD') ? 1 : 0) +
+    (isColVisible('trangThaiMS') ? 1 : 0) +
+    (isColVisible('snapshot') ? 1 : 0) +
+    (isColVisible('ketLuan') ? 1 : 0) +
+    (isColVisible('thoiGian') ? 1 : 0) +
+    (isColVisible('soSanh') ? 1 : 0)
+  );
+
+  const renderSortableHeader = (
+    field: TkgdSortField,
+    label: string,
+    textAlign: 'left' | 'center' | 'right' = 'left',
+    width?: string
+  ) => {
+    const isSorted = sortBy === field;
+    return (
+      <th
+        onClick={() => onSort && onSort(field)}
+        style={{
+          padding: '12px 14px',
+          textAlign,
+          width,
+          cursor: onSort ? 'pointer' : 'default',
+          userSelect: 'none',
+          color: isSorted ? '#3b82f6' : 'var(--text-secondary)',
+          transition: 'color 0.15s ease',
+        }}
+        className="hover:text-blue-500"
+        title={onSort ? `Nhấp để sắp xếp theo ${label} (${isSorted && sortOrder === 'asc' ? 'Giảm dần' : 'Tăng dần'})` : undefined}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: textAlign === 'center' ? 'center' : 'flex-start',
+            gap: '4px',
+            width: '100%',
+          }}
+        >
+          <span>{label}</span>
+          {onSort && (
+            isSorted ? (
+              sortOrder === 'asc' ? (
+                <ArrowUp size={13} style={{ color: '#3b82f6', flexShrink: 0 }} />
+              ) : (
+                <ArrowDown size={13} style={{ color: '#3b82f6', flexShrink: 0 }} />
+              )
+            ) : (
+              <ArrowUpDown size={12} style={{ opacity: 0.35, flexShrink: 0 }} />
+            )
+          )}
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div
       id="tutorial-tkgd-table"
@@ -229,32 +319,42 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                   style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#3b82f6' }}
                 />
               </th>
-              <th style={{ padding: '12px 14px', width: '45px', textAlign: 'center' }}>STT</th>
-              <th style={{ padding: '12px 14px' }}>Mã TKGD</th>
-              <th style={{ padding: '12px 14px' }}>Phân Hệ</th>
-              <th style={{ padding: '12px 14px' }}>Tên Trên Mail</th>
-              <th style={{ padding: '12px 14px' }}>Họ & Tên Trên MS</th>
-              <th style={{ padding: '12px 14px' }}>Số CCCD / CMT</th>
-              {!isCompactView && <th style={{ padding: '12px 14px' }}>Trạng Thái MS</th>}
-              {!isCompactView && <th style={{ padding: '12px 14px', textAlign: 'center' }}>Snapshot</th>}
-              <th style={{ padding: '12px 14px', textAlign: 'center' }}>Kết Luận</th>
-              {!isCompactView && <th style={{ padding: '12px 14px', textAlign: 'center', width: '135px' }}>Thời Gian Kiểm Tra</th>}
-              <th id="tutorial-tkgd-inspect-col" style={{ padding: '12px 14px', textAlign: 'center', width: '100px' }}>
-                So Sánh
-              </th>
+              {isColVisible('stt') && (
+                <th style={{ padding: '12px 14px', width: '45px', textAlign: 'center' }}>STT</th>
+              )}
+              {isColVisible('maTKGD') && renderSortableHeader('maTKGD', 'Mã TKGD')}
+              {isColVisible('phanHe') && <th style={{ padding: '12px 14px' }}>Phân Hệ</th>}
+              {isColVisible('tenMail') && renderSortableHeader('tenMail', 'Tên Trên Mail')}
+              {isColVisible('hoTenMS') && renderSortableHeader('hoTenMS', 'Họ & Tên Trên MS')}
+              {isColVisible('soCCCD') && renderSortableHeader('soCCCD', 'Số CCCD / CMT')}
+              {isColVisible('trangThaiMS') && <th style={{ padding: '12px 14px' }}>Trạng Thái MS</th>}
+              {isColVisible('snapshot') && (
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Snapshot</th>
+              )}
+              {isColVisible('ketLuan') && renderSortableHeader('ketLuan', 'Kết Luận', 'center')}
+              {isColVisible('thoiGian') &&
+                renderSortableHeader('thoiGian', 'Thời Gian Kiểm Tra', 'center', '140px')}
+              {isColVisible('soSanh') && (
+                <th
+                  id="tutorial-tkgd-inspect-col"
+                  style={{ padding: '12px 14px', textAlign: 'center', width: '100px' }}
+                >
+                  So Sánh
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isCompactView ? 9 : 12} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={visibleColumnCount} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   <Loader2 size={24} className="animate-spin text-emerald-500" style={{ margin: '0 auto 8px auto' }} />
                   <span>Đang tải danh sách hồ sơ...</span>
                 </td>
               </tr>
             ) : records.length === 0 ? (
               <tr>
-                <td colSpan={isCompactView ? 9 : 12} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <td colSpan={visibleColumnCount} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                   Không tìm thấy hồ sơ đối soát nào phù hợp.
                 </td>
               </tr>
@@ -294,61 +394,73 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#3b82f6' }}
                         />
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                        {(page - 1) * pageSize + index + 1}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#3b82f6' }}>
-                        <div>{targetCode}</div>
-                        {r.noiDungMail?.receivedDateTime && (
-                          <div
-                            style={{
-                              fontSize: '0.65rem',
-                              fontWeight: 500,
-                              color: 'var(--text-muted)',
-                              marginTop: '2px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                            }}
-                            title={`Thời gian nhận email: ${new Date(r.noiDungMail.receivedDateTime).toLocaleString('vi-VN')}`}
-                          >
-                            <Mail size={11} style={{ opacity: 0.7, flexShrink: 0 }} />
-                            <span>
-                              {new Date(r.noiDungMail.receivedDateTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}{' '}
-                              {new Date(r.noiDungMail.receivedDateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                      {isColVisible('stt') && (
+                        <td style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                          {(page - 1) * pageSize + index + 1}
+                        </td>
+                      )}
+                      {isColVisible('maTKGD') && (
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#3b82f6' }}>
+                          <div>{targetCode}</div>
+                          {r.noiDungMail?.receivedDateTime && (
+                            <div
+                              style={{
+                                fontSize: '0.65rem',
+                                fontWeight: 500,
+                                color: 'var(--text-muted)',
+                                marginTop: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                              title={`Thời gian nhận email: ${new Date(r.noiDungMail.receivedDateTime).toLocaleString('vi-VN')}`}
+                            >
+                              <Mail size={11} style={{ opacity: 0.7, flexShrink: 0 }} />
+                              <span>
+                                {new Date(r.noiDungMail.receivedDateTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}{' '}
+                                {new Date(r.noiDungMail.receivedDateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                      {isColVisible('phanHe') && (
+                        <td style={{ padding: '12px 14px' }}>{renderModuleBadges(r)}</td>
+                      )}
+                      {isColVisible('tenMail') && (
+                        <td style={{ padding: '12px 14px', fontWeight: 600 }}>
+                          {cleanMailName(r.hopDong?.hoVaTen || r.canCuoc?.hoVaTen || r.noiDungMail?.tenTaiKhoan)}
+                        </td>
+                      )}
+                      {isColVisible('hoTenMS') && (
+                        <td style={{ padding: '12px 14px', color: r.ms?.hoVaTen ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {r.ms?.hoVaTen || <em>Chưa đồng bộ MS</em>}
+                        </td>
+                      )}
+                      {isColVisible('soCCCD') && (
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                          <div>{r.ms?.soCMND_HoChieu || r.canCuoc?.soCanCuoc || r.hopDong?.soCanCuoc || '-'}</div>
+                          {checkIsOldIdCard(r) && (
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                marginTop: '3px',
+                                fontSize: '0.62rem',
+                                fontWeight: 700,
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                color: '#d97706',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Căn cước cũ, ktra lại
                             </span>
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>{renderModuleBadges(r)}</td>
-                      <td style={{ padding: '12px 14px', fontWeight: 600 }}>
-                        {cleanMailName(r.noiDungMail?.tenTaiKhoan)}
-                      </td>
-                      <td style={{ padding: '12px 14px', color: r.ms?.hoVaTen ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                        {r.ms?.hoVaTen || <em>Chưa đồng bộ MS</em>}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                        <div>{r.ms?.soCMND_HoChieu || r.canCuoc?.soCanCuoc || r.hopDong?.soCanCuoc || '-'}</div>
-                        {checkIsOldIdCard(r) && (
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              marginTop: '3px',
-                              fontSize: '0.62rem',
-                              fontWeight: 700,
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                              color: '#d97706',
-                              border: '1px solid rgba(245, 158, 11, 0.3)',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            Căn cước cũ, ktra lại
-                          </span>
-                        )}
-                      </td>
-                      {!isCompactView && (
+                          )}
+                        </td>
+                      )}
+                      {isColVisible('trangThaiMS') && (
                         <td style={{ padding: '12px 14px' }}>
                           {r.ms?.trangThai ? (
                             <span
@@ -368,7 +480,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           )}
                         </td>
                       )}
-                      {!isCompactView && (
+                      {isColVisible('snapshot') && (
                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                           {r.snapshots && r.snapshots.length > 0 ? (
                             <button
@@ -401,7 +513,8 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           )}
                         </td>
                       )}
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      {isColVisible('ketLuan') && (
+                        <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         {r.manualReview?.isOverridden ? (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
                             <span
@@ -471,9 +584,9 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                                   gap: '3px',
                                   whiteSpace: 'nowrap',
                                 }}
-                                title="Hồ sơ được bảo chứng chéo bằng mã băm MD5 ảnh Mail trùng ảnh MS 100%"
+                                title="Ảnh đính kèm trong Mail và ảnh tải lên M-System trùng khớp 100% (cùng một tệp gốc)"
                               >
-                                <ShieldCheck size={10} /> Bảo chứng MS (MD5)
+                                <ShieldCheck size={10} /> Ảnh gốc trùng khớp
                               </span>
                             )}
                           </div>
@@ -590,9 +703,10 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           </span>
                         )}
                       </td>
+                      )}
 
                       {/* Cột Thời Gian Kiểm Tra */}
-                      {!isCompactView && (
+                      {isColVisible('thoiGian') && (
                         <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {r.ketLuan?.reconciledAt || r.updatedAt ? (
                             <div
@@ -629,7 +743,8 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                       )}
 
                       {/* Cột Thao Tác - Tối ưu UX: Gom về 1 nút chính trực quan, comment lại các nút phụ ít dùng */}
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                      {isColVisible('soSanh') && (
+                        <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                           {/* NÚT CỐT LÕI DUY NHẤT: Xem chi tiết & Đối soát hồ sơ */}
                           <button
@@ -751,12 +866,13 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                           */}
                         </div>
                       </td>
+                      )}
                     </tr>
 
                     {/* Inline Panel mở rộng */}
                     {isExpanded && (
                       <tr style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                        <td colSpan={isCompactView ? 8 : 11} style={{ padding: '14px 20px' }}>
+                        <td colSpan={visibleColumnCount} style={{ padding: '14px 20px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <Info size={14} color="#3b82f6" />
@@ -1092,29 +1208,7 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                 <span>Check lại</span>
               </button>
 
-              {/* [CÁC NÚT PHÂN MẢNH KỸ THUẬT ĐƯỢC COMMENT ẨN ĐỂ GIAO DIỆN TINH GỌN, KHÔNG RƯỜM RÀ MÁY MÓC]
-              <button
-                type="button"
-                onClick={handleBulkSyncMS}
-                disabled={isBulkRunning}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  backgroundColor: 'rgba(147, 51, 234, 0.85)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                <Globe size={14} />
-                <span>Đồng bộ M-System</span>
-              </button>
-
+              {/* Nút 1: So khớp lại (Nhanh 1s theo dữ liệu hiện có trong DB) */}
               <button
                 type="button"
                 onClick={handleBulkReEvaluate}
@@ -1123,20 +1217,21 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '8px 14px',
+                  padding: '8px 16px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                  backgroundColor: '#10b981',
                   color: '#ffffff',
                   border: 'none',
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
                 }}
+                title="So khớp lại tức thì dữ liệu theo các trường thông tin hiện có (không cần cào lại MS)"
               >
                 <Zap size={14} />
-                <span>Tái Thẩm Định</span>
+                <span>So khớp lại</span>
               </button>
-              */}
 
               {/* Nút Bỏ chọn */}
               <button

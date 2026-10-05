@@ -121,7 +121,11 @@ export class TkgdAutomationController {
     @Query('page') page?: string,
     @Query('filter') filter?: string,
     @Query('batchDate') batchDate?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
   ) {
     const l = parseInt(limit || '20', 10);
     const p = page ? parseInt(page, 10) : undefined;
@@ -132,7 +136,11 @@ export class TkgdAutomationController {
       page: p || Math.floor(s / l) + 1,
       filter,
       batchDate,
+      startDate,
+      endDate,
       search,
+      sortBy,
+      sortOrder,
     });
   }
 
@@ -172,8 +180,12 @@ export class TkgdAutomationController {
     const email = this.getUserEmail(req);
     return await this.tkgdService.syncMSystemAccounts(email, {
       investorCode: body?.investorCode,
+      investorCodes: body?.investorCodes,
+      maTVKD: body?.maTVKD,
       downloadImages: body?.downloadImages,
       batchDate: body?.batchDate,
+      mode: body?.mode,
+      limit: body?.limit,
     });
   }
 
@@ -185,7 +197,7 @@ export class TkgdAutomationController {
     const email = this.getUserEmail(req);
     return await this.tkgdService.reparseAccount(email, {
       recordId: body?.recordId,
-      accountCode: body?.accountCode,
+      accountCode: body?.accountCode || body?.maTKGD,
       batchDate: body?.batchDate,
     });
   }
@@ -219,9 +231,14 @@ export class TkgdAutomationController {
    * Lấy số lượng thống kê phục vụ Dynamic Badge (số hồ sơ chờ cào MS, số khớp, lệch)
    */
   @Get('stats')
-  async getStats(@Req() req: any, @Query('batchDate') batchDate?: string) {
+  async getStats(
+    @Req() req: any,
+    @Query('batchDate') batchDate?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     const email = this.getUserEmail(req);
-    return await this.tkgdService.getTkgdStats(email, batchDate);
+    return await this.tkgdService.getTkgdStats(email, batchDate, startDate, endDate);
   }
 
   /**
@@ -239,19 +256,48 @@ export class TkgdAutomationController {
   }
 
   /**
-   * Tải file Excel đối soát mới nhất về máy
+   * Tải file Excel đối soát mới nhất về máy (hỗ trợ lọc theo ngày, khoảng ngày hoặc xuất toàn bộ hơn 2.700 tài khoản trong DB)
    */
   @Get('download-excel')
-  async downloadExcel(@Req() req: any, @Res() res: any) {
+  async downloadExcel(
+    @Req() req: any,
+    @Res() res: any,
+    @Query('batchDate') batchDate?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('filter') filter?: string,
+    @Query('search') search?: string,
+  ) {
     const email = this.getUserEmail(req);
-    const filePath = await this.tkgdService.getLatestExcelFilePath(email);
-    if (!filePath) {
-      return res.status(404).json({
+    try {
+      this.logger.log(
+        `[EXCEL] Yêu cầu tải file Excel: batchDate=${batchDate || 'all'}, range=${startDate || ''}-${endDate || ''}, filter=${filter || 'ALL'}, search=${search || 'none'}`,
+      );
+
+      const result = await this.tkgdService.exportFilteredExcel(email, {
+        batchDate,
+        startDate,
+        endDate,
+        filter,
+        search,
+      });
+
+      if (!result?.filePath || !fs.existsSync(result.filePath)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chưa có file Excel đối soát nào được tạo cho tiêu chí này.',
+        });
+      }
+
+      const fileName = path.basename(result.filePath);
+      return res.download(result.filePath, fileName);
+    } catch (err: any) {
+      this.logger.error(`[EXCEL] Lỗi xuất file Excel: ${err.message}`, err.stack);
+      return res.status(500).json({
         success: false,
-        message: 'Chưa có file Excel đối soát nào được tạo.',
+        message: 'Lỗi xuất file Excel: ' + err.message,
       });
     }
-    return res.download(filePath);
   }
 
   /**
@@ -452,6 +498,39 @@ export class TkgdAutomationController {
       endDate,
       userEmail: email,
     });
+  }
+
+  /**
+   * Danh sách toàn bộ nhật ký bóc tách & cào M-System có phân trang và bộ lọc
+   */
+  @Get('logs/extraction')
+  async getAllExtractionLogs(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('stage') stage?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('batchDate') batchDate?: string,
+  ) {
+    return await this.tkgdService.getAllExtractionLogs({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      stage,
+      status,
+      search,
+      batchDate,
+    });
+  }
+
+  /**
+   * Lấy toàn bộ nhật ký bóc tách & truy vết chi tiết của 1 tài khoản (Audit Trace Log)
+   */
+  @Get('logs/extraction/:accountCode')
+  async getExtractionLogs(
+    @Param('accountCode') accountCode: string,
+    @Query('batchDate') batchDate?: string,
+  ) {
+    return await this.tkgdService.getExtractionLogs(accountCode, batchDate);
   }
 
   // ══════════════════════════════════════════════════════════════════════════

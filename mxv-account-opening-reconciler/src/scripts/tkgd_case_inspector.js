@@ -213,7 +213,7 @@ cd /opt/mxv-checklist/backend && node -e '
               })(),
               isCccd: /cccd|cmnd|can.?cuoc/i.test(f),
               isContract: /h[oôơọợòóỏõóồốổỗộờớởỡ].{0,2}[dđ][oôơọợòóỏõóồốổỗộờớởỡ]ng|\\bhd\\b|\\bhđ\\b/i.test(f),
-              isPl01: /pl01|phu.?luc/i.test(f),
+              isPl01: /pl01|phu.?luc|[-_]pl/i.test(f),
               ext: path.extname(f).toLowerCase()
             });
           }
@@ -225,8 +225,9 @@ cd /opt/mxv-checklist/backend && node -e '
       _id: String(r._id),
       maTKGD: r.maTKGD,
       maTKGDBase: r.maTKGDBase,
+      loaiTKGD: r.loaiTKGD || "CO_SO",
       batchDate: r.batchDate,
-      hoTen: r.hoTen || r.ms?.hoVaTen || r.hopDong?.hoTen || "",
+      hoTen: r.hoTen || r.ms?.hoVaTen || r.hopDong?.hoVaTen || r.hopDong?.hoTen || "",
       folderPath,
       diskFiles,
       ketLuan: r.ketLuan || {},
@@ -297,9 +298,17 @@ cd /opt/mxv-checklist/backend && node -e '
       if (/thiếu CCCD|Không đọc được/i.test(joinedErrs)) summary.byErrorType.thieuCCCD++;
 
       // Lưu hoặc update vào cache (giữ lại testRuns cũ nếu có)
-      const existingTestRuns = cache.accounts[r.maTKGD]?.testRuns || [];
-      cache.accounts[r.maTKGD] = {
+      let key = r.maTKGD;
+      if (r.loaiTKGD && r.loaiTKGD !== 'CO_SO') {
+        key = `${r.maTKGD}_${r.loaiTKGD}`;
+      } else if (cache.accounts[r.maTKGD] && cache.accounts[r.maTKGD]._id !== r._id) {
+        key = `${r.maTKGD}_${r.batchDate || r._id.slice(-4)}`;
+      }
+
+      const existingTestRuns = cache.accounts[key]?.testRuns || [];
+      cache.accounts[key] = {
         ...r,
+        cacheKey: key,
         testRuns: existingTestRuns,
       };
     });
@@ -350,7 +359,7 @@ function printAccountList(cache, filterField = null) {
 
     const st = acc.ketLuan?.trangThai || 'N/A';
     const num = String(idx + 1).padStart(3, ' ');
-    const code = (acc.maTKGD || '').padEnd(12, ' ');
+    const code = (acc.cacheKey || acc.maTKGD || '').padEnd(12, ' ');
     const name = (acc.hoTen || '').slice(0, 20).padEnd(20, ' ');
     const date = (acc.batchDate || '').padEnd(10, ' ');
     const stStr = st.padEnd(10, ' ');
@@ -365,7 +374,7 @@ function printAccountList(cache, filterField = null) {
 // ============================================================================
 function inspectAccount(code) {
   const cache = loadCache();
-  const acc = cache.accounts[code];
+  const acc = cache.accounts[code] || Object.values(cache.accounts).find(a => a.maTKGD === code || a.maTKGDBase === code);
   if (!acc) {
     console.error(`[INSPECT] Không tìm thấy tài khoản "${code}" trong cache!`);
     console.log(`Gợi ý: Chạy "node src/scripts/tkgd_case_inspector.js --fetch --code ${code}" để kéo trực tiếp từ Ubuntu.`);
@@ -373,9 +382,11 @@ function inspectAccount(code) {
   }
 
   console.log(`\n==================================================================================`);
-  console.log(`CHI TIẾT HỒ SƠ: ${acc.maTKGD} - ${acc.hoTen} (Đợt: ${acc.batchDate})`);
+  console.log(`CHI TIẾT HỒ SƠ: ${acc.maTKGD} - ${acc.hoTen} (Đợt: ${acc.batchDate}, Loại: ${acc.loaiTKGD || 'CO_SO'})`);
   console.log(`==================================================================================`);
   console.log(`- Trạng thái thẩm định: [${acc.ketLuan?.trangThai || 'UNKNOWN'}]`);
+  console.log(`- Chữa lành (Auto-Heal): ${acc.canCuoc?.autoHealed ? '✅ ĐÃ CHỮA LÀNH (' + (acc.canCuoc.healedFields || []).join(', ') + ')' : 'Chưa / Không áp dụng'}`);
+  console.log(`- Cập nhật kết luận lúc: ${acc.ketLuan?.reconciledAt || 'N/A'}`);
   console.log(`- Thư mục lưu trữ: ${acc.folderPath}`);
   console.log(`\n1. CÁC TỆP TIN TRONG THƯ MỤC:`);
   (acc.diskFiles || []).forEach((f) => {
@@ -386,9 +397,9 @@ function inspectAccount(code) {
 
   console.log(`\n2. ĐỐI SOÁT TRƯỜNG DỮ LIỆU (M-System Web vs Hồ Sơ/OCR):`);
   const fields = [
-    { label: 'Họ và tên', ms: acc.ms?.hoVaTen, doc: acc.hopDong?.hoTen || acc.canCuoc?.hoTen },
-    { label: 'Số CCCD/Hộ chiếu', ms: acc.ms?.soCMND_HoChieu, doc: acc.hopDong?.soCCCD || acc.canCuoc?.soCCCD },
-    { label: 'Ngày sinh', ms: acc.ms?.ngaySinh, doc: acc.hopDong?.ngaySinh || acc.canCuoc?.ngaySinh },
+    { label: 'Họ và tên', ms: acc.ms?.hoVaTen, doc: acc.hopDong?.hoVaTen || acc.hopDong?.hoTen || acc.canCuoc?.hoVaTen || acc.canCuoc?.hoTen },
+    { label: 'Số CCCD/Hộ chiếu', ms: acc.ms?.soCMND_HoChieu, doc: acc.hopDong?.soCanCuoc || acc.hopDong?.soCCCD || acc.canCuoc?.soCanCuoc || acc.canCuoc?.soCCCD },
+    { label: 'Ngày sinh', ms: acc.ms?.ngaySinh, doc: acc.hopDong?.ngaySinh || acc.canCuoc?.ngaySinh || acc.hopDong?.rawNgaySinh || acc.canCuoc?.rawNgaySinh },
     { label: 'Giới tính', ms: acc.ms?.gioiTinh, doc: acc.hopDong?.gioiTinh || acc.canCuoc?.gioiTinh },
     { label: 'Ngày cấp', ms: acc.ms?.ngayCap, doc: acc.hopDong?.ngayCap || acc.canCuoc?.ngayCap },
     { label: 'Nơi cấp', ms: acc.ms?.noiCap, doc: acc.hopDong?.noiCap || acc.canCuoc?.noiCap },
@@ -445,14 +456,14 @@ async function runTestOnAccount(code, options = {}) {
   // Tìm file hợp đồng, phụ lục, cccd mặt trước, cccd mặt sau từ diskFiles
   const diskFiles = acc.diskFiles || [];
   const hdFile =
-    diskFiles.find((f) => f.isContract && f.ext === '.pdf')?.path ||
-    diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ)/i.test(f.name) && f.ext === '.pdf')?.path ||
-    diskFiles.find((f) => f.isContract && ['.jpg', '.jpeg', '.png', '.webp', '.paint'].includes(f.ext))?.path ||
-    diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ)/i.test(f.name) && ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.paint'].includes(f.ext))?.path ||
+    diskFiles.find((f) => f.isContract && !f.isPl01 && f.ext === '.pdf')?.path ||
+    diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ)/i.test(f.name) && !/(pl01|phu.?luc|[-_]pl)/i.test(f.name) && f.ext === '.pdf')?.path ||
+    diskFiles.find((f) => f.isContract && !f.isPl01 && ['.jpg', '.jpeg', '.png', '.webp', '.paint'].includes(f.ext))?.path ||
+    diskFiles.find((f) => /(h[o|ô].?d[o|ô]ng|\bhd\b|hđ)/i.test(f.name) && !/(pl01|phu.?luc|[-_]pl)/i.test(f.name) && ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.paint'].includes(f.ext))?.path ||
     '';
   const plFile =
     diskFiles.find((f) => f.isPl01 && f.ext === '.pdf')?.path ||
-    diskFiles.find((f) => /(pl01|phu.?luc)/i.test(f.name) && f.ext === '.pdf')?.path ||
+    diskFiles.find((f) => /(pl01|phu.?luc|[-_]pl)/i.test(f.name) && f.ext === '.pdf')?.path ||
     '';
 
   // Ưu tiên tệp cccd của khách hàng (lọc bỏ _MS_ và file hợp đồng)

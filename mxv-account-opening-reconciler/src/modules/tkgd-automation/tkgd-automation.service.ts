@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TkgdUserConfig, TkgdUserConfigDocument } from '../../schemas/tkgd-user-config.schema';
 import { TkgdActivityLog, TkgdActivityLogDocument } from '../../schemas/tkgd-activity-log.schema';
+import { TkgdExtractionLog, TkgdExtractionLogDocument } from '../../schemas/tkgd-extraction-log.schema';
 
 // ── Sub-services (Facade delegates) ────────────────────────────────────────
 import { TkgdConfigService } from './services/tkgd-config.service';
@@ -39,10 +40,13 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
 
   /** Theo dõi user đang chạy auto-pipeline — ngăn đè nhau */
   private autoPipelineRunningUsers = new Set<string>();
+  private isMailSyncRunning = false;
+  private isMsCrawlerRunning = false;
 
   constructor(
     @InjectModel(TkgdUserConfig.name) private userConfigModel: Model<TkgdUserConfigDocument>,
     @InjectModel(TkgdActivityLog.name) private activityLogModel: Model<TkgdActivityLogDocument>,
+    @InjectModel(TkgdExtractionLog.name) private extractionLogModel: Model<TkgdExtractionLogDocument>,
     private readonly configService: TkgdConfigService,
     private readonly progressService: TkgdProgressService,
     private readonly mailIngestService: TkgdMailIngestService,
@@ -61,12 +65,15 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
     if (isWorkerDisabled) {
       this.logger.log('[TKGD-ROLE] Node role: WEB_ONLY (Background auto pipeline cron da tat hoan toan).');
     } else if (isDedicatedWorker) {
-      this.logger.log('[TKGD-ROLE] Node role: DEDICATED_WORKER (Kich hoat Background Worker chay ngam tu dong).');
-      // Kích hoạt ngay 1 chu kỳ quét sau 5s khởi động, không phải chờ đến mốc phút chia hết cho 5 tiếp theo
+      this.logger.log('[TKGD-ROLE] Node role: DEDICATED_WORKER (Kich hoat Background Worker chay ngam song song).');
+      // Kích hoạt ngay 2 luồng quét độc lập sau 5s khởi động: Quét Mail & Cào M-System song song
       setTimeout(() => {
-        this.logger.log('[TKGD-WORKER] Dang khoi dong chu trinh quet ban dau...');
-        this.handleCronAutoPipeline(true).catch((err) => {
-          this.logger.warn(`[TKGD-WORKER-INIT] Lỗi: ${err.message}`);
+        this.logger.log('[TKGD-WORKER] 🚀 Khởi động độc lập 2 luồng song song: Quét Mail & Cào M-System...');
+        this.handleCronMailSync().catch((err) => {
+          this.logger.warn(`[TKGD-WORKER-MAIL-INIT] Lỗi: ${err.message}`);
+        });
+        this.handleCronMsCrawler().catch((err) => {
+          this.logger.warn(`[TKGD-WORKER-MS-INIT] Lỗi: ${err.message}`);
         });
       }, 5000);
     } else {
@@ -150,6 +157,50 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
     return { data, total, page, pages: Math.ceil(total / limit) || 1 };
   }
 
+  /**
+   * Lấy toàn bộ nhật ký bóc tách & truy vết chi tiết của 1 tài khoản
+   */
+  async getExtractionLogs(accountCode: string, batchDate?: string) {
+    const filter: any = {
+      maTKGD: accountCode.trim(),
+    };
+    if (batchDate && batchDate.trim()) {
+      filter.batchDate = batchDate.trim();
+    }
+    return await this.extractionLogModel.find(filter).sort({ createdAt: 1 }).lean();
+  }
+
+  /**
+   * Lấy danh sách toàn bộ nhật ký bóc tách & cào M-System có phân trang và bộ lọc
+   */
+  async getAllExtractionLogs(query: {
+    page?: number;
+    limit?: number;
+    stage?: string;
+    status?: string;
+    search?: string;
+    batchDate?: string;
+  }): Promise<{ data: any[]; total: number; page: number; pages: number }> {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const filter: any = {};
+    if (query.stage && query.stage !== 'ALL') filter.stage = query.stage;
+    if (query.status && query.status !== 'ALL') filter.status = query.status;
+    if (query.batchDate && query.batchDate.trim()) filter.batchDate = query.batchDate.trim();
+    if (query.search && query.search.trim()) {
+      const regex = new RegExp(query.search.trim(), 'i');
+      filter.$or = [{ maTKGD: regex }, { title: regex }, { details: regex }, { performer: regex }];
+    }
+    const total = await this.extractionLogModel.countDocuments(filter);
+    const data = await this.extractionLogModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+    return { data, total, page, pages: Math.ceil(total / limit) || 1 };
+  }
+
   // ═══════════════════════════════════════════════════════════
   // II. PROGRESS  →  TkgdProgressService
   // ═══════════════════════════════════════════════════════════
@@ -206,8 +257,8 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
     return this.reconcileCoreService.evaluateRecordReconciliation(record);
   }
 
-  async getTkgdStats(userEmail: string, batchDate?: string) {
-    return this.reconcileCoreService.getTkgdStats(userEmail, batchDate);
+  async getTkgdStats(userEmail: string, batchDate?: string, startDate?: string, endDate?: string) {
+    return this.reconcileCoreService.getTkgdStats(userEmail, batchDate, startDate, endDate);
   }
 
   async getAnalyticsSummary(userEmail: string, batchDate?: string, shift?: string, range?: string) {
@@ -230,8 +281,21 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
   // V. EXCEL EXPORT  →  TkgdExcelExportService
   // ═══════════════════════════════════════════════════════════
 
-  async getLatestExcelFilePath(userEmail: string): Promise<string | null> {
-    return this.excelExportService.getLatestExcelFilePath(userEmail);
+  async getLatestExcelFilePath(userEmail: string, batchDate?: string): Promise<string | null> {
+    return this.excelExportService.getLatestExcelFilePath(userEmail, batchDate);
+  }
+
+  async exportFilteredExcel(
+    userEmail: string,
+    options: {
+      batchDate?: string;
+      startDate?: string;
+      endDate?: string;
+      filter?: string;
+      search?: string;
+    },
+  ) {
+    return this.excelExportService.exportFilteredExcel(userEmail, options);
   }
 
   async getAccountFilesManifest(userEmail: string, accountCode: string, batchDate?: string) {
@@ -260,7 +324,15 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
 
   async syncMSystemAccounts(
     userEmail: string,
-    options?: { investorCode?: string; investorCodes?: string[]; downloadImages?: boolean; batchDate?: string },
+    options?: {
+      investorCode?: string;
+      investorCodes?: string[];
+      downloadImages?: boolean;
+      batchDate?: string;
+      mode?: 'REALTIME' | 'HEALING';
+      limit?: number;
+      maTVKD?: string;
+    },
   ) {
     return this.msCrawlerService.syncMSystemAccounts(userEmail, options);
   }
@@ -306,29 +378,47 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
       isProcessing: true,
       taskType: 'ALL',
       current: 1,
-      total: 3,
-      percent: 15,
-      stage: 'Bước 1/3: Đang quét email mở TKGD và hồ sơ đính kèm...',
+      total: 2,
+      percent: 30,
+      stage: 'Đang chạy song song: Quét Email/OCR Hợp đồng & Cào dữ liệu M-System...',
     });
 
-    const mailResult = await this.mailIngestService.syncMailOpeningAccounts(
-      userEmail,
-      options?.batchDate,
-    );
+    this.logger.log('[TKGD-PIPELINE] 🚀 Kích hoạt song song: Luồng Quét Email/OCR & Luồng Cào M-System Playwright...');
+
+    // CHẠY SONG SONG (PARALLEL DUAL RUN):
+    // Luồng Mail & Luồng Cào MS là 2 tác vụ độc lập, chạy đồng thời để M-System không phải chờ bóc tách xong 100+ email.
+    const [mailResult, msResult] = await Promise.all([
+      this.mailIngestService
+        .syncMailOpeningAccounts(userEmail, options?.batchDate)
+        .catch((err) => {
+          this.logger.error(`[PIPELINE-MAIL] Lỗi quét email: ${err.message}`, err.stack);
+          return { success: false, error: err.message };
+        }),
+      this.msCrawlerService
+        .syncMSystemAccounts(userEmail, {
+          downloadImages: options?.downloadImages !== undefined ? options.downloadImages : true,
+          batchDate: options?.batchDate,
+          mode: 'REALTIME',
+        })
+        .catch((err) => {
+          this.logger.error(`[PIPELINE-MS] Lỗi cào M-System: ${err.message}`, err.stack);
+          return { success: false, error: err.message };
+        }),
+    ]);
 
     this.progressService.updateProgress(userEmail, {
       isProcessing: true,
       taskType: 'ALL',
       current: 2,
-      total: 3,
-      percent: 50,
-      stage: 'Bước 2/3: Đang cào dữ liệu từ M-System...',
+      total: 2,
+      percent: 85,
+      stage: 'Đang tổng hợp đối soát & xuất báo cáo...',
     });
 
-    const msResult = await this.msCrawlerService.syncMSystemAccounts(userEmail, {
-      downloadImages: options?.downloadImages !== undefined ? options.downloadImages : true,
-      batchDate: options?.batchDate,
-    });
+    const reconResult = await this.reconcileCoreService.runReconciliation(
+      userEmail,
+      options?.batchDate,
+    );
 
     this.progressService.updateProgress(userEmail, {
       isProcessing: false,
@@ -342,11 +432,15 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
     await this.logActivity({
       action: 'RUN_PIPELINE',
       title: 'Hoàn tất chu trình tổng hợp TKGD',
-      details: JSON.stringify({ mail: (mailResult as any)?.summary, ms: (msResult as any)?.summary }),
+      details: JSON.stringify({
+        mail: (mailResult as any)?.summary,
+        ms: (msResult as any)?.results?.length,
+        recon: (reconResult as any)?.summary,
+      }),
       userEmail,
     });
 
-    return { success: true, mailResult, msResult };
+    return { success: true, mailResult, msResult, reconResult };
   }
 
   /**
@@ -391,34 +485,92 @@ export class TkgdAutomationService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Kích hoạt Auto-Pipeline cho user đã bật (kiểm tra mỗi 5 phút) */
+  /** Luồng 1 (Mail Sync Cron): Quét email Outlook & OCR định kỳ mỗi 5 phút độc lập */
   @Cron('*/5 * * * *')
-  async handleCronAutoPipeline(forceRun = false) {
-    try {
-      // 1. Phân định vai trò Node: Nếu Node được cấu hình là Web-Only, tuyệt đối không chạy cron
-      if (process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'false') {
-        return;
-      }
+  async handleCronMailSync() {
+    if (process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'false') return;
+    if (this.isMailSyncRunning) {
+      this.logger.log('[TKGD-CRON-MAIL] ⏳ Chu kỳ quét email trước vẫn đang chạy. Bỏ qua để không chồng lấn.');
+      return;
+    }
 
-      // 2. Chế độ Dedicated Worker: Nếu đặt ENABLE_TKGD_BACKGROUND_WORKER=true hoặc TKGD_LOCAL_AUTO_RUNNER=true
-      // Node này sẽ chủ động thực thi chu trình tự động ngay cả khi cờ trên DB chung đang tạm tắt (tránh xung đột Web Server)
+    try {
       const isDedicatedWorker =
         process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'true' ||
         process.env.TKGD_LOCAL_AUTO_RUNNER === 'true';
 
-      // Khi Dedicated Worker: vẫn phải lọc user có cấu hình M-System hợp lệ
-      // (có msystem.username) — tránh chạy với user chưa cấu hình → login fail
-      const filter = isDedicatedWorker
-        ? { 'msystem.username': { $exists: true, $ne: '' } }
-        : { 'autoPipeline.enabled': true };
+      const filter: any = { 'autoPipeline.enabled': true };
+      if (isDedicatedWorker) {
+        filter['msystem.username'] = { $exists: true, $ne: '' };
+      }
+
+      const config = await this.userConfigModel.findOne(filter).select('userEmail').lean();
+      if (!config?.userEmail) return;
+
+      this.isMailSyncRunning = true;
+      this.logger.log(`[TKGD-CRON-MAIL] 📬 Bắt đầu chu kỳ quét email độc lập cho ${config.userEmail}...`);
+      await this.mailIngestService.syncMailOpeningAccounts(config.userEmail);
+    } catch (err: any) {
+      this.logger.warn(`[TKGD-CRON-MAIL] Lỗi: ${err.message}`);
+    } finally {
+      this.isMailSyncRunning = false;
+    }
+  }
+
+  /** Luồng 2 (M-System Crawler Cron): Cào M-System song song độc lập mỗi 2 phút, không chờ Mail */
+  @Cron('*/2 * * * *')
+  async handleCronMsCrawler() {
+    if (process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'false') return;
+    if (this.isMsCrawlerRunning) {
+      this.logger.log('[TKGD-CRON-MS] ⏳ Chu kỳ cào M-System trước vẫn đang chạy. Bỏ qua để không chồng lấn.');
+      return;
+    }
+
+    try {
+      const isDedicatedWorker =
+        process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'true' ||
+        process.env.TKGD_LOCAL_AUTO_RUNNER === 'true';
+
+      const filter: any = { 'autoPipeline.enabled': true };
+      if (isDedicatedWorker) {
+        filter['msystem.username'] = { $exists: true, $ne: '' };
+      }
+
+      const config = await this.userConfigModel.findOne(filter).select('userEmail').lean();
+      if (!config?.userEmail) return;
+
+      this.isMsCrawlerRunning = true;
+      this.logger.log(`[TKGD-CRON-MS] 🌐 Bắt đầu chu kỳ cào M-System song song độc lập cho ${config.userEmail}...`);
+      await this.msCrawlerService.syncMSystemAccounts(config.userEmail, {
+        mode: 'REALTIME',
+        limit: 25,
+      });
+    } catch (err: any) {
+      this.logger.warn(`[TKGD-CRON-MS] Lỗi: ${err.message}`);
+    } finally {
+      this.isMsCrawlerRunning = false;
+    }
+  }
+
+  /** Kích hoạt Auto-Pipeline tổng hợp theo yêu cầu (Manual / On-demand) */
+  async handleCronAutoPipeline(forceRun = false) {
+    try {
+      if (process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'false') {
+        return;
+      }
+
+      const isDedicatedWorker =
+        process.env.ENABLE_TKGD_BACKGROUND_WORKER === 'true' ||
+        process.env.TKGD_LOCAL_AUTO_RUNNER === 'true';
+
+      const filter: any = { 'autoPipeline.enabled': true };
+      if (isDedicatedWorker) {
+        filter['msystem.username'] = { $exists: true, $ne: '' };
+      }
       const enabledUsers = await this.userConfigModel
         .find(filter)
         .select('userEmail autoPipeline msystem')
         .lean();
-
-      if (isDedicatedWorker && enabledUsers.length > 0) {
-        this.logger.log(`[TKGD-WORKER] Dedicated Worker dang quet chu trinh tu dong cho ${enabledUsers.length} user...`);
-      }
 
       for (const cfg of enabledUsers) {
         const userEmail = cfg.userEmail;

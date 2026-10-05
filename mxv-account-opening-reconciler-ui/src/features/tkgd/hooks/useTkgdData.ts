@@ -1,7 +1,43 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { CleanRecord, FilterStatus, TkgdStats, AccountManifest } from '../types/tkgd.types';
+import {
+  CleanRecord,
+  FilterStatus,
+  TkgdStats,
+  AccountManifest,
+  TkgdColumnKey,
+  TkgdSortField,
+  TkgdSortOrder,
+} from '../types/tkgd.types';
 import { tkgdApi } from '../services/tkgd.api';
+
+export const DEFAULT_VISIBLE_COLUMNS: Record<TkgdColumnKey, boolean> = {
+  stt: true,
+  maTKGD: true,
+  phanHe: true,
+  tenMail: true,
+  hoTenMS: true,
+  soCCCD: true,
+  trangThaiMS: true,
+  snapshot: true,
+  ketLuan: true,
+  thoiGian: true,
+  soSanh: true,
+};
+
+export const COMPACT_VISIBLE_COLUMNS: Record<TkgdColumnKey, boolean> = {
+  stt: true,
+  maTKGD: true,
+  phanHe: true,
+  tenMail: true,
+  hoTenMS: true,
+  soCCCD: true,
+  trangThaiMS: false,
+  snapshot: false,
+  ketLuan: true,
+  thoiGian: false,
+  soSanh: true,
+};
 
 export function useTkgdData(token?: string | null, userEmail?: string) {
   const [records, setRecords] = useState<CleanRecord[]>([]);
@@ -9,12 +45,35 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Helper lấy chuỗi ngày hôm nay YYYY-MM-DD theo giờ địa phương
+  const getTodayStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
   // Filters & Pagination
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [filter, setFilter] = useState<FilterStatus>('ALL');
-  const [batchDate, setBatchDate] = useState<string>('');
+  const [batchDate, setBatchDate] = useState<string>(() => getTodayStr());
+  const [startDate, setStartDate] = useState<string>(() => getTodayStr());
+  const [endDate, setEndDate] = useState<string>(() => getTodayStr());
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Sắp xếp cột
+  const [sortBy, setSortBy] = useState<TkgdSortField | undefined>('thoiGian');
+  const [sortOrder, setSortOrder] = useState<TkgdSortOrder>('desc');
+
+  // Quản lý hiển thị cột (Column Visibility)
+  const [visibleColumns, setVisibleColumns] = useState<Record<TkgdColumnKey, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('tkgd_visible_columns');
+      if (saved) {
+        return { ...DEFAULT_VISIBLE_COLUMNS, ...JSON.parse(saved) };
+      }
+    } catch {}
+    return DEFAULT_VISIBLE_COLUMNS;
+  });
 
   // UI display options
   const [showStats, setShowStats] = useState<boolean>(true);
@@ -60,7 +119,45 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
     setIsCompactView((prev) => {
       const next = !prev;
       localStorage.setItem('tkgd_compact_view', String(next));
+      const nextCols = next ? COMPACT_VISIBLE_COLUMNS : DEFAULT_VISIBLE_COLUMNS;
+      setVisibleColumns(nextCols);
+      try {
+        localStorage.setItem('tkgd_visible_columns', JSON.stringify(nextCols));
+      } catch {}
       return next;
+    });
+  }, []);
+
+  const toggleColumn = useCallback((key: TkgdColumnKey) => {
+    setVisibleColumns((prev) => {
+      if (key === 'maTKGD') return prev; // Khóa cột mã TKGD luôn hiển thị
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('tkgd_visible_columns', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const setColumnPreset = useCallback((preset: 'DEFAULT' | 'COMPACT') => {
+    const nextCols = preset === 'COMPACT' ? COMPACT_VISIBLE_COLUMNS : DEFAULT_VISIBLE_COLUMNS;
+    setVisibleColumns(nextCols);
+    setIsCompactView(preset === 'COMPACT');
+    try {
+      localStorage.setItem('tkgd_visible_columns', JSON.stringify(nextCols));
+      localStorage.setItem('tkgd_compact_view', String(preset === 'COMPACT'));
+    } catch {}
+  }, []);
+
+  const handleSort = useCallback((field: TkgdSortField) => {
+    setSortBy((prevField) => {
+      if (prevField === field) {
+        setSortOrder((prevOrder) => (prevOrder === 'asc' ? 'desc' : 'asc'));
+        return field;
+      } else {
+        setSortOrder('asc');
+        return field;
+      }
     });
   }, []);
 
@@ -69,7 +166,17 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
     setLoading(true);
     try {
       const data = await tkgdApi.getRecords(
-        { page, limit: pageSize, filter, batchDate, search: searchTerm },
+        {
+          page,
+          limit: pageSize,
+          filter,
+          batchDate: startDate || endDate ? undefined : batchDate,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          search: searchTerm,
+          sortBy,
+          sortOrder,
+        },
         token,
         userEmail
       );
@@ -84,15 +191,21 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
     } finally {
       setLoading(false);
     }
-  }, [token, userEmail, page, pageSize, filter, batchDate, searchTerm]);
+  }, [token, userEmail, page, pageSize, filter, batchDate, startDate, endDate, searchTerm, sortBy, sortOrder]);
 
   // Fetch Stats
   const fetchStats = useCallback(async () => {
     try {
-      const data = await tkgdApi.getStats(batchDate, token, userEmail);
+      const data = await tkgdApi.getStats(
+        startDate || endDate
+          ? { startDate: startDate || undefined, endDate: endDate || undefined }
+          : batchDate,
+        token,
+        userEmail
+      );
       if (data) setStats(data);
     } catch {}
-  }, [token, userEmail, batchDate]);
+  }, [token, userEmail, batchDate, startDate, endDate]);
 
   useEffect(() => {
     fetchRecords();
@@ -151,6 +264,19 @@ export function useTkgdData(token?: string | null, userEmail?: string) {
     setFilter,
     batchDate,
     setBatchDate,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    sortBy,
+    setSortBy,
+    sortOrder,
+    setSortOrder,
+    handleSort,
+    visibleColumns,
+    setVisibleColumns,
+    toggleColumn,
+    setColumnPreset,
     searchTerm,
     setSearchTerm,
     showStats,

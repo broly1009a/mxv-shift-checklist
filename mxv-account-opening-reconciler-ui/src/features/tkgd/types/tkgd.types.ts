@@ -104,6 +104,10 @@ export interface CleanRecord {
   snapshots?: Array<{
     snapshotAt: string;
     action: string;
+    performer?: string;
+    statusBefore?: string;
+    statusAfter?: string;
+    note?: string;
     previousData: any;
   }>;
   createdAt?: string;
@@ -305,6 +309,36 @@ export interface TkgdAnalyticsSummary {
   pendingHandoverList: TkgdPendingHandoverItem[];
   latency: TkgdLatencyStats;
 }
+export interface ExtractionLogItem {
+  id?: string;
+  _id?: string;
+  maTKGD: string;
+  batchDate?: string;
+  stage: 'MAIL_INGEST' | 'EXTRACT_CONTRACT' | 'EXTRACT_CCCD' | 'SCRAPE_MSYSTEM' | 'RECONCILE' | 'MANUAL_OVERRIDE';
+  title: string;
+  details?: string;
+  status: 'SUCCESS' | 'WARNING' | 'ERROR' | 'INFO';
+  extractedData?: Record<string, any>;
+  rawInputsLog?: string[];
+  rawText?: string;
+  durationMs?: number;
+  performer?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export type TkgdColumnKey =
+  | 'stt'
+  | 'maTKGD'
+  | 'phanHe'
+  | 'tenMail'
+  | 'hoTenMS'
+  | 'soCCCD'
+  | 'trangThaiMS'
+  | 'snapshot'
+  | 'ketLuan'
+  | 'thoiGian'
+  | 'soSanh';
 
-
+export type TkgdSortField = 'maTKGD' | 'tenMail' | 'hoTenMS' | 'soCCCD' | 'ketLuan' | 'thoiGian';
+export type TkgdSortOrder = 'asc' | 'desc';

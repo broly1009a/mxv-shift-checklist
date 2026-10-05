@@ -410,7 +410,7 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
 
     # 5. Ngày sinh (Nếu chưa tìm thấy qua Anchor)
     if not res.get('ngaySinh'):
-        m_dob = re.search(r'Ngày sinh[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        m_dob = re.search(r'(?:Ngày\s*sinh|Sinh\s*ngày|DOB)[\s:]+([^\n\r]+)', text, re.IGNORECASE)
         if m_dob:
             raw_dob = m_dob.group(1).strip()
             if not any(k in raw_dob.lower() for k in ['giới tính', 'nơi cấp', 'quốc tịch', 'địa chỉ']):
@@ -425,13 +425,17 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
                     dd, mm, yyyy = int(m_vn.group(1)), int(m_vn.group(2)), m_vn.group(3)
                     res['ngaySinh'] = f"{dd:02d}/{mm:02d}/{yyyy}"
                 else:
-                    res['ngaySinh'] = raw_dob
+                    m_sub = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{4})', raw_dob)
+                    if m_sub:
+                        res['ngaySinh'] = m_sub.group(1)
+                    else:
+                        res['ngaySinh'] = raw_dob
 
     # 6. Ngày cấp & Nơi cấp (Nếu chưa tìm thấy qua Anchor)
     if not res.get('noiCap'):
         m_tai = re.search(r'(?:Tại|Nơi cấp)[\s:]+(BỘ CÔNG AN|CỤC CẢNH SÁT[^\n\r]+|CÔNG AN[^\n\r]+)', text, re.IGNORECASE)
         if not m_tai:
-            m_tai = re.search(r'Ngày cấp[^\n\r]*\n\s*Tại[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+            m_tai = re.search(r'(?:Ngày\s*cấp|Cấp\s*ngày)[^\n\r]*\n\s*Tại[\s:]+([^\n\r]+)', text, re.IGNORECASE)
         if not m_tai:
             m_tai = re.search(r'(?:Nơi cấp)[\s:]+([^\n\r]+)', text, re.IGNORECASE)
         if m_tai:
@@ -440,7 +444,7 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
                 res['noiCap'] = cand_nc
 
     if not res.get('ngayCap'):
-        m_issue = re.search(r'Ngày cấp[\s:]+([^\n\r]+)', text, re.IGNORECASE)
+        m_issue = re.search(r'(?:Ngày\s*cấp|Cấp\s*ngày)[\s:]+([^\n\r]+)', text, re.IGNORECASE)
         if m_issue:
             raw_cap_line = m_issue.group(1).strip()
             if not any(k in raw_cap_line.lower() for k in ['địa chỉ', 'giới tính']):
@@ -509,32 +513,40 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
             res['diaChi'] = addr
 
     # 10. Ngày ký hợp đồng (ngayKyHD)
+    # Loại trừ tuyệt đối các ngày cấp phép TVKD, Quyết định MXV, ĐKKD của Bên A
+    def is_corporate_licensing_date(start_idx: int, full_text: str) -> bool:
+        pre = full_text[max(0, start_idx - 120):start_idx]
+        return bool(re.search(r'cấp\s*ngày|Giấy\s*chứng\s*nhận|Thành\s*viên\s*kinh\s*doanh|Quyết\s*định|ĐKKD|Sở\s*Giao\s*dịch|Nghị\s*định|Luật', pre, re.IGNORECASE))
+
     # Mẫu 1: Mở đầu "Hôm nay ngày 11 tháng 08 năm 2026" (xử lý khoảng trắng thừa / tab / chấm)
-    m_ky_preamble = re.search(r'(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
-    if m_ky_preamble:
-        d_ky, m_ky, y_ky = int(m_ky_preamble.group(1)), int(m_ky_preamble.group(2)), int(m_ky_preamble.group(3))
-        if 1 <= d_ky <= 31 and 1 <= m_ky <= 12 and 2000 <= y_ky <= 2099:
-            res['ngayKyHD'] = f"{d_ky:02d}/{m_ky:02d}/{y_ky}"
-            res['rawNgayKyHD'] = m_ky_preamble.group(0).strip()
+    for m in re.finditer(r'(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE):
+        if not is_corporate_licensing_date(m.start(), text):
+            d_ky, m_ky, y_ky = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            if 1 <= d_ky <= 31 and 1 <= m_ky <= 12 and 2020 <= y_ky <= 2099:
+                res['ngayKyHD'] = f"{d_ky:02d}/{m_ky:02d}/{y_ky}"
+                res['rawNgayKyHD'] = m.group(0).strip()
+                break
 
     if not res.get('ngayKyHD'):
         # Mẫu 2: Chân trang "Hà Nội, ngày 11 tháng 08 năm 2026"
-        m_ky_place = re.search(r'(?:Hà\s*Nội|Hồ\s*Chí\s*Minh|TP\.?\s*HCM|Đà\s*Nẵng|Cần\s*Thơ|[A-ZÀ-Ỹa-zà-ỹ\s]{3,30}),\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
-        if m_ky_place:
-            d_ky, m_ky, y_ky = int(m_ky_place.group(1)), int(m_ky_place.group(2)), int(m_ky_place.group(3))
-            if 1 <= d_ky <= 31 and 1 <= m_ky <= 12 and 2000 <= y_ky <= 2099:
-                res['ngayKyHD'] = f"{d_ky:02d}/{m_ky:02d}/{y_ky}"
-                res['rawNgayKyHD'] = m_ky_place.group(0).strip()
+        for m in re.finditer(r'(?:Hà\s*Nội|Hồ\s*Chí\s*Minh|TP\.?\s*HCM|Đà\s*Nẵng|Cần\s*Thơ|[A-ZÀ-Ỹa-zà-ỹ\s]{3,30}),\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE):
+            if not is_corporate_licensing_date(m.start(), text):
+                d_ky, m_ky, y_ky = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                if 1 <= d_ky <= 31 and 1 <= m_ky <= 12 and 2020 <= y_ky <= 2099:
+                    res['ngayKyHD'] = f"{d_ky:02d}/{m_ky:02d}/{y_ky}"
+                    res['rawNgayKyHD'] = m.group(0).strip()
+                    break
 
     if not res.get('ngayKyHD'):
-        # Mẫu 3: Nhãn trường "Ngày ký: 11/08/2026" hoặc "Ký ngày: 11-08-2026"
-        m_ky_lbl = re.search(r'(?:Ngày\s*ký|Ký\s*ngày|Thời\s*gian\s*ký)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', text, re.IGNORECASE)
-        if m_ky_lbl:
-            raw_d = m_ky_lbl.group(1).replace('-', '/').replace('.', '/')
-            parts_d = raw_d.split('/')
-            if len(parts_d) == 3:
-                res['ngayKyHD'] = f"{int(parts_d[0]):02d}/{int(parts_d[1]):02d}/{parts_d[2]}"
-                res['rawNgayKyHD'] = raw_d
+        # Mẫu 3: Nhãn trường "Ngày ký: 11/08/2026" hoặc "Ký ngày: 11-08-2026" hoặc "Ngày: 11/08/2026"
+        for m in re.finditer(r'(?:Ngày\s*ký|Ký\s*ngày|Thời\s*gian\s*ký|Ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', text, re.IGNORECASE):
+            if not is_corporate_licensing_date(m.start(), text):
+                raw_d = m.group(1).replace('-', '/').replace('.', '/')
+                parts_d = raw_d.split('/')
+                if len(parts_d) == 3 and int(parts_d[2]) >= 2020:
+                    res['ngayKyHD'] = f"{int(parts_d[0]):02d}/{int(parts_d[1]):02d}/{parts_d[2]}"
+                    res['rawNgayKyHD'] = raw_d
+                    break
 
     return res
 
@@ -1785,7 +1797,7 @@ def extract_issue_date_with_clahe(back_path: Optional[str]) -> Optional[str]:
     return None
 
 
-def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Optional[str], account_code: str = '', ocr_text: str = '') -> List[str]:
+def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Optional[str], account_code: str = '', ocr_text: str = '', gemini_key: Optional[str] = None) -> List[str]:
     """Kiểm tra chất lượng ảnh CCCD và bắt các lỗi cắt xén, mất góc, mờ nhòe với đa kịch bản tối ưu siêu tốc."""
     warnings = []
     
@@ -1799,6 +1811,8 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
         import pytesseract
     except ImportError:
         return warnings
+
+    uncertain_glare_paths: List[str] = []  # Ảnh _MS_ mà OpenCV không tự tin → chờ Gemini phán quyết
 
     for p in [front_path, back_path]:
         if not p or not os.path.exists(p):
@@ -1818,8 +1832,8 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
         # 1. Kịch bản 1: Kiểm tra độ phân giải quá thấp hoặc mờ nhòe (Low-Res / Blur Detection)
         try:
             gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-            if min(w, h) < 350 or max(w, h) < 550:
-                w_msg = f"Ảnh CCCD độ phân giải thấp ({base_name}: {w}x{h}px): ảnh quá nhỏ, dễ mờ nhòe mất nét chữ"
+            if min(w, h) < 250 or max(w, h) < 400:
+                w_msg = f"[CHẤT LƯỢNG ẢNH] Căn cước quá nhỏ/thumbnail ({base_name}: {w}x{h}px): ảnh không đủ chuẩn nét để nhận diện"
                 if w_msg not in warnings:
                     warnings.append(w_msg)
             
@@ -1914,7 +1928,209 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
         except Exception:
             pass
 
+        # 5. Kịch bản 5: Phát hiện ảnh CCCD đồ họa nhân tạo trên nền trắng phẳng (Synthetic White Canvas)
+        try:
+            c_tl_bgr = im[:12, :12]
+            c_tr_bgr = im[:12, w-12:]
+            c_bl_bgr = im[h-12:, :12]
+            c_br_bgr = im[h-12:, w-12:]
+            corners_bgr = np.concatenate([
+                c_tl_bgr.reshape(-1, 3),
+                c_tr_bgr.reshape(-1, 3),
+                c_bl_bgr.reshape(-1, 3),
+                c_br_bgr.reshape(-1, 3)
+            ])
+            mean_b = float(np.mean(corners_bgr[:, 0]))
+            mean_g = float(np.mean(corners_bgr[:, 1]))
+            mean_r = float(np.mean(corners_bgr[:, 2]))
+            std_all = float(np.std(corners_bgr))
+            if mean_b > 250 and mean_g > 250 and mean_r > 250 and std_all < 5.0:
+                w_msg = f"[NGHI VẤN ẢNH ĐỒ HỌA] File ảnh CCCD ({base_name}) không có hậu cảnh thực tế (nền trắng nhân tạo), yêu cầu chuyên viên kiểm tra trực quan"
+                if w_msg not in warnings:
+                    warnings.append(w_msg)
+        except Exception:
+            pass
+
+        # 6. Kịch bản 6: Phát hiện vùng lóa sáng / phản quang đèn flash (Specular Glare Detection)
+        # Tầng 1: OpenCV phán quyết nhanh dựa trên pixel
+        # Tầng 2: Nếu không chắc (ảnh _MS_ thumbnail nhỏ) → đánh dấu cần Gemini Vision xác nhận
+        opencv_glare_found = False
+        needs_gemini_glare_check = False  # Flag: OpenCV không đủ tự tin, cần AI phán quyết
+        try:
+            lab = cv2.cvtColor(im, cv2.COLOR_BGR2LAB)
+            hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+            l_channel = lab[:, :, 0]
+            sat_channel = hsv[:, :, 1]
+            glare_mask = ((l_channel >= 238) & (sat_channel <= 35)).astype(np.uint8) * 255
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            closed = cv2.morphologyEx(glare_mask, cv2.MORPH_CLOSE, kernel)
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(closed)
+            total_pixels = w * h
+            has_borderline_blob = False
+            for i in range(1, num_labels):
+                area = stats[i, cv2.CC_STAT_AREA]
+                if area < 800:
+                    continue
+                ratio = area / max(total_pixels, 1)
+                gx = stats[i, cv2.CC_STAT_LEFT]
+                gy = stats[i, cv2.CC_STAT_TOP]
+                gw = stats[i, cv2.CC_STAT_WIDTH]
+                gh = stats[i, cv2.CC_STAT_HEIGHT]
+                if gx >= 15 and gy >= 15 and (w - (gx + gw)) >= 15 and (h - (gy + gh)) >= 15:
+                    aspect_ratio = gw / max(gh, 1)
+                    fill_ratio = area / max(gw * gh, 1)
+                    if aspect_ratio > 5.0 and fill_ratio < 0.30:
+                        continue
+                    is_front = 'truoc' in base_name.lower() or 'front' in base_name.lower() or p == front_path
+                    if is_front:
+                        # Bỏ qua khu vực ảnh chân dung (thường có nền sáng)
+                        if gx < int(0.35 * w) and gy > int(0.20 * h):
+                            continue
+                        
+                        # Trên MẶT TRƯỚC: Mọi đốm lóa flash lớn (>= 1500px, >= 0.3% ảnh) bên ngoài ảnh chân dung
+                        # ĐỀU LÀ VẾT LÓA ĐÈN FLASH THỰC TẾ (điển hình như case 003C2308202_MS_CCCD_truoc.jpg)
+                        if area >= 1500 and ratio >= 0.003:
+                            opencv_glare_found = True
+                            break
+                        elif area >= 800 and ratio >= 0.0015:
+                            has_borderline_blob = True
+                    else:
+                        # MẶT SAU: Bỏ qua khu vực chân chip kim loại phản quang (góc trên bên trái mặt sau thẻ gắn chip)
+                        if gx < int(0.35 * w) and gy < int(0.60 * h):
+                            continue
+                        
+                        # MẶT SAU: Bỏ qua khu vực 2 ô vân tay (thường có nền trắng phôi thẻ ở nửa trên)
+                        if gy < int(0.65 * h):
+                            continue
+                        
+                        # Vùng còn lại của mặt sau (vùng MRZ / ngày cấp / nơi cấp):
+                        # Nếu có đốm sáng nghi vấn thì chuyển sang Gemini AI thẩm định thị giác
+                        if area >= 1200 and ratio >= 0.0025:
+                            has_borderline_blob = True
+
+            if opencv_glare_found:
+                w_msg = f"[CHẤT LƯỢNG ẢNH] CCCD bị lóa sáng/phản quang đèn flash ({base_name}): vùng chói lóa làm mất chi tiết chữ, yêu cầu chụp lại thẻ thực tế"
+                if w_msg not in warnings:
+                    warnings.append(w_msg)
+            elif has_borderline_blob:
+                uncertain_glare_paths.append(p)
+        except Exception:
+            pass
+
+    # Tầng 2: Gọi Gemini Vision cho các ảnh _MS_ mà OpenCV không thể phán quyết lóa
+    if uncertain_glare_paths:
+        gemini_quality = call_gemini_image_quality_check(
+            image_paths=uncertain_glare_paths,
+            account_code=account_code,
+            api_key=gemini_key
+        )
+        if gemini_quality.get('hasGlare'):
+            glare_files = ', '.join(os.path.basename(fp) for fp in uncertain_glare_paths)
+            w_msg = f"[CHẤT LƯỢNG ẢNH - AI] CCCD bị lóa sáng/phản quang ({glare_files}): Gemini Vision xác nhận ({gemini_quality.get('glareNote', '')})"
+            if w_msg not in warnings:
+                warnings.append(w_msg)
+        if gemini_quality.get('hasBlur'):
+            blur_files = ', '.join(os.path.basename(fp) for fp in uncertain_glare_paths)
+            w_msg = f"[CHẤT LƯỢNG ẢNH - AI] CCCD bị mờ/nhòe ({blur_files}): Gemini Vision xác nhận ({gemini_quality.get('blurNote', '')})"
+            if w_msg not in warnings:
+                warnings.append(w_msg)
+
     return warnings
+
+
+def call_gemini_image_quality_check(
+    image_paths: List[str],
+    account_code: str = '',
+    api_key: Optional[str] = None
+) -> Dict[str, Any]:
+    """Gọi Gemini Vision để đánh giá chất lượng ảnh CCCD (lóa sáng, mờ nhòe, cắt xén).
+    Dùng khi OpenCV không đủ tin cậy — đặc biệt với ảnh thumbnail nhỏ từ M-System.
+    Hỗ trợ danh sách đa API Key xoay vòng và fallback tự động.
+    Trả về dict: { hasGlare: bool, glareNote: str, hasBlur: bool, blurNote: str, rawResponse: str }
+    """
+    result = {'hasGlare': False, 'glareNote': '', 'hasBlur': False, 'blurNote': '', 'rawResponse': ''}
+    raw_keys = [k.strip() for k in (api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').replace(';', ',').split(',') if k.strip()]
+    if not raw_keys:
+        return result
+
+    import base64
+    import urllib.request
+    import urllib.error
+    import time
+
+    parts = []
+    for img_path in image_paths:
+        if not img_path or not os.path.exists(img_path):
+            continue
+        try:
+            with open(img_path, 'rb') as f:
+                b64 = base64.b64encode(f.read()).decode('utf-8')
+            mime = 'image/jpeg' if img_path.lower().endswith(('.jpg', '.jpeg')) else 'image/png'
+            parts.append({'inline_data': {'mime_type': mime, 'data': b64}})
+        except Exception:
+            pass
+
+    if not parts:
+        return result
+
+    prompt = (
+        "Bạn là chuyên gia kiểm định chất lượng ảnh Căn cước Công dân (CCCD) Việt Nam phục vụ mở tài khoản giao dịch hàng hóa.\n"
+        "Nhiệm vụ: Đánh giá CHẤT LƯỢNG ẢNH thực tế xem có đủ tiêu chuẩn đối soát hay không.\n"
+        "Phân tích xem ảnh có bị:\n"
+        "1. Lóa sáng / phản quang đèn flash nghiêm trọng: Có vệt chói sáng đèn flash che khuất, làm mất nét hoặc làm mất chi tiết chữ số, họ tên, ngày tháng, thông tin thẻ (chỉ báo true khi vệt sáng thực sự che lấp thông tin cần đọc; KHÔNG tính ánh sáng phòng thông thường hoặc phản quang nhẹ ở viền/góc trống không có chữ).\n"
+        "2. Mờ nhòe: Chữ bị nhoè nét, mờ mịt không thể đọc rõ ràng bằng mắt thường.\n"
+        "3. Cắt xén: Mất góc hoặc cạnh của thẻ làm cụt thông tin.\n\n"
+        "TRẢ VỀ DUY NHẤT JSON (không markdown, không giải thích):\n"
+        "{\n"
+        '  "hasGlare": true hoặc false,\n'
+        '  "glareNote": "Mô tả ngắn gọn nếu có vệt lóa che mất chữ/chi tiết",\n'
+        '  "hasBlur": true hoặc false,\n'
+        '  "blurNote": "Mô tả ngắn nếu mờ nhòe không đọc được chữ"\n'
+        "}"
+    )
+    parts.append({'text': prompt})
+
+    state = _load_gemini_state()
+
+    for key in raw_keys:
+        candidate_models, state = get_available_gemini_models(key, state=state)
+
+        for model_name in candidate_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+            req_body = {
+                'contents': [{'parts': parts}],
+                'generationConfig': {'temperature': 0.0, 'response_mime_type': 'application/json'}
+            }
+            try:
+                req_data = json.dumps(req_body).encode('utf-8')
+                req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
+                with urllib.request.urlopen(req, timeout=12) as response:
+                    if response.status == 200:
+                        resp_json = json.loads(response.read().decode('utf-8'))
+                        text_content = resp_json['candidates'][0]['content']['parts'][0]['text'].strip()
+                        clean_text = re.sub(r'^```json\s*|\s*```$', '', text_content, flags=re.MULTILINE).strip()
+                        parsed = json.loads(clean_text)
+                        result['hasGlare'] = bool(parsed.get('hasGlare', False))
+                        result['glareNote'] = str(parsed.get('glareNote', ''))
+                        result['hasBlur'] = bool(parsed.get('hasBlur', False))
+                        result['blurNote'] = str(parsed.get('blurNote', ''))
+                        result['rawResponse'] = clean_text
+                        result['model'] = model_name
+                        state['last_successful'] = model_name
+                        _save_gemini_state(state)
+                        sys.stderr.write(f"[GEMINI-QUALITY] {account_code}: hasGlare={result['hasGlare']} ({result['glareNote']}), hasBlur={result['hasBlur']}\n")
+                        return result
+            except urllib.error.HTTPError as e:
+                if e.code in (404, 429, 503):
+                    state.setdefault('cooldown', {})[model_name] = time.time()
+                    _save_gemini_state(state)
+                sys.stderr.write(f"[GEMINI-QUALITY-ERR] {model_name} HTTP {e.code}\n")
+                continue
+            except Exception as e:
+                sys.stderr.write(f"[GEMINI-QUALITY-EXC] {model_name}: {str(e)}\n")
+                continue
+
+    return result
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1924,7 +2140,7 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
 STATE_FILE = os.path.join(tempfile.gettempdir(), 'mxv_gemini_ai_state.json')
 FAILED_COOLDOWN_SECONDS = 10 * 60    # Phạt 10 phút đối với model bị 429/503/404
 MIN_API_REFRESH_INTERVAL = 60 * 60   # Van an toàn: Chỉ cho phép gọi Google API lấy danh sách mới tối đa 1 lần/giờ
-DEFAULT_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']  # Chỉ giữ 2 model chuẩn mực nhất
+DEFAULT_FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash']  # Chuẩn hóa model thế hệ mới nhất
 
 
 def _load_gemini_state() -> Dict[str, Any]:
@@ -2120,71 +2336,84 @@ def call_gemini_vision_fallback(front_path: Optional[str],
     prompt_text = "\n".join(prompt_lines)
     parts.append({'text': prompt_text})
 
-    # 1. Nạp danh sách model từ state lưu trữ
-    candidate_models, state = get_available_gemini_models(key)
-    now = time.time()
-
-    def try_invoke_models(model_list: List[str]) -> Optional[Dict[str, Any]]:
-        """Thử lần lượt danh sách model. Trả về kết quả nếu có model thành công."""
-        for model_name in model_list:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
-            req_body = {
-                "contents": [{"parts": parts}],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "response_mime_type": "application/json"
-                }
-            }
-            try:
-                req_data = json.dumps(req_body).encode('utf-8')
-                req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    if response.status == 200:
-                        resp_json = json.loads(response.read().decode('utf-8'))
-                        text_content = resp_json['candidates'][0]['content']['parts'][0]['text'].strip()
-                        clean_text = re.sub(r'^```json\s*|\s*```$', '', text_content, flags=re.MULTILINE).strip()
-                        parsed = json.loads(clean_text)
-                        if parsed and parsed.get('soCCCD'):
-                            state['last_successful'] = model_name
-                            if 'cooldown' in state and model_name in state['cooldown']:
-                                del state['cooldown'][model_name]
-                            _save_gemini_state(state)
-                            return parsed
-            except urllib.error.HTTPError as e:
-                # Ghi nhận phạt cooldown nếu Google quá tải (429/503) hoặc model bị gỡ (404)
-                if e.code in (404, 429, 503):
-                    state.setdefault('cooldown', {})[model_name] = time.time()
-                    if state.get('last_successful') == model_name:
-                        state['last_successful'] = ''
-                    _save_gemini_state(state)
-                continue
-            except Exception:
-                continue
+    raw_keys = [k.strip() for k in (api_key or os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').replace(';', ',').split(',') if k.strip()]
+    if not raw_keys:
         return None
 
-    # Lượt 1: Thử các model từ state/database hiện có
-    parsed = try_invoke_models(candidate_models)
-    if parsed:
-        return parsed
+    state = _load_gemini_state()
+    last_key = state.get('last_successful_key', '')
+    if last_key in raw_keys:
+        start_idx = raw_keys.index(last_key)
+        ordered_keys = raw_keys[start_idx:] + raw_keys[:start_idx]
+    else:
+        ordered_keys = raw_keys
 
-    # Lượt 2: TẤT CẢ MODEL HIỆN CÓ ĐỀU THẤT BẠI
-    # Áp dụng Van An Toàn: Chỉ fetch Google API nếu lần refresh gần nhất cách đây > 1 giờ
-    last_refresh = state.get('last_api_refresh_at', 0)
-    if now - last_refresh > MIN_API_REFRESH_INTERVAL:
-        state['last_api_refresh_at'] = now
-        _save_gemini_state(state)
-        refreshed_models = fetch_remote_gemini_models(key)
-        if refreshed_models:
-            state['models'] = refreshed_models
-            state['cooldown'] = {}
+    now = time.time()
+
+    for current_key in ordered_keys:
+        # 1. Nạp danh sách model từ state lưu trữ
+        candidate_models, state = get_available_gemini_models(current_key, state=state)
+
+        def try_invoke_models(model_list: List[str]) -> Optional[Dict[str, Any]]:
+            """Thử lần lượt danh sách model. Trả về kết quả nếu có model thành công."""
+            for model_name in model_list:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={current_key}"
+                req_body = {
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {
+                        "temperature": 0.1,
+                        "response_mime_type": "application/json"
+                    }
+                }
+                try:
+                    req_data = json.dumps(req_body).encode('utf-8')
+                    req = urllib.request.Request(url, data=req_data, headers={'Content-Type': 'application/json'}, method='POST')
+                    with urllib.request.urlopen(req, timeout=12) as response:
+                        if response.status == 200:
+                            resp_json = json.loads(response.read().decode('utf-8'))
+                            text_content = resp_json['candidates'][0]['content']['parts'][0]['text'].strip()
+                            clean_text = re.sub(r'^```json\s*|\s*```$', '', text_content, flags=re.MULTILINE).strip()
+                            parsed = json.loads(clean_text)
+                            if parsed and parsed.get('soCCCD'):
+                                state['last_successful'] = model_name
+                                state['last_successful_key'] = current_key
+                                if 'cooldown' in state and model_name in state['cooldown']:
+                                    del state['cooldown'][model_name]
+                                _save_gemini_state(state)
+                                return parsed
+                except urllib.error.HTTPError as e:
+                    # Ghi nhận phạt cooldown nếu Google quá tải (429/503) hoặc model bị gỡ (404)
+                    if e.code in (404, 429, 503):
+                        state.setdefault('cooldown', {})[model_name] = time.time()
+                        if state.get('last_successful') == model_name:
+                            state['last_successful'] = ''
+                        _save_gemini_state(state)
+                    continue
+                except Exception:
+                    continue
+            return None
+
+        # Lượt 1: Thử các model từ state/database hiện có
+        parsed = try_invoke_models(candidate_models)
+        if parsed:
+            return parsed
+
+        # Lượt 2: TẤT CẢ MODEL CỦA KEY HIỆN CÓ ĐỀU THẤT BẠI
+        last_refresh = state.get('last_api_refresh_at', 0)
+        if now - last_refresh > MIN_API_REFRESH_INTERVAL:
+            state['last_api_refresh_at'] = now
             _save_gemini_state(state)
-            # Thử lại đúng 1 lần với 2 model tốt nhất trong danh sách mới
-            parsed_retry = try_invoke_models(refreshed_models[:2])
-            if parsed_retry:
-                return parsed_retry
+            refreshed_models = fetch_remote_gemini_models(current_key)
+            if refreshed_models:
+                state['models'] = refreshed_models
+                state['cooldown'] = {}
+                _save_gemini_state(state)
+                parsed_retry = try_invoke_models(refreshed_models[:2])
+                if parsed_retry:
+                    return parsed_retry
 
-    # Fail-Fast: Dừng ngay, không quay vòng lặp vô ích
     return None
+
 
 
 def detect_field_anomalies(cccd_data: Dict[str, Any],
@@ -2438,6 +2667,51 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
         'canCuoc': {},
         'warnings': []
     }
+
+    # 0. Tự động giải nén nếu front hoặc back là file .zip hoặc thư mục có file .zip
+    import zipfile
+    scan_dirs = set()
+    for p in [hopdong, phuluc, front, back]:
+        if p and os.path.exists(p):
+            if os.path.isdir(p):
+                scan_dirs.add(p)
+            elif p.lower().endswith('.zip'):
+                zout = os.path.splitext(p)[0]
+                os.makedirs(zout, exist_ok=True)
+                try:
+                    with zipfile.ZipFile(p, 'r') as zf:
+                        zf.extractall(zout)
+                    scan_dirs.add(zout)
+                except Exception:
+                    pass
+            else:
+                scan_dirs.add(os.path.dirname(os.path.abspath(p)))
+
+    if not front:
+        for sd in scan_dirs:
+            try:
+                for fn in os.listdir(sd):
+                    if fn.lower().endswith('.zip'):
+                        zpath = os.path.join(sd, fn)
+                        try:
+                            with zipfile.ZipFile(zpath, 'r') as zf:
+                                zf.extractall(sd)
+                        except Exception:
+                            pass
+                imgs = [
+                    os.path.join(sd, f) for f in sorted(os.listdir(sd))
+                    if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+                    and not f.startswith('.')
+                    and '_ms_' not in f.lower()
+                    and 'chuky' not in f.lower()
+                ]
+                if imgs:
+                    front = imgs[0]
+                    if len(imgs) > 1 and not back:
+                        back = imgs[1]
+                    break
+            except Exception:
+                pass
 
     # 0. Tự động nhận diện nếu hopdong thực chất là file PDF CCCD (vd: 157_CCCD Phung Dac Long.pdf)
     if hopdong and not front and not back:
@@ -2720,7 +2994,7 @@ def process_account_files(hopdong: Optional[str], phuluc: Optional[str],
 
     # 4. Kiểm tra chất lượng ảnh và mất góc (Tái sử dụng text OCR đã có, không tốn thêm CPU)
     raw_ocr_txt = ocr_data.get('_rawCombinedText', '')
-    quality_warnings = inspect_image_clipping_and_quality(front, back, code, ocr_text=raw_ocr_txt)
+    quality_warnings = inspect_image_clipping_and_quality(front, back, code, ocr_text=raw_ocr_txt, gemini_key=gemini_key)
     cccd_data['canhBaoChatLuong'] = quality_warnings
 
     # 5. Kiểm tra Rule Căn cước cũ (Quy định bắt buộc CCCD gắn chip của Sở)

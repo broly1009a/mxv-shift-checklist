@@ -321,9 +321,8 @@ export function formatReportToConsole(report: InspectionReport): string {
     lines.push(`   • Hợp đồng  : Tên: "${rec.docInfo.hopDong.hoVaTen || 'N/A'}" | CCCD: "${rec.docInfo.hopDong.soCanCuoc || 'N/A'}" | Sinh: ${rec.docInfo.hopDong.ngaySinh || 'N/A'}`);
     lines.push(`   • Ảnh CCCD  : Tên: "${rec.docInfo.canCuoc.hoVaTen || 'N/A'}" | Số: "${rec.docInfo.canCuoc.soCanCuoc || 'N/A'}" | Độ tin cậy AI: ${rec.docInfo.canCuoc.ocrConfidence ? rec.docInfo.canCuoc.ocrConfidence + '%' : 'N/A'}`);
 
-    // TẦNG 3: M-SYSTEM
-    lines.push('\n🌐 3. DỮ LIỆU TRÊN CỔNG M-SYSTEM:');
-    if (rec.msInfo.isFoundOnMS) {
+    // if (rec.msInfo.isFoundOnMS) {
+    if (rec.msInfo.hoVaTen || rec.msInfo.soCMND_HoChieu) {
       lines.push(`   • Trạng thái : ĐÃ CÀO THÀNH CÔNG (Mã MS: ${rec.msInfo.maTKGD || rec.maTKGDBase})`);
       lines.push(`   • Họ và tên  : "${rec.msInfo.hoVaTen || 'N/A'}"`);
       lines.push(`   • Số CCCD    : "${rec.msInfo.soCMND_HoChieu || 'N/A'}"`);

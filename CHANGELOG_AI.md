@@ -1,6 +1,68 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-09-25T16:55] Chuẩn Hóa Thông Báo Chế Độ Realtime (Instant Stream) & Khắc Phục Lỗi Xuất Excel Workbook
+## [2026-10-05T08:35] Khắc Phục Lỗi EACCES Permission Denied Khi Tạo Thư Mục Output Hồ Sơ (/opt/POC)
+
+### 1. Mục tiêu thực hiện
+- **Yêu cầu từ USER**: Kiểm tra log lỗi `Error: EACCES: permission denied, mkdir '/opt/POC/TKGD-Automation/output'` xuất hiện khi xem chi tiết hồ sơ tài khoản (Modal).
+- **Phân tích nguyên nhân gốc rễ (Root Cause Analysis)**:
+  1. Trong [tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/modules/engine-helpers/tkgd-reconcile-exporter.helper.ts#L154-L161), hàm `getTkgdOutputDirectory` có bước fallback cũ: `path.resolve(__dirname, '../../../../../POC/TKGD-Automation/output')`.
+  2. Khi chạy trên server Linux dưới đường dẫn `/opt/mxv-tkgd/backend/dist/...`, phép tính lùi 5 cấp thư mục dẫn thẳng ra `/opt/POC/...`.
+  3. Tiến trình Node chạy dưới quyền tài khoản `vncadmin` không có quyền tạo thư mục tại thư mục gốc `/opt/`, dẫn tới `EACCES: permission denied` và gây lỗi 500 khi client gọi `/api/v1/tkgd/files/manifest/:accountCode`.
+
+### 2. Các điểm cải tiến & sửa đổi cụ thể
+1. **Chuẩn hóa fallback an toàn về thư mục dữ liệu nội bộ**:
+   - Chuyển fallback của `getTkgdOutputDirectory` về `path.resolve(process.cwd(), 'data', 'output')` (hoặc `ATTACHMENT_STORAGE_PATH`), đảm bảo luôn nằm trong không gian làm việc của ứng dụng thuộc sở hữu của `vncadmin`.
+   - Bọc toàn bộ các lệnh `fs.mkdirSync` trong `try / catch` bảo vệ tuyệt đối.
+2. **Kiểm thử & Biên dịch**:
+   - Biên dịch TypeScript thành công (`tsc --noEmit` $\rightarrow$ 0 lỗi).
+   - Đã đồng bộ lên server `10.1.0.16` và reload PM2 Backend (`mxv-account-opening-reconciler`).
+   - Kiểm tra API thực tế: `curl http://localhost/api/v1/tkgd/files/manifest/003C2886699` trả về **HTTP 200 OK**.
+
+### 3. Danh sách tệp tin tác động
+- [mxv-account-opening-reconciler/src/modules/engine-helpers/tkgd-reconcile-exporter.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/modules/engine-helpers/tkgd-reconcile-exporter.helper.ts)
+
+---
+
+### 1. Mục tiêu thực hiện
+- **Yêu cầu từ USER**: "giúp tôi check log cho hệ thống hoạt động ổn định" sau khi phát hiện log lỗi `libatk-1.0.so.0: cannot open shared object file: No such file or directory` (exitCode=127).
+- **Phân tích nguyên nhân gốc rễ (Root Cause Analysis)**:
+  1. Chromium headless của Playwright trên Ubuntu 24.04 yêu cầu 38 thư viện liên kết động C-libraries (gồm `libatk-1.0-0t64`, `libatk-bridge2.0-0t64`, `libcups2t64`, `libasound2t64`, `xvfb`...).
+  2. Việc thiếu các thư viện này khiến robot Playwright cào dữ liệu M-System bị lỗi thoát sớm `exitCode=127`.
+
+### 2. Các điểm cải tiến & sửa đổi cụ thể
+1. **Cài đặt đầy đủ 38 thư viện đồ họa hệ thống cho Chromium**:
+   - Đã chạy `sudo npx playwright install-deps chromium` cài đặt hoàn chỉnh tất cả các gói phụ thuộc trên Ubuntu 24.04 LTS (`exit_code=0`).
+2. **Khởi động lại Backend & Kiểm thử Browser Launch**:
+   - Chạy test độc lập: Playwright Chromium khởi chạy thành công (`Version: 153.0.8010.12`), đóng an toàn không có bất kỳ ngoại lệ nào.
+   - Reload PM2 Backend: Cả 2 luồng ngầm song song (Quét Mail & Cào M-System) đã khởi động bình thường.
+3. **Giám sát sức khỏe hệ thống (System Health)**:
+   - PM2: Cả 2 tiến trình `mxv-account-opening-reconciler` (PID 27103) và `mxv-account-opening-reconciler-ui` (PID 25441) đều ở trạng thái `online`.
+   - CPU: `5.2%`, RAM: `29.7%` (rất thấp và ổn định).
+
+---
+
+### 1. Mục tiêu thực hiện
+- **Yêu cầu từ USER**: "tại sao tôi không thấy database" (kèm ảnh chụp màn hình Dashboard hiển thị `TỔNG HỒ SƠ TOÀN ĐỢT: 0`, spinner `Đang tải danh sách hồ sơ...` tại `http://localhost:8080`).
+- **Phân tích nguyên nhân gốc rễ (Root Cause Analysis)**:
+  1. *Hardcode API URL khi Next.js Build*: File `.env.local` trên server trước đó đặt `NEXT_PUBLIC_API_URL=http://10.1.0.16`. Next.js (Turbopack) đã inline giá trị này vào file JavaScript bundle tải xuống trình duyệt client.
+  2. *Chặn Port 80 do Network VLAN*: Trình duyệt Chrome của người dùng đang truy cập qua SSH tunnel tại `http://localhost:8080`. Khi React chạy trên trình duyệt, các hàm `fetch` trong `tkgd.api.ts` gọi trực tiếp `http://10.1.0.16/api/v1/...`. Do firewall nội bộ giữa VLAN máy trạm (`10.0.19.x`) và server (`10.1.0.16`) chặn port 80, các request fetch này bị Network Timeout / Error, khiến bảng dữ liệu không nhận được dữ liệu từ MongoDB.
+  3. *CSDL trên server hoàn toàn nguyên vẹn*: Thực tế trong MongoDB `mxv_tkgd_reconciler` có đủ **7,431** bản ghi (trong đó ngày hôm nay 02/10/2026 có **321** hồ sơ).
+
+### 2. Các điểm cải tiến & sửa đổi cụ thể
+1. **Động hóa `API_BASE_URL` trong [AuthContext.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler-ui/src/context/AuthContext.tsx)**:
+   - Trong môi trường `production` trên trình duyệt (`typeof window !== 'undefined'`), tự động trả về relative path `""`.
+   - Mọi request `/api/v1/...` sẽ tự động trỏ theo đúng hostname và port mà trình duyệt đang mở (tương thích 100% với `localhost:8080`, domain, hoặc IP trực tiếp thông qua Nginx reverse proxy).
+2. **Cập nhật `.env.local` trên server và biên dịch lại**:
+   - Xóa bỏ URL cứng `http://10.1.0.16` trong `.env.local` trên server.
+   - Biên dịch lại Next.js bundle và reload PM2 (`pm2 reload mxv-account-opening-reconciler-ui`).
+3. **Kiểm thử thực tế qua SSH Tunnel**:
+   - Kiểm tra API tại `http://localhost:8080/api/v1/tkgd/stats`: Trả về `totalCount: 2783`, `matchedCount: 1523`.
+   - Kiểm tra API tại `http://localhost:8080/api/v1/tkgd/records?batchDate=2026-10-02`: Trả về đúng `321` hồ sơ của ngày hôm nay.
+
+### 3. Danh sách tệp tin tác động
+- [mxv-account-opening-reconciler-ui/src/context/AuthContext.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler-ui/src/context/AuthContext.tsx)
+
+---
 
 ### 1. Mục tiêu thực hiện
 - **Yêu cầu từ USER**: "Đã kích hoạt chế độ Tự Động 24/7 (Quét mỗi 5 phút). / sao tôi tưởng nâng cấp hệ thống lên mức độ realtime rồi mà sao vẫn còn @code_item thông báo quét mỗi 5 phút là sao"

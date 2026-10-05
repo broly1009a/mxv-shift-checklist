@@ -9,6 +9,7 @@ import {
   TkgdAnalyticsSummary,
   TkgdShiftType,
   TkgdTimeRangeType,
+  ExtractionLogItem,
 } from '../types/tkgd.types';
 
 function getHeaders(token?: string | null, userEmail?: string): HeadersInit {
@@ -27,6 +28,10 @@ export const tkgdApi = {
       filter?: string;
       search?: string;
       batchDate?: string;
+      startDate?: string;
+      endDate?: string;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
       status?: string;
       moduleFilter?: string;
     },
@@ -39,6 +44,10 @@ export const tkgdApi = {
     if (params.filter && params.filter !== 'ALL') qs.append('filter', params.filter);
     if (params.search?.trim()) qs.append('search', params.search.trim());
     if (params.batchDate) qs.append('batchDate', params.batchDate);
+    if (params.startDate) qs.append('startDate', params.startDate);
+    if (params.endDate) qs.append('endDate', params.endDate);
+    if (params.sortBy) qs.append('sortBy', params.sortBy);
+    if (params.sortOrder) qs.append('sortOrder', params.sortOrder);
     if (params.status) qs.append('status', params.status);
     if (params.moduleFilter) qs.append('moduleFilter', params.moduleFilter);
 
@@ -51,8 +60,20 @@ export const tkgdApi = {
     return res.json();
   },
 
-  async getStats(batchDate?: string, token?: string | null, userEmail?: string): Promise<TkgdStats> {
-    const url = `${API_BASE_URL}/api/v1/tkgd/stats${batchDate ? `?batchDate=${encodeURIComponent(batchDate)}` : ''}`;
+  async getStats(
+    params?: string | { batchDate?: string; startDate?: string; endDate?: string },
+    token?: string | null,
+    userEmail?: string
+  ): Promise<TkgdStats> {
+    const qs = new URLSearchParams();
+    if (typeof params === 'string') {
+      if (params) qs.append('batchDate', params);
+    } else if (params) {
+      if (params.batchDate) qs.append('batchDate', params.batchDate);
+      if (params.startDate) qs.append('startDate', params.startDate);
+      if (params.endDate) qs.append('endDate', params.endDate);
+    }
+    const url = `${API_BASE_URL}/api/v1/tkgd/stats${qs.toString() ? `?${qs.toString()}` : ''}`;
     const res = await fetch(url, { headers: getHeaders(token, userEmail) });
     if (!res.ok) {
       throw new Error('Không thể tải dữ liệu thống kê');
@@ -139,8 +160,31 @@ export const tkgdApi = {
     return res.json();
   },
 
-  async downloadExcelBlob(token?: string | null, userEmail?: string): Promise<Blob | null> {
-    const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/download-excel`, {
+  async downloadExcelBlob(
+    token?: string | null,
+    userEmail?: string,
+    params?:
+      | string
+      | {
+          batchDate?: string;
+          startDate?: string;
+          endDate?: string;
+          filter?: string;
+          search?: string;
+        },
+  ): Promise<Blob | null> {
+    const qs = new URLSearchParams();
+    if (typeof params === 'string') {
+      if (params.trim()) qs.append('batchDate', params.trim());
+    } else if (params) {
+      if (params.batchDate?.trim()) qs.append('batchDate', params.batchDate.trim());
+      if (params.startDate?.trim()) qs.append('startDate', params.startDate.trim());
+      if (params.endDate?.trim()) qs.append('endDate', params.endDate.trim());
+      if (params.filter && params.filter !== 'ALL') qs.append('filter', params.filter.trim());
+      if (params.search?.trim()) qs.append('search', params.search.trim());
+    }
+    const url = `${API_BASE_URL}/api/v1/tkgd/download-excel${qs.toString() ? `?${qs.toString()}` : ''}`;
+    const res = await fetch(url, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'x-user-email': userEmail || 'hieptruong@mxv.vn',
@@ -161,6 +205,46 @@ export const tkgdApi = {
     }`;
     const res = await fetch(url, { headers: getHeaders(token, userEmail) });
     if (!res.ok) return null;
+    return res.json();
+  },
+
+  async getAllExtractionLogs(
+    params: {
+      page?: number;
+      limit?: number;
+      stage?: string;
+      status?: string;
+      search?: string;
+      batchDate?: string;
+    },
+    token?: string | null,
+    userEmail?: string
+  ): Promise<{ data: ExtractionLogItem[]; total: number; page: number; pages: number }> {
+    const q = new URLSearchParams();
+    if (params.page) q.append('page', String(params.page));
+    if (params.limit) q.append('limit', String(params.limit));
+    if (params.stage && params.stage !== 'ALL') q.append('stage', params.stage);
+    if (params.status && params.status !== 'ALL') q.append('status', params.status);
+    if (params.search && params.search.trim()) q.append('search', params.search.trim());
+    if (params.batchDate && params.batchDate.trim()) q.append('batchDate', params.batchDate.trim());
+
+    const url = `${API_BASE_URL}/api/v1/tkgd/logs/extraction?${q.toString()}`;
+    const res = await fetch(url, { headers: getHeaders(token, userEmail) });
+    if (!res.ok) return { data: [], total: 0, page: 1, pages: 1 };
+    return res.json();
+  },
+
+  async getExtractionLogs(
+    accountCode: string,
+    batchDate?: string,
+    token?: string | null,
+    userEmail?: string
+  ): Promise<ExtractionLogItem[]> {
+    const url = `${API_BASE_URL}/api/v1/tkgd/logs/extraction/${encodeURIComponent(accountCode)}${
+      batchDate ? `?batchDate=${encodeURIComponent(batchDate)}` : ''
+    }`;
+    const res = await fetch(url, { headers: getHeaders(token, userEmail) });
+    if (!res.ok) return [];
     return res.json();
   },
 

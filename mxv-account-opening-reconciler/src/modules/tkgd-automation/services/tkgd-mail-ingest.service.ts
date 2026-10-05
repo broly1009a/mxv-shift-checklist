@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { RawAccountMail, RawAccountMailDocument } from '../../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordDocument } from '../../../schemas/clean-account-record.schema';
+import { TkgdExtractionLog, TkgdExtractionLogDocument } from '../../../schemas/tkgd-extraction-log.schema';
 import { TkgdConfigService } from './tkgd-config.service';
 import { TkgdProgressService } from './tkgd-progress.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
@@ -17,11 +18,17 @@ import {
   probeImageDimensions,
   isNamedContractImage,
   isNamedCccdPdf,
+  normalizeVietnameseName,
 } from '../../engine-helpers/tkgd-mail-parser.helper';
-import { extractHopDongPdf, extractPhuLucPdf } from '../../engine-helpers/tkgd-doc-extractor.helper';
+import { detectPdfDocType, extractHopDongPdf, extractPhuLucPdf, extractZipFiles } from '../../engine-helpers/tkgd-doc-extractor.helper';
+import { evaluateRecordReconciliationRule } from '../../engine-helpers/tkgd-reconcile-rules.helper';
 import { runPythonExtractor } from '../../engine-helpers/tkgd-python-bridge.helper';
 import { getTkgdAttachmentDirectory } from '../../engine-helpers/tkgd-reconcile-exporter.helper';
+import { execSync } from 'child_process';
 import { decrypt } from '../../engine-helpers/crypto';
+
+// Toàn bộ logic giải nén zip và bóc tách ảnh CCCD từ email đã được sao lưu tại:
+// src/modules/engine-helpers/legacy-email-image-pipeline.backup.ts
 
 function parseDate(dStr?: string): Date | undefined {
   if (!dStr) return undefined;
@@ -74,10 +81,22 @@ export class TkgdMailIngestService {
   constructor(
     @InjectModel(RawAccountMail.name) private rawMailModel: Model<RawAccountMailDocument>,
     @InjectModel(CleanAccountRecord.name) private cleanRecordModel: Model<CleanAccountRecordDocument>,
+    @InjectModel(TkgdExtractionLog.name) private extractionLogModel: Model<TkgdExtractionLogDocument>,
     private readonly configService: TkgdConfigService,
     private readonly progressService: TkgdProgressService,
     @Optional() private readonly settingsService?: SystemSettingsService,
   ) {}
+
+  /** Ghi vết log kiểm toán non-blocking không làm chậm luồng xử lý */
+  private logExtractionNonBlocking(payload: Partial<TkgdExtractionLog>): void {
+    try {
+      this.extractionLogModel.create(payload).catch((err: any) => {
+        this.logger.warn(`[TKGD-AUDIT-LOG-FAIL] ${payload.maTKGD || 'unknown'}: ${err.message}`);
+      });
+    } catch (err: any) {
+      this.logger.warn(`[TKGD-AUDIT-LOG-FAIL] ${err.message}`);
+    }
+  }
 
   /**
    * Lấy Gemini API Key từ biến môi trường hoặc cấu hình hệ thống (bot_credentials_acm)
@@ -126,18 +145,41 @@ export class TkgdMailIngestService {
     let refreshToken = rawConfig?.outlook?.refreshToken;
     let clientId = rawConfig?.outlook?.clientId || process.env.MICROSOFT_CLIENT_ID || '';
     let tenantId = rawConfig?.outlook?.tenantId || process.env.MICROSOFT_TENANT_ID || 'common';
-    let clientSecret = rawConfig?.outlook?.clientSecret || (await this.configService.getRawClientSecret(userEmail)) || process.env.MICROSOFT_CLIENT_SECRET || '';;
+    let clientSecret = rawConfig?.outlook?.clientSecret || (await this.configService.getRawClientSecret(userEmail)) || process.env.MICROSOFT_CLIENT_SECRET || '';
 
-    // Fallback: nếu user chưa có refresh token riêng, mượn refresh token từ system_settings
-    if (!refreshToken && this.settingsService) {
-      try {
-        const sysToken = await this.settingsService.getSetting('m365_refresh_token');
-        if (sysToken && sysToken.trim()) {
-          refreshToken = sysToken.trim();
-          this.logger.log(`[TKGD-MAIL] Sử dụng delegated refresh token từ system_settings cho ${userEmail}`);
+    // Fallback: nếu thiếu clientId/tenantId hoặc dùng placeholder, mượn từ system_settings
+    if (this.settingsService) {
+      if (!clientId || clientId.includes('your-client-id')) {
+        try {
+          const sysClientId = await this.settingsService.getSetting('m365_client_id');
+          if (sysClientId && sysClientId.trim()) clientId = sysClientId.trim();
+        } catch { }
+      }
+      if (!tenantId || tenantId === 'common') {
+        try {
+          const sysTenantId = await this.settingsService.getSetting('m365_tenant_id');
+          if (sysTenantId && sysTenantId.trim()) tenantId = sysTenantId.trim();
+        } catch { }
+      }
+      if (!clientSecret) {
+        try {
+          const sysSecret = await this.settingsService.getSetting('m365_client_secret');
+          if (sysSecret && sysSecret.trim()) clientSecret = sysSecret.trim();
+        } catch { }
+      }
+      if (!clientSecret) {
+        clientSecret = process.env.MICROSOFT_CLIENT_SECRET || 'vgq8Q~KG65lizTdASJOphg~06XRlVDZadMf_daD8';
+      }
+      if (!refreshToken) {
+        try {
+          const sysToken = await this.settingsService.getSetting('m365_refresh_token');
+          if (sysToken && sysToken.trim()) {
+            refreshToken = sysToken.trim();
+            this.logger.log(`[TKGD-MAIL] Sử dụng delegated refresh token từ system_settings cho ${userEmail}`);
+          }
+        } catch (err: any) {
+          this.logger.warn(`[TKGD-MAIL] Không thể lấy m365_refresh_token từ system_settings: ${err.message}`);
         }
-      } catch (err: any) {
-        this.logger.warn(`[TKGD-MAIL] Không thể lấy m365_refresh_token từ system_settings: ${err.message}`);
       }
     }
 
@@ -165,44 +207,126 @@ export class TkgdMailIngestService {
           }
 
           const targetMailbox = config.outlook?.targetMailbox?.trim();
-          const endpointsToTry: string[] = [];
-          if (targetMailbox && targetMailbox !== userEmail) {
-            endpointsToTry.push(
-              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$search="Yêu cầu mở TKGD"&$top=50`,
-              `https://graph.microsoft.com/v1.0/users/${targetMailbox}/messages?$top=100&$orderby=receivedDateTime desc`
-            );
-          }
-          endpointsToTry.push(
-            `https://graph.microsoft.com/v1.0/me/messages?$search="Yêu cầu mở TKGD"&$top=50`,
-            `https://graph.microsoft.com/v1.0/me/messages?$top=100&$orderby=receivedDateTime desc`
-          );
+          const mailboxPrefix = targetMailbox && targetMailbox !== userEmail
+            ? `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(targetMailbox)}`
+            : `https://graph.microsoft.com/v1.0/me`;
 
-          let fetchedMessages: any[] = [];
-          for (const graphUrl of endpointsToTry) {
-            const messagesRes = await fetch(graphUrl, {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            if (messagesRes.ok) {
-              const msgs = await messagesRes.json();
-              if (msgs.value && msgs.value.length > 0) {
-                const matched = msgs.value.filter((m: any) => {
-                  const s = (m.subject || '').toLowerCase();
-                  return s.includes('yêu cầu mở tkgd') || s.includes('mở tkgd') || s.includes('tài khoản giao dịch') || s.includes('mo tkgd');
-                });
-                if (matched.length > 0) {
-                  fetchedMessages = matched;
-                  this.logger.log(`[TKGD-MAIL] Tìm thấy ${matched.length} email phù hợp từ Graph API!`);
-                  break;
+          // Gom email từ danh sách mới nhất (top 100 gần nhất) và các truy vấn tìm kiếm chuyên biệt
+          // Đảm bảo không bỏ sót TVKD 080 (Apex: "YÊU CẦU MỞ MỚI TÀI KHOẢN"), TVKD 002 (Saigon Futures: "Hồ sơ mở TKGD...") và các TVKD khác
+          const endpointsToFetch: string[] = [
+            `${mailboxPrefix}/messages?%24top=100&%24orderby=receivedDateTime%20desc`,
+            `${mailboxPrefix}/messages?%24search=%22m%E1%BB%9F%20m%E1%BB%9Bi%20t%C3%A0i%20kho%E1%BA%A3n%22&%24top=50`,
+            `${mailboxPrefix}/messages?%24search=%22Y%C3%AAu%20c%E1%BA%A7u%20m%E1%BB%9F%20TKGD%22&%24top=50`,
+            `${mailboxPrefix}/messages?%24search=%22H%E1%BB%93%20s%C6%A1%20m%E1%BB%9F%20TKGD%22&%24top=50`,
+            `${mailboxPrefix}/messages?%24search=%22080C%22&%24top=30`,
+            `${mailboxPrefix}/messages?%24search=%22002C%22&%24top=30`,
+            `${mailboxPrefix}/messages?%24search=%22saigonfutures%22&%24top=30`,
+          ];
+
+          const messageMap = new Map<string, any>();
+          let useMeFallback = false;
+
+          for (const graphUrl of endpointsToFetch) {
+            try {
+              const messagesRes = await fetch(graphUrl, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              });
+              if (messagesRes.status === 403 || messagesRes.status === 404) {
+                useMeFallback = true;
+                break;
+              }
+              if (messagesRes.ok) {
+                const msgs = await messagesRes.json();
+                if (msgs.value && Array.isArray(msgs.value)) {
+                  for (const m of msgs.value) {
+                    if (m && m.id && !messageMap.has(m.id)) {
+                      messageMap.set(m.id, m);
+                    }
+                  }
                 }
               }
+            } catch (fetchErr: any) {
+              this.logger.warn(`[TKGD-MAIL] Không tải được từ ${graphUrl}: ${fetchErr.message}`);
             }
           }
+
+          if (useMeFallback) {
+            const meEndpoints = [
+              `https://graph.microsoft.com/v1.0/me/messages?%24top=100&%24orderby=receivedDateTime%20desc`,
+              `https://graph.microsoft.com/v1.0/me/messages?%24search=%22m%E1%BB%9F%20m%E1%BB%9Bi%20t%C3%A0i%20kho%E1%BA%A3n%22&%24top=50`,
+              `https://graph.microsoft.com/v1.0/me/messages?%24search=%22Y%C3%AAu%20c%E1%BA%A7u%20m%E1%BB%9F%20TKGD%22&%24top=50`,
+              `https://graph.microsoft.com/v1.0/me/messages?%24search=%22H%E1%BB%93%20s%C6%A1%20m%E1%BB%9F%20TKGD%22&%24top=50`,
+              `https://graph.microsoft.com/v1.0/me/messages?%24search=%22080C%22&%24top=30`,
+              `https://graph.microsoft.com/v1.0/me/messages?%24search=%22002C%22&%24top=30`,
+              `https://graph.microsoft.com/v1.0/me/messages?%24search=%22saigonfutures%22&%24top=30`,
+            ];
+            for (const graphUrl of meEndpoints) {
+              try {
+                const messagesRes = await fetch(graphUrl, {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (messagesRes.ok) {
+                  const msgs = await messagesRes.json();
+                  if (msgs.value && Array.isArray(msgs.value)) {
+                    for (const m of msgs.value) {
+                      if (m && m.id && !messageMap.has(m.id)) {
+                        messageMap.set(m.id, m);
+                      }
+                    }
+                  }
+                }
+              } catch { }
+            }
+          }
+
+          const allRawMessages = Array.from(messageMap.values());
+          const fetchedMessages = allRawMessages.filter((m: any) => {
+            const s = (m.subject || '').toLowerCase();
+            const b = (m.bodyPreview || '').toLowerCase();
+            const sender = (m.sender?.emailAddress?.address || m.from?.emailAddress?.address || '').toLowerCase();
+
+            // 1. Nhận diện theo Tiêu đề (Subject) - đa dạng mẫu từ các TVKD (bao gồm 080: "YÊU CẦU MỞ MỚI TÀI KHOẢN")
+            if (
+              s.includes('mở tkgd') || s.includes('mo tkgd') ||
+              s.includes('mở tài khoản') || s.includes('mo tai khoan') ||
+              s.includes('mở mới tài khoản') || s.includes('mo moi tai khoan') ||
+              s.includes('yêu cầu mở') || s.includes('yeu cau mo') ||
+              s.includes('đề nghị mở') || s.includes('de nghi mo') ||
+              s.includes('tài khoản giao dịch') || s.includes('tai khoan giao dich') ||
+              s.includes('hồ sơ mở') || s.includes('ho so mo') ||
+              s.includes('yêu cầu mở mới') || s.includes('yeu cau mo moi')
+            ) {
+              if (s.includes('đóng tài khoản') || s.includes('đóng tkgd')) return false;
+              return true;
+            }
+
+            // 2. Nhận diện các TVKD đặc thù (như TVKD 080 APEX - apex.vn, TVKD 002 Saigon Futures - saigonfutures.com) hoặc email có chứa mã TKGD
+            if (
+              sender.includes('@apex.vn') ||
+              sender.includes('@saigonfutures.com') ||
+              sender.includes('saigonfutures') ||
+              sender.includes('tvkd') ||
+              /\b[0-9]{3}[A-Z][0-9]{7}\b/i.test(b)
+            ) {
+              if (
+                s.includes('mở') || s.includes('mo') ||
+                b.includes('mở') || b.includes('mo') ||
+                b.includes('tkgd') || b.includes('tài khoản')
+              ) {
+                return true;
+              }
+            }
+
+            return false;
+          });
+
+          this.logger.log(`[TKGD-MAIL] Thu thập tổng cộng ${fetchedMessages.length} email yêu cầu mở tài khoản từ Graph API!`);
 
           for (const msg of fetchedMessages) {
             const msgAttachments: any[] = [];
             if (msg.hasAttachments) {
               try {
-                const attachUrl = targetMailbox && targetMailbox !== userEmail
+                const attachUrl = !useMeFallback && targetMailbox && targetMailbox !== userEmail
                   ? `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(targetMailbox)}/messages/${msg.id}/attachments`
                   : `https://graph.microsoft.com/v1.0/me/messages/${msg.id}/attachments`;
                 const attachRes = await fetch(attachUrl, {
@@ -230,8 +354,8 @@ export class TkgdMailIngestService {
             emailList.push({
               messageId: msg.id,
               subject: msg.subject || '',
-              senderEmail: msg.sender?.emailAddress?.address || '',
-              senderName: msg.sender?.emailAddress?.name || '',
+              senderEmail: msg.sender?.emailAddress?.address || msg.from?.emailAddress?.address || '',
+              senderName: msg.sender?.emailAddress?.name || msg.from?.emailAddress?.name || '',
               receivedDateTime: new Date(msg.receivedDateTime || Date.now()),
               bodyRawText: htmlToPlainText(msg.body?.content || '') || msg.bodyPreview || '',
               attachments: msgAttachments,
@@ -344,9 +468,24 @@ export class TkgdMailIngestService {
 
         const targetAttachments = dispatchAttachmentsForAccount(group as any, mail.attachments || []);
 
+        const mailDateStr = mail.receivedDateTime
+          ? new Date(new Date(mail.receivedDateTime).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
+          : todayStr;
+        const effectiveBatchDate = batchDate || mailDateStr;
+
         let hopDongData: any = null;
         let phuLucData: any = null;
         let cccdData: any = null;
+
+        // Truy vấn bản ghi đã tồn tại trong DB ngay từ đầu để tránh bóc tách lặp lại
+        const existingRecord = await this.cleanRecordModel.findOne({
+          batchDate: effectiveBatchDate,
+          $or: [
+            { maTKGDBase: baseCode },
+            { maTKGD: targetAccountCode },
+            { 'noiDungMail.maTKGD_Futures': baseCode },
+          ],
+        });
 
         if (targetAttachments.length > 0) {
           const tempAccDir = path.join(process.cwd(), 'data', 'temp_tkgd_attachments', baseCode);
@@ -354,7 +493,7 @@ export class TkgdMailIngestService {
 
           const officialAccDir = getTkgdAttachmentDirectory(
             config.documentProcessing?.attachmentSavePath || config.storage?.windowsPath,
-            todayStr,
+            effectiveBatchDate,
             baseCode,
           );
           if (officialAccDir && !fs.existsSync(officialAccDir)) {
@@ -400,84 +539,179 @@ export class TkgdMailIngestService {
             }
 
             if (targetFilePath && fs.existsSync(targetFilePath)) {
-              if (nameLower.endsWith('.pdf')) {
-                if (isNamedCccdPdf(att.name)) {
-                  if (!cccdPdfPath) cccdPdfPath = targetFilePath;
-                } else if (nameLower.includes('pl01') || nameLower.includes('phuluc') || nameLower.includes('-pl')) {
-                  phuLucPath = targetFilePath;
-                } else if (nameLower.includes('mxv') || nameLower.includes('hopdong') || nameLower.includes('hd') || !hopDongPath) {
-                  hopDongPath = targetFilePath;
+              if (nameLower.endsWith('.zip')) {
+                // Tự động giải nén gói hồ sơ .zip của TVKD ra các thư mục đích
+                const extractedTemp = extractZipFiles(targetFilePath, tempAccDir);
+                if (officialAccDir) {
+                  extractZipFiles(targetFilePath, officialAccDir);
                 }
-              } else if (['.jpg', '.jpeg', '.png', '.webp', '.paint', '.heic', '.heif'].some((ext) => nameLower.endsWith(ext))) {
-                if (isNamedContractImage(att.name)) {
+                for (const extPath of extractedTemp) {
+                  const extName = path.basename(extPath);
+                  const extLower = extName.toLowerCase();
+                  if (extLower.endsWith('.pdf')) {
+                    // Content-First: Đọc nội dung nhận diện loại tài liệu trước
+                    const docType = await detectPdfDocType(extPath);
+                    if (docType === 'PHU_LUC') {
+                      if (!phuLucPath) phuLucPath = extPath;
+                    } else if (docType === 'HOP_DONG') {
+                      if (!hopDongPath) hopDongPath = extPath;
+                    } else if (docType === 'CCCD_SCAN') {
+                      if (!cccdPdfPath) cccdPdfPath = extPath;
+                    } else {
+                      // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → không đoán mò theo tên file.
+                      // Chỉ chấp nhận gợi ý CCCD từ tên (file CCCD thường đặt tên rõ).
+                      const extNameLower = extName.toLowerCase();
+                      const isCccdHint = extNameLower.includes('cccd') || extNameLower.includes('can cuoc') || extNameLower.includes('căn cước');
+                      if (isCccdHint && !cccdPdfPath) {
+                        cccdPdfPath = extPath;
+                        this.logger.log(`[TKGD-MAIL-ZIP] PDF UNKNOWN nhưng tên gợi ý CCCD → gán cccdPdfPath: ${extName}`);
+                      } else {
+                        // Không biết loại → bỏ qua, cán bộ kiểm tra thủ công
+                        this.logger.warn(`[TKGD-MAIL-ZIP] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI): "${extName}" → bỏ qua, không gán slot.`);
+                      }
+                    }
+                  } else if (/\.(jpe?g|png|webp|heic)$/i.test(extLower)) {
+                    if (isNamedContractImage(extLower) && !hopDongPath) {
+                      hopDongPath = extPath;
+                    } else {
+                      imageCandidates.push({ name: extName, filePath: extPath, size: fs.statSync(extPath).size });
+                    }
+                  }
+                }
+              } else if (nameLower.endsWith('.pdf')) {
+                // Content-First: Đọc nội dung nhận diện loại tài liệu trước
+                const docType = await detectPdfDocType(targetFilePath);
+                if (docType === 'PHU_LUC') {
+                  if (!phuLucPath) phuLucPath = targetFilePath;
+                } else if (docType === 'HOP_DONG') {
                   if (!hopDongPath) hopDongPath = targetFilePath;
+                } else if (docType === 'CCCD_SCAN') {
+                  if (!cccdPdfPath) cccdPdfPath = targetFilePath;
                 } else {
-                  imageCandidates.push({ name: att.name || path.basename(targetFilePath), filePath: targetFilePath, size: attSize });
+                  // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → không đoán mò theo tên file.
+                  // Chỉ chấp nhận gợi ý CCCD từ tên (file CCCD thường đặt tên rõ ràng).
+                  const normName = normalizeVietnameseName(nameLower);
+                  const isCccdPdf =
+                    isNamedCccdPdf(nameLower) ||
+                    nameLower.includes('cccd') ||
+                    nameLower.includes('căn cước') ||
+                    nameLower.includes('can cuoc') ||
+                    normName.includes('CAN CUOC');
+                  if (isCccdPdf && !cccdPdfPath) {
+                    cccdPdfPath = targetFilePath;
+                    this.logger.log(`[TKGD-MAIL] PDF UNKNOWN nhưng tên gợi ý CCCD → gán cccdPdfPath: ${att.name}`);
+                  } else {
+                    // Không biết loại tài liệu → bỏ qua, không gán vào bất kỳ slot nào.
+                    // Cán bộ TTBT cần kiểm tra thủ công file này.
+                    this.logger.warn(`[TKGD-MAIL] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI): "${att.name}" → bỏ qua, không gán slot. Cần kiểm tra thủ công.`);
+                  }
+                }
+              } else if (/\.(jpe?g|png|webp|heic)$/i.test(nameLower)) {
+                if (isNamedContractImage(nameLower) && !hopDongPath) {
+                  hopDongPath = targetFilePath;
+                } else {
+                  imageCandidates.push({ name: att.name, filePath: targetFilePath, size: attSize || 0 });
                 }
               }
             }
           }
 
-          const picked = pickCccdImagePaths(imageCandidates);
-          const cccdFrontPath = picked.frontPath || cccdPdfPath;
-          const cccdBackPath = picked.backPath;
-
-          try {
-            const geminiKey = await this.getGeminiApiKey();
-            const pythonRes = await runPythonExtractor({
-              accountCode: baseCode,
-              accountName: group.tenTaiKhoan,
-              hopDongPath,
-              phuLucPath,
-              cccdFrontPath,
-              cccdBackPath,
-              geminiKey,
-            });
-
-            if (pythonRes) {
-              if (pythonRes.hopDong) {
+          /*
+           * ==============================================================================
+           * GHI CHÚ QUY TRÌNH TINH GỌN (THEO CHỈ ĐẠO CỦA USER):
+           * - Luồng hiện tại chỉ cần bốc đúng số TKGD từ email và file Hợp đồng PDF/Ảnh tương ứng.
+           * - Bỏ qua việc bóc tách / OCR ảnh CCCD từ email (đỡ tải hệ thống, không sợ lỗi nhiễu ảnh mail).
+           * - Toàn bộ thông tin nhân thân và ảnh CCCD chuẩn sẽ được bot cào trực tiếp từ M-System (syncMSystemAccounts).
+           * - Logic sao lưu dự phòng: src/modules/engine-helpers/legacy-email-image-pipeline.backup.ts
+           * ==============================================================================
+           */
+          // NẾU TÀI KHOẢN ĐÃ CÓ HỢP ĐỒNG ĐẦY ĐỦ TRONG DB -> TÁI SỬ DỤNG, BỎ QUA BÓC TÁCH LẠI (TIẾT KIỆM AI & CPU)
+          if (existingRecord?.hopDong?.soCanCuoc && existingRecord?.hopDong?.hoVaTen) {
+            hopDongData = (existingRecord.hopDong as any)?.toObject ? (existingRecord.hopDong as any).toObject() : existingRecord.hopDong;
+          } else if (hopDongPath && fs.existsSync(hopDongPath)) {
+            try {
+              let extractedHd: any = null;
+              if (hopDongPath.toLowerCase().endsWith('.pdf')) {
+                extractedHd = await extractHopDongPdf(hopDongPath, path.basename(hopDongPath));
+              } else {
+                const pyHdRes = await runPythonExtractor({
+                  accountCode: group.maTKGDFutures || baseCode,
+                  accountName: group.tenTaiKhoan,
+                  hopDongPath,
+                });
+                if (pyHdRes?.hopDong) {
+                  extractedHd = {
+                    soHopDong: pyHdRes.hopDong.soHopDong,
+                    hoVaTen: pyHdRes.hopDong.hoTen || group.tenTaiKhoan,
+                    soCanCuoc: pyHdRes.hopDong.soCCCD,
+                    ngaySinh: parseDate(pyHdRes.hopDong.ngaySinh),
+                    rawNgaySinh: pyHdRes.hopDong.rawNgaySinh || pyHdRes.hopDong.ngaySinh,
+                    ngayCap: parseDate(pyHdRes.hopDong.ngayCap),
+                    rawNgayCap: pyHdRes.hopDong.rawNgayCap || pyHdRes.hopDong.ngayCap,
+                    noiCap: pyHdRes.hopDong.noiCap,
+                    ngayKyHD: parseDate(pyHdRes.hopDong.ngayKyHD),
+                    gioiTinh: pyHdRes.hopDong.gioiTinh,
+                    rawGioiTinh: pyHdRes.hopDong.rawGioiTinh || pyHdRes.hopDong.gioiTinh,
+                    loaiHinhTaiKhoan: 'Cá nhân',
+                    chuKy: 'Đã ký',
+                    dinhDangLoi: [],
+                  };
+                }
+              }
+              if (extractedHd) {
                 hopDongData = {
-                  soHopDong: pythonRes.hopDong.soHopDong,
+                  soHopDong: extractedHd.soHopDong,
                   maTKGD: group.maTKGDFutures || baseCode,
-                  hoVaTen: pythonRes.hopDong.hoTen || group.tenTaiKhoan,
-                  soCanCuoc: pythonRes.hopDong.soCCCD,
-                  ngaySinh: parseDate(pythonRes.hopDong.ngaySinh),
-                  rawNgaySinh: pythonRes.hopDong.rawNgaySinh || pythonRes.hopDong.ngaySinh,
-                  ngayCap: parseDate(pythonRes.hopDong.ngayCap),
-                  rawNgayCap: pythonRes.hopDong.rawNgayCap || pythonRes.hopDong.ngayCap,
-                  noiCap: pythonRes.hopDong.noiCap || undefined,
-                  ngayKyHD: parseDate(pythonRes.hopDong.ngayKyHD),
-                  gioiTinh: pythonRes.hopDong.gioiTinh,
-                  rawGioiTinh: pythonRes.hopDong.rawGioiTinh || pythonRes.hopDong.gioiTinh,
-                  loaiHinhTaiKhoan: 'Cá nhân',
-                  chuKy: 'Đã ký',
-                  dinhDangLoi: pythonRes.hopDong.dinhDangLoi || [],
+                  hoVaTen: extractedHd.hoVaTen || group.tenTaiKhoan,
+                  soCanCuoc: extractedHd.soCanCuoc,
+                  ngaySinh: extractedHd.ngaySinh,
+                  rawNgaySinh: extractedHd.rawNgaySinh,
+                  ngayCap: extractedHd.ngayCap,
+                  rawNgayCap: extractedHd.rawNgayCap,
+                  noiCap: extractedHd.noiCap,
+                  ngayKyHD: extractedHd.ngayKyHD,
+                  gioiTinh: extractedHd.gioiTinh,
+                  rawGioiTinh: extractedHd.rawGioiTinh,
+                  loaiHinhTaiKhoan: extractedHd.loaiHinhTaiKhoan || 'Cá nhân',
+                  chuKy: extractedHd.chuKy || 'Đã ký',
+                  dinhDangLoi: extractedHd.dinhDangLoi || [],
                 };
+
+                this.logExtractionNonBlocking({
+                  maTKGD: group.maTKGDFutures || baseCode,
+                  batchDate: effectiveBatchDate,
+                  stage: 'EXTRACT_CONTRACT',
+                  title: `Trích xuất HĐ PDF: ${path.basename(hopDongPath)}`,
+                  details: `Họ tên: ${hopDongData.hoVaTen || '---'}, Số CCCD: ${hopDongData.soCanCuoc || '---'}, Ngày sinh: ${hopDongData.rawNgaySinh || '---'}, Ngày cấp: ${hopDongData.rawNgayCap || '---'}, Nơi cấp: ${hopDongData.noiCap || '---'}`,
+                  status: hopDongData.soCanCuoc ? 'SUCCESS' : 'WARNING',
+                  extractedData: hopDongData,
+                  performer: 'PDF_EXTRACTOR',
+                });
               }
-              if (pythonRes.canCuoc) {
-                const rawDob = pythonRes.canCuoc.rawNgaySinh || pythonRes.canCuoc.ngaySinh;
-                const rawCap = pythonRes.canCuoc.rawNgayCap || pythonRes.canCuoc.ngayCap;
-                const noiCapFinal = pythonRes.canCuoc.noiCap || hopDongData?.noiCap || undefined;
-                cccdData = {
-                  soCanCuoc: pythonRes.canCuoc.soCCCD || hopDongData?.soCanCuoc,
-                  hoVaTen: pythonRes.canCuoc.hoTen || group.tenTaiKhoan || hopDongData?.hoVaTen,
-                  ngaySinh: parseDate(pythonRes.canCuoc.ngaySinh) || hopDongData?.ngaySinh,
-                  rawNgaySinh: rawDob || hopDongData?.rawNgaySinh,
-                  ngayCap: parseDate(pythonRes.canCuoc.ngayCap) || hopDongData?.ngayCap,
-                  rawNgayCap: rawCap || hopDongData?.rawNgayCap,
-                  gioiTinh: pythonRes.canCuoc.gioiTinh || hopDongData?.gioiTinh,
-                  noiCap: noiCapFinal,
-                  diaChiThuongTru: pythonRes.canCuoc.diaChi,
-                  canhBaoChatLuong: pythonRes.canCuoc.canhBaoChatLuong || [],
-                  ocrConfidence: pythonRes.canCuoc.source || 'OCR',
-                  theGeneration: pythonRes.canCuoc.theGeneration,
-                  confidenceScore: pythonRes.canCuoc.confidenceScore,
-                  boundingBoxes: pythonRes.canCuoc.boundingBoxes,
-                };
-              }
+            } catch (hdErr: any) {
+              this.logger.warn(`[TKGD-MAIL] Không đọc được HĐ PDF cho ${baseCode}: ${hdErr.message}`);
             }
-          } catch (pyErr: any) {
-            this.logger.warn(`[PYTHON-EXTRACT] Fallback sang TS cho ${baseCode}: ${pyErr.message}`);
+          }
+
+          // NẾU TÀI KHOẢN ĐÃ CÓ PHỤ LỤC ĐẦY ĐỦ TRONG DB -> TÁI SỬ DỤNG
+          const hasCompleteExistingPhuLuc = Boolean(existingRecord?.phuLuc?.soCanCuoc && existingRecord?.phuLuc?.noiCap);
+          if (hasCompleteExistingPhuLuc) {
+            phuLucData = (existingRecord.phuLuc as any)?.toObject ? (existingRecord.phuLuc as any).toObject() : existingRecord.phuLuc;
+          } else if (phuLucPath && fs.existsSync(phuLucPath)) {
+            try {
+              phuLucData = await extractPhuLucPdf(phuLucPath);
+            } catch {}
+          } else if (!phuLucData && hopDongPath && fs.existsSync(hopDongPath)) {
+            // TVKD gộp HĐ và PL01 vào một file PDF duy nhất (_All.pdf hoặc HĐ kèm PL)
+            const hdNameLower = path.basename(hopDongPath).toLowerCase();
+            if (hdNameLower.includes('all') || group.hasACMRequest || (group as any).loaiTaiKhoan?.includes('ACM')) {
+              try {
+                const plFromHd = await extractPhuLucPdf(hopDongPath);
+                if (plFromHd && (plFromHd.soCanCuoc || plFromHd.chuKy)) {
+                  phuLucData = plFromHd;
+                }
+              } catch {}
+            }
           }
         }
 
@@ -504,45 +738,57 @@ export class TkgdMailIngestService {
           }
         }
 
-        const existingRecord = await this.cleanRecordModel.findOne({
-          batchDate: todayStr,
-          $or: [
-            { maTKGDBase: baseCode },
-            { maTKGD: targetAccountCode },
-            { 'noiDungMail.maTKGD_Futures': baseCode },
-          ],
-        });
+        // existingRecord đã được truy vấn và tái sử dụng ở đầu chu trình bóc tách
 
-        // BỔ SUNG TRƯỜNG receivedDateTime TỪ EMAIL GỐC M365 GRAPH API
+        const existingNoiDung = (existingRecord?.noiDungMail as any)?.toObject
+          ? (existingRecord?.noiDungMail as any).toObject()
+          : existingRecord?.noiDungMail || {};
+
+        // Hợp nhất dữ liệu thông minh giữa các email (Hỗ trợ TVKD 002 gửi tách email HĐ và email ACM)
         const noiDungMailData = {
-          maTKGD_Futures: group.maTKGDFutures || baseCode,
-          maTKGD_ACM: group.maTKGDACM || (group.hasACMRequest ? `${baseCode}-A` : undefined),
-          maTKGD_LME: group.hasLMERequest ? `${baseCode}-L` : undefined,
-          maTKGD_Spread: group.hasSpreadRequest ? `${baseCode}-S` : undefined,
-          tenTaiKhoan: group.tenTaiKhoan || (existingRecord?.noiDungMail as any)?.tenTaiKhoan || '',
-          hasACMRequest: group.hasACMRequest,
-          hasLMERequest: group.hasLMERequest,
-          hasSpreadRequest: group.hasSpreadRequest,
-          receivedDateTime: mail.receivedDateTime || new Date(),
+          maTKGD_Futures: group.maTKGDFutures || existingNoiDung?.maTKGD_Futures || baseCode,
+          maTKGD_ACM: group.maTKGDACM || existingNoiDung?.maTKGD_ACM || (group.hasACMRequest || existingNoiDung?.hasACMRequest ? `${baseCode}-A` : undefined),
+          maTKGD_LME: (group.hasLMERequest || existingNoiDung?.hasLMERequest) ? `${baseCode}-L` : undefined,
+          maTKGD_Spread: (group.hasSpreadRequest || existingNoiDung?.hasSpreadRequest) ? `${baseCode}-S` : undefined,
+          tenTaiKhoan: group.tenTaiKhoan || existingNoiDung?.tenTaiKhoan || '',
+          hasACMRequest: group.hasACMRequest || !!existingNoiDung?.hasACMRequest,
+          hasLMERequest: group.hasLMERequest || !!existingNoiDung?.hasLMERequest,
+          hasSpreadRequest: group.hasSpreadRequest || !!existingNoiDung?.hasSpreadRequest,
+          receivedDateTime: existingNoiDung?.receivedDateTime || mail.receivedDateTime || new Date(),
         };
 
         if (existingRecord) {
-          const currentNoiDung = (existingRecord.noiDungMail as any)?.toObject
-            ? (existingRecord.noiDungMail as any).toObject()
-            : existingRecord.noiDungMail || {};
           existingRecord.noiDungMail = {
-            ...currentNoiDung,
+            ...existingNoiDung,
             ...noiDungMailData,
           } as any;
           if (!existingRecord.maTKGDBase) existingRecord.maTKGDBase = baseCode;
-          if (!existingRecord.batchDate) existingRecord.batchDate = todayStr;
+          if (!existingRecord.batchDate) existingRecord.batchDate = effectiveBatchDate;
           if (hopDongData) existingRecord.hopDong = hopDongData;
           if (phuLucData) existingRecord.phuLuc = phuLucData;
           if (cccdData) existingRecord.canCuoc = cccdData;
+
+          // Tự động tái thẩm định đối soát ngay khi có HĐ hoặc CCCD mới nạp vào
+          const updatedDocObj = typeof (existingRecord as any).toObject === 'function'
+            ? (existingRecord as any).toObject()
+            : existingRecord;
+          const evalOutcome = evaluateRecordReconciliationRule({
+            ...updatedDocObj,
+            hopDong: existingRecord.hopDong,
+            phuLuc: existingRecord.phuLuc,
+            canCuoc: existingRecord.canCuoc,
+          });
+          existingRecord.ketLuan = {
+            trangThai: evalOutcome.finalStatus,
+            danhSachLoi: evalOutcome.finalErrors,
+            reconciledAt: new Date(),
+            needsManualReview: evalOutcome.finalStatus !== 'KHOP',
+          } as any;
+
           await existingRecord.save();
         } else {
-          await this.cleanRecordModel.create({
-            batchDate: todayStr,
+          const newRecordData: any = {
+            batchDate: effectiveBatchDate,
             maTVKD: group.maTVKD || baseCode.substring(0, 3),
             maTKGD: targetAccountCode,
             maTKGDBase: baseCode,
@@ -552,14 +798,50 @@ export class TkgdMailIngestService {
             canCuoc: cccdData,
             ms: {
               maTKGD: baseCode,
-              isFoundOnMS: false,
             } as any,
-            ketLuan: {
-              trangThai: 'CHUA_XU_LY',
-              danhSachLoi: ['Chưa cào dữ liệu từ M-System'],
-            } as any,
-          });
+          };
+          const evalOutcome = evaluateRecordReconciliationRule(newRecordData);
+          newRecordData.ketLuan = {
+            trangThai: evalOutcome.finalStatus,
+            danhSachLoi: evalOutcome.finalErrors,
+            reconciledAt: new Date(),
+            needsManualReview: evalOutcome.finalStatus !== 'KHOP',
+          };
+          await this.cleanRecordModel.create(newRecordData);
         }
+
+        // Ghi vết giai đoạn MAIL_INGEST vào bảng log riêng tkgd_extraction_logs (Chống trùng lặp theo subject email)
+        try {
+          const alreadyLogged = await this.extractionLogModel.findOne({
+            maTKGD: targetAccountCode,
+            stage: 'MAIL_INGEST',
+            'extractedData.subject': mail.subject,
+          }).select('_id').lean();
+
+          if (!alreadyLogged) {
+            this.logExtractionNonBlocking({
+              maTKGD: targetAccountCode,
+              batchDate: effectiveBatchDate,
+              stage: 'MAIL_INGEST',
+              title: `Nạp Email từ ${mail.senderName || mail.senderEmail}: ${group.tenTaiKhoan || baseCode}`,
+              details: `Tiêu đề: "${mail.subject}". TVKD: ${group.maTVKD || baseCode.substring(0, 3)}. File đính kèm (${targetAttachments.length}): ${targetAttachments.map((a: any) => a.name).join(', ')}`,
+              status: 'SUCCESS',
+              extractedData: {
+                subject: mail.subject,
+                senderEmail: mail.senderEmail,
+                senderName: mail.senderName,
+                tenTaiKhoan: group.tenTaiKhoan,
+                receivedDateTime: mail.receivedDateTime,
+                attachmentsCount: targetAttachments.length,
+                attachments: targetAttachments.map((a: any) => ({ name: a.name, size: a.size })),
+              },
+              performer: 'OUTLOOK_GRAPH',
+            });
+          }
+        } catch {
+          // Non-blocking fallback
+        }
+
         processedCount++;
       }
     }

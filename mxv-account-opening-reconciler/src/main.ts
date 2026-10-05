@@ -23,4 +23,5 @@ async function bootstrap() {
   logger.log(`🚀 MXV Account Opening Reconciler is running on: http://localhost:${port}`);
 }
 
+// Hot-reload trigger: 2026-09-30 16:53
 bootstrap();

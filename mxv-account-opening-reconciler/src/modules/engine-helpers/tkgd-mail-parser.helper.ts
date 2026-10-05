@@ -86,13 +86,17 @@ export function classifyAttachmentType(
 export function isNamedCccdFront(fileName?: string): boolean {
   if (!fileName) return false;
   const n = fileName.toLowerCase();
+  if (isNamedCccdBack(n)) return false;
   return (
     /(^|[^a-z0-9])(truoc|front|mat[_-\s]?1|mattruoc)([^a-z0-9]|$)/i.test(n) ||
     n.includes('mặt trước') ||
     (n.includes('cccd') && /(truoc|front|(^|[^a-z0-9])mt([^a-z0-9]|$))/i.test(n)) ||
     /^mt[_\-.\s]/i.test(n) ||
     n.startsWith('mt.') ||
-    /(^|[_\-\s])mt\.(jpe?g|png|webp)$/i.test(n)
+    /(^|[_\-\s])mt\.(jpe?g|png|webp)$/i.test(n) ||
+    /(^|[_\-\s])m1\.(jpe?g|png|webp|heic)$/i.test(n) ||
+    /(^|[_\-\s])m1[_\-\.]/i.test(n) ||
+    /\b(cccd|cmnd|cmt|can\s*cuoc|căn\s*cước)\b/i.test(n)
   );
 }
 
@@ -106,7 +110,9 @@ export function isNamedCccdBack(fileName?: string): boolean {
     (n.includes('cccd') && /(sau|back|(^|[^a-z0-9])ms([^a-z0-9]|$))/i.test(n)) ||
     /^ms[_\-.\s]/i.test(n) ||
     n.startsWith('ms.') ||
-    /(^|[_\-\s])ms\.(jpe?g|png|webp)$/i.test(n)
+    /(^|[_\-\s])ms\.(jpe?g|png|webp)$/i.test(n) ||
+    /(^|[_\-\s])m2\.(jpe?g|png|webp|heic)$/i.test(n) ||
+    /(^|[_\-\s])m2[_\-\.]/i.test(n)
   );
 }
 
@@ -835,80 +841,87 @@ export function parseAccountOpeningEmailMulti(bodyContent: string): ParsedAccoun
   const groupsMap = new Map<string, ParsedAccountGroup>();
 
   // Regex nhận diện mã TKGD: 3 số + 1 chữ cái + 7 số (hỗ trợ có hoặc không có khoảng trắng quanh -A, -L, -S)
-  const codeRegex = /\b([0-9]{3}[A-Z][0-9]{7}(?:\s*-\s*[ALS])?)\b/i;
+  const codeRegexGlobal = /\b([0-9]{3}[A-Z][0-9]{7}(?:\s*-\s*[ALS])?)\b/gi;
+  const singleCodeRegex = /\b([0-9]{3}[A-Z][0-9]{7}(?:\s*-\s*[ALS])?)\b/i;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const match = line.match(codeRegex);
-    if (!match) continue;
+    const matches = [...line.matchAll(codeRegexGlobal)];
+    if (matches.length === 0) continue;
 
-    // Chuẩn hóa mã tài khoản (loại bỏ khoảng trắng bên trong ví dụ "009C2268268 - A" -> "009C2268268-A")
-    const rawCode = match[1].replace(/\s+/g, '').toUpperCase().trim();
-    const baseCode = extractBaseAccountCode(rawCode);
-    const maTVKD = baseCode.substring(0, 3);
-    const accType = detectAccountType(rawCode);
+    for (let mIdx = 0; mIdx < matches.length; mIdx++) {
+      const match = matches[mIdx];
+      // Chuẩn hóa mã tài khoản (loại bỏ khoảng trắng bên trong ví dụ "009C2268268 - A" -> "009C2268268-A")
+      const rawCode = match[1].replace(/\s+/g, '').toUpperCase().trim();
+      const baseCode = extractBaseAccountCode(rawCode);
+      const maTVKD = baseCode.substring(0, 3);
+      const accType = detectAccountType(rawCode);
 
-    // 1. Trích xuất tên đi kèm trên cùng dòng (phần nằm sau mã TKGD - Form TVKD 036, v.v.)
-    const afterCode = line.substring(match.index! + match[0].length);
-    let candidateName = cleanPersonName(afterCode);
+      // 1. Trích xuất tên đi kèm: lấy đoạn văn bản giữa match hiện tại và match tiếp theo trên cùng dòng (hoặc đến hết dòng)
+      const nextMatch = mIdx < matches.length - 1 ? matches[mIdx + 1] : null;
+      const segment = nextMatch
+        ? line.substring(match.index! + match[0].length, nextMatch.index!)
+        : line.substring(match.index! + match[0].length);
+      let candidateName = cleanPersonName(segment);
 
-    // 2. Nếu trên cùng dòng không có tên hợp lệ (do không có hoặc do cleanPersonName lọc bỏ rác "- A")
-    // Quét tìm ở 3 dòng tiếp theo (Form TVKD 003: "Tên tài khoản: ĐÀO TUẤN HẢI", "Họ và tên: ...")
-    if (!candidateName) {
-      for (let j = i + 1; j < Math.min(lines.length, i + 5); j++) {
-        const nextLine = lines[j];
-        if (codeRegex.test(nextLine)) break; // gặp mã tài khoản khác thì dừng
+      // 2. Nếu trên cùng dòng chỉ có 1 tài khoản duy nhất và chưa có tên hợp lệ
+      // Quét tìm ở các dòng tiếp theo (Form TVKD 003: "Tên tài khoản: ĐÀO TUẤN HẢI", "Họ và tên: ...")
+      if (!candidateName && matches.length === 1) {
+        for (let j = i + 1; j < Math.min(lines.length, i + 5); j++) {
+          const nextLine = lines[j];
+          if (singleCodeRegex.test(nextLine)) break; // gặp mã tài khoản khác thì dừng
 
-        const mName = nextLine.match(/(?:Tên\s*(?:tài\s*khoản|khách\s*hàng|KH)?|Họ\s*(?:và|&)?\s*tên)\s*[:\-]\s*([^\r\n]+)/i);
-        if (mName) {
-          const parsedNext = cleanPersonName(mName[1]);
-          if (parsedNext) {
-            candidateName = parsedNext;
-            break;
+          const mName = nextLine.match(/(?:Tên\s*(?:tài\s*khoản|khách\s*hàng|KH)?|Họ\s*(?:và|&)?\s*tên)\s*[:\-]\s*([^\r\n]+)/i);
+          if (mName) {
+            const parsedNext = cleanPersonName(mName[1]);
+            if (parsedNext) {
+              candidateName = parsedNext;
+              break;
+            }
           }
         }
       }
-    }
 
-    let existing = groupsMap.get(baseCode);
-    if (!existing) {
-      existing = {
-        maTKGDFutures: accType === 'FUTURES' ? rawCode : baseCode,
-        maTKGDACM: accType === 'ACM' ? rawCode : null,
-        maTKGDLME: accType === 'LME' ? rawCode : null,
-        maTKGDSpread: accType === 'SPREAD' ? rawCode : null,
-        maTKGDBase: baseCode,
-        maTVKD,
-        tenTaiKhoan: candidateName || '',
-        tenTK: candidateName || '',
-        hasACMRequest: accType === 'ACM',
-        hasLMERequest: accType === 'LME',
-        hasSpreadRequest: accType === 'SPREAD',
-        hasPL01Mention: accType === 'ACM',
-        allAccountCodes: [{ code: rawCode, baseCode, type: accType }],
-      };
-      groupsMap.set(baseCode, existing);
-    } else {
-      if (accType === 'FUTURES') existing.maTKGDFutures = rawCode;
-      if (accType === 'ACM') {
-        existing.maTKGDACM = rawCode;
-        existing.hasACMRequest = true;
-        existing.hasPL01Mention = true;
-      }
-      if (accType === 'LME') {
-        existing.maTKGDLME = rawCode;
-        existing.hasLMERequest = true;
-      }
-      if (accType === 'SPREAD') {
-        existing.maTKGDSpread = rawCode;
-        existing.hasSpreadRequest = true;
-      }
-      if (!existing.tenTaiKhoan && candidateName) {
-        existing.tenTaiKhoan = candidateName;
-        existing.tenTK = candidateName;
-      }
-      if (!existing.allAccountCodes.some((c) => c.code === rawCode)) {
-        existing.allAccountCodes.push({ code: rawCode, baseCode, type: accType });
+      let existing = groupsMap.get(baseCode);
+      if (!existing) {
+        existing = {
+          maTKGDFutures: accType === 'FUTURES' ? rawCode : baseCode,
+          maTKGDACM: accType === 'ACM' ? rawCode : null,
+          maTKGDLME: accType === 'LME' ? rawCode : null,
+          maTKGDSpread: accType === 'SPREAD' ? rawCode : null,
+          maTKGDBase: baseCode,
+          maTVKD,
+          tenTaiKhoan: candidateName || '',
+          tenTK: candidateName || '',
+          hasACMRequest: accType === 'ACM',
+          hasLMERequest: accType === 'LME',
+          hasSpreadRequest: accType === 'SPREAD',
+          hasPL01Mention: accType === 'ACM',
+          allAccountCodes: [{ code: rawCode, baseCode, type: accType }],
+        };
+        groupsMap.set(baseCode, existing);
+      } else {
+        if (accType === 'FUTURES') existing.maTKGDFutures = rawCode;
+        if (accType === 'ACM') {
+          existing.maTKGDACM = rawCode;
+          existing.hasACMRequest = true;
+          existing.hasPL01Mention = true;
+        }
+        if (accType === 'LME') {
+          existing.maTKGDLME = rawCode;
+          existing.hasLMERequest = true;
+        }
+        if (accType === 'SPREAD') {
+          existing.maTKGDSpread = rawCode;
+          existing.hasSpreadRequest = true;
+        }
+        if (!existing.tenTaiKhoan && candidateName) {
+          existing.tenTaiKhoan = candidateName;
+          existing.tenTK = candidateName;
+        }
+        if (!existing.allAccountCodes.some((c) => c.code === rawCode)) {
+          existing.allAccountCodes.push({ code: rawCode, baseCode, type: accType });
+        }
       }
     }
   }
@@ -964,9 +977,14 @@ export function dispatchAttachmentsForAccount(
   // Helper kiểm tra file có tên chứa thông tin nhận diện của khách hàng này không
   const isMatchAccount = (attName: string) => {
     const fn = (attName || '').toUpperCase();
-    const fnNorm = normalizeVietnameseName(attName || '');
+    const fnNorm = normalizeVietnameseName(attName || '').replace(/[_\-\.]+/g, ' ');
     if (fn.includes(baseCode)) return true;
-    if (normName && normName.length > 5 && fnNorm.includes(normName)) return true;
+    const cleanNormName = normName.replace(/[_\-\.]+/g, ' ').trim();
+    if (cleanNormName && cleanNormName.length > 5) {
+      if (fnNorm.includes(cleanNormName)) return true;
+      const words = cleanNormName.split(/\s+/).filter((w) => w.length >= 2);
+      if (words.length >= 2 && words.every((w) => fnNorm.includes(w))) return true;
+    }
     return false;
   };
 
@@ -984,15 +1002,20 @@ export function dispatchAttachmentsForAccount(
     );
   };
 
+  const isArchiveFile = (attName: string) => {
+    const fn = (attName || '').toLowerCase();
+    return fn.endsWith('.zip') || fn.endsWith('.rar') || fn.endsWith('.7z');
+  };
+
   // 1. Lọc các tệp thuộc về khách hàng này theo tên tệp (Mã TK hoặc Họ tên không dấu)
   const matched = usableAttachments.filter((att) => isMatchAccount(att.name));
 
-  // Kiểm tra xem trong danh sách matched đã có ảnh CCCD chưa
-  const hasImages = matched.some((att) => isImageFile(att.name));
+  // Kiểm tra xem trong danh sách matched đã có ảnh CCCD hoặc file nén zip chưa
+  const hasImagesOrArchive = matched.some((att) => isImageFile(att.name) || isArchiveFile(att.name));
 
   // 2. Thuật toán Gom cụm (Clustering):
-  // Nếu đã match được file PDF nhưng CHƯA có ảnh (do ảnh CCCD mang tên ngẫu nhiên: mt.png, ms.png, tải xuống...)
-  if (matched.length > 0 && !hasImages) {
+  // Nếu đã match được file PDF nhưng CHƯA có ảnh hoặc archive
+  if (matched.length > 0 && !hasImagesOrArchive) {
     const allImages = usableAttachments.filter((att) => isImageFile(att.name));
     // Nếu tổng số ảnh trong email <= 4 (trường hợp email đơn lẻ hoặc ít ảnh), gom toàn bộ ảnh cho khách này
     if (allImages.length <= 4) {
@@ -1036,6 +1059,16 @@ export function dispatchAttachmentsForAccount(
   // Nếu đã tìm thấy tệp riêng cho khách này (bao gồm cả ảnh được gom cụm) -> trả về
   if (matched.length > 0) {
     return matched;
+  }
+
+  // An toàn chống rò rỉ file: Nếu trong email có các tệp mang mã tài khoản khác -> không được gán bừa
+  const hasOtherAccountFiles = usableAttachments.some((att) => {
+    const fn = (att.name || '').toUpperCase();
+    const otherCode = fn.match(/\b[0-9]{3}[A-Z][0-9]{7}\b/);
+    return otherCode && otherCode[0] !== baseCode;
+  });
+  if (hasOtherAccountFiles) {
+    return [];
   }
 
   // Nếu email chỉ có 1 khách hàng duy nhất -> gán toàn bộ tệp đính kèm (đã lọc logo)

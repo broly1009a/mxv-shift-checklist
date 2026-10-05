@@ -28,7 +28,17 @@ export interface AuthContextType {
   changeTheme: (newTheme: 'light' | 'dark') => Promise<void>;
 }
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
+export const API_BASE_URL = (() => {
+  if (typeof window !== 'undefined') {
+    // Trong môi trường production trên trình duyệt, luôn dùng relative path ""
+    // để tự động tương thích với mọi host/port (localhost:8080 qua SSH tunnel, IP 10.1.0.16, hay domain)
+    if (process.env.NODE_ENV === 'production') {
+      return '';
+    }
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
+})();
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
