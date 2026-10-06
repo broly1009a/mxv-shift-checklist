@@ -132,9 +132,11 @@ def sync_module(ssh, sftp, local_dir, remote_dir, name_tag, pm2_name, run_build=
         # 4. Build & Reload PM2
         if run_build:
             print(f"🔨 [4/4] Đang biên dịch & reload PM2 [{pm2_name}]...")
+            extra_step = "mkdir -p dist/python && cp -rf src/python/* dist/python/ 2>/dev/null || true && " if name_tag == 'backend' else ""
             build_cmd = (
                 f"cd {remote_dir} && "
                 f"npm run build && "
+                f"{extra_step}"
                 f"pm2 reload {pm2_name}"
             )
             code = execute_remote_cmd(ssh, build_cmd)

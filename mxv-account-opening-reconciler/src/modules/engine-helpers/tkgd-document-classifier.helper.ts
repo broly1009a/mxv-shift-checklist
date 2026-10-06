@@ -82,7 +82,7 @@ export function scoreDocumentType(fileName: string): {
 
   // 3. Nhóm từ khóa Phụ lục
   const appendixStrongKeywords = [
-    'phu luc', 'phuluc', 'pl01', 'pl 01', 'pl', 'acm', 'appendix'
+    'phu luc', 'phuluc', 'pl01', 'pl 01', 'pl', 'acm', 'appendix', 'nano'
   ];
   for (const kw of appendixStrongKeywords) {
     if (norm.includes(kw)) {

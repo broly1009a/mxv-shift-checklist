@@ -21,6 +21,7 @@ import {
   normalizeVietnameseName,
 } from '../../engine-helpers/tkgd-mail-parser.helper';
 import { detectPdfDocType, extractHopDongPdf, extractPhuLucPdf, extractZipFiles } from '../../engine-helpers/tkgd-doc-extractor.helper';
+import { scoreDocumentType } from '../../engine-helpers/tkgd-document-classifier.helper';
 import { evaluateRecordReconciliationRule } from '../../engine-helpers/tkgd-reconcile-rules.helper';
 import { runPythonExtractor } from '../../engine-helpers/tkgd-python-bridge.helper';
 import { getTkgdAttachmentDirectory } from '../../engine-helpers/tkgd-reconcile-exporter.helper';
@@ -558,16 +559,23 @@ export class TkgdMailIngestService {
                     } else if (docType === 'CCCD_SCAN') {
                       if (!cccdPdfPath) cccdPdfPath = extPath;
                     } else {
-                      // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → không đoán mò theo tên file.
-                      // Chỉ chấp nhận gợi ý CCCD từ tên (file CCCD thường đặt tên rõ).
-                      const extNameLower = extName.toLowerCase();
-                      const isCccdHint = extNameLower.includes('cccd') || extNameLower.includes('can cuoc') || extNameLower.includes('căn cước');
-                      if (isCccdHint && !cccdPdfPath) {
+                      // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → Fallback cứu hộ theo tên file
+                      const { cccdScore, contractScore, appendixScore } = scoreDocumentType(extName);
+                      if (contractScore > 0 && appendixScore > 0) {
+                        if (!hopDongPath) hopDongPath = extPath;
+                        if (!phuLucPath) phuLucPath = extPath;
+                        this.logger.log(`[TKGD-MAIL-ZIP] PDF UNKNOWN nhưng tên gợi ý HĐ + Phụ lục → gán cả 2 slot: ${extName}`);
+                      } else if (appendixScore > 0 && appendixScore >= contractScore) {
+                        if (!phuLucPath) phuLucPath = extPath;
+                        this.logger.log(`[TKGD-MAIL-ZIP] PDF UNKNOWN nhưng tên gợi ý Phụ lục → gán phuLucPath: ${extName}`);
+                      } else if (contractScore > 0 && contractScore >= appendixScore) {
+                        if (!hopDongPath) hopDongPath = extPath;
+                        this.logger.log(`[TKGD-MAIL-ZIP] PDF UNKNOWN nhưng tên gợi ý Hợp đồng → gán hopDongPath: ${extName}`);
+                      } else if (cccdScore > 0 && !cccdPdfPath) {
                         cccdPdfPath = extPath;
                         this.logger.log(`[TKGD-MAIL-ZIP] PDF UNKNOWN nhưng tên gợi ý CCCD → gán cccdPdfPath: ${extName}`);
                       } else {
-                        // Không biết loại → bỏ qua, cán bộ kiểm tra thủ công
-                        this.logger.warn(`[TKGD-MAIL-ZIP] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI): "${extName}" → bỏ qua, không gán slot.`);
+                        this.logger.warn(`[TKGD-MAIL-ZIP] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI và tên): "${extName}" → bỏ qua, không gán slot.`);
                       }
                     }
                   } else if (/\.(jpe?g|png|webp|heic)$/i.test(extLower)) {
@@ -588,22 +596,23 @@ export class TkgdMailIngestService {
                 } else if (docType === 'CCCD_SCAN') {
                   if (!cccdPdfPath) cccdPdfPath = targetFilePath;
                 } else {
-                  // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → không đoán mò theo tên file.
-                  // Chỉ chấp nhận gợi ý CCCD từ tên (file CCCD thường đặt tên rõ ràng).
-                  const normName = normalizeVietnameseName(nameLower);
-                  const isCccdPdf =
-                    isNamedCccdPdf(nameLower) ||
-                    nameLower.includes('cccd') ||
-                    nameLower.includes('căn cước') ||
-                    nameLower.includes('can cuoc') ||
-                    normName.includes('CAN CUOC');
-                  if (isCccdPdf && !cccdPdfPath) {
+                  // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → Fallback cứu hộ theo tên file
+                  const { cccdScore, contractScore, appendixScore } = scoreDocumentType(att.name);
+                  if (contractScore > 0 && appendixScore > 0) {
+                    if (!hopDongPath) hopDongPath = targetFilePath;
+                    if (!phuLucPath) phuLucPath = targetFilePath;
+                    this.logger.log(`[TKGD-MAIL] PDF UNKNOWN nhưng tên gợi ý HĐ + Phụ lục → gán cả 2 slot: ${att.name}`);
+                  } else if (appendixScore > 0 && appendixScore >= contractScore) {
+                    if (!phuLucPath) phuLucPath = targetFilePath;
+                    this.logger.log(`[TKGD-MAIL] PDF UNKNOWN nhưng tên gợi ý Phụ lục → gán phuLucPath: ${att.name}`);
+                  } else if (contractScore > 0 && contractScore >= appendixScore) {
+                    if (!hopDongPath) hopDongPath = targetFilePath;
+                    this.logger.log(`[TKGD-MAIL] PDF UNKNOWN nhưng tên gợi ý Hợp đồng → gán hopDongPath: ${att.name}`);
+                  } else if (cccdScore > 0 && !cccdPdfPath) {
                     cccdPdfPath = targetFilePath;
                     this.logger.log(`[TKGD-MAIL] PDF UNKNOWN nhưng tên gợi ý CCCD → gán cccdPdfPath: ${att.name}`);
                   } else {
-                    // Không biết loại tài liệu → bỏ qua, không gán vào bất kỳ slot nào.
-                    // Cán bộ TTBT cần kiểm tra thủ công file này.
-                    this.logger.warn(`[TKGD-MAIL] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI): "${att.name}" → bỏ qua, không gán slot. Cần kiểm tra thủ công.`);
+                    this.logger.warn(`[TKGD-MAIL] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI và tên): "${att.name}" → bỏ qua, không gán slot. Cần kiểm tra thủ công.`);
                   }
                 }
               } else if (/\.(jpe?g|png|webp|heic)$/i.test(nameLower)) {

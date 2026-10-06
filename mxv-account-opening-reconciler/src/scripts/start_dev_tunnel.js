@@ -3,7 +3,7 @@
  * DEV SSH TUNNEL RUNNER CHO TKGD BACKEND (RESILIENT AUTO-RECONNECT)
  * ============================================================================
  * Mở đường hầm bảo mật SSH Tunnel kết nối máy Local với MongoDB máy chủ Ubuntu:
- * Local: 127.0.0.1:27018  --->  Ubuntu: 10.0.0.26:27017 (mxv_shift_checklist)
+ * Local: 127.0.0.1:27018  --->  Ubuntu VNC-CIC-01: 10.1.0.16:27017 (mxv_tkgd_reconciler / mxv_shift_checklist)
  * Tích hợp:
  *  - SSH Keep-Alive (10s) chống idle timeout
  *  - Bắt lỗi Socket ECONNRESET không làm crash tiến trình
@@ -15,10 +15,10 @@ const net = require('net');
 const { Client } = require('ssh2');
 
 const SSH_CONFIG = {
-  host: process.env.UBUNTU_HOST || '10.0.0.26',
+  host: process.env.UBUNTU_HOST || '10.1.0.16',
   port: parseInt(process.env.UBUNTU_PORT || '22', 10),
-  username: process.env.UBUNTU_USER || 'mxvadmin',
-  password: process.env.UBUNTU_PASSWORD || 'MxV!,#2o26',
+  username: process.env.UBUNTU_USER || 'vncadmin',
+  password: process.env.UBUNTU_PASSWORD || 'CiC=,!2o26',
   keepaliveInterval: 10000, // Gửi ping keepalive mỗi 10 giây chống ngắt phiên
   keepaliveCountMax: 5,
   readyTimeout: 20000,
@@ -37,7 +37,7 @@ process.on('uncaughtException', (err) => {
 });
 
 console.log('='.repeat(75));
-console.log('   KHỞI ĐỘNG SSH TUNNEL: LOCAL <---> MONGODB UBUNTU (10.0.0.26)');
+console.log('   KHỞI ĐỘNG SSH TUNNEL: LOCAL <---> MONGODB VNC-CIC-01 (10.1.0.16)');
 console.log('='.repeat(75));
 
 let localServer = null;
@@ -77,7 +77,8 @@ function createLocalServer(conn) {
 
   localServer.listen(LOCAL_PORT, '127.0.0.1', () => {
     console.log(`\n  ĐƯỜNG HẦM ĐÃ SẴN SÀNG! (Tự động giữ kết nối 24/7)`);
-    console.log(`  Local MongoDB URI: mongodb://127.0.0.1:${LOCAL_PORT}/mxv_shift_checklist\n`);
+    console.log(`  Local MongoDB URI: mongodb://127.0.0.1:${LOCAL_PORT}/mxv_tkgd_reconciler`);
+    console.log(`  (Hoặc truy cập toàn bộ DBs: mongodb://127.0.0.1:${LOCAL_PORT}/)\n`);
   });
 }
 

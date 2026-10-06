@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Loader2,
   Check,
   AlertTriangle,
   X,
+  XCircle,
   Eye,
   RotateCcw,
   ChevronUp,
@@ -82,6 +83,13 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [bulkStatusMsg, setBulkStatusMsg] = useState<string | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{
+    current: number;
+    total: number;
+    percent: number;
+    currentCode?: string;
+  } | null>(null);
+  const cancelBulkRef = useRef<boolean>(false);
 
   // Toggle chọn 1 dòng
   const toggleSelectOne = (id: string) => {
@@ -104,26 +112,58 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
     }
   };
 
-  // Xử lý chạy lại E2E hàng loạt (Quét mail -> Cào MS -> Tái thẩm định)
+  // Xử lý chạy lại E2E hàng loạt (Gửi theo từng tài khoản tuần tự kèm thanh tiến trình trực quan)
   const handleBulkRunE2E = async () => {
     if (selectedIds.length === 0 || isBulkRunning) return;
     setIsBulkRunning(true);
-    setBulkStatusMsg(`Đang khởi động chạy E2E cho ${selectedIds.length} tài khoản...`);
-    try {
-      const res = await tkgdApi.bulkReRunE2E(selectedIds, {
-        reparseOcr: true,
-        resyncMSystem: true,
-        reEvaluate: true,
-      });
-      setBulkStatusMsg(res.message || 'Chạy E2E hoàn tất!');
+    cancelBulkRef.current = false;
+    const totalCount = selectedIds.length;
+    let successCount = 0;
+    let errorCount = 0;
+
+    setBulkProgress({ current: 0, total: totalCount, percent: 0 });
+    setBulkStatusMsg(`Đang khởi động kiểm tra ${totalCount} tài khoản...`);
+
+    for (let i = 0; i < totalCount; i++) {
+      if (cancelBulkRef.current) {
+        setBulkStatusMsg(`Đã dừng kiểm tra. Đã xử lý ${i}/${totalCount} tài khoản.`);
+        break;
+      }
+
+      const id = selectedIds[i];
+      const rec = records.find((r) => r._id === id);
+      const code = rec?.maTKGD || rec?.maTKGDBase || id;
+      const current = i + 1;
+      const percent = Math.round((current / totalCount) * 100);
+
+      setBulkProgress({ current, total: totalCount, percent, currentCode: code });
+      setBulkStatusMsg(`Đang kiểm tra [${current}/${totalCount} (${percent}%)]: ${code}...`);
+
+      try {
+        await tkgdApi.bulkReRunE2E([id], {
+          reparseOcr: true,
+          resyncMSystem: true,
+          reEvaluate: true,
+        });
+        successCount++;
+      } catch (err: any) {
+        console.error(`Lỗi khi check tài khoản ${code}:`, err);
+        errorCount++;
+      }
+
+      // Tự động làm mới danh sách sau mỗi 2 tài khoản hoặc tài khoản cuối để người dùng thấy trạng thái xanh ngay lập tức
+      if (i % 2 === 0 || i === totalCount - 1) {
+        onRefresh?.();
+      }
+    }
+
+    setIsBulkRunning(false);
+    setBulkProgress(null);
+    if (!cancelBulkRef.current) {
+      setBulkStatusMsg(`Hoàn tất kiểm tra ${totalCount} tài khoản (Thành công: ${successCount}, Lỗi: ${errorCount})`);
       setSelectedIds([]);
       onRefresh?.();
-      setTimeout(() => setBulkStatusMsg(null), 4000);
-    } catch (err: any) {
-      setBulkStatusMsg(`Lỗi: ${err.message}`);
       setTimeout(() => setBulkStatusMsg(null), 5000);
-    } finally {
-      setIsBulkRunning(false);
     }
   };
 
@@ -1171,7 +1211,56 @@ export const TkgdRecordsTable: React.FC<TkgdRecordsTableProps> = ({
           </div>
 
           {/* Trạng thái tiến trình */}
-          {isBulkRunning ? (
+          {isBulkRunning && bulkProgress ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '260px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '0.8rem', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#60a5fa' }}>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Đang check: <strong style={{ color: '#ffffff' }}>{bulkProgress.currentCode}</strong> ({bulkProgress.current}/{bulkProgress.total})</span>
+                  </div>
+                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>{bulkProgress.percent}%</span>
+                </div>
+                {/* Thanh tiến trình Progress Bar */}
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  borderRadius: '999px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${bulkProgress.percent}%`,
+                    background: 'linear-gradient(90deg, #3b82f6 0%, #10b981 100%)',
+                    borderRadius: '999px',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { cancelBulkRef.current = true; }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                  color: '#f87171',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                title="Dừng kiểm tra"
+              >
+                <XCircle size={13} />
+                <span>Dừng</span>
+              </button>
+            </div>
+          ) : isBulkRunning ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontSize: '0.8rem', fontWeight: 600 }}>
               <Loader2 size={16} className="animate-spin" />
               <span>{bulkStatusMsg || 'Đang kiểm tra lại...'}</span>

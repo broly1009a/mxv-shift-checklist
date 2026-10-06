@@ -40,6 +40,19 @@ export function isCanonicalDate(d: string | undefined | null): boolean {
   return /^\d{2}\/\d{2}\/\d{4}$/.test(String(d || ''));
 }
 
+export function parseCanonicalDateToDate(d: string | undefined | null): Date | undefined {
+  if (!d || !isCanonicalDate(d)) return undefined;
+  const parts = String(d).split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const date = new Date(Date.UTC(year, month, day));
+    if (!isNaN(date.getTime())) return date;
+  }
+  return undefined;
+}
+
 export function isIsoDateOnly(d: string | undefined | null): boolean {
   return /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(String(d || '').trim());
 }
@@ -516,7 +529,7 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
     if (isMrzSource && !normCccdIssue && isCanonicalDate(normHdIssue)) {
       normCccdIssue = normHdIssue;
       if (record?.canCuoc) {
-        record.canCuoc.ngayCap = normHdIssue;
+        record.canCuoc.ngayCap = (record?.hopDong?.ngayCap instanceof Date ? record.hopDong.ngayCap : parseCanonicalDateToDate(normHdIssue)) as any;
         record.canCuoc.rawNgayCap = normHdIssue;
       }
       autoHealedNotes.push(`Thẻ CCCD quét từ mặt sau mã MRZ (chuẩn ICAO không có ngày cấp), đã tự động kế thừa ngày cấp từ Hợp đồng: ${normHdIssue}`);
@@ -585,10 +598,21 @@ export function evaluateRecordReconciliationRule(record: any): ReconciliationRes
     const hdNoiCap = (record?.hopDong?.noiCap || '').trim();
     const plNoiCap = (record?.phuLuc?.noiCap || '').trim();
     const msNoiCap = (record?.ms?.noiCap || '').trim();
-    const effectiveNoiCap = cccdNoiCap || hdNoiCap || plNoiCap;
+    let effectiveNoiCap = cccdNoiCap || hdNoiCap || plNoiCap;
 
     if (!effectiveNoiCap) {
-      softWarnings.push('Hồ sơ chưa quét được Nơi cấp CCCD/HĐ');
+      // Trường hợp biểu mẫu Hợp đồng TVKD hoàn toàn không in mục Nơi cấp (như TV080 APEX)
+      // Nếu Họ tên, CCCD 12 số, Ngày sinh và Ngày cấp đều đã khớp 100% với M-System:
+      const isCoreIdentityFullyMatched = isNameFullyMatched && isCccdFullyMatched && !isCriticalMismatch;
+      if (isCoreIdentityFullyMatched && msNoiCap) {
+        effectiveNoiCap = msNoiCap;
+        if (record.hopDong && !record.hopDong.noiCap) {
+          record.hopDong.noiCap = msNoiCap;
+        }
+        autoHealedNotes.push('Tự động kế thừa Nơi cấp từ M-System do biểu mẫu HĐ không in mục Nơi cấp');
+      } else {
+        softWarnings.push('Hồ sơ chưa quét được Nơi cấp CCCD/HĐ');
+      }
     } else {
       // So khớp chéo Hợp đồng vs CCCD
       if (hdNoiCap && cccdNoiCap && !isSameIssuingAuthority(hdNoiCap, cccdNoiCap)) {

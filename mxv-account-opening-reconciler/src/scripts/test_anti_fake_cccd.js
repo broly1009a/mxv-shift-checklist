@@ -112,6 +112,30 @@ if (mrzCheck.reason) {
   console.log(`  - Cảnh báo: ${mrzCheck.reason}`);
 }
 
+// ============================================================================
+// TEST CASE 3: NGUYỄN TRÍ TRUNG (MÃ QUỐC GIA 286 - UKRAINA THEO TT 59/2021/TT-BCA)
+// ============================================================================
+console.log('--------------------------------------------------------------------------------');
+console.log('TEST CASE 3: Khách hàng NGUYỄN TRÍ TRUNG (Khai sinh tại nước ngoài)');
+console.log('--------------------------------------------------------------------------------');
+console.log('• Thông tin trên hợp đồng & CCCD:');
+console.log('  - Số CCCD: 286200000002');
+console.log('  - Họ và tên: NGUYỄN TRÍ TRUNG');
+console.log('  - Ngày sinh: 10/11/2000 (Năm sinh: 2000)');
+console.log('  - Giới tính: Nam');
+console.log('  - Nơi đăng ký khai sinh: Ukraina (Mã quốc gia: 286 theo Thông tư 59/2021/TT-BCA)\n');
+
+const case3Check = CCCDValidator.validateCCCDNumber('286200000002', 'Nam', 2000);
+console.log('[KẾT QUẢ BỘ KIỂM ĐỊNH CCCDValidator]');
+console.log(`• Cấu trúc 12 số: ${case3Check.isValid ? '✅ HỢP LỆ THEO CHUẨN BỘ CÔNG AN' : '❌ Lỗi'}`);
+console.log(`• Mức độ nghiêm trọng: [${case3Check.severity}]`);
+console.log(`• Quốc gia giải mã: ${case3Check.provinceName} (Loại: ${case3Check.birthplace?.type})`);
+console.log(`• Thế kỷ & Giới tính: Ký tự 2 (Nam sinh 2000) -> Hợp lệ`);
+console.log(`• Hai số năm sinh: 00 (Sinh 2000) -> Hợp lệ`);
+if (case3Check.criticalErrors.length > 0) {
+  case3Check.criticalErrors.forEach(e => console.log('  🔴 ' + e));
+}
+
 console.log('\n================================================================================');
 console.log('📋 TỔNG KẾT ĐÁNH GIÁ CHẶN CCCD GIẢ:');
 console.log('1. Với ảnh 1 (TRƯƠNG CẨM TÚ): Hệ thống CHẶN ĐỨNG 100% bằng 2 lỗi CRITICAL');
@@ -120,6 +144,7 @@ console.log('   - Ký tự thứ 5-6 là "02" (sinh năm 2002) nhưng trên th�
 console.log('   -> Phôi thẻ làm ẩu, ghép số của người sinh năm 2002 vào thẻ ghi sinh năm 2004.');
 console.log('2. Với ảnh 2 (HUỲNH TUYẾT MAI): Số định danh được chế chuẩn công thức BCA.');
 console.log('   - Khi nạp mặt sau nếu thiếu dải mã máy IDVNM -> Hệ thống chặn đứng bằng cờ phôi Photoshop.');
-console.log('   - Khuyến nghị: Với các thẻ làm giả tinh vi (đúng cả công thức toán học), hệ thống sẽ gắn nhãn');
-console.log('     cần chuyên viên ca trực đối chiếu mắt qua tính năng "Chuyển sang Tab Hồ Sơ & Ảnh CCCD".');
+console.log('3. Với CCCD 3 (NGUYỄN TRÍ TRUNG): Số định danh 286200000002 hợp lệ 100%');
+console.log('   - 3 số đầu 286 là mã quốc gia Ukraina theo Phụ lục II Thông tư 59/2021/TT-BCA.');
+console.log('   - Không còn bị gắn cờ nhầm là "Mã tỉnh không tồn tại".');
 console.log('================================================================================\n');

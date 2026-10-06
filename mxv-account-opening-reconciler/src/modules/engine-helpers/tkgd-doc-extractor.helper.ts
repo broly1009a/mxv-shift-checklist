@@ -405,7 +405,8 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
         // Tránh gán nhầm ngày ký Hợp đồng (thường nằm trước số CCCD) vào ngayCap
         let ngayCapBeforeAnchor: { date: Date; raw: string } | null = null;
         for (let i = scopeStart; i < scopeEnd; i++) {
-          const dateMatch = lines[i].match(/(?<!\d)(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})(?!\d)/);
+          const dateMatch = lines[i].match(/(?<!\d)(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})(?!\d)/) ||
+                            lines[i].match(/(?<!\d)0\d{11}(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})(?!\d)/);
           if (dateMatch) {
             const parsed = parseDateDetails(dateMatch[1]);
             if (parsed.date) {
@@ -502,28 +503,70 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
     }
 
     // 2. Ngày ký: "Hôm nay ngày 11 tháng 08 năm 2026", "ngày ... tháng ... năm ...", "Ngày ký: dd/mm/yyyy"
-    // LOẠI TRỪ TUYỆT ĐỐI các ngày cấp phép TVKD, Quyết định MXV, ĐKKD của Bên A (như "cấp ngày 20 tháng 12 năm 2019")
+    // LOẠI TRỪ TUYỆT ĐỐI các ngày cấp phép TVKD, Quyết định MXV, ĐKKD của Bên A (như "cấp ngày 20 tháng 12 năm 2019"), Nghị định, Luật, Thông tư
     const isCorporateLicensingDate = (index: number, fullText: string): boolean => {
       const pre = fullText.substring(Math.max(0, index - 120), index);
-      return /cấp\s*ngày|Giấy\s*chứng\s*nhận|Thành\s*viên\s*kinh\s*doanh|Quyết\s*định|ĐKKD|Sở\s*Giao\s*dịch|Nghị\s*định|Luật/i.test(pre);
+      if (/(?:cấp|do[^\n]+cấp)\s*$/i.test(pre) || /cấp\s*ngày/i.test(pre)) return true;
+      return /Giấy\s*chứng\s*nhận|Thành\s*viên\s*kinh\s*doanh|Quyết\s*định|ĐKKD|Sở\s*Giao\s*dịch|Nghị\s*định|Luật|Thông\s*tư/i.test(pre);
     };
 
-    const dateMatches = text.matchAll(/(?:(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})|(?:Ngày\s*ký|Ký\s*ngày|Ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}))/gi);
-    for (const m of dateMatches) {
+    // Ưu tiên 1: Cụm từ mở đầu xác lập hợp đồng "Hôm nay, ngày DD tháng MM năm YYYY" (hỗ trợ cả dấu chấm form/xuống dòng như TV012 HCT)
+    const homNayMatches = text.matchAll(/Hôm\s*nay,?\s*ngày[^\d\r\n]{0,25}(?:\r?\n[^\d\r\n]{0,10})?(\d{1,2})[^\d\r\n]{0,25}(?:tháng|\/)[^\d\r\n]{0,25}(?:\r?\n[^\d\r\n]{0,10})?(\d{1,2})[^\d\r\n]{0,25}(?:năm|\/)[^\d\r\n]{0,25}(?:\r?\n[^\d\r\n]{0,10})?(\d{4})/gi);
+    for (const m of homNayMatches) {
       if (!isCorporateLicensingDate(m.index || 0, text)) {
-        if (m[1] && m[2] && m[3]) {
-          const d = parseInt(m[1], 10);
-          const mo = parseInt(m[2], 10);
-          const y = parseInt(m[3], 10);
+        const d = parseInt(m[1], 10);
+        const mo = parseInt(m[2], 10);
+        const y = parseInt(m[3], 10);
+        if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
+          result.ngayKyHD = new Date(y, mo - 1, d);
+          break;
+        }
+      }
+    }
+
+    // Ưu tiên 2: Các ngày khác (có kiểm tra loại trừ ngày cấp phép TVKD/CCCD/Luật)
+    if (!result.ngayKyHD) {
+      const dateMatches = text.matchAll(/(?:ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})|(?:Ngày\s*ký|Ký\s*ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}))/gi);
+      for (const m of dateMatches) {
+        if (!isCorporateLicensingDate(m.index || 0, text)) {
+          if (m[1] && m[2] && m[3]) {
+            const d = parseInt(m[1], 10);
+            const mo = parseInt(m[2], 10);
+            const y = parseInt(m[3], 10);
+            if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
+              result.ngayKyHD = new Date(y, mo - 1, d);
+              break;
+            }
+          } else if (m[4]) {
+            const parsed = parseDateString(m[4]);
+            if (parsed && parsed.getFullYear() >= 2020) {
+              result.ngayKyHD = parsed;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: Tìm ngày ký dạng form overlay (như biểu mẫu TV068 Anfin có 3 số rời DD // MM // YYYY trên Trang 1)
+    if (!result.ngayKyHD) {
+      const p1Text = text.substring(0, 2000);
+      const mOverlay = p1Text.match(/(?:068C\d{7}[^\n]*\n)(?:202\d[^\n]*\n)?(?:202\d)?(\d{2})\s*\n\s*(\d{1,2})\s*\n/);
+      if (mOverlay) {
+        const d = parseInt(mOverlay[1], 10);
+        const mo = parseInt(mOverlay[2], 10);
+        if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) {
+          result.ngayKyHD = new Date(2026, mo - 1, d);
+        }
+      }
+      if (!result.ngayKyHD) {
+        const m3 = p1Text.match(/(?:Hôm\s*nay[^\n]*\n)?(?:[^\n]*\n){0,10}?(?<!\d)(\d{1,2})\s*\n\s*(\d{1,2})\s*\n\s*(202\d)(?!\d)/);
+        if (m3) {
+          const d = parseInt(m3[1], 10);
+          const mo = parseInt(m3[2], 10);
+          const y = parseInt(m3[3], 10);
           if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
             result.ngayKyHD = new Date(y, mo - 1, d);
-            break;
-          }
-        } else if (m[4]) {
-          const parsed = parseDateString(m[4]);
-          if (parsed && parsed.getFullYear() >= 2020) {
-            result.ngayKyHD = parsed;
-            break;
           }
         }
       }
@@ -586,6 +629,20 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
           result.dinhDangLoi = result.dinhDangLoi || [];
           result.dinhDangLoi.push(`Ngày cấp trên HĐ ghi định dạng ngược YYYY-MM-DD ("${parsedCap.raw}") chưa đúng quy chuẩn DD/MM/YYYY`);
         }
+      } else {
+        // Fallback: Hỗ trợ trường hợp CCCD 12 số dính liền với Ngày cấp DD/MM/YYYY (biểu mẫu Hitech TVKD 036, TV072...)
+        const glued12 = (clientText.match(/(?<!\d)(0\d{11})(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})(?!\d)/) ||
+          text.match(/(?<!\d)(0\d{11})(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})(?!\d)/));
+        if (glued12) {
+          const parsedCap = parseDateDetails(glued12[2]);
+          if (parsedCap.date && parsedCap.date.getFullYear() >= 2014) {
+            result.ngayCap = parsedCap.date;
+            result.rawNgayCap = parsedCap.raw;
+            if (!result.soCanCuoc) {
+              result.soCanCuoc = glued12[1].trim();
+            }
+          }
+        }
       }
     }
 
@@ -629,16 +686,16 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
       }
     }
 
-    // 7. Nơi cấp: "Nơi cấp: Cục Cảnh sát...", "Place of issue: ..." (ưu tiên clientText, lọc bỏ cơ quan cấp ĐKKD doanh nghiệp)
+    // 7. Nơi cấp: "Nơi cấp: Cục Cảnh sát...", "Place of issue: ..." (ưu tiên clientText, lọc bỏ cơ quan cấp ĐKKD doanh nghiệp, mã TKGD, chuỗi số, nhãn form dính liền)
     if (!result.noiCap) {
       const isCorporateIssuer = (str: string) =>
-        /(SỞ\s*TÀI\s*CHÍNH|SỞ\s*KẾ\s*HOẠCH|SỞ\s*KH\s*&\s*ĐT|UBND|ỦY\s*BAN|HỘI\s*ĐỒNG|CHI\s*CỤC\s*THUẾ|CỤC\s*THUẾ)/i.test(str);
+        /(Tài\s*khoản|Sau\s*đây\s*gọi\s*chung|Khách\s*hàng|Bên\s*[AB]|Điện\s*thoại|SĐT|Tel|Email|Địa\s*chỉ|Address|Số\s*hợp\s*đồng|Mã\s*số\s*thuế|SỞ\s*TÀI\s*CHÍNH|SỞ\s*KẾ\s*HOẠCH|SỞ\s*KH\s*&\s*ĐT|UBND|ỦY\s*BAN|HỘI\s*ĐỒNG|CHI\s*CỤC\s*THUẾ|CỤC\s*THUẾ|\b0\d{2}[CFGLPS]\d{7}|\d{4,})/i.test(str);
 
       const findValidNoiCap = (sourceText: string): string | null => {
         const matches = sourceText.matchAll(/(?:Nơi\s*cấp|Place\s*of\s*issue)[\s:\.\-]+([^\r\n;,]+?)(?=(?:\s+ngày|\s+tại|\s+hạn|\s+quốc|\r?\n|$))/gi);
         for (const m of matches) {
           let cap = m[1].trim().replace(/^[;,\.\-\s]+|[;,\.\-\s]+$/g, '');
-          if (cap.length >= 3 && !/^Địa chỉ/i.test(cap) && !isCorporateIssuer(cap)) {
+          if (cap.length >= 3 && !/^Địa chỉ/i.test(cap) && !isCorporateIssuer(cap) && !/^\d+$/.test(cap.replace(/\s+/g, ''))) {
             // Ghép dòng Stitching nếu bị ngắt dòng giữa chừng (ví dụ: "...VỀ TRẬT \n TỰ XÃ HỘI")
             const afterIndex = (m.index || 0) + m[0].length;
             const remaining = sourceText.slice(afterIndex, afterIndex + 80);
@@ -653,6 +710,13 @@ export async function extractHopDongPdf(input: string | Buffer, fileNameHint?: s
       };
 
       result.noiCap = findValidNoiCap(clientText) || findValidNoiCap(text) || undefined;
+      if (!result.noiCap) {
+        const caMatch = (clientText.match(/\b(CỤC\s*CẢNH\s*SÁT[^\r\n;,]+|BỘ\s*CÔNG\s*AN)/i) ||
+          text.match(/\b(CỤC\s*CẢNH\s*SÁT[^\r\n;,]+|BỘ\s*CÔNG\s*AN)/i));
+        if (caMatch) {
+          result.noiCap = caMatch[1].trim().replace(/^[;,\.\-\s]+|[;,\.\-\s]+$/g, '');
+        }
+      }
     }
 
     // 8. Họ và tên: Hỗ trợ linh hoạt mọi biểu mẫu TVKD (Wynthor 088, Gia Cát Lợi 003, Hitech 036, Phú Quý 085...)
@@ -835,38 +899,78 @@ export async function extractPhuLucPdf(input: string | Buffer, fileNameHint?: st
   try {
     const text = await readPdfText(input);
 
+    // Nếu là file gộp (multi-page) chứa Phụ lục ở các trang sau:
+    // Cô lập phạm vi chỉ lấy từ vị trí xuất hiện tiêu đề Phụ lục để tránh lẫn điều khoản chung HĐ & Nghị định phía trước
+    let plText = text;
+    const plMarkerMatch = text.match(/(?:PHỤ\s*LỤC\s*(?:SỐ\s*)?(?:0?1|\b)|PL0?1\b|ĐĂNG\s*KÝ\s*TIỂU\s*KHOẢN\s*ACM|TIỂU\s*KHOẢN\s*NANO)/i);
+    if (plMarkerMatch && plMarkerMatch.index && plMarkerMatch.index > 500) {
+      plText = text.substring(plMarkerMatch.index);
+    }
+
     // 1. Số hợp đồng gốc: "số GCL3692/HCM2026", "Hợp đồng mở tài khoản số..."
-    const soHdMatch = text.match(/(?:Hợp\s*đồng\s*(?:mở\s*tài\s*khoản\s*)?số|số\s*HĐ)[\s:\.\-]+([A-Z0-9_\-\/]+)/i);
+    const soHdMatch = plText.match(/(?:Hợp\s*đồng\s*(?:mở\s*tài\s*khoản\s*)?số|số\s*HĐ)[\s:\.\-]+([A-Z0-9_\-\/]+)/i);
     if (soHdMatch) {
       result.soHopDongGoc = soHdMatch[1].trim();
     }
 
     // 2. Ngày ký phụ lục: Ưu tiên bóc ngày ký kết hợp đồng bổ sung hoặc ngày ký phụ lục ở cuối trang
-    // Loại trừ tuyệt đối các ngày cấp phép TVKD / Sở GDHH / ĐKKD của Bên A
+    // Loại trừ tuyệt đối các ngày cấp phép TVKD / Sở GDHH / ĐKKD của Bên A / Nghị định / Luật / Thông tư / Ngày cấp CCCD (Cấp ngày: ...)
+    const isCorporateLicensingDate = (index: number, fullText: string): boolean => {
+      const pre = fullText.substring(Math.max(0, index - 120), index);
+      if (/(?:cấp|do[^\n]+cấp)\s*$/i.test(pre) || /cấp\s*ngày/i.test(pre) || /ngày\s*cấp/i.test(pre)) return true;
+      if (/CMTND|CMND|CCCD|Hộ\s*chiếu/i.test(pre)) return true;
+      return /Giấy\s*chứng\s*nhận|Thành\s*viên\s*kinh\s*doanh|Quyết\s*định|ĐKKD|Sở\s*Giao\s*dịch|Nghị\s*định|Luật|Thông\s*tư/i.test(pre);
+    };
+
     let ngayKyHD: Date | undefined;
 
-    // Ưu tiên 1: Dòng căn cứ "bổ sung Hợp đồng ... ngày DD tháng MM năm YYYY" hoặc "Ký ngày DD/MM/YYYY"
-    const boSungMatch = text.match(/(?:bổ\s*sung\s*Hợp\s*đồng[^\r\n]*?|Hợp\s*đồng\s*số[^\r\n]*?|ký\s*kết[^\r\n]*?|Ngày\s*ký[^\r\n]*?|ngày)\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})/gi);
-    if (boSungMatch) {
-      for (const mStr of boSungMatch) {
-        const mIdx = text.indexOf(mStr);
-        const pre = text.substring(Math.max(0, mIdx - 60), mIdx);
-        // Bỏ qua nếu là ngày cấp phép của Bên A hoặc Sở GDHH
-        if (/cấp\s*ngày|Giấy\s*chứng\s*nhận|Thành\s*viên\s*kinh\s*doanh|Quyết\s*định|ĐKKD|Sở\s*Giao\s*dịch/i.test(pre)) {
-          continue;
-        }
-        const parts = mStr.match(/ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})/i);
-        if (parts) {
-          ngayKyHD = new Date(parseInt(parts[3], 10), parseInt(parts[2], 10) - 1, parseInt(parts[1], 10));
-          break;
+    // Ưu tiên 0: Mẫu mở đầu dạng nhiều dòng hoặc dấu chấm form (như TV012 HCT: "Hôm nay ngày... \n 04 \n 10 \n 2026")
+    const hctPlMatch = plText.match(/Hôm\s*nay,?\s*ngày[^\r\n]*\r?\n\s*(\d{1,2})\s*\r?\n\s*(\d{1,2})\s*\r?\n\s*(202\d)/i)
+      || plText.match(/Hôm\s*nay,?\s*ngày[^\d\r\n]{0,25}(?:\r?\n[^\d\r\n]{0,10})?(\d{1,2})[^\d\r\n]{0,25}(?:tháng|\/)[^\d\r\n]{0,25}(?:\r?\n[^\d\r\n]{0,10})?(\d{1,2})[^\d\r\n]{0,25}(?:năm|\/)[^\d\r\n]{0,25}(?:\r?\n[^\d\r\n]{0,10})?(\d{4})/i);
+    if (hctPlMatch && !isCorporateLicensingDate(hctPlMatch.index || 0, plText)) {
+      const d = parseInt(hctPlMatch[1], 10), mo = parseInt(hctPlMatch[2], 10), y = parseInt(hctPlMatch[3], 10);
+      if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
+        ngayKyHD = new Date(y, mo - 1, d);
+      }
+    }
+
+    // Ưu tiên 1: Dòng căn cứ "bổ sung Hợp đồng ... ngày DD tháng MM năm YYYY" hoặc "Ký ngày DD/MM/YYYY" hoặc "Hôm nay ngày DD tháng MM năm YYYY"
+    if (!ngayKyHD) {
+      const boSungMatches = plText.matchAll(/(?:(?:bổ\s*sung\s*Hợp\s*đồng|Hợp\s*đồng\s*số|ký\s*kết|Ngày\s*ký|Hôm\s*nay,?\s*ngày|ngày)[^\r\n]*?)\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})/gi);
+      for (const m of boSungMatches) {
+        if (!isCorporateLicensingDate(m.index || 0, plText)) {
+          const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = parseInt(m[3], 10);
+          if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
+            ngayKyHD = new Date(y, mo - 1, d);
+            break;
+          }
         }
       }
     }
 
+    // Ưu tiên 2: Nhãn "Ngày ký: DD/MM/YYYY" hoặc "Ký ngày: DD/MM/YYYY" (loại trừ ngày cấp CCCD / ngày cấp phép)
     if (!ngayKyHD) {
-      const slashMatch = text.match(/(?:Ngày\s*ký|Ký\s*ngày|ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i);
-      if (slashMatch) {
-        ngayKyHD = parseDateString(slashMatch[1]);
+      const slashMatches = plText.matchAll(/(?:Ngày\s*ký|Ký\s*ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/gi);
+      for (const m of slashMatches) {
+        if (!isCorporateLicensingDate(m.index || 0, plText)) {
+          const parts = m[1].replace(/[-.]/g, '/').split('/');
+          const d = parseInt(parts[0], 10), mo = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
+          if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
+            ngayKyHD = new Date(y, mo - 1, d);
+            break;
+          }
+        }
+      }
+    }
+
+    // Ưu tiên 3 (Fallback tương thích ngược): Form overlay 3 số rời nhau (DD \n MM \n YYYY) trên biểu mẫu TV068 Anfin
+    if (!ngayKyHD) {
+      const overlayMatch = plText.match(/(?:Hôm\s*nay[^\n]*\n)?(?:[^\n]*\n){0,10}?(?<!\d)(\d{1,2})\s*\n\s*(\d{1,2})\s*\n\s*(202\d)(?!\d)/);
+      if (overlayMatch) {
+        const d = parseInt(overlayMatch[1], 10), mo = parseInt(overlayMatch[2], 10), y = parseInt(overlayMatch[3], 10);
+        if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2020) {
+          ngayKyHD = new Date(y, mo - 1, d);
+        }
       }
     }
 
@@ -876,30 +980,44 @@ export async function extractPhuLucPdf(input: string | Buffer, fileNameHint?: st
 
     // 3. Số CCCD: "Số CCCD/Hộ Chiếu: 031079015563"
     const cccdMatch =
-      text.match(/(?:Số\s*)?(?:CCCD|CMND|CMT|ĐDCN|Định\s*danh(?:\s*cá\s*nhân)?|Hộ\s*chiếu)[\/\s\w\-–—]*[:\s]+([0-9]{9,12})\b/i) ||
-      text.match(/CCCD[^\:]*:\s*(\d{9,12})/i);
+      plText.match(/(?:Số\s*)?(?:CCCD|CMND|CMT|ĐDCN|Định\s*danh(?:\s*cá\s*nhân)?|Hộ\s*chiếu)[\/\s\w\-–—]*[:\s]+([0-9]{9,12})\b/i) ||
+      plText.match(/CCCD[^\:]*:\s*(\d{9,12})/i);
     if (cccdMatch) {
       result.soCanCuoc = cccdMatch[1].trim();
     } else {
-      const fallback12 = text.match(/(?<!\d)(0\d{11})(?!\d)/);
+      const fallback12 = plText.match(/(?<!\d)(0\d{11})(?!\d)/);
       if (fallback12) {
         result.soCanCuoc = fallback12[1].trim();
       }
     }
 
     // 4. Ngày cấp: "Cấp ngày: 27-08-2022", "Ngày cấp: ..."
-    const ngayCapMatch = text.match(/(?:Ngày\s*cấp|Cấp\s*ngày|Date\s*of\s*issue)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i);
+    const ngayCapMatch = plText.match(/(?:Ngày\s*cấp|Cấp\s*ngày|Date\s*of\s*issue)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i);
     if (ngayCapMatch) {
       result.ngayCap = parseDateString(ngayCapMatch[1]);
+    } else {
+      const gluedPl = plText.match(/(?<!\d)(0\d{11})(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})(?!\d)/);
+      if (gluedPl) {
+        result.ngayCap = parseDateString(gluedPl[2]);
+      }
     }
 
     // 5. Nơi cấp: "Nơi cấp: Cục Cảnh sát..."
-    const noiCapMatches = text.matchAll(/(?:Nơi\s*cấp|Place\s*of\s*issue)[\s:\.\-]+([^\r\n;,]+?)(?=(?:\s+ngày|\s+tại|\s+hạn|\s+quốc|\r?\n|$))/gi);
+    const isCorporateIssuer = (str: string) =>
+      /(Sau\s*đây\s*gọi\s*chung|Khách\s*hàng|Bên\s*A|Bên\s*B|SỞ\s*TÀI\s*CHÍNH|SỞ\s*KẾ\s*HOẠCH|SỞ\s*KH\s*&\s*ĐT|UBND|CHI\s*CỤC\s*THUẾ|\b0\d{2}[CFGLPS]\d{7}|\d{5,})/i.test(str);
+
+    const noiCapMatches = plText.matchAll(/(?:Nơi\s*cấp|Place\s*of\s*issue)[\s:\.\-]+([^\r\n;,]+?)(?=(?:\s+ngày|\s+tại|\s+hạn|\s+quốc|\r?\n|$))/gi);
     for (const m of noiCapMatches) {
       let cap = m[1].trim().replace(/^[;,\.\-\s]+|[;,\.\-\s]+$/g, '');
-      if (cap.length >= 3 && !/^Địa chỉ/i.test(cap) && !/(SỞ\s*TÀI\s*CHÍNH|SỞ\s*KẾ\s*HOẠCH|SỞ\s*KH\s*&\s*ĐT|UBND|CHI\s*CỤC\s*THUẾ)/i.test(cap)) {
+      if (cap.length >= 3 && !/^Địa chỉ/i.test(cap) && !isCorporateIssuer(cap)) {
         result.noiCap = cap;
         break;
+      }
+    }
+    if (!result.noiCap) {
+      const caMatch = plText.match(/\b(CỤC\s*CẢNH\s*SÁT[^\r\n;,]+|BỘ\s*CÔNG\s*AN|CÔNG\s*AN\s+[^\r\n;,]+)/i);
+      if (caMatch) {
+        result.noiCap = caMatch[1].trim().replace(/^[;,\.\-\s]+|[;,\.\-\s]+$/g, '');
       }
     }
 

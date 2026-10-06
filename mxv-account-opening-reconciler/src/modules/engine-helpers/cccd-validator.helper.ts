@@ -9,24 +9,21 @@
  * 4. Chuẩn ICAO Doc 9303 Part 5 (Dải mã đọc bằng máy MRZ 3 dòng).
  */
 
-// Bảng tra cứu chuẩn 63 tỉnh/thành phố trực thuộc TW theo Thông tư 59/2021/TT-BCA
-export const VIETNAM_PROVINCE_CODES: Record<string, string> = {
-  '001': 'Hà Nội',           '002': 'Hà Giang',        '004': 'Cao Bằng',       '006': 'Bắc Kạn',
-  '008': 'Tuyên Quang',     '010': 'Lào Cai',         '011': 'Điện Biên',      '012': 'Lai Châu',
-  '014': 'Sơn La',          '015': 'Yên Bái',         '017': 'Hòa Bình',       '019': 'Thái Nguyên',
-  '020': 'Lạng Sơn',        '022': 'Quảng Ninh',      '024': 'Bắc Giang',      '025': 'Phú Thọ',
-  '026': 'Vĩnh Phúc',       '027': 'Bắc Ninh',        '030': 'Hải Dương',      '031': 'Hải Phòng',
-  '033': 'Hưng Yên',        '034': 'Thái Bình',       '035': 'Hà Nam',         '036': 'Nam Định',
-  '037': 'Ninh Bình',       '038': 'Thanh Hóa',       '040': 'Nghệ An',        '042': 'Hà Tĩnh',
-  '044': 'Quảng Bình',      '045': 'Quảng Trị',       '046': 'Thừa Thiên Huế', '048': 'Đà Nẵng',
-  '049': 'Quảng Nam',       '051': 'Quảng Ngãi',      '052': 'Bình Định',      '054': 'Phú Yên',
-  '056': 'Khánh Hòa',       '058': 'Ninh Thuận',      '060': 'Bình Thuận',     '062': 'Kon Tum',
-  '064': 'Gia Lai',         '066': 'Đắk Lắk',         '067': 'Đắk Nông',       '068': 'Lâm Đồng',
-  '070': 'Bình Phước',      '072': 'Tây Ninh',        '074': 'Bình Dương',     '075': 'Đồng Nai',
-  '077': 'Bà Rịa - Vũng Tàu','079': 'TP. Hồ Chí Minh', '080': 'Long An',        '082': 'Tiền Giang',
-  '083': 'Bến Tre',         '084': 'Trà Vinh',        '086': 'Vĩnh Long',      '087': 'Đồng Tháp',
-  '089': 'An Giang',        '091': 'Kiên Giang',      '092': 'Cần Thơ',        '093': 'Hậu Giang',
-  '094': 'Sóc Trăng',       '095': 'Bạc Liêu',        '096': 'Cà Mau',
+import {
+  VIETNAM_PROVINCE_CODES,
+  INTERNATIONAL_COUNTRY_CODES,
+  lookupBirthplace,
+  isValidBirthplaceCode,
+  BirthplaceInfo,
+} from './cccd-birthplace-codes.rule';
+
+// Re-export để đảm bảo tương thích ngược 100% cho các module đang import từ file này
+export {
+  VIETNAM_PROVINCE_CODES,
+  INTERNATIONAL_COUNTRY_CODES,
+  lookupBirthplace,
+  isValidBirthplaceCode,
+  BirthplaceInfo,
 };
 
 export interface CCCDValidationResult {
@@ -36,6 +33,7 @@ export interface CCCDValidationResult {
   criticalErrors: string[];
   warnings: string[];
   provinceName?: string;
+  birthplace?: BirthplaceInfo;
 }
 
 export class CCCDValidator {
@@ -84,12 +82,12 @@ export class CCCDValidator {
       };
     }
 
-    // 2. Tra cứu mã tỉnh khai sinh (3 số đầu)
-    const provinceCode = cleanId.substring(0, 3);
-    const provinceName = VIETNAM_PROVINCE_CODES[provinceCode];
-    if (!provinceName) {
-      flags.push(`INVALID_PROVINCE_CODE_${provinceCode}`);
-      criticalErrors.push(`Mã tỉnh không tồn tại trên hệ thống Bộ Công An (Mã: ${provinceCode})`);
+    // 2. Tra cứu mã nơi đăng ký khai sinh (3 số đầu: 63 tỉnh thành VN hoặc Quốc gia khai sinh theo TT 59/2021/TT-BCA)
+    const birthplaceCode = cleanId.substring(0, 3);
+    const birthplace = lookupBirthplace(birthplaceCode);
+    if (!birthplace) {
+      flags.push(`INVALID_BIRTHPLACE_CODE_${birthplaceCode}`);
+      criticalErrors.push(`Mã nơi đăng ký khai sinh (tỉnh thành / quốc gia) không tồn tại trên hệ thống Bộ Công An (Mã: ${birthplaceCode})`);
     }
 
     // 3. Kiểm tra Mã giới tính & Thế kỷ (ký tự thứ 4)
@@ -143,7 +141,8 @@ export class CCCDValidator {
       flags,
       criticalErrors,
       warnings,
-      provinceName,
+      provinceName: birthplace?.name,
+      birthplace: birthplace || undefined,
     };
   }
 

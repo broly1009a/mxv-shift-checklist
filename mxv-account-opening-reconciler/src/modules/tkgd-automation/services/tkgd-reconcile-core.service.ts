@@ -23,6 +23,7 @@ import {
 } from '../../engine-helpers/tkgd-mail-parser.helper';
 import { evaluateRecordReconciliationRule } from '../../engine-helpers/tkgd-reconcile-rules.helper';
 import { extractHopDongPdf, extractPhuLucPdf, extractZipFiles, detectPdfDocType } from '../../engine-helpers/tkgd-doc-extractor.helper';
+import { scoreDocumentType } from '../../engine-helpers/tkgd-document-classifier.helper';
 import { getTkgdAttachmentDirectory, resolveTkgdOutputDir } from '../../engine-helpers/tkgd-reconcile-exporter.helper';
 import { CCCDValidator } from '../../engine-helpers/cccd-validator.helper';
 import { resolveTvkdName } from '../../engine-helpers/tvkd-members.constant';
@@ -1297,16 +1298,40 @@ export class TkgdReconcileCoreService {
 
         if (lower.endsWith('.pdf')) {
           // Content-First: Quét nội dung văn bản trang đầu để xác định chính xác Hợp đồng vs Phụ lục
-          const docType = await detectPdfDocType(full);
+          let docType = await detectPdfDocType(full);
+
+          // Fallback cứu hộ theo tên file khi nội dung không đọc được text (PDF scan ảnh thuần hoặc lỗi font mapping)
+          if (docType === 'UNKNOWN') {
+            const { cccdScore, contractScore, appendixScore } = scoreDocumentType(f);
+            if (contractScore > 0 && appendixScore > 0) {
+              docType = 'HOP_DONG';
+              if (!phuLucPath) phuLucPath = full;
+              this.logger.log(`[REPARSE] PDF UNKNOWN nhưng tên gợi ý HĐ + Phụ lục → gán cả 2 slot: ${f}`);
+            } else if (appendixScore > 0 && appendixScore >= contractScore) {
+              docType = 'PHU_LUC';
+              this.logger.log(`[REPARSE] PDF UNKNOWN nhưng tên gợi ý Phụ lục → gán phuLucPath: ${f}`);
+            } else if (contractScore > 0 && contractScore >= appendixScore) {
+              docType = 'HOP_DONG';
+              this.logger.log(`[REPARSE] PDF UNKNOWN nhưng tên gợi ý Hợp đồng → gán hopDongPath: ${f}`);
+            } else if (cccdScore > 0 && cccdScore > contractScore && cccdScore > appendixScore) {
+              docType = 'CCCD_SCAN';
+              this.logger.log(`[REPARSE] PDF UNKNOWN nhưng tên gợi ý CCCD: ${f}`);
+            }
+          }
+
           if (docType === 'PHU_LUC') {
             if (!phuLucPath) phuLucPath = full;
           } else if (docType === 'HOP_DONG') {
             if (!hopDongPath) hopDongPath = full;
+            // Nếu tên file chứa định danh phụ lục (như 'Phụ lục ACM', 'Phụ lục Nano', 'PL01' hoặc 'all')
+            // thì đây là file gộp chứa cả Phụ lục -> gán cho phuLucPath nếu chưa có file Phụ lục riêng
+            if (!phuLucPath && (lower.includes('phu luc') || lower.includes('phu_luc') || lower.includes('acm') || lower.includes('nano') || lower.includes('pl01') || lower.includes('all'))) {
+              phuLucPath = full;
+            }
+          } else if (docType === 'CCCD_SCAN') {
+            // PDF CCCD (đã ghi nhận)
           } else {
-            // UNKNOWN sau cả Text-Layer lẫn Gemini Vision → không đoán mò theo tên file.
-            // Tuyệt đối không blind-assign vào hopDongPath hay phuLucPath.
-            // Cán bộ TTBT cần kiểm tra thủ công file này khi xem kết quả reparse.
-            this.logger.warn(`[REPARSE] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI): "${f}" → bỏ qua, không gán slot. Cần kiểm tra thủ công.`);
+            this.logger.warn(`[REPARSE] PDF không nhận diện được loại tài liệu (UNKNOWN sau AI và tên): "${f}" → bỏ qua, không gán slot. Cần kiểm tra thủ công.`);
           }
         } else if (!isMS && /\.(jpe?g|png|webp|heic)$/i.test(lower)) {
           if (isNamedContractImage(lower)) {
@@ -1430,8 +1455,19 @@ export class TkgdReconcileCoreService {
       }
     }
 
-    // 4. Trích xuất Phụ lục PL01 (từ file riêng hoặc file gộp All.pdf)
-    const targetPlPath = phuLucPath || (hopDongPath && path.basename(hopDongPath).toLowerCase().includes('all') ? hopDongPath : null);
+    // 4. Trích xuất Phụ lục PL01 (từ file riêng hoặc file gộp All/HĐ+PL/hồ sơ có yêu cầu ACM)
+    const isCombinedContract =
+      hopDongPath &&
+      (path.basename(hopDongPath).toLowerCase().includes('all') ||
+        path.basename(hopDongPath).toLowerCase().includes('phu luc') ||
+        path.basename(hopDongPath).toLowerCase().includes('phu_luc') ||
+        path.basename(hopDongPath).toLowerCase().includes('nano') ||
+        path.basename(hopDongPath).toLowerCase().includes('acm') ||
+        record.noiDungMail?.hasACMRequest ||
+        (record as any).hasACMRequest ||
+        code.endsWith('-A'));
+
+    const targetPlPath = phuLucPath || (isCombinedContract ? hopDongPath : null);
     if (targetPlPath && fs.existsSync(targetPlPath)) {
       try {
         const extractedPl = await extractPhuLucPdf(targetPlPath);

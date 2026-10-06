@@ -496,11 +496,13 @@ export const tkgdApi = {
     options?: { reparseOcr?: boolean; resyncMSystem?: boolean; reEvaluate?: boolean },
     token?: string | null,
     userEmail?: string,
+    signal?: AbortSignal,
   ) {
     const res = await fetch(`${API_BASE_URL}/api/v1/tkgd/bulk/re-run-e2e`, {
       method: 'POST',
       headers: getHeaders(token, userEmail),
       body: JSON.stringify({ recordIds, options }),
+      signal,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

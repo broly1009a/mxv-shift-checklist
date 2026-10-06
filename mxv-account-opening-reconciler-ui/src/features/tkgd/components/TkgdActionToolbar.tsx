@@ -211,36 +211,38 @@ export const TkgdActionToolbar: React.FC<TkgdActionToolbarProps> = ({
           </div>
         </div>
 
-        {/* 1. NÚT CHECK NGẮN GỌN (Thay cho Chạy Tự Động Toàn Bộ / Quét & Chạy Ngay) */}
-        <button
-          id="tutorial-tkgd-auto-btn"
-          onClick={() => setShowRunConfigModal(true)}
-          disabled={isProcessing}
-          title="Nhấp để quét và đối soát tự động ngay lúc này"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 18px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: '#ffffff',
-            fontWeight: 700,
-            fontSize: '0.82rem',
-            border: 'none',
-            cursor: isProcessing ? 'not-allowed' : 'pointer',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-            transition: 'all 0.2s ease',
-          }}
-          className="hover:scale-105 active:scale-95"
-        >
-          {isProcessing ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Zap size={14} fill="#fef08a" color="#fef08a" />
-          )}
-          <span>{isProcessing ? 'Đang check...' : 'Check'}</span>
-        </button>
+        {/* 1. NÚT CHECK NGẮN GỌN: Chỉ hiện khi Tự Động TẮT để tránh người dùng chạy thủ công song song */}
+        {!autoStatus?.enabled && (
+          <button
+            id="tutorial-tkgd-auto-btn"
+            onClick={() => setShowRunConfigModal(true)}
+            disabled={isProcessing}
+            title="Nhấp để quét và đối soát tự động ngay lúc này"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 18px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              border: 'none',
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+              transition: 'all 0.2s ease',
+            }}
+            className="hover:scale-105 active:scale-95"
+          >
+            {isProcessing ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Zap size={14} fill="#fef08a" color="#fef08a" />
+            )}
+            <span>{isProcessing ? 'Đang check...' : 'Check'}</span>
+          </button>
+        )}
 
         {/* 2. TIỆN ÍCH: TẢI FILE EXCEL */}
         <button

@@ -474,6 +474,14 @@ def extract_pdf_contract(pdf_path: str) -> Dict[str, Any]:
                         res['rawNgayCap'] = m_date.group(1)
                         res['ngayCap'] = m_date.group(1)
 
+        # Fallback: Hỗ trợ trường hợp CCCD 12 số dính liền với Ngày cấp DD/MM/YYYY (biểu mẫu Hitech TVKD 036, TV072...)
+        if not res.get('ngayCap'):
+            m_glued = re.search(r'(?<!\d)(?:0\d{11}|\d{9,12})(\d{2}[/-]\d{2}[/-]\d{4})(?!\d)', text)
+            if m_glued:
+                cand_glued = m_glued.group(1).replace('-', '/')
+                res['rawNgayCap'] = cand_glued
+                res['ngayCap'] = cand_glued
+
     # Sanity check: Ngày cấp không thể trùng Ngày sinh
     if res.get('ngayCap') and res.get('ngaySinh') and res['ngayCap'] == res['ngaySinh']:
         res['ngayCap'] = None
@@ -568,7 +576,19 @@ def extract_pdf_pl01(pdf_path: str) -> Dict[str, Any]:
     try:
         import pymupdf
         doc = pymupdf.open(pdf_path)
-        text = '\n'.join([p.get_text() for p in doc])
+        if len(doc) > 3:
+            # Nếu là file gộp (HĐ + PL), chỉ trích xuất từ các trang chứa Phụ lục
+            pl_pages = []
+            found_pl = False
+            for p in doc:
+                p_text = p.get_text()
+                if any(k in p_text.lower() for k in ['phụ lục 01', 'phụ lục số 1', 'pl01', 'tiểu khoản nano', 'đăng ký tiểu khoản']):
+                    found_pl = True
+                if found_pl:
+                    pl_pages.append(p_text)
+            text = '\n'.join(pl_pages) if pl_pages else '\n'.join([p.get_text() for p in doc])
+        else:
+            text = '\n'.join([p.get_text() for p in doc])
         doc.close()
     except Exception:
         try:
@@ -589,24 +609,46 @@ def extract_pdf_pl01(pdf_path: str) -> Dict[str, Any]:
     if m_code:
         res['maTKGD'] = m_code.group(1).strip()
 
-    # Trích xuất Ngày ký trên PL01
-    m_pl_ky = re.search(r'(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
-    if not m_pl_ky:
-        m_pl_ky = re.search(r'(?:Hà\s*Nội|Hồ\s*Chí\s*Minh|TP\.?\s*HCM|Đà\s*Nẵng|Cần\s*Thơ|[A-ZÀ-Ỹa-zà-ỹ\s]{3,30}),\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE)
-    if not m_pl_ky:
-        m_pl_ky = re.search(r'(?:Ngày\s*ký|Ký\s*ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', text, re.IGNORECASE)
-    if m_pl_ky:
-        if len(m_pl_ky.groups()) == 3:
+    # Trích xuất Ngày ký trên PL01 (LOẠI TRỪ TUYỆT ĐỐI ngày cấp phép TVKD, Quyết định MXV, Nghị định, Luật)
+    def is_corporate_licensing_date(start_idx: int, full_text: str) -> bool:
+        pre = full_text[max(0, start_idx - 120):start_idx]
+        return bool(re.search(r'cấp\s*ngày|Giấy\s*chứng\s*nhận|Thành\s*viên\s*kinh\s*doanh|Quyết\s*định|ĐKKD|Sở\s*Giao\s*dịch|Nghị\s*định|Luật|Thông\s*tư', pre, re.IGNORECASE))
+
+    for m_pl_ky in re.finditer(r'(?:Hôm\s*nay,?\s*)?ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE):
+        if not is_corporate_licensing_date(m_pl_ky.start(), text):
             d_pl, m_pl, y_pl = int(m_pl_ky.group(1)), int(m_pl_ky.group(2)), int(m_pl_ky.group(3))
-            if 1 <= d_pl <= 31 and 1 <= m_pl <= 12 and 2000 <= y_pl <= 2099:
+            if 1 <= d_pl <= 31 and 1 <= m_pl <= 12 and 2020 <= y_pl <= 2099:
                 res['ngayKyHD'] = f"{d_pl:02d}/{m_pl:02d}/{y_pl}"
                 res['rawNgayKyHD'] = m_pl_ky.group(0).strip()
-        elif len(m_pl_ky.groups()) == 1:
-            raw_pl = m_pl_ky.group(1).replace('-', '/').replace('.', '/')
-            parts_pl = raw_pl.split('/')
-            if len(parts_pl) == 3:
-                res['ngayKyHD'] = f"{int(parts_pl[0]):02d}/{int(parts_pl[1]):02d}/{parts_pl[2]}"
-                res['rawNgayKyHD'] = raw_pl
+                break
+
+    if not res.get('ngayKyHD'):
+        for m_pl_ky in re.finditer(r'(?:Hà\s*Nội|Hồ\s*Chí\s*Minh|TP\.?\s*HCM|Đà\s*Nẵng|Cần\s*Thơ|[A-ZÀ-Ỹa-zà-ỹ\s]{3,30}),\s*ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})', text, re.IGNORECASE):
+            if not is_corporate_licensing_date(m_pl_ky.start(), text):
+                d_pl, m_pl, y_pl = int(m_pl_ky.group(1)), int(m_pl_ky.group(2)), int(m_pl_ky.group(3))
+                if 1 <= d_pl <= 31 and 1 <= m_pl <= 12 and 2020 <= y_pl <= 2099:
+                    res['ngayKyHD'] = f"{d_pl:02d}/{m_pl:02d}/{y_pl}"
+                    res['rawNgayKyHD'] = m_pl_ky.group(0).strip()
+                    break
+
+    if not res.get('ngayKyHD'):
+        for m_pl_ky in re.finditer(r'(?:Ngày\s*ký|Ký\s*ngày)[\s:\.\-]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', text, re.IGNORECASE):
+            if not is_corporate_licensing_date(m_pl_ky.start(), text):
+                raw_pl = m_pl_ky.group(1).replace('-', '/').replace('.', '/')
+                parts_pl = raw_pl.split('/')
+                if len(parts_pl) == 3 and int(parts_pl[2]) >= 2020:
+                    res['ngayKyHD'] = f"{int(parts_pl[0]):02d}/{int(parts_pl[1]):02d}/{parts_pl[2]}"
+                    res['rawNgayKyHD'] = raw_pl
+                    break
+
+    # Fallback: Form overlay 3 số rời nhau (DD \n MM \n YYYY) trên biểu mẫu TV068 Anfin
+    if not res.get('ngayKyHD'):
+        m_overlay = re.search(r'(?<!\d)(\d{1,2})\s*\n\s*(\d{1,2})\s*\n\s*(202\d)(?!\d)', text)
+        if m_overlay:
+            d_o, m_o, y_o = int(m_overlay.group(1)), int(m_overlay.group(2)), int(m_overlay.group(3))
+            if 1 <= d_o <= 31 and 1 <= m_o <= 12 and 2020 <= y_o <= 2099:
+                res['ngayKyHD'] = f"{d_o:02d}/{m_o:02d}/{y_o}"
+                res['rawNgayKyHD'] = f"{d_o:02d}/{m_o:02d}/{y_o}"
 
     res['hasSignature'] = any(k in text_lower for k in ['ký', 'chữ ký', '$sign-kh'])
     res['hasStamp'] = any(k in text_lower for k in ['dấu', 'con dấu', '$sign-gcl'])
@@ -1823,6 +1865,14 @@ def inspect_image_clipping_and_quality(front_path: Optional[str], back_path: Opt
             continue
 
         base_name = os.path.basename(p)
+        base_name_lower = base_name.lower()
+        # Bỏ qua tuyệt đối các file ảnh logo/banner/chữ ký email/icon mạng xã hội của TVKD (TV048 FireAnt, TV076...)
+        if any(k in base_name_lower for k in [
+            'logo', 'banner', 'signature', 'chuky', 'chu_ky', 'fireant', '@2x', 'horizontal@',
+            'footer', 'header', 'facebook', 'zalo', 'linkedin', 'favicon'
+        ]) or re.match(r'^[a-f0-9]{6,20}\.(png|jpe?g|gif|webp)$', base_name_lower):
+            continue
+
         # Bỏ qua kiểm tra cắt mép đối với ảnh con tạm thời tự động tách từ ảnh ghép 2 mặt
         if '_AUTO_FRONT' in base_name or '_AUTO_BACK' in base_name:
             continue
