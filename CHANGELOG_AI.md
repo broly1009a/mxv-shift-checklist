@@ -1,6 +1,55 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
-## [2026-10-05T10:34] FEAT(BOT-ENGINE): Triển Khai Deduplication Guard - Chặn Job Trùng Lặp Toàn Hệ Thống (Single Ingestion Gate)
+## [2026-10-06T11:10] FIX(EOD-RECON & EMAIL-WATCHER): Chuẩn Hóa Nhận Diện File EOD Theo Tool C# & Khắc Phục Lỗi Lệch Ngày T-1 Mail M365
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Khắc phục lỗi kiểm tra EOD chênh lệch 1465 tài khoản do nhận nhầm file EOD của ngày khác (bốc nhầm `eod.2026-10-01.csv` trong folder `02.10` để so với `QLTKGD.xlsx` ngày 02/10).
+- Chuẩn hóa 100% theo mã nguồn Tool C# gốc ([FileUtils.cs#L1678](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/tool-C%23/operate-transaction-app/Utils/FIleUtils.cs#L1678)): Bắt buộc nhận diện strict filename theo đúng ngày phiên `eod.${dateStr}.csv` hoặc `eod.${dateStr}.xlsx`.
+- Sửa lỗi trong `EmailWatcherService.fetchEodEmail`: Bỏ logic tự trừ thêm 1 ngày (`prevDateStr`) khi caller đã chỉ định `targetDateStr`, ngăn chặn việc tải nhầm email của ngày hôm trước vào thư mục ngày hiện tại.
+
+### 2. Danh sách file chỉnh sửa
+
+#### Backend
+- **[backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts)**:
+  - Bổ sung hàm helper `findExactSessionEodFile(dirPath: string, dateStr: string): string | null` tuân thủ strict date matching của Tool C#: Khớp chính xác `eod.${dateStr}.csv` / `eod.${dateStr}.xlsx`, loại bỏ file eod có ngày khác `dateStr`, và kiểm tra cột `sessionDate` bên trong file `eod.csv`.
+
+- **[backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)**:
+  - Thay thế `findLatestFile(msDailyPath, /eod/i)` bằng `findExactSessionEodFile(msDailyPath, dateStr)`.
+  - Nếu thiếu file đúng ngày, kích hoạt dự phòng tải từ email Outlook M365 `fetchEodEmail(dateStr, msDailyPath)`.
+  - Ném thông báo lỗi chi tiết khi không tìm thấy đúng file: `Không tìm thấy file eod.${dateStr}.csv hoặc eod.${dateStr}.xlsx từ email M-System hoặc thư mục...`.
+
+- **[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+  - Cập nhật tiền kiểm tra EOD: Dùng `findExactSessionEodFile(msDailyPath, dateStr)` để assert đúng ngày phiên.
+  - Thêm log cảnh báo khi thư mục chứa file EOD lệch ngày: `Cảnh báo: Tìm thấy file ... nhưng không khớp ngày phiên ... Sẽ tiến hành tải file EOD chuẩn phiên ... từ email Outlook M365...`.
+
+- **[backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts)**:
+  - Sửa phương thức `fetchEodEmail`: Khi có `targetDateStr`, lọc tìm chính xác email chứa ngày phiên mục tiêu (hỗ trợ các biến thể `YYYY-MM-DD`, `YYYYMMDD`, `DD/MM/YYYY`, `DD-MM-YYYY`, `DD.MM`). Bỏ logic tự trừ lùi ngày `dt.setDate(dt.getDate() - 1)` gây bắt nhầm email của ngày trước đó.
+  - Bỏ `receivedDateTime` khỏi chuỗi tìm kiếm ngày phiên: Tránh việc email của phiên trước gửi về lúc rạng sáng ngày hôm sau bị bắt nhầm do dính timestamp ngày hôm sau.
+  - Khi đã truyền `customDir`, bảo toàn thư mục lưu file và không bị ghi đè sai vị trí.
+
+- **[backend/src/scripts/test_eod_strict_matching.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_eod_strict_matching.js)** (**TẠO MỚI**):
+  - Bộ test suite 4 nhóm kịch bản (13 test cases) kiểm thử toàn diện:
+    1. Trực tiếp trên thư mục thật `02.10` trên ổ `M:`: Xác nhận `findExactSessionEodFile` từ chối bốc nhầm `eod.2026-10-01.csv` khi tìm phiên `2026-10-02`.
+    2. Trên thư mục mock isolated: Xác nhận nhận diện đúng định dạng C# (`eod.YYYY-MM-DD.csv`, `eod.YYYY-MM-DD.xlsx`, `eod.csv` có `sessionDate`), từ chối file lệch ngày.
+    3. Logic lùi ngày làm việc T-1: Xác nhận bỏ qua Thứ Bảy, Chủ Nhật chính xác.
+    4. Bộ lọc email M365: Xác nhận lọc đúng email theo ngày phiên, không bắt nhầm email phiên khác.
+
+### 3. Tóm tắt nội dung code đã sửa
+
+| File | Trước khi sửa | Sau khi sửa |
+|---|---|---|
+| `recon-number-parser.helper.ts` | Chỉ có `findLatestFile` tìm theo regex chung | Thêm `findExactSessionEodFile` strict date matching chuẩn Tool C# |
+| `pre-eod-recon.service.ts` | `findLatestFile(msDailyPath, /eod/i)` nhận bừa `eod.2026-10-01.csv` trong `02.10` | Bắt buộc `findExactSessionEodFile(msDailyPath, dateStr)`, chỉ nhận file đúng phiên |
+| `recon-jobs.handler.ts` | Không cảnh báo file lệch ngày phiên, bỏ qua tải mail | Cảnh báo khi file EOD lệch ngày phiên và tự động kích hoạt tải đúng ngày |
+| `email-watcher.service.ts` | Tự động trừ thêm 1 ngày (`prevDateStr`) & quét cả `receivedDateTime` tải nhầm mail | Tìm chính xác ngày phiên trong subject & body; loại bỏ `receivedDateTime` |
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`npm run build`)**: Thành công 100% (exit code 0, không có lỗi biên dịch).
+- **Test Suite Thực Thi (`node src/scripts/test_eod_strict_matching.js`)**: Đạt **13/13 Test Cases PASS (0 FAIL)**.
+
+---
+
+
 
 ### 1. Mục tiêu thay đổi
 - Thực hiện yêu cầu của USER: Ngăn chặn việc ấn nút kích hoạt bot nhiều lần (từ nhiều tab / nhiều người dùng / cùng lúc) sinh ra hàng đợi job trùng lặp chạy đè nhau trên tài nguyên dùng chung (tài khoản M-System single-session, file Excel.xlsm, thư mục backup mạng).

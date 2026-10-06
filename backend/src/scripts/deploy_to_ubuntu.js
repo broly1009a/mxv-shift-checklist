@@ -237,6 +237,10 @@ const specificFiles = [
     local: path.join(repoRoot, 'backend/src/scripts/test_ce_headless_download.js'),
     remote: '/opt/mxv-checklist/backend/src/scripts/test_ce_headless_download.js',
   },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_eod_strict_matching.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_eod_strict_matching.js',
+  },
 ];
 
 specificFiles.forEach((item) => {

@@ -942,31 +942,41 @@ export class EmailWatcherService {
       };
     }
 
-    // Nếu người dùng chọn ngày cụ thể, ưu tiên email khớp ngày phiên hoặc ngày nhận
+    // Nếu người dùng chọn ngày cụ thể, bắt buộc email phải khớp đúng ngày phiên mục tiêu
     let targetEmail = validWithFiles[0];
     if (targetDateStr) {
-      const dateNoDash = targetDateStr.replace(/-/g, '');
-      // Tính ngày T-1 tương ứng để tìm cả ngày phiên
-      const dt = new Date(targetDateStr);
-      dt.setDate(dt.getDate() - 1);
-      const prevDateStr = dt.toISOString().split('T')[0];
-      const prevDateNoDash = prevDateStr.replace(/-/g, '');
+      const parts = targetDateStr.split('-');
+      const yyyy = parts[0];
+      const mm = parts[1];
+      const dd = parts[2];
+      const dateSlash = `${dd}/${mm}/${yyyy}`;
+      const dateDash = `${dd}-${mm}-${yyyy}`;
+      const dateDot = `${dd}.${mm}`;
+      const dateNoDash = `${yyyy}${mm}${dd}`;
 
       const matchedByDate = validWithFiles.find((em: any) => {
-        const s = (em.subject + ' ' + (em.bodyPreview || '') + ' ' + (em.receivedDateTime || '')).toLowerCase();
+        const s = (em.subject + ' ' + (em.bodyPreview || '')).toLowerCase();
         return (
-          s.includes(targetDateStr) ||
+          s.includes(targetDateStr.toLowerCase()) ||
           s.includes(dateNoDash) ||
-          s.includes(prevDateStr) ||
-          s.includes(prevDateNoDash)
+          s.includes(dateSlash) ||
+          s.includes(dateDash) ||
+          s.includes(`eod.${targetDateStr}`) ||
+          s.includes(`phiên ${dateDot}`)
         );
       });
+
       if (matchedByDate) {
         targetEmail = matchedByDate;
+      } else {
+        return {
+          success: false,
+          message: `Đã quét hòm thư trong 7 ngày qua nhưng không tìm thấy email thông báo EOD của đúng ngày phiên ${targetDateStr} từ it.support@mxv.vn.`,
+        };
       }
     }
 
-    // Tự động nhận diện ngày phiên thực tế từ tiêu đề / nội dung email để lưu vào đúng thư mục phiên
+    // Tự động nhận diện ngày phiên thực tế từ tiêu đề / nội dung email để lưu vào đúng thư mục phiên (nếu chưa truyền customDir)
     const extractSessionDateFromEmail = (subject: string, preview: string): Date | null => {
       const combined = `${subject} ${preview}`;
       const m = combined.match(/(?:ngày\s+phiên|phiên)\s*[:\-]?\s*(\d{4})[-/](\d{2})[-/](\d{2})/i) ||
@@ -978,7 +988,7 @@ export class EmailWatcherService {
     };
 
     const sessionDateFromMail = extractSessionDateFromEmail(targetEmail.subject, targetEmail.bodyPreview || '');
-    if (sessionDateFromMail) {
+    if (sessionDateFromMail && !customDir) {
       const msBackupBase = await this.settingsService.getSetting(
         'bot_backup_path_ms',
         process.env.DEFAULT_BACKUP_PATH_MS || '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures',

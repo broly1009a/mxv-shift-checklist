@@ -377,6 +377,74 @@ export function findLatestFile(dirPath: string, pattern: RegExp): string | null 
   }
 }
 
+/**
+ * Tìm chính xác file EOD theo đúng ngày phiên làm việc (chuẩn C# Tool FileUtils.cs):
+ * 1. Khớp tuyệt đối tên file: eod.{YYYY-MM-DD}.csv hoặc eod.{YYYY-MM-DD}.xlsx
+ * 2. Nếu tên file chứa chuỗi ngày dạng YYYY-MM-DD nhưng khác ngày phiên -> LOẠI BỎ (tránh bốc nhầm file ngày cũ).
+ * 3. Nếu file có tên dạng eod.csv (không chứa ngày ở tên): Kiểm tra nội dung CSV cột sessionDate phải khớp dateStr.
+ */
+export function findExactSessionEodFile(dirPath: string, dateStr: string): string | null {
+  try {
+    if (!fs.existsSync(dirPath)) return null;
+
+    // 1. Khớp chính xác tên file theo C# Tool FileUtils.cs: eod.{YYYY-MM-DD}.csv
+    const exactCsv = path.join(dirPath, `eod.${dateStr}.csv`);
+    if (fs.existsSync(exactCsv)) return exactCsv;
+
+    const exactXlsx = path.join(dirPath, `eod.${dateStr}.xlsx`);
+    if (fs.existsSync(exactXlsx)) return exactXlsx;
+
+    // 2. Quét các file eod khác trong thư mục
+    let files: string[] = [];
+    try {
+      files = fs.readdirSync(dirPath);
+    } catch {
+      return null;
+    }
+
+    for (const f of files) {
+      if (!/eod/i.test(f)) continue;
+
+      const fullPath = path.join(dirPath, f);
+      // Nếu tên file có ngày YYYY-MM-DD
+      const m = f.match(/(\d{4}[-_]\d{2}[-_]\d{2})/);
+      if (m) {
+        const fileDate = m[1].replace(/_/g, '-');
+        if (fileDate === dateStr) {
+          return fullPath;
+        }
+        // Nếu file có ngày nhưng khác dateStr (ví dụ eod.2026-10-01.csv khi dateStr là 2026-10-02) -> BỎ QUA
+        continue;
+      }
+
+      // Nếu tên file không có ngày (như eod.csv / EOD.xlsx), kiểm tra cột sessionDate bên trong
+      if (f.toLowerCase().endsWith('.csv')) {
+        try {
+          const content = fs.readFileSync(fullPath, 'utf8');
+          const lines = content.split('\n').slice(0, 5);
+          if (lines.length >= 2) {
+            const header = lines[0].split(',').map((h) => h.replace(/["\r]/g, '').trim());
+            const sessionDateIdx = header.findIndex((h) => /^sessionDate$/i.test(h));
+            if (sessionDateIdx !== -1) {
+              const row1 = lines[1].split(',').map((v) => v.replace(/["\r]/g, '').trim());
+              const fileSessionDate = row1[sessionDateIdx];
+              if (fileSessionDate && fileSessionDate !== dateStr) {
+                // Sai ngày phiên -> Bỏ qua
+                continue;
+              }
+            }
+          }
+          return fullPath;
+        } catch {}
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function mergeCqgRawFiles(
   dirPath: string,
   prefix: 'FR' | 'PS' | 'OP' | 'OD',

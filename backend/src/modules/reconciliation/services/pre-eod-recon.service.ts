@@ -9,6 +9,7 @@ import { resolveStoragePathCrossPlatform } from '../../bot-engine/helpers/bot-pa
 import {
   findHeaderIndex,
   findLatestFile,
+  findExactSessionEodFile,
   resolveCqgFile,
   getCcpBackupBasePath,
   resolveCcpDailyPath,
@@ -607,23 +608,21 @@ export class PreEodReconService {
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     const msDailyPath = path.join(msBackupBase, subFolder);
+    const dateStr = `${year}-${month}-${day}`;
     const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
-    let eodPath = findLatestFile(msDailyPath, /eod/i);
+    let eodPath = findExactSessionEodFile(msDailyPath, dateStr);
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
 
     if (!fs.existsSync(qltkgdPath))
       throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
 
-    // Dự phòng: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu trong thư mục phiên chưa có file EOD
-
-    // Dự phòng 2: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu vẫn chưa có file EOD
+    // Dự phòng: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu trong thư mục phiên chưa có file EOD đúng ngày
     if (!eodPath && this.emailWatcherService) {
       try {
-        const dateStr = `${year}-${month}-${day}`;
-        this.logger.log(`[EOD-FALLBACK] Chưa có file EOD tại ${msDailyPath}, đang thử tải từ email M365...`);
+        this.logger.log(`[EOD-FALLBACK] Chưa có file EOD phiên ${dateStr} tại ${msDailyPath}, đang thử tải từ email M365...`);
         const mailRes = await this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath);
         if (mailRes.success) {
-          eodPath = findLatestFile(msDailyPath, /eod/i);
+          eodPath = findExactSessionEodFile(msDailyPath, dateStr);
           this.logger.log(`[EOD-FALLBACK] Đã tải file EOD thành công: ${eodPath}`);
         } else {
           this.logger.warn(`[EOD-FALLBACK] Không tải được EOD từ email: ${mailRes.message}`);
@@ -634,7 +633,7 @@ export class PreEodReconService {
     }
 
     if (!eodPath)
-      throw new Error(`Không tìm thấy file eod.csv / eod.xlsx từ email M-System hoặc thư mục ${msDailyPath}`);
+      throw new Error(`Không tìm thấy file eod.${dateStr}.csv hoặc eod.${dateStr}.xlsx từ email M-System hoặc thư mục ${msDailyPath}`);
 
     // [RESERVED FOR FUTURE MODULE]: Giữ lại logic đọc và bóc tách file CoreCCP phục vụ tách module sau này
     /*

@@ -9,7 +9,7 @@ import { RpaDownloaderService } from '../rpa-downloader.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
 import { EmailWatcherService } from '../email-watcher.service';
-import { findLatestFile } from '../../reconciliation/helpers/recon-number-parser.helper';
+import { findLatestFile, findExactSessionEodFile } from '../../reconciliation/helpers/recon-number-parser.helper';
 import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate, isMarketWeekendClosed } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 
@@ -1184,33 +1184,38 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
         fs.mkdirSync(msDailyPath, { recursive: true });
       }
 
-      // Kiểm tra file EOD trong đúng thư mục phiên
-      let existingEod = findLatestFile(msDailyPath, /eod/i);
+      // Kiểm tra file EOD đúng theo ngày phiên làm việc (chuẩn C# Tool FileUtils.cs)
+      let existingEod = findExactSessionEodFile(msDailyPath, dateStr);
 
-      // Dự phòng: Tự động tải từ email Outlook M365 (it.support@mxv.vn) nếu trong thư mục chưa có file EOD
-
-      // Dự phòng 2: Tự động tải từ email Outlook M365 nếu vẫn chưa có
       if (!existingEod) {
-        if (this.emailWatcherService) {
+        const anyMismatchedEod = findLatestFile(msDailyPath, /eod/i);
+        if (anyMismatchedEod) {
           job.logs.push(
-            `[${new Date().toISOString()}] Chưa tìm thấy file EOD trong thư mục Backup MS (${msDailyPath}). Đang kích hoạt luồng ngoại lệ: Tự động tải file EOD từ hòm thư Outlook M365 (it.support@mxv.vn)...`,
+            `[${new Date().toISOString()}] Cảnh báo: Tìm thấy file ${path.basename(anyMismatchedEod)} trong thư mục nhưng không khớp ngày phiên ${dateStr}. Đang kích hoạt tự động tải file EOD chuẩn phiên ${dateStr} từ email Outlook M365 (it.support@mxv.vn)...`,
           );
-          await job.save();
+        } else {
+          job.logs.push(
+            `[${new Date().toISOString()}] Chưa tìm thấy file EOD phiên ${dateStr} trong thư mục Backup MS (${msDailyPath}). Đang kích hoạt luồng ngoại lệ: Tự động tải file EOD từ hòm thư Outlook M365 (it.support@mxv.vn)...`,
+          );
+        }
+        await job.save();
 
+        if (this.emailWatcherService) {
           const mailRes = await this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath);
           if (mailRes.success) {
+            existingEod = findExactSessionEodFile(msDailyPath, dateStr);
             job.logs.push(
               `[${new Date().toISOString()}] Đã tải thành công file EOD từ email về thư mục: ${mailRes.data?.downloadedFiles?.map((f) => path.basename(f)).join(', ') || 'file EOD'}`,
             );
           } else {
             job.logs.push(
-              `[${new Date().toISOString()}] Không thể tải file EOD từ email: ${mailRes.message}`,
+              `[${new Date().toISOString()}] Không thể tải file EOD phiên ${dateStr} từ email: ${mailRes.message}`,
             );
           }
           await job.save();
         } else {
           job.logs.push(
-            `[${new Date().toISOString()}] Chưa tìm thấy file EOD trong thư mục Backup MS và dịch vụ EmailWatcher chưa sẵn sàng.`,
+            `[${new Date().toISOString()}] Dịch vụ EmailWatcher chưa sẵn sàng để tải file EOD.`,
           );
           await job.save();
         }
