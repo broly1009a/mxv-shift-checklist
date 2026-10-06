@@ -56,7 +56,10 @@ export const TradingManagerWidget: React.FC<TradingManagerWidgetProps> = ({ date
       });
       const resJson = await res.json();
       if (res.ok && resJson.success) {
-        toast.success('Đã kích hoạt đối chiếu lại!', { id: toastId });
+        const msg = resJson.isReused
+          ? `Tiến trình đang chạy: ${resJson.message}`
+          : 'Đã kích hoạt đối chiếu lại!';
+        toast.success(msg, { id: toastId });
         await fetchSummary();
       } else {
         throw new Error(resJson.message || 'Lỗi kích hoạt');

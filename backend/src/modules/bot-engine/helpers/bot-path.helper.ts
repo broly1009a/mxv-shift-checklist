@@ -91,6 +91,34 @@ export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: st
 }
 
 /**
+ * Kiểm tra xem thị trường tài chính / hàng hóa có đang trong khoảng đóng cửa cuối tuần hay không:
+ * - Sau 06:30 sáng Thứ Bảy (kết thúc phiên đêm thứ 6 của thị trường Mỹ)
+ * - Cả ngày Chủ Nhật
+ * - Trước 05:00 sáng Thứ Hai (trước khi CME Globex mở lại phiên tuần mới)
+ */
+export function isMarketWeekendClosed(dateInput?: Date): boolean {
+  const d = dateInput
+    ? new Date(dateInput.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
+    : new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+
+  const day = d.getDay(); // 0 = Chủ Nhật, 1 = Thứ Hai, ..., 6 = Thứ Bảy
+  const hour = d.getHours();
+  const minute = d.getMinutes();
+  const timeNum = hour * 60 + minute;
+
+  // 1. Cả ngày Chủ Nhật
+  if (day === 0) return true;
+
+  // 2. Thứ Bảy sau 06:30 sáng
+  if (day === 6 && timeNum >= 6 * 60 + 30) return true;
+
+  // 3. Thứ Hai trước 05:00 sáng
+  if (day === 1 && timeNum < 5 * 60) return true;
+
+  return false;
+}
+
+/**
  * Xác định Ngày Phiên Giao Dịch thực tế (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
  * - Một phiên giao dịch mở lúc sessionStart (mặc định 05:00 / 06:30) và kéo dài xuyên đêm tới phiên hôm sau.
  * - Nếu thời điểm hiện tại < giờ mở phiên (ví dụ 01:42 sáng), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
@@ -136,12 +164,18 @@ export function resolveTradingSessionDate(
     targetDateObj = new Date(nowVN);
     targetDateObj.setHours(0, 0, 0, 0);
     if (isOvernight) {
-      targetDateObj.setDate(targetDateObj.getDate() - 1);
-    }
-    // Chuẩn Tool C# BackupService.cs#L111-L114 & TransactionCheckingService.cs#L64-L67:
-    // Thứ 7 hoặc Chủ Nhật luôn lùi về ngày làm việc gần nhất (Thứ 6)
-    while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-      targetDateObj.setDate(targetDateObj.getDate() - 1);
+      // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
+      if (nowVN.getDay() !== 1) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+        while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+          targetDateObj.setDate(targetDateObj.getDate() - 1);
+        }
+      }
+    } else {
+      // Thứ 7 hoặc Chủ Nhật luôn lùi về ngày làm việc gần nhất (Thứ 6)
+      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+      }
     }
   } else {
     let parsed: Date;
@@ -161,10 +195,13 @@ export function resolveTradingSessionDate(
       // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương -> lùi ca đêm & cuối tuần đúng chuẩn C#
       targetDateObj = new Date(parsed);
       if (isOvernight) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
-      }
-      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
+        // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
+        if (nowVN.getDay() !== 1) {
+          targetDateObj.setDate(targetDateObj.getDate() - 1);
+          while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+            targetDateObj.setDate(targetDateObj.getDate() - 1);
+          }
+        }
       }
     } else {
       targetDateObj = parsed;

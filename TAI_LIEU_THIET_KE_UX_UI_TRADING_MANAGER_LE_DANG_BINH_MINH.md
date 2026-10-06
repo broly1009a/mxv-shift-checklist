@@ -272,3 +272,233 @@ sequenceDiagram
    - Thêm bộ chọn ngày cạnh 2 nút chạy Thống kê số lot và Thống kê giá trị.
 2. Tách [TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx) thành 2 component chuyên biệt cho MS và OMS.
 3. Kiểm tra toàn bộ mã nguồn với `npx tsc --noEmit` để đảm bảo 100% không phát sinh lỗi biên dịch.
+
+---
+
+## VI. DANH MỤC CHI TIẾT TOÀN BỘ CÁC COMPONENT ĐỘC LẬP & TÍNH NĂNG (INDEPENDENT COMPONENT & FEATURE CATALOG)
+
+Dưới đây là bảng tổng hợp chi tiết **100% các Component độc lập, Sub-components, Modals và API tương ứng** đang nằm trong trang Trading Manager, được phân loại theo từng phân hệ để sẵn sàng bóc tách thành các trang URL độc lập trên giao diện người dùng (UX/UI):
+
+```
+TỔNG THỂ 14 COMPONENT & MODAL TRADING MANAGER
+├── 🏢 PHÂN HỆ M-SYSTEM & CQG
+│   ├── [C-01] LegacyReconSection.tsx (Đối Soát Khớp Lệnh & TTM Trong Phiên)
+│   ├── [C-02] LegacyPreEodDiffSection.tsx (Đối Soát Pre-EOD 3 Bên Cuối Ngày)
+│   ├── [C-03] LegacyCheckEodSection.tsx (Tách Mới: EOD, Ký Quỹ Âm, CQG Sync, IMR)
+│   ├── [C-04] LegacyBackupThongKeSection.tsx (Quản Lý Tải File Backup & Macro Thống Kê)
+│   ├── [C-05] LegacyGttCheckerSection.tsx (Kiểm Tra Giá Thanh Toán GTT & Sinh File Sửa)
+│   ├── [C-06] CeAcmBackupSection.tsx (Quản Lý Báo Cáo Sàn CE & SFTP ACM)
+│   └── [C-07] CheckDsgdBeforeEodModal.tsx (MỚI: Kiểm Tra Nhanh DSGD Trước Giờ EOD)
+│
+├── 🏛️ PHÂN HỆ OMS (CORECCP & COREEX)
+│   ├── [C-08] CoreCcpBackupSection.tsx (Đối Soát EOD CoreCCP & 25 Báo Cáo VNCLEAR)
+│   └── [C-09] CcpLotStatisticsSection.tsx (Thống Kê Số Lot & Giá Trị Giao Dịch CCP)
+│
+├── ⚙️ PHÂN HỆ CẤU HÌNH & HẠ TẦNG
+│   ├── [C-10] MsConfigSection.tsx (Tách Mới: Cấu Hình Tỷ Giá & Thư Mục M-System)
+│   ├── [C-11] OmsConfigSection.tsx (Tách Mới: Cấu Hình Ma Trận Tỷ Giá & Thư Mục VNCLEAR)
+│   └── [C-12] SmartPathInput.tsx (Kiểm Tra Hợp Lệ Đường Dẫn Thời Gian Thực)
+│
+└── 🖥️ PHÂN HỆ GIÁM SÁT TOÀN HỆ THỐNG & MODAL DÙNG CHUNG
+    ├── [C-13] TradingManagerJobQueueSection.tsx (Hàng Đợi Robot & Terminal Real-time Logs)
+    ├── [C-14] TradingManagerLogModal.tsx & ReconLogSummaryModal.tsx (Xem Chi Tiết & Tóm Tắt Log)
+    └── [C-15] TradingManagerGuideModal.tsx (Cẩm Nang Hướng Dẫn Vận Hành Ca Trực)
+```
+
+---
+
+### 1. Nhóm Phân Hệ M-System & CQG (Legacy Operations)
+
+#### 1.1. `[C-01]` Component Đối Soát Giao Dịch Trong Phiên
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)
+- **Props**: `token: string`, `selectedDate: string`, `onSelectDate: (date) => void`, `onStatusChange?: (status) => void`.
+- **Chức năng nghiệp vụ độc lập**:
+  - **Bảng ma trận đối soát 3x4**:
+    - Dòng `KLGD`: So khớp tổng số lot khớp lệnh M-System (`DSGD`), CQG (`FR`), ACM Straits, Nano.
+    - Dòng `TTM`: So khớp tổng số hợp đồng mở giữa MS và CQG (`OP`).
+    - Dòng `TTTT`: So khớp tổng số lot đóng/tất toán giữa MS và CQG (`PS`).
+  - **Quy tắc màu số liệu mới**: Mặc định 100% chữ màu trắng (`#ffffff`), chỉ bôi đỏ (`#ef4444`) khi phát hiện ô có độ lệch (`differ > 0`).
+  - **Box chi tiết giao dịch chênh lệch (Mở rộng `min-height: 480px`)**:
+    - Danh sách lệnh chi tiết gồm: Mã lệnh, Mã TKGD, Mã hàng hóa, Giá khớp, Số lot, Thời gian khớp, Nguồn phát sinh (MS/CQG), và Nguyên nhân lệch.
+  - **Thanh điều khiển (Control Bar)**:
+    - Master Switch bật/tắt tự động chạy (`bot_auto_recon_enabled`).
+    - Cấu hình chu kỳ đếm ngược (15p, 30p, 60p) kèm countdown timer.
+    - Nút bấm: `[▶ Check thủ công]` và `[🛑 Dừng khẩn cấp tiến trình Bot]`.
+    - Phân trang lịch sử lượt check: Cho phép xem lại log và số liệu của các lượt chạy trước trong ca trực.
+- **API Backend tương ứng**:
+  - `GET /api/v1/reconciliation/console-summary?date={date}`: Lấy ma trận kết quả đối soát.
+  - `POST /api/v1/reconciliation/trigger-console-run`: Kích hoạt chạy đối soát thủ công.
+  - `POST /api/v1/bot-engine/jobs/{id}/cancel`: Dừng khẩn cấp Job đối soát.
+  - `POST /api/v1/system-settings`: Bật/tắt Master Switch tự động.
+
+#### 1.2. `[C-02]` Component Đối Soát Pre-EOD 3 Bên Cuối Ngày
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx)
+- **Props**: `preEodData: PreEodData`, `selectedDate: string`, `onTriggerPreEod: () => void`.
+- **Chức năng nghiệp vụ độc lập**:
+  - Đối chiếu 3 bên cuối ngày: M-System (`DSGD`, `TTTT`) vs CQG (`FR`, `PS`) vs ACM (`Straits CSV`).
+  - Bảng tổng hợp số lot 3 bên: Tổng tự doanh MS vs Straits, Tổng thường MS vs CQG.
+  - Bảng chi tiết lệch khớp lệnh (`MismatchedTrades`).
+  - Bảng chi tiết **Lệch Vị Thế Ròng Net Position (`MismatchedPositions`)**: Bắt buộc phát hiện chênh lệch vị thế trước khi hệ thống chạy EOD.
+  - Tự động gộp cặp file thô CQG (`FR1+FR2 -> FR.xlsx`, `PS1+PS2 -> PS.xlsx`).
+- **API Backend tương ứng**:
+  - `POST /api/v1/reconciliation/upload-pre-eod`: Upload thủ công 5 file đối chiếu.
+  - Bot Job `CHECK_PRE_EOD` (`reconciliationService.runAutoCheckPreEOD`).
+
+#### 1.3. `[C-03]` Component Check – Chạy EOD (Tách Mới)
+- **File mã nguồn**: `frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCheckEodSection.tsx` *(Tạo mới)*
+- **Chức năng nghiệp vụ độc lập**:
+  - Gom toàn bộ quy trình chốt phiên EOD thành 1 màn hình chuẩn tắc:
+    1. **Kiểm tra phiên T-1 (Badge Pending)**.
+    2. **Check DSGD trước EOD** (Tích hợp API `check-dsgd-before-eod` mới).
+    3. **Tài khoản âm ký quỹ mới (EOD)**: Quét danh sách tài khoản bị âm ký quỹ sau phiên.
+    4. **Kết quả chạy EOD**: Đối chiếu số dư `QLTKGD` vs `eod.csv` theo tỷ giá 4 loại tiền tệ.
+    5. **Đồng bộ số dư CQG (CQG Sync)**: So sánh số dư tiền mặt giữa CQG và MS (`Lệch > $100`).
+    6. **Kiểm tra Ký quỹ TKGD (IMR 4 nhóm cảnh báo)**:
+       - *Nhóm 1: TK có lãi lỗ dự kiến nhưng không có TTM*
+       - *Nhóm 2: TK không có TTM nhưng có KQYC*
+       - *Nhóm 3: TK có KQYCTT <> KQYC*
+       - *Nhóm 4: TK có KQKDTT <> KQKD*
+- **API Backend tương ứng**:
+  - `POST /api/v1/reconciliation/check-imr`: Quét 4 nhóm IMR.
+  - `POST /api/v1/reconciliation/upload-eod`: Đối chiếu kết quả chạy EOD.
+  - `POST /api/v1/reconciliation/negative-margin`: Lọc tài khoản âm ký quỹ.
+  - `POST /api/v1/bot-engine/fetch-eod-email`: Tự động tải file EOD từ mail Outlook.
+
+#### 1.4. `[C-04]` Component Quản Lý Tải File Backup & Macro Thống Kê
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)
+- **Props**: `token: string`, `selectedDate: string`, `onSelectDate: (date) => void`.
+- **Chức năng nghiệp vụ độc lập**:
+  - **Ma trận 14 báo cáo M-System**: Đèn xanh (Đã có file) / Đèn đỏ (Thiếu file), nút tải bổ sung từng file bằng Bot RPA.
+  - **Ma trận báo cáo CQG**: Tải và ghép tự động `FR`, `PS`, `OP`, `OD`.
+  - **Cấu hình thời gian tải tự động**: Ô nhập giờ `backupTime` (`06:00`) và `statTime` (`06:30`) với giao diện hiển thị rộng `125px` rõ ràng.
+  - **Bộ công cụ Macro Thống Kê**:
+    - Ô chọn ngày chạy lại Macro (`Session Date Picker`).
+    - Nút chạy **Macro Số Lô** (`RUN_LOT_MACRO`) cho MXV & TVKD.
+    - Nút chạy **Macro Giá Trị** (`RUN_VALUE_MACRO`) quy đổi VND.
+- **API Backend tương ứng**:
+  - `POST /api/v1/bot-engine/audit-ms-backup`: Audit danh mục file MS.
+  - `POST /api/v1/bot-engine/trigger-download`: Kích hoạt Bot RPA tải file.
+  - `POST /api/v1/bot-engine/trigger-lot-macro`: Kích hoạt chạy Macro số lô.
+  - `POST /api/v1/bot-engine/trigger-value-macro`: Kích hoạt chạy Macro giá trị.
+
+#### 1.5. `[C-05]` Component Kiểm Tra Chênh Lệch Giá Thanh Toán GTT
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx)
+- **Chức năng nghiệp vụ độc lập**:
+  - Upload file GTT M-System và file GTT Sở Quốc tế (CME, ICE...).
+  - So khớp tự động giá thanh toán từng mã hợp đồng.
+  - Hiển thị danh sách hợp đồng bị lệch giá kèm mức chênh lệch.
+  - Nút **Xuất file Excel điều chỉnh giá** đẩy ngược lại M-System để đồng bộ giá chuẩn.
+- **API Backend tương ứng**:
+  - `POST /api/v1/bot-engine/run-gtt-check`: Đối soát giá GTT.
+  - `GET /api/v1/bot-engine/gtt-report/export-correction`: Xuất file sửa giá.
+
+#### 1.6. `[C-06]` Component Báo Cáo Sàn CE & SFTP ACM
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx)
+- **Chức năng nghiệp vụ độc lập**:
+  - Quản lý tải và audit báo cáo từ Sở CoreEX (CE).
+  - Quản lý đồng bộ và audit các file báo cáo SFTP từ sàn đối tác ACM.
+- **API Backend tương ứng**:
+  - `POST /api/v1/bot-engine/trigger-ce-download`: Kích hoạt tải báo cáo CE.
+  - `POST /api/v1/bot-engine/trigger-acm-download`: Kích hoạt tải báo cáo ACM.
+
+#### 1.7. `[C-07]` Component Kiểm Tra Nhanh DSGD Trước Giờ EOD (MỚI)
+- **Chức năng nghiệp vụ độc lập**:
+  - Đóng gói giao diện cho 2 API mới bổ sung:
+    - Tab 1: **Upload thủ công**: Chọn file `DSGD.xlsx` gốc, file `DSGD{time}.xlsx` snapshot, và file CSV Straits.
+    - Tab 2: **Chạy tự động từ Backup**: Tự động nhận diện thư mục ngày $T-1$, đọc snapshot mới nhất và hiển thị kết quả chênh lệch ngay lập tức.
+- **API Backend tương ứng**:
+  - `POST /api/v1/reconciliation/upload-dsgd-before-eod`
+  - `POST /api/v1/reconciliation/check-dsgd-before-eod`
+
+---
+
+### 2. Nhóm Phân Hệ OMS (CoreCCP & CoreEX)
+
+#### 2.1. `[C-08]` Component Đối Soát EOD CoreCCP & 25 Báo Cáo VNCLEAR
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx)
+- **Props**: `token: string`, `selectedDate: string`, `onOpenGuide?: () => void`.
+- **Chức năng nghiệp vụ độc lập**:
+  - **Bộ chuyển chế độ kép User vs Expert**:
+    - *Chế độ USER (Vận hành)*: Thẻ tóm tắt tình trạng đủ/thiếu của 25 file báo cáo VNCLEAR Maker và kết quả chênh lệch số dư/ký quỹ.
+    - *Chế độ EXPERT (Kỹ thuật)*: Hiển thị đầy đủ 6 nhóm báo cáo, chi tiết từng tham số API và log bóc tách.
+  - **Ma trận 25 báo cáo VNCLEAR**:
+    - Sổ lệnh thường (5 file): `DSL`, `DSLDK`, `DSLCK`, `DSLDH`, `DSGD`.
+    - Sổ lệnh MM (5 file): `DSL_MM`, `DSLDK_MM`, `DSLCK_MM`, `DSLDH_MM`, `DSGD_MM`.
+    - Vị thế & Lãi lỗ (3 file): `TTM trước 4h20`, `TTM CCP`, `TTTT`.
+    - Rủi ro & Ký quỹ (6 file): `QLTTTKGD trước 4h20`, `QLTTTKGD`, `EOD.csv`, `QLTTTVKD`, `DSQLKQ_TKGD`, `DSQLKQ_TVKD`.
+    - Nộp rút tiền & Tài khoản (2 file): `NR`, `DSTKGD ACM`.
+    - Hàng hóa & Hợp đồng (3 file): `HH`, `HĐ *`, `GTT CCP`.
+  - **Đối soát kết quả EOD CoreCCP**:
+    - So sánh số dư tiền mặt, tiền lãi lỗ hạch toán, ký quỹ IMR của CoreCCP.
+    - Lọc danh sách tài khoản âm ký quỹ CoreCCP.
+- **API Backend tương ứng**:
+  - `POST /api/v1/bot-engine/trigger-ccp-download`: Bot tải 25 báo cáo CoreCCP.
+  - `POST /api/v1/reconciliation/upload-eod`: Đối soát file EOD CoreCCP.
+
+#### 2.2. `[C-09]` Component Thống Kê Số Lot & Giá Trị Giao Dịch CCP
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)
+- **Chức năng nghiệp vụ độc lập**:
+  - Tự động bóc tách số liệu giao dịch từ file `DSGD CCP.xlsx`.
+  - Thống kê chi tiết khối lượng lot và giá trị bù trừ theo Thành viên kinh doanh (TVKD) và Mã hàng hóa.
+  - Phân loại 4 nhóm lệnh: Lệnh thường, Lệnh Market Maker, Khớp chéo, Tự doanh.
+- **API Backend tương ứng**:
+  - `POST /api/v1/ccp-statistics/process`: Xử lý bóc tách số liệu CoreCCP.
+  - `POST /api/v1/ccp-statistics/lot-statistics/run-lot`: Chạy thống kê số lô CCP.
+  - `POST /api/v1/ccp-statistics/lot-statistics/run-value`: Chạy thống kê giá trị CCP.
+
+---
+
+### 3. Nhóm Phân Hệ Cấu Hình & Quản Trị Hạ Tầng
+
+#### 3.1. `[C-10]` Component Cấu Hình M-System & CQG (`MsConfigSection.tsx`)
+- **Chức năng nghiệp vụ độc lập**:
+  - Quản lý tỷ giá M-System: Tỷ giá USD mua, USD bán, USD hạch toán. Nút `[Đồng bộ tỷ giá M-System]`.
+  - Giờ bắt đầu (05:00) và kết thúc phiên M-System.
+  - 10 đường dẫn lưu trữ thư mục của MS và CQG trên máy chủ.
+- **API Backend tương ứng**:
+  - `GET /api/v1/system-settings`: Lấy cấu hình.
+  - `POST /api/v1/system-settings`: Lưu cấu hình.
+  - `POST /api/v1/reconciliation/sync-usd-rate`: Đồng bộ tỷ giá từ web M-System.
+
+#### 3.2. `[C-11]` Component Cấu Hình OMS CoreCCP & CE (`OmsConfigSection.tsx`)
+- **Chức năng nghiệp vụ độc lập**:
+  - Quản lý **Ma trận tỷ giá đa tiền tệ động CoreCCP**: Cho phép thêm, sửa, xóa tỷ giá của mọi loại đồng tiền (USD, EUR, JPY, MYR, VND...). Nút `[Đồng bộ tỷ giá CoreCCP]`.
+  - Đường dẫn lưu trữ thư mục Backup CoreCCP và CoreEX trên máy chủ.
+  - Cấu hình thông tin tài khoản Bot tải VNCLEAR Maker.
+- **API Backend tương ứng**:
+  - `POST /api/v1/reconciliation/sync-exchange-rates`: Đồng bộ tỷ giá từ VNCLEAR.
+  - `POST /api/v1/trading-report/exchange-rates`: Cập nhật bảng tỷ giá đa tiền tệ.
+
+#### 3.3. `[C-12]` Component Xác Thực Đường Dẫn Hợp Lệ (`SmartPathInput.tsx`)
+- **File mã nguồn**: [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/admin/SmartPathInput.tsx)
+- **Chức năng nghiệp vụ độc lập**:
+  - Nhập đường dẫn thư mục theo định dạng Windows hoặc Linux.
+  - Tự động gọi API backend xác thực xem đường dẫn có tồn tại thực tế trên máy chủ không (hiển thị icon check xanh nếu tồn tại, cảnh báo đỏ nếu không tìm thấy thư mục).
+
+---
+
+### 4. Nhóm Giám Sát Robot & Modal Toàn Hệ Thống (Đưa Ra Sidebar)
+
+#### 4.1. `[C-13]` Component Giám Sát Hàng Đợi Robot & Terminal Logs
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx)
+- **Chức năng nghiệp vụ độc lập**:
+  - **Badge cảnh báo thời gian thực**: Đếm số Job đang chạy (`PROCESSING`), nhấp nháy đỏ trên Sidebar.
+  - **Bộ lọc đa chiều**: Lọc theo trạng thái, loại nghiệp vụ (`CHECK_KLGD`, `CHECK_PRE_EOD`, `DOWNLOAD_CCP_REPORT`...), tìm kiếm theo `Job ID`.
+  - **Thao tác can thiệp**: Nút Hủy khẩn cấp (`Cancel Job`), Thử lại (`Retry`), Tải gói kết quả ZIP.
+  - **Cửa sổ dòng lệnh Terminal Real-time Logs**: Xem log trực tiếp từng dòng lệnh Playwright.
+- **API Backend tương ứng**:
+  - `GET /api/v1/bot-engine/jobs`: Danh sách Job.
+  - `POST /api/v1/bot-engine/jobs/{id}/cancel`: Hủy Job.
+  - `GET /api/v1/bot-engine/jobs/{id}/download-zip`: Tải file ZIP.
+
+#### 4.2. `[C-14]` Các Modal Xem Log Chi Tiết & Tóm Tắt
+- **File mã nguồn**:
+  - [TradingManagerLogModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerLogModal.tsx): Popup hiển thị full log của 1 Job.
+  - [ReconLogSummaryModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx): Popup tóm tắt tiến trình tải file và phân tích nguyên nhân lệch số liệu.
+  - [BackupLogSummaryModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx): Popup tóm tắt tiến trình tải các báo cáo backup.
+
+#### 4.3. `[C-15]` Modal Cẩm Nang Hướng Dẫn Vận Hành Ca Trực
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx)
+- **Chức năng nghiệp vụ độc lập**:
+  - Hướng dẫn các mốc ca trực: Đầu ca SOD, Trong ca kiểm tra khớp lệnh, Cuối ca Pre-EOD và EOD.
+  - Bảng tra cứu mã lỗi và các bước xử lý khi phát hiện số liệu bị lệch.

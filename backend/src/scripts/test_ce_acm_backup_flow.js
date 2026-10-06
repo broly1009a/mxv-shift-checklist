@@ -19,7 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 
-// 1. Danh mục 10 file chuẩn sàn CoreEX (CE)
+// 1. Danh mục 8 báo cáo chuẩn sàn CoreEX (CE)
 const REQUIRED_CE_FILES = [
   { key: 'DSGD', name: 'Danh sách giao dịch CE', filename: 'DSGD ACM CE.xlsx', patterns: [/dsgd.*acm.*ce/i, /dsgd.*ce/i, /^dsgd\.(xlsx|xls|csv)$/i] },
   { key: 'DSL', name: 'Sổ lệnh tổng hợp CE', filename: 'DSL ACM CE.xlsx', patterns: [/dsl.*acm.*ce/i, /dsl.*ce/i, /^dsl\.(xlsx|xls|csv)$/i] },
@@ -28,9 +28,7 @@ const REQUIRED_CE_FILES = [
   { key: 'DSLH', name: 'Lệnh hủy CE', filename: 'DSLH ACM CE.xlsx', patterns: [/dslh.*acm.*ce/i, /dslh.*ce/i, /^dslh\.(xlsx|xls|csv)$/i] },
   { key: 'GTT', name: 'Giá thanh toán ACM', filename: 'GTT ACM.xlsx', patterns: [/gtt.*acm/i, /^gtt\.(xlsx|xls|csv)$/i] },
   { key: 'HH', name: 'Hàng hóa ACM', filename: 'HH ACM.xlsx', patterns: [/hh.*acm/i, /^hh\.(xlsx|xls|csv)$/i] },
-  { key: 'HD_CP2CO', name: 'Hợp đồng CP2CO (Đồng Nano)', filename: 'HĐ CP2CO.xlsx', patterns: [/hđ.*cp2co/i, /hd.*cp2co/i, /cp2co/i] },
-  { key: 'HD_PL1NY', name: 'Hợp đồng PL1NY (Bạch kim Nano)', filename: 'HĐ PL1NY.xlsx', patterns: [/hđ.*pl1ny/i, /hd.*pl1ny/i, /pl1ny/i] },
-  { key: 'HD_SI5CO', name: 'Hợp đồng SI5CO (Bạc Nano)', filename: 'HĐ SI5CO.xlsx', patterns: [/hđ.*si5co/i, /hd.*si5co/i, /si5co/i] },
+  { key: 'HD', name: 'Hợp đồng chi tiết CE', filename: 'HĐ *.xlsx', patterns: [/^hđ\s+/i, /^hd_/i, /^hd\b/i, /contracts?/i] },
 ];
 
 // 2. Danh mục 4 file chuẩn đối tác ACM

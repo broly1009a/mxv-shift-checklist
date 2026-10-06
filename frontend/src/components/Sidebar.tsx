@@ -321,13 +321,31 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <span>Tra cứu lịch sử</span>
             </Link>
             <Link
+              href="/trading-manager/ms-cqg"
+              onClick={onClose}
+              className={`nav-link ${pathname === '/trading-manager/ms-cqg' ? 'active' : ''}`}
+              title={isCollapsed ? "Giám sát MS & CQG" : undefined}
+            >
+              <Activity size={18} style={{ flexShrink: 0 }} />
+              <span>Giám Sát MS & CQG</span>
+            </Link>
+            <Link
+              href="/trading-manager/ccp-ce"
+              onClick={onClose}
+              className={`nav-link ${pathname === '/trading-manager/ccp-ce' ? 'active' : ''}`}
+              title={isCollapsed ? "Giám sát CoreCCP & CE" : undefined}
+            >
+              <FileSpreadsheet size={18} style={{ flexShrink: 0 }} />
+              <span>Giám Sát CoreCCP & CE</span>
+            </Link>
+            <Link
               href="/trading-manager"
               onClick={onClose}
               className={`nav-link ${pathname === '/trading-manager' ? 'active' : ''}`}
-              title={isCollapsed ? "Bàn Giám Sát GD" : undefined}
+              title={isCollapsed ? "Bàn Giám Sát GD Tổng Hợp" : undefined}
             >
               <Layers size={18} style={{ flexShrink: 0 }} />
-              <span>Trading Manager</span>
+              <span>Trading Manager (Hub)</span>
             </Link>
           </>
         )}

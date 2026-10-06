@@ -147,9 +147,16 @@ export class CqgExcelParser {
 
       const result = new Date(defaultDate);
       // Chuẩn Tool C# TransactionCheckingService.cs#L143 (fullDateTime = time.Date + itemTimeOnly):
-      // CQG Desktop chỉ hiển thị giờ (không có ngày) cho các lệnh phát sinh sau 00:00 của ngày hôm nay.
-      // Đối với phiên giao dịch T (defaultDate), các lệnh sau nửa đêm (hours < 6) thuộc về ngày hôm sau của phiên (defaultDate + 1 ngày).
-      if (hours < 6) {
+      // Trong CQG, chuỗi chỉ có giờ luôn là lệnh phát sinh trong ngày lịch hôm nay (current calendar day).
+      // Chỉ khi defaultDate là phiên hôm trước (defaultDate < hôm nay) và lệnh khớp sau 00:00 rạng sáng (hours < 6),
+      // lệnh đó mới thuộc về ngày hôm sau của phiên T-1 (defaultDate + 1 ngày).
+      // Nếu defaultDate đã là hôm nay, tuyệt đối không cộng thêm 1 ngày vì các lệnh 05:xx sáng nay chính là của ngày hôm nay.
+      const todayMidnight = new Date();
+      todayMidnight.setHours(0, 0, 0, 0);
+      const defMidnight = new Date(defaultDate);
+      defMidnight.setHours(0, 0, 0, 0);
+
+      if (defMidnight.getTime() < todayMidnight.getTime() && hours < 6) {
         result.setDate(result.getDate() + 1);
       }
       result.setHours(hours, minutes, seconds, ms);

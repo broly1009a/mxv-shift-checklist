@@ -41,6 +41,7 @@ export interface LegacyReconSectionProps {
   onSelectDate?: (date: string) => void;
   onOpenGuide?: () => void;
   onStatusChange?: (status: { isDiffer: boolean; totalDifferLots: number; klgdStatus: string }) => void;
+  viewMode?: 'ALL' | 'KLGD_ONLY' | 'EOD_ONLY';
 }
 
 export default function LegacyReconSection({
@@ -49,6 +50,7 @@ export default function LegacyReconSection({
   onSelectDate,
   onOpenGuide,
   onStatusChange,
+  viewMode = 'ALL',
 }: LegacyReconSectionProps) {
   const setSelectedDate = onSelectDate || (() => {});
   // Checkbox selections in Table 1
@@ -613,6 +615,7 @@ export default function LegacyReconSection({
 
       const result = await res.json();
       const jobId = result.jobId;
+      const isReused = Boolean(result.isReused);
 
       if (!jobId) {
         toast.success(result.message || 'Đã kích hoạt quét đối soát thành công!');
@@ -622,7 +625,15 @@ export default function LegacyReconSection({
         return;
       }
 
-      toast.loading('Bot đang thực thi đối chiếu ngầm, vui lòng chờ...', { id: 'bot-job-progress' });
+      if (isReused) {
+        // Job đang chạy bởi tiến trình khác / tab khác - tự động kết nối theo dõi
+        toast.loading(`Tiến trình đang chạy ngầm. Đang kết nối theo dõi...`, {
+          id: 'bot-job-progress',
+        });
+      } else {
+        toast.loading('Bot đang thực thi đối chiếu ngầm, vui lòng chờ...', { id: 'bot-job-progress' });
+      }
+
       await pollJobProgress(jobId, jobType);
     } catch (err: any) {
       toast.dismiss('bot-job-progress');
@@ -1095,6 +1106,8 @@ export default function LegacyReconSection({
               </div>
             ) : null}
 
+          {(viewMode === 'ALL' || viewMode === 'KLGD_ONLY') && (
+            <>
             {/* ROW 1: TOOLBAR KIỂM SOÁT ĐỊNH KỲ & THỜI ĐIỂM CHECK */}
             <div className="glass-panel" style={{
               padding: '16px 24px',
@@ -1927,7 +1940,50 @@ export default function LegacyReconSection({
                 </table>
               </div>
             </div>
+            </>
+          )}
 
+          {/* THANH ĐIỀU KHIỂN RIÊNG CHO MÀN HÌNH EOD_ONLY */}
+          {viewMode === 'EOD_ONLY' && (
+            <div className="glass-panel" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Calendar size={18} color="#10b981" />
+                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Phiên đối soát EOD MS & CQG:
+                </span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="form-input"
+                  style={{ width: '150px', height: '36px', fontSize: '0.84rem', fontFamily: 'monospace', fontWeight: 700 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(getInitialTradingSessionDate())}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+                >
+                  Hôm nay
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => fetchConsoleSummary(selectedDate)}
+                  disabled={loading}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                  <span>Làm mới dữ liệu EOD</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(viewMode === 'ALL' || viewMode === 'EOD_ONLY') && (
+            <>
             {/* KHUNG 2 CỘT SONG SONG: CHECK DSGD TRƯỚC EOD & KẾT QUẢ CHẠY EOD */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
 
@@ -2286,6 +2342,8 @@ export default function LegacyReconSection({
                 </table>
               </div>
             </div>
+            </>
+          )}
           </div>
 
       <TradingManagerLogModal

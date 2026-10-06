@@ -244,6 +244,14 @@ const specificFiles = [
     local: path.join(repoRoot, 'backend/src/scripts/test_m365_eod_email.ts'),
     remote: '/opt/mxv-checklist/backend/src/scripts/test_m365_eod_email.ts',
   },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/diagnose_klgd_realtime.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/diagnose_klgd_realtime.js',
+  },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/test_ce_headless_download.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_ce_headless_download.js',
+  },
 ];
 
 specificFiles.forEach((item) => {
@@ -347,7 +355,8 @@ conn.on('ready', () => {
     // Build backend, restart backend, build frontend, restart frontend
     const cmd = `
       echo "=== 1. BUILD BACKEND ==="
-      cd /opt/mxv-checklist/backend && npm run build
+      cd /opt/mxv-checklist/backend && rm -f tsconfig*.tsbuildinfo && rm -rf dist && npm run build
+      mkdir -p /opt/mxv-checklist/backend/dist/scripts/python && cp -rf /opt/mxv-checklist/backend/src/scripts/python/* /opt/mxv-checklist/backend/dist/scripts/python/ 2>/dev/null || true
       echo "=== 2. RESTART BACKEND PM2 ==="
       pm2 restart mxv-backend
       echo "=== 3. BUILD FRONTEND ==="

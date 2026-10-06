@@ -31,10 +31,12 @@ export interface CcpExchangeRateItem {
 
 export interface TradingManagerConfigSectionProps {
   token: string | null;
+  filterScope?: 'ALL' | 'MS_CQG' | 'OMS';
 }
 
 export default function TradingManagerConfigSection({
   token,
+  filterScope = 'ALL',
 }: TradingManagerConfigSectionProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -537,7 +539,8 @@ export default function TradingManagerConfigSection({
       </div>
 
       {/* SECTION 1: CẤU HÌNH TỶ GIÁ M-SYSTEM & PHIÊN GIAO DỊCH */}
-      <div className="glass-panel" style={{ padding: '20px 24px' }}>
+      {(filterScope === 'ALL' || filterScope === 'MS_CQG') && (
+        <div className="glass-panel" style={{ padding: '20px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
           {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
@@ -702,9 +705,11 @@ export default function TradingManagerConfigSection({
           </div>
         </div>
       </div>
+      )}
 
       {/* SECTION 1.5: MA TRẬN TỶ GIÁ ĐA NGUYÊN TỆ CORECCP (VNCLEAR) */}
-      <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #10b981' }}>
+      {(filterScope === 'ALL' || filterScope === 'OMS') && (
+        <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #10b981' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Layers size={18} color="#10b981" />
@@ -946,9 +951,11 @@ export default function TradingManagerConfigSection({
           </span>
         </div>
       </div>
+      )}
 
       {/* SECTION 2: HAI BẢNG SONG SONG (DANH SÁCH TK ÂM KQ & NGÀY NGHỈ LME) */}
-      <div className="glass-panel" style={{ padding: '20px 24px' }}>
+      {(filterScope === 'ALL' || filterScope === 'MS_CQG') && (
+        <div className="glass-panel" style={{ padding: '20px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
           {/* Bảng Trái: Danh sách TKGD âm KQ */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
@@ -1127,6 +1134,7 @@ export default function TradingManagerConfigSection({
           </div>
         </div>
       </div>
+      )}
 
       {/* SECTION 3: CÁC ĐƯỜNG DẪN HOẠT ĐỘNG THỰC TẾ (HỆ THỐNG SỬ DỤNG) */}
       <div className="glass-panel" style={{ padding: '22px 24px' }}>
@@ -1176,6 +1184,7 @@ export default function TradingManagerConfigSection({
               val: botBackupPathMs,
               setVal: setBotBackupPathMs,
               desc: 'Thư mục gốc lưu trữ 20 báo cáo tải về từ M-System (DSGD, TTM, TTTT, DSQLKQ...)',
+              category: 'MS_CQG',
             },
             {
               id: 'botBackupPathCqg',
@@ -1183,6 +1192,7 @@ export default function TradingManagerConfigSection({
               val: botBackupPathCqg,
               setVal: setBotBackupPathCqg,
               desc: 'Thư mục gốc lưu trữ 9 báo cáo thô tải về từ CQG (FR, PS, OP, OD, AS...)',
+              category: 'MS_CQG',
             },
             {
               id: 'botBackupPathAcm',
@@ -1190,6 +1200,7 @@ export default function TradingManagerConfigSection({
               val: botBackupPathAcm,
               setVal: setBotBackupPathAcm,
               desc: 'Thư mục lưu trữ file Straits CSV giao dịch khớp lệnh ACM Nano',
+              category: 'MS_CQG',
             },
             {
               id: 'botBackupPathCcp',
@@ -1197,6 +1208,7 @@ export default function TradingManagerConfigSection({
               val: botBackupPathCcp,
               setVal: setBotBackupPathCcp,
               desc: 'Thư mục lưu trữ 8 báo cáo chuẩn từ hệ thống bù trừ thanh toán CoreCCP (DSGD, TTM, TTTT...)',
+              category: 'OMS',
             },
             {
               id: 'botBackupPathCe',
@@ -1204,6 +1216,7 @@ export default function TradingManagerConfigSection({
               val: botBackupPathCe,
               setVal: setBotBackupPathCe,
               desc: 'Thư mục lưu trữ báo cáo từ hệ thống giao dịch CoreEX',
+              category: 'OMS',
             },
             {
               id: 'botLotMacroPath',
@@ -1211,6 +1224,7 @@ export default function TradingManagerConfigSection({
               val: botLotMacroPath,
               setVal: setBotLotMacroPath,
               desc: 'Đường dẫn file Excel Macro tổng hợp số lot giao dịch hàng ngày (Macro thong ke so lot...)',
+              category: 'MS_CQG',
             },
             {
               id: 'botMacroValuePath',
@@ -1218,8 +1232,15 @@ export default function TradingManagerConfigSection({
               val: botMacroValuePath,
               setVal: setBotMacroValuePath,
               desc: 'Đường dẫn file Excel Macro tính toán tổng giá trị giao dịch thị trường (Macro thong ke gia tri...)',
+              category: 'MS_CQG',
             },
-          ].map((item) => {
+          ]
+            .filter((item) => {
+              if (filterScope === 'MS_CQG') return item.category === 'MS_CQG';
+              if (filterScope === 'OMS') return item.category === 'OMS';
+              return true;
+            })
+            .map((item) => {
             const status = pathStatus[item.id];
             const isChecking = !!pathChecking[item.id];
             return (

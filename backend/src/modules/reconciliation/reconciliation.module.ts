@@ -16,6 +16,7 @@ import {
   CcpReconService,
   CqgSyncReconService,
   ReconConsoleSummaryService,
+  DsgdBeforeEodService,
 } from './services';
 
 @Module({
@@ -37,6 +38,7 @@ import {
     CcpReconService,
     CqgSyncReconService,
     ReconConsoleSummaryService,
+    DsgdBeforeEodService,
     ReconciliationService,
   ],
   controllers: [ReconciliationController],
@@ -46,6 +48,7 @@ import {
     CcpReconService,
     CqgSyncReconService,
     ReconConsoleSummaryService,
+    DsgdBeforeEodService,
     ReconciliationService,
   ],
 })
