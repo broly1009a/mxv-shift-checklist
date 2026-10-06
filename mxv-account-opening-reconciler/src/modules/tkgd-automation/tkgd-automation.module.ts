@@ -9,6 +9,7 @@ import { TkgdMailIngestService } from './services/tkgd-mail-ingest.service';
 import { TkgdReconcileCoreService } from './services/tkgd-reconcile-core.service';
 import { TkgdExcelExportService } from './services/tkgd-excel-export.service';
 import { TkgdMsCrawlerService } from './services/tkgd-ms-crawler.service';
+// import { TkgdCcpCrawlerService } from './services/tkgd-ccp-crawler.service'; // Dành cho luồng Pure API trong giai đoạn tới
 import { TkgdUserConfig, TkgdUserConfigSchema } from '../../schemas/tkgd-user-config.schema';
 import { RawAccountMail, RawAccountMailSchema } from '../../schemas/raw-account-mail.schema';
 import { CleanAccountRecord, CleanAccountRecordSchema } from '../../schemas/clean-account-record.schema';
@@ -37,6 +38,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     TkgdReconcileCoreService,
     TkgdExcelExportService,
     TkgdMsCrawlerService,
+    // TkgdCcpCrawlerService, // Tạm đóng luồng Playwright, sẽ tích hợp TkgdCcpApiService thuần REST API
   ],
   exports: [
     TkgdAutomationService,
@@ -47,6 +49,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     TkgdReconcileCoreService,
     TkgdExcelExportService,
     TkgdMsCrawlerService,
+    // TkgdCcpCrawlerService,
   ],
 })
 export class TkgdAutomationModule {}

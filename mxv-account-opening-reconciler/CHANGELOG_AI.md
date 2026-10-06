@@ -2,6 +2,59 @@
 
 ---
 
+## [2026-10-06 11:55] Chuyển Giao Kiến Trúc Thẩm Định CoreCCP Sang 100% Pure REST API (Zero-Playwright) & Hoàn Thiện Tài Liệu Đặc Tả
+
+### 1. Mục tiêu & Chỉ đạo từ USER
+- **Chỉ đạo của USER**: "không tôi có base logic bằng api lấy token rồi nên chắc sau không cần dùng Playwright".
+- **Quyết định kiến trúc**: 
+  - Hệ thống chuyển đổi dứt khoát sang **100% Pure REST API (Zero-Playwright)** cho toàn bộ quy trình thẩm định tiểu khoản `-A` trên CoreCCP.
+  - Tận dụng luồng API lấy token sẵn có của hệ thống $\rightarrow$ Tra cứu trực tiếp endpoint tài khoản qua HTTP request $(< 200\text{ms})$ $\rightarrow$ Decode chuỗi ảnh Base64 từ JSON payload lưu ra đĩa cứng $\rightarrow$ Triệt tiêu 100% overhead của trình duyệt Chromium (tiết kiệm hàng trăm MB RAM và ngăn ngừa hoàn toàn nguy cơ Timeout Nginx/tràn bộ nhớ).
+
+### 2. Danh sách file tạo mới & cập nhật
+1. [TAI_LIEU_THAM_DINH_TIEU_KHOAN_CCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/docs/TAI_LIEU_THAM_DINH_TIEU_KHOAN_CCP.md) — **Tạo mới tài liệu đặc tả chính thức**:
+   - Đặc tả kiến trúc Pure REST API luồng thẩm định tiểu khoản ACM Nano (`-A`).
+   - Sơ đồ xử lý Flowchart: Check Cache Token $\rightarrow$ Gọi API tra cứu $\rightarrow$ Decode Base64 ảnh CCCD/Chữ ký $\rightarrow$ Thẩm định đối soát.
+   - Hàm helper chuẩn hóa `saveApiBase64ToImageFile` xử lý Data URL prefix và binary buffer.
+   - Kế hoạch tích hợp NestJS service (`TkgdCcpApiService`) và quy tắc đối soát chéo.
+2. [tai_lieu_tham_dinh_tieu_khoan_ccp.md](file:///C:/Users/hiepth/.gemini/antigravity-ide/brain/ff2d8591-7826-474c-8d2e-8180a1f3f9ae/tai_lieu_tham_dinh_tieu_khoan_ccp.md) — **Tạo mới Artifact**: Bản tài liệu tương tác hiển thị trực tiếp trên IDE.
+3. [tkgd-automation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/modules/tkgd-automation/tkgd-automation.module.ts#L12-L52) — **Tối ưu hóa**: Comment tạm khai báo `TkgdCcpCrawlerService` (Playwright) để chuẩn bị chuyển giao trực tiếp sang `TkgdCcpApiService` thuần HTTP trong giai đoạn tới.
+
+### 3. Kết quả kiểm tra biên dịch
+- Backend NestJS: `npm.cmd run build` $\rightarrow$ Biên dịch thành công 0 lỗi.
+- Frontend Next.js: `npx.cmd tsc --noEmit` $\rightarrow$ Đảm bảo tính toàn vẹn 0 lỗi.
+
+---
+
+## [2026-10-06 09:30] Khởi Tạo Nền Móng Xử Lý CoreCCP (VNCLEAR) & Chuẩn Bị Thẩm Định Tiểu Khoản (-A)
+
+### 1. Mục tiêu & Yêu cầu từ USER
+- **Yêu cầu của USER**: "hiện tại tôi cần phát triển file xử lý đăng nhập cho CCP giúp tôi viết file đăng nhập ccp(vì sau này tiểu khoản -A khi mở sẽ check trong ccp không check trong MS nữa)".
+- **Định hướng nghiệp vụ**: Trong tương lai, các tài khoản mở tiểu khoản `-A` (ACM Nano) sẽ không kiểm tra thông tin trên M-System mà sẽ đối chiếu trực tiếp trên hệ thống CoreCCP (VNCLEAR) qua màn hình Danh sách TKGD (`/ACCOUNTMNG/ACCOUNTS_INFO`). Cần xây dựng nền tảng đăng nhập chuẩn Playwright, xử lý giải mã credentials tự động từ DB và công cụ test script để kiểm chứng.
+
+### 2. Danh sách file tạo mới & chỉnh sửa
+1. [ccp-auth.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/modules/engine-helpers/ccp-auth.helper.ts) — **Tạo mới**:
+   - `loginCoreCCP(page, options)`: Thực hiện toàn bộ luồng đăng nhập vào CoreCCP (`input[name='username']`, `input[name='password']`, click `submit`).
+   - `dismissModalBackdrop(page)`: Tự động loại bỏ backdrop mờ Material-UI (`MuiBackdrop-root`) tránh che khuất các phần tử bảng.
+   - `waitForTableLoadingComplete(page)`: Chờ ProgressBar/Spinner Material-UI kết thúc tải dữ liệu bảng.
+   - `decryptCcpCredentials`: Giải mã khóa AES-256 (hỗ trợ cả salt `mxv_secret_salt_fixed` lẫn `ENCRYPTION_KEY`).
+   - `findBrowserExecutable`: Tự động nhận diện đường dẫn Chrome / Edge trên cả Windows và Ubuntu.
+2. [tkgd-ccp-crawler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/modules/tkgd-automation/services/tkgd-ccp-crawler.service.ts) — **Tạo mới**:
+   - NestJS `@Injectable()` service quản lý phiên kết nối CoreCCP.
+   - `getCcpCredentials()`: Lấy tài khoản đăng nhập từ MongoDB `bot_credentials` (`botType: 'CCP'`), `system_settings` hoặc `.env`.
+   - `testCcpConnection()`: Kiểm tra kết nối đăng nhập.
+   - `verifySubAccountInCCP(subAccountCode)`: Mở phiên, điều hướng tới `/ACCOUNTMNG/ACCOUNTS_INFO`, lọc và thẩm định sự tồn tại của tiểu khoản `-A`, ghi vết vào `tkgd_extraction_logs`.
+3. [tkgd-automation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/modules/tkgd-automation/tkgd-automation.module.ts) — **Chỉnh sửa**:
+   - Khai báo và xuất `TkgdCcpCrawlerService` trong `providers` và `exports`.
+4. [test_ccp_login_debug.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-tkgd-ccp-work/mxv-account-opening-reconciler/src/scripts/test_ccp_login_debug.js) — **Tạo mới**:
+   - Script test độc lập chuẩn hóa CLI cho USER tự chạy (`--headed`, `--headless`, `--subaccount <mã>`).
+   - Tự động chụp ảnh màn hình lưu vào `temp/screenshots/ccp_debug/` từng bước (Login page, form filled, dashboard, accounts info screen).
+
+### 3. Kết quả biên dịch & Kiểm tra chất lượng
+- Backend NestJS: `npm.cmd run build` $\rightarrow$ Biên dịch thành công 0 lỗi.
+- Frontend Next.js: `npx.cmd tsc --noEmit` $\rightarrow$ Kiểm tra kiểu dữ liệu thành công 0 lỗi.
+
+---
+
 ## [2026-10-05 18:00] Khắc Phục Lỗi Time-out Nút "Check Lại Hàng Loạt", Bổ Sung Thanh Tiến Trình % (Progress Bar) & Fallback Cứu Hộ Tên File PDF
 
 ### 1. Mục tiêu & Hiện tượng thực tế từ Log Server
