@@ -480,6 +480,11 @@ async function testMSystem(creds, cliConfig, browser) {
     await page.waitForTimeout(2000);
 
     // Tải DSGD
+    /* =========================================================================
+     * [CHỨNG CỨ ĐỐI CHIẾU - MÃ PHỎNG ĐOÁN CŨ (GIỮ LẠI LÀM BẰNG CHỨNG THEO YÊU CẦU CỦA USER)]:
+     * Đoạn code dưới đây từng tự sinh mảng 11 selector phỏng đoán (vi phạm Quy tắc 5 AGENTS.md).
+     * Đoạn này được comment giữ nguyên không xóa làm chứng cứ đối chiếu lịch sử phát triển.
+     * =========================================================================
     console.log(`[MS] Bấm tải file DSGD qua các selector ứng viên...`);
     const exportCandidates = [
       "button:has(i[class*='fa-file-csv'])",
@@ -518,10 +523,24 @@ async function testMSystem(creds, cliConfig, browser) {
       exportBtn = page.locator(fallbackCss).first();
       matchedSelector = fallbackCss;
     }
+    ========================================================================= */
+
+    // ── CHUẨN 100% THEO TOOL C# (ChromeBot.cs dòng 2375 - 2380) ──────────────
+    // C# Source Ground Truth:
+    //   await Task.Delay(3000);
+    //   By csvButtonXPath = By.XPath("//i[contains(@class, 'fa-file-csv')]");
+    //   await WaitForElementToBeVisible(driver, csvButtonXPath, 10000);
+    //   var csvButton = driver.FindElement(csvButtonXPath);
+    //   csvButton.Click();
+    console.log(`[MS] Chờ 3000ms bảng DSGD ổn định theo chuẩn C# ChromeBot.cs#L2375...`);
+    await page.waitForTimeout(3000);
+    const matchedSelector = "xpath=//i[contains(@class, 'fa-file-csv')]";
+    const exportIcon = page.locator(matchedSelector).first();
+    await exportIcon.waitFor({ state: 'visible', timeout: 10000 });
 
     const [downloadMs] = await Promise.all([
       page.waitForEvent('download', { timeout: 45000 }),
-      exportBtn.click({ timeout: 15000 }),
+      exportIcon.click({ timeout: 15000 }),
     ]);
 
     await downloadMs.saveAs(msDest);

@@ -94,30 +94,14 @@ export const CE_REPORTS_LIST: Array<{
     description: 'Danh mục các mặt hàng phái sinh giao dịch ACM',
   },
 
-  // 3. Hợp đồng Nano ACM
+  // 3. Hợp đồng chi tiết CE (Động 100% theo sàn giống CCP)
   {
-    key: 'HD_CP2CO',
-    name: 'Hợp đồng Đồng Nano (CP2CO)',
-    filename: 'HĐ CP2CO.xlsx',
+    key: 'HD',
+    name: 'Hợp đồng chi tiết CE',
+    filename: 'HĐ *.xlsx',
     category: 'PRODUCT',
-    categoryLabel: 'Hợp đồng Nano ACM',
-    description: 'Hợp đồng Đồng siêu nhỏ (Copper Nano - CP2CO)',
-  },
-  {
-    key: 'HD_PL1NY',
-    name: 'Hợp đồng Bạch kim Nano (PL1NY)',
-    filename: 'HĐ PL1NY.xlsx',
-    category: 'PRODUCT',
-    categoryLabel: 'Hợp đồng Nano ACM',
-    description: 'Hợp đồng Bạch kim siêu nhỏ (Platinum Nano - PL1NY)',
-  },
-  {
-    key: 'HD_SI5CO',
-    name: 'Hợp đồng Bạc Nano (SI5CO)',
-    filename: 'HĐ SI5CO.xlsx',
-    category: 'PRODUCT',
-    categoryLabel: 'Hợp đồng Nano ACM',
-    description: 'Hợp đồng Bạc siêu nhỏ (Silver Nano - SI5CO)',
+    categoryLabel: 'Hợp đồng hàng hóa CE',
+    description: 'Tải động toàn bộ hợp đồng chi tiết theo danh mục hàng hóa thực tế trên sàn CoreEX (Data-Driven)',
   },
 ];
 
@@ -624,9 +608,9 @@ export default function CeAcmBackupSection({
                   }}
                   className="btn btn-secondary"
                   style={{ fontSize: '0.7rem', padding: '3px 8px' }}
-                  title="Chọn GTT, HH và 3 Hợp đồng Nano"
+                  title="Chọn GTT, HH và Hợp đồng chi tiết"
                 >
-                  Giá & HĐ (5)
+                  Giá & HĐ ({CE_REPORTS_LIST.filter((r) => r.category === 'PRICE' || r.category === 'PRODUCT').length})
                 </button>
                 <span
                   style={{
@@ -638,7 +622,7 @@ export default function CeAcmBackupSection({
                     borderRadius: '6px',
                   }}
                 >
-                  10 File Chuẩn
+                  {CE_REPORTS_LIST.length} Báo Cáo Chuẩn
                 </span>
               </div>
             </div>

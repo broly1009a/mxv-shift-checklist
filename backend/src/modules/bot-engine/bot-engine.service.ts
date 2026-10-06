@@ -17,6 +17,7 @@ import {
 } from '../notifications/teams-notifier.service';
 import { RpaDownloaderService } from './rpa-downloader.service';
 import { MarginChangeRequestsService } from '../margin-change-requests/margin-change-requests.service';
+import { isMarketWeekendClosed } from './helpers/bot-path.helper';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -75,9 +76,15 @@ export class BotEngineService {
     this.logger.debug('Starting automated checklist bot runner check...');
 
     try {
-      // 1. Fetch active shift logs
+      // 1. Fetch active shift logs within operational window (tối đa 36 giờ)
+      // Ngăn chặn bot tự động quét và lặp lại tác vụ cho các ca cũ bị treo/quên đóng từ nhiều ngày trước
+      const maxShiftAgeMs = 36 * 60 * 60 * 1000;
+      const minShiftCreatedAt = new Date(Date.now() - maxShiftAgeMs);
       const activeLogs = await this.shiftLogModel
-        .find({ status: 'PENDING' })
+        .find({
+          status: 'PENDING',
+          createdAt: { $gte: minShiftCreatedAt },
+        })
         .populate('shiftSlotId')
         .populate('templateId')
         .exec();
@@ -116,10 +123,15 @@ export class BotEngineService {
             task.frequencyMinutesSnapshot &&
             task.frequencyMinutesSnapshot > 0
           ) {
-            // Nếu là tác vụ đối chiếu khớp lệnh trong phiên (CHECK_KLGD), tuân thủ switch của người dùng
+            // Nếu là tác vụ đối chiếu khớp lệnh trong phiên (CHECK_KLGD), tuân thủ switch của người dùng & Market Weekend Guard
             const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
-            if (isKlgdTask && !isPeriodicEnabled) {
-              continue; // Người dùng đã tắt check định kỳ trên UI
+            if (isKlgdTask) {
+              if (!isPeriodicEnabled) {
+                continue; // Người dùng đã tắt check định kỳ trên UI
+              }
+              if (isMarketWeekendClosed()) {
+                continue; // Thị trường đóng cửa cuối tuần (sau 06:30 Thứ 7 đến trước 05:00 Thứ 2)
+              }
             }
 
             const effectiveFrequency = isKlgdTask && customFreqMin ? customFreqMin : task.frequencyMinutesSnapshot;
@@ -171,6 +183,12 @@ export class BotEngineService {
             task.isBotCheckSnapshot &&
             (task.status === 'PENDING' || task.status === 'WAITING');
           if (!needsCheck) {
+            continue;
+          }
+
+          // Market Weekend Guard: Không kích hoạt đối chiếu khớp lệnh trong phiên khi thị trường đóng cửa cuối tuần
+          const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
+          if (isKlgdTask && isMarketWeekendClosed()) {
             continue;
           }
 

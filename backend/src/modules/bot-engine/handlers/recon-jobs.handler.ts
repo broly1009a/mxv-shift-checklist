@@ -10,7 +10,7 @@ import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
 import { EmailWatcherService } from '../email-watcher.service';
 import { findLatestFile } from '../../reconciliation/helpers/recon-number-parser.helper';
-import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate } from '../helpers/bot-path.helper';
+import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate, isMarketWeekendClosed } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 
 @Injectable()
@@ -130,6 +130,23 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
     log(`Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`);
     await job.save();
+
+    // Market Weekend Guard: Nếu đang trong khoảng đóng cửa cuối tuần (sau 06:30 Thứ 7 đến trước 05:00 Thứ 2)
+    // Và không có chỉ định ép buộc ngày quá khứ cụ thể
+    if (!payload.targetDate && isMarketWeekendClosed()) {
+      log('⏸ [Market Weekend Guard] Thị trường hàng hóa quốc tế và MXV đang đóng cửa cuối tuần (từ sáng Thứ Bảy đến 05:00 sáng Thứ Hai). Tác vụ đối chiếu trong phiên (CHECK_KLGD) tạm nghỉ.');
+      payload.result = {
+        passed: true,
+        isWeekendRest: true,
+        message: 'Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc 05:00 sáng Thứ Hai.',
+        mismatchedTrades: [],
+        mismatchedTradesTotal: 0,
+      };
+      job.payload = payload;
+      job.markModified('payload');
+      await job.save();
+      return payload.result;
+    }
 
     const options = {
       checkKlgd: payload.options?.checkKlgd ?? true,
@@ -300,6 +317,13 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
         if (options.checkKlgd !== false) {
           log('MS  [Bước 2: Xuất dữ liệu] Đang tải file DSGD.xlsx...');
+          /* =========================================================================
+           * [CHỨNG CỨ ĐỐI CHIẾU - MÃ PHỎNG ĐOÁN CŨ (GIỮ LẠI LÀM BẰNG CHỨNG THEO YÊU CẦU CỦA USER)]:
+           * Đoạn code dưới đây từng tự sinh mảng 11 selector phỏng đoán (vi phạm Quy tắc 5 AGENTS.md),
+           * và từng dùng .join(', ') gây lỗi cú pháp Playwright:
+           * "Unsupported token '@class' while parsing selector".
+           * Đoạn này được comment giữ nguyên không xóa làm chứng cứ đối chiếu lịch sử phát triển.
+           * =========================================================================
           const exportCandidates = [
             "button:has(i[class*='fa-file-csv'])",
             "button.ladda-button:has(i[class*='fa-file-csv'])",
@@ -336,10 +360,22 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
               .catch(() => {});
             exportBtn = page.locator(fallbackCss).first();
           }
+          ========================================================================= */
+
+          // ── CHUẨN 100% THEO TOOL C# (ChromeBot.cs dòng 2375 - 2380) ──────────────
+          // C# Source Ground Truth:
+          //   await Task.Delay(3000);
+          //   By csvButtonXPath = By.XPath("//i[contains(@class, 'fa-file-csv')]");
+          //   await WaitForElementToBeVisible(driver, csvButtonXPath, 10000);
+          //   var csvButton = driver.FindElement(csvButtonXPath);
+          //   csvButton.Click();
+          await page.waitForTimeout(3000);
+          const exportIcon = page.locator("xpath=//i[contains(@class, 'fa-file-csv')]").first();
+          await exportIcon.waitFor({ state: 'visible', timeout: 10000 });
 
           const [dl] = await Promise.all([
             page.waitForEvent('download', { timeout: 45000 }),
-            exportBtn.click({ timeout: 15000 }),
+            exportIcon.click({ timeout: 15000 }),
           ]);
 
           await this.rpaDownloaderService.saveAndValidateDownload(

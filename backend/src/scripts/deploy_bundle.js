@@ -101,6 +101,8 @@ const filesToDeploy = [
   'backend/src/modules/bot-engine/handlers/macro-lot.handler.ts',
   'backend/src/scripts/test_check_klgd_playwright.js',
   'backend/src/tests/test_overnight_cqg_time_fix.ts',
+  'backend/src/scripts/test_ms_headless_download.js',
+  'backend/src/scripts/test_ce_headless_download.js',
 ];
 
 for (const rel of filesToDeploy) {

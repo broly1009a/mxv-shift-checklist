@@ -1251,8 +1251,18 @@ export class ReconConsoleSummaryService {
       role: 'ADMIN',
     };
 
-    // 1. Nếu có ca trực, reset trạng thái task về PENDING (cả task con và task cha)
-    if (targetShift) {
+    // 1. Enqueue job trực tiếp vào Bot Job Queue (Được bảo vệ bởi Deduplication Guard)
+    const job = await this.botJobQueueService.enqueue(targetJobType, {
+      taskId: targetTaskId,
+      shiftLogId: targetShift ? targetShift._id.toString() : null,
+      sessionDay: targetShift?.shiftDate || targetDate,
+      options,
+    });
+
+    const isReused = Boolean((job as any)?.isReused);
+
+    // 2. Nếu là job mới (không bị trùng lặp), cập nhật trạng thái task trong ca trực về PENDING
+    if (targetShift && !isReused) {
       try {
         if (subTask) {
           await this.shiftsService.updateTaskStatus(
@@ -1281,17 +1291,15 @@ export class ReconConsoleSummaryService {
       }
     }
 
-    // 2. Enqueue job trực tiếp vào Bot Job Queue
-    const job = await this.botJobQueueService.enqueue(targetJobType, {
-      taskId: targetTaskId,
-      shiftLogId: targetShift ? targetShift._id.toString() : null,
-      sessionDay: targetShift?.shiftDate || targetDate,
-      options,
-    });
+    const defaultMsg = `Đã kích hoạt job ${targetJobType} thành công! Hệ thống đang tiến hành đối chiếu.`;
+    const message = isReused
+      ? ((job as any)?.dedupReason || `Tiến trình ${targetJobType} đang được thực thi. Hệ thống tự động kết nối theo dõi.`)
+      : defaultMsg;
 
     return {
       success: true,
-      message: `Đã kích hoạt job ${targetJobType} thành công! Hệ thống đang tiến hành đối chiếu.`,
+      isReused,
+      message,
       jobId: job?._id?.toString(),
     };
   }

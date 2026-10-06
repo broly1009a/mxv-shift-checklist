@@ -23,6 +23,7 @@ import {
   getCqgBackupBase,
   getAcmBackupBase,
 } from './helpers/bot-path.helper';
+import { BotJobDedupHelper } from './helpers/bot-job-dedup.helper';
 
 interface IActiveJobContext {
   jobId: string;
@@ -202,13 +203,29 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Đưa một job mới vào hàng đợi PENDING.
+   * Đưa một job mới vào hàng đợi PENDING (có tích hợp Deduplication Guard).
    */
   public async enqueue(
     jobType: string,
     payload: Record<string, any> = {},
     maxAttempts: number = 3,
+    options?: { bypassDedup?: boolean },
   ): Promise<BotJob> {
+    if (!options?.bypassDedup) {
+      const dedup = await BotJobDedupHelper.checkJobConflict(
+        this.botJobModel,
+        jobType,
+        payload,
+      );
+      if (!dedup.canEnqueue && dedup.activeJob) {
+        this.logger.warn(`[DEDUP-GUARD] ${dedup.reason}`);
+        const reusedJob = dedup.activeJob;
+        (reusedJob as any).isReused = true;
+        (reusedJob as any).dedupReason = dedup.reason;
+        return reusedJob as BotJob;
+      }
+    }
+
     const job = new this.botJobModel({
       jobType,
       payload,
@@ -219,6 +236,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     });
     const saved = await job.save();
     await this.syncJobToChecklist(saved, 'PENDING');
+    (saved as any).isReused = false;
     return saved;
   }
 

@@ -754,10 +754,13 @@ export class KlgdReconService {
     sessionStart.setHours(sHour, sMin, 0, 0);
     const checkTime = new Date();
     if (checkTime < sessionStart) {
-      sessionStart.setDate(sessionStart.getDate() - 1);
-    }
-    while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
-      sessionStart.setDate(sessionStart.getDate() - 1);
+      // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
+      if (checkTime.getDay() !== 1) {
+        sessionStart.setDate(sessionStart.getDate() - 1);
+        while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+          sessionStart.setDate(sessionStart.getDate() - 1);
+        }
+      }
     }
 
     const checkKlgdFlag = options?.checkKlgd !== false;

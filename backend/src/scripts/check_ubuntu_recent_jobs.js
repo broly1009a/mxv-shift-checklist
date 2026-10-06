@@ -5,11 +5,10 @@ conn.on('ready', () => {
   const cmd = `
     mongosh mxv_shift_checklist --quiet --eval '
       const jobs = db.bot_jobs.find({ jobType: "CHECK_KLGD" }).sort({ createdAt: -1 }).limit(5).toArray();
-      jobs.forEach(j => {
-        print("----------------------------------");
-        print("ID: " + j._id + " | Status: " + j.status + " | Created: " + j.createdAt);
-        print("Totals: " + JSON.stringify(j.payload?.result?.totals));
-      });
+      const j = jobs[0];
+      print("ID: " + j._id + " | Status: " + j.status + " | Created: " + j.createdAt);
+      print("Totals: " + JSON.stringify(j.payload?.result?.totals, null, 2));
+      print("Mismatched Trades: " + JSON.stringify(j.payload?.result?.mismatchedTrades, null, 2));
     '
   `;
 

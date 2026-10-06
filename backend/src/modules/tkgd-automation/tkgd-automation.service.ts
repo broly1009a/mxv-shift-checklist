@@ -3693,187 +3693,45 @@ export class TkgdAutomationService {
   }
 
   /**
-   * Cron Job tự động chạy mỗi 1 phút — kiểm tra từng user có đến hạn chạy chưa.
-   * Mỗi user có intervalMinutes riêng (3/5/10/15/30), bot sẽ tính toán và kích hoạt đúng thời điểm.
-   * Thiết kế này tránh tình trạng hardcode 5 phút không tương thích với cấu hình của user.
+   * [DEPRECATED / DISABLED]: Module TKGD đã được tách thành dự án độc lập (mxv-account-opening-reconciler).
+   * Vô hiệu hóa toàn bộ Cron Job chạy ngầm quét email và M-System trên hệ thống mxv-shift-checklist để tránh xung đột tài nguyên.
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron(CronExpression.EVERY_MINUTE)
   async handleCronAutoPipeline() {
-    try {
-      const activeConfigs = await this.userConfigModel.find({
-        'autoPipeline.enabled': true,
-      }).lean();
-
-      if (!activeConfigs || activeConfigs.length === 0) return;
-
-      const now = Date.now();
-      for (const cfg of activeConfigs) {
-        const intervalMs = Math.max(1, cfg.autoPipeline?.intervalMinutes ?? 5) * 60 * 1000;
-        const lastRun = cfg.autoPipeline?.lastRunTime ?? 0;
-
-        // Kiểm tra xem đã đến hạn chạy chu kỳ mới chưa
-        if (now - lastRun < intervalMs) continue;
-
-        // Chặn cùng user chạy đè nhau (per-user mutex)
-        if (this.autoPipelineRunningUsers.has(cfg.userEmail)) {
-          this.logger.debug(`[TKGD-CRON] ${cfg.userEmail} đang chạy chu kỳ trước, bỏ qua.`);
-          continue;
-        }
-
-        // Chạy không blocking: fire-and-forget cho từng user độc lập
-        this.runAutoPipelineCycle(cfg.userEmail).catch((err) => {
-          this.logger.error(`[TKGD-CRON] Lỗi chu kỳ tự động cho ${cfg.userEmail}: ${err.message}`);
-        });
-      }
-    } catch (err: any) {
-      this.logger.error(`[TKGD-CRON] Lỗi kiểm tra hàng loạt: ${err.message}`);
-    }
+    // Disabled: Không chạy ngầm trên checklist backend
+    return;
   }
 
   /**
-   * Kích hoạt 1 chu trình tự động toàn diện: Quét Mail -> Bóc tách OCR -> Đồng bộ M-System -> Đối soát -> Cập nhật Excel
+   * Kích hoạt 1 chu trình tự động toàn diện: [DISABLED TRÊN HỆ THỐNG CHECKLIST]
    */
   async runAutoPipelineCycle(userEmail: string): Promise<{ success: boolean; processedCount: number; message: string }> {
-    // Per-user mutex: chặn cùng 1 user chạy đè nhau, nhưng không chặn các user khác
-    if (this.autoPipelineRunningUsers.has(userEmail)) {
-      return { success: false, processedCount: 0, message: `${userEmail} đang trong chu kỳ xử lý, bỏ qua.` };
-    }
-
-    this.autoPipelineRunningUsers.add(userEmail);
-    this.logger.log(`[TKGD-AUTO] Bắt đầu chu trình tự động hóa 24/7 cho ${userEmail}...`);
-
-    // Timeout tổng cho toàn bộ chu kỳ = 8 phút (an toàn khi interval ngắn nhất là 3 phút)
-    const PIPELINE_TIMEOUT_MS = 8 * 60 * 1000;
-
-    try {
-      const pipelineTask = async () => {
-        // 1. Quét mail mới
-        this.updateProgress(userEmail, {
-          isProcessing: true,
-          taskType: 'SYNC_MAIL',
-          stage: 'Đang tự động quét email mở TKGD mới...',
-          percent: 15,
-        });
-        const mailResult = await this.syncMailOpeningAccounts(userEmail);
-        const newMailCount = mailResult.count || 0;
-
-        const userCfg = await this.userConfigModel.findOne({ userEmail }).lean();
-        const shouldSyncMS = userCfg?.autoPipeline?.autoSyncMSystem !== false;
-        const shouldExportExcel = userCfg?.autoPipeline?.autoExportExcel !== false;
-
-        // 2. Cào M-System nếu bật cấu hình và có hồ sơ chưa đồng bộ
-        let msResult = { scrapedCount: 0 };
-        if (shouldSyncMS) {
-          const pendingSyncCount = await this.cleanRecordModel.countDocuments({
-            'ms.isFoundOnMS': false,
-          });
-
-          if (pendingSyncCount > 0) {
-            const batchSize = Math.max(1, userCfg?.autoPipeline?.batchSize || 50);
-            const processBatchCount = Math.min(pendingSyncCount, batchSize);
-
-            this.updateProgress(userEmail, {
-              isProcessing: true,
-              taskType: 'SYNC_MS',
-              stage: `Đang tự động đồng bộ M-System cho ${processBatchCount} hồ sơ (trong tổng ${pendingSyncCount} hồ sơ chờ)...`,
-              percent: 50,
-            });
-            // Wrap M-System scraper với timeout 3 phút riêng — Playwright không được treo quá lâu
-            const MS_TIMEOUT_MS = 3 * 60 * 1000;
-            msResult = await Promise.race([
-              this.syncMSystemAccounts(userEmail),
-              new Promise<{ scrapedCount: number }>((_, reject) =>
-                setTimeout(() => reject(new Error('syncMSystemAccounts timeout sau 3 phút')), MS_TIMEOUT_MS)
-              ),
-            ]).catch((err) => {
-              this.logger.warn(`[TKGD-AUTO] ${err.message} — tiếp tục bước đối soát.`);
-              return { scrapedCount: 0 };
-            });
-          }
-        }
-
-        // 3. Tự động đối soát và xuất Excel (nếu bật cấu hình)
-        if (shouldExportExcel) {
-          this.updateProgress(userEmail, {
-            isProcessing: true,
-            taskType: 'RECONCILE',
-            stage: 'Đang tự động đối soát chéo và cập nhật Excel...',
-            percent: 85,
-          });
-          const todayStr = new Date().toISOString().slice(0, 10);
-          await this.runReconciliation(userEmail, todayStr);
-        }
-
-        return newMailCount + (msResult.scrapedCount || 0);
-      };
-
-      // Race giữa pipeline thực tế và timeout tổng — tránh block cron khi có sự cố
-      const totalDone = await Promise.race([
-        pipelineTask(),
-        new Promise<number>((_, reject) =>
-          setTimeout(() => reject(new Error(`Pipeline timeout sau ${PIPELINE_TIMEOUT_MS / 60000} phút`)), PIPELINE_TIMEOUT_MS)
-        ),
-      ]);
-
-      // Lưu timestamp lần chạy cuối
-      await this.userConfigModel.updateOne(
-        { userEmail },
-        { $set: { 'autoPipeline.lastRunTime': Date.now(), 'autoPipeline.lastProcessedCount': totalDone } }
-      );
-
-      this.updateProgress(userEmail, {
-        isProcessing: false,
-        taskType: 'IDLE',
-        percent: 100,
-        stage: `Hoàn tất chu kỳ tự động: xử lý ${totalDone} mục.`,
-      });
-      this.logger.log(`[TKGD-AUTO]  Chu kỳ hoàn tất cho ${userEmail}: ${totalDone} mục.`);
-      return { success: true, processedCount: totalDone, message: `Đã xử lý xong ${totalDone} mục.` };
-
-    } catch (err: any) {
-      this.logger.error(`[TKGD-AUTO]  Lỗi chu trình tự động cho ${userEmail}: ${err.message}`);
-      // Vẫn lưu lastRunTime để tránh retry ngay lập tức
-      await this.userConfigModel.updateOne(
-        { userEmail },
-        { $set: { 'autoPipeline.lastRunTime': Date.now() } }
-      ).catch(() => { });
-      this.updateProgress(userEmail, {
-        isProcessing: false,
-        taskType: 'IDLE',
-        stage: `Lỗi chu kỳ tự động: ${err.message}`,
-      });
-      return { success: false, processedCount: 0, message: err.message };
-    } finally {
-      this.autoPipelineRunningUsers.delete(userEmail);
-    }
+    this.logger.warn(`[TKGD-AUTO] Tác vụ chạy ngầm tự động của ${userEmail} đã bị vô hiệu hóa vì module TKGD đã được chuyển sang dự án độc lập (mxv-account-opening-reconciler).`);
+    return {
+      success: false,
+      processedCount: 0,
+      message: 'Tính năng chạy tự động ngầm của TKGD trên hệ thống Checklist đã được vô hiệu hóa. Vui lòng sử dụng hệ thống riêng mxv-account-opening-reconciler.',
+    };
   }
 
+  /* =========================================================================
+   * [LEGACY AUTO PIPELINE IMPLEMENTATION - ĐÃ VÔ HIỆU HÓA HOÀN TOÀN]
+   * ========================================================================= */
+
   /**
-   * Bật/Tắt chế độ tự động 24/7 cho User
+   * Bật/Tắt chế độ tự động 24/7 cho User (ĐÃ KHÓA: Luôn ở trạng thái TẮT trên hệ thống Checklist)
    */
-  async toggleAutoPipeline(userEmail: string, enabled?: boolean) {
-    let cfg = await this.userConfigModel.findOne({ userEmail });
-    if (!cfg) {
-      cfg = await this.userConfigModel.create({
-        userEmail,
-        fullName: userEmail.split('@')[0],
-        autoPipeline: { enabled: true, intervalMinutes: 5, batchSize: 50 },
-      });
-    }
-
-    const currentStatus = cfg.autoPipeline?.enabled ?? false;
-    const newStatus = typeof enabled === 'boolean' ? enabled : !currentStatus;
-
+  async toggleAutoPipeline(userEmail: string, _enabled?: boolean) {
     await this.userConfigModel.updateOne(
       { userEmail },
-      { $set: { 'autoPipeline.enabled': newStatus } }
+      { $set: { 'autoPipeline.enabled': false } }
     );
 
-    this.logger.log(`[TKGD-AUTO] ${userEmail} đã ${newStatus ? 'BẬT' : 'TẮT'} chế độ tự động 24/7.`);
+    this.logger.log(`[TKGD-AUTO] Đã khóa chế độ tự động của ${userEmail} (Chuyển sang mxv-account-opening-reconciler).`);
     return {
       success: true,
-      enabled: newStatus,
-      message: newStatus ? 'Đã kích hoạt chế độ Tự Động 24/7 (Quét mỗi 5 phút).' : 'Đã tạm dừng chế độ Tự Động 24/7.',
+      enabled: false,
+      message: 'Tính năng Tự Động TKGD đã được chuyển sang dự án độc lập (mxv-account-opening-reconciler) và đã tắt hoàn toàn tại đây.',
     };
   }
 
@@ -3882,18 +3740,13 @@ export class TkgdAutomationService {
    */
   async getAutoPipelineStatus(userEmail: string) {
     const cfg = await this.userConfigModel.findOne({ userEmail });
-    const isEnabled = cfg?.autoPipeline?.enabled ?? false;
-    const lastRunTime = cfg?.autoPipeline?.lastRunTime ?? 0;
-    const lastProcessedCount = cfg?.autoPipeline?.lastProcessedCount ?? 0;
-    const intervalMinutes = cfg?.autoPipeline?.intervalMinutes ?? 5;
-
     return {
-      enabled: isEnabled,
-      isRunning: this.isAutoPipelineRunning,
-      lastRunTime,
-      lastProcessedCount,
-      intervalMinutes,
-      nextRunTime: lastRunTime > 0 ? lastRunTime + intervalMinutes * 60 * 1000 : 0,
+      enabled: false,
+      isRunning: false,
+      lastRunTime: cfg?.autoPipeline?.lastRunTime ?? 0,
+      lastProcessedCount: cfg?.autoPipeline?.lastProcessedCount ?? 0,
+      intervalMinutes: cfg?.autoPipeline?.intervalMinutes ?? 5,
+      nextRunTime: 0,
     };
   }
 

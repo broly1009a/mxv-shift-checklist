@@ -972,6 +972,183 @@ export class ReconciliationController {
     }
   }
 
+  // =========================================================================
+  // CHECK DSGD BEFORE EOD ENDPOINTS (Tương đương CheckDSGDBeforeEOD trong tool C#)
+  // =========================================================================
+
+  /**
+   * Endpoint 1: Upload thủ công file để đối chiếu DSGD trước EOD.
+   * Nhận files:
+   * - dsgdOriginal (hoặc dsgd): File DSGD.xlsx ban đầu (bắt buộc)
+   * - dsgdTemp (hoặc dsgdSnapshot): File DSGD snapshot tải lúc chuẩn bị EOD (tuỳ chọn)
+   * - acmTrades: File ACM Trades Straits Financial CSV (tuỳ chọn)
+   */
+  @Post('upload-dsgd-before-eod')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'dsgdOriginal', maxCount: 1 },
+      { name: 'dsgd', maxCount: 1 },
+      { name: 'dsgdTemp', maxCount: 1 },
+      { name: 'dsgdSnapshot', maxCount: 1 },
+      { name: 'acmTrades', maxCount: 1 },
+    ]),
+  )
+  async uploadAndCheckDSGDBeforeEOD(
+    @UploadedFiles()
+    files: {
+      dsgdOriginal?: any[];
+      dsgd?: any[];
+      dsgdTemp?: any[];
+      dsgdSnapshot?: any[];
+      acmTrades?: any[];
+    },
+    @Body('shiftLogId') shiftLogId?: string,
+    @Body('taskId') taskId?: string,
+    @Body('tradingDate') tradingDateStr?: string,
+    @Body('timeSuffix') timeSuffix?: string,
+  ) {
+    const originalBuf =
+      files?.dsgdOriginal?.[0]?.buffer || files?.dsgd?.[0]?.buffer;
+    if (!originalBuf) {
+      throw new BadRequestException(
+        'File M-System DSGD.xlsx gốc (dsgdOriginal hoặc dsgd) là bắt buộc.',
+      );
+    }
+
+    const tempBuf =
+      files?.dsgdTemp?.[0]?.buffer || files?.dsgdSnapshot?.[0]?.buffer;
+    const acmBuf = files?.acmTrades?.[0]?.buffer;
+
+    try {
+      const result = this.reconciliationService.checkDSGDBeforeEODFromBuffers(
+        {
+          dsgdOriginal: originalBuf,
+          dsgdTemp: tempBuf,
+          acmTrades: acmBuf,
+        },
+        {
+          timeSuffix,
+          sessionDate: tradingDateStr,
+        },
+      );
+
+      if (shiftLogId && taskId) {
+        const systemUser = {
+          id: '000000000000000000000000',
+          fullName: 'Hệ thống tự động (Bot)',
+          username: 'system_bot',
+          role: 'ADMIN',
+        };
+        const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
+
+        let note = `[KIỂM TRA DSGD TRƯỚC EOD]\n`;
+        note += `• Khối lượng DSGD gốc: ${result.totalOriginal} lot\n`;
+        note += `• Khối lượng DSGD snapshot: ${result.totalTemp} lot (Chênh lệch: ${result.differTotal} lot)\n`;
+        note += `• Khối lượng ACM MS vs Straits: ${result.totalACMMS} vs ${result.totalACMSFTP} lot (Chênh lệch: ${result.differACM} lot)\n`;
+        note += `• Kết luận: ${result.messages.join(' | ')}\n`;
+
+        const noteJson = JSON.stringify({
+          success: result.passed,
+          message: note,
+          result,
+          type: 'CHECK_DSGD_BEFORE_EOD',
+          attempts: 1,
+          maxAttempts: 1,
+          executedAt: new Date().toISOString(),
+        });
+
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          status,
+          systemUser,
+          noteJson,
+          true,
+        );
+      }
+
+      return {
+        success: result.passed,
+        message: result.messages.join(' | '),
+        result,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(err.message);
+    }
+  }
+
+  /**
+   * Endpoint 2: Tự động kiểm tra DSGD trước EOD từ thư mục Backup Server/SFTP.
+   * Body:
+   * - tradingDate: Ngày ca trực / Ngày phiên
+   * - timeSuffix: Suffix thời gian (ví dụ 17h00)
+   * - triggerDownload: Có kích hoạt Bot RPA M-System tải DSGD snapshot trước khi kiểm tra không
+   */
+  @Post('check-dsgd-before-eod')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runAutoCheckDSGDBeforeEOD(
+    @Body('tradingDate') tradingDateStr?: string,
+    @Body('timeSuffix') timeSuffix?: string,
+    @Body('triggerDownload') triggerDownload?: boolean,
+    @Body('shiftLogId') shiftLogId?: string,
+    @Body('taskId') taskId?: string,
+  ) {
+    try {
+      const result = await this.reconciliationService.runAutoCheckDSGDBeforeEOD({
+        tradingDate: tradingDateStr ? new Date(tradingDateStr) : new Date(),
+        timeSuffix,
+        triggerDownload: Boolean(triggerDownload),
+      });
+
+      if (shiftLogId && taskId) {
+        const systemUser = {
+          id: '000000000000000000000000',
+          fullName: 'Hệ thống tự động (Bot)',
+          username: 'system_bot',
+          role: 'ADMIN',
+        };
+        const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
+
+        let note = `[KIỂM TRA DSGD TRƯỚC EOD - TỰ ĐỘNG]\n`;
+        if (result.sessionDate) {
+          note += `• Ngày phiên đối chiếu T-1: ${result.sessionDate}\n`;
+        }
+        note += `• Khối lượng DSGD gốc: ${result.totalOriginal} lot\n`;
+        note += `• Khối lượng DSGD snapshot (${result.timeSuffix || 'mới nhất'}): ${result.totalTemp} lot (Chênh lệch: ${result.differTotal} lot)\n`;
+        note += `• Khối lượng ACM MS vs Straits: ${result.totalACMMS} vs ${result.totalACMSFTP} lot (Chênh lệch: ${result.differACM} lot)\n`;
+        note += `• Kết luận: ${result.messages.join(' | ')}\n`;
+
+        const noteJson = JSON.stringify({
+          success: result.passed,
+          message: note,
+          result,
+          type: 'CHECK_DSGD_BEFORE_EOD',
+          attempts: 1,
+          maxAttempts: 1,
+          executedAt: new Date().toISOString(),
+        });
+
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          status,
+          systemUser,
+          noteJson,
+          true,
+        );
+      }
+
+      return {
+        success: result.passed,
+        message: result.messages.join(' | '),
+        result,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(err.message);
+    }
+  }
+
   @Post('sync-usd-rate')
   @Permissions('ACCESS_AUTO_SHIFT')
   async syncUsdRate() {

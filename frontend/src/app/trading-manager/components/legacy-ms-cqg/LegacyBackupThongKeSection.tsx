@@ -75,12 +75,14 @@ export interface LegacyBackupThongKeSectionProps {
   token: string | null;
   selectedDate: string;
   onSelectDate?: (date: string) => void;
+  filterScope?: 'ALL' | 'MS_CQG' | 'OMS';
 }
 
 export default function LegacyBackupThongKeSection({
   token,
   selectedDate,
   onSelectDate,
+  filterScope = 'ALL',
 }: LegacyBackupThongKeSectionProps) {
   // Subtab điều hướng phân hệ backup: MS-CQG-CCP vs CE-ACM
   const [backupSubTab, setBackupSubTab] = useState<'MS_CQG_CCP' | 'CE_ACM'>('MS_CQG_CCP');
@@ -926,6 +928,7 @@ export default function LegacyBackupThongKeSection({
           <span>Backup MS – CQG – CCP (Hiện tại)</span>
         </button>
 
+        {(filterScope === 'ALL' || filterScope === 'OMS') && (
         <button
           type="button"
           onClick={() => setBackupSubTab('CE_ACM')}
@@ -960,6 +963,7 @@ export default function LegacyBackupThongKeSection({
             MỚI
           </span>
         </button>
+        )}
       </div>
 
       {backupSubTab === 'MS_CQG_CCP' ? (
@@ -1167,6 +1171,7 @@ export default function LegacyBackupThongKeSection({
           </div>
 
           {/* CỘT 3: BACKUP CORECCP (25 BÁO CÁO VNCLEAR MAKER) */}
+          {(filterScope === 'ALL' || filterScope === 'OMS') && (
           <div style={{ border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
@@ -1289,6 +1294,7 @@ export default function LegacyBackupThongKeSection({
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
 

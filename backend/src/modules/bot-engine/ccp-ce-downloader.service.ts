@@ -443,8 +443,9 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     code: 'DSLCK',
     name: 'Lệnh chờ khớp (CE)',
     parentMenu: 'Quản lý sổ lệnh',
-    childMenu: 'Lệnh chờ khớp',
-    cachedUrl: '/ORDERS/ORDERBOOK_WAITING',
+    childMenu: 'Danh sách lệnh liên thông ACM',
+    tabName: 'Lệnh chờ khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK_ACM',
     enabled: true,
     phase: 'EOD',
     outputFileName: 'DSLCK ACM CE.xlsx',
@@ -453,8 +454,9 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     code: 'DSLDK',
     name: 'Lệnh điều kiện (CE)',
     parentMenu: 'Quản lý sổ lệnh',
-    childMenu: 'Lệnh điều kiện',
-    cachedUrl: '/ORDERS/ORDERBOOK_COND',
+    childMenu: 'Danh sách lệnh liên thông ACM',
+    tabName: 'Lệnh đã khớp',
+    cachedUrl: '/ORDERS/ORDERBOOK_ACM',
     enabled: true,
     phase: 'EOD',
     outputFileName: 'DSLDK ACM CE.xlsx',
@@ -463,8 +465,9 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     code: 'DSLH',
     name: 'Lệnh hủy (CE)',
     parentMenu: 'Quản lý sổ lệnh',
-    childMenu: 'Lệnh hủy',
-    cachedUrl: '/ORDERS/ORDERBOOK_CANCEL',
+    childMenu: 'Danh sách lệnh liên thông ACM',
+    tabName: 'Lệnh đã hủy',
+    cachedUrl: '/ORDERS/ORDERBOOK_ACM',
     enabled: true,
     phase: 'EOD',
     outputFileName: 'DSLH ACM CE.xlsx',
@@ -483,12 +486,24 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     code: 'HH',
     name: 'Hàng hóa (CE)',
     parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa liên thông (ACM)',
-    cachedUrl: '/PRODUCT/COMMODITY_ACM',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    cachedUrl: '/PRODUCT/COMMODITY',
     enabled: true,
     phase: 'EOD',
     outputFileName: 'HH ACM.xlsx',
   },
+  {
+    code: 'HD',
+    name: 'Hợp đồng chi tiết (CE)',
+    parentMenu: 'Quản lý sản phẩm',
+    childMenu: 'Quản lý hàng hóa, hợp đồng',
+    cachedUrl: '/PRODUCT/COMMODITY',
+    enabled: true,
+    phase: 'EOD',
+    outputFileName: 'HĐ *.xlsx',
+  },
+
+  // ── Legacy Contract Aliases (Tương thích ngược, tắt mặc định giống CCP) ────
   {
     code: 'HD_CP2CO',
     name: 'Hợp đồng CP2CO (Đồng Nano)',
@@ -496,7 +511,7 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     childMenu: 'Quản lý hàng hóa, hợp đồng',
     commodityCode: 'CP2CO',
     cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: true,
+    enabled: false,
     phase: 'EOD',
     outputFileName: 'HĐ CP2CO.xlsx',
   },
@@ -507,7 +522,7 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     childMenu: 'Quản lý hàng hóa, hợp đồng',
     commodityCode: 'PL1NY',
     cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: true,
+    enabled: false,
     phase: 'EOD',
     outputFileName: 'HĐ PL1NY.xlsx',
   },
@@ -518,7 +533,7 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     childMenu: 'Quản lý hàng hóa, hợp đồng',
     commodityCode: 'SI5CO',
     cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: true,
+    enabled: false,
     phase: 'EOD',
     outputFileName: 'HĐ SI5CO.xlsx',
   },
@@ -1095,13 +1110,15 @@ export class CcpCeDownloaderService {
     const targetTabName = report.tabName || (report.code === 'TTTT' || url.includes('PNL_EXECUTED') ? 'Lịch sử tất toán' : '');
     if (targetTabName) {
       try {
-        const tabElem = page.locator(`xpath=//*[self::button or self::div or self::span][normalize-space(text())='${targetTabName}' or contains(text(), '${targetTabName}')]`).first();
-        if (await tabElem.isVisible({ timeout: 2_000 })) {
-          await tabElem.click({ force: true });
-          await page.waitForTimeout(1500);
-          this.log(`[Filter] Da click tab: ${targetTabName}`, logCb);
-        }
-      } catch { }
+        const tabElem = page.locator(`xpath=//*[self::button or self::div or self::span or @role='tab'][normalize-space(text())='${targetTabName}' or contains(text(), '${targetTabName}')]`).first();
+        await tabElem.waitFor({ state: 'visible', timeout: 8000 });
+        await tabElem.click({ force: true });
+        this.log(`[Filter] Đã click chuyển sang tab: "${targetTabName}"`, logCb);
+        await page.waitForTimeout(1500);
+        await this.waitForTableLoadingComplete(page, 10000);
+      } catch (err: any) {
+        this.log(`[Filter] Cảnh báo click tab "${targetTabName}": ${err?.message}`, logCb);
+      }
     }
 
     // ── Kiểm tra nếu là ngày HÔM NAY: Không cần filter ngày, tải trực tiếp ──
@@ -1349,81 +1366,57 @@ export class CcpCeDownloaderService {
     }
 
     let downloadObj: Download | null = null;
+    const downloadPromise = page.waitForEvent('download', { timeout: effectiveTimeoutMs })
+      .then((d) => { downloadObj = d; return d; })
+      .catch(() => null);
 
-    const triggerExportWithToastCheck = async (
-      actionFn: () => Promise<void>,
-    ): Promise<Download | 'NO_DATA' | null> => {
-      const downloadPromise = page.waitForEvent('download', { timeout: effectiveTimeoutMs })
-        .then((d) => { downloadObj = d; return d; })
-        .catch(() => null);
+    // 1. Click nút Kết xuất
+    await exportBtn.click({ force: true }).catch(() => {});
+    await page.waitForTimeout(400);
 
-      await actionFn();
+    // 2. Kiểm tra nếu có menu dropdown "Xuất tất cả"
+    const exportAllOption = page.locator(
+      "xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']" +
+      " | //*[self::li or self::div or self::span or self::p][contains(text(), 'Export all')]",
+    ).first();
 
-      // Quét Toast song song bằng XPath contains(., ...)
-      const startTime = Date.now();
-      while (Date.now() - startTime < effectiveTimeoutMs) {
-        if (downloadObj) return downloadObj;
+    if (await exportAllOption.isVisible({ timeout: 1500 }).catch(() => false)) {
+      this.log('   [Export] Phát hiện menu dropdown -> Bấm "Xuất tất cả"...', logCb);
+      await exportAllOption.click({ force: true }).catch(() => {});
+    }
 
-        try {
-          const toastLocator = page.locator(
-            "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(@class, 'Toastify') or contains(@role, 'alert') or contains(@class, 'MuiSnackbar-root')]" +
-            "[contains(., 'Không có dữ liệu') or contains(., 'không có dữ liệu') or contains(., 'No data') or contains(., 'No records')]",
-          ).first();
-
-          if (await toastLocator.isVisible({ timeout: 150 })) {
-            const text = (await toastLocator.textContent()) || '';
-            this.log(`  [Toast Notification] "${text.trim()}" -> Hệ thống xác nhận không có dữ liệu để xuất!`, logCb);
-            return 'NO_DATA';
-          }
-        } catch { }
-
-        await page.waitForTimeout(200);
-      }
-
-      const res = await downloadPromise;
-      if (res) return res;
-      if (isTableEmpty) {
-        this.log('  [Export] Khong co file tai ve sau 6s tren bang rong -> Coi nhu Khong co du lieu.', logCb);
-        return 'NO_DATA';
-      }
-      return null;
-    };
-
-    // Phương án 1: Mở menu 'Xuất tất cả' (Thử hover trước, nếu không mở thì click nút Kết xuất để mở Menu MUI)
-    try {
-      const exportAllOption = page.locator(
-        "xpath=//li[contains(text(), 'Xuất tất cả')] | //*[self::li or self::div or self::span][text()='Xuất tất cả']" +
-        " | //*[self::li or self::div or self::span or self::p][contains(text(), 'Export all')]",
-      ).first();
-
-      // 1. Thử hover trước
-      await exportBtn.hover({ timeout: 2_000, force: true }).catch(() => {});
-      await page.waitForTimeout(250);
-
-      let isMenuVisible = await exportAllOption.isVisible({ timeout: 1_000 }).catch(() => false);
-
-      // 2. Nếu hover không mở menu (chuẩn của Button MUI), click vào nút Kết xuất để kích hoạt mở Dropdown Menu
-      if (!isMenuVisible) {
-        await exportBtn.click({ force: true }).catch(() => {});
-        await page.waitForTimeout(350);
-        isMenuVisible = await exportAllOption.isVisible({ timeout: 1_500 }).catch(() => false);
-      }
-
-      if (isMenuVisible) {
-        const res = await triggerExportWithToastCheck(() => exportAllOption.click({ force: true }));
+    // 3. Chờ file tải về song song kiểm tra Toast thông báo "Không có dữ liệu"
+    const startTime = Date.now();
+    while (Date.now() - startTime < effectiveTimeoutMs) {
+      if (downloadObj) {
         await this.dismissModalBackdrop(page);
-        return res;
+        return downloadObj;
       }
-    } catch { }
 
-    // Phương án 2: Double-click nút Kết xuất (nếu là nút download trực tiếp không có dropdown)
-    try {
-      const res = await triggerExportWithToastCheck(() => exportBtn.dblclick({ force: true }));
-      await this.dismissModalBackdrop(page);
-      return res;
-    } catch { }
+      try {
+        const toastLocator = page.locator(
+          "xpath=//*[contains(@class, 'notistack-Snackbar') or contains(@class, 'MuiAlert-message') or contains(@class, 'Toastify') or contains(@role, 'alert') or contains(@class, 'MuiSnackbar-root')]" +
+          "[contains(., 'Không có dữ liệu') or contains(., 'không có dữ liệu') or contains(., 'No data') or contains(., 'No records')]",
+        ).first();
 
+        if (await toastLocator.isVisible({ timeout: 150 })) {
+          const text = (await toastLocator.textContent()) || '';
+          this.log(`  [Toast Notification] "${text.trim()}" -> Hệ thống xác nhận không có dữ liệu để xuất!`, logCb);
+          await this.dismissModalBackdrop(page);
+          return 'NO_DATA';
+        }
+      } catch { }
+
+      await page.waitForTimeout(200);
+    }
+
+    const res = await downloadPromise;
     await this.dismissModalBackdrop(page);
+    if (res) return res;
+    if (isTableEmpty) {
+      this.log('  [Export] Không có file tải về sau timeout trên bảng rỗng -> Coi như Không có dữ liệu.', logCb);
+      return 'NO_DATA';
+    }
     return null;
   }
 
@@ -1652,6 +1645,12 @@ export class CcpCeDownloaderService {
     const learnedUrl = await this.navigateToReport(page, report, systemUrl, logCb);
     report.cachedUrl = learnedUrl;
 
+    // Xử lý riêng cho các file Hợp đồng chi tiết theo mã hàng hóa (Modal Contract)
+    if (report.commodityCode) {
+      const ok = await this.exportSingleCommodityContract(page, report.commodityCode, destPath, logCb);
+      return ok;
+    }
+
     const searchRes = await this.setDateRangeAndSearch(
       page,
       report,
@@ -1803,15 +1802,32 @@ export class CcpCeDownloaderService {
       await this.ensureSidebarExpanded(page);
 
       // Vòng lặp tải từng loại báo cáo
-      for (const report of reportsToRun) {
-        this.log(`\n>>> BAO CAO: ${report.name.toUpperCase()} (${report.code}) <<<`, logCb);
+      let contractsProcessed = false;
+      const targetCommodityCodes = reportsToRun
+        .map((r) => r.commodityCode || (r.code.startsWith('HD_') ? r.code.replace(/^HD_/, '') : null))
+        .filter(Boolean) as string[];
 
+      for (const report of reportsToRun) {
         if (report.code === 'HD' || report.code.startsWith('HD_')) {
+          if (contractsProcessed) {
+            this.log(`  [Commodity & Contracts] Nhóm Hợp đồng đã được xử lý ở bước trước -> Bỏ qua`, logCb);
+            continue;
+          }
+          contractsProcessed = true;
+          this.log(`\n>>> BAO CAO: HỢP ĐỒNG CHI TIẾT (CE) (${report.code}) <<<`, logCb);
           this.log(`  [Commodity & Contracts] Kích hoạt tải động toàn bộ hợp đồng từ bảng HH...`, logCb);
-          await this.downloadCommodityAndContracts(page, systemUrl, outputDir, logCb);
+          await this.downloadCommodityAndContracts(
+            page,
+            systemUrl,
+            outputDir,
+            targetCommodityCodes.length > 0 ? targetCommodityCodes : undefined,
+            logCb,
+          );
           await new Promise((r) => setTimeout(r, 500));
           continue;
         }
+
+        this.log(`\n>>> BAO CAO: ${report.name.toUpperCase()} (${report.code}) <<<`, logCb);
 
         for (const interval of intervals) {
           await this.downloadReport(page, report, systemUrl, interval, outputDir, opts, logCb);
@@ -2489,252 +2505,224 @@ export class CcpCeDownloaderService {
   // ── COMMODITY & CONTRACTS BATCH DOWNLOAD ─────────────────────────────────
 
   /**
-   * Tải danh mục hàng hóa (HH.xlsx) và duyệt động từng mã hàng hóa để mở Modal ->
-   * Tab "Thông tin hợp đồng" -> Bấm "Kết xuất" -> Lưu HĐ <UACODE>.xlsx.
-   * Hoàn toàn Zero-Hardcode dựa trên DOM thực tế từ USER.
+   * Tải hợp đồng chi tiết của 1 mã hàng hóa cụ thể (ví dụ: CP2CO, PL1NY, SI5CO).
+   */
+  async exportSingleCommodityContract(
+    page: Page,
+    commodityCode: string,
+    destPath: string,
+    logCb?: (m: string) => void,
+  ): Promise<boolean> {
+    this.log(`  [Contract] Tìm kiếm dòng hàng hóa mã: "${commodityCode}"...`, logCb);
+    if (!page.url().includes('/PRODUCT/COMMODITY')) {
+      const commUrl = this.resolveReportUrl('/PRODUCT/COMMODITY', page.url());
+      await page.goto(commUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForTimeout(1500);
+    }
+    await this.dismissModalBackdrop(page);
+    await this.waitForTableLoadingComplete(page, 15000);
+
+    const rowLocator = page.locator(
+      `xpath=//tr[.//td[@data-column-id='UACODE' and normalize-space(.)='${commodityCode}'] or .//td[normalize-space(.)='${commodityCode}']]`
+    ).first();
+
+    const isRowVis = await rowLocator.isVisible({ timeout: 8000 }).catch(() => false);
+    if (!isRowVis) {
+      this.log(`  [Info] Không tìm thấy hàng hóa mã "${commodityCode}" trên sàn (có thể là mã của môi trường khác). Bỏ qua an toàn.`, logCb);
+      return true;
+    }
+
+    const viewBtn = rowLocator.locator("xpath=.//button[contains(@class, 'MuiIconButton-root') or .//svg]").first();
+    await viewBtn.click({ force: true });
+    await page.waitForTimeout(1000);
+
+    const modalTitle = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa')").first();
+    await modalTitle.waitFor({ state: 'visible', timeout: 8000 });
+
+    const contractTab = page.locator("xpath=//button[@id='tab-1' or contains(., 'Thông tin hợp đồng')]").first();
+    await contractTab.waitFor({ state: 'visible', timeout: 5000 });
+    await contractTab.click({ force: true });
+    await page.waitForTimeout(1500);
+
+    const tabpanel = page.locator("#tabpanel-1");
+    const noDataText = tabpanel.locator("xpath=.//*[contains(text(), 'Không có dữ liệu') or contains(text(), '0-0 trên 0')]").first();
+    if (await noDataText.isVisible({ timeout: 1500 }).catch(() => false)) {
+      this.log(`  [Info] Hàng hóa [${commodityCode}] không có hợp đồng (0 bản ghi) -> Bỏ qua`, logCb);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+      return true;
+    }
+
+    const modalExportBtn = tabpanel.locator("button.button-element:has-text('Kết xuất'), button:has-text('Kết xuất')").first();
+    if (!(await modalExportBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+      await page.keyboard.press('Escape');
+      this.log(`  [Error] Không tìm thấy nút Kết xuất trong tab Hợp đồng của mã "${commodityCode}"!`, logCb);
+      return false;
+    }
+
+    const dlPromise = page.waitForEvent('download', { timeout: 25000 }).catch(() => null);
+
+    await modalExportBtn.click({ force: true });
+    await page.waitForTimeout(500);
+
+    const exportAll = page.locator("li:visible:has-text('Xuất tất cả'), [role='menuitem']:visible:has-text('Xuất tất cả')").last();
+    if (await exportAll.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await exportAll.click({ force: true });
+    }
+
+    const dl = await dlPromise;
+    let ok = false;
+    if (dl) {
+      await dl.saveAs(destPath);
+      if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
+        const sz = fs.statSync(destPath).size;
+        this.log(`  [Thành công] Đã lưu: ${destPath} (${sz.toLocaleString()} bytes)`, logCb);
+        ok = true;
+      }
+    }
+
+    // Đóng modal
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    const closeBtn = page.locator("button:has-text('Đóng')").last();
+    if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await closeBtn.click({ force: true });
+    }
+    return ok;
+  }
+
+  /**
+   * Quét danh sách mã hàng hóa thực tế trên sàn CoreEX / CoreCCP (Data-Driven 100%).
+   */
+  async scanActualCommoditiesFromTable(page: Page, maxCount = 20): Promise<string[]> {
+    await this.waitForTableLoadingComplete(page, 15_000);
+    let rows = page.locator("xpath=//tbody[contains(@class, 'MuiTableBody-root') and not(ancestor::div[@id='tabpanel-1'])]//tr[@data-index]");
+    let count = await rows.count();
+    if (count === 0) {
+      rows = page.locator("xpath=//tbody[contains(@class, 'MuiTableBody-root') and not(ancestor::div[@id='tabpanel-1'])]//tr");
+      count = await rows.count();
+    }
+    const list: string[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      const codeCell = row.locator("xpath=.//td[@data-column-id='UACODE']").first();
+      let code = '';
+      if (await codeCell.isVisible().catch(() => false)) {
+        code = (await codeCell.textContent())?.trim() || '';
+      }
+      if (!code) {
+        const tdList = row.locator("xpath=.//td");
+        const numTd = await tdList.count();
+        for (let j = 0; j < numTd; j++) {
+          const text = (await tdList.nth(j).textContent())?.trim() || '';
+          if (/^[A-Z0-9]{2,8}$/.test(text) && !['VND', 'USD', 'MXV', 'KG'].includes(text)) {
+            code = text;
+            break;
+          }
+        }
+      }
+
+      if (code && !list.includes(code)) {
+        list.push(code);
+        if (list.length >= maxCount) break;
+      }
+    }
+    return list;
+  }
+
+  /**
+   * Tải hợp đồng chi tiết theo dữ liệu hàng hóa thật của sàn (Data-Driven 100%).
+   * Hỗ trợ chỉ định danh sách targetCodes hoặc tự động quét mã hàng hóa thực tế trên sàn.
+   * Đồng thời xuất bảng Hàng hóa chính (HH ACM.xlsx / HH.xlsx) nếu chưa có.
    */
   async downloadCommodityAndContracts(
     page: Page,
     systemUrl: string,
     outputDir: string,
-    logCb?: (m: string) => void,
+    targetCodesOrLogCb?: string[] | ((m: string) => void),
+    logCbArg?: (m: string) => void,
   ): Promise<{ hhPath?: string; contractFiles: string[] }> {
-    this.log('\n[Commodity & Contracts] Bắt đầu xử lý Quản lý hàng hóa, hợp đồng...', logCb);
-    const targetUrl = this.resolveReportUrl('/PRODUCT/COMMODITY', systemUrl);
-    await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+    const targetCodes = Array.isArray(targetCodesOrLogCb) ? targetCodesOrLogCb : undefined;
+    const logCb = typeof targetCodesOrLogCb === 'function' ? targetCodesOrLogCb : logCbArg;
+
+    this.log('\n[Commodity & Contracts] Bắt đầu tải Hàng hóa & Hợp đồng chi tiết (Data-Driven)...', logCb);
+    const commUrl = this.resolveReportUrl('/PRODUCT/COMMODITY', systemUrl);
+    if (!page.url().includes('/PRODUCT/COMMODITY')) {
+      await page.goto(commUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForTimeout(1500);
+    }
     await this.dismissModalBackdrop(page);
     await this.waitForTableLoadingComplete(page, 20_000);
 
-    const contractFiles: string[] = [];
+    // 1. Xuất file Hàng hóa chính nếu chưa tồn tại
     let hhPath: string | undefined;
-
-    // 1. Bỏ qua tải HH.xlsx tại đây (đã được xử lý riêng bởi mục báo cáo 'HH')
-    // Để mục 'HD' chỉ chuyên trách tải các file Hợp đồng HĐ *.xlsx
-    /*
-    try {
-      this.log('  [HH] Xuất file danh mục hàng hóa (HH.xlsx)...', logCb);
-      const hhDest = path.join(outputDir, 'HH.xlsx');
-      const dl = await this.triggerExportDownload(page, 20_000, false, logCb);
-      if (dl && dl !== 'NO_DATA') {
-        await dl.saveAs(hhDest);
-        if (fs.existsSync(hhDest) && fs.statSync(hhDest).size > 0) {
-          hhPath = hhDest;
-          this.log(`  ✓ Đã lưu: ${hhDest} (${fs.statSync(hhDest).size} bytes)`, logCb);
-        }
-      }
-    } catch (err: any) {
-      this.log(`  [Warn] Lỗi xuất HH.xlsx: ${err.message}`, logCb);
-    }
-    */
-
-    // 2. Duyệt từng dòng trong bảng hàng hóa để mở Modal -> Tab "Thông tin hợp đồng" -> Xuất HĐ <UACODE>.xlsx
-    try {
-      let pageNum = 1;
-      const processedCodes = new Set<string>();
-
-      // Thử mở rộng 'Số bản ghi mỗi trang' lên 100 (để hiển thị trọn vẹn tất cả hàng hóa nếu có)
+    const isCoreEx = this.isCoreExSystem(systemUrl);
+    const hhFileName = isCoreEx ? 'HH ACM.xlsx' : 'HH.xlsx';
+    const hhDest = path.join(outputDir, hhFileName);
+    if (!fs.existsSync(hhDest)) {
+      this.log(`  [Commodity] Xuất bảng danh mục hàng hóa chính: ${hhFileName}...`, logCb);
       try {
-        const rowsPerPageSelect = page.locator("xpath=//div[contains(@class, 'MuiTablePagination-root') and not(ancestor::div[@id='tabpanel-1'])]//div[@role='combobox' or contains(@class, 'MuiSelect-select')]").first();
-        if (await rowsPerPageSelect.isVisible({ timeout: 2500 }).catch(() => false)) {
-          const currentVal = (await rowsPerPageSelect.textContent())?.trim();
-          if (currentVal !== '100') {
-            await rowsPerPageSelect.scrollIntoViewIfNeeded().catch(() => { });
-            await rowsPerPageSelect.click();
-            await page.waitForTimeout(500);
-            const opt100 = page.locator("xpath=//li[@role='option' and (text()='100' or text()='50' or contains(text(), 'Tất cả'))]").last();
-            if (await opt100.isVisible({ timeout: 1500 }).catch(() => false)) {
-              const optText = (await opt100.textContent())?.trim();
-              this.log(`  [Pagination] Mở rộng hiển thị: '${optText}' bản ghi mỗi trang`, logCb);
-              await opt100.click();
-              await page.waitForTimeout(1000);
-              await this.waitForTableLoadingComplete(page, 15000);
-            } else {
-              await page.keyboard.press('Escape');
-            }
+        const dl = await this.triggerExportDownload(page, 20_000, false, logCb);
+        if (dl && dl !== 'NO_DATA') {
+          await dl.saveAs(hhDest);
+          if (fs.existsSync(hhDest) && fs.statSync(hhDest).size > 0) {
+            hhPath = hhDest;
+            this.log(`  [Commodity] Đã lưu bảng hàng hóa: ${hhDest} (${fs.statSync(hhDest).size.toLocaleString()} bytes)`, logCb);
           }
         }
       } catch (err: any) {
-        this.log(`  [Pagination] Giữ nguyên phân trang mặc định: ${err.message}`, logCb);
+        this.log(`  [Commodity Warn] Không thể xuất bảng hàng hóa chính: ${err?.message}`, logCb);
+      }
+    } else {
+      hhPath = hhDest;
+    }
+
+    const contractFiles: string[] = [];
+    let commoditiesToProcess: string[] = [];
+
+    if (targetCodes && targetCodes.length > 0) {
+      commoditiesToProcess = targetCodes;
+      this.log(`  [Commodity] Danh sách hàng hóa chỉ định: [${commoditiesToProcess.join(', ')}]`, logCb);
+    } else {
+      this.log(`  [Commodity] Đang quét bảng hàng hóa thực tế trên sàn...`, logCb);
+      commoditiesToProcess = await this.scanActualCommoditiesFromTable(page, 20);
+      this.log(`  [Commodity] Phát hiện ${commoditiesToProcess.length} mã hàng hóa thực tế: [${commoditiesToProcess.join(', ')}]`, logCb);
+    }
+
+    let successfulDownloads = 0;
+    for (const code of commoditiesToProcess) {
+      const fileName = `HĐ ${code}.xlsx`;
+      const destPath = path.join(outputDir, fileName);
+
+      if (!page.url().includes('/PRODUCT/COMMODITY')) {
+        await page.goto(commUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+        await page.waitForTimeout(1500);
       }
 
-      // Helper đóng modal an toàn
-      const closeModal = async () => {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const hasModal = await page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')").first().isVisible({ timeout: 500 }).catch(() => false);
-          if (!hasModal) break;
+      const ok = await this.exportSingleCommodityContract(page, code, destPath, logCb);
+      if (ok && fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
+        contractFiles.push(destPath);
+        successfulDownloads++;
+      }
+    }
 
-          const closeX = page.locator("xpath=//*[name()='svg'][path[starts-with(@d, 'M19 6.41')]]").last();
-          if (await closeX.isVisible({ timeout: 500 }).catch(() => false)) {
-            await closeX.click({ force: true });
-            await page.waitForTimeout(400);
-          }
-
-          const closeBtn = page.locator("button.button-element:has-text('Đóng'), button:has-text('Đóng')").last();
-          if (await closeBtn.isVisible({ timeout: 500 }).catch(() => false)) {
-            await closeBtn.scrollIntoViewIfNeeded().catch(() => {});
-            await closeBtn.click({ force: true });
-            await page.waitForTimeout(400);
-          }
-
-          await page.keyboard.press('Escape');
-          await page.waitForTimeout(300);
+    // Fallback: nếu các mã chỉ định không có trên sàn hiện tại (ví dụ mã Prod chạy trên UAT), tự động quét hàng hóa thực tế
+    if (successfulDownloads === 0 && targetCodes && targetCodes.length > 0) {
+      this.log(`  [Info] Không tìm thấy hợp đồng nào cho các mã [${targetCodes.join(', ')}] trên sàn hiện tại. Tự động quét hàng hóa thực tế trên sàn...`, logCb);
+      const actualCodes = await this.scanActualCommoditiesFromTable(page, 10);
+      for (const code of actualCodes) {
+        const fileName = `HĐ ${code}.xlsx`;
+        const destPath = path.join(outputDir, fileName);
+        if (!page.url().includes('/PRODUCT/COMMODITY')) {
+          await page.goto(commUrl, { waitUntil: 'domcontentloaded', timeout: 20_000 });
+          await page.waitForTimeout(1500);
         }
-
-        const allModalTitles = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa'), h2:has-text('Xem Thông tin hợp đồng')");
-        await allModalTitles.first().waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
-        await page.waitForTimeout(400);
-      };
-
-      while (true) {
-        await this.waitForTableLoadingComplete(page, 15000);
-        const rows = page.locator("xpath=//div[contains(@class, 'crud-grid-container') and not(ancestor::div[@id='tabpanel-1'])]//tbody[contains(@class, 'MuiTableBody-root')]//tr[@data-index]");
-        const rowCount = await rows.count();
-        this.log(`\n  [Commodity Page ${pageNum}] Tìm thấy ${rowCount} dòng hàng hóa trên Trang ${pageNum}`, logCb);
-
-        for (let i = 0; i < rowCount; i++) {
-          const row = rows.nth(i);
-          const codeCell = row.locator("xpath=.//td[@data-column-id='UACODE']").first();
-          const uacode = (await codeCell.textContent())?.trim();
-          if (!uacode) continue;
-
-          if (processedCodes.has(uacode)) {
-            this.log(`  Mã [${uacode}] đã được xử lý ở trang trước -> Bỏ qua`, logCb);
-            continue;
-          }
-          processedCodes.add(uacode);
-
-          this.log(`\n  >>> Xử lý hợp đồng mã hàng hóa: [${uacode}] <<<`, logCb);
-
-          // Đảm bảo không còn modal sót lại từ lượt trước
-          const lingeringModal = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa')").first();
-          if (await lingeringModal.isVisible({ timeout: 300 }).catch(() => false)) {
-            await closeModal();
-          }
-
-          // Click icon Xem/Thao tác trên Bảng chính
-          const viewBtn = row.locator("xpath=.//button[contains(@class, 'MuiIconButton-root')]").first();
-          if (!(await viewBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
-            this.log(`  [Warn] Không thấy nút Thao tác cho ${uacode}`, logCb);
-            continue;
-          }
-          await viewBtn.click({ force: true });
-          await page.waitForTimeout(800);
-
-          // Chờ Modal xuất hiện & click Tab "Thông tin hợp đồng" (#tab-1)
-          const modalTitle = page.locator("#modal-modal-title, h2:has-text('Xem Thông tin hàng hóa')").first();
-          await modalTitle.waitFor({ state: 'visible', timeout: 5_000 });
-
-          const contractTab = page.locator("xpath=//button[@id='tab-1' or contains(., 'Thông tin hợp đồng')]").first();
-          if (await contractTab.isVisible({ timeout: 4_000 })) {
-            await contractTab.click({ force: true });
-            await page.waitForTimeout(800);
-            await this.waitForTableLoadingComplete(page, 15_000);
-
-            // Kiểm tra bảng có dữ liệu hay rỗng (Không có dữ liệu, 0-0 trên 0)
-            const tabpanel = page.locator("#tabpanel-1");
-            const noData = tabpanel.locator("xpath=.//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0')]").first();
-            if (await noData.isVisible({ timeout: 1500 }).catch(() => false)) {
-              this.log(`  Hàng hóa [${uacode}] không có hợp đồng (0-0 trên 0) -> Bỏ qua`, logCb);
-              await closeModal();
-              continue;
-            }
-
-            // Nút Kết xuất trong #tabpanel-1: ƯU TIÊN CÁCH 2 NGAY TỪ ĐẦU
-            const modalExportBtn = tabpanel.locator("button.button-element:has-text('Kết xuất')").first();
-            if (await modalExportBtn.isVisible({ timeout: 3_000 })) {
-              const contractFileName = `HĐ ${uacode}.xlsx`;
-              const contractDest = path.join(outputDir, contractFileName);
-              this.log(`  [Export] Ưu tiên Cách 2: Mở menu -> Bấm chọn Xuất tất cả -> ${contractFileName}...`, logCb);
-
-              const dlPromise = page.waitForEvent('download', { timeout: 25_000 }).catch(() => null);
-
-              // 1. Click mở menu
-              await page.bringToFront().catch(() => {});
-              await modalExportBtn.scrollIntoViewIfNeeded().catch(() => {});
-              await modalExportBtn.click({ force: true });
-
-              // 2. Định vị option 'Xuất tất cả' và kích hoạt click ngay tức thì qua native DOM
-              const exportAll = page.locator("li:visible:has-text('Xuất tất cả'), [role='menuitem']:visible:has-text('Xuất tất cả'), li:visible:has-text('Export all')").last();
-              await exportAll.waitFor({ state: 'visible', timeout: 2500 }).catch(() => {});
-
-              await exportAll.evaluate((el: any) => el.click()).catch(() => {});
-              await exportAll.click({ force: true, timeout: 500 }).catch(() => {});
-
-              const dl = await dlPromise;
-              if (dl) {
-                await dl.saveAs(contractDest);
-                if (fs.existsSync(contractDest) && fs.statSync(contractDest).size > 0) {
-                  contractFiles.push(contractDest);
-                  this.log(`  ✓ Đã lưu hợp đồng: ${contractDest} (${fs.statSync(contractDest).size} bytes)`, logCb);
-                }
-              }
-            }
-          }
-
-          // Đóng modal sau khi xử lý xong
-          await closeModal();
-        }
-
-        // ── KIỂM TRA VÀ CHUYỂN TRANG (Next Page - Chuẩn Material-UI MRT) ──
-        const paginationContainer = page.locator("xpath=//div[contains(@class, 'MuiTablePagination-root') and not(ancestor::div[@id='tabpanel-1'])]").first();
-        const displayedRangeEl = paginationContainer.locator("xpath=.//span[contains(text(), 'trên') or contains(@class, 'MuiTablePagination-displayedRows')]").first();
-        const currentRange = (await displayedRangeEl.textContent().catch(() => ''))?.trim() || '';
-
-        const nextBtn = paginationContainer.locator("xpath=.//button[@aria-label='Tới trang tiếp theo']").first();
-        const isNextAvailable = await nextBtn.isVisible({ timeout: 2000 }).catch(() => false);
-
-        if (!isNextAvailable) {
-          this.log(`\n  [Pagination] Đã duyệt hết tất cả các trang (chỉ có 1 trang hoặc không có thanh phân trang).`, logCb);
-          break;
-        }
-
-        const isNextDisabled = await nextBtn.evaluate((b: any) => b.disabled || b.classList.contains('Mui-disabled') || b.getAttribute('aria-disabled') === 'true').catch(() => true);
-
-        if (isNextDisabled) {
-          this.log(`\n  [Pagination] Đã duyệt hết tất cả các trang (Vị trí: "${currentRange}" - Nút Next đã bị disable).`, logCb);
-          break;
-        }
-
-        this.log(`\n  [Pagination] Bấm nút 'Tới trang tiếp theo' (Vị trí hiện tại: "${currentRange}")...`, logCb);
-        await paginationContainer.scrollIntoViewIfNeeded().catch(() => { });
-        await page.waitForTimeout(300);
-
-        // Kích hoạt click trực tiếp qua native DOM để chuyển trang tức thì
-        await nextBtn.evaluate((b: any) => b.click()).catch(() => { });
-        await nextBtn.click({ timeout: 800 }).catch(() => { });
-
-        // Chờ xác nhận vị trí phân trang THAY ĐỔI
-        let pageTurned = false;
-        const tWaitStart = Date.now();
-        while (Date.now() - tWaitStart < 8000) {
-          const newRange = (await displayedRangeEl.textContent().catch(() => ''))?.trim() || '';
-          if (newRange && newRange !== currentRange) {
-            this.log(`  [Pagination] Chuyển trang thành công: "${currentRange}" -> "${newRange}"`, logCb);
-            pageTurned = true;
-            break;
-          }
-
-          if (Date.now() - tWaitStart > 2000 && !pageTurned) {
-            await nextBtn.evaluate((b: any) => b.click()).catch(() => { });
-            const nextSpan = paginationContainer.locator("xpath=.//span[@aria-label='Tới trang tiếp theo']").first();
-            if (await nextSpan.isVisible().catch(() => false)) {
-              await nextSpan.click().catch(() => { });
-            }
-          }
-          await page.waitForTimeout(400);
-        }
-
-        if (pageTurned) {
-          await this.waitForTableLoadingComplete(page, 15000);
-          await page.waitForTimeout(600);
-          pageNum++;
-        } else {
-          this.log(`  [Pagination] Sau 8s vị trí vẫn là "${currentRange}". Dừng để tránh lặp trang.`, logCb);
-          break;
+        const ok = await this.exportSingleCommodityContract(page, code, destPath, logCb);
+        if (ok && fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
+          contractFiles.push(destPath);
         }
       }
-    } catch (err: any) {
-      this.log(`  [Warn] Lỗi duyệt danh mục hàng hóa & hợp đồng: ${err.message}`, logCb);
     }
 
     return { hhPath, contractFiles };

@@ -5,6 +5,8 @@ import {
   CcpReconService,
   CqgSyncReconService,
   ReconConsoleSummaryService,
+  DsgdBeforeEodService,
+  CheckDSGDBeforeEODResult,
   CheckKLGDResult,
   EODMismatchedItem,
 } from './services';
@@ -51,6 +53,7 @@ export class ReconciliationService {
     private readonly ccpReconService: CcpReconService,
     private readonly cqgSyncReconService: CqgSyncReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
+    private readonly dsgdBeforeEodService: DsgdBeforeEodService,
   ) {}
 
   // ==========================================
@@ -193,6 +196,31 @@ export class ReconciliationService {
 
   async runAutoCheckEodMm(tradingDate: Date): Promise<any> {
     return this.preEodReconService.runAutoCheckEodMm(tradingDate);
+  }
+
+  // ==========================================
+  // 2.1. Check DSGD Before EOD (C# CheckDSGDBeforeEOD equivalent)
+  // ==========================================
+  checkDSGDBeforeEODFromBuffers(
+    files: {
+      dsgdOriginal: Buffer;
+      dsgdTemp?: Buffer;
+      acmTrades?: Buffer;
+    },
+    options?: {
+      timeSuffix?: string;
+      sessionDate?: string;
+    },
+  ): CheckDSGDBeforeEODResult {
+    return this.dsgdBeforeEodService.checkDSGDBeforeEODFromBuffers(files, options);
+  }
+
+  async runAutoCheckDSGDBeforeEOD(options?: {
+    tradingDate?: Date | string;
+    timeSuffix?: string;
+    triggerDownload?: boolean;
+  }): Promise<CheckDSGDBeforeEODResult> {
+    return this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD(options);
   }
 
   // ==========================================

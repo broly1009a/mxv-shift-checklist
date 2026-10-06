@@ -1,0 +1,123 @@
+continue
+6:25 PM, 9/29/2026
+Tôi đã hoàn thành tái cấu trúc và chuẩn hóa 100% hợp đồng chi tiết CoreEX (CE) động giống hệt CoreCCP (Data-Driven Zero-Hardcoding):
+
+1. Chi tiết những gì đã chuẩn hóa:
+
+
+ccp-ce-downloader.service.ts
+:
+
+Trong DEFAULT_CE_REPORTS: Đặt HD (outputFileName: 'HĐ *.xlsx') là mục chính duy nhất (enabled: true), chuyển các alias cũ HD_CP2CO, HD_PL1NY, HD_SI5CO sang enabled: false (đồng bộ hoàn toàn với danh mục của CoreCCP).
+Tự động quét động bảng /PRODUCT/COMMODITY để lấy danh sách mã hàng hóa thực tế trên sàn (scanActualCommoditiesFromTable với giới hạn lên tới 20 mã, hỗ trợ cả UAT lẫn Production).
+Trong downloadCommodityAndContracts: Tự động tải cả bảng Hàng hóa chính (HH ACM.xlsx / HH.xlsx) kèm toàn bộ các file HĐ <MÃ>.xlsx phát sinh trên sàn.
+
+
+file-audit.handler.ts
+:
+
+Trong REQUIRED_CE_FILES: Thay thế 3 mã hợp đồng cố định thành 1 mục động duy nhất: { key: 'HD', name: 'Hợp đồng chi tiết CE', filename: 'HĐ *.xlsx', patterns: [/^hđ\s+/i, /^hd_/i, /^hd\b/i, /contracts?/i] }.
+Trong scanCeBackupFiles: Tự động gom và nhận diện toàn bộ các file HĐ <MÃ>.xlsx trong thư mục ca trực và hiển thị số lượng hợp đồng tìm thấy.
+
+
+CeAcmBackupSection.tsx
+:
+
+CE_REPORTS_LIST: Chuyển sang 8 Báo cáo Chuẩn CE với mục HD (HĐ *.xlsx) động 100%.
+Cập nhật các nút lọc và nhãn số lượng hiển thị tự động.
+
+
+test_ce_acm_backup_flow.js
+:
+
+Đồng bộ danh mục kiểm tra sang 8 báo cáo chuẩn với HD động.
+Xác nhận Build & Ghi vết:
+
+Backend: npm run build $\rightarrow$ Exit Code: 0.
+Frontend: npx tsc --noEmit $\rightarrow$ Exit Code: 0.
+Đã ghi vết chi tiết vào 
+
+CHANGELOG_AI.md
+.
+Tôi đang tiến hành kích hoạt lệnh node backend/src/scripts/deploy_to_ubuntu.js để đẩy toàn bộ bundle code mới nhất lên server Ubuntu (10.0.0.26) và reload service PM2. Hệ thống sẽ tự động cập nhật ngay khi tiến trình triển khai hoàn tất!
+
+Triển Khai Thành Công Lên Server Ubuntu (10.0.0.26)!
+Tiến trình đồng bộ và build trên server Ubuntu đã hoàn thành trọn vẹn với Exit Code: 0:
+
+=== 1. BUILD BACKEND ===
+> nest build
+✓ Build backend hoàn tất thành công!
+=== 2. RESTART BACKEND PM2 ===
+[PM2] [mxv-backend](0) ✓ status: online
+=== 3. BUILD FRONTEND ===
+> next build
+▲ Next.js 16.2.9 (Turbopack)
+✓ Compiled successfully in 10.0s
+✓ Finished TypeScript in 16.8s
+✓ Generating static pages (26/26)
+=== 4. RESTART FRONTEND PM2 ===
+[PM2] [mxv-frontend](1) ✓ status: online
+Tổng Hợp Trạng Thái PM2 Trên Server:
+App ID	Service	Status	Uptime	Memory	CPU
+0	mxv-backend	online	29s	226.0 MB	0%
+1	mxv-frontend	online	0s	58.0 MB	0%
+3	mock-sftp	online	19D	10.0 MB	0%
+Tóm Tắt Các Điểm Chuẩn Hóa "Hợp Đồng Động Giống CCP":
+Frontend (
+
+CeAcmBackupSection.tsx
+):
+Chuyển sang 8 Báo cáo Chuẩn CE (7 báo cáo sổ lệnh/giá/hàng hóa + 1 mục HD - Hợp đồng chi tiết CE (HĐ *.xlsx)).
+Loại bỏ hoàn toàn 3 checkbox fix cứng (HD_CP2CO, HD_PL1NY, HD_SI5CO).
+Backend Engine (
+
+ccp-ce-downloader.service.ts
+):
+DEFAULT_CE_REPORTS: Đặt HD là báo cáo chính duy nhất (enabled: true), chuyển các alias cũ về enabled: false giống hệt CCP.
+scanActualCommoditiesFromTable: Quét tự động danh mục hàng hóa thực tế trên sàn (UAT hoặc Prod) lên tới 20 mã.
+downloadCommodityAndContracts: Tự động tải cả bảng Hàng hóa chính (HH ACM.xlsx) và toàn bộ file HĐ <MÃ>.xlsx phát sinh.
+Audit (
+
+file-audit.handler.ts
+):
+Tự động gom và nhận diện toàn bộ các file HĐ <MÃ>.xlsx trong thư mục ca trực và báo trạng thái hợp lệ.
+6:25 PM, 9/29/2026
+
+
+test_ce_headless_download.js
+ giúp tôi sửa để đăng nhập vào ce của database ubutun https://coreexchange.mxv.com.vn/login
+6:42 PM, 9/29/2026
+Để hiểu rõ trạng thái hiện tại, tôi đọc file test_ce_headless_download.js:
+
+Tiếp tục đọc file để xem phần login hiện tại:
+
+Tôi đã đọc toàn bộ file. Vấn đề cần sửa là:
+
+Script hiện tại đang lấy credentials từ MongoDB production (bot_credentials_ce), và URL đã được hardcode fallback thành https://coreexchange.mxv.com.vn/login — nhưng user muốn đảm bảo script lấy credentials từ MongoDB của Ubuntu production (có URL đúng là production).
+
+Tôi cần kiểm tra MONGODB_URI trong .env của dự án để xác nhận nó trỏ về đúng database:
+
+Bây giờ đã rõ toàn bộ trạng thái. Script hiện tại đã đúng cấu trúc — nó lấy credentials từ MongoDB Atlas (mxv_shift_checklist) qua key bot_credentials_ce. Yêu cầu của user là sửa để đăng nhập vào CE của database Ubuntu tức là cần đổi MONGODB_URI trỏ vào database production Ubuntu, hoặc thêm flag --prod-db để script kết nối MongoDB production Ubuntu.
+
+Để hiểu rõ hơn, hãy xem .env hiện tại:
+
+Rõ ràng rồi. .env hiện tại đang trỏ MongoDB Atlas dev. User muốn script kết nối đến database của Ubuntu production để lấy bot_credentials_ce có URL https://coreexchange.mxv.com.vn.
+
+Vấn đề cốt lõi: Script cần được sửa để hỗ trợ flag --prod-db (hoặc --db-uri=...) để kết nối MongoDB production Ubuntu. Đồng thời nếu không có credentials trong DB, cho phép hardcode URL CE production qua flag --ce-url.
+
+Tôi cần biết MongoDB URI của production Ubuntu. Dựa vào quy tắc Proof of Ground Truth, tôi cần kiểm tra xem có file cấu hình deploy nào chứa MONGODB_URI production không:
+
+Bây giờ đã rõ. MongoDB production Ubuntu là mongodb://localhost:27017/checklist. Script hiện tại dùng Atlas cloud dev. Tôi cần thêm flag --prod-db để kết nối MongoDB production Ubuntu (mongodb://localhost:27017/checklist) khi user muốn test với credentials thật của Ubuntu.
+
+Theo quy tắc AGENTS.md — mọi thay đổi MONGODB_URI phải có bằng chứng. Bằng chứng từ 
+
+deployment/HUONG_DAN_DEPLOY_NATIVE.md#L106
+: MONGODB_URI=mongodb://localhost:27017/checklist.
+
+Tuy nhiên, script chạy từ máy Windows nên không thể kết nối localhost:27017 Ubuntu trực tiếp. Cần dùng SSH tunnel hoặc truyền URI qua tham số. Phân tích yêu cầu của user: "đăng nhập vào CE của database Ubuntu" — nghĩa là lấy credentials từ DB Ubuntu.
+
+Giải pháp đúng: Thêm flag --db-uri=<URI> để user có thể truyền URI tùy ý (kể cả URI sau khi SSH tunnel đã bật). Ngoài ra thêm flag --ce-url=<URL> và --ce-user=<user> --ce-pass=<pass> để bypass DB hoàn toàn nếu cần.
+
+test_ce_headless_download.js
+Đã sửa xong. Bây giờ ghi CHANGELOG_AI.md theo quy tắc AGENTS.md:
+
