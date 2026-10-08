@@ -6,7 +6,12 @@ import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS, DEFAULT_CE_REPORTS } from '../ccp-ce-downloader.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { decrypt } from '../utils/crypto';
-import { parseJobPayload, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
+import {
+  parseJobPayload,
+  resolveStoragePathCrossPlatform,
+  resolveTradingSessionDate,
+  resolveDailySubfolder,
+} from '../helpers/bot-path.helper';
 
 /**
  * CcpCeDownloadJobHandler — Xử lý Job tải báo cáo từ VNCLEAR CoreCCP / CoreEX.
@@ -68,17 +73,26 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       );
     }
 
-    // ─── Đọc Payload ───────────────────────────────────────────────────────
+    // ─── Đọc Payload & Chuẩn Hóa Ngày Phiên ─────────────────────────────────
     const payload = parseJobPayload(job);
 
-    const startDate: string = payload.startDate;
-    const endDate: string = payload.endDate;
+    const rawStart = payload.startDate || payload.sessionDay;
+    const rawEnd = payload.endDate || payload.sessionDay || rawStart;
 
-    if (!startDate || !endDate) {
+    if (!rawStart) {
       throw new Error(
-        `Job ${systemLabel} thiếu startDate/endDate trong payload.`,
+        `Job ${systemLabel} thiếu startDate/sessionDay trong payload.`,
       );
     }
+
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedStart = resolveTradingSessionDate(rawStart, { sessionStartStr });
+    const resolvedEnd = resolveTradingSessionDate(rawEnd, { sessionStartStr });
+    const startDate: string = resolvedStart.dateStr;
+    const endDate: string = resolvedEnd.dateStr;
 
     // outputDir: ưu tiên payload -> credentials DB -> thư mục ca trực theo ngày
     let baseDir: string = payload.outputDir || creds.outputDir;
@@ -90,10 +104,7 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       baseDir = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
     }
 
-    const [sY, sM, sD] = startDate.includes('-')
-      ? startDate.split('-')
-      : startDate.split('/').reverse();
-    const subFolder = path.join(sY, `T${sM}.${sY}`, `${sD}.${sM}`);
+    const { subFolder } = resolveDailySubfolder(baseDir, resolvedStart.dateObj);
 
     let rawOutputDir = baseDir;
     if (!/\d{2}\.\d{2}$/.test(rawOutputDir.trim())) {

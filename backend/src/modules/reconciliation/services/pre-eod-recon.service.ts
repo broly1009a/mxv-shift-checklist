@@ -230,8 +230,11 @@ export class PreEodReconService {
     const yearStr = d.getFullYear().toString();
     const expectedDateStr = `${dayStr}${monthStr}${yearStr}`;
 
-    // Kiểm tra tên file ACM Trades đúng ngày T-1
-    if (acmTradesName && !acmTradesName.includes(expectedDateStr)) {
+    // Kiểm tra tên file ACM Trades đúng ngày T-1:
+    // - Nếu tên file có chứa chuỗi ngày cụ thể (6-8 chữ số, ví dụ: 07102026, 20261007): Bắt buộc phải trùng ngày T-1.
+    // - Nếu tên file là tên chuẩn hóa ngắn gọn (Straits.csv, Fill.xlsx...): Chấp nhận vì file đã nằm trong thư mục ngày đối chiếu.
+    const hasExplicitDate = /\d{6,8}/.test(acmTradesName || '');
+    if (acmTradesName && hasExplicitDate && !acmTradesName.includes(expectedDateStr)) {
       throw new Error(
         `File ACM Trades (${acmTradesName}) không đúng ngày T-1 (${dayStr}/${monthStr}/${yearStr}). Vui lòng kiểm tra lại.`,
       );

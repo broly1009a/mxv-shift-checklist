@@ -146,7 +146,11 @@ export default function TradingManagerConfigSection({
       setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || 0));
       setExchangeRatesLastSynced(map.ccp_rates_last_synced || map.exchange_rates_last_synced || '');
       setExchangeRateSource(map.exchange_rate_source || '');
-      setSessionStartTime(map.session_start_time || '05:00');
+      const loadedStartTime = map.session_start_time || '05:00';
+      setSessionStartTime(loadedStartTime);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tm_session_start_time', loadedStartTime);
+      }
       setSessionEndTime(map.session_end_time || '05:00');
 
       if (map.ccp_exchange_rates_matrix) {
@@ -407,6 +411,10 @@ export default function TradingManagerConfigSection({
           }),
         ),
       );
+
+      if (typeof window !== 'undefined' && sessionStartTime) {
+        localStorage.setItem('tm_session_start_time', sessionStartTime);
+      }
 
       toast.success('Đã lưu cấu hình thành công!', { id: toastId });
     } catch (err: any) {

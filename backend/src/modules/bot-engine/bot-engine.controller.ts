@@ -1741,11 +1741,14 @@ export class BotEngineController {
     const actualTargets =
       targets && targets.length > 0 ? targets : defaultTargets;
 
-    const actualSessionDay =
-      sessionDay ||
-      new Date(Date.now() + 7 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0];
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(sessionDay, {
+      sessionStartStr,
+    });
+    const actualSessionDay = resolvedSession.dateStr;
 
     const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
       targets: actualTargets,
@@ -2143,7 +2146,13 @@ export class BotEngineController {
    */
   @Post('audit-ms-backup')
   async auditMsBackup(@Body('targetDate') targetDateStr?: string) {
-    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const { dateObj: targetDate } = resolveTradingSessionDate(targetDateStr, {
+      sessionStartStr,
+    });
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
@@ -2267,7 +2276,13 @@ export class BotEngineController {
    */
   @Post('audit-cqg-backup')
   async auditCqgBackup(@Body('targetDate') targetDateStr?: string) {
-    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const { dateObj: targetDate } = resolveTradingSessionDate(targetDateStr, {
+      sessionStartStr,
+    });
     const { fullPath } =
       await this.cqgSyncService.getDailyBackupPath(targetDate);
 
@@ -2290,13 +2305,59 @@ export class BotEngineController {
   }
 
   /**
+   * Triggers an async DOWNLOAD_CQG_BACKUP job:
+   * Logs into CQG accounts via Playwright and downloads raw reports (FR, PS, OP, OD), then auto-merges them.
+   */
+  @Post('trigger-cqg-download')
+  async triggerCqgDownload(
+    @Body('reports') reports?: Record<string, boolean>,
+    @Body('sessionDay') sessionDay?: string,
+    @Body('targetDate') targetDate?: string,
+    @Body('skipMerge') skipMerge?: boolean,
+  ) {
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(sessionDay || targetDate, {
+      sessionStartStr,
+    });
+    const actualSessionDay = resolvedSession.dateStr;
+
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CQG_BACKUP', {
+      reports,
+      targetDate: actualSessionDay,
+      sessionDay: actualSessionDay,
+      skipMerge: !!skipMerge,
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã đưa yêu cầu tải và ghép file báo cáo CQG vào hàng đợi.',
+      jobId: job._id,
+      sessionDay: actualSessionDay,
+    };
+  }
+
+  /**
    * Triggers an async FILE_AUDIT_CQG job:
    * Scans backup folder -> merges missing/outdated files.
    */
   @Post('trigger-audit-cqg')
   async triggerAuditCqg(@Body('targetDate') targetDateStr?: string) {
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(targetDateStr, {
+      sessionStartStr,
+    });
+    const actualSessionDay = resolvedSession.dateStr;
+
     const job = await this.jobQueueService.enqueue('FILE_AUDIT_CQG', {
-      targetDate: targetDateStr || new Date().toISOString(),
+      targetDate: actualSessionDay,
+      sessionDay: actualSessionDay,
       maxAttempts: 1,
     });
 
@@ -2304,6 +2365,7 @@ export class BotEngineController {
       success: true,
       message: 'Đã đưa yêu cầu kiểm tra và ghép file backup CQG vào hàng đợi.',
       jobId: job._id,
+      sessionDay: actualSessionDay,
     };
   }
 
@@ -2881,9 +2943,21 @@ export class BotEngineController {
     @Body('reports') reports?: string[],
     @Body('outputDir') outputDir?: string,
   ) {
-    const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const targetStart = startDate || dateStr || today;
-    const targetEnd = endDate || dateStr || targetStart;
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const rawStart = startDate || dateStr;
+    const rawEnd = endDate || dateStr || rawStart;
+
+    const resolvedStart = resolveTradingSessionDate(rawStart, {
+      sessionStartStr,
+    });
+    const resolvedEnd = resolveTradingSessionDate(rawEnd, {
+      sessionStartStr,
+    });
+    const targetStart = resolvedStart.dateStr;
+    const targetEnd = resolvedEnd.dateStr;
 
     const job = await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
       startDate: targetStart,
@@ -2897,6 +2971,7 @@ export class BotEngineController {
       success: true,
       message: 'Đã đưa yêu cầu tải báo cáo CoreCCP vào hàng đợi.',
       jobId: job._id,
+      sessionDay: targetStart,
     };
   }
 
@@ -2906,7 +2981,13 @@ export class BotEngineController {
    */
   @Post('audit-ccp-backup')
   async auditCcpBackup(@Body('targetDate') targetDateStr?: string) {
-    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const { dateObj: targetDate } = resolveTradingSessionDate(targetDateStr, {
+      sessionStartStr,
+    });
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ccp',
       'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',

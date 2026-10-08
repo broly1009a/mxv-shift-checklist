@@ -1,12 +1,7 @@
-/**
- * Tiện ích xử lý Ngày Phiên Giao Dịch (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
- * - Phiên giao dịch mở lúc sáng sớm (mặc định cấu hình session_start_time, thường là 05:00 hoặc 06:30) và kéo dài xuyên đêm tới sáng hôm sau.
- * - Nếu thời điểm hiện tại < giờ bắt đầu phiên (giờ VN), phiên làm việc thực tế là ca đêm của ngày T - 1 (bỏ qua Thứ 7, Chủ Nhật).
- */
-export function getInitialTradingSessionDate(
-  now?: Date,
-  sessionStartStr?: string,
-): string {
+function getInitialTradingSessionDate(
+  now,
+  sessionStartStr,
+) {
   const baseTime = now || new Date();
   // Giờ Việt Nam GMT+7
   const vnTime = new Date(baseTime.getTime() + 7 * 60 * 60 * 1000);
@@ -14,9 +9,6 @@ export function getInitialTradingSessionDate(
   const currentMin = vnTime.getUTCMinutes();
 
   let effectiveStart = sessionStartStr;
-  if (!effectiveStart && typeof window !== 'undefined') {
-    effectiveStart = localStorage.getItem('tm_session_start_time') || undefined;
-  }
 
   let sessionHour = 5;
   let sessionMin = 0;
@@ -39,3 +31,9 @@ export function getInitialTradingSessionDate(
 
   return sessionDate.toISOString().split('T')[0];
 }
+
+// Test with 2026-10-07T21:15:56.187Z (which is 04:15:56 AM on 08/10/2026 in Vietnam)
+const testDate = new Date('2026-10-07T21:15:56.187Z');
+console.log('Test at 04:15 AM VN:', getInitialTradingSessionDate(testDate));
+console.log('Test at 04:15 AM VN with sessionStart 05:00:', getInitialTradingSessionDate(testDate, '05:00'));
+console.log('Test at 04:15 AM VN with sessionStart 04:00:', getInitialTradingSessionDate(testDate, '04:00'));

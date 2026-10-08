@@ -721,6 +721,25 @@ export class KlgdReconService {
     const day = String(tradingDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
+    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath)
+    const tradingCheckBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
+    );
+    const msTradingDailyPath = path.join(tradingCheckBase, subFolder);
+    const cqgTradingDailyPath = path.join(
+      cqgBackupBase.replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG').replace(/Backup CQG/i, 'TradingCheck/CQG'),
+      subFolder,
+    );
+    const acmTradingDailyPath = path.join(
+      acmBackupBase.replace(/Backup MS[\\/]ACM/i, 'TradingCheck/ACM').replace(/Backup ACM/i, 'TradingCheck/ACM'),
+      subFolder,
+    );
+    const ccpTradingDailyPath = path.join(
+      (await getCcpBackupBasePath(this.settingsService)).replace(/Backup CCP/i, 'TradingCheck/CCP'),
+      subFolder,
+    );
+
     const msDailyPath = path.join(msBackupBase, subFolder);
     const cqgDailyPath = path.join(cqgBackupBase, subFolder);
     const acmDailyPath = path.join(acmBackupBase, subFolder);
@@ -728,21 +747,42 @@ export class KlgdReconService {
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
 
-    const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
-    const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
-    const ttmPath = path.join(msDailyPath, 'TTM.xlsx');
+    // Ưu tiên đọc từ thư mục kiểm tra trong phiên (TradingCheck), nếu chưa có thì fallback đọc từ thư mục Backup
+    const resolvePriorityPath = (primaryDir: string, fallbackDir: string, filename: string): string => {
+      const p1 = path.join(primaryDir, filename);
+      if (fs.existsSync(p1)) return p1;
+      return path.join(fallbackDir, filename);
+    };
+
+    const dsgdPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'DSGD.xlsx');
+    const ttttPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTTT.xlsx');
+    const ttmPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTM.xlsx');
 
     const acmTradesPath =
+      findLatestFile(acmTradingDailyPath, /Straits/i) ||
+      findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
       findLatestFile(acmDailyPath, /Straits/i) ||
       findLatestFile(acmDailyPath, /Nano|Fill/i);
 
-    const cqgFrPath = resolveCqgFile(cqgDailyPath, 'FR', this.logger);
-    const cqgPsPath = resolveCqgFile(cqgDailyPath, 'PS', this.logger);
-    const cqgOpPath = resolveCqgFile(cqgDailyPath, 'OP', this.logger);
+    const cqgFrPath =
+      resolveCqgFile(cqgTradingDailyPath, 'FR', this.logger) ||
+      resolveCqgFile(cqgDailyPath, 'FR', this.logger);
+    const cqgPsPath =
+      resolveCqgFile(cqgTradingDailyPath, 'PS', this.logger) ||
+      resolveCqgFile(cqgDailyPath, 'PS', this.logger);
+    const cqgOpPath =
+      resolveCqgFile(cqgTradingDailyPath, 'OP', this.logger) ||
+      resolveCqgFile(cqgDailyPath, 'OP', this.logger);
 
-    const dsgdCcpPath = findLatestFile(ccpDailyPath, /dsgd/i);
-    const ttmCcpPath = findLatestFile(ccpDailyPath, /ttm/i);
-    const ttttCcpPath = findLatestFile(ccpDailyPath, /tttt/i);
+    const dsgdCcpPath =
+      findLatestFile(ccpTradingDailyPath, /dsgd/i) ||
+      findLatestFile(ccpDailyPath, /dsgd/i);
+    const ttmCcpPath =
+      findLatestFile(ccpTradingDailyPath, /ttm/i) ||
+      findLatestFile(ccpDailyPath, /ttm/i);
+    const ttttCcpPath =
+      findLatestFile(ccpTradingDailyPath, /tttt/i) ||
+      findLatestFile(ccpDailyPath, /tttt/i);
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',

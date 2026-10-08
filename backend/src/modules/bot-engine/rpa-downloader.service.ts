@@ -4164,6 +4164,24 @@ export class RpaDownloaderService {
             const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
             await downloadBtn.click();
             const download = await downloadPromise;
+
+            // Tự động tạo bản sao lưu snapshot file cũ trước khi ghi đè nếu file đã tồn tại
+            if (fs.existsSync(destFile)) {
+              try {
+                const dir = path.dirname(destFile);
+                const ext = path.extname(destFile);
+                const name = path.basename(destFile, ext);
+                const d = new Date();
+                const pad = (n: number) => String(n).padStart(2, '0');
+                const timestamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+                const snapshotPath = path.join(dir, `${name}_bak_${timestamp}${ext}`);
+                fs.copyFileSync(destFile, snapshotPath);
+                this.logger.log(`[CQG Snapshot] Đã tạo bản sao lưu snapshot file cũ: ${path.basename(snapshotPath)}`);
+              } catch (snapErr: any) {
+                this.logger.warn(`[CQG Snapshot] Không thể tạo snapshot file cũ: ${snapErr.message}`);
+              }
+            }
+
             await download.saveAs(destFile);
             this.logger.log(`[CQG] Đã lưu file thành công: ${destFile}`);
             downloaded = true;

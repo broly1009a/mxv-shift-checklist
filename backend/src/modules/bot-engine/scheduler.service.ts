@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { ShiftLog } from '../../schemas/shift-log.schema';
+import { resolveTradingSessionDate } from './helpers/bot-path.helper';
 
 interface SchedulerTaskConfig {
   id: string;
@@ -289,9 +290,21 @@ export class SchedulerService implements OnModuleInit {
       );
 
       // Prepare payload and look for matching checklist task to link
+      const sessionStartSetting = await this.settingsService.getSetting(
+        'session_start_time',
+        '05:00',
+      );
+      const resolvedSession = resolveTradingSessionDate(undefined, {
+        sessionStartStr: sessionStartSetting,
+      });
+      const sessionDayStr = resolvedSession.dateStr;
+
       const jobPayload: Record<string, any> = {
         ...(task.payload || {}),
-        sessionDay: todayStr,
+        sessionDay: sessionDayStr,
+        targetDate: sessionDayStr,
+        startDate: sessionDayStr,
+        endDate: sessionDayStr,
       };
 
       if (activeShift) {

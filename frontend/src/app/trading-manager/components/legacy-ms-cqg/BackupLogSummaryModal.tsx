@@ -199,16 +199,32 @@ export const BackupLogSummaryModal: React.FC<BackupLogSummaryModalProps> = ({
       }
     }
 
-    // CQG Sync specific parsing
+    // CQG Download & Sync specific parsing
     if (jobType === 'CQG') {
-      const cqgPairs = ['FR', 'PS', 'OP', 'OD', 'AS'];
+      // 1. Raw download items (FR1, FR2, OP1, OP2, PS1, PS2, OD1, OD2, AS)
+      const cqgItems = ['FR1', 'FR2', 'PS1', 'PS2', 'OP1', 'OP2', 'OD1', 'OD2', 'AS'];
+      for (const item of cqgItems) {
+        const isOk = logs.some((l) => l.includes(`Đã tải thành công: ${item}`));
+        const isErr = logs.some((l) => l.includes('Lỗi tải:') && l.includes(item));
+        const isQueued = logs.some((l) => l.includes('File cần tải:') && l.includes(item));
+        if (isOk || isErr || isQueued) {
+          targetsMap[item] = {
+            target: item,
+            filename: `${item}.xlsx`,
+            status: isOk ? 'SUCCESS' : isErr ? 'ERROR' : 'DOWNLOADING',
+          };
+        }
+      }
+
+      // 2. Merged pairs (FR, PS, OP, OD)
+      const cqgPairs = ['FR', 'PS', 'OP', 'OD'];
       for (const pair of cqgPairs) {
-        const hasPair = logs.some((l) => l.includes(`${pair}.xlsx`) || l.includes(`${pair}1`) || l.includes(`${pair}2`));
+        const hasPair = logs.some((l) => l.includes(`${pair}.xlsx`) || l.includes(`ghép file ${pair}`) || l.includes(`Ghép file ${pair}`));
         if (hasPair && !targetsMap[pair]) {
-          const isMerged = logs.some((l) => l.includes(`Đã ghép`) && l.includes(`${pair}.xlsx`));
-          const isErr = logs.some((l) => l.includes(`Lỗi ghép`) && l.includes(`${pair}`));
+          const isMerged = logs.some((l) => (l.includes('Đã ghép') || l.includes('thành công')) && l.includes(`${pair}.xlsx`));
+          const isErr = logs.some((l) => (l.includes('Lỗi ghép') || l.includes('thất bại')) && l.includes(`${pair}`));
           targetsMap[pair] = {
-            target: pair,
+            target: `${pair} (Gộp)`,
             filename: `${pair}.xlsx`,
             status: isMerged ? 'SUCCESS' : isErr ? 'ERROR' : 'DOWNLOADING',
           };

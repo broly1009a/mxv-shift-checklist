@@ -38,8 +38,8 @@ export default function TradingManagerPage() {
   // Số lượng background job đang chạy
   const [activeJobsCount, setActiveJobsCount] = useState<number>(0);
 
-  // Selected Date (Mặc định hôm nay theo giờ Việt Nam GMT+7)
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  // Selected Date (Mặc định phiên làm việc hiện tại theo giờ Việt Nam GMT+7)
+  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
 
   // Guide Modal
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
@@ -75,6 +75,7 @@ export default function TradingManagerPage() {
       'RUN_VALUE_MACRO',
       'RUN_MACRO',
       'RPA_DOWNLOAD_REPORTS',
+      'DOWNLOAD_CQG_BACKUP',
       'FILE_AUDIT_MS',
       'FILE_AUDIT_CQG',
       'FILE_AUDIT_CCP',

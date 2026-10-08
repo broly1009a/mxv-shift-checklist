@@ -1,29 +1,54 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
+const { Client } = require('ssh2');
 
-async function inspect() {
-  const uri = process.env.MONGODB_URI || 'mongodb://10.0.0.26:27017/mxv-shift-checklist';
-  await mongoose.connect(uri);
+const conn = new Client();
+
+conn.on('ready', () => {
+  const nodeScript = `
+const mongoose = require('/opt/mxv-checklist/backend/node_modules/mongoose');
+async function check() {
+  await mongoose.connect('mongodb://127.0.0.1:27017/mxv_shift_checklist');
   const db = mongoose.connection.db;
+  const job = await db.collection('bot_jobs').findOne({ _id: new mongoose.Types.ObjectId('6ac6b68ca137e79d622ba831') });
+  console.log('=== JOB CCP 6ac6b68ca137e79d622ba831 ===');
+  console.log('Payload:', JSON.stringify(job?.payload, null, 2));
+  console.log('Created:', job?.createdAt);
 
-  const jobs = await db.collection('bot_jobs')
-    .find({ jobType: { $in: ['CHECK_KLGD', 'DOWNLOAD_CCP'] } })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .toArray();
+  const cqgJob = await db.collection('bot_jobs').findOne({ _id: new mongoose.Types.ObjectId('6ac6b401a137e79d622ba826') });
+  console.log('=== CQG JOB 6ac6b401a137e79d622ba826 ===');
+  console.log('Payload:', JSON.stringify(cqgJob?.payload, null, 2));
+  console.log('Created:', cqgJob?.createdAt);
+  console.log('Error:', cqgJob?.error);
 
-  console.log(`=== RECENT ${jobs.length} JOBS ===`);
-  for (const j of jobs) {
-    console.log(`\nID: ${j._id}`);
-    console.log(`Type: ${j.jobType}, Status: ${j.status}`);
-    console.log(`CreatedAt: ${j.createdAt}, UpdatedAt: ${j.updatedAt}`);
-    const totals = j.payload?.result?.totals;
-    console.log(`Totals:`, totals);
-    const lastLogs = Array.isArray(j.logs) ? j.logs.slice(-5) : [];
-    console.log(`Last logs:`, lastLogs);
-  }
+  const rpaJob = await db.collection('bot_jobs').findOne({ _id: new mongoose.Types.ObjectId('6ac6b3b6a137e79d622ba823') });
+  console.log('=== RPA JOB 6ac6b3b6a137e79d622ba823 ===');
+  console.log('Payload:', JSON.stringify(rpaJob?.payload, null, 2));
+  console.log('Created:', rpaJob?.createdAt);
+
+  // Check the active shift log details around that time
+  const shift = await db.collection('shift_logs').findOne({ status: 'PENDING' });
+  console.log('=== ACTIVE SHIFT LOG ===');
+  console.log('ID:', shift?._id);
+  console.log('shiftDay:', shift?.shiftDay);
+  console.log('shiftName:', shift?.shiftName);
 
   await mongoose.disconnect();
 }
-
-inspect().catch(console.error);
+check().catch(console.error);
+`;
+  const b64 = Buffer.from(nodeScript).toString('base64');
+  conn.exec(`echo "${b64}" | base64 -d | node`, (err, stream) => {
+    if (err) {
+      console.error(err);
+      conn.end();
+      return;
+    }
+    stream.on('data', (d) => process.stdout.write(d.toString()));
+    stream.stderr.on('data', (d) => process.stderr.write(d.toString()));
+    stream.on('close', () => conn.end());
+  });
+}).connect({
+  host: '10.0.0.26',
+  port: 22,
+  username: 'mxvadmin',
+  password: 'MxV!,#2o26',
+});

@@ -417,11 +417,32 @@ export class CcpReconService {
               const nopRutIdx = findHeaderIndex(qltkgdHeader, 'Nộp rút trong phiên', ['Nộp rút']);
               const phiGDIdx = findHeaderIndex(qltkgdHeader, 'Phí giao dịch', ['Phí GD']);
               const phiQCIdx = findHeaderIndex(qltkgdHeader, 'Phí quyền chọn', ['Phí QC']);
-              const laiLoVNDIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (VND)', ['Lãi lỗ thực tế (VND)', 'Lãi lỗ Futures (VND)', 'Lãi lỗ VND']);
-              const laiLoUSDIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (USD)', ['Lãi lỗ USD', 'Lãi/lỗ USD', 'Lãi lỗ thực tế (USD)', 'Lãi lỗ Futures (USD)']);
+              const laiLoVNDIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (VND)', [
+                'Lãi lỗ thực tế (VND)',
+                'Lãi lỗ Futures (VND)',
+                'Lãi lỗ VND',
+                'Lãi lỗ thực tế',
+                'Lãi lỗ thực tế Future (VND)',
+                'Lãi lỗ Future (VND)',
+                'Lãi lỗ thực tế Future',
+                'Lãi lỗ Future',
+              ]);
+              const laiLoUSDIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (USD)', [
+                'Lãi lỗ USD',
+                'Lãi/lỗ USD',
+                'Lãi lỗ thực tế (USD)',
+                'Lãi lỗ Futures (USD)',
+                'Lãi lỗ thực tế Future (USD)',
+                'Lãi lỗ Future (USD)',
+              ]);
               const laiLoJPYIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ JPY', ['Lãi/lỗ JPY']);
               const laiLoMYRIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ MYR', ['Lãi/lỗ MYR']);
-              const phiDVIdx = findHeaderIndex(qltkgdHeader, 'Phí dịch vụ thanh toán (VND)', ['Phí DV thanh toán', 'Phí thanh toán', 'Payment Fee']);
+              const phiDVIdx = findHeaderIndex(qltkgdHeader, 'Phí dịch vụ thanh toán (VND)', [
+                'Phí DV thanh toán',
+                'Phí thanh toán',
+                'Payment Fee',
+                'Phí dịch vụ thanh toán',
+              ]);
 
               // Parse TTTT MS file để tính Lãi lỗ thực tế theo từng tài khoản & loại tiền tệ (Chuẩn C# FileUtils.GetEODResult)
               const ttttLaiLoUsdMap = new Map<string, number>();
@@ -900,6 +921,10 @@ export class CcpReconService {
               'Lãi lỗ VND',
               'Lãi lỗ thực tế',
               'Realized PnL',
+              'Lãi lỗ thực tế Future (VND)',
+              'Lãi lỗ Future (VND)',
+              'Lãi lỗ thực tế Future',
+              'Lãi lỗ Future',
             ]);
             const laiLoUSDIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ thực tế Futures (USD)', [
               'Lãi lỗ USD',
@@ -907,6 +932,8 @@ export class CcpReconService {
               'Lãi lỗ thực tế (USD)',
               'Lãi lỗ Futures (USD)',
               'Realized PnL USD',
+              'Lãi lỗ thực tế Future (USD)',
+              'Lãi lỗ Future (USD)',
             ]);
             const laiLoJPYIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ JPY', ['Lãi/lỗ JPY']);
             const laiLoMYRIdx = findHeaderIndex(qltkgdHeader, 'Lãi lỗ MYR', ['Lãi/lỗ MYR']);
@@ -914,6 +941,7 @@ export class CcpReconService {
               'Phí DV thanh toán',
               'Phí thanh toán',
               'Payment Fee',
+              'Phí dịch vụ thanh toán',
             ]);
 
             if (soDuDauNgayIdx !== -1) {

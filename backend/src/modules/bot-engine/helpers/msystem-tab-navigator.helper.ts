@@ -199,12 +199,21 @@ export class MSystemTabNavigatorHelper {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    // Đảm bảo xóa file đích cũ nếu đã tồn tại
+    // Tự động tạo bản sao lưu snapshot file cũ trước khi ghi đè nếu file đã tồn tại
     if (fs.existsSync(downloadPath)) {
       try {
+        const dir = path.dirname(downloadPath);
+        const ext = path.extname(downloadPath);
+        const name = path.basename(downloadPath, ext);
+        const d = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const timestamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        const snapshotPath = path.join(dir, `${name}_bak_${timestamp}${ext}`);
+        fs.copyFileSync(downloadPath, snapshotPath);
+        log.log(`[Snapshot] Đã tạo bản sao lưu snapshot file cũ: ${path.basename(snapshotPath)}`);
         fs.unlinkSync(downloadPath);
       } catch (delErr: any) {
-        log.warn(`[TabNavigator] Không thể xóa file cũ trước khi ghi đè: ${delErr.message}`);
+        log.warn(`[Snapshot] Không thể tạo snapshot hoặc xóa file cũ trước khi ghi đè: ${delErr.message}`);
       }
     }
 

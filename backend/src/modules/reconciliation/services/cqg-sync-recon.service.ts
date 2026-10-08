@@ -260,6 +260,10 @@ export class CqgSyncReconService {
         'Lãi lỗ Futures',
         'Lai lo thuc te Futures',
         'Lai lo Futures',
+        'Lãi lỗ thực tế Future (VND)',
+        'Lãi lỗ thực tế Future',
+        'Lãi lỗ Future (VND)',
+        'Lãi lỗ Future',
       ],
     );
     const soDuTKKQHienTaiIdx = findHeaderIndex(

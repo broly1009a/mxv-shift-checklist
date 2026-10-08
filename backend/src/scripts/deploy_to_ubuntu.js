@@ -210,6 +210,10 @@ const specificFiles = [
     remote: '/opt/mxv-checklist/backend/src/scripts/test_exchange_rate_system.js',
   },
   {
+    local: path.join(repoRoot, 'backend/src/scripts/test_ccp_eod_reconcile_real.js'),
+    remote: '/opt/mxv-checklist/backend/src/scripts/test_ccp_eod_reconcile_real.js',
+  },
+  {
     local: path.join(repoRoot, 'docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md'),
     remote: '/opt/mxv-checklist/docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md',
   },

@@ -21,6 +21,7 @@ import {
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
 import BackupLogSummaryModal from './BackupLogSummaryModal';
 import CeAcmBackupSection from '../ce-acm/CeAcmBackupSection';
@@ -98,6 +99,12 @@ export default function LegacyBackupThongKeSection({
   // Master Switch: Tự động tải backup & thống kê (bot_auto_backup_enabled)
   const [autoBackupActive, setAutoBackupActive] = useState<boolean>(true);
   const [updatingAutoBackup, setUpdatingAutoBackup] = useState<boolean>(false);
+  const [sessionStartTime, setSessionStartTime] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_session_start_time') || '05:00';
+    }
+    return '05:00';
+  });
 
   // Helper lưu cài đặt vào CSDL MongoDB system_settings
   const saveSetting = useCallback(async (key: string, value: string) => {
@@ -141,6 +148,12 @@ export default function LegacyBackupThongKeSection({
           if (s?.key) map[s.key] = s.value;
         });
 
+        if (map.session_start_time) {
+          setSessionStartTime(map.session_start_time);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tm_session_start_time', map.session_start_time);
+          }
+        }
         if (map.bot_auto_backup_enabled !== undefined) {
           setAutoBackupActive(map.bot_auto_backup_enabled !== 'false');
         }
@@ -288,7 +301,7 @@ export default function LegacyBackupThongKeSection({
       })
       .catch(() => {});
 
-    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=CHECK_CQG_SYNC&limit=1`, {
+    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=DOWNLOAD_CQG_BACKUP,FILE_AUDIT_CQG&limit=1`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -391,23 +404,28 @@ export default function LegacyBackupThongKeSection({
     }
   };
 
-  // Trigger CQG sync & download
+  // Trigger CQG download & merge
   const handleDownloadCqgBackup = async () => {
     if (!token || downloadingCqg) return;
+    const selected = Object.keys(cqgReports).filter((k) => cqgReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo CQG để tải!');
+      return;
+    }
     setDownloadingCqg(true);
-    const toastId = toast.loading('Đang khởi động bot đồng bộ & tải báo cáo CQG...');
+    const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo CQG...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-cqg-download`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, jobType: 'CHECK_CQG_SYNC' }),
+        body: JSON.stringify({ reports: cqgReports, sessionDay: selectedDate }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const jobId = data.jobId;
 
       if (!jobId) {
-        toast.success(data.message || 'Đã kích hoạt đồng bộ CQG!', { id: toastId });
+        toast.success(data.message || 'Đã kích hoạt tải báo cáo CQG!', { id: toastId });
         await handleAuditCqgBackup();
         return;
       }
@@ -415,7 +433,7 @@ export default function LegacyBackupThongKeSection({
       setLastCqgJobId(jobId);
       if (typeof window !== 'undefined') localStorage.setItem('tm_last_cqg_backup_job_id', jobId);
 
-      toast.loading('Bot đang tải và ghép file báo cáo CQG...', { id: toastId });
+      toast.loading(`Bot đang đăng nhập CQG và tải ${selected.length} báo cáo...`, { id: toastId });
       const start = Date.now();
       while (Date.now() - start < 180000) {
         await new Promise((r) => setTimeout(r, 2500));
@@ -426,7 +444,7 @@ export default function LegacyBackupThongKeSection({
           if (!jr.ok) continue;
           const job = await jr.json();
           if (job.status === 'COMPLETED') {
-            toast.success('Đã tải & đồng bộ toàn bộ file CQG về thư mục Backup!', { id: toastId, duration: 5000 });
+            toast.success('Đã tải & ghép thành công toàn bộ file CQG về thư mục Backup!', { id: toastId, duration: 5000 });
             await handleAuditCqgBackup();
             return;
           }
@@ -437,7 +455,7 @@ export default function LegacyBackupThongKeSection({
           }
         } catch { /* poll error */ }
       }
-      toast.success('Tác vụ tải CQG đang tiếp tục chạy ngầm.', { id: toastId });
+      toast.success('Tác vụ tải CQG đang tiếp tục chạy ngầm trên server.', { id: toastId });
     } catch (err: any) {
       toast.error(`Lỗi tải CQG: ${err.message}`, { id: toastId });
     } finally {
@@ -746,9 +764,7 @@ export default function LegacyBackupThongKeSection({
             <button
               type="button"
               onClick={() => {
-                const today = new Date();
-                const vnTime = new Date(today.getTime() + 7 * 60 * 60 * 1000);
-                onSelectDate?.(vnTime.toISOString().split('T')[0]);
+                onSelectDate?.(getInitialTradingSessionDate(undefined, sessionStartTime));
               }}
               className="btn btn-secondary"
               title="Đặt lại về phiên ngày hôm nay"

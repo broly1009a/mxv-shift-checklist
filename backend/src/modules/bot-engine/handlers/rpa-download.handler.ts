@@ -5,7 +5,13 @@ import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interf
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { RpaDownloaderService } from '../rpa-downloader.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { parseJobPayload, getMsBackupBase, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
+import {
+  parseJobPayload,
+  getMsBackupBase,
+  resolveStoragePathCrossPlatform,
+  resolveTradingSessionDate,
+  resolveDailySubfolder,
+} from '../helpers/bot-path.helper';
 
 @Injectable()
 export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
@@ -111,21 +117,21 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
     let destFolder: string | null = null;
     if (backupMsBase) {
-      const targetDate = sessionDay ? new Date(sessionDay) : new Date();
-      const year = targetDate.getFullYear().toString();
-      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getDate()).padStart(2, '0');
-      const subFolder = path.join(
-        year,
-        `T${month}.${year}`,
-        `${day}.${month}`,
+      const sessionStartStr = await this.settingsService.getSetting(
+        'session_start_time',
+        '05:00',
       );
-      destFolder = path.join(backupMsBase, subFolder);
+      const { dateObj: targetDate, dateStr: resolvedDateStr } = resolveTradingSessionDate(
+        sessionDay || payload.targetDate,
+        { sessionStartStr },
+      );
+      const { fullPath } = resolveDailySubfolder(backupMsBase, targetDate);
+      destFolder = fullPath;
       if (!fs.existsSync(destFolder)) {
         fs.mkdirSync(destFolder, { recursive: true });
       }
       job.logs.push(
-        `[${new Date().toISOString()}] Target Backup MS folder: ${destFolder}`,
+        `[${new Date().toISOString()}] Target Backup MS folder: ${destFolder} (Session: ${resolvedDateStr})`,
       );
       await job.save();
     }

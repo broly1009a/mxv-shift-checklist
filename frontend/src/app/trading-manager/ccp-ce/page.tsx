@@ -14,6 +14,7 @@ import {
   Layers,
   BarChart3,
   Server,
+  Calendar,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
@@ -50,8 +51,8 @@ export default function CcpCeTradingManagerPage() {
   // Số lượng background job đang chạy
   const [activeJobsCount, setActiveJobsCount] = useState<number>(0);
 
-  // Selected Date (Mặc định hôm nay theo giờ Việt Nam GMT+7)
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  // Selected Date (Mặc định phiên làm việc hiện tại theo giờ Việt Nam GMT+7)
+  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
 
   // Guide Modal
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
@@ -238,6 +239,34 @@ export default function CcpCeTradingManagerPage() {
               <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'monospace' }}>
                 {!isDiffer ? 'Khớp 100%' : `Lệch ${totalDifferLots} lot`}
               </span>
+            </div>
+
+            {/* Session Date Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={15} color="#10b981" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="form-input"
+                style={{
+                  width: '145px',
+                  height: '34px',
+                  fontSize: '0.8rem',
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setSelectedDate(getInitialTradingSessionDate())}
+                className="btn btn-secondary"
+                title="Đặt lại về phiên ngày hôm nay"
+                style={{ height: '34px', padding: '0 8px', fontSize: '0.75rem', fontWeight: 600 }}
+              >
+                Hôm nay
+              </button>
             </div>
 
             {/* Fullscreen Button */}

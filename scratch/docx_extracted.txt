@@ -1,0 +1,173 @@
+CCP
+CHECKLIST VẬN HÀNH ĐẦU NGÀY
+Ngày: …….…………    Ca trực/Nhân sự thực hiện: ………………………
+Lưu ý: Cột “Kết quả” dùng để đánh dấu Đạt/Không đạt; cột “Ghi chú/Xử lý” ghi rõ nguyên nhân, thao tác thủ công hoặc đầu mối phối hợp khi có lỗi.
+
+--- TABLE ---
+STT | Hạng mục kiểm tra | Kết quả | Ghi chú
+1 | Kiểm tra trạng thái máy chủ/hạ tầng | Đạt/Không đạt | 
+2 | Kiểm tra tài nguyên CPU/RAM/Disk | Đạt/Không đạt | 
+3 | Kiểm tra dịch vụ ứng dụng trọng yếu | Đạt/Không đạt | 
+4 | Kiểm tra cơ sở dữ liệu/replication | Đạt/Không đạt | 
+5 | Kiểm tra monitoring và alerting | Đạt/Không đạt | 
+6 | Kiểm tra log tập trung | Đạt/Không đạt | 
+7 | Kiểm tra đồng bộ thời gian | Đạt/Không đạt | 
+8 | Kiểm tra kết nối với đối tác/hệ thống ngoài | Đạt/Không đạt | 
+9 | Kiểm tra batch/job đầu ngày | Đạt/Không đạt | 
+10 | Kiểm tra tồn đọng sự cố/cảnh báo từ ca trước | Đạt/Không đạt | 
+--- END TABLE ---
+
+Kết luận đầu ngày: ……………………………………………………………………………………………………………………………………………………………………………………………………
+Người thực hiện: ………………………     Người kiểm tra/xác nhận: ………………………
+CHECKLIST VẬN HÀNH CUỐI NGÀY
+Ngày: ……………    Ca trực/Nhân sự thực hiện: ………………………
+Lưu ý: Cột “Kết quả” dùng để đánh dấu Đạt/Không đạt; cột “Ghi chú/Xử lý” ghi rõ nguyên nhân, thao tác thủ công hoặc đầu mối phối hợp khi có lỗi.
+
+--- TABLE ---
+STT | Hạng mục kiểm tra | Kết quả | Ghi chú
+1 | Kiểm tra hoàn thành job cuối ngày | Đạt/Không đạt | 
+2 | Kiểm tra trạng thái đồng bộ dữ liệu | Đạt/Không đạt | 
+3 | Kiểm tra log lỗi/batch lỗi | Đạt/Không đạt | 
+4 | Kiểm tra sao lưu dữ liệu | Đạt/Không đạt | 
+5 | Kiểm tra lưu trữ log/nghiệp vụ kỹ thuật | Đạt/Không đạt | 
+6 | Kiểm tra cảnh báo tồn đọng | Đạt/Không đạt | 
+7 | Ghi nhận sự cố phát sinh trong ngày | Đạt/Không đạt | 
+8 | Xác nhận trạng thái hệ thống cuối ngày | Đạt/Không đạt | 
+--- END TABLE ---
+
+Kết luận cuối ngày: ……………………………………………………………………………………………………………………………………………………………………………………………………
+Người thực hiện: ………………………     Người kiểm tra/xác nhận: ………………………
+CHECKLIST VẬN HÀNH CHI TIẾT
+Lưu ý: Cột “Kết quả” dùng để đánh dấu Đạt/Không đạt; cột “Ghi chú/Xử lý” ghi rõ nguyên nhân, thao tác thủ công hoặc đầu mối phối hợp khi có lỗi.
+
+--- TABLE ---
+STT | Mốc thời gian | Nội dung vận hành | Điểm kiểm tra/xác nhận | Kết quả | Ghi chú/Xử lý
+3 | 04:00 (CLOSE) | CCP giải tỏa lệnh theo Exchange | Kiểm tra danh sách lệnh tại CCP sau đồng bộ Exchange | Đạt/Không đạt | 
+4 | 04:15 (Reconcile Orders) | Reconcile tự động | Có thông báo chạy reconcile thành công | Đạt/Không đạt | 
+5 | 04:15 (Reconcile Orders) | Đối chiếu lệnh khớp và lệnh còn hiệu lực | Kiểm tra màn hình tra cứu đối chiếu lệnh | Đạt/Không đạt | 
+6 | 04:15 (Reconcile Orders) | Cập nhật giá thanh toán mới | Kiểm tra tại cửa sổ giá thanh toán | Đạt/Không đạt | 
+7 | 04:15 (Reconcile Orders) | Cập nhật hàng hóa, hợp đồng mới theo Exchange | Kiểm tra cửa sổ hàng hóa/hợp đồng | Đạt/Không đạt | 
+8 | 04:15 (Reconcile Orders) | Trường hợp CCP khớp nhiều hơn Exchange | Xác định và ghi nhận nếu phải xử lý hủy khớp thủ công | Đạt/Không đạt | Phối hợp với IT, đối tác công nghệ để kiểm tra nếu cần
+9 | 04:15 (Reconcile Orders) | Trường hợp CCP khớp ít hơn Exchange | Xác nhận đã khớp bù tự động trong tiến trình reconcile | Đạt/Không đạt | Phối hợp với IT, đối tác công nghệ để kiểm tra nếu cần
+10 | 04:15 (Reconcile Orders) | Gửi csv về thành viên | Kiểm tra các file csv trên SFTP | Đạt/Không đạt | 
+11 | 04:35 (SOD) | SOD hệ thống tự động | Có thông báo snapshot dữ liệu ngày T thành công | Đạt/Không đạt | 
+14 | 04:35 (SOD) | Chuyển phiên làm việc T+1 | Có thông báo đổi ngày phiên T+1 thành công | Đạt/Không đạt | 
+15 | 04:35 (SOD) | Backup dữ liệu sang lịch sử | Xác nhận job backup dữ liệu lịch sử hoàn thành | Đạt/Không đạt | 
+16 | 05:30 (EOD) | EOD hệ thống tự động | Tự động thanh toán lãi lỗ T-1 thành công | Đạt/Không đạt | 
+17 | 05:30 (EOD) | Tự động sinh file csv nộp/rút tiền | Kiểm tra file trên SFTP | Đạt/Không đạt | 
+18 | Trong phiên 05:00–04:00 | Các tác vụ, thiết lập tại CCP hoạt động bình thường | Thực hiện giao dịch bình thường trên toàn bộ Core CCP | Đạt/Không đạt | 
+20 | Trong phiên 05:00–04:00 | Monitor thủ công lệnh giữa CCP và Exchange | Kiểm tra đối chiếu thủ công tại các mốc 09:00, 11:30, 14:00, 17:30 hoặc định kỳ 02h một lần | Đạt/Không đạt | 
+--- END TABLE ---
+
+MẪU NHẬT KÝ TRỰC VẬN HÀNH
+Thời gian bắt đầu ca trực: ……………    Thời gian kết thúc ca trực: ……………
+Nhân sự trực: ......................................................................................................................................................
+......................................................................................................................................................
+
+--- TABLE ---
+Thời gian | Nội dung theo dõi/xử lý | Mức độ | Kết quả | Người thực hiện
+ |  |  |  | 
+ |  |  |  | 
+ |  |  |  | 
+ |  |  |  | 
+--- END TABLE ---
+
+Bàn giao ca: ……………………………………………………………………………………………………………………………………………………………………………………………………
+. MẪU BIÊN BẢN SỰ CỐ CNTT
+
+--- TABLE ---
+Nội dung | Thông tin
+Mã sự cố | ………………………
+Thời gian phát hiện | ………………………
+Người phát hiện | ………………………
+Hệ thống bị ảnh hưởng | ………………………
+Mức độ sự cố | M1 / M2 / M3
+--- END TABLE ---
+
+Mô tả sự cố:
+......................................................................................................................................................
+......................................................................................................................................................
+Phạm vi ảnh hưởng:
+......................................................................................................................................................
+......................................................................................................................................................
+Biện pháp xử lý ban đầu:
+......................................................................................................................................................
+......................................................................................................................................................
+Kết quả khắc phục:
+......................................................................................................................................................
+......................................................................................................................................................
+Nguyên nhân sơ bộ / nguyên nhân gốc:
+......................................................................................................................................................
+......................................................................................................................................................
+Kiến nghị phòng ngừa tái diễn:
+......................................................................................................................................................
+......................................................................................................................................................
+Người lập biên bản: ……………………     Người phê duyệt/xác nhận: ………………………
+EXCHANGE
+CHECKLIST VẬN HÀNH ĐẦU NGÀY
+Ngày: …….…………    Ca trực/Nhân sự thực hiện: ………………………
+Lưu ý: Cột “Kết quả” dùng để đánh dấu Đạt/Không đạt; cột “Ghi chú/Xử lý” ghi rõ nguyên nhân, thao tác thủ công hoặc đầu mối phối hợp khi có lỗi.
+
+--- TABLE ---
+STT | Hạng mục kiểm tra | Kết quả | Ghi chú
+1 | Kiểm tra trạng thái máy chủ/hạ tầng | Đạt/Không đạt | 
+2 | Kiểm tra tài nguyên CPU/RAM/Disk | Đạt/Không đạt | 
+3 | Kiểm tra dịch vụ ứng dụng trọng yếu | Đạt/Không đạt | 
+4 | Kiểm tra cơ sở dữ liệu/replication | Đạt/Không đạt | 
+5 | Kiểm tra monitoring và alerting | Đạt/Không đạt | 
+6 | Kiểm tra log tập trung | Đạt/Không đạt | 
+7 | Kiểm tra đồng bộ thời gian | Đạt/Không đạt | 
+8 | Kiểm tra kết nối với đối tác/hệ thống ngoài | Đạt/Không đạt | 
+9 | Kiểm tra batch/job đầu ngày | Đạt/Không đạt | 
+10 | Kiểm tra tồn đọng sự cố/cảnh báo từ ca trước | Đạt/Không đạt | 
+--- END TABLE ---
+
+Kết luận đầu ngày: ……………………………………………………………………………………………………………………………………………………………………………………………………
+MẪU NHẬT KÝ TRỰC VẬN HÀNH
+Thời gian bắt đầu ca trực: ……………    Thời gian kết thúc ca trực: ……………
+Nhân sự trực: ......................................................................................................................................................
+......................................................................................................................................................
+
+--- TABLE ---
+Thời gian | Nội dung theo dõi/xử lý | Mức độ | Kết quả | Người thực hiện
+ |  |  |  | 
+ |  |  |  | 
+ |  |  |  | 
+ |  |  |  | 
+--- END TABLE ---
+
+Bàn giao ca: ……………………………………………………………………………………………………………………………………………………………………………………………………
+MẪU BIÊN BẢN SỰ CỐ CNTT
+
+--- TABLE ---
+Nội dung | Thông tin
+Mã sự cố | ………………………
+Thời gian phát hiện | ………………………
+Người phát hiện | ………………………
+Hệ thống bị ảnh hưởng | ………………………
+Mức độ sự cố | M1 / M2 / M3
+--- END TABLE ---
+
+Mô tả sự cố:
+.......................................................................................................................................
+.......................................................................................................................................
+Phạm vi ảnh hưởng:
+.......................................................................................................................................
+.......................................................................................................................................
+Biện pháp xử lý ban đầu:
+.......................................................................................................................................
+.......................................................................................................................................
+Kết quả khắc phục:
+.......................................................................................................................................
+.......................................................................................................................................
+Nguyên nhân sơ bộ / nguyên nhân gốc:
+.......................................................................................................................................
+.......................................................................................................................................
+Kiến nghị phòng ngừa tái diễn:
+.......................................................................................................................................
+.......................................................................................................................................
+
+--- TABLE ---
+Người lập biên bản | Người phê duyệt/xác nhận
+ | 
+--- END TABLE ---

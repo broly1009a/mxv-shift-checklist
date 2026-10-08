@@ -192,10 +192,25 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
 
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    const msDailyPath = path.join(msBackupBase, subFolder);
-    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
-    const acmDailyPath = path.join(acmBackupBase, subFolder);
-    const ccpDailyPath = path.join(ccpBackupBase, subFolder);
+    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath chuẩn C# Tool FormMain.cs#L494 / ChromeBot.cs#L867)
+    // Tách biệt hoàn toàn khỏi thư mục Backup chính thức để không ghi đè mất file backup gốc của ca trực
+    const tradingCheckBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
+    );
+    const msDailyPath = path.join(tradingCheckBase, subFolder);
+    const cqgDailyPath = path.join(
+      cqgBackupBase.replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG').replace(/Backup CQG/i, 'TradingCheck/CQG'),
+      subFolder,
+    );
+    const acmDailyPath = path.join(
+      acmBackupBase.replace(/Backup MS[\\/]ACM/i, 'TradingCheck/ACM').replace(/Backup ACM/i, 'TradingCheck/ACM'),
+      subFolder,
+    );
+    const ccpDailyPath = path.join(
+      ccpBackupBase.replace(/Backup CCP/i, 'TradingCheck/CCP'),
+      subFolder,
+    );
 
     for (const dir of [msDailyPath, cqgDailyPath, acmDailyPath, ccpDailyPath]) {
       try {
@@ -1003,7 +1018,10 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
       t1Date.setDate(t1Date.getDate() - 1);
     }
     t1Date.setHours(0, 0, 0, 0);
-    const t1DateStr = t1Date.toISOString().split('T')[0];
+    const t1Year = t1Date.getFullYear();
+    const t1Month = String(t1Date.getMonth() + 1).padStart(2, '0');
+    const t1Day = String(t1Date.getDate()).padStart(2, '0');
+    const t1DateStr = `${t1Year}-${t1Month}-${t1Day}`;
 
     job.logs.push(
       `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD ngày ca trực ${dateStr} (Phiên T-1: ${t1DateStr})...`,

@@ -10,11 +10,9 @@ import { Department, DepartmentSchema } from '../../schemas/department.schema';
 import { Role, RoleSchema } from '../../schemas/role.schema';
 import { AccessControlService } from './access-control.service';
 import { PermissionsGuard } from './permissions.guard';
-import { TkgdAutomationModule } from '../tkgd-automation/tkgd-automation.module';
 
 @Module({
   imports: [
-    forwardRef(() => TkgdAutomationModule),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Department.name, schema: DepartmentSchema },
