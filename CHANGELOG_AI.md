@@ -1,5 +1,143 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-10-09T19:32] FEAT(BOT-ENGINE-GTT): Nâng Cấp Tiến Trình Đối Soát GTT CE-CCP Tự Động Tải File On-Demand Từ CoreEX & CoreCCP
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"làm sao khi checkGTT nó sẽ tự tải file về thay vì tìm file"* -> *"có giúp tôi nâng cấp"*
+- **Nguyên lý kiến trúc & Cải tiến**:
+  - Chuyển đổi `CeCcpGttCheckerService` từ mô hình thụ động (*Passive File Finder* - chỉ tìm file tĩnh có sẵn trên ổ cứng) sang mô hình chủ động (*Active On-Demand Auto-Downloader*).
+  - Khi người dùng bấm nút `[Đối Chiếu GTT (CE vs CCP)]` (hoặc gọi API `POST /api/v1/bot-engine/run-ce-ccp-gtt-check`):
+    - Hệ thống kiểm tra: Nếu trên ổ đĩa chưa có file `GTT ACM.xlsx` (CoreEX) hoặc `GTT CCP.xlsx` (CoreCCP), hoặc khi có yêu cầu `forceDownload`, Bot sẽ tự động lấy credentials từ CSDL và kích hoạt Playwright crawler:
+      + Đăng nhập CoreEX -> Truy cập `/PRODUCT/SETTLEMENT` -> Chuyển tab "Giá thanh toán liên thông" -> Kết xuất tải file `GTT ACM.xlsx`.
+      + Đăng nhập CoreCCP -> Truy cập `/PRODUCT/SETTLEMENT` -> Kết xuất tải file `GTT CCP.xlsx`.
+    - Sau khi hoàn thành tải, tiến trình lập tức nạp 2 file vào bộ nhớ, so khớp chênh lệch giá thanh toán và trả về bảng kết quả chi tiết cho người dùng mà không cần phải thực hiện tải thủ công từ trước.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/bot-engine/ce-ccp-gtt.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ce-ccp-gtt.service.ts):
+  - **L1-L15**: Bổ sung import `Inject`, `forwardRef`, `Optional` từ `@nestjs/common`, `CcpCeDownloaderService`, `decrypt` từ `./utils/crypto`, và `resolveTradingSessionDate` từ `./helpers/bot-path.helper`.
+  - **L50-L60**: Bổ sung 2 thuộc tính `autoDownload?: boolean` (mặc định: `true`) và `forceDownload?: boolean` vào interface `RunCeCcpGttOptions`.
+  - **L95-L105**: Inject `CcpCeDownloaderService` vào constructor của `CeCcpGttCheckerService` qua `forwardRef`.
+  - **L385-L505**: Xây dựng phương thức `autoDownloadMissingFiles(...)` và tích hợp vào đầu luồng của `runCeCcpGttCheck(...)`, đảm bảo tự động tải file khi thiếu trước khi ném ngoại lệ.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build (`npm run build`)**: Pass 100% (Exit code 0, `nest build` thành công).
+
+---
+
+## [2026-10-09T19:24] FIX(BOT-ENGINE-CE): Cấu Hình TabName "Giá thanh toán liên thông" Cho Báo Cáo GTT Của Sàn CoreEX (CE)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu & Dữ liệu thực chứng từ USER**:
+  - USER cung cấp trực tiếp cấu trúc DOM và ảnh chụp màn hình thực tế từ CoreEX tại màn hình `/PRODUCT/SETTLEMENT` (Quản lý giá thanh toán):
+    ```html
+    <div role="tablist" class="MuiTabs-list MuiTabs-flexContainer mui-162tvoi">
+      <button class="MuiButtonBase-root MuiTab-root MuiTab-textColorPrimary Mui-selected" role="tab">Giá thanh toán</button>
+      <button class="MuiButtonBase-root MuiTab-root MuiTab-textColorPrimary" role="tab">Giá thanh toán liên thông</button>
+    </div>
+    ```
+  - Chỉ đạo từ USER: *"hiện tại riêng với CE khi tải GTT thì phải chọn Giá thanh toán liên thông rồi mới tải về mới đúng nếu ở trang giá thanh toán thì sẽ bị không có dữ liệu"*.
+- **Phân tích nguyên nhân gốc**:
+  - Trước đây, cấu hình báo cáo `GTT` trong `DEFAULT_CE_REPORTS` và `test_ce_headless_download.js` chỉ trỏ vào `cachedUrl: '/PRODUCT/SETTLEMENT'` mà không chỉ định `tabName`. Khi bot truy cập màn hình, trình duyệt giữ nguyên tab mặc định là "Giá thanh toán" (dành cho hàng hóa nội bộ), dẫn tới việc không có dữ liệu giá liên thông ACM hoặc bảng rỗng, từ đó không tải được file `GTT ACM.xlsx`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
+  - **L475-L485**: Bổ sung thuộc tính `tabName: 'Giá thanh toán liên thông'` vào cấu hình báo cáo `GTT` của `DEFAULT_CE_REPORTS`.
+  - **L1133-L1145**: Bổ sung cơ chế kích hoạt nút "Tìm kiếm" nếu bảng trống sau khi chuyển tab đối với báo cáo hôm nay (`isToday`), đảm bảo nạp đầy đủ bảng dữ liệu trước khi kết xuất file.
+- [backend/src/scripts/test_ce_headless_download.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ce_headless_download.js):
+  - **L117-L123**: Cập nhật `GTT` sang `type: 'TAB_TABLE'` và bổ sung `subTab: 'Giá thanh toán liên thông'` để script test tự động chuyển tab.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build (`npm run build`)**: Pass 100% (Exit code 0, `nest build` thành công hoàn toàn).
+
+---
+
+## [2026-10-09T18:55] FEAT(TRADING-MANAGER-CCP-CE): Xây Dựng 2 Component Mới Cho Phân Hệ CoreCCP & CoreEX ("Check & Chạy EOD (CCP – CE)" và "Backup – Thống Kê CCP – CE")
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"giúp tôi desgin lại các trang như Check & Chạy EOD (MS – CQG) sẽ là Check & Chạy EOD (CCP– CE) và có giao diện tương tự như trang này (không xóa code cũ mà dựa vào bê logic sang và còn để rollback). Tương tự Backup – Thống Kê MS – CQG cũng có giao diện tương tự bao gồm Backup – Thống Kê CCP – CE với Backup CCP– CE (Hiện tại) dưới là Giá thanh toán (GTT CCP vs CE) tương tự và cũng có Kiểm tra ký quỹ TKGD (IMR tương tự luôn nhưng module này chưa có cứ làm giao diện chờ) giúp tôi update thêm giao diện(không được sửa trực tiếp tạo file mới để file cũ bê code sang)"*
+- **Nguyên lý kiến trúc triển khai**:
+  - **Không sửa đè / Không xóa file cũ**: Giữ nguyên vẹn 100% các file `CoreCcpBackupSection.tsx`, `CcpLotStatisticsSection.tsx`, `CeAcmBackupSection.tsx` để bảo đảm khả năng rollback tuyệt đối.
+  - Tạo 2 file component mới hoàn toàn:
+    1. `CcpCeEodReconSection.tsx`: Thiết kế theo chuẩn giao diện `Check & Chạy EOD (MS – CQG)`.
+    2. `CcpCeBackupThongKeSection.tsx`: Thiết kế theo chuẩn giao diện `Backup – Thống Kê MS – CQG`.
+  - Cập nhật trang `/trading-manager/ccp-ce` để tích hợp 2 màn hình mới vào Tab 2 và Tab 3 song hành với cấu trúc của trang `ms-cqg`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx) *(MỚI)*:
+  - Thanh header: Lựa chọn ngày phiên đối soát EOD CCP & CE, nút `Hôm nay` và `Làm mới dữ liệu EOD`.
+  - Hàng 2 thẻ card:
+    - Thẻ 1: `Tài khoản âm ký quỹ mới (EOD CoreCCP)` với nút `Check` và trạng thái an toàn.
+    - Thẻ 2: `Kết quả chạy EOD (CoreCCP ↔ CoreEX)` với các cột TKGD, QLTKGD CoreCCP, CoreEX EOD result, Lệch.
+  - Khối chi tiết `Chi tiết đối chiếu Pre-EOD (CoreCCP ↔ CoreEX)`:
+    - 4 Metric cards: `CoreCCP / Maker (VNCLEAR)`, `CoreEX / Sàn CE`, `LỆNH KHỚP LỆNH (TRADES)`, `VỊ THẾ NET LỆCH (POSITIONS)`.
+    - 2 subtabs: `Chi tiết lệnh lệch khớp lệnh` và `Chi tiết lệch vị thế tất toán net (TTTT vs Positions)`.
+    - Bộ lọc nguồn (Tất cả, CoreEX, CoreCCP) và ô tìm kiếm mã TKGD/HĐ.
+    - Bộ nút thao tác: `Check Pre-EOD`, `Sao chép báo cáo`.
+- [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx) *(MỚI)*:
+  - Thanh header điều khiển: Ngày phiên, `Backup định kỳ (phút)`, `Thời điểm backup (04:00)`, `Thời điểm tạo thống kê (06:30)`, và Master Switch Tự động BẬT/TẮT.
+  - Lưới 3 cột Backup:
+    - Cột 1: `Backup CoreCCP (25 Báo Cáo VNCLEAR)`
+    - Cột 2: `Backup CoreEX (CE)` (5 báo cáo sàn CE: GTT, HH, HĐ, DSGD, TTM)
+    - Cột 3: `Backup ACM` (4 báo cáo Straits Financial: Fill, Order, Straits SFTP CSV, TK 10017890000 XLS)
+    - Mỗi cột có đầy đủ Checkbox All, danh sách file, thư mục lưu trữ `M:\...`, nút `Tải Báo Cáo` và nút `Kiểm tra`.
+  - Khối `Đối Chiếu Giá Thanh Toán (GTT CCP vs CE)`: Nhúng trực tiếp `CeCcpGttCheckerSection`.
+  - Khối `Kiểm Tra Ký Quỹ TKGD (IMR CoreCCP vs CE)` *(Giao diện chờ)*:
+    - 4 thẻ phân nhóm tỷ lệ ký quỹ: G1 (>120%), G2 (100%-120%), G3 (80%-100%), G4 (<80% hoặc âm KQ).
+    - Nút `Phân Tích Ký Quỹ IMR` và bảng trạng thái an toàn sẵn sàng đón dữ liệu VNCLEAR.
+- [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx):
+  - Nhúng 2 component mới `CcpCeEodReconSection` và `CcpCeBackupThongKeSection` vào Tab 2 (`CHECK_EOD_CCP_CE`) và Tab 3 (`BACKUP_THONG_KE_CCP_CE`).
+  - Đồng bộ cấu trúc tab đồng nhất với trang `/trading-manager/ms-cqg`.
+- [backend/src/scripts/deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js):
+  - Bổ sung đồng bộ đệ quy toàn bộ thư mục `frontend/src/app/trading-manager/components/core-ccp` và các file route `ccp-ce/page.tsx`, `ms-cqg/page.tsx`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend TypeScript (`npx tsc --noEmit`)**: Exit code 0 (Pass 100% không có lỗi kiểu).
+- **Backend Build (`npm run build`)**: Exit code 0 (Pass 100%).
+- **Triển khai Máy Chủ Ubuntu 10.0.0.26**: Đóng gói bundle, upload và build thành công (`nest build` & `next build`), reload PM2:
+  - `mxv-backend`: PID `3847142`, Status **Online**, Memory **225.2 MB**.
+  - `mxv-frontend`: PID `3847540`, Status **Online**, Memory **54.6 MB**.
+
+---
+
+## [2026-10-09T18:45] FEAT(TRADING-MANAGER-ACM): Tích Hợp Khối Backup ACM (Straits Financial) Trực Tiếp Vào Màn Hình Backup – Thống Kê MS – CQG
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"https://10.0.0.26/trading-manager/ms-cqg ở trang này ở backup-thông kê ms -cqg thì thêm backup ACM vào đây"*
+- **Nguyên lý nghiệp vụ**:
+  - Tại trang phân hệ MS & CQG (`/trading-manager/ms-cqg` - Tab 3: Backup – Thống Kê MS – CQG), ca trực cần giám sát trọn vẹn bộ 3 nguồn dữ liệu đối soát truyền thống của MXV: **M-System**, **CQG**, và **ACM (Straits Financial)** trên cùng một màn hình điều khiển.
+  - Tích hợp thêm Cột **Backup ACM** (4 báo cáo: `Fill.xlsx`, `Order.xlsx`, `Straits EOD CSV (SFTP)`, `Báo cáo TK 10017890000 (SFTP XLS)`) song hành với 2 cột hiện tại (`Backup MS` và `Backup CQG`).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  - Định nghĩa hằng số danh sách báo cáo `ACM_REPORTS_LIST` (Fill, Order, Straits SFTP CSV, TK 10017890000 XLS).
+  - Bổ sung state quản lý: `acmReports`, `downloadingAcm`, `auditingAcm`, `auditAcmResult`, `lastAcmJobId`.
+  - Mở rộng kiểu dữ liệu modal nhật ký `modalJobType: 'MS' | 'CQG' | 'ACM'`.
+  - Bổ sung 2 hàm xử lý: `handleAuditAcmBackup` (`POST /api/v1/bot-engine/audit-acm-backup`) và `handleDownloadAcmBackup` (`POST /api/v1/bot-engine/trigger-acm-download`).
+  - Thêm thẻ Cột Giao Diện **`Backup ACM`** vào lưới grid responsive:
+    - Checkbox `All` và 4 Checkboxes báo cáo kèm badge nguồn (`WEB` / `SFTP`).
+    - Thư mục lưu trữ: `M:\...\Backup ACM\Futures\<Năm>\T<Tháng>.<Năm>\<Ngày>.<Tháng>`.
+    - Bộ 3 nút thao tác: `Tải Báo Cáo ACM` (màu xanh sky), `Kiểm tra` (audit thư mục), `Nhật ký` (mở modal tóm tắt log).
+    - Thanh thông báo tóm tắt tình trạng file hợp lệ.
+  - Cập nhật truyền `lastAcmJobId` vào `BackupLogSummaryModal`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx):
+  - Mở rộng prop `jobType: 'MS' | 'CQG' | 'ACM'`.
+  - Thêm logic bóc tách log chi tiết riêng cho ACM (nhận diện Fill, Order, Straits CSV, TK 10017890000 XLS).
+  - Cập nhật tiêu đề, icon và mô tả của modal khi xem nhật ký ACM.
+- [backend/src/scripts/deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js):
+  - Bổ sung đồng bộ thư mục `bot-engine` đệ quy và các components mới lên Ubuntu.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend TypeScript Build (`npx tsc --noEmit`)**: Exit code 0 (Pass 100% không có lỗi kiểu).
+- **Backend Build (`npm run build`)**: Exit code 0 (Pass 100%).
+- **Triển khai Máy Chủ Ubuntu 10.0.0.26**: Đóng gói bundle, upload và build thành công trên Ubuntu, reload PM2:
+  - `mxv-backend`: PID `3839980`, Status **Online**, Memory **280.2 MB**.
+  - `mxv-frontend`: PID `3840497`, Status **Online**, Memory **57.7 MB**.
+
+---
+
 ## [2026-10-09T16:30] FEAT(TRADING-MANAGER-AUTONOMOUS): Độc Lập Hóa Bộ 3 Tác Vụ Tự Động Backup & Thống Kê (24/7 Standalone Runner & Mở Khóa Bàn Điều Khiển UI)
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

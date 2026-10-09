@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -6,7 +6,10 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import {
   resolveDailySubfolder,
   resolveStoragePathCrossPlatform,
+  resolveTradingSessionDate,
 } from './helpers/bot-path.helper';
+import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
+import { decrypt } from './utils/crypto';
 
 export interface CeCcpGttDataRow {
   symbol: string;
@@ -49,6 +52,8 @@ export interface RunCeCcpGttOptions {
   targetDate?: string;
   filterOpen?: boolean;
   async?: boolean;
+  autoDownload?: boolean; // Tự động tải nếu thiếu file (mặc định: true)
+  forceDownload?: boolean; // Bắt buộc tải mới từ sàn dù file đã tồn tại (mặc định: false)
   ceGttPath?: string;
   ccpGttPath?: string;
   ceHhPath?: string;
@@ -89,7 +94,12 @@ export class CeCcpGttCheckerService {
     'ce-ccp-latest-report.json',
   );
 
-  constructor(private readonly settingsService: SystemSettingsService) {
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    @Optional()
+    @Inject(forwardRef(() => CcpCeDownloaderService))
+    private readonly ccpCeDownloaderService?: CcpCeDownloaderService,
+  ) {
     if (!fs.existsSync(this.workDir)) {
       try {
         fs.mkdirSync(this.workDir, { recursive: true });
@@ -375,6 +385,125 @@ export class CeCcpGttCheckerService {
   }
 
   /**
+   * Tự động khởi chạy Playwright bot tải file GTT từ CoreEX và/hoặc CoreCCP
+   */
+  private async autoDownloadMissingFiles(
+    targetDateStr: string,
+    needCe: boolean,
+    needCcp: boolean,
+  ): Promise<void> {
+    if (!this.ccpCeDownloaderService) {
+      this.logStep('Cảnh báo: CcpCeDownloaderService chưa sẵn sàng, bỏ qua tự động tải.');
+      return;
+    }
+
+    // 1. Tự động tải file GTT ACM từ sàn CoreEX
+    if (needCe) {
+      try {
+        const ceCredRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
+        if (!ceCredRaw) {
+          this.logStep('Cảnh báo: Chưa cấu hình tài khoản CoreEX (bot_credentials_ce) trong CSDL.');
+        } else {
+          const ceCreds = JSON.parse(decrypt(ceCredRaw));
+          if (ceCreds.url && ceCreds.username && ceCreds.password) {
+            this.logStep('Đang khởi động bot tự động đăng nhập CoreEX để tải Giá thanh toán liên thông...');
+            const ceBackupBase = await this.settingsService.getSetting(
+              'bot_backup_path_ce',
+              'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
+            );
+            const { fullPath: ceDailyPath } = resolveDailySubfolder(ceBackupBase, targetDateStr);
+            let outDir = ceDailyPath;
+            try {
+              if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+            } catch {
+              outDir = this.workDir;
+            }
+
+            await this.ccpCeDownloaderService.run(
+              {
+                systemUrl: ceCreds.url,
+                username: ceCreds.username,
+                password: ceCreds.password,
+                startDate: targetDateStr,
+                endDate: targetDateStr,
+                outputDir: outDir,
+                reports: [
+                  {
+                    code: 'GTT',
+                    name: 'Giá thanh toán (CE)',
+                    parentMenu: 'Quản lý sản phẩm',
+                    childMenu: 'Quản lý giá thanh toán',
+                    tabName: 'Giá thanh toán liên thông',
+                    cachedUrl: '/PRODUCT/SETTLEMENT',
+                    enabled: true,
+                    phase: 'EOD',
+                    outputFileName: 'GTT ACM.xlsx',
+                  },
+                ],
+              },
+              (m: string) => this.logStep(`[CoreEX Bot] ${m}`),
+            );
+          }
+        }
+      } catch (err: any) {
+        this.logStep(`Lỗi tự tải GTT CoreEX: ${err?.message || err}`);
+      }
+    }
+
+    // 2. Tự động tải file GTT CCP từ hệ thống CoreCCP
+    if (needCcp) {
+      try {
+        const ccpCredRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
+        if (!ccpCredRaw) {
+          this.logStep('Cảnh báo: Chưa cấu hình tài khoản CoreCCP (bot_credentials_ccp) trong CSDL.');
+        } else {
+          const ccpCreds = JSON.parse(decrypt(ccpCredRaw));
+          if (ccpCreds.url && ccpCreds.username && ccpCreds.password) {
+            this.logStep('Đang khởi động bot tự động đăng nhập CoreCCP để tải Giá thanh toán...');
+            const ccpBackupBase = await this.settingsService.getSetting(
+              'bot_backup_path_ccp',
+              'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+            );
+            const { fullPath: ccpDailyPath } = resolveDailySubfolder(ccpBackupBase, targetDateStr);
+            let outDir = ccpDailyPath;
+            try {
+              if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+            } catch {
+              outDir = this.workDir;
+            }
+
+            await this.ccpCeDownloaderService.run(
+              {
+                systemUrl: ccpCreds.url,
+                username: ccpCreds.username,
+                password: ccpCreds.password,
+                startDate: targetDateStr,
+                endDate: targetDateStr,
+                outputDir: outDir,
+                reports: [
+                  {
+                    code: 'GTT',
+                    name: 'Quản lý giá thanh toán',
+                    parentMenu: 'Quản lý sản phẩm',
+                    childMenu: 'Quản lý giá thanh toán',
+                    cachedUrl: '/PRODUCT/SETTLEMENT',
+                    enabled: true,
+                    phase: 'EOD',
+                    outputFileName: 'GTT CCP.xlsx',
+                  },
+                ],
+              },
+              (m: string) => this.logStep(`[CoreCCP Bot] ${m}`),
+            );
+          }
+        }
+      } catch (err: any) {
+        this.logStep(`Lỗi tự tải GTT CoreCCP: ${err?.message || err}`);
+      }
+    }
+  }
+
+  /**
    * Chạy pipeline đối soát GTT giữa CoreEX (CE) và CoreCCP (VNCLEAR)
    */
   async runCeCcpGttCheck(options: RunCeCcpGttOptions = {}): Promise<CeCcpGttReport> {
@@ -389,7 +518,27 @@ export class CeCcpGttCheckerService {
     try {
       this.logStep('Khởi động tiến trình đối chiếu Giá thanh toán: CoreEX (CE) vs CoreCCP (VNCLEAR)...');
 
-      const files = await this.resolveFilePaths(options);
+      let files = await this.resolveFilePaths(options);
+
+      // Tự động tải file On-Demand nếu thiếu file hoặc được yêu cầu forceDownload
+      const needCe = !files.ceGtt || options.forceDownload === true;
+      const needCcp = !files.ccpGtt || options.forceDownload === true;
+
+      if ((needCe || needCcp) && options.autoDownload !== false) {
+        this.logStep(
+          `Trạng thái file ban đầu: CE GTT = [${files.ceGtt ? 'Đã có' : 'Chưa có'}], CCP GTT = [${files.ccpGtt ? 'Đã có' : 'Chưa có'}]. Kích hoạt bot tự động tải On-Demand...`,
+        );
+        const resolvedDate = resolveTradingSessionDate(options.targetDate);
+        await this.autoDownloadMissingFiles(
+          resolvedDate.dateStr,
+          needCe,
+          needCcp,
+        );
+
+        // Quét lại file sau khi tải
+        files = await this.resolveFilePaths(options);
+      }
+
       this.logStep(`File CE GTT: ${files.ceGtt ? path.basename(files.ceGtt) : 'Chưa tìm thấy'}`);
       this.logStep(`File CCP GTT: ${files.ccpGtt ? path.basename(files.ccpGtt) : 'Chưa tìm thấy'}`);
       if (files.ceHh) this.logStep(`File Bước giá CE: ${path.basename(files.ceHh)}`);
@@ -398,12 +547,12 @@ export class CeCcpGttCheckerService {
 
       if (!files.ceGtt) {
         throw new Error(
-          'Không tìm thấy file Giá thanh toán CoreEX (GTT ACM.xlsx). Vui lòng tải báo cáo CE trước!',
+          'Không tìm thấy file Giá thanh toán CoreEX (GTT ACM.xlsx) ngay cả sau khi kích hoạt bot tự tải. Vui lòng kiểm tra cấu hình tài khoản CoreEX hoặc kết nối mạng!',
         );
       }
       if (!files.ccpGtt) {
         throw new Error(
-          'Không tìm thấy file Giá thanh toán CoreCCP (GTT CCP.xlsx hoặc LSGTT.xlsx). Vui lòng tải báo cáo CCP trước!',
+          'Không tìm thấy file Giá thanh toán CoreCCP (GTT CCP.xlsx hoặc LSGTT.xlsx) ngay cả sau khi kích hoạt bot tự tải. Vui lòng kiểm tra cấu hình tài khoản CoreCCP hoặc kết nối mạng!',
         );
       }
 

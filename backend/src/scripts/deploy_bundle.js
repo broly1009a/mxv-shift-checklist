@@ -80,6 +80,8 @@ const filesToDeploy = [
   'backend/src/modules/tkgd-automation/tkgd-automation.service.ts',
   'backend/src/modules/tkgd-automation/tkgd-automation.controller.ts',
   'frontend/src/app/trading-manager/page.tsx',
+  'frontend/src/app/trading-manager/ccp-ce/page.tsx',
+  'frontend/src/app/trading-manager/ms-cqg/page.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx',
   'backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts',
   'backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts',
@@ -132,6 +134,14 @@ if (fs.existsSync(srcCeAcm)) {
   const destCeAcm = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/ce-acm');
   copyDirRecursive(srcCeAcm, destCeAcm);
   console.log('Copied full frontend ce-acm folder.');
+}
+
+// 1.25 Toàn bộ thư mục frontend core-ccp
+const srcCoreCcp = path.join(rootDir, 'frontend/src/app/trading-manager/components/core-ccp');
+if (fs.existsSync(srcCoreCcp)) {
+  const destCoreCcp = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/core-ccp');
+  copyDirRecursive(srcCoreCcp, destCoreCcp);
+  console.log('Copied full frontend core-ccp folder.');
 }
 
 // 1.3 Toàn bộ thư mục bot-engine

@@ -18,6 +18,7 @@ import {
   Layers,
   Database,
   Lock,
+  Folder,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -358,10 +359,19 @@ export default function LegacyBackupThongKeSection({
   // Execution states
   const [auditingMs, setAuditingMs] = useState<boolean>(false);
   const [auditingCqg, setAuditingCqg] = useState<boolean>(false);
+  const [auditingAcm, setAuditingAcm] = useState<boolean>(false);
   const [auditMsResult, setAuditMsResult] = useState<any>(null);
   const [auditCqgResult, setAuditCqgResult] = useState<any>(null);
+  const [auditAcmResult, setAuditAcmResult] = useState<any>(null);
 
-
+  // ACM Reports (4 checkboxes)
+  const [acmReports, setAcmReports] = useState<Record<string, boolean>>({
+    FILL: true,
+    ORDER: true,
+    SFTP_CSV: true,
+    SFTP_XLS: true,
+  });
+  const [downloadingAcm, setDownloadingAcm] = useState<boolean>(false);
 
   // IMR State
   const [imrLoading, setImrLoading] = useState<boolean>(false);
@@ -379,9 +389,9 @@ export default function LegacyBackupThongKeSection({
   const [downloadingCqg, setDownloadingCqg] = useState<boolean>(false);
   const [fetchingEodEmail, setFetchingEodEmail] = useState<boolean>(false);
 
-  // Modal xem nhanh nhật ký tóm tắt Backup MS / CQG
+  // Modal xem nhanh nhật ký tóm tắt Backup MS / CQG / ACM
   const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
-  const [modalJobType, setModalJobType] = useState<'MS' | 'CQG'>('MS');
+  const [modalJobType, setModalJobType] = useState<'MS' | 'CQG' | 'ACM'>('MS');
   const [lastMsJobId, setLastMsJobId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('tm_last_ms_backup_job_id');
@@ -391,6 +401,12 @@ export default function LegacyBackupThongKeSection({
   const [lastCqgJobId, setLastCqgJobId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('tm_last_cqg_backup_job_id');
+    }
+    return null;
+  });
+  const [lastAcmJobId, setLastAcmJobId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_last_acm_backup_job_id');
     }
     return null;
   });
@@ -416,6 +432,17 @@ export default function LegacyBackupThongKeSection({
       .then((data) => {
         if (Array.isArray(data) && data[0]?._id) {
           setLastCqgJobId((prev) => prev || data[0]._id);
+        }
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=TRIGGER_ACM_DOWNLOAD,FILE_AUDIT_ACM&limit=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data[0]?._id) {
+          setLastAcmJobId((prev) => prev || data[0]._id);
         }
       })
       .catch(() => {});
@@ -612,6 +639,96 @@ export default function LegacyBackupThongKeSection({
       toast.error(`Lỗi kiểm tra CQG: ${err.message}`, { id: toastId });
     } finally {
       setAuditingCqg(false);
+    }
+  };
+
+  // Audit ACM Backup (Web & SFTP Straits)
+  const handleAuditAcmBackup = async (showToast: boolean = true) => {
+    if (!token || auditingAcm) return;
+    setAuditingAcm(true);
+    let toastId: string | undefined;
+    if (showToast) {
+      toastId = toast.loading('Đang quét thư mục backup ACM (Web & SFTP)...');
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-acm-backup`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetDate: selectedDate }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setAuditAcmResult(data);
+      if (showToast && toastId) {
+        toast.success(
+          `Quét ACM hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file hợp lệ.`,
+          { id: toastId }
+        );
+      }
+    } catch (err: any) {
+      if (showToast && toastId) toast.error(`Lỗi kiểm tra backup ACM: ${err.message}`, { id: toastId });
+    } finally {
+      setAuditingAcm(false);
+    }
+  };
+
+  // Trigger real ACM download (Web & SFTP)
+  const handleDownloadAcmBackup = async () => {
+    if (!token || downloadingAcm) return;
+    const selected = Object.keys(acmReports).filter((k) => acmReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo ACM để tải!');
+      return;
+    }
+
+    setDownloadingAcm(true);
+    const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo ACM...`);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-acm-download`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetDate: selectedDate, reports: selected }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã kích hoạt tải báo cáo ACM!', { id: toastId });
+        await handleAuditAcmBackup(false);
+        return;
+      }
+
+      setLastAcmJobId(jobId);
+      if (typeof window !== 'undefined') localStorage.setItem('tm_last_acm_backup_job_id', jobId);
+
+      toast.loading(`Bot đang đồng bộ ${selected.length} file ACM (Web & SFTP)...`, { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!jr.ok) continue;
+          const job = await jr.json();
+          if (job.status === 'COMPLETED') {
+            toast.success('Đã tải & đồng bộ thành công các file ACM về thư mục Backup!', { id: toastId, duration: 5000 });
+            await handleAuditAcmBackup(false);
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Đồng bộ ACM kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditAcmBackup(false);
+            return;
+          }
+        } catch {}
+      }
+      toast.success('Tác vụ tải ACM đang tiếp tục chạy ngầm trên server.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải ACM: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingAcm(false);
     }
   };
 
@@ -1390,7 +1507,165 @@ export default function LegacyBackupThongKeSection({
             </div>
           </div>
 
-          {/* CỘT 3: BACKUP CORECCP (25 BÁO CÁO VNCLEAR MAKER) */}
+          {/* CỘT 3: BACKUP ACM (4 BÁO CÁO: WEB & SFTP STRAITS) */}
+          <div style={{ border: '1px solid rgba(14, 165, 233, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(14, 165, 233, 0.02)' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(14, 165, 233, 0.2)', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0284c7' }}>Backup ACM</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={Object.values(acmReports).every(Boolean)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAcmReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                      }}
+                      style={{ accentColor: '#0ea5e9', width: '14px', height: '14px' }}
+                    />
+                    <span>All</span>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(14, 165, 233, 0.12)', color: '#0ea5e9' }}>Straits</span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>4 file</span>
+                </div>
+              </div>
+
+              {/* 4 Checkboxes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {ACM_REPORTS_LIST.map((rep) => {
+                  const isChecked = !!acmReports[rep.key];
+                  return (
+                    <label
+                      key={rep.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: isChecked ? 'rgba(14, 165, 233, 0.04)' : 'transparent',
+                        border: '1px solid',
+                        borderColor: isChecked ? 'rgba(14, 165, 233, 0.25)' : 'transparent',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => setAcmReports((prev) => ({ ...prev, [rep.key]: !prev[rep.key] }))}
+                          style={{ accentColor: '#0ea5e9', width: '14px', height: '14px', cursor: 'pointer' }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>{rep.name}</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-muted)' }}>{rep.filename}</span>
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          fontWeight: 800,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: rep.source === 'SFTP' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                          color: rep.source === 'SFTP' ? '#0ea5e9' : '#10b981',
+                        }}
+                      >
+                        {rep.source}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Thư mục lưu trữ ACM */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '10px',
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <Folder size={12} color="#0ea5e9" />
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace' }}>
+                  {auditAcmResult?.backupPath || 'M:\\...\\Backup ACM\\Futures\\...'}
+                </span>
+              </div>
+            </div>
+
+            {/* Nút Thao tác ACM */}
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleDownloadAcmBackup}
+                  disabled={downloadingAcm || auditingAcm}
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    maxWidth: '200px',
+                    fontSize: '0.82rem',
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    backgroundColor: '#0ea5e9',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {downloadingAcm ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingAcm ? 'Đang tải ACM...' : 'Tải Báo Cáo ACM'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAuditAcmBackup(true)}
+                  disabled={downloadingAcm || auditingAcm}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file trong thư mục backup ACM"
+                >
+                  {auditingAcm ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalJobType('ACM');
+                    setShowBackupModal(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Xem nhật ký tóm tắt đồng bộ ACM"
+                >
+                  <FileText size={14} />
+                  <span>Nhật ký</span>
+                </button>
+              </div>
+              {auditAcmResult && (
+                <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
+                  {auditAcmResult.summary ? `ACM: ${auditAcmResult.summary.ok}/${auditAcmResult.summary.total} files OK` : 'Hoàn tất'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT 4: BACKUP CORECCP (25 BÁO CÁO VNCLEAR MAKER) */}
           {(filterScope === 'ALL' || filterScope === 'OMS') && (
           <div style={{ border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
             <div>
@@ -1682,11 +1957,11 @@ export default function LegacyBackupThongKeSection({
         />
       )}
 
-      {/* Modal Tóm Tắt Nhật Ký Tải Báo Cáo MS / CQG */}
+      {/* Modal Tóm Tắt Nhật Ký Tải Báo Cáo MS / CQG / ACM */}
       <BackupLogSummaryModal
         isOpen={showBackupModal}
         onClose={() => setShowBackupModal(false)}
-        jobId={modalJobType === 'MS' ? lastMsJobId : lastCqgJobId}
+        jobId={modalJobType === 'MS' ? lastMsJobId : modalJobType === 'CQG' ? lastCqgJobId : lastAcmJobId}
         jobType={modalJobType}
         token={token}
         selectedDate={selectedDate}

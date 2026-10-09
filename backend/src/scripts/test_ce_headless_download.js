@@ -117,9 +117,10 @@ const BASE_REPORTS = [
     key: 'GTT',
     name: 'Giá thanh toán ACM',
     route: '/PRODUCT/SETTLEMENT',
+    subTab: 'Giá thanh toán liên thông',
     fallbackRoute: '/PRODUCT/SETTLEMENT_HIST',
     filename: 'GTT ACM.xlsx',
-    type: 'DIRECT_TABLE',
+    type: 'TAB_TABLE',
   },
   {
     key: 'HH',

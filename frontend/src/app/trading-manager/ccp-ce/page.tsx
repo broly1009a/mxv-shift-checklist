@@ -15,6 +15,7 @@ import {
   BarChart3,
   Server,
   Calendar,
+  Database,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
@@ -24,6 +25,8 @@ import TradingManagerConfigSection from '../components/shared/TradingManagerConf
 import CoreCcpBackupSection from '../components/core-ccp/CoreCcpBackupSection';
 import CcpLotStatisticsSection from '../components/core-ccp/CcpLotStatisticsSection';
 import CeAcmBackupSection from '../components/ce-acm/CeAcmBackupSection';
+import CcpCeEodReconSection from '../components/core-ccp/CcpCeEodReconSection';
+import CcpCeBackupThongKeSection from '../components/core-ccp/CcpCeBackupThongKeSection';
 import LegacyReconSection from '../components/legacy-ms-cqg/LegacyReconSection';
 import TradingManagerJobQueueSection from '../components/job-queue/TradingManagerJobQueueSection';
 import { getInitialTradingSessionDate } from '../utils/tradingDateUtils';
@@ -37,12 +40,12 @@ export default function CcpCeTradingManagerPage() {
 
   // Tabs của Phân hệ CoreCCP (VNCLEAR) & CoreEX (CE):
   // 1. Đối soát khớp lệnh (KLGD 4 bên dùng chung)
-  // 2. Đối soát EOD CoreCCP (25 báo cáo VNCLEAR Maker, đối soát số dư EOD, IMR, quỹ bù trừ, âm ký quỹ)
-  // 3. Thống kê & Báo cáo OMS (Thống kê số lot/GTGD CoreCCP & Báo cáo sàn CoreEX)
+  // 2. Check & Chạy EOD (CCP – CE) (Mới - Tương tự MS-CQG)
+  // 3. Backup – Thống Kê CCP – CE (Mới - Tương tự MS-CQG)
   // 4. Cấu hình OMS (Ma trận tỷ giá đa nguyên tệ VNCLEAR USD, EUR, JPY, MYR, VND, đường dẫn CoreCCP & CoreEX)
   // 5. Hàng đợi & Logs Robot
   const [activeTab, setActiveTab] = useState<
-    'CHECK_KLGD' | 'EOD_RECON_CORECCP' | 'THONG_KE_BAO_CAO' | 'CONFIG_OMS' | 'HANG_DOI_LOGS'
+    'CHECK_KLGD' | 'CHECK_EOD_CCP_CE' | 'BACKUP_THONG_KE_CCP_CE' | 'CONFIG_OMS' | 'HANG_DOI_LOGS'
   >('CHECK_KLGD');
 
   // Sub-tab cho Tab 3: Thống kê số lot CCP vs Báo cáo sàn CoreEX
@@ -354,10 +357,10 @@ export default function CcpCeTradingManagerPage() {
             </span>
           </button>
 
-          {/* TAB 2: ĐỐI SOÁT EOD CORECCP */}
+          {/* TAB 2: CHECK & CHẠY EOD (CCP – CE) */}
           <button
             type="button"
-            onClick={() => setActiveTab('EOD_RECON_CORECCP')}
+            onClick={() => setActiveTab('CHECK_EOD_CCP_CE')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -367,15 +370,15 @@ export default function CcpCeTradingManagerPage() {
               fontWeight: 700,
               borderRadius: '8px 8px 0 0',
               border: 'none',
-              borderBottom: activeTab === 'EOD_RECON_CORECCP' ? '2px solid #3b82f6' : '2px solid transparent',
-              color: activeTab === 'EOD_RECON_CORECCP' ? '#3b82f6' : 'var(--text-secondary)',
-              backgroundColor: activeTab === 'EOD_RECON_CORECCP' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              borderBottom: activeTab === 'CHECK_EOD_CCP_CE' ? '2px solid #3b82f6' : '2px solid transparent',
+              color: activeTab === 'CHECK_EOD_CCP_CE' ? '#3b82f6' : 'var(--text-secondary)',
+              backgroundColor: activeTab === 'CHECK_EOD_CCP_CE' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            <ShieldCheck size={16} color={activeTab === 'EOD_RECON_CORECCP' ? '#3b82f6' : 'var(--text-muted)'} />
-            <span>Đối Soát EOD CoreCCP</span>
+            <ShieldCheck size={16} color={activeTab === 'CHECK_EOD_CCP_CE' ? '#3b82f6' : 'var(--text-muted)'} />
+            <span>Check & Chạy EOD (CCP – CE)</span>
             <span
               style={{
                 fontSize: '0.66rem',
@@ -386,14 +389,14 @@ export default function CcpCeTradingManagerPage() {
                 color: '#3b82f6',
               }}
             >
-              25 BÁO CÁO
+              MỚI
             </span>
           </button>
 
-          {/* TAB 3: THỐNG KÊ & BÁO CÁO OMS */}
+          {/* TAB 3: BACKUP – THỐNG KÊ CCP – CE */}
           <button
             type="button"
-            onClick={() => setActiveTab('THONG_KE_BAO_CAO')}
+            onClick={() => setActiveTab('BACKUP_THONG_KE_CCP_CE')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -403,15 +406,27 @@ export default function CcpCeTradingManagerPage() {
               fontWeight: 700,
               borderRadius: '8px 8px 0 0',
               border: 'none',
-              borderBottom: activeTab === 'THONG_KE_BAO_CAO' ? '2px solid #3b82f6' : '2px solid transparent',
-              color: activeTab === 'THONG_KE_BAO_CAO' ? '#3b82f6' : 'var(--text-secondary)',
-              backgroundColor: activeTab === 'THONG_KE_BAO_CAO' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              borderBottom: activeTab === 'BACKUP_THONG_KE_CCP_CE' ? '2px solid #10b981' : '2px solid transparent',
+              color: activeTab === 'BACKUP_THONG_KE_CCP_CE' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: activeTab === 'BACKUP_THONG_KE_CCP_CE' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            <BarChart3 size={16} color={activeTab === 'THONG_KE_BAO_CAO' ? '#3b82f6' : 'var(--text-muted)'} />
-            <span>Thống Kê & Báo Cáo OMS</span>
+            <Database size={16} color={activeTab === 'BACKUP_THONG_KE_CCP_CE' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Backup – Thống Kê CCP – CE</span>
+            <span
+              style={{
+                fontSize: '0.66rem',
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                color: '#10b981',
+              }}
+            >
+              MỚI
+            </span>
           </button>
 
           {/* TAB 4: CẤU HÌNH OMS */}
@@ -490,76 +505,22 @@ export default function CcpCeTradingManagerPage() {
             onOpenGuide={() => setShowGuideModal(true)}
             onStatusChange={setReconStatus}
           />
-        ) : activeTab === 'EOD_RECON_CORECCP' ? (
-          /* TAB 2: ĐỐI SOÁT EOD CORECCP (VNCLEAR: 25 BÁO CÁO, KÝ QUỸ, SỐ DƯ) */
-          <CoreCcpBackupSection
+        ) : activeTab === 'CHECK_EOD_CCP_CE' ? (
+          /* TAB 2: CHECK & CHẠY EOD (CCP – CE) (MỚI TƯƠNG TỰ MS-CQG) */
+          <CcpCeEodReconSection
             token={token}
             selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
             onOpenGuide={() => setShowGuideModal(true)}
+            onStatusChange={setReconStatus}
           />
-        ) : activeTab === 'THONG_KE_BAO_CAO' ? (
-          /* TAB 3: THỐNG KÊ LOT & BÁO CÁO SÀN COREEX */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Sub-tab Navigation */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
-              <button
-                type="button"
-                onClick={() => setReportSubTab('LOT_STATS_CCP')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  borderRadius: '6px 6px 0 0',
-                  border: 'none',
-                  borderBottom: reportSubTab === 'LOT_STATS_CCP' ? '2px solid #3b82f6' : '2px solid transparent',
-                  color: reportSubTab === 'LOT_STATS_CCP' ? '#3b82f6' : 'var(--text-secondary)',
-                  backgroundColor: reportSubTab === 'LOT_STATS_CCP' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                <TrendingUp size={15} />
-                <span>Thống Kê Số Lot & GTGD (CoreCCP)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setReportSubTab('BACKUP_CORE_EX')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  borderRadius: '6px 6px 0 0',
-                  border: 'none',
-                  borderBottom: reportSubTab === 'BACKUP_CORE_EX' ? '2px solid #3b82f6' : '2px solid transparent',
-                  color: reportSubTab === 'BACKUP_CORE_EX' ? '#3b82f6' : 'var(--text-secondary)',
-                  backgroundColor: reportSubTab === 'BACKUP_CORE_EX' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                <Server size={15} />
-                <span>Báo Cáo Sàn CoreEX (CE)</span>
-              </button>
-            </div>
-
-            {/* Sub-tab content */}
-            {reportSubTab === 'LOT_STATS_CCP' ? (
-              <CcpLotStatisticsSection
-                token={token}
-                selectedDate={selectedDate}
-                onOpenGuide={() => setShowGuideModal(true)}
-              />
-            ) : (
-              <CeAcmBackupSection
-                token={token}
-                selectedDate={selectedDate}
-              />
-            )}
-          </div>
+        ) : activeTab === 'BACKUP_THONG_KE_CCP_CE' ? (
+          /* TAB 3: BACKUP – THỐNG KÊ CCP – CE (25 BÁO CÁO CCP, 5 BÁO CÁO CE, 4 BÁO CÁO ACM, GTT CCP VS CE & IMR CHỜ) */
+          <CcpCeBackupThongKeSection
+            token={token}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
         ) : activeTab === 'CONFIG_OMS' ? (
           /* TAB 4: CẤU HÌNH OMS (MA TRẬN TỶ GIÁ VNCLEAR, ĐƯỜNG DẪN CORECCP & COREEX) */
           <TradingManagerConfigSection

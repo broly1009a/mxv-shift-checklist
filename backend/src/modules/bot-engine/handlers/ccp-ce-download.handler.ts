@@ -168,6 +168,14 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
           QLTTTKGD_BEFORE_420: 'QLTTTKGD_PRE1620',
           DSTKGD_ACM: 'DSTKGD',
           QLTTKGD: 'QLTTTKGD',
+          GTT_CE: 'GTT',
+          HH_CE: 'HH',
+          HD_CE: 'HD',
+          DSGD_CE: 'DSGD',
+          TTM_CE: 'TTM',
+          GTT_CCP: 'GTT',
+          HH_CCP: 'HH',
+          HD_CCP: 'HD',
         };
         const codes = (reports as unknown as string[]).map((c) => {
           const upper = String(c || '').trim().toUpperCase();

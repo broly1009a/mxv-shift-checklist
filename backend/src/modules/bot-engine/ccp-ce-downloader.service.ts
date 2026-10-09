@@ -477,6 +477,7 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     name: 'Giá thanh toán (CE)',
     parentMenu: 'Quản lý sản phẩm',
     childMenu: 'Quản lý giá thanh toán',
+    tabName: 'Giá thanh toán liên thông',
     cachedUrl: '/PRODUCT/SETTLEMENT',
     enabled: true,
     phase: 'EOD',
@@ -1134,8 +1135,17 @@ export class CcpCeDownloaderService {
             "xpath=//tbody//*[text()='Không có dữ liệu' or contains(text(), '0-0 trên 0') or contains(text(), 'No data') or contains(text(), 'No records')]",
           ).first();
           if (await noDataInTable.isVisible({ timeout: 600 })) {
-            this.log('[Filter] Bảng báo cáo hiển thị "Không có dữ liệu" -> Tiếp tục kết xuất tải file mẫu.', logCb);
-            return 'EMPTY_TABLE';
+            const searchBtn = page.locator("xpath=//button[contains(., 'Tìm kiếm') or contains(., 'Search')]").first();
+            if (await searchBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+              this.log('[Filter] Bảng đang trống, thử click Tìm kiếm để nạp dữ liệu...', logCb);
+              await searchBtn.click({ force: true });
+              await page.waitForTimeout(1000);
+              await this.waitForTableLoadingComplete(page, 10000);
+            }
+            if (await noDataInTable.isVisible({ timeout: 600 })) {
+              this.log('[Filter] Bảng báo cáo hiển thị "Không có dữ liệu" -> Tiếp tục kết xuất tải file mẫu.', logCb);
+              return 'EMPTY_TABLE';
+            }
           }
         } catch { }
         return 'OK';
