@@ -20,6 +20,7 @@ import {
   findLatestFile,
   getCcpBackupBasePath,
   resolveCcpDailyPath,
+  resolveTradingCheckCcpDailyPath,
 } from '../helpers/recon-number-parser.helper';
 
 @Injectable()
@@ -834,10 +835,15 @@ export class ReconConsoleSummaryService {
       nextScanInSeconds = frequencyMinutes * 60;
     }
 
-    // 7. Quét thư mục và file CCP của ngày đang chọn
+    // 7. Quét thư mục và file CCP của ngày đang chọn (Ưu tiên thư mục đối soát riêng TradingCheck/CCP)
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const subFolder = path.join(y, `T${m}.${y}`, `${d}.${m}`);
-    const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
+    const checkDailyPath = resolveTradingCheckCcpDailyPath(subFolder, rawCcpBase);
+    const backupDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
+    const ccpDailyPath =
+      fs.existsSync(checkDailyPath) && fs.readdirSync(checkDailyPath).length > 0
+        ? checkDailyPath
+        : backupDailyPath;
     const ccpFilesPresent = {
       qltkgd: false,
       qltkgdName: '',

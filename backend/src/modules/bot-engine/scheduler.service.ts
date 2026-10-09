@@ -5,7 +5,7 @@ import { Model } from 'mongoose';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { ShiftLog } from '../../schemas/shift-log.schema';
-import { resolveTradingSessionDate } from './helpers/bot-path.helper';
+import { resolveTradingSessionDate, isMarketWeekendClosed } from './helpers/bot-path.helper';
 
 interface SchedulerTaskConfig {
   id: string;
@@ -41,20 +41,6 @@ export class SchedulerService implements OnModuleInit {
     if (!existing) {
       const defaults: SchedulerTaskConfig[] = [
         {
-          id: 'DOWNLOAD_CAST',
-          name: 'Tải báo cáo CQG CAST Balances',
-          enabled: true,
-          time: '07:00',
-          jobType: 'DOWNLOAD_CAST',
-        },
-        {
-          id: 'AUTO_CHECK_SOD',
-          name: 'Đối chiếu số dư đầu ngày (SOD)',
-          enabled: true,
-          time: '07:05',
-          jobType: 'AUTO_CHECK_SOD',
-        },
-        {
           id: 'RPA_DOWNLOAD_MS',
           name: 'Tải báo cáo đối chiếu đầu ngày M-System',
           enabled: true,
@@ -75,6 +61,41 @@ export class SchedulerService implements OnModuleInit {
           },
         },
         {
+          id: 'DOWNLOAD_CQG_BACKUP',
+          name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
+          enabled: true,
+          time: '06:00',
+          jobType: 'DOWNLOAD_CQG_BACKUP',
+        },
+        {
+          id: 'AUTO_GENERATE_STATISTICS',
+          name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
+          enabled: true,
+          time: '06:30',
+          jobType: 'RUN_LOT_MACRO',
+        },
+        {
+          id: 'DOWNLOAD_CAST',
+          name: 'Tải báo cáo CQG CAST Balances',
+          enabled: true,
+          time: '07:00',
+          jobType: 'DOWNLOAD_CAST',
+        },
+        {
+          id: 'AUTO_CHECK_SOD',
+          name: 'Đối chiếu số dư đầu ngày (SOD)',
+          enabled: true,
+          time: '07:05',
+          jobType: 'AUTO_CHECK_SOD',
+        },
+        {
+          id: 'RPA_DOWNLOAD_CCP_PHASE1',
+          name: 'Tải báo cáo CoreCCP Phase 1 (NR, TTTT, DSL, DSGD)',
+          enabled: true,
+          time: '16:15',
+          jobType: 'DOWNLOAD_CCP_REPORT',
+        },
+        {
           id: 'CHECK_PRE_EOD',
           name: 'Kiểm tra tiền EOD (Pre-EOD Check)',
           enabled: false,
@@ -87,6 +108,13 @@ export class SchedulerService implements OnModuleInit {
           enabled: false,
           time: '18:00',
           jobType: 'CHECK_EOD_MM',
+        },
+        {
+          id: 'RPA_DOWNLOAD_CE',
+          name: 'Tải báo cáo CoreEX (VNCLEAR)',
+          enabled: false,
+          time: '19:30',
+          jobType: 'DOWNLOAD_CE_REPORT',
         },
       ];
       await this.settingsService.setSetting(
@@ -154,6 +182,61 @@ export class SchedulerService implements OnModuleInit {
             }
           }
 
+          if (!tasks.some((t) => t.id === 'DOWNLOAD_CQG_BACKUP')) {
+            tasks.push({
+              id: 'DOWNLOAD_CQG_BACKUP',
+              name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
+              enabled: true,
+              time: '06:00',
+              jobType: 'DOWNLOAD_CQG_BACKUP',
+            });
+            updated = true;
+          }
+
+          if (!tasks.some((t) => t.id === 'AUTO_GENERATE_STATISTICS')) {
+            tasks.push({
+              id: 'AUTO_GENERATE_STATISTICS',
+              name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
+              enabled: true,
+              time: '06:30',
+              jobType: 'RUN_LOT_MACRO',
+            });
+            updated = true;
+          }
+
+          if (!tasks.some((t) => t.id === 'DOWNLOAD_CAST')) {
+            tasks.push({
+              id: 'DOWNLOAD_CAST',
+              name: 'Tải báo cáo CQG CAST Balances',
+              enabled: true,
+              time: '07:00',
+              jobType: 'DOWNLOAD_CAST',
+            });
+            updated = true;
+          }
+
+          if (!tasks.some((t) => t.id === 'AUTO_CHECK_SOD')) {
+            tasks.push({
+              id: 'AUTO_CHECK_SOD',
+              name: 'Đối chiếu số dư đầu ngày (SOD)',
+              enabled: true,
+              time: '07:05',
+              jobType: 'AUTO_CHECK_SOD',
+            });
+            updated = true;
+          }
+
+          if (!tasks.some((t) => t.id === 'RPA_DOWNLOAD_CCP_PHASE1')) {
+            tasks.push({
+              id: 'RPA_DOWNLOAD_CCP_PHASE1',
+              name: 'Tải báo cáo CoreCCP Phase 1 (NR, TTTT, DSL, DSGD)',
+              enabled: true,
+              time: '16:15',
+              jobType: 'DOWNLOAD_CCP_REPORT',
+            });
+            updated = true;
+          }
+
           if (!tasks.some((t) => t.id === 'CHECK_PRE_EOD')) {
             tasks.push({
               id: 'CHECK_PRE_EOD',
@@ -164,6 +247,7 @@ export class SchedulerService implements OnModuleInit {
             });
             updated = true;
           }
+
           if (!tasks.some((t) => t.id === 'CHECK_EOD_MM')) {
             tasks.push({
               id: 'CHECK_EOD_MM',
@@ -171,6 +255,17 @@ export class SchedulerService implements OnModuleInit {
               enabled: false,
               time: '18:00',
               jobType: 'CHECK_EOD_MM',
+            });
+            updated = true;
+          }
+
+          if (!tasks.some((t) => t.id === 'RPA_DOWNLOAD_CE')) {
+            tasks.push({
+              id: 'RPA_DOWNLOAD_CE',
+              name: 'Tải báo cáo CoreEX (VNCLEAR)',
+              enabled: false,
+              time: '19:30',
+              jobType: 'DOWNLOAD_CE_REPORT',
             });
             updated = true;
           }
@@ -191,6 +286,89 @@ export class SchedulerService implements OnModuleInit {
           err,
         );
       }
+    }
+  }
+
+  /**
+   * Autonomous Runner for Trading Manager: CHECK_KLGD
+   * Chạy định kỳ độc lập 24/7 (mỗi 60p/30p/15p) không phụ thuộc vào trạng thái mở/đóng của ca trực.
+   */
+  @Cron('* * * * *', {
+    name: 'autonomous-klgd-runner',
+    timeZone: 'Asia/Saigon',
+  })
+  async handleAutonomousKlgdRun() {
+    // 1. Kiểm tra Master Switch: bot_auto_recon_enabled
+    const autoReconSetting = await this.settingsService.getSetting(
+      'bot_auto_recon_enabled',
+      'false',
+    );
+    if (autoReconSetting !== 'true') {
+      return;
+    }
+
+    // 2. Kiểm tra cờ check định kỳ: bot_periodic_check_enabled
+    const periodicEnabled = await this.settingsService.getSetting(
+      'bot_periodic_check_enabled',
+      'true',
+    );
+    if (periodicEnabled === 'false') {
+      return;
+    }
+
+    // 3. Market Weekend Guard: Tạm dừng khi thị trường đóng cửa cuối tuần
+    if (isMarketWeekendClosed()) {
+      return;
+    }
+
+    // 4. Kiểm tra tần suất (phút) - mặc định 60 phút
+    const freqSetting = await this.settingsService.getSetting(
+      'bot_periodic_check_frequency',
+      '60',
+    );
+    const intervalMinutes = Math.max(5, parseInt(freqSetting, 10) || 60);
+
+    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của CHECK_KLGD thì bỏ qua
+    const hasActiveJob = await this.jobQueueService.hasActiveJobByType('CHECK_KLGD');
+    if (hasActiveJob) {
+      return;
+    }
+
+    // 6. Kiểm tra thời điểm hoàn tất gần nhất
+    const lastJob = await this.jobQueueService.getLatestCompletedJobByType('CHECK_KLGD');
+    if (lastJob && lastJob.completedAt) {
+      const elapsedMinutes = (Date.now() - new Date(lastJob.completedAt).getTime()) / 60000;
+      if (elapsedMinutes < intervalMinutes) {
+        return; // Chưa tới chu kỳ tiếp theo
+      }
+    }
+
+    // 7. Xác định ngày phiên giao dịch hiện tại
+    const sessionStartSetting = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(undefined, {
+      sessionStartStr: sessionStartSetting,
+    });
+    const sessionDayStr = resolvedSession.dateStr;
+
+    this.logger.log(
+      `[Autonomous-KLGD] Kích hoạt chạy đối chiếu khớp lệnh độc lập Trading Manager (chu kỳ ${intervalMinutes}m, session: ${sessionDayStr}).`,
+    );
+
+    try {
+      await this.jobQueueService.enqueue('CHECK_KLGD', {
+        sessionDay: sessionDayStr,
+        targetDate: sessionDayStr,
+        isStandalone: true,
+        shiftLogId: null,
+        taskId: null,
+      });
+    } catch (err: any) {
+      this.logger.error(
+        `[Autonomous-KLGD] Lỗi enqueue Job CHECK_KLGD độc lập: ${err.message}`,
+      );
     }
   }
 

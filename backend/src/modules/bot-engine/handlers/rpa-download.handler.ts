@@ -110,9 +110,15 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const { browser, page } =
       await this.rpaDownloaderService.loginMSystem(tempDir);
 
-    const rawBackupMs =
-      payload.backupPathMs ||
-      (await getMsBackupBase(this.settingsService));
+    const isTradingCheck = payload.isTradingCheck === true || payload.purpose === 'CHECK';
+    let rawBackupMs = payload.outputDir || payload.backupPathMs;
+    if (!rawBackupMs) {
+      const msBackupBase = await getMsBackupBase(this.settingsService);
+      rawBackupMs = isTradingCheck
+        ? (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+          msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck')
+        : msBackupBase;
+    }
     const backupMsBase = resolveStoragePathCrossPlatform(rawBackupMs);
 
     let destFolder: string | null = null;
@@ -131,7 +137,7 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         fs.mkdirSync(destFolder, { recursive: true });
       }
       job.logs.push(
-        `[${new Date().toISOString()}] Target Backup MS folder: ${destFolder} (Session: ${resolvedDateStr})`,
+        `[${new Date().toISOString()}] Target ${isTradingCheck ? 'TradingCheck (Đối soát)' : 'Backup MS'} folder: ${destFolder} (Session: ${resolvedDateStr})`,
       );
       await job.save();
     }

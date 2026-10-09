@@ -94,14 +94,32 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const startDate: string = resolvedStart.dateStr;
     const endDate: string = resolvedEnd.dateStr;
 
-    // outputDir: ưu tiên payload -> credentials DB -> thư mục ca trực theo ngày
-    let baseDir: string = payload.outputDir || creds.outputDir;
-    if (!baseDir || baseDir === 'backupCCP' || baseDir === 'backupCE') {
-      const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
-      const defaultSettingPath = isCcp
-        ? 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'
-        : 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
-      baseDir = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
+    // Kiểm tra mục đích tải: CHECK (đối soát/kiểm tra) vs BACKUP (sao lưu chính thức)
+    const isTradingCheck = payload.isTradingCheck === true || payload.purpose === 'CHECK';
+
+    // outputDir: ưu tiên payload -> nếu là Check thì lưu vào TradingCheck -> credentials DB -> thư mục Backup ca trực
+    let baseDir: string = payload.outputDir;
+    if (!baseDir) {
+      if (isTradingCheck) {
+        // Tải để đối soát/kiểm tra -> Lưu vào thư mục riêng TradingCheck, tuyệt đối không ghi đè Backup
+        const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
+        const defaultSettingPath = isCcp
+          ? 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'
+          : 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
+        const rawBackup = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
+        baseDir = resolveStoragePathCrossPlatform(rawBackup)
+          .replace(/Backup CCP/i, 'TradingCheck/CCP')
+          .replace(/Backup CE/i, 'TradingCheck/CE');
+      } else {
+        baseDir = creds.outputDir;
+        if (!baseDir || baseDir === 'backupCCP' || baseDir === 'backupCE') {
+          const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
+          const defaultSettingPath = isCcp
+            ? 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'
+            : 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
+          baseDir = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
+        }
+      }
     }
 
     const { subFolder } = resolveDailySubfolder(baseDir, resolvedStart.dateObj);
@@ -126,7 +144,7 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       `${logPrefix} [${systemLabel}] Bắt đầu tải báo cáo: ${startDate} → ${endDate}`,
     );
     job.logs.push(
-      `${logPrefix} [${systemLabel}] Thư mục lưu: ${outputDir}`,
+      `${logPrefix} [${systemLabel}] [${isTradingCheck ? 'TradingCheck - Đối soát' : 'Backup ca trực'}] Thư mục lưu: ${outputDir}`,
     );
     if (reports?.length) {
       job.logs.push(

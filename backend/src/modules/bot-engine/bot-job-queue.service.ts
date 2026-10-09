@@ -1052,6 +1052,32 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     return this.botJobModel.findOne(query).sort({ createdAt: -1 }).exec();
   }
 
+  async getLatestCompletedJobByType(
+    jobType: string,
+    withinMinutes?: number,
+  ): Promise<BotJob | null> {
+    const query: Record<string, any> = {
+      jobType,
+      status: 'COMPLETED',
+    };
+    if (withinMinutes && withinMinutes > 0) {
+      const cutoff = new Date(Date.now() - withinMinutes * 60 * 1000);
+      query.completedAt = { $gte: cutoff };
+    }
+    return this.botJobModel
+      .findOne(query)
+      .sort({ completedAt: -1, createdAt: -1 })
+      .exec();
+  }
+
+  async hasActiveJobByType(jobType: string): Promise<boolean> {
+    const count = await this.botJobModel.countDocuments({
+      jobType,
+      status: { $in: ['PENDING', 'PROCESSING'] },
+    });
+    return count > 0;
+  }
+
   async getJobById(id: string): Promise<BotJob | null> {
     return this.botJobModel.findById(id).exec();
   }

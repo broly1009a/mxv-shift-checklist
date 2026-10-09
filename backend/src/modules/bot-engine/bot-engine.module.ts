@@ -9,6 +9,7 @@ import { FileWatcherService } from './file-watcher.service';
 import { ApiWatcherService } from './api-watcher.service';
 import { RpaDownloaderService } from './rpa-downloader.service';
 import { GttCheckerService } from './gtt-checker.service';
+import { CeCcpGttCheckerService } from './ce-ccp-gtt.service';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { BotEngineController } from './bot-engine.controller';
 import { AgentController } from './bot-agent.controller';
@@ -71,6 +72,7 @@ import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
     ApiWatcherService,
     RpaDownloaderService,
     GttCheckerService,
+    CeCcpGttCheckerService,
     BotJobQueueService,
     CqgSyncService,
     PostEodHandlerService,
@@ -87,6 +89,7 @@ import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
     EmailWatcherService,
     RpaDownloaderService,
     GttCheckerService,
+    CeCcpGttCheckerService,
     CqgSyncService,
     PostEodHandlerService,
     SchedulerService,

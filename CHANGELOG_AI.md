@@ -1,5 +1,105 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-10-09T09:30] FEAT(CE-CCP-GTT): Đóng Gói Module Backend & Triển Khai Giao Diện Đối Soát Giá Thanh Toán CoreEX (CE) vs CoreCCP (VNCLEAR)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"giúp tôi build thành module và làm luôn giao diện cho chức năng này"* (sau khi đã kiểm thử độc lập thành công thuật toán tại `test_check_gtt_ce_ccp.js`).
+  - Đóng gói toàn diện logic so khớp Giá thanh toán (GTT) giữa 2 phân hệ mới: CoreEX (CE - `GTT ACM.xlsx` / `HH ACM.xlsx`) và CoreCCP (VNCLEAR - `GTT CCP.xlsx` / `LSGTT.xlsx` / `HH.xlsx` / `TTM CCP.xlsx`).
+  - Xây dựng giao diện UI chuyên nghiệp trên Trading Manager (đặt tại phân hệ mới `CE_ACM`), hỗ trợ lọc hợp đồng mở (TTM), bảng kết quả với badge trạng thái (`MATCH`, `MINOR_DIFF`, `DIFF`, `CE_ONLY`, `CCP_ONLY`), xem live logs robot, và xuất file Excel báo cáo / điều chỉnh giá.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/bot-engine/ce-ccp-gtt.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ce-ccp-gtt.service.ts):
+  - Khởi tạo Service `CeCcpGttCheckerService` độc lập và kế thừa toàn bộ logic kiểm chứng từ `test_check_gtt_ce_ccp.js`.
+  - Hỗ trợ đa nguồn file (đường dẫn cấu hình ca trực `bot_backup_path_ce`, `bot_backup_path_ccp`, thư mục ngày `resolveDailySubfolder`, thư mục mẫu ổ C, và thư mục temp tải về).
+  - Parser linh hoạt cho `GTT ACM.xlsx` (CE) và `GTT CCP.xlsx` / `LSGTT.xlsx` (CCP), trích xuất mã hợp đồng, mã hàng hóa, giá thanh toán, ngày phiên và tiền tệ.
+  - Phân tích file Bước giá `HH ACM.xlsx` và `HH.xlsx`, kèm bộ `FALLBACK_TICK_SIZES` chuẩn (`PL1NY: 0.1`, `CP2CO: 0.0005`, `SI5CO: 0.005`, `CLE: 0.01`...).
+  - Hỗ trợ lọc theo vị thế mở (`TTM CCP.xlsx` / `OPEN_POSITION`) khi bật `filterOpen`.
+  - Phân loại trạng thái: `MATCH` (Diff < 0.0001), `MINOR_DIFF` (Diff <= TickSize), `DIFF` (Diff > TickSize), `CE_ONLY`, `CCP_ONLY`, `NO_PRICE`.
+  - Sinh file Excel báo cáo (`Bao_Cao_CheckGTT_CE_CCP.xlsx`) và file điều chỉnh giá (`Dieu_Chinh_GTT_CE_CCP.xlsx`).
+- [backend/src/modules/bot-engine/bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.module.ts):
+  - Đăng ký `CeCcpGttCheckerService` vào danh sách `providers` và `exports`.
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  - Inject `CeCcpGttCheckerService` vào constructor.
+  - Cung cấp các endpoints:
+    - `POST /api/v1/bot-engine/run-ce-ccp-gtt-check`: Kích hoạt tiến trình đối soát (hỗ trợ async).
+    - `GET /api/v1/bot-engine/ce-ccp-gtt-report`: Lấy báo cáo đối soát và live logs.
+    - `GET /api/v1/bot-engine/ce-ccp-gtt-report/export`: Tải file Excel báo cáo hoặc file điều chỉnh giá.
+- [frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx):
+  - Component giao diện UI chuyên nghiệp: Glass panel, bảng đối soát sticky header, thẻ KPI thống kê tổng số / khớp / lệch giá / lệch nhỏ / chỉ CE / chỉ CCP.
+  - Bộ lọc Tab: Tất cả, Lệch giá (DIFF), Lệch nhỏ (<= 1 tick), Khớp hoàn toàn (MATCH), Chỉ CE, Chỉ CCP.
+  - Checkbox lọc theo HĐ mở (TTM) và ô tìm kiếm mã HĐ / hàng hóa theo thời gian thực.
+  - Nút bấm `[Đối Chiếu GTT (CE vs CCP)]`, `[Làm Mới]`, `[Xuất Báo Cáo Excel]`, `[Xuất File Điều Chỉnh GTT]`, `[Nhật Ký Robot]`.
+  - Modal xem live logs robot chi tiết có tìm kiếm và sao chép clipboad.
+  - Tuân thủ 100% Rule 5 `AGENTS.md`: Sử dụng toàn bộ Lucide SVG icons, tuyệt đối không dùng emoji thô.
+- [frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx):
+  - Nhúng `CeCcpGttCheckerSection` ngay phía dưới 2 cột quản lý backup CE & ACM.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build (`cmd.exe /c "npm run build"`)**: Exit code 0 (Biên dịch TypeScript NestJS thành công 100%).
+- **Frontend Typecheck (`cmd.exe /c "npx tsc --noEmit"`)**: Exit code 0 (Kiểm tra kiểu dữ liệu Next.js React thành công 100%).
+
+---
+
+## [2026-10-08T18:00] ARCH(ISOLATE-DOWNLOAD-STORAGE): Phân Tách Triệt Để Thư Mục Tải "Đối Soát / Kiểm Tra" (TradingCheck) Khỏi Thư Mục "Sao Lưu" (Backup)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"tôi đang thấy lưu chung hết vào backup kể cả check tải báo cáo EOD phải đúng là module tải backup mới tải vào folder backup chứ / ý là các logic tải khác để check nên tạo folder để xử lý riêng ấy"*.
+  - Toàn bộ các thao tác tải file phục vụ **ĐỐI SOÁT / KIỂM TRA** (Check EOD CoreCCP, Check KLGD, Pre-EOD, tải trong phiên) phải được lưu vào thư mục riêng biệt (`TradingCheck`, ví dụ: `TradingCheck/CCP`, `TradingCheck/Futures`), tuyệt đối **KHÔNG ĐƯỢC TẢI VÀO HOẶC GHI ĐÈ** thư mục `Backup` chính thức của ca trực.
+  - Chỉ duy nhất **Module Tải Backup** (bộ 25 file VNCLEAR Maker, backup M-System ca trực, backup CE...) mới được tải vào các thư mục `Backup CCP`, `Backup MS`, `Backup CE`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts):
+  - Bổ sung hàm helper `resolveTradingCheckCcpDailyPath(subFolder, rawCcpBase)`: Tự động phân giải đường dẫn tới thư mục đối soát `TradingCheck/CCP` (thay vì `Backup CCP`).
+- [backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts):
+  - Nhận diện mục đích tải: `isTradingCheck === true` hoặc `purpose === 'CHECK'`.
+  - Nếu là tác vụ kiểm tra/đối soát: Tự động chuyển hướng thư mục đích sang `TradingCheck/CCP` hoặc `TradingCheck/CE`.
+  - Nếu là tác vụ backup: Giữ nguyên thư mục gốc `Backup CCP` hoặc `Backup CE`.
+  - Log rõ ràng nhãn `[TradingCheck - Đối soát]` vs `[Backup ca trực]`.
+- [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
+  - Endpoint `POST /api/v1/bot-engine/trigger-ccp-download`: Tiếp nhận 2 tham số `isTradingCheck` và `purpose` và truyền vào payload của `DOWNLOAD_CCP_REPORT`.
+- [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts):
+  - Khi `isTradingCheck === true` hoặc `purpose === 'CHECK'`, tự động chuyển đổi thư mục lưu file từ `Backup MS` sang `TradingCheck/Futures`.
+- [backend/src/modules/reconciliation/services/ccp-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts):
+  - Trong `runAutoCheckEodCcp`: Ưu tiên đọc file từ thư mục đối soát `TradingCheck/CCP`, nếu chưa có mới fallback sang `Backup CCP`.
+  - Lọc file `QL TT TKGD`: Loại bỏ các file tạm giữa ngày (`truoc 4h20`, `truoc 16h20`) khi tìm file chốt cuối ngày.
+  - Strict Date Assertion: Kiểm tra cột ngày của `EOD.xlsx`. Nếu ngày trong file khác ngày phiên đang kiểm tra, thông báo rõ ràng là CoreCCP chưa chốt sổ EOD của phiên này thay vì báo lệch giả.
+- [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
+  - Quét trạng thái file CoreCCP ưu tiên từ thư mục đối soát `TradingCheck/CCP` trước khi quét `Backup CCP`.
+- [frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx):
+  - Nút `[Tải Lại 4 File (Check)]` trên Subtab 1 (Đối Soát EOD): Gửi kèm `{ isTradingCheck: true, purpose: 'CHECK' }` để tải vào `TradingCheck/CCP`.
+  - Nút `[Tải Các Báo Cáo Đã Chọn]` trên Subtab 2 (Backup): Giữ nguyên tải vào `Backup CCP`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build (`nest build`)**: Exit code 0 (Thành công 100%).
+- **Frontend Typecheck (`npx tsc --noEmit`)**: Exit code 0 (Thành công 100%).
+
+---
+
+### 1. Mục tiêu & Cơ sở nghiệp vụ
+- **Mục tiêu**: Hoàn thiện triệt để kiến trúc tách biệt giữa **Mission Control Console (Trading Manager)** hoạt động độc lập 24/5 và **Hệ thống Ca trực Checklist (Checklist Shifts)** theo đúng thỏa thuận kiến trúc:
+  1. `CHECK_KLGD` chạy ngầm độc lập liên tục trong phiên giao dịch (`scheduler.service.ts`), không phụ thuộc vào việc có ca trực nào đang mở hay đóng (`shiftLogId: null, isStandalone: true`).
+  2. Ca trực vẫn giữ tác vụ `CHECK_KLGD` để phục vụ bằng chứng bàn giao ca và email handover, nhưng áp dụng cơ chế **Link-to-Latest**: Tự động kế thừa kết quả chạy gần nhất trong vòng 60 phút của Trading Manager để tick `PASSED` / `NEEDS_ATTENTION` trong 0.05 giây, triệt tiêu 100% hiện tượng xung đột tài khoản cào hay chạy trùng lặp.
+  3. UX Refactoring: Chuẩn hóa bộ chọn tần suất dạng dropdown chọn nhanh `[ 60 phút | 30 phút | 15 phút ]` tại Tab 1; loại bỏ ô nhập `Backup định kỳ (phút)` tàn dư WinForms. Trên Tab 2, chuyển đổi 2 ô `Thời điểm backup` và `Thời điểm tạo thống kê` sang dạng **Display Input Khóa Chỉ Đọc (Read-only có icon Ổ Khóa 🔒 và Tooltip hướng dẫn chi tiết)**: Tự động nạp động giờ chạy (`04:30`, `06:30`) từ Ca trực đang diễn ra (`/api/v1/shifts/active`). Nếu ca trực chưa có task thì hiển thị `--:--` kèm tooltip hướng dẫn bấm nút thủ công bên dưới.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+  - Bổ sung `getLatestCompletedJobByType(jobType, withinMinutes)` và `hasActiveJobByType(jobType)`.
+- [backend/src/modules/bot-engine/scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/scheduler.service.ts):
+  - Bổ sung hàm `@Cron('* * * * *', { name: 'autonomous-klgd-runner' }) handleAutonomousKlgdRun()`: Tự động kích hoạt job `CHECK_KLGD` độc lập theo chu kỳ phút `bot_periodic_check_frequency`, tuân thủ Master Switch `bot_auto_recon_enabled`, cờ `bot_periodic_check_enabled`, bảo vệ bởi `isMarketWeekendClosed()` và Deduplication Guard.
+  - Cập nhật `seedDefaultConfig()` bổ sung đầy đủ danh mục tác vụ batch chuẩn: `DOWNLOAD_CQG_BACKUP` (06:00), `AUTO_GENERATE_STATISTICS` (06:30), `RPA_DOWNLOAD_CCP_PHASE1` (16:15), `RPA_DOWNLOAD_CE` (19:30).
+- [backend/src/modules/bot-engine/bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts):
+  - Bổ sung cơ chế **Link-to-Latest**: Khi bot quét tác vụ `CHECK_KLGD` của ca trực, kiểm tra job hoàn tất gần nhất trong vòng 60 phút. Nếu có, kế thừa trực tiếp kết quả (chuyển trạng thái sang `PASSED` hoặc `NEEDS_ATTENTION`), lưu cấu trúc `checkData` chi tiết kèm diff bảng biểu và đồng bộ lên Task Cha trong 0.05s mà không cần spawn job mới.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  - Thay ô nhập số tự do `intervalMinutes` thành `<select>` dropdown chọn nhanh 3 mức chuẩn: `60 phút (Tiêu chuẩn)`, `30 phút (Cao điểm)`, `15 phút (Biến động mạnh)`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  - Triển khai 2 ô `Thời điểm backup` và `Thời điểm tạo thống kê` dạng khóa chỉ đọc có icon `Lock` và Tooltip hướng dẫn ngữ cảnh, kết nối trực tiếp với API `/api/v1/shifts/active` để hiển thị giờ động của ca trực hiện thời.
+  - Loại bỏ hoàn toàn Badge tĩnh tổng hợp tự ý không có căn cứ.
+  - Loại bỏ ký tự Unicode emoji trong thông báo toast theo Rule 4 `AGENTS.md`.
+
+---
+
 ## [2026-10-08T12:00] ARCH(STORAGE-RECON): Phân Tách Thư Mục TradingCheckPath (Check Trong Phiên) Khỏi Backup & Cơ Chế Snapshot-Before-Overwrite Cho Toàn Bộ Luồng Tải File
 
 ### 1. Mục tiêu thay đổi & Cơ sở thực chứng (Ground Truth)

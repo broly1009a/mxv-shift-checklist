@@ -89,8 +89,11 @@ export default function CoreCcpBackupSection({
     fetchSummary();
   }, [fetchSummary]);
 
-  // Trigger Playwright Download CoreCCP files (hỗ trợ chọn báo cáo tùy ý)
-  const handleTriggerCcpDownload = async (overrideReports?: string[]) => {
+  // Trigger Playwright Download CoreCCP files (hỗ trợ chọn báo cáo tùy ý và phân tách Check vs Backup)
+  const handleTriggerCcpDownload = async (
+    overrideReports?: string[],
+    options?: { isTradingCheck?: boolean; purpose?: string },
+  ) => {
     if (!token || triggering) return;
     const chosen = overrideReports || Object.keys(selectedReports).filter((k) => selectedReports[k]);
     if (chosen.length === 0) {
@@ -102,16 +105,24 @@ export default function CoreCcpBackupSection({
     setTriggeringSection('ccp-download');
 
     try {
+      const body: any = {
+        date: selectedDate,
+        reports: chosen,
+      };
+      if (options?.isTradingCheck !== undefined) {
+        body.isTradingCheck = options.isTradingCheck;
+      }
+      if (options?.purpose) {
+        body.purpose = options.purpose;
+      }
+
       const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ccp-download`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          date: selectedDate,
-          reports: chosen,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -425,7 +436,12 @@ export default function CoreCcpBackupSection({
                 {filesCount < 4 && (
                   <button
                     type="button"
-                    onClick={() => handleTriggerCcpDownload(['QLTTTKGD', 'EOD', 'NR', 'TTTT'])}
+                    onClick={() =>
+                      handleTriggerCcpDownload(['QLTTTKGD', 'EOD', 'NR', 'TTTT'], {
+                        isTradingCheck: true,
+                        purpose: 'CHECK',
+                      })
+                    }
                     disabled={triggering}
                     className="btn btn-secondary"
                     style={{
@@ -437,14 +453,14 @@ export default function CoreCcpBackupSection({
                       gap: '6px',
                       cursor: triggering ? 'not-allowed' : 'pointer',
                     }}
-                    title="Tải lại 4 báo cáo CoreCCP cần thiết"
+                    title="Tải 4 báo cáo vào thư mục TradingCheck để phục vụ đối soát"
                   >
                     {triggering && triggeringSection === 'ccp-download' ? (
                       <Loader2 size={14} className="animate-spin" />
                     ) : (
                       <Download size={14} />
                     )}
-                    <span>Tải Lại 4 File</span>
+                    <span>Tải Lại 4 File (Check)</span>
                   </button>
                 )}
               </div>

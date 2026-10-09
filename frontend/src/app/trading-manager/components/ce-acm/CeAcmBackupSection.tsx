@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
+import CeCcpGttCheckerSection from './CeCcpGttCheckerSection';
 
 // Danh mục 10 báo cáo chuẩn sàn CoreEX (CE)
 export const CE_REPORTS_LIST: Array<{
@@ -1214,6 +1215,9 @@ export default function CeAcmBackupSection({
           </div>
         </div>
       </div>
+
+      {/* ===== SECTION: ĐỐI CHIẾU GTT COREEX (CE) VS CORECCP (VNCLEAR) ===== */}
+      <CeCcpGttCheckerSection token={token} selectedDate={selectedDate} />
 
       {/* ===== MODAL NHẬT KÝ ROBOT ===== */}
       {logModalOpen && (

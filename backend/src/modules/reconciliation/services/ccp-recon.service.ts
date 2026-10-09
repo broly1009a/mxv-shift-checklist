@@ -14,6 +14,7 @@ import {
   findLatestFile,
   getCcpBackupBasePath,
   resolveCcpDailyPath,
+  resolveTradingCheckCcpDailyPath,
 } from '../helpers/recon-number-parser.helper';
 
 export interface EODMismatchedItem {
@@ -1006,13 +1007,30 @@ export class CcpReconService {
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
-    const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
+    const checkDailyPath = resolveTradingCheckCcpDailyPath(subFolder, rawCcpBase);
+    const backupDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
+
+    // Ưu tiên đọc từ thư mục kiểm tra riêng (TradingCheck/CCP), nếu chưa có mới fallback sang Backup ca trực
+    const ccpDailyPath =
+      fs.existsSync(checkDailyPath) && fs.readdirSync(checkDailyPath).length > 0
+        ? checkDailyPath
+        : backupDailyPath;
 
     if (!fs.existsSync(ccpDailyPath)) {
-      throw new Error(`Thư mục Backup CCP không tồn tại: ${ccpDailyPath}. Vui lòng tải báo cáo CCP trước.`);
+      throw new Error(
+        `Thư mục dữ liệu CoreCCP không tồn tại: ${checkDailyPath} (hoặc ${backupDailyPath}). Vui lòng tải báo cáo trước.`,
+      );
     }
 
-    const qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
+    // 1. Tìm file QLTTTKGD cuối ngày (ưu tiên file chính thức, loại trừ các file tạm giữa ngày như 'truoc 4h20', 'truoc 16h20')
+    let qltkgdCcpFile = findLatestFile(
+      ccpDailyPath,
+      /^(?!.*truoc.*4h20|.*truoc.*16h20).*ql[\s_]*t+[\s_]*t*k?gd/i,
+    );
+    if (!qltkgdCcpFile) {
+      qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
+    }
+
     const eodCcpFile = findLatestFile(ccpDailyPath, /eod/i);
     const ttttCcpFile = findLatestFile(ccpDailyPath, /tttt/i);
     const nrCcpFile = findLatestFile(ccpDailyPath, /nr/i);
@@ -1027,6 +1045,31 @@ export class CcpReconService {
     const qltkgdCcpBuffer = fs.readFileSync(qltkgdCcpFile);
     const eodCcpBuffer = fs.readFileSync(eodCcpFile);
     const ttttCcpBuffer = ttttCcpFile && fs.existsSync(ttttCcpFile) ? fs.readFileSync(ttttCcpFile) : undefined;
+
+    // Strict Date Assertion: Xác thực ngày phiên trong file EOD.xlsx
+    try {
+      const eodWb = XLSX.read(eodCcpBuffer, { type: 'buffer' });
+      const eodSheet = eodWb.Sheets[eodWb.SheetNames[0]];
+      const eodRows = XLSX.utils.sheet_to_json(eodSheet, { header: 1 }) as any[][];
+      if (eodRows.length >= 2) {
+        const header = eodRows[0].map((h: any) => String(h || '').trim());
+        const dateIdx = header.findIndex((h: string) => /ngày|date/i.test(h));
+        if (dateIdx !== -1 && eodRows[1] && eodRows[1][dateIdx]) {
+          const fileDateStr = String(eodRows[1][dateIdx]).trim();
+          const expectedDmy = `${day}/${month}/${year}`;
+          const expectedYmd = `${year}-${month}-${day}`;
+          if (!fileDateStr.includes(expectedDmy) && !fileDateStr.includes(expectedYmd)) {
+            throw new Error(
+              `File EOD.xlsx hiện tại là dữ liệu của ngày cũ (${fileDateStr}), CoreCCP chưa xuất kết quả chốt sổ EOD của ngày ${expectedDmy}. Vui lòng chạy đối chiếu sau khi kết thúc phiên giao dịch.`,
+            );
+          }
+        }
+      }
+    } catch (e: any) {
+      if (e.message && e.message.includes('chưa xuất kết quả chốt sổ EOD')) {
+        throw e;
+      }
+    }
 
     const ccpResult = await this.checkEODCCP({
       qltkgdCcp: qltkgdCcpBuffer,

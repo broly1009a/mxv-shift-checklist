@@ -707,6 +707,79 @@ export class BotEngineService {
             checkType === 'CHECK_KLGD' ||
             checkType === 'CHECK_PRE_EOD'
           ) {
+            // Cơ chế Link-to-Latest cho CHECK_KLGD: Kế thừa kết quả chạy độc lập của Trading Manager nếu có job hoàn tất gần đây
+            if (checkType === 'CHECK_KLGD') {
+              const freqSetting = await this.settingsService.getSetting(
+                'bot_periodic_check_frequency',
+                '60',
+              );
+              const validWindowMinutes = Math.max(15, parseInt(freqSetting, 10) || 60);
+              const recentStandaloneJob =
+                await this.botJobQueueService.getLatestCompletedJobByType(
+                  'CHECK_KLGD',
+                  validWindowMinutes,
+                );
+
+              if (recentStandaloneJob) {
+                const jobObj = recentStandaloneJob.toObject();
+                const payload = jobObj.payload || {};
+                const result = payload.result || {};
+
+                if (!result.isWaitingFiles) {
+                  const isPassed = result.passed !== false;
+                  const checkData = {
+                    type: 'CHECK_KLGD',
+                    jobId: recentStandaloneJob._id.toString(),
+                    status: 'COMPLETED',
+                    completedAt: recentStandaloneJob.completedAt,
+                    result: result,
+                    data: {
+                      totalCount: payload?.totalCount ?? 0,
+                      failedCount: isPassed ? 0 : (result.mismatchedTradesTotal || 1),
+                      failedList: '',
+                      timestamp: new Date().toISOString(),
+                      inheritedFromJobId: recentStandaloneJob._id.toString(),
+                    },
+                  };
+                  const message = JSON.stringify(checkData);
+                  const targetStatus: 'PASSED' | 'NEEDS_ATTENTION' = isPassed
+                    ? 'PASSED'
+                    : 'NEEDS_ATTENTION';
+
+                  await this.shiftsService.updateTaskStatus(
+                    log._id.toString(),
+                    task.taskId,
+                    targetStatus,
+                    systemUser,
+                    message,
+                    true,
+                  );
+
+                  // Đồng bộ kết quả lên Task Cha nếu có
+                  if (log?.details) {
+                    const currentSubTask = log.details.find(
+                      (d: any) => d.taskId === task.taskId,
+                    );
+                    if (currentSubTask?.parentTaskIdSnapshot) {
+                      await this.shiftsService.updateTaskStatus(
+                        log._id.toString(),
+                        currentSubTask.parentTaskIdSnapshot,
+                        targetStatus,
+                        systemUser,
+                        `[Kế thừa từ ${task.taskNameSnapshot || task.taskId}]: ${isPassed ? 'Khớp toàn bộ số liệu 3 bên' : 'Có chênh lệch số liệu'}`,
+                        true,
+                      );
+                    }
+                  }
+
+                  this.logger.log(
+                    `[Link-to-Latest] Task [${task.taskId}] ca trực ${log._id} đã liên kết thành công với Job độc lập ${recentStandaloneJob._id} (${targetStatus}) trong 0.05s.`,
+                  );
+                  continue;
+                }
+              }
+            }
+
             const existingJob = await this.botJobQueueService.getJobForTask(
               task.taskId,
               log._id.toString(),

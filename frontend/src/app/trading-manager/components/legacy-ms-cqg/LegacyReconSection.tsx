@@ -1143,29 +1143,33 @@ export default function LegacyReconSection({
                   ) : (
                     <Square size={20} color="var(--text-muted)" />
                   )}
-                  <span>Check định kỳ (phút):</span>
+                  <span>Check định kỳ:</span>
                 </button>
 
-                <input
-                  type="number"
-                  min={1}
-                  max={180}
+                <select
                   value={intervalMinutes}
                   onChange={(e) => {
                     const num = Number(e.target.value);
                     setIntervalMinutes(num);
                     debouncedSaveSetting('bot_periodic_check_frequency', String(num));
                   }}
-                  className="form-input"
+                  className="form-select"
                   style={{
-                    width: '80px',
                     height: '38px',
-                    textAlign: 'center',
-                    fontSize: '0.9rem',
-                    fontWeight: 800,
-                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    padding: '0 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)',
                   }}
-                />
+                >
+                  <option value={60}>60 phút (Tiêu chuẩn)</option>
+                  <option value={30}>30 phút (Cao điểm)</option>
+                  <option value={15}>15 phút (Biến động mạnh)</option>
+                </select>
 
                 {checkPeriodic && (
                   !autoReconActive ? (

@@ -27,6 +27,7 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { BotJobQueueService } from './bot-job-queue.service';
 import { RpaDownloaderService } from './rpa-downloader.service';
 import { GttCheckerService } from './gtt-checker.service';
+import { CeCcpGttCheckerService } from './ce-ccp-gtt.service';
 import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
@@ -72,6 +73,7 @@ export class BotEngineController {
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     private readonly ccpCeDownloaderService: CcpCeDownloaderService,
+    private readonly ceCcpGttService: CeCcpGttCheckerService,
   ) {}
 
   /**
@@ -2942,6 +2944,8 @@ export class BotEngineController {
     @Body('endDate') endDate?: string,
     @Body('reports') reports?: string[],
     @Body('outputDir') outputDir?: string,
+    @Body('isTradingCheck') isTradingCheck?: boolean,
+    @Body('purpose') purpose?: string,
   ) {
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -2965,6 +2969,8 @@ export class BotEngineController {
       reports: reports && reports.length > 0 ? reports : ['QLTTTKGD', 'EOD', 'NR', 'TTTT'],
       outputDir,
       sessionDay: targetStart,
+      isTradingCheck: isTradingCheck ?? (purpose === 'CHECK'),
+      purpose,
     });
 
     return {
@@ -3256,6 +3262,142 @@ export class BotEngineController {
       message: 'Đã đưa yêu cầu tải và kiểm tra file backup ACM vào hàng đợi.',
       jobId: job._id,
     };
+  }
+
+  // =========================================================================
+  // CE VS CORECCP GTT RECONCILIATION ENDPOINTS
+  // =========================================================================
+
+  /**
+   * Kích hoạt đối soát Giá thanh toán (GTT) giữa CoreEX (CE) và CoreCCP (VNCLEAR).
+   * POST /api/v1/bot-engine/run-ce-ccp-gtt-check
+   */
+  @Post('run-ce-ccp-gtt-check')
+  async runCeCcpGttCheck(
+    @Body()
+    body: {
+      targetDate?: string;
+      filterOpen?: boolean;
+      async?: boolean;
+      ceGttPath?: string;
+      ccpGttPath?: string;
+      ceHhPath?: string;
+      ccpHhPath?: string;
+      ttmPath?: string;
+    } = {},
+  ) {
+    if (this.ceCcpGttService.getIsRunning()) {
+      return {
+        success: true,
+        isRunning: true,
+        message: 'Tiến trình đối soát GTT CE-CCP đang chạy ngầm trên hệ thống.',
+        report: this.ceCcpGttService.getLatestReport(),
+      };
+    }
+
+    if (body.async) {
+      this.ceCcpGttService
+        .runCeCcpGttCheck(body)
+        .catch((err) => {
+          this.logger.error(
+            `[Background CE-CCP GTT Check] Lỗi: ${err.message}`,
+            err.stack,
+          );
+        });
+
+      return {
+        success: true,
+        isRunning: true,
+        message: 'Đã khởi động tiến trình đối soát GTT CE-CCP ngầm.',
+        report: this.ceCcpGttService.getLatestReport(),
+      };
+    }
+
+    try {
+      const report = await this.ceCcpGttService.runCeCcpGttCheck(body);
+      return { success: true, isRunning: false, report };
+    } catch (err: any) {
+      throw new HttpException(
+        `Đối soát GTT CE-CCP thất bại: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Lấy báo cáo đối soát GTT CE-CCP gần nhất hoặc theo ngày.
+   * GET /api/v1/bot-engine/ce-ccp-gtt-report
+   */
+  @Get('ce-ccp-gtt-report')
+  async getCeCcpGttReport(@Query('date') dateQuery?: string) {
+    const report = this.ceCcpGttService.getLatestReport();
+    const isRunning = this.ceCcpGttService.getIsRunning();
+    const currentLogs = this.ceCcpGttService.getCurrentLogs();
+
+    if (isRunning) {
+      return {
+        success: true,
+        isRunning: true,
+        currentLogs,
+        report: null,
+      };
+    }
+
+    if (!report) {
+      return {
+        success: false,
+        isRunning: false,
+        currentLogs: [],
+        report: null,
+        message: 'Chưa có báo cáo GTT CE-CCP nào. Hãy bấm nút [Đối Chiếu GTT (CE vs CCP)] để chạy.',
+      };
+    }
+
+    return {
+      success: true,
+      isRunning: false,
+      currentLogs,
+      report,
+    };
+  }
+
+  /**
+   * Xuất file Excel báo cáo đối soát GTT CE-CCP hoặc file điều chỉnh giá.
+   * GET /api/v1/bot-engine/ce-ccp-gtt-report/export?type=report|correction
+   */
+  @Get('ce-ccp-gtt-report/export')
+  async exportCeCcpGttReport(
+    @Query('type') type: 'report' | 'correction' = 'report',
+    @Res() res: Response,
+  ) {
+    try {
+      let buffer: Buffer;
+      let filename: string;
+
+      const dateStr =
+        this.ceCcpGttService.getLatestReport()?.targetDate ||
+        new Date().toISOString().split('T')[0];
+
+      if (type === 'correction') {
+        buffer = this.ceCcpGttService.generateCorrectionExcelBuffer();
+        filename = `Dieu_Chinh_GTT_CE_CCP_${dateStr}.xlsx`;
+      } else {
+        buffer = this.ceCcpGttService.generateReportExcelBuffer();
+        filename = `Bao_Cao_CheckGTT_CE_CCP_${dateStr}.xlsx`;
+      }
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      return res.end(buffer);
+    } catch (err: any) {
+      throw new HttpException(
+        `Không thể xuất file Excel: ${err.message || 'Lỗi không xác định'}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }
 

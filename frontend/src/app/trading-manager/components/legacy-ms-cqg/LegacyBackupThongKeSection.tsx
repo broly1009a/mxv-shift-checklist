@@ -17,6 +17,7 @@ import {
   Mail,
   Layers,
   Database,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -95,6 +96,11 @@ export default function LegacyBackupThongKeSection({
   const [backupTime, setBackupTime] = useState<string>('06:00');
   const [enableStatTime, setEnableStatTime] = useState<boolean>(true);
   const [statTime, setStatTime] = useState<string>('06:30');
+
+  // Trạng thái ca trực hiện tại (đọc động từ /api/v1/shifts/active)
+  const [activeShiftName, setActiveShiftName] = useState<string>('');
+  const [shiftBackupTime, setShiftBackupTime] = useState<string | null>(null);
+  const [shiftStatTime, setShiftStatTime] = useState<string | null>(null);
 
   // Master Switch: Tự động tải backup & thống kê (bot_auto_backup_enabled)
   const [autoBackupActive, setAutoBackupActive] = useState<boolean>(true);
@@ -178,6 +184,57 @@ export default function LegacyBackupThongKeSection({
         }
       })
       .catch(() => {});
+
+    // Lấy thông tin ca trực hiện tại để đồng bộ hiển thị giờ lịch trình
+    fetch(`${API_BASE_URL}/api/v1/shifts/active`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data: any) => {
+        const shifts = Array.isArray(data) ? data : data?.data || [];
+        const active = shifts.find((s: any) => s.status === 'IN_PROGRESS') ||
+          shifts.find((s: any) => s.status === 'PENDING') ||
+          shifts[0];
+        if (active) {
+          const shiftTitle = active.templateId?.title || active.templateId?.name || 'Ca trực hôm nay';
+          setActiveShiftName(shiftTitle);
+
+          const details = Array.isArray(active.details) ? active.details : [];
+          // Tìm task backup M-System
+          const backupTask = details.find((d: any) =>
+            d.botCheckTypeSnapshot === 'RPA_DOWNLOAD' ||
+            d.botCheckTypeSnapshot === 'RPA_DOWNLOAD_REPORTS' ||
+            d.taskId?.toLowerCase().includes('backup') ||
+            d.taskNameSnapshot?.toLowerCase().includes('sao lưu') ||
+            d.taskNameSnapshot?.toLowerCase().includes('backup')
+          );
+          if (backupTask && backupTask.botTriggerTimeSnapshot) {
+            setShiftBackupTime(backupTask.botTriggerTimeSnapshot);
+          } else {
+            setShiftBackupTime(null);
+          }
+
+          // Tìm task thống kê macro
+          const statTask = details.find((d: any) =>
+            d.botCheckTypeSnapshot === 'RUN_MACRO' ||
+            d.botCheckTypeSnapshot === 'RUN_LOT_MACRO' ||
+            d.taskNameSnapshot?.toLowerCase().includes('thống kê') ||
+            d.taskNameSnapshot?.toLowerCase().includes('macro')
+          );
+          if (statTask && statTask.botTriggerTimeSnapshot) {
+            setShiftStatTime(statTask.botTriggerTimeSnapshot);
+          } else {
+            setShiftStatTime(null);
+          }
+        } else {
+          setActiveShiftName('');
+          setShiftBackupTime(null);
+          setShiftStatTime(null);
+        }
+      })
+      .catch((err) => {
+        console.warn('[LegacyBackupThongKeSection] Không thể tải thông tin ca trực active:', err.message);
+      });
   }, [token]);
 
   // Toggle bot_auto_backup_enabled
@@ -191,7 +248,7 @@ export default function LegacyBackupThongKeSection({
       if (nextVal) {
         toast.success('Đã kích hoạt tự động tải backup & thống kê!');
       } else {
-        toast('Đã tạm dừng tự động tải backup & thống kê', { icon: '⏸️' });
+        toast('Đã tạm dừng tự động tải backup & thống kê');
       }
     } catch (err: any) {
       toast.error('Lỗi khi cập nhật trạng thái: ' + err.message);
@@ -780,91 +837,156 @@ export default function LegacyBackupThongKeSection({
             </button>
           </div>
 
-          {/* Backup định kỳ (phút) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              <input
-                type="checkbox"
-                checked={backupPeriodic}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setBackupPeriodic(val);
-                  saveSetting('bot_backup_periodic_enabled', val ? 'true' : 'false');
-                }}
-                style={{ accentColor: '#10b981', width: '15px', height: '15px' }}
-              />
-              <span>Backup định kỳ (phút)</span>
-            </label>
-            <input
-              type="number"
-              value={backupPeriodicMinutes}
-              onChange={(e) => {
-                const num = Number(e.target.value);
-                setBackupPeriodicMinutes(num);
-                debouncedSaveSetting('bot_backup_periodic_minutes', String(num));
+          {/* Thời điểm backup (Khóa Read-only - Lấy từ Ca trực) */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            title={
+              shiftBackupTime
+                ? `Lịch tự động theo Ca trực [${activeShiftName || 'Ca trực hôm nay'}]: lúc ${shiftBackupTime}. Để thay đổi giờ, vui lòng điều chỉnh tại Template Ca Trực.`
+                : 'Ca trực hiện tại chưa cấu hình tác vụ Backup tự động. Bạn có thể nhấn nút [Backup MS] bên dưới để chạy thủ công bất kỳ lúc nào.'
+            }
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'help',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
               }}
-              disabled={!backupPeriodic}
-              className="form-input"
-              style={{ width: '70px', height: '32px', fontSize: '0.82rem', fontFamily: 'monospace', textAlign: 'center', fontWeight: 700 }}
-            />
-          </div>
-
-          {/* Thời điểm backup */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            >
               <input
                 type="checkbox"
-                checked={enableBackupTime}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setEnableBackupTime(val);
-                  saveSetting('bot_backup_time_enabled', val ? 'true' : 'false');
+                checked={!!shiftBackupTime}
+                readOnly
+                disabled
+                style={{
+                  accentColor: '#10b981',
+                  width: '15px',
+                  height: '15px',
+                  cursor: 'help',
                 }}
-                style={{ accentColor: '#10b981', width: '15px', height: '15px' }}
               />
               <span>Thời điểm backup</span>
-            </label>
-            <input
-              type="time"
-              value={backupTime}
-              onChange={(e) => {
-                const val = e.target.value;
-                setBackupTime(val);
-                debouncedSaveSetting('bot_backup_time', val);
+            </div>
+            <div
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'help',
               }}
-              disabled={!enableBackupTime}
-              className="form-input"
-              style={{ width: '90px', height: '32px', fontSize: '0.82rem', fontFamily: 'monospace', textAlign: 'center' }}
-            />
+            >
+              <input
+                type="text"
+                value={shiftBackupTime || '--:--'}
+                readOnly
+                disabled
+                className="form-input"
+                style={{
+                  width: '95px',
+                  height: '32px',
+                  fontSize: '0.82rem',
+                  fontFamily: 'monospace',
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: shiftBackupTime ? 'var(--text-primary)' : 'var(--text-muted)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  paddingRight: '24px',
+                  cursor: 'help',
+                }}
+              />
+              <Lock
+                size={12}
+                color="var(--text-muted)"
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  pointerEvents: 'none',
+                  opacity: 0.8,
+                }}
+              />
+            </div>
           </div>
 
-          {/* Thời điểm tạo thống kê */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          {/* Thời điểm tạo thống kê (Khóa Read-only - Lấy từ Ca trực) */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            title={
+              shiftStatTime
+                ? `Lịch tự động theo Ca trực [${activeShiftName || 'Ca trực hôm nay'}]: lúc ${shiftStatTime}. Để thay đổi giờ, vui lòng điều chỉnh tại Template Ca Trực.`
+                : 'Ca trực hiện tại chưa cấu hình tác vụ Thống kê tự động. Bạn có thể nhấn nút [Chạy Macro Lot] bên dưới để chạy thủ công bất kỳ lúc nào.'
+            }
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'help',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+              }}
+            >
               <input
                 type="checkbox"
-                checked={enableStatTime}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setEnableStatTime(val);
-                  saveSetting('bot_stat_time_enabled', val ? 'true' : 'false');
+                checked={!!shiftStatTime}
+                readOnly
+                disabled
+                style={{
+                  accentColor: '#10b981',
+                  width: '15px',
+                  height: '15px',
+                  cursor: 'help',
                 }}
-                style={{ accentColor: '#10b981', width: '15px', height: '15px' }}
               />
               <span>Thời điểm tạo thống kê</span>
-            </label>
-            <input
-              type="time"
-              value={statTime}
-              onChange={(e) => {
-                const val = e.target.value;
-                setStatTime(val);
-                debouncedSaveSetting('bot_stat_time', val);
+            </div>
+            <div
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'help',
               }}
-              disabled={!enableStatTime}
-              className="form-input"
-              style={{ width: '90px', height: '32px', fontSize: '0.82rem', fontFamily: 'monospace', textAlign: 'center' }}
-            />
+            >
+              <input
+                type="text"
+                value={shiftStatTime || '--:--'}
+                readOnly
+                disabled
+                className="form-input"
+                style={{
+                  width: '95px',
+                  height: '32px',
+                  fontSize: '0.82rem',
+                  fontFamily: 'monospace',
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: shiftStatTime ? 'var(--text-primary)' : 'var(--text-muted)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  paddingRight: '24px',
+                  cursor: 'help',
+                }}
+              />
+              <Lock
+                size={12}
+                color="var(--text-muted)"
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  pointerEvents: 'none',
+                  opacity: 0.8,
+                }}
+              />
+            </div>
           </div>
 
           {/* Master Switch: Tự động Backup & Thống kê */}

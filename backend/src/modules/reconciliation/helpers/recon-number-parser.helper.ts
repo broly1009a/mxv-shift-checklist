@@ -588,6 +588,24 @@ export function resolveCcpDailyPath(subFolder: string, rawCcpBase?: string): str
   return target;
 }
 
+export function resolveTradingCheckCcpDailyPath(subFolder: string, rawCcpBase?: string): string {
+  const defaultDataPath = path.join(process.cwd(), 'data', 'trading-check', 'ccp', 'futures');
+  const checkBase = rawCcpBase
+    ? resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP')
+    : defaultDataPath;
+  const target = path.join(checkBase, subFolder);
+  if (fs.existsSync(target)) return target;
+
+  const candidates = [
+    path.join(defaultDataPath, subFolder),
+    path.join(process.cwd(), 'TradingCheck', 'CCP', subFolder),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return target;
+}
+
 export function parseDSGD(buffer: Buffer): any[] {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
