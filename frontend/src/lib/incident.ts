@@ -22,7 +22,7 @@ export const getFriendlyCode = (code: string): string => {
     case 'DATA_MISMATCH':
       return 'Sai lệch Dữ liệu';
     case 'MISSED_SLA':
-      return 'Trễ hạn Cam kết';
+      return 'Quá hạn hoàn thành';
     default:
       return code.replace(/_/g, ' ');
   }

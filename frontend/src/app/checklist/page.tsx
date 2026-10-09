@@ -17,7 +17,10 @@ import {
   AlertCircle,
   FileSpreadsheet,
   Cpu,
-  HelpCircle
+  HelpCircle,
+  LayoutList,
+  Columns2,
+  Sparkles
 } from 'lucide-react';
 import { useTutorial } from '@/context/TutorialContext';
 import { checklistTutorialSteps } from '@/tutorials/checklistTutorial';
@@ -25,6 +28,7 @@ import { checklistTutorialSteps } from '@/tutorials/checklistTutorial';
 import { useChecklist } from './hooks/useChecklist';
 import ShiftCardGrid from './components/ShiftCardGrid';
 import TaskTable from './components/TaskTable';
+import TaskTableSpreadsheet from './components/TaskTableSpreadsheet';
 import IncidentList from './components/IncidentList';
 import AuditLogsPanel from './components/AuditLogsPanel';
 import IncidentReportModal from './components/IncidentReportModal';
@@ -107,6 +111,7 @@ function ChecklistWorksheet() {
   const [omsTaskId, setOmsTaskId] = React.useState('');
   const [viewingBotLog, setViewingBotLog] = React.useState<{ title: string; resultNote: string; status?: string; checkedAt?: string; taskId?: string } | null>(null);
   const [showTechDetails, setShowTechDetails] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<'spreadsheet' | 'legacy'>('spreadsheet');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { startTutorial, isDone, resetTutorial } = useTutorial();
@@ -123,13 +128,11 @@ function ChecklistWorksheet() {
 
   React.useEffect(() => {
     const bypassRedirect = searchParams.get('redirect') === 'false';
+    const isMock = searchParams.get('mock') === 'true';
     if (!shiftLogId && activeLogs.length > 0 && !bypassRedirect) {
       const pending = activeLogs.find((item) => item.status !== 'COMPLETED');
-      if (pending) {
-        router.push(`/checklist?id=${pending._id}`);
-      } else {
-        router.push(`/checklist?id=${activeLogs[0]._id}`);
-      }
+      const targetId = pending ? pending._id : activeLogs[0]._id;
+      router.push(`/checklist?id=${targetId}${isMock ? '&mock=true' : ''}`);
     }
   }, [shiftLogId, activeLogs, router, searchParams]);
 
@@ -512,28 +515,10 @@ function ChecklistWorksheet() {
         <div id="tutorial-checklist-shift-banner" className="glass-panel" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
                 {log.templateId?.title}
               </h1>
               {getSessionBadge(log.templateId?.sessionType || '')}
-              
-              {/* Realtime Live Pulse */}
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                background: 'rgba(16, 185, 129, 0.08)',
-                color: '#10b981',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: '1px solid rgba(16, 185, 129, 0.15)',
-                marginLeft: '8px'
-              }}>
-                <span className="live-pulse-dot"></span>
-                LIVE
-              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -586,58 +571,172 @@ function ChecklistWorksheet() {
           </div>
         </div>
 
-
-
         {/* Workspace Layout: Full width checklist, bottom side-by-side widgets */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          {/* View Mode Switcher Header */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '8px 14px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Giao diện:</span>
+              <div style={{
+                display: 'inline-flex',
+                background: 'rgba(0, 0, 0, 0.25)',
+                padding: '2px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                gap: '2px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('spreadsheet')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 12px',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    background: viewMode === 'spreadsheet' ? 'var(--color-accent)' : 'transparent',
+                    color: viewMode === 'spreadsheet' ? '#fff' : 'var(--text-muted)',
+                  }}
+                >
+                  <LayoutList size={13} />
+                  <span>Dạng bảng</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('legacy')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '4px 12px',
+                    fontSize: '0.76rem',
+                    fontWeight: 500,
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    background: viewMode === 'legacy' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                    color: viewMode === 'legacy' ? 'var(--text-primary)' : 'var(--text-muted)',
+                  }}
+                >
+                  <Columns2 size={13} />
+                  <span>Dạng thẻ</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* Top Panel: Checklist Tasks */}
           <div id="tutorial-checklist-task-table">
-          <TaskTable
-            log={log}
-            filteredDetails={filteredDetails}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            priorityFilter={priorityFilter}
-            setPriorityFilter={setPriorityFilter}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            isCompleted={isCompleted}
-            savingTaskId={savingTaskId}
-            notesState={notesState}
-            setNotesState={setNotesState}
-            openStatusDropdownTaskId={openStatusDropdownTaskId}
-            setOpenStatusDropdownTaskId={setOpenStatusDropdownTaskId}
-            isTaskLocked={isTaskLocked}
-            handleToggle={handleToggle}
-            handleStatusChange={handleStatusChange}
-            handleSaveNote={handleSaveNote}
-            setIsAdhocModalOpen={setIsAdhocModalOpen}
-            focusedTaskIdRef={focusedTaskIdRef}
-            user={user}
-            togglingTaskIds={togglingTaskIds}
-            onOpenReconciliation={(tid) => {
-              setReconTaskId(tid);
-              setIsReconModalOpen(true);
-            }}
-            onOpenMarginChecker={() => setIsMarginModalOpen(true)}
-            onOpenCcpStatistics={() => setIsCcpModalOpen(true)}
-            onOpenTradingReport={() => setIsTradingReportModalOpen(true)}
-            onOpenOmsStatus={(tid) => {
-              setOmsTaskId(tid);
-              setIsOmsModalOpen(true);
-            }}
-            onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
-            onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => {
-              if (taskId === 'ops_open_02' || taskId === 'ops_open_07') {
-                setOmsTaskId(taskId);
-                setIsOmsModalOpen(true);
-              } else {
-                setViewingBotLog({ title, resultNote, status, checkedAt, taskId });
-              }
-            }}
-            showTechDetails={showTechDetails}
-          />
+            {viewMode === 'spreadsheet' ? (
+              <TaskTableSpreadsheet
+                log={log}
+                filteredDetails={filteredDetails}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                priorityFilter={priorityFilter}
+                setPriorityFilter={setPriorityFilter}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                isCompleted={isCompleted}
+                savingTaskId={savingTaskId}
+                notesState={notesState}
+                setNotesState={setNotesState}
+                openStatusDropdownTaskId={openStatusDropdownTaskId}
+                setOpenStatusDropdownTaskId={setOpenStatusDropdownTaskId}
+                isTaskLocked={isTaskLocked}
+                handleToggle={handleToggle}
+                handleStatusChange={handleStatusChange}
+                handleSaveNote={handleSaveNote}
+                setIsAdhocModalOpen={setIsAdhocModalOpen}
+                focusedTaskIdRef={focusedTaskIdRef}
+                user={user}
+                togglingTaskIds={togglingTaskIds}
+                onOpenReconciliation={(tid) => {
+                  setReconTaskId(tid);
+                  setIsReconModalOpen(true);
+                }}
+                onOpenMarginChecker={() => setIsMarginModalOpen(true)}
+                onOpenCcpStatistics={() => setIsCcpModalOpen(true)}
+                onOpenTradingReport={() => setIsTradingReportModalOpen(true)}
+                onOpenOmsStatus={(tid) => {
+                  setOmsTaskId(tid);
+                  setIsOmsModalOpen(true);
+                }}
+                onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
+                onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => {
+                  if (taskId === 'ops_open_02' || taskId === 'ops_open_07') {
+                    setOmsTaskId(taskId);
+                    setIsOmsModalOpen(true);
+                  } else {
+                    setViewingBotLog({ title, resultNote, status, checkedAt, taskId });
+                  }
+                }}
+                showTechDetails={showTechDetails}
+              />
+            ) : (
+              <TaskTable
+                log={log}
+                filteredDetails={filteredDetails}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                priorityFilter={priorityFilter}
+                setPriorityFilter={setPriorityFilter}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                isCompleted={isCompleted}
+                savingTaskId={savingTaskId}
+                notesState={notesState}
+                setNotesState={setNotesState}
+                openStatusDropdownTaskId={openStatusDropdownTaskId}
+                setOpenStatusDropdownTaskId={setOpenStatusDropdownTaskId}
+                isTaskLocked={isTaskLocked}
+                handleToggle={handleToggle}
+                handleStatusChange={handleStatusChange}
+                handleSaveNote={handleSaveNote}
+                setIsAdhocModalOpen={setIsAdhocModalOpen}
+                focusedTaskIdRef={focusedTaskIdRef}
+                user={user}
+                togglingTaskIds={togglingTaskIds}
+                onOpenReconciliation={(tid) => {
+                  setReconTaskId(tid);
+                  setIsReconModalOpen(true);
+                }}
+                onOpenMarginChecker={() => setIsMarginModalOpen(true)}
+                onOpenCcpStatistics={() => setIsCcpModalOpen(true)}
+                onOpenTradingReport={() => setIsTradingReportModalOpen(true)}
+                onOpenOmsStatus={(tid) => {
+                  setOmsTaskId(tid);
+                  setIsOmsModalOpen(true);
+                }}
+                onOpenMaturityTemplates={() => setIsMaturityModalOpen(true)}
+                onOpenBotLogViewer={(title, resultNote, status, checkedAt, taskId) => {
+                  if (taskId === 'ops_open_02' || taskId === 'ops_open_07') {
+                    setOmsTaskId(taskId);
+                    setIsOmsModalOpen(true);
+                  } else {
+                    setViewingBotLog({ title, resultNote, status, checkedAt, taskId });
+                  }
+                }}
+                showTechDetails={showTechDetails}
+              />
+            )}
           </div>
 
           {/* Bottom Layout Grid: Incident Manager & Audit Trail */}

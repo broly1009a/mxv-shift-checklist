@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
+import { MOCK_ACTIVE_LOGS, MOCK_AUDIT_LOGS } from '../mockChecklistData';
 
 export interface TaskDetail {
   taskId: string;
@@ -129,6 +130,13 @@ export function useChecklist() {
   const incidentsSeqRef = useRef(0);
 
   const loadActiveLogs = useCallback(async () => {
+    const isMock = searchParams.get('mock') === 'true';
+    if (isMock) {
+      setActiveLogs(MOCK_ACTIVE_LOGS);
+      setLoading(false);
+      return;
+    }
+
     if (!token) return;
     const seq = ++activeLogsSeqRef.current;
     setLoading(true);
@@ -149,9 +157,22 @@ export function useChecklist() {
         setLoading(false);
       }
     }
-  }, [token, user]);
+  }, [token, user, searchParams]);
 
   const loadLogDetail = useCallback(async (id: string) => {
+    const isMock = searchParams.get('mock') === 'true' || id.startsWith('shift_mock');
+    if (isMock) {
+      const target = MOCK_ACTIVE_LOGS.find(s => s._id === id) || MOCK_ACTIVE_LOGS[0];
+      setLog(target);
+      const notes: Record<string, string> = {};
+      target.details.forEach(item => {
+        notes[item.taskId] = item.note || '';
+      });
+      setNotesState(notes);
+      setLoading(false);
+      return;
+    }
+
     if (!token) return;
     const seq = ++logDetailSeqRef.current;
     setLoading(true);
@@ -184,9 +205,15 @@ export function useChecklist() {
         setLoading(false);
       }
     }
-  }, [token]);
+  }, [token, searchParams]);
 
   const loadAuditLogs = useCallback(async (id: string) => {
+    const isMock = searchParams.get('mock') === 'true' || id.startsWith('shift_mock');
+    if (isMock) {
+      setAuditLogs(MOCK_AUDIT_LOGS);
+      return;
+    }
+
     if (!token) return;
     const seq = ++auditLogsSeqRef.current;
     try {
@@ -203,9 +230,15 @@ export function useChecklist() {
     } catch (err) {
       console.warn('Lỗi tải nhật ký kiểm toán:', err);
     }
-  }, [token]);
+  }, [token, searchParams]);
 
   const loadIncidents = useCallback(async (id: string) => {
+    const isMock = searchParams.get('mock') === 'true' || id.startsWith('shift_mock');
+    if (isMock) {
+      setIncidents([]);
+      return;
+    }
+
     if (!token) return;
     const seq = ++incidentsSeqRef.current;
     try {
@@ -222,7 +255,7 @@ export function useChecklist() {
     } catch (err) {
       console.warn('Lỗi tải danh sách sự cố:', err);
     }
-  }, [token]);
+  }, [token, searchParams]);
 
   const handleResolveIncident = async () => {
     if (!resolvingIncident || !token) return;
@@ -496,6 +529,13 @@ export function useChecklist() {
 
     setLog(optimisticLog);
 
+    if (log._id.startsWith('shift_mock')) {
+      toast.success('Cập nhật trạng thái tác vụ thành công.');
+      togglingTaskIdsRef.current.delete(taskId);
+      setTogglingTaskIds(new Set(togglingTaskIdsRef.current));
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/status`, {
         method: 'PATCH',
@@ -540,6 +580,19 @@ export function useChecklist() {
     const targetItem = log.details.find(d => d.taskId === taskId);
     const status = targetItem ? (targetItem.status || (targetItem.isChecked ? 'PASSED' : 'PENDING')) : 'PENDING';
     const note = notesState[taskId] || '';
+
+    if (log._id.startsWith('shift_mock')) {
+      setLog(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          details: prev.details.map(item => item.taskId === taskId ? { ...item, note } : item),
+        };
+      });
+      toast.success('Ghi chú đã được cập nhật.');
+      setSavingTaskId(null);
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/status`, {

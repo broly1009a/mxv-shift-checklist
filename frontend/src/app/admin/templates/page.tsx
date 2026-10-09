@@ -1316,7 +1316,7 @@ export default function AdminTemplatesPage() {
                                 )}
                                 {task.slaType && (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(14, 165, 233, 0.06)', color: '#0ea5e9', padding: '2px 8px', borderRadius: '4px' }}>
-                                    SLA: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Động'}
+                                    Thời hạn: {task.slaType === 'FIXED_TIME' ? 'Cố định' : 'Theo tiến độ'}
                                   </span>
                                 )}
                                 {task.triggerTime && (
@@ -1326,7 +1326,7 @@ export default function AdminTemplatesPage() {
                                 )}
                                 {task.slaDeadline && (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239, 68, 68, 0.06)', color: '#ef4444', padding: '2px 8px', borderRadius: '4px' }}>
-                                    Hạn SLA: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
+                                    Hạn hoàn thành: {task.slaDeadline} {task.slaType === 'DYNAMIC_AFTER_TASK' ? 'phút' : ''}
                                   </span>
                                 )}
                                 {task.dependsOnTaskIds && task.dependsOnTaskIds.length > 0 && (
@@ -1761,7 +1761,7 @@ export default function AdminTemplatesPage() {
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại hạn hoàn thành (SLA)</label>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Loại thời hạn hoàn thành</label>
                     <select
                       className="form-input"
                       value={newSlaType}

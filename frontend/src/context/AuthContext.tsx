@@ -126,6 +126,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else if (storedTheme) {
             activeTheme = storedTheme;
           }
+        } else if (typeof window !== 'undefined' && window.location.search.includes('mock=true')) {
+          // Mock mode: Cung cấp tài khoản vận hành giả lập để preview UI
+          const mockUser: User = {
+            id: 'usr_mock_operator',
+            username: 'operator.mxv',
+            fullName: 'Trương Hoàng Hiệp (Vận hành Ca)',
+            role: 'ADMIN',
+            department: {
+              _id: 'dept_ops',
+              id: 'dept_ops',
+              name: 'Khối Quản lý Giao dịch & Bù trừ',
+              code: 'QLGD_OPS',
+            },
+            permissions: ['VIEW_CHECKLIST', 'EDIT_CHECKLIST', 'MANAGE_TEMPLATES', 'RESOLVE_INCIDENTS'],
+            settings: {
+              theme: 'dark',
+              autoRefreshInterval: 30,
+              telegramNotifications: true,
+              telegramChatId: '',
+              alertThresholdMinutes: 15,
+            },
+          };
+          localStorage.setItem('mxv_token', 'mock_token_checklist');
+          localStorage.setItem('mxv_user', JSON.stringify(mockUser));
+          setToken('mock_token_checklist');
+          setUser(mockUser);
         } else if (storedTheme) {
           activeTheme = storedTheme;
         }

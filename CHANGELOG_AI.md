@@ -1,5 +1,65 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-10-09T15:20] REFACTOR(HUMAN-COPY): Việt Hóa & Chuẩn Hóa Thuật Ngữ "SLA" Thành Tiếng Việt Nghiệp Vụ Vận Hành
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"thay mấy chữ SLA bằng tiếng việt rõ nghĩa hơn vì SLA nó kỹ thuật máy móc quá"*
+- **Giải pháp chuyển ngữ**:
+  - Thay thế toàn bộ từ viết tắt mang tính kỹ thuật / máy móc (`SLA`) sang các cụm từ tiếng Việt nghiệp vụ chuẩn mực, tự nhiên và dễ hiểu cho cán bộ ca trực:
+    - Tiêu đề cột bảng: `Khung giờ & SLA` $\rightarrow$ `Khung giờ & Hạn chót`.
+    - Dòng thông tin tác vụ trong bảng: `SLA: 08:30` / `SLA: 15m` $\rightarrow$ `Hạn chót: 08:30` / `Hạn chót: 15 phút`.
+    - Ngăn kéo chi tiết công việc (TaskDetailDrawer): `Hạn SLA:` $\rightarrow$ `Hạn hoàn thành:`.
+    - Danh sách & Form cấu hình Template (Admin): `SLA: Cố định/Động` $\rightarrow$ `Thời hạn: Cố định/Theo tiến độ`; `Hạn SLA:` $\rightarrow$ `Hạn hoàn thành:`; `Loại hạn hoàn thành (SLA)` $\rightarrow$ `Loại thời hạn hoàn thành`.
+    - Thông báo sự cố vi phạm thời hạn (`incident.ts`): `Trễ hạn Cam kết` $\rightarrow$ `Quá hạn hoàn thành`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/checklist/components/TaskTableSpreadsheet.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/TaskTableSpreadsheet.tsx):
+  - Cột tiêu đề: Đổi thành `Khung giờ & Hạn chót`.
+  - Nhãn hiển thị mốc thời gian: Đổi `SLA:` thành `Hạn chót: ... phút` / `Hạn chót: ...`.
+- [frontend/src/app/checklist/components/TaskDetailDrawer.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/TaskDetailDrawer.tsx):
+  - Thuộc tính hạn chót: Đổi `Hạn SLA:` thành `Hạn hoàn thành:`.
+- [frontend/src/app/admin/templates/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/templates/page.tsx):
+  - Nhãn hiển thị template: Đổi `SLA:` thành `Thời hạn: Cố định / Theo tiến độ` và `Hạn hoàn thành: ...`.
+  - Form thêm tác vụ: Đổi `Loại hạn hoàn thành (SLA)` thành `Loại thời hạn hoàn thành`.
+- [frontend/src/lib/incident.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/lib/incident.ts):
+  - Mã sự cố `MISSED_SLA`: Đổi từ `Trễ hạn Cam kết` thành `Quá hạn hoàn thành`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend TypeScript (`cmd.exe /c npx tsc --noEmit`)**: Exit code 0.
+- **Backend Build (`cmd.exe /c npm run build`)**: Exit code 0.
+
+---
+
+## [2026-10-09T11:25] FEAT(CHECKLIST-UI-REDESIGN): Thiết Kế Lại Giao Diện Ca Trực Checklist (Dual-Mode: Spreadsheet Tinh Gọn 1-Chạm & Chi Tiết Trái-Phải Cũ)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"bắt đầu design lại giao diện theo các tài liệu đã phân tích"*
+  - *"giữ nguyên mã nguồn trang cũ làm căn cứ đối chiếu và thiết kế trang mới dựa theo trang cũ (không xóa code cũ để có thể rollback và đối chiếu tránh thiếu mã nguồn hoặc miss thông tin chức năng)"*.
+  - Bám sát tài liệu phân tích nghiệp vụ [docs/moi/TAI_LIEU_DANH_GIA_VA_THIET_KE_LAI_UI_CHECKLIST.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/TAI_LIEU_DANH_GIA_VA_THIET_KE_LAI_UI_CHECKLIST.md) và tài liệu quy trình gốc [docs/moi/QUY_TRINH_VA_CHECKLIST_TRUC_VAN_HANH_CCP_EXCHANGE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/QUY_TRINH_VA_CHECKLIST_TRUC_VAN_HANH_CCP_EXCHANGE.md).
+  - Tối ưu hóa trải nghiệm ca trực: Thay vì chia đôi màn hình 50/50 lãng phí không gian bảng và phải cuộn nhiều, giao diện mới chuyển thành **Full-width Spreadsheet (Bảng phẳng đa năng giống Excel)** với thao tác tích trạng thái 1-chạm (1-touch inline toggle), ghi chú trực tiếp trên dòng (inline auto-save note), badge Bot tinh gọn không rác log JSON, và trượt mở ngăn kéo Slide-over Drawer khi cần soi chi tiết chuyên sâu.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/checklist/components/TaskTableSpreadsheet.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/TaskTableSpreadsheet.tsx):
+  - **Loại bỏ hoàn toàn các thuật ngữ máy móc / AI buzzwords**: Thay thế `Bảng tinh gọn 1-chạm (Mới)` $\rightarrow$ `Dạng bảng`, `Trạng thái (1-Chạm)` $\rightarrow$ `Trạng thái`, `Kết quả Bot` $\rightarrow$ `Kiểm tra tự động`, `Ghi chú vận hành` $\rightarrow$ `Ghi chú`, `Xem` $\rightarrow$ `Chi tiết`.
+  - **Sửa triệt để lỗi Layout thanh lọc (Filter Bar)**: Sửa lỗi xung đột `width: 100%` khiến thanh tìm kiếm và 2 dropdown bị đẩy xuống 3 dòng riêng biệt; quy hoạch lại toàn bộ thanh tìm kiếm, bộ lọc độ ưu tiên, bộ lọc trạng thái và nút đặt lại thành **1 hàng ngang duy nhất (Single-row Horizontal Toolbar)** cực kỳ gọn gàng.
+  - **Tái cấu trúc nút Trạng thái**: Hợp nhất thiết kế nút tách đôi (split button) thành một nút badge trạng thái duy nhất liền mạch kèm icon chevron chuẩn Enterprise UI, hỗ trợ click mở popover chọn nhanh (`Đạt`, `Chưa làm`, `Không đạt`, `Cần lưu ý`, `Đang xử lý`).
+  - **Cột Chi tiết chuẩn mực**: Thay icon trơ trọi thành nút bấm `[ ↗ Xem ]` rõ nghĩa.
+- [frontend/src/app/checklist/components/TaskDetailDrawer.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/TaskDetailDrawer.tsx):
+  - Xóa bỏ các badge thừa thãi (`Ca trực thực hiện`); chuẩn hóa mã định danh công việc `#TASK_...` và badge độ ưu tiên.
+  - Chuẩn hóa ngôn ngữ nghiệp vụ: `Thông số vận hành` $\rightarrow$ `Thông tin thực hiện`, `Đường dẫn file` $\rightarrow$ `Thư mục dữ liệu`, `Ghi chú vận hành` $\rightarrow$ `Ghi chú ca trực`.
+- [frontend/src/app/checklist/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/page.tsx):
+  - Tinh giản bộ chuyển đổi giao diện: Chỉ hiển thị `Giao diện: [ Dạng bảng ] [ Dạng thẻ ]`, loại bỏ toàn bộ các từ thừa `(Mới)`, `(Cũ)`, `Khuyên dùng` và các câu hướng dẫn mang tính AI.
+  - Loại bỏ badge `LIVE` chớp nháy không phù hợp với văn phong ca trực nghiệp vụ.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend TypeScript (`cmd.exe /c npx tsc --noEmit`)**: Exit code 0 (Kiểm tra kiểu Next.js/React hoàn toàn hợp lệ, không lỗi cú pháp hay thiếu props).
+- **Backend Build (`cmd.exe /c npm run build`)**: Exit code 0 (Biên dịch NestJS thành công 100%).
+- **Kiểm tra trực quan bằng Browser Subagent**: Xác nhận thanh lọc nằm trên 1 hàng ngang duy nhất, bảng hiển thị cân đối và ngăn kéo trượt hoạt động mượt mà.
+
+---
+
 ## [2026-10-09T09:30] FEAT(CE-CCP-GTT): Đóng Gói Module Backend & Triển Khai Giao Diện Đối Soát Giá Thanh Toán CoreEX (CE) vs CoreCCP (VNCLEAR)
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
