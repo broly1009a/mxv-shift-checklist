@@ -73,6 +73,43 @@ export const CORE_CCP_REPORTS_LIST: Array<{
   { key: 'GTT', name: 'GTT CCP', filename: 'GTT CCP.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
 ];
 
+export const ACM_REPORTS_LIST: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  source: 'WEB' | 'SFTP';
+  description: string;
+}> = [
+  {
+    key: 'FILL',
+    name: 'Khớp lệnh ACM (Fill)',
+    filename: 'Fill.xlsx',
+    source: 'WEB',
+    description: 'Dữ liệu khớp lệnh tự doanh trích xuất từ giao diện Web ACM',
+  },
+  {
+    key: 'ORDER',
+    name: 'Sổ lệnh ACM (Order)',
+    filename: 'Order.xlsx',
+    source: 'WEB',
+    description: 'Sổ lệnh giao dịch tự doanh trích xuất từ giao diện Web ACM',
+  },
+  {
+    key: 'SFTP_CSV',
+    name: 'Straits EOD CSV',
+    filename: 'EOD FO trades_PT Straits...csv',
+    source: 'SFTP',
+    description: 'File đối chiếu chuẩn Straits Financial qua giao thức SFTP Server',
+  },
+  {
+    key: 'SFTP_XLS',
+    name: 'Báo cáo TK 10017890000',
+    filename: '<YYYY-MM-DD>_10017890000.xls',
+    source: 'SFTP',
+    description: 'File sao kê tài khoản Straits 10017890000 định dạng bảng tính XLS',
+  },
+];
+
 export interface LegacyBackupThongKeSectionProps {
   token: string | null;
   selectedDate: string;
@@ -93,9 +130,9 @@ export default function LegacyBackupThongKeSection({
   const [backupPeriodic, setBackupPeriodic] = useState<boolean>(true);
   const [backupPeriodicMinutes, setBackupPeriodicMinutes] = useState<number>(60);
   const [enableBackupTime, setEnableBackupTime] = useState<boolean>(true);
-  const [backupTime, setBackupTime] = useState<string>('06:00');
+  const [backupTime, setBackupTime] = useState<string>('');
   const [enableStatTime, setEnableStatTime] = useState<boolean>(true);
-  const [statTime, setStatTime] = useState<string>('06:30');
+  const [statTime, setStatTime] = useState<string>('');
 
   // Trạng thái ca trực hiện tại (đọc động từ /api/v1/shifts/active)
   const [activeShiftName, setActiveShiftName] = useState<string>('');
@@ -175,12 +212,26 @@ export default function LegacyBackupThongKeSection({
         }
         if (map.bot_backup_time !== undefined && /^\d{2}:\d{2}$/.test(map.bot_backup_time)) {
           setBackupTime(map.bot_backup_time);
+        } else if (map.bot_scheduler_config) {
+          try {
+            const sc = JSON.parse(map.bot_scheduler_config);
+            const rpa = Array.isArray(sc) && sc.find((t: any) => t.id === 'RPA_DOWNLOAD_MS');
+            if (rpa?.time && /^\d{2}:\d{2}$/.test(rpa.time)) setBackupTime(rpa.time);
+          } catch {}
         }
         if (map.bot_stat_time_enabled !== undefined) {
           setEnableStatTime(map.bot_stat_time_enabled !== 'false');
         }
         if (map.bot_stat_time !== undefined && /^\d{2}:\d{2}$/.test(map.bot_stat_time)) {
-          setStatTime(map.stat_time || map.bot_stat_time);
+          setStatTime(map.bot_stat_time);
+        } else if (map.stat_time !== undefined && /^\d{2}:\d{2}$/.test(map.stat_time)) {
+          setStatTime(map.stat_time);
+        } else if (map.bot_scheduler_config) {
+          try {
+            const sc = JSON.parse(map.bot_scheduler_config);
+            const stat = Array.isArray(sc) && sc.find((t: any) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO');
+            if (stat?.time && /^\d{2}:\d{2}$/.test(stat.time)) setStatTime(stat.time);
+          } catch {}
         }
       })
       .catch(() => {});
@@ -837,21 +888,17 @@ export default function LegacyBackupThongKeSection({
             </button>
           </div>
 
-          {/* Thời điểm backup (Khóa Read-only - Lấy từ Ca trực) */}
+          {/* 1. Backup định kỳ (phút) */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title={
-              shiftBackupTime
-                ? `Lịch tự động theo Ca trực [${activeShiftName || 'Ca trực hôm nay'}]: lúc ${shiftBackupTime}. Để thay đổi giờ, vui lòng điều chỉnh tại Template Ca Trực.`
-                : 'Ca trực hiện tại chưa cấu hình tác vụ Backup tự động. Bạn có thể nhấn nút [Backup MS] bên dưới để chạy thủ công bất kỳ lúc nào.'
-            }
+            title="Tự động kiểm tra và quét tải file backup định kỳ độc lập (mặc định 60 phút/lần)"
           >
-            <div
+            <label
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                cursor: 'help',
+                cursor: 'pointer',
                 fontSize: '0.82rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
@@ -859,75 +906,122 @@ export default function LegacyBackupThongKeSection({
             >
               <input
                 type="checkbox"
-                checked={!!shiftBackupTime}
-                readOnly
-                disabled
+                checked={backupPeriodic}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setBackupPeriodic(val);
+                  saveSetting('bot_backup_periodic_enabled', String(val));
+                }}
                 style={{
                   accentColor: '#10b981',
                   width: '15px',
                   height: '15px',
-                  cursor: 'help',
+                  cursor: 'pointer',
+                }}
+              />
+              <span>Backup định kỳ (phút)</span>
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={1440}
+              step={5}
+              value={backupPeriodicMinutes}
+              disabled={!backupPeriodic}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setBackupPeriodicMinutes(isNaN(val) ? 60 : val);
+                if (!isNaN(val) && val >= 5) {
+                  debouncedSaveSetting('bot_backup_periodic_minutes', String(val));
+                }
+              }}
+              className="form-input"
+              style={{
+                width: '70px',
+                height: '32px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                fontWeight: 700,
+                backgroundColor: backupPeriodic ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                opacity: backupPeriodic ? 1 : 0.6,
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+              }}
+            />
+          </div>
+
+          {/* 2. Thời điểm backup */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Tự động tải báo cáo sao lưu chốt ngày M-System & CQG độc lập (mặc định 04:00 AM)"
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={enableBackupTime}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setEnableBackupTime(val);
+                  saveSetting('bot_backup_time_enabled', String(val));
+                }}
+                style={{
+                  accentColor: '#10b981',
+                  width: '15px',
+                  height: '15px',
+                  cursor: 'pointer',
                 }}
               />
               <span>Thời điểm backup</span>
-            </div>
-            <div
-              style={{
-                position: 'relative',
-                display: 'inline-flex',
-                alignItems: 'center',
-                cursor: 'help',
+            </label>
+            <input
+              type="time"
+              value={backupTime}
+              disabled={!enableBackupTime}
+              onChange={(e) => {
+                const val = e.target.value;
+                setBackupTime(val);
+                if (/^\d{2}:\d{2}$/.test(val)) {
+                  debouncedSaveSetting('bot_backup_time', val);
+                }
               }}
-            >
-              <input
-                type="text"
-                value={shiftBackupTime || '--:--'}
-                readOnly
-                disabled
-                className="form-input"
-                style={{
-                  width: '95px',
-                  height: '32px',
-                  fontSize: '0.82rem',
-                  fontFamily: 'monospace',
-                  textAlign: 'center',
-                  fontWeight: 700,
-                  backgroundColor: 'var(--bg-secondary)',
-                  color: shiftBackupTime ? 'var(--text-primary)' : 'var(--text-muted)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  paddingRight: '24px',
-                  cursor: 'help',
-                }}
-              />
-              <Lock
-                size={12}
-                color="var(--text-muted)"
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  pointerEvents: 'none',
-                  opacity: 0.8,
-                }}
-              />
-            </div>
+              className="form-input"
+              style={{
+                width: '105px',
+                height: '32px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                fontWeight: 700,
+                backgroundColor: enableBackupTime ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                opacity: enableBackupTime ? 1 : 0.6,
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+              }}
+            />
           </div>
 
-          {/* Thời điểm tạo thống kê (Khóa Read-only - Lấy từ Ca trực) */}
+          {/* 3. Thời điểm tạo thống kê */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title={
-              shiftStatTime
-                ? `Lịch tự động theo Ca trực [${activeShiftName || 'Ca trực hôm nay'}]: lúc ${shiftStatTime}. Để thay đổi giờ, vui lòng điều chỉnh tại Template Ca Trực.`
-                : 'Ca trực hiện tại chưa cấu hình tác vụ Thống kê tự động. Bạn có thể nhấn nút [Chạy Macro Lot] bên dưới để chạy thủ công bất kỳ lúc nào.'
-            }
+            title="Tự động kích hoạt Macro thống kê số lot & GTGD CCP độc lập (mặc định 06:30 AM)"
           >
-            <div
+            <label
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                cursor: 'help',
+                cursor: 'pointer',
                 fontSize: '0.82rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
@@ -935,58 +1029,46 @@ export default function LegacyBackupThongKeSection({
             >
               <input
                 type="checkbox"
-                checked={!!shiftStatTime}
-                readOnly
-                disabled
+                checked={enableStatTime}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setEnableStatTime(val);
+                  saveSetting('bot_stat_time_enabled', String(val));
+                }}
                 style={{
                   accentColor: '#10b981',
                   width: '15px',
                   height: '15px',
-                  cursor: 'help',
+                  cursor: 'pointer',
                 }}
               />
               <span>Thời điểm tạo thống kê</span>
-            </div>
-            <div
-              style={{
-                position: 'relative',
-                display: 'inline-flex',
-                alignItems: 'center',
-                cursor: 'help',
+            </label>
+            <input
+              type="time"
+              value={statTime}
+              disabled={!enableStatTime}
+              onChange={(e) => {
+                const val = e.target.value;
+                setStatTime(val);
+                if (/^\d{2}:\d{2}$/.test(val)) {
+                  debouncedSaveSetting('bot_stat_time', val);
+                }
               }}
-            >
-              <input
-                type="text"
-                value={shiftStatTime || '--:--'}
-                readOnly
-                disabled
-                className="form-input"
-                style={{
-                  width: '95px',
-                  height: '32px',
-                  fontSize: '0.82rem',
-                  fontFamily: 'monospace',
-                  textAlign: 'center',
-                  fontWeight: 700,
-                  backgroundColor: 'var(--bg-secondary)',
-                  color: shiftStatTime ? 'var(--text-primary)' : 'var(--text-muted)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  paddingRight: '24px',
-                  cursor: 'help',
-                }}
-              />
-              <Lock
-                size={12}
-                color="var(--text-muted)"
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  pointerEvents: 'none',
-                  opacity: 0.8,
-                }}
-              />
-            </div>
+              className="form-input"
+              style={{
+                width: '105px',
+                height: '32px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                fontWeight: 700,
+                backgroundColor: enableStatTime ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                opacity: enableStatTime ? 1 : 0.6,
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+              }}
+            />
           </div>
 
           {/* Master Switch: Tự động Backup & Thống kê */}

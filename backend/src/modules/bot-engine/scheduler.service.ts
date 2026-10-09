@@ -44,7 +44,7 @@ export class SchedulerService implements OnModuleInit {
           id: 'RPA_DOWNLOAD_MS',
           name: 'Tải báo cáo đối chiếu đầu ngày M-System',
           enabled: true,
-          time: '04:30',
+          time: '04:00',
           jobType: 'RPA_DOWNLOAD_REPORTS',
           payload: {
             targets: [
@@ -64,7 +64,7 @@ export class SchedulerService implements OnModuleInit {
           id: 'DOWNLOAD_CQG_BACKUP',
           name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
           enabled: true,
-          time: '06:00',
+          time: '04:00',
           jobType: 'DOWNLOAD_CQG_BACKUP',
         },
         {
@@ -153,8 +153,8 @@ export class SchedulerService implements OnModuleInit {
             updated = true;
           } else {
             const rpaTask = tasks[rpaTaskIdx];
-            if (rpaTask.time !== '04:30') {
-              rpaTask.time = '04:30';
+            if (rpaTask.time !== '04:00') {
+              rpaTask.time = '04:00';
               updated = true;
             }
             if (!rpaTask.payload) {
@@ -182,18 +182,23 @@ export class SchedulerService implements OnModuleInit {
             }
           }
 
-          if (!tasks.some((t) => t.id === 'DOWNLOAD_CQG_BACKUP')) {
+          const existingCqg = tasks.find((t) => t.id === 'DOWNLOAD_CQG_BACKUP');
+          if (!existingCqg) {
             tasks.push({
               id: 'DOWNLOAD_CQG_BACKUP',
               name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
               enabled: true,
-              time: '06:00',
+              time: '04:00',
               jobType: 'DOWNLOAD_CQG_BACKUP',
             });
             updated = true;
+          } else if (existingCqg.time !== '04:00') {
+            existingCqg.time = '04:00';
+            updated = true;
           }
 
-          if (!tasks.some((t) => t.id === 'AUTO_GENERATE_STATISTICS')) {
+          const existingStat = tasks.find((t) => t.id === 'AUTO_GENERATE_STATISTICS');
+          if (!existingStat) {
             tasks.push({
               id: 'AUTO_GENERATE_STATISTICS',
               name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
@@ -201,6 +206,9 @@ export class SchedulerService implements OnModuleInit {
               time: '06:30',
               jobType: 'RUN_LOT_MACRO',
             });
+            updated = true;
+          } else if (existingStat.time !== '06:30') {
+            existingStat.time = '06:30';
             updated = true;
           }
 
@@ -373,6 +381,106 @@ export class SchedulerService implements OnModuleInit {
   }
 
   /**
+   * Autonomous Runner for Trading Manager: Periodic File Audit (MS & CQG)
+   * Chạy định kỳ độc lập 24/7 (mặc định 60p/lần) không phụ thuộc vào trạng thái mở/đóng của ca trực.
+   */
+  @Cron('* * * * *', {
+    name: 'autonomous-backup-periodic-runner',
+    timeZone: 'Asia/Saigon',
+  })
+  async handleAutonomousPeriodicBackupRun() {
+    // 1. Kiểm tra Master Switch: bot_auto_backup_enabled
+    const autoBackupSetting = await this.settingsService.getSetting(
+      'bot_auto_backup_enabled',
+      'true',
+    );
+    if (autoBackupSetting === 'false') {
+      return;
+    }
+
+    // 2. Kiểm tra cờ backup định kỳ: bot_backup_periodic_enabled
+    const periodicEnabled = await this.settingsService.getSetting(
+      'bot_backup_periodic_enabled',
+      'true',
+    );
+    if (periodicEnabled === 'false') {
+      return;
+    }
+
+    // 3. Market Weekend Guard: Tạm dừng khi thị trường đóng cửa cuối tuần
+    if (isMarketWeekendClosed()) {
+      return;
+    }
+
+    // 4. Kiểm tra tần suất (phút) - mặc định 60 phút
+    const freqSetting = await this.settingsService.getSetting(
+      'bot_backup_periodic_minutes',
+      '60',
+    );
+    const intervalMinutes = Math.max(5, parseInt(freqSetting, 10) || 60);
+
+    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của FILE_AUDIT_MS hoặc FILE_AUDIT_CQG thì bỏ qua
+    const hasActiveMs = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_MS');
+    const hasActiveCqg = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_CQG');
+    if (hasActiveMs || hasActiveCqg) {
+      return;
+    }
+
+    // 6. Kiểm tra thời điểm hoàn tất gần nhất của FILE_AUDIT_MS
+    const lastMsJob = await this.jobQueueService.getLatestCompletedJobByType('FILE_AUDIT_MS');
+    if (lastMsJob && lastMsJob.completedAt) {
+      const elapsedMinutes = (Date.now() - new Date(lastMsJob.completedAt).getTime()) / 60000;
+      if (elapsedMinutes < intervalMinutes) {
+        return; // Chưa tới chu kỳ tiếp theo
+      }
+    }
+
+    // 7. Xác định ngày phiên giao dịch hiện tại
+    const sessionStartSetting = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(undefined, {
+      sessionStartStr: sessionStartSetting,
+    });
+    const sessionDayStr = resolvedSession.dateStr;
+
+    this.logger.log(
+      `[Autonomous-Backup] Kích hoạt chạy audit file backup định kỳ độc lập Trading Manager (chu kỳ ${intervalMinutes}m, session: ${sessionDayStr}).`,
+    );
+
+    const backupPath = await this.settingsService.getSetting(
+      'bot_backup_path_ms',
+      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+    );
+
+    try {
+      await this.jobQueueService.enqueue('FILE_AUDIT_MS', {
+        backupPath,
+        targetDate: sessionDayStr,
+        sessionDay: sessionDayStr,
+        maxAttempts: 1,
+        isStandalone: true,
+        shiftLogId: null,
+        taskId: null,
+      });
+
+      await this.jobQueueService.enqueue('FILE_AUDIT_CQG', {
+        targetDate: sessionDayStr,
+        sessionDay: sessionDayStr,
+        maxAttempts: 1,
+        isStandalone: true,
+        shiftLogId: null,
+        taskId: null,
+      });
+    } catch (err: any) {
+      this.logger.error(
+        `[Autonomous-Backup] Lỗi enqueue Job FILE_AUDIT độc lập: ${err.message}`,
+      );
+    }
+  }
+
+  /**
    * Run every 1 minute to check and trigger scheduled tasks.
    */
   @Cron('* * * * *', {
@@ -416,18 +524,23 @@ export class SchedulerService implements OnModuleInit {
 
     // Đọc các cấu hình thời điểm vận hành động từ system_settings (Tab Backup & Thống kê)
     const [backupTime, backupTimeEnabled, statTime, statTimeEnabled] = await Promise.all([
-      this.settingsService.getSetting('bot_backup_time', ''),
+      this.settingsService.getSetting('bot_backup_time', '04:00'),
       this.settingsService.getSetting('bot_backup_time_enabled', 'true'),
-      this.settingsService.getSetting('bot_stat_time', ''),
+      this.settingsService.getSetting('bot_stat_time', '06:30'),
       this.settingsService.getSetting('bot_stat_time_enabled', 'true'),
     ]);
 
-    // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS)
+    // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS và DOWNLOAD_CQG_BACKUP)
     if (backupTime && /^\d{2}:\d{2}$/.test(backupTime)) {
       const rpaTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_MS');
       if (rpaTask) {
         rpaTask.time = backupTime;
         rpaTask.enabled = backupTimeEnabled !== 'false';
+      }
+      const cqgTask = tasks.find((t) => t.id === 'DOWNLOAD_CQG_BACKUP');
+      if (cqgTask) {
+        cqgTask.time = backupTime;
+        cqgTask.enabled = backupTimeEnabled !== 'false';
       }
     }
 
@@ -483,6 +596,9 @@ export class SchedulerService implements OnModuleInit {
         targetDate: sessionDayStr,
         startDate: sessionDayStr,
         endDate: sessionDayStr,
+        isStandalone: !activeShift,
+        shiftLogId: null,
+        taskId: null,
       };
 
       if (activeShift) {
@@ -505,6 +621,7 @@ export class SchedulerService implements OnModuleInit {
           if (matchedTask) {
             jobPayload.taskId = matchedTask.taskId;
             jobPayload.shiftLogId = activeShift._id.toString();
+            jobPayload.isStandalone = false;
             this.logger.log(
               `Linked scheduled job ${task.jobType} to checklist task ${matchedTask.taskId} in shift ${activeShift._id}.`,
             );
@@ -514,6 +631,14 @@ export class SchedulerService implements OnModuleInit {
 
       try {
         await this.jobQueueService.enqueue(task.jobType, jobPayload);
+        if (task.jobType === 'RUN_LOT_MACRO') {
+          try {
+            await this.jobQueueService.enqueue('RUN_VALUE_MACRO', { ...jobPayload });
+            this.logger.log(`Also enqueued complementary job RUN_VALUE_MACRO.`);
+          } catch (mErr: any) {
+            this.logger.warn(`Complementary RUN_VALUE_MACRO failed: ${mErr.message}`);
+          }
+        }
         this.lastRunMap.set(task.id, todayStr);
         this.logger.log(`Enqueued job ${task.jobType} successfully.`);
       } catch (err: any) {

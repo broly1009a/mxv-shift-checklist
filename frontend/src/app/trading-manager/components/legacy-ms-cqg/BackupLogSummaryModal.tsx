@@ -23,7 +23,7 @@ export interface BackupLogSummaryModalProps {
   isOpen: boolean;
   onClose: () => void;
   jobId: string | null;
-  jobType: 'MS' | 'CQG';
+  jobType: 'MS' | 'CQG' | 'ACM';
   token: string | null;
   selectedDate?: string;
 }
@@ -232,6 +232,28 @@ export const BackupLogSummaryModal: React.FC<BackupLogSummaryModalProps> = ({
       }
     }
 
+    // ACM Download & Sync specific parsing
+    if (jobType === 'ACM') {
+      const acmItems = [
+        { key: 'FILL', name: 'Fill.xlsx', label: 'Khớp lệnh ACM (Fill)' },
+        { key: 'ORDER', name: 'Order.xlsx', label: 'Sổ lệnh ACM (Order)' },
+        { key: 'SFTP_CSV', name: 'Straits EOD CSV', label: 'Straits EOD CSV (SFTP)' },
+        { key: 'SFTP_XLS', name: '10017890000.xls', label: 'Báo cáo TK 10017890000 (SFTP)' },
+      ];
+      for (const item of acmItems) {
+        const isOk = logs.some((l) => (l.includes(item.name) || l.includes(item.key)) && (l.includes('thành công') || l.includes('OK') || l.includes('downloaded') || l.includes('lưu file')));
+        const isErr = logs.some((l) => (l.includes(item.name) || l.includes(item.key)) && (l.includes('Lỗi') || l.includes('failed') || l.includes('Error')));
+        const isQueued = logs.some((l) => l.includes(item.name) || l.includes(item.key));
+        if (isOk || isErr || isQueued) {
+          targetsMap[item.key] = {
+            target: item.label,
+            filename: item.name,
+            status: isOk ? 'SUCCESS' : isErr ? 'ERROR' : 'DOWNLOADING',
+          };
+        }
+      }
+    }
+
     const targetsList = Object.values(targetsMap);
     const successCount = targetsList.filter((t) => t.status === 'SUCCESS').length;
     const errorCount = targetsList.filter((t) => t.status === 'ERROR').length;
@@ -323,19 +345,19 @@ export const BackupLogSummaryModal: React.FC<BackupLogSummaryModalProps> = ({
                 width: '36px',
                 height: '36px',
                 borderRadius: '10px',
-                backgroundColor: jobType === 'MS' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                color: jobType === 'MS' ? '#3b82f6' : '#10b981',
+                backgroundColor: jobType === 'MS' ? 'rgba(59, 130, 246, 0.15)' : jobType === 'CQG' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(14, 165, 233, 0.15)',
+                color: jobType === 'MS' ? '#3b82f6' : jobType === 'CQG' ? '#10b981' : '#0ea5e9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              {jobType === 'MS' ? <Download size={18} /> : <Layers size={18} />}
+              {jobType === 'MS' ? <Download size={18} /> : jobType === 'CQG' ? <Layers size={18} /> : <Folder size={18} />}
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>
-                  Nhật Ký Tải Báo Cáo {jobType === 'MS' ? 'M-System' : 'CQG'}
+                  Nhật Ký Tải Báo Cáo {jobType === 'MS' ? 'M-System' : jobType === 'CQG' ? 'CQG' : 'ACM (Straits)'}
                 </h3>
                 {selectedDate && (
                   <span
@@ -355,7 +377,9 @@ export const BackupLogSummaryModal: React.FC<BackupLogSummaryModalProps> = ({
               <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-secondary, #a1a1aa)' }}>
                 {jobType === 'MS'
                   ? 'Theo dõi tiến trình tải và lưu trữ 20 báo cáo vận hành M-System'
-                  : 'Theo dõi tiến trình tải và đồng bộ các cặp file thô CQG'}
+                  : jobType === 'CQG'
+                  ? 'Theo dõi tiến trình tải và đồng bộ các cặp file thô CQG'
+                  : 'Theo dõi tiến trình tải Web (Fill, Order) và kéo SFTP Straits Financial'}
               </p>
             </div>
           </div>

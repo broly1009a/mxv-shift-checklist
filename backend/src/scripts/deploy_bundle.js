@@ -22,6 +22,10 @@ if (fs.existsSync(archivePath)) {
 }
 
 function copyFileWithDir(src, dest) {
+  if (!fs.existsSync(src)) {
+    console.warn(`Skip non-existent file: ${path.relative(rootDir, src)}`);
+    return;
+  }
   const dir = path.dirname(dest);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.copyFileSync(src, dest);
@@ -48,6 +52,7 @@ const filesToDeploy = [
   'backend/src/database/seed.service.ts',
   'backend/sso-auto-assign.config.json',
   'backend/src/modules/auth/auth.service.ts',
+  'backend/src/modules/bot-engine/bot-engine.module.ts',
   'backend/src/modules/bot-engine/bot-engine.controller.ts',
   'backend/src/modules/bot-engine/bot-engine.service.ts',
   'backend/src/modules/bot-engine/bot-job-queue.service.ts',
@@ -59,6 +64,7 @@ const filesToDeploy = [
   'backend/src/modules/bot-engine/rpa-downloader.service.ts',
   'backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts',
   'backend/src/modules/bot-engine/handlers/file-audit.handler.ts',
+  'backend/src/modules/bot-engine/ce-ccp-gtt.service.ts',
   'backend/src/modules/bot-engine/helpers/bot-path.helper.ts',
   'backend/src/modules/reconciliation/services/recon-console-summary.service.ts',
   'backend/src/modules/reconciliation/services/klgd-recon.service.ts',
@@ -103,6 +109,9 @@ const filesToDeploy = [
   'backend/src/tests/test_overnight_cqg_time_fix.ts',
   'backend/src/scripts/test_ms_headless_download.js',
   'backend/src/scripts/test_ce_headless_download.js',
+  'backend/src/scripts/test_autonomous_backup_stat_suite.js',
+  'backend/src/scripts/test_physical_workflow_pipeline.js',
+  'backend/src/scripts/test_full_real_workflow_pipeline.js',
 ];
 
 for (const rel of filesToDeploy) {
@@ -123,6 +132,14 @@ if (fs.existsSync(srcCeAcm)) {
   const destCeAcm = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/ce-acm');
   copyDirRecursive(srcCeAcm, destCeAcm);
   console.log('Copied full frontend ce-acm folder.');
+}
+
+// 1.3 Toàn bộ thư mục bot-engine
+const srcBotEngine = path.join(rootDir, 'backend/src/modules/bot-engine');
+if (fs.existsSync(srcBotEngine)) {
+  const destBotEngine = path.join(tempDeployDir, 'backend/src/modules/bot-engine');
+  copyDirRecursive(srcBotEngine, destBotEngine);
+  console.log('Copied full backend/src/modules/bot-engine folder.');
 }
 
 // 2. Toàn bộ thư mục ccp-statistics (bao gồm cả inputExampleCppFull_2 và review_output)

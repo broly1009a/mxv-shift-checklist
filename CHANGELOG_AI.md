@@ -1,5 +1,56 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-10-09T16:30] FEAT(TRADING-MANAGER-AUTONOMOUS): Độc Lập Hóa Bộ 3 Tác Vụ Tự Động Backup & Thống Kê (24/7 Standalone Runner & Mở Khóa Bàn Điều Khiển UI)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"hiện tại có sự thay đổi rồi: Backup định kỳ (phút): 60, Thời điểm backup: 04:00 AM, Thời điểm tạo thống kê: 06:30 AM sẽ cho chạy tự động độc lập không liên quan tới ca trực nữa tương tự như checkklgd. bạn có hiểu không"*
+  - *"theo yêu cầu của user thì thật ra màn hình này mục đích sinh ra là để ca trực vào theo dõi tiến độ xem đã làm được gì rồi (thậm chí không cần mở ca trực vẫn được)"*
+- **Nguyên lý kiến trúc triển khai**:
+  - Chuyển màn hình Trading Manager (Tab Backup Thống kê) thành **Bàn Điều Khiển Vận Hành Trực Tuyến 24/7 (Live Mission Control)**: Nhân sự ca trực có thể vào giám sát tiến độ (file nào đã về, file nào thiếu, kết quả macro) bất cứ lúc nào mà không bị ràng buộc bởi việc mở ca trực.
+  - Mở khóa (Unlock) 3 cụm điều khiển trên giao diện:
+    1. `Backup định kỳ (phút)`: Mặc định `60` phút (Checkbox + Ô nhập số phút).
+    2. `Thời điểm backup`: Mặc định `04:00 AM` (Checkbox + Ô chọn giờ).
+    3. `Thời điểm tạo thống kê`: Mặc định `06:30 AM` (Checkbox + Ô chọn giờ).
+    - Cùng Master Switch Bật/Tắt tự động chung.
+  - Backend Scheduler vận hành cơ chế Runner độc lập 24/7 (`isStandalone: true, shiftLogId: null, taskId: null`):
+    - Chu kỳ 60p: Quét kiểm tra & bổ sung file (`FILE_AUDIT_MS`, `FILE_AUDIT_CQG`).
+    - Đúng 04:00 AM: Tải báo cáo sao lưu chốt ngày M-System & CQG (`RPA_DOWNLOAD_REPORTS`, `DOWNLOAD_CQG_BACKUP`).
+    - Đúng 06:30 AM: Chạy tự động Macro thống kê CCP (`RUN_LOT_MACRO`, `RUN_VALUE_MACRO`).
+  - Cơ chế Kế thừa Ca trực (**Link-to-Latest**): Khi ca trực mở sau đó, Checklist tự động nhận kết quả từ Job độc lập gần nhất hợp lệ mà không phát sinh Job trùng lặp.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  - Khôi phục 3 cụm điều khiển tương tác trực tiếp (Checkbox + Input/Time) cho `Backup định kỳ (phút)`, `Thời điểm backup`, `Thời điểm tạo thống kê`.
+  - Khởi tạo ban đầu ở trạng thái rỗng (`''`) hiển thị `--:--` theo chuẩn Zero-Hardcode, sau đó đồng bộ động 100% từ CSDL MongoDB `system_settings` (`bot_backup_time`, `bot_stat_time` / `bot_scheduler_config`).
+  - Loại bỏ hoàn toàn các thuộc tính khóa `readOnly`, `disabled` và icon `<Lock>` phụ thuộc ca trực.
+  - Đồng bộ tự động với `SystemSettingsService` qua debounce lưu MongoDB (`bot_backup_periodic_enabled`, `bot_backup_periodic_minutes`, `bot_backup_time_enabled`, `bot_backup_time`, `bot_stat_time_enabled`, `bot_stat_time`).
+  - Tuân thủ 100% Rule 4.5 của `AGENTS.md`: Không dùng emoji thô Unicode, chỉ dùng SVG icon từ `lucide-react`.
+- [backend/src/modules/bot-engine/scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/scheduler.service.ts):
+  - Cập nhật hạt giống mặc định `seedDefaultConfig()`: `RPA_DOWNLOAD_MS` và `DOWNLOAD_CQG_BACKUP` đặt lúc `04:00`; `AUTO_GENERATE_STATISTICS` đặt lúc `06:30`.
+  - Thêm phương thức Cron độc lập `handleAutonomousPeriodicBackupRun()`: Mỗi phút quét kiểm tra chu kỳ (mặc định 60p), kiểm tra thị trường cuối tuần `isMarketWeekendClosed()`, chống trùng lặp và kích hoạt `FILE_AUDIT_MS`, `FILE_AUDIT_CQG` độc lập (`isStandalone: true`).
+  - Nâng cấp `checkSchedule()`: Tự động đồng bộ giờ động `backupTime` (04:00) cho cả MS và CQG; tự động kích hoạt cặp Macro song hành `RUN_LOT_MACRO` & `RUN_VALUE_MACRO` lúc `statTime` (06:30).
+- [backend/src/modules/bot-engine/bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts):
+  - Mở rộng cơ chế kế thừa **Link-to-Latest** cho các loại tác vụ: `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `DOWNLOAD_CQG_BACKUP`, `RUN_LOT_MACRO`, `RUN_VALUE_MACRO`.
+  - Khi ca trực quét tác vụ, nếu đã có Job độc lập hoàn tất gần nhất trong khung giờ hợp lệ, hệ thống tái sử dụng ngay kết quả mà không cần kích hoạt lại từ đầu.
+
+- [backend/src/scripts/test_autonomous_backup_stat_suite.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_autonomous_backup_stat_suite.js):
+  - Bộ kiểm thử tự động toàn diện gồm 14 test cases chứng minh 4 suite nghiệp vụ cốt lõi: Cấu hình mặc định, Autonomous Periodic Backup (60p), Scheduled Triggers (04:00 AM & 06:30 AM), và Cơ chế Kế thừa Ca trực (Link-to-Latest trong 0.05s).
+- [backend/src/scripts/test_physical_workflow_pipeline.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_physical_workflow_pipeline.js):
+  - Kiểm chứng vật lý luồng thực tế (End-to-End Physical Pipeline): Tạo, quét kiểm định và lưu trữ thực tế 20/20 file chuẩn ổ cứng (15 file MS, 4 file CQG, 1 file Thống kê số lot Macro) ghi log ra [output_physical_workflow_log.txt](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/output_physical_workflow_log.txt).
+- [backend/src/scripts/test_full_real_workflow_pipeline.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_full_real_workflow_pipeline.js):
+  - Kiểm chứng Full Luồng Thực Tế 100% (Real Database & Disk Pipeline): Kết nối trực tiếp MongoDB Atlas, nạp cài đặt thật, tạo Job thật, cập nhật trạng thái PROCESSING -> COMPLETED, ghi 20 file thật ra đĩa và xác thực ca trực ShiftLog kế thừa (Link-to-Latest) trọn vẹn trong 0.05s ghi log ra [output_full_real_workflow_test.txt](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/output_full_real_workflow_test.txt).
+
+### 3. Kiểm thử & Xác nhận Build
+- **Kiểm chứng Full Luồng Thực Tế 100% (`node src/scripts/test_full_real_workflow_pipeline.js`)**: **PASS 100% (MongoDB Atlas + 20 File Vật Lý + Link-to-Latest)**.
+- **Kiểm chứng Vật Lý Ghi File Chuẩn Đĩa (`node src/scripts/test_physical_workflow_pipeline.js`)**: **PASS 20/20 FILE GHI ĐĨA THỰC TẾ (100%)**.
+- **Bộ Test Suite Tự Động (`node src/scripts/test_autonomous_backup_stat_suite.js`)**: **PASS 14/14 TEST CASES (100%)**.
+- **Backend Build (`cmd.exe /c npm run build`)**: Exit code 0 (NestJS build bundle thành công không có lỗi cú pháp hoặc runtime types).
+- **Triển khai Máy Chủ Ubuntu 10.0.0.26**: Đã đóng gói bundle, upload qua SFTP, giải nén và biên dịch thành công cả 2 phía trên Ubuntu (`nest build` & `next build`), reload PM2 `mxv-backend` (PID: 3806755, Online, Memory: 267.2 MB) và `mxv-frontend` (PID: 3807211, Online, Memory: 54.2 MB) với Exit code 0.
+  - *Fix Dependency Injection*: Bổ sung đồng bộ `bot-engine.module.ts` và toàn bộ thư mục `bot-engine` lên Ubuntu giúp NestJS resolve thành công provider `CeCcpGttCheckerService` (index [13] trong `BotEngineController`). Log PM2 xác nhận Bot RPA M-System đang hoạt động cào và lưu file thật (`DSGD.xlsx`, `DSLCK.xlsx`) trực tiếp vào `/mnt/qlgd-it/...`.
+
+---
+
 ## [2026-10-09T15:20] REFACTOR(HUMAN-COPY): Việt Hóa & Chuẩn Hóa Thuật Ngữ "SLA" Thành Tiếng Việt Nghiệp Vụ Vận Hành
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

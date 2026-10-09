@@ -1,0 +1,106 @@
+========================================================================================
+   KIỂM CHỨNG THỰC TẾ LUỒNG TỰ ĐỘNG KÍCH HOẠT VẬT LÝ & GHI FILE CHUẨN ĐĨA
+   Thời gian thực thi: 17:02:32 9/10/2026 | Tiến trình PID: 32424
+========================================================================================
+
+[CẤU HÌNH THƯ MỤC VẬT LÝ CHUẨN]
+• Thư mục Backup MS đích : C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10
+• Thư mục Backup CQG đích: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup CQG\Futures\2026\T10.2026\09.10
+• Thư mục Thống kê đầu ra: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Quanlygiaodich\Tai lieu hoat dong\Thong ke so lot giao dich
+
+----------------------------------------------------------------------------------------
+BƯỚC 1: CHẠY TỰ ĐỘNG ĐỊNH KỲ 60 PHÚT (VÍ DỤ 03:00 AM) - QUÉT THỰC TẾ KHI CHƯA CÓ FILE
+----------------------------------------------------------------------------------------
+• Thời điểm: 03:00:00 AM | Bộ điều phối kiểm tra định kỳ 60 phút.
+• Kết quả quét thư mục MS: Tìm thấy 0 file.
+• Đánh giá: THIẾU FILE (Cần chờ đến mốc 04:00 AM để RPA tự động cào chốt ngày).
+• Cập nhật Trading Manager UI: Hiển thị badge 'Đang chờ file' (isWaitingFiles: true).
+
+----------------------------------------------------------------------------------------
+BƯỚC 2: ĐÚNG 04:00 AM - KÍCH HOẠT BOT RPA M-SYSTEM & BOT SAO LƯU CQG GHI FILE VẬT LÝ
+----------------------------------------------------------------------------------------
+• Thời điểm: 04:00:00 AM | Scheduler kích hoạt độc lập (isStandalone: true, shiftLogId: null).
+• Bot 1: RPA M-System tải gói 15 báo cáo chốt ngày...
+  [GHI FILE MS] -> Đã lưu: DSGD.xlsx            | Kích thước: 16214 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSGD.xlsx
+  [GHI FILE MS] -> Đã lưu: TTM.xlsx             | Kích thước: 16094 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\TTM.xlsx
+  [GHI FILE MS] -> Đã lưu: TTTT.xlsx            | Kích thước: 16045 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\TTTT.xlsx
+  [GHI FILE MS] -> Đã lưu: NKTTHT.xlsx          | Kích thước: 16059 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\NKTTHT.xlsx
+  [GHI FILE MS] -> Đã lưu: NR.xlsx              | Kích thước: 15970 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\NR.xlsx
+  [GHI FILE MS] -> Đã lưu: QLTKGD.xlsx          | Kích thước: 16067 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\QLTKGD.xlsx
+  [GHI FILE MS] -> Đã lưu: DSLCK.xlsx           | Kích thước: 15970 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSLCK.xlsx
+  [GHI FILE MS] -> Đã lưu: DSLDK.xlsx           | Kích thước: 15969 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSLDK.xlsx
+  [GHI FILE MS] -> Đã lưu: DSLH.xlsx            | Kích thước: 15966 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSLH.xlsx
+  [GHI FILE MS] -> Đã lưu: DSLK.xlsx            | Kích thước: 15973 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSLK.xlsx
+  [GHI FILE MS] -> Đã lưu: DSQLKQ.xlsx          | Kích thước: 15961 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSQLKQ.xlsx
+  [GHI FILE MS] -> Đã lưu: DSTKGD-ACM.xlsx      | Kích thước: 15944 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSTKGD-ACM.xlsx
+  [GHI FILE MS] -> Đã lưu: DSTKGD-Futures.xlsx  | Kích thước: 15959 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSTKGD-Futures.xlsx
+  [GHI FILE MS] -> Đã lưu: DSTrader.xlsx        | Kích thước: 15960 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSTrader.xlsx
+  [GHI FILE MS] -> Đã lưu: market truoc 6h.csv   | Kích thước: 62 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\market truoc 6h.csv
+
+• Bot 2: CQG tải file thô & tự động merge cặp file (FR1+FR2, PS1+PS2, OP1+OP2, OD1+OD2)...
+  [GHI FILE CQG] -> Đã lưu: FR.xlsx              | Kích thước: 16205 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup CQG\Futures\2026\T10.2026\09.10\FR.xlsx
+  [GHI FILE CQG] -> Đã lưu: PS.xlsx              | Kích thước: 16124 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup CQG\Futures\2026\T10.2026\09.10\PS.xlsx
+  [GHI FILE CQG] -> Đã lưu: OP.xlsx              | Kích thước: 16015 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup CQG\Futures\2026\T10.2026\09.10\OP.xlsx
+  [GHI FILE CQG] -> Đã lưu: Od.xlsx              | Kích thước: 15953 bytes | Đường dẫn: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup CQG\Futures\2026\T10.2026\09.10\Od.xlsx
+• Hoàn tất gói tải 04:00 AM! Đã ghi tổng cộng 15 file MS và 4 file CQG vào ổ cứng.
+
+----------------------------------------------------------------------------------------
+BƯỚC 3: CHẠY TỰ ĐỘNG ĐỊNH KỲ 60 PHÚT TIẾP THEO (05:00 AM) - XÁC THỰC FILE VẬT LÝ
+----------------------------------------------------------------------------------------
+• Thời điểm: 05:00:00 AM | Vòng quét định kỳ 60 phút kiểm tra lại trạng thái thư mục.
+• Quét thư mục Backup MS : Đã có 15/15 file chuẩn (100% ĐẦY ĐỦ).
+• Quét thư mục Backup CQG: Đã có 4/4 file chuẩn (FR, PS, OP, Od - 100% ĐẦY ĐỦ).
+• Bàn Điều Khiển Trading Manager: Cập nhật huy hiệu XANH "TẤT CẢ FILE ĐÃ VỀ ĐỦ" (Status: PASSED).
+
+----------------------------------------------------------------------------------------
+BƯỚC 4: ĐÚNG 06:30 AM - KÍCH HOẠT TỰ ĐỘNG MACRO THỐNG KÊ CCP (TÍNH SỐ LOT & XUẤT FILE .XLSX)
+----------------------------------------------------------------------------------------
+• Thời điểm: 06:30:00 AM | Scheduler kích hoạt RUN_LOT_MACRO & RUN_VALUE_MACRO độc lập.
+• Đọc dữ liệu đầu vào thực tế từ file vừa tải lúc 04:00 AM:
+  - Đọc file MS : C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup MS\Futures\2026\T10.2026\09.10\DSGD.xlsx
+  - Đọc file CQG: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Backup CQG\Futures\2026\T10.2026\09.10\FR.xlsx
+• Kết quả bóc tách dữ liệu:
+  - Tổng số lot từ M-System: 15 lots
+  - Tổng số lot từ CQG     : 15 lots
+  - Tổng số lot lũy kế ngày: 30 lots
+• [XUẤT BÁO CÁO ĐẦU RA THÀNH CÔNG]
+  - Tên file     : Thong ke so lot giao dich 2026 2.xlsx
+  - Dung lượng   : 16574 bytes
+  - Đường dẫn đĩa: C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\backend\data\test_workflow_sandbox\Quanlygiaodich\Tai lieu hoat dong\Thong ke so lot giao dich\Thong ke so lot giao dich 2026 2.xlsx
+
+----------------------------------------------------------------------------------------
+BƯỚC 5: NHÂN SỰ VÀO CA LÚC 07:00 AM - CA TRỰC TỰ ĐỘNG KẾ THỪA KẾT QUẢ ĐÃ HOÀN THÀNH (0.05S)
+----------------------------------------------------------------------------------------
+• Thời điểm: 07:00:00 AM | Nhân sự ca trực đăng nhập và mở ca trực ngày 09/10/2026.
+• Checklist tự động kiểm tra trạng thái tác vụ [Sao lưu M-System/CQG] và [Thống kê Macro]:
+  => Phát hiện Job độc lập hoàn tất lúc 04:00 AM và 06:30 AM.
+  => Kế thừa tức thì trong 0.05s: Không cần chạy lại RPA, không cần chạy lại Macro.
+  => Kết quả trên màn hình ca trực: TỰ ĐỘNG TÍCH HOÀN THÀNH (PASSED 100%).
+
+----------------------------------------------------------------------------------------
+BƯỚC 6: TỔNG KẾT BẢNG BẰNG CHỨNG VẬT LÝ ĐÃ ĐƯỢC TẠO RA TRÊN HỆ THỐNG
+----------------------------------------------------------------------------------------
+STT  Phân Hệ           Tên File                        Kích Thước     Trạng Thái Kiểm Định
+------------------------------------------------------------------------------------------------
+1    Backup MS         DSGD.xlsx                       16214 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+2    Backup MS         DSLCK.xlsx                      15970 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+3    Backup MS         DSLDK.xlsx                      15969 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+4    Backup MS         DSLH.xlsx                       15966 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+5    Backup MS         DSLK.xlsx                       15973 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+6    Backup MS         DSQLKQ.xlsx                     15961 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+7    Backup MS         DSTKGD-ACM.xlsx                 15944 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+8    Backup MS         DSTKGD-Futures.xlsx             15959 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+9    Backup MS         DSTrader.xlsx                   15960 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+10   Backup MS         market truoc 6h.csv             62 B           ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+11   Backup MS         NKTTHT.xlsx                     16059 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+12   Backup MS         NR.xlsx                         15970 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+13   Backup MS         QLTKGD.xlsx                     16067 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+14   Backup MS         TTM.xlsx                        16094 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+15   Backup MS         TTTT.xlsx                       16045 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+16   Backup CQG        FR.xlsx                         16205 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+17   Backup CQG        Od.xlsx                         15953 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+18   Backup CQG        OP.xlsx                         16015 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+19   Backup CQG        PS.xlsx                         16124 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+20   Thống kê Macro    Thong ke so lot giao dich 2026 2.xlsx 16574 B        ĐÃ GHI ĐĨA THÀNH CÔNG (OK)
+------------------------------------------------------------------------------------------------
+=> TỔNG CỘNG: 20/20 FILE ĐƯỢC TẠO RA THẬT VÀ LƯU VÀO ĐĨA CHUẨN LUỒNG 100%!

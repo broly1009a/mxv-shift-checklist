@@ -880,10 +880,15 @@ export class BotEngineService {
               }
             }
           } else if (checkType === 'FILE_AUDIT_MS') {
-            const existingJob = await this.botJobQueueService.getJobForTask(
-              task.taskId,
-              log._id.toString(),
-            );
+            const existingJob =
+              (await this.botJobQueueService.getJobForTask(
+                task.taskId,
+                log._id.toString(),
+              )) ||
+              (await this.botJobQueueService.getLatestCompletedJobByType(
+                'FILE_AUDIT_MS',
+                60,
+              ));
             const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
@@ -928,10 +933,15 @@ export class BotEngineService {
               }
             }
           } else if (checkType === 'FILE_AUDIT_CQG') {
-            const existingJob = await this.botJobQueueService.getJobForTask(
-              task.taskId,
-              log._id.toString(),
-            );
+            const existingJob =
+              (await this.botJobQueueService.getJobForTask(
+                task.taskId,
+                log._id.toString(),
+              )) ||
+              (await this.botJobQueueService.getLatestCompletedJobByType(
+                'FILE_AUDIT_CQG',
+                60,
+              ));
             const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
@@ -976,10 +986,15 @@ export class BotEngineService {
               }
             }
           } else if (checkType === 'DOWNLOAD_CQG_BACKUP') {
-            const existingJob = await this.botJobQueueService.getJobForTask(
-              task.taskId,
-              log._id.toString(),
-            );
+            const existingJob =
+              (await this.botJobQueueService.getJobForTask(
+                task.taskId,
+                log._id.toString(),
+              )) ||
+              (await this.botJobQueueService.getLatestCompletedJobByType(
+                'DOWNLOAD_CQG_BACKUP',
+                360,
+              ));
             const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
@@ -1065,10 +1080,15 @@ export class BotEngineService {
             }
           } else if (checkType === 'RUN_LOT_MACRO') {
             // Handler: Thống kê số lốt giao dịch cuối ngày
-            const existingJob = await this.botJobQueueService.getJobForTask(
-              task.taskId,
-              log._id.toString(),
-            );
+            const existingJob =
+              (await this.botJobQueueService.getJobForTask(
+                task.taskId,
+                log._id.toString(),
+              )) ||
+              (await this.botJobQueueService.getLatestCompletedJobByType(
+                'RUN_LOT_MACRO',
+                360,
+              ));
             const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
@@ -1108,10 +1128,15 @@ export class BotEngineService {
             }
           } else if (checkType === 'RUN_VALUE_MACRO') {
             // Handler: Thống kê giá trị giao dịch cuối ngày
-            const existingJob = await this.botJobQueueService.getJobForTask(
-              task.taskId,
-              log._id.toString(),
-            );
+            const existingJob =
+              (await this.botJobQueueService.getJobForTask(
+                task.taskId,
+                log._id.toString(),
+              )) ||
+              (await this.botJobQueueService.getLatestCompletedJobByType(
+                'RUN_VALUE_MACRO',
+                360,
+              ));
             const shouldEnqueueNewJob = this.shouldEnqueueNewJob(task, existingJob);
 
             if (shouldEnqueueNewJob) {
