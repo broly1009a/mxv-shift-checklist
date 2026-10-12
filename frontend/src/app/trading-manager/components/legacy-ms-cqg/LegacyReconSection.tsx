@@ -33,6 +33,7 @@ import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { ReconLogSummaryModal } from './ReconLogSummaryModal';
 import LegacyPreEodDiffSection from './LegacyPreEodDiffSection';
+import LegacyGttCheckerSection from './LegacyGttCheckerSection';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
 export interface LegacyReconSectionProps {
@@ -735,6 +736,20 @@ export default function LegacyReconSection({
   const ccpTTTT = totals.totalCCP_TTTT;
   const ccpStatus = totals.ccpStatus || (ccpDSGD !== undefined ? 'COMPLETED' : 'IDLE');
 
+  // Logic so sánh màu sắc theo rule chỉ đạo:
+  // 1. KLGD, TTM, TTTT của CQG so với M-System => Cân: màu đen (var(--text-primary)), Không cân: màu đỏ (#ef4444)
+  const isKlgdBalanced = msDSGD === cqgFR;
+  const isTtmBalanced = msTTM === cqgTTM;
+  const isTtttBalanced = msTTTT === cqgPS;
+
+  // 2. Phần KLGD của ACM + CCP = Nano => Bằng (cân): màu đen, Không cân: màu đỏ
+  const isAcmNanoBalanced = (acmStraits + (Number(ccpDSGD) || 0)) === nanoLots;
+
+  const klgdMsCqgColor = isKlgdBalanced ? 'var(--text-primary)' : '#ef4444';
+  const ttmMsCqgColor = isTtmBalanced ? 'var(--text-primary)' : '#ef4444';
+  const ttttMsCqgColor = isTtttBalanced ? 'var(--text-primary)' : '#ef4444';
+  const acmNanoCcpKlgdColor = isAcmNanoBalanced ? 'var(--text-primary)' : '#ef4444';
+
 
 
   const klgdStatus = summaryData?.klgd?.status || 'IDLE';
@@ -779,7 +794,8 @@ export default function LegacyReconSection({
 
   // Trạng thái đã thực thi phiên kiểm tra cho từng khối con (tránh hiển thị kết quả giả định / kết quả cũ)
   const hasExecutedMargin = !!(summaryData?.negativeMargin?.executedAt && summaryData?.negativeMargin?.status !== 'IDLE');
-  const hasExecutedEod = !!(summaryData?.preEod?.executedAt && summaryData?.preEod?.status !== 'IDLE');
+  const eodData = summaryData?.eod || (summaryData?.preEod?.jobType === 'CHECK_EOD_MM' ? summaryData?.preEod : null);
+  const hasExecutedEod = !!(eodData?.executedAt && eodData?.status !== 'IDLE');
   const hasExecutedCqgSync = !!(summaryData?.cqgSync?.executedAt && summaryData?.cqgSync?.status !== 'IDLE');
 
   const formatSubCheckTime = (iso?: string | null) => {
@@ -1472,23 +1488,23 @@ export default function LegacyReconSection({
                         borderRadius: '8px',
                         fontSize: '0.85rem',
                         fontWeight: 800,
-                        backgroundColor: 'rgba(2, 132, 199, 0.12)',
-                        color: '#0284c7',
-                        border: '1px solid rgba(2, 132, 199, 0.3)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
                       }}>
                         KLGD
                       </span>
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#0284c7' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: klgdMsCqgColor }}>
                       {fmt(msDSGD)}
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#10b981' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: klgdMsCqgColor }}>
                       {fmt(cqgFR)}
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#f59e0b' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: acmNanoCcpKlgdColor }}>
                       {fmt(acmStraits)}
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: isAcmAnomaly ? '#10b981' : 'var(--text-muted)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: acmNanoCcpKlgdColor }}>
                       <div>{fmt(nanoLots)}</div>
                       {isAcmAnomaly && (
                         <div
@@ -1512,7 +1528,7 @@ export default function LegacyReconSection({
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: '#8b5cf6' }}>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: acmNanoCcpKlgdColor }}>
                       {ccpStatus === 'LOADING' ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#a78bfa' }}>
                           <Loader2 size={14} className="animate-spin" /> Đang tải...
@@ -1546,10 +1562,10 @@ export default function LegacyReconSection({
                         TTM
                       </span>
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: ttmMsCqgColor }}>
                       {fmt(msTTM)}
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: ttmMsCqgColor }}>
                       {fmt(cqgTTM)}
                     </td>
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
@@ -1592,10 +1608,10 @@ export default function LegacyReconSection({
                         TTTT
                       </span>
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: ttttMsCqgColor }}>
                       {fmt(msTTTT)}
                     </td>
-                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: ttttMsCqgColor }}>
                       {fmt(cqgPS)}
                     </td>
                     <td style={{ padding: '16px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
@@ -1705,33 +1721,20 @@ export default function LegacyReconSection({
                 type="button"
                 onClick={() => handleTriggerRun('CHECK_KLGD', 'manual')}
                 disabled={triggering}
-                className="btn btn-secondary"
-                style={{
-                  height: '42px',
-                  padding: '10px 20px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                }}
-              >
-                <Play size={15} className={triggering && triggeringSection === 'manual' ? 'animate-spin' : ''} />
-                <span>{triggering && triggeringSection === 'manual' ? 'Đang chạy...' : 'Check thủ công'}</span>
-              </button>
-
-              {/* Check (Làm mới) */}
-              <button
-                type="button"
-                onClick={() => fetchConsoleSummary(selectedDate)}
-                disabled={loading}
                 className="btn btn-primary"
                 style={{
                   height: '42px',
                   padding: '10px 24px',
                   fontSize: '0.85rem',
                   fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px 0 rgba(59, 130, 246, 0.4)',
                 }}
               >
-                <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-                <span>Check</span>
+                <Play size={15} className={triggering && triggeringSection === 'manual' ? 'animate-spin' : ''} />
+                <span>{triggering && triggeringSection === 'manual' ? 'Đang chạy...' : 'Check thủ công'}</span>
               </button>
 
               {/* Chuông thông báo âm thanh */}
@@ -2062,6 +2065,33 @@ export default function LegacyReconSection({
                             </div>
                           </td>
                         </tr>
+                      ) : summaryData?.negativeMargin?.isWaitingFiles ? (
+                        <tr>
+                          <td style={{ padding: '36px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <Clock size={24} color="#f59e0b" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
+                                {summaryData?.negativeMargin?.waitingMessage || 'Đang chờ file dữ liệu đối chiếu...'}
+                              </span>
+                              {summaryData?.negativeMargin?.executedAt && (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                  Kiểm tra lúc: {formatSubCheckTime(summaryData.negativeMargin.executedAt)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : summaryData?.negativeMargin?.status === 'FAILED' ? (
+                        <tr>
+                          <td style={{ padding: '36px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <AlertTriangle size={24} color="#ef4444" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ef4444' }}>
+                                Lỗi kiểm tra ký quỹ: {summaryData?.negativeMargin?.error || 'Vui lòng kiểm tra log bot.'}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
                       ) : negativeMarginAccounts.length > 0 ? (
                         negativeMarginAccounts.map((acc, idx) => (
                           <tr key={idx} style={{
@@ -2114,9 +2144,9 @@ export default function LegacyReconSection({
                     <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                       Kết quả chạy EOD
                     </h5>
-                    {hasExecutedEod && summaryData?.preEod?.executedAt && (
+                    {hasExecutedEod && eodData?.executedAt && (
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                        ({formatSubCheckTime(summaryData.preEod.executedAt)})
+                        ({formatSubCheckTime(eodData.executedAt)})
                       </span>
                     )}
                   </div>
@@ -2174,8 +2204,40 @@ export default function LegacyReconSection({
                             </div>
                           </td>
                         </tr>
-                      ) : (summaryData?.preEod?.mismatchedEOD && summaryData.preEod.mismatchedEOD.length > 0) ? (
-                        summaryData.preEod.mismatchedEOD.map((p: any, idx: number) => (
+                      ) : eodData?.isWaitingFiles ? (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <Clock size={24} color="#f59e0b" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
+                                {eodData.waitingMessage || 'Đang chờ file dữ liệu đối chiếu EOD...'}
+                              </span>
+                              {eodData.executedAt && (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                  Kiểm tra lúc: {formatSubCheckTime(eodData.executedAt)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : eodData?.status === 'FAILED' ? (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <AlertTriangle size={24} color="#ef4444" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ef4444' }}>
+                                Lỗi đối chiếu EOD: {eodData.error || 'Vui lòng kiểm tra log bot.'}
+                              </span>
+                              {eodData.executedAt && (
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                  Kiểm tra lúc: {formatSubCheckTime(eodData.executedAt)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (eodData?.mismatchedEOD && eodData.mismatchedEOD.length > 0) ? (
+                        eodData.mismatchedEOD.map((p: any, idx: number) => (
                           <tr key={idx} style={{
                             borderBottom: '1px solid var(--border-color)',
                             backgroundColor: 'rgba(239, 68, 68, 0.05)',
@@ -2213,9 +2275,9 @@ export default function LegacyReconSection({
                               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
                                 Tất cả số dư tài khoản khớp hoàn toàn với kết quả chạy EOD (MS & CCP)
                               </span>
-                              {summaryData?.preEod?.executedAt && (
+                              {eodData?.executedAt && (
                                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                                  Kiểm tra lúc: {formatSubCheckTime(summaryData.preEod.executedAt)}
+                                  Kiểm tra lúc: {formatSubCheckTime(eodData.executedAt)}
                                 </span>
                               )}
                             </div>
@@ -2236,115 +2298,9 @@ export default function LegacyReconSection({
               onOpenLogs={() => setPreEodLogModalOpen(true)}
             />
 
-            {/* KHUNG DƯỚI CÙNG: KẾT QUẢ ĐỒNG BỘ SỐ DƯ CQG */}
-            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 20px',
-                backgroundColor: 'var(--bg-input)',
-                borderBottom: '1px solid var(--border-color)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    Kết quả đồng bộ số dư CQG
-                  </h5>
-                  {hasExecutedCqgSync && summaryData?.cqgSync?.executedAt && (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      ({formatSubCheckTime(summaryData.cqgSync.executedAt)})
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleTriggerRun('CHECK_CQG_SYNC', 'balance')}
-                  disabled={triggering}
-                  className="btn btn-secondary"
-                  style={{
-                    fontSize: '0.75rem',
-                    padding: '6px 14px',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: triggering ? 'not-allowed' : 'pointer',
-                    opacity: triggering && triggeringSection !== 'balance' ? 0.6 : 1,
-                  }}
-                >
-                  {triggering && triggeringSection === 'balance' ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      <span>Checking...</span>
-                    </>
-                  ) : (
-                    'Check'
-                  )}
-                </button>
-              </div>
-
-              <div style={{ height: '160px', minHeight: '140px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
-                    <tr style={{
-                      color: 'var(--text-secondary)',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      borderBottom: '1px solid var(--border-color)',
-                    }}>
-                      <th style={{ width: '33%', padding: '10px 16px', borderRight: '1px solid var(--border-color)' }}>TKGD</th>
-                      <th style={{ width: '33%', padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right' }}>Balance MS</th>
-                      <th style={{ width: '34%', padding: '10px 16px', textAlign: 'right' }}>Balance CQG</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!hasExecutedCqgSync ? (
-                      <tr>
-                        <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                            <Clock size={24} color="var(--text-muted)" />
-                            <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                              Chưa chạy đồng bộ số dư CQG phiên này. Bấm “Check” để kiểm tra.
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : ((summaryData?.cqgSync?.cqgResult && summaryData.cqgSync.cqgResult.length > 0) || (summaryData?.preEod?.cqgResult && summaryData.preEod.cqgResult.length > 0)) ? (
-                      ((summaryData?.cqgSync?.cqgResult && summaryData.cqgSync.cqgResult.length > 0) ? summaryData.cqgSync.cqgResult : summaryData.preEod.cqgResult).map((item: any, idx: number) => (
-                        <tr key={idx} style={{
-                          borderBottom: '1px solid var(--border-color)',
-                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                          color: '#ef4444',
-                          fontFamily: 'monospace',
-                          fontSize: '0.85rem',
-                        }}>
-                          <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>{item.maTKGD || item.account || '--'}</td>
-                          <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>${fmt(item.calculatedBalance ?? item.balanceMS ?? 0)}</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>
-                            ${fmt(item.cqgBalance ?? item.balanceCQG ?? 0)} {item.differ !== undefined && item.differ > 0 ? `(Lệch: $${fmt(item.differ)})` : ''}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                            <CheckCircle size={28} color="#10b981" />
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}>
-                              Số dư tài khoản đồng bộ khớp hoàn toàn giữa MS và CQG
-                            </span>
-                            {summaryData?.cqgSync?.executedAt && (
-                              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                                Kiểm tra lúc: {formatSubCheckTime(summaryData.cqgSync.executedAt)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            {/* ĐỐI CHIẾU GIÁ THANH TOÁN (GTT M-SYSTEM VS CQG) - CHUYỂN TỪ TAB 3 VỀ TAB 2 */}
+            <div style={{ marginTop: '16px' }}>
+              <LegacyGttCheckerSection token={token} selectedDate={selectedDate} />
             </div>
             </>
           )}

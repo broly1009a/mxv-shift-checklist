@@ -90,6 +90,7 @@ const filesToDeploy = [
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx',
+  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx',
   'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx',
   'frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx',
   'frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx',

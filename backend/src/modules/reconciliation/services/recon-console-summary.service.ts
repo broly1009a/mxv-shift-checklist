@@ -543,10 +543,11 @@ export class ReconConsoleSummaryService {
       }
     }
 
-    // 2. Lấy 4 job mới nhất từ collection bot_jobs (Bao gồm cả CHECK_CQG_SYNC độc lập)
+    // 2. Lấy các job mới nhất từ collection bot_jobs (Bao gồm cả CHECK_CQG_SYNC và EOD độc lập)
     let klgdJob: any = null;
     let preEodJob: any = null;
     let marginJob: any = null;
+    let eodJob: any = null;
     let cqgSyncJob: any = null;
     let ccpDownloadJob: any = null;
     let ccpCheckJob: any = null;
@@ -606,6 +607,17 @@ export class ReconConsoleSummaryService {
         .lean()
         .exec();
 
+      const eodPromise = this.botJobModel
+        .findOne({
+          jobType: {
+            $in: ['CHECK_EOD_MM', 'CHECK_EOD_CCP'],
+          },
+          ...dateFilterCondition,
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
       const pastRunsPromise = this.botJobModel
         .find({
           jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] },
@@ -616,11 +628,12 @@ export class ReconConsoleSummaryService {
         .lean()
         .exec();
 
-      let [loadedKlgd, loadedPreEod, loadedMargin, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns] =
+      let [loadedKlgd, loadedPreEod, loadedMargin, loadedEod, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns] =
         await Promise.all([
           klgdPromise,
           preEodPromise,
           marginPromise,
+          eodPromise,
           this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
@@ -630,6 +643,7 @@ export class ReconConsoleSummaryService {
       klgdJob = loadedKlgd;
       preEodJob = loadedPreEod;
       marginJob = loadedMargin;
+      eodJob = loadedEod;
       cqgSyncJob = loadedCqgSync;
       ccpDownloadJob = loadedCcpDl;
       ccpCheckJob = loadedCcpCheck;
@@ -905,11 +919,9 @@ export class ReconConsoleSummaryService {
     const latestRunId = runs.length > 0 ? runs[0].id : null;
     const isViewingHistorical = !!(jobId && latestRunId && jobId !== latestRunId);
 
-    // 8. Xác định Job EOD mới nhất của ngày hôm nay (giữa CHECK_EOD_MM và CHECK_PRE_EOD)
-    const eodCandidates = [marginJob, preEodJob].filter(Boolean);
-    const latestEodJob = eodCandidates.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0] || null;
+    // 8. Xác định Job EOD mới nhất của ngày hôm nay (chỉ giữa CHECK_EOD_MM và CHECK_EOD_CCP)
+    // TUYỆT ĐỐI không đưa preEodJob vào đây để tránh nhầm lẫn giữa Pre-EOD và EOD!
+    const latestEodJob = eodJob;
 
     const latestEodPayload = latestEodJob
       ? typeof latestEodJob.toObject === 'function'
@@ -923,10 +935,6 @@ export class ReconConsoleSummaryService {
     const resolvedMismatchedEOD =
       latestEodResult.eodResult?.mismatchedEOD ||
       latestEodResult.mismatchedEOD ||
-      marginResult.eodResult?.mismatchedEOD ||
-      marginResult.mismatchedEOD ||
-      preEodResult.eodResult?.mismatchedEOD ||
-      preEodResult.mismatchedEOD ||
       [];
 
     return {
@@ -1029,15 +1037,16 @@ export class ReconConsoleSummaryService {
         mismatchedTTTT: klgdResult.mismatchedTTTT || [],
       },
       preEod: {
-        jobId: latestEodJob?._id?.toString() || null,
-        status: latestEodJob?.status || (taskPreEod ? taskPreEod.status : 'IDLE'),
-        executedAt: latestEodJob?.createdAt
-          ? new Date(latestEodJob.createdAt).toISOString()
+        jobId: preEodJob?._id?.toString() || null,
+        status: preEodJob?.status || (taskPreEod ? taskPreEod.status : 'IDLE'),
+        executedAt: preEodJob?.createdAt
+          ? new Date(preEodJob.createdAt).toISOString()
           : null,
-        error: latestEodJob?.error || null,
-        logs: latestEodJob?.logs || [],
-        isWaitingFiles: !!(latestEodResult.isWaitingFiles || preEodResult.isWaitingFiles),
-        passed: (latestEodResult.passed !== undefined ? latestEodResult.passed !== false : preEodResult.passed !== false),
+        error: preEodJob?.error || null,
+        logs: preEodJob?.logs || [],
+        isWaitingFiles: !!(preEodResult.isWaitingFiles),
+        waitingMessage: preEodResult.waitingMessage || preEodResult.message || null,
+        passed: (preEodResult.passed !== undefined ? preEodResult.passed !== false : true),
         totals: preEodTotals,
         acm: {
           msVolume: preEodTotals.totalACM_MS,
@@ -1073,12 +1082,30 @@ export class ReconConsoleSummaryService {
           cqgSyncJob?.payload?.result?.cqgResult ||
           [],
       },
+      eod: {
+        jobId: latestEodJob?._id?.toString() || null,
+        jobType: latestEodJob?.jobType || null,
+        status: latestEodJob?.status || 'IDLE',
+        executedAt: latestEodJob?.createdAt
+          ? new Date(latestEodJob.createdAt).toISOString()
+          : null,
+        error: latestEodJob?.error || null,
+        logs: latestEodJob?.logs || [],
+        isWaitingFiles: !!(latestEodResult.isWaitingFiles),
+        waitingMessage: latestEodResult.waitingMessage || latestEodResult.message || null,
+        passed: (latestEodResult.passed !== undefined ? latestEodResult.passed !== false : resolvedMismatchedEOD.length === 0),
+        totals: latestEodResult.totals || {},
+        mismatchedEODCount: resolvedMismatchedEOD.length,
+        mismatchedEOD: resolvedMismatchedEOD,
+      },
       negativeMargin: {
         jobId: marginJob?._id?.toString() || null,
         executedAt: marginJob?.createdAt
           ? new Date(marginJob.createdAt).toISOString()
           : null,
         status: marginJob?.status || 'IDLE',
+        isWaitingFiles: !!(marginResult.isWaitingFiles),
+        waitingMessage: marginResult.waitingMessage || marginResult.message || null,
         negativeIMRAccCount: newNegativeIMR.length,
         negativeIMRAcc: newNegativeIMR,
         totalRawNegativeIMRCount: rawNegativeIMR.length,

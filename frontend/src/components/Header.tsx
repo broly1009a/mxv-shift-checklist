@@ -6,16 +6,14 @@ import {
   Sun, 
   Moon, 
   Search, 
-  Minus, 
-  Plus, 
   ChevronDown, 
   LogOut, 
   Settings, 
-  PanelLeftClose,
-  PanelLeftOpen,
-  AlertTriangle,
-  FileText,
-  Loader2,
+  PanelLeftClose, 
+  PanelLeftOpen, 
+  AlertTriangle, 
+  FileText, 
+  Loader2, 
   BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
@@ -29,7 +27,6 @@ interface HeaderProps {
 
 export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSidebar }: HeaderProps) {
   const { user, token, logout, updateUser, theme, changeTheme } = useAuth();
-  const [zoom, setZoom] = useState<number>(100);
   const [searchVal, setSearchVal] = useState('');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   
@@ -89,31 +86,13 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
     return () => clearTimeout(delayDebounceFn);
   }, [searchVal, token]);
 
-  // Set initial zoom property on mount
+  // Reset zoom property to 100% on mount
   useEffect(() => {
     if (typeof document !== 'undefined') {
+      (document.body.style as any).zoom = '100%';
       document.body.style.setProperty('--app-zoom', '1');
     }
   }, []);
-
-  // Handle Zoom change
-  const handleZoom = (type: 'in' | 'out' | 'reset') => {
-    let newZoom = zoom;
-    if (type === 'in') {
-      newZoom = Math.min(zoom + 10, 120);
-    } else if (type === 'out') {
-      newZoom = Math.max(zoom - 10, 80);
-    } else {
-      newZoom = 100;
-    }
-    setZoom(newZoom);
-    // Apply zoom on body or root document
-    if (typeof document !== 'undefined') {
-      // Modern browsers support standard CSS zoom (Chrome/Edge/Safari)
-      (document.body.style as any).zoom = `${newZoom}%`;
-      document.body.style.setProperty('--app-zoom', (newZoom / 100).toString());
-    }
-  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -406,37 +385,6 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
 
       {/* Right side controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        {/* Zoom controls */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '6px', 
-          border: '1px solid var(--border-color)', 
-          borderRadius: '8px', 
-          padding: '4px 8px',
-          background: 'var(--bg-card)'
-        }} className="hidden md:flex">
-          <button 
-            onClick={() => handleZoom('out')}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
-            disabled={zoom <= 80}
-            title="Thu nhỏ"
-          >
-            <Minus size={14} />
-          </button>
-          <span style={{ fontSize: '0.78rem', fontWeight: 600, minWidth: '38px', textAlign: 'center' }}>
-            {zoom}%
-          </span>
-          <button 
-            onClick={() => handleZoom('in')}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
-            disabled={zoom >= 120}
-            title="Phóng to"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
-
         {/* Theme select controls */}
         <div style={{ 
           display: 'flex', 

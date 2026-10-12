@@ -24,7 +24,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/context/AuthContext';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
-import LegacyGttCheckerSection from './LegacyGttCheckerSection';
+import LegacyCqgSyncSection from './LegacyCqgSyncSection';
 import BackupLogSummaryModal from './BackupLogSummaryModal';
 import CeAcmBackupSection from '../ce-acm/CeAcmBackupSection';
 
@@ -1793,8 +1793,8 @@ export default function LegacyBackupThongKeSection({
         </div>
       </div>
 
-      {/* ===== SECTION 2: GIÁ THANH TOÁN (GTT) ===== */}
-      <LegacyGttCheckerSection token={token} selectedDate={selectedDate} />
+      {/* ===== SECTION 2: KẾT QUẢ ĐỒNG BỘ SỐ DƯ CQG (CHUYỂN TỪ TAB 2 SANG TAB 3) ===== */}
+      <LegacyCqgSyncSection token={token} selectedDate={selectedDate} />
 
       {/* ===== SECTION 3: KIỂM TRA KÝ QUỸ TKGD (4 BOXES C#) ===== */}
       <div className="glass-panel" style={{ padding: '16px 20px' }}>

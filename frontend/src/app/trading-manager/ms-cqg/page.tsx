@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   Terminal,
   ShieldCheck,
-  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
@@ -196,50 +195,10 @@ export default function MsCqgTradingManagerPage() {
               <Activity color="#10b981" className="animate-pulse" size={26} />
               GIÁM SÁT VẬN HÀNH GIAO DỊCH (M-SYSTEM & CQG)
             </h1>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-              Bàn điều khiển đối soát khớp lệnh phiên, kiểm soát Pre-EOD, EOD M-System, đồng bộ số dư CQG và sao lưu báo cáo.
-            </p>
           </div>
 
           {/* Right Header Status Badges & Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            {/* System Online Badge */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                border: !isDiffer ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
-                backgroundColor: !isDiffer ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                color: !isDiffer ? '#34d399' : '#f87171',
-              }}
-            >
-              <div style={{ position: 'relative', width: '10px', height: '10px' }}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: '50%',
-                    backgroundColor: !isDiffer ? '#10b981' : '#ef4444',
-                  }}
-                  className="animate-ping"
-                />
-                <span
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: '50%',
-                    backgroundColor: !isDiffer ? '#10b981' : '#ef4444',
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'monospace' }}>
-                {!isDiffer ? 'Khớp 100%' : `Lệch ${totalDifferLots} lot`}
-              </span>
-            </div>
-
             {/* Fullscreen Button */}
             <button
               type="button"
@@ -250,17 +209,6 @@ export default function MsCqgTradingManagerPage() {
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
-
-            {/* Link to Full Hub */}
-            <Link
-              href="/trading-manager"
-              className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '9px 14px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
-              title="Mở Bàn Điều Khiển Tổng Hợp Song Song"
-            >
-              <Layers size={15} />
-              <span>Bàn Tổng Hợp</span>
-            </Link>
 
             {/* Back to Dashboard */}
             <Link
@@ -289,7 +237,7 @@ export default function MsCqgTradingManagerPage() {
           }}
           className="table-responsive-wrapper"
         >
-          {/* TAB 1: ĐỐI SOÁT KHỚP LỆNH (DÙNG CHUNG) */}
+          {/* TAB 1: ĐỐI CHIẾU GIAO DỊCH MS */}
           <button
             type="button"
             onClick={() => setActiveTab('CHECK_KLGD')}
@@ -310,19 +258,7 @@ export default function MsCqgTradingManagerPage() {
             }}
           >
             <Activity size={16} color={activeTab === 'CHECK_KLGD' ? '#10b981' : 'var(--text-muted)'} />
-            <span>Đối Soát Khớp Lệnh (KLGD)</span>
-            <span
-              style={{
-                fontSize: '0.66rem',
-                fontWeight: 800,
-                padding: '1px 6px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                color: '#10b981',
-              }}
-            >
-              4 BÊN
-            </span>
+            <span>Đối chiếu giao dịch MS</span>
           </button>
 
           {/* TAB 2: CHECK & CHẠY EOD MS-CQG */}
@@ -346,7 +282,7 @@ export default function MsCqgTradingManagerPage() {
             }}
           >
             <ShieldCheck size={16} color={activeTab === 'CHECK_EOD_MS_CQG' ? '#10b981' : 'var(--text-muted)'} />
-            <span>Check & Chạy EOD (MS – CQG)</span>
+            <span>EOD</span>
           </button>
 
           {/* TAB 3: BACKUP – THỐNG KÊ MS-CQG */}

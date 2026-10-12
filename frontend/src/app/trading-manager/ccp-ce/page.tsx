@@ -200,9 +200,6 @@ export default function CcpCeTradingManagerPage() {
               <FileSpreadsheet color="#3b82f6" className="animate-pulse" size={26} />
               GIÁM SÁT VẬN HÀNH GIAO DỊCH (CORECCP & COREEX)
             </h1>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-              Bàn điều khiển đối soát khớp lệnh phiên 4 bên, đối chiếu EOD CoreCCP (25 báo cáo VNCLEAR), thống kê số lô/giá trị DSGD CCP & báo cáo sàn CoreEX.
-            </p>
           </div>
 
           {/* Right Header Status Badges & Actions */}

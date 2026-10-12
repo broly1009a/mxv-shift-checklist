@@ -257,7 +257,7 @@ export default function LegacyPreEodDiffSection({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Chi tiết đối chiếu Pre-EOD (M-System ↔ CQG ↔ Straits/ACM)
+                Đối chiếu giao dịch trước EOD
               </h4>
               {hasExecuted && preEodData?.executedAt && (
                 <span
@@ -272,9 +272,6 @@ export default function LegacyPreEodDiffSection({
                 </span>
               )}
             </div>
-            <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              Kiểm tra 3 bên: Đối chiếu tổng số lot khớp, danh sách lệnh chi tiết và vị thế tất toán ròng (TTTT vs PS)
-            </p>
           </div>
         </div>
 

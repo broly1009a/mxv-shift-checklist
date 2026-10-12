@@ -176,9 +176,6 @@ export default function TradingManagerPage() {
               <Activity color="#10b981" className="animate-pulse" size={26} />
               HỆ THỐNG GIÁM SÁT VẬN HÀNH GIAO DỊCH
             </h1>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-              Trung tâm kiểm soát, đối chiếu giao dịch trong phiên & Pre-EOD (M-System, CQG, ACM & CoreCCP).
-            </p>
           </div>
 
           {/* Right Header Status Badges & Actions */}

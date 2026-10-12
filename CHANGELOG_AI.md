@@ -1,5 +1,123 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-10-12T15:25] FIX(TRADING-MANAGER-EOD): Tách Bạch Hoàn Toàn EOD & Pre-EOD, Khắc Phục Báo Khớp Giả Khi Chờ File (Zero-Silent-Swallow)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**: Người dùng phản ánh việc Card *"Kết quả chạy EOD"* hiển thị tick xanh *"Tất cả số dư tài khoản khớp hoàn toàn với kết quả chạy EOD (MS & CCP) - Kiểm tra lúc: 01:22:33 12/10"*, trong khi thực tế tác vụ đối chiếu số dư EOD (`CHECK_EOD_MM`) chưa từng được chạy trong phiên, và lượt chạy lúc 01:22:33 thực chất là Job `CHECK_PRE_EOD` đang ở trạng thái chờ file (`isWaitingFiles: true` do thiếu `Straits.csv`). USER yêu cầu: *"nhưng hiển thị kiểu này liệu có gây nhầm không"*, *"có giúp tôi"* sửa chữa triệt để.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
+  - **Tách biệt truy vấn**: Bổ sung `eodPromise` chuyên biệt truy vấn `jobType: { $in: ['CHECK_EOD_MM', 'CHECK_EOD_CCP'] }`, tách bạch hoàn toàn khỏi `preEodPromise` (`CHECK_PRE_EOD`) và `marginPromise`.
+  - **Loại bỏ Fallback lẫn lộn**: Xóa bỏ `preEodJob` ra khỏi danh sách ứng viên EOD (`eodCandidates`), loại bỏ việc lấy kết quả Pre-EOD gán đè vào EOD.
+  - **Độc lập Response Payload**: Trả về riêng biệt object `eod: { jobId, status, executedAt, isWaitingFiles, waitingMessage, passed, totals, mismatchedEOD }` và object `preEod: { ... }` phản ánh 100% đúng dữ liệu của từng nghiệp vụ.
+  - **Bổ sung cờ `isWaitingFiles`**: Trả về `isWaitingFiles` và `waitingMessage` cho cả 3 khối `preEod`, `eod`, và `negativeMargin`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  - **Đồng bộ biến trạng thái `hasExecutedEod`**: Trích xuất `eodData = summaryData?.eod`, chỉ đánh dấu `hasExecutedEod = true` khi Job EOD thực sự đã được chạy (`CHECK_EOD_MM` / `CHECK_EOD_CCP`).
+  - **Xử lý trạng thái Chờ File & Thất Bại**: Thêm kiểm tra `eodData?.isWaitingFiles` (hiển thị thông báo chờ file màu vàng cam) và `eodData?.status === 'FAILED'` (hiển thị thông báo lỗi màu đỏ).
+  - **Chấm dứt Báo Thành Công Ảo**: Chỉ hiển thị tick xanh *"Tất cả số dư tài khoản khớp hoàn toàn"* khi `hasExecutedEod === true`, `status === 'COMPLETED'`, `!isWaitingFiles`, và `mismatchedEOD.length === 0`.
+  - **Cập nhật tương tự cho Card Tài khoản âm ký quỹ**: Thêm nhánh xử lý `summaryData?.negativeMargin?.isWaitingFiles` và `FAILED`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build (`npm run build` / `nest build`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có lỗi biên dịch).
+- **Frontend Type Check (`npx tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có lỗi kiểu dữ liệu).
+
+---
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Trong tab thứ 2:*
+    *- Đổi tên tab từ 'Check & Chạy EOD (MS-CQG)' sang 'EOD'*
+    *- Đổi tên tác vụ 'Chi tiết đối chiếu Pre-EOD((M-System ↔ CQG ↔ Straits/ACM)' thành 'Đối chiếu giao dịch trước EOD', bỏ chữ nhỏ ở dưới cái tên tác vụ đi*
+    *- Dưới đó sẽ là bổ sung chuyển tác vụ 'Đối chiếu giá thanh toán' ở tab 3 (Backup - Thống kê MS - CQG) về tab 2*
+    *- Chuyển tác vụ 'Kết quả đồng bộ số dư CQG' sang tab 3(Backup - Thống kê MS - CQG) và không còn ở tab 2 nữa"*
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx):
+  - Đổi tên Tab 2 từ `"Check & Chạy EOD (MS – CQG)"` thành `"EOD"`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx):
+  - Đổi tiêu đề tác vụ từ `"Chi tiết đối chiếu Pre-EOD (M-System ↔ CQG ↔ Straits/ACM)"` thành `"Đối chiếu giao dịch trước EOD"`.
+  - Loại bỏ hoàn toàn dòng chữ mô tả phụ bên dưới tiêu đề (`<p>Kiểm tra 3 bên: Đối chiếu tổng số lot khớp...</p>`).
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  - Nhập khẩu và gắn `<LegacyGttCheckerSection token={token} selectedDate={selectedDate} />` vào ngay bên dưới `<LegacyPreEodDiffSection />` tại Tab 2 (EOD).
+  - Loại bỏ hoàn toàn khối bảng và nút bấm `"Kết quả đồng bộ số dư CQG"` khỏi Tab 2.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx):
+  - Tách thành component độc lập chuyên biệt quản lý và hiển thị tác vụ `"Kết quả đồng bộ số dư CQG"` (tích hợp API trigger `/api/v1/reconciliation/trigger-console-run` jobType `CHECK_CQG_SYNC` và polling `console-summary`).
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  - Gỡ bỏ `LegacyGttCheckerSection` khỏi Tab 3.
+  - Nhập khẩu và kết xuất component `<LegacyCqgSyncSection token={token} selectedDate={selectedDate} />` tại Section 2 của Tab 3 (Backup - Thống Kê MS - CQG).
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có lỗi kiểu dữ liệu).
+
+---
+
+## [2026-10-09T20:40] FEAT(TRADING-MANAGER-UI): Tinh Gọn Header, Đổi Tên Tab, Tối Giản Quy Tắc Màu So Sánh & Nâng Cấp Nút Check Thủ Công
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Bỏ kí hiệu khớp 100%, bàn tổng hợp"*
+  - *"- Tại tab đối soát khớp lệnh, đổi tên tab là 'Đối chiếu giao dịch MS'"*
+  - *"trong bảng check khối lượng giao dịch, đổi màu so sánh sao cho đơn giản đi với rule như sau:*
+    *+ đối với 2 cột so sánh không lệch nhau thì để màu đen*
+    *+ KLGD, TTM, TTTT của CQG so với M-System => Nếu cân thì để màu đen, không cân thì màu đỏ*
+    *+ ở phần KLGD của ACM + CCP = Nano=> nếu bằng (cân) thì màu đen, không cân thì màu đỏ"*
+  - *"Bỏ phần Check ở dưới cần quả đi, box 'Check thủ công' để nổi lên = màu xanh"*
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx):
+  - Bỏ khối badge trạng thái `Khớp 100%` (`System Online Badge`) và nút liên kết `Bàn Tổng Hợp` trên header góc trên bên phải.
+  - Bỏ import không còn dùng `Layers` từ `lucide-react`.
+  - Đổi tên Tab 1 từ `"Đối Soát Khớp Lệnh (KLGD)"` (kèm badge 4 BÊN) thành `"Đối chiếu giao dịch MS"`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  - **Logic màu sắc so sánh đơn giản hóa**:
+    + Tính toán cân bằng M-System vs CQG: `isKlgdBalanced = msDSGD === cqgFR`, `isTtmBalanced = msTTM === cqgTTM`, `isTtttBalanced = msTTTT === cqgPS`. Cân: màu đen (`var(--text-primary)`), Không cân: màu đỏ (`#ef4444`).
+    + Tính toán cân bằng ACM + CCP = Nano: `isAcmNanoBalanced = (acmStraits + (Number(ccpDSGD) || 0)) === nanoLots`. Bằng (cân): màu đen (`var(--text-primary)`), Không cân: màu đỏ (`#ef4444`).
+    + Bỏ các màu sặc sỡ cố định (xanh biển, xanh lá, cam, tím) ở các số liệu kết quả trong bảng, chuyển về màu đen trung tính khi cân và chỉ hiển thị đỏ khi có chênh lệch.
+    + Đổi badge `KLGD` thành phong cách tối giản đồng bộ với `TTM` và `TTTT`.
+  - **Action bar dưới bảng**:
+    + Bỏ nút `Check` (Làm mới) dư thừa.
+    + Đổi nút `Check thủ công` sang `className="btn btn-primary"` với tông màu xanh nổi bật (`#2563eb`), đổ bóng đẹp mắt để người vận hành dễ dàng nhận diện và bấm thao tác.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`tsc --noEmit`)**: Pass 100% (Exit code 0, không có lỗi kiểu dữ liệu).
+
+---
+
+
+## [2026-10-09T20:07] CHORE(UI): Tối Giản Tiêu Đề Trading Manager & Loại Bỏ Điều Khiển Zoom In/Out Trên Header
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Chỉnh sửa giao diện:*
+    *- Xóa chữ nhỏ ở dưới tiltle GIÁM SÁT VẬN HÀNH GIAO DỊCH*
+    *- ở góc trên bên phải Bỏ zoom in/out"*
+- **Nội dung thực hiện**:
+  1. Loại bỏ đoạn mô tả subtitle bên dưới tiêu đề `GIÁM SÁT VẬN HÀNH GIAO DỊCH` tại các trang giám sát vận hành:
+     - [ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx)
+     - [ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx)
+     - [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)
+  2. Loại bỏ cụm nút điều khiển tỷ lệ phóng to/thu nhỏ (`Zoom in/out` gồm `-`, `100%`, `+`) ở góc trên bên phải thanh Header tại [Header.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Header.tsx), dọn dẹp các biến state `zoom`, hàm `handleZoom`, các icon không còn dùng (`Minus`, `Plus`) và đảm bảo đặt lại zoom mặc định chuẩn 100% khi nạp trang.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx):
+  - Xóa dòng thẻ `<p>`: *"Bàn điều khiển đối soát khớp lệnh phiên, kiểm soát Pre-EOD, EOD M-System, đồng bộ số dư CQG và sao lưu báo cáo."*
+- [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx):
+  - Xóa dòng thẻ `<p>`: *"Bàn điều khiển đối soát khớp lệnh phiên 4 bên, đối chiếu EOD CoreCCP (25 báo cáo VNCLEAR), thống kê số lô/giá trị DSGD CCP & báo cáo sàn CoreEX."*
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx):
+  - Xóa dòng thẻ `<p>`: *"Trung tâm kiểm soát, đối chiếu giao dịch trong phiên & Pre-EOD (M-System, CQG, ACM & CoreCCP)."*
+- [frontend/src/components/Header.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Header.tsx):
+  - Bỏ import `Minus`, `Plus` từ `lucide-react`.
+  - Bỏ state `zoom` và hàm `handleZoom`.
+  - Bỏ khối giao diện `div` Zoom controls (`- 100% +`) ở góc phải trên cùng.
+  - Reset chuẩn `zoom = 100%` và `--app-zoom = 1` trong `useEffect` khi mount.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`tsc --noEmit`)**: Pass 100% (Exit code 0, không có lỗi linter/type).
+
+---
+
+
 ## [2026-10-09T19:32] FEAT(BOT-ENGINE-GTT): Nâng Cấp Tiến Trình Đối Soát GTT CE-CCP Tự Động Tải File On-Demand Từ CoreEX & CoreCCP
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
