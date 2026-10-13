@@ -26,6 +26,10 @@ import { MarginCheckerModule } from './modules/margin-checker/margin-checker.mod
 import { CcpStatisticsModule } from './modules/ccp-statistics/ccp-statistics.module';
 import { TradingReportModule } from './modules/trading-report/trading-report.module';
 import { LotStatisticsModule } from './modules/lot-statistics/lot-statistics.module';
+import { IngressModule } from './modules/ingress/ingress.module';
+import { TradingOpsModule } from './modules/trading-ops/trading-ops.module';
+import { CcpClearingModule } from './modules/ccp-clearing/ccp-clearing.module';
+import { ChecklistHubModule } from './modules/checklist-hub/checklist-hub.module';
 
 @Module({
   imports: [
@@ -53,6 +57,11 @@ import { LotStatisticsModule } from './modules/lot-statistics/lot-statistics.mod
     CcpStatisticsModule,
     TradingReportModule,
     LotStatisticsModule,
+    // Modular Monolith V2 Modules (Strangler Fig Integration)
+    IngressModule,
+    TradingOpsModule,
+    CcpClearingModule,
+    ChecklistHubModule,
   ],
 
   controllers: [AppController],

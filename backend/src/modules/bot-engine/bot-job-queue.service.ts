@@ -5,9 +5,13 @@ import {
   OnModuleDestroy,
   NotFoundException,
   BadRequestException,
+  Inject,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { BotDispatcherService } from '../checklist-hub/dispatcher/bot-dispatcher.service';
 import { BotJob } from '../../schemas/bot-job.schema';
 import { BotJobHandlerRegistry } from './core/job-handler.registry';
 import { IJobExecutionContext } from './core/job-handler.interface';
@@ -51,6 +55,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly marginCheckerService: MarginCheckerService,
     private readonly settingsService: SystemSettingsService,
     private readonly systemLogsService: SystemLogsService,
+    @Optional()
+    @Inject(forwardRef(() => BotDispatcherService))
+    private readonly botDispatcher?: BotDispatcherService,
   ) { }
 
   onModuleInit() {
@@ -268,11 +275,19 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const jobFilter = { status: 'PENDING' };
-    const job = await this.botJobModel
-      .findOne(jobFilter)
-      .sort({ createdAt: 1 })
-      .exec();
+    // Nâng cấp Atomic Lock qua findOneAndUpdate: An toàn tuyệt đối khi chạy đa instance song song
+    const instanceId = process.env.INSTANCE_ID || `inst_${process.pid}`;
+    const job = await this.botJobModel.findOneAndUpdate(
+      { status: 'PENDING' },
+      {
+        $set: {
+          status: 'PROCESSING',
+          lockedBy: instanceId,
+          lockedAt: new Date(),
+        },
+      },
+      { sort: { createdAt: 1 }, new: true },
+    );
     if (!job) {
       return;
     }

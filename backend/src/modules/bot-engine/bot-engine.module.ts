@@ -37,6 +37,7 @@ import { ReconJobsHandler } from './handlers/recon-jobs.handler';
 import { FileAuditJobHandler } from './handlers/file-audit.handler';
 import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
 import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
+import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
     CcpStatisticsModule,
     MarginCheckerModule,
     SystemLogsModule,
+    forwardRef(() => ChecklistHubModule),
   ],
   providers: [
     // Core Registry & Handlers
