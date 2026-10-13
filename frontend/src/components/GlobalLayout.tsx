@@ -104,9 +104,9 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
             flexDirection: 'column', 
             flex: 1, 
             minHeight: '100vh',
-            marginLeft: isCollapsed ? 'calc(72px / var(--app-zoom, 1))' : 'calc(260px / var(--app-zoom, 1))',
+            marginLeft: isCollapsed ? 'calc(72px / var(--app-zoom, 1))' : 'calc(280px / var(--app-zoom, 1))',
             transition: 'margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-            width: isCollapsed ? 'calc(100% - (72px / var(--app-zoom, 1)))' : 'calc(100% - (260px / var(--app-zoom, 1)))'
+            width: isCollapsed ? 'calc(100% - (72px / var(--app-zoom, 1)))' : 'calc(100% - (280px / var(--app-zoom, 1)))'
           }}
           className="mobile-content-layout"
         >

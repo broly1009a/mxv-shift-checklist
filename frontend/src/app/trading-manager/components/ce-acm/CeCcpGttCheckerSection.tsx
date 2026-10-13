@@ -28,6 +28,7 @@ import { API_BASE_URL } from '@/context/AuthContext';
 export interface CeCcpGttCheckerSectionProps {
   token: string | null;
   selectedDate: string;
+  titleOverride?: string;
 }
 
 export interface CeCcpGttDataRow {
@@ -70,6 +71,7 @@ export interface CeCcpGttReport {
 export default function CeCcpGttCheckerSection({
   token,
   selectedDate,
+  titleOverride,
 }: CeCcpGttCheckerSectionProps) {
   const [mounted, setMounted] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -372,7 +374,7 @@ export default function CeCcpGttCheckerSection({
                   color: 'var(--text-primary)',
                 }}
               >
-                Đối Chiếu Giá Thanh Toán (GTT): CoreEX (CE) vs CoreCCP (VNCLEAR)
+                {titleOverride || 'Đối Chiếu Giá Thanh Toán (GTT): CoreEX (CE) vs CoreCCP (VNCLEAR)'}
               </h3>
               <span
                 style={{

@@ -57,8 +57,28 @@ export class CqgSyncService {
    */
   async scanCqgBackupFiles(
     targetDate: Date = new Date(),
+    customDir?: string,
   ): Promise<CqgAuditResult[]> {
-    const { fullPath } = await this.getDailyBackupPath(targetDate);
+    let fullPath = customDir;
+    if (!fullPath) {
+      const backupPathRes = await this.getDailyBackupPath(targetDate);
+      fullPath = backupPathRes.fullPath;
+      if (!fs.existsSync(fullPath)) {
+        // Fallback: Kiểm tra thư mục TradingCheck trong phiên nếu thư mục Backup CQG chưa tồn tại
+        const { baseDir } = backupPathRes;
+        const year = targetDate.getFullYear().toString();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        const tradingCheckBase = baseDir
+          .replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG')
+          .replace(/Backup CQG/i, 'TradingCheck/CQG');
+        const tradingCheckFullPath = path.join(tradingCheckBase, subFolder);
+        if (fs.existsSync(tradingCheckFullPath)) {
+          fullPath = tradingCheckFullPath;
+        }
+      }
+    }
     const todayStr = targetDate.toDateString();
     const results: CqgAuditResult[] = [];
 
@@ -91,6 +111,9 @@ export class CqgSyncService {
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
+    const tradingCheckBase =
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+      msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck');
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
     const day = String(targetDate.getDate()).padStart(2, '0');
@@ -98,6 +121,8 @@ export class CqgSyncService {
 
     let msFilePath = '';
     const possiblePaths = [
+      path.join(tradingCheckBase, subFolder, 'TTTT.xlsx'),
+      path.join(tradingCheckBase, subFolder, 'TTM.xlsx'),
       path.join(msBackupBase, subFolder, 'TTTT.xlsx'),
       path.join(msBackupBase, 'TTTT.xlsx'),
       path.join(msBackupBase, subFolder, 'TTM.xlsx'),
@@ -140,9 +165,29 @@ export class CqgSyncService {
     targetDate: Date = new Date(),
     keysToMerge?: Array<'FR' | 'OP' | 'Od' | 'PS'>,
     forceRemerge: boolean = false,
+    customDir?: string,
   ): Promise<{ success: boolean; logs: string[] }> {
     const logs: string[] = [];
-    const { fullPath } = await this.getDailyBackupPath(targetDate);
+    let fullPath = customDir;
+    if (!fullPath) {
+      const backupPathRes = await this.getDailyBackupPath(targetDate);
+      fullPath = backupPathRes.fullPath;
+      if (!fs.existsSync(fullPath)) {
+        // Fallback: Kiểm tra thư mục TradingCheck trong phiên nếu thư mục Backup CQG chưa tồn tại
+        const { baseDir } = backupPathRes;
+        const year = targetDate.getFullYear().toString();
+        const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(targetDate.getDate()).padStart(2, '0');
+        const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+        const tradingCheckBase = baseDir
+          .replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG')
+          .replace(/Backup CQG/i, 'TradingCheck/CQG');
+        const tradingCheckFullPath = path.join(tradingCheckBase, subFolder);
+        if (fs.existsSync(tradingCheckFullPath)) {
+          fullPath = tradingCheckFullPath;
+        }
+      }
+    }
 
     if (!fs.existsSync(fullPath)) {
       const errorMsg = `Thư mục backup CQG cho ngày ${targetDate.toLocaleDateString('vi-VN')} không tồn tại: ${fullPath}`;
@@ -150,7 +195,7 @@ export class CqgSyncService {
       return { success: false, logs: [errorMsg] };
     }
 
-    const audit = await this.scanCqgBackupFiles(targetDate);
+    const audit = await this.scanCqgBackupFiles(targetDate, fullPath);
     logs.push(
       `Bắt đầu chạy quy trình tự động ghép file tại thư mục: ${fullPath} (forceRemerge=${forceRemerge})`,
     );
@@ -161,6 +206,9 @@ export class CqgSyncService {
       'bot_backup_path_ms',
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
     );
+    const tradingCheckBase =
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+      msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck');
 
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -170,6 +218,8 @@ export class CqgSyncService {
     // Try finding TTTT.xlsx first (realized PnL), then TTM.xlsx (open positions), supporting both nested and flat paths
     let ttmPath = '';
     const possiblePaths = [
+      path.join(tradingCheckBase, subFolder, 'TTTT.xlsx'),
+      path.join(tradingCheckBase, subFolder, 'TTM.xlsx'),
       path.join(msBackupBase, subFolder, 'TTTT.xlsx'),
       path.join(msBackupBase, 'TTTT.xlsx'),
       path.join(msBackupBase, subFolder, 'TTM.xlsx'),
@@ -184,10 +234,11 @@ export class CqgSyncService {
     }
 
     if (!ttmPath) {
-      ttmPath = path.join(msBackupBase, 'TTTT.xlsx');
+      ttmPath = path.join(tradingCheckBase, subFolder, 'TTTT.xlsx');
     }
     this.logger.log(`Sử dụng file MS để đối chiếu PS: ${ttmPath}`);
 
+    let hasMergeError = false;
     const runMerge = async (
       name: string,
       mergeFn: () => void | Promise<void>,
@@ -203,6 +254,7 @@ export class CqgSyncService {
           const msg = ` Không ghép file FR.xlsx vì thiếu file nguồn: ${missingRaw.join(', ')}. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.`;
           this.logger.warn(msg);
           logs.push(msg);
+          hasMergeError = true;
           return;
         }
         if (missingRaw.length === rawKeys.length) {
@@ -218,6 +270,7 @@ export class CqgSyncService {
         await mergeFn();
         logs.push(` Ghép file ${name}.xlsx thành công.`);
       } catch (err: any) {
+        hasMergeError = true;
         const msg = ` Lỗi khi ghép file ${name}.xlsx: ${err.message}`;
         this.logger.error(msg, err.stack);
         logs.push(msg);
@@ -326,7 +379,7 @@ export class CqgSyncService {
     }
 
     logs.push('Hoàn tất quy trình kiểm tra và tự động ghép file.');
-    return { success: true, logs };
+    return { success: !hasMergeError, logs };
   }
 
   /**

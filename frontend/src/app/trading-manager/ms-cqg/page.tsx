@@ -177,9 +177,6 @@ export default function MsCqgTradingManagerPage() {
               >
                 PHÂN HỆ TRUYỀN THỐNG
               </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                M-System (MXV) ↔ CQG ↔ Straits/ACM
-              </span>
             </div>
             <h1
               style={{

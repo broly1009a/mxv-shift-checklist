@@ -716,14 +716,22 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
           targetDate,
           keysToMerge,
           true,
+          cqgDailyPath,
         );
         for (const l of mergeResult.logs) {
           log(`CQG Merge: ${l}`);
         }
         if (!mergeResult.success) {
-          errors.push(
-            `CQG Merge: ${mergeResult.logs.filter((l) => l.includes('')).join(' | ')}`,
-          );
+          const failMsg =
+            mergeResult.logs
+              .filter(
+                (l) =>
+                  l.includes('Lỗi') ||
+                  l.includes('không tồn tại') ||
+                  l.includes('thiếu file nguồn'),
+              )
+              .join(' | ') || mergeResult.logs.join(' | ');
+          errors.push(`CQG Merge: ${failMsg}`);
         } else {
           log('CQG  Ghép file CQG hoàn tất.');
         }

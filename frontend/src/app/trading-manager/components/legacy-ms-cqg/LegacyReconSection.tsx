@@ -26,7 +26,6 @@ import {
   ChevronRight,
   RotateCcw,
   History,
-  PauseCircle,
   FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -1187,24 +1186,8 @@ export default function LegacyReconSection({
                   <option value={15}>15 phút (Biến động mạnh)</option>
                 </select>
 
-                {checkPeriodic && (
-                  !autoReconActive ? (
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                      color: '#ef4444',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                    }}>
-                      <PauseCircle size={14} />
-                      <span>Tự động đang tắt</span>
-                    </span>
-                  ) : countdownSeconds > 0 ? (
+                {checkPeriodic && autoReconActive && (
+                  countdownSeconds > 0 ? (
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',

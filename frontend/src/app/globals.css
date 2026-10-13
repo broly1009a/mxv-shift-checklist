@@ -146,12 +146,12 @@ body {
 }
 
 .sidebar {
-  width: calc(260px / var(--app-zoom, 1));
+  width: calc(280px / var(--app-zoom, 1));
   background: var(--bg-sidebar);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-right: var(--glass-border);
-  padding: 24px 0 24px 24px !important;
+  padding: 24px 0 24px 14px !important;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -167,12 +167,12 @@ body {
 .sidebar:not(.collapsed) > div:not(.sidebar-mobile-close),
 .sidebar:not(.collapsed) .sidebar-user-details,
 .sidebar:not(.collapsed) .sidebar-status-card {
-  margin-right: 24px !important;
+  margin-right: 14px !important;
 }
 
 .sidebar:not(.collapsed) nav > a,
 .sidebar:not(.collapsed) nav > div {
-  margin-right: 24px !important;
+  margin-right: 14px !important;
 }
 
 .sidebar.collapsed {
@@ -218,8 +218,8 @@ body {
   .sidebar {
     transform: translateX(-100%);
     z-index: 1000;
-    width: 260px !important;
-    padding: 24px 0 24px 24px !important;
+    width: 280px !important;
+    padding: 24px 0 24px 14px !important;
   }
   
   .sidebar.open {
@@ -228,8 +228,8 @@ body {
   }
   
   .sidebar.collapsed {
-    width: 260px;
-    padding: 24px 0 24px 24px !important;
+    width: 280px;
+    padding: 24px 0 24px 14px !important;
   }
   
   .sidebar.collapsed .nav-link span,
@@ -338,15 +338,21 @@ body {
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 12px;
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: 8px;
   font-weight: 500;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  white-space: nowrap;
+}
+
+.nav-link span {
+  white-space: nowrap;
+  font-size: 0.88rem;
 }
 
 .nav-link:hover {

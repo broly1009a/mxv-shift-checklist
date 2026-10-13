@@ -1,5 +1,462 @@
 # CHANGELOG_AI.md - Nhật Ký Thay Đổi Code & Cấu Hình Của AI Assistant
 
+## [2026-10-13T11:38] ARCHITECTURE(PHASE 2 - TASK 2.1): Bóc Tách M-System Core Scraper (ms-scraper.service.ts)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Nhiệm vụ thực hiện**: Task 2.1 theo Kế hoạch [KE_HOACH_TONG_CHUYEN_DOI_MODULAR_MONOLITH_ATOMIC_TASKS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/KE_HOACH_TONG_CHUYEN_DOI_MODULAR_MONOLITH_ATOMIC_TASKS.md).
+- **Phạm vi cô lập**: Bóc tách 3 báo cáo cốt lõi của M-System (`TTM`, `TTTT`, `DSGD`) và cơ chế đăng nhập ASP.NET ra service độc lập `ms-scraper.service.ts`, hoàn toàn không sửa đổi hay làm ảnh hưởng code cũ của Monolith V1.
+- **Bảo tồn logic bất biến 100%**:
+  - Giữ nguyên cơ chế đăng nhập: Bàn phím ảo PIN `div.pincode`, nhận diện thông báo lỗi Ant Design/Bootstrap.
+  - Cơ chế tự phát hiện và bypass đăng nhập trùng phiên: `ensureLoggedIn()`.
+  - Bộ selector cho nút xuất Excel/CSV (`MS_EXPORT_BUTTON_SELECTORS`, `MS_SPECIFIC_EXPORT_BUTTON_SELECTORS`) và cơ chế thẩm định Regex tên file gốc (`MS_REPORT_FILE_PATTERNS`).
+  - Fallback điều hướng an toàn qua Sidebar Navigation khi direct URL hash gặp sự cố.
+
+### 2. Danh sách file tạo mới & Chi tiết thay đổi
+- [browser-launcher.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/helpers/browser-launcher.helper.ts): Helper dùng chung trong Ingress quản lý đường dẫn Chrome/Edge trên Windows/Linux và cờ anti-bot.
+- [msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/helpers/msystem-tab-navigator.helper.ts): Helper điều hướng Sidebar và thẩm định file cho Ingress, cô lập 100% không deep import xuyên module.
+- [ms-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ms-scraper.service.ts): Service cào dữ liệu cốt lõi của M-System (Login, TTM, TTTT, DSGD).
+
+### 3. Kiểm thử & Xác nhận Build
+- **Jest Boundary Test**: `PASS src/tests/boundary/module-isolation.spec.ts` (assert 0 deep imports vi phạm).
+- **NestJS Build (`nest build`)**: Exit code 0, hoàn tất sạch sẽ không lỗi.
+
+---
+
+## [2026-10-13T11:35] ARCHITECTURE(PHASE 1 - TASK 1.2 & 1.3): Hoàn Tất Tầng Hợp Đồng Dùng Chung (IBotWorker, Bot Execution Contract & Domain Config Namespaces)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Nhiệm vụ thực hiện**: Task 1.2 & Task 1.3 theo Kế hoạch [KE_HOACH_TONG_CHUYEN_DOI_MODULAR_MONOLITH_ATOMIC_TASKS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/KE_HOACH_TONG_CHUYEN_DOI_MODULAR_MONOLITH_ATOMIC_TASKS.md).
+- **Phạm vi cô lập**: Chỉ tạo các file interface/contract độc lập trong `src/shared/`, không sửa đổi bất kỳ dòng code V1 nào.
+- **Bảo tồn logic bất biến**:
+  - `IBotWorker` chỉ thực thi nghiệp vụ và trả về `TaskExecutionResult` mang `domainLogRefId`. **Worker tuyệt đối không chứa logic cập nhật Database ca trực** (`ShiftLog`).
+  - Phân vùng cấu hình độc lập thành 3 namespace: `ITradingOpsConfig`, `ICcpClearingConfig`, `IItOpsConfig` để triệt tiêu nguy cơ tranh chấp tài khoản, đè đường dẫn file giữa QLGD, CCP và IT.
+
+### 2. Danh sách file tạo mới & Chi tiết thay đổi
+- [bot-execution.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/contracts/bot-execution.contract.ts): Định nghĩa `TaskExecutionContext` và `TaskExecutionResult`.
+- [bot-worker.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/ports/bot-worker.port.ts): Định nghĩa `IBotWorker` port và DI token `BOT_WORKER_PORT`.
+- [trading-ops.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/trading-ops.config.ts): Phân vùng cấu hình M-System, CQG (tài khoản & hậu tố), ACM.
+- [ccp-clearing.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/ccp-clearing.config.ts): Phân vùng cấu hình CoreCCP và tỷ giá USD/VND.
+- [it-ops.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/it-ops.config.ts): Phân vùng cấu hình IT Ops, backup, trình duyệt song song.
+- [index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts): Xuất đầy đủ toàn bộ hợp đồng dùng chung.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Jest Boundary Test**: `PASS src/tests/boundary/module-isolation.spec.ts` (2 passed, 2 total).
+- **NestJS Build (`nest build`)**: Exit code 0, hoàn tất sạch sẽ không lỗi.
+
+---
+
+## [2026-10-13T11:30] ARCHITECTURE(PHASE 1 - TASK 1.1): Khởi Tạo Cổng Kéo Dữ Liệu IIngressPort & Ingress Contracts
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Nhiệm vụ thực hiện**: Task 1.1 theo Kế hoạch [KE_HOACH_TONG_CHUYEN_DOI_MODULAR_MONOLITH_ATOMIC_TASKS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/KE_HOACH_TONG_CHUYEN_DOI_MODULAR_MONOLITH_ATOMIC_TASKS.md).
+- **Phạm vi cô lập**: Chỉ tạo các file types/interfaces dùng chung tại `src/shared/`, không can thiệp vào bất kỳ dòng code cũ nào của Monolith V1.
+- **Bảo tồn logic bất biến**:
+  - `IngressDownloadResult` bắt buộc chứa trường `outputDirectory: string` và mảng `files: IngressFileDetail[]` mang đường dẫn tuyệt đối (`absolutePath`), kích thước file, timestamp. Ngăn chặn triệt để downstream modules tự đoán mò đường dẫn ổ đĩa.
+  - Chuẩn bị sẵn enum `IngressSourceType` bao gồm cả `CORE_EX` và `CORE_CCP` để phục vụ chiến lược tắt dần Playwright (Playwright Sunsetting).
+
+### 2. Danh sách file tạo mới & Chi tiết thay đổi
+- [ingress-result.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/contracts/ingress-result.contract.ts): Định nghĩa `IngressSourceType`, `IngressFileDetail`, `IngressDownloadOptions`, `IngressDownloadResult`.
+- [ingress.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/ports/ingress.port.ts): Định nghĩa `IIngressPort` và injection token `INGRESS_PORT`.
+- [index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts): Barrel export cho tầng `shared`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Jest Boundary Test**: `PASS src/tests/boundary/module-isolation.spec.ts` (2 passed, 2 total).
+- **NestJS Build (`nest build`)**: Exit code 0, biên dịch sạch sẽ không có cảnh báo.
+
+---
+
+## [2026-10-13T11:15] ARCHITECTURE(STANDARD): Bổ Sung 3 Luật Cốt Lõi Về Isolated Logs, Isolated Config & Playwright Sunsetting Vào AGENTS.md
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"về playwight thì về sau sẽ off hết tức là vẫn giữ lại logic và viết mới hết theo gọi api và log của tool module sẽ độc lập checklist và bộ cấu hình đường dẫn hay tài khoản mật khẩu cũng theo riêng từng khối để tránh tranh chấp"*
+- **Cơ sở thực tế**:
+  - Chuẩn hóa 3 nguyên tắc bất biến để chuẩn bị cho sự phát triển lâu dài của hệ thống:
+    1. **Playwright Sunsetting & API-First Transition**: Toàn bộ logic so khớp tài chính được giữ nguyên vẹn 100% dạng Pure Logic. Quá trình chuyển đổi từ cào web sang gọi API chỉ thay thế Adapter tại cổng `IIngressPort` mà không xâm lấn Domain.
+    2. **Isolated Domain Execution Logs**: Tách rời log chi tiết chuyên ngành (bảng so khớp, diff breakdown, raw API trace) ra các collection/bảng độc lập (`trading_recon_logs`, `ccp_clearing_logs`). `ShiftLog` của Checklist Hub chỉ lưu tóm tắt (`summary`, `status`, `domainLogRefId`), ngăn chặn triệt để nguy cơ phình to BSON 16MB và nghẽn UI ca trực.
+    3. **Isolated Configuration & Credential Namespaces**: Phân vùng độc lập cấu hình, đường dẫn ổ đĩa và tài khoản mật khẩu theo từng khối nghiệp vụ (QLGD, CCP, IT, Rủi ro) để triệt tiêu nguy cơ ghi đè file, xung đột phiên đăng nhập (session collision) và tranh chấp quyền hạn vận hành.
+  - Đồng bộ 1:1 sang worktree [mxv-modular-refactor/.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.agents/AGENTS.md).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md): Bổ sung Điều Tối Kỵ #6, #7 tại Mục 9.3 và Mục 10.4.
+- `../mxv-modular-refactor/.agents/AGENTS.md`: Đồng bộ 1:1.
+
+### 3. Kiểm thử & Xác nhận Build
+- **NestJS Build (`nest build`)**: Hoàn tất thành công (Exit code 0).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"TKGD Reconciliation & OCR Best Practices Thuật toán bóc tách CCCD chip (MRZ 2 dòng, Dòng 2 kiểm tra Dòng 1, MD5 Hash Heal) là logic nghiệp vụ đặc thù đã kiểm chứng thực tế, không được thay đổi thuật toán này. bỏ thuật này này đi vì đã tách thành service riêng"*
+- **Cơ sở thực tế**:
+  - Module TKGD cùng logic OCR CCCD đã được bóc tách hoàn toàn thành service độc lập (nhánh `feature/tkgd-pipeline` / worktree riêng).
+  - Loại bỏ Mục 6 (TKGD OCR) và các hàng tham chiếu liên quan trong [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md) để tập trung 100% tài nguyên và sự chú ý vào phạm vi cốt lõi của repo: **Checklist Hub + Ingress Layer + Trading Ops + CCP Clearing**.
+  - Đánh số thứ tự chuẩn lại thành đúng 10 mục trong `AGENTS.md` và đồng bộ 1:1 sang worktree `../mxv-modular-refactor/.agents/AGENTS.md`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md):
+  - Xóa Mục 6 cũ ("TKGD Reconciliation & OCR Best Practices").
+  - Xóa hàng TKGD trong bảng Reference Mapping Mục 3.
+  - Xóa các script `run_tkgd_pipeline.ts`, `test_tkgd_end_to_end.ts`, `test_outlook_fetch_tkgd_mails.ts` khỏi Mục 8 ("Danh Mục Test Scripts Chuẩn Hóa").
+  - Đánh số lại các mục từ 1 đến 10 chuẩn chỉ.
+- `../mxv-modular-refactor/.agents/AGENTS.md`: Đồng bộ 1:1.
+
+### 3. Kiểm thử & Xác nhận Build
+- **NestJS Build (`nest build`)**: Hoàn tất thành công (Exit code 0).
+- **NestJS Build (`nest build`)**: Hoàn tất thành công (Exit code 0).
+- **TypeScript Compile (`tsc --noEmit`)**: Không ảnh hưởng đến các modules chính.
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"đồng thời giúp tôi viết rule chuẩn cho ai argen cho riêng backend để mỗi khi đọc sẽ biết được kiến trúc hiện tại để không phải mò mẫm code và sửa theo phỏng đoán tự chế"*
+- **Cơ sở thực tế**:
+  - Tích hợp Phần 10 vào [.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md) (file rule chuẩn luôn tự động nạp vào context của mọi phiên làm việc AI).
+  - Định rõ 3 tầng trách nhiệm (`Checklist Hub` vs `Ingress` vs `Domains`), bản đồ định vị file mục tiêu (Where to look), 5 điều tối kỵ (cấm deep import, cấm đoán path, cấm tự sửa ShiftLog từ domain), và quy trình kiểm chứng bắt buộc.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [.agents/AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md):
+  - Bổ sung Mục 10: "Backend Modular Architecture Standard & AI Engineering Laws".
+- Đồng bộ sang worktree mới: `../mxv-modular-refactor/.agents/AGENTS.md`.
+
+---
+
+## [2026-10-13T08:12] FIX(CQG-RECON): Sửa Lỗi Lệch Đường Dẫn Thư Mục Khi Tự Động Ghép File CQG Trong Phiên (TradingCheck vs Backup CQG)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Vấn đề thực tế từ Log chạy của USER**:
+  - Khi chạy job đối chiếu khớp lệnh định kỳ trong phiên (`CHECK_KLGD`) ngày 13/10/2026, bot đã tải thành công toàn bộ file từ 4 nguồn: MS (`DSGD.xlsx, TTM.xlsx, TTTT.xlsx`), ACM (`Straits.csv`), CoreCCP (`DSGD, TTM, TTTT`), và CQG (`FR1, FR2, OP1, OP2, PS1, PS2`).
+  - Tất cả các file trong phiên được tải về thư mục `TradingCheck` (`TradingCheck/Futures/CQG/2026/T10.2026/13.10`).
+  - Tuy nhiên, ngay sau đó bước auto-merge file thô CQG gọi `this.cqgSyncService.autoMergeMissingFiles(targetDate, keysToMerge, true)` lại tìm thư mục `Backup CQG` (`Backup CQG/Futures/2026/T10.2026/13.10`).
+  - Thư mục Backup ngày 13/10/2026 chưa tồn tại $\rightarrow$ `autoMergeMissingFiles` trả về lỗi:
+    `CQG Merge: Thư mục backup CQG cho ngày 13/10/2026 không tồn tại: /mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/2026/T10.2026/13.10`.
+  - Cơ chế Fail-Fast chặn lại và ném lỗi `[PARTNER_SERVICE_UNAVAILABLE]`, dẫn đến việc các lượt chạy định kỳ liên tiếp (Lượt #18, #19, #20, #21) đều bị dừng và báo lỗi đỏ.
+- **Căn cứ mã nguồn**:
+  - [recon-jobs.handler.ts#L202-L205](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L202-L205): `cqgDailyPath` được thiết lập tại `TradingCheck/Futures/CQG/<subFolder>`.
+  - [cqg-sync.service.ts#L145](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts#L145): `autoMergeMissingFiles` trước đây chỉ quét đường dẫn cố định từ `this.getDailyBackupPath()`, không hỗ trợ `customDir` và không có fallback về `TradingCheck`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [backend/src/modules/bot-engine/cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts):
+  - Bổ sung tham số tùy chọn `customDir?: string` cho cả `scanCqgBackupFiles()` và `autoMergeMissingFiles()`.
+  - Thêm cơ chế Fallback tự động: nếu không truyền `customDir` và thư mục `Backup CQG` chưa tồn tại, tự động kiểm tra xem thư mục `TradingCheck` tương ứng có dữ liệu không để sử dụng.
+  - Mở rộng danh sách tìm kiếm file `TTTT.xlsx` / `TTM.xlsx` của M-System trong `TradingCheck` để phục vụ đối soát ghép nối `PS.xlsx`.
+  - Theo dõi cờ `hasMergeError`: chỉ trả về `success: false` khi có lỗi ghép file thực sự hoặc thiếu file nguồn bắt buộc (`FR1` hoặc `FR2`), trả về `{ success: !hasMergeError, logs }`.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+  - Truyền trực tiếp `cqgDailyPath` vào `autoMergeMissingFiles(targetDate, keysToMerge, true, cqgDailyPath)` để ghép nối trực tiếp tại thư mục chứa 6 file vừa tải về.
+  - Sửa lỗi lọc log `mergeResult.logs.filter((l) => l.includes(''))` sang bộ lọc chính xác các lỗi nghiêm trọng.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Backend Build (`nest build`)**: Hoàn tất thành công (Exit code 0).
+- **Frontend Type Check (`tsc --noEmit`)**: Hoàn tất thành công (Exit code 0).
+
+---
+
+## [2026-10-13T03:56] FEAT(SOD-GTT): Bổ Sung Chức Năng 'Đối Chiếu Giá Thanh Toán CCP/ CE' Vào Trang Kiểm Tra GTT Đầu Phiên
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Trong Kiểm tra Giá thanh toán CE/CCP/TT, ta bổ sung thêm chức năng như "Đối Chiếu Giá Thanh Toán (GTT): CoreEX (CE) vs CoreCCP (VNCLEAR)" trong phần "GIÁM SÁT VẬN HÀNH GIAO DỊCH (CORECCP & COREEX)" va khi cho vào box Kiểm tra Giá thanh toán CE/CCP/TT, ta đổi tên chức năng thành " Đối chiếu giá thanh toán CCP/ CE""*
+- **Cơ sở thực tế**:
+  - Trong phân hệ Giám sát CoreCCP & CoreEX, component [CeCcpGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx) chịu trách nhiệm đối soát chéo bảng giá thanh toán (Settlement Price) giữa sàn CoreEX và hệ thống bù trừ CoreCCP.
+  - Tích hợp component này vào trang chi tiết `/trading-manager/session-open/gtt`, hiển thị đồng thời cả hai phân hệ đối chiếu GTT (M-System vs CQG vs TT và CoreEX vs CoreCCP).
+  - Chuẩn hóa tên gọi của chức năng khi hiển thị trong trang này là **"Đối chiếu giá thanh toán CCP/ CE"**.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx):
+  - Thêm prop tùy chọn `titleOverride?: string` vào `CeCcpGttCheckerSectionProps`.
+  - Hiển thị linh hoạt tiêu đề H3 theo `titleOverride` khi được truyền vào (fallback về tiêu đề mặc định khi dùng ở các màn hình khác).
+- [frontend/src/app/trading-manager/session-open/gtt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/gtt/page.tsx):
+  - Nhập khẩu `CeCcpGttCheckerSection`.
+  - Thiết kế thanh Tabs 3 chế độ: `Tất cả (2)`, `Kiểm tra Giá thanh toán CE/CCP/TT` và `Đối chiếu giá thanh toán CCP/ CE`.
+  - Truyền `titleOverride="Đối chiếu giá thanh toán CCP/ CE"` vào component.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"cho chức năng của Check TKGD âm KQ mới vào Đối chiếu kết quả EOD và để chung trong đấy luôn, chung làm box tên là "Đối chiếu kết quả EOD""*
+- **Cơ sở thực tế**:
+  - Nghiệp vụ kiểm tra tài khoản giao dịch âm ký quỹ mới (Negative Margin Check) gắn liền chặt chẽ với quy trình sau khi chạy đóng sổ EOD.
+  - Gom hai tác vụ này về chung một box duy nhất có tên **"Đối chiếu kết quả EOD"** trên trang chủ Nghiệp vụ đầu phiên (giảm tổng số box còn 4 box).
+  - Bên trong trang chi tiết `/trading-manager/session-open/eod-result`, hiển thị đồng thời cả hai chức năng (`LegacyEodResultSection` & `LegacyNegativeMarginSection`) với thanh Tabs tiện ích cho phép xem Tất cả (2) hoặc chuyển đổi nhanh giữa từng nội dung.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx):
+  - Xóa bỏ box riêng `SOD_TKGD_AM_KQ` khỏi mảng `sodModules`. Danh sách box Nghiệp vụ đầu phiên còn đúng 4 box tinh gọn.
+- [frontend/src/app/trading-manager/session-open/eod-result/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/eod-result/page.tsx):
+  - Nhập khẩu component [LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx).
+  - Thêm state `activeTab` và thanh điều hướng Tabs (`Tất cả (2)`, `Đối chiếu kết quả EOD`, `Check TKGD âm KQ mới`).
+  - Render đồng thời cả hai phần nghiệp vụ theo tab được chọn hoặc xem toàn diện.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Đổi tên các box thành như sau:*
+    *- Check KLGD/TTM/TTTT phiên cũ => Đối chiếu giao dịch trước EOD*
+    *- Check GTT CE/CCP/TT => Kiểm tra Giá thanh toán CE/CCP/TT*
+    *- Check Kết Quả EOD => Đối chiếu kết quả EOD*
+    *- Check đồng bộ CE/CCP/TT (update sau) -> Kiểm tra đồng bộ CE/CCP/TT"*
+- **Cơ sở thực tế**:
+  - Chuẩn hóa thuật ngữ nghiệp vụ tiếng Việt chính xác, đồng bộ tên gọi hiển thị trên danh sách hàng dài của trang chủ Nghiệp vụ đầu phiên và tiêu đề H1 bên trong 4 trang chức năng con tương ứng.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx):
+  - Cập nhật 4 tiêu đề trong mảng `sodModules`:
+    + `Check KLGD/TTM/TTTT phiên cũ` $\rightarrow$ `Đối chiếu giao dịch trước EOD`
+    + `Check GTT CE/CCP/TT` $\rightarrow$ `Kiểm tra Giá thanh toán CE/CCP/TT`
+    + `Check kết quả EOD` $\rightarrow$ `Đối chiếu kết quả EOD`
+    + `Check đồng bộ CE/CCP/TT (update sau)` $\rightarrow$ `Kiểm tra đồng bộ CE/CCP/TT`
+- [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+  - Đồng bộ tiêu đề H1 thành `Đối chiếu giao dịch trước EOD` và thông báo toast.
+- [frontend/src/app/trading-manager/session-open/gtt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/gtt/page.tsx):
+  - Đồng bộ tiêu đề H1 thành `Kiểm tra Giá thanh toán CE/CCP/TT`.
+- [frontend/src/app/trading-manager/session-open/eod-result/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/eod-result/page.tsx):
+  - Đồng bộ tiêu đề H1 thành `Đối chiếu kết quả EOD`.
+- [frontend/src/app/trading-manager/session-open/sync-ce-ccp-tt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/sync-ce-ccp-tt/page.tsx):
+  - Đồng bộ tiêu đề H1 thành `Kiểm tra đồng bộ CE/CCP/TT`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Trong phần "Nghiệp vụ đầu phiên":*
+    *- bỏ box "Danh mục 5 nghiệp vụ giám sát đầu phiên", vì sau có thể bổ sung thêm nhiều mục nữa*
+    *- tối giản các box lại -> thay đổi dạng box thành box dài và các box xếp thứ tự thành hàng , mỗi box chỉ hiện tên box và biểu tượng mũi tên ấn vào thôi (không còn những chữ nhỏ)"*
+- **Cơ sở thực tế**:
+  - Loại bỏ hoàn toàn khối banner giới hạn "Danh mục 5 nghiệp vụ" để sẵn sàng mở rộng thêm danh mục không giới hạn sau này.
+  - Chuyển giao diện từ dạng lưới thẻ (Grid card to, nhiều text nhỏ, mã SOD-xx, nút phụ) sang **dạng hàng dài (Horizontal row strips)** xếp lần lượt từ trên xuống dưới.
+  - Tối giản triệt để nội dung hiển thị trong từng box: Chỉ giữ lại **Icon nhận diện + Tên nghiệp vụ** ở bên trái và **Biểu tượng mũi tên điều hướng (`ChevronRight`)** ở bên phải; loại bỏ toàn bộ các chữ nhỏ rườm rà.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx):
+  - Xóa bỏ khối Banner hướng dẫn màu vàng cam.
+  - Chuyển container từ CSS Grid sang Vertical Stack (`flex-direction: column`, `gap: 12px`).
+  - Thiết kế mỗi box dạng hàng dài (Full-width strip card), padding `16px 20px`, bo góc `12px`.
+  - Hiển thị tinh gọn: Khối icon bo tròn màu đặc trưng + Tên box chữ đậm rõ nét, phía đối diện là nút mũi tên chỉ báo thao tác ấn vào (`ChevronRight`).
+  - Tích hợp hiệu ứng micro-interaction khi hover: trượt nhẹ (`translateX(4px)`), sáng viền theo màu chủ đạo của tác vụ.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"chỉnh sửa 1 chút thanh menu:*
+    *- Kéo độ rộng menu sang một tí để các chữ được kéo thành 1 dòng*
+    *- thu khoảng cách gap giữa viền ô và cạnh khung menu để tăng diện tích để chữ*
+    *- Sắp xếp cho phần "Đối chiếu giao dịch lên" swap vị trị với " Nghiệp vụ đầu phiên""*
+- **Cơ sở thực tế**:
+  - Trước đây chiều rộng Sidebar là `260px` cùng khoảng cách lề trái/phải lớn (`padding-left: 24px`, `margin-right: 24px`), làm diện tích khả dụng cho text của các mục menu bị thu hẹp còn ~150px khiến các tiêu đề dài ("Nghiệp vụ đầu phiên", "Đối chiếu giao dịch", "Giám Sát CoreCCP & CE"...) bị gãy xuống 2 dòng.
+  - Sau khi tăng độ rộng lên `280px`, giảm lề viền ô xuống `14px`, và thu gọn padding bên trong của `.nav-link` từ `16px` xuống `12px` (gap `10px`), diện tích hiển thị text tăng lên ~200px, đảm bảo 100% mục menu hiển thị liền mạch trên đúng **1 dòng duy nhất**.
+  - Đưa "Đối chiếu giao dịch" lên trước "Nghiệp vụ đầu phiên" nhằm ưu tiên tính trực quan theo tần suất giám sát trong ca trực.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/globals.css](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/globals.css):
+  - Tăng chiều rộng `.sidebar` từ `260px` lên `280px` (`calc(280px / var(--app-zoom, 1))`).
+  - Giảm lề `padding` bên trái và `margin-right` của các phần tử con từ `24px` xuống `14px`.
+  - Cập nhật `.nav-link`: `padding: 10px 12px`, `gap: 10px`, `margin-bottom: 4px`, bổ sung `white-space: nowrap` cho cả thẻ và `.nav-link span`.
+  - Đồng bộ media query responsive `@media (max-width: 1023px)` với độ rộng `280px`.
+- [frontend/src/components/GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/GlobalLayout.tsx):
+  - Đồng bộ `marginLeft` và `width` của Right Content Column từ `260px` sang `280px` khi sidebar mở (`isCollapsed === false`).
+- [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
+  - Hoán đổi vị trí thứ tự hiển thị: Đưa mục **"Đối chiếu giao dịch"** (`/trading-manager/reconciliation`) lên trước mục **"Nghiệp vụ đầu phiên"** (`/trading-manager/session-open`).
+  - Tinh chỉnh `margin` của `.sidebar-section-header` từ `16px` sang `12px` để căn lề thẳng hàng đồng bộ với các icon menu.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"tôi lấy ví dụ màn hình giao dịch của 1 chức năng trong box:*
+    *- thay "chuyển về dashboard" sang phần " Chuyển về nghiệp vụ đầu phiên" -> kéo tiêu đề về sát bên trái*
+    *giờ chỉnh lại với tất cả các chức năng khác của các box khác"*
+- **Cơ sở thực tế**:
+  - Khi người dùng đang ở trong trang chi tiết của một chức năng con thuộc một Box bất kỳ trong phân hệ "Nghiệp vụ đầu phiên", nút quay về ở góc trên bên phải phải chuyển về trang chủ của phân hệ đó (`/trading-manager/session-open`), thay vì nhảy ra Dashboard tổng (`/dashboard`).
+  - Xóa bỏ nút quay lại ở bên trái tiêu đề để kéo toàn bộ Tiêu đề (Badge `NGHIỆP VỤ ĐẦU PHIÊN (SOD)` + H1) về sát lề trái, tạo cảm giác thoáng đãng và bố cục chuẩn Enterprise UI.
+  - Đồng bộ thống nhất 100% trên toàn bộ 5 trang con của các box.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+  - Xóa nút quay lại bên trái tiêu đề, kéo tiêu đề "Check KLGD/TTM/TTTT phiên cũ" về sát lề trái.
+  - Đổi nút hành động góc phải từ `Dashboard` sang `Nghiệp vụ đầu phiên` (`<Link href="/trading-manager/session-open">`).
+- [frontend/src/app/trading-manager/session-open/gtt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/gtt/page.tsx):
+  - Kéo tiêu đề "Check GTT CE/CCP/TT" về sát lề trái.
+  - Đổi nút hành động góc phải thành `Nghiệp vụ đầu phiên`.
+- [frontend/src/app/trading-manager/session-open/eod-result/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/eod-result/page.tsx):
+  - Kéo tiêu đề "Check kết quả EOD" về sát lề trái.
+  - Đổi nút hành động góc phải thành `Nghiệp vụ đầu phiên`.
+- [frontend/src/app/trading-manager/session-open/negative-margin/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/negative-margin/page.tsx):
+  - Kéo tiêu đề "Check TKGD âm KQ mới" về sát lề trái.
+  - Đổi nút hành động góc phải thành `Nghiệp vụ đầu phiên`.
+- [frontend/src/app/trading-manager/session-open/sync-ce-ccp-tt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/sync-ce-ccp-tt/page.tsx):
+  - Kéo tiêu đề "Check đồng bộ CE/CCP/TT (update sau)" về sát lề trái.
+  - Đổi nút hành động góc phải thành `Nghiệp vụ đầu phiên`.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Các box tương ứng với tên chức năng dưới đây:*
+    *+ Check KLGD/TTM/TTTT phiên cũ*
+    *+ Check GTT CE/CCP/TT*
+    *+ Check kết quả EOD*
+    *+ Check TKGD âm KQ mới*
+    *+ Check đồng bộ CE/CCP/TT (update sau),*
+    *Lưu ý khi ấn vào từng box thì sẽ ra một trang mới chỉ hiển thị chức năng của box đó thôi"*
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx):
+  - Cập nhật đúng 5 Box chức năng theo danh mục yêu cầu của người dùng.
+  - Mỗi box được gắn liên kết chuyển hướng (`<Link href="...">`) sang một trang chuyên biệt độc lập.
+- [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+  - Trang riêng cho chức năng **"Check KLGD/TTM/TTTT phiên cũ"**, chỉ hiển thị bảng đối chiếu 3 bên `LegacyPreEodDiffSection`.
+- [frontend/src/app/trading-manager/session-open/gtt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/gtt/page.tsx):
+  - Trang riêng cho chức năng **"Check GTT CE/CCP/TT"**, chỉ hiển thị bảng đối chiếu giá thanh toán `LegacyGttCheckerSection`.
+- [frontend/src/app/trading-manager/session-open/eod-result/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/eod-result/page.tsx):
+  - Trang riêng cho chức năng **"Check kết quả EOD"**, chỉ hiển thị component `LegacyEodResultSection`.
+- [frontend/src/app/trading-manager/session-open/negative-margin/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/negative-margin/page.tsx):
+  - Trang riêng cho chức năng **"Check TKGD âm KQ mới"**, chỉ hiển thị component `LegacyNegativeMarginSection`.
+- [frontend/src/app/trading-manager/session-open/sync-ce-ccp-tt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/sync-ce-ccp-tt/page.tsx):
+  - Trang riêng cho chức năng **"Check đồng bộ CE/CCP/TT (update sau)"**, hiển thị giao diện thông báo lộ trình nâng cấp và mô hình đồng bộ 3 chiều.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx):
+  - Đóng gói component độc lập phục vụ kiểm tra và quét danh sách tài khoản âm ký quỹ.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx):
+  - Đóng gói component độc lập phục vụ đối chiếu và kiểm tra kết quả đóng sổ EOD.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+## [2026-10-13T01:14] FEAT(SOD-DASHBOARD): Khởi Tạo Phân Hệ 'Nghiệp Vụ Đầu Phiên' (SOD) Bố Cục Box Card Tương Tác Trực Quan
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Ok, nhiệm vụ tiếp theo sẽ là: tôi muốn sắp xếp các chức năng giám sát ở các ở phần minh đã làm từ trước theo kết cấu khác:*
+    *- Trong phần menu, tạo tiếp giúp tôi phần "Nghiệp vụ đầu phiên"*
+    *- Trong phần "Nghiệp vụ đầu phiên", sẽ có các chức năng nhỏ trong đó, tôi muốn thiết kế mỗi chức năng là 1 box, các box sẽ xếp theo hình thức ưng mắt nhất trong phần này, khi cần user có thể ấn vào từng box để thực hiện chức năng đó*
+    *=> Thể hiện cho tôi xem trước nhé"*
+- **Cơ sở thực tế**:
+  - Tái cấu trúc các tác vụ mở cửa phiên (Start of Day - SOD) từ các màn hình rải rác trước đây thành một Bàn điều khiển tập trung theo dạng Lưới Thẻ (Action Card Tiles).
+  - Tích hợp 6 nghiệp vụ đầu phiên cốt lõi: (1) Đối chiếu giá thanh toán GTT, (2) Quét tài khoản âm ký quỹ, (3) Đồng bộ số dư CQG, (4) Tải báo cáo RPA đầu ngày, (5) Kiểm tra tính đầy đủ file thô 3 bên, (6) Giám sát kết nối 5 cổng giao dịch.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx):
+  - Tạo mới trang Bàn điều khiển **"NGHIỆP VỤ ĐẦU PHIÊN"** (`/trading-manager/session-open`).
+  - Thiết kế Lưới 6 Box nghiệp vụ (Responsive Grid 3 cột) với hiệu ứng hover bóng đổ, viền màu chủ đạo, badge trạng thái (Ready, Warning, Completed), chỉ số metric tóm tắt và nút thao tác riêng.
+  - Hỗ trợ nút chạy một chạm `Chạy toàn bộ đầu phiên` (Batch SOD Trigger).
+  - Tích hợp khu vực thao tác sâu khi ấn vào box: Drawer mở trực tiếp bảng chi tiết GTT (`LegacyGttCheckerSection`), bảng đối chiếu CQG (`LegacyCqgSyncSection`) hoặc bảng kiểm tra kết nối cổng.
+- [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx#L327-L338):
+  - Nhập khẩu icon `Sunrise` từ `lucide-react`.
+  - Thêm mục điều hướng **"Nghiệp vụ đầu phiên"** (`/trading-manager/session-open`) ở vị trí ưu tiên đầu tiên trong phân nhóm Giám sát.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+## [2026-10-13T00:54] CHORE(RECON-UI): Tinh Gọn Header & Toolbar Đối Chiếu Giao Dịch (Bỏ Dòng Phụ, Nút Hướng Dẫn & Badge Trùng Lặp)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Trong phần đối chiếu giao dịch, bỏ chữ nhỏ "M-System (MXV) ↔ CQG ↔ Straits/ACM", bỏ "Hướng dẫn", bỏ trạng thái " Tự động đang tắt" ở trên bảng đối chiếu, chỉ để phần trạng thái: Tự động: ĐÃ DỪNG ở dưới thôi"*
+- **Cơ sở thực tế**:
+  - Tránh trùng lặp trạng thái tự động giữa thanh toolbar trên bảng và thanh action bar dưới bảng.
+  - Tối giản tiêu đề header theo định hướng Enterprise UI sạch sẽ.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/reconciliation/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/reconciliation/page.tsx):
+  - Xóa bỏ dòng chữ nhỏ `M-System (MXV) ↔ CQG ↔ Straits/ACM` cạnh badge phân hệ.
+  - Xóa bỏ nút `"Hướng dẫn"` (`BookOpen`) trên thanh hành động góc phải.
+- [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx#L178-L184):
+  - Xóa bỏ dòng chữ nhỏ `M-System (MXV) ↔ CQG ↔ Straits/ACM` đồng bộ với trang đối chiếu.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L1187-L1215):
+  - Loại bỏ hoàn toàn badge màu đỏ `Tự động đang tắt` trên thanh công cụ phía trên bảng đối chiếu khi `!autoReconActive`.
+  - Chỉ hiển thị thời gian đếm ngược hoặc lịch quét khi `autoReconActive === true`.
+  - Duy trì duy nhất trạng thái kiểm soát tự động tại nút `Tự động: ĐÃ DỪNG` / `Tự động: BẬT` ở thanh điều khiển phía dưới bảng đối chiếu.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+## [2026-10-13T00:47] FEAT(SIDEBAR-RECON): Bổ Sung Mục Menu & Màn Hình Chuyên Biệt 'Đối Chiếu Giao Dịch' Thường Xuyên Trong Phiên
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"Trong phần menu: cho tôi một phần chỉ riêng đối chiếu giao dịch, trong phần này chỉ có chức năng đối chiếu giao dịch thường xuyên, giống như ở tab "Đối chiếu giao dịch" trong phần Giám sát giao dịch"*
+- **Cơ sở thiết kế**:
+  - Tách riêng chức năng đối chiếu khớp lệnh định kỳ/thường xuyên trong phiên (KLGD) ra thành một màn hình độc lập tinh gọn, không chứa các tab EOD, Backup, Cấu hình hay Logs gây phân tâm.
+  - Sử dụng lại trực tiếp component chuẩn [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx) với chế độ `viewMode="KLGD_ONLY"`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/app/trading-manager/reconciliation/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/reconciliation/page.tsx):
+  - Tạo mới trang chuyên biệt **"ĐỐI CHIẾU GIAO DỊCH"** (`/trading-manager/reconciliation`).
+  - Tích hợp tiêu đề, chế độ Toàn màn hình (Fullscreen), Modal hướng dẫn và nút quay về Dashboard.
+  - Nhúng `<LegacyReconSection viewMode="KLGD_ONLY" ... />` đảm bảo đầy đủ các chức năng: Check định kỳ (15p/30p/60p), đếm ngược thời gian, nút dừng khẩn cấp bot, bảng ma trận khớp lệnh 3x4 (KLGD, TTM, TTTT của M-System vs CQG vs ACM vs Nano), nút Check thủ công màu xanh nổi bật, chi tiết danh sách lệnh khớp lệch và xem lịch sử các lượt check.
+- [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx#L328-L338):
+  - Bổ sung icon `ArrowLeftRight` từ thư viện `lucide-react`.
+  - Bổ sung liên kết điều hướng **"Đối chiếu giao dịch"** (`/trading-manager/reconciliation`) vào vị trí ưu tiên đầu danh sách phân nhóm Giám sát.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
+## [2026-10-13T00:38] CHORE(SIDEBAR-UI): Ẩn Các Mục 'Ca Trực Hiện Tại', 'Tra Cứu Lịch Sử' & 'Cấu Hình' Khỏi Menu Giám Sát (Bảo Toàn 100% Chức Năng)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu từ USER**:
+  - *"trong phần menu giám sát, ẩn đi giúp tôi phần "Ca trục hiện tại", "Tra cứu lịch sử", "Cấu hình", lưu ý là ẩn đi chứ không bỏ các chức năng trong đó"*
+- **Nguyên tắc**: Ẩn hiển thị trên giao diện thanh điều hướng Sidebar ở mục "Giám sát", tuyệt đối không xóa route, component hay logic nghiệp vụ của các trang `/checklist`, `/history`, `/settings`. Người dùng vẫn có thể điều hướng hoặc truy cập bình thường từ các liên kết/dashboard hoặc menu người dùng.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết thay đổi
+- [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx#L305-L360):
+  - Ẩn liên kết `"Ca trực hiện tại"` (`href="/checklist"`).
+  - Ẩn liên kết `"Tra cứu lịch sử"` (`href="/history"`).
+  - Ẩn liên kết `"Cấu hình"` (`href="/settings"`).
+  - Giữ lại đầy đủ các mục còn lại trong menu Giám sát: `"Tổng quan"` (`/dashboard`), `"Giám Sát MS & CQG"` (`/trading-manager/ms-cqg`), `"Giám Sát CoreCCP & CE"` (`/trading-manager/ccp-ce`), `"Trading Manager (Hub)"` (`/trading-manager`).
+  - Toàn bộ code liên kết được bảo lưu nguyên vẹn dưới dạng JSX comment có chú thích rõ ràng.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Type Check (`node ./node_modules/typescript/bin/tsc --noEmit`)**: Đạt chuẩn 100% (Pass, Exit code 0, không có bất kỳ lỗi kiểu dữ liệu hay cú pháp).
+
+---
+
 ## [2026-10-12T15:25] FIX(TRADING-MANAGER-EOD): Tách Bạch Hoàn Toàn EOD & Pre-EOD, Khắc Phục Báo Khớp Giả Khi Chờ File (Zero-Silent-Swallow)
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

@@ -62,22 +62,31 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
      - `OD1` + `OD2` $\rightarrow$ `Od.xlsx` (Sổ lệnh)
 
 3. **Phân định Tác vụ Đối chiếu trong phiên vs Pre-EOD**:
-   - **Task `[TASK_CHECK_KLGD]`** (*Giám sát & Đối chiếu MS vs CQG trong phiên*): Dùng `botCheckType: 'CHECK_KLGD'` và hàm `runAutoCheckKLGD` (định kỳ 1 giờ/lần).
-   - **Task Pre-EOD** (*Chốt đối chiếu 3 bên cuối ngày*): Dùng `botCheckType: 'CHECK_PRE_EOD'` và hàm `runAutoCheckPreEOD`.
+   - **Tác vụ Trong phiên (CHECK_KLGD)** (*Giám sát & Đối chiếu MS vs CQG trong phiên*):
+     - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_KLGD'`.
+     - Monolith V1: Thực thi qua `runAutoCheckKLGD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
+     - Modular Monolith V2: Thực thi qua `KlgdReconWorker` ([klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts)) thuộc phân hệ `trading-ops`.
+   - **Tác vụ Cuối ngày (CHECK_PRE_EOD)** (*Chốt đối chiếu 3 bên cuối ngày*):
+     - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_PRE_EOD'`.
+     - Monolith V1: Thực thi qua `runAutoCheckPreEOD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
+     - Modular Monolith V2: Thực thi qua `PreEodReconWorker` ([pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts)) thuộc phân hệ `trading-ops`.
 
 ---
 
-## 3. Reference Mapping: C# IT Tool vs NestJS/Next.js System
+## 3. Reference Mapping: C# IT Tool vs Monolith V1 vs Modular Monolith V2
 
-| Chức năng Nghiệp vụ | C# Source File & Method | NestJS / Next.js Service & Method |
-| :--- | :--- | :--- |
-| **Đối chiếu KLGD Trong Phiên** | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` | `reconciliation.service.ts` $\rightarrow$ `checkKLGD()` & `runAutoCheckKLGD()` |
-| **Đối chiếu Pre-EOD (T-1)** | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` / `CheckEOD()` | `reconciliation.service.ts` $\rightarrow$ `checkPreEOD()` & `runAutoCheckPreEOD()` |
-| **Đọc File Straits CSV (ACM)** | `FileUtils.cs` $\rightarrow$ `GetTradingNanoData()` | `reconciliation.service.ts` $\rightarrow$ `parseStraitsCsv()` |
-| **Tự động ghép file thô CQG** | `TransactionCheckingService.cs` / `FileUtils.cs` | `reconciliation.service.ts` $\rightarrow$ `mergeCqgRawFiles()` & `cqg-sync.service.ts` |
-| **Quét Ký quỹ Âm (Negative Margin)**| `margin-checker` $\rightarrow$ `MarginChecking.cs` | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` |
-| **Tải báo cáo RPA M-System/CQG** | `operate-transaction-app` $\rightarrow$ `ChromeBot.cs` | `rpa-downloader.service.ts` $\rightarrow$ `loginMSystem()`, `downloadTTM()`, `downloadDSGD()` |
-| **Thống kê Báo cáo CCP (Macro)** | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs` | `bot-job-queue.service.ts` $\rightarrow$ `handleRunLotMacroJob()`, `handleRunValueMacroJob()` |
+| Chức năng Nghiệp vụ | C# Source File & Method | Monolith V1 (Cũ - Đang Chạy) | Modular Monolith V2 (Mới - Chuẩn Kiến Trúc) |
+| :--- | :--- | :--- | :--- |
+| **Tải Báo cáo M-System (RPA / API)** | `ChromeBot.cs` | `rpa-downloader.service.ts` | `modules/ingress/scrapers/ms-scraper.service.ts` & `ms-api.adapter.ts` |
+| **Tải Báo cáo CQG (Song song 2 TK)** | `ChromeBot.cs` | `rpa-downloader.service.ts` | `modules/ingress/scrapers/cqg-scraper.service.ts` & `cqg-api.adapter.ts` |
+| **Tải Báo cáo ACM (Straits CSV)** | SFTP / Web | `rpa-downloader.service.ts` | `modules/ingress/scrapers/acm-scraper.service.ts` |
+| **Tải Báo cáo CCP (25 file)** | Browser | `rpa-downloader.service.ts` | `modules/ingress/scrapers/ccp-scraper.service.ts` & `coreccp-api.adapter.ts` |
+| **Ghép file thô CQG (`FR, PS, OP, Od`)**| `FileUtils.cs` | `cqg-sync.service.ts` | `modules/trading-ops/services/cqg-merger.service.ts` |
+| **Đối chiếu KLGD Trong Phiên** | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` | `reconciliation.service.ts` $\rightarrow$ `checkKLGD()` | `modules/trading-ops/services/klgd-recon.service.ts` (`KlgdReconWorker`) |
+| **Đối chiếu Pre-EOD 3 Bên** | `TransactionCheckingService.cs` $\rightarrow$ `CheckEOD()` | `reconciliation.service.ts` $\rightarrow$ `checkPreEOD()` | `modules/trading-ops/services/pre-eod-recon.service.ts` (`PreEodReconWorker`) |
+| **Quét Ký Quỹ Âm (Post-EOD)** | `margin-checker` $\rightarrow$ `MarginChecking.cs` | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` | `modules/trading-ops/services/margin-checker.service.ts` (`NegativeMarginWorker`) |
+| **Thống kê Lot & Giá trị CCP (Macro)** | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs` | `bot-job-queue.service.ts` $\rightarrow$ `handleRun*MacroJob()` | `modules/ccp-clearing/services/lot-statistics.service.ts` (`CcpLotWorker`) |
+| **Điều phối Job Bot & Cập nhật Ca** | Windows Task Scheduler | `bot-engine.service.ts` & `bot-job-queue.service.ts` | `modules/checklist-hub/dispatcher/bot-dispatcher.service.ts` |
 
 ---
 
@@ -93,7 +102,7 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
    - Các React hooks (`useState`, `useMemo`, `useEffect`...) phải luôn được khai báo ở trên cùng (top-level) của component, trước mọi câu lệnh return sớm (early returns). Không bao giờ đặt hook bên trong hoặc bên dưới các điều kiện `if (!isOpen) return null;`.
 
 3. **Cơ chế Cooldown tránh lặp Job**:
-   - Khi bot quét các tác vụ chưa có file hoặc gặp sự cố, phải dùng phương thức helper `shouldEnqueueNewJob(task, existingJob)` trong [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/bot-engine.service.ts) để áp dụng khoảng nghỉ (cooldown 15 phút hoặc theo tần suất) nhằm ngăn việc tạo hàng loạt Job chạy trùng lặp mỗi phút.
+   - Khi bot quét các tác vụ chưa có file hoặc gặp sự cố, phải dùng phương thức helper `shouldEnqueueNewJob(task, existingJob)` (trong Monolith V1: [bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts); trong Modular V2: `modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`) để áp dụng khoảng nghỉ (cooldown 15 phút hoặc theo tần suất) nhằm ngăn việc tạo hàng loạt Job chạy trùng lặp mỗi phút.
 
 4. **Chuẩn hóa Tiền tố API ở Frontend (`/api/v1`)**:
    - Tất cả các lệnh gọi fetch dữ liệu từ Frontend lên Backend đều phải prepend tiền tố `/api/v1` (ví dụ: `${API_BASE_URL}/api/v1/reconciliation/...`). Không gọi trực tiếp qua URL không có versioning.
@@ -119,30 +128,7 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 
 ---
 
-## 6. TKGD Reconciliation & OCR Best Practices (Quy tắc Đối Soát Hồ Sơ Mở TKGD & Bóc Tách Ảnh)
-
-Để tránh tái diễn các lỗi lệch giả (False Positive) khi bóc tách hồ sơ và quét lại (reparse) trên module TKGD:
-
-1. **Phân cấp File Đính Kèm Khách Hàng vs Bằng Chứng M-System (`_MS_`)**:
-   - Thư mục hồ sơ (`HoSo_DinhKem/<Ngày>/<Mã TKGD>/`) chứa 2 nguồn ảnh:
-     - **File gốc đính kèm email của khách hàng** (ví dụ: `HOANG-THANH-TUNG-CCCD-truoc.jpg`, `LE-TRONG-HUY-CCCD-...` độ phân giải cao ~1000px).
-     - **File thumbnail bằng chứng do Bot RPA cào về từ web M-System** (ví dụ: `003C2886699_MS_CCCD_truoc.jpg` kích thước siêu nhỏ chỉ **270x172px**).
-   - **Quy tắc tuyệt đối**: Hàm quét file (`scanDirForFiles`, `scanSingleAccountFiles`) **phải lọc bỏ các file có tiền tố `_MS_`, `chuky`, `signature`, `sign`**. Luôn ưu tiên 100% file ảnh gốc của khách hàng (`customerFiles`). Chỉ fallback sang ảnh thumbnail M-System khi khách hàng hoàn toàn không gửi kèm file ảnh. Việc OCR trên ảnh thumbnail 270px sẽ gây mờ nhòe chữ số, đọc nhầm số CCCD (ví dụ `5` thành `6`) và hạ thấp độ tin cậy AI xuống < 50%.
-
-2. **Quy tắc Bóc Tách MRZ 2 Dòng (Dòng 2 kiểm tra Dòng 1)**:
-   - Thẻ CCCD gắn chip (2021–nay) có mã MRZ gồm 2 dòng ở mặt sau:
-     - Dòng 1: `IDVNM<12 chữ số CCCD><mã bổ sung>...`
-     - Dòng 2: Ngày sinh dạng `YYMMDD` + Giới tính `M/F` + Ngày hết hạn.
-   - **Quy tắc**: Trong [tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/scripts/python/tkgd_extractor_worker.py), **luôn xử lý Dòng 2 trước Dòng 1**. Khi tìm số CCCD ứng viên từ Dòng 1 bằng Regex, **bắt buộc kiểm tra 2 chữ số năm sinh (`cccd[4:6]`) phải trùng khớp với `YY` của Dòng 2**. Không sử dụng regex tham lam `0\d{11}` độc lập để tránh hiện tượng cắt nhầm chuỗi số ma (Phantom CCCD, ví dụ: `087035120803` gây suy luận sai năm sinh về 1935 và giới tính Nữ).
-
-3. **Bảo Chứng Chéo Hash Ảnh (`verifyAndHealWithImageHash`) & Thứ Tự Ưu Tiên Trường**:
-   - Khi mã MD5 của ảnh đính kèm mail trùng khớp 100% với ảnh upload trên M-System, danh tính đã được kiểm chứng chuẩn xác qua M-System.
-   - **Thứ tự ưu tiên trường thông tin khi heal**: Luôn ưu tiên trường dữ liệu đã được M-System xác thực (`record.ms?.ngaySinh || record.canCuoc?.ngaySinh || record.hopDong?.ngaySinh`), tuyệt đối không để trường dữ liệu OCR lỗi đè lên trường của M-System.
-   - Kích hoạt `verifyAndHealWithImageHash` cho cả tài khoản cơ sở và tiểu khoản (`-A`, `-L`, `-S` / PL01) trước khi gọi hàm thẩm định đối soát `evaluateRecordReconciliation`.
-
----
-
-## 7. Zero Hardcoded Task IDs & Dynamic Bot Resolver Rule (Quy tắc Tuyệt đối Không Hardcode Task ID)
+## 6. Zero Hardcoded Task IDs & Dynamic Bot Resolver Rule (Quy tắc Tuyệt đối Không Hardcode Task ID)
 
 Để đảm bảo hệ thống hoàn toàn linh hoạt khi người dùng tạo/sửa Template ca trực trên giao diện Web mà không cần can thiệp vào code:
 
@@ -162,7 +148,7 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 
 ---
 
-## 8. Universal Zero-Hardcoding & Data-Driven Architecture Standard (Quy Chuẩn Chung Về Thiết Kế Động & Chống Hardcode)
+## 7. Universal Zero-Hardcoding & Data-Driven Architecture Standard (Quy Chuẩn Chung Về Thiết Kế Động & Chống Hardcode)
 
 Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các module phần mềm** (Checklist, Bot Engine, Reconciliation, TKGD, Trading Manager, Admin Config...) trong dự án hiện tại và tất cả các dự án phát triển về sau:
 
@@ -203,7 +189,7 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
 
 ---
 
-## 9. Danh Mục Test Scripts Chuẩn Hóa Của Dự Án (Standard Test Scripts Registry)
+## 8. Danh Mục Test Scripts Chuẩn Hóa Của Dự Án (Standard Test Scripts Registry)
 
 Để tránh việc phải viết lại test script mới mỗi lần debug hoặc kiểm thử, AI Assistant và Lập trình viên BẮT BUỘC tra cứu và ưu tiên gợi ý các file test chuẩn hóa đã có sẵn trong dự án:
 
@@ -224,7 +210,6 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
 | Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
 | :--- | :--- | :--- |
 | **`test_m365_eod_email.ts`** | `ts-node src/scripts/test_m365_eod_email.ts`<br/>*hoặc* `npm run test:eod-email` | Chẩn đoán toàn diện kết nối Microsoft 365, kiểm tra hiệu lực Refresh Token, quyền Graph API `/me/messages`, quét và tải thử file `EOD.csv` từ `it.support@mxv.vn`. |
-| **`test_outlook_fetch_tkgd_mails.ts`** | `ts-node src/scripts/test_outlook_fetch_tkgd_mails.ts` | Quét hòm thư và kiểm tra tải các email kèm file đính kèm hồ sơ mở TKGD từ khách hàng. |
 
 ### 4. Nhóm Core CCP & Thống Kê Lot / Giá Trị (Macro)
 | Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
@@ -232,14 +217,114 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
 | **`test_ccp_download_25_files.js`** | `node src/scripts/test_ccp_download_25_files.js --headed`<br/>*hoặc* `npm run test:ccp-25` | Tải toàn bộ 25 báo cáo từ CoreCCP (`https://uat-coreccp.mxv.com.vn`), tự động xử lý phân trang và chọn rổ báo cáo. |
 | **`test_ccp_statistics_suite.ts`** | `ts-node src/scripts/test_ccp_statistics_suite.ts` | Bộ kiểm thử nghiệp vụ tính toán Thống kê Lot và Giá trị giao dịch CCP theo logic C# Macro sang TypeScript. |
 
-### 5. Nhóm Đối Chiếu Số Liệu & TKGD (Reconciliation & Pipelines)
+### 5. Nhóm Đối Chiếu Số Liệu Pre-EOD 3 Bên
 | Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
 | :--- | :--- | :--- |
 | **`run_auto_check_pre_eod_active.ts`** | `ts-node src/scripts/run_auto_check_pre_eod_active.ts`<br/>*hoặc* `npm run test:pre-eod` | Kích hoạt và kiểm thử toàn trình quy trình Đối chiếu Pre-EOD 3 bên (MS vs CQG vs Straits/ACM). |
-| **`run_tkgd_pipeline.ts`** | `ts-node src/scripts/run_tkgd_pipeline.ts`<br/>*hoặc* `npm run test:tkgd-pipeline` | Chạy toàn trình pipeline đối soát hồ sơ mở TKGD: Quét mail $\rightarrow$ Cào M-System $\rightarrow$ OCR CCCD/Hợp đồng $\rightarrow$ Đối soát dữ liệu. |
-| **`test_tkgd_end_to_end.ts`** | `ts-node src/scripts/test_tkgd_end_to_end.ts` | Kiểm thử E2E tích hợp cho module TKGD. |
 
 ---
+
+## 9. Backend Modular Architecture Standard & AI Engineering Laws (Quy Chuẩn Kiến Trúc Modular Monolith & Luật Cho AI Khi Đọc/Sửa Backend)
+
+Quy chuẩn này là **luật bắt buộc (Strict Invariant)** cho mọi AI Assistant và Lập trình viên khi tiếp cận, đọc, bảo trì hoặc phát triển mã nguồn Backend. AI TUYỆT ĐỐI KHÔNG ĐƯỢC MÒ MẪM, PHỎNG ĐOÁN HAY TỰ CHẾ PATTERN.
+
+### 1. Phân Tầng Trách Nhiệm Rạch Ròi (Strict 3-Tier Layering)
+
+Hệ thống được chia làm 3 tầng độc lập, nghiêm cấm xâm lấn trách nhiệm:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. CHECKLIST HUB (Workflow & Audit Core)                              │
+│    • Thư mục: `src/modules/checklist-hub/`                             │
+│    • Trách nhiệm: Quản lý ca trực, lịch trực, đổi ca, trạng thái task. │
+│    • ⛔ CẤM: Tuyệt đối KHÔNG chứa code Playwright, KHÔNG chứa công      │
+│      thức so khớp lệnh hay mã nguồn nghiệp vụ của từng sàn.           │
+├────────────────────────────────────────────────────────────────────────┤
+│ 2. INGRESS LAYER (Thu Thập Dữ Liệu)                                   │
+│    • Thư mục: `src/modules/ingress/`                                   │
+│    • Trách nhiệm: Playwright Scrapers (hiện tại) và API Adapters (CoreEX│
+│      & CoreCCP). Tải dữ liệu và trả về `IngressResult`.                │
+│    • ⛔ CẤM: Không chứa công thức tính toán tài chính; luôn trả về      │
+│      `absolutePath` chuẩn xác trên ổ đĩa, cấm để domain tự đoán path.  │
+├────────────────────────────────────────────────────────────────────────┤
+│ 3. BUSINESS DOMAIN MODULES (Khối Nghiệp Vụ Chuyên Ngành Tự Chủ 100%)  │
+│    • Thư mục: `src/modules/trading-ops/`, `it-ops/`, `ccp-clearing/`...│
+│    • Trách nhiệm: Nhận dữ liệu sạch từ Ingress ➔ Tính toán ➔ Trả về    │
+│      `TaskExecutionResult` qua `IBotWorker`.                          │
+│    • ⛔ CẤM: Không tự ý truy vấn hay cập nhật trực tiếp `ShiftLog` của  │
+│      ca trực; không import trực tiếp Playwright.                      │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2. Bản Đồ Định Vị File Cho AI (Where To Look - Zero Guesswork)
+
+Khi gặp bất kỳ yêu cầu/lỗi nào, AI BẮT BUỘC tra cứu đúng file mục tiêu, tuyệt đối không tìm lan man:
+
+| Vấn Đề / Chức Năng Cần Sửa | Thư Mục / File Mục Tiêu Duy Nhất | Tuyệt Đối CẤM Làm |
+| :--- | :--- | :--- |
+| **Lỗi cào web M-System** (đổi nút, rớt session) | `src/modules/ingress/scrapers/ms-scraper.service.ts` | CẤM sửa vào file của QLGD hay Checklist. |
+| **Lỗi tải song song CQG1 & CQG2** | `src/modules/ingress/scrapers/cqg-scraper.service.ts` | CẤM sửa vào file tính toán khớp lệnh. |
+| **Lỗi đăng nhập ACM / Giải Captcha Gemini** | `src/modules/ingress/scrapers/acm-scraper.service.ts` | CẤM hardcode cookie hay đoán session. |
+| **Lỗi ghép file thô CQG** (`FR, OP, PS, Od`) | `src/modules/trading-ops/services/cqg-merger.service.ts` | CẤM đoán mò thư mục; dùng `outputDir` từ Ingress. |
+| **Lỗi công thức so khớp lệnh trong phiên** | `src/modules/trading-ops/services/klgd-recon.service.ts` | CẤM nhồi code Playwright vào hàm này. |
+| **Lỗi chốt đối chiếu cuối ngày Pre-EOD** | `src/modules/trading-ops/services/pre-eod-recon.service.ts`| CẤM hardcode ngày T-1; dùng `working-calendar`. |
+| **Lỗi quét ký quỹ âm sau EOD** | `src/modules/trading-ops/services/margin-checker.service.ts`| CẤM thay đổi ngưỡng cảnh báo khi chưa có lệnh. |
+| **Lỗi đo CPU/RAM/Disk, Backup DB (IT)** | `src/modules/it-ops/` | CẤM đụng chạm vào thư mục `trading-ops`. |
+| **Lỗi Reconcile 04:15, SFTP CSV (Bù trừ)** | `src/modules/ccp-clearing/` | CẤM đụng chạm vào thư mục `trading-ops`. |
+| **Lỗi ca trực không mở/đóng được, giao ca** | `src/modules/checklist-hub/shifts/` | CẤM sửa vào logic nghiệp vụ của các Bot. |
+
+### 3. Năm "Tối Kỵ" AI Tuyệt Đối Không Được Vi Phạm (Strict Prohibitions)
+
+1. **CẤM DEEP IMPORT XUYÊN THẤU**:  
+   Module A muốn giao tiếp với Module B BẮT BUỘC phải đi qua Cổng `src/shared/ports/` (`IIngressPort`, `IBotWorker`) hoặc EventBus. Tuyệt đối cấm viết `import { ... } from '@/modules/trading-ops/internal/...'` từ bên ngoài module.
+2. **CẤM TỰ ĐOÁN ĐƯỜNG DẪN Ổ ĐĨA (NO SPECULATIVE PATH RESOLUTION)**:  
+   Mọi đường dẫn file xử lý phải được lấy trực tiếp từ `IngressResult.outputDir` hoặc `IngressDownloadedFile.absolutePath`. Cấm mọi hành vi tự nối chuỗi hoặc tự suy đoán giữa `TradingCheck` và `Backup`.
+3. **CẤM TỰ SỬA TRẠNG THÁI CA TRỰC TỪ DOMAIN SERVICE**:  
+   Domain Service (QLGD, IT, CCP) chỉ trả về kết quả `{ status: 'PASSED' | 'FAILED', summary, detailUrl }`. Việc lưu vết vào `shift_logs` là quyền hạn DUY NHẤT của `BotDispatcherService` thuộc Checklist Hub.
+4. **CẤM NHỒI CODE CÀO GIAO DIỆN VÀO HÀM TÍNH TOÁN**:  
+   Các hàm nghiệp vụ so khớp lệnh phải là Pure Logic. Tuyệt đối không được import Playwright `Page`, `BrowserContext` vào trong thư mục `trading-ops/services/`.
+5. **CẤM PHÁ VỠ TÍNH TƯƠNG THÍCH KHI CHUYỂN SANG API**:  
+   Khi chuyển từ cào Playwright sang gọi API CoreEX & CoreCCP, chỉ được thay thế Adapter trong `ingress/`. Toàn bộ công thức so khớp bên trong `trading-ops/` phải được bảo tồn nguyên vẹn 100%.
+6. **CẤM NHỒI LOG CHI TIẾT CỦA TOOL VÀO DOCUMENT CA TRỰC (ISOLATED DOMAIN LOGS)**:  
+   Chi tiết log thực thi, raw API request/response, trace lỗi chuyên ngành và bảng so khớp chi tiết phải được lưu trữ độc lập tại database/collection riêng của từng phân hệ (`trading_recon_logs`, `ccp_clearing_logs`...). `ShiftLog` của Checklist Hub chỉ lưu trạng thái `status`, `summary` ngắn gọn và `domainLogRefId`. Tuyệt đối cấm nhồi megabyte text log thô vào `ShiftLog` làm phình to BSON chạm trần 16MB và gây nghẽn giao diện ca trực.
+7. **CẤM DÙNG CHUNG CẤU HÌNH, ĐƯỜNG DẪN & TÀI KHOẢN GIỮA CÁC KHỐI (DOMAIN CONFIG & CREDENTIAL ISOLATION)**:  
+   Mỗi khối nghiệp vụ (QLGD, CCP, IT, Rủi ro...) phải sở hữu riêng namespace cấu hình, đường dẫn thư mục lưu trữ (`storagePaths.domain`) và tài khoản mật khẩu bot (`domain_credentials`). Tuyệt đối cấm dùng chung một tài khoản bot hoặc ghi chung vào một thư mục không phân cấp, tránh triệt để việc ghi đè file, xung đột phiên đăng nhập (session collision) và tranh chấp quyền hạn giữa các phòng ban.
+
+### 4. Quy Trình Kiểm Chứng Bắt Buộc Trước Khi Hoàn Thành Nhiệm Vụ
+
+Mỗi khi AI thực hiện chỉnh sửa Backend, bắt buộc phải:
+1. Đọc code hiện tại bằng `view_file` trước khi sửa (Verify-Before-Answer).
+2. Chạy kiểm tra biên dịch: `nest build` đạt Exit code 0.
+3. Ghi vết đầy đủ vào `CHANGELOG_AI.md`.
+
+---
+
+## 10. Migration & Co-existence Safety Rules (Quy Tắc Quá Độ & An Toàn Tuyệt Đối Khi Chuyển Đổi V1 sang V2)
+
+Để quá trình chuyển đổi (Refactoring) sang Modular Monolith V2 trên nhánh `refactor/modular-architecture` không làm gián đoạn ca trực thực tế hoặc làm thất thoát nghiệp vụ:
+
+### 1. Nguyên Tắc Strangler Fig (Xây Mới Song Song - Tuyệt Đối Cấm Đập Đi Xây Lại)
+- Các module mới (`modules/ingress/`, `modules/trading-ops/`, `modules/checklist-hub/`) được triển khai song song bên cạnh code hiện hữu (`modules/bot-engine/`).
+- Tuyệt đối **KHÔNG xóa đè hay phá vỡ code V1** khi module V2 chưa được kiểm chứng 100% qua bộ test so sánh kết quả.
+- Điều phối chạy chuyển đổi thông qua Dispatcher và Adapter bọc ngoài (Wrapping Pattern).
+
+### 2. Nguyên Tắc Bảo Toàn 100% Logic Lõi & Hằng Số Ẩn (Business Logic Invariants)
+Khi di dời code từ `reconciliation.service.ts` sang `trading-ops/`:
+- **Loại trừ Footer CQG**: Luôn cắt bỏ 2 dòng tổng kết cuối của file `FR1` và `FR2` (`row.values.slice(0, -2)`).
+- **Chuẩn hóa Account Suffix**: Giữ nguyên quy tắc thay thế: đuôi `F$` $\rightarrow$ `""` (bỏ chữ F), đuôi `L$` $\rightarrow$ `"-L"`, đuôi `S$` $\rightarrow$ `"-S"`.
+- **Thư mục Ngày T-1**: Quy tắc ngày làm việc `DD.MM` (bỏ qua Thứ 7, CN) phải được lấy từ `WorkingCalendarService`.
+- **AWS ALB Sticky Cookies**: Giữ nguyên cơ chế bắt và duy trì cookie `AWSELB` / `AWSELBCORS` khi cào web M-System để không bị rớt về login page.
+
+### 3. Nguyên Tắc Kiểm Chứng So Sánh Kết Quả 1:1 (Twin-Run Validation)
+- Mỗi Worker mới sau khi viết xong phải được kiểm chứng bằng cách chạy song song với kết quả cũ trên cùng 1 bộ dữ liệu đầu vào (Golden Dataset ngày `08.07` hoặc dữ liệu thực tế gần nhất).
+- Độ khớp số liệu giữa V1 và V2 phải đạt **100.00%** (zero variance). Nếu có bất kỳ sự sai lệch nào về số lot, giá trị hoặc trạng thái $\rightarrow$ BẮT BUỘC dừng lại kiểm tra công thức trước khi tích hợp vào ca trực.
+
+### 4. Chiến Lược Tắt Hẳn Playwright & Chuyển Dịch Toàn Diện Sang API (Playwright Sunsetting)
+- **Bảo tồn vĩnh viễn Pure Logic**: Các thuật toán tính toán so khớp lệnh (`klgd-recon.service.ts`, `pre-eod-recon.service.ts`) được thiết kế hoàn toàn độc lập với phương thức lấy dữ liệu.
+- **Hoán đổi Adapter không xâm lấn**: Khi tắt Playwright, chỉ việc thay thế hoặc bổ sung Ingress Adapter mới (`CoreExApiAdapter`, `CoreCcpApiAdapter`) nạp vào Cổng `IIngressPort`. Toàn bộ mã nguồn nghiệp vụ của các Domain Worker được giữ nguyên vẹn 100%.
+- **Giải phóng tài nguyên**: Việc loại bỏ Playwright sẽ triệt tiêu 100% rủi ro ngốn RAM (giảm từ 1.5GB Chromium xuống vài chục MB HTTP Client) và tăng tốc thời gian lấy dữ liệu từ hàng chục giây xuống dưới 500ms.
+
+
 
 
 

@@ -23,6 +23,8 @@ import {
   FileSpreadsheet,
   KeyRound,
   Layers,
+  ArrowLeftRight,
+  Sunrise,
 } from 'lucide-react';
 
 
@@ -285,7 +287,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
           color: 'var(--text-muted)',
-          margin: '12px 0 6px 16px',
+          margin: '12px 0 6px 12px',
           display: isCollapsed ? 'none' : 'block'
         }}>
           Giám sát
@@ -302,6 +304,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         </Link>
         {canViewChecklist && (
           <>
+            {/* Tạm ẩn 'Ca trực hiện tại' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
+            {/*
             <Link
               href="/checklist"
               onClick={onClose}
@@ -311,6 +315,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <CheckSquare size={18} style={{ flexShrink: 0 }} />
               <span>Ca trực hiện tại</span>
             </Link>
+            */}
+            {/* Tạm ẩn 'Tra cứu lịch sử' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
+            {/*
             <Link
               href="/history"
               onClick={onClose}
@@ -319,6 +326,25 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             >
               <History size={18} style={{ flexShrink: 0 }} />
               <span>Tra cứu lịch sử</span>
+            </Link>
+            */}
+            <Link
+              href="/trading-manager/reconciliation"
+              onClick={onClose}
+              className={`nav-link ${pathname === '/trading-manager/reconciliation' ? 'active' : ''}`}
+              title={isCollapsed ? "Đối chiếu giao dịch" : undefined}
+            >
+              <ArrowLeftRight size={18} style={{ flexShrink: 0 }} />
+              <span>Đối chiếu giao dịch</span>
+            </Link>
+            <Link
+              href="/trading-manager/session-open"
+              onClick={onClose}
+              className={`nav-link ${pathname === '/trading-manager/session-open' ? 'active' : ''}`}
+              title={isCollapsed ? "Nghiệp vụ đầu phiên" : undefined}
+            >
+              <Sunrise size={18} style={{ flexShrink: 0 }} />
+              <span>Nghiệp vụ đầu phiên</span>
             </Link>
             <Link
               href="/trading-manager/ms-cqg"
@@ -349,6 +375,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             </Link>
           </>
         )}
+        {/* Tạm ẩn 'Cấu hình' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
+        {/*
         <Link
           href="/settings"
           onClick={onClose}
@@ -358,6 +386,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           <Settings size={18} style={{ flexShrink: 0 }} />
           <span>Cấu hình</span>
         </Link>
+        */}
 
         {canManageTemplates && (
           <>
@@ -367,7 +396,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               color: 'var(--text-muted)',
-              margin: '20px 0 6px 16px',
+              margin: '20px 0 6px 12px',
               display: isCollapsed ? 'none' : 'block'
             }}>
               Quản trị hệ thống
