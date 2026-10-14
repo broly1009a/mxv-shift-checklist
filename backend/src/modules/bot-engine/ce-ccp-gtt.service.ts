@@ -197,8 +197,6 @@ export class CeCcpGttCheckerService {
       options.ceGttPath,
       path.join(ceDailyPath, 'GTT ACM.xlsx'),
       path.join(resolvedCeBase, 'GTT ACM.xlsx'),
-      'C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Pictures\\Dữ liệu chuẩn ngày 25\\25.09 CE\\25.09\\GTT ACM.xlsx',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures\\GTT ACM.xlsx',
       path.join(this.workDir, 'GTT ACM.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ce_downloads', 'GTT ACM.xlsx'),
     ];
@@ -213,7 +211,6 @@ export class CeCcpGttCheckerService {
       path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'GTT CCP.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'LSGTT.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'GTT CCP.xlsx'),
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\GTT CCP.xlsx',
       path.join(this.workDir, 'GTT CCP.xlsx'),
     ];
 
@@ -222,8 +219,6 @@ export class CeCcpGttCheckerService {
       options.ceHhPath,
       path.join(ceDailyPath, 'HH ACM.xlsx'),
       path.join(resolvedCeBase, 'HH ACM.xlsx'),
-      'C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Pictures\\Dữ liệu chuẩn ngày 25\\25.09 CE\\25.09\\HH ACM.xlsx',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures\\HH ACM.xlsx',
       path.join(process.cwd(), 'temp', 'test_ce_downloads', 'HH ACM.xlsx'),
       path.join(this.workDir, 'HH ACM.xlsx'),
     ];
@@ -235,7 +230,6 @@ export class CeCcpGttCheckerService {
       path.join(resolvedCcpBase, 'HH.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'HH.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'HH.xlsx'),
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\HH.xlsx',
       path.join(this.workDir, 'HH.xlsx'),
     ];
 

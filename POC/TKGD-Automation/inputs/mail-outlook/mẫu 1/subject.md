@@ -1,1 +1,0 @@
-Yêu cầu mở TKGD

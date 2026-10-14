@@ -1,3 +1,33 @@
+## [2026-10-14T21:15] REFACTOR(CLEANUP): Chuẩn Hóa Tinh Gọn Mã Nguồn Theo Playbook Chuyển Đổi V2 (Lưu Trữ KlgdRecon V1 & Dọn Rác Dự Án)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Chuẩn hóa tinh gọn mã nguồn theo tài liệu [HUONG_DAN_CHUYEN_DOI_LEGACY_KHI_ON_DINH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/HUONG_DAN_CHUYEN_DOI_LEGACY_KHI_ON_DINH.md) và yêu cầu từ USER:
+  1. Loại bỏ các file rác `.bak` cũ cồng kềnh trong `backup_scratch/` và các file zip dữ liệu kiểm thử trong `modules/ccp-statistics/`.
+  2. Lưu trữ bản sao `klgd-recon.service.ts` (V1 Monolith cũ - 31 KB) sang `backend/src/legacy/archive/klgd-recon.service.v1.ts` vì `TradingOpsModule` V2 đã tiếp quản 100%.
+  3. Dọn sạch các chuỗi đường dẫn fallback tĩnh `M:\Tailieuchung\...` và OneDrive cá nhân trong `trading-ops`, `reconciliation` và `ce-ccp-gtt.service.ts`.
+- **Cơ sở thực chứng**:
+  - `ReconciliationService` ([reconciliation.service.ts#L84-L135](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts#L84-L135)) ủy quyền 100% sang `TradingOpsKlgdReconService`.
+  - `ReconciliationModule` ([reconciliation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.module.ts)) không cung cấp `KlgdReconService` cũ trong mảng `providers`.
+  - Phân hệ V2 `trading-ops` đã vượt qua 100% bài kiểm thử đối chiếu thực tế (4953/4953 lệnh khớp tuyệt đối).
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **Dọn rác & Dữ liệu tạm**:
+   - Xóa bỏ thư mục `backend/backup_scratch/` (giải phóng hơn 700 KB các file `.bak`).
+   - Xóa `inputExampleCppFull_2.zip`, `inputExampleCppFull`, `outputACM24.09` trong `backend/src/modules/ccp-statistics/`.
+2. **[modules/reconciliation/services/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/index.ts)**:
+   - Chuyển `modules/reconciliation/services/klgd-recon.service.ts` sang `backend/src/legacy/archive/klgd-recon.service.v1.ts`.
+   - Cập nhật `index.ts` re-export `KlgdReconService` và `CheckKLGDResult` từ `../../trading-ops/services/klgd-recon.service`.
+3. **[ce-ccp-gtt.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ce-ccp-gtt.service.ts)**:
+   - Xóa bỏ các dòng hardcode đường dẫn OneDrive cá nhân (`C:\Users\hiepth\OneDrive...`) và `C:\Quanlygiaodich\...` trong mảng candidates.
+4. **[klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/klgd-recon.service.ts)** & **[pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts)**:
+   - Dọn sạch các fallback tĩnh `'M:\Tailieuchung\...'` thành `''`.
+
+### 3. Kết quả kiểm thử (Verification)
+- **Backend Build (`nest build`)**: Exit Code 0 (Biên dịch thành công 100%).
+- **Twin-Run Test Suites (`twin-run-comparator.spec.ts`)**: 7/7 tests PASS (CQG Merger, Intraday Recon, Dispatcher, Clearing Statistics).
+
+---
+
 ## [2026-10-14T21:00] FIX(BACKUP-PATH): Chuẩn Hóa getAcmBackupBase Loại Bỏ Logic Tự Động Nối /ACM/ & Dọn Rác Fallback Ổ Đĩa Tĩnh
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

@@ -473,13 +473,13 @@ export class PreEodReconService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_ms',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        '',
       ),
     );
     const cqgBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_cqg',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+        '',
       ),
     );
     const acmBackupBase = resolveStoragePathCrossPlatform(
