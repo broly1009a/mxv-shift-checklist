@@ -4,7 +4,7 @@ const path = require('path');
 
 const USERNAME = 'mxvanhdao';
 const PASSWORD = 'Mxv@2026Q3';
-const LOGIN_URL = 'https://www.cqgtrader.com/CAST/Logon/Logon.asp';
+const LOGIN_URL = '';
 
 const IE_MOCK_SCRIPT = `
   // Mock localeinfoproviderObj (IE ActiveX COM object) using Object.defineProperty to override HTMLObjectElement

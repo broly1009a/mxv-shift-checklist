@@ -260,7 +260,7 @@ export class MarginChangeRequestsService {
 
     const folderPath = await this.systemSettingsService.getSetting(
       'margin_decision_folder_path',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Quyết định - Thông báo\\2. QĐ ban hành mức ký quỹ',
+      '',
     );
 
     let targetDir = folderPath;

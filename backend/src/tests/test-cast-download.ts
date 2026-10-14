@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 const USERNAME = process.env.CAST_USER || '';
 const PASSWORD = process.env.CAST_PASS || '';
-const LOGIN_URL = 'https://www.cqgtrader.com/CAST/Logon/Logon.asp';
+const LOGIN_URL = '';
 
 const DEBUG_DIR = path.join(__dirname, '../temp/debug/cast');
 if (!fs.existsSync(DEBUG_DIR)) {

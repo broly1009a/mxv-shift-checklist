@@ -92,7 +92,7 @@ const defaultCcpGttCandidates = [
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_downloads', 'GTT CCP.xlsx'),
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_25_downloads', 'LSGTT.xlsx'),
   'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\GTT CCP.xlsx',
-  'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\GTT CCP.xlsx',
+  '\\GTT CCP.xlsx',
 ];
 
 const defaultCcpHhCandidates = [
@@ -100,7 +100,7 @@ const defaultCcpHhCandidates = [
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_25_downloads', 'HH.xlsx'),
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_downloads', 'HH.xlsx'),
   'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\HH.xlsx',
-  'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\HH.xlsx',
+  '\\HH.xlsx',
 ];
 
 const defaultCcpTtmCandidates = [

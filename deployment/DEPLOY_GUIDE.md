@@ -236,8 +236,8 @@ Mở file `deployment\rpa-agent\config.json` và chỉnh sửa:
   "paths": {
     "lot_macro_path": "D:\\sontayweb\\mxv-shift-checklist\\marco\\Thong ke so lot giao dich có ACM\\Macro thong ke so lot giao dich có ACM.xlsm",
     "value_macro_path": "D:\\sontayweb\\mxv-shift-checklist\\marco\\Thong ke gia tri giao dich có ACM\\Macro thong ke gia tri giao dich có ACM.xlsm",
-    "ms_backup_futures": "C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures",
-    "acm_backup": "C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\ACM"
+    "ms_backup_futures": "",
+    "acm_backup": ""
   }
 }
 ```

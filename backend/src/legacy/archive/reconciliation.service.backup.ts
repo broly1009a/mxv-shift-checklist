@@ -4216,7 +4216,7 @@ export class ReconciliationService {
     } catch {}
     return this.settingsService.getSetting(
       'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+      '',
     );
   }
 

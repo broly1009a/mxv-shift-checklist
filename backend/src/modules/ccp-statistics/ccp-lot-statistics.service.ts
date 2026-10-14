@@ -703,7 +703,7 @@ export class CcpLotStatisticsService {
     const raw = await this.settingsService.getSetting('ccp_lot_statistics_config', '{}');
     const ccpBackupPath = await this.settingsService.getSetting(
       'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+      '',
     );
     const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
     try {
@@ -1429,7 +1429,7 @@ export class CcpLotStatisticsService {
             if (!baseDir || baseDir === 'backupCCP') {
               baseDir = await this.settingsService.getSetting(
                 'bot_backup_path_ccp',
-                'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+                '',
               );
             }
             const [sY, sM, sD] = targetDate.includes('-')

@@ -70,7 +70,7 @@ export class MSystemScraperService {
       throw new Error('Thông tin đăng nhập M-System (username, password, pin) không đầy đủ.');
     }
 
-    const msystemUrl = options?.overrideUrl || credentials.url || 'https://msystem.mxv.vn/';
+    const msystemUrl = options?.overrideUrl || credentials.url || '';
     const { browser, page } = await BrowserLauncherHelper.launchBrowser();
 
     page.on('console', (msg) => {

@@ -447,7 +447,7 @@ async function testMSystem(creds, cliConfig, browser) {
   const page = await context.newPage();
 
   const msDest = path.join(cliConfig.outputDir, 'MS_DSGD.xlsx');
-  const msUrl = creds.url || 'https://msystem.mxv.vn/';
+  const msUrl = creds.url || '';
   const results = {};
 
   try {

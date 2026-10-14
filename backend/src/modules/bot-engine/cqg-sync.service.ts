@@ -114,7 +114,7 @@ export class CqgSyncService {
     // Scan M-System TTTT.xlsx file
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const tradingCheckBase =
       (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
@@ -213,7 +213,7 @@ export class CqgSyncService {
     // M-System backup path is typically configured in settings
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const tradingCheckBase =
       (await this.settingsService.getSetting('bot_trading_check_path', '')) ||

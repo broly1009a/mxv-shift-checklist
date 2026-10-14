@@ -29,7 +29,7 @@ export default function BackupAuditor({
   setTrackedJobs,
 }: BackupAuditorProps) {
   // Backup MS states
-  const [backupPathMs, setBackupPathMs] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+  const [backupPathMs, setBackupPathMs] = useState('');
   const [savingBackupPathMs, setSavingBackupPathMs] = useState(false);
   const [auditingMs, setAuditingMs] = useState(false);
   const [auditMsResults, setAuditMsResults] = useState<any>(null);
@@ -49,11 +49,11 @@ export default function BackupAuditor({
   const [triggeringAuditAcm, setTriggeringAuditAcm] = useState(false);
 
   // CAST download trigger state
-  const [backupPathCast, setBackupPathCast] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+  const [backupPathCast, setBackupPathCast] = useState('');
   const [triggeringCastDownload, setTriggeringCastDownload] = useState(false);
 
   // Margin Decision folder path state
-  const [marginDecisionPath, setMarginDecisionPath] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Quyết định - Thông báo\\2. QĐ ban hành mức ký quỹ');
+  const [marginDecisionPath, setMarginDecisionPath] = useState('');
   const [savingMarginPath, setSavingMarginPath] = useState(false);
 
   // Excel Macro Lot Consolidation state

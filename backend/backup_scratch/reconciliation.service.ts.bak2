@@ -2768,11 +2768,11 @@ export class ReconciliationService {
     // 1. Tìm file QLTKGD.xlsx mới nhất của ngày tradingDate
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const cqgBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      '',
     );
 
     const year = tradingDate.getFullYear().toString();
@@ -3404,11 +3404,11 @@ export class ReconciliationService {
   ): Promise<any> {
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const cqgBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      '',
     );
     const acmBackupBase = msBackupBase.replace(
       /Backup MS\\Futures/i,
@@ -3522,11 +3522,11 @@ export class ReconciliationService {
 
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const cqgBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      '',
     );
     const acmBackupBase = msBackupBase.replace(
       /Backup MS\\Futures/i,
@@ -3666,11 +3666,11 @@ export class ReconciliationService {
 
     const msBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const cqgBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      '',
     );
 
     const year = tradingDate.getFullYear().toString();

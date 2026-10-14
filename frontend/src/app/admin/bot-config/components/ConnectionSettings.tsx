@@ -35,7 +35,7 @@ export default function ConnectionSettings({
 }: ConnectionSettingsProps) {
   const [loadingConfig, setLoadingConfig] = useState(true);
   // Credentials states
-  const [msystemUrl, setMsystemUrl] = useState('https://msystem.mxv.vn/');
+  const [msystemUrl, setMsystemUrl] = useState('');
   const [msystemUsername, setMsystemUsername] = useState('');
   const [msystemPassword, setMsystemPassword] = useState('');
   const [msystemPin, setMsystemPin] = useState('');
@@ -66,7 +66,7 @@ export default function ConnectionSettings({
   const [acmSftpPassword, setAcmSftpPassword] = useState('');
   const [acmSftpRemoteDir, setAcmSftpRemoteDir] = useState('/data/');
 
-  const [castUrl, setCastUrl] = useState('https://www.cqgtrader.com/CAST/Logon/Logon.asp');
+  const [castUrl, setCastUrl] = useState('');
   const [castUsername, setCastUsername] = useState('');
   const [castPassword, setCastPassword] = useState('');
 
@@ -133,7 +133,7 @@ export default function ConnectionSettings({
       const data = await api.ingress.getBotConfig(token);
       if (data) {
         if (data.msystem) {
-          setMsystemUrl(data.msystem.url || 'https://msystem.mxv.vn/');
+          setMsystemUrl(data.msystem.url || '');
           setMsystemUsername(data.msystem.username || '');
           setMsystemPassword(data.msystem.password || '');
           setMsystemPin(data.msystem.pin || '');
@@ -165,7 +165,7 @@ export default function ConnectionSettings({
           setAcmSftpRemoteDir(data.acm.sftpRemoteDir || '/data/');
         }
         if (data.cast) {
-          setCastUrl(data.cast.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp');
+          setCastUrl(data.cast.url || '');
           setCastUsername(data.cast.username || '');
           setCastPassword(data.cast.password || '');
         }
@@ -483,7 +483,7 @@ export default function ConnectionSettings({
                     type="url"
                     className="form-input"
                     style={{ paddingLeft: '38px' }}
-                    placeholder="https://msystem.mxv.vn/"
+                    placeholder=""
                     value={msystemUrl}
                     onChange={(e) => setMsystemUrl(e.target.value)}
                     required
@@ -892,7 +892,7 @@ export default function ConnectionSettings({
                     type="url"
                     className="form-input"
                     style={{ paddingLeft: '38px' }}
-                    placeholder="https://www.cqgtrader.com/CAST/Logon/Logon.asp"
+                    placeholder=""
                     value={castUrl}
                     onChange={(e) => setCastUrl(e.target.value)}
                     required
@@ -1035,7 +1035,7 @@ export default function ConnectionSettings({
                 presets={[
                   {
                     name: 'Mặc định ổ M Backup CCP',
-                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+                    path: '',
                   },
                   {
                     name: 'Mặc định local (backupCCP)',

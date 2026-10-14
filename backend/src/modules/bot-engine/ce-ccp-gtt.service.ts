@@ -184,7 +184,7 @@ export class CeCcpGttCheckerService {
     );
     const ccpBackupBase = await this.settingsService.getSetting(
       'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+      '',
     );
 
     const { fullPath: ceDailyPath } = resolveDailySubfolder(ceBackupBase, targetDate);
@@ -462,7 +462,7 @@ export class CeCcpGttCheckerService {
             this.logStep('Đang khởi động bot tự động đăng nhập CoreCCP để tải Giá thanh toán...');
             const ccpBackupBase = await this.settingsService.getSetting(
               'bot_backup_path_ccp',
-              'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+              '',
             );
             const { fullPath: ccpDailyPath } = resolveDailySubfolder(ccpBackupBase, targetDateStr);
             let outDir = ccpDailyPath;

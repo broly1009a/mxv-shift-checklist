@@ -278,7 +278,7 @@ export default function CcpLotStatisticsSection({
   // Nạp nhanh bộ đường dẫn mặc định chuẩn (trỏ vào thư mục con output/)
   const handleApplyDefaultOutputPaths = () => {
     const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
-    setBackupPathCcp('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures');
+    setBackupPathCcp('');
     setPathAcmLot(`${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`);
     setPathAcmGtgd(`${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`);
     setPathNormalLot(`${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`);
@@ -1615,7 +1615,7 @@ export default function CcpLotStatisticsSection({
                 presets={[
                   {
                     name: 'Backup CCP',
-                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+                    path: '',
                   },
                   {
                     name: 'Backup MS',

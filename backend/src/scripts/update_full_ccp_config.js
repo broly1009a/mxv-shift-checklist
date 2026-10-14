@@ -19,7 +19,7 @@ const fullConfig = {
   pathDsgdCumulative: "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\DSGD T${MM}.${YYYY} CCP.xlsx",
 
   // ── 4. Đường Dẫn Thư Mục Backup CCP Ngày ──
-  bot_backup_path_ccp: "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures",
+  bot_backup_path_ccp: "",
 
   // Backward compatibility keys
   pathAcmCumulative: "M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\Thong ke so lot giao dich ACM ${YYYY}.xlsx",

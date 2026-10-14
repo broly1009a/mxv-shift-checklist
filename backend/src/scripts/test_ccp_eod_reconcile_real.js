@@ -56,7 +56,7 @@ function formatVnd(num) {
 }
 
 async function runTest() {
-  const defaultDir = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\2026\\T10.2026\\06.10';
+  const defaultDir = '\\2026\\T10.2026\\06.10';
   const targetDir = process.argv[2] || defaultDir;
 
   console.log('\n===============================================================');

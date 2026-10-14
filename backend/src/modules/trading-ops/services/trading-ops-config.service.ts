@@ -46,7 +46,7 @@ export class TradingOpsConfigService {
 
     return {
       msystem: {
-        baseUrl: msystemCreds.url || process.env.MS_BASE_URL || 'https://msystem.mxv.vn/',
+        baseUrl: msystemCreds.url || process.env.MS_BASE_URL || '',
         username: msystemCreds.username || process.env.MS_BOT_USER || '',
         password: msystemCreds.password || process.env.MS_BOT_PASSWORD || '',
         storageDir: process.env.MS_BACKUP_DIR || path.join(defaultDataDir, 'M-System'),

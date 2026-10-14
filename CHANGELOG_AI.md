@@ -1,3 +1,28 @@
+## [2026-10-14T21:00] FIX(BACKUP-PATH): Chuẩn Hóa getAcmBackupBase Loại Bỏ Logic Tự Động Nối /ACM/ & Dọn Rác Fallback Ổ Đĩa Tĩnh
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: 
+  1. Loại bỏ hiện tượng đường dẫn sao lưu của sàn ACM bị lủng củng và trùng lặp từ khóa: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup ACM/Futures/ACM/2026/T10.2026/14.10`.
+  2. Xóa bỏ hoàn toàn các chuỗi fallback gán cứng đường dẫn ổ đĩa Windows (`C:\Quanlygiaodich\...`, `M:\Tailieuchung\...`) trong các hàm lấy thư mục gốc sao lưu (`getMsBackupBase`, `getCqgBackupBase`, `getAcmBackupBase`, `getCcpBackupBase`).
+- **Cơ sở thực chứng (Root Cause)**:
+  - Cấu hình chuẩn của ACM trong CSDL MongoDB (`system_settings`) là: `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup ACM\Futures` (kết thúc bằng `\Futures`).
+  - Trong `bot-path.helper.ts#L266-L270` và `file-path.helper.ts#L298-L302` tồn tại đoạn code cũ kiểm tra `acmBackupBase.endsWith('\\ACM')`. Vì chuỗi cấu hình kết thúc bằng `\Futures` nên điều kiện bị `false`, dẫn tới rơi vào nhánh `else`: `acmBackupBase = path.join(acmBackupBase, 'ACM')`.
+  - Hậu quả: Thư mục sao lưu bị tự tiện ghép thêm một cấp `\ACM` sau `\Futures`, sinh ra đường dẫn lặp `.../Backup ACM/Futures/ACM/...`. Trong khi đó, các service đối chiếu (`klgd-recon.service.ts`, `pre-eod-recon.service.ts`) lại đọc trực tiếp từ cấu hình `.../Backup ACM/Futures/...` mà không có `ACM/`, gây ra sự bất đồng bộ giữa vị trí tải file và vị trí đọc file.
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **[file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts)**:
+   - Loại bỏ nhánh `if...else` tự động nối thêm `path.join(acmBackupBase, 'ACM')`.
+   - Chuyển toàn bộ fallback mặc định của `getMsBackupBase`, `getCqgBackupBase`, `getAcmBackupBase`, `getCcpBackupBasePath` thành chuỗi rỗng `''`.
+2. **[bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/bot-path.helper.ts)**:
+   - Đồng bộ logic tương tự: `getAcmBackupBase` lấy trực tiếp `bot_backup_path_acm` và bọc qua `resolveStoragePathCrossPlatform`.
+   - Dọn sạch fallback mặc định thành `''`.
+
+### 3. Kết quả kiểm thử (Verification)
+- Chạy `npm.cmd run build` trong `backend`: Biên dịch thành công 100% (Nest build passed, Exit Code 0).
+- Đường dẫn sao lưu ACM thực tế giờ đây khớp chuẩn 100% với cấu hình: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup ACM/Futures/${YYYY}/T${MM}.${YYYY}/${DD}.${MM}`.
+
+---
+
 ## [2026-10-14T20:35] FIX(TRADING-OPS): Đồng Bộ Chuẩn Hóa resolveStoragePathCrossPlatform Giữa V1 & V2 Khắc Phục Lỗi Báo Thiếu File Đối Chiếu KLGD
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

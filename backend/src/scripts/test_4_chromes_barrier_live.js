@@ -217,7 +217,7 @@ async function runTest() {
       const page = await browser.newPage();
       page.setDefaultTimeout(35000);
 
-      const msUrl = msCreds.url || 'https://msystem.mxv.vn/';
+      const msUrl = msCreds.url || '';
       console.log(` -> [MS] Điều hướng đến: ${msUrl}...`);
       await page.goto(msUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
       await page.fill("input[name='username'], input[placeholder*='tên đăng nhập']", msCreds.username);

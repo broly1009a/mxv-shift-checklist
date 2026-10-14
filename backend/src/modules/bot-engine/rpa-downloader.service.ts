@@ -210,7 +210,7 @@ export class RpaDownloaderService {
     }
 
     const msystemUrl =
-      overrideUrl || credentials.url || 'https://msystem.mxv.vn/';
+      overrideUrl || credentials.url || '';
     const { username, password, pin } = credentials;
 
     if (!username || !password || !pin) {
@@ -3253,7 +3253,7 @@ export class RpaDownloaderService {
     }
 
     const castUrl =
-      credentials.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp';
+      credentials.url || '';
     const { username, password } = credentials;
     const fcm = credentials.fcm || 'MXV';
     const currency = credentials.currency || 'USD';

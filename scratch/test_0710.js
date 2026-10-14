@@ -24,7 +24,7 @@ function formatVnd(num) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(num));
 }
 
-const targetDir = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\2026\\T10.2026\\07.10';
+const targetDir = '\\2026\\T10.2026\\07.10';
 
 // ĐẶC BIỆT: CHỈ ĐỊNH RÕ RÀNG QL TT TKGD.xlsx (LOẠI BỎ "truoc 4h20")
 const qltkgdFile = path.join(targetDir, 'QL TT TKGD.xlsx');
