@@ -21,11 +21,11 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import {
   getMsBackupBase,
   getAcmBackupBase,
-} from '../../bot-engine/helpers/bot-path.helper';
+} from '../../../shared';
 import {
   parseDSGD,
   parseStraitsCsv,
-} from '../../reconciliation/helpers/recon-number-parser.helper';
+} from '../helpers/trading-math.helper';
 
 export interface CheckDSGDBeforeEODResult {
   passed: boolean;

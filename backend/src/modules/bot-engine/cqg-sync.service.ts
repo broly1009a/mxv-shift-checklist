@@ -1,10 +1,10 @@
-// @ts-nocheck
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { resolveDailySubfolder, resolveStoragePathCrossPlatform } from './helpers/bot-path.helper';
+import { CqgMergerService } from '../trading-ops/services/cqg-merger.service';
 
 export interface CqgAuditResult {
   key: string;
@@ -34,7 +34,11 @@ export const REQUIRED_CQG_FILES = [
 export class CqgSyncService {
   private readonly logger = new Logger(CqgSyncService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) { }
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly cqgMergerService?: CqgMergerService,
+  ) { }
 
   /**
    * Retrieves the configured CQG backup base folder and resolves the daily subfolder.
@@ -392,6 +396,15 @@ export class CqgSyncService {
    * Copies A3:H of FR2 (excluding headers and footer).
    */
   private mergeFR(src1: string, src2: string, dest: string) {
+    if (this.cqgMergerService) {
+      try {
+        const ok = this.cqgMergerService.mergeFR(src1, src2, dest);
+        if (ok) return;
+      } catch (err: any) {
+        this.logger.warn(`[CqgSync-Facade] CqgMergerService mergeFR lỗi (${err.message}), fallback về V1...`);
+      }
+    }
+
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
@@ -438,6 +451,15 @@ export class CqgSyncService {
    * Copies A3:M of OP2.
    */
   private mergeOP(src1: string, src2: string, dest: string) {
+    if (this.cqgMergerService) {
+      try {
+        const ok = this.cqgMergerService.mergeOP(src1, src2, dest);
+        if (ok) return;
+      } catch (err: any) {
+        this.logger.warn(`[CqgSync-Facade] CqgMergerService mergeOP lỗi (${err.message}), fallback về V1...`);
+      }
+    }
+
     const wb1 = XLSX.readFile(src1);
     const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], {
       header: 1,
@@ -473,6 +495,15 @@ export class CqgSyncService {
    * Copies A4:Q of OD2, appending at row lr1 - 3 (overwriting last rows of OD1).
    */
   private mergeOD(src1: string, src2: string, dest: string) {
+    if (this.cqgMergerService) {
+      try {
+        const ok = this.cqgMergerService.mergeOD(src1, src2, dest);
+        if (ok) return;
+      } catch (err: any) {
+        this.logger.warn(`[CqgSync-Facade] CqgMergerService mergeOD lỗi (${err.message}), fallback về V1...`);
+      }
+    }
+
     const wb1 = XLSX.readFile(src1);
     const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], {
       header: 1,

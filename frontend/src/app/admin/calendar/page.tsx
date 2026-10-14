@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { 
   Calendar, 
   Plus, 
@@ -101,16 +102,11 @@ export default function AdminCalendarPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/working-calendar`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setEntries(data);
-        } else {
-          setEntries([]);
-        }
+      const data = await api.admin.getWorkingCalendar(token);
+      if (Array.isArray(data)) {
+        setEntries(data);
+      } else {
+        setEntries([]);
       }
     } catch (err) {
       console.error(err);
@@ -130,11 +126,8 @@ export default function AdminCalendarPage() {
     if (!token) return;
     setLoadingStandards(true);
     try {
-      const settingsRes = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (settingsRes.ok) {
-        const settings = await settingsRes.json();
+      const settings = await api.admin.getSystemSettings(token);
+      if (Array.isArray(settings)) {
         const genTimeObj = settings.find((s: any) => s.key === 'shift_generation_time');
         const restDaysObj = settings.find((s: any) => s.key === 'weekly_rest_days');
         
@@ -148,16 +141,11 @@ export default function AdminCalendarPage() {
         }
       }
 
-      const slotsRes = await fetch(`${API_BASE_URL}/api/v1/shift-slots`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (slotsRes.ok) {
-        const slots = await slotsRes.json();
-        if (Array.isArray(slots)) {
-          setShiftSlots(slots.sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0)));
-        } else {
-          setShiftSlots([]);
-        }
+      const slots = await api.admin.getShiftSlots(token);
+      if (Array.isArray(slots)) {
+        setShiftSlots(slots.sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0)));
+      } else {
+        setShiftSlots([]);
       }
     } catch (err) {
       console.error('Error fetching standards:', err);
@@ -178,17 +166,7 @@ export default function AdminCalendarPage() {
   const saveSystemSetting = async (key: string, value: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ key, value })
-      });
-      if (!res.ok) {
-        throw new Error('Không thể lưu cài đặt hệ thống');
-      }
+      await api.admin.saveSystemSetting(key, value, token);
       toast.success('Cập nhật cấu hình hệ thống thành công!');
       fetchStandards();
     } catch (err: any) {
@@ -234,10 +212,6 @@ export default function AdminCalendarPage() {
     e.preventDefault();
     if (!token) return;
     try {
-      const url = editingSlot
-        ? `${API_BASE_URL}/api/v1/shift-slots/${editingSlot.id}`
-        : `${API_BASE_URL}/api/v1/shift-slots`;
-      const method = editingSlot ? 'PUT' : 'POST';
       let detectedIsOvernight = slotIsOvernight;
       if (slotEndTime < slotStartTime && !slotIsOvernight) {
         detectedIsOvernight = true;
@@ -257,18 +231,10 @@ export default function AdminCalendarPage() {
         sortOrder: Number(slotSortOrder)
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(bodyData)
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Lưu ca trực thất bại');
+      if (editingSlot) {
+        await api.admin.updateShiftSlot(editingSlot.id, bodyData, token);
+      } else {
+        await api.admin.createShiftSlot(bodyData, token);
       }
 
       toast.success(editingSlot ? 'Cập nhật ca trực thành công!' : 'Tạo ca trực mới thành công!');
@@ -284,13 +250,7 @@ export default function AdminCalendarPage() {
   const handleSlotDelete = async (slot: ShiftSlot) => {
     if (!token || !window.confirm(`Bạn có chắc muốn xóa ca trực ${slot.name}?`)) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shift-slots/${slot.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        throw new Error('Xóa ca trực thất bại');
-      }
+      await api.admin.deleteShiftSlot(slot.id, token);
       toast.success('Đã xóa ca trực thành công!');
       fetchStandards();
     } catch (err: any) {
@@ -345,12 +305,6 @@ export default function AdminCalendarPage() {
     setSubmitting(true);
 
     try {
-      const url = editingEntry 
-        ? `${API_BASE_URL}/api/v1/working-calendar/${editingEntry.date}` 
-        : `${API_BASE_URL}/api/v1/working-calendar`;
-      
-      const method = editingEntry ? 'PUT' : 'POST';
-      
       let savedDate = formDate;
       if (formIsRecurring) {
         const [, mm, dd] = formDate.split('-');
@@ -364,18 +318,10 @@ export default function AdminCalendarPage() {
         note: formNote
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(bodyData)
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Lưu cấu hình lịch thất bại');
+      if (editingEntry) {
+        await api.admin.updateWorkingCalendar(editingEntry.date, bodyData, token);
+      } else {
+        await api.admin.saveWorkingCalendar(bodyData, token);
       }
 
       toast.success(editingEntry ? 'Cập nhật ngày thành công!' : 'Thêm ngày cấu hình mới thành công!');
@@ -392,16 +338,7 @@ export default function AdminCalendarPage() {
     if (!token || !window.confirm(`Bạn có chắc chắn muốn xóa cấu hình ngày ${entry.date}?`)) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/working-calendar/${entry.date}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Xóa cấu hình ngày thất bại');
-      }
-
+      await api.admin.deleteWorkingCalendar(entry.date, token);
       toast.success('Đã xóa cấu hình lịch thành công!');
       fetchCalendarEntries();
     } catch (err: any) {

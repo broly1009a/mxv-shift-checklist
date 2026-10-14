@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GripVertical, AlertTriangle, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { getFriendlyCode } from '@/lib/incident';
 
 interface Incident {
@@ -69,13 +69,8 @@ export const ActiveIncidentsWidget: React.FC<{ token: string | null }> = ({ toke
   const fetchPendingIncidents = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/pending`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setIncidents(data);
-      }
+      const data = await api.dashboard.getPendingIncidents(token);
+      setIncidents(data || []);
     } catch (err) {
       console.error('Lỗi tải danh sách sự cố chờ xử lý:', err);
     } finally {

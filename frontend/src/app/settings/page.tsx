@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Save, Shield, Bell, RefreshCw, User as UserIcon, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -76,21 +77,7 @@ export default function SettingsPage() {
         payload.password = password;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Cập nhật cấu hình thất bại');
-      }
-
-      const updatedUser = await res.json();
+      const updatedUser = await api.auth.updateProfile(payload, token);
       updateUser(updatedUser);
       setPassword('');
       setConfirmPassword('');

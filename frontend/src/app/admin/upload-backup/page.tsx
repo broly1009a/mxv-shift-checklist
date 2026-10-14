@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import {
   Upload,
   FileText,
@@ -173,33 +174,17 @@ export default function UploadBackupPage() {
     formData.append('date', date);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/upload-backup`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+      const data = await api.admin.uploadBackup(formData, token);
+
+      toast.success('Upload tệp đối chiếu thành công!');
+      setUploadResult({
+        success: true,
+        message: data.message,
+        files: data.savedFiles
       });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        toast.success('Upload tệp đối chiếu thành công!');
-        setUploadResult({
-          success: true,
-          message: data.message,
-          files: data.savedFiles
-        });
-        setSelectedFiles([]); // Clear list on success
-      } else {
-        toast.error(data.message || 'Lỗi khi tải tệp lên');
-        setUploadResult({
-          success: false,
-          message: data.message || 'Không thể tải tệp lên máy chủ'
-        });
-      }
+      setSelectedFiles([]); // Clear list on success
     } catch (err: any) {
-      toast.error('Lỗi kết nối máy chủ');
+      toast.error(err.message || 'Lỗi khi tải tệp lên');
       setUploadResult({
         success: false,
         message: 'Lỗi kết nối mạng, vui lòng thử lại.'

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 
@@ -79,13 +80,8 @@ export default function NotificationDropdown() {
       const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
       const todayStr = vietnamTime.toISOString().split('T')[0];
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/activity?date=${todayStr}&limit=10`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.dashboard.getActivity(todayStr, 10, token);
+      if (data) {
         setActivities(data);
       }
     } catch (err) {
@@ -113,16 +109,8 @@ export default function NotificationDropdown() {
       const readTime = localStorage.getItem('lastReadNotificationsTime') || '';
       const clearedTime = localStorage.getItem('lastClearedNotificationsTime') || '';
 
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/dashboard/unread-activities-count?date=${todayStr}&lastReadTime=${readTime}&lastClearedTime=${clearedTime}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.dashboard.getUnreadCount(todayStr, readTime, clearedTime, token);
+      if (data) {
         setUnreadCount(data.count);
       }
     } catch (err) {
@@ -144,14 +132,8 @@ export default function NotificationDropdown() {
       const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
       const todayStr = vietnamTime.toISOString().split('T')[0];
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/activity?date=${todayStr}&limit=1`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.length > 0) {
+      const data = await api.dashboard.getActivity(todayStr, 1, token);
+      if (data && data.length > 0) {
           const latest = data[0];
           const latestId = latest.id || latest._id || latest.createdAt;
           if (lastActivityIdRef.current && lastActivityIdRef.current !== latestId && shouldToast) {
@@ -266,7 +248,6 @@ export default function NotificationDropdown() {
           }
           lastActivityIdRef.current = latestId;
         }
-      }
     } catch (err) {
       console.warn('Error checking for new activity:', err);
     }

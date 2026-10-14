@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 // Danh sách các tác vụ thuộc nghiệp vụ Trading Manager & Hệ thống liên quan
 export const TRADING_JOB_TYPES = [
@@ -134,27 +135,19 @@ export default function TradingManagerJobQueueSection({
     if (!token) return;
     if (!silent) setLoadingJobs(true);
     try {
-      const url = jobScope === 'ALL'
-        ? `${API_BASE_URL}/api/v1/bot-engine/jobs`
-        : `${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=${TRADING_JOB_TYPES.join(',')}`;
+      const params = jobScope === 'ALL' ? {} : { jobTypes: TRADING_JOB_TYPES.join(',') };
+      const rawData = await api.checklistHub.getJobs(params, token);
+      const data = Array.isArray(rawData)
+        ? (jobScope === 'ALL' ? (rawData as any[]) : (rawData as any[]).filter((j) => TRADING_JOB_TYPES.includes(j.jobType)))
+        : [];
+      setJobs(data);
 
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const rawData: BotJob[] = await res.json();
-        const data = Array.isArray(rawData)
-          ? (jobScope === 'ALL' ? rawData : rawData.filter((j) => TRADING_JOB_TYPES.includes(j.jobType)))
-          : [];
-        setJobs(data);
-
-        // Update active jobs count to parent
-        const activeCount = data.filter(
-          (j) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
-        ).length;
-        if (onActiveCountChange) {
-          onActiveCountChange(activeCount);
-        }
+      // Update active jobs count to parent
+      const activeCount = data.filter(
+        (j) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
+      ).length;
+      if (onActiveCountChange) {
+        onActiveCountChange(activeCount);
       }
     } catch (err) {
       console.error('Lỗi khi tải danh sách tác vụ:', err);
@@ -168,12 +161,9 @@ export default function TradingManagerJobQueueSection({
     if (!token || !jobId) return;
     if (!silent) setLoadingLogs(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data: BotJob = await res.json();
-        setSelectedJobDetail(data);
+      const data = await api.checklistHub.getJobDetail(jobId, token);
+      if (data) {
+        setSelectedJobDetail(data as any);
       }
     } catch (err) {
       console.error('Lỗi khi tải chi tiết tác vụ:', err);
@@ -225,19 +215,7 @@ export default function TradingManagerJobQueueSection({
     if (!jobToCancel || !token) return;
     try {
       setCancellingJob(true);
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobToCancel._id}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ reason: cancelReason || 'Dừng thủ công bởi người vận hành qua Trading Manager' }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Không thể hủy tác vụ');
-      }
+      await api.checklistHub.cancelJob(jobToCancel._id, token);
 
       toast.success(`Đã dừng tác vụ ${jobToCancel._id.substring(0, 8)} thành công!`);
       setShowCancelModal(false);
@@ -260,16 +238,7 @@ export default function TradingManagerJobQueueSection({
     setSubmittingCaptcha(true);
     const toastId = toast.loading('Đang gửi mã Captcha...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${selectedJobId}/submit-captcha`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ captchaText }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Gửi captcha thất bại');
+      await api.checklistHub.submitCaptcha(selectedJobId, captchaText, token);
       toast.success('Gửi mã captcha thành công! Robot đang tiếp tục xử lý...', { id: toastId });
       setCaptchaText('');
       await fetchJobs();
@@ -306,34 +275,10 @@ export default function TradingManagerJobQueueSection({
     if (!token) return;
     const toastId = toast.loading('Đang nén và tải file báo cáo...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}/download-zip`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Không thể tải file nén báo cáo');
-      }
-
-      // Đọc filename từ Content-Disposition header nếu server có trả về
-      const disposition = res.headers.get('content-disposition');
-      let filename = `BaoCao_MXV_${jobId}.zip`;
-      if (disposition && disposition.includes('filename=')) {
-        const match = disposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) filename = match[1].trim();
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      toast.success('Tải file ZIP thành công!', { id: toastId });
+      await api.checklistHub.downloadJobZip(jobId, `BaoCao_MXV_${jobId}.zip`, token);
+      toast.success('Tải file báo cáo thành công!', { id: toastId });
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi tải file nén', { id: toastId });
+      toast.error(err.message || 'Lỗi tải file nén báo cáo', { id: toastId });
     }
   };
 

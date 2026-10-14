@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Play, AlertCircle, CheckCircle2, XCircle, Clock, Database, RefreshCw, Terminal, Copy } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface OmsStatusModalProps {
@@ -62,21 +63,10 @@ export default function OmsStatusModal({
   const handleTriggerCheck = async () => {
     setLoading(true);
     try {
-      const endpoint = taskId === 'ops_open_07' 
-        ? `${API_BASE_URL}/api/v1/bot-engine/trigger-email-check/${shiftLogId}/${taskId}`
-        : `${API_BASE_URL}/api/v1/bot-engine/trigger-oms-check/${shiftLogId}/${taskId}`;
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Lỗi khi gửi yêu cầu kích hoạt Robot');
+      if (taskId === 'ops_open_07') {
+        await api.checklistHub.triggerEmail(shiftLogId, taskId, token);
+      } else {
+        await api.checklistHub.triggerOms(shiftLogId, taskId, token);
       }
 
       toast.success('Đã gửi yêu cầu kích hoạt Robot tự động!');

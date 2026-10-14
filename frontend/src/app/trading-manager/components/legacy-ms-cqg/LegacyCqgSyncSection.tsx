@@ -7,7 +7,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 export interface LegacyCqgSyncSectionProps {
   token: string | null;
@@ -27,16 +27,8 @@ export default function LegacyCqgSyncSection({
       if (!token) return;
       if (!silent) setLoading(true);
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${selectedDate}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setCqgSyncData(data?.cqgSync || data?.preEod || null);
-        }
+        const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
+        setCqgSyncData(data?.cqgSync || (data as any)?.preEod || null);
       } catch (err: any) {
         console.error('Lỗi nạp dữ liệu đồng bộ CQG:', err);
       } finally {
@@ -56,25 +48,13 @@ export default function LegacyCqgSyncSection({
     const toastId = toast.loading('Đang khởi chạy đối chiếu số dư CQG...');
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: selectedDate,
-          bypassCooldown: true,
-          jobType: 'CHECK_CQG_SYNC',
-          sectionId: 'balance',
-        }),
-      });
+      const result = await api.tradingOps.triggerRun(
+        'CHECK_CQG_SYNC',
+        selectedDate,
+        { sectionId: 'balance' },
+        token,
+      );
 
-      if (!res.ok) {
-        throw new Error(`Lỗi khởi chạy: ${res.status}`);
-      }
-
-      const result = await res.json();
       const jobId = result.jobId;
 
       if (!jobId) {
@@ -94,11 +74,8 @@ export default function LegacyCqgSyncSection({
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
 
         try {
-          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jobRes.ok) continue;
-          const job = await jobRes.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
 
           if (job.status === 'COMPLETED') {
             completed = true;

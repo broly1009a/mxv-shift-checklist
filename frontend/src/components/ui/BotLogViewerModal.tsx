@@ -8,7 +8,8 @@ import { MarginDecisionVisualReport } from './bot-log-viewer/MarginDecisionVisua
 import { EmailScanVisualReport } from './bot-log-viewer/EmailScanVisualReport';
 import { RawLogConsoleView } from './bot-log-viewer/RawLogConsoleView';
 import { BotStatusBadge, getBotStatusText } from './bot-log-viewer/BotStatusBadge';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import CustomSelect from './CustomSelect';
 
 interface BotLogViewerModalProps {
@@ -45,12 +46,7 @@ export default function BotLogViewerModal({
 
     const fetchJobs = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?shiftLogId=${shiftLogId}&taskId=${taskId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
+        const data = await api.checklistHub.getJobs({ shiftLogId, taskId }, token);
         if (!isSubscribed) return;
         if (Array.isArray(data)) {
           setHistoryJobs(data);

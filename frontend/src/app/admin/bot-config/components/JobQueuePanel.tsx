@@ -11,17 +11,19 @@ import {
   AlertTriangle,
   Square,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
-interface BotJob {
+export interface BotJob {
   _id: string;
   jobType: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED' | 'ABORTED';
-  attempts: number;
-  maxAttempts: number;
-  logs: string[];
-  payload: Record<string, any>;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED' | 'ABORTED' | string;
+  attempts?: number;
+  maxAttempts?: number;
+  logs?: any[];
+  payload?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
+  [key: string]: any;
 }
 
 interface JobQueuePanelProps {
@@ -66,19 +68,11 @@ export default function JobQueuePanel({
     if (!jobToCancel) return;
     try {
       setCancellingJob(true);
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/jobs/${jobToCancel._id}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ reason: cancelReason || 'Hủy thủ công bởi Admin qua giao diện' }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Không thể hủy tác vụ');
-      }
+      await api.checklistHub.cancelJob(
+        jobToCancel._id,
+        cancelReason || 'Hủy thủ công bởi Admin qua giao diện',
+        token,
+      );
 
       setShowCancelModal(false);
       setJobToCancel(null);
@@ -100,14 +94,9 @@ export default function JobQueuePanel({
     let isMounted = true;
     const fetchJobDetail = async () => {
       try {
-        const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/jobs/${selectedJobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setSelectedJobDetail(data);
-          }
+        const data = await api.checklistHub.getJobDetail(selectedJobId, token);
+        if (isMounted) {
+          setSelectedJobDetail(data as any);
         }
       } catch (err) {
         console.error('Error fetching job detail:', err);

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { parseWindowsStoragePath } from '@/components/admin/SmartPathInput';
 
 export interface CcpExchangeRateItem {
@@ -98,13 +99,7 @@ export default function TradingManagerConfigSection({
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        throw new Error(`Lỗi tải cấu hình (HTTP ${res.status})`);
-      }
-      const settingsList: Array<{ key: string; value: string }> = await res.json();
+      const settingsList: Array<{ key: string; value: string }> = await api.admin.getSystemSettings(token) as any;
       const map: Record<string, string> = {};
       if (Array.isArray(settingsList)) {
         settingsList.forEach((item) => {
@@ -220,12 +215,8 @@ export default function TradingManagerConfigSection({
     setSyncingMsRate(true);
     const toastId = toast.loading('Đang khởi động bot đồng bộ tỷ giá từ M-System...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/sync-exchange-rates`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data: any = await api.ccpClearing.syncExchangeRates(token);
+      if (data && data.success) {
         const usdVal = data.usdRate || data.conversionRates?.USD || data.rates?.USD;
         if (usdVal) setUsdExchangeRate(usdVal);
 
@@ -244,7 +235,7 @@ export default function TradingManagerConfigSection({
           { id: toastId },
         );
       } else {
-        toast.error(data.message || 'Không thể đồng bộ tỷ giá từ M-System', { id: toastId });
+        toast.error(data?.message || 'Không thể đồng bộ tỷ giá từ M-System', { id: toastId });
       }
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`, { id: toastId });
@@ -259,16 +250,8 @@ export default function TradingManagerConfigSection({
     setSyncingCcpRate(true);
     const toastId = toast.loading('Đang đồng bộ tỷ giá từ CoreCCP (Tỷ giá nguyên tệ)...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/sync-exchange-rate`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (res.ok && data.success && data.data) {
+      const data: any = await api.ccpClearing.syncExchangeRateLot(token);
+      if (data && data.success && data.data) {
         const rate = data.data.usdRate;
         if (rate) setCcpUsdExchangeRate(rate);
 
@@ -400,16 +383,7 @@ export default function TradingManagerConfigSection({
       ];
 
       await Promise.all(
-        settingsToSave.map((s) =>
-          fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(s),
-          }),
-        ),
+        settingsToSave.map((s) => api.admin.saveSystemSetting(s.key, s.value, token)),
       );
 
       if (typeof window !== 'undefined' && sessionStartTime) {
@@ -430,16 +404,8 @@ export default function TradingManagerConfigSection({
     setPathChecking((prev) => ({ ...prev, [key]: true }));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings/verify-storage-path`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ path: targetPath.trim(), targetType: 'any' }),
-      });
+      const data: any = await api.admin.verifyStoragePath(targetPath.trim(), token);
 
-      const data = await res.json();
       setPathStatus((prev) => ({
         ...prev,
         [key]: {

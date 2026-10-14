@@ -19,7 +19,7 @@ import {
   Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
 export interface CcpCeEodReconSectionProps {
@@ -120,11 +120,8 @@ export default function CcpCeEodReconSection({
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?sessionDate=${dateStr}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.tradingOps.getConsoleSummary(dateStr, undefined, token);
+      if (data) {
         // Parse CoreCCP / CoreEX EOD info if available
         if (data?.negativeMargin) {
           setHasExecutedMargin(!!data.negativeMargin.executedAt);
@@ -169,35 +166,26 @@ export default function CcpCeEodReconSection({
     setTriggering(true);
     setTriggeringSection(type);
 
-    let endpoint = '';
-    let actionLabel = '';
-
-    if (type === 'margin') {
-      endpoint = `${API_BASE_URL}/api/v1/reconciliation/check-negative-margin`;
-      actionLabel = 'kiểm tra âm ký quỹ CoreCCP';
-    } else if (type === 'eod_run') {
-      endpoint = `${API_BASE_URL}/api/v1/reconciliation/check-eod-run`;
-      actionLabel = 'kiểm tra số dư EOD CoreCCP vs CoreEX';
-    } else {
-      endpoint = `${API_BASE_URL}/api/v1/reconciliation/run-check-pre-eod`;
-      actionLabel = 'đối soát Pre-EOD CoreCCP ↔ CoreEX';
-    }
+    const actionLabel =
+      type === 'margin'
+        ? 'kiểm tra âm ký quỹ CoreCCP'
+        : type === 'eod_run'
+        ? 'kiểm tra số dư EOD CoreCCP vs CoreEX'
+        : 'đối soát Pre-EOD CoreCCP ↔ CoreEX';
 
     const toastId = toast.loading(`Đang thực hiện ${actionLabel}...`);
 
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionDate: selectedDate }),
-      });
+      let data: any;
+      if (type === 'margin') {
+        data = await api.tradingOps.checkNegativeMargin(selectedDate, token);
+      } else if (type === 'eod_run') {
+        data = await api.tradingOps.checkEodRun(selectedDate, token);
+      } else {
+        data = await api.tradingOps.runCheckPreEod(selectedDate, token);
+      }
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      toast.success(data.message || `Hoàn tất ${actionLabel}!`, { id: toastId });
+      toast.success(data?.message || `Hoàn tất ${actionLabel}!`, { id: toastId });
       await fetchEodSummary(selectedDate);
     } catch (err: any) {
       toast.error(`Lỗi thực hiện: ${err.message}`, { id: toastId });

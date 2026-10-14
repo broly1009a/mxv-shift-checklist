@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { Building2, Plus, Edit, Trash2, X, Save, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -103,11 +104,8 @@ export default function AdminDepartmentsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/departments`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
+      const data = await api.admin.getDepartments(token);
+      if (Array.isArray(data)) {
         setDepartments(data);
       } else {
         setDepartments([]);
@@ -172,28 +170,17 @@ export default function AdminDepartmentsPage() {
     setSubmitting(true);
 
     try {
-      const method = editingDept ? 'PUT' : 'POST';
-      const url = editingDept
-        ? `${API_BASE_URL}/api/v1/departments/${editingDept._id}`
-        : `${API_BASE_URL}/api/v1/departments`;
+      const payload = { 
+        name: name.trim(), 
+        code: code.trim(), 
+        isActive,
+        parentDepartmentId: parentDepartmentId || null 
+      };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          name: name.trim(), 
-          code: code.trim(), 
-          isActive,
-          parentDepartmentId: parentDepartmentId || null 
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Thao tác thất bại');
+      if (editingDept) {
+        await api.admin.updateDepartment(editingDept._id, payload, token);
+      } else {
+        await api.admin.createDepartment(payload, token);
       }
 
       toast.success(editingDept ? 'Cập nhật phòng ban thành công!' : 'Tạo phòng ban mới thành công!');
@@ -217,16 +204,8 @@ export default function AdminDepartmentsPage() {
 
     setDeletingId(dept._id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/departments/${dept._id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Xóa thất bại');
-      }
-      const data = await res.json();
-      if (data.statusChanged) {
+      const data = await api.admin.deleteDepartment(dept._id, token);
+      if (data && data.statusChanged) {
         toast.success(`Phòng ban "${dept.name}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
       } else {
         toast.success(`Đã xóa phòng ban "${dept.name}".`);

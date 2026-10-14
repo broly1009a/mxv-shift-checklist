@@ -13,6 +13,7 @@ import {
   Settings,
   AlertTriangle,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 interface ValueStatisticsPanelProps {
   token: string;
@@ -162,13 +163,8 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
     setSavingConfig(true);
     const toastId = toast.loading('Đang lưu cấu hình tỷ giá & macro path...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/value-statistics/config`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await api.ccpClearing.saveValueConfig(
+        {
           macroPath,
           targetRoot: basePath,
           updateCumulative,
@@ -178,9 +174,9 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
           pathOptions,
           pathSpread,
           pathTvkd,
-        }),
-      });
-      if (!res.ok) throw new Error('Không thể lưu cấu hình');
+        },
+        token,
+      );
       toast.success('Lưu cấu hình thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình', { id: toastId });
@@ -226,17 +222,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         pathTvkd,
       };
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/value-statistics/process-local`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi chạy thống kê giá trị');
+      const data = await api.ccpClearing.processValueLocal(payload, token);
 
       setResult(data);
       toast.success('Xử lý tính toán thống kê giá trị giao dịch thành công!', { id: toastId });
@@ -278,17 +264,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         pathTvkd,
       };
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/value-statistics/process-tvkd-only`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi cập nhật file TVKD lũy kế');
+      const data = await api.ccpClearing.processValueTvkdOnly(payload, token);
 
       // Setup a minimal result format so UI doesn't crash and switches straight to TVKD tab
       setResult({
@@ -312,10 +288,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${apiBaseUrl}/api/v1/value-statistics/config`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    api.ccpClearing.getValueConfig(token)
       .then((data) => {
         if (data) {
           if (data.defaultMacroPath) setMacroPath(data.defaultMacroPath);
@@ -330,7 +303,7 @@ export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatist
         }
       })
       .catch((err) => console.error('Error fetching value statistics config:', err));
-  }, [token, apiBaseUrl]);
+  }, [token]);
 
   const normalItems = result?.normalGtgdBreakdown
     ? Object.entries(result.normalGtgdBreakdown)

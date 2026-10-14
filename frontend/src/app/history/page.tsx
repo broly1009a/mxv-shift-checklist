@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { usePermissions } from '@/hooks/usePermissions';
 import { 
   Search, 
@@ -95,11 +96,8 @@ function HistoryAudit() {
   const fetchFilters = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/departments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
+      const data = await api.admin.getDepartments(token);
+      if (Array.isArray(data)) {
         setDepartments(data);
       } else {
         setDepartments([]);
@@ -114,16 +112,16 @@ function HistoryAudit() {
     if (!token) return;
     setLoading(true);
     try {
-      let url = `${API_BASE_URL}/api/v1/shifts/history?page=${currentPage}&limit=${limit}&`;
-      if (selectedDept) url += `departmentId=${selectedDept}&`;
-      if (selectedStatus) url += `status=${selectedStatus}&`;
-      if (startDate) url += `startDate=${startDate}&`;
-      if (endDate) url += `endDate=${endDate}&`;
+      const params: Record<string, any> = {
+        page: currentPage.toString(),
+        limit: limit.toString(),
+      };
+      if (selectedDept) params.departmentId = selectedDept;
+      if (selectedStatus) params.status = selectedStatus;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
 
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const resData = await res.json();
+      const resData = await api.checklistHub.getShiftHistory(params, token);
       if (resData && Array.isArray(resData.data)) {
         setLogs(resData.data);
         setTotalLogs(resData.total || 0);

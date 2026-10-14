@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { 
   UserPlus, 
   Edit, 
@@ -110,11 +111,8 @@ export default function AdminUsersPage() {
     if (!token) return;
     try {
       // Fetch departments
-      const deptsRes = await fetch(`${API_BASE_URL}/api/v1/departments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const deptsData = await deptsRes.json();
-      if (deptsRes.ok && Array.isArray(deptsData)) {
+      const deptsData = await api.admin.getDepartments(token);
+      if (Array.isArray(deptsData)) {
         setDepartments(deptsData);
       } else {
         setDepartments([]);
@@ -129,18 +127,16 @@ export default function AdminUsersPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.append('page', currentPage.toString());
-      params.append('limit', limit.toString());
-      if (debouncedSearchQuery) params.append('search', debouncedSearchQuery);
-      if (filterRole) params.append('role', filterRole);
-      if (filterDepartment) params.append('departmentId', filterDepartment);
-      if (filterActive !== '') params.append('isActive', filterActive);
+      const params: Record<string, any> = {
+        page: currentPage.toString(),
+        limit: limit.toString(),
+      };
+      if (debouncedSearchQuery) params.search = debouncedSearchQuery;
+      if (filterRole) params.role = filterRole;
+      if (filterDepartment) params.departmentId = filterDepartment;
+      if (filterActive !== '') params.isActive = filterActive;
 
-      const usersRes = await fetch(`${API_BASE_URL}/api/v1/users?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const usersData = await usersRes.json();
+      const usersData = await api.admin.getUsers(params, token);
       
       if (usersData && typeof usersData === 'object' && 'data' in usersData) {
         setUsers(usersData.data || []);
@@ -222,32 +218,13 @@ export default function AdminUsersPage() {
       };
 
       if (editingUser) {
-        res = await fetch(`${API_BASE_URL}/api/v1/users/${editingUser._id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(bodyPayload)
-        });
+        await api.admin.updateUser(editingUser._id, bodyPayload, token);
       } else {
         if (!password) {
           toast.error('Vui lòng nhập mật khẩu cho tài khoản mới');
           return;
         }
-        res = await fetch(`${API_BASE_URL}/api/v1/users`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(bodyPayload)
-        });
-      }
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Thao tác thất bại');
+        await api.admin.createUser(bodyPayload, token);
       }
 
       toast.success(editingUser ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản mới thành công!');
@@ -265,17 +242,8 @@ export default function AdminUsersPage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/users/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Xóa tài khoản thất bại');
-      }
-      const data = await res.json();
-      if (data.statusChanged) {
+      const data = await api.admin.deleteUser(id, token);
+      if (data && data.statusChanged) {
         toast.success(`Tài khoản "${name}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
       } else {
         toast.success('Đã xóa tài khoản.');

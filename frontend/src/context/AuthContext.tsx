@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/services/api';
 
 interface User {
   id: string;
@@ -81,23 +82,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (user && token) {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/auth/profile`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
+        const updatedUser = await api.auth.updateProfile(
+          {
             settings: {
               ...user.settings,
-              theme: newTheme
-            }
-          })
-        });
-        if (res.ok) {
-          const updatedUser = await res.json();
-          updateUser(updatedUser);
-        }
+              theme: newTheme,
+            },
+          },
+          token,
+        );
+        updateUser(updatedUser);
       } catch (err) {
         console.error('Failed to sync theme to DB:', err);
       }
@@ -191,18 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, pass: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password: pass }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Đăng nhập thất bại');
-      }
-
-      const data = await res.json();
+      const data = await api.auth.login(username, pass);
       const tokenVal = data.access_token;
       const userVal = data.user;
 
@@ -235,18 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginSSO = async (email: string, fullName: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/auth/sso`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, fullName }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Đăng nhập AD thất bại');
-      }
-
-      const data = await res.json();
+      const data = await api.auth.loginSSO(email, fullName);
       const tokenVal = data.access_token;
       const userVal = data.user;
 

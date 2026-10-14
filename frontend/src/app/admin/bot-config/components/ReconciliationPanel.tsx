@@ -9,6 +9,7 @@ import {
   Upload,
   FileText,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 interface ReconciliationPanelProps {
   token: string;
@@ -45,18 +46,15 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
     if (!token) return;
     const toastId = toast.loading('Đang tải danh sách ngày đối chiếu...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/sample-dates`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = await api.tradingOps.getSampleDates(token);
+      if (data?.success) {
         setReconSampleDates(data.dates || []);
         if (data.dates?.length > 0) {
           setReconSelectedPath(data.dates[0].samplePath);
         }
         toast.success('Đã tải danh sách ngày mẫu thành công', { id: toastId });
       } else {
-        toast.error(data.message || 'Không tải được danh sách ngày mẫu', { id: toastId });
+        toast.error(data?.message || 'Không tải được danh sách ngày mẫu', { id: toastId });
       }
     } catch (err: any) {
       toast.error('Lỗi tải danh sách ngày mẫu', { id: toastId });
@@ -64,28 +62,23 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
   };
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/v1/reconciliation/sample-dates`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    api.tradingOps.getSampleDates(token)
       .then((data) => {
-        if (data.success && data.dates?.length > 0) {
+        if (data?.success && data.dates?.length > 0) {
           setReconSampleDates(data.dates);
           setReconSelectedPath(data.dates[0].samplePath);
         }
       })
       .catch(console.error);
-    fetch(`${apiBaseUrl}/api/v1/reconciliation/usd-rate`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+
+    api.tradingOps.getUsdRate(token)
       .then((data) => {
-        if (data.success && data.rate) {
+        if (data?.success && data.rate) {
           setReconUsdRate(data.rate);
         }
       })
       .catch(console.error);
-  }, [token, apiBaseUrl]);
+  }, [token]);
 
   // Run local test with sample path
   const handleRunReconTest = async () => {
@@ -94,19 +87,16 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
     setReconResult(null);
     const toastId = toast.loading('Đang chạy kiểm thử đối chiếu từ file mẫu...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/run-test-local`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ samplePath: reconSelectedPath, usdRate: reconUsdRate }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi chạy kiểm thử');
+      const data = await api.tradingOps.runTestLocal(
+        { samplePath: reconSelectedPath, usdRate: reconUsdRate },
+        token,
+      );
       setReconResult(data);
-      const hasErrors = Object.keys(data.errors || {}).length > 0;
-      if (data.success) {
+      const hasErrors = Object.keys(data?.errors || {}).length > 0;
+      if (data?.success) {
         toast.success('Kiểm thử hoàn thành: Tất cả đối chiếu khớp!', { id: toastId, duration: 6000 });
       } else if (hasErrors) {
-        toast.error(`Kiểm thử có lỗi: ${Object.values(data.errors || {}).join(', ')}`, { id: toastId, duration: 6000 });
+        toast.error(`Kiểm thử có lỗi: ${Object.values(data?.errors || {}).join(', ')}`, { id: toastId, duration: 6000 });
       } else {
         toast('Kiểm thử hoàn thành: Phát hiện chênh lệch dữ liệu', { id: toastId, duration: 6000 });
       }
@@ -123,14 +113,8 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
     setReconAutoRunning(true);
     const toastId = toast.loading('Bot đang đăng nhập M-System và tải file đối chiếu... (2-5 phút)');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/run-auto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ usdRate: reconUsdRate }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Bot đối chiếu thất bại');
-      toast.success(data.message || 'Bot đối chiếu hoàn thành!', { id: toastId, duration: 6000 });
+      const data = await api.tradingOps.runAuto({ usdRate: reconUsdRate }, token);
+      toast.success(data?.message || 'Bot đối chiếu hoàn thành!', { id: toastId, duration: 6000 });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi bot đối chiếu', { id: toastId });
     } finally {
@@ -164,14 +148,7 @@ export default function ReconciliationPanel({ token, apiBaseUrl }: Reconciliatio
       });
       formData.append('usdRate', String(reconUsdRate));
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/reconciliation/test-upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi upload chạy đối chiếu');
+      const data = await api.tradingOps.testUpload(formData, token);
 
       setReconResult(data);
       const hasErrors = Object.keys(data.errors || {}).length > 0;

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileSpreadsheet, Play, Settings, Save, CheckCircle2, AlertCircle, Plus, Trash2, Calendar, FileDown, Upload } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface TradingReportModalProps {
@@ -70,13 +71,8 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
   const fetchExchangeRates = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/exchange-rates`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRates(data);
-      }
+      const data = await api.tradingReport.getExchangeRates(token);
+      setRates(data);
     } catch (err) {
       console.error('Error fetching exchange rates:', err);
     }
@@ -84,13 +80,8 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
 
   const fetchSystemConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSystemConfigText(JSON.stringify(data, null, 2));
-      }
+      const data = await api.tradingReport.getConfig(token);
+      setSystemConfigText(JSON.stringify(data, null, 2));
     } catch (err) {
       console.error('Error fetching config:', err);
     }
@@ -115,26 +106,11 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('reportTypes', JSON.stringify(monthReportTypes));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/process-month`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ message: 'Lỗi xuất báo cáo.' }));
-        throw new Error(errData.message || 'Lỗi xử lý báo cáo tháng');
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Bao_cao_giao_dich_thang_${month}_${year}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await api.tradingReport.processMonth(
+        formData,
+        `Bao_cao_giao_dich_thang_${month}_${year}.xlsx`,
+        token,
+      );
       toast.success('Xuất báo cáo tháng thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kết nối máy chủ');
@@ -165,26 +141,11 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('endDate', qEndDate);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/process-quarter`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ message: 'Lỗi xuất báo cáo.' }));
-        throw new Error(errData.message || 'Lỗi xử lý báo cáo quý');
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Bao_cao_doanh_thu_quy_${qStartDate}_den_${qEndDate}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await api.tradingReport.processQuarter(
+        formData,
+        `Bao_cao_doanh_thu_quy_${qStartDate}_den_${qEndDate}.xlsx`,
+        token,
+      );
       toast.success('Xuất báo cáo doanh thu quý thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kết nối máy chủ');
@@ -206,26 +167,11 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('reportTypes', JSON.stringify(ttttReportTypes));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/process-tttt`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ message: 'Lỗi xuất báo cáo.' }));
-        throw new Error(errData.message || 'Lỗi xử lý báo cáo tất toán');
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Bao_cao_tat_toan_doi_chieu.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await api.tradingReport.processTttt(
+        formData,
+        `Bao_cao_tat_toan_doi_chieu.xlsx`,
+        token,
+      );
       toast.success('Xuất báo cáo tất toán thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kết nối máy chủ');
@@ -241,27 +187,18 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/exchange-rates`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await api.tradingReport.createExchangeRate(
+        {
           fromCurrency: newRate.fromCurrency,
           toCurrency: newRate.toCurrency,
           rate: parseFloat(newRate.rate),
           effectiveFrom: new Date(newRate.effectiveFrom),
-        }),
-      });
-
-      if (res.ok) {
-        toast.success('Thêm tỷ giá thành công!');
-        setNewRate({ fromCurrency: 'USD', toCurrency: 'VND', rate: '', effectiveFrom: '' });
-        fetchExchangeRates();
-      } else {
-        throw new Error('Lỗi thêm tỷ giá');
-      }
+        },
+        token,
+      );
+      toast.success('Thêm tỷ giá thành công!');
+      setNewRate({ fromCurrency: 'USD', toCurrency: 'VND', rate: '', effectiveFrom: '' });
+      fetchExchangeRates();
     } catch (err: any) {
       toast.error(err.message || 'Không thể tạo tỷ giá');
     }
@@ -270,16 +207,9 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
   const handleDeleteRate = async (id: string) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa tỷ giá này?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/exchange-rates/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        toast.success('Xóa tỷ giá thành công!');
-        fetchExchangeRates();
-      } else {
-        throw new Error('Lỗi xóa tỷ giá');
-      }
+      await api.tradingReport.deleteExchangeRate(id, token);
+      toast.success('Xóa tỷ giá thành công!');
+      fetchExchangeRates();
     } catch (err: any) {
       toast.error(err.message || 'Không thể xóa tỷ giá');
     }
@@ -295,21 +225,10 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     formData.append('file', ratesFile);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/import-exchange-rates`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(`Nhập thành công ${data.count} bản ghi tỷ giá!`);
-        setRatesFile(null);
-        fetchExchangeRates();
-      } else {
-        const errText = await res.json().catch(() => ({ message: 'Lỗi tải lên.' }));
-        throw new Error(errText.message || 'Lỗi nhập tỷ giá');
-      }
+      const data = await api.tradingReport.importExchangeRates(formData, token);
+      toast.success(`Nhập thành công ${data?.count || 0} bản ghi tỷ giá!`);
+      setRatesFile(null);
+      fetchExchangeRates();
     } catch (err: any) {
       toast.error(err.message || 'Không thể tải lên file tỷ giá');
     } finally {
@@ -322,21 +241,9 @@ export default function TradingReportModal({ isOpen, onClose, token }: TradingRe
     try {
       const parsed = JSON.parse(systemConfigText);
       setIsSavingConfig(true);
-      const res = await fetch(`${API_BASE_URL}/api/v1/trading-report/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(parsed),
-      });
-
-      if (res.ok) {
-        toast.success('Lưu cấu hình hệ thống thành công!');
-        fetchSystemConfig();
-      } else {
-        throw new Error('Lỗi lưu cấu hình');
-      }
+      await api.tradingReport.saveConfig(parsed, token);
+      toast.success('Lưu cấu hình hệ thống thành công!');
+      fetchSystemConfig();
     } catch (err: any) {
       toast.error(err.message || 'Định dạng JSON không hợp lệ!');
     } finally {

@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import * as readline from 'readline';
+import { MarginCheckerService } from '../trading-ops/services/margin-checker.service';
 
 export interface NegativeMarginAccount {
   account: string;
@@ -13,12 +14,30 @@ export interface NegativeMarginAccount {
 export class PostEodHandlerService {
   private readonly logger = new Logger(PostEodHandlerService.name);
 
+  constructor(
+    @Optional()
+    private readonly marginCheckerService?: MarginCheckerService,
+  ) {}
+
   /**
    * Reads EOD report (xlsx or csv) and extracts accounts with negative margin.
    */
   async scanNegativeMarginAccounts(
     filePath: string,
   ): Promise<NegativeMarginAccount[]> {
+    if (this.marginCheckerService) {
+      try {
+        this.logger.log(
+          `[PostEodHandler-Facade] Ủy thác quét âm ký quỹ sang MarginCheckerService V2 cho: "${path.basename(filePath)}"`,
+        );
+        return await this.marginCheckerService.scanNegativeMarginAccounts(filePath);
+      } catch (err: any) {
+        this.logger.warn(
+          `[PostEodHandler-Facade] MarginCheckerService V2 lỗi (${err.message}), kích hoạt fallback parser nội bộ V1...`,
+        );
+      }
+    }
+
     if (!fs.existsSync(filePath)) {
       this.logger.error(`[NegativeMargin] File không tồn tại: ${filePath}`);
       return [];

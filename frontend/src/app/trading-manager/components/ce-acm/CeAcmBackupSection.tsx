@@ -23,7 +23,7 @@ import {
   Filter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import CeCcpGttCheckerSection from './CeCcpGttCheckerSection';
 
 // Danh mục 10 báo cáo chuẩn sàn CoreEX (CE)
@@ -221,16 +221,7 @@ export default function CeAcmBackupSection({
       toastId = toast.loading('Đang quét thư mục backup CoreEX (CE)...');
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-ce-backup`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.auditCeBackup(selectedDate, token);
       setAuditCeResult(data);
       if (showToast && toastId) {
         toast.success(
@@ -256,16 +247,7 @@ export default function CeAcmBackupSection({
       toastId = toast.loading('Đang quét thư mục backup ACM (Web & SFTP)...');
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-acm-backup`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.auditAcmBackup(selectedDate, token);
       setAuditAcmResult(data);
       if (showToast && toastId) {
         toast.success(
@@ -294,22 +276,13 @@ export default function CeAcmBackupSection({
     setDownloadingCe(true);
     const toastId = toast.loading('Đang khởi tạo tác vụ robot tải báo cáo CE...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ce-download`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: selectedDate,
-          startDate: selectedDate,
-          endDate: selectedDate,
-          reports: selectedKeys,
-        }),
-      });
+      const data = await api.ingress.triggerCeDownload({
+        date: selectedDate,
+        startDate: selectedDate,
+        endDate: selectedDate,
+        reports: selectedKeys,
+      }, token);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
       const jobId = data.jobId;
 
       if (!jobId) {
@@ -329,11 +302,8 @@ export default function CeAcmBackupSection({
       while (Date.now() - startTime < MAX_WAIT_MS) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           setCurrentJobLogs(job.logs || []);
           setCurrentJobStatus(job.status);
 
@@ -378,20 +348,11 @@ export default function CeAcmBackupSection({
     setDownloadingAcm(true);
     const toastId = toast.loading('Đang khởi tạo tác vụ robot tải báo cáo ACM...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-acm-download`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          targetDate: selectedDate,
-          reports: selectedKeys,
-        }),
-      });
+      const data = await api.ingress.triggerAcmDownload({
+        targetDate: selectedDate,
+        reports: selectedKeys,
+      }, token);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
       const jobId = data.jobId;
 
       if (!jobId) {
@@ -411,11 +372,8 @@ export default function CeAcmBackupSection({
       while (Date.now() - startTime < MAX_WAIT_MS) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           setCurrentJobLogs(job.logs || []);
           setCurrentJobStatus(job.status);
 

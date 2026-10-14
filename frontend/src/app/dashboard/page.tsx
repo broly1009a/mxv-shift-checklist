@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   Layers,
@@ -258,45 +259,49 @@ export default function DashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     if (!token || !dashboardDate) return;
     try {
-      const deptIdFilter = user?.role === 'ADMIN' ? '' : `departmentId=${user?.department?.id || user?.department?._id || ''}`;
+      const deptId = user?.role === 'ADMIN' ? undefined : (user?.department?.id || user?.department?._id);
 
       // 1. Fetch templates
-      const tplRes = await fetch(`${API_BASE_URL}/api/v1/templates${deptIdFilter ? `?${deptIdFilter}` : ''}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const tplData = await tplRes.json();
-      if (tplRes.ok && Array.isArray(tplData)) {
-        setTemplates(tplData);
-      } else {
+      try {
+        const tplData = await api.admin.getTemplates(deptId, token);
+        if (Array.isArray(tplData)) {
+          setTemplates(tplData);
+        } else {
+          setTemplates([]);
+        }
+      } catch {
         setTemplates([]);
       }
 
       // 2. Fetch summary
-      const summaryRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/summary?date=${dashboardDate}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const summaryData = await summaryRes.json();
-      setSummary(summaryRes.ok ? summaryData : null);
+      try {
+        const summaryData = await api.dashboard.getSummary(dashboardDate, token);
+        setSummary(summaryData || null);
+      } catch {
+        setSummary(null);
+      }
 
       // 3. Fetch active shifts (jobs status=PENDING)
-      const activeRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/jobs?date=${dashboardDate}&status=PENDING`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const activeData = await activeRes.json();
-      if (activeRes.ok && Array.isArray(activeData)) {
-        setActiveShifts(activeData);
-      } else {
+      try {
+        const activeData = await api.dashboard.getJobs({ date: dashboardDate, status: 'PENDING' }, token);
+        if (Array.isArray(activeData)) {
+          setActiveShifts(activeData);
+        } else {
+          setActiveShifts([]);
+        }
+      } catch {
         setActiveShifts([]);
       }
 
       // 4. Fetch recent shifts (jobs status=COMPLETED)
-      const historyRes = await fetch(`${API_BASE_URL}/api/v1/dashboard/jobs?date=${dashboardDate}&status=COMPLETED`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const historyData = await historyRes.json();
-      if (historyRes.ok && Array.isArray(historyData)) {
-        setRecentShifts(historyData);
-      } else {
+      try {
+        const historyData = await api.dashboard.getJobs({ date: dashboardDate, status: 'COMPLETED' }, token);
+        if (Array.isArray(historyData)) {
+          setRecentShifts(historyData);
+        } else {
+          setRecentShifts([]);
+        }
+      } catch {
         setRecentShifts([]);
       }
     } catch (err) {
@@ -344,19 +349,10 @@ export default function DashboardPage() {
     if (isInitializingShift) return;
     setIsInitializingShift(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/initialize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ templateId: selectedTemplate, shiftDate: dashboardDate })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Khởi tạo thất bại');
-      }
+      await api.checklistHub.initializeShift(
+        { templateId: selectedTemplate, shiftDate: dashboardDate },
+        token,
+      );
 
       toast.success('Khởi tạo ca trực thành công!');
       setSelectedTemplate('');
@@ -373,19 +369,7 @@ export default function DashboardPage() {
     setJobRunning(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shift-jobs/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ date: jobDate })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Kích hoạt sinh ca thất bại');
-      }
+      const data = await api.checklistHub.generateShiftJobs({ date: jobDate }, token);
 
       if (data.success === false && data.reason === 'NOT_A_TRADING_DAY') {
         toast.error(`Ngày ${jobDate} được cấu hình là ngày nghỉ/không giao dịch. Không sinh ca trực.`);

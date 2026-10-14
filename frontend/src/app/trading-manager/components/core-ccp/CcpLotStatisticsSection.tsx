@@ -29,7 +29,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import SmartPathInput from '@/components/admin/SmartPathInput';
 
 export interface CcpLotStatisticsSectionProps {
@@ -187,11 +187,7 @@ export default function CcpLotStatisticsSection({
   const fetchConfig = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await api.ccpClearing.getLotConfig(token);
       const cfg = data?.data || data;
       if (cfg) {
         setBackupPathCcp(cfg.bot_backup_path_ccp || '');
@@ -217,14 +213,9 @@ export default function CcpLotStatisticsSection({
     if (!token || !date) return;
     setScanning(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/scan-daily?date=${date}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.success && data?.data) {
-          setScanResult(data.data);
-        }
+      const data = await api.ccpClearing.scanDailyLot(date, token);
+      if (data?.success && data?.data) {
+        setScanResult(data.data);
       }
     } catch (err) {
       console.warn('Lỗi quét thư mục backup ngày:', err);
@@ -248,35 +239,27 @@ export default function CcpLotStatisticsSection({
     if (!token) return;
     setSavingConfig(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          bot_backup_path_ccp: backupPathCcp,
-          pathAcmLot,
-          pathAcmGtgd,
-          pathAcmCumulative: pathAcmLot,
-          pathGtgdAcm: pathAcmGtgd,
-          pathNormalLot,
-          pathNormalCumulative: pathNormalLot,
-          pathSpreadLot,
-          pathSpreadCumulative: pathSpreadLot,
-          pathLmeLot,
-          pathLmeCumulative: pathLmeLot,
-          pathOptionsLot,
-          pathOptionsCumulative: pathOptionsLot,
-          pathGtgdNormal,
-          pathGtgdSpread,
-          pathGtgdLme,
-          pathGtgdOptions,
-          pathDsgdCumulative,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data?.success) {
+      const data = await api.ccpClearing.saveLotConfig({
+        bot_backup_path_ccp: backupPathCcp,
+        pathAcmLot,
+        pathAcmGtgd,
+        pathAcmCumulative: pathAcmLot,
+        pathGtgdAcm: pathAcmGtgd,
+        pathNormalLot,
+        pathNormalCumulative: pathNormalLot,
+        pathSpreadLot,
+        pathSpreadCumulative: pathSpreadLot,
+        pathLmeLot,
+        pathLmeCumulative: pathLmeLot,
+        pathOptionsLot,
+        pathOptionsCumulative: pathOptionsLot,
+        pathGtgdNormal,
+        pathGtgdSpread,
+        pathGtgdLme,
+        pathGtgdOptions,
+        pathDsgdCumulative,
+      }, token);
+      if (data?.success) {
         toast.success('Đã lưu cấu hình đường dẫn thành công');
         setShowConfig(false);
         if (ngayGD) {
@@ -317,22 +300,14 @@ export default function CcpLotStatisticsSection({
     setSyncingRate(true);
     const toastId = toast.loading('Đang lấy tỷ giá mới nhất từ tệp ngày CoreCCP / M-System...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/sync-exchange-rate`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ date: ngayGD }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = await api.ccpClearing.syncExchangeRateLot({ date: ngayGD }, token);
+      if (data?.success) {
         toast.success(data.message || 'Đã đồng bộ tỷ giá thành công vào CSDL!', { id: toastId });
         if (ngayGD) {
           fetchDailyScan(ngayGD);
         }
       } else {
-        toast.error(data.message || 'Không thể đồng bộ tỷ giá', { id: toastId });
+        toast.error(data?.message || 'Không thể đồng bộ tỷ giá', { id: toastId });
       }
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`, { id: toastId });
@@ -350,21 +325,14 @@ export default function CcpLotStatisticsSection({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/upload-tygia`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = await api.ccpClearing.uploadTygia(formData, token);
+      if (data?.success) {
         toast.success(data.message || 'Đã bóc tách và lưu tỷ giá vào CSDL thành công!', { id: toastId });
         if (ngayGD) {
           fetchDailyScan(ngayGD);
         }
       } else {
-        toast.error(data.message || 'Lỗi xử lý file tỷ giá', { id: toastId });
+        toast.error(data?.message || 'Lỗi xử lý file tỷ giá', { id: toastId });
       }
     } catch (err: any) {
       toast.error(`Lỗi tải lên: ${err.message}`, { id: toastId });
@@ -391,16 +359,8 @@ export default function CcpLotStatisticsSection({
       if (tyGiaFile) formData.append('tyGia', tyGiaFile);
       formData.append('ngayGD', ngayGD);
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (res.ok && data?.success) {
+      const data = await api.ccpClearing.processLotStatistics(formData, token);
+      if (data?.success) {
         setResult(data.data);
         toast.success(`Thống kê hoàn tất: ${data.data.totalSoLot.toLocaleString('vi-VN')} lot`);
       } else {
@@ -424,21 +384,12 @@ export default function CcpLotStatisticsSection({
     setWritingAccumulator(true);
     setAccumulatorLogs([]);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/write-accumulator`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ result }),
-      });
-
-      const data = await res.json();
+      const data = await api.ccpClearing.writeAccumulator({ result }, token);
       if (data?.logs && Array.isArray(data.logs)) {
         setAccumulatorLogs(data.logs);
       }
 
-      if (res.ok && data?.success) {
+      if (data?.success) {
         toast.success(data.message || 'Đã ghi thành công vào toàn bộ các file lũy kế Excel');
       } else {
         toast.error(data?.message || 'Lỗi khi ghi file lũy kế');
@@ -461,17 +412,8 @@ export default function CcpLotStatisticsSection({
     setLoading(true);
     setAccumulatorLogs([]);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/process-daily`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ date: ngayGD }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data?.success) {
+      const data = await api.ccpClearing.processDailyLot({ date: ngayGD }, token);
+      if (data?.success) {
         setResult(data.data);
         toast.success(`Tổng hợp thành công từ thư mục backup: ${data.data.totalSoLot.toLocaleString('vi-VN')} lot`);
       } else {
@@ -497,20 +439,11 @@ export default function CcpLotStatisticsSection({
     setAccumulatorLogs([]);
     const toastId = toast.loading(`Đang tính toán và ghi file Số Lot ngày ${ngayGD}...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/run-lot`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ date: ngayGD }),
-      });
-
-      const data = await res.json();
+      const data = await api.ccpClearing.runLot({ date: ngayGD }, token);
       if (data?.logs && Array.isArray(data.logs)) {
         setAccumulatorLogs(data.logs);
       }
-      if (res.ok && data?.success) {
+      if (data?.success) {
         if (data?.result) setResult(data.result);
         toast.success(
           data.message || `Đã ghi thành công các file Số Lot ngày ${ngayGD} (${data.result?.totalSoLot?.toLocaleString('vi-VN')} lot)`,
@@ -539,20 +472,11 @@ export default function CcpLotStatisticsSection({
     setAccumulatorLogs([]);
     const toastId = toast.loading(`Đang tính toán và ghi file Giá Trị Giao Dịch ngày ${ngayGD}...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/ccp-statistics/lot-statistics/run-value`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ date: ngayGD }),
-      });
-
-      const data = await res.json();
+      const data = await api.ccpClearing.runValue({ date: ngayGD }, token);
       if (data?.logs && Array.isArray(data.logs)) {
         setAccumulatorLogs(data.logs);
       }
-      if (res.ok && data?.success) {
+      if (data?.success) {
         if (data?.result) setResult(data.result);
         toast.success(
           data.message || `Đã ghi thành công các file Giá Trị Giao Dịch ngày ${ngayGD}`,

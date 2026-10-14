@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info, Settings, ShieldAlert, Send, Download } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface MarginCheckerModalProps {
@@ -288,11 +289,8 @@ export default function MarginCheckerModal({
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/margin-checker/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.marginChecker.getConfig(token);
+      if (data) {
         if (!data.sodCheck) {
           data.sodCheck = {
             isSendWarning: true,
@@ -320,20 +318,9 @@ export default function MarginCheckerModal({
 
   const saveConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/margin-checker/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(config),
-      });
-      if (res.ok) {
-        toast.success('Cấu hình đã lưu thành công!');
-        fetchConfig();
-      } else {
-        throw new Error('Lỗi lưu cấu hình');
-      }
+      await api.marginChecker.saveConfig(config, token);
+      toast.success('Cấu hình đã lưu thành công!');
+      fetchConfig();
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     }
@@ -386,18 +373,7 @@ export default function MarginCheckerModal({
     setOnOrderResult(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/margin-checker/check-margin`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lỗi kiểm tra ký quỹ');
-      }
-
-      const data = await res.json();
+      const data = await api.marginChecker.checkMargin(formData, token);
       setOnOrderResult(data);
       if (data.warningCount > 0) {
         toast.error(`Phát hiện ${data.warningCount} hàng hóa vi phạm tỷ lệ mức ký quỹ!`);
@@ -428,18 +404,7 @@ export default function MarginCheckerModal({
     setChangeResult(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/margin-checker/check-change`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lỗi kiểm tra thay đổi ký quỹ');
-      }
-
-      const data = await res.json();
+      const data = await api.marginChecker.checkChange(formData, token);
       setChangeResult(data);
       if (data.warningCount > 0) {
         toast.error(`Phát hiện ${data.warningCount} hàng hóa thay đổi mức ký quỹ từ các Sở!`);

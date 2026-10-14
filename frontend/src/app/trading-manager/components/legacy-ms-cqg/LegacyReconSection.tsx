@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { io } from 'socket.io-client';
 import {
   RefreshCw,
@@ -131,14 +132,7 @@ export default function LegacyReconSection({
   const saveSetting = useCallback(async (key: string, value: string) => {
     if (!token) return;
     try {
-      await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ key, value }),
-      });
+      await api.admin.saveSystemSetting(key, value, token);
     } catch (err: any) {
       console.warn(`Lỗi lưu setting ${key}:`, err);
     }
@@ -157,11 +151,8 @@ export default function LegacyReconSection({
   // Fetch system settings (bot_auto_recon_enabled, bot_periodic_check_enabled, bot_periodic_check_frequency)
   useEffect(() => {
     if (!token) return;
-    fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    api.admin.getSystemSettings(token)
+      .then((data: any) => {
         if (Array.isArray(data)) {
           const map = Object.fromEntries(data.map((item: any) => [item.key, item.value]));
           if (map.bot_auto_recon_enabled !== undefined) {
@@ -185,26 +176,12 @@ export default function LegacyReconSection({
     const nextVal = !autoReconActive;
     setUpdatingAutoRecon(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          key: 'bot_auto_recon_enabled',
-          value: nextVal ? 'true' : 'false',
-        }),
-      });
-      if (res.ok) {
-        setAutoReconActive(nextVal);
-        if (nextVal) {
-          toast.success('Đã BẬT tự động đối chiếu trong phiên!');
-        } else {
-          toast.error('Đã TẮT (DỪNG) tự động đối chiếu trong phiên!');
-        }
+      await api.admin.saveSystemSetting('bot_auto_recon_enabled', nextVal ? 'true' : 'false', token);
+      setAutoReconActive(nextVal);
+      if (nextVal) {
+        toast.success('Đã BẬT tự động đối chiếu trong phiên!');
       } else {
-        toast.error('Không thể cập nhật cấu hình tự động đối chiếu.');
+        toast.error('Đã TẮT (DỪNG) tự động đối chiếu trong phiên!');
       }
     } catch (err: any) {
       toast.error(`Lỗi cập nhật tự động: ${err.message}`);
@@ -221,22 +198,7 @@ export default function LegacyReconSection({
     if (!silent) setLoading(true);
 
     try {
-      const url = targetJobId
-        ? `${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}&jobId=${targetJobId}`
-        : `${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}`;
-
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP error ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await api.tradingOps.getConsoleSummary(qDate, targetJobId || undefined, token);
       setSummaryData(data);
       if (data.shiftInfo?.nextScanInSeconds !== undefined && data.shiftInfo.nextScanInSeconds > 0) {
         setCountdownSeconds(data.shiftInfo.nextScanInSeconds);
@@ -493,11 +455,8 @@ export default function LegacyReconSection({
         }
 
         try {
-          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jobRes.ok) continue;
-          const job = await jobRes.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
 
           if (Array.isArray(job.logs) && job.logs.length > 0) {
             setActiveJobLogs(job.logs);
@@ -591,29 +550,17 @@ export default function LegacyReconSection({
     setActiveJobLogs(['[Khởi tạo] Đang kết nối hàng đợi bot...']);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const result = await api.tradingOps.triggerRun(
+        jobType,
+        selectedDate,
+        {
+          checkKlgd,
+          checkTtm,
+          checkTttt,
         },
-        body: JSON.stringify({
-          date: selectedDate,
-          bypassCooldown: true,
-          jobType,
-          options: {
-            checkKlgd,
-            checkTtm,
-            checkTttt,
-          },
-        }),
-      });
+        token,
+      );
 
-      if (!res.ok) {
-        throw new Error(`Lỗi khởi chạy: ${res.status}`);
-      }
-
-      const result = await res.json();
       const jobId = result.jobId;
       const isReused = Boolean(result.isReused);
 
@@ -651,17 +598,12 @@ export default function LegacyReconSection({
 
     if (!targetJobId) {
       try {
-        const jobsRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=CHECK_KLGD,CHECK_PRE_EOD`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (jobsRes.ok) {
-          const jobs = await jobsRes.json();
-          const activeJob = Array.isArray(jobs)
-            ? jobs.find((j: any) => j.status === 'PROCESSING' || j.status === 'PENDING')
-            : null;
-          if (activeJob) {
-            targetJobId = activeJob._id;
-          }
+        const jobs = await api.checklistHub.getJobs({ jobTypes: 'CHECK_KLGD,CHECK_PRE_EOD' }, token);
+        const activeJob = Array.isArray(jobs)
+          ? jobs.find((j: any) => j.status === 'PROCESSING' || j.status === 'PENDING')
+          : null;
+        if (activeJob) {
+          targetJobId = activeJob._id;
         }
       } catch (err) {
         console.warn('Lỗi tìm job đang chạy:', err);
@@ -679,19 +621,7 @@ export default function LegacyReconSection({
     setCancellingBot(true);
     const toastId = toast.loading('Đang gửi lệnh dừng bot...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${targetJobId}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ reason: 'Dừng khẩn cấp bởi người vận hành qua nút Dừng tại Tab Đối soát' }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Không thể dừng tiến trình bot');
-      }
+      await api.checklistHub.cancelJob(targetJobId, token);
 
       toast.success('Đã dừng tiến trình đối soát thành công!', { id: toastId });
       if (typeof window !== 'undefined') {

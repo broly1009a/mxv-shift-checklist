@@ -11,7 +11,7 @@ import {
   getCcpBackupBasePath,
   resolveCcpDailyPath,
   resolveTradingCheckCcpDailyPath,
-} from '../../reconciliation/helpers/recon-number-parser.helper';
+} from '../../../shared';
 
 export interface EODMismatchedItem {
   system?: 'MS' | 'CCP';

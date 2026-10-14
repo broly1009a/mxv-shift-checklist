@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileSpreadsheet, Play, AlertTriangle, CheckCircle2, Info, Download, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface ReconciliationModalProps {
@@ -87,20 +88,7 @@ export default function ReconciliationModal({
   const handleSyncUsdRate = async () => {
     setSyncingRate(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/reconciliation/sync-usd-rate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Lỗi đồng bộ tỷ giá');
-      }
-
-      const data = await response.json();
+      const data = await api.ccpClearing.syncUsdRate(token);
       if (data.success && data.rate) {
         setUsdRate(data.rate);
         toast.success(`Đồng bộ tỷ giá USD thành công: ${data.rate.toLocaleString('vi-VN')} VND`);
@@ -119,16 +107,9 @@ export default function ReconciliationModal({
     if (isOpen) {
       const fetchUsdRate = async () => {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/v1/reconciliation/usd-rate`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.rate) {
-              setUsdRate(data.rate);
-            }
+          const data = await api.ccpClearing.getUsdRate(token);
+          if (data.success && data.rate) {
+            setUsdRate(data.rate);
           }
         } catch (error) {
           console.error('Error fetching stored USD rate:', error);
@@ -137,16 +118,9 @@ export default function ReconciliationModal({
 
       const fetchSessionStart = async () => {
         try {
-          const response = await fetch(`${API_BASE_URL}/system-settings/session_start_time`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.value) {
-              setSessionStart(data.value);
-            }
+          const settings = await api.admin.getSystemSettings(token);
+          if (settings && settings.session_start_time) {
+            setSessionStart(settings.session_start_time);
           }
         } catch (error) {
           console.error('Error fetching stored session start time:', error);
@@ -193,7 +167,7 @@ export default function ReconciliationModal({
     formData.append('tradingDate', tradingDate);
     formData.append('sessionStart', sessionStart);
 
-    let endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-klgd`;
+    let uploadFn: () => Promise<any>;
 
     if (mode === 'PRE_EOD') {
       if (!files.dsgd) {
@@ -221,7 +195,7 @@ export default function ReconciliationModal({
       formData.append('cqgFr', files.cqgFr);
       formData.append('tttt', files.tttt);
       formData.append('cqgPs', files.cqgPs);
-      endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-pre-eod`;
+      uploadFn = () => api.tradingOps.uploadPreEod(formData, token);
     } else if (mode === 'EOD') {
       if (!files.qltkgd && !files.qltkgdCcp) {
         toast.error('Cần ít nhất một file QLTKGD (M-System hoặc CCP)!');
@@ -242,7 +216,7 @@ export default function ReconciliationModal({
       if (files.ttttCcp) {
         formData.append('ttttCcp', files.ttttCcp);
       }
-      endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-eod`;
+      uploadFn = () => api.tradingOps.uploadEod(formData, token);
     } else if (mode === 'CQG') {
       if (!files.qltkgd) {
         toast.error('File QLTKGD.xlsx là bắt buộc!');
@@ -255,7 +229,7 @@ export default function ReconciliationModal({
       formData.append('qltkgd', files.qltkgd);
       formData.append('accountsBalances', files.accountsBalances);
       formData.append('usdRate', usdRate.toString());
-      endpoint = `${API_BASE_URL}/api/v1/reconciliation/upload-eod`;
+      uploadFn = () => api.tradingOps.uploadEod(formData, token);
     } else {
       if (!files.dsgd) {
         toast.error('File dsgd (M-System) là bắt buộc!');
@@ -266,6 +240,7 @@ export default function ReconciliationModal({
           formData.append(key, file);
         }
       });
+      uploadFn = () => api.tradingOps.uploadKlgd(formData, token);
     }
 
     setLoading(true);
@@ -273,20 +248,7 @@ export default function ReconciliationModal({
     setResultType(mode);
 
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lỗi đối chiếu dữ liệu');
-      }
-
-      const data = await res.json();
+      const data = await uploadFn();
       setResult(data.result);
       if (mode === 'PRE_EOD') {
         if (data.result.passed) {

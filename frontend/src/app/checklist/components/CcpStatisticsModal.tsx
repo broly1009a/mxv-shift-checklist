@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileSpreadsheet, Play, Settings, Save, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface CcpStatisticsModalProps {
@@ -49,13 +50,8 @@ export default function CcpStatisticsModal({
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/ccp-statistics/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.ccpStatisticsLegacy.getConfig(token);
+      if (data) {
         setFixedMembers((data.fixedMembers || []).join(', '));
         setTkMmCodes((data.tkMmCodes || []).join(', '));
       }
@@ -70,21 +66,13 @@ export default function CcpStatisticsModal({
       const arrayFixed = fixedMembers.split(',').map(s => s.trim()).filter(Boolean);
       const arrayMm = tkMmCodes.split(',').map(s => s.trim()).filter(Boolean);
 
-      const res = await fetch(`${API_BASE_URL}/ccp-statistics/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await api.ccpStatisticsLegacy.saveConfig(
+        {
           fixedMembers: arrayFixed,
           tkMmCodes: arrayMm,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Lỗi khi lưu cấu hình CCP');
-      }
+        },
+        token,
+      );
 
       toast.success('Đã lưu cấu hình danh sách Thành viên & Tài khoản MM thành công!');
     } catch (err: any) {
@@ -157,20 +145,7 @@ export default function CcpStatisticsModal({
         formData.append('tttt', files.tttt);
       }
 
-      const res = await fetch(`${API_BASE_URL}/ccp-statistics/process`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Lỗi khi xử lý gom nhóm báo cáo CCP');
-      }
-
-      const data = await res.json();
+      const data = await api.ccpStatisticsLegacy.process(formData, token);
       toast.success('Báo cáo CCP đã gom nhóm thành công! Đang tải file về...');
 
       if (data.fileBase64 && data.fileName) {

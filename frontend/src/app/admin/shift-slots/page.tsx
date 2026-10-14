@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { Clock, Plus, Edit, Trash2, X, Save, AlertCircle, Calendar, Sun, Snowflake, HelpCircle, Moon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -137,10 +138,7 @@ export default function AdminShiftSlotsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shift-slots`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await api.admin.getShiftSlots(token);
       // Sort slots by sortOrder then startTime
       const sorted = (Array.isArray(data) ? data : []).sort((a: ShiftSlot, b: ShiftSlot) => {
         if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
@@ -228,37 +226,25 @@ export default function AdminShiftSlotsPage() {
     setSubmitting(true);
 
     try {
-      const method = editingSlot ? 'PUT' : 'POST';
-      const url = editingSlot
-        ? `${API_BASE_URL}/api/v1/shift-slots/${editingSlot._id}`
-        : `${API_BASE_URL}/api/v1/shift-slots`;
+      const payload = {
+        name: name.trim(),
+        code: code.trim(),
+        startTime: startTime.trim(),
+        endTime: endTime.trim(),
+        startTimeSummer: startTimeSummer.trim() || null,
+        endTimeSummer: endTimeSummer.trim() || null,
+        startTimeWinter: startTimeWinter.trim() || null,
+        endTimeWinter: endTimeWinter.trim() || null,
+        isOvernight,
+        isActive,
+        sortOrder: Number(sortOrder),
+        gracePeriodMinutes: Number(gracePeriodMinutes),
+      };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          code: code.trim(),
-          startTime: startTime.trim(),
-          endTime: endTime.trim(),
-          startTimeSummer: startTimeSummer.trim() || null,
-          endTimeSummer: endTimeSummer.trim() || null,
-          startTimeWinter: startTimeWinter.trim() || null,
-          endTimeWinter: endTimeWinter.trim() || null,
-          isOvernight,
-          isActive,
-          sortOrder: Number(sortOrder),
-          gracePeriodMinutes: Number(gracePeriodMinutes),
-        }),
-      });
-
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Thao tác lưu ca trực thất bại');
+      if (editingSlot) {
+        await api.admin.updateShiftSlot(editingSlot._id, payload, token);
+      } else {
+        await api.admin.createShiftSlot(payload, token);
       }
 
       toast.success(editingSlot ? 'Cập nhật ca trực thành công!' : 'Tạo ca trực mới thành công!');
@@ -276,16 +262,8 @@ export default function AdminShiftSlotsPage() {
 
     setDeletingId(slot._id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shift-slots/${slot._id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Xóa ca trực thất bại');
-      }
-      const data = await res.json();
-      if (data.statusChanged) {
+      const data = await api.admin.deleteShiftSlot(slot._id, token);
+      if (data && data.statusChanged) {
         toast.success(`Ca trực "${slot.name}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
       } else {
         toast.success(`Đã xóa ca trực "${slot.name}"`);

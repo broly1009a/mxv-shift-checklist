@@ -11,7 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 export interface LegacyEodResultSectionProps {
   token: string | null;
@@ -31,14 +31,9 @@ export default function LegacyEodResultSection({
     if (!token) return;
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const extractedEod = data?.eod || (data?.preEod?.jobType === 'CHECK_EOD_MM' ? data?.preEod : null);
-        setEodData(extractedEod);
-      }
+      const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
+      const extractedEod = (data as any)?.eod || ((data as any)?.preEod?.jobType === 'CHECK_EOD_MM' ? (data as any)?.preEod : null);
+      setEodData(extractedEod);
     } catch {
       // Bỏ qua lỗi kết nối
     } finally {
@@ -54,23 +49,9 @@ export default function LegacyEodResultSection({
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          jobType: 'CHECK_EOD_MM',
-          date: selectedDate,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Đã gửi yêu cầu đối chiếu kết quả chạy EOD!');
-        setTimeout(() => fetchEodData(true), 1500);
-      } else {
-        toast.error('Không thể kích hoạt đối chiếu EOD');
-      }
+      await api.tradingOps.triggerRun('CHECK_EOD_MM', selectedDate, {}, token);
+      toast.success('Đã gửi yêu cầu đối chiếu kết quả chạy EOD!');
+      setTimeout(() => fetchEodData(true), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     } finally {

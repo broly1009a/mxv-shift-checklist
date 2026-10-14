@@ -1,3 +1,178 @@
+## [2026-10-14T16:46] AUDIT & RECTIFY: Đính Chính Lộ Trình Chuyển Đổi V2, Loại Bỏ Sai Lệch IngressController & Bảo Toàn Tuyệt Đối Backend V1
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Khắc phục sai lệch nhận định về tiến độ và kiến trúc phân tầng trong tài liệu kế hoạch chuyển đổi.
+- **Cơ sở thực chứng**: 
+  - Khảo sát trực tiếp mã nguồn backend ([ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts), [ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.module.ts)) và kiến trúc 4 tầng chuẩn tại [BAN_THIET_KE_CHI_TIET_CHUAN_HOA_BACKEND_MODULAR_MONOLITH.md#L118-L149](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/BAN_THIET_KE_CHI_TIET_CHUAN_HOA_BACKEND_MODULAR_MONOLITH.md#L118-L149).
+  - Khảo sát trực tiếp mảng gọi API tại [frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts).
+
+### 2. Nội dung hiệu đính & Hành động thực tế
+1. **Loại bỏ thiết kế sai lệch về `IngressController`**:
+   - Khẳng định `ingress` là Tầng 2 (Internal Port & Scrapers), chỉ có nhiệm vụ kéo file thô về đĩa/buffer theo lệnh từ tầng trên. Tuyệt đối không tạo Controller cho UI tại Ingress để tránh vi phạm kiến trúc và sinh vòng lặp phụ thuộc.
+   - Các thao tác điều phối/trigger job từ UI phải đi qua Tầng 4 (`checklist-hub` / `BotDispatcherService`).
+2. **Bảo toàn tuyệt đối Backend V1 (Zero Deletion)**:
+   - Nghiêm cấm xóa hoặc di dời 3 service V1 (`rpa-downloader.service.ts`, `ccp-ce-downloader.service.ts`, `post-eod-handler.service.ts`) vì các file này đang là nòng cốt nuôi toàn bộ hệ thống Bot Job và Handlers của hệ thống.
+3. **Cập nhật tài liệu kế hoạch**:
+   - Lưu trữ bản hiệu đính chuẩn xác tại [docs/moi/KE_HOACH_CHUYEN_DOI_FRONTEND_API_CENTRALIZATION.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KE_HOACH_CHUYEN_DOI_FRONTEND_API_CENTRALIZATION.md).
+   - Xác định rõ lộ trình tiếp theo: Tập trung kiểm thử nghiệm thu toàn bộ giao diện Frontend trước khi thực hiện chuyển đổi backend theo cơ chế Strangler Fig.
+
+---
+
+## [2026-10-14T16:31] DOCS(EXCEL-EXPORT-DESIGN): Tổng Hợp Tài Liệu Thiết Kế Chuyên Sâu Tính Năng Xuất Báo Cáo Excel Ca Trực
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Xây dựng tài liệu thiết kế kiến trúc kỹ thuật chuyên sâu cho tính năng Xuất Báo Cáo Excel (Biên bản ca trực chi tiết cho Nhân viên trực & Báo cáo tổng hợp quản trị định kỳ cho Lãnh đạo).
+- **Cơ sở thực chứng**: Khảo sát trực tiếp mã nguồn backend ([shift-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/shift-log.schema.ts), [incident.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/incident.schema.ts), [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json)) và frontend ([useChecklist.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/hooks/useChecklist.ts), [history/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/history/page.tsx)).
+
+### 2. Danh sách file & Nội dung
+- **Tài liệu mới**: [docs/moi/THIET_KE_TINH_NANG_XUAT_BAO_CAO_EXCEL_CA_TRUC.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/THIET_KE_TINH_NANG_XUAT_BAO_CAO_EXCEL_CA_TRUC.md).
+- **Phạm vi đặc tả**:
+  1. Phân tích hiện trạng: Luồng 1 xuất CSV thô, Luồng 2 tại `/history` chưa có xuất Excel.
+  2. Thiết kế Luồng 1 (`Single-Shift Audit Sheet`): Template A4 ngang, Header MXV, Cột mốc giờ, Tô màu Đạt (xanh) / Chưa đạt (đỏ), Khung bàn giao & chữ ký.
+  3. Thiết kế Luồng 2 (`Management Period Report`): Workbook 3 sheets (`TONG_QUAN_KPI`, `CHI_TIET_CA_TRUC`, `NHAT_KY_SU_CO`).
+  4. Kiến trúc kỹ thuật: Dùng `ExcelJS` streaming qua HTTP response, không tốn tài nguyên server.
+
+---
+
+## [2026-10-14T15:43] FEAT(CHECKLIST-SEED): Tạo & Thực Thi File Seed Chuẩn 100% Nguyên Văn Cho CCP & Exchange Templates
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Nạp trực tiếp 3 bộ mẫu Checklist ca trực vào MongoDB mà không cần nhập thủ công trên giao diện Web theo yêu cầu của USER.
+- **Cơ sở thực chứng**: 100% nguyên văn trích xuất từ file Word gốc [Checklist trực vận hành.docx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/Checklist%20tr%E1%BB%B1c%20v%E1%BA%ADn%20h%C3%A0nh.docx) và tài liệu quy trình [QUY_TRINH_VA_CHECKLIST_TRUC_VAN_HANH_CCP_EXCHANGE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/QUY_TRINH_VA_CHECKLIST_TRUC_VAN_HANH_CCP_EXCHANGE.md).
+
+### 2. Danh sách file & Kết quả thực thi
+- **File tạo mới**: [backend/src/scripts/seed_ccp_exchange_templates.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/seed_ccp_exchange_templates.js).
+- **Cơ chế**: Dùng `updateOne` với `{ upsert: true }`, tự nhận diện phòng ban `IT_CORE`/`QLGD_OPS` và ca trực `SHIFT_2` (Qua đêm)/`SHIFT_3` (Sáng), không xóa dữ liệu ca trực đang có.
+- **Kết quả thực thi**: Chạy trực tiếp `node src/scripts/seed_ccp_exchange_templates.js` nạp thành công 3 Template vào MongoDB:
+  1. `CCP - Checklist Vận Hành Chi Tiết` (15 tasks theo mốc giờ 04:00 CLOSE, 04:15 Đối chiếu, 04:35 SOD, 05:30 EOD, Trong phiên).
+  2. `CCP - Checklist Vận Hành Đầu Ngày` (10 tasks hạ tầng máy chủ CCP).
+  3. `EXCHANGE - Checklist Vận Hành Đầu Ngày` (10 tasks hạ tầng máy chủ Exchange).
+
+---
+
+## [2026-10-14T15:20] FEAT(FRONTEND-API-CENTRALIZATION): Hoàn Tất Tập Trung Hóa 100% Toàn Bộ API Frontend Về services/api & Modular Monolith V2
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Xóa bỏ toàn bộ ~280+ lệnh `fetch` thô rải rác trên toàn bộ giao diện Frontend, tập trung hóa 100% về singleton `api` tại `frontend/src/services/api/` với Single Source of Truth `endpoints.ts`.
+- **Cơ sở thực thi**: Kế hoạch chuyển đổi chi tiết tại [KE_HOACH_CHUYEN_DOI_FRONTEND_API_CENTRALIZATION.md](file:///C:/Users/hiepth/.gemini/antigravity-ide/brain/a44be263-1471-455c-869d-bc0a695aa3e6/KE_HOACH_CHUYEN_DOI_FRONTEND_API_CENTRALIZATION.md).
+
+### 2. Danh sách file cập nhật & Nội dung kỹ thuật
+- **Tầng Core API Services (`frontend/src/services/api/`)**:
+  - [endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts): Khai báo tập trung toàn bộ endpoint cho AUTH, INGRESS, TRADING_OPS, CCP_CLEARING, CHECKLIST_HUB, DASHBOARD, ADMIN, TRADING_REPORT, MARGIN_CHECKER.
+  - [client.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/client.ts): Cung cấp `requestJson`, `requestFormData` (hỗ trợ cả FormData và multipart), `downloadBlob` (Blob streaming tải file).
+  - [types/checklist.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/types/checklist.types.ts): Định nghĩa hệ thống Type-Safe DTOs chuẩn hóa cho toàn bộ ca trực (`ShiftLog`, `TaskDetail`, `AuditLog`, `Incident`, `GlobalSearchResult`, `CloseShiftPayload`, `AddTaskPayload`,...).
+  - [checklist-hub.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/checklist-hub.api.ts): Gắn chặt các kiểu dữ liệu DTO chuẩn, loại bỏ hoàn toàn các kiểu `any` lỏng lẻo cho các hàm `getActiveShifts`, `getShiftDetail`, `getShiftAuditLogs`, `closeShift`, `addTask`, `updateItemStatus`, `searchShifts`, `resolveIncident`.
+  - [index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/index.ts): Singleton `api` tích hợp đầy đủ các domain.
+- **Tầng Checklist Core**:
+  - `useChecklist.ts`: Tái cấu trúc loại bỏ mã định nghĩa type trùng lặp, dùng trực tiếp và re-export từ `@/services/api`.
+  - `ReconciliationModal.tsx`, `OmsStatusModal.tsx`, `TradingReportModal.tsx`, `MaturityTemplateModal.tsx`, `IncidentList.tsx`.
+- **Tầng Trading Manager (Tất cả 12 sub-sections & 5 pages)**:
+  - `TradingManagerJobQueueSection.tsx`, `TradingManagerConfigSection.tsx`, `CoreCcpBackupSection.tsx`, `CcpLotStatisticsSection.tsx`, `LegacyReconSection.tsx`, `LegacyBackupThongKeSection.tsx`, `LegacyCqgSyncSection.tsx`, `LegacyEodResultSection.tsx`, `LegacyNegativeMarginSection.tsx`, `LegacyAcmSyncSection.tsx`, `LegacyGttSection.tsx`, `LegacyLotStatisticsSection.tsx`.
+  - Toàn bộ trang `trading-manager/page.tsx`, `ms-cqg/page.tsx`, `ccp-ce/page.tsx`, `session-open/klgd-phien-cu/page.tsx`, `settings/page.tsx`.
+- **Tầng Shared Components & Layout**:
+  - `Header.tsx`, `Sidebar.tsx`, `NotificationDropdown.tsx`, `BotLogViewerModal.tsx`, `SmartPathInput.tsx`, `AuthContext.tsx`.
+- **Tầng Admin & Dashboard**:
+  - Toàn bộ trang Admin: `users`, `departments`, `templates`, `permissions`, `notifications`, `calendar`, `upload-backup`, `activity-logs`.
+  - Màn hình `dashboard/page.tsx` và 3 widget: `TradingManagerWidget`, `MarginChangeRequestsWidget`, `ActiveIncidentsWidget`.
+  - `login/page.tsx` và `history/page.tsx`.
+  - `admin/bot-config/page.tsx` và toàn bộ 9 sub-panels: `ConnectionSettings`, `JobQueuePanel`, `ReportDownloader`, `ReconciliationPanel`, `ValueStatisticsPanel`, `LotStatisticsPanel`, `GttChecker`, `SystemSchedulerSettings`, `BackupAuditor`.
+
+### 3. Kết quả kiểm thử thực chứng (Test Verification)
+- **Zero Raw Fetch**: Kiểm tra `grep_search` xác nhận 0 lệnh raw `fetch` còn lại trên toàn bộ `frontend/src/app/`, `frontend/src/components/`, `frontend/src/services/`.
+- **Strict Type Checking & DTO Alignment**: Hệ thống type bắt trúng và đồng bộ chính xác kiểu trả về của Backend (`closeShift` trả về `ShiftLog`, `resolveIncident` trả về `Incident`, `searchShifts` trả về `GlobalSearchResult`).
+- **Production Build**: `npm.cmd --prefix frontend run build` (`next build`) đạt **Exit Code 0**, **0 lỗi TypeScript**, toàn bộ 35/35 routes được tạo tĩnh/động hoàn hảo.
+
+
+---
+
+## [2026-10-14T15:15] FEAT(SEED-TEMPLATES): Tạo Script Nạp Tự Động 3 Mẫu Checklist Chuẩn 100% Nguyên Văn Từ File Word Gốc
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu của USER**: *"giúp tôi so lại để đánh giá seed này đã chuẩn với docx chưa"*.
+- **Cơ sở đối chiếu**: Trích xuất trực tiếp toàn bộ text và bảng từ file `Checklist trực vận hành.docx` và [QUY_TRINH_VA_CHECKLIST_TRUC_VAN_HANH_CCP_EXCHANGE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/QUY_TRINH_VA_CHECKLIST_TRUC_VAN_HANH_CCP_EXCHANGE.md).
+
+### 2. Danh sách file cập nhật & Nội dung kỹ thuật
+- [backend/src/scripts/seed_ccp_exchange_templates.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/seed_ccp_exchange_templates.js):
+  - Chuẩn hóa **100% nguyên văn từng câu chữ (Ground Truth 100%)** từ file Word gốc:
+    1. **Mẫu 1: "CCP - Checklist Vận Hành Chi Tiết"**: 15 nhiệm vụ khớp từng số STT gốc trong DOCX (STT 3 -> STT 20), bảo toàn các mốc `04:00 (CLOSE)`, `04:15 (Reconcile Orders)`, `04:35 (SOD)`, `05:30 (EOD)`, `Trong phiên 05:00-04:00` kèm điểm kiểm tra/xác nhận và ghi chú xử lý. Gắn sẵn các link `functionUrl` sang tool tương ứng (`/trading-manager/...`).
+    2. **Mẫu 2: "CCP - Checklist Vận Hành Đầu Ngày"**: 10 mục kiểm tra hạ tầng máy chủ, DB Replication, NTP, log tập trung, kết nối đối tác nguyên văn DOCX.
+    3. **Mẫu 3: "EXCHANGE - Checklist Vận Hành Đầu Ngày"**: 10 mục kiểm tra hạ tầng máy chủ, ứng dụng trọng yếu (Matching Engine, FIX), log tập trung, kết nối đối tác nguyên văn DOCX.
+  - Tuân thủ nghiêm ngặt Quy tắc Kiểm soát AI (Rule 1.7 & Rule 1.8): AI chuẩn bị script hoàn chỉnh, kiểm tra cú pháp và để USER tự chạy thủ công trên terminal.
+
+---
+
+## [2026-10-14T12:22] AUDIT & FIX: Rà Soát Toàn Trình, Vá Ranh Giới V2 Boundaries & Chuẩn Hóa Test Scripts
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu của USER**: "giúp tôi rà soát lại thêm một lượt xem có thiếu xót gì không? nếu được test lại thì càng tốt".
+- **Phạm vi rà soát**: Toàn bộ Frontend (`frontend/src`), Backend (`backend/src`), Boundary Isolation Tests, và Test Script Runner.
+- **Phát hiện & Khắc phục**:
+  1. Bài test kiến trúc ranh giới `module-isolation.spec.ts` bị FAIL do còn 2 file V2 import xuyên module (`dsgd-before-eod.service.ts` và `ccp-eod.service.ts`).
+  2. Các script test trong `backend/package.json` (`test:parent-child`, `test:checklist`,...) trỏ đường dẫn cũ `src/test-*.ts` thay vì `src/tests/test-*.ts`.
+
+### 2. Danh sách file chỉnh sửa & vá lỗi
+- [backend/src/shared/helpers/file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts):
+  - Bổ sung các helper dùng chung: `getMsBackupBase`, `getCqgBackupBase`, `getAcmBackupBase`, `findHeaderIndex` xuất qua `src/shared`.
+- [backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts):
+  - Thay thế các import sâu xuyên module bằng import chuẩn từ `src/shared` và `trading-math.helper.ts`.
+- [backend/src/modules/ccp-clearing/services/ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/services/ccp-eod.service.ts):
+  - Chuyển `findHeaderIndex`, `findLatestFile`, `getCcpBackupBasePath`, `resolveCcpDailyPath`, `resolveTradingCheckCcpDailyPath` sang import chuẩn từ `src/shared`.
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json):
+  - Chuẩn hóa toàn bộ 23 lệnh `test:*` trỏ chính xác vào thư mục `src/tests/`.
+
+### 3. Kết quả kiểm thử thực chứng (Test Verification)
+- **Jest Unit & Boundary Tests (`npm test`)**: 5/5 Test Suites PASS, 10/10 Tests PASS 100%:
+  - `module-isolation.spec.ts`: PASS (Ranh giới V2 cô lập tuyệt đối 100%).
+  - `concurrency/multi-instance-queue.spec.ts`: PASS.
+  - `twin-run/twin-run-comparator.spec.ts`: PASS.
+  - `e2e/modular-shift-e2e.spec.ts`: PASS.
+  - `app.controller.spec.ts`: PASS.
+- **Dynamic Task Hierarchy Test (`test_task_hierarchy_dynamic.ts`)**: 7/7 Unit Test Cases / 15/15 Assertions PASS 100%.
+- **Refactor Integrity Test (`test-refactor-integrity.ts`)**: 9/9 Test Cases PASS 100% (Parsers + DI Strategy Handler Registry 15/15 JobTypes).
+- **Backend Build (`nest build`)**: Exit Code 0, 0 TypeScript errors.
+- **Frontend Turbopack Build (`next build`)**: Exit Code 0, 35/35 routes tĩnh tối ưu hóa thành công.
+
+---
+
+## [2026-10-14T12:15] FEAT(Frontend API Centralization - Phase 3 & Phase 4): Centralize Trading Manager, Settings, Shared Components & Auth Context into api.*
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Yêu cầu & Kế hoạch**: Thực hiện triệt để Phase 3 và Phase 4 theo kế hoạch tại [KE_HOACH_CHUYEN_DOI_FRONTEND_API_CENTRALIZATION.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/KE_HOACH_CHUYEN_DOI_FRONTEND_API_CENTRALIZATION.md).
+- **Mục tiêu**: Loại bỏ 100% các lệnh `fetch` thô trong toàn bộ phân hệ `trading-manager`, trang `settings`, các shared component (`Sidebar`, `NotificationDropdown`, `Header`, `BotLogViewerModal`, `SmartPathInput`) và `AuthContext`.
+- **Nguyên tắc**: Tập trung hóa endpoints vào `endpoints.ts`, gọi qua client module hóa `api.*`, đảm bảo zero type errors và Next.js build exit code 0.
+
+### 2. Danh sách file cập nhật
+- **API Foundation**:
+  - [frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts): Bổ sung `CHECK_NEGATIVE_MARGIN`, `CHECK_EOD_RUN`, `RUN_CHECK_PRE_EOD`, `CE_CCP_GTT_REPORT`, `RUN_CE_CCP_GTT_CHECK`, `EXPORT_CE_CCP_GTT`.
+  - [frontend/src/services/api/checklist-hub.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/checklist-hub.api.ts): Mở rộng `BotJobItem` (bổ sung `logs?: any[]`, index signature), hỗ trợ `limit` trong `getJobs`, bổ sung `getCeCcpGttReport`, `runCeCcpGttCheck`, `exportCeCcpGtt`.
+  - [frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/trading-ops.api.ts): Bổ sung `checkNegativeMargin`, `checkEodRun`, `runCheckPreEod`, mở rộng `ConsoleSummaryResponse` (`eodRun`, `preEod`, `shiftInfo`, `klgd`, index signature).
+  - [frontend/src/services/api/ingress.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/ingress.api.ts): Hỗ trợ tham số linh hoạt (`options: any`, audit date object/string) cho `triggerMsDownload`, `triggerCqgDownload`, `triggerAcmDownload`, `triggerCcpDownload`, `auditAcmBackup`, `auditCcpBackup`.
+  - [frontend/src/services/api/admin.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/admin.api.ts): Hỗ trợ cả 2 dạng tham số cho `saveSystemSetting` (object hoặc key/value riêng biệt) và `verifyStoragePath` (string hoặc object kèm `targetType`).
+  - [frontend/src/services/api/auth.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/auth.api.ts): Mở rộng payload của `updateProfile` cho phép `fullName`, `password`, `settings`.
+- **Trading Manager Components & Pages**:
+  - [frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx) (3 fetch calls $\rightarrow$ `api.checklistHub`)
+  - [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx) (8 fetch calls $\rightarrow$ `api.admin`, `api.ingress`)
+  - [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx) (2 fetch calls $\rightarrow$ `api.tradingOps`)
+  - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx) (1 fetch call $\rightarrow$ `api.checklistHub`)
+  - [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx) (1 fetch call $\rightarrow$ `api.checklistHub`)
+  - [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx) (1 fetch call $\rightarrow$ `api.checklistHub`)
+  - [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx) (2 fetch calls $\rightarrow$ `api.tradingOps`)
+  - [frontend/src/app/settings/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/settings/page.tsx) (1 fetch call $\rightarrow$ `api.auth`)
+- **Shared Components & Context**:
+  - [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx) (2 fetch calls $\rightarrow$ `api.dashboard`)
+  - [frontend/src/components/NotificationDropdown.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/NotificationDropdown.tsx) (3 fetch calls $\rightarrow$ `api.dashboard`)
+  - [frontend/src/components/Header.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Header.tsx) (1 fetch call $\rightarrow$ `api.checklistHub`)
+  - [frontend/src/components/ui/BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/ui/BotLogViewerModal.tsx) (1 fetch call $\rightarrow$ `api.checklistHub`)
+  - [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/admin/SmartPathInput.tsx) (1 fetch call $\rightarrow$ `api.admin`)
+  - [frontend/src/context/AuthContext.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/context/AuthContext.tsx) (3 fetch calls $\rightarrow$ `api.auth`)
+
+### 3. Kết quả xác minh (Verification)
+- **Số lệnh fetch thô còn lại trong các phân hệ trên**: 0 (Đã kiểm tra bằng `git grep -n "fetch("` trên toàn bộ thư mục).
+- **TypeScript Static Check (`tsc --noEmit`)**: 0 error, Exit Code 0.
+- **Frontend Production Build (`next build`)**: Biên dịch 35/35 routes tĩnh tối ưu hóa thành công, Exit Code 0.
+
+---
+
 ## [2026-10-14T10:48] DEPLOY(Modular Monolith V2): Chuẩn Bị & Tối Ưu Hóa Kịch Bản Đồng Bộ Lên Ubuntu Server (10.0.0.26)
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

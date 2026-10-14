@@ -15,6 +15,7 @@ import {
   Settings,
   Lightbulb,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 interface LotStatisticsPanelProps {
   token: string;
@@ -258,16 +259,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         updateCumulative,
       };
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/config`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error('Không thể lưu cấu hình');
+      await api.ccpClearing.saveLotStatsConfig(payload, token);
       toast.success('Lưu cấu hình mặc định thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình', { id: toastId });
@@ -308,10 +300,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
 
   useEffect(() => {
     if (!token) return;
-    fetch(`${apiBaseUrl}/api/v1/lot-statistics/config`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    api.ccpClearing.getLotStatsConfig(token)
       .then((data) => {
         if (data) {
           if (data.defaultLmeKyHan) setFilterLmeKyHan(data.defaultLmeKyHan);
@@ -341,7 +330,7 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
         }
       })
       .catch((err) => console.error('Error fetching lot statistics config:', err));
-  }, [token, apiBaseUrl]);
+  }, [token]);
 
   const handleFileChange = (key: string, file: File | null) => {
     setFiles((prev) => ({ ...prev, [key]: file }));
@@ -429,28 +418,14 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const toastId = toast.loading('Đang xử lý thống kê số lot...');
 
     try {
-      let res: Response;
+      let data: any;
       if (runMode === 'upload') {
         const formData = buildFormData();
-        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+        data = await api.ccpClearing.processLotStats(formData, token);
       } else {
         const payload = buildJsonPayload();
-        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process-local`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
+        data = await api.ccpClearing.processLotStatsLocal(payload, token);
       }
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi chạy xử lý thống kê');
 
       setResult(data);
       const allPassed = data.validations?.every((v: any) => v.passed) ?? true;
@@ -503,41 +478,16 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
     const toastId = toast.loading('Đang khởi tạo và xuất file Excel báo cáo...');
 
     try {
-      let res: Response;
+      const dateClean = ngayGD.replace(/-/g, '');
+      const filename = `Thong_ke_so_lot_${dateClean}.xlsx`;
       if (runMode === 'upload') {
         const formData = buildFormData();
-        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process/download`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
+        await api.ccpClearing.downloadLotStats(formData, filename, token);
       } else {
         const payload = buildJsonPayload();
-        res = await fetch(`${apiBaseUrl}/api/v1/lot-statistics/process-local/download`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
+        await api.ccpClearing.downloadLotStatsLocal(payload, filename, token);
       }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Lỗi khi xuất file Excel');
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const dateClean = ngayGD.replace(/-/g, '');
-      a.download = `Thong_ke_so_lot_${dateClean}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
       toast.success('Tải báo cáo Excel thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi tải báo cáo Excel', { id: toastId });

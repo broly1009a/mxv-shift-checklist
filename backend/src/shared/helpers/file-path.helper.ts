@@ -239,3 +239,67 @@ export function resolveTradingCheckCcpDailyPath(subFolder: string, rawCcpBase?: 
   }
   return target;
 }
+
+/**
+ * Lấy thư mục gốc backup của MS từ SystemSettings
+ */
+export async function getMsBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  const raw = await settingsService.getSetting(
+    'bot_backup_path_ms',
+    process.env.DEFAULT_BACKUP_PATH_MS ||
+    'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+  );
+  return resolveStoragePathCrossPlatform(raw);
+}
+
+/**
+ * Lấy thư mục gốc backup của CQG từ SystemSettings
+ */
+export async function getCqgBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  const raw = await settingsService.getSetting(
+    'bot_backup_path_cqg',
+    process.env.DEFAULT_BACKUP_PATH_CQG ||
+    'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+  );
+  return resolveStoragePathCrossPlatform(raw);
+}
+
+/**
+ * Lấy thư mục gốc backup của ACM từ SystemSettings
+ */
+export async function getAcmBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  let acmBackupBase = await settingsService.getSetting(
+    'bot_backup_path_acm',
+    process.env.DEFAULT_BACKUP_PATH_ACM ||
+    'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\ACM',
+  );
+  if (acmBackupBase.endsWith('\\ACM') || acmBackupBase.endsWith('/ACM')) {
+    // Already ends with ACM
+  } else {
+    acmBackupBase = path.join(acmBackupBase, 'ACM');
+  }
+  return resolveStoragePathCrossPlatform(acmBackupBase);
+}
+
+/**
+ * Tìm vị trí index của tiêu đề cột Excel theo tên hoặc alias
+ */
+export function findHeaderIndex(headers: string[], target: string, aliases: string[] = []): number {
+  const normalize = (str: string): string => {
+    if (!str) return '';
+    return String(str)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const normTarget = normalize(target);
+  const normAliases = aliases.map((a) => normalize(a));
+
+  return headers.findIndex((h) => {
+    const normH = normalize(h);
+    return normH === normTarget || normAliases.includes(normH);
+  });
+}

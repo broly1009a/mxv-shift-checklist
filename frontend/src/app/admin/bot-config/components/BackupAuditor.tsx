@@ -12,6 +12,8 @@ import {
   FolderOpen,
   Play,
 } from 'lucide-react';
+import { api } from '@/services/api';
+import { requestJson } from '@/services/api/client';
 
 interface BackupAuditorProps {
   token: string;
@@ -73,71 +75,53 @@ export default function BackupAuditor({
     if (!token) return;
     try {
       // Backup MS path
-      const backupRes = await fetch(`${apiBaseUrl}/api/v1/bot-engine/backup-ms/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (backupRes.ok) {
-        const backupData = await backupRes.json();
-        if (backupData.backupPath) {
+      try {
+        const backupData = await requestJson<any>('/api/v1/bot-engine/backup-ms/config', {}, token);
+        if (backupData?.backupPath) {
           setBackupPathMs(backupData.backupPath);
         }
-      }
+      } catch {}
 
       // Backup CQG path
-      const backupCqgRes = await fetch(`${apiBaseUrl}/api/v1/bot-engine/backup-cqg/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (backupCqgRes.ok) {
-        const backupCqgData = await backupCqgRes.json();
-        if (backupCqgData.backupPath) {
+      try {
+        const backupCqgData = await requestJson<any>('/api/v1/bot-engine/backup-cqg/config', {}, token);
+        if (backupCqgData?.backupPath) {
           setBackupPathCqg(backupCqgData.backupPath);
           setBackupPathCast(backupCqgData.backupPath);
         }
-      }
+      } catch {}
 
       // Backup ACM path
-      const backupAcmRes = await fetch(`${apiBaseUrl}/api/v1/bot-engine/backup-acm/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (backupAcmRes.ok) {
-        const backupAcmData = await backupAcmRes.json();
-        if (backupAcmData.backupPath) {
+      try {
+        const backupAcmData = await requestJson<any>('/api/v1/bot-engine/backup-acm/config', {}, token);
+        if (backupAcmData?.backupPath) {
           setBackupPathAcm(backupAcmData.backupPath);
         }
-      }
+      } catch {}
 
       // Macro Lot config
-      const macroRes = await fetch(`${apiBaseUrl}/api/v1/bot-engine/macro-lot/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (macroRes.ok) {
-        const macroData = await macroRes.json();
-        if (macroData.macroPath) setMacroLotPath(macroData.macroPath);
-        if (macroData.scriptPath) setMacroLotScriptPath(macroData.scriptPath);
-        if (macroData.pythonExe) setPythonExe(macroData.pythonExe);
-        if (macroData.targetRoot) setTargetRoot(macroData.targetRoot);
-      }
+      try {
+        const macroData = await requestJson<any>('/api/v1/bot-engine/macro-lot/config', {}, token);
+        if (macroData?.macroPath) setMacroLotPath(macroData.macroPath);
+        if (macroData?.scriptPath) setMacroLotScriptPath(macroData.scriptPath);
+        if (macroData?.pythonExe) setPythonExe(macroData.pythonExe);
+        if (macroData?.targetRoot) setTargetRoot(macroData.targetRoot);
+      } catch {}
 
       // Macro Value config
-      const macroValueRes = await fetch(`${apiBaseUrl}/api/v1/bot-engine/macro-value/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (macroValueRes.ok) {
-        const macroValueData = await macroValueRes.json();
-        if (macroValueData.macroPath) setMacroValuePath(macroValueData.macroPath);
-        if (macroValueData.scriptPath) setMacroValueScriptPath(macroValueData.scriptPath);
-      }
+      try {
+        const macroValueData = await requestJson<any>('/api/v1/bot-engine/macro-value/config', {}, token);
+        if (macroValueData?.macroPath) setMacroValuePath(macroValueData.macroPath);
+        if (macroValueData?.scriptPath) setMacroValueScriptPath(macroValueData.scriptPath);
+      } catch {}
 
       // Margin Decision folder path setting
-      const marginRes = await fetch(`${apiBaseUrl}/api/v1/system-settings/margin_decision_folder_path`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (marginRes.ok) {
-        const marginData = await marginRes.json();
-        if (marginData.value) {
+      try {
+        const marginData = await requestJson<any>('/api/v1/system-settings/margin_decision_folder_path', {}, token);
+        if (marginData?.value) {
           setMarginDecisionPath(marginData.value);
         }
-      }
+      } catch {}
     } catch (err) {
       console.error('Failed to fetch backup path configurations', err);
     }
@@ -153,17 +137,15 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingBackupPathMs(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/backup-ms/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/backup-ms/config',
+        {
+          method: 'POST',
+          body: JSON.stringify({ backupPath: backupPathMs }),
         },
-        body: JSON.stringify({ backupPath: backupPathMs }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
-      toast.success(data.message || 'Đã lưu đường dẫn backup MS thành công!');
+        token,
+      );
+      toast.success(data?.message || 'Đã lưu đường dẫn backup MS thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
@@ -177,15 +159,10 @@ export default function BackupAuditor({
     setAuditMsResults(null);
     const toastId = toast.loading('Đang scan thư mục backup MS...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/audit-ms-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi quét thư mục backup');
+      const data = await api.ingress.auditMsBackup(undefined, token);
       setAuditMsResults(data);
-      const { ok, missing, outdated } = data.summary;
-      toast.success(`Quét xong! OK: ${ok}, Thiếu: ${missing}, Cũ: ${outdated}`, { id: toastId });
+      const { ok, missing, outdated } = (data as any)?.summary || {};
+      toast.success(`Quét xong! OK: ${ok ?? 0}, Thiếu: ${missing ?? 0}, Cũ: ${outdated ?? 0}`, { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kiểm tra backup', { id: toastId });
     } finally {
@@ -198,14 +175,13 @@ export default function BackupAuditor({
     setTriggeringAuditMs(true);
     const toastId = toast.loading('Đang khởi tạo job tải bổ sung file thiếu...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-audit-ms`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/trigger-audit-ms',
+        { method: 'POST' },
+        token,
+      );
       toast.success('Đã xếp hàng job kiểm tra & tải bổ sung file MS thành công!', { id: toastId });
-      if (data.jobId) {
+      if (data?.jobId) {
         setTrackedJobs((prev) => [...prev, data.jobId]);
       }
       fetchJobs();
@@ -222,17 +198,15 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingBackupPathCqg(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/backup-cqg/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/backup-cqg/config',
+        {
+          method: 'POST',
+          body: JSON.stringify({ backupPath: backupPathCqg }),
         },
-        body: JSON.stringify({ backupPath: backupPathCqg }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
-      toast.success(data.message || 'Đã lưu đường dẫn backup CQG thành công!');
+        token,
+      );
+      toast.success(data?.message || 'Đã lưu đường dẫn backup CQG thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
@@ -246,15 +220,10 @@ export default function BackupAuditor({
     setAuditCqgResults(null);
     const toastId = toast.loading('Đang scan thư mục backup CQG...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/audit-cqg-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi quét thư mục backup CQG');
+      const data = await api.ingress.auditCqgBackup(undefined, token);
       setAuditCqgResults(data);
-      const { ok, missing, outdated } = data.summary;
-      toast.success(`Quét xong! OK: ${ok}, Thiếu: ${missing}, Cũ: ${outdated}`, { id: toastId });
+      const { ok, missing, outdated } = (data as any)?.summary || {};
+      toast.success(`Quét xong! OK: ${ok ?? 0}, Thiếu: ${missing ?? 0}, Cũ: ${outdated ?? 0}`, { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kiểm tra backup CQG', { id: toastId });
     } finally {
@@ -267,14 +236,13 @@ export default function BackupAuditor({
     setTriggeringAuditCqg(true);
     const toastId = toast.loading('Đang khởi tạo job ghép file backup CQG...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-audit-cqg`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/trigger-audit-cqg',
+        { method: 'POST' },
+        token,
+      );
       toast.success('Đã xếp hàng job tự động ghép file CQG thành công!', { id: toastId });
-      if (data.jobId) {
+      if (data?.jobId) {
         setTrackedJobs((prev) => [...prev, data.jobId]);
       }
       fetchJobs();
@@ -292,15 +260,10 @@ export default function BackupAuditor({
     setAuditAcmResults(null);
     const toastId = toast.loading('Đang scan thư mục backup ACM...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/audit-acm-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi quét thư mục backup ACM');
+      const data = await api.ingress.auditAcmBackup(undefined, token);
       setAuditAcmResults(data);
-      const { ok, missing, outdated } = data.summary;
-      toast.success(`Quét xong! OK: ${ok}, Thiếu: ${missing}, Cũ: ${outdated}`, { id: toastId });
+      const { ok, missing, outdated } = (data as any)?.summary || {};
+      toast.success(`Quét xong! OK: ${ok ?? 0}, Thiếu: ${missing ?? 0}, Cũ: ${outdated ?? 0}`, { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi kiểm tra backup ACM', { id: toastId });
     } finally {
@@ -313,14 +276,13 @@ export default function BackupAuditor({
     setTriggeringAuditAcm(true);
     const toastId = toast.loading('Đang khởi tạo job tải file backup ACM...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-audit-acm`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/trigger-audit-acm',
+        { method: 'POST' },
+        token,
+      );
       toast.success('Đã xếp hàng job tự động tải file ACM thành công!', { id: toastId });
-      if (data.jobId) {
+      if (data?.jobId) {
         setTrackedJobs((prev) => [...prev, data.jobId]);
       }
       fetchJobs();
@@ -337,19 +299,7 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingMarginPath(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/system-settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          key: 'margin_decision_folder_path',
-          value: marginDecisionPath,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
+      await api.admin.saveSystemSetting('margin_decision_folder_path', marginDecisionPath, token);
       toast.success('Đã lưu đường dẫn thư mục Quyết định Ký quỹ thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
@@ -364,18 +314,16 @@ export default function BackupAuditor({
     setTriggeringCastDownload(true);
     const toastId = toast.loading('Đang khởi tạo job tải báo cáo CQG CAST...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-cast-download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/trigger-cast-download',
+        {
+          method: 'POST',
+          body: JSON.stringify({ backupPath: backupPathCast }),
         },
-        body: JSON.stringify({ backupPath: backupPathCast }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+        token,
+      );
       toast.success('Đã xếp hàng job tự động tải báo cáo CQG CAST thành công!', { id: toastId });
-      if (data.jobId) {
+      if (data?.jobId) {
         setTrackedJobs((prev) => [...prev, data.jobId]);
       }
       fetchJobs();
@@ -392,22 +340,20 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingMacroConfig(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/macro-lot/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/macro-lot/config',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            macroPath: macroLotPath,
+            scriptPath: macroLotScriptPath,
+            pythonExe,
+            targetRoot,
+          }),
         },
-        body: JSON.stringify({
-          macroPath: macroLotPath,
-          scriptPath: macroLotScriptPath,
-          pythonExe,
-          targetRoot,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
-      toast.success(data.message || 'Đã lưu cấu hình macro Excel thành công!');
+        token,
+      );
+      toast.success(data?.message || 'Đã lưu cấu hình macro Excel thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
@@ -421,15 +367,11 @@ export default function BackupAuditor({
     setTriggeringMacroLot(true);
     const toastId = toast.loading('Đang khởi tạo job chạy Excel Macro...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-lot-macro`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      const data = await api.ccpClearing.triggerLotMacro(token);
       toast.success('Đã xếp hàng job chạy Excel Macro thành công!', { id: toastId });
-      if (data.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+      if (data?.jobId) {
+        const newJobId = data.jobId;
+        setTrackedJobs((prev) => [...prev, newJobId]);
       }
       fetchJobs();
     } catch (err: any) {
@@ -445,20 +387,18 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingValueMacroConfig(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/macro-value/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const data = await requestJson<any>(
+        '/api/v1/bot-engine/macro-value/config',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            macroPath: macroValuePath,
+            scriptPath: macroValueScriptPath,
+          }),
         },
-        body: JSON.stringify({
-          macroPath: macroValuePath,
-          scriptPath: macroValueScriptPath,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi khi lưu cấu hình');
-      toast.success(data.message || 'Đã lưu cấu hình macro Excel giá trị thành công!');
+        token,
+      );
+      toast.success(data?.message || 'Đã lưu cấu hình macro Excel giá trị thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
@@ -472,15 +412,11 @@ export default function BackupAuditor({
     setTriggeringMacroValue(true);
     const toastId = toast.loading('Đang khởi tạo job chạy Excel Macro Giá trị...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-value-macro`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+      const data = await api.ccpClearing.triggerValueMacro(token);
       toast.success('Đã xếp hàng job chạy Excel Macro Giá trị thành công!', { id: toastId });
-      if (data.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+      if (data?.jobId) {
+        const newJobId = data.jobId;
+        setTrackedJobs((prev) => [...prev, newJobId]);
       }
       fetchJobs();
     } catch (err: any) {

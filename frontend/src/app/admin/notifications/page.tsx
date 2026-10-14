@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
@@ -176,27 +177,18 @@ export default function AdminNotificationsPage() {
   const fetchLookups = useCallback(async () => {
     if (!token) return;
     try {
-      const [deptRes, slotRes, userRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/v1/departments`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE_URL}/api/v1/shift-slots`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE_URL}/api/v1/users?limit=200`, { headers: { Authorization: `Bearer ${token}` } })
+      const [dData, sData, userData] = await Promise.all([
+        api.admin.getDepartments(token),
+        api.admin.getShiftSlots(token),
+        api.admin.getUsers({ limit: 200 }, token),
       ]);
 
-      if (deptRes.ok) {
-        const dData = await deptRes.json();
-        if (Array.isArray(dData)) setDepartments(dData);
-      }
-      if (slotRes.ok) {
-        const sData = await slotRes.json();
-        if (Array.isArray(sData)) setShiftSlots(sData);
-      }
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        if (userData && typeof userData === 'object') {
-          setUsersList(userData.data || userData.users || (Array.isArray(userData) ? userData : []));
-        } else {
-          setUsersList([]);
-        }
+      if (Array.isArray(dData)) setDepartments(dData);
+      if (Array.isArray(sData)) setShiftSlots(sData);
+      if (userData && typeof userData === 'object') {
+        setUsersList(userData.data || userData.users || (Array.isArray(userData) ? userData : []));
+      } else {
+        setUsersList([]);
       }
     } catch (err) {
       console.error('Error fetching lookups for notifications:', err);
@@ -207,12 +199,8 @@ export default function AdminNotificationsPage() {
   const fetchChannels = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/notifications/channels`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setChannels(await res.json());
-      }
+      const data = await api.admin.getNotificationChannels(token);
+      setChannels(data || []);
     } catch (err) {
       console.error('Error fetching channels:', err);
     }
@@ -222,12 +210,8 @@ export default function AdminNotificationsPage() {
   const fetchRules = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/notifications/rules`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setRules(await res.json());
-      }
+      const data = await api.admin.getNotificationRules(token);
+      setRules(data || []);
     } catch (err) {
       console.error('Error fetching rules:', err);
     }
@@ -237,12 +221,8 @@ export default function AdminNotificationsPage() {
   const fetchLogs = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/notifications/logs?limit=50`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setLogs(await res.json());
-      }
+      const data = await api.admin.getNotificationLogs(50, token);
+      setLogs(data || []);
     } catch (err) {
       console.error('Error fetching logs:', err);
     }
@@ -359,23 +339,10 @@ export default function AdminNotificationsPage() {
     };
 
     try {
-      const method = editingChannel ? 'PUT' : 'POST';
-      const url = editingChannel
-        ? `${API_BASE_URL}/api/v1/notifications/channels/${editingChannel._id}`
-        : `${API_BASE_URL}/api/v1/notifications/channels`;
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Thao tác lưu kênh thất bại');
+      if (editingChannel) {
+        await api.admin.updateNotificationChannel(editingChannel._id, payload, token);
+      } else {
+        await api.admin.createNotificationChannel(payload, token);
       }
 
       toast.success(editingChannel ? 'Cập nhật kênh thành công!' : 'Tạo kênh thành công!');
@@ -392,14 +359,7 @@ export default function AdminNotificationsPage() {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa kênh thông báo "${channel.name}"?`)) return;
     setDeletingId(channel._id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/notifications/channels/${channel._id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Xóa kênh thất bại');
-      }
+      await api.admin.deleteNotificationChannel(channel._id, token);
       toast.success(`Đã xóa kênh "${channel.name}"`);
       fetchChannels();
     } catch (err: any) {
@@ -488,23 +448,10 @@ export default function AdminNotificationsPage() {
     };
 
     try {
-      const method = editingRule ? 'PUT' : 'POST';
-      const url = editingRule
-        ? `${API_BASE_URL}/api/v1/notifications/rules/${editingRule._id}`
-        : `${API_BASE_URL}/api/v1/notifications/rules`;
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Thao tác lưu luật thất bại');
+      if (editingRule) {
+        await api.admin.updateNotificationRule(editingRule._id, payload, token);
+      } else {
+        await api.admin.createNotificationRule(payload, token);
       }
 
       toast.success(editingRule ? 'Cập nhật luật thành công!' : 'Tạo luật thành công!');
@@ -521,14 +468,7 @@ export default function AdminNotificationsPage() {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa luật thông báo "${rule.name}"?`)) return;
     setDeletingId(rule._id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/notifications/rules/${rule._id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Xóa luật thất bại');
-      }
+      await api.admin.deleteNotificationRule(rule._id, token);
       toast.success(`Đã xóa luật "${rule.name}"`);
       fetchRules();
     } catch (err: any) {
@@ -562,26 +502,16 @@ export default function AdminNotificationsPage() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/notifications/test`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const resData = await api.admin.testNotification(
+        {
           eventType: testEventType,
           ruleId: testRuleId || undefined,
           recipient: testRecipient.trim(),
           payload: parsedPayload
-        })
-      });
+        },
+        token,
+      );
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Gửi test thất bại');
-      }
-
-      const resData = await res.json();
       setTestResult(resData);
       toast.success('Đã gửi thử nghiệm thành công! Log đã được tạo.');
       fetchLogs();

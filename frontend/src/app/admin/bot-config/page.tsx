@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
@@ -23,23 +24,11 @@ import SystemSchedulerSettings from './components/SystemSchedulerSettings';
 import GttChecker from './components/GttChecker';
 import ReconciliationPanel from './components/ReconciliationPanel';
 import BackupAuditor from './components/BackupAuditor';
-import JobQueuePanel from './components/JobQueuePanel';
+import JobQueuePanel, { BotJob } from './components/JobQueuePanel';
 import ReportDownloader from './components/ReportDownloader';
 import LotStatisticsPanel from './components/LotStatisticsPanel';
 import ValueStatisticsPanel from './components/ValueStatisticsPanel';
 import MarginCheckerModal from '@/app/checklist/components/MarginCheckerModal';
-
-interface BotJob {
-  _id: string;
-  jobType: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED';
-  attempts: number;
-  maxAttempts: number;
-  logs: string[];
-  payload: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-}
 
 type TabType = 'credentials' | 'scheduler' | 'gtt' | 'reconciliation' | 'lot-statistics' | 'value-statistics' | 'backup' | 'downloader' | 'queue';
 
@@ -76,13 +65,8 @@ export default function AdminBotConfigPage() {
   const fetchAgentStatus = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/agent-status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAgentStatus(data);
-      }
+      const data = await api.ingress.getAgentStatus(token);
+      setAgentStatus(data);
     } catch (err) {
       console.error('Error fetching agent status:', err);
     }
@@ -93,13 +77,8 @@ export default function AdminBotConfigPage() {
     if (!token) return;
     setLoadingJobs(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setJobs(data);
-      }
+      const data = await api.checklistHub.getJobs({}, token);
+      setJobs(data);
     } catch (err) {
       console.error('Error fetching bot jobs:', err);
     } finally {
@@ -113,16 +92,7 @@ export default function AdminBotConfigPage() {
     setSubmittingCaptcha(true);
     const toastId = toast.loading('Đang gửi mã Captcha...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${selectedJobId}/submit-captcha`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ captchaText }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Gửi captcha thất bại');
+      await api.checklistHub.submitCaptcha(selectedJobId, captchaText, token);
       toast.success('Gửi mã captcha thành công! Vui lòng chờ bot tiếp tục xử lý.', { id: toastId });
       setCaptchaText('');
       fetchJobs();
@@ -138,22 +108,7 @@ export default function AdminBotConfigPage() {
     if (!token) return;
     const toastId = toast.loading('Đang khởi tạo và nén file báo cáo...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}/download-zip`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Không thể tải xuống file nén');
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `BaoCao_MXV_${jobId}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      await api.checklistHub.downloadJobZip(jobId, `BaoCao_MXV_${jobId}.zip`, token);
       toast.success('Tải xuống file ZIP thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi tải zip báo cáo', { id: toastId });

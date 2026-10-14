@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GripVertical, ClipboardList, Check, X, ShieldAlert, Plus, RefreshCw } from 'lucide-react';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 interface UserSnapshot {
   _id: string;
@@ -59,20 +59,7 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
     if (!token) return;
     setIsScanning(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/margin-change-requests/scan-decision`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lỗi quét quyết định ký quỹ');
-      }
-
-      const result = await res.json();
+      const result = await api.dashboard.scanMarginDecision(token);
       alert(
         `Quét thành công!\n- File quyết định: ${result.fileName}\n- Hiệu lực: ${result.effectiveSession}\n- Trích xuất: ${result.totalExtracted} mặt hàng\n- Đã tạo: ${result.totalCreated} bản ghi chờ duyệt.`,
       );
@@ -88,13 +75,8 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
   const fetchRequests = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/margin-change-requests`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data);
-      }
+      const data = await api.dashboard.getMarginChangeRequests(token);
+      setRequests(data || []);
     } catch (err) {
       console.error('Lỗi tải danh sách yêu cầu thay đổi ký quỹ:', err);
     } finally {
@@ -119,25 +101,16 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/margin-change-requests`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      await api.dashboard.createMarginChangeRequest(
+        {
           commodity,
           oldMargin: Number(oldMargin),
           newMargin: Number(newMargin),
           effectiveSession,
           comments
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lỗi gửi yêu cầu');
-      }
+        },
+        token,
+      );
 
       setShowCreateModal(false);
       setCommodity('');
@@ -157,21 +130,11 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
     if (!token) return;
     if (!confirm('Bạn có chắc chắn muốn phê duyệt yêu cầu thay đổi ký quỹ này không?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/margin-change-requests/${id}/approve`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.message || 'Phê duyệt thất bại');
-      } else {
-        fetchRequests();
-      }
-    } catch (err) {
+      await api.dashboard.approveMarginChangeRequest(id, undefined, token);
+      fetchRequests();
+    } catch (err: any) {
       console.error(err);
+      alert(err.message || 'Phê duyệt thất bại');
     }
   };
 
@@ -183,26 +146,13 @@ export const MarginChangeRequestsWidget: React.FC<MarginChangeRequestsWidgetProp
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/margin-change-requests/${showRejectModal._id}/reject`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          reason: rejectionReason
-        })
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.message || 'Từ chối thất bại');
-      } else {
-        setShowRejectModal(null);
-        setRejectionReason('');
-        fetchRequests();
-      }
-    } catch (err) {
+      await api.dashboard.rejectMarginChangeRequest(showRejectModal._id, rejectionReason, token);
+      setShowRejectModal(null);
+      setRejectionReason('');
+      fetchRequests();
+    } catch (err: any) {
       console.error(err);
+      alert(err.message || 'Từ chối thất bại');
     }
   };
 

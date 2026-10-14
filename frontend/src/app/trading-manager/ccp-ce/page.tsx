@@ -18,7 +18,8 @@ import {
   Database,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TradingManagerGuideModal from '../components/shared/TradingManagerGuideModal';
 import TradingManagerConfigSection from '../components/shared/TradingManagerConfigSection';
@@ -92,17 +93,12 @@ export default function CcpCeTradingManagerPage() {
 
     const pollActiveJobs = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=${CCP_CE_JOB_TYPES}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            const active = data.filter(
-              (j: any) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
-            ).length;
-            setActiveJobsCount(active);
-          }
+        const data = await api.checklistHub.getJobs({ jobTypes: CCP_CE_JOB_TYPES }, token);
+        if (Array.isArray(data)) {
+          const active = data.filter(
+            (j: any) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
+          ).length;
+          setActiveJobsCount(active);
         }
       } catch {}
     };

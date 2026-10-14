@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -106,13 +107,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
 
     const fetchMetrics = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/system-status`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const data = await api.dashboard.getSystemStatus(token);
+        if (data) {
           setMetrics(data);
           sessionStorage.setItem('mxv_sidebar_metrics', JSON.stringify(data));
         }
@@ -127,13 +123,8 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
         const vietnamTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
         const todayStr = vietnamTime.toISOString().split('T')[0];
 
-        const res = await fetch(`${API_BASE_URL}/api/v1/dashboard/summary?date=${todayStr}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const data = await api.dashboard.getSummary(todayStr, token);
+        if (data) {
           const progressData = {
             completionPercentage: data.completionPercentage,
             completedTasks: data.completedTasks,

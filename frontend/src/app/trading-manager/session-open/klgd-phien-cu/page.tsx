@@ -9,7 +9,8 @@ import {
   Layers,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
@@ -47,13 +48,8 @@ export default function CheckKlgdPhienCuPage() {
   const fetchPreEodData = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPreEodData(data?.preEod || null);
-      }
+      const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
+      setPreEodData(data?.preEod || null);
     } catch {
       // Bỏ qua lỗi kết nối
     }
@@ -67,23 +63,9 @@ export default function CheckKlgdPhienCuPage() {
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          jobType: 'CHECK_PRE_EOD',
-          date: selectedDate,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Đã gửi yêu cầu đối chiếu giao dịch trước EOD!');
-        setTimeout(() => fetchPreEodData(), 1500);
-      } else {
-        toast.error('Không thể kích hoạt đối chiếu');
-      }
+      await api.tradingOps.triggerRun('CHECK_PRE_EOD', selectedDate, {}, token);
+      toast.success('Đã gửi yêu cầu đối chiếu giao dịch trước EOD!');
+      setTimeout(() => fetchPreEodData(), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     } finally {

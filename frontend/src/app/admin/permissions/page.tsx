@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { Shield, Save, RotateCcw, AlertCircle, Check, Loader2, Users, LayoutGrid, CheckCircle2, Info, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -76,13 +77,7 @@ export default function PermissionsPage() {
     if (!token) return;
     setLoadingLogs(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/roles/audit-logs`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        throw new Error('Lỗi khi tải nhật ký phân quyền');
-      }
-      const data = await res.json();
+      const data = await api.admin.getRoleAuditLogs(token);
       setAuditLogs(data);
     } catch (err: any) {
       toast.error(err.message || 'Lỗi xảy ra khi tải nhật ký');
@@ -121,21 +116,10 @@ export default function PermissionsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const [permsRes, rolesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/v1/permissions`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/api/v1/roles`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+      const [permsData, rolesData] = await Promise.all([
+        api.admin.getPermissions(token),
+        api.admin.getRoles(token),
       ]);
-
-      if (!permsRes.ok || !rolesRes.ok) {
-        throw new Error('Lỗi khi tải cấu hình phân quyền');
-      }
-
-      const permsData = await permsRes.json();
-      const rolesData = await rolesRes.json();
 
       setPermissions(permsData);
       setRoles(rolesData);
@@ -224,34 +208,21 @@ export default function PermissionsPage() {
     setSaving(true);
     try {
       // Save each modified role
-      const savePromises = roles
-        .filter(r => r.code !== 'ADMIN') // Skip ADMIN
-        .map(r => {
-          return fetch(`${API_BASE_URL}/api/v1/roles/${r.code}/permissions`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              permissions: editedPermissions[r.code] || []
-            })
-          });
-        });
-
-      const results = await Promise.all(savePromises);
-      const failed = results.filter(res => !res.ok);
-
-      if (failed.length > 0) {
-        throw new Error('Có lỗi xảy ra khi lưu một số vai trò');
-      }
+      await Promise.all(
+        roles
+          .filter(r => r.code !== 'ADMIN') // Skip ADMIN
+          .map(r =>
+            api.admin.updateRolePermissions(
+              r.code,
+              editedPermissions[r.code] || [],
+              token,
+            )
+          )
+      );
 
       toast.success('Lưu cấu hình phân quyền thành công!');
       // Reload roles data
-      const rolesRes = await fetch(`${API_BASE_URL}/api/v1/roles`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const rolesData = await rolesRes.json();
+      const rolesData = await api.admin.getRoles(token);
       setRoles(rolesData);
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi lưu cấu hình');

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Download, Clock, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 import { getFriendlyCode } from '@/lib/incident';
 
@@ -93,23 +94,11 @@ export default function IncidentList({
     }
     const loadToast = toast.loading('Đang khởi tạo file báo cáo...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/${inc._id}/export`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (!res.ok) {
-        throw new Error('Lỗi khi tải file báo cáo từ server.');
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Bao_cao_su_co_01_QT_TVH_${inc.code || inc._id}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await api.checklistHub.exportIncident(
+        inc._id,
+        `Bao_cao_su_co_01_QT_TVH_${inc.code || inc._id}.xlsx`,
+        token,
+      );
       toast.success('Tải báo cáo sự cố thành công!');
     } catch (error: any) {
       console.error(error);

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { 
   Sun, 
   Moon, 
@@ -67,13 +68,8 @@ export default function Header({ isCollapsed, onToggleCollapse, onOpenMobileSide
       setSearchLoading(true);
       setShowSearchResults(true);
       try {
-        const res = await fetch(`${API_BASE_URL || 'http://localhost:3001'}/api/v1/shifts/search/global?q=${encodeURIComponent(searchVal)}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const data = await api.checklistHub.searchShifts(searchVal, token);
+        if (data) {
           setSearchResults(data);
         }
       } catch (error) {

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { useRouter } from 'next/navigation';
 import { Key, User as UserIcon, Mail, Info, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -35,18 +36,7 @@ export default function LoginPage() {
     if (codeVal) {
       const exchangeToken = async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/v1/auth/exchange-token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: codeVal }),
-          });
-
-          if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn.');
-          }
-
-          const data = await res.json();
+          const data = await api.auth.exchangeToken(codeVal);
           const tokenVal = data.access_token;
           const userVal = data.user;
 

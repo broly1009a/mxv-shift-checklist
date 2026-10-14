@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { 
   Activity, Loader2, RotateCcw, Search, ChevronLeft, ChevronRight, Eye, CornerDownRight 
 } from 'lucide-react';
@@ -51,14 +52,9 @@ export default function ActivityLogsPage() {
   const fetchUsers = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/users?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const userList = Array.isArray(data) ? data : data.data || [];
-        setUsers(userList);
-      }
+      const data = await api.admin.getUsers({ limit: 1000 }, token);
+      const userList = Array.isArray(data) ? data : data?.data || [];
+      setUsers(userList);
     } catch (err) {
       console.error('Lỗi khi tải danh sách người dùng:', err);
     }
@@ -76,36 +72,21 @@ export default function ActivityLogsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const url = new URL(`${API_BASE_URL}/api/v1/activity-logs`);
-      url.searchParams.append('page', currentPage.toString());
-      url.searchParams.append('limit', currentLimit.toString());
-      if (searchQuery) {
-        url.searchParams.append('action', searchQuery);
-      }
-      if (userId && userId !== 'ALL') {
-        url.searchParams.append('userId', userId);
-      }
-      if (method && method !== 'ALL') {
-        url.searchParams.append('method', method);
-      }
-      if (start) {
-        url.searchParams.append('startDate', start);
-      }
-      if (end) {
-        url.searchParams.append('endDate', end);
-      }
+      const params: Record<string, any> = {
+        page: currentPage.toString(),
+        limit: currentLimit.toString(),
+      };
+      if (searchQuery) params.action = searchQuery;
+      if (userId && userId !== 'ALL') params.userId = userId;
+      if (method && method !== 'ALL') params.method = method;
+      if (start) params.startDate = start;
+      if (end) params.endDate = end;
 
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        throw new Error('Lỗi khi tải nhật ký thao tác');
-      }
-      const data = await res.json();
-      setLogs(data.logs);
-      setTotal(data.total);
-      setPages(data.pages);
-      setPage(data.page);
+      const data = await api.admin.getActivityLogs(params, token);
+      setLogs(data.logs || []);
+      setTotal(data.total || 0);
+      setPages(data.pages || 1);
+      setPage(data.page || 1);
     } catch (err: any) {
       toast.error(err.message || 'Lỗi xảy ra khi tải dữ liệu');
     } finally {

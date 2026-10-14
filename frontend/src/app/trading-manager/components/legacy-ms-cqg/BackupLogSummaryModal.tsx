@@ -17,7 +17,7 @@ import {
   Download,
   Layers,
 } from 'lucide-react';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 export interface BackupLogSummaryModalProps {
   isOpen: boolean;
@@ -65,12 +65,8 @@ export const BackupLogSummaryModal: React.FC<BackupLogSummaryModalProps> = ({
 
     const fetchJob = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (isMounted) {
+        const data = await api.checklistHub.getJobDetail(jobId, token);
+        if (isMounted && data) {
           setJobData(data);
           setLoading(false);
         }

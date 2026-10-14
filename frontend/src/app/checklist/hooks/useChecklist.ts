@@ -3,90 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { api, TaskDetail, ShiftLog, AuditLog, Incident } from '@/services/api';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { MOCK_ACTIVE_LOGS, MOCK_AUDIT_LOGS } from '../mockChecklistData';
 
-export interface TaskDetail {
-  taskId: string;
-  taskNameSnapshot: string;
-  prioritySnapshot: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  isChecked: boolean;
-  checkedAt?: string;
-  updatedBy?: {
-    _id: string;
-    fullName: string;
-    username: string;
-  };
-  note?: string;
-  deadlineSnapshot?: string;
-  functionUrlSnapshot?: string;
-  urdReferenceSnapshot?: string;
-  fileLocationSnapshot?: string;
-  timetableSnapshot?: string;
-  isBotCheckSnapshot?: boolean;
-  botTriggerTimeSnapshot?: string;
-  status: 'PENDING' | 'WAITING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'NEEDS_ATTENTION';
-  resultNote?: string | null;
-  startedAt?: string | null;
-  completedAt?: string | null;
-  failedAt?: string | null;
-  skippedAt?: string | null;
-  needsAttentionAt?: string | null;
-  dependsOnTaskIdsSnapshot?: string[];
-  sessionTypeSnapshot?: string;
-  triggerTimeSnapshot?: string;
-  slaDeadlineSnapshot?: string;
-  slaWindowStartSnapshot?: string;
-  slaWindowEndSnapshot?: string;
-  actionDescriptionSnapshot?: string;
-  exceptionCodeSnapshot?: string;
-  frequencyMinutesSnapshot?: number | null;
-  slaTypeSnapshot?: string;
-}
+export type { TaskDetail, ShiftLog, AuditLog, Incident };
 
-export interface ShiftLog {
-  _id: string;
-  shiftDate: string;
-  status: 'PENDING' | 'COMPLETED';
-  progressPercentage: number;
-  templateId?: {
-    _id: string;
-    title: string;
-    sessionType: 'OPEN' | 'DURING' | 'CLOSE';
-    departmentId?: {
-      _id: string;
-      name: string;
-      code: string;
-    };
-  } | null;
-  userId?: {
-    _id: string;
-    fullName: string;
-    username: string;
-  } | null;
-  details: TaskDetail[];
-  closedBy?: {
-    _id: string;
-    fullName: string;
-    username: string;
-  };
-  closedAt?: string;
-  handoverNote?: string;
-}
-
-export interface AuditLog {
-  _id: string;
-  taskId: string;
-  taskName: string;
-  userId: {
-    fullName: string;
-    username: string;
-  };
-  action: 'CHECK' | 'UNCHECK' | 'NOTE_UPDATE' | 'STATUS_UPDATE' | 'INCIDENT_CREATED' | 'INCIDENT_RESOLVED' | 'ADD_TASK';
-  details: string;
-  createdAt: string;
-}
 
 export function useChecklist() {
   const { user, token } = useAuth();
@@ -142,11 +65,8 @@ export function useChecklist() {
     setLoading(true);
     setLoadError('');
     try {
-      const deptIdFilter = user?.role === 'ADMIN' ? '' : `departmentId=${user?.department?.id || user?.department?._id || ''}`;
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/active?${deptIdFilter}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const deptId = user?.role === 'ADMIN' ? null : (user?.department?.id || user?.department?._id || null);
+      const data = await api.checklistHub.getActiveShifts(deptId, token);
       if (seq === activeLogsSeqRef.current) {
         setActiveLogs(Array.from(new Map(data.map((item: any) => [item._id, item])).values()) as ShiftLog[]);
       }
@@ -178,14 +98,7 @@ export function useChecklist() {
     setLoading(true);
     setLoadError('');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không tìm thấy ca trực tương ứng.');
-      }
-      const target: ShiftLog = await res.json();
+      const target: ShiftLog = await api.checklistHub.getShiftDetail(id, token);
       if (seq === logDetailSeqRef.current) {
         setLog(target);
         // Pre-fill notesState
@@ -217,15 +130,10 @@ export function useChecklist() {
     if (!token) return;
     const seq = ++auditLogsSeqRef.current;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${id}/audit-logs`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const uniqueAudits = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
-        if (seq === auditLogsSeqRef.current) {
-          setAuditLogs(uniqueAudits as AuditLog[]);
-        }
+      const data = await api.checklistHub.getShiftAuditLogs(id, token);
+      const uniqueAudits = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
+      if (seq === auditLogsSeqRef.current) {
+        setAuditLogs(uniqueAudits as AuditLog[]);
       }
     } catch (err) {
       console.warn('Lỗi tải nhật ký kiểm toán:', err);
@@ -242,15 +150,10 @@ export function useChecklist() {
     if (!token) return;
     const seq = ++incidentsSeqRef.current;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/shift/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const uniqueIncidents = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
-        if (seq === incidentsSeqRef.current) {
-          setIncidents(uniqueIncidents);
-        }
+      const data = await api.checklistHub.getIncidents(id, token);
+      const uniqueIncidents = Array.from(new Map(data.map((item: any) => [item._id, item])).values());
+      if (seq === incidentsSeqRef.current) {
+        setIncidents(uniqueIncidents);
       }
     } catch (err) {
       console.warn('Lỗi tải danh sách sự cố:', err);
@@ -267,25 +170,16 @@ export function useChecklist() {
 
     try {
       const accounts = affectedAccountsInput.split(',').map(s => s.trim()).filter(Boolean);
-      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/${resolvingIncident._id}/resolve`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const updated = await api.checklistHub.resolveIncident(
+        resolvingIncident._id,
+        {
           rootCause,
           remediationAction,
-          affectedAccounts: accounts
-        })
-      });
+          affectedAccounts: accounts,
+        },
+        token,
+      );
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lỗi xử lý sự cố');
-      }
-
-      const updated = await res.json();
       setIncidents(prev => prev.map(inc => inc._id === updated._id ? updated : inc));
       setResolvingIncident(null);
       setRootCause('MISSING_CONFIGURATION');
@@ -311,25 +205,15 @@ export function useChecklist() {
     setIsSubmittingAdhoc(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/${log._id}/add-task`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const updatedShift: ShiftLog = await api.checklistHub.addTask(
+        log._id,
+        {
           taskName: adhocTaskName.trim(),
           priority: adhocPriority,
-          deadline: adhocDeadline.trim() || undefined
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Thêm tác vụ phát sinh thất bại');
-      }
-
-      const updatedShift: ShiftLog = await res.json();
+          deadline: adhocDeadline.trim() || undefined,
+        },
+        token,
+      );
       setLog(updatedShift);
       // Sync noteState for any new task
       setNotesState(prev => {
@@ -537,26 +421,15 @@ export function useChecklist() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const updated: ShiftLog = await api.checklistHub.updateItemStatus(
+        {
           shiftLogId: log._id,
           taskId,
           status: newStatus,
-          note
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Cập nhật trạng thái thất bại');
-      }
-
-      const updated: ShiftLog = await res.json();
+          note,
+        },
+        token,
+      );
       setLog(updated);
       toast.success('Cập nhật trạng thái tác vụ thành công.');
     } catch (err: any) {
@@ -595,26 +468,15 @@ export function useChecklist() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/items/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const updated: ShiftLog = await api.checklistHub.updateItemStatus(
+        {
           shiftLogId: log._id,
           taskId,
           status,
-          note
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Lưu ghi chú thất bại');
-      }
-
-      const updated: ShiftLog = await res.json();
+          note,
+        },
+        token,
+      );
       setLog(updated);
       toast.success('Ghi chú đã được cập nhật.');
     } catch (err: any) {
@@ -629,24 +491,13 @@ export function useChecklist() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shifts/close`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      const updated: ShiftLog = await api.checklistHub.closeShift(
+        {
           shiftLogId: log._id,
-          handoverNote: noteInput
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Chốt ca trực thất bại');
-      }
-
-      const updated: ShiftLog = await res.json();
+          handoverNote: noteInput,
+        },
+        token,
+      );
       setLog(updated);
       toast.success('Đã CHỐT ca trực vận hành thành công!');
     } catch (err: any) {

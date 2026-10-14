@@ -11,7 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 export interface LegacyNegativeMarginSectionProps {
   token: string | null;
@@ -31,13 +31,8 @@ export default function LegacyNegativeMarginSection({
     if (!token) return;
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMarginData(data?.negativeMargin || null);
-      }
+      const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
+      setMarginData(data?.negativeMargin || null);
     } catch {
       // Bỏ qua lỗi kết nối
     } finally {
@@ -53,23 +48,9 @@ export default function LegacyNegativeMarginSection({
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          jobType: 'SCAN_NEGATIVE_MARGIN',
-          date: selectedDate,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Đã gửi yêu cầu quét tài khoản âm ký quỹ mới!');
-        setTimeout(() => fetchMarginData(true), 1500);
-      } else {
-        toast.error('Không thể kích hoạt quét tài khoản âm ký quỹ');
-      }
+      await api.tradingOps.triggerRun('SCAN_NEGATIVE_MARGIN', selectedDate, {}, token);
+      toast.success('Đã gửi yêu cầu quét tài khoản âm ký quỹ mới!');
+      setTimeout(() => fetchMarginData(true), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     } finally {

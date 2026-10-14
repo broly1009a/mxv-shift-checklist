@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import LegacyCqgSyncSection from './LegacyCqgSyncSection';
 import BackupLogSummaryModal from './BackupLogSummaryModal';
@@ -154,14 +154,7 @@ export default function LegacyBackupThongKeSection({
   const saveSetting = useCallback(async (key: string, value: string) => {
     if (!token) return;
     try {
-      await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ key, value }),
-      });
+      await api.admin.saveSystemSetting(key, value, token);
     } catch (err: any) {
       console.error(`[SystemSettings] Lỗi lưu cấu hình ${key}:`, err.message);
     }
@@ -181,11 +174,8 @@ export default function LegacyBackupThongKeSection({
   // Load toàn bộ cấu hình vận hành từ CSDL khi mở trang
   useEffect(() => {
     if (!token) return;
-    fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((settingsList: Array<{ key: string; value: string }>) => {
+    api.admin.getSystemSettings(token)
+      .then((settingsList: any) => {
         if (!Array.isArray(settingsList)) return;
         const map: Record<string, string> = {};
         settingsList.forEach((s) => {
@@ -238,10 +228,7 @@ export default function LegacyBackupThongKeSection({
       .catch(() => {});
 
     // Lấy thông tin ca trực hiện tại để đồng bộ hiển thị giờ lịch trình
-    fetch(`${API_BASE_URL}/api/v1/shifts/active`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    api.checklistHub.getActiveShifts(token)
       .then((data: any) => {
         const shifts = Array.isArray(data) ? data : data?.data || [];
         const active = shifts.find((s: any) => s.status === 'IN_PROGRESS') ||
@@ -414,33 +401,24 @@ export default function LegacyBackupThongKeSection({
   // Tự động load jobId gần nhất từ CSDL nếu state chưa có
   useEffect(() => {
     if (!token) return;
-    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=RPA_DOWNLOAD_REPORTS&limit=1`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    api.checklistHub.getJobs({ jobTypes: 'RPA_DOWNLOAD_REPORTS', limit: 1 }, token)
+      .then((data: any) => {
         if (Array.isArray(data) && data[0]?._id) {
           setLastMsJobId((prev) => prev || data[0]._id);
         }
       })
       .catch(() => {});
 
-    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=DOWNLOAD_CQG_BACKUP,FILE_AUDIT_CQG&limit=1`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    api.checklistHub.getJobs({ jobTypes: 'DOWNLOAD_CQG_BACKUP,FILE_AUDIT_CQG', limit: 1 }, token)
+      .then((data: any) => {
         if (Array.isArray(data) && data[0]?._id) {
           setLastCqgJobId((prev) => prev || data[0]._id);
         }
       })
       .catch(() => {});
 
-    fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs?jobTypes=TRIGGER_ACM_DOWNLOAD,FILE_AUDIT_ACM&limit=1`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
+    api.checklistHub.getJobs({ jobTypes: 'TRIGGER_ACM_DOWNLOAD,FILE_AUDIT_ACM', limit: 1 }, token)
+      .then((data: any) => {
         if (Array.isArray(data) && data[0]?._id) {
           setLastAcmJobId((prev) => prev || data[0]._id);
         }
@@ -460,13 +438,7 @@ export default function LegacyBackupThongKeSection({
     setDownloadingMs(true);
     const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo MS...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets: selected, sessionDay: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.triggerMsDownload({ targets: selected, sessionDay: selectedDate }, token);
       const jobId = data.jobId;
 
       if (!jobId) {
@@ -483,11 +455,8 @@ export default function LegacyBackupThongKeSection({
       while (Date.now() - start < 180000) {
         await new Promise((r) => setTimeout(r, 2500));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           if (job.status === 'COMPLETED') {
             toast.success(`Đã tải xong ${selected.length} báo cáo MS về thư mục Backup!`, { id: toastId, duration: 5000 });
             await handleAuditMsBackup();
@@ -514,18 +483,7 @@ export default function LegacyBackupThongKeSection({
     setFetchingEodEmail(true);
     const toastId = toast.loading('Đang quét hòm thư Outlook M365 và tải file EOD...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/fetch-eod-email`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || `Lỗi HTTP ${res.status}`);
-      }
+      const data = await api.ingress.fetchEodEmail(selectedDate, token);
       if (data.success) {
         toast.success(data.message || 'Tải file EOD từ email thành công!', { id: toastId, duration: 6000 });
         await handleAuditMsBackup();
@@ -550,13 +508,7 @@ export default function LegacyBackupThongKeSection({
     setDownloadingCqg(true);
     const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo CQG...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-cqg-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reports: cqgReports, sessionDay: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.triggerCqgDownload({ reports: cqgReports, sessionDay: selectedDate }, token);
       const jobId = data.jobId;
 
       if (!jobId) {
@@ -573,11 +525,8 @@ export default function LegacyBackupThongKeSection({
       while (Date.now() - start < 180000) {
         await new Promise((r) => setTimeout(r, 2500));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           if (job.status === 'COMPLETED') {
             toast.success('Đã tải & ghép thành công toàn bộ file CQG về thư mục Backup!', { id: toastId, duration: 5000 });
             await handleAuditCqgBackup();
@@ -604,13 +553,7 @@ export default function LegacyBackupThongKeSection({
     setAuditingMs(true);
     const toastId = toast.loading('Đang kiểm tra thư mục Backup M-System...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-ms-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.auditMsBackup(selectedDate, token);
       setAuditMsResult(data);
       toast.success('Kiểm tra thư mục Backup M-System hoàn tất!', { id: toastId });
     } catch (err: any) {
@@ -626,13 +569,7 @@ export default function LegacyBackupThongKeSection({
     setAuditingCqg(true);
     const toastId = toast.loading('Đang kiểm tra và đồng bộ thư mục Backup CQG...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-cqg-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.auditCqgBackup(selectedDate, token);
       setAuditCqgResult(data);
       toast.success('Kiểm tra thư mục Backup CQG hoàn tất!', { id: toastId });
     } catch (err: any) {
@@ -651,13 +588,7 @@ export default function LegacyBackupThongKeSection({
       toastId = toast.loading('Đang quét thư mục backup ACM (Web & SFTP)...');
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-acm-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.auditAcmBackup(selectedDate, token);
       setAuditAcmResult(data);
       if (showToast && toastId) {
         toast.success(
@@ -684,13 +615,7 @@ export default function LegacyBackupThongKeSection({
     setDownloadingAcm(true);
     const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo ACM...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-acm-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate, reports: selected }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected }, token);
       const jobId = data.jobId;
 
       if (!jobId) {
@@ -707,11 +632,8 @@ export default function LegacyBackupThongKeSection({
       while (Date.now() - start < 180000) {
         await new Promise((r) => setTimeout(r, 2500));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           if (job.status === 'COMPLETED') {
             toast.success('Đã tải & đồng bộ thành công các file ACM về thư mục Backup!', { id: toastId, duration: 5000 });
             await handleAuditAcmBackup(false);
@@ -744,17 +666,10 @@ export default function LegacyBackupThongKeSection({
     setDownloadingCcp(true);
     const toastId = toast.loading(`Đang khởi động Robot tải ${selected.length} báo cáo CoreCCP...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ccp-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: selectedDate,
-          reports: selected,
-        }),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.triggerCcpDownload({
+        date: selectedDate,
+        reports: selected,
+      }, token);
       const jobId = data.jobId;
 
       if (!jobId) {
@@ -771,11 +686,8 @@ export default function LegacyBackupThongKeSection({
       while (Date.now() - startTime < MAX_WAIT_MS) {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           if (job.status === 'COMPLETED') {
             toast.success('Đã tải xong toàn bộ báo cáo CoreCCP về thư mục Backup!', { id: toastId, duration: 5000 });
             await handleAuditCcpBackup();
@@ -802,13 +714,7 @@ export default function LegacyBackupThongKeSection({
     setAuditingCcp(true);
     const toastId = toast.loading('Đang kiểm tra thư mục Backup CoreCCP...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-ccp-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ingress.auditCcpBackup(selectedDate, token);
       setAuditCcpResult(data);
       toast.success('Kiểm tra thư mục Backup CoreCCP hoàn tất!', { id: toastId });
     } catch (err: any) {
@@ -843,13 +749,8 @@ export default function LegacyBackupThongKeSection({
     const toastId = toast.loading('Đang phân tích dữ liệu ký quỹ (QLTKGD, TTM, DSLCK)...');
     try {
       // 1. Thử gọi trực tiếp endpoint check-imr đồng bộ cực nhanh
-      const fastRes = await fetch(`${API_BASE_URL}/api/v1/reconciliation/check-imr`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionDate: selectedDate }),
-      });
-      if (fastRes.ok) {
-        const fastData = await fastRes.json();
+      try {
+        const fastData: any = await api.tradingOps.checkImr(selectedDate, token);
         if (fastData && fastData.success) {
           const resObj = {
             g1: fastData.results?.group1 || [],
@@ -870,16 +771,12 @@ export default function LegacyBackupThongKeSection({
           toast.error(`Không tìm thấy file QLTKGD.xlsx trong thư mục backup ngày ${selectedDate}! Vui lòng tải báo cáo MS trước.`, { id: toastId, duration: 6000 });
           return;
         }
+      } catch {
+        // Tiếp tục fallback bên dưới nếu check-imr trực tiếp gặp lỗi
       }
 
       // 2. Fallback: Kích hoạt background bot job
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, bypassCooldown: true, jobType: 'SCAN_NEGATIVE_MARGIN' }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const result = await res.json();
+      const result = await api.tradingOps.triggerRun('SCAN_NEGATIVE_MARGIN', selectedDate, {}, token);
       const jobId = result.jobId;
 
       if (!jobId) {
@@ -892,11 +789,8 @@ export default function LegacyBackupThongKeSection({
       while (Date.now() - start < 120000) {
         await new Promise((r) => setTimeout(r, 2000));
         try {
-          const jr = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jr.ok) continue;
-          const job = await jr.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
           if (job.status === 'COMPLETED') {
             const r = job.payload?.result || job;
             const resObj = {
@@ -932,13 +826,7 @@ export default function LegacyBackupThongKeSection({
     setLotMacroLoading(true);
     const toastId = toast.loading('Đang kích hoạt Excel Macro thống kê số lot...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-lot-macro`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ccpClearing.triggerLotMacro({ targetDate: selectedDate }, token);
       toast.success(data.message || 'Đã đưa yêu cầu chạy Macro số lot vào hàng đợi!', { id: toastId });
     } catch (err: any) {
       toast.error(`Lỗi kích hoạt Macro số lot: ${err.message}`, { id: toastId });
@@ -953,13 +841,7 @@ export default function LegacyBackupThongKeSection({
     setValueMacroLoading(true);
     const toastId = toast.loading('Đang kích hoạt Excel Macro thống kê giá trị giao dịch...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-value-macro`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await api.ccpClearing.triggerValueMacro({ targetDate: selectedDate }, token);
       toast.success(data.message || 'Đã đưa yêu cầu chạy Macro giá trị vào hàng đợi!', { id: toastId });
     } catch (err: any) {
       toast.error(`Lỗi kích hoạt Macro giá trị: ${err.message}`, { id: toastId });

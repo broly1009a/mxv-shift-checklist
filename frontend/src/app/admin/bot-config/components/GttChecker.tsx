@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Settings,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 interface GttCheckerProps {
   token: string;
@@ -41,14 +42,11 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     if (!token) return;
     setLoadingGttReport(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/gtt-report`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setGttReport(data.report);
+      const data = await api.checklistHub.getGttReport(undefined, token);
+      if (data && (data.success || data.report)) {
+        setGttReport(data.report || data);
       } else {
-        toast.error(data.message || 'Chưa có báo cáo GTT');
+        toast.error(data?.message || 'Chưa có báo cáo GTT');
       }
     } catch (err: any) {
       toast.error('Lỗi tải báo cáo GTT');
@@ -69,13 +67,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     try {
       const buffer = await gttFile.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/gtt-upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ base64, filename: gttFile.name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
+      await api.checklistHub.uploadGttFile({ base64, filename: gttFile.name }, token);
       toast.success('Upload GTT.xlsx thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi upload', { id: toastId });
@@ -92,13 +84,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     try {
       const buffer = await marketCsvFile.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/market-csv-upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ base64, filename: marketCsvFile.name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
+      await api.checklistHub.uploadMarketCsv({ base64, filename: marketCsvFile.name }, token);
       toast.success('Upload market.csv thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi upload', { id: toastId });
@@ -115,13 +101,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     try {
       const buffer = await commodityFile.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/commodity-upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ base64, filename: commodityFile.name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
+      await api.checklistHub.uploadCommodity({ base64, filename: commodityFile.name }, token);
       toast.success('Upload file hàng hóa thành công!', { id: toastId });
       handleLoadGttReport();
     } catch (err: any) {
@@ -137,13 +117,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     setRunningGttCheck(true);
     const toastId = toast.loading('Đang chạy pipeline kiểm tra GTT... (có thể mất 2-3 phút)');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/run-gtt-check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ downloadMarketCsv }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Kiểm tra GTT thất bại');
+      const data = await api.checklistHub.runGttCheck({ downloadMarketCsv }, token);
       setGttReport(data.report);
       const { matched, diffCount, msOnlyCount, cqgOnlyCount } = data.report;
       toast.success(`GTT Check hoàn tất!  ${matched} khớp,  ${diffCount} chênh lệch, ${msOnlyCount + cqgOnlyCount} thiếu`, { id: toastId, duration: 8000 });
@@ -163,14 +137,7 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     setPushingToMs(true);
     const toastId = toast.loading('Đang gửi yêu cầu cập nhật giá lên M-System...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/gtt-report/push-to-ms`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Lỗi không rõ từ M-System');
-      }
+      const data = await api.checklistHub.pushGttToMs({}, token);
       toast.success(data.message || 'Cập nhật giá lên M-System thành công!', { id: toastId, duration: 5000 });
     } catch (err: any) {
       toast.error(err.message || 'Gửi yêu cầu cập nhật giá thất bại', { id: toastId, duration: 6000 });
@@ -184,24 +151,8 @@ export default function GttChecker({ token, apiBaseUrl }: GttCheckerProps) {
     if (!token) return;
     const toastId = toast.loading('Đang khởi tạo file sửa giá...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/gtt-report/export-correction?type=${type}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const errorText = await res.json().catch(() => ({ message: 'Không thể xuất file' }));
-        throw new Error(errorText.message || 'Xuất file thất bại');
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sua-gia-${type === 'settlement' ? 'gtt' : 'first-match'}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
+      const filename = `sua-gia-${type === 'settlement' ? 'gtt' : 'first-match'}.xlsx`;
+      await api.checklistHub.exportGttCorrection(type, filename, token);
       toast.success('Tải xuống file sửa giá thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi tải xuống file sửa giá', { id: toastId });

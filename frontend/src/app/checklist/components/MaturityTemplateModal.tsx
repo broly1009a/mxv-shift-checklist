@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MessageSquare, Copy, Check, Search, RefreshCw, Layers } from 'lucide-react';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface TemplateItem {
@@ -50,17 +51,7 @@ export default function MaturityTemplateModal({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/maturity-manual-messages?shiftLogId=${shiftLogId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Không thể tải dữ liệu templates đáo hạn');
-      }
-
-      const responseData = await res.json();
+      const responseData = await api.tradingOps.getMaturityMessages(shiftLogId, token);
       if (responseData.success && Array.isArray(responseData.jsonContent)) {
         const mappedTemplates: TemplateItem[] = responseData.jsonContent.map((item: any, idx: number) => ({
           id: `${item.account}_${item.contractCode}_${idx}`,

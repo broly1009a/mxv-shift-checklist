@@ -20,7 +20,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import CeCcpGttCheckerSection from '../ce-acm/CeCcpGttCheckerSection';
 
@@ -121,23 +121,18 @@ export default function CcpCeBackupThongKeSection({
     if (!token) return;
     const fetchSettings = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const getVal = (key: string, def: string) => {
-            const found = data.find((s: any) => s.key === key);
-            return found ? found.value : def;
-          };
-          setAutoBackupActive(getVal('bot_auto_backup_enabled', 'true') === 'true');
-          setBackupPeriodic(getVal('bot_backup_periodic_enabled', 'true') === 'true');
-          setBackupPeriodicMinutes(parseInt(getVal('bot_backup_periodic_minutes', '60'), 10) || 60);
-          setEnableBackupTime(getVal('bot_backup_time_enabled', 'true') === 'true');
-          setBackupTime(getVal('bot_backup_time', '04:00'));
-          setEnableStatTime(getVal('bot_stat_time_enabled', 'true') === 'true');
-          setStatTime(getVal('bot_stat_time', '06:30'));
-        }
+        const data = await api.admin.getSystemSettings(token);
+        const getVal = (key: string, def: string) => {
+          const found = data.find((s: any) => s.key === key);
+          return found ? found.value : def;
+        };
+        setAutoBackupActive(getVal('bot_auto_backup_enabled', 'true') === 'true');
+        setBackupPeriodic(getVal('bot_backup_periodic_enabled', 'true') === 'true');
+        setBackupPeriodicMinutes(parseInt(getVal('bot_backup_periodic_minutes', '60'), 10) || 60);
+        setEnableBackupTime(getVal('bot_backup_time_enabled', 'true') === 'true');
+        setBackupTime(getVal('bot_backup_time', '04:00'));
+        setEnableStatTime(getVal('bot_stat_time_enabled', 'true') === 'true');
+        setStatTime(getVal('bot_stat_time', '06:30'));
       } catch {}
     };
     fetchSettings();
@@ -147,14 +142,7 @@ export default function CcpCeBackupThongKeSection({
   const saveSetting = async (key: string, value: string) => {
     if (!token) return;
     try {
-      await fetch(`${API_BASE_URL}/api/v1/system-settings`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ key, value }),
-      });
+      await api.admin.saveSystemSetting({ key, value }, token);
     } catch {}
   };
 
@@ -165,16 +153,9 @@ export default function CcpCeBackupThongKeSection({
     let toastId: string | undefined;
     if (showToast) toastId = toast.loading('Đang quét thư mục backup CoreCCP...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-ccp-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAuditCcpResult(data);
-        if (showToast && toastId) toast.success(`Quét CoreCCP hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file OK`, { id: toastId });
-      }
+      const data = await api.ingress.auditCcpBackup({ targetDate: selectedDate }, token);
+      setAuditCcpResult(data);
+      if (showToast && toastId) toast.success(`Quét CoreCCP hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file OK`, { id: toastId });
     } catch (err: any) {
       if (showToast && toastId) toast.error(`Lỗi kiểm tra CoreCCP: ${err.message}`, { id: toastId });
     } finally {
@@ -188,16 +169,9 @@ export default function CcpCeBackupThongKeSection({
     let toastId: string | undefined;
     if (showToast) toastId = toast.loading('Đang quét thư mục backup CoreEX...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-ce-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAuditCeResult(data);
-        if (showToast && toastId) toast.success(`Quét CoreEX hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file OK`, { id: toastId });
-      }
+      const data = await api.ingress.auditCeBackup(selectedDate, token);
+      setAuditCeResult(data);
+      if (showToast && toastId) toast.success(`Quét CoreEX hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file OK`, { id: toastId });
     } catch (err: any) {
       if (showToast && toastId) toast.error(`Lỗi kiểm tra CoreEX: ${err.message}`, { id: toastId });
     } finally {
@@ -211,16 +185,9 @@ export default function CcpCeBackupThongKeSection({
     let toastId: string | undefined;
     if (showToast) toastId = toast.loading('Đang quét thư mục backup ACM...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/audit-acm-backup`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAuditAcmResult(data);
-        if (showToast && toastId) toast.success(`Quét ACM hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file OK`, { id: toastId });
-      }
+      const data = await api.ingress.auditAcmBackup({ targetDate: selectedDate }, token);
+      setAuditAcmResult(data);
+      if (showToast && toastId) toast.success(`Quét ACM hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file OK`, { id: toastId });
     } catch (err: any) {
       if (showToast && toastId) toast.error(`Lỗi kiểm tra ACM: ${err.message}`, { id: toastId });
     } finally {
@@ -239,17 +206,9 @@ export default function CcpCeBackupThongKeSection({
     setDownloadingCcp(true);
     const toastId = toast.loading(`Đang tải ${selected.length} báo cáo CoreCCP...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ccp-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, reports: selected }),
-      });
-      if (res.ok) {
-        toast.success('Đã kích hoạt tải báo cáo CoreCCP!', { id: toastId });
-        await handleAuditCcpBackup(false);
-      } else {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      await api.ingress.triggerCcpDownload({ date: selectedDate, reports: selected }, token);
+      toast.success('Đã kích hoạt tải báo cáo CoreCCP!', { id: toastId });
+      await handleAuditCcpBackup(false);
     } catch (err: any) {
       toast.error(`Lỗi tải CoreCCP: ${err.message}`, { id: toastId });
     } finally {
@@ -267,17 +226,9 @@ export default function CcpCeBackupThongKeSection({
     setDownloadingCe(true);
     const toastId = toast.loading(`Đang tải ${selected.length} báo cáo CoreEX...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ce-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, reports: selected }),
-      });
-      if (res.ok) {
-        toast.success('Đã kích hoạt tải báo cáo CoreEX!', { id: toastId });
-        await handleAuditCeBackup(false);
-      } else {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      await api.ingress.triggerCeDownload({ date: selectedDate, reports: selected }, token);
+      toast.success('Đã kích hoạt tải báo cáo CoreEX!', { id: toastId });
+      await handleAuditCeBackup(false);
     } catch (err: any) {
       toast.error(`Lỗi tải CoreEX: ${err.message}`, { id: toastId });
     } finally {
@@ -295,17 +246,9 @@ export default function CcpCeBackupThongKeSection({
     setDownloadingAcm(true);
     const toastId = toast.loading(`Đang tải ${selected.length} báo cáo ACM...`);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-acm-download`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetDate: selectedDate, reports: selected }),
-      });
-      if (res.ok) {
-        toast.success('Đã kích hoạt tải báo cáo ACM!', { id: toastId });
-        await handleAuditAcmBackup(false);
-      } else {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected }, token);
+      toast.success('Đã kích hoạt tải báo cáo ACM!', { id: toastId });
+      await handleAuditAcmBackup(false);
     } catch (err: any) {
       toast.error(`Lỗi tải ACM: ${err.message}`, { id: toastId });
     } finally {

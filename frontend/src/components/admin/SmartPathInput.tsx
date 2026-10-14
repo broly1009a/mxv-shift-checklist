@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { Folder, Sparkles, Calendar, Info, CheckCircle2, AlertCircle, Loader2, FileText } from 'lucide-react';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 export interface SmartPathPreset {
   name: string;
@@ -174,30 +175,7 @@ export default function SmartPathInput({
     try {
       const authToken =
         token || (typeof window !== 'undefined' ? localStorage.getItem('mxv_token') : null);
-      const res = await fetch(`${API_BASE_URL}/api/v1/system-settings/verify-storage-path`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({
-          path: value,
-          targetType,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setVerifyResult({
-          success: false,
-          exists: false,
-          canWrite: false,
-          message: errData.message || `Lỗi kiểm tra máy chủ (Mã ${res.status})`,
-        });
-        return;
-      }
-
-      const data = await res.json();
+      const data = await api.admin.verifyStoragePath({ path: value, targetType }, authToken);
       setVerifyResult(data);
     } catch (err: any) {
       setVerifyResult({

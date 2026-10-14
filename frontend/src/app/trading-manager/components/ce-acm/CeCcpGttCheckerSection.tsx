@@ -23,7 +23,7 @@ import {
   Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 
 export interface CeCcpGttCheckerSectionProps {
   token: string | null;
@@ -101,16 +101,10 @@ export default function CeCcpGttCheckerSection({
       if (!token) return;
       if (isManual) setRefreshing(true);
       try {
-        const url = selectedDate?.trim()
-          ? `${API_BASE_URL}/api/v1/bot-engine/ce-ccp-gtt-report?date=${selectedDate.trim().slice(0, 10)}`
-          : `${API_BASE_URL}/api/v1/bot-engine/ce-ccp-gtt-report`;
-
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await api.checklistHub.getCeCcpGttReport(
+          selectedDate?.trim() ? selectedDate.trim().slice(0, 10) : undefined,
+          token,
+        );
 
         setReport(data.report || null);
         if (Array.isArray(data.currentLogs)) {
@@ -162,28 +156,15 @@ export default function CeCcpGttCheckerSection({
     );
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/bot-engine/run-ce-ccp-gtt-check`,
+      const data = await api.checklistHub.runCeCcpGttCheck(
         {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            targetDate: selectedDate,
-            filterOpen: filterOpenPositions,
-            async: true,
-          }),
-        }
+          targetDate: selectedDate,
+          filterOpen: filterOpenPositions,
+          async: true,
+        },
+        token,
       );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
       toast.success(
         data.message ||
           'Robot đang chạy đối soát GTT CE-CCP ngầm. Bảng kết quả sẽ tự động cập nhật!',
@@ -207,30 +188,12 @@ export default function CeCcpGttCheckerSection({
     else setExportingCorrection(true);
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/bot-engine/ce-ccp-gtt-report/export?type=${type}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${res.status}`);
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download =
+      const filename =
         type === 'correction'
           ? `Dieu_Chinh_GTT_CE_CCP_${selectedDate || 'today'}.xlsx`
           : `Bao_Cao_CheckGTT_CE_CCP_${selectedDate || 'today'}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+
+      await api.checklistHub.exportCeCcpGtt(type, filename, token);
 
       toast.success(
         type === 'correction'

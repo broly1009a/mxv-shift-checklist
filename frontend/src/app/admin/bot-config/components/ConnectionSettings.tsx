@@ -20,6 +20,7 @@ import {
   Folder,
 } from 'lucide-react';
 import SmartPathInput from '@/components/admin/SmartPathInput';
+import { api } from '@/services/api';
 
 interface ConnectionSettingsProps {
   token: string;
@@ -129,11 +130,8 @@ export default function ConnectionSettings({
     if (!token) return;
     setLoadingConfig(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.ingress.getBotConfig(token);
+      if (data) {
         if (data.msystem) {
           setMsystemUrl(data.msystem.url || 'https://msystem.mxv.vn/');
           setMsystemUsername(data.msystem.username || '');
@@ -221,79 +219,67 @@ export default function ConnectionSettings({
     const toastId = toast.loading('Đang lưu cấu hình credentials...');
 
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      await api.ingress.saveBotConfig({
+        msystem: {
+          url: msystemUrl.trim(),
+          username: msystemUsername.trim(),
+          password: msystemPassword,
+          pin: msystemPin,
         },
-        body: JSON.stringify({
-          msystem: {
-            url: msystemUrl.trim(),
-            username: msystemUsername.trim(),
-            password: msystemPassword,
-            pin: msystemPin,
-          },
-          cqg: {
-            url: cqgUrlTrade.trim() || cqgUrl.trim(),
-            urlPrice: cqgUrlPrice.trim(),
-            urlTrade: cqgUrlTrade.trim(),
-            username: cqgUsername.trim(),
-            password: cqgPassword,
-            username1: cqgUsername1.trim(),
-            password1: cqgPassword1,
-            username2: cqgUsername2.trim(),
-            password2: cqgPassword2,
-          },
-          acm: {
-            url: acmUrl.trim(),
-            orderUrl: acmOrderUrl.trim(),
-            fillUrl: acmFillUrl.trim(),
-            username: acmUsername.trim(),
-            password: acmPassword,
-            geminiApiKey: acmGeminiApiKey,
-            downloadUrl: acmDownloadUrl.trim(),
-            downloadBtnSelector: acmDownloadBtnSelector.trim(),
-            sftpHost: acmSftpHost.trim(),
-            sftpPort: acmSftpPort.trim(),
-            sftpUsername: acmSftpUsername.trim(),
-            sftpPassword: acmSftpPassword,
-            sftpRemoteDir: acmSftpRemoteDir.trim(),
-          },
-          cast: {
-            url: castUrl.trim(),
-            username: castUsername.trim(),
-            password: castPassword,
-          },
-          cpp: {
-            url: cppUrl.trim(),
-            username: cppUsername.trim(),
-            password: cppPassword,
-            outputDir: cppOutputDir.trim() || 'backupCCP',
-          },
-          ce: {
-            url: ceUrl.trim(),
-            username: ceUsername.trim(),
-            password: cePassword,
-            outputDir: ceOutputDir.trim() || 'backupCE',
-          },
-          m365: {
-            clientId: m365ClientId.trim(),
-            clientSecret: m365ClientSecret,
-            tenantId: m365TenantId.trim(),
-            watcherEmail: m365WatcherEmail.trim(),
-            refreshToken: m365RefreshToken,
-          },
-          schedulerConfig,
-          sessionStartTime,
-          usdExchangeRate,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Lỗi khi cập nhật cấu hình');
-      }
+        cqg: {
+          url: cqgUrlTrade.trim() || cqgUrl.trim(),
+          urlPrice: cqgUrlPrice.trim(),
+          urlTrade: cqgUrlTrade.trim(),
+          username: cqgUsername.trim(),
+          password: cqgPassword,
+          username1: cqgUsername1.trim(),
+          password1: cqgPassword1,
+          username2: cqgUsername2.trim(),
+          password2: cqgPassword2,
+        },
+        acm: {
+          url: acmUrl.trim(),
+          orderUrl: acmOrderUrl.trim(),
+          fillUrl: acmFillUrl.trim(),
+          username: acmUsername.trim(),
+          password: acmPassword,
+          geminiApiKey: acmGeminiApiKey,
+          downloadUrl: acmDownloadUrl.trim(),
+          downloadBtnSelector: acmDownloadBtnSelector.trim(),
+          sftpHost: acmSftpHost.trim(),
+          sftpPort: acmSftpPort.trim(),
+          sftpUsername: acmSftpUsername.trim(),
+          sftpPassword: acmSftpPassword,
+          sftpRemoteDir: acmSftpRemoteDir.trim(),
+        },
+        cast: {
+          url: castUrl.trim(),
+          username: castUsername.trim(),
+          password: castPassword,
+        },
+        cpp: {
+          url: cppUrl.trim(),
+          username: cppUsername.trim(),
+          password: cppPassword,
+          outputDir: cppOutputDir.trim() || 'backupCCP',
+        },
+        ce: {
+          url: ceUrl.trim(),
+          username: ceUsername.trim(),
+          password: cePassword,
+          outputDir: ceOutputDir.trim() || 'backupCE',
+        },
+        m365: {
+          clientId: m365ClientId.trim(),
+          clientSecret: m365ClientSecret,
+          tenantId: m365TenantId.trim(),
+          watcherEmail: m365WatcherEmail.trim(),
+          refreshToken: m365RefreshToken,
+        },
+        schedulerConfig,
+        sessionStartTime,
+        usdExchangeRate,
+      }, token);
 
       toast.success('Lưu cấu hình tài khoản Bot thành công!', { id: toastId });
       fetchConfig();
@@ -309,13 +295,8 @@ export default function ConnectionSettings({
     setTestingConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập M-System...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm thất bại');
-      toast.success(data.message || 'Kết nối M-System thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionMs({}, token);
+      toast.success(data?.message || 'Kết nối M-System thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm thất bại', { id: toastId });
@@ -329,13 +310,8 @@ export default function ConnectionSettings({
     setTestingCqgConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CQG Price...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CQG thất bại');
-      toast.success(data.message || 'Kết nối CQG Price thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionCqg({}, token);
+      toast.success(data?.message || 'Kết nối CQG Price thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm CQG Price thất bại', { id: toastId });
@@ -349,13 +325,8 @@ export default function ConnectionSettings({
     setTestingCqg1Connection(true);
     const toastId = toast.loading('Đang kiểm tra đăng nhập CQG1 Trade...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg1`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập CQG1 Trade thất bại');
-      toast.success(data.message || 'Kết nối CQG1 Trade thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionCqg1({}, token);
+      toast.success(data?.message || 'Kết nối CQG1 Trade thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm CQG1 Trade thất bại', { id: toastId });
     } finally {
@@ -368,13 +339,8 @@ export default function ConnectionSettings({
     setTestingCqg3Connection(true);
     const toastId = toast.loading('Đang kiểm tra đăng nhập CQG3 Trade...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-cqg3`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập CQG3 Trade thất bại');
-      toast.success(data.message || 'Kết nối CQG3 Trade thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionCqg3({}, token);
+      toast.success(data?.message || 'Kết nối CQG3 Trade thành công!', { id: toastId });
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm CQG3 Trade thất bại', { id: toastId });
     } finally {
@@ -387,13 +353,8 @@ export default function ConnectionSettings({
     setTestingAcmConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập ACM...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-acm`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm ACM thất bại');
-      toast.success(data.message || 'Kết nối ACM thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionAcm({}, token);
+      toast.success(data?.message || 'Kết nối ACM thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm ACM thất bại', { id: toastId });
@@ -407,13 +368,8 @@ export default function ConnectionSettings({
     setTestingCppConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CCP...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-ccp`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CCP thất bại');
-      toast.success(data.message || 'Kết nối CCP thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionCcp({}, token);
+      toast.success(data?.message || 'Kết nối CCP thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm CCP thất bại', { id: toastId });
@@ -427,13 +383,8 @@ export default function ConnectionSettings({
     setTestingCeConnection(true);
     const toastId = toast.loading('Đang khởi chạy Browser Headless và chạy thử đăng nhập CE...');
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/test-connection-ce`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Đăng nhập thử nghiệm CE thất bại');
-      toast.success(data.message || 'Kết nối CE thành công!', { id: toastId });
+      const data = await api.ingress.testConnectionCe({}, token);
+      toast.success(data?.message || 'Kết nối CE thành công!', { id: toastId });
       fetchJobs();
     } catch (err: any) {
       toast.error(err.message || 'Thử nghiệm CE thất bại', { id: toastId });

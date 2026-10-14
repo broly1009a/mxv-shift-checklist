@@ -16,6 +16,7 @@ import {
   Layers,
   Database,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 interface ReportDownloaderProps {
   token: string;
@@ -90,14 +91,8 @@ export default function ReportDownloader({
     if (!token) return;
     setLoadingMatrix(true);
     try {
-      const res = await fetch(
-        `${apiBaseUrl}/api/v1/bot-engine/files/readiness-matrix?date=${sessionDate}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.ingress.getReadinessMatrix(sessionDate, token);
+      if (data) {
         setMatrixData(data);
       }
     } catch (err: any) {
@@ -105,7 +100,7 @@ export default function ReportDownloader({
     } finally {
       setLoadingMatrix(false);
     }
-  }, [token, apiBaseUrl, sessionDate]);
+  }, [token, sessionDate]);
 
   useEffect(() => {
     fetchMatrix();
@@ -142,22 +137,16 @@ export default function ReportDownloader({
     setTriggeringDownload(true);
     const toastId = toast.loading(`Đang gửi yêu cầu Bot tải báo cáo cho ngày ${sessionDate}...`);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const data = await api.ingress.triggerMsDownload(
+        {
           targets: downloadTargets,
           sessionDay: sessionDate,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+        },
+        token,
+      );
       toast.success('Đã xếp hàng RPA tải báo cáo! Theo dõi logs ở tab Hàng Đợi.', { id: toastId });
-      if (data.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+      if (data?.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId!]);
       }
       fetchJobs();
       // Refetch matrix after a short delay
@@ -175,24 +164,18 @@ export default function ReportDownloader({
     setTriggeringPipeline(true);
     const toastId = toast.loading(`Bắt đầu Pipeline: Xếp hàng tải CoreCCP & Tự động Thống kê...`);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/trigger-download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const data = await api.ingress.triggerMsDownload(
+        {
           targets: ['DSGD', 'TTM', 'TTTT'],
           sessionDay: sessionDate,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Khởi chạy thất bại');
+        },
+        token,
+      );
       toast.success('Đã đưa bot tải file CoreCCP vào hàng đợi! Hệ thống sẽ tự cập nhật ma trận.', {
         id: toastId,
       });
-      if (data.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+      if (data?.jobId) {
+        setTrackedJobs((prev) => [...prev, data.jobId!]);
       }
       fetchJobs();
       setTimeout(fetchMatrix, 3000);
@@ -216,16 +199,8 @@ export default function ReportDownloader({
       formData.append('date', sessionDate);
       if (targetType) formData.append('targetType', targetType);
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/files/upload-daily`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Upload thất bại');
-      toast.success(data.message || `Đã nạp file ${file.name} thành công!`, { id: toastId });
+      const data = await api.ingress.uploadDailyFiles(formData, token);
+      toast.success(data?.message || `Đã nạp file ${file.name} thành công!`, { id: toastId });
       fetchMatrix();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi tải file lên thư mục', { id: toastId });

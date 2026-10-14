@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import CcpLotStatisticsSection from './CcpLotStatisticsSection';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { CORE_CCP_REPORTS_LIST } from '../legacy-ms-cqg/LegacyBackupThongKeSection';
@@ -73,11 +74,8 @@ export default function CoreCcpBackupSection({
   const fetchSummary = useCallback(async () => {
     if (!token || !selectedDate) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${selectedDate}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
+      if (data) {
         setSummaryData(data);
       }
     } catch (e) {
@@ -116,20 +114,7 @@ export default function CoreCcpBackupSection({
         body.purpose = options.purpose;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/bot-engine/trigger-ccp-download`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Lỗi khởi chạy tải CoreCCP: HTTP ${res.status}`);
-      }
-
-      const result = await res.json();
+      const result = await api.ingress.triggerCcpDownload(body, token);
       const jobId = result.jobId;
 
       if (!jobId) {
@@ -148,11 +133,8 @@ export default function CoreCcpBackupSection({
       while (Date.now() - startTime < MAX_WAIT_MS) {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         try {
-          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jobRes.ok) continue;
-          const job = await jobRes.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
 
           if (job.status === 'COMPLETED') {
             isDone = true;
@@ -160,7 +142,7 @@ export default function CoreCcpBackupSection({
             toast.success('Đã tải xong toàn bộ 4 báo cáo CoreCCP về thư mục backup!', { duration: 5000 });
             await fetchSummary();
             break;
-          } else if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+          } else if (job.status === 'FAILED' || job.status === 'CANCELLED') {
             isDone = true;
             toast.dismiss('ccp-job-progress');
             toast.error(`Tải báo cáo CoreCCP kết thúc (${job.status}): ${job.error || 'Xem log để biết thêm'}`, { duration: 6000 });
@@ -192,23 +174,12 @@ export default function CoreCcpBackupSection({
     setTriggeringSection('ccp-check');
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: selectedDate,
-          jobType: 'CHECK_EOD_CCP',
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const result = await res.json();
+      const result = await api.tradingOps.triggerRun(
+        'CHECK_EOD_CCP',
+        selectedDate,
+        {},
+        token,
+      );
       const jobId = result.jobId;
 
       if (!jobId) {
@@ -227,11 +198,8 @@ export default function CoreCcpBackupSection({
       while (Date.now() - startTime < MAX_WAIT_MS) {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         try {
-          const jobRes = await fetch(`${API_BASE_URL}/api/v1/bot-engine/jobs/${jobId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!jobRes.ok) continue;
-          const job = await jobRes.json();
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
 
           if (job.status === 'COMPLETED') {
             isDone = true;
@@ -239,7 +207,7 @@ export default function CoreCcpBackupSection({
             toast.success('Đối chiếu EOD CoreCCP hoàn tất!', { duration: 5000 });
             await fetchSummary();
             break;
-          } else if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+          } else if (job.status === 'FAILED' || job.status === 'CANCELLED') {
             isDone = true;
             toast.dismiss('ccp-check-progress');
             toast.error(`Đối chiếu kết thúc (${job.status}): ${job.error || 'Xem log'}`, { duration: 6000 });

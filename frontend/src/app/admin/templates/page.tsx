@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import {
   Settings,
   Layers,
@@ -287,11 +288,8 @@ export default function AdminTemplatesPage() {
   const fetchDepartments = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/departments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
+      const data = await api.admin.getDepartments(token);
+      if (Array.isArray(data)) {
         setDepartments(data);
       } else {
         setDepartments([]);
@@ -305,11 +303,8 @@ export default function AdminTemplatesPage() {
   const fetchShiftSlots = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/shift-slots`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
+      const data = await api.admin.getShiftSlots(token);
+      if (Array.isArray(data)) {
         setShiftSlots(data);
       } else {
         setShiftSlots([]);
@@ -324,11 +319,8 @@ export default function AdminTemplatesPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/templates`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      const templatesList = res.ok && Array.isArray(data) ? data : [];
+      const data = await api.admin.getTemplates(undefined, token);
+      const templatesList = Array.isArray(data) ? data : [];
       setTemplates(templatesList);
 
       // Auto-select template
@@ -627,26 +619,13 @@ export default function AdminTemplatesPage() {
         tasks: editingTemplateInfo ? editingTemplateInfo.tasks : []
       };
 
-      const method = editingTemplateInfo ? 'PUT' : 'POST';
-      const url = editingTemplateInfo
-        ? `${API_BASE_URL}/api/v1/templates/${editingTemplateInfo._id}`
-        : `${API_BASE_URL}/api/v1/templates`;
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Thao tác mẫu checklist thất bại');
+      let savedTpl: any;
+      if (editingTemplateInfo) {
+        savedTpl = await api.admin.updateTemplate(editingTemplateInfo._id, body, token);
+      } else {
+        savedTpl = await api.admin.createTemplate(body, token);
       }
 
-      const savedTpl = await res.json();
       toast.success(editingTemplateInfo ? 'Cập nhật mẫu thành công!' : 'Tạo mẫu mới thành công!');
 
       // Refresh list and keep selection
@@ -662,17 +641,8 @@ export default function AdminTemplatesPage() {
   const handleDeleteTemplate = async (tpl: Template) => {
     if (!window.confirm(`Bạn có chắc chắn muốn XÓA mẫu checklist "${tpl.title}"?\n\nHành động này không thể hoàn tác.`)) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/templates/${tpl._id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Xóa mẫu checklist thất bại');
-      }
-      const data = await res.json();
-      if (data.statusChanged) {
+      const data = await api.admin.deleteTemplate(tpl._id, token);
+      if (data && data.statusChanged) {
         toast.success(`Mẫu checklist "${tpl.title}" đã phát sinh lịch sử hoạt động nên đã được chuyển sang trạng thái Vô hiệu hóa (Tắt) thay vì xóa vật lý.`);
       } else {
         toast.success(`Đã xóa mẫu checklist "${tpl.title}" thành công.`);
@@ -882,26 +852,18 @@ export default function AdminTemplatesPage() {
   const saveTemplateTasks = async (updatedTasks: Task[]) => {
     if (!selectedTemplate || !token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/templates/${selectedTemplate._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      await api.admin.updateTemplate(
+        selectedTemplate._id,
+        {
           title: selectedTemplate.title,
           sessionType: selectedTemplate.sessionType,
           departmentId: selectedTemplate.departmentId?._id || selectedTemplate.departmentId,
           shiftSlotId: selectedTemplate.shiftSlotId?._id || selectedTemplate.shiftSlotId || null,
           isActive: selectedTemplate.isActive !== false,
           tasks: updatedTasks
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Cập nhật mẫu checklist thất bại');
-      }
+        },
+        token,
+      );
 
       toast.success('Đã lưu cấu hình tự động thành công!');
       await fetchTemplates(selectedTemplate._id);

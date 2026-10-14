@@ -11,6 +11,7 @@ import {
   Calendar,
   Layers,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 interface SystemSchedulerSettingsProps {
   token: string;
@@ -40,11 +41,8 @@ export default function SystemSchedulerSettings({
     if (!token) return;
     setLoadingConfig(true);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/config`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.ingress.getBotConfig(token);
+      if (data) {
         setFullConfigData(data);
         if (data.sessionStartTime) {
           setSessionStartTime(data.sessionStartTime);
@@ -87,19 +85,7 @@ export default function SystemSchedulerSettings({
         schedulerConfig,
       };
 
-      const res = await fetch(`${apiBaseUrl}/api/v1/bot-engine/config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Lỗi khi cập nhật cấu hình');
-      }
+      await api.ingress.saveBotConfig(payload, token);
 
       toast.success('Lưu tham số hệ thống & lịch chạy tự động thành công!', { id: toastId });
       fetchConfig();

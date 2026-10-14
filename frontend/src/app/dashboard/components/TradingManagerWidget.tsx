@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layers, ExternalLink, Play, Clock, CheckCircle2, AlertTriangle, ShieldCheck, Activity, GripVertical } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/services/api';
 import toast from 'react-hot-toast';
 
 interface TradingManagerWidgetProps {
@@ -18,16 +19,8 @@ export const TradingManagerWidget: React.FC<TradingManagerWidgetProps> = ({ date
     if (!token) return;
     try {
       const qDate = dateStr || new Date().toISOString().split('T')[0];
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/console-summary?date=${qDate}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
+      const json = await api.tradingOps.getConsoleSummary(qDate, token);
+      setData(json);
     } catch (e) {
       // silent
     } finally {
@@ -46,23 +39,18 @@ export const TradingManagerWidget: React.FC<TradingManagerWidgetProps> = ({ date
     setTriggering(true);
     const toastId = toast.loading('Đang kích hoạt đối chiếu lại ngay...');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/reconciliation/trigger-console-run`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ date: dateStr, jobType: 'CHECK_KLGD' }),
-      });
-      const resJson = await res.json();
-      if (res.ok && resJson.success) {
+      const resJson = await api.tradingOps.triggerRun(
+        { date: dateStr, jobType: 'CHECK_KLGD', type: 'CHECK_KLGD' },
+        token,
+      );
+      if (resJson && resJson.success) {
         const msg = resJson.isReused
           ? `Tiến trình đang chạy: ${resJson.message}`
           : 'Đã kích hoạt đối chiếu lại!';
         toast.success(msg, { id: toastId });
         await fetchSummary();
       } else {
-        throw new Error(resJson.message || 'Lỗi kích hoạt');
+        throw new Error(resJson?.message || 'Lỗi kích hoạt');
       }
     } catch (err: any) {
       toast.error(err.message, { id: toastId });
