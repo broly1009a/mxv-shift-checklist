@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
-import { resolveDailySubfolder } from './helpers/bot-path.helper';
+import { resolveDailySubfolder, resolveStoragePathCrossPlatform } from './helpers/bot-path.helper';
 
 export interface CqgAuditResult {
   key: string;
@@ -43,11 +43,11 @@ export class CqgSyncService {
   async getDailyBackupPath(
     targetDate: Date = new Date(),
   ): Promise<{ baseDir: string; fullPath: string }> {
-    const baseDir = await this.settingsService.getSetting(
+    const rawBaseDir = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
       'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
     );
-
+    const baseDir = resolveStoragePathCrossPlatform(rawBaseDir);
     const { fullPath } = resolveDailySubfolder(baseDir, targetDate);
     return { baseDir, fullPath };
   }
@@ -65,7 +65,7 @@ export class CqgSyncService {
       fullPath = backupPathRes.fullPath;
       if (!fs.existsSync(fullPath)) {
         // Fallback: Kiểm tra thư mục TradingCheck trong phiên nếu thư mục Backup CQG chưa tồn tại
-        const { baseDir } = backupPathRes;
+        const baseDir = resolveStoragePathCrossPlatform(backupPathRes.baseDir);
         const year = targetDate.getFullYear().toString();
         const month = String(targetDate.getMonth() + 1).padStart(2, '0');
         const day = String(targetDate.getDate()).padStart(2, '0');
@@ -174,7 +174,7 @@ export class CqgSyncService {
       fullPath = backupPathRes.fullPath;
       if (!fs.existsSync(fullPath)) {
         // Fallback: Kiểm tra thư mục TradingCheck trong phiên nếu thư mục Backup CQG chưa tồn tại
-        const { baseDir } = backupPathRes;
+        const baseDir = resolveStoragePathCrossPlatform(backupPathRes.baseDir);
         const year = targetDate.getFullYear().toString();
         const month = String(targetDate.getMonth() + 1).padStart(2, '0');
         const day = String(targetDate.getDate()).padStart(2, '0');
@@ -190,9 +190,13 @@ export class CqgSyncService {
     }
 
     if (!fs.existsSync(fullPath)) {
-      const errorMsg = `Thư mục backup CQG cho ngày ${targetDate.toLocaleDateString('vi-VN')} không tồn tại: ${fullPath}`;
-      this.logger.error(errorMsg);
-      return { success: false, logs: [errorMsg] };
+      try {
+        fs.mkdirSync(fullPath, { recursive: true });
+      } catch (mkdirErr: any) {
+        const errorMsg = `Thư mục backup CQG cho ngày ${targetDate.toLocaleDateString('vi-VN')} không tồn tại và không thể tạo: ${fullPath}`;
+        this.logger.error(errorMsg);
+        return { success: false, logs: [errorMsg] };
+      }
     }
 
     const audit = await this.scanCqgBackupFiles(targetDate, fullPath);

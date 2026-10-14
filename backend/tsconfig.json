@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "temp", "uploads", "archive"]
+  "exclude": ["node_modules", "dist", "temp", "uploads", "archive", "src/legacy/**"]
 }

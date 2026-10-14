@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  KlgdReconService,
-  PreEodReconService,
   CcpReconService,
   CqgSyncReconService,
   ReconConsoleSummaryService,
   DsgdBeforeEodService,
+  PreEodReconService as LegacyPreEodReconService,
   CheckDSGDBeforeEODResult,
   CheckKLGDResult,
   EODMismatchedItem,
 } from './services';
+import { KlgdReconService as TradingOpsKlgdReconService } from '../trading-ops/services/klgd-recon.service';
+import { PreEodReconService as TradingOpsPreEodReconService } from '../trading-ops/services/pre-eod-recon.service';
 import {
   parseCqgNumber,
   parseCqgDateTime,
@@ -48,8 +49,9 @@ export class ReconciliationService {
   static getNormalizedAccount = getNormalizedAccount;
 
   constructor(
-    private readonly klgdReconService: KlgdReconService,
-    private readonly preEodReconService: PreEodReconService,
+    private readonly tradingOpsKlgdService: TradingOpsKlgdReconService,
+    private readonly tradingOpsPreEodService: TradingOpsPreEodReconService,
+    private readonly legacyPreEodReconService: LegacyPreEodReconService,
     private readonly ccpReconService: CcpReconService,
     private readonly cqgSyncReconService: CqgSyncReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
@@ -68,7 +70,7 @@ export class ReconciliationService {
   }
 
   buildPreEodEmailHtml(...args: any[]): string {
-    return (this.preEodReconService as any).buildPreEodEmailHtml(...args);
+    return (this.legacyPreEodReconService as any).buildPreEodEmailHtml(...args);
   }
 
   buildNegativeMarginEmailHtml(...args: any[]): string {
@@ -77,6 +79,7 @@ export class ReconciliationService {
 
   // ==========================================
   // 1. KLGD Intraday Reconciliation (CheckKLGD)
+  // Strangler Fig: Ủy quyền 100% sang TradingOpsModule V2
   // ==========================================
   async checkKLGD(
     files: {
@@ -108,7 +111,7 @@ export class ReconciliationService {
       cutoffTime?: Date;
     },
   ): Promise<CheckKLGDResult> {
-    return this.klgdReconService.checkKLGD(
+    return this.tradingOpsKlgdService.checkKLGD(
       files,
       tradingDate,
       holidays,
@@ -126,11 +129,12 @@ export class ReconciliationService {
       checkCcp?: boolean;
     },
   ): Promise<CheckKLGDResult> {
-    return this.klgdReconService.runAutoCheckKLGD(tradingDate, options);
+    return this.tradingOpsKlgdService.runAutoCheckKLGD(tradingDate, options);
   }
 
   // ==========================================
   // 2. Pre-EOD & EOD MM Reconciliation
+  // Strangler Fig: Ủy quyền 100% sang TradingOpsModule V2
   // ==========================================
   async checkEOD(
     files: {
@@ -178,7 +182,7 @@ export class ReconciliationService {
     holidays: string[] = [],
     sessionStartStr?: string,
   ): Promise<any> {
-    return this.preEodReconService.checkPreEOD(
+    return this.tradingOpsPreEodService.checkPreEOD(
       files as any,
       acmTradesName,
       tradingDate,
@@ -187,15 +191,15 @@ export class ReconciliationService {
   }
 
   async runAutoCheckPreEOD(tradingDate: Date): Promise<any> {
-    return this.preEodReconService.runAutoCheckPreEOD(tradingDate);
+    return this.tradingOpsPreEodService.runAutoCheckPreEOD(tradingDate);
   }
 
   async runAutoCheckSOD(tradingDate: Date): Promise<any> {
-    return this.preEodReconService.runAutoCheckSOD(tradingDate);
+    return this.tradingOpsPreEodService.runAutoCheckSOD(tradingDate);
   }
 
   async runAutoCheckEodMm(tradingDate: Date): Promise<any> {
-    return this.preEodReconService.runAutoCheckEodMm(tradingDate);
+    return this.tradingOpsPreEodService.runAutoCheckEodMm(tradingDate);
   }
 
   // ==========================================

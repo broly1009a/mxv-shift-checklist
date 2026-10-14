@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import {
@@ -8,6 +8,7 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
 } from '../../shared';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { MSystemScraperService } from './scrapers/ms-scraper.service';
 import { MSystemTabScraperService } from './scrapers/ms-tab-scraper.service';
 import { CqgScraperService } from './scrapers/cqg-scraper.service';
@@ -30,6 +31,8 @@ export class IngressService implements IIngressPort {
     private readonly coreExApiAdapter: CoreExApiAdapter,
     private readonly coreCcpApiAdapter: CoreCcpApiAdapter,
     private readonly acmSftpAdapter: AcmSftpAdapter,
+    @Optional()
+    private readonly settingsService?: SystemSettingsService,
   ) {}
 
   /**
@@ -48,12 +51,22 @@ export class IngressService implements IIngressPort {
     }
 
     const files: IngressFileDetail[] = [];
-    const ingressMode = process.env.INGRESS_MODE || 'PLAYWRIGHT';
 
-    // Feature Flag: Tắt Playwright và chuyển trực tiếp sang REST/SFTP API khi INGRESS_MODE = 'REST_API'
+    // Cấu hình Động từ CSDL: Ưu tiên đọc key 'ingress_mode' từ bảng system_settings
+    let ingressMode = 'PLAYWRIGHT';
+    if (this.settingsService) {
+      ingressMode = await this.settingsService.getSetting(
+        'ingress_mode',
+        process.env.INGRESS_MODE || 'PLAYWRIGHT',
+      );
+    } else {
+      ingressMode = process.env.INGRESS_MODE || 'PLAYWRIGHT';
+    }
+
+    // Feature Flag: Tắt Playwright và chuyển trực tiếp sang REST/SFTP API khi ingressMode = 'REST_API'
     if (ingressMode === 'REST_API') {
       this.logger.log(
-        `[IngressService] Kích hoạt Direct API Mode cho nguồn "${source}" (Bỏ qua Playwright)`,
+        `[IngressService] Kích hoạt Direct API Mode từ CSDL cho nguồn "${source}" (Bỏ qua Playwright, không cần restart server)`,
       );
       if (source === 'MS' || source === 'CORE_EX') {
         return this.coreExApiAdapter.download('MS', { ...options, targetDirectory: outputDirectory });
@@ -65,7 +78,7 @@ export class IngressService implements IIngressPort {
     }
 
     this.logger.log(
-      `[IngressService] Tiếp nhận yêu cầu kéo dữ liệu từ nguồn: "${source}" (Chế độ: ${ingressMode}), lưu tại: "${outputDirectory}"`,
+      `[IngressService] Tiếp nhận yêu cầu kéo dữ liệu từ nguồn: "${source}" (Chế độ CSDL: ${ingressMode}), lưu tại: "${outputDirectory}"`,
     );
 
     switch (source) {

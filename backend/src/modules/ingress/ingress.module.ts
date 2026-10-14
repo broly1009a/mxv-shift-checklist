@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { IngressService } from './ingress.service';
 import { MSystemScraperService } from './scrapers/ms-scraper.service';
 import { MSystemTabScraperService } from './scrapers/ms-tab-scraper.service';
@@ -10,6 +11,7 @@ import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 import { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
 
 @Module({
+  imports: [SystemSettingsModule],
   providers: [
     // Playwright Scrapers
     MSystemScraperService,

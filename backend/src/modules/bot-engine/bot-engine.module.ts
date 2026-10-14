@@ -38,6 +38,9 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
 import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
 import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
 import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
+import { IngressModule } from '../ingress/ingress.module';
+import { TradingOpsModule } from '../trading-ops/trading-ops.module';
+import { CcpClearingModule } from '../ccp-clearing/ccp-clearing.module';
 
 @Module({
   imports: [
@@ -47,13 +50,16 @@ import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
     ]),
     ShiftsModule,
     forwardRef(() => ReconciliationModule),
-    forwardRef(() => MarginChangeRequestsModule),
+    MarginChangeRequestsModule,
     NotificationsModule,
     LotStatisticsModule,
     CcpStatisticsModule,
     MarginCheckerModule,
     SystemLogsModule,
-    forwardRef(() => ChecklistHubModule),
+    ChecklistHubModule,
+    IngressModule,
+    TradingOpsModule,
+    CcpClearingModule,
   ],
   providers: [
     // Core Registry & Handlers

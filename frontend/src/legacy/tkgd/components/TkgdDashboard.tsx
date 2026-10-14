@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { useTutorial } from '@/context/TutorialContext';
 import { tkgdTutorialSteps, tkgdConfigTutorialSteps } from '@/tutorials/tkgdTutorial';
-import TkgdConfigPanel from '@/components/tkgd/TkgdConfigPanel';
+import TkgdConfigPanel from '@/legacy/components/tkgd/TkgdConfigPanel';
 import { TkgdNotificationDropdown } from './TkgdNotificationDropdown';
 
 import {

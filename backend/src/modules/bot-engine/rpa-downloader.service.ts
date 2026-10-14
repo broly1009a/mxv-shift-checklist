@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { chromium, Browser, Page, Download } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -7,6 +7,7 @@ import { URL } from 'url';
 import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { decrypt } from './utils/crypto';
+import { IngressService } from '../ingress/ingress.service';
 import {
   MSystemTabNavigatorHelper,
   MS_REPORT_FILE_PATTERNS,
@@ -18,7 +19,11 @@ import {
 export class RpaDownloaderService {
   private readonly logger = new Logger(RpaDownloaderService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) { }
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly ingressService?: IngressService,
+  ) { }
 
   /**
    * Retrieves the Chrome executable path. Searches local repo first, then falls back to environment or default playwright.
@@ -1653,6 +1658,24 @@ export class RpaDownloaderService {
     );
     this.logger.log(`Target directory: ${downloadDir}`);
 
+    // Ingress Facade: Thử ủy quyền sang IngressService V2 trước
+    if (this.ingressService) {
+      try {
+        this.logger.log(`[RpaDownloader-Facade] Ủy quyền kéo file M-System sang IngressService V2...`);
+        await this.ingressService.download('MS', {
+          targetDirectory: downloadDir,
+          reportCodes: ['TTM', 'TTTT', 'DSGD'],
+          targetDate: dateStr,
+        });
+        if (fs.existsSync(qltkgdPath) && fs.existsSync(ttttPath)) {
+          this.logger.log(`[RpaDownloader-Facade] IngressService V2 đã hoàn thành tải file.`);
+          return { qltkgdPath, ttttPath, eodPath, downloadDir };
+        }
+      } catch (err: any) {
+        this.logger.warn(`[RpaDownloader-Facade] IngressService V2 lỗi (${err.message}), fallback về Playwright M-System nội bộ...`);
+      }
+    }
+
     const { browser, page } = await this.loginMSystem(downloadDir);
 
     try {
@@ -3053,6 +3076,21 @@ export class RpaDownloaderService {
       `Kết nối SFTP tới sftp://${sftpUsername}@${sftpHost}:${sftpPort}...`,
     );
 
+    // Ingress Facade: Thử ủy quyền sang IngressService V2
+    if (this.ingressService) {
+      try {
+        await log(`[RpaDownloader-Facade] Thử ủy quyền tải ACM sang IngressService V2...`);
+        await this.ingressService.download('ACM', {
+          targetDirectory: dailyPath,
+          targetDate: targetDate.toISOString(),
+        });
+        await log('Đã hoàn thành đồng bộ SFTP ACM qua IngressService V2.');
+        return;
+      } catch (err: any) {
+        this.logger.warn(`[RpaDownloader-Facade] IngressService V2 lỗi (${err.message}), fallback về ssh2 nội bộ...`);
+      }
+    }
+
     const { Client } = require('ssh2');
     const conn = new Client();
 
@@ -4422,6 +4460,21 @@ export class RpaDownloaderService {
 
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    // Ingress Facade: Thử ủy quyền kéo 8 file thô CQG sang IngressService V2
+    if (this.ingressService && !reports.cleanOnly) {
+      try {
+        this.logger.log(`[RpaDownloader-Facade] Ủy quyền tải toàn bộ file thô CQG sang IngressService V2...`);
+        const res = await this.ingressService.download('CQG', {
+          targetDirectory: destDir,
+        });
+        downloaded.push(...res.files.map((f) => f.fileName));
+        this.logger.log(`[RpaDownloader-Facade] IngressService V2 đã tải xong ${downloaded.length} file CQG.`);
+        return { errors: [], downloaded };
+      } catch (err: any) {
+        this.logger.warn(`[RpaDownloader-Facade] IngressService V2 CQG lỗi (${err.message}), fallback về logic CQG nội bộ...`);
+      }
     }
 
     const credRaw = await this.settingsService.getSetting(

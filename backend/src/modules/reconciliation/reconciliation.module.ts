@@ -8,15 +8,16 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { TradingOpsModule } from '../trading-ops/trading-ops.module';
+import { CcpClearingModule } from '../ccp-clearing/ccp-clearing.module';
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import {
-  KlgdReconService,
-  PreEodReconService,
   CcpReconService,
   CqgSyncReconService,
   ReconConsoleSummaryService,
   DsgdBeforeEodService,
+  PreEodReconService,
 } from './services';
 
 @Module({
@@ -31,24 +32,24 @@ import {
     MarginCheckerModule,
     NotificationsModule,
     AuthModule,
+    TradingOpsModule,
+    CcpClearingModule,
   ],
   providers: [
-    KlgdReconService,
-    PreEodReconService,
     CcpReconService,
     CqgSyncReconService,
     ReconConsoleSummaryService,
     DsgdBeforeEodService,
+    PreEodReconService,
     ReconciliationService,
   ],
   controllers: [ReconciliationController],
   exports: [
-    KlgdReconService,
-    PreEodReconService,
     CcpReconService,
     CqgSyncReconService,
     ReconConsoleSummaryService,
     DsgdBeforeEodService,
+    PreEodReconService,
     ReconciliationService,
   ],
 })

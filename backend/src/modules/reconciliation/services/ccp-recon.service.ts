@@ -9,6 +9,8 @@ import { TeamsNotifierService } from '../../notifications/teams-notifier.service
 import { EmailWatcherService } from '../../bot-engine/email-watcher.service';
 import { CcpCeDownloaderService } from '../../bot-engine/ccp-ce-downloader.service';
 import { decrypt } from '../../bot-engine/utils/crypto';
+import { CcpEodService } from '../../ccp-clearing/services/ccp-eod.service';
+import { ValueStatisticsService } from '../../ccp-clearing/services/value-statistics.service';
 import {
   findHeaderIndex,
   findLatestFile,
@@ -42,6 +44,10 @@ export class CcpReconService {
     private readonly emailWatcherService?: EmailWatcherService,
     @Optional()
     private readonly teamsNotifierService?: TeamsNotifierService,
+    @Optional()
+    private readonly ccpEodService?: CcpEodService,
+    @Optional()
+    private readonly valueStatisticsService?: ValueStatisticsService,
   ) {}
 
   async getCurrentExchangeRates(): Promise<{
@@ -54,6 +60,10 @@ export class CcpReconService {
     rmbLoss: number;
     rmbGain: number;
   }> {
+    if (this.valueStatisticsService) {
+      return this.valueStatisticsService.getCurrentExchangeRates();
+    }
+
     // 1. Ưu tiên đọc ma trận đa nguyên tệ ccp_exchange_rates_matrix
     let matrix: Record<string, any> = {};
     try {
@@ -708,6 +718,10 @@ export class CcpReconService {
     negativeBalanceAccs: string[];
     mismatchedEOD: EODMismatchedItem[];
   }> {
+    if (this.ccpEodService) {
+      return this.ccpEodService.checkEODCCP(files, exchangeRates);
+    }
+
     const qltkgdWorkbook = XLSX.read(files.qltkgdCcp, { type: 'buffer' });
     const qltkgdSheet = qltkgdWorkbook.Sheets[qltkgdWorkbook.SheetNames[0]];
     if (!qltkgdSheet)
@@ -1001,6 +1015,10 @@ export class CcpReconService {
   }
 
   async runAutoCheckEodCcp(tradingDate: Date): Promise<any> {
+    if (this.ccpEodService) {
+      return this.ccpEodService.runAutoCheckEodCcp(tradingDate);
+    }
+
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
     const day = String(tradingDate.getDate()).padStart(2, '0');

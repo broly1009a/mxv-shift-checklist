@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import {
+  resolveStoragePathCrossPlatform,
+  resolveCqgFile,
+} from '../../../shared';
 import {
   parseDSGD,
   parseFR,
@@ -12,6 +17,8 @@ import {
 
 export interface PreEodReconResult {
   passed: boolean;
+  isWaitingFiles?: boolean;
+  message?: string;
   totals: {
     totalACM_MS: number;
     totalACM_Straits: number;
@@ -48,6 +55,8 @@ export interface PreEodReconResult {
 @Injectable()
 export class PreEodReconService {
   private readonly logger = new Logger(PreEodReconService.name);
+
+  constructor(private readonly settingsService: SystemSettingsService) {}
 
   /**
    * Thực hiện đối chiếu 3 bên chốt phiên Pre-EOD: M-System vs CQG vs ACM Straits
@@ -243,31 +252,163 @@ export class PreEodReconService {
   }
 
   /**
-   * Tự động quét file và đối chiếu Pre-EOD theo thư mục
+   * Tự động quét file và đối chiếu Pre-EOD theo thư mục hoặc cấu hình hệ thống
    */
   async runAutoCheckPreEOD(
     tradingDate: Date,
     dataDir?: string,
   ): Promise<PreEodReconResult> {
-    const dir = dataDir || path.join(process.cwd(), 'data', 'backup');
-    const dsgdFile = findLatestFile(dir, /DSGD.*\.xlsx$/i);
-    const acmFile = findLatestFile(dir, /(Straits|ACM).*\.csv$/i);
-    const frFile = findLatestFile(dir, /^FR.*\.xlsx$/i);
-    const ttttFile = findLatestFile(dir, /TTTT.*\.xlsx$/i);
-    const psFile = findLatestFile(dir, /^PS.*\.xlsx$/i);
+    // 1. Xác định phiên T-1 (lùi ngày làm việc, bỏ qua Thứ 7 và Chủ Nhật)
+    const targetDate = new Date(tradingDate);
+    targetDate.setDate(targetDate.getDate() - 1);
+    while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+    targetDate.setHours(0, 0, 0, 0);
 
-    if (!dsgdFile || !acmFile || !frFile) {
-      throw new Error('Thiếu các file bắt buộc cho Pre-EOD (DSGD, Straits CSV, FR)');
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ),
+    );
+    const cqgBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      ),
+    );
+    const acmBackupBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_backup_path_acm', '')) ||
+        msBackupBase.replace(
+          /Backup MS[\\/]Futures/i,
+          (match) => (match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM'),
+        ),
+    );
+
+    const year = targetDate.getFullYear().toString();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    const msDailyPath = dataDir || path.join(msBackupBase, subFolder);
+    const cqgDailyPath = dataDir || path.join(cqgBackupBase, subFolder);
+    const acmDailyPath = dataDir || path.join(acmBackupBase, subFolder);
+
+    const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
+    const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
+
+    const acmTradesPath =
+      findLatestFile(acmDailyPath, /Straits/i) ||
+      findLatestFile(acmDailyPath, /Nano|Fill/i);
+
+    const cqgFrPath = resolveCqgFile(cqgDailyPath, 'FR', this.logger);
+    const cqgPsPath = resolveCqgFile(cqgDailyPath, 'PS', this.logger);
+
+    const missingFiles: string[] = [];
+    if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
+    if (!fs.existsSync(ttttPath)) missingFiles.push(`TTTT.xlsx`);
+    if (!acmTradesPath) missingFiles.push(`ACM Trades (Straits.csv)`);
+    if (!cqgFrPath) missingFiles.push(`CQG FR`);
+    if (!cqgPsPath) missingFiles.push(`CQG Positions/PS`);
+
+    if (missingFiles.length > 0) {
+      return {
+        passed: true,
+        isWaitingFiles: true,
+        tradingDate,
+        targetDate,
+        message: `[Đang chờ dữ liệu] Thư mục backup phiên T-1 ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
+        totals: {
+          totalACM_MS: 0,
+          totalACM_Straits: 0,
+          differACM: 0,
+          totalCQG_MS: 0,
+          totalCQG_FR: 0,
+          differCQG: 0,
+        },
+        mismatchedTrades: [],
+        mismatchedPositions: [],
+      };
     }
 
+    const lmeHolidaysStr = await this.settingsService.getSetting(
+      'lme_holiday_replacements',
+      '[]',
+    );
+    let lmeHolidays: any[] = [];
+    try {
+      lmeHolidays = JSON.parse(lmeHolidaysStr) || [];
+    } catch {}
+
     const files = {
-      dsgd: fs.readFileSync(dsgdFile),
-      acmTrades: fs.readFileSync(acmFile),
-      cqgFr: fs.readFileSync(frFile),
-      tttt: ttttFile ? fs.readFileSync(ttttFile) : undefined,
-      cqgPs: psFile ? fs.readFileSync(psFile) : undefined,
+      dsgd: fs.readFileSync(dsgdPath),
+      acmTrades: fs.readFileSync(acmTradesPath!),
+      cqgFr: fs.readFileSync(cqgFrPath!),
+      tttt: fs.readFileSync(ttttPath),
+      cqgPs: fs.readFileSync(cqgPsPath!),
     };
 
-    return this.checkPreEOD(files, path.basename(acmFile), tradingDate);
+    return this.checkPreEOD(
+      files,
+      path.basename(acmTradesPath!),
+      tradingDate,
+      lmeHolidays,
+    );
+  }
+
+  async runAutoCheckSOD(tradingDate: Date): Promise<any> {
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ),
+    );
+
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
+
+    if (!fs.existsSync(qltkgdPath)) {
+      throw new Error(`Không tìm thấy file QLTKGD.xlsx tại: ${qltkgdPath}`);
+    }
+
+    return {
+      success: true,
+      tradingDate,
+      qltkgdPath,
+    };
+  }
+
+  async runAutoCheckEodMm(tradingDate: Date): Promise<any> {
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ),
+    );
+
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
+
+    if (!fs.existsSync(qltkgdPath)) {
+      throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
+    }
+
+    return {
+      success: true,
+      tradingDate,
+      msDailyPath,
+      qltkgdPath,
+    };
   }
 }

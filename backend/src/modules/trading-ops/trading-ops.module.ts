@@ -8,6 +8,7 @@ import { KlgdReconService } from './services/klgd-recon.service';
 import { PreEodReconService } from './services/pre-eod-recon.service';
 import { MarginCheckerService } from './services/margin-checker.service';
 import { TradingOpsConfigService } from './services/trading-ops-config.service';
+import { DsgdBeforeEodService } from './services/dsgd-before-eod.service';
 import { KlgdReconWorker } from './workers/klgd-recon.worker';
 import { PreEodReconWorker } from './workers/pre-eod-recon.worker';
 import { NegativeMarginWorker } from './workers/negative-margin.worker';
@@ -26,6 +27,7 @@ import { NegativeMarginWorker } from './workers/negative-margin.worker';
     PreEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
+    DsgdBeforeEodService,
     KlgdReconWorker,
     PreEodReconWorker,
     NegativeMarginWorker,
@@ -36,6 +38,7 @@ import { NegativeMarginWorker } from './workers/negative-margin.worker';
     PreEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
+    DsgdBeforeEodService,
     KlgdReconWorker,
     PreEodReconWorker,
     NegativeMarginWorker,

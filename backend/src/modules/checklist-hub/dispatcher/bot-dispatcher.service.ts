@@ -11,6 +11,8 @@ import { KlgdReconWorker } from '../../trading-ops/workers/klgd-recon.worker';
 import { PreEodReconWorker } from '../../trading-ops/workers/pre-eod-recon.worker';
 import { NegativeMarginWorker } from '../../trading-ops/workers/negative-margin.worker';
 import { CcpLotWorker } from '../../ccp-clearing/workers/ccp-lot.worker';
+import { CcpValueWorker } from '../../ccp-clearing/workers/ccp-value.worker';
+import { CcpEodWorker } from '../../ccp-clearing/workers/ccp-eod.worker';
 
 @Injectable()
 export class BotDispatcherService implements OnModuleInit {
@@ -25,6 +27,8 @@ export class BotDispatcherService implements OnModuleInit {
     @Optional() private readonly preEodWorker?: PreEodReconWorker,
     @Optional() private readonly negativeMarginWorker?: NegativeMarginWorker,
     @Optional() private readonly ccpLotWorker?: CcpLotWorker,
+    @Optional() private readonly ccpValueWorker?: CcpValueWorker,
+    @Optional() private readonly ccpEodWorker?: CcpEodWorker,
   ) {}
 
   onModuleInit() {
@@ -32,6 +36,8 @@ export class BotDispatcherService implements OnModuleInit {
     if (this.preEodWorker) this.registerWorker(this.preEodWorker);
     if (this.negativeMarginWorker) this.registerWorker(this.negativeMarginWorker);
     if (this.ccpLotWorker) this.registerWorker(this.ccpLotWorker);
+    if (this.ccpValueWorker) this.registerWorker(this.ccpValueWorker);
+    if (this.ccpEodWorker) this.registerWorker(this.ccpEodWorker);
 
     this.logger.log(
       `[BotDispatcherService] Khởi tạo Dispatcher thành công trên Instance [${this.instanceId}]. Đã đăng ký ${this.workers.size} Workers.`,
@@ -53,7 +59,16 @@ export class BotDispatcherService implements OnModuleInit {
    */
   async dispatch(context: TaskExecutionContext): Promise<TaskExecutionResult> {
     const { botCheckType } = context;
-    const worker = this.workers.get(botCheckType);
+    let worker = this.workers.get(botCheckType);
+
+    if (!worker) {
+      for (const w of this.workers.values()) {
+        if (w.canHandle && w.canHandle(botCheckType)) {
+          worker = w;
+          break;
+        }
+      }
+    }
 
     if (!worker) {
       throw new Error(
@@ -74,7 +89,7 @@ export class BotDispatcherService implements OnModuleInit {
    */
   async acquireAndProcessNextJob(): Promise<{ jobId: string; status: string } | null> {
     // Chiếm quyền khóa job ở trạng thái PENDING một cách nguyên tử
-    const job = await this.botJobModel.findOneAndUpdate(
+    const job: any = await this.botJobModel.findOneAndUpdate(
       { status: 'PENDING' },
       {
         $set: {
@@ -84,7 +99,7 @@ export class BotDispatcherService implements OnModuleInit {
         },
         $inc: { attempts: 1 },
       },
-      { sort: { createdAt: 1 }, new: true },
+      { sort: { createdAt: 1 }, returnDocument: 'after' } as any,
     );
 
     if (!job) {

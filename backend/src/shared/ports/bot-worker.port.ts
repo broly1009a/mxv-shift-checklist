@@ -28,4 +28,9 @@ export interface IBotWorker {
    * Thực thi tác vụ nghiệp vụ chuyên ngành
    */
   execute(context: TaskExecutionContext): Promise<TaskExecutionResult>;
+
+  /**
+   * Phương thức kiểm tra khả năng xử lý mở rộng (hỗ trợ nhiều alias hoặc logic kiểm tra động)
+   */
+  canHandle?(botCheckType: string): boolean;
 }

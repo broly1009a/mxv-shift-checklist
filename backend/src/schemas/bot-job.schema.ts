@@ -34,6 +34,12 @@ export class BotJob extends Document {
   @Prop({ type: String, default: null })
   error?: string;
 
+  @Prop({ type: String, default: null })
+  lockedBy?: string;
+
+  @Prop({ type: Date, default: null })
+  lockedAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +64,7 @@ BotJobSchema.index({ createdAt: -1 });
 //     → processQueue() với jobFilter, poll() với REMOTE_JOB_TYPES
 BotJobSchema.index({ status: 1, createdAt: 1 });
 BotJobSchema.index({ status: 1, jobType: 1, createdAt: 1 });
+BotJobSchema.index({ status: 1, lockedAt: 1 });
 
 // (3) Dùng cho: getJobForTask() tìm theo payload.taskId + payload.shiftLogId + sort
 //     MongoDB không index nested Map fields trực tiếp; dùng toán tử trên

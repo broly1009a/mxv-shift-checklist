@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Injectable, Logger } from '@nestjs/common';
 
 export interface TkgdProgressState {

@@ -3,6 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
+  resolveStoragePathCrossPlatform,
+  resolveCqgFile,
+  getCcpBackupBasePath,
+  resolveCcpDailyPath,
+} from '../../../shared';
+import { CcpExcelParser } from '../../reconciliation/parsers';
+import {
   parseDSGD,
   parseFR,
   parseNano,
@@ -535,10 +542,92 @@ export class KlgdReconService {
         ? Math.abs(totalTTTT - totalPS)
         : undefined;
 
+    let totalCCP_DSGD: number | undefined;
+    let totalCCP_TTM: number | undefined;
+    let totalCCP_TTTT: number | undefined;
+    let ccpStatus: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED' =
+      files.ccpStatus || 'IDLE';
+    let ccpDsgdRecords: any[] = [];
+
+    if (files.dsgdCcp) {
+      try {
+        const parsed = CcpExcelParser.parseDSGD(
+          files.dsgdCcp,
+          tradingDate,
+          sessionStart,
+          checkTime,
+        );
+        totalCCP_DSGD = parsed.totalKhop;
+        ccpDsgdRecords = parsed.records || [];
+        ccpStatus = 'COMPLETED';
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
+      }
+    }
+    if (files.ttmCcp) {
+      try {
+        const parsed = CcpExcelParser.parseTTM(files.ttmCcp, tradingDate);
+        totalCCP_TTM = parsed.totalTTM;
+        ccpStatus = 'COMPLETED';
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi parse TTM CoreCCP: ${err.message}`);
+      }
+    }
+    if (files.ttttCcp) {
+      try {
+        const parsed = CcpExcelParser.parseTTTT(files.ttttCcp, tradingDate);
+        totalCCP_TTTT = parsed.totalTTTT;
+        ccpStatus = 'COMPLETED';
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Lỗi parse TTTT CoreCCP: ${err.message}`);
+      }
+    }
+
+    // Nếu có CoreCCP DSGD, loại bỏ các lệnh ACM đã được ghi nhận trên CoreCCP
+    let finalMismatchedTrades = checkKlgdFlag ? [...mismatchedTrades] : [];
+    if (finalMismatchedTrades.length > 0 && ccpDsgdRecords.length > 0) {
+      finalMismatchedTrades = finalMismatchedTrades.filter((m) => {
+        if (m.source !== 'ACM') return true;
+        const cleanAcc = m.maTKGD.replace(/[-\s]/g, '').trim().toUpperCase();
+        const existsInCcp = ccpDsgdRecords.some((r) => {
+          const ccpAcc = String(r.soTK || '').replace(/[-\s]/g, '').trim().toUpperCase();
+          const accMatch =
+            ccpAcc === cleanAcc ||
+            (cleanAcc.endsWith('A') && ccpAcc === cleanAcc.slice(0, -1)) ||
+            (ccpAcc.endsWith('A') && cleanAcc === ccpAcc.slice(0, -1));
+          return accMatch && Number(r.klKhop) === Number(m.klGiaoDich);
+        });
+        return !existsInCcp;
+      });
+    }
+
+    let evaluatedDifferACM = finalDifferACM;
+    const ccpDsgdLots = totalCCP_DSGD || 0;
+    if (checkKlgdFlag && ccpDsgdLots > 0) {
+      const diff1 = Math.abs(totalNano - (totalACM + ccpDsgdLots));
+      const diff2 = Math.abs((totalNano + ccpDsgdLots) - totalACM);
+      evaluatedDifferACM = Math.min(finalDifferACM, diff1, diff2);
+    }
+
+    const differCCP_KLGD =
+      evaluatedDifferACM === 0
+        ? 0
+        : totalCCP_DSGD !== undefined
+          ? Math.abs(totalNano - (totalACM + ccpDsgdLots))
+          : undefined;
+    const differCCP_TTM =
+      totalCCP_TTM !== undefined && files.ttm ? Math.abs(totalTTM - totalCCP_TTM) : undefined;
+    const differCCP_TTTT =
+      totalCCP_TTTT !== undefined && files.tttt ? Math.abs(totalTTTT - totalCCP_TTTT) : undefined;
+
     const hasDiscrepancy =
-      (checkKlgdFlag && (finalDiffer > 0 || finalDifferACM > 0 || mismatchedTrades.length > 0)) ||
+      (checkKlgdFlag &&
+        (finalDiffer > 0 || evaluatedDifferACM > 0 || finalMismatchedTrades.length > 0)) ||
       (checkTtmFlag && finalMismatchedTTM.length > 0) ||
-      (checkTtttFlag && files.tttt && (files.ps || files.ps1 || files.ps2) && ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
+      (checkTtttFlag &&
+        files.tttt &&
+        (files.ps || files.ps1 || files.ps2) &&
+        ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
 
     return {
       totals: {
@@ -547,7 +636,7 @@ export class KlgdReconService {
         totalACM,
         totalNano,
         differ: finalDiffer,
-        differACM: finalDifferACM,
+        differACM: evaluatedDifferACM,
         totalTTM: files.ttm ? totalTTM : 0,
         totalTTM_MS: files.ttm ? totalTTM : 0,
         totalOP: files.op || files.op1 || files.op2 ? totalOP : 0,
@@ -562,6 +651,13 @@ export class KlgdReconService {
         totalACM_TTTT: files.tttt ? totalACM_TTTT : 0,
         totalTTTT_ACM: files.tttt ? totalACM_TTTT : 0,
         differTTTT: finalDifferTTTT,
+        totalCCP_DSGD,
+        totalCCP_TTM,
+        totalCCP_TTTT,
+        differCCP_KLGD,
+        differCCP_TTM,
+        differCCP_TTTT,
+        ccpStatus,
         acmSessionAnomaly,
         acmAnomalyNote: acmSessionAnomaly ? acmAnomalyNote : undefined,
       },
@@ -573,12 +669,12 @@ export class KlgdReconService {
       totalACM,
       totalNano,
       differ: finalDiffer,
-      differACM: finalDifferACM,
+      differACM: evaluatedDifferACM,
       totalTTTT: files.tttt ? totalTTTT : 0,
       totalPS: files.ps || files.ps1 || files.ps2 ? totalPS : 0,
       totalTtttAcm: files.tttt ? totalACM_TTTT : 0,
       differTTTT: finalDifferTTTT,
-      mismatchedTrades,
+      mismatchedTrades: finalMismatchedTrades,
       mismatchedTTM: finalMismatchedTTM,
       mismatchedTTTT: finalMismatchedTTTT,
       pendingSyncTrades: pendingSyncTrades.length > 0 ? pendingSyncTrades : undefined,
@@ -604,25 +700,183 @@ export class KlgdReconService {
       customDataDir?: string;
     },
   ): Promise<CheckKLGDResult> {
-    const dataDir = options?.customDataDir || path.join(process.cwd(), 'data', 'backup');
-    const dsgdFile = findLatestFile(dataDir, /DSGD.*\.xlsx$/i);
-    const frFile = findLatestFile(dataDir, /^FR.*\.xlsx$/i);
-    const nanoFile = findLatestFile(dataDir, /(Nano|Straits).*\.(xlsx|csv)$/i);
-    const ttmFile = findLatestFile(dataDir, /TTM.*\.xlsx$/i);
-    const opFile = findLatestFile(dataDir, /^OP.*\.xlsx$/i);
-    const ttttFile = findLatestFile(dataDir, /TTTT.*\.xlsx$/i);
-    const psFile = findLatestFile(dataDir, /^PS.*\.xlsx$/i);
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ),
+    );
+    const cqgBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      ),
+    );
+    const acmBackupBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_backup_path_acm', '')) ||
+        msBackupBase.replace(
+          /Backup MS[\\/]Futures/i,
+          (match) => (match.includes('/') ? 'Backup MS/ACM' : 'Backup MS\\ACM'),
+        ),
+    );
 
-    const files: any = {
-      dsgd: dsgdFile ? fs.readFileSync(dsgdFile) : undefined,
-      fr: frFile ? fs.readFileSync(frFile) : undefined,
-      nano: nanoFile ? fs.readFileSync(nanoFile) : undefined,
-      ttm: ttmFile ? fs.readFileSync(ttmFile) : undefined,
-      op: opFile ? fs.readFileSync(opFile) : undefined,
-      tttt: ttttFile ? fs.readFileSync(ttttFile) : undefined,
-      ps: psFile ? fs.readFileSync(psFile) : undefined,
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath)
+    const tradingCheckBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
+    );
+    const msTradingDailyPath = options?.customDataDir || path.join(tradingCheckBase, subFolder);
+    const cqgTradingDailyPath = options?.customDataDir || path.join(
+      cqgBackupBase.replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG').replace(/Backup CQG/i, 'TradingCheck/CQG'),
+      subFolder,
+    );
+    const acmTradingDailyPath = options?.customDataDir || path.join(
+      acmBackupBase.replace(/Backup MS[\\/]ACM/i, 'TradingCheck/ACM').replace(/Backup ACM/i, 'TradingCheck/ACM'),
+      subFolder,
+    );
+    const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
+    const ccpTradingDailyPath = options?.customDataDir || path.join(
+      rawCcpBase.replace(/Backup CCP/i, 'TradingCheck/CCP'),
+      subFolder,
+    );
+
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
+    const acmDailyPath = path.join(acmBackupBase, subFolder);
+    const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
+
+    // Ưu tiên đọc từ thư mục kiểm tra trong phiên (TradingCheck), nếu chưa có thì fallback đọc từ thư mục Backup
+    const resolvePriorityPath = (primaryDir: string, fallbackDir: string, filename: string): string => {
+      const p1 = path.join(primaryDir, filename);
+      if (fs.existsSync(p1)) return p1;
+      return path.join(fallbackDir, filename);
     };
 
-    return this.checkKLGD(files, tradingDate, [], '05:00', options);
+    const dsgdPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'DSGD.xlsx');
+    const ttttPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTTT.xlsx');
+    const ttmPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTM.xlsx');
+
+    const acmTradesPath =
+      findLatestFile(acmTradingDailyPath, /Straits/i) ||
+      findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
+      findLatestFile(acmDailyPath, /Straits/i) ||
+      findLatestFile(acmDailyPath, /Nano|Fill/i);
+
+    const cqgFrPath =
+      resolveCqgFile(cqgTradingDailyPath, 'FR', this.logger) ||
+      resolveCqgFile(cqgDailyPath, 'FR', this.logger);
+    const cqgPsPath =
+      resolveCqgFile(cqgTradingDailyPath, 'PS', this.logger) ||
+      resolveCqgFile(cqgDailyPath, 'PS', this.logger);
+    const cqgOpPath =
+      resolveCqgFile(cqgTradingDailyPath, 'OP', this.logger) ||
+      resolveCqgFile(cqgDailyPath, 'OP', this.logger);
+
+    const dsgdCcpPath =
+      findLatestFile(ccpTradingDailyPath, /dsgd/i) ||
+      findLatestFile(ccpDailyPath, /dsgd/i);
+    const ttmCcpPath =
+      findLatestFile(ccpTradingDailyPath, /ttm/i) ||
+      findLatestFile(ccpDailyPath, /ttm/i);
+    const ttttCcpPath =
+      findLatestFile(ccpTradingDailyPath, /tttt/i) ||
+      findLatestFile(ccpDailyPath, /tttt/i);
+
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+
+    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
+    const sessionStart = new Date(tradingDate);
+    sessionStart.setHours(sHour, sMin, 0, 0);
+    const checkTime = new Date();
+    if (checkTime < sessionStart) {
+      if (checkTime.getDay() !== 1) {
+        sessionStart.setDate(sessionStart.getDate() - 1);
+        while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+          sessionStart.setDate(sessionStart.getDate() - 1);
+        }
+      }
+    }
+
+    const checkKlgdFlag = options?.checkKlgd !== false;
+    const checkTtmFlag = options?.checkTtm !== false;
+
+    const missingFiles: string[] = [];
+    if (checkKlgdFlag) {
+      if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
+      if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx / Straits.csv)`);
+      if (!cqgFrPath) missingFiles.push(`CQG FR`);
+    }
+    if (checkTtmFlag) {
+      if (!fs.existsSync(ttmPath)) missingFiles.push(`TTM.xlsx`);
+    }
+
+    if (missingFiles.length > 0) {
+      return {
+        passed: true,
+        isWaitingFiles: true,
+        sessionStart,
+        checkTime,
+        message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
+        totals: {
+          totalDSGD: 0,
+          totalFR: 0,
+          totalACM: 0,
+          totalNano: 0,
+          differ: 0,
+          differACM: 0,
+        },
+        mismatchedTrades: [],
+        mismatchedTTM: [],
+      };
+    }
+
+    const files: any = {};
+    let dsgdCutoffTime: Date | undefined = undefined;
+    if (fs.existsSync(dsgdPath)) {
+      files.dsgd = fs.readFileSync(dsgdPath);
+      try {
+        const stat = fs.statSync(dsgdPath);
+        dsgdCutoffTime = new Date(stat.mtime.getTime() - 2000);
+        this.logger.log(
+          `[Recon] Xác định mốc cắt dữ liệu (Cutoff Time) từ file DSGD.xlsx: ${dsgdCutoffTime.toLocaleTimeString('vi-VN')} (${dsgdCutoffTime.toISOString()}, buffer -2s so với mtime ghi đĩa)`,
+        );
+      } catch (err: any) {
+        this.logger.warn(`[Recon] Không lấy được mtime của DSGD.xlsx: ${err.message}`);
+      }
+    }
+    if (cqgFrPath && fs.existsSync(cqgFrPath)) files.fr = fs.readFileSync(cqgFrPath);
+    if (acmTradesPath && fs.existsSync(acmTradesPath)) files.nano = fs.readFileSync(acmTradesPath);
+    if (fs.existsSync(ttmPath)) files.ttm = fs.readFileSync(ttmPath);
+    if (fs.existsSync(ttttPath)) files.tttt = fs.readFileSync(ttttPath);
+    if (cqgPsPath && fs.existsSync(cqgPsPath)) files.ps = fs.readFileSync(cqgPsPath);
+    if (cqgOpPath && fs.existsSync(cqgOpPath)) files.op = fs.readFileSync(cqgOpPath);
+
+    if (dsgdCcpPath && fs.existsSync(dsgdCcpPath)) files.dsgdCcp = fs.readFileSync(dsgdCcpPath);
+    if (ttmCcpPath && fs.existsSync(ttmCcpPath)) files.ttmCcp = fs.readFileSync(ttmCcpPath);
+    if (ttttCcpPath && fs.existsSync(ttttCcpPath)) files.ttttCcp = fs.readFileSync(ttttCcpPath);
+
+    const reconOptions = {
+      ...options,
+      cutoffTime: options?.cutoffTime || dsgdCutoffTime,
+    };
+
+    const lmeHolidaysStr = await this.settingsService.getSetting(
+      'lme_holiday_replacements',
+      '[]',
+    );
+    let lmeHolidays: any[] = [];
+    try {
+      lmeHolidays = JSON.parse(lmeHolidaysStr) || [];
+    } catch {}
+
+    return this.checkKLGD(files, tradingDate, lmeHolidays, sessionStartStr, reconOptions);
   }
 }

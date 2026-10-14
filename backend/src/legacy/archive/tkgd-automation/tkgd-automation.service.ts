@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Injectable, Logger, Optional, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';

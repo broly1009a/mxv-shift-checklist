@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -8,10 +8,16 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
 } from '../../../shared';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
 @Injectable()
 export class CoreExApiAdapter implements IIngressPort {
   private readonly logger = new Logger(CoreExApiAdapter.name);
+
+  constructor(
+    @Optional()
+    private readonly settingsService?: SystemSettingsService,
+  ) {}
 
   async download(
     source: IngressSourceType,
@@ -34,8 +40,12 @@ export class CoreExApiAdapter implements IIngressPort {
     const targets = options?.reportCodes || ['DSGD', 'TTM', 'TTTT'];
 
     try {
-      const apiUrl = process.env.COREEX_API_URL || 'https://api-trading.mxv.vn/v1/reports';
-      this.logger.log(`[CoreExApiAdapter] Kết nối Direct REST Endpoint: ${apiUrl}`);
+      // Đọc URL từ Database (system_settings), fallback sang .env
+      let apiUrl = process.env.COREEX_API_URL || 'https://api-trading.mxv.vn/v1/reports';
+      if (this.settingsService) {
+        apiUrl = await this.settingsService.getSetting('coreex_api_url', apiUrl);
+      }
+      this.logger.log(`[CoreExApiAdapter] Kết nối Direct REST Endpoint (từ CSDL): ${apiUrl}`);
 
       for (const target of targets) {
         const fileName = `${target}_${targetDate.replace(/-/g, '')}.xlsx`;

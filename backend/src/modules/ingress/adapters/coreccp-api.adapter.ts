@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -8,10 +8,16 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
 } from '../../../shared';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
 @Injectable()
 export class CoreCcpApiAdapter implements IIngressPort {
   private readonly logger = new Logger(CoreCcpApiAdapter.name);
+
+  constructor(
+    @Optional()
+    private readonly settingsService?: SystemSettingsService,
+  ) {}
 
   async download(
     source: IngressSourceType,
@@ -38,8 +44,12 @@ export class CoreCcpApiAdapter implements IIngressPort {
     ];
 
     try {
-      const apiUrl = process.env.CORECCP_API_URL || 'https://coreccp.mxv.vn/api/v1/clearing-reports';
-      this.logger.log(`[CoreCcpApiAdapter] Kết nối Direct REST Endpoint: ${apiUrl}`);
+      // Đọc URL từ Database (system_settings), fallback sang .env
+      let apiUrl = process.env.CORECCP_API_URL || 'https://coreccp.mxv.vn/api/v1/clearing-reports';
+      if (this.settingsService) {
+        apiUrl = await this.settingsService.getSetting('coreccp_api_url', apiUrl);
+      }
+      this.logger.log(`[CoreCcpApiAdapter] Kết nối Direct REST Endpoint (từ CSDL): ${apiUrl}`);
 
       for (const name of reportNames) {
         const fileName = `${name}_${targetDate.replace(/-/g, '')}.xlsx`;

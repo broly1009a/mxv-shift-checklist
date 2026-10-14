@@ -277,7 +277,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     // Nâng cấp Atomic Lock qua findOneAndUpdate: An toàn tuyệt đối khi chạy đa instance song song
     const instanceId = process.env.INSTANCE_ID || `inst_${process.pid}`;
-    const job = await this.botJobModel.findOneAndUpdate(
+    const job: any = await this.botJobModel.findOneAndUpdate(
       { status: 'PENDING' },
       {
         $set: {
@@ -286,7 +286,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           lockedAt: new Date(),
         },
       },
-      { sort: { createdAt: 1 }, new: true },
+      { sort: { createdAt: 1 }, returnDocument: 'after' } as any,
     );
     if (!job) {
       return;
@@ -661,6 +661,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             attempts: job.attempts,
             logs: job.logs,
             payload: job.payload,
+            lockedBy: job.lockedBy ?? null,
+            lockedAt: job.lockedAt ?? null,
           },
         },
       )
@@ -1006,35 +1008,48 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   async cleanupStuckJobs(isStartup: boolean = false): Promise<void> {
     const thresholdMs = 15 * 60 * 1000;
     const now = Date.now();
+    const currentInstanceId = process.env.INSTANCE_ID || `inst_${process.pid}`;
 
-    const stuckJobs = await this.botJobModel
-      .find({
-        status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
-      })
-      .exec();
+    // Khi startup, chỉ thu hồi các job bị khóa bởi chính instance này hoặc các job bị timeout > 15 phút
+    const query: any = {
+      status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
+    };
+    if (isStartup) {
+      query.$or = [
+        { lockedBy: currentInstanceId },
+        { lockedAt: { $lt: new Date(now - thresholdMs) } },
+        { updatedAt: { $lt: new Date(now - thresholdMs) } },
+      ];
+    } else {
+      query.$or = [
+        { lockedAt: { $lt: new Date(now - thresholdMs) } },
+        { updatedAt: { $lt: new Date(now - thresholdMs) } },
+      ];
+    }
+
+    const stuckJobs = await this.botJobModel.find(query).exec();
 
     if (stuckJobs.length === 0) return;
 
     for (const job of stuckJobs) {
-      const updatedAtMs = job.updatedAt ? job.updatedAt.getTime() : 0;
-      const isStuckTimeout = now - updatedAtMs > thresholdMs;
+      const reason = isStartup
+        ? `Instance ${currentInstanceId} khởi động lại (Reclaim stuck job)`
+        : 'Hết thời gian xử lý (Timeout 15 phút)';
 
-      if (isStartup || isStuckTimeout) {
-        const reason = isStartup
-          ? 'Server khởi động lại (Reset stuck job)'
-          : 'Hết thời gian xử lý (Timeout 15 phút)';
+      this.logger.warn(`Dọn dẹp Job bị treo ${job._id} (${job.jobType}): ${reason}`);
+      job.logs.push(`[${new Date().toISOString()}] Tự động dọn dẹp job bị treo: ${reason}`);
 
-        this.logger.warn(`Dọn dẹp Job bị treo ${job._id} (${job.jobType}): ${reason}`);
-        job.logs.push(`[${new Date().toISOString()}] Tự động dọn dẹp job bị treo: ${reason}`);
+      // Giải phóng khóa MongoDB
+      job.lockedBy = undefined;
+      job.lockedAt = undefined;
 
-        if (job.attempts < job.maxAttempts) {
-          await this.syncJobToChecklist(job, 'PENDING', reason);
-        } else {
-          await this.syncJobToChecklist(job, 'FAILED', reason);
-        }
-        if (this.activeJobs.size === 0) {
-          this.isProcessing = false;
-        }
+      if (job.attempts < job.maxAttempts) {
+        await this.syncJobToChecklist(job, 'PENDING', reason);
+      } else {
+        await this.syncJobToChecklist(job, 'FAILED', reason);
+      }
+      if (this.activeJobs.size === 0) {
+        this.isProcessing = false;
       }
     }
   }
