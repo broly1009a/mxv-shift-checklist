@@ -42,6 +42,8 @@ export class TradingOpsConfigService {
       }
     }
 
+    const cqgStorageDir = process.env.CQG_BACKUP_DIR || path.join(defaultDataDir, 'CQG');
+
     return {
       msystem: {
         baseUrl: msystemCreds.url || process.env.MS_BASE_URL || 'https://msystem.mxv.vn/',
@@ -60,17 +62,17 @@ export class TradingOpsConfigService {
           {
             accountId: 'CQG2',
             username: cqgCreds.username2 || process.env.CQG_ACCOUNT_2 || '',
-            subfix: '',
+            subfix: '_2',
           },
         ],
-        storageDir: process.env.CQG_BACKUP_DIR || path.join(defaultDataDir, 'CQG'),
-        mergedDir: path.join(defaultDataDir, 'CQG', 'Merged'),
+        storageDir: cqgStorageDir,
+        mergedDir: path.join(cqgStorageDir, 'Merged'),
       },
       acm: {
-        sftpHost: acmCreds.host || process.env.ACM_SFTP_HOST,
+        sftpHost: acmCreds.host || process.env.ACM_SFTP_HOST || '',
         sftpPort: Number(acmCreds.port || process.env.ACM_SFTP_PORT || 22),
-        sftpUsername: acmCreds.username || process.env.ACM_SFTP_USER,
-        sftpPassword: acmCreds.password || process.env.ACM_SFTP_PASSWORD,
+        sftpUsername: acmCreds.username || process.env.ACM_SFTP_USER || '',
+        sftpPassword: acmCreds.password || process.env.ACM_SFTP_PASSWORD || '',
         localDir: process.env.ACM_BACKUP_DIR || path.join(defaultDataDir, 'ACM'),
       },
       workingCalendarCheck: true,

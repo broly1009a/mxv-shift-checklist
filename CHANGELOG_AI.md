@@ -1,3 +1,24 @@
+## [2026-10-14T10:48] DEPLOY(Modular Monolith V2): Chuẩn Bị & Tối Ưu Hóa Kịch Bản Đồng Bộ Lên Ubuntu Server (10.0.0.26)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Chỉ đạo của USER**: "vậy giờ giúp tôi đồng bộ sang ubuntun được không".
+- **Phạm vi triển khai**: Đồng bộ toàn bộ kiến trúc Modular Monolith V2 (`backend/src`, `frontend/src`, `backend/assets`, `frontend/public`, `docs`, `package.json`, `CHANGELOG_AI.md`) lên máy chủ Ubuntu sản xuất (`10.0.0.26`).
+- **Ground Truth**: [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js).
+
+### 2. Danh sách file chỉnh sửa
+- **Cập nhật** [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js):
+  - Chuyển đổi danh sách đồng bộ sang cấu trúc đồng bộ gốc toàn diện (`backend/src`, `frontend/src`, `backend/assets`, `frontend/public`, `docs`), xóa bỏ tình trạng đồng bộ rời rạc thiếu module V2.
+  - Bổ sung bộ lọc an toàn nghiêm ngặt: Tuyệt đối KHÔNG đè `.env*`, bỏ qua `node_modules`, `dist`, `.next`, `.git`, `*.tsbuildinfo`, `.DS_Store`, `Thumbs.db`.
+  - Tối ưu hóa lệnh tạo thư mục đệ quy `mkdir -p` theo cụm 30 thư mục để ngăn tràn dòng lệnh shell trên Ubuntu.
+  - Bổ sung bước dọn dẹp cache `rm -rf .next` trước khi biên dịch frontend để bảo đảm 35 routes tĩnh biên dịch đồng bộ 100%.
+
+### 3. Kết quả xác minh trước triển khai (Pre-flight Validation)
+- **Kiểm tra kết nối mạng**: TCP Ping `10.0.0.26:22` (SSH) thành công từ máy chủ nội bộ.
+- **Backend Local Build**: `nest build` thành công, Exit Code 0, 0 lỗi TypeScript.
+- **Frontend Local Build**: `next build` thành công, 35/35 routes tĩnh tối ưu hóa thành công, Exit Code 0.
+
+---
+
 ## [2026-10-14T09:34] FEAT(Task 6.3 - RELEASE ACCEPTANCE): Hoàn Tất Toàn Trình 27/27 Atomic Tasks Chuyển Đổi Modular Monolith V2
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

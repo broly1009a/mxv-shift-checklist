@@ -4,11 +4,23 @@ const fs = require('fs');
 
 const repoRoot = path.resolve(__dirname, '../../..');
 
-// Quét đệ quy tất cả file trong thư mục
+// Quét đệ quy tất cả file trong thư mục (bỏ qua cache, build, env)
 function getAllFiles(dirPath, arrayOfFiles = []) {
   if (!fs.existsSync(dirPath)) return arrayOfFiles;
   const files = fs.readdirSync(dirPath);
   files.forEach((file) => {
+    if (
+      file === 'node_modules' ||
+      file === '.git' ||
+      file === '.next' ||
+      file === 'dist' ||
+      file.startsWith('.env') ||
+      file.endsWith('.tsbuildinfo') ||
+      file === '.DS_Store' ||
+      file === 'Thumbs.db'
+    ) {
+      return;
+    }
     const fullPath = path.join(dirPath, file);
     if (fs.statSync(fullPath).isDirectory()) {
       getAllFiles(fullPath, arrayOfFiles);
@@ -22,115 +34,30 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
 // Danh sách các thư mục cần đồng bộ toàn bộ từ local sang Ubuntu
 const syncDirs = [
   {
-    localDir: path.join(repoRoot, 'backend/src/modules/shifts'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/shifts',
+    localDir: path.join(repoRoot, 'backend/src'),
+    remoteDir: '/opt/mxv-checklist/backend/src',
   },
   {
-    localDir: path.join(repoRoot, 'backend/src/modules/tkgd-automation'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/tkgd-automation',
+    localDir: path.join(repoRoot, 'backend/assets'),
+    remoteDir: '/opt/mxv-checklist/backend/assets',
   },
   {
-    localDir: path.join(repoRoot, 'backend/src/modules/bot-engine'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/bot-engine',
+    localDir: path.join(repoRoot, 'frontend/src'),
+    remoteDir: '/opt/mxv-checklist/frontend/src',
   },
   {
-    localDir: path.join(repoRoot, 'backend/src/modules/auth'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/auth',
+    localDir: path.join(repoRoot, 'frontend/public'),
+    remoteDir: '/opt/mxv-checklist/frontend/public',
   },
   {
-    localDir: path.join(repoRoot, 'backend/src/modules/lot-statistics'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/lot-statistics',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/ccp-statistics'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/ccp-statistics',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/schemas'),
-    remoteDir: '/opt/mxv-checklist/backend/src/schemas',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/features/tkgd'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/features/tkgd',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/components/tkgd'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/components/tkgd',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/tutorials'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/tutorials',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/scripts/python'),
-    remoteDir: '/opt/mxv-checklist/backend/src/scripts/python',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/reconciliation'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/reconciliation',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/dashboard'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/dashboard',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/telegram'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/telegram',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/system-settings'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/system-settings',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/margin-checker'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/margin-checker',
-  },
-  {
-    localDir: path.join(repoRoot, 'backend/src/modules/notifications'),
-    remoteDir: '/opt/mxv-checklist/backend/src/modules/notifications',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/trading-manager'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/trading-manager',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/admin/trading-manager'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/trading-manager',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/admin/bot-config'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/bot-config',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/dashboard'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/dashboard',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/components/admin'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/components/admin',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/checklist'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/checklist',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/admin/templates'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/templates',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/app/admin/upload-backup'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/app/admin/upload-backup',
-  },
-  {
-    localDir: path.join(repoRoot, 'frontend/src/components/ui'),
-    remoteDir: '/opt/mxv-checklist/frontend/src/components/ui',
+    localDir: path.join(repoRoot, 'docs'),
+    remoteDir: '/opt/mxv-checklist/docs',
   },
 ];
 
-
 let filesToUpload = [];
 
-// 1. Quét thư mục
+// 1. Quét thư mục với bộ lọc an toàn (không ghi đè .env, bỏ qua cache/build)
 syncDirs.forEach(({ localDir, remoteDir }) => {
   const files = getAllFiles(localDir);
   files.forEach((file) => {
@@ -145,16 +72,16 @@ syncDirs.forEach(({ localDir, remoteDir }) => {
 // 2. Các file đơn lẻ quan trọng
 const specificFiles = [
   {
-    local: path.join(repoRoot, 'backend/src/app.module.ts'),
-    remote: '/opt/mxv-checklist/backend/src/app.module.ts',
+    local: path.join(repoRoot, 'backend/package.json'),
+    remote: '/opt/mxv-checklist/backend/package.json',
   },
   {
-    local: path.join(repoRoot, 'backend/src/interceptors/activity-log.interceptor.ts'),
-    remote: '/opt/mxv-checklist/backend/src/interceptors/activity-log.interceptor.ts',
+    local: path.join(repoRoot, 'frontend/package.json'),
+    remote: '/opt/mxv-checklist/frontend/package.json',
   },
   {
-    local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/python/tkgd_extractor_worker.py',
+    local: path.join(repoRoot, 'CHANGELOG_AI.md'),
+    remote: '/opt/mxv-checklist/CHANGELOG_AI.md',
   },
   {
     local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
@@ -163,87 +90,6 @@ const specificFiles = [
   {
     local: path.join(repoRoot, 'backend/src/scripts/python/recon_data_worker.py'),
     remote: '/opt/mxv-checklist/backend/dist/scripts/python/recon_data_worker.py',
-  },
-  {
-    local: path.join(repoRoot, 'backend/assets/templates/Auto Data mail.xlsm'),
-
-    remote: '/opt/mxv-checklist/backend/assets/templates/Auto Data mail.xlsm',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/app/admin/tkgd-dashboard/page.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/app/admin/tkgd-dashboard/page.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/app/admin/tkgd-config/page.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/app/admin/tkgd-config/page.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/components/GlobalLayout.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/components/GlobalLayout.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/components/Sidebar.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/components/Sidebar.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/components/ui/TutorialOverlay.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/components/ui/TutorialOverlay.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/components/NotificationDropdown.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/components/NotificationDropdown.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/context/TutorialContext.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/context/TutorialContext.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'frontend/src/context/AuthContext.tsx'),
-    remote: '/opt/mxv-checklist/frontend/src/context/AuthContext.tsx',
-  },
-  {
-    local: path.join(repoRoot, 'CHANGELOG_AI.md'),
-    remote: '/opt/mxv-checklist/CHANGELOG_AI.md',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/test_exchange_rate_system.js'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/test_exchange_rate_system.js',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/test_ccp_eod_reconcile_real.js'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/test_ccp_eod_reconcile_real.js',
-  },
-  {
-    local: path.join(repoRoot, 'docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md'),
-    remote: '/opt/mxv-checklist/docs/TAI_LIEU_BAN_GIAO_DONG_GOI_HE_THONG_USER.md',
-  },
-  {
-    local: path.join(repoRoot, 'docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md'),
-    remote: '/opt/mxv-checklist/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md',
-  },
-  {
-    local: path.join(repoRoot, 'backend/package.json'),
-    remote: '/opt/mxv-checklist/backend/package.json',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/test_ms_download_all_20_reports.js'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/test_ms_download_all_20_reports.js',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/test_m365_eod_email.ts'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/test_m365_eod_email.ts',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/diagnose_klgd_realtime.js'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/diagnose_klgd_realtime.js',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/test_ce_headless_download.js'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/test_ce_headless_download.js',
-  },
-  {
-    local: path.join(repoRoot, 'backend/src/scripts/test_eod_strict_matching.js'),
-    remote: '/opt/mxv-checklist/backend/src/scripts/test_eod_strict_matching.js',
   },
 ];
 
@@ -271,7 +117,11 @@ conn.on('ready', () => {
   // Tao toan bo thu muc cha tren Ubuntu truoc khi upload
   const uniqueDirs = [...new Set(filesToUpload.map((f) => path.dirname(f.remote).replace(/\\/g, '/')))];
   console.log(`Dang kiem tra & tao ${uniqueDirs.length} thu muc tren Ubuntu...`);
-  const mkdirCmd = uniqueDirs.map((d) => `mkdir -p "${d}"`).join(' && ');
+  const dirBatches = [];
+  for (let i = 0; i < uniqueDirs.length; i += 30) {
+    dirBatches.push(uniqueDirs.slice(i, i + 30).map((d) => `"${d}"`).join(' '));
+  }
+  const mkdirCmd = dirBatches.map((batch) => `mkdir -p ${batch}`).join(' && ');
 
   conn.exec(mkdirCmd, (mkErr, mkStream) => {
     if (mkErr) {
@@ -353,11 +203,11 @@ conn.on('ready', () => {
       echo "=== 2. RESTART BACKEND PM2 ==="
       pm2 restart mxv-backend
       echo "=== 3. BUILD FRONTEND ==="
-      cd /opt/mxv-checklist/frontend && npm run build
+      cd /opt/mxv-checklist/frontend && rm -rf .next && npm run build
       echo "=== 4. RESTART FRONTEND PM2 ==="
       pm2 restart mxv-frontend
-      echo "=== 5. PM2 LIST ==="
-      pm2 list
+      echo "=== 5. PM2 STATUS ==="
+      pm2 status
     `;
     conn.exec(cmd, (err, stream) => {
       if (err) {
