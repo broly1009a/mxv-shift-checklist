@@ -84,6 +84,22 @@ const specificFiles = [
     remote: '/opt/mxv-checklist/CHANGELOG_AI.md',
   },
   {
+    local: path.join(repoRoot, 'frontend/next.config.ts'),
+    remote: '/opt/mxv-checklist/frontend/next.config.ts',
+  },
+  {
+    local: path.join(repoRoot, 'frontend/tsconfig.json'),
+    remote: '/opt/mxv-checklist/frontend/tsconfig.json',
+  },
+  {
+    local: path.join(repoRoot, 'backend/tsconfig.json'),
+    remote: '/opt/mxv-checklist/backend/tsconfig.json',
+  },
+  {
+    local: path.join(repoRoot, 'backend/tsconfig.build.json'),
+    remote: '/opt/mxv-checklist/backend/tsconfig.build.json',
+  },
+  {
     local: path.join(repoRoot, 'backend/src/scripts/python/tkgd_extractor_worker.py'),
     remote: '/opt/mxv-checklist/backend/dist/scripts/python/tkgd_extractor_worker.py',
   },

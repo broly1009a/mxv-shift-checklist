@@ -1,0 +1,26 @@
+{
+  "name": "@mxv/acm-etp-client",
+  "version": "1.0.0",
+  "description": "Standalone Ingress Client for ACM ETP Exchange Management API (Authentication, Sticky Session & Export Direct)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test:login": "node scripts/test_login_acm.js",
+    "download:all": "node scripts/run_download_all.js"
+  },
+  "keywords": [
+    "mxv",
+    "acm",
+    "etp",
+    "ingress",
+    "trading",
+    "api-client"
+  ],
+  "author": "MXV IT Department",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

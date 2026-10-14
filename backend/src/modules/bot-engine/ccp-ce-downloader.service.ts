@@ -7,11 +7,12 @@
  * Tuân thủ AGENTS.md Mục 8: Zero Hardcoding — mọi URL, credentials đều đọc từ DB.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium, Browser, BrowserContext, Page, Download } from 'playwright-core';
 import { CcpExcelParser } from '../reconciliation/parsers';
+import { IngressService } from '../ingress/ingress.service';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Interfaces & Types
@@ -730,6 +731,11 @@ export function mergeCsvFiles(srcPaths: string[], destPath: string): boolean {
 @Injectable()
 export class CcpCeDownloaderService {
   private readonly logger = new Logger(CcpCeDownloaderService.name);
+
+  constructor(
+    @Optional()
+    private readonly ingressService?: IngressService,
+  ) {}
 
   /**
    * Retrieves the Chrome/Chromium executable path. Searches local bundled Chrome first, then Edge/Chrome installed on system.
@@ -2763,6 +2769,25 @@ export class CcpCeDownloaderService {
     const isHeaded = params.headless === false;
 
     fs.mkdirSync(outputDir, { recursive: true });
+
+    // Ingress Facade: Thử ủy quyền tải 25 file báo cáo CoreCCP sang IngressService V2
+    if (this.ingressService && (!params.reports || params.reports.length === 0 || params.reports.length >= 20)) {
+      try {
+        this.log(`[CcpCeDownloader-Facade] Ủy thác tải 25 báo cáo CCP sang IngressService V2...`, logCb);
+        const res = await this.ingressService.download('CCP', {
+          targetDirectory: outputDir,
+        });
+        const downloaded = res.files.map((f) => f.absolutePath);
+        this.log(`[CcpCeDownloader-Facade] IngressService V2 đã tải xong ${downloaded.length} file CCP.`, logCb);
+        return {
+          success: true,
+          downloadedFiles: downloaded,
+          failedFiles: [],
+        };
+      } catch (err: any) {
+        this.log(`[CcpCeDownloader-Facade] IngressService V2 lỗi (${err.message}), fallback về Playwright nội bộ V1...`, logCb);
+      }
+    }
 
     this.log('='.repeat(60), logCb);
     this.log(`[CORECCP BATCH 25] Bắt đầu tiến trình tải báo cáo Maker (Phase: ${phase})`, logCb);

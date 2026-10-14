@@ -5,6 +5,9 @@ import { CqgMergerService } from '../../modules/trading-ops/services/cqg-merger.
 import { KlgdReconService } from '../../modules/trading-ops/services/klgd-recon.service';
 import { PreEodReconService } from '../../modules/trading-ops/services/pre-eod-recon.service';
 import { LotStatisticsService } from '../../modules/ccp-clearing/services/lot-statistics.service';
+import { ValueStatisticsService } from '../../modules/ccp-clearing/services/value-statistics.service';
+import { CcpLotWorker } from '../../modules/ccp-clearing/workers/ccp-lot.worker';
+import { CcpValueWorker } from '../../modules/ccp-clearing/workers/ccp-value.worker';
 import { BotDispatcherService } from '../../modules/checklist-hub/dispatcher/bot-dispatcher.service';
 import { KlgdReconWorker } from '../../modules/trading-ops/workers/klgd-recon.worker';
 import { PreEodReconWorker } from '../../modules/trading-ops/workers/pre-eod-recon.worker';
@@ -242,6 +245,58 @@ describe('Twin-Run Verification - So Sánh Song Hành V1 vs Modular Monolith V2'
 
       expect(res).toBeDefined();
       expect(res.status).toBeDefined();
+    });
+  });
+
+  describe('4. CCP Clearing Lot & Value Statistics (Modular Monolith V2)', () => {
+    it('LotStatisticsService tính toán thống kê Lot chính xác từ buffers', () => {
+      const lotService = new LotStatisticsService();
+
+      const dsgdRows = [
+        ['Mã lệnh', 'Mã TKGD', 'Mã HĐ', 'KL giao dịch', 'Giá khớp', 'Ngày giờ thực hiện', 'Mã giao dịch'],
+        ['ORD001', '012C123456', 'ZLEZ24', 10, 45.2, '2026-10-13 10:00:00', 'GD001'],
+      ];
+      const dsgdWb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(dsgdWb, XLSX.utils.aoa_to_sheet(dsgdRows), 'Sheet1');
+      const dsgdBuffer = XLSX.write(dsgdWb, { type: 'buffer', bookType: 'xlsx' });
+
+      const frRows = [
+        ['Ord #', 'Account', 'Symbol', 'Qty', 'Fill P', 'Time'],
+        ['ORD001', '012C123456F', 'ZLEZ24', 10, 45.2, '10:00:00'],
+      ];
+      const frWb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(frWb, XLSX.utils.aoa_to_sheet(frRows), 'Sheet1');
+      const frBuffer = XLSX.write(frWb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = lotService.calculateLotStatistics({
+        dsgd: dsgdBuffer,
+        fr: frBuffer,
+      });
+
+      expect(result.summary.dsgdTotal).toBe(10);
+      expect(result.summary.frTotal).toBe(10);
+      expect(result.summary.differKlgd).toBe(0);
+    });
+
+    it('CcpLotWorker và CcpValueWorker nhận diện đúng capabilities', async () => {
+      const lotService = new LotStatisticsService();
+      const lotWorker = new CcpLotWorker(lotService);
+
+      expect(lotWorker.capabilityType).toBe('CCP_LOT_STATS');
+      expect(lotWorker.canHandle('CCP_LOT_STATS')).toBe(true);
+      expect(lotWorker.canHandle('CHECK_CCP_STATISTICS')).toBe(true);
+
+      const valueService = new ValueStatisticsService();
+      const valueWorker = new CcpValueWorker(valueService);
+
+      expect(valueWorker.capabilityType).toBe('CCP_VALUE_STATS');
+      expect(valueWorker.canHandle('CCP_VALUE_STATS')).toBe(true);
+      expect(valueWorker.canHandle('CHECK_CCP_VALUE')).toBe(true);
+      expect(valueWorker.canHandle('MACRO_VALUE')).toBe(true);
+
+      const rates = await valueService.getCurrentExchangeRates();
+      expect(rates.usdLoss).toBe(25400);
+      expect(rates.myrLoss).toBe(5400);
     });
   });
 });

@@ -8,6 +8,7 @@ import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { decrypt } from './utils/crypto';
 import { IngressService } from '../ingress/ingress.service';
+import { CcpScraperService } from '../ingress/scrapers/ccp-scraper.service';
 import {
   MSystemTabNavigatorHelper,
   MS_REPORT_FILE_PATTERNS,
@@ -23,6 +24,8 @@ export class RpaDownloaderService {
     private readonly settingsService: SystemSettingsService,
     @Optional()
     private readonly ingressService?: IngressService,
+    @Optional()
+    private readonly ccpScraper?: CcpScraperService,
   ) { }
 
   /**
@@ -1410,6 +1413,20 @@ export class RpaDownloaderService {
     }
 
     const ccpUrl = (ccpCreds.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
+
+    // Ingress Facade: Thử ủy quyền sang CcpScraperService V2
+    if (this.ccpScraper) {
+      try {
+        this.logger.log(`[RpaDownloader-Facade] Ủy quyền tải DSGD MM CCP sang Ingress CcpScraperService V2...`);
+        const ok = await this.ccpScraper.downloadDsgdMmCcp(destFile, ccpCreds);
+        if (ok && fs.existsSync(destFile) && fs.statSync(destFile).size > 0) {
+          this.logger.log(`[RpaDownloader-Facade] CcpScraperService V2 đã tải xong: ${destFile} (${fs.statSync(destFile).size} bytes)`);
+          return true;
+        }
+      } catch (err: any) {
+        this.logger.warn(`[RpaDownloader-Facade] Ingress CcpScraperService V2 lỗi (${err.message}), fallback về Playwright V1 nội bộ...`);
+      }
+    }
 
     const executablePath = this.getChromeExecutablePath();
     const launchOptions: any = {

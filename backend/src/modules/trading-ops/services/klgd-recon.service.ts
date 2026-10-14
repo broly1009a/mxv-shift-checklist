@@ -741,7 +741,7 @@ export class KlgdReconService {
     );
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const ccpTradingDailyPath = options?.customDataDir || path.join(
-      rawCcpBase.replace(/Backup CCP/i, 'TradingCheck/CCP'),
+      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
       subFolder,
     );
 

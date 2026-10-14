@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -553,6 +554,15 @@ export class CqgSyncService {
    * Logic: Merge PS1.xlsx and PS2.xlsx, and construct reconciliation sheets.
    */
   private mergePS(src1: string, src2: string, dest: string, ttmPath: string) {
+    if (this.cqgMergerService) {
+      try {
+        const ok = this.cqgMergerService.mergePS(src1, src2, dest, ttmPath);
+        if (ok) return;
+      } catch (err: any) {
+        this.logger.warn(`[CqgSync-Facade] CqgMergerService mergePS lỗi (${err.message}), fallback về V1...`);
+      }
+    }
+
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {

@@ -1,10 +1,11 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { ValueStatisticsService } from '../../lot-statistics/value-statistics.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { CcpValueWorker } from '../../ccp-clearing/workers/ccp-value.worker';
 import { parseJobPayload, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
 
 @Injectable()
@@ -16,6 +17,8 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly valueStatisticsService: ValueStatisticsService,
     private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly ccpValueWorker?: CcpValueWorker,
   ) { }
 
   onModuleInit() {
@@ -208,6 +211,24 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       log(
         `Tổng số dòng giao dịch Normal: ${result.normalCount}, Spread: ${result.spreadCount}`,
       );
+
+      // Twin-Run / Strangler Fig: Kích hoạt song hành CcpValueWorker V2
+      if (this.ccpValueWorker) {
+        try {
+          this.logger.log(`[MacroValueJobHandler-Facade] Kích hoạt song hành CcpValueWorker V2 cho ngày: ${targetDateStr}...`);
+          const workerRes = await this.ccpValueWorker.execute({
+            taskId: payload.taskId || `MACRO_VALUE_${job._id}`,
+            botCheckType: 'CCP_VALUE_STATS',
+            shiftId: payload.shiftLogId,
+            targetDate: targetDateStr,
+            parameters: { folderPath: path.dirname(dsgdPath) },
+          });
+          log(`[CcpValueWorker V2] ${workerRes.summary}`);
+        } catch (workerErr: any) {
+          this.logger.warn(`[MacroValueJobHandler-Facade] CcpValueWorker V2 bỏ qua lỗi phụ: ${workerErr.message}`);
+        }
+      }
+
       await safeSave();
       return result;
     } catch (err: any) {

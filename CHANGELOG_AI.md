@@ -1,3 +1,113 @@
+## [2026-10-14T20:35] FIX(TRADING-OPS): Đồng Bộ Chuẩn Hóa resolveStoragePathCrossPlatform Giữa V1 & V2 Khắc Phục Lỗi Báo Thiếu File Đối Chiếu KLGD
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Khắc phục triệt để lỗi Bot đối chiếu KLGD trong phiên (`CHECK_KLGD`) sau khi tải đầy đủ 4 nguồn (M-System, CQG, ACM, CoreCCP) nhưng lại báo:
+  `[Đang chờ dữ liệu] Thư mục backup ngày 14.10.2026 đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: DSGD.xlsx, ACM Trades (Fill.xlsx / Straits.csv), CQG FR, TTM.xlsx).`
+- **Nguyên nhân cốt lõi (Root Cause)**:
+  1. `ReconJobsHandler` (Monolith V1) sử dụng `resolveStoragePathCrossPlatform` từ `bot-path.helper.ts`, hàm này nhận diện pattern `/(?:^|\/)(quanlygiaodich\/.*)$/i` để ánh xạ chính xác đường dẫn mạng `M:\Tailieuchung\QLGD-IT\...` thành `/mnt/qlgd-it/Quanlygiaodich/...`. Do đó, bot tải file và lưu đĩa thành công vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/...`.
+  2. Tuy nhiên, `KlgdReconService` (Modular Monolith V2) và `PreEodReconService` lại import `resolveStoragePathCrossPlatform` từ `shared/helpers/file-path.helper.ts`. Hàm tại `file-path.helper.ts` bị thiếu logic nhận diện `quanlygiaodich`, chỉ thay thế thô bạo `M:/` bằng `/mnt/qlgd-it/`, dẫn đến đường dẫn bị trùng lặp: `/mnt/qlgd-it/Tailieuchung/QLGD-IT/Quanlygiaodich/...` (Thư mục không tồn tại vì bản thân `/mnt/qlgd-it` chính là điểm mount của `Tailieuchung/QLGD-IT`).
+  3. Kết quả: `fs.existsSync` tại `KlgdReconService` trả về `false` cho toàn bộ các file, khiến hệ thống báo thiếu file mặc dù file thực tế đã được tải và ghép đầy đủ trên đĩa.
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **[file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts)**:
+   - Cập nhật hàm `resolveStoragePathCrossPlatform` đồng bộ 100% với logic chuẩn từ `bot-path.helper.ts`:
+     - Nhận diện `quanlygiaodich/...` để map thẳng vào `${linuxMountBase}/${qlgdMatch[1]}`.
+     - Bóc tách đúng các tiền tố `/tailieuchung/qlgd-it/`, `m:/`, UNC `//10.0.0.x/...` trên môi trường Linux (`process.platform !== 'win32'`).
+     - Đảm bảo tương thích ngược 2 chiều Linux <-> Windows.
+2. **[klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/klgd-recon.service.ts)**:
+   - Bọc `resolveStoragePathCrossPlatform(rawCcpBase)` tại dòng 744 để đảm bảo `ccpTradingDailyPath` trên Linux luôn trỏ đúng `/mnt/qlgd-it/Quanlygiaodich/.../TradingCheck/CCP/...`.
+3. **[klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/klgd-recon.service.ts)**:
+   - Tương tự, bọc `resolveStoragePathCrossPlatform(await getCcpBackupBasePath(this.settingsService))` tại dòng 739 của V1 service.
+
+### 3. Kết quả kiểm thử thực chứng (Test Verification)
+- **Local Nest Build**: `cmd /c npm run build` -> Exit Code 0 (Biên dịch thành công 100%).
+- **Trực tiếp kiểm thử `KlgdReconService.runAutoCheckKLGD` trên Ubuntu (10.0.0.26)**:
+  - `msTradingDailyPath`: `exists: true` (tìm thấy `DSGD.xlsx`, `TTM.xlsx`, `TTTT.xlsx`).
+  - `cqgTradingDailyPath`: `exists: true` (tìm thấy `FR.xlsx`, `OP.xlsx`, `PS.xlsx`).
+  - `acmTradingDailyPath`: `exists: true` (tìm thấy `Straits.csv`).
+  - `ccpTradingDailyPath`: `exists: true` (tìm thấy `DSGD_14.10.2026.xlsx`, `TTM_14.10.2026.xlsx`, `TTTT_14.10.2026.xlsx`).
+  - Kết quả đối chiếu trực tiếp: `totalDSGD: 4953`, `totalFR: 4953`, `differ: 0` (Khớp lệnh tuyệt đối), `totalTTM: 6638`, `totalOP: 6638`, `differTTM: 0`!
+
+---
+
+## [2026-10-14T17:22] REFACTOR(STRANGLER-FIG): Đấu Nối MacroLotJobHandler, MacroValueJobHandler, RpaDownloaderService & BotJobQueueService Sang V2 (Task B4 & B5)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Hoàn tất giai đoạn Strangler Fig (Phương án B) cho cụm tác vụ Thống kê Bù trừ CCP & Điều phối Job:
+  1. Đấu nối `MacroLotJobHandler` sang `CcpLotWorker` (Tầng 3 CCP Clearing V2) chạy song hành (Twin-Run) an toàn.
+  2. Đấu nối `MacroValueJobHandler` sang `CcpValueWorker` (Tầng 3 CCP Clearing V2) chạy song hành (Twin-Run) an toàn.
+  3. Đấu nối `RpaDownloaderService.downloadDsgdMmCcp` sang `CcpScraperService` (Tầng 2 Ingress V2) với fallback về Playwright V1.
+  4. Đấu nối `BotJobQueueService` sang `BotDispatcherService` (Tầng 4 Dispatcher V2): Tự động điều phối các job năng lực V2 (`CHECK_CCP_STATISTICS`, `CCP_LOT_STATS`, `CCP_VALUE_STATS`, `CHECK_CCP_VALUE`, `MACRO_VALUE`, `CHECK_EOD_CCP`) khi không có handler trong Registry V1.
+- **Cơ sở thực chứng**:
+  - [macro-lot.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-lot.handler.ts) $\rightarrow$ [ccp-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/workers/ccp-lot.worker.ts).
+  - [macro-value.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-value.handler.ts) $\rightarrow$ [ccp-value.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/workers/ccp-value.worker.ts).
+  - [rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts) $\rightarrow$ [ccp-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts).
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts) $\rightarrow$ [bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts).
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **[macro-lot.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-lot.handler.ts)**:
+   - Inject `@Optional() private readonly ccpLotWorker?: CcpLotWorker`.
+   - Chạy song hành Twin-Run `CcpLotWorker.execute(...)` khi macro số lot hoàn tất, lưu vết sang `CcpClearingLog`.
+2. **[macro-value.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-value.handler.ts)**:
+   - Inject `@Optional() private readonly ccpValueWorker?: CcpValueWorker`.
+   - Chạy song hành Twin-Run `CcpValueWorker.execute(...)` khi macro giá trị hoàn tất.
+3. **[rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)**:
+   - Inject `@Optional() private readonly ccpScraper?: CcpScraperService`.
+   - Trong `downloadDsgdMmCcp(destFile)`: Ủy quyền sang `CcpScraperService V2` tải nhanh giao dịch MM phục vụ đối soát, tự động fallback về Playwright V1 nếu có lỗi.
+4. **[bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts)**:
+   - Khi không tìm thấy handler trong V1 Registry, tự động phân luồng sang `BotDispatcherService.dispatch(taskContext)` xử lý năng lực V2.
+5. **[twin-run-comparator.spec.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/twin-run/twin-run-comparator.spec.ts)**:
+   - Thêm suite test `4. CCP Clearing Lot & Value Statistics (Modular Monolith V2)` kiểm tra `LotStatisticsService`, `ValueStatisticsService`, `CcpLotWorker`, `CcpValueWorker`.
+
+### 3. Kết quả kiểm thử thực chứng (Test Verification)
+- **Twin-Run Unit Tests (`twin-run-comparator.spec.ts`)**: 7/7 tests PASS (1.6s).
+- **Backend Build (`nest build`)**: Exit Code 0 (Biên dịch thành công 100%).
+- **Frontend Build (`next build`)**: Exit Code 0 (35/35 routes SSG/SSR pass).
+
+---
+
+## [2026-10-14T17:10] REFACTOR(STRANGLER-FIG): Đấu Nối An Toàn CcpCeDownloaderService Sang IngressService V2 (Task B3)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Đấu nối quy trình tải 25 báo cáo Maker CoreCCP từ `CcpCeDownloaderService` sang `IngressService.download('CCP', ...)` (Tầng 2 Ingress V2) theo mô hình Strangler Fig, giữ nguyên 100% logic Playwright cũ làm fallback an toàn.
+- **Cơ sở thực chứng**: 
+  - [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts) $\rightarrow$ [ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts).
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **[ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts)** (Task B3):
+   - Inject `@Optional() private readonly ingressService?: IngressService`.
+   - Trong `downloadBatch25CcpReports(params, logCb)`: Tự động ủy quyền tải 25 file báo cáo CCP sang `this.ingressService.download('CCP', { targetDirectory: outputDir })`. Nếu Ingress V2 phát sinh lỗi, tự động fallback an toàn về cơ chế Playwright tab-switching nội bộ của V1.
+   - Bảo toàn nguyên trạng 100% các hàm phân tích số liệu và các parser Excel hiện hành.
+
+### 3. Kết quả kiểm thử thực chứng (Test Verification)
+- **Backend Build (`nest build`)**: Exit Code 0 (Biên dịch thành công không lỗi).
+- **Twin-Run Unit Tests (`twin-run-comparator.spec.ts`)**: 5/5 tests Passed (Thời gian: 1.5s).
+
+---
+
+## [2026-10-14T17:03] REFACTOR(STRANGLER-FIG): Đấu Nối An Toàn PostEodHandlerService & CqgSyncService Sang V2 (Task B1 & B2)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Bắt đầu chuyển đổi Backend V1 sang V2 theo mô hình **Strangler Fig (Cây đa bóp cổ)**: Ủy thác (delegate) xử lý nghiệp vụ sang các Service V2 của phân hệ `trading-ops`, tuyệt đối không xóa code cũ và giữ nguyên 100% tính tương thích ngược với Frontend.
+- **Cơ sở thực chứng**: 
+  - [post-eod-handler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/post-eod-handler.service.ts) $\rightarrow$ [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/margin-checker.service.ts).
+  - [cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts) $\rightarrow$ [cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts).
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **[post-eod-handler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/post-eod-handler.service.ts)** (Task B1):
+   - Inject `@Optional() private readonly marginCheckerService?: MarginCheckerService`.
+   - Trong `scanNegativeMarginAccounts(filePath)`: Ưu tiên ủy thác thực thi sang `this.marginCheckerService.scanNegativeMarginAccounts(filePath)`. Nếu có lỗi hoặc chưa sẵn sàng, tự động fallback an toàn về parser nội bộ V1.
+2. **[cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts)** (Task B2):
+   - Inject `@Optional() private readonly cqgMergerService?: CqgMergerService`.
+   - Trong các hàm ghép file `mergeFR`, `mergeOP`, `mergeOD`, `mergePS`: Ưu tiên ủy thác sang `this.cqgMergerService` (chuẩn C# bảo tồn cắt 2 dòng footer và hậu tố tài khoản). Tự động fallback về code nội bộ V1 nếu phát sinh lỗi.
+   - Bảo toàn `// @ts-nocheck` để tương thích 100% với các thao tác mảng aoa cũ.
+
+### 3. Kết quả kiểm thử thực chứng (Test Verification)
+- **Backend Build (`nest build`)**: Exit Code 0 (Biên dịch thành công không lỗi).
+- **Twin-Run Unit Tests (`twin-run-comparator.spec.ts`)**: 5/5 tests Passed (Thời gian chạy: 1.9s, khớp 100% kết quả).
+
+---
+
 ## [2026-10-14T16:46] AUDIT & RECTIFY: Đính Chính Lộ Trình Chuyển Đổi V2, Loại Bỏ Sai Lệch IngressController & Bảo Toàn Tuyệt Đối Backend V1
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

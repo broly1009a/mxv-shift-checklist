@@ -5,34 +5,56 @@ import { decrypt } from '../../modules/bot-engine/utils/crypto';
 
 /**
  * Chuyển đổi đường dẫn lưu trữ đa nền tảng (Windows UNC / Drive Letter <-> Linux Mount /mnt/qlgd-it)
+ * Đồng bộ chuẩn 100% với bot-path.helper.ts để đảm bảo nhận diện chính xác cấu trúc thư mục Quanlygiaodich
  */
 export function resolveStoragePathCrossPlatform(rawPath: string): string {
   if (!rawPath) return rawPath;
-  let p = rawPath.trim();
 
-  // If running on Linux/macOS and path starts with a Windows drive letter or UNC path
+  const linuxMountBase = (process.env.STORAGE_MOUNT_LINUX || '/mnt/qlgd-it')
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
+  const windowsShareBase = (process.env.STORAGE_SHARE_WINDOWS || 'M:\\Tailieuchung\\QLGD-IT')
+    .replace(/[/\\]+$/, '');
+
+  const normalized = rawPath.replace(/\\/g, '/');
+
   if (process.platform !== 'win32') {
-    // Replace backslashes with forward slashes
-    p = p.replace(/\\/g, '/');
-
-    // Handle M:\ or M:/ (Mercantile Exchange shared drive) -> /mnt/qlgd-it/
-    if (/^[a-zA-Z]:\//i.test(p)) {
-      p = p.replace(/^[a-zA-Z]:\//i, '/mnt/qlgd-it/');
-    } else if (p.startsWith('//')) {
-      // Handle UNC path: //10.0.0.x/... or //server/...
-      const uncMatch = p.match(/^\/\/[^/]+\/[^/]+\/(.*)$/);
-      if (uncMatch) {
-        p = '/mnt/qlgd-it/' + uncMatch[1];
-      }
+    // UNC path like //10.0.0.26/Tailieuchung/QLGD-IT/...
+    const uncMatch = normalized.match(/^\/\/[^/]+\/(?:tailieuchung\/qlgd-it\/|tailieuchung\/)?(.*)$/i);
+    if (uncMatch) {
+      return `${linuxMountBase}/${uncMatch[1]}`.replace(/\/+/g, '/');
     }
+
+    const qlgdMatch = normalized.match(/(?:^|\/)(quanlygiaodich\/.*)$/i);
+    if (qlgdMatch) {
+      return `${linuxMountBase}/${qlgdMatch[1]}`.replace(/\/+/g, '/');
+    }
+    if (/^[a-zA-Z]:\/tailieuchung\/qlgd-it\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/tailieuchung\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
+    }
+    if (/^[a-zA-Z]:\/qlgd-it\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
+    }
+    if (/^\/mnt\/oc-uat\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^\/mnt\/oc-uat\//i, '')}`.replace(/\/+/g, '/');
+    }
+    if (/^m:\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^m:\//i, '')}`.replace(/\/+/g, '/');
+    }
+    return normalized;
   } else {
-    // If running on Windows and path starts with /mnt/qlgd-it/
-    if (p.startsWith('/mnt/qlgd-it/')) {
-      p = p.replace(/^\/mnt\/qlgd-it\//, 'M:/').replace(/\//g, '\\');
+    // Windows
+    const linuxBaseSlash = linuxMountBase.toLowerCase();
+    if (normalized.toLowerCase().startsWith(linuxBaseSlash)) {
+      const remainder = normalized.slice(linuxBaseSlash.length).replace(/^\/+/, '');
+      return path.join(windowsShareBase, remainder);
     }
+    if (normalized.toLowerCase().startsWith('/mnt/oc-uat')) {
+      const remainder = normalized.slice('/mnt/oc-uat'.length).replace(/^\/+/, '');
+      return path.join(windowsShareBase, remainder);
+    }
+    return path.normalize(rawPath);
   }
-
-  return p;
 }
 
 /**

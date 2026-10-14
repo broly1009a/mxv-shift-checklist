@@ -422,6 +422,38 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     try {
       const handler = this.registry.getHandler(job.jobType);
       if (!handler) {
+        if (this.botDispatcher) {
+          const contextPayload = parseJobPayload(job);
+          const capabilityKey = contextPayload.botCheckType || job.jobType;
+          this.logger.log(
+            `[BotJobQueue-Facade] Không tìm thấy V1 Handler cho ${job.jobType}, ủy thác sang BotDispatcherService V2 (${capabilityKey})...`,
+          );
+          const taskContext = {
+            taskId: contextPayload.taskId || `JOB_${job._id}`,
+            botCheckType: capabilityKey,
+            shiftId: contextPayload.shiftLogId,
+            targetDate: contextPayload.targetDate || contextPayload.sessionDay,
+            parameters: contextPayload,
+          };
+          const dispatchRes = await this.botDispatcher.dispatch(taskContext);
+          job.logs.push(
+            `[${new Date().toISOString()}] [BotDispatcher V2] ${dispatchRes.summary}`,
+          );
+          job.payload = { ...contextPayload, result: dispatchRes };
+          await job.save();
+
+          const freshJob = await this.botJobModel.findById(job._id).select('status').exec();
+          if (freshJob?.status === 'CANCELLED') {
+            this.logger.log(`[QUEUE] Job ${job.jobType} (${job._id}) đã bị hủy giữa chừng.`);
+            return;
+          }
+
+          await this.syncJobToChecklist(job, 'COMPLETED');
+          this.logger.log(
+            `Job ${job.jobType} (ID: ${job._id}) hoàn thành thành công qua BotDispatcher V2.`,
+          );
+          return;
+        }
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
 

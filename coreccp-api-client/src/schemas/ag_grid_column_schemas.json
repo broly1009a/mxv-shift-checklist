@@ -1,0 +1,3214 @@
+{
+  "ACCTMARGIN_ALL": {
+    "screenId": "acctmargin_all",
+    "screenName": "Quản lý TT TKGD (QL TT TKGD.xlsx)",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "tab": "Danh sách trạng thái TKGD",
+    "expectedFileName": "QL TT TKGD.xlsx",
+    "totalColumns": 49,
+    "columns": [
+      {
+        "key": "INVESTORCODE",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã TVKD"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên TVKD"
+      },
+      {
+        "key": "STATUS",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "RTT",
+        "header": "Tỷ lệ ký quỹ (%)"
+      },
+      {
+        "key": "IMCASH",
+        "header": "Số dư TKKQ"
+      },
+      {
+        "key": "REQADDSECURED",
+        "header": "Mức bổ sung ký quỹ"
+      },
+      {
+        "key": "REQSECURED",
+        "header": "KQ ban đầu yêu cầu"
+      },
+      {
+        "key": "REQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu (USD)"
+      },
+      {
+        "key": "EREQSECURED",
+        "header": "KQ ban đầu yêu cầu tạm tính"
+      },
+      {
+        "key": "EREQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu tạm tính (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F",
+        "header": "Lãi lỗ thực tế Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F",
+        "header": "Lãi lỗ thực tế Future (USD)"
+      },
+      {
+        "key": "EVRPLAMT_F",
+        "header": "Lãi lỗ dự kiến Future (VND)"
+      },
+      {
+        "key": "EVRPLAMT_USD_F",
+        "header": "Lãi lỗ dự kiến Future (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (USD)"
+      },
+      {
+        "key": "NAV",
+        "header": "Giá trị ròng ký quỹ"
+      },
+      {
+        "key": "NAV_USD",
+        "header": "Giá trị ròng ký quỹ (USD)"
+      },
+      {
+        "key": "AVLSECURED",
+        "header": "Ký quỹ khả dụng tạm tính"
+      },
+      {
+        "key": "AVLSECURED_EXEC",
+        "header": "Ký quỹ khả dụng"
+      },
+      {
+        "key": "AVLSECURED_USD",
+        "header": "Ký quỹ khả dụng (USD)"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "NETAMT",
+        "header": "Nộp rút trong phiên"
+      },
+      {
+        "key": "NETAMT_USD",
+        "header": "Nộp rút trong phiên (USD)"
+      },
+      {
+        "key": "DELIVERY_MARGIN",
+        "header": "Ký quỹ giao nhận"
+      },
+      {
+        "key": "DELIVERY_FEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "SUBSTITUTE_FEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "PAID_SETTLEMENT_FEEAMT",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán đáo hạn bằng tiền"
+      },
+      {
+        "key": "EVRPLAMT_LTD_BUYSELLRATE",
+        "header": "Lãi lỗ vị thế đáo hạn"
+      },
+      {
+        "key": "BOD_IMCASH",
+        "header": "Số dư đầu ngày"
+      },
+      {
+        "key": "BOD_IMCASH_USD",
+        "header": "Số dư đầu ngày (USD)"
+      },
+      {
+        "key": "EOD_IMCASH",
+        "header": "Số dư cuối ngày"
+      },
+      {
+        "key": "EOD_IMCASH_USD",
+        "header": "Số dư cuối ngày (USD)"
+      },
+      {
+        "key": "SECURED_PROCESS_METHOD",
+        "header": "Phương thức xử lý"
+      },
+      {
+        "key": "OPTION_FEE",
+        "header": "Phí quyền chọn"
+      },
+      {
+        "key": "OPTION_FEE_VSD",
+        "header": "Phí quyền chọn (USD)"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_USD",
+        "header": "MVO (USD)"
+      },
+      {
+        "key": "RVRPLAMT_WFM",
+        "header": "Lãi lỗ chờ đáo hạn"
+      },
+      {
+        "key": "RVRPLAMT_WFM_USD",
+        "header": "Lãi lỗ chờ đáo hạn (USD)"
+      },
+      {
+        "key": "RVRPLAMT_OPTION",
+        "header": "Lãi lỗ Options"
+      },
+      {
+        "key": "RVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ Options (USD)"
+      },
+      {
+        "key": "EVRPLAMT_OPTION",
+        "header": "Lãi lỗ dự kiến Options"
+      },
+      {
+        "key": "EVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ dự kiến Options (USD)"
+      },
+      {
+        "key": "BOD_EIMCASH",
+        "header": "Số dư đầu ngày tạm tính"
+      },
+      {
+        "key": "BOD_EIMCASH_USD",
+        "header": "Số dư đầu ngày tạm tính (USD)"
+      }
+    ]
+  },
+  "ORDERBOOK": {
+    "screenId": "orderbook",
+    "screenName": "Sổ lệnh - Tất cả (DSL CCP)",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Tất cả",
+    "expectedFileName": "DSL CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian thực hiện"
+      }
+    ]
+  },
+  "ORDERBOOK_MATCH": {
+    "screenId": "orderbook_match",
+    "screenName": "Sổ lệnh - Đã khớp (DSLDK CCP)",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Lệnh đã khớp",
+    "expectedFileName": "DSLDK CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian khớp lệnh"
+      }
+    ]
+  },
+  "ORDERBOOK_PENDING": {
+    "screenId": "orderbook_pending",
+    "screenName": "Sổ lệnh - Chờ khớp (DSLCK CCP)",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Lệnh chờ khớp",
+    "expectedFileName": "DSLCK CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian thực hiện"
+      }
+    ]
+  },
+  "ORDERBOOK_CANCEL": {
+    "screenId": "orderbook_cancel",
+    "screenName": "Sổ lệnh - Đã hủy (DSLDH CCP)",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Lệnh đã hủy",
+    "expectedFileName": "DSLDH CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian hủy lệnh"
+      }
+    ]
+  },
+  "ORDERMATCH_DETAIL": {
+    "screenId": "ordermatch_detail",
+    "screenName": "Khớp lệnh chi tiết (DSGD CCP)",
+    "route": "/ORDERS/ORDERMATCH_DETAIL",
+    "tab": "",
+    "expectedFileName": "DSGD CCP.xlsx",
+    "totalColumns": 27,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "EXECID",
+        "header": "Mã giao dịch OMS"
+      },
+      {
+        "key": "EXCHANGEEXECID",
+        "header": "Mã giao dịch EX"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian khớp lệnh"
+      }
+    ]
+  },
+  "ORDERBOOK_MM": {
+    "screenId": "orderbook_mm",
+    "screenName": "Sổ lệnh MM - Tất cả (DSL MM CCP)",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Tất cả",
+    "expectedFileName": "DSL MM CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian thực hiện"
+      }
+    ]
+  },
+  "ORDERBOOK_MATCH_MM": {
+    "screenId": "orderbook_match_mm",
+    "screenName": "Sổ lệnh MM - Đã khớp (DSLDK MM CCP)",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Lệnh đã khớp",
+    "expectedFileName": "DSLDK MM CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian khớp lệnh"
+      }
+    ]
+  },
+  "ORDERBOOK_PENDING_MM": {
+    "screenId": "orderbook_pending_mm",
+    "screenName": "Sổ lệnh MM - Chờ khớp (DSLCK MM CCP)",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Lệnh chờ khớp",
+    "expectedFileName": "DSLCK MM CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian thực hiện"
+      }
+    ]
+  },
+  "ORDERBOOK_CANCEL_MM": {
+    "screenId": "orderbook_cancel_mm",
+    "screenName": "Sổ lệnh MM - Đã hủy (DSLDH MM CCP)",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Lệnh đã hủy",
+    "expectedFileName": "DSLDH MM CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian hủy lệnh"
+      }
+    ]
+  },
+  "ORDERBOOK_ALL_MM": {
+    "screenId": "orderbook_all_mm",
+    "screenName": "Lịch sử giao dịch MM (DSGD MM CCP)",
+    "route": "/ORDERS/ORDERBOOK_ALL_MM",
+    "tab": "",
+    "expectedFileName": "DSGD MM CCP.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày hệ thống"
+      },
+      {
+        "key": "SESSION_DATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "ROOTORDERID",
+        "header": "ClorID MXV"
+      },
+      {
+        "key": "REQUESTID",
+        "header": "ClorID TVKD"
+      },
+      {
+        "key": "ODORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "AFACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã HĐ"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "SIDE_DESC",
+        "header": "Mua/Bán"
+      },
+      {
+        "key": "PRICETYPE_DESC",
+        "header": "Loại lệnh"
+      },
+      {
+        "key": "QTTY",
+        "header": "KL đặt"
+      },
+      {
+        "key": "EXECQTTY",
+        "header": "KL khớp"
+      },
+      {
+        "key": "PRICE",
+        "header": "Giá đặt"
+      },
+      {
+        "key": "STOP_PRICE",
+        "header": "Giá dừng"
+      },
+      {
+        "key": "EXECPRICE",
+        "header": "Giá khớp trung bình"
+      },
+      {
+        "key": "REMAINQTTY",
+        "header": "KL còn lại"
+      },
+      {
+        "key": "CANCELQTTY",
+        "header": "KL hủy"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "TRANSACTTIME",
+        "header": "Thời gian đặt"
+      },
+      {
+        "key": "TIMETYPE_DESC",
+        "header": "Hiệu lực"
+      },
+      {
+        "key": "TRADINGEXCHANGE_DESC",
+        "header": "Sàn giao dịch"
+      },
+      {
+        "key": "EXPDATE",
+        "header": "Ngày hiệu lực"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TLNAME",
+        "header": "Người đặt lệnh"
+      },
+      {
+        "key": "UPDATETIME",
+        "header": "Thời gian thực hiện"
+      }
+    ]
+  },
+  "OPEN_POSITION_EXPORT": {
+    "screenId": "open_position_export",
+    "screenName": "Vị thế mở (TTM CCP)",
+    "route": "/ORDERS/OPEN_POSITION",
+    "tab": "",
+    "expectedFileName": "TTM CCP.xlsx",
+    "totalColumns": 24,
+    "columns": [
+      {
+        "key": "SYMBOL",
+        "header": "Mã hợp đồng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBER_NAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "ACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên KH"
+      },
+      {
+        "key": "INS_NAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "MARKETPRICE",
+        "header": "Giá thị trường"
+      },
+      {
+        "key": "LONGQTTY",
+        "header": "Khối lượng mua"
+      },
+      {
+        "key": "SHORTQTTY",
+        "header": "Khối lượng bán"
+      },
+      {
+        "key": "REMAIN_LQTTY",
+        "header": "KL Mua chờ khớp"
+      },
+      {
+        "key": "REMAIN_SQTTY",
+        "header": "KL Bán chờ khớp"
+      },
+      {
+        "key": "VWAP",
+        "header": "Giá TB"
+      },
+      {
+        "key": "EVRPLAMT",
+        "header": "Lãi lỗ dự kiến"
+      },
+      {
+        "key": "EVRPLAMT_VND",
+        "header": "Lãi lỗ dự kiến(VND)"
+      },
+      {
+        "key": "ORDERID",
+        "header": "Mã lệnh"
+      },
+      {
+        "key": "EXECID",
+        "header": "Mã giao dịch OMS"
+      },
+      {
+        "key": "EXCHANGEEXECID",
+        "header": "Mã giao dịch EX"
+      },
+      {
+        "key": "TIME_CREATED",
+        "header": "Ngày giờ đặt lệnh"
+      },
+      {
+        "key": "TXDATE",
+        "header": "Ngày giờ thực hiện"
+      },
+      {
+        "key": "FCM_ID",
+        "header": "Mã FCM"
+      },
+      {
+        "key": "FCM_NAME",
+        "header": "Tên FCM"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_VND",
+        "header": "MVO (VND)"
+      }
+    ]
+  },
+  "PNL_EXECUTED": {
+    "screenId": "pnl_executed",
+    "screenName": "Lịch sử tất toán (TTTT)",
+    "route": "/ORDERS/PNL_EXECUTED",
+    "tab": "Lịch sử tất toán",
+    "expectedFileName": "TTTT.xlsx",
+    "totalColumns": 31,
+    "columns": [
+      {
+        "key": "SYMBOL",
+        "header": "Mã hợp đồng"
+      },
+      {
+        "key": "PNLEXCUTED_USD",
+        "header": "Lãi lỗ thực tế"
+      },
+      {
+        "key": "PNLEXCUTED_VND",
+        "header": "Lãi lỗ thực tế(VND)"
+      },
+      {
+        "key": "MEMBERID",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã KH"
+      },
+      {
+        "key": "ACCTNO",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên KH"
+      },
+      {
+        "key": "INS_FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "LONGQTTY",
+        "header": "Khối lượng mua"
+      },
+      {
+        "key": "SHORTQTTY",
+        "header": "Khối lượng bán"
+      },
+      {
+        "key": "BUYPRICE",
+        "header": "Giá mua"
+      },
+      {
+        "key": "SELLPRICE",
+        "header": "Giá bán"
+      },
+      {
+        "key": "ID_BUY",
+        "header": "Mã lệnh mua"
+      },
+      {
+        "key": "ID_SELL",
+        "header": "Mã lệnh bán"
+      },
+      {
+        "key": "FCM_ID",
+        "header": "Mã FCM"
+      },
+      {
+        "key": "FCM_NAME",
+        "header": "Tên FCM"
+      },
+      {
+        "key": "PART_ID",
+        "header": "Mã ĐT"
+      },
+      {
+        "key": "PART_NAME",
+        "header": "Tên ĐT"
+      },
+      {
+        "key": "TIME_CREATED",
+        "header": "Ngày giờ đặt lệnh mở vị thế"
+      },
+      {
+        "key": "EXECTIME_OPEN",
+        "header": "Ngày giờ khớp lệnh mở"
+      },
+      {
+        "key": "TIMECREATE_CLOSE",
+        "header": "Ngày giờ đặt lệnh đóng"
+      },
+      {
+        "key": "MATCHTIME",
+        "header": "Ngày giờ ghép"
+      },
+      {
+        "key": "TXDATE",
+        "header": "Ngày phiên"
+      },
+      {
+        "key": "SETTLEMENT_VND",
+        "header": "Phí dịch vụ thanh toán (VND)"
+      },
+      {
+        "key": "SETTLEMENT_USD",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "EXECID_BUY",
+        "header": "Mã giao dịch mua OMS"
+      },
+      {
+        "key": "EXECID_SELL",
+        "header": "Mã giao dịch bán OMS"
+      },
+      {
+        "key": "EX_EXECID_BUY",
+        "header": "Mã giao dịch mua EX"
+      },
+      {
+        "key": "EX_EXECID_SELL",
+        "header": "Mã giao dịch bán EX"
+      },
+      {
+        "key": "CLOSE_SIDE",
+        "header": "Chiều mở vị thế"
+      }
+    ]
+  },
+  "MEMBERMARGIN_ALL": {
+    "screenId": "membermargin_all",
+    "screenName": "Quản lý TT TVKD (QL TT TVKD.xlsx)",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "tab": "Danh sách trạng thái TKTVKD",
+    "expectedFileName": "QL TT TVKD.xlsx",
+    "totalColumns": 48,
+    "columns": [
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã TVKD"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên TVKD"
+      },
+      {
+        "key": "ACTYPE",
+        "header": "Loại hình tiểu khoản"
+      },
+      {
+        "key": "STATUS",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "RTT",
+        "header": "Tỷ lệ ký quỹ (%)"
+      },
+      {
+        "key": "IMCASH",
+        "header": "Số dư TKKQ hiện tại"
+      },
+      {
+        "key": "REQADDSECURED",
+        "header": "Mức bổ sung ký quỹ"
+      },
+      {
+        "key": "REQSECURED",
+        "header": "KQ ban đầu yêu cầu"
+      },
+      {
+        "key": "REQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu (USD)"
+      },
+      {
+        "key": "EREQSECURED",
+        "header": "KQ ban đầu yêu cầu tạm tính"
+      },
+      {
+        "key": "EREQSECURED_USD",
+        "header": "KQ ban đầu yều cầu tạm tính (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F",
+        "header": "Lãi lỗ thực tế Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F",
+        "header": "Lãi lỗ thực tế Future (USD)"
+      },
+      {
+        "key": "EVRPLAMT_F",
+        "header": "Lãi lỗ dự kiến Future (VND)"
+      },
+      {
+        "key": "EVRPLAMT_USD_F",
+        "header": "Lãi lỗ dự kiến Future (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (USD)"
+      },
+      {
+        "key": "NAV",
+        "header": "Giá trị ròng ký quỹ"
+      },
+      {
+        "key": "NAV_USD",
+        "header": "Giá trị ròng ký quỹ (USD)"
+      },
+      {
+        "key": "AVLSECURED",
+        "header": "Ký quỹ khả dụng tạm tính"
+      },
+      {
+        "key": "AVLSECURED_EXEC",
+        "header": "Ký quỹ khả dụng"
+      },
+      {
+        "key": "AVLSECURED_USD",
+        "header": "Ký quỹ khả dụng (USD)"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "DELIVERY_MARGIN",
+        "header": "Ký quỹ giao nhận"
+      },
+      {
+        "key": "DELIVERY_FEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "SUBSTITUTE_FEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "PAID_SETTLEMENT_FEEAMT",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán đáo hạn bằng tiền"
+      },
+      {
+        "key": "EVRPLAMT_LTD_BUYSELLRATE",
+        "header": "Lãi lỗ vị thế đáo hạn"
+      },
+      {
+        "key": "NETAMT",
+        "header": "Nộp rút trong phiên"
+      },
+      {
+        "key": "NETAMT_USD",
+        "header": "Nộp rút trong phiên (USD)"
+      },
+      {
+        "key": "BOD_IMCASH",
+        "header": "Số dư đầu ngày"
+      },
+      {
+        "key": "BOD_IMCASH_USD",
+        "header": "Số dư đầu ngày (USD)"
+      },
+      {
+        "key": "EOD_IMCASH",
+        "header": "Số dư cuối ngày"
+      },
+      {
+        "key": "EOD_IMCASH_USD",
+        "header": "Số dư cuối ngày (USD)"
+      },
+      {
+        "key": "SECURED_PROCESS_METHOD",
+        "header": "Phương thức xử lý"
+      },
+      {
+        "key": "OPTION_FEE",
+        "header": "Phí quyền chọn"
+      },
+      {
+        "key": "OPTION_FEE_VSD",
+        "header": "Phí quyền chọn (USD)"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_USD",
+        "header": "MVO (USD)"
+      },
+      {
+        "key": "RVRPLAMT_WFM",
+        "header": "Lãi lỗ chờ đáo hạn"
+      },
+      {
+        "key": "RVRPLAMT_WFM_USD",
+        "header": "Lãi lỗ chờ đáo hạn (USD)"
+      },
+      {
+        "key": "RVRPLAMT_OPTION",
+        "header": "Lãi lỗ Options"
+      },
+      {
+        "key": "RVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ Options (USD)"
+      },
+      {
+        "key": "EVRPLAMT_OPTION",
+        "header": "Lãi lỗ dự kiến Options"
+      },
+      {
+        "key": "EVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ dự kiến Options (USD)"
+      },
+      {
+        "key": "BOD_EIMCASH",
+        "header": "Số dư đầu ngày tạm tính"
+      },
+      {
+        "key": "BOD_EIMCASH_USD",
+        "header": "Số dư đầu ngày tạm tính (USD)"
+      }
+    ]
+  },
+  "MARGIN_MNG_TRANSACTION": {
+    "screenId": "acctmargin_pos_tkgd",
+    "screenName": "Quản lý ký quỹ TKGD (DSQLKQ TKGD.xlsx)",
+    "route": "/RISKMNG/ACCTMARGIN_POS",
+    "tab": "Danh sách ký quỹ TKGD",
+    "expectedFileName": "DSQLKQ TKGD.xlsx",
+    "totalColumns": 49,
+    "columns": [
+      {
+        "key": "INVESTORCODE",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã TVKD"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên TVKD"
+      },
+      {
+        "key": "STATUS",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "RTT",
+        "header": "Tỷ lệ ký quỹ (%)"
+      },
+      {
+        "key": "IMCASH",
+        "header": "Số dư TKKQ"
+      },
+      {
+        "key": "REQADDSECURED",
+        "header": "Mức bổ sung ký quỹ"
+      },
+      {
+        "key": "REQSECURED",
+        "header": "KQ ban đầu yêu cầu"
+      },
+      {
+        "key": "REQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu (USD)"
+      },
+      {
+        "key": "EREQSECURED",
+        "header": "KQ ban đầu yêu cầu tạm tính"
+      },
+      {
+        "key": "EREQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu tạm tính (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F",
+        "header": "Lãi lỗ thực tế Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F",
+        "header": "Lãi lỗ thực tế Future (USD)"
+      },
+      {
+        "key": "EVRPLAMT_F",
+        "header": "Lãi lỗ dự kiến Future (VND)"
+      },
+      {
+        "key": "EVRPLAMT_USD_F",
+        "header": "Lãi lỗ dự kiến Future (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (USD)"
+      },
+      {
+        "key": "NAV",
+        "header": "Giá trị ròng ký quỹ"
+      },
+      {
+        "key": "NAV_USD",
+        "header": "Giá trị ròng ký quỹ (USD)"
+      },
+      {
+        "key": "AVLSECURED",
+        "header": "Ký quỹ khả dụng tạm tính"
+      },
+      {
+        "key": "AVLSECURED_EXEC",
+        "header": "Ký quỹ khả dụng"
+      },
+      {
+        "key": "AVLSECURED_USD",
+        "header": "Ký quỹ khả dụng (USD)"
+      },
+      {
+        "key": "DELIVERY_MARGIN",
+        "header": "Ký quỹ giao nhận"
+      },
+      {
+        "key": "PAID_SETTLEMENT_FEEAMT",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán đáo hạn bằng tiền"
+      },
+      {
+        "key": "EVRPLAMT_LTD_BUYSELLRATE",
+        "header": "Lãi lỗ vị thế đáo hạn"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "DELIVERY_FEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "NETAMT",
+        "header": "Nộp rút trong phiên"
+      },
+      {
+        "key": "SUBSTITUTE_FEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "NETAMT_USD",
+        "header": "Nộp rút trong phiên (USD)"
+      },
+      {
+        "key": "BOD_IMCASH",
+        "header": "Số dư đầu ngày"
+      },
+      {
+        "key": "BOD_IMCASH_USD",
+        "header": "Số dư đầu ngày (USD)"
+      },
+      {
+        "key": "EOD_IMCASH",
+        "header": "Số dư cuối ngày"
+      },
+      {
+        "key": "EOD_IMCASH_USD",
+        "header": "Số dư cuối ngày (USD)"
+      },
+      {
+        "key": "SECURED_PROCESS_METHOD",
+        "header": "Phương thức xử lý"
+      },
+      {
+        "key": "OPTION_FEE",
+        "header": "Phí quyền chọn"
+      },
+      {
+        "key": "OPTION_FEE_VSD",
+        "header": "Phí quyền chọn (USD)"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_USD",
+        "header": "MVO (USD)"
+      },
+      {
+        "key": "RVRPLAMT_WFM",
+        "header": "Lãi lỗ chờ đáo hạn"
+      },
+      {
+        "key": "RVRPLAMT_WFM_USD",
+        "header": "Lãi lỗ chờ đáo hạn (USD)"
+      },
+      {
+        "key": "RVRPLAMT_OPTION",
+        "header": "Lãi lỗ Options"
+      },
+      {
+        "key": "RVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ Options (USD)"
+      },
+      {
+        "key": "EVRPLAMT_OPTION",
+        "header": "Lãi lỗ dự kiến Options"
+      },
+      {
+        "key": "EVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ dự kiến Options (USD)"
+      },
+      {
+        "key": "BOD_EIMCASH",
+        "header": "Số dư đầu ngày tạm tính"
+      },
+      {
+        "key": "BOD_EIMCASH_USD",
+        "header": "Số dư đầu ngày tạm tính (USD)"
+      }
+    ]
+  },
+  "MARGIN_MNG_MEMBER": {
+    "screenId": "acctmargin_pos_tvkd",
+    "screenName": "Quản lý ký quỹ TVKD (DSQLKQ TVKD.xlsx)",
+    "route": "/RISKMNG/ACCTMARGIN_POS",
+    "tab": "Danh sách ký quỹ TKTVKD",
+    "expectedFileName": "DSQLKQ TVKD.xlsx",
+    "totalColumns": 48,
+    "columns": [
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã TVKD"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên TVKD"
+      },
+      {
+        "key": "ACTYPE",
+        "header": "Loại hình tiểu khoản"
+      },
+      {
+        "key": "STATUS",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "RTT",
+        "header": "Tỷ lệ ký quỹ (%)"
+      },
+      {
+        "key": "IMCASH",
+        "header": "Số dư TKKQ hiện tại"
+      },
+      {
+        "key": "REQADDSECURED",
+        "header": "Mức bổ sung ký quỹ"
+      },
+      {
+        "key": "REQSECURED",
+        "header": "KQ ban đầu yêu cầu"
+      },
+      {
+        "key": "REQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu (USD)"
+      },
+      {
+        "key": "EREQSECURED",
+        "header": "KQ ban đầu yêu cầu tạm tính"
+      },
+      {
+        "key": "EREQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu tạm tính (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F",
+        "header": "Lãi lỗ thực tế Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F",
+        "header": "Lãi lỗ thực tế Future (USD)"
+      },
+      {
+        "key": "EVRPLAMT_F",
+        "header": "Lãi lỗ dự kiến Future (VND)"
+      },
+      {
+        "key": "EVRPLAMT_USD_F",
+        "header": "Lãi lỗ dự kiến Future (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (USD)"
+      },
+      {
+        "key": "NAV",
+        "header": "Giá trị ròng ký quỹ"
+      },
+      {
+        "key": "NAV_USD",
+        "header": "Giá trị ròng ký quỹ (USD)"
+      },
+      {
+        "key": "AVLSECURED",
+        "header": "Ký quỹ khả dụng tạm tính"
+      },
+      {
+        "key": "AVLSECURED_EXEC",
+        "header": "Ký quỹ khả dụng"
+      },
+      {
+        "key": "AVLSECURED_USD",
+        "header": "Ký quỹ khả dụng (USD)"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "DELIVERY_MARGIN",
+        "header": "Ký quỹ giao nhận"
+      },
+      {
+        "key": "DELIVERY_FEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "SUBSTITUTE_FEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "PAID_SETTLEMENT_FEEAMT",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán đáo hạn bằng tiền"
+      },
+      {
+        "key": "EVRPLAMT_LTD_BUYSELLRATE",
+        "header": "Lãi lỗ vị thế đáo hạn"
+      },
+      {
+        "key": "NETAMT",
+        "header": "Nộp rút trong phiên"
+      },
+      {
+        "key": "NETAMT_USD",
+        "header": "Nộp rút trong phiên (USD)"
+      },
+      {
+        "key": "BOD_IMCASH",
+        "header": "Số dư đầu ngày"
+      },
+      {
+        "key": "BOD_IMCASH_USD",
+        "header": "Số dư đầu ngày (USD)"
+      },
+      {
+        "key": "EOD_IMCASH",
+        "header": "Số dư cuối ngày"
+      },
+      {
+        "key": "EOD_IMCASH_USD",
+        "header": "Số dư cuối ngày (USD)"
+      },
+      {
+        "key": "SECURED_PROCESS_METHOD",
+        "header": "Phương thức xử lý"
+      },
+      {
+        "key": "OPTION_FEE",
+        "header": "Phí quyền chọn"
+      },
+      {
+        "key": "OPTION_FEE_VSD",
+        "header": "Phí quyền chọn (USD)"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_USD",
+        "header": "MVO (USD)"
+      },
+      {
+        "key": "RVRPLAMT_WFM",
+        "header": "Lãi lỗ chờ đáo hạn"
+      },
+      {
+        "key": "RVRPLAMT_WFM_USD",
+        "header": "Lãi lỗ chờ đáo hạn (USD)"
+      },
+      {
+        "key": "RVRPLAMT_OPTION",
+        "header": "Lãi lỗ Options"
+      },
+      {
+        "key": "RVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ Options (USD)"
+      },
+      {
+        "key": "EVRPLAMT_OPTION",
+        "header": "Lãi lỗ dự kiến Options"
+      },
+      {
+        "key": "EVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ dự kiến Options (USD)"
+      },
+      {
+        "key": "BOD_EIMCASH",
+        "header": "Số dư đầu ngày tạm tính"
+      },
+      {
+        "key": "BOD_EIMCASH_USD",
+        "header": "Số dư đầu ngày tạm tính (USD)"
+      }
+    ]
+  },
+  "CASHTRANFER_HIST": {
+    "screenId": "cashtranfer_hist",
+    "screenName": "Lịch sử nộp rút tiền (NR.xlsx)",
+    "route": "/CASHTRANFER/CASHTRANFER_HIST",
+    "tab": "",
+    "expectedFileName": "NR.xlsx",
+    "totalColumns": 14,
+    "columns": [
+      {
+        "key": "TXDATE",
+        "header": "Ngày yêu cầu"
+      },
+      {
+        "key": "MEMBER_CODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBER_NAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "ACCTNO",
+        "header": "Số TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Họ và tên"
+      },
+      {
+        "key": "TYPE",
+        "header": "Loại giao dịch"
+      },
+      {
+        "key": "AMOUNT",
+        "header": "Số tiền nộp/rút"
+      },
+      {
+        "key": "CURRENCY",
+        "header": "Tiền tệ"
+      },
+      {
+        "key": "MAKERDT",
+        "header": "Ngày tạo"
+      },
+      {
+        "key": "MAKERTM",
+        "header": "Giờ tạo"
+      },
+      {
+        "key": "MAKERNAME",
+        "header": "Người tạo"
+      },
+      {
+        "key": "CHECKERDT",
+        "header": "Ngày duyệt"
+      },
+      {
+        "key": "CHECKERTM",
+        "header": "Giờ duyệt"
+      },
+      {
+        "key": "CHECKERNAME",
+        "header": "Người duyệt"
+      }
+    ]
+  },
+  "ACCOUNTS_INFO": {
+    "screenId": "accounts_info",
+    "screenName": "Danh sách tài khoản (DSTKGD ACM.xlsx)",
+    "route": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "tab": "",
+    "expectedFileName": "DSTKGD ACM.xlsx",
+    "totalColumns": 16,
+    "columns": [
+      {
+        "key": "CUSTODYCD",
+        "header": "Mã khách hàng"
+      },
+      {
+        "key": "INVESTORCODE",
+        "header": "Số TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên khách hàng"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã thành viên"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên thành viên"
+      },
+      {
+        "key": "TRADESEGMENT_DESC",
+        "header": "Loại tiểu khoản"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái tiểu khoản"
+      },
+      {
+        "key": "OPENEDDATE",
+        "header": "Ngày mở"
+      },
+      {
+        "key": "CLOSEDDATE",
+        "header": "Ngày đóng"
+      },
+      {
+        "key": "ACTYPE",
+        "header": "Loại hình"
+      },
+      {
+        "key": "IMBASKETID",
+        "header": "Rổ ký quỹ"
+      },
+      {
+        "key": "POSLIMITBASKETID",
+        "header": "Rổ hạn mức"
+      },
+      {
+        "key": "TRADINGFEEID",
+        "header": "Biểu phí"
+      },
+      {
+        "key": "RSAFE",
+        "header": "Tỷ lệ an toàn"
+      },
+      {
+        "key": "RALERT",
+        "header": "Tỷ lệ cảnh báo"
+      },
+      {
+        "key": "RSUSPEND",
+        "header": "Tỷ lệ xử lý"
+      }
+    ]
+  },
+  "SETTLEMENT": {
+    "screenId": "settlement",
+    "screenName": "Giá thanh toán (GTT CCP.xlsx)",
+    "route": "/PRODUCT/SETTLEMENT",
+    "tab": "",
+    "expectedFileName": "GTT CCP.xlsx",
+    "totalColumns": 16,
+    "columns": [
+      {
+        "key": "UACODE",
+        "header": "Mã hàng hóa"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã hợp đồng"
+      },
+      {
+        "key": "SECTORCODE_DESC",
+        "header": "Nhóm hàng hóa"
+      },
+      {
+        "key": "EXCHANGE_DESC",
+        "header": "Loại công cụ"
+      },
+      {
+        "key": "VN_FULLNAME",
+        "header": "Tên hàng hóa tiếng Việt"
+      },
+      {
+        "key": "EN_FULLNAME",
+        "header": "Tên hàng hóa tiếng Anh"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "EXPIRY_MONTH",
+        "header": "Tháng đáo hạn"
+      },
+      {
+        "key": "EXPIRY_YEAR",
+        "header": "Năm đáo hạn"
+      },
+      {
+        "key": "PRICE_RF",
+        "header": "Giá thanh toán"
+      },
+      {
+        "key": "PRICE_CE",
+        "header": "Giá trần"
+      },
+      {
+        "key": "PRICE_FL",
+        "header": "Giá sàn"
+      },
+      {
+        "key": "OPEN",
+        "header": "Giá mở cửa"
+      },
+      {
+        "key": "FINAL_SETTLEDT",
+        "header": "Ngày phiên giao dịch"
+      },
+      {
+        "key": "HALT",
+        "header": "Ngừng giao dịch"
+      },
+      {
+        "key": "TRADEUNIT",
+        "header": "Tiền tệ"
+      }
+    ]
+  },
+  "COMMODITY": {
+    "screenId": "commodity",
+    "screenName": "Hàng hóa (HH.xlsx)",
+    "route": "/PRODUCT/COMMODITY",
+    "tab": "",
+    "expectedFileName": "HH.xlsx",
+    "totalColumns": 36,
+    "columns": [
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "UACODE",
+        "header": "Mã hàng hóa"
+      },
+      {
+        "key": "UACODE_EX",
+        "header": "Mã hàng hóa tại sở"
+      },
+      {
+        "key": "SECTORCODE_DESC",
+        "header": "Nhóm hàng hóa"
+      },
+      {
+        "key": "EXCHANGE_DESC",
+        "header": "Loại công cụ"
+      },
+      {
+        "key": "VN_FULLNAME",
+        "header": "Tên hàng hóa tiếng Việt"
+      },
+      {
+        "key": "TRADINGEXCHANGE",
+        "header": "Sở giao dịch"
+      },
+      {
+        "key": "NVALUE",
+        "header": "Độ lớn hợp đồng"
+      },
+      {
+        "key": "PHYSICAL_UNIT_DESC",
+        "header": "Đơn vị đo lường"
+      },
+      {
+        "key": "TRADEUNIT_DESC",
+        "header": "Đơn vị yết giá"
+      },
+      {
+        "key": "PRICETICKVALUE",
+        "header": "Tick giá thay đổi"
+      },
+      {
+        "key": "TRADELOT",
+        "header": "Đơn vị giao dịch(lô/lot)"
+      },
+      {
+        "key": "MINQTTY",
+        "header": "Khối lượng tối thiểu"
+      },
+      {
+        "key": "MAXQTTY",
+        "header": "Khối lượng tối đa 1 lệnh"
+      },
+      {
+        "key": "CURRENCYCODE",
+        "header": "Tiền tệ"
+      },
+      {
+        "key": "STD_RULE",
+        "header": "Ngày thanh toán"
+      },
+      {
+        "key": "VRIMAMT",
+        "header": "Mức ký quỹ ban đầu nguyên tệ"
+      },
+      {
+        "key": "VRIMAMT_VND",
+        "header": "Mức ký quỹ ban đầu VND"
+      },
+      {
+        "key": "CIMRATE",
+        "header": "Hệ số ký quỹ cho TKGD cá nhân"
+      },
+      {
+        "key": "BIMRATE",
+        "header": "Hệ số ký quỹ cho TKGD tổ chức"
+      },
+      {
+        "key": "CPIMRATE",
+        "header": "Hệ số ký quỹ cho TVKD"
+      },
+      {
+        "key": "FEAMT_ACC",
+        "header": "Phí giao dịch TKGD"
+      },
+      {
+        "key": "FEAMT_CUS",
+        "header": "Phí giao dịch TVKD"
+      },
+      {
+        "key": "DELIVERYFEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán tiền"
+      },
+      {
+        "key": "SETTLEMENTFEE",
+        "header": "Phí dịch vụ thanh toán (%)"
+      },
+      {
+        "key": "FND_DAYS",
+        "header": "Số ngày phải thực hiện tất toán trước FND"
+      },
+      {
+        "key": "SUBFEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "CALTYPE_DESC",
+        "header": "Cách tính phí khớp lệnh"
+      },
+      {
+        "key": "LTD_DAYS",
+        "header": "Số ngày phải thực hiện tất toán trước LTD"
+      },
+      {
+        "key": "NOTI_DAYS",
+        "header": "Số ngày gửi thông báo"
+      },
+      {
+        "key": "NOTI_TIME",
+        "header": "Thời gian hiển thị trong thông báo"
+      },
+      {
+        "key": "PRELTD_DAYSLIMIT",
+        "header": "Số ngày giới hạn trước LTD"
+      },
+      {
+        "key": "PRELTD_LIMIT",
+        "header": "Hạn mức giới hạn trước LTD"
+      },
+      {
+        "key": "LTD_DAYSLIMIT",
+        "header": "Số ngày giới hạn LTD limit"
+      },
+      {
+        "key": "APPRV_STS",
+        "header": "Trạng thái duyệt"
+      }
+    ]
+  },
+  "COMMODITY_CONTRACT": {
+    "screenId": "commodity_contract_modal",
+    "screenName": "Thông tin hợp đồng (Modal Hàng hóa - HĐ Nano)",
+    "route": "/PRODUCT/COMMODITY",
+    "tab": "Thông tin hợp đồng",
+    "expectedFileName": "HĐ CP2CO.xlsx",
+    "totalColumns": 29,
+    "columns": [
+      {
+        "key": "UACODE_EX",
+        "header": "Mã hàng hóa tại sở"
+      },
+      {
+        "key": "UACODE",
+        "header": "Mã hàng hóa tại MXV"
+      },
+      {
+        "key": "SYMBOL_EX",
+        "header": "Mã hợp đồng tại sở"
+      },
+      {
+        "key": "SYMBOL",
+        "header": "Mã hợp đồng tại MXV"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên hợp đồng"
+      },
+      {
+        "key": "EXPIRY_MONTH",
+        "header": "Tháng đáo hạn"
+      },
+      {
+        "key": "EXPIRY_YEAR",
+        "header": "Năm đáo hạn"
+      },
+      {
+        "key": "PRICE_RF",
+        "header": "Giá thanh toán"
+      },
+      {
+        "key": "PRICE_CE",
+        "header": "Giá trần"
+      },
+      {
+        "key": "PRICE_FL",
+        "header": "Giá sàn"
+      },
+      {
+        "key": "LISTEDDT",
+        "header": "Ngày giao dịch đầu tiên"
+      },
+      {
+        "key": "DELISTEDDT",
+        "header": "Ngày giao dịch cuối cùng"
+      },
+      {
+        "key": "F_NOTIDT",
+        "header": "Ngày thông báo đầu tiên"
+      },
+      {
+        "key": "L_NOTIDT",
+        "header": "Ngày thông báo cuối cùng"
+      },
+      {
+        "key": "HALT_DESC",
+        "header": "Ngừng giao dịch"
+      },
+      {
+        "key": "FINAL_SETTLEDT",
+        "header": "Ngày thanh toán"
+      },
+      {
+        "key": "F_DELIVERYDT",
+        "header": "Ngày giao nhận đầu tiên"
+      },
+      {
+        "key": "L_DELIVERYDT",
+        "header": "Ngày giao nhận cuối cùng"
+      },
+      {
+        "key": "L_REGDT",
+        "header": "Ngày đăng ký giao nhận cuối cùng"
+      },
+      {
+        "key": "F_REGDT",
+        "header": "Ngày đăng ký giao nhận đầu tiên"
+      },
+      {
+        "key": "FND_PREDT",
+        "header": "Ngày phải thực hiện tất toán trước FND"
+      },
+      {
+        "key": "LTD_PREDT",
+        "header": "Ngày phải thực hiện tất toán trước LTD"
+      },
+      {
+        "key": "BUY_NOTIDT",
+        "header": "Ngày gửi thông báo vị thế mua"
+      },
+      {
+        "key": "SELL_NOTIDT",
+        "header": "Ngày gửi thông báo vị thế bán"
+      },
+      {
+        "key": "LTD_PRELIMITDT",
+        "header": "Ngày giới hạn trước LTD"
+      },
+      {
+        "key": "STATUS_DESC",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "APPRV_STS",
+        "header": "Trạng thái duyệt"
+      },
+      {
+        "key": "LOGTIME_DESC",
+        "header": "Ngày tạo"
+      },
+      {
+        "key": "LASTCHANGE_DESC",
+        "header": "Ngày duyệt"
+      }
+    ]
+  },
+  "ACCTMARGIN_POS": {
+    "screenId": "acctmargin_pos_tkgd",
+    "screenName": "Quản lý ký quỹ TKGD (DSQLKQ TKGD.xlsx)",
+    "route": "/RISKMNG/ACCTMARGIN_POS",
+    "tab": "Danh sách ký quỹ TKGD",
+    "expectedFileName": "DSQLKQ TKGD.xlsx",
+    "totalColumns": 49,
+    "columns": [
+      {
+        "key": "INVESTORCODE",
+        "header": "Mã TKGD"
+      },
+      {
+        "key": "FULLNAME",
+        "header": "Tên TKGD"
+      },
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã TVKD"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên TVKD"
+      },
+      {
+        "key": "STATUS",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "RTT",
+        "header": "Tỷ lệ ký quỹ (%)"
+      },
+      {
+        "key": "IMCASH",
+        "header": "Số dư TKKQ"
+      },
+      {
+        "key": "REQADDSECURED",
+        "header": "Mức bổ sung ký quỹ"
+      },
+      {
+        "key": "REQSECURED",
+        "header": "KQ ban đầu yêu cầu"
+      },
+      {
+        "key": "REQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu (USD)"
+      },
+      {
+        "key": "EREQSECURED",
+        "header": "KQ ban đầu yêu cầu tạm tính"
+      },
+      {
+        "key": "EREQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu tạm tính (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F",
+        "header": "Lãi lỗ thực tế Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F",
+        "header": "Lãi lỗ thực tế Future (USD)"
+      },
+      {
+        "key": "EVRPLAMT_F",
+        "header": "Lãi lỗ dự kiến Future (VND)"
+      },
+      {
+        "key": "EVRPLAMT_USD_F",
+        "header": "Lãi lỗ dự kiến Future (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (USD)"
+      },
+      {
+        "key": "NAV",
+        "header": "Giá trị ròng ký quỹ"
+      },
+      {
+        "key": "NAV_USD",
+        "header": "Giá trị ròng ký quỹ (USD)"
+      },
+      {
+        "key": "AVLSECURED",
+        "header": "Ký quỹ khả dụng tạm tính"
+      },
+      {
+        "key": "AVLSECURED_EXEC",
+        "header": "Ký quỹ khả dụng"
+      },
+      {
+        "key": "AVLSECURED_USD",
+        "header": "Ký quỹ khả dụng (USD)"
+      },
+      {
+        "key": "DELIVERY_MARGIN",
+        "header": "Ký quỹ giao nhận"
+      },
+      {
+        "key": "PAID_SETTLEMENT_FEEAMT",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán đáo hạn bằng tiền"
+      },
+      {
+        "key": "EVRPLAMT_LTD_BUYSELLRATE",
+        "header": "Lãi lỗ vị thế đáo hạn"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "DELIVERY_FEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "NETAMT",
+        "header": "Nộp rút trong phiên"
+      },
+      {
+        "key": "SUBSTITUTE_FEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "NETAMT_USD",
+        "header": "Nộp rút trong phiên (USD)"
+      },
+      {
+        "key": "BOD_IMCASH",
+        "header": "Số dư đầu ngày"
+      },
+      {
+        "key": "BOD_IMCASH_USD",
+        "header": "Số dư đầu ngày (USD)"
+      },
+      {
+        "key": "EOD_IMCASH",
+        "header": "Số dư cuối ngày"
+      },
+      {
+        "key": "EOD_IMCASH_USD",
+        "header": "Số dư cuối ngày (USD)"
+      },
+      {
+        "key": "SECURED_PROCESS_METHOD",
+        "header": "Phương thức xử lý"
+      },
+      {
+        "key": "OPTION_FEE",
+        "header": "Phí quyền chọn"
+      },
+      {
+        "key": "OPTION_FEE_VSD",
+        "header": "Phí quyền chọn (USD)"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_USD",
+        "header": "MVO (USD)"
+      },
+      {
+        "key": "RVRPLAMT_WFM",
+        "header": "Lãi lỗ chờ đáo hạn"
+      },
+      {
+        "key": "RVRPLAMT_WFM_USD",
+        "header": "Lãi lỗ chờ đáo hạn (USD)"
+      },
+      {
+        "key": "RVRPLAMT_OPTION",
+        "header": "Lãi lỗ Options"
+      },
+      {
+        "key": "RVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ Options (USD)"
+      },
+      {
+        "key": "EVRPLAMT_OPTION",
+        "header": "Lãi lỗ dự kiến Options"
+      },
+      {
+        "key": "EVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ dự kiến Options (USD)"
+      },
+      {
+        "key": "BOD_EIMCASH",
+        "header": "Số dư đầu ngày tạm tính"
+      },
+      {
+        "key": "BOD_EIMCASH_USD",
+        "header": "Số dư đầu ngày tạm tính (USD)"
+      }
+    ],
+    "searchCode": "ACCTMARGIN_POS"
+  },
+  "MEMBERMARGIN_POS": {
+    "screenId": "acctmargin_pos_tvkd",
+    "screenName": "Quản lý ký quỹ TVKD (DSQLKQ TVKD.xlsx)",
+    "route": "/RISKMNG/ACCTMARGIN_POS",
+    "tab": "Danh sách ký quỹ TKTVKD",
+    "expectedFileName": "DSQLKQ TVKD.xlsx",
+    "totalColumns": 48,
+    "columns": [
+      {
+        "key": "MEMBERCODE",
+        "header": "Mã TVKD"
+      },
+      {
+        "key": "MEMBERNAME",
+        "header": "Tên TVKD"
+      },
+      {
+        "key": "ACTYPE",
+        "header": "Loại hình tiểu khoản"
+      },
+      {
+        "key": "STATUS",
+        "header": "Trạng thái"
+      },
+      {
+        "key": "RTT",
+        "header": "Tỷ lệ ký quỹ (%)"
+      },
+      {
+        "key": "IMCASH",
+        "header": "Số dư TKKQ hiện tại"
+      },
+      {
+        "key": "REQADDSECURED",
+        "header": "Mức bổ sung ký quỹ"
+      },
+      {
+        "key": "REQSECURED",
+        "header": "KQ ban đầu yêu cầu"
+      },
+      {
+        "key": "REQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu (USD)"
+      },
+      {
+        "key": "EREQSECURED",
+        "header": "KQ ban đầu yêu cầu tạm tính"
+      },
+      {
+        "key": "EREQSECURED_USD",
+        "header": "KQ ban đầu yêu cầu tạm tính (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F",
+        "header": "Lãi lỗ thực tế Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F",
+        "header": "Lãi lỗ thực tế Future (USD)"
+      },
+      {
+        "key": "EVRPLAMT_F",
+        "header": "Lãi lỗ dự kiến Future (VND)"
+      },
+      {
+        "key": "EVRPLAMT_USD_F",
+        "header": "Lãi lỗ dự kiến Future (USD)"
+      },
+      {
+        "key": "RVRPLAMT_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (VND)"
+      },
+      {
+        "key": "RVRPLAMT_USD_F_T1",
+        "header": "Lãi lỗ thực tế T-1 Future (USD)"
+      },
+      {
+        "key": "NAV",
+        "header": "Giá trị ròng ký quỹ"
+      },
+      {
+        "key": "NAV_USD",
+        "header": "Giá trị ròng ký quỹ (USD)"
+      },
+      {
+        "key": "AVLSECURED",
+        "header": "Ký quỹ khả dụng tạm tính"
+      },
+      {
+        "key": "AVLSECURED_EXEC",
+        "header": "Ký quỹ khả dụng"
+      },
+      {
+        "key": "AVLSECURED_USD",
+        "header": "Ký quỹ khả dụng (USD)"
+      },
+      {
+        "key": "FEEAMT",
+        "header": "Phí giao dịch"
+      },
+      {
+        "key": "DELIVERY_MARGIN",
+        "header": "Ký quỹ giao nhận"
+      },
+      {
+        "key": "DELIVERY_FEE",
+        "header": "Phí giao nhận"
+      },
+      {
+        "key": "SUBSTITUTE_FEE",
+        "header": "Phí thực hiện thay nghĩa vụ"
+      },
+      {
+        "key": "PAID_SETTLEMENT_FEEAMT",
+        "header": "Phí dịch vụ thanh toán"
+      },
+      {
+        "key": "SETTLEMENTCASHFEE",
+        "header": "Phí thanh toán đáo hạn bằng tiền"
+      },
+      {
+        "key": "EVRPLAMT_LTD_BUYSELLRATE",
+        "header": "Lãi lỗ vị thế đáo hạn"
+      },
+      {
+        "key": "NETAMT",
+        "header": "Nộp rút trong phiên"
+      },
+      {
+        "key": "NETAMT_USD",
+        "header": "Nộp rút trong phiên (USD)"
+      },
+      {
+        "key": "BOD_IMCASH",
+        "header": "Số dư đầu ngày"
+      },
+      {
+        "key": "BOD_IMCASH_USD",
+        "header": "Số dư đầu ngày (USD)"
+      },
+      {
+        "key": "EOD_IMCASH",
+        "header": "Số dư cuối ngày"
+      },
+      {
+        "key": "EOD_IMCASH_USD",
+        "header": "Số dư cuối ngày (USD)"
+      },
+      {
+        "key": "SECURED_PROCESS_METHOD",
+        "header": "Phương thức xử lý"
+      },
+      {
+        "key": "OPTION_FEE",
+        "header": "Phí quyền chọn"
+      },
+      {
+        "key": "OPTION_FEE_VSD",
+        "header": "Phí quyền chọn (USD)"
+      },
+      {
+        "key": "MVO",
+        "header": "MVO"
+      },
+      {
+        "key": "MVO_USD",
+        "header": "MVO (USD)"
+      },
+      {
+        "key": "RVRPLAMT_WFM",
+        "header": "Lãi lỗ chờ đáo hạn"
+      },
+      {
+        "key": "RVRPLAMT_WFM_USD",
+        "header": "Lãi lỗ chờ đáo hạn (USD)"
+      },
+      {
+        "key": "RVRPLAMT_OPTION",
+        "header": "Lãi lỗ Options"
+      },
+      {
+        "key": "RVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ Options (USD)"
+      },
+      {
+        "key": "EVRPLAMT_OPTION",
+        "header": "Lãi lỗ dự kiến Options"
+      },
+      {
+        "key": "EVRPLAMT_OPTION_USD",
+        "header": "Lãi lỗ dự kiến Options (USD)"
+      },
+      {
+        "key": "BOD_EIMCASH",
+        "header": "Số dư đầu ngày tạm tính"
+      },
+      {
+        "key": "BOD_EIMCASH_USD",
+        "header": "Số dư đầu ngày tạm tính (USD)"
+      }
+    ],
+    "searchCode": "MEMBERMARGIN_POS"
+  }
+}

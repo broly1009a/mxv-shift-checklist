@@ -1,9 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import * as path from 'path';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { LotStatisticsService } from '../../lot-statistics/lot-statistics.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { CcpLotWorker } from '../../ccp-clearing/workers/ccp-lot.worker';
 import {
   parseJobPayload,
   getMsBackupBase,
@@ -20,6 +21,8 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly lotStatisticsService: LotStatisticsService,
     private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly ccpLotWorker?: CcpLotWorker,
   ) { }
 
   onModuleInit() {
@@ -221,6 +224,23 @@ export class MacroLotJobHandler implements IBotJobHandler, OnModuleInit {
               `   - ${val.field}: mong đợi ${val.expected}, thực tế ${val.actual}`,
             );
           }
+        }
+      }
+
+      // Twin-Run / Strangler Fig: Ủy thác song hành CcpLotWorker V2
+      if (this.ccpLotWorker) {
+        try {
+          this.logger.log(`[MacroLotJobHandler-Facade] Kích hoạt song hành CcpLotWorker V2 cho ngày: ${targetDateStr}...`);
+          const workerRes = await this.ccpLotWorker.execute({
+            taskId: payload.taskId || `MACRO_LOT_${job._id}`,
+            botCheckType: 'CCP_LOT_STATS',
+            shiftId: payload.shiftLogId,
+            targetDate: targetDateStr,
+            parameters: { folderPath: folderPathMs },
+          });
+          log(`[CcpLotWorker V2] ${workerRes.summary}`);
+        } catch (workerErr: any) {
+          this.logger.warn(`[MacroLotJobHandler-Facade] CcpLotWorker V2 bỏ qua lỗi phụ: ${workerErr.message}`);
         }
       }
 
