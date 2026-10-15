@@ -1,3 +1,22 @@
+## [2026-10-15T18:15] DEPLOYMENT: Triển Khai Toàn Diện Codebase Mới Lên Máy Chủ Ubuntu 10.0.0.26
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: *"giúp tôi ủn code mới lên ubuntun"*.
+- Đóng gói toàn bộ mã nguồn Backend Modular Monolith V2 và Frontend mới nhất (Ingress `MsApiAdapter`, `CqgScraperService` tối ưu hóa, `ValueStatisticsService` chuẩn CoreCCP, bộ parser và helper).
+- Đẩy gói `deploy_bundle.tar.gz` qua SFTP lên máy chủ Ubuntu `10.0.0.26`.
+- Giải nén, build Backend (`nest build`), copy python scripts sang `dist/scripts/python`, restart `mxv-backend`.
+- Build Frontend (`next build` 35/35 pages) và restart `mxv-frontend`.
+
+### 2. Kết quả kiểm thử & Trạng thái dịch vụ trên Ubuntu
+- **Backend Build (`nest build`)**: Exit code 0 (Pass 100%).
+- **Frontend Build (`next build`)**: Exit code 0 (Pass 100%, 35/35 static pages generated).
+- **PM2 Service Status**:
+  - `mxv-backend` (PID 3818357): **online** (0 errors, API endpoints trả về HTTP 200 OK).
+  - `mxv-frontend` (PID 3818808): **online**.
+  - `mock-sftp` (PID 6866): **online**.
+
+---
+
 ## [2026-10-15T17:42] SYNCHRONIZATION & TEST HARNESS: Khôi Phục MsApiAdapter, Đồng Bộ ValueStatisticsService Chuẩn CoreCCP & Cung Cấp Bộ Kịch Bản Test Cho User
 
 ### 1. Mục tiêu thay đổi
