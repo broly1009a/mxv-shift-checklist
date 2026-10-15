@@ -38,37 +38,47 @@ export const API_ENDPOINTS = {
     READINESS_MATRIX: (date: string) => `/api/v1/bot-engine/files/readiness-matrix?date=${encodeURIComponent(date)}`,
   },
 
-  // ─── TRADING OPS (Đối chiếu giao dịch, Giám sát, KLGD, Pre-EOD) ─────────────
+  // ─── TRADING OPS (Đối chiếu giao dịch, Giám sát, KLGD, Pre-EOD, GTT MS vs CQG) ──
   TRADING_OPS: {
-    CONSOLE_SUMMARY: '/api/v1/reconciliation/console-summary',
-    TRIGGER_RUN: '/api/v1/reconciliation/trigger-console-run',
+    CONSOLE_SUMMARY: '/api/v1/trading-ops/console-summary',
+    TRIGGER_RUN: '/api/v1/trading-ops/trigger-console-run',
     RECON_LOGS: (date: string) => `/api/v1/trading-ops/recon-logs/by-date/${encodeURIComponent(date)}`,
     RECON_LOG_DETAIL: (id: string) => `/api/v1/trading-ops/recon-logs/${encodeURIComponent(id)}`,
-    DSGD_BEFORE_EOD: '/api/v1/reconciliation/check-dsgd-before-eod',
-    CHECK_IMR: '/api/v1/reconciliation/check-imr',
-    UPLOAD_KLGD: '/api/v1/reconciliation/upload-klgd',
-    UPLOAD_PRE_EOD: '/api/v1/reconciliation/upload-pre-eod',
-    UPLOAD_EOD: '/api/v1/reconciliation/upload-eod',
-    MATURITY_MESSAGES: (shiftLogId: string) => `/api/v1/reconciliation/maturity-manual-messages?shiftLogId=${encodeURIComponent(shiftLogId)}`,
-    CHECK_NEGATIVE_MARGIN: '/api/v1/reconciliation/check-negative-margin',
-    CHECK_EOD_RUN: '/api/v1/reconciliation/check-eod-run',
-    RUN_CHECK_PRE_EOD: '/api/v1/reconciliation/run-check-pre-eod',
-    SAMPLE_DATES: '/api/v1/reconciliation/sample-dates',
-    USD_RATE: '/api/v1/reconciliation/usd-rate',
-    RUN_TEST_LOCAL: '/api/v1/reconciliation/run-test-local',
-    RUN_AUTO: '/api/v1/reconciliation/run-auto',
-    TEST_UPLOAD: '/api/v1/reconciliation/test-upload',
+    DSGD_BEFORE_EOD: '/api/v1/trading-ops/check-dsgd-before-eod',
+    CHECK_IMR: '/api/v1/trading-ops/check-imr',
+    UPLOAD_KLGD: '/api/v1/trading-ops/upload-klgd',
+    UPLOAD_PRE_EOD: '/api/v1/trading-ops/upload-pre-eod',
+    UPLOAD_EOD: '/api/v1/trading-ops/upload-eod',
+    MATURITY_MESSAGES: (shiftLogId: string) => `/api/v1/trading-ops/maturity-manual-messages?shiftLogId=${encodeURIComponent(shiftLogId)}`,
+    CHECK_NEGATIVE_MARGIN: '/api/v1/trading-ops/negative-margin',
+    CHECK_EOD_RUN: '/api/v1/trading-ops/check-eod-run',
+    RUN_CHECK_PRE_EOD: '/api/v1/trading-ops/run-check-pre-eod',
+    SAMPLE_DATES: '/api/v1/trading-ops/sample-dates',
+    USD_RATE: '/api/v1/trading-ops/usd-rate',
+    RUN_TEST_LOCAL: '/api/v1/trading-ops/run-test-local',
+    RUN_AUTO: '/api/v1/trading-ops/run-auto',
+    TEST_UPLOAD: '/api/v1/trading-ops/test-upload',
+    GTT_REPORT: (date?: string) =>
+      date ? `/api/v1/trading-ops/gtt-report?date=${encodeURIComponent(date)}` : '/api/v1/trading-ops/gtt-report',
+    GTT_CHECK: '/api/v1/trading-ops/run-gtt-check',
+    GTT_PUSH_TO_MS: '/api/v1/trading-ops/gtt-report/push-to-ms',
+    GTT_EXPORT_CORRECTION: (type: string = 'settlement') => `/api/v1/trading-ops/gtt-report/export-correction?type=${encodeURIComponent(type)}`,
   },
 
-  // ─── CCP CLEARING (Bù trừ & Thống kê Lot / Value) ───────────────────────────
+  // ─── CCP CLEARING (Bù trừ, Thống kê Lot/Value, GTT CE vs CCP) ─────────────
   CCP_CLEARING: {
     LOGS: (date: string) => `/api/v1/ccp-clearing/logs/by-date/${encodeURIComponent(date)}`,
     LOG_DETAIL: (id: string) => `/api/v1/ccp-clearing/logs/${encodeURIComponent(id)}`,
-    EXCHANGE_RATES: '/api/v1/reconciliation/exchange-rates',
-    SYNC_EXCHANGE_RATES: '/api/v1/reconciliation/sync-exchange-rates',
-    USD_RATE: '/api/v1/reconciliation/usd-rate',
-    SYNC_USD_RATE: '/api/v1/reconciliation/sync-usd-rate',
-    DOWNLOAD_CCP_METRICS: '/api/v1/reconciliation/download-ccp-metrics',
+    EXCHANGE_RATES: '/api/v1/ccp-clearing/exchange-rates',
+    SYNC_EXCHANGE_RATES: '/api/v1/ccp-clearing/sync-exchange-rates',
+    USD_RATE: '/api/v1/ccp-clearing/usd-rate',
+    SYNC_USD_RATE: '/api/v1/ccp-clearing/sync-usd-rate',
+    DOWNLOAD_CCP_METRICS: '/api/v1/ccp-clearing/download-ccp-metrics',
+    CE_CCP_GTT_REPORT: (date?: string) =>
+      date ? `/api/v1/ccp-clearing/ce-ccp-gtt-report?date=${encodeURIComponent(date)}` : '/api/v1/ccp-clearing/ce-ccp-gtt-report',
+    RUN_CE_CCP_GTT_CHECK: '/api/v1/ccp-clearing/run-ce-ccp-gtt-check',
+    EXPORT_CE_CCP_GTT: (type: string) =>
+      `/api/v1/ccp-clearing/ce-ccp-gtt-report/export?type=${encodeURIComponent(type)}`,
     SYNC_EXCHANGE_RATE_LOT: '/api/v1/ccp-statistics/lot-statistics/sync-exchange-rate',
     LOT_CONFIG: '/api/v1/ccp-statistics/lot-statistics/config',
     LOT_SCAN: (date: string) => `/api/v1/ccp-statistics/lot-statistics/scan-daily?date=${encodeURIComponent(date)}`,
@@ -90,7 +100,7 @@ export const API_ENDPOINTS = {
     LOT_STATS_PROCESS_LOCAL_DOWNLOAD: '/api/v1/lot-statistics/process-local/download',
   },
 
-  // ─── CHECKLIST HUB (Quản lý ca trực, Sự cố, Bot Dispatcher, GTT) ───────────
+  // ─── CHECKLIST HUB (Quản lý ca trực, Sự cố, Bot Dispatcher) ───────────────
   CHECKLIST_HUB: {
     ACTIVE_SHIFTS: '/api/v1/shifts/active',
     SHIFT_DETAIL: (id: string) => `/api/v1/shifts/${encodeURIComponent(id)}`,
@@ -112,18 +122,18 @@ export const API_ENDPOINTS = {
     TRIGGER_OMS: (shiftId: string, taskId: string) =>
       `/api/v1/bot-engine/trigger-oms-check/${encodeURIComponent(shiftId)}/${encodeURIComponent(taskId)}`,
     GTT_REPORT: (date?: string) =>
-      date ? `/api/v1/bot-engine/gtt-report?date=${encodeURIComponent(date)}` : '/api/v1/bot-engine/gtt-report',
-    GTT_CHECK: '/api/v1/bot-engine/run-gtt-check',
+      date ? `/api/v1/trading-ops/gtt-report?date=${encodeURIComponent(date)}` : '/api/v1/trading-ops/gtt-report',
+    GTT_CHECK: '/api/v1/trading-ops/run-gtt-check',
     GTT_UPLOAD: '/api/v1/bot-engine/gtt-upload',
     GTT_MARKET_CSV_UPLOAD: '/api/v1/bot-engine/market-csv-upload',
     GTT_COMMODITY_UPLOAD: '/api/v1/bot-engine/commodity-upload',
-    GTT_PUSH_TO_MS: '/api/v1/bot-engine/gtt-report/push-to-ms',
-    GTT_EXPORT_CORRECTION: (type: string = 'settlement') => `/api/v1/bot-engine/gtt-report/export-correction?type=${encodeURIComponent(type)}`,
+    GTT_PUSH_TO_MS: '/api/v1/trading-ops/gtt-report/push-to-ms',
+    GTT_EXPORT_CORRECTION: (type: string = 'settlement') => `/api/v1/trading-ops/gtt-report/export-correction?type=${encodeURIComponent(type)}`,
     CE_CCP_GTT_REPORT: (date?: string) =>
-      date ? `/api/v1/bot-engine/ce-ccp-gtt-report?date=${encodeURIComponent(date)}` : '/api/v1/bot-engine/ce-ccp-gtt-report',
-    RUN_CE_CCP_GTT_CHECK: '/api/v1/bot-engine/run-ce-ccp-gtt-check',
+      date ? `/api/v1/ccp-clearing/ce-ccp-gtt-report?date=${encodeURIComponent(date)}` : '/api/v1/ccp-clearing/ce-ccp-gtt-report',
+    RUN_CE_CCP_GTT_CHECK: '/api/v1/ccp-clearing/run-ce-ccp-gtt-check',
     EXPORT_CE_CCP_GTT: (type: string) =>
-      `/api/v1/bot-engine/ce-ccp-gtt-report/export?type=${encodeURIComponent(type)}`,
+      `/api/v1/ccp-clearing/ce-ccp-gtt-report/export?type=${encodeURIComponent(type)}`,
     SHIFT_INITIALIZE: '/api/v1/shifts/initialize',
     SHIFT_JOBS_GENERATE: '/api/v1/shift-jobs/generate',
     SHIFT_HISTORY: '/api/v1/shifts/history',
@@ -176,7 +186,7 @@ export const API_ENDPOINTS = {
     NOTIFICATION_TEST: '/api/v1/notifications/test',
     WORKING_CALENDAR: '/api/v1/working-calendar',
     WORKING_CALENDAR_DETAIL: (date: string) => `/api/v1/working-calendar/${encodeURIComponent(date)}`,
-    UPLOAD_BACKUP: '/api/v1/reconciliation/upload-backup',
+    UPLOAD_BACKUP: '/api/v1/trading-ops/upload-backup',
     ACTIVITY_LOGS: '/api/v1/activity-logs',
   },
 

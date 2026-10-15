@@ -40,6 +40,31 @@ export class KlgdReconWorker implements IBotWorker {
         customDataDir: context.parameters?.dataDir,
       });
 
+      // ── BƯỚC 1: XỬ LÝ TRƯỜNG HỢP ĐANG CHỜ FILE (FAIL-SAFE / ZERO FALSE-POSITIVE) ──
+      if (res.isWaitingFiles) {
+        this.logger.warn(`[KlgdReconWorker] ${res.message || 'Đang chờ cập nhật file đối chiếu.'}`);
+        return {
+          status: 'WAITING',
+          isWaitingFiles: true,
+          summary: res.message || '[Đang chờ dữ liệu] Thư mục backup đang chờ cập nhật đầy đủ file đối chiếu.',
+          metrics: {
+            totalDSGD: 0,
+            totalFR: 0,
+            totalACM: 0,
+            totalNano: 0,
+            differ: 0,
+            differACM: 0,
+            mismatchedTradesCount: 0,
+            mismatchedTTMCount: 0,
+            mismatchedTTTTCount: 0,
+          },
+          details: res,
+          durationMs: Date.now() - startTime,
+          executedAt: new Date(),
+        };
+      }
+
+      // ── BƯỚC 2: ĐỐI SOÁT KHI ĐÃ CÓ ĐỦ DỮ LIỆU THỰC TẾ ──
       const hasDiscrepancy = !res.passed;
       const status = hasDiscrepancy ? 'WARNING' : 'SUCCESS';
       const summary = res.passed
@@ -71,6 +96,7 @@ export class KlgdReconWorker implements IBotWorker {
       return {
         status,
         summary,
+        isWaitingFiles: false,
         metrics: {
           totalDSGD: res.totals.totalDSGD,
           totalFR: res.totals.totalFR,
@@ -83,6 +109,7 @@ export class KlgdReconWorker implements IBotWorker {
           mismatchedTTTTCount: res.mismatchedTTTT?.length || 0,
         },
         domainLogRefId,
+        details: res,
         durationMs: Date.now() - startTime,
         executedAt: new Date(),
       };

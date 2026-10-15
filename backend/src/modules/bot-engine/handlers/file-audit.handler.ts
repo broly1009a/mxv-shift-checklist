@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { BotJob } from '../../../schemas/bot-job.schema';
-import { RpaDownloaderService } from '../rpa-downloader.service';
+import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
@@ -272,7 +272,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
   constructor(
     private readonly registry: BotJobHandlerRegistry,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
-    private readonly rpaDownloaderService: RpaDownloaderService,
+    private readonly rpaDownloaderService: RpaScraperService,
     private readonly cqgSyncService: CqgSyncService,
     private readonly settingsService: SystemSettingsService,
   ) { }

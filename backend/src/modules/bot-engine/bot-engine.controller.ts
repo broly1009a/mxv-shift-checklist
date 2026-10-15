@@ -25,9 +25,9 @@ import * as XLSX from 'xlsx';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { BotJobQueueService } from './bot-job-queue.service';
-import { RpaDownloaderService } from './rpa-downloader.service';
-import { GttCheckerService } from './gtt-checker.service';
-import { CeCcpGttCheckerService } from './ce-ccp-gtt.service';
+import { RpaScraperService } from '../ingress/scrapers/rpa-scraper.service';
+import { GttCheckerService } from '../trading-ops/services/gtt-checker.service';
+import { CeCcpGttCheckerService } from '../trading-ops/services/ce-ccp-gtt.service';
 import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
@@ -42,7 +42,7 @@ import {
 import { ShiftsService } from '../shifts/shifts.service';
 import { AgentController } from './bot-agent.controller';
 import { getRelatedTaskIds } from './constants/bot-task-registry';
-import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
+import { CcpCeScraperService } from '../ingress/scrapers/ccp-ce-scraper.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { REQUIRED_CCP_FILES, REQUIRED_CE_FILES } from './handlers/file-audit.handler';
 import {
@@ -62,7 +62,7 @@ export class BotEngineController {
   constructor(
     private readonly settingsService: SystemSettingsService,
     private readonly jobQueueService: BotJobQueueService,
-    private readonly rpaService: RpaDownloaderService,
+    private readonly rpaService: RpaScraperService,
     private readonly gttService: GttCheckerService,
     private readonly cqgSyncService: CqgSyncService,
     private readonly omsWatcherService: OmsWatcherService,
@@ -72,7 +72,7 @@ export class BotEngineController {
     private readonly shiftsService: ShiftsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
-    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
+    private readonly ccpCeDownloaderService: CcpCeScraperService,
     private readonly ceCcpGttService: CeCcpGttCheckerService,
   ) {}
 

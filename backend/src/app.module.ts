@@ -21,12 +21,10 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
 import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
-import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
 import { MarginCheckerModule } from './modules/margin-checker/margin-checker.module';
 import { TradingReportModule } from './modules/trading-report/trading-report.module';
 import { IngressModule } from './modules/ingress/ingress.module';
 import { TradingOpsModule } from './modules/trading-ops/trading-ops.module';
-import { CcpClearingModule } from './modules/ccp-clearing/ccp-clearing.module';
 import { ChecklistHubModule } from './modules/checklist-hub/checklist-hub.module';
 
 @Module({
@@ -50,13 +48,11 @@ import { ChecklistHubModule } from './modules/checklist-hub/checklist-hub.module
     IncidentsModule,
     MarginChangeRequestsModule,
     BotEngineModule,
-    ReconciliationModule,
     MarginCheckerModule,
     TradingReportModule,
     // Modular Monolith V2 Modules (Strangler Fig Integration)
     IngressModule,
     TradingOpsModule,
-    CcpClearingModule,
     ChecklistHubModule,
   ],
 

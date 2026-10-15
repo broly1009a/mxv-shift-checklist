@@ -40,6 +40,30 @@ export class PreEodReconWorker implements IBotWorker {
         context.parameters?.dataDir,
       );
 
+      // ── BƯỚC 1: XỬ LÝ TRƯỜNG HỢP CHỜ FILE PRE-EOD (FAIL-SAFE / ZERO FALSE-POSITIVE) ──
+      if (res.isWaitingFiles) {
+        this.logger.warn(`[PreEodReconWorker] ${res.message || 'Đang chờ cập nhật file Pre-EOD.'}`);
+        return {
+          status: 'WAITING',
+          isWaitingFiles: true,
+          summary: res.message || '[Đang chờ dữ liệu Pre-EOD] Đang chờ cập nhật đầy đủ file đối chiếu cuối ngày.',
+          metrics: {
+            totalACM_MS: 0,
+            totalACM_Straits: 0,
+            differACM: 0,
+            totalCQG_MS: 0,
+            totalCQG_FR: 0,
+            differCQG: 0,
+            mismatchedTradesCount: 0,
+            mismatchedPositionsCount: 0,
+          },
+          details: res,
+          durationMs: Date.now() - startTime,
+          executedAt: new Date(),
+        };
+      }
+
+      // ── BƯỚC 2: ĐỐI SOÁT KHI ĐÃ CÓ ĐỦ FILE PRE-EOD ──
       const status = res.passed ? 'SUCCESS' : 'WARNING';
       const summary = res.passed
         ? `Pre-EOD Khớp 100% (CQG: ${res.totals.totalCQG_FR}, ACM: ${res.totals.totalACM_Straits})`
@@ -68,6 +92,7 @@ export class PreEodReconWorker implements IBotWorker {
       return {
         status,
         summary,
+        isWaitingFiles: false,
         metrics: {
           totalACM_MS: res.totals.totalACM_MS,
           totalACM_Straits: res.totals.totalACM_Straits,
@@ -79,6 +104,7 @@ export class PreEodReconWorker implements IBotWorker {
           mismatchedPositionsCount: res.mismatchedPositions.length,
         },
         domainLogRefId,
+        details: res,
         durationMs: Date.now() - startTime,
         executedAt: new Date(),
       };

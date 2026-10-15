@@ -1,8 +1,8 @@
 import { BotJobHandlerRegistry } from '../modules/bot-engine/core/job-handler.registry';
 import { IBotJobHandler, IJobExecutionContext } from '../modules/bot-engine/core/job-handler.interface';
-import { MacroLotJobHandler } from '../modules/bot-engine/handlers/macro-lot.handler';
-import { MacroValueJobHandler } from '../modules/bot-engine/handlers/macro-value.handler';
-import { CcpStatsJobHandler } from '../modules/bot-engine/handlers/ccp-stats.handler';
+import { MacroLotJobHandler } from '../legacy/archive/handlers/macro-lot.handler.v1';
+import { MacroValueJobHandler } from '../legacy/archive/handlers/macro-value.handler.v1';
+import { CcpStatsJobHandler } from '../legacy/archive/handlers/ccp-stats.handler.v1';
 import { RpaDownloadJobHandler } from '../modules/bot-engine/handlers/rpa-download.handler';
 import { CastDownloadJobHandler } from '../modules/bot-engine/handlers/cast-download.handler';
 import { ReconJobsHandler } from '../modules/bot-engine/handlers/recon-jobs.handler';

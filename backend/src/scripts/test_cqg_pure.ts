@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import * as XLSX from 'xlsx';
 import mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
-import { RpaDownloaderService } from '../modules/bot-engine/rpa-downloader.service';
+import { RpaDownloaderService } from '../modules/ingress';
 import { decrypt, encrypt } from '../modules/bot-engine/utils/crypto';
 
 // Nạp file .env từ nhiều vị trí khả dĩ

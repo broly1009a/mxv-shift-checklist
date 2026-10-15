@@ -1,32 +1,30 @@
+/**
+ * trading-math.helper.ts
+ *
+ * Tiện ích toán học & xử lý ngày giờ thuần túy cho phân hệ Trading Operations.
+ * Đã bóc tách toàn bộ Parsers và Symbol Normalizers sang thư mục `../parsers/`.
+ * File này re-export toàn bộ để bảo đảm 100% Zero Breaking Changes cho các service đang import.
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
 
-// Mappings for LME symbols (from statics.json)
-export const LME_CODE_MAP: Record<string, string> = {
-  LALZ: 'AHD',
-  LDKZ: 'CAD',
-  LEDZ: 'PBD',
-  LNIZ: 'NID',
-  LTIZ: 'SND',
-  LZHZ: 'ZDS',
-};
+// =========================================================================
+// RE-EXPORT 100% TỪ LỚP PARSERS & SYMBOL NORMALIZER (ZERO BREAKING CHANGES)
+// =========================================================================
+export * from '../parsers/symbol-normalizer.helper';
+export * from '../parsers/ms-excel.parser';
+export * from '../parsers/cqg-excel.parser';
+export * from '../parsers/straits-csv.parser';
+export * from '../parsers/ccp-excel.parser';
 
-export const REVERSE_MONTH_CODE: Record<string, string> = {
-  '01': 'F',
-  '02': 'G',
-  '03': 'H',
-  '04': 'J',
-  '05': 'K',
-  '06': 'M',
-  '07': 'N',
-  '08': 'Q',
-  '09': 'U',
-  '10': 'V',
-  '11': 'X',
-  '12': 'Z',
-};
+// =========================================================================
+// CÁC HÀM TIỆN ÍCH TOÁN HỌC, NGÀY GIỜ & QUẢN LÝ FILE THUẦN TÚY
+// =========================================================================
 
+/**
+ * Phân tích chuỗi số từ CQG (hỗ trợ cả định dạng US 1,234.56 và VN/EU 1.234,56).
+ */
 export function parseCqgNumber(val: any): number {
   if (val === undefined || val === null) return 0;
   if (typeof val === 'number') return val;
@@ -51,6 +49,9 @@ export function parseCqgNumber(val: any): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * Phân tích chuỗi ngày giờ từ CQG theo ca trực.
+ */
 export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | null {
   if (!timeStr) return null;
   timeStr = timeStr.trim();
@@ -131,6 +132,9 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
   }
 }
 
+/**
+ * Phân tích chuỗi ngày giờ giao dịch chuẩn M-System.
+ */
 export function parseTradeDateTime(dateTimeStr: string, defaultDate?: Date): Date | null {
   if (!dateTimeStr) return null;
   const str = String(dateTimeStr).trim();
@@ -206,6 +210,9 @@ export function parseTradeDateTime(dateTimeStr: string, defaultDate?: Date): Dat
   return isNaN(result.getTime()) ? null : result;
 }
 
+/**
+ * Tìm chỉ mục của cột trong danh sách tiêu đề bảng tính với cơ chế alias không phân biệt dấu/hoa thường.
+ */
 export function findHeaderIndex(headers: string[], target: string, aliases: string[] = []): number {
   const normalize = (str: string): string => {
     if (!str) return '';
@@ -226,79 +233,18 @@ export function findHeaderIndex(headers: string[], target: string, aliases: stri
   });
 }
 
+/**
+ * Kiểm tra các mã hàng hóa bỏ qua đối soát đặc thù (TRU, ZFT, FEF, MPO).
+ */
 export function isIgnoredCommodity(symbol: string): boolean {
   if (!symbol) return false;
   const upper = symbol.toUpperCase();
   return ['TRU', 'ZFT', 'FEF', 'MPO'].some((ignored) => upper.startsWith(ignored));
 }
 
-export function convertLMESymbol(symbol: string, date: Date, holidays: string[] = []): string {
-  if (!LME_CODE_MAP[symbol]) {
-    return symbol;
-  }
-
-  const adjustedDate = new Date(date);
-  adjustedDate.setMonth(adjustedDate.getMonth() + 3);
-
-  const dayOfWeek = adjustedDate.getDay();
-  if (dayOfWeek === 6) {
-    adjustedDate.setDate(adjustedDate.getDate() - 1);
-  } else if (dayOfWeek === 0) {
-    adjustedDate.setDate(adjustedDate.getDate() + 1);
-  }
-
-  const formatDDMMYYYY = (d: Date) => {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  let adjustedDateStr = formatDDMMYYYY(adjustedDate);
-  const dayoffMap = new Map<string, string>();
-  holidays.forEach((h: any) => {
-    if (typeof h === 'string') {
-      const parts = h.split(',');
-      if (parts.length >= 2) {
-        dayoffMap.set(parts[0].trim(), parts[1].trim());
-      }
-    } else if (h && typeof h === 'object' && h.originalDate && h.replacementDate) {
-      dayoffMap.set(String(h.originalDate).trim(), String(h.replacementDate).trim());
-    }
-  });
-
-  while (dayoffMap.has(adjustedDateStr)) {
-    const nextDateStr = dayoffMap.get(adjustedDateStr);
-    if (!nextDateStr) break;
-    adjustedDateStr = nextDateStr;
-    const [d, m, y] = adjustedDateStr.split('/').map(Number);
-    adjustedDate.setFullYear(y, m - 1, d);
-  }
-
-  const newDay = String(adjustedDate.getDate()).padStart(2, '0');
-  const newMonth = String(adjustedDate.getMonth() + 1).padStart(2, '0');
-  const newYear = String(adjustedDate.getFullYear());
-
-  const mapped = LME_CODE_MAP[symbol];
-  const monthCode = REVERSE_MONTH_CODE[newMonth];
-  if (!monthCode) {
-    throw new Error(`Convert month failed for: ${newMonth}`);
-  }
-  const yearShort = newYear.substring(2);
-
-  return `${mapped}D${newDay}${monthCode}${yearShort}`;
-}
-
-export function getNormalizedAccount(account: string): string {
-  if (!account) return '';
-  let acc = account.trim();
-  acc = acc.replace(/F$/i, '');
-  acc = acc.replace(/L$/i, '-L');
-  acc = acc.replace(/S$/i, '-S');
-  acc = acc.replace(/--/g, '-');
-  return acc.toUpperCase();
-}
-
+/**
+ * Tìm file mới nhất trong thư mục theo Regex pattern.
+ */
 export function findLatestFile(dirPath: string, pattern: RegExp): string | null {
   try {
     if (!fs.existsSync(dirPath)) return null;
@@ -337,522 +283,4 @@ export function findLatestFile(dirPath: string, pattern: RegExp): string | null 
   } catch {
     return null;
   }
-}
-
-export function parseDSGD(buffer: Buffer): any[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) throw new Error('Không tìm thấy sheet nào trong file DSGD.xlsx');
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  const header = rows[0].map((h) => String(h || '').trim());
-  const maLenhIdx = header.indexOf('Mã lệnh');
-  const maTKGDIdx = header.indexOf('Mã TKGD');
-  const maHDIdx = header.indexOf('Mã HĐ');
-  const klGiaoDichIdx = header.indexOf('KL giao dịch');
-  const giaKhopIdx = header.indexOf('Giá khớp');
-  const ngayGioIdx = header.indexOf('Ngày giờ thực hiện');
-  const maGDIdx = header.indexOf('Mã giao dịch');
-
-  if (maLenhIdx === -1 || maTKGDIdx === -1 || maHDIdx === -1 || klGiaoDichIdx === -1 || giaKhopIdx === -1) {
-    throw new Error('Thiếu cột bắt buộc trong file DSGD.xlsx');
-  }
-
-  const result: any[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-
-    const maLenh = String(row[maLenhIdx] || '').trim();
-    const maTKGD = getNormalizedAccount(String(row[maTKGDIdx] || ''));
-    const maHD = String(row[maHDIdx] || '').trim();
-    const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
-    const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
-    const ngayGio = ngayGioIdx !== -1 ? String(row[ngayGioIdx] || '').trim() : '';
-    const maGD = maGDIdx !== -1 ? String(row[maGDIdx] || '').trim() : '';
-
-    if (!maLenh || !maTKGD || !maHD) continue;
-
-    result.push({
-      maLenh,
-      maTKGD,
-      maHD,
-      klGiaoDich,
-      giaKhop,
-      ngayGio,
-      maGD,
-      combinedKey: `${maTKGD}${maHD}${giaKhop}`,
-    });
-  }
-  return result;
-}
-
-export function parseFR(buffer: Buffer, date: Date, holidays: string[] = []): any[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  let headerRowIdx = 1;
-  let ordIdx = -1;
-  let accountIdx = -1;
-  let symbolIdx = -1;
-  let qtyIdx = -1;
-  let fillPIdx = -1;
-  let timeIdx = -1;
-
-  const scanLimit = Math.min(rows.length, 5);
-  for (let r = 0; r < scanLimit; r++) {
-    if (!rows[r]) continue;
-    const rowHeaders = rows[r].map((h) => String(h || '').trim());
-
-    const tempOrdIdx = findHeaderIndex(rowHeaders, 'Ord #', ['ord', 'ord #', 'order', 'order #']);
-    const tempAccountIdx = findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'acc']);
-    const tempSymbolIdx = findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'contract']);
-    const tempQtyIdx = findHeaderIndex(rowHeaders, 'Qty', ['qty', 'quantity', 'kl', 'khối lượng', 'volume']);
-    const tempFillPIdx = findHeaderIndex(rowHeaders, 'Fill P', ['fill p', 'fill price', 'gia khop', 'giá khớp']);
-    const tempTimeIdx = findHeaderIndex(rowHeaders, 'Time', ['time', 'thoi gian', 'ngày giờ', 'ngay gio']);
-
-    if (tempOrdIdx !== -1 && tempAccountIdx !== -1 && tempSymbolIdx !== -1 && tempQtyIdx !== -1 && tempFillPIdx !== -1) {
-      headerRowIdx = r;
-      ordIdx = tempOrdIdx;
-      accountIdx = tempAccountIdx;
-      symbolIdx = tempSymbolIdx;
-      qtyIdx = tempQtyIdx;
-      fillPIdx = tempFillPIdx;
-      timeIdx = tempTimeIdx;
-      break;
-    }
-  }
-
-  if (ordIdx === -1 || accountIdx === -1 || symbolIdx === -1 || qtyIdx === -1 || fillPIdx === -1) {
-    throw new Error('Thiếu cột bắt buộc trong file CQG FR (Ord #, Account, Symbol, Qty, Fill P)');
-  }
-
-  const result: any[] = [];
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-
-    const ord = String(row[ordIdx] || '').trim();
-    const account = String(row[accountIdx] || '').trim();
-    const symbol = String(row[symbolIdx] || '').trim();
-    const qty = parseCqgNumber(row[qtyIdx]);
-    const fillPVal = parseCqgNumber(row[fillPIdx]);
-    const time = timeIdx !== -1 ? String(row[timeIdx] || '').trim() : '';
-
-    if (!ord || !account || !symbol) continue;
-
-    const accountRaw = getNormalizedAccount(account);
-    let tradeDate = date;
-    if (time) {
-      const parsedTime = parseCqgDateTime(time, date);
-      if (parsedTime) tradeDate = parsedTime;
-    }
-
-    const symbolRaw = convertLMESymbol(symbol, tradeDate, holidays);
-
-    result.push({
-      ord,
-      account,
-      symbol,
-      qty,
-      fillP: fillPVal,
-      time,
-      accountRaw,
-      combinedKey: `${accountRaw}${symbolRaw}${fillPVal}`,
-    });
-  }
-  return result;
-}
-
-export function parseNano(buffer: Buffer): any[] {
-  const text = buffer.toString('utf-8');
-  const lines = text.split(/\r?\n/);
-  if (lines.length > 0) {
-    const firstLine = lines[0].toLowerCase();
-    if (firstLine.includes('buy') && firstLine.includes('sell')) {
-      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-      const buyColIndex = headers.indexOf('buy');
-      const sellColIndex = headers.indexOf('sell');
-      const priceColIndex = headers.indexOf('price');
-      const tradeDateColIndex = headers.indexOf('trade date');
-      const executionTimeColIndex = headers.indexOf('execution date-time');
-      const brokerTradeIdColIndex = headers.indexOf('broker trade id');
-      const subAccColIndex = headers.indexOf('sub-a/c');
-      const productCodeColIndex = headers.indexOf('product code');
-
-      if (buyColIndex === -1 || sellColIndex === -1) {
-        throw new Error("Không tìm thấy cột 'Buy' hoặc 'Sell' trong file CSV Straits");
-      }
-
-      const result: any[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        const values = line.split(',');
-
-        const buyVal = buyColIndex !== -1 && buyColIndex < values.length ? parseFloat(values[buyColIndex].replace(/"/g, '').trim()) || 0 : 0;
-        const sellVal = sellColIndex !== -1 && sellColIndex < values.length ? parseFloat(values[sellColIndex].replace(/"/g, '').trim()) || 0 : 0;
-        const volume = buyVal + sellVal;
-        if (volume === 0) continue;
-
-        const maLenh = brokerTradeIdColIndex !== -1 && brokerTradeIdColIndex < values.length ? values[brokerTradeIdColIndex].replace(/"/g, '').trim() : 'STRAITS';
-        const maTKGD = subAccColIndex !== -1 && subAccColIndex < values.length ? getNormalizedAccount(values[subAccColIndex].replace(/"/g, '').trim()) : 'Straits';
-        const maHD = productCodeColIndex !== -1 && productCodeColIndex < values.length ? values[productCodeColIndex].replace(/"/g, '').trim() : 'Straits';
-        const giaKhop = priceColIndex !== -1 && priceColIndex < values.length ? parseFloat(values[priceColIndex].replace(/"/g, '').trim()) || 0 : 0;
-        let ngayGio = executionTimeColIndex !== -1 && executionTimeColIndex < values.length ? values[executionTimeColIndex].replace(/"/g, '').trim() : '';
-        if (!ngayGio && tradeDateColIndex !== -1 && tradeDateColIndex < values.length) {
-          ngayGio = values[tradeDateColIndex].replace(/"/g, '').trim();
-        }
-
-        result.push({
-          maLenh,
-          maTKGD,
-          maHD,
-          klGiaoDich: volume,
-          giaKhop,
-          ngayGio,
-          maGD: maLenh,
-          combinedKey: `${maTKGD}${maLenh}${volume}`,
-        });
-      }
-      return result;
-    }
-  }
-
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  const header = rows[0].map((h) => String(h || '').trim().toLowerCase());
-  const maLenhIdx = header.indexOf('order sysid');
-  const maTKGDIdx = header.indexOf('trader id');
-  const maHDIdx = header.indexOf('instrument id');
-  const klGiaoDichIdx = header.indexOf('volume');
-  const giaKhopIdx = header.indexOf('price');
-  const ngayIdx = header.indexOf('trading day');
-  const tradeDateIdx = header.indexOf('trade date');
-  const gioIdx = header.indexOf('trade time');
-  const maGDIdx = header.indexOf('trade id');
-
-  if (maLenhIdx === -1 || maTKGDIdx === -1 || maHDIdx === -1 || klGiaoDichIdx === -1 || giaKhopIdx === -1 || maGDIdx === -1) {
-    throw new Error('Thiếu cột bắt buộc trong file Nano');
-  }
-
-  const result: any[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-
-    const maLenh = String(row[maLenhIdx] || '').trim();
-    const maTKGD = getNormalizedAccount(String(row[maTKGDIdx] || ''));
-    const maHD = String(row[maHDIdx] || '').trim();
-    const klGiaoDich = parseFloat(row[klGiaoDichIdx]) || 0;
-    const giaKhop = parseFloat(row[giaKhopIdx]) || 0;
-    const ngay = ngayIdx !== -1 ? String(row[ngayIdx] || '').trim() : '';
-    const tradeDateVal = tradeDateIdx !== -1 ? String(row[tradeDateIdx] || '').trim() : '';
-    const gio = gioIdx !== -1 ? String(row[gioIdx] || '').trim() : '';
-    const maGD = String(row[maGDIdx] || '').trim();
-
-    if (!maLenh || !maTKGD || !maHD) continue;
-
-    result.push({
-      maLenh,
-      maTKGD,
-      maHD,
-      klGiaoDich,
-      giaKhop,
-      ngayGio: `${ngay} ${gio}`,
-      tradeDateStr: tradeDateVal ? `${tradeDateVal} ${gio}` : undefined,
-      maGD,
-      combinedKey: `${maTKGD}${maGD}${klGiaoDich}`,
-    });
-  }
-  return result;
-}
-
-export function parseOP(buffer: Buffer): any[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  let headerRowIdx = 1;
-  let accountIdx = -1;
-  let symbolIdx = -1;
-  let lIdx = -1;
-  let sIdx = -1;
-
-  const scanLimit = Math.min(rows.length, 5);
-  for (let r = 0; r < scanLimit; r++) {
-    if (!rows[r]) continue;
-    const rowHeaders = rows[r].map((h) => String(h || '').trim());
-    const tempAccountIdx = findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'acc']);
-    const tempSymbolIdx = findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'contract']);
-    const tempLIdx = rowHeaders.findIndex((h) => {
-      const norm = h.toLowerCase().trim();
-      return norm === 'l' || norm.startsWith('l (') || norm.startsWith('(');
-    });
-    const tempSIdx = rowHeaders.findIndex((h) => {
-      const norm = h.toLowerCase().trim();
-      return norm === 's' || norm.startsWith('s (') || norm.startsWith('s(');
-    });
-
-    if (tempAccountIdx !== -1 && tempSymbolIdx !== -1 && tempLIdx !== -1 && tempSIdx !== -1) {
-      headerRowIdx = r;
-      accountIdx = tempAccountIdx;
-      symbolIdx = tempSymbolIdx;
-      lIdx = tempLIdx;
-      sIdx = tempSIdx;
-      break;
-    }
-  }
-
-  if (accountIdx === -1 || symbolIdx === -1 || lIdx === -1 || sIdx === -1) {
-    throw new Error('Thiếu cột bắt buộc trong file OP (Account, Symbol, L, S)');
-  }
-
-  const result: any[] = [];
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-
-    const account = String(row[accountIdx] || '').trim();
-    const symbol = String(row[symbolIdx] || '').trim();
-    const lValue = parseCqgNumber(row[lIdx]);
-    const sValue = parseCqgNumber(row[sIdx]);
-
-    if (!symbol) continue;
-
-    result.push({
-      account: getNormalizedAccount(account),
-      symbol,
-      lValue,
-      sValue,
-    });
-  }
-  return result;
-}
-
-export function parseTTM(buffer: Buffer): any[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  const header = rows[0].map((h) => String(h || '').trim());
-  const maTKGDIdx = header.findIndex((h) => h === 'Mã TKGD' || h === 'Mã tài khoản');
-  const maHDIdx = header.findIndex((h) => h === 'Mã HĐ' || h === 'Mã hợp đồng');
-  const tongMuaIdx = header.findIndex((h) => h.toLowerCase() === 'kl mua');
-  const tongBanIdx = header.findIndex((h) => h.toLowerCase() === 'kl bán');
-  const giaKhopIdx = header.findIndex((h) => h === 'Giá TB' || h === 'Giá khớp' || h === 'Giá trung bình');
-
-  if (maTKGDIdx === -1 || maHDIdx === -1 || tongMuaIdx === -1 || tongBanIdx === -1) {
-    throw new Error('Thiếu cột bắt buộc trong file TTM.xlsx');
-  }
-
-  const result: any[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-
-    const maTKGD = getNormalizedAccount(String(row[maTKGDIdx] || ''));
-    const maHD = String(row[maHDIdx] || '').trim();
-    const tongMua = parseFloat(row[tongMuaIdx]) || 0;
-    const tongBan = parseFloat(row[tongBanIdx]) || 0;
-    const giaKhop = giaKhopIdx !== -1 ? parseFloat(row[giaKhopIdx]) || 0 : 0;
-
-    if (!maTKGD || !maHD) continue;
-
-    result.push({ maTKGD, maHD, tongMua, tongBan, giaKhop });
-  }
-  return result;
-}
-
-export function parseTTTTForVolume(buffer: Buffer): any[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  const header = rows[0].map((h) => String(h || '').trim());
-  const maTKGDIdx = findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account']);
-  const maHDIdx = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol']);
-  const tongMuaIdx = findHeaderIndex(header, 'KL Mua', ['KL mua']);
-  const tongBanIdx = findHeaderIndex(header, 'KL Bán', ['KL bán']);
-
-  const finalAccIdx = maTKGDIdx !== -1 ? maTKGDIdx : 7;
-  const finalSymIdx = maHDIdx !== -1 ? maHDIdx : 9;
-  const finalMuaIdx = tongMuaIdx !== -1 ? tongMuaIdx : 15;
-  const finalBanIdx = tongBanIdx !== -1 ? tongBanIdx : 16;
-
-  const result: any[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-
-    const maTKGD = getNormalizedAccount(String(row[finalAccIdx] || ''));
-    const maHD = String(row[finalSymIdx] || '').trim();
-    const tongMua = parseFloat(row[finalMuaIdx]) || 0;
-    const tongBan = parseFloat(row[finalBanIdx]) || 0;
-
-    if (!maTKGD || !maHD) continue;
-    result.push({ maTKGD, maHD, tongMua, tongBan });
-  }
-  return result;
-}
-
-export function parsePSForVolume(buffer: Buffer): any[] {
-  return parseOP(buffer);
-}
-
-export function parseStraitsCsv(buffer: Buffer): { totalVolume: number } {
-  const text = buffer.toString('utf-8');
-  const lines = text.split(/\r?\n/);
-  if (lines.length === 0) throw new Error('File Straits CSV rỗng');
-
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-  const buyColIndex = headers.indexOf('buy');
-  const sellColIndex = headers.indexOf('sell');
-
-  if (buyColIndex === -1 || sellColIndex === -1) {
-    throw new Error("Không tìm thấy cột 'Buy' hoặc 'Sell' trong file CSV Straits");
-  }
-
-  let totalVolume = 0;
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const values = line.split(',');
-    if (buyColIndex < values.length) {
-      totalVolume += parseFloat(values[buyColIndex].replace(/"/g, '').trim()) || 0;
-    }
-    if (sellColIndex < values.length) {
-      totalVolume += parseFloat(values[sellColIndex].replace(/"/g, '').trim()) || 0;
-    }
-  }
-  return { totalVolume };
-}
-
-export function parseTTTTForRecon(buffer: Buffer): { account: string; symbol: string; position: number }[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  let headerRowIdx = 0;
-  let accountIdx = -1;
-  let symbolIdx = -1;
-  let positionIdx = -1;
-
-  const scanLimit = Math.min(rows.length, 5);
-  for (let r = 0; r < scanLimit; r++) {
-    if (!rows[r]) continue;
-    const rowHeaders = rows[r].map((h) => String(h || '').trim());
-    const tempAccIdx = findHeaderIndex(rowHeaders, 'Mã TKGD', ['mã tài khoản', 'account', 'tk']);
-    const tempSymIdx = findHeaderIndex(rowHeaders, 'Mã HĐ', ['mã hợp đồng', 'symbol']);
-    const tempPosIdx = findHeaderIndex(rowHeaders, 'KL ròng', ['khối lượng ròng', 'net position', 'vị thế ròng']);
-
-    if (tempAccIdx !== -1 && tempSymIdx !== -1) {
-      headerRowIdx = r;
-      accountIdx = tempAccIdx;
-      symbolIdx = tempSymIdx;
-      if (tempPosIdx !== -1) positionIdx = tempPosIdx;
-      break;
-    }
-  }
-
-  if (accountIdx === -1 || symbolIdx === -1) {
-    accountIdx = 7;
-    symbolIdx = 9;
-  }
-  const finalPosIdx = positionIdx !== -1 ? positionIdx : 19;
-
-  const result: { account: string; symbol: string; position: number }[] = [];
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-    const accountRaw = String(row[accountIdx] || '').trim();
-    const symbol = String(row[symbolIdx] || '').trim();
-    const position = parseFloat(row[finalPosIdx]) || 0;
-    if (!accountRaw || !symbol) continue;
-
-    result.push({
-      account: getNormalizedAccount(accountRaw),
-      symbol,
-      position,
-    });
-  }
-  return result;
-}
-
-export function parsePSForRecon(
-  buffer: Buffer,
-  tradingDate: Date,
-  holidays: string[] = [],
-): { account: string; symbol: string; position: number }[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) return [];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  if (rows.length < 2) return [];
-
-  let headerRowIdx = 1;
-  let accountIdx = -1;
-  let symbolIdx = -1;
-  let positionIdx = -1;
-
-  const scanLimit = Math.min(rows.length, 5);
-  for (let r = 0; r < scanLimit; r++) {
-    if (!rows[r]) continue;
-    const rowHeaders = rows[r].map((h) => String(h || '').trim());
-    const tempAccIdx = findHeaderIndex(rowHeaders, 'Account', ['account', 'tk', 'tài khoản', 'ma tkgd', 'acc']);
-    const tempSymIdx = findHeaderIndex(rowHeaders, 'Symbol', ['symbol', 'ma hd', 'mã hợp đồng', 'contract']);
-    const tempPosIdx = findHeaderIndex(rowHeaders, 'Position', ['net', 'kl ròng', 'vị thế', 'trạng thái ròng']);
-
-    if (tempAccIdx !== -1 && tempSymIdx !== -1) {
-      headerRowIdx = r;
-      accountIdx = tempAccIdx;
-      symbolIdx = tempSymIdx;
-      if (tempPosIdx !== -1) positionIdx = tempPosIdx;
-      break;
-    }
-  }
-
-  if (accountIdx === -1 || symbolIdx === -1) {
-    accountIdx = 0;
-    symbolIdx = 3;
-  }
-  const finalPosIdx = positionIdx !== -1 ? positionIdx : 8;
-
-  const result: { account: string; symbol: string; position: number }[] = [];
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-    const accountRaw = String(row[accountIdx] || '').trim();
-    let symbol = String(row[symbolIdx] || '').trim();
-    const position = parseCqgNumber(row[finalPosIdx]);
-    if (!accountRaw || !symbol) continue;
-
-    const account = getNormalizedAccount(accountRaw);
-    symbol = convertLMESymbol(symbol, tradingDate, holidays);
-
-    result.push({ account, symbol, position });
-  }
-  return result;
 }

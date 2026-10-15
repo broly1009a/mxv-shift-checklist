@@ -10,9 +10,9 @@ import { BotJob } from '../../../schemas/bot-job.schema';
 import { KlgdReconWorker } from '../../trading-ops/workers/klgd-recon.worker';
 import { PreEodReconWorker } from '../../trading-ops/workers/pre-eod-recon.worker';
 import { NegativeMarginWorker } from '../../trading-ops/workers/negative-margin.worker';
-import { CcpLotWorker } from '../../ccp-clearing/workers/ccp-lot.worker';
-import { CcpValueWorker } from '../../ccp-clearing/workers/ccp-value.worker';
-import { CcpEodWorker } from '../../ccp-clearing/workers/ccp-eod.worker';
+import { CcpLotWorker } from '../../trading-ops/workers/ccp-lot.worker';
+import { CcpValueWorker } from '../../trading-ops/workers/ccp-value.worker';
+import { CcpEodWorker } from '../../trading-ops/workers/ccp-eod.worker';
 
 @Injectable()
 export class BotDispatcherService implements OnModuleInit {
@@ -52,6 +52,17 @@ export class BotDispatcherService implements OnModuleInit {
     this.logger.log(
       `[BotDispatcherService] Đã đăng ký Worker cho năng lực: "${worker.capabilityType}" (${worker.displayName})`,
     );
+  }
+
+  /**
+   * Kiểm tra xem Dispatcher có Worker xử lý năng lực này không
+   */
+  hasWorker(botCheckType: string): boolean {
+    if (this.workers.has(botCheckType)) return true;
+    for (const w of this.workers.values()) {
+      if (w.canHandle && w.canHandle(botCheckType)) return true;
+    }
+    return false;
   }
 
   /**
@@ -129,7 +140,14 @@ export class BotDispatcherService implements OnModuleInit {
           $set: {
             status: isSuccess ? 'COMPLETED' : 'FAILED',
             completedAt: new Date(),
-            'payload.result': result.metrics,
+            'payload.result': {
+              ...(result.metrics || {}),
+              ...(result.details || {}),
+              status: result.status,
+              summary: result.summary,
+              passed: result.status === 'SUCCESS',
+              isWaitingFiles: !!result.isWaitingFiles || result.status === 'WAITING',
+            },
             'payload.summary': result.summary,
             'payload.domainLogRefId': result.domainLogRefId,
             error: result.error,

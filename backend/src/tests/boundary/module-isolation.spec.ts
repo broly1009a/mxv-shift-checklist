@@ -44,8 +44,8 @@ describe('Boundary - Module Isolation (Kiểm Soát Ranh Giới Module V2)', () 
   }
 
   describe('Rào Chắn Cách Ly Giữa Các Module Mới (V2 Boundaries)', () => {
-    it('Module Ingress, Trading-Ops, Checklist-Hub, Ccp-Clearing phải tồn tại ranh giới rõ ràng', () => {
-      const v2Modules = ['ingress', 'trading-ops', 'checklist-hub', 'ccp-clearing'];
+    it('Module Ingress, Trading-Ops, Checklist-Hub phải tồn tại ranh giới rõ ràng', () => {
+      const v2Modules = ['ingress', 'trading-ops', 'checklist-hub'];
 
       for (const modName of v2Modules) {
         const modDir = path.join(modulesDir, modName);

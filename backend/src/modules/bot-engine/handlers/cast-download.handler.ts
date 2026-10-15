@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
-import { RpaDownloaderService } from '../rpa-downloader.service';
+import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { parseJobPayload, getCqgBackupBase } from '../helpers/bot-path.helper';
 
@@ -14,7 +14,7 @@ export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
-    private readonly rpaDownloaderService: RpaDownloaderService,
+    private readonly rpaDownloaderService: RpaScraperService,
     private readonly settingsService: SystemSettingsService,
   ) { }
 

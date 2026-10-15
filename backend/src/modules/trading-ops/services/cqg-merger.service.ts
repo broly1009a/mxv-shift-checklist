@@ -1,7 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { MarginExcelParser } from '../parsers';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { TelegramService } from '../../telegram/telegram.service';
+import { resolveStoragePathCrossPlatform } from '../../../shared';
 
 export interface ICqgMergeResult {
   success: boolean;
@@ -10,9 +14,58 @@ export interface ICqgMergeResult {
   errors: string[];
 }
 
+function findHeaderIndex(header: string[], primary: string, aliases: string[] = []): number {
+  const norm = (s: string) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const targets = [primary, ...aliases].map(norm);
+  return header.findIndex((h) => {
+    const nh = norm(h);
+    return targets.some((t) => nh === t || nh.includes(t));
+  });
+}
+
+function findLatestFile(dir: string, pattern: RegExp): string | null {
+  if (!fs.existsSync(dir)) return null;
+  const files = fs.readdirSync(dir).filter((f) => pattern.test(f));
+  if (files.length === 0) return null;
+  files.sort((a, b) => {
+    const sa = fs.statSync(path.join(dir, a)).mtimeMs;
+    const sb = fs.statSync(path.join(dir, b)).mtimeMs;
+    return sb - sa;
+  });
+  return path.join(dir, files[0]);
+}
+
+function parseCqgNumber(val: any): number {
+  if (val === undefined || val === null) return 0;
+  if (typeof val === 'number') return val;
+  const str = String(val).trim();
+  if (!str) return 0;
+  let normalized = str;
+  const lastComma = str.lastIndexOf(',');
+  const lastDot = str.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    if (lastDot < lastComma) {
+      normalized = str.replace(/\./g, '').replace(/,/g, '.');
+    } else {
+      normalized = str.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    normalized = str.replace(/,/g, '.');
+  }
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 @Injectable()
 export class CqgMergerService {
   private readonly logger = new Logger(CqgMergerService.name);
+
+  constructor(
+    @Optional()
+    private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly telegramService?: TelegramService,
+  ) {}
 
   /**
    * Ghép FR1.xlsx + FR2.xlsx -> FR.xlsx (Giao dịch khớp lệnh)
@@ -349,6 +402,199 @@ export class CqgMergerService {
       mergedFiles,
       logs,
       errors,
+    };
+  }
+
+  /**
+   * Đối chiếu số dư CQG (CheckEODCQG)
+   */
+  async checkEODCQG(
+    files: {
+      qltkgd: Buffer;
+      accountsBalances: Buffer;
+      qltkgdName?: string;
+      accountsBalancesName?: string;
+    },
+    usdExchangeRate?: number,
+  ): Promise<
+    Array<{
+      maTKGD: string;
+      calculatedBalance: number;
+      cqgBalance: number;
+      differ: number;
+      inMS: boolean;
+      inCQG: boolean;
+    }>
+  > {
+    let effectiveRate = usdExchangeRate;
+    if (!effectiveRate || effectiveRate <= 0) {
+      if (this.settingsService) {
+        const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25400');
+        effectiveRate = parseFloat(usdRateStr) || 25400;
+      } else {
+        effectiveRate = 25400;
+      }
+    }
+
+    // 1. Parse QLTKGD.xlsx qua MarginExcelParser dùng chung
+    const qltkgdRes = MarginExcelParser.parseQltkgd(files.qltkgd, { fileName: files.qltkgdName });
+    const qltkgdDataMap = qltkgdRes.dataMap;
+
+    // 2. Parse Accounts_Balances.xlsx
+    const asWorkbook = XLSX.read(files.accountsBalances, { type: 'buffer' });
+    const asSheet = asWorkbook.Sheets[asWorkbook.SheetNames[0]];
+    if (!asSheet) throw new Error('Không tìm thấy sheet nào trong Accounts_Balances.xlsx');
+    const asRows = XLSX.utils.sheet_to_json(asSheet, { header: 1 }) as any[][];
+    if (asRows.length < 2) throw new Error('File Accounts_Balances.xlsx rỗng');
+
+    const asHeader = asRows[0].map((h: any) => String(h || '').trim());
+    const accountNumberIdx = findHeaderIndex(asHeader, 'Account Number', ['Account', 'Tài khoản', 'Mã TKGD', 'Tai khoan']);
+    const endCashBalanceIdx = findHeaderIndex(asHeader, 'End Cash Balance', ['Cash Balance', 'Balance', 'Số dư', 'Số dư cuối ngày']);
+    const recordDescriptionIdx = findHeaderIndex(asHeader, 'Record Description', ['Description', 'Mô tả']);
+
+    const asName = files.accountsBalancesName || 'Accounts_Balances.xlsx';
+    if (accountNumberIdx === -1 || endCashBalanceIdx === -1) {
+      throw new Error(`${asName} không hợp lệ vì thiếu các cột: Account Number hoặc End Cash Balance.`);
+    }
+
+    const cqgBalanceMap = new Map<string, number>();
+    for (let i = 1; i < asRows.length; i++) {
+      const row = asRows[i];
+      if (!row || row.length === 0) continue;
+
+      const recordDescription = recordDescriptionIdx !== -1 ? String(row[recordDescriptionIdx] || '').trim() : '';
+      if (!recordDescription.startsWith('Current-day')) continue;
+
+      const account = String(row[accountNumberIdx] || '').trim();
+      const balance = parseCqgNumber(row[endCashBalanceIdx]);
+      if (!account) continue;
+
+      let accountRaw = account;
+      if (accountRaw.endsWith('L') || accountRaw.endsWith('l')) {
+        accountRaw = accountRaw.substring(0, accountRaw.length - 1) + '-L';
+      } else if (accountRaw.endsWith('S') || accountRaw.endsWith('s')) {
+        accountRaw = accountRaw.substring(0, accountRaw.length - 1) + '-S';
+      } else if (accountRaw.endsWith('F') || accountRaw.endsWith('f')) {
+        accountRaw = accountRaw.substring(0, accountRaw.length - 1);
+      }
+
+      const existingBalance = cqgBalanceMap.get(accountRaw) || 0;
+      cqgBalanceMap.set(accountRaw, existingBalance + balance);
+    }
+
+    // 3. Compare balances
+    const result: Array<{
+      maTKGD: string;
+      calculatedBalance: number;
+      cqgBalance: number;
+      differ: number;
+      inMS: boolean;
+      inCQG: boolean;
+    }> = [];
+
+    for (const maTKGD of cqgBalanceMap.keys()) {
+      if (maTKGD.startsWith('999') || maTKGD.startsWith('050') || !/^\d/.test(maTKGD)) continue;
+
+      const qltkgdRow = qltkgdDataMap.get(maTKGD);
+      const cqgBalance = cqgBalanceMap.get(maTKGD) ?? 0;
+
+      if (qltkgdRow) {
+        const calculated = (qltkgdRow.soDuTKKQHienTai + qltkgdRow.choDaoHan - qltkgdRow.laiLoVND) / effectiveRate;
+        const roundedCalc = Math.round(calculated * 100) / 100;
+        const roundedCQG = Math.round(cqgBalance * 100) / 100;
+        const differ = Math.abs(roundedCalc - roundedCQG);
+
+        if (differ > 100) {
+          result.push({
+            maTKGD,
+            calculatedBalance: roundedCalc,
+            cqgBalance: roundedCQG,
+            differ,
+            inMS: true,
+            inCQG: true,
+          });
+        }
+      } else {
+        result.push({
+          maTKGD,
+          calculatedBalance: 0,
+          cqgBalance: Math.round(cqgBalance * 100) / 100,
+          differ: Math.abs(cqgBalance),
+          inMS: false,
+          inCQG: true,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Tự động kiểm tra đối chiếu đồng bộ số dư CQG (runAutoCheckCQGSync)
+   */
+  async runAutoCheckCQGSync(tradingDate: Date): Promise<any> {
+    if (!this.settingsService) {
+      throw new Error('SystemSettingsService chưa sẵn sàng trong CqgMergerService.');
+    }
+
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      ),
+    );
+    const cqgBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_backup_path_cqg',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      ),
+    );
+
+    const year = tradingDate.getFullYear().toString();
+    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
+    const day = String(tradingDate.getDate()).padStart(2, '0');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    const msDailyPath = path.join(msBackupBase, subFolder);
+    const cqgDailyPath = path.join(cqgBackupBase, subFolder);
+
+    const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
+    const accountsBalancesPath =
+      findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
+      findLatestFile(msDailyPath, /Accounts_Balances/i);
+
+    if (!fs.existsSync(qltkgdPath)) {
+      throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
+    }
+    if (!accountsBalancesPath) {
+      throw new Error('Không tìm thấy file Accounts_Balances.xlsx từ CQG');
+    }
+
+    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25400');
+    const usdRate = parseFloat(usdRateStr) || 25400;
+
+    const cqgResult = await this.checkEODCQG(
+      {
+        qltkgd: fs.readFileSync(qltkgdPath),
+        accountsBalances: fs.readFileSync(accountsBalancesPath),
+      },
+      usdRate,
+    );
+
+    const totalMismatched = cqgResult ? cqgResult.length : 0;
+    let telegramMsg = ` [ĐỐI CHIẾU ĐỒNG BỘ SỐ DƯ CQG - ${day}/${month}/${year}]\n`;
+    telegramMsg += `• Trạng thái: ${totalMismatched === 0 ? '✓ Khớp hoàn toàn giữa MS và CQG' : 'PHÁT HIỆN LỆCH SỐ DƯ'}\n`;
+    telegramMsg += `• Số tài khoản lệch số dư CQG (> $100): ${totalMismatched}\n`;
+
+    if (this.telegramService) {
+      await this.telegramService.sendMessage(telegramMsg).catch(() => {});
+    }
+
+    return {
+      cqgResult,
+      totals: {
+        totalMismatchedCQG: totalMismatched,
+      },
     };
   }
 }

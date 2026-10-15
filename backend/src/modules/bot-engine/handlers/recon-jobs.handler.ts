@@ -3,18 +3,18 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
-import { ReconciliationService } from '../../reconciliation/reconciliation.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { RpaDownloaderService } from '../rpa-downloader.service';
+import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { CqgSyncService } from '../cqg-sync.service';
-import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../ccp-ce-downloader.service';
+import { CcpCeScraperService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../../ingress/scrapers/ccp-ce-scraper.service';
 import { EmailWatcherService } from '../email-watcher.service';
-import { findLatestFile, findExactSessionEodFile } from '../../reconciliation/helpers/recon-number-parser.helper';
+import { findLatestFile, findExactSessionEodFile } from '../../../shared';
 import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate, isMarketWeekendClosed } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 import { KlgdReconService as TradingOpsKlgdReconService } from '../../trading-ops/services/klgd-recon.service';
 import { PreEodReconService as TradingOpsPreEodReconService } from '../../trading-ops/services/pre-eod-recon.service';
-import { CcpEodService } from '../../ccp-clearing/services/ccp-eod.service';
+import { CcpEodService } from '../../trading-ops/services/ccp-eod.service';
+import { CqgMergerService } from '../../trading-ops/services/cqg-merger.service';
 
 @Injectable()
 export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
@@ -24,7 +24,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
   constructor(
     private readonly registry: BotJobHandlerRegistry,
     private readonly settingsService: SystemSettingsService,
-    private readonly rpaDownloaderService: RpaDownloaderService,
+    private readonly rpaDownloaderService: RpaScraperService,
     private readonly cqgSyncService: CqgSyncService,
     @Optional()
     private readonly klgdReconService?: TradingOpsKlgdReconService,
@@ -33,10 +33,9 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     @Optional()
     private readonly ccpEodService?: CcpEodService,
     @Optional()
-    @Inject(forwardRef(() => ReconciliationService))
-    private readonly reconciliationService?: ReconciliationService,
+    private readonly cqgMergerService?: CqgMergerService,
     @Optional()
-    private readonly ccpCeDownloaderService?: CcpCeDownloaderService,
+    private readonly ccpCeDownloaderService?: CcpCeScraperService,
     @Optional()
     private readonly emailWatcherService?: EmailWatcherService,
   ) { }
@@ -80,9 +79,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     try {
-      const result = this.preEodReconService
-        ? await this.preEodReconService.runAutoCheckSOD(targetDate)
-        : await this.reconciliationService!.runAutoCheckSOD(targetDate);
+      const result = await this.preEodReconService.runAutoCheckSOD(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu SOD.`);
       job.logs.push(
         `[${new Date().toISOString()}] Kết quả: ${result.success ? 'KHỚP' : 'LỆCH'}`,
@@ -862,9 +859,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     log(' Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
 
     try {
-      const result = this.klgdReconService
-        ? await this.klgdReconService.runAutoCheckKLGD(targetDate, options)
-        : await this.reconciliationService!.runAutoCheckKLGD(targetDate, options);
+      const result = await this.klgdReconService.runAutoCheckKLGD(targetDate, options);
       if (result.sessionStart && result.checkTime) {
         const startStr = new Date(result.sessionStart).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
@@ -1070,9 +1065,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     try {
-      const result = this.preEodReconService
-        ? await this.preEodReconService.runAutoCheckPreEOD(targetDate)
-        : await this.reconciliationService!.runAutoCheckPreEOD(targetDate);
+      const result = await this.preEodReconService.runAutoCheckPreEOD(targetDate);
       if (result.targetDate) {
         const t1DisplayStr = new Date(result.targetDate).toLocaleDateString('vi-VN');
         job.logs.push(
@@ -1270,9 +1263,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     }
 
     try {
-      const result = this.preEodReconService
-        ? await this.preEodReconService.runAutoCheckEodMm(targetDate)
-        : await this.reconciliationService!.runAutoCheckEodMm(targetDate);
+      const result = await this.preEodReconService.runAutoCheckEodMm(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD M-System ngày phiên ${dateStr}.`);
 
       const MAX_PREVIEW = 30;
@@ -1354,9 +1345,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     try {
-      const result = this.ccpEodService
-        ? await this.ccpEodService.runAutoCheckEodCcp(targetDate)
-        : await this.reconciliationService!.runAutoCheckEodCcp(targetDate);
+      const result = await this.ccpEodService.runAutoCheckEodCcp(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD CoreCCP.`);
 
       const MAX_PREVIEW = 50;
@@ -1421,11 +1410,12 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     try {
-      if (!this.reconciliationService) {
-        throw new Error('ReconciliationService chưa được khởi tạo để thực hiện đối chiếu đồng bộ CQG.');
+      const merger = this.cqgMergerService;
+      if (!merger) {
+        throw new Error('CqgMergerService V2 chưa được khởi tạo để thực hiện đối chiếu đồng bộ CQG.');
       }
-      const result = await this.reconciliationService.runAutoCheckCQGSync(targetDate);
-      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu đồng bộ số dư CQG.`);
+      const result = await merger.runAutoCheckCQGSync(targetDate);
+      job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu đồng bộ số dư CQG qua CqgMergerService V2.`);
 
       const LOG_THRESHOLD = 50;
       const MAX_PREVIEW = 30;

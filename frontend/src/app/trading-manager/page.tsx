@@ -140,7 +140,7 @@ export default function TradingManagerV2Page() {
       if (!silent) setLoading(true);
 
       try {
-        const data = await tradingOpsApi.getConsoleSummary(qDate, jobId, token);
+        const data = await tradingOpsApi.getConsoleSummary({ date: qDate, jobId });
         setSummaryData(data);
 
         if (data.shiftInfo?.nextScanInSeconds && data.shiftInfo.nextScanInSeconds > 0) {

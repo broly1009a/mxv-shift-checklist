@@ -8,14 +8,14 @@ import { EmailWatcherService } from './email-watcher.service';
 import { FileWatcherService } from './file-watcher.service';
 import { ApiWatcherService } from './api-watcher.service';
 import { BotJobQueueService } from './bot-job-queue.service';
-import { PostEodHandlerService } from './post-eod-handler.service';
+import { MarginCheckerService } from '../trading-ops/services/margin-checker.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import {
   TeamsNotifierService,
   ExpiringContract,
 } from '../notifications/teams-notifier.service';
-import { RpaDownloaderService } from './rpa-downloader.service';
+import { RpaScraperService } from '../ingress/scrapers/rpa-scraper.service';
 import { MarginChangeRequestsService } from '../margin-change-requests/margin-change-requests.service';
 import { isMarketWeekendClosed } from './helpers/bot-path.helper';
 import * as fs from 'fs';
@@ -34,22 +34,22 @@ export class BotEngineService {
     private readonly fileWatcherService: FileWatcherService,
     private readonly apiWatcherService: ApiWatcherService,
     private readonly botJobQueueService: BotJobQueueService,
-    private readonly postEodHandlerService: PostEodHandlerService,
+    @Inject(forwardRef(() => MarginCheckerService))
+    private readonly marginCheckerService: MarginCheckerService,
     private readonly telegramService: TelegramService,
     private readonly settingsService: SystemSettingsService,
     private readonly teamsNotifierService: TeamsNotifierService,
-    private readonly rpaDownloaderService: RpaDownloaderService,
+    private readonly rpaDownloaderService: RpaScraperService,
     @Inject(forwardRef(() => MarginChangeRequestsService))
     private readonly marginChangeRequestsService: MarginChangeRequestsService,
   ) { }
 
   /**
-   * Run every 1 minute to check active shift checklists.
+   * Phương thức quét checklist ca trực cũ (Legacy).
+   * LƯU Ý: Vòng lặp @Cron('* * * * *') định kỳ đã được bàn giao chính thức cho
+   * ShiftScannerService (backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts).
+   * Giữ lại method này phục vụ các lời gọi thủ công / tương thích ngược.
    */
-  @Cron('* * * * *', {
-    name: 'automated-bot-checklist-runner',
-    timeZone: 'Asia/Saigon',
-  })
   async handleBotChecks() {
     if (this.isProcessing) {
       this.logger.warn(
@@ -294,7 +294,7 @@ export class BotEngineService {
                       let allNegativeAccounts: any[] = [];
                       for (const file of eodFiles) {
                         const filePath = path.join(downloadDir, file);
-                        const negatives = await this.postEodHandlerService.scanNegativeMarginAccounts(filePath);
+                        const negatives = await this.marginCheckerService.scanNegativeMarginAccounts(filePath);
                         allNegativeAccounts = [...allNegativeAccounts, ...negatives];
                       }
 
@@ -676,7 +676,7 @@ export class BotEngineService {
                 for (const file of marginFiles) {
                   const filePath = path.join(dailyPath, file);
                   const negatives =
-                    await this.postEodHandlerService.scanNegativeMarginAccounts(
+                    await this.marginCheckerService.scanNegativeMarginAccounts(
                       filePath,
                     );
                   fileDetails.push(`${file} (phát hiện ${negatives.length} TK)`);
@@ -1809,7 +1809,7 @@ export class BotEngineService {
       const payload = jobObj.payload || {};
       const result = payload.result || {};
 
-      if (!result.isWaitingFiles) {
+      if (!result.isWaitingFiles && result.status !== 'WAITING') {
         return false;
       }
 

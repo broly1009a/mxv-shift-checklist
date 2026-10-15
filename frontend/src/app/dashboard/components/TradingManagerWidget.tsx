@@ -19,7 +19,7 @@ export const TradingManagerWidget: React.FC<TradingManagerWidgetProps> = ({ date
     if (!token) return;
     try {
       const qDate = dateStr || new Date().toISOString().split('T')[0];
-      const json = await api.tradingOps.getConsoleSummary(qDate, token);
+      const json = await api.tradingOps.getConsoleSummary({ date: qDate });
       setData(json);
     } catch (e) {
       // silent

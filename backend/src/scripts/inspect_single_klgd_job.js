@@ -6,17 +6,13 @@ conn.on('ready', () => {
 const mongoose = require("/opt/mxv-checklist/backend/node_modules/mongoose");
 async function run() {
   await mongoose.connect("mongodb://127.0.0.1:27017/mxv_shift_checklist");
-  const s = await mongoose.connection.db.collection("shift_logs").findOne({});
-  console.log("SHIFT KEYS:", Object.keys(s));
-  console.log("SAMPLE SHIFT:", JSON.stringify({
-    _id: s._id,
-    date: s.date,
-    shift: s.shift,
-    shiftName: s.shiftName,
-    templateName: s.templateName,
-    status: s.status,
-    totalTasks: s.details?.length
-  }, null, 2));
+  const shift = await mongoose.connection.db.collection("shift_logs").findOne({ _id: new mongoose.Types.ObjectId("6acfb54ca919c51bfe1a61dc") });
+  if (!shift) {
+    console.log("SHIFT NOT FOUND: 6acfb54ca919c51bfe1a61dc");
+  } else {
+    console.log("=== SHIFT ===", shift._id, shift.shiftName, shift.shiftDate, shift.status);
+    console.log("Tasks:", shift.details?.map(d => ({ taskId: d.taskId, title: d.title, botCheckType: d.botCheckTypeSnapshot, status: d.status, isBotCheck: d.isBotCheckSnapshot })));
+  }
   await mongoose.disconnect();
 }
 run().catch(console.error);

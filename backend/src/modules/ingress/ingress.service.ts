@@ -17,6 +17,7 @@ import { CcpScraperService } from './scrapers/ccp-scraper.service';
 import { CoreExApiAdapter } from './adapters/coreex-api.adapter';
 import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 import { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
+import { AcmEtpAdapter } from './adapters/acm-etp.adapter';
 
 @Injectable()
 export class IngressService implements IIngressPort {
@@ -31,6 +32,7 @@ export class IngressService implements IIngressPort {
     private readonly coreExApiAdapter: CoreExApiAdapter,
     private readonly coreCcpApiAdapter: CoreCcpApiAdapter,
     private readonly acmSftpAdapter: AcmSftpAdapter,
+    private readonly acmEtpAdapter: AcmEtpAdapter,
     @Optional()
     private readonly settingsService?: SystemSettingsService,
   ) {}
@@ -52,27 +54,46 @@ export class IngressService implements IIngressPort {
 
     const files: IngressFileDetail[] = [];
 
-    // Cấu hình Động từ CSDL: Ưu tiên đọc key 'ingress_mode' từ bảng system_settings
-    let ingressMode = 'PLAYWRIGHT';
+    // Cấu hình Động từ CSDL: Ưu tiên cờ riêng từng nguồn, fallback sang key chung 'ingress_mode'
+    let globalMode = 'PLAYWRIGHT';
     if (this.settingsService) {
-      ingressMode = await this.settingsService.getSetting(
+      globalMode = await this.settingsService.getSetting(
         'ingress_mode',
         process.env.INGRESS_MODE || 'PLAYWRIGHT',
       );
     } else {
-      ingressMode = process.env.INGRESS_MODE || 'PLAYWRIGHT';
+      globalMode = process.env.INGRESS_MODE || 'PLAYWRIGHT';
     }
+
+    const sourceKeyMap: Record<string, string> = {
+      MS: 'ingress_mode_ms',
+      CCP: 'ingress_mode_ccp',
+      CORE_CCP: 'ingress_mode_ccp',
+      ACM: 'ingress_mode_acm',
+      CORE_EX: 'ingress_mode_ce',
+    };
+    const specificKey = sourceKeyMap[source] || `ingress_mode_${source.toLowerCase()}`;
+    const ingressMode = this.settingsService
+      ? await this.settingsService.getSetting(specificKey, globalMode)
+      : (process.env[specificKey.toUpperCase()] || globalMode);
 
     // Feature Flag: Tắt Playwright và chuyển trực tiếp sang REST/SFTP API khi ingressMode = 'REST_API'
     if (ingressMode === 'REST_API') {
       this.logger.log(
-        `[IngressService] Kích hoạt Direct API Mode từ CSDL cho nguồn "${source}" (Bỏ qua Playwright, không cần restart server)`,
+        `[IngressService] Kích hoạt Direct API Mode từ CSDL cho nguồn "${source}" (Cờ: ${specificKey}=REST_API)`,
       );
-      if (source === 'MS' || source === 'CORE_EX') {
+      if (source === 'CORE_EX') {
+        return this.coreExApiAdapter.download('CORE_EX', { ...options, targetDirectory: outputDirectory });
+      } else if (source === 'MS') {
         return this.coreExApiAdapter.download('MS', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'CCP' || source === 'CORE_CCP') {
         return this.coreCcpApiAdapter.download('CCP', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'ACM') {
+        // Tự động phân nhánh: Nếu yêu cầu báo cáo ETP (Orders/Trades) -> dùng AcmEtpAdapter, còn lại dùng AcmSftpAdapter (Straits CSV)
+        const isEtpReport = options?.reportCodes?.some((r) => r.includes('ETP') || r === 'ORDERS' || r === 'TRADES');
+        if (isEtpReport) {
+          return this.acmEtpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
+        }
         return this.acmSftpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
       }
     }

@@ -6,9 +6,12 @@ export interface RequestOptions extends RequestInit {
 }
 
 export function getAuthHeaders(token?: string | null): HeadersInit {
+  const resolvedToken =
+    token ||
+    (typeof window !== 'undefined' ? localStorage.getItem('mxv_token') : null);
   return {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
   };
 }
 

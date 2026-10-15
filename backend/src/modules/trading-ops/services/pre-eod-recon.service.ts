@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx';
+import { MarginExcelParser } from '../parsers';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
   resolveStoragePathCrossPlatform,
@@ -542,4 +544,65 @@ export class PreEodReconService {
       </html>
     `;
   }
+
+  /**
+   * Đối chiếu công thức số dư EOD cuối ngày (hỗ trợ song song cả MS và CCP)
+   */
+  async checkEOD(files: {
+    qltkgd?: Buffer;
+    eod?: Buffer;
+    tttt?: Buffer;
+    qltkgdName?: string;
+    eodName?: string;
+    ttttName?: string;
+    qltkgdCcp?: Buffer;
+    eodCcp?: Buffer;
+    ttttCcp?: Buffer;
+    qltkgdCcpName?: string;
+    eodCcpName?: string;
+    ttttCcpName?: string;
+  }): Promise<{
+    negativeIMRAcc: string[];
+    negativeBalanceAccs: string[];
+    mismatchedEOD: Array<{
+      system?: 'MS' | 'CCP';
+      maTKGD: string;
+      calculatedBalance: number;
+      eodBalance: number;
+      differ: number;
+    }>;
+  }> {
+    const negativeBalanceAccs: string[] = [];
+    const negativeIMRAcc: string[] = [];
+    const mismatchedEOD: Array<{
+      system?: 'MS' | 'CCP';
+      maTKGD: string;
+      calculatedBalance: number;
+      eodBalance: number;
+      differ: number;
+    }> = [];
+
+    const processQltkgd = (buf: Buffer) => {
+      const qltkgdRes = MarginExcelParser.parseQltkgd(buf);
+      negativeBalanceAccs.push(...qltkgdRes.negativeBalanceAccs);
+    };
+
+    if (files.qltkgd) processQltkgd(files.qltkgd);
+    if (files.qltkgdCcp) processQltkgd(files.qltkgdCcp);
+
+    const processEod = (buf: Buffer) => {
+      const eodRes = MarginExcelParser.parseEodMargin(buf);
+      negativeIMRAcc.push(...eodRes.negativeIMRAcc);
+    };
+
+    if (files.eod) processEod(files.eod);
+    if (files.eodCcp) processEod(files.eodCcp);
+
+    return {
+      negativeIMRAcc: Array.from(new Set(negativeIMRAcc)),
+      negativeBalanceAccs: Array.from(new Set(negativeBalanceAccs)),
+      mismatchedEOD,
+    };
+  }
 }
+

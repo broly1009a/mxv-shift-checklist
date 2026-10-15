@@ -39,7 +39,7 @@ export const ccpClearingApi = {
    */
   async getExchangeRates(token?: string | null): Promise<ExchangeRatesData> {
     return requestJson<ExchangeRatesData>(
-      '/api/v1/reconciliation/exchange-rates',
+      '/api/v1/ccp-clearing/exchange-rates',
       { method: 'GET' },
       token,
     );
@@ -50,7 +50,7 @@ export const ccpClearingApi = {
    */
   async syncExchangeRates(token?: string | null): Promise<ExchangeRatesData> {
     return requestJson<ExchangeRatesData>(
-      '/api/v1/reconciliation/sync-exchange-rates',
+      '/api/v1/ccp-clearing/sync-exchange-rates',
       { method: 'POST' },
       token,
     );
@@ -61,7 +61,7 @@ export const ccpClearingApi = {
    */
   async getUsdRate(token?: string | null): Promise<{ success: boolean; rate: number }> {
     return requestJson<{ success: boolean; rate: number }>(
-      '/api/v1/reconciliation/usd-rate',
+      '/api/v1/ccp-clearing/usd-rate',
       { method: 'GET' },
       token,
     );
@@ -72,7 +72,7 @@ export const ccpClearingApi = {
    */
   async syncUsdRate(token?: string | null): Promise<{ success: boolean; rate: number }> {
     return requestJson<{ success: boolean; rate: number }>(
-      '/api/v1/reconciliation/sync-usd-rate',
+      '/api/v1/ccp-clearing/sync-usd-rate',
       { method: 'POST' },
       token,
     );
@@ -86,7 +86,7 @@ export const ccpClearingApi = {
     token?: string | null,
   ): Promise<{ success: boolean; message?: string; result?: any }> {
     return requestJson<{ success: boolean; message?: string; result?: any }>(
-      '/api/v1/reconciliation/download-ccp-metrics',
+      '/api/v1/ccp-clearing/download-ccp-metrics',
       {
         method: 'POST',
         body: JSON.stringify({ date }),

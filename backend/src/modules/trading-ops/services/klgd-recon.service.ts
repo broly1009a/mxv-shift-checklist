@@ -8,7 +8,7 @@ import {
   getCcpBackupBasePath,
   resolveCcpDailyPath,
 } from '../../../shared';
-import { CcpExcelParser } from '../../reconciliation/parsers';
+import { CcpExcelParser } from '../parsers';
 import {
   parseDSGD,
   parseFR,

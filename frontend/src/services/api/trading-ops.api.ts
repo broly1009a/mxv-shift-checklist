@@ -37,24 +37,34 @@ export interface ReconLogSummary {
   createdAt: string;
 }
 
+export interface ConsoleSummaryParams {
+  date?: string;
+  jobId?: string | null;
+}
+
 export const tradingOpsApi = {
   /**
-   * Lấy tổng hợp trạng thái đối soát cho Dashboard Console
+   * Lấy tổng hợp trạng thái đối soát cho Dashboard Console (Hỗ trợ cả Options Object lẫn string date)
    */
   async getConsoleSummary(
-    date: string,
-    jobId?: string,
+    paramsOrDate?: string | ConsoleSummaryParams,
+    jobId?: string | null,
     token?: string | null,
   ): Promise<ConsoleSummaryResponse> {
+    const isObject = typeof paramsOrDate === 'object' && paramsOrDate !== null;
+    const dateStr = isObject ? paramsOrDate.date : paramsOrDate;
+    const actualJobId = isObject ? paramsOrDate.jobId : jobId;
+    const actualToken = isObject ? (typeof jobId === 'string' ? jobId : token) : token;
+
     return requestJson<ConsoleSummaryResponse>(
       API_ENDPOINTS.TRADING_OPS.CONSOLE_SUMMARY,
       {
         params: {
-          date,
-          ...(jobId ? { jobId } : {}),
+          ...(dateStr ? { date: dateStr } : {}),
+          ...(actualJobId ? { jobId: actualJobId } : {}),
         },
       },
-      token,
+      actualToken,
     );
   },
 

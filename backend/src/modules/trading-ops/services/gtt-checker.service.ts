@@ -1,0 +1,1348 @@
+import { Injectable, Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as readline from 'readline';
+import { RpaScraperService } from '../../ingress';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { decrypt, resolveTradingSessionDate } from '../../../shared';
+import { chromium, Page } from 'playwright-core';
+import * as XLSX from 'xlsx';
+import { GttExcelParser } from '../parsers';
+
+
+
+export interface GttDataRow {
+  symbol: string;
+  gttMs: number | null;
+  gttCqg: number | null;
+  diff: number | null;
+  status: 'MATCH' | 'DIFF' | 'MS_ONLY' | 'CQG_ONLY' | 'NO_PRICE';
+  tickSize?: number | null;
+  isMinorDiff?: boolean;
+}
+
+export interface GttReport {
+  runAt: string;
+  completedAt?: string;
+  durationMs?: number;
+  totalContracts: number;
+  matched: number;
+  diffCount: number;
+  msOnlyCount: number;
+  cqgOnlyCount: number;
+  rows: GttDataRow[];
+  logs?: string[];
+  marketCsvPath: string | null;
+  gttFilePath: string | null;
+  hangHoaFilePath?: string | null;
+  targetDate?: string;
+  sessionDate?: string;
+}
+
+@Injectable()
+export class GttCheckerService {
+  private readonly logger = new Logger(GttCheckerService.name);
+  private latestReport: GttReport | null = null;
+  private isRunning: boolean = false;
+  private currentLogs: string[] = [];
+  private currentStartTime: number = 0;
+
+  getIsRunning(): boolean {
+    return this.isRunning;
+  }
+
+  getCurrentLogs(): string[] {
+    return this.currentLogs;
+  }
+
+  private logStep(msg: string) {
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+    const line = `[${timeStr}] ${msg}`;
+    this.logger.log(msg);
+    this.currentLogs.push(line);
+  }
+
+  // Configured paths
+  private readonly workDir = path.join(process.cwd(), 'temp', 'gtt');
+  private readonly marketCsvPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'market.csv',
+  );
+  private readonly trangThaiMoPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'trang-thai-mo.xlsx',
+  );
+  private readonly gttXlsxPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'GTT.xlsx',
+  );
+  private readonly hangHoaXlsxPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'hang_hoa.xlsx',
+  );
+  private readonly reportJsonPath = path.join(
+    process.cwd(),
+    'temp',
+    'gtt',
+    'latest-report.json',
+  );
+
+  constructor(
+
+    private readonly rpaService: RpaScraperService,
+    private readonly settingsService: SystemSettingsService,
+  ) {
+    // Ensure work directory exists
+    if (!fs.existsSync(this.workDir)) {
+      fs.mkdirSync(this.workDir, { recursive: true });
+    }
+    // Load cached report if exists
+    try {
+      if (fs.existsSync(this.reportJsonPath)) {
+        this.latestReport = JSON.parse(
+          fs.readFileSync(this.reportJsonPath, 'utf8'),
+        );
+      }
+    } catch { }
+  }
+
+  getWorkDir() {
+    return this.workDir;
+  }
+
+  getGttXlsxPath() {
+    return this.gttXlsxPath;
+  }
+
+  getMarketCsvPath() {
+    return this.marketCsvPath;
+  }
+
+  getHangHoaXlsxPath() {
+    return this.hangHoaXlsxPath;
+  }
+
+  getLatestReport(): GttReport | null {
+    return this.latestReport;
+  }
+
+  /**
+   * Helper to retrieve Chrome executable path.
+   */
+  private getChromeExecutablePath(): string | null {
+    if (process.platform === 'win32') {
+      const candidates = [
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        path.join(
+          process.cwd(),
+          '..',
+          'it-tool-src',
+          'operate-transaction-app',
+          'Chrome',
+          'chrome-win',
+          'chrome.exe',
+        ),
+        path.join(
+          process.cwd(),
+          'it-tool-src',
+          'operate-transaction-app',
+          'Chrome',
+          'chrome-win',
+          'chrome.exe',
+        ),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          this.logger.log(`Using Chrome/Edge binary at: ${p}`);
+          return p;
+        }
+      }
+      this.logger.warn('No system Edge/Chrome or bundled Chrome found on Windows.');
+    } else {
+      const linuxCandidates = [
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/snap/bin/chromium',
+      ];
+      for (const p of linuxCandidates) {
+        if (fs.existsSync(p)) {
+          return p;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Parse market.csv exported from M-System orderCreating page.
+   * Dynamically matches column names to support format changes.
+   */
+  async parseMarketCsv(csvFilePath: string): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+
+    if (!fs.existsSync(csvFilePath)) {
+      throw new Error(`Không tìm thấy file market.csv tại: ${csvFilePath}`);
+    }
+
+    const fileStream = fs.createReadStream(csvFilePath, { encoding: 'utf8' });
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    });
+
+    let headerIndex: { symbol: number; settle: number } | null = null;
+    let lineNum = 0;
+
+    for await (const line of rl) {
+      lineNum++;
+      let cleanLine = line.trim();
+      if (cleanLine.startsWith('\uFEFF')) {
+        cleanLine = cleanLine.substring(1);
+      }
+      if (!cleanLine) continue;
+
+      const cols = cleanLine.split(',').map((c) => {
+        let val = c.trim();
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.substring(1, val.length - 1);
+        }
+        return val;
+      });
+
+      if (lineNum === 1) {
+        const symbolIdx = cols.findIndex(
+          (c) =>
+            c.toLowerCase().includes('mã hợp đồng') ||
+            c.toLowerCase() === 'symbol' ||
+            c.toLowerCase() === 'contract',
+        );
+        const settleIdx = cols.findIndex(
+          (c) =>
+            c.toLowerCase().includes('giá thanh toán') ||
+            c.toLowerCase() === 'settlement price',
+        );
+        if (symbolIdx !== -1 && settleIdx !== -1) {
+          headerIndex = { symbol: symbolIdx, settle: settleIdx };
+        } else {
+          // Fallback to defaults
+          headerIndex = { symbol: 0, settle: 18 };
+        }
+        this.logger.log(
+          `market.csv headers parsed: Symbol col index = ${headerIndex.symbol}, Settle col index = ${headerIndex.settle}`,
+        );
+        continue;
+      }
+
+      if (headerIndex) {
+        const symbol = cols[headerIndex.symbol]?.trim().toUpperCase();
+        const priceStr = cols[headerIndex.settle]?.trim().replace(/,/g, '');
+        const price = parseFloat(priceStr || '');
+        if (symbol && !isNaN(price)) {
+          result.set(symbol, price);
+        }
+      }
+    }
+
+    this.logger.log(
+      `Parsed market.csv: ${result.size} contracts with settlement prices`,
+    );
+    return result;
+  }
+
+  /**
+   * Parse unique open contract symbols from M-System's trang-thai-mo.xlsx
+   */
+  parseUniqueMSContracts(filePath: string): string[] {
+    return GttExcelParser.parseUniqueContracts(filePath);
+  }
+
+  /**
+   * Legacy parser for uploaded GTT.xlsx (fallback option)
+   */
+  async parseGttXlsx(
+    xlsxPath: string,
+  ): Promise<{ symbol: string; gttFromFile: number | null }[]> {
+    if (!fs.existsSync(xlsxPath)) {
+      throw new Error(`Không tìm thấy file GTT.xlsx tại: ${xlsxPath}`);
+    }
+
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(xlsxPath);
+
+    const sheet = workbook.getWorksheet(1);
+    if (!sheet) {
+      throw new Error('GTT.xlsx không có sheet dữ liệu nào.');
+    }
+
+    const results: { symbol: string; gttFromFile: number | null }[] = [];
+    const maxRow = sheet.rowCount;
+
+    for (let r = 2; r <= maxRow; r++) {
+      const symbolCell = sheet.getCell(`A${r}`);
+      const gttCell = sheet.getCell(`B${r}`);
+
+      const symbol = String(symbolCell.value || '')
+        .trim()
+        .toUpperCase();
+      if (!symbol) continue;
+
+      let gttVal: number | null = null;
+      const rawGtt = gttCell.result ?? gttCell.value;
+      if (rawGtt !== null && rawGtt !== undefined && !isNaN(Number(rawGtt))) {
+        gttVal = Number(rawGtt);
+      }
+
+      results.push({ symbol, gttFromFile: gttVal });
+    }
+
+    this.logger.log(`Parsed GTT.xlsx: ${results.length} open contracts`);
+    return results;
+  }
+
+  private readonly FALLBACK_TICK_SIZES: Record<string, number> = GttExcelParser.FALLBACK_TICK_SIZES;
+
+  /**
+   * Parse commodity min tick sizes from Excel sheet
+   */
+  parseCommodityTickSizes(filePath: string): Map<string, number> {
+    const result = GttExcelParser.parseTickSizes(filePath);
+    if (result.size === 0 && !fs.existsSync(filePath)) {
+      this.logger.warn(`Không tìm thấy file hàng hóa tại: ${filePath}. Sẽ sử dụng dữ liệu mặc định.`);
+    }
+    return result;
+  }
+
+  /**
+   * Reconcile settlement prices (from market.csv) against CQG prices.
+   */
+  compareGttData(
+    msMap: Map<string, number>,
+    cqgMap: Map<string, number>,
+    contractList: string[],
+  ): GttDataRow[] {
+    const rows: GttDataRow[] = [];
+    const allSymbols = new Set([...contractList, ...cqgMap.keys()]);
+
+    const commodityMap = this.parseCommodityTickSizes(this.hangHoaXlsxPath);
+    // Combine with fallbacks and sort descending by length
+    const allCommodityCodes = Array.from(
+      new Set([
+        ...commodityMap.keys(),
+        ...Object.keys(this.FALLBACK_TICK_SIZES),
+      ]),
+    ).sort((a, b) => b.length - a.length);
+
+    for (const symbol of allSymbols) {
+      const gttMs = msMap.get(symbol) ?? null;
+      const gttCqg = cqgMap.get(symbol) ?? null;
+
+      let status: GttDataRow['status'];
+      let diff: number | null = null;
+      let tickSize: number | null = null;
+      let isMinorDiff: boolean = false;
+
+      // Parse commodity code from symbol
+      let cleanSymbol = symbol.toUpperCase().trim();
+      if (cleanSymbol.startsWith('C.')) {
+        cleanSymbol = cleanSymbol.substring(2);
+      } else if (cleanSymbol.startsWith('P.')) {
+        cleanSymbol = cleanSymbol.substring(2);
+      }
+
+      for (const code of allCommodityCodes) {
+        if (cleanSymbol.startsWith(code)) {
+          tickSize =
+            commodityMap.get(code) ?? this.FALLBACK_TICK_SIZES[code] ?? null;
+          break;
+        }
+      }
+
+      if (tickSize === null) {
+        tickSize = 0.05; // default fallback if not found anywhere
+      }
+
+      if (gttMs === null && gttCqg === null) {
+        status = 'NO_PRICE';
+      } else if (gttMs === null) {
+        status = 'CQG_ONLY';
+      } else if (gttCqg === null) {
+        status = 'MS_ONLY';
+      } else {
+        diff = parseFloat(Math.abs(gttCqg - gttMs).toFixed(6));
+        status = diff < 0.0001 ? 'MATCH' : 'DIFF';
+        // Check if diff is minor (<= tickSize)
+        isMinorDiff = diff <= tickSize + 0.00001;
+      }
+
+      rows.push({
+        symbol,
+        gttMs,
+        gttCqg,
+        diff,
+        status,
+        tickSize,
+        isMinorDiff,
+      });
+    }
+
+    // Sort priority: DIFF first, then MS_ONLY, CQG_ONLY, NO_PRICE, MATCH last
+    const priority: Record<string, number> = {
+      DIFF: 0,
+      MS_ONLY: 1,
+      CQG_ONLY: 2,
+      NO_PRICE: 3,
+      MATCH: 4,
+    };
+    rows.sort((a, b) => {
+      const ap = priority[a.status] ?? 5;
+      const bp = priority[b.status] ?? 5;
+      if (ap !== bp) return ap - bp;
+      return a.symbol.localeCompare(b.symbol);
+    });
+
+    return rows;
+  }
+
+  /**
+   * Helper function for CQG price scraping scroll behavior
+   */
+  private async scrapeQSSPrices(
+    page: Page,
+    resultsMap: Map<string, number>,
+  ): Promise<void> {
+    const viewportSelector = '.ag-body-viewport';
+    const hasViewport = await page
+      .locator(viewportSelector)
+      .first()
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
+
+    if (hasViewport) {
+      let previousCount = -1;
+      let retries = 0;
+
+      while (retries < 6) {
+        const data = await page.evaluate(() => {
+          const parseCQGPrice = (textVal: string | null) => {
+            if (!textVal) return NaN;
+            textVal = textVal.trim().replace(/,/g, '');
+            if (textVal.includes("'")) {
+              const parts = textVal.split("'");
+              const isNegative = parts[0].startsWith('-');
+              const main = Math.abs(parseFloat(parts[0]) || 0);
+              const fraction = parseFloat(parts[1] || '0');
+              const price = main + fraction / 8;
+              return isNegative ? -price : price;
+            }
+            return parseFloat(textVal);
+          };
+
+          const batch: { symbol: string; price: number }[] = [];
+          const symbolRows = document.querySelectorAll(
+            '.ag-pinned-left-cols-container [role="row"]',
+          );
+          symbolRows.forEach((row) => {
+            const rowId = row.getAttribute('row-id');
+            const symbolEl = row.querySelector(
+              '.wpfe-qss-symbol-cell-primary-text',
+            );
+            if (symbolEl && rowId) {
+              const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
+              const settleRow = document.querySelector(
+                `.ag-center-cols-container [row-id="${rowId}"]`,
+              );
+              if (settleRow) {
+                const priceEl = settleRow.querySelector(
+                  '[col-id="settle"] .wpfe-price',
+                );
+                if (priceEl) {
+                  const price = parseCQGPrice(priceEl.textContent);
+                  if (!isNaN(price)) {
+                    batch.push({ symbol, price });
+                  }
+                }
+              }
+            }
+          });
+          return batch;
+        });
+
+        for (const item of data) {
+          resultsMap.set(item.symbol, item.price);
+        }
+
+        if (resultsMap.size === previousCount) {
+          retries++;
+        } else {
+          retries = 0;
+          previousCount = resultsMap.size;
+        }
+
+        await page.evaluate((sel: string) => {
+          const el = document.querySelector(sel);
+          if (el) el.scrollTop += 300;
+        }, viewportSelector);
+
+        await page.waitForTimeout(400);
+      }
+
+      await page.evaluate((sel: string) => {
+        const el = document.querySelector(sel);
+        if (el) el.scrollTop = 0;
+      }, viewportSelector);
+    } else {
+      const data = await page.evaluate(() => {
+        const parseCQGPrice = (textVal: string | null) => {
+          if (!textVal) return NaN;
+          textVal = textVal.trim().replace(/,/g, '');
+          if (textVal.includes("'")) {
+            const parts = textVal.split("'");
+            const isNegative = parts[0].startsWith('-');
+            const main = Math.abs(parseFloat(parts[0]) || 0);
+            const fraction = parseFloat(parts[1] || '0');
+            const price = main + fraction / 8;
+            return isNegative ? -price : price;
+          }
+          return parseFloat(textVal);
+        };
+
+        const batch: { symbol: string; price: number }[] = [];
+        const symbolRows = document.querySelectorAll(
+          '.ag-pinned-left-cols-container [role="row"]',
+        );
+        symbolRows.forEach((row) => {
+          const rowId = row.getAttribute('row-id');
+          const symbolEl = row.querySelector(
+            '.wpfe-qss-symbol-cell-primary-text',
+          );
+          if (symbolEl && rowId) {
+            const symbol = symbolEl.textContent.trim().split(/\s+/)[0];
+            const settleRow = document.querySelector(
+              `.ag-center-cols-container [row-id="${rowId}"]`,
+            );
+            if (settleRow) {
+              const priceEl = settleRow.querySelector(
+                '[col-id="settle"] .wpfe-price',
+              );
+              if (priceEl) {
+                const price = parseCQGPrice(priceEl.textContent);
+                if (!isNaN(price)) {
+                  batch.push({ symbol, price });
+                }
+              }
+            }
+          }
+        });
+        return batch;
+      });
+
+      for (const item of data) {
+        resultsMap.set(item.symbol, item.price);
+      }
+    }
+  }
+
+  /**
+   * Helper function to add column S in CQG Quote Spreadsheet
+   */
+  private async addSettlementColumn(
+    page: Page,
+    batchNum: number,
+  ): Promise<void> {
+    this.logger.log(` Thêm cột S cho Batch ${batchNum}...`);
+
+    await page
+      .waitForSelector('.ag-header-cell[col-id="symbol"]', {
+        state: 'visible',
+        timeout: 10000,
+      })
+      .catch(() => { });
+
+    const sColExists = await page
+      .locator('[class*="column-header"]:has-text("S"), th:has-text("S")')
+      .isVisible({ timeout: 2000 })
+      .catch(() => false);
+    if (sColExists) {
+      this.logger.log('Cột S đã tồn tại, bỏ qua.');
+      return;
+    }
+
+    const headerSelectors = [
+      '.ag-header-cell[col-id="symbol"]',
+      '.ag-header-cell[col-id="trade"]',
+      '.ag-header-cell[col-id="bid"]',
+      '.ag-header-cell[col-id="ask"]',
+      '.ag-header-cell:has-text("Symbol")',
+    ];
+
+    let headerClicked = false;
+    for (const sel of headerSelectors) {
+      const el = page.locator(sel).first();
+      if (await el.isVisible({ timeout: 500 }).catch(() => false)) {
+        await el.click({ button: 'right' });
+        headerClicked = true;
+        break;
+      }
+    }
+
+    if (!headerClicked) {
+      this.logger.warn('Không tìm thấy header để click chuột phải thêm cột S.');
+      return;
+    }
+
+    await page.waitForTimeout(1000);
+
+    const ADD_COLUMNS_SEL =
+      'wpfe-dropdown-menu-item-text:has-text("Add columns")';
+    await page.waitForSelector(ADD_COLUMNS_SEL, {
+      state: 'visible',
+      timeout: 5000,
+    });
+    await page.click(ADD_COLUMNS_SEL);
+    await page.waitForTimeout(1500);
+
+    const FILTER_INPUT =
+      '.wpfe-column-picker-dialog-search-input input[placeholder="Type to filter"]';
+    await page.waitForSelector(FILTER_INPUT, {
+      state: 'visible',
+      timeout: 8000,
+    });
+    await page.fill(FILTER_INPUT, 'Settlement');
+    await page.waitForTimeout(1000);
+
+    const S_ITEM_SELECTORS = [
+      '.wpfe-list-item-content:has-text("Last settlement")',
+      '.wpfe-list-item-name-content:has-text("S")',
+      '.wpfe-focus-list-item:has-text("Last settlement")',
+    ];
+
+    let itemClicked = false;
+    for (const sel of S_ITEM_SELECTORS) {
+      const el = page.locator(sel).first();
+      if (await el.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await el.click();
+        itemClicked = true;
+        break;
+      }
+    }
+
+    if (!itemClicked) {
+      await page.dblclick('.wpfe-list-item-content').catch(() => { });
+    }
+
+    await page.waitForTimeout(500);
+
+    // Click "Add + Close"
+    const ADD_CLOSE_BTN =
+      'button:has-text("Add + Close"), .gpc-button-wrapper-content:has-text("Add + Close")';
+    await page.waitForSelector(ADD_CLOSE_BTN, {
+      state: 'visible',
+      timeout: 5000,
+    });
+    await page.click(ADD_CLOSE_BTN);
+    await page.waitForTimeout(2000);
+
+    this.logger.log(` Đã thêm cột S cho Batch ${batchNum}`);
+  }
+
+  /**
+   * Wrapper hỗ trợ gọi nhanh runGttCheck(downloadMarketCsv, targetDate)
+   */
+  async runGttCheck(
+    downloadMarketCsv: boolean = true,
+    targetDate?: string,
+  ): Promise<GttReport> {
+    return this.runFullGttCheck({ downloadMarketCsv, targetDate });
+  }
+
+  /**
+   * Full pipeline orchestrator:
+   * 1. Download market.csv and trang-thai-mo.xlsx from M-System
+   * 2. Parse contract list from trang-thai-mo.xlsx
+   * 3. Fetch settlement prices from CQG
+   * 4. Compare and save report
+   */
+  async runFullGttCheck(
+    options: {
+      downloadMarketCsv?: boolean;
+      gttXlsxPath?: string;
+      targetDate?: string;
+    } = {},
+  ): Promise<GttReport> {
+    if (this.isRunning) {
+      throw new Error('Tiến trình kiểm tra GTT đang chạy trên hệ thống. Vui lòng đợi.');
+    }
+
+    const resolvedSession = resolveTradingSessionDate(options.targetDate);
+    const sessionDate = resolvedSession.dateStr;
+    const targetDate = options.targetDate ? options.targetDate.trim().slice(0, 10) : sessionDate;
+
+    const runAt = new Date().toISOString();
+    this.isRunning = true;
+    this.currentLogs = [];
+    this.currentStartTime = Date.now();
+
+    try {
+      this.logStep('=== BẮT ĐẦU PIPELINE KIỂM TRA GTT TỰ ĐỘNG ===');
+
+      const downloadMarketCsv = !!options.downloadMarketCsv;
+      const chromePath = this.getChromeExecutablePath();
+
+      if (downloadMarketCsv) {
+        // =========================================================================
+        // BƯỚC 1: TẢI FILE TỪ M-SYSTEM
+        // =========================================================================
+        this.logStep('Đăng nhập M-System và tải file báo cáo...');
+
+      let msUrl = 'https://msadmin.mxv.com.vn/';
+      let msUser = process.env.MS_USER || '';
+      let msPass = process.env.MS_PASSWORD || '';
+      let msPin = process.env.MS_PIN || '';
+
+      const credentialsRaw = await this.settingsService.getSetting(
+        'bot_credentials_msystem',
+        '',
+      );
+      if (credentialsRaw) {
+        try {
+          const credentials = JSON.parse(decrypt(credentialsRaw));
+          if (credentials.url) msUrl = credentials.url;
+          if (credentials.username) msUser = credentials.username;
+          if (credentials.password) msPass = credentials.password;
+          if (credentials.pin) msPin = credentials.pin;
+        } catch (err) {
+          this.logger.warn(
+            'Không thể giải mã cấu hình M-System từ DB, dùng biến môi trường.',
+          );
+        }
+      }
+
+      if (!msUser || !msPass || !msPin) {
+        throw new Error(
+          'Cấu hình tài khoản M-System không đầy đủ (url, username, password, pin). Vui lòng cấu hình qua Admin UI hoặc file .env',
+        );
+      }
+
+      const launchOptions: any = {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      };
+      if (chromePath) {
+        launchOptions.executablePath = chromePath;
+      }
+
+      const browser = await chromium.launch(launchOptions);
+      const context = await browser.newContext({
+        acceptDownloads: true,
+        viewport: { width: 1280, height: 800 },
+      });
+      const page = await context.newPage();
+      page.setDefaultTimeout(30000);
+
+      try {
+        this.logger.log(`Đi tới trang M-System: ${msUrl}...`);
+        await page.goto(msUrl);
+        await page.waitForTimeout(2000);
+
+        this.logger.log('Nhập tài khoản và mật khẩu...');
+        await page.waitForSelector('input[name="username"]', {
+          state: 'visible',
+        });
+        await page.fill('input[name="username"]', msUser);
+        await page.fill('input[name="password"]', msPass);
+        await page.waitForTimeout(500);
+
+        this.logger.log('Nhấn nút Đăng nhập...');
+        await page.click('button.btn-primary');
+        await page.waitForTimeout(2000);
+
+        this.logger.log('Đang đợi bảng nhập mã PIN ảo hiển thị...');
+        let pinSelectorVisible = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          pinSelectorVisible = await page
+            .locator('div.pincode')
+            .isVisible({ timeout: 5000 })
+            .catch(() => false);
+          if (pinSelectorVisible) break;
+          this.logger.warn(
+            `Chưa hiển thị bảng PIN (lần thử ${attempt}), thử click lại nút Đăng nhập...`,
+          );
+          await page.click('button.btn-primary').catch(() => { });
+          await page.waitForTimeout(2000);
+        }
+
+        await page.waitForSelector('div.pincode', {
+          state: 'visible',
+          timeout: 10000,
+        });
+        this.logger.log('Đang tự động click mã PIN ảo...');
+        const pinDigits = msPin.split('');
+        for (const digit of pinDigits) {
+          const digitSelector = `div.pincode >> xpath=.//div[text()='${digit}']`;
+          await page.waitForSelector(digitSelector, { state: 'visible' });
+          await page.click(digitSelector);
+          await page.waitForTimeout(500);
+        }
+
+        this.logger.log('Xác thực đăng nhập...');
+        await page
+          .waitForURL(/.*dashboard.*/, { timeout: 15000 })
+          .catch(() => { });
+        await page.waitForTimeout(3000);
+        this.logger.log('🎉 ĐĂNG NHẬP M-SYSTEM THÀNH CÔNG!');
+
+        // Tải market.csv
+        const orderCreatingUrl = `${msUrl.split('#')[0]}#/orderManagement/orderCreating`;
+        this.logger.log(
+          `Điều hướng đến trang bảng giá: ${orderCreatingUrl}...`,
+        );
+        await page.goto(orderCreatingUrl);
+        await page.waitForTimeout(5000);
+
+        const csvBtn = page
+          .locator(
+            'div.edit-icon i.fa-file-csv, div.edit-icon, i.fa-file-csv.green',
+          )
+          .first();
+        if (await csvBtn.isVisible().catch(() => false)) {
+          this.logger.log('Tìm thấy nút xuất CSV Bảng giá. Đang tải...');
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 25000 }),
+            csvBtn.click(),
+          ]);
+          await download.saveAs(this.marketCsvPath);
+          this.logger.log(
+            ` Đã tải thành công market.csv: ${this.marketCsvPath}`,
+          );
+        } else {
+          throw new Error(
+            'Không tìm thấy nút tải market.csv trên trang orderCreating',
+          );
+        }
+
+        // Tải trang-thai-mo.xlsx
+        const openPositionUrl = `${msUrl.split('#')[0]}#/positionManagement/openPositionInfo`;
+        this.logger.log(
+          `Điều hướng đến trang trạng thái mở: ${openPositionUrl}...`,
+        );
+        await page.goto(openPositionUrl);
+        await page.waitForTimeout(5000);
+
+        const excelBtn = page
+          .locator(
+            'button.ladda-button:has(i.fa-file-csv), button.ladda-button',
+          )
+          .first();
+        if (await excelBtn.isVisible().catch(() => false)) {
+          this.logger.log('Tìm thấy nút xuất Excel Trạng thái mở. Đang tải...');
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 25000 }),
+            excelBtn.click(),
+          ]);
+          await download.saveAs(this.trangThaiMoPath);
+          this.logger.log(
+            ` Đã tải thành công trang-thai-mo.xlsx: ${this.trangThaiMoPath}`,
+          );
+        } else {
+          throw new Error(
+            'Không tìm thấy nút tải trang-thai-mo.xlsx trên trang openPositionInfo',
+          );
+        }
+      } finally {
+        await browser.close();
+      }
+    }
+
+    // =========================================================================
+    // BƯỚC 2: TRÍCH XUẤT DANH SÁCH MÃ HỢP ĐỒNG CẦN CHECK
+    // =========================================================================
+    let contractList: string[] = [];
+    if (fs.existsSync(this.trangThaiMoPath)) {
+      this.logger.log(
+        `Đọc danh sách hợp đồng mở từ file Excel trang-thai-mo.xlsx...`,
+      );
+      contractList = this.parseUniqueMSContracts(this.trangThaiMoPath);
+    } else {
+      const gttFile = options.gttXlsxPath || this.gttXlsxPath;
+      if (fs.existsSync(gttFile)) {
+        this.logger.log(
+          `Không tìm thấy trang-thai-mo.xlsx. Đọc từ file fallback GTT.xlsx...`,
+        );
+        const rows = await this.parseGttXlsx(gttFile);
+        contractList = rows.map((r) => r.symbol);
+      }
+    }
+
+    this.logger.log(
+      `Tìm thấy ${contractList.length} mã hợp đồng đang hoạt động để đối soát.`,
+    );
+    if (contractList.length === 0) {
+      throw new Error(
+        'Không tìm thấy danh sách mã hợp đồng mở để kiểm tra! Vui lòng upload GTT.xlsx hoặc bật chế độ tự động tải.',
+      );
+    }
+
+    // =========================================================================
+    // BƯỚC 3: ĐĂNG NHẬP CQG & QUÉT GIÁ QSS
+    // =========================================================================
+    const cqgPricesMap = new Map<string, number>();
+
+    let cqgUrl = 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+    let cqgUser = process.env.CQG_USER || '';
+    let cqgPass = process.env.CQG_PASSWORD || '';
+
+    const cqgCredentialsRaw = await this.settingsService.getSetting(
+      'bot_credentials_cqg',
+      '',
+    );
+    if (cqgCredentialsRaw) {
+      try {
+        const cqgCredentials = JSON.parse(decrypt(cqgCredentialsRaw));
+        if (cqgCredentials.urlPrice || cqgCredentials.url) cqgUrl = cqgCredentials.urlPrice || cqgCredentials.url;
+        if (cqgCredentials.username) cqgUser = cqgCredentials.username;
+        if (cqgCredentials.password) cqgPass = cqgCredentials.password;
+      } catch (err) {
+        this.logger.warn(
+          'Không thể giải mã cấu hình CQG từ DB, dùng biến môi trường.',
+        );
+      }
+    }
+
+    if (!cqgUser || !cqgPass) {
+      throw new Error(
+        'Cấu hình tài khoản CQG không đầy đủ (url, username, password). Vui lòng cấu hình qua Admin UI hoặc file .env',
+      );
+    }
+
+    this.logStep(`Khởi tạo browser kết nối CQG: ${cqgUrl}...`);
+    const launchOptions: any = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-extensions',
+        '--disk-cache-size=209715200',
+        '--ignore-gpu-blocklist',
+        '--enable-gpu-rasterization',
+        '--enable-zero-copy',
+        '--enable-features=V8CodeCache,WebAssembly',
+      ],
+    };
+    if (chromePath) {
+      launchOptions.executablePath = chromePath;
+    }
+
+    const browser = await chromium.launch(launchOptions);
+    const context = await browser.newContext({
+      viewport: null,
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    });
+    const page = await context.newPage();
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+    });
+    page.setDefaultTimeout(35000);
+
+    try {
+      this.logger.log('Đăng nhập CQG...');
+      await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      let hasLoginForm = await page.waitForSelector('input[name="userName"]', {
+        state: 'visible',
+        timeout: 15000,
+      }).catch(() => null);
+
+      if (!hasLoginForm) {
+        this.logger.log(`[CQG] Trang đăng nhập đang nạp chậm, tự động reload lại trang...`);
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 25000 }));
+        await page.waitForSelector('input[name="userName"]', {
+          state: 'visible',
+          timeout: 30000,
+        });
+      }
+
+      await page.fill('input[name="userName"]', cqgUser);
+      await page.fill('input[name="password"]', cqgPass);
+      await page.click('button[type="submit"]');
+
+      await page.waitForSelector('div.wpfe-logo-image', {
+        state: 'visible',
+        timeout: 60000,
+      });
+      // Chờ các lớp loading và đóng thông báo nếu có
+      await this.rpaService['waitForCqgNotLoading']?.(page, 30000).catch(() => { });
+      await this.rpaService['dismissCqgNotifications']?.(page).catch(() => { });
+      await page.waitForTimeout(3000);
+      this.logger.log(' Đăng nhập CQG THÀNH CÔNG!');
+
+      // Batch split (max 95 per tab)
+      const BATCH_LIMIT = 95;
+      const batches: string[][] = [];
+      for (let i = 0; i < contractList.length; i += BATCH_LIMIT) {
+        batches.push(contractList.slice(i, i + BATCH_LIMIT));
+      }
+
+      this.logger.log(
+        `Phân chia thành ${batches.length} batch(es) để tra cứu CQG...`,
+      );
+
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        const batchNum = batchIdx + 1;
+        const batchSymbols = batches[batchIdx];
+        const symbolStr = batchSymbols.join(', ');
+        this.logger.log(
+          `--- BẮT ĐẦU BATCH ${batchNum}/${batches.length} (${batchSymbols.length} mã) ---`,
+        );
+
+        try {
+          // Xóa popup nếu có và dismiss menu cũ
+          await page.keyboard.press('Escape').catch(() => { });
+          await this.rpaService['dismissCqgNotifications']?.(page).catch(() => { });
+
+          // Click Add Tab "+"
+          await page.waitForSelector('.wpfe-add-widget-btn', {
+            state: 'visible',
+            timeout: 15000,
+          });
+          await page.click('.wpfe-add-widget-btn');
+          await page.waitForTimeout(2000);
+
+          // Click Quotes
+          await page.waitForSelector('.wpfe-list-item:has-text("Quotes")', {
+            state: 'visible',
+            timeout: 10000,
+          });
+          await page.click('.wpfe-list-item:has-text("Quotes")');
+          await page.waitForTimeout(1000);
+
+          // Click Quote spreadsheet widget
+          await page.waitForSelector(
+            '[data-widgetclass="wpfe-QuoteSpreadSheet"]',
+            { state: 'visible', timeout: 10000 },
+          );
+          await page.click('[data-widgetclass="wpfe-QuoteSpreadSheet"]');
+          await page.waitForTimeout(3000);
+
+          // Click New list
+          await page.waitForSelector('button:has-text("New list")', {
+            state: 'visible',
+            timeout: 10000,
+          });
+          await page.click('button:has-text("New list")');
+          await page.waitForTimeout(2000);
+
+          // Fill Search input
+          const SEARCH_INPUT = 'input[placeholder="Search symbols"]';
+          await page.waitForSelector(SEARCH_INPUT, {
+            state: 'visible',
+            timeout: 15000,
+          });
+          await page.fill(SEARCH_INPUT, symbolStr);
+          await page.waitForTimeout(1500);
+
+          // Click OK to load list
+          const okBtn = page
+            .locator(
+              'button.wpfe-button-primary:has-text("OK"), button:has-text("OK")',
+            )
+            .first();
+          await okBtn.click();
+          await page.waitForTimeout(5000);
+
+          // Add Column S (Settlement)
+          await this.addSettlementColumn(page, batchNum);
+
+          // Scrape prices
+          this.logger.log(`Đang quét giá CQG Batch ${batchNum}...`);
+          await this.scrapeQSSPrices(page, cqgPricesMap);
+          this.logger.log(`Lũy kế: Đã đọc được ${cqgPricesMap.size} giá từ CQG.`);
+        } finally {
+          // Đóng tab Quote Spreadsheet của batch vừa quét để giải phóng bộ nhớ & tránh tích tụ tab thừa
+          try {
+            await page.keyboard.press('Escape').catch(() => { });
+            const closeBtnXPath =
+              `//div[contains(@class, 'wpfe-tab-header-active')]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]` +
+              ' | ' +
+              `//span[contains(text(), 'Quote') or contains(text(), 'Spreadsheet')]/ancestor::div[contains(@class, 'wpfe-widget-tab-header-content')][1]//button[contains(@class, 'wpfe-widget-tab-header-close-button')]`;
+            const closeBtn = page.locator(closeBtnXPath).first();
+            const canClose = await closeBtn.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+            if (canClose) {
+              await closeBtn.click({ force: true });
+              this.logger.log(`[CQG GTT] Đã đóng tab Quote Spreadsheet Batch ${batchNum}`);
+            }
+          } catch (closeErr: any) {
+            this.logger.warn(`[CQG GTT] Không thể đóng tab Batch ${batchNum}: ${closeErr.message}`);
+          }
+          await page.waitForTimeout(1000).catch(() => { });
+        }
+      }
+    } finally {
+      // Đăng xuất (Log off) để giải phóng phiên làm việc cho tài khoản CQG Price
+      try {
+        await this.rpaService.logoutCqg(page).catch(() => { });
+      } catch { }
+      await browser.close().catch(() => { });
+    }
+
+    // =========================================================================
+    // BƯỚC 4: ĐỐI CHIẾU SO KHỚP DỮ LIỆU
+    // =========================================================================
+    this.logger.log('Đang phân tích và so khớp dữ liệu...');
+    const msMap = await this.parseMarketCsv(this.marketCsvPath);
+    const rows = this.compareGttData(msMap, cqgPricesMap, contractList);
+
+    const matched = rows.filter((r) => r.status === 'MATCH').length;
+    const diffCount = rows.filter((r) => r.status === 'DIFF').length;
+    const msOnlyCount = rows.filter((r) => r.status === 'MS_ONLY').length;
+    const cqgOnlyCount = rows.filter((r) => r.status === 'CQG_ONLY').length;
+
+    const durationMs = Date.now() - this.currentStartTime;
+    const completedAt = new Date().toISOString();
+    const durationSec = Math.round(durationMs / 1000);
+    const durationStr =
+      durationSec >= 60
+        ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`
+        : `${durationSec}s`;
+
+    this.logStep(
+      `=== HOÀN TẤT ĐỐI SOÁT GTT (${durationStr}): ${matched} khớp, ${diffCount} lệch, ${msOnlyCount + cqgOnlyCount} thiếu ===`,
+    );
+
+      const report: GttReport = {
+        runAt,
+        completedAt,
+        durationMs,
+        totalContracts: rows.length,
+        matched,
+        diffCount,
+        msOnlyCount,
+        cqgOnlyCount,
+        rows,
+        logs: [...this.currentLogs],
+        marketCsvPath: this.marketCsvPath,
+        gttFilePath: fs.existsSync(this.trangThaiMoPath)
+          ? this.trangThaiMoPath
+          : this.gttXlsxPath,
+        hangHoaFilePath: fs.existsSync(this.hangHoaXlsxPath)
+          ? this.hangHoaXlsxPath
+          : null,
+        targetDate,
+        sessionDate,
+      };
+
+      // Save report to disk
+      fs.writeFileSync(
+        this.reportJsonPath,
+        JSON.stringify(report, null, 2),
+        'utf8',
+      );
+      this.latestReport = report;
+
+      return report;
+    } catch (err: any) {
+      this.logStep(`[LỖI GTT] ${err.message}`);
+      throw err;
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  /**
+   * Generates a comprehensive GTT Excel report with full UI columns
+   * ('Mã HĐ', 'GTT MS', 'GTT CQG', 'Chênh lệch', 'Trạng thái') and M-System import sheet.
+   */
+  async generateCorrectionFile(
+    type: 'settlement' | 'first_match',
+  ): Promise<string> {
+    const report = this.getLatestReport();
+    if (!report || !report.rows || report.rows.length === 0) {
+      throw new Error(
+        'Chưa có báo cáo GTT gần nhất. Vui lòng bấm "Check GTT" để đối soát trước.',
+      );
+    }
+
+    // Sắp xếp thứ tự ưu tiên: Lệch (DIFF) -> Chỉ MS / Chỉ CQG -> Khớp (MATCH)
+    const sortedRows = [...report.rows].sort((a, b) => {
+      const order: Record<string, number> = {
+        DIFF: 0,
+        MS_ONLY: 1,
+        CQG_ONLY: 2,
+        NO_PRICE: 3,
+        MATCH: 4,
+      };
+      const orderA = order[a.status] ?? 5;
+      const orderB = order[b.status] ?? 5;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.symbol.localeCompare(b.symbol);
+    });
+
+    // 1. Sheet 1: Báo cáo đối soát đầy đủ như bảng UI
+    const fullReportData = sortedRows.map((r) => {
+      let statusText = '—';
+      if (r.status === 'MATCH') statusText = 'Khớp';
+      else if (r.status === 'DIFF') {
+        statusText = r.diff !== null ? `Lệch ${r.diff.toLocaleString('vi-VN')}` : 'Lệch';
+      } else if (r.status === 'MS_ONLY') statusText = 'Chỉ MS';
+      else if (r.status === 'CQG_ONLY') statusText = 'Chỉ CQG';
+      else if (r.status === 'NO_PRICE') statusText = 'Không có giá';
+
+      return {
+        'Mã HĐ': r.symbol,
+        'GTT MS': r.gttMs !== null ? r.gttMs : '',
+        'GTT CQG': r.gttCqg !== null ? r.gttCqg : '',
+        'Chênh lệch': r.diff !== null ? r.diff : '',
+        'Trạng thái': statusText,
+      };
+    });
+
+    // 2. Sheet 2: File mẫu nhập vào M-System cho các hợp đồng bị lệch (nếu có)
+    const diffRows = report.rows.filter((r) => r.status === 'DIFF');
+    const importData = diffRows.map((r) => ({
+      contractCode: r.symbol,
+      filledPrice: type === 'first_match' ? (r.gttCqg ?? '') : '',
+      settlePrice: type === 'settlement' ? (r.gttCqg ?? '') : '',
+      'GTT MS': r.gttMs ?? '',
+      'Chênh lệch': r.diff ?? '',
+    }));
+
+    const exportPath = path.join(this.workDir, `bao-cao-gtt-${type}.xlsx`);
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: DoiSoat_GTT (Đầy đủ 5 cột theo UI)
+    const wsFull = XLSX.utils.json_to_sheet(fullReportData);
+    wsFull['!cols'] = [
+      { wch: 18 }, // Mã HĐ
+      { wch: 16 }, // GTT MS
+      { wch: 16 }, // GTT CQG
+      { wch: 16 }, // Chênh lệch
+      { wch: 20 }, // Trạng thái
+    ];
+    XLSX.utils.book_append_sheet(wb, wsFull, 'DoiSoat_GTT');
+
+    // Sheet 2: Nhap_MSystem_Diff (Chỉ xuất khi có dòng lệch)
+    if (importData.length > 0) {
+      const wsImport = XLSX.utils.json_to_sheet(importData);
+      wsImport['!cols'] = [
+        { wch: 18 }, // contractCode
+        { wch: 16 }, // filledPrice
+        { wch: 16 }, // settlePrice
+        { wch: 16 }, // GTT MS
+        { wch: 16 }, // Chênh lệch
+      ];
+      XLSX.utils.book_append_sheet(wb, wsImport, 'Nhap_MSystem_Diff');
+    }
+
+    XLSX.writeFile(wb, exportPath, { compression: true });
+
+    this.logger.log(
+      `Created full GTT report Excel file (${fullReportData.length} contracts, ${diffRows.length} diffs) at: ${exportPath}`,
+    );
+    return exportPath;
+  }
+
+  /**
+   * Pushes the price corrections of majorly discrepant contracts directly to the M-System import price API.
+   */
+  async pushCorrectionToMSystem(): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+  }> {
+    const report = this.getLatestReport();
+    if (!report || !report.rows) {
+      throw new Error(
+        'Chưa có báo cáo GTT gần nhất. Vui lòng chạy đối soát trước.',
+      );
+    }
+
+    // Filter out only DIFF rows that are NOT minor discrepancies
+    const majorDiffRows = report.rows.filter(
+      (r) => r.status === 'DIFF' && !r.isMinorDiff,
+    );
+    if (majorDiffRows.length === 0) {
+      return {
+        success: true,
+        message:
+          'Không có hợp đồng nào bị lệch giá nhiều ngoài biên bước giá để đẩy lên M-System.',
+      };
+    }
+
+    // Generate CSV content
+    const csvHeaders = 'contractCode,settlePrice';
+    const csvRows = majorDiffRows.map((r) => `${r.symbol},${r.gttCqg}`);
+    const csvContent = [csvHeaders, ...csvRows].join('\n');
+
+    this.logger.log(
+      `Chuẩn bị đẩy ${majorDiffRows.length} hợp đồng bị lệch lên M-System...`,
+    );
+    this.logger.log(`Nội dung CSV:\n${csvContent}`);
+
+    try {
+      const formData = new FormData();
+      const csvBlob = new Blob([csvContent], { type: 'text/csv' });
+      formData.append('file', csvBlob, 'import-prices.csv');
+
+      const response = await fetch(
+        'https://uat-msapi.mxv.com.vn/market/importPrice',
+        {
+          method: 'POST',
+          headers: {
+            Authorization:
+              'Bearer a95e60eab94d21e0c994ef714ecec8abb8cbe49a9c8815064c5f98baec24eef6',
+          },
+          body: formData,
+        },
+      );
+
+      const responseText = await response.text();
+      this.logger.log(
+        `M-System API response status: ${response.status} - body: ${responseText}`,
+      );
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: `Lỗi từ M-System (HTTP ${response.status}): ${responseText || response.statusText}`,
+        };
+      }
+
+      let parsedData: any = null;
+      try {
+        parsedData = JSON.parse(responseText);
+      } catch (e) {
+        parsedData = responseText;
+      }
+
+      return {
+        success: true,
+        message: `Đã đẩy thành công ${majorDiffRows.length} hợp đồng lên M-System.`,
+        data: parsedData,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi khi gọi API M-System: ${err.message}`, err.stack);
+      return {
+        success: false,
+        message: `Lỗi kết nối tới API M-System: ${err.message || 'Lỗi không xác định'}`,
+      };
+    }
+  }
+}

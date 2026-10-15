@@ -1,0 +1,13 @@
+export { IngressService } from './ingress.service';
+export { IngressModule } from './ingress.module';
+export { CcpCeScraperService, CcpCeScraperService as CcpCeDownloaderService } from './scrapers/ccp-ce-scraper.service';
+export { MSystemScraperService } from './scrapers/ms-scraper.service';
+export { MSystemTabScraperService } from './scrapers/ms-tab-scraper.service';
+export { CqgScraperService } from './scrapers/cqg-scraper.service';
+export { AcmScraperService } from './scrapers/acm-scraper.service';
+export { CcpScraperService } from './scrapers/ccp-scraper.service';
+export { RpaScraperService, RpaScraperService as RpaDownloaderService } from './scrapers/rpa-scraper.service';
+export { CoreExApiAdapter } from './adapters/coreex-api.adapter';
+export { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
+export { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
+export { AcmEtpAdapter } from './adapters/acm-etp.adapter';

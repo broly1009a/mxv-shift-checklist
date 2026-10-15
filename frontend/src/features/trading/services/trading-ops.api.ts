@@ -8,23 +8,28 @@ import {
 
 export const tradingOpsApi = {
   /**
-   * Lấy tổng hợp dữ liệu màn hình Giám sát đối chiếu (KLGD, TTM, TTTT, Pre-EOD, Runs)
+   * Lấy tổng hợp dữ liệu màn hình Giám sát đối chiếu (Hỗ trợ cả Options Object lẫn string date)
    */
   async getConsoleSummary(
-    date?: string,
+    paramsOrDate?: string | { date?: string; jobId?: string | null },
     jobId?: string | null,
     token?: string | null,
   ): Promise<ConsoleSummaryData> {
+    const isObject = typeof paramsOrDate === 'object' && paramsOrDate !== null;
+    const dateStr = isObject ? paramsOrDate.date : paramsOrDate;
+    const actualJobId = isObject ? paramsOrDate.jobId : jobId;
+    const actualToken = isObject ? (typeof jobId === 'string' ? jobId : token) : token;
+
     return requestJson<ConsoleSummaryData>(
-      '/api/v1/reconciliation/console-summary',
+      '/api/v1/trading-ops/console-summary',
       {
         method: 'GET',
         params: {
-          date,
-          jobId: jobId || undefined,
+          ...(dateStr ? { date: dateStr } : {}),
+          ...(actualJobId ? { jobId: actualJobId } : {}),
         },
       },
-      token,
+      actualToken,
     );
   },
 
@@ -36,7 +41,7 @@ export const tradingOpsApi = {
     token?: string | null,
   ): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/reconciliation/trigger-console-run',
+      '/api/v1/trading-ops/trigger-console-run',
       {
         method: 'POST',
         body: JSON.stringify({
@@ -96,7 +101,7 @@ export const tradingOpsApi = {
     token?: string | null,
   ): Promise<{ success: boolean; message: string; result: any }> {
     return requestJson<{ success: boolean; message: string; result: any }>(
-      '/api/v1/reconciliation/check-dsgd-before-eod',
+      '/api/v1/trading-ops/check-dsgd-before-eod',
       {
         method: 'POST',
         body: JSON.stringify(params),
@@ -113,7 +118,7 @@ export const tradingOpsApi = {
     token?: string | null,
   ): Promise<{ success: boolean; result?: any; message?: string }> {
     return requestJson<{ success: boolean; result?: any; message?: string }>(
-      '/api/v1/reconciliation/check-imr',
+      '/api/v1/trading-ops/check-imr',
       {
         method: 'POST',
         body: JSON.stringify({ sessionDate }),

@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import * as readline from 'readline';
+import { MarginExcelParser } from '../parsers';
 
 export interface NegativeMarginAccount {
   account: string;
@@ -176,4 +177,33 @@ export class MarginCheckerService {
     }
     return list;
   }
+
+  /**
+   * Phân tích và lọc tài khoản âm ký quỹ từ buffer QLTKGD và eod.
+   */
+  async checkNegativeMargin(files: {
+    qltkgd: Buffer;
+    eod?: Buffer;
+    qltkgdName?: string;
+    eodName?: string;
+  }): Promise<{
+    negativeBalanceAccs: string[];
+    negativeIMRAcc: string[];
+    excelBase64: string;
+  }> {
+    const qltkgdRes = MarginExcelParser.parseQltkgd(files.qltkgd, { fileName: files.qltkgdName });
+    let negativeIMRAcc: string[] = [];
+    if (files.eod) {
+      const eodRes = MarginExcelParser.parseEodMargin(files.eod, { fileName: files.eodName });
+      negativeIMRAcc = eodRes.negativeIMRAcc;
+    }
+    const excelBuffer = MarginExcelParser.buildNegativeBalanceExcelBuffer(qltkgdRes.negativeRows);
+
+    return {
+      negativeBalanceAccs: qltkgdRes.negativeBalanceAccs,
+      negativeIMRAcc,
+      excelBase64: excelBuffer.toString('base64'),
+    };
+  }
 }
+

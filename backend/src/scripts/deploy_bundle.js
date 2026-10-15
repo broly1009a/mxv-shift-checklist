@@ -65,6 +65,10 @@ const filesToDeploy = [
   'frontend/src/app/trading-manager/page.tsx',
   'frontend/src/app/admin/tkgd-dashboard/page.tsx',
   'frontend/src/app/admin/tkgd-config/page.tsx',
+  'frontend/src/app/dashboard/components/TradingManagerWidget.tsx',
+  'frontend/src/services/api/endpoints.ts',
+  'frontend/src/services/api/client.ts',
+  'frontend/src/services/api/trading-ops.api.ts',
   'CHANGELOG_AI.md',
 ];
 
@@ -75,13 +79,10 @@ for (const rel of filesToDeploy) {
 // 1. Đồng bộ toàn bộ các module Backend V1 & Modular V2
 const backendDirs = [
   'backend/src/modules/bot-engine',
-  'backend/src/modules/reconciliation',
-  'backend/src/modules/ccp-statistics',
-  'backend/src/modules/lot-statistics',
   'backend/src/modules/ingress',
   'backend/src/modules/trading-ops',
-  'backend/src/modules/ccp-clearing',
   'backend/src/modules/checklist-hub',
+  'backend/src/modules/telegram',
   'backend/src/shared',
   'backend/src/legacy',
 ];
@@ -136,7 +137,18 @@ conn.on('ready', () => {
       console.log('Upload OK! Extracting and deploying on Ubuntu...');
 
       const cmd = `
-        echo "=== 1. EXTRACTING BUNDLE ===" &&
+        echo "=== 1. CLEANING OBSOLETE MODULES & EXTRACTING BUNDLE ===" &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/reconciliation &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/ccp-clearing &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/ccp-statistics &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/lot-statistics &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/bot-engine &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/ingress &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/trading-ops &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/checklist-hub &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/telegram &&
+        rm -rf /opt/mxv-checklist/backend/src/shared &&
+        rm -rf /opt/mxv-checklist/backend/src/legacy &&
         tar -xzf /tmp/deploy_bundle.tar.gz -C /opt/mxv-checklist/ &&
         rm -f /tmp/deploy_bundle.tar.gz &&
         rm -rf /opt/mxv-checklist/backend/src/modules/tkgd-automation /opt/mxv-checklist/frontend/src/features/tkgd /opt/mxv-checklist/frontend/src/components/tkgd &&

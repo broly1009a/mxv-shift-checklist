@@ -420,40 +420,60 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     };
 
     try {
-      const handler = this.registry.getHandler(job.jobType);
-      if (!handler) {
-        if (this.botDispatcher) {
-          const contextPayload = parseJobPayload(job);
-          const capabilityKey = contextPayload.botCheckType || job.jobType;
-          this.logger.log(
-            `[BotJobQueue-Facade] Không tìm thấy V1 Handler cho ${job.jobType}, ủy thác sang BotDispatcherService V2 (${capabilityKey})...`,
-          );
-          const taskContext = {
-            taskId: contextPayload.taskId || `JOB_${job._id}`,
-            botCheckType: capabilityKey,
-            shiftId: contextPayload.shiftLogId,
-            targetDate: contextPayload.targetDate || contextPayload.sessionDay,
-            parameters: contextPayload,
-          };
-          const dispatchRes = await this.botDispatcher.dispatch(taskContext);
-          job.logs.push(
-            `[${new Date().toISOString()}] [BotDispatcher V2] ${dispatchRes.summary}`,
-          );
-          job.payload = { ...contextPayload, result: dispatchRes };
-          await job.save();
+      const contextPayload = parseJobPayload(job);
+      const capabilityKey = contextPayload.botCheckType || job.jobType;
 
-          const freshJob = await this.botJobModel.findById(job._id).select('status').exec();
-          if (freshJob?.status === 'CANCELLED') {
-            this.logger.log(`[QUEUE] Job ${job.jobType} (${job._id}) đã bị hủy giữa chừng.`);
-            return;
-          }
+      // ── ƯU TIÊN SỐ 1: BÀN GIAO CHO BOT DISPATCHER V2 (STRANGLER FIG CUTOVER) ──
+      // Nếu ChecklistHub BotDispatcherService đã có Worker chuyên biệt xử lý năng lực này (CHECK_KLGD, CHECK_PRE_EOD, CCP_LOT, CCP_VALUE, CCP_EOD, CHECK_NEGATIVE_MARGIN,...)
+      if (this.botDispatcher && this.botDispatcher.hasWorker(capabilityKey)) {
+        this.logger.log(
+          `[BotJobQueue] Điều phối ưu tiên sang BotDispatcherService V2 cho năng lực: "${capabilityKey}" (Job: ${job.jobType}, ID: ${job._id})...`,
+        );
+        const taskContext = {
+          taskId: contextPayload.taskId || `JOB_${job._id}`,
+          botCheckType: capabilityKey,
+          shiftId: contextPayload.shiftLogId,
+          targetDate: contextPayload.targetDate || contextPayload.sessionDay,
+          parameters: contextPayload,
+        };
+        const dispatchRes = await this.botDispatcher.dispatch(taskContext);
+        job.logs.push(
+          `[${new Date().toISOString()}] [BotDispatcher V2] ${dispatchRes.summary}`,
+        );
+        const isWaiting = dispatchRes.status === 'WAITING' || !!dispatchRes.isWaitingFiles;
+        const enrichedResult = {
+          ...(dispatchRes.metrics || {}),
+          ...(dispatchRes.details || {}),
+          status: dispatchRes.status,
+          summary: dispatchRes.summary,
+          passed: dispatchRes.status === 'SUCCESS',
+          isWaitingFiles: isWaiting,
+          message: dispatchRes.summary,
+        };
+        job.payload = { ...contextPayload, result: enrichedResult };
 
-          await this.syncJobToChecklist(job, 'COMPLETED');
-          this.logger.log(
-            `Job ${job.jobType} (ID: ${job._id}) hoàn thành thành công qua BotDispatcher V2.`,
-          );
+        const isSuccess = dispatchRes.status !== 'FAILED';
+        const finalStatus = isSuccess ? 'COMPLETED' : 'FAILED';
+        if (!isSuccess) {
+          job.error = dispatchRes.error || dispatchRes.summary;
+        }
+        await job.save();
+
+        const freshJob = await this.botJobModel.findById(job._id).select('status').exec();
+        if (freshJob?.status === 'CANCELLED') {
+          this.logger.log(`[QUEUE] Job ${job.jobType} (${job._id}) đã bị hủy giữa chừng.`);
           return;
         }
+
+        await this.syncJobToChecklist(job, finalStatus);
+        this.logger.log(
+          `Job ${job.jobType} (ID: ${job._id}) hoàn thành (${finalStatus}) qua BotDispatcher V2.`,
+        );
+        return;
+      }
+
+      const handler = this.registry.getHandler(job.jobType);
+      if (!handler) {
         throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
       }
 
@@ -761,11 +781,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'CHECK_EOD_MM',
               'CHECK_CQG_SYNC',
               'CHECK_KLGD',
+              'CCP_LOT_STATS',
+              'CCP_VALUE_STATS',
+              'CCP_EOD_RECON',
+              'CHECK_CCP_STATISTICS',
+              'CHECK_CCP_VALUE',
+              'CHECK_EOD_CCP',
+              'CHECK_NEGATIVE_MARGIN',
+              'RUN_LOT_MACRO',
+              'RUN_VALUE_MACRO',
             ].includes(job.jobType)
           ) {
-            if (payload?.result?.isWaitingFiles) {
+            if (payload?.result?.isWaitingFiles || payload?.result?.status === 'WAITING') {
               taskStatus = 'PENDING';
-            } else if (payload?.result?.passed === false) {
+            } else if (
+              payload?.result?.status === 'WARNING' ||
+              payload?.result?.passed === false
+            ) {
               taskStatus = 'NEEDS_ATTENTION';
             } else {
               taskStatus = 'PASSED';

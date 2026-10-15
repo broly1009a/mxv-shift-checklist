@@ -58,6 +58,230 @@ export function resolveStoragePathCrossPlatform(rawPath: string): string {
 }
 
 /**
+ * Helper to strictly extract and parse targetDate / sessionDay from job payload.
+ * Throws an error if targetDate is missing or invalid, preventing implicit fallback to real-time Date.
+ */
+export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: string } {
+  const targetDateStr = payload?.targetDate || payload?.sessionDay;
+  if (!targetDateStr) {
+    throw new Error(
+      'Bot Job thiếu tham số ngày ca trực bắt buộc (targetDate / sessionDay). Không thể xác định ngày lưu file.',
+    );
+  }
+
+  let dateObj: Date;
+  if (targetDateStr instanceof Date) {
+    dateObj = targetDateStr;
+  } else {
+    // Parse YYYY-MM-DD, DD/MM/YYYY, or DD.MM.YYYY safely without timezone offset issues
+    const str = String(targetDateStr).split('T')[0].trim();
+    if (str.includes('-')) {
+      const parts = str.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          const year = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const day = parseInt(parts[2], 10);
+          dateObj = new Date(year, month, day);
+        } else {
+          // DD-MM-YYYY
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          dateObj = new Date(year, month, day);
+        }
+      } else {
+        dateObj = new Date(targetDateStr);
+      }
+    } else if (str.includes('/')) {
+      const parts = str.split('/');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY/MM/DD
+          dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        } else {
+          // DD/MM/YYYY
+          dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+      } else {
+        dateObj = new Date(targetDateStr);
+      }
+    } else if (str.includes('.')) {
+      const parts = str.split('.');
+      if (parts.length === 3) {
+        // DD.MM.YYYY
+        dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+      } else {
+        dateObj = new Date(targetDateStr);
+      }
+    } else {
+      dateObj = new Date(targetDateStr);
+    }
+  }
+
+  if (isNaN(dateObj.getTime())) {
+    throw new Error(`Định dạng ngày ca trực không hợp lệ: ${targetDateStr}`);
+  }
+
+  const year = dateObj.getFullYear().toString();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const formattedDateStr = `${year}-${month}-${day}`;
+
+  return { dateObj, dateStr: formattedDateStr };
+}
+
+/**
+ * Kiểm tra xem thị trường tài chính / hàng hóa có đang trong khoảng đóng cửa cuối tuần hay không:
+ * - Sau 06:30 sáng Thứ Bảy (kết thúc phiên đêm thứ 6 của thị trường Mỹ)
+ * - Cả ngày Chủ Nhật
+ * - Trước 05:00 sáng Thứ Hai (trước khi CME Globex mở lại phiên tuần mới)
+ */
+export function isMarketWeekendClosed(dateInput?: Date): boolean {
+  const d = dateInput
+    ? new Date(dateInput.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
+    : new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+
+  const day = d.getDay(); // 0 = Chủ Nhật, 1 = Thứ Hai, ..., 6 = Thứ Bảy
+  const hour = d.getHours();
+  const minute = d.getMinutes();
+  const timeNum = hour * 60 + minute;
+
+  // 1. Cả ngày Chủ Nhật
+  if (day === 0) return true;
+
+  // 2. Thứ Bảy sau 06:30 sáng
+  if (day === 6 && timeNum >= 6 * 60 + 30) return true;
+
+  // 3. Thứ Hai trước 05:00 sáng
+  if (day === 1 && timeNum < 5 * 60) return true;
+
+  return false;
+}
+
+/**
+ * Xác định Ngày Phiên Giao Dịch thực tế (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
+ * - Một phiên giao dịch mở lúc sessionStart (mặc định 05:00 / 06:30) và kéo dài xuyên đêm tới phiên hôm sau.
+ * - Nếu thời điểm hiện tại < giờ mở phiên (ví dụ 01:42 sáng), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
+ * - Nếu dateInput là ngày hôm nay theo dương lịch, hàm tự động lùi về T-1 khi đang trong ca đêm.
+ * - Nếu dateInput là một ngày quá khứ cụ thể khác hôm nay (người dùng cố ý soi lại lịch sử), hàm giữ nguyên ngày đó.
+ */
+export function resolveTradingSessionDate(
+  dateInput?: string | Date | null,
+  options?: {
+    now?: Date;
+    sessionStartStr?: string;
+    forceExactDate?: boolean;
+  },
+): { dateObj: Date; dateStr: string; isOvernight: boolean } {
+  const nowVN =
+    options?.now ||
+    new Date(
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
+    );
+  const nowYear = nowVN.getFullYear();
+  const nowMonth = String(nowVN.getMonth() + 1).padStart(2, '0');
+  const nowDay = String(nowVN.getDate()).padStart(2, '0');
+  const todayVnStr = `${nowYear}-${nowMonth}-${nowDay}`;
+
+  // Kiểm tra khung giờ ca đêm
+  let sessionHour = 6;
+  let sessionMin = 30;
+  if (options?.sessionStartStr) {
+    const parts = options.sessionStartStr.split(':').map(Number);
+    if (parts.length >= 1 && !isNaN(parts[0])) sessionHour = parts[0];
+    if (parts.length >= 2 && !isNaN(parts[1])) sessionMin = parts[1];
+  }
+
+  const currentHour = nowVN.getHours();
+  const currentMin = nowVN.getMinutes();
+  const isOvernight =
+    currentHour < sessionHour ||
+    (currentHour === sessionHour && currentMin < sessionMin);
+
+  let targetDateObj: Date;
+
+  if (!dateInput) {
+    targetDateObj = new Date(nowVN);
+    targetDateObj.setHours(0, 0, 0, 0);
+    if (isOvernight) {
+      // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
+      if (nowVN.getDay() !== 1) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+        while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+          targetDateObj.setDate(targetDateObj.getDate() - 1);
+        }
+      }
+    } else {
+      // Thứ 7 hoặc Chủ Nhật luôn lùi về ngày làm việc gần nhất (Thứ 6)
+      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+        targetDateObj.setDate(targetDateObj.getDate() - 1);
+      }
+    }
+  } else {
+    let parsed: Date;
+    if (dateInput instanceof Date) {
+      parsed = new Date(dateInput);
+    } else {
+      parsed = resolveBotTargetDate({ targetDate: dateInput }).dateObj;
+    }
+    parsed.setHours(0, 0, 0, 0);
+
+    const pY = parsed.getFullYear().toString();
+    const pM = String(parsed.getMonth() + 1).padStart(2, '0');
+    const pD = String(parsed.getDate()).padStart(2, '0');
+    const parsedStr = `${pY}-${pM}-${pD}`;
+
+    if (!options?.forceExactDate && parsedStr === todayVnStr) {
+      // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương -> lùi ca đêm & cuối tuần đúng chuẩn C#
+      targetDateObj = new Date(parsed);
+      if (isOvernight) {
+        // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
+        if (nowVN.getDay() !== 1) {
+          targetDateObj.setDate(targetDateObj.getDate() - 1);
+          while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
+            targetDateObj.setDate(targetDateObj.getDate() - 1);
+          }
+        }
+      }
+    } else {
+      targetDateObj = parsed;
+    }
+  }
+
+  const y = targetDateObj.getFullYear().toString();
+  const m = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(targetDateObj.getDate()).padStart(2, '0');
+  const dateStr = `${y}-${m}-${d}`;
+
+  return { dateObj: targetDateObj, dateStr, isOvernight };
+}
+
+/**
+ * Helper to compute daily backup subfolder (YYYY\TMM.YYYY\DD.MM) and full path.
+ */
+export function resolveDailySubfolder(
+  baseDir: string,
+  dateInput: Date | string,
+): { subFolder: string; fullPath: string } {
+  const dateObj =
+    typeof dateInput === 'string' || !(dateInput instanceof Date)
+      ? resolveBotTargetDate({ targetDate: dateInput }).dateObj
+      : dateInput;
+
+  const year = dateObj.getFullYear().toString();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+
+  const resolvedBase = resolveStoragePathCrossPlatform(baseDir);
+  const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+  const fullPath = path.join(resolvedBase, subFolder);
+
+  return { subFolder, fullPath };
+}
+
+/**
  * Tìm file mới nhất theo regex trong thư mục
  */
 export function findLatestFile(dirPath: string, pattern: RegExp): string | null {
@@ -320,3 +544,65 @@ export function findHeaderIndex(headers: string[], target: string, aliases: stri
     return normH === normTarget || normAliases.includes(normH);
   });
 }
+
+/**
+ * Tìm file EOD khớp chính xác ngày phiên giao dịch dateStr (YYYY-MM-DD)
+ */
+export function findExactSessionEodFile(dirPath: string, dateStr: string): string | null {
+  try {
+    if (!fs.existsSync(dirPath)) return null;
+
+    // 1. Khớp chính xác tên file: eod.{YYYY-MM-DD}.csv hoặc eod.{YYYY-MM-DD}.xlsx
+    const exactCsv = path.join(dirPath, `eod.${dateStr}.csv`);
+    if (fs.existsSync(exactCsv)) return exactCsv;
+
+    const exactXlsx = path.join(dirPath, `eod.${dateStr}.xlsx`);
+    if (fs.existsSync(exactXlsx)) return exactXlsx;
+
+    // 2. Quét các file eod khác trong thư mục
+    let files: string[] = [];
+    try {
+      files = fs.readdirSync(dirPath);
+    } catch {
+      return null;
+    }
+
+    for (const f of files) {
+      if (!/eod/i.test(f)) continue;
+
+      const fullPath = path.join(dirPath, f);
+      const m = f.match(/(\d{4}[-_]\d{2}[-_]\d{2})/);
+      if (m) {
+        const fileDate = m[1].replace(/_/g, '-');
+        if (fileDate === dateStr) {
+          return fullPath;
+        }
+        continue;
+      }
+
+      // Nếu tên file không có ngày (như eod.csv), kiểm tra cột sessionDate bên trong
+      if (f.toLowerCase().endsWith('.csv')) {
+        try {
+          const content = fs.readFileSync(fullPath, 'utf8');
+          const lines = content.split('\n').slice(0, 5);
+          if (lines.length >= 2) {
+            const header = lines[0].split(',').map((h) => h.replace(/["\r]/g, '').trim());
+            const sessionDateIdx = header.findIndex((h) => /^sessionDate$/i.test(h));
+            if (sessionDateIdx !== -1) {
+              const row1 = lines[1].split(',').map((v) => v.replace(/["\r]/g, '').trim());
+              const fileSessionDate = row1[sessionDateIdx];
+              if (fileSessionDate && fileSessionDate.startsWith(dateStr)) {
+                return fullPath;
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
