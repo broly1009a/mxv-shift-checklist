@@ -11,3 +11,4 @@ export { CoreExApiAdapter } from './adapters/coreex-api.adapter';
 export { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 export { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
 export { AcmEtpAdapter } from './adapters/acm-etp.adapter';
+export { MsApiAdapter } from './adapters/ms-api.adapter';

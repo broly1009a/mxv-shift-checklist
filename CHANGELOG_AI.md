@@ -1,98 +1,105 @@
-<<<<<<< HEAD
-## [2026-10-15T16:28] VERIFICATION: Kiểm Chứng Kịch Bản Tạo Tháng 11 (T11.2026) & Mở Rộng TVKD 099, Hàng Hóa GLD1 Trên File Số Lot CCP
+## [2026-10-15T17:22] FEATURE INTEGRATION: Áp Dụng Trọn Bộ Tối Ưu Tải Báo Cáo CQG Từ Script test_cqg_tab_downloads_fast.js Vào CqgScraperService
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER ("tương tự thử với thong ke lot xem kết quả có chính xác không"):
-  - Đối tượng kiểm thử: [Bao cao - Thong ke/Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20so%20lot%20giao%20dich%20ACM%202026%20(trên%20CCP).xlsx)
-  - Kịch bản thử nghiệm kép (End-to-End Simulation):
-    1. Tự động nhân bản Sheet Tháng 11 (`T11.2026`) từ tháng gần nhất (`T10.2026`) bằng `excel_sheet_cloner.py`.
-    2. Tự động chèn Mã Hàng Hóa mới `GLD1` ("Vàng Nano") bằng `ccp_column_provisioner.py`.
-    3. Tự động chèn Mã TVKD mới `099` ("Thành viên ABC") bằng `ccp_column_provisioner.py`.
-    4. Thẩm định toán học và liên kết đa Sheet (`ExcelJS`): Kiểm tra ngày làm việc, cắt tỉa dòng thừa, công thức tổng ngang, tổng dọc, và liên kết lũy kế cả năm trên `TONGHOP`.
+- Thực thi chỉ đạo của USER: *"@[test_cqg_tab_downloads_fast.js] với bạn đã phân tích được giúp tôi áp dụng vào hệ thống từ file test đã tối ưu này"*.
+- **Các điểm nghẽn trước đây của `CqgScraperService`**:
+  1. Chưa có bước kiểm tra và bắt buộc chọn **`All accounts`** cho từng widget tab: Dễ dẫn đến trường hợp giao diện CQG đang chọn một tài khoản cá nhân, làm file xuất ra bị thiếu dữ liệu các tài khoản khác.
+  2. Thời gian chờ WebSocket cố định ngắn hoặc không kiểm tra spinner của chính active tab: Dễ click menu 3 chấm khi dữ liệu chưa nạp xong, dẫn đến file rỗng hoặc nút download bị disabled.
+  3. Menu 3 chấm và Nút Download thiếu bộ lọc trạng thái tương tác (`isClickable`): Bấm khi nút đang bị mờ (`opacity < 0.7`) hoặc có cờ `disabled`, gây timeout 20s.
+  4. Đăng nhập chưa nhận diện đầy đủ tất cả các biến thể nút Takeover Session khi có xung đột phiên.
+  5. Quy trình Đăng xuất (Log off) chưa xử lý trường hợp sidebar bị thu gọn (`chevron-up`) và xác nhận dialog `wpfe-confirmation-dialog`.
+  6. Chưa hỗ trợ tải chọn lọc (Selective download): Phải tải toàn bộ 4 cặp (FR, PS, OP, OD) ngay cả khi chỉ cần FR cho phiên đối chiếu trong ngày.
+- **Giải pháp áp dụng từ `test_cqg_tab_downloads_fast.js`**:
+  1. **Tự Động Nạp Tài Khoản Từ MongoDB**: Bổ sung `getCqgCredentials()` tự động nạp và giải mã `bot_credentials_cqg` qua AES-256 từ `system_settings` trong MongoDB, loại bỏ hardcode `process.env`.
+  2. **Bắt Buộc Chọn All Accounts (Step 5)**: Sau khi mở widget tab, kiểm tra `button.wpfe-widget-account-selector-button`, nếu chưa có chữ 'All' thì tự động mở danh sách chọn `All accounts` và bấm `OK`.
+  3. **Chờ WebSocket Thông Minh (Step 6)**: Đợi spinner của tab active biến mất (tối thiểu 3s, tối đa 16s) đảm bảo dữ liệu toàn sàn đã nạp đầy đủ.
+  4. **Kiểm Tra Nút Tải Sẵn Sàng 100% (Step 7)**: Đánh giá thuộc tính CSS (opacity $\ge 0.7$, không có class `disabled`, pointer-events khả dụng). Nếu nút đang mờ, đóng menu (Escape), nghỉ 1.5s và thử lại tối đa 8 lần.
+  5. **Đóng Tab Dọn Dẹp Layout (Step 8)**: Sau khi tải xong, tự động bấm close button trên tab active để giữ layout gọn nhẹ, chống tràn bộ nhớ browser.
+  6. **Takeover & Logout Hoàn Chỉnh**: Nhận diện toàn bộ popup xung đột phiên (`Logoff`, `Disconnect`, `Continue`, `Force`, `Take over`...) và hoàn thiện luồng đăng xuất giải phóng session.
+  7. **Hỗ Trợ Tải Chọn Lọc (`reportsToDownload`)**: Tích hợp tham số mảng lọc trong `downloadParallelAllRawFiles(...)`, cho phép ca Trong Phiên chỉ tải `['FR']` (tiết kiệm 75% thời gian), và ca Cuối Ngày tải đầy đủ `['FR', 'PS', 'OP', 'OD']`.
 
 ### 2. Danh sách file tác động
-- [backend/src/tests/test_scenario_lot_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_scenario_lot_month11_and_commodity.ts): Test script kiểm chứng tự động kịch bản số Lot.
-- [Bao cao - Thong ke/Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20so%20lot%20giao%20dich%20ACM%202026%20(trên%20CCP).xlsx): File Excel mẫu số Lot kiểm thử.
-- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+- [backend/src/modules/ingress/scrapers/cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts) *(Nâng cấp toàn diện)*: Áp dụng trọn vẹn luồng tải nhanh, an toàn, tự động chọn All accounts, dynamic wait và dọn dẹp tab.
+- [backend/src/modules/ingress/ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts) *(Chỉnh sửa)*: Sử dụng credentials động từ CSDL và truyền tham số `options?.reportCodes` để tải chọn lọc báo cáo CQG.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
 
-### 3. Kết quả kiểm thử thực tế (Proof of Ground Truth)
-- Chạy `npx.cmd ts-node src/tests/test_scenario_lot_month11_and_commodity.ts`: **PASS 100% (Exit code 0)**.
-  1. **Tạo Sheet Tháng 11 (`T11.2026`)**:
-     - Nhận diện `date_col = B`, mốc bắt đầu `B5 = 2026-11-02` (Thứ Hai), `B6 = =WORKDAY(B5,1)`.
-     - Tháng 11/2026 có đúng 21 ngày làm việc (từ Row 5 đến Row 25).
-     - Tự động nhận diện và xóa 1 dòng dư thừa của Tháng 10 (Tháng 10 có 22 ngày làm việc), đưa dòng `Tổng` từ Row 27 lên Row 26.
-     - Dòng `Tổng` A26: nhãn `"Tổng"`, công thức TVKD `=SUM(BW5:BW25)`, công thức Hàng Hóa `=SUM(CB5:CB25)`.
-  2. **Thêm Mã Hàng Hóa mới `GLD1` ("Vàng Nano")**:
-     - Tự động chèn cột `GLD1` trước cột `TỔNG Hàng Hóa`, mở rộng dải banner `BY2:CA3` thành `BY2:CB3` trên cả 4 sheets.
-  3. **Thêm Mã TVKD mới `099` ("Thành viên ABC")**:
-     - Tự động chèn cột TVKD `099` trước cột `TỔNG TVKD`, mở rộng dải banner `K2:BV3` thành `K2:BW3` trên cả 4 sheets.
-  4. **Thẩm định công thức & liên kết sau khi mở rộng đồng thời**:
-     - **Sheet `T11.2026`**:
-       - Cột TVKD `099` (BW): Header `"Thanh vien ABC\n099"`, Data Row 5: `0`, Tổng dọc Row 26: `{"formula":"SUM(BW5:BW25)"}`.
-       - Cột TỔNG TVKD (BX): Tổng ngang Row 5: `{"formula":"SUM(K5:BW5)"}`, Tổng dọc Row 26: `{"formula":"SUM(BX5:BX25)"}`.
-       - Cột Hàng Hóa `GLD1` (CC): Header `"GLD1"`, Data Row 5: `0`, Tổng dọc Row 26: `{"formula":"SUM(CB5:CB25)"}`.
-       - Cột TỔNG Hàng Hóa (CD): Tổng ngang Row 5: `{"formula":"SUM(BY5:CB5)"}`, Tổng dọc Row 26: `{"formula":"SUM(CC5:CC25)"}`.
-     - **Sheet `T10.2026` (22 ngày làm việc)**:
-       - TVKD `099` Tổng dọc Row 27: `{"formula":"SUM(BW5:BW26)"}`.
-       - Hàng Hóa `GLD1` Tổng dọc Row 27: `{"formula":"SUM(CB5:CB26)"}`.
-       - TỔNG Hàng Hóa Tổng ngang Row 5: `{"formula":"SUM(BY5:CB5)"}`.
-     - **Sheet `TONGHOP` (Liên kết đa sheet)**:
-       - TVKD `099`: Tháng 10 Row 14 `{"formula":"'T10.2026'!BW27"}`, Tháng 11 Row 15 `{"formula":"'T11.2026'!BW26"}`, Tổng cả năm Row 17 `{"formula":"SUM(BW5:BW16)"}`.
-       - Hàng Hóa `GLD1`: Tháng 10 Row 14 `{"formula":"'T10.2026'!CB27"}`, Tháng 11 Row 15 `{"formula":"'T11.2026'!CB26"}`, Tổng cả năm Row 17 `{"formula":"SUM(CB5:CB16)"}`.
-     - Hoàn toàn **ZERO lỗi `#REF!`** trên toàn bộ file Excel.
+### 3. Kết quả kiểm thử & Biên dịch (Proof of Ground Truth)
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%, 0 lỗi)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Build thành công 100%)**.
+- Boundary Isolation Test (`module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
 
 ---
 
-## [2026-10-15T16:10] FEATURE IMPLEMENTATION: Xây Dựng Công Cụ Tự Động Hóa Mở Rộng Cấu Trúc Excel Lũy Kế CoreCCP (ccp_column_provisioner.py)
+## [2026-10-15T17:16] REPO SYNC AUDIT: Rà Soát Toàn Diện & Đồng Bộ 100% Các File Bị Thiếu Giữa mxv-cqg-download-investigation Và mxv-modular-refactor
 
 ### 1. Mục tiêu thay đổi
-- Thực thi thiết kế kỹ thuật [THIET_KE_MO_RONG_TVKD_VA_MA_HD_MOI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/cu/THIET_KE_MO_RONG_TVKD_VA_MA_HD_MOI_CORECCP.md) theo yêu cầu của USER ("sinh thêm TVKD mới và mã hàng hóa mới... đánh giá chuyên sâu với template M:\Tailieuchung\..."):
-  1. **Tạo Script Python Chuyên Trách `ccp_column_provisioner.py`**:
-     - Vị trí: [backend/src/scripts/python/ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/python/ccp_column_provisioner.py).
-     - Hỗ trợ đầy đủ tham số CLI: `--file`, `--type {tvkd, commodity}`, `--code`, `--label`, `--dry-run`.
-     - Áp dụng mô hình **Safe Transactional Atomic Write Pattern**:
-       - Pre-flight: Kiểm tra file lock độc quyền Windows (`is_file_locked`).
-       - Snapshot Backup: Tự động copy ra thư mục `Backup_Snapshots/` trước khi thao tác.
-       - Work on Staging: Thao tác trên `.staging_xxx.tmp.xlsx`, không chạm vào file gốc.
-       - Tự động dịch chuyển merged cells (`shift_and_expand_merged_cells_on_insert`): Khắc phục hạn chế của openpyxl khi gọi `insert_cols` không tự dịch chuyển dải merged_cells, đồng thời mở rộng dải banner phân hệ (TVKD `K2:BW3` hoặc Hàng Hóa `BZ2:CC3`).
-       - Chuẩn hóa Unicode không dấu (`remove_accents`) chống lệch mã tiếng Việt NFC/NFD.
-       - Cập nhật tự động công thức `=SUM(...)` ngang (từng dòng phiên) và dọc (dòng tổng cuối tháng / tổng năm).
-       - Cập nhật công thức liên kết đa Sheet trên `TONGHOP` (`='TMM.YYYY'!ColRow`).
-       - Strict Integrity Check: Đảm bảo không tụt dung lượng bất thường và quét sạch 100% không có ô lỗi `#REF!`.
-       - Hoán đổi nguyên tử tức thì qua lệnh hệ điều hành: `os.replace`.
-  2. **Tạo Test Suite Kiểm Chứng Toàn Diện `test_ccp_provisioner.ts`**:
-     - [backend/src/tests/test_ccp_provisioner.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_ccp_provisioner.ts): Test trực tiếp trên 2 file mẫu thật copy từ ổ đĩa `M:`.
-     - Kiểm chứng đồng thời:
-       - Thêm TVKD `099` ("Thành viên ABC") vào `Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx`.
-       - Thêm Hàng Hóa `GLD1` ("Vàng Nano") vào `Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx`.
-       - Thêm Hàng Hóa `GLD1` ("Vàng Nano") vào `Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx`.
-       - Xác nhận toàn bộ công thức ExcelJS và openpyxl trả về chính xác 100%, không bị vỡ cấu trúc XML.
-  3. **Đồng Bộ Lên Máy Chủ Thật Ubuntu (`10.0.0.26`)**:
-     - Đã deploy script `ccp_column_provisioner.py` sang `/opt/mxv-checklist/backend/dist/scripts/python/` và `/opt/mxv-checklist/backend/src/scripts/python/`.
-     - Chạy thử CLI kiểm chứng trực tiếp trên Ubuntu đạt **Exit code 0**.
+- Thực thi chỉ đạo của USER: *"xem còn sót file code nào nữa không"*.
+- Tiến hành quét diff toàn bộ cây thư mục giữa 2 dự án (`backend/src`, `frontend/src`, `docs`, `scripts`, `scratch`):
+  - **Frontend**: Khớp $100\%$ hoàn hảo (0 files missing, 0 files different).
+  - **Backend & Logic**: Phát hiện một số module/helper/controller đã được phát triển trong phiên làm việc tại `mxv-cqg-download-investigation` nhưng chưa được đồng bộ sang `mxv-modular-refactor`.
+- Đã đồng bộ đầy đủ các thành phần còn thiếu sang `mxv-modular-refactor`:
+  1. **Helper Provisioning**: Đưa [ccp-column-provisioner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts) sang `backend/src/modules/trading-ops/helpers/`.
+  2. **Controller API Mở Rộng Template**: Cập nhật [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts) với 2 endpoint `@Post('templates/provision-column')` và `@Get('templates/list')`.
+  3. **Service Ghi Lũy Kế & Cảnh Báo Data-Driven**: Cập nhật [ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts) với `provisionColumn`, `provisionAllTemplates`, logic quét cột TVKD/Hàng hóa và cảnh báo khi thiếu cột.
+  4. **Helper Xử Lý Ký Hiệu Hàng Hóa & TVKD**: Cập nhật [clearing-excel.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/clearing-excel.helper.ts) với hàm `extractCcpBaseProduct` và bóc tách linh hoạt `Mã HĐ`, `Mã Hợp Đồng`, padding số TVKD.
+  5. **Script Python Mở Rộng Cột**: Cập nhật [ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/python/ccp_column_provisioner.py) vá lỗi `clean_comments_rels_zip`.
+  6. **Tài Liệu Khung Đặc Tả**: Bổ sung [docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md).
+  7. **Bộ Test Suites & Simulation Scripts**:
+     - `backend/src/tests/test-ccp-accumulator-provision.ts`
+     - `backend/src/tests/test_scenario_lot_month11_and_commodity.ts`
+     - `backend/src/tests/test_scenario_month11_and_commodity.ts`
+     - `scratch/test_all_10_ccp_templates_simulation.js`
+     - `scratch/test_ccp_all_13_reports_pipeline.js`
 
 ### 2. Danh sách file tác động
-- [backend/src/scripts/python/ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/python/ccp_column_provisioner.py): Script Python mở rộng cột an toàn.
-- [backend/src/tests/test_ccp_provisioner.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_ccp_provisioner.ts): Test script kiểm chứng tự động.
-- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+- [backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts) *(Đồng bộ mới)*
+- [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts) *(Đồng bộ cập nhật)*
+- [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts) *(Đồng bộ cập nhật)*
+- [backend/src/modules/trading-ops/helpers/clearing-excel.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/clearing-excel.helper.ts) *(Đồng bộ cập nhật)*
+- [backend/src/scripts/python/ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/python/ccp_column_provisioner.py) *(Đồng bộ cập nhật)*
+- [docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md) *(Đồng bộ mới)*
+- [backend/src/tests/test-ccp-accumulator-provision.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/tests/test-ccp-accumulator-provision.ts) *(Đồng bộ mới)*
+- [backend/src/tests/test_scenario_lot_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/tests/test_scenario_lot_month11_and_commodity.ts) *(Đồng bộ mới)*
+- [backend/src/tests/test_scenario_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/tests/test_scenario_month11_and_commodity.ts) *(Đồng bộ mới)*
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
 
-### 3. Kết quả kiểm thử thực tế (Proof of Ground Truth)
-- Chạy `npx ts-node src/tests/test_ccp_provisioner.ts`: **PASS 100% (Exit code 0)**.
-- Thẩm định ô công thức bằng ExcelJS:
-  - TVKD `099` (BW): Header Row 4: `"Thanh vien ABC\n099"`, Tổng dọc Row 27: `{"formula":"SUM(BW5:BW26)"}`.
-  - Tổng TVKD (BX): Tổng ngang Row 5: `{"formula":"SUM(K5:BW5)"}`, Tổng dọc Row 27: `{"formula":"SUM(BX5:BX26)"}`.
-  - Hàng Hóa `GLD1` (CC): Header Row 4: `"GLD1"`, Tổng dọc Row 27: `{"formula":"SUM(CC5:CC26)"}`.
-  - Tổng Hàng Hóa (CD): Tổng ngang Row 5: `{"formula":"SUM(BZ5:CC5)"}`, Tổng dọc Row 27: `{"formula":"SUM(CD5:CD26)"}`.
-  - Sheet `TONGHOP`: Header Col 099: `"Thanh vien ABC\n099"`, Tháng 10 Row 14: `{"formula":"'T10.2026'!BW27"}`, Tổng năm Row 17: `{"formula":"SUM(BW5:BW16)"}`.
-  - File GTGD Hàng Hóa `GLD1` (E): Header Row 4: `"Vang Nano"`, Header Row 5: `"GLD1"`, Tổng dọc Row 28: `{"formula":"SUM(E6:E27)"}`, Tổng ngang Row 6: `{"formula":"SUM(B6:E6)"}`.
+### 3. Kết quả kiểm thử & Biên dịch (Proof of Ground Truth)
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%, 0 lỗi)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Build thành công 100%)**.
+- Boundary Isolation Test (`module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
 
-### 4. Kiểm chứng Kịch bản Thực tế: Tạo Tháng 11 (`T11.2026`) & Thêm Mã Hàng Hóa `GLD1`
-- File kiểm thử: [Bao cao - Thong ke/Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20gia%20tri%20giao%20dich%20ACM%202026%20(Theo%20CCP).xlsx)
-- Test script: [backend/src/tests/test_scenario_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_scenario_month11_and_commodity.ts)
-- Kết quả chạy `npx ts-node src/tests/test_scenario_month11_and_commodity.ts`: **PASS 100% (Exit code 0)**:
-  1. `excel_sheet_cloner.py` nhân bản `T10.2026` -> `T11.2026`: Tự động nhận diện Tháng 11/2026 có 21 ngày làm việc (Row 6 đến 26), cắt tỉa 1 dòng thừa của Tháng 10 (22 ngày), ngày đầu tiên A6 là `2026-11-02` (Thứ Hai), các ô A7..A26 là `=WORKDAY(...)`, dòng Tổng A27 là `=SUM(B6:B26)`.
-  2. `ccp_column_provisioner.py` chèn mã `GLD1` ("Vàng Nano"): Cập nhật cả 4 sheet (`TONGHOP`, `T09.2026`, `T10.2026`, `T11.2026`), mở rộng banner `B3:D3` thành `B3:E3`, cột Tổng F có công thức ngang `=SUM(B6:E6)`, Sheet `TONGHOP` liên kết chuẩn xác Row 16 Tháng 11 trỏ `='T11.2026'!E27`. Zero lỗi `#REF!`.
-=======
+---
+
+## [2026-10-15T17:10] FEATURE & AUDIT: Hoàn Tất Khôi Phục Toàn Diện MsApiAdapter (M-System Newgen Direct 2-Step PIN REST API) Vào Ingress V2
+
+### 1. Mục tiêu thay đổi
+- Trả lời và khắc phục câu hỏi của USER: *"sao lại thiếu đầu api của ms vậy tôi tưởng trước bạn báo là hoàn thành rồi cơ mà"*.
+- **Nguyên nhân**: Mã nguồn độc lập `ms-api-client` đã được đóng gói hoàn chỉnh ở thư mục gốc và các test script `test_direct_api_*.js` đã được lưu tại commit `25986e0`, nhưng khi checkout/merge sang nhánh `modular-monolith-v2-clean`, file adapter `ms-api.adapter.ts` chưa được bổ sung vào `backend/src/modules/ingress/adapters/` và `IngressService` bị trỏ nhầm nhánh `MS` sang `coreExApiAdapter`.
+- **Hành động điều chỉnh**:
+  1. Tạo chính thức [ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/ms-api.adapter.ts) tại `backend/src/modules/ingress/adapters/`.
+  2. Triển khai chuẩn `IIngressPort`, quản lý đăng nhập 2 bước Password + PIN, nạp cấu hình `bot_credentials_msystem` từ MongoDB (giải mã AES-256), tự động cache session token JWT (hiệu lực $\ge$ 5 phút), hỗ trợ tải đầy đủ 18 báo cáo chuẩn `MS_REPORTS_REGISTRY` (mặc định tải 3 báo cáo cốt lõi `TTM`, `TTTT`, `DSGD` cho ca đối chiếu).
+  3. Đăng ký `MsApiAdapter` vào `IngressModule` (providers & exports) và `backend/src/modules/ingress/index.ts`.
+  4. Sửa luồng định tuyến trong [ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts): Trỏ `source === 'MS'` gọi chuẩn xác `this.msApiAdapter.download(...)`.
+  5. Khôi phục toàn bộ các file test direct API (`test_direct_api_msystem.js`, `test_direct_api_coreccp.js`, `test_direct_api_coreex.js`, `test_direct_api_acm_sftp.js`, `test_direct_api_acm_etp.js`) và cập nhật `package.json`.
+
+### 2. Danh sách file tác động
+- [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/ms-api.adapter.ts) *(Tạo mới)*: Native REST API adapter cho M-System Newgen.
+- [backend/src/modules/ingress/ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.module.ts) *(Chỉnh sửa)*: Đăng ký `MsApiAdapter` vào providers & exports.
+- [backend/src/modules/ingress/ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts) *(Chỉnh sửa)*: Inject `MsApiAdapter` và định tuyến nguồn `MS` sang Direct API.
+- [backend/src/modules/ingress/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/index.ts) *(Chỉnh sửa)*: Export `MsApiAdapter`.
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/package.json) *(Chỉnh sửa)*: Bổ sung các scripts `test:api-ms`, `test:api-ccp`, `test:api-ce`, `test:api-acm`, `test:api-acm-etp`.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch (Proof of Ground Truth)
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%, 0 lỗi)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Build thành công 100%)**.
+- Boundary Isolation Test (`module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+
+---
+
 ## [2026-10-15T16:30] FEATURE MIGRATION: Hoàn Tất Chuyển Đổi 100% Mảng Đối Chiếu Sang Modular Monolith V2 Với 3 Workers Mới (SodReconWorker, CqgSyncWorker, EodMmWorker)
 
 ### 1. Mục tiêu thay đổi
@@ -120,7 +127,6 @@
 - Twin-Run Comparator Test (`npm.cmd test src/tests/twin-run/twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
 - Multi-Instance Concurrency Test (`npm.cmd test src/tests/concurrency/multi-instance-queue.spec.ts`): **PASS 100% (Zero race condition)**.
 - Modular Shift E2E Test (`npm.cmd test src/tests/e2e/modular-shift-e2e.spec.ts`): **PASS 100% (1/1 test)**.
->>>>>>> fb9cc0e3abd276ce3acb7ea4152cbc1c5c2a8306
 
 ---
 

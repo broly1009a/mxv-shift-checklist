@@ -18,6 +18,7 @@ import { CoreExApiAdapter } from './adapters/coreex-api.adapter';
 import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 import { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
 import { AcmEtpAdapter } from './adapters/acm-etp.adapter';
+import { MsApiAdapter } from './adapters/ms-api.adapter';
 
 @Injectable()
 export class IngressService implements IIngressPort {
@@ -33,6 +34,7 @@ export class IngressService implements IIngressPort {
     private readonly coreCcpApiAdapter: CoreCcpApiAdapter,
     private readonly acmSftpAdapter: AcmSftpAdapter,
     private readonly acmEtpAdapter: AcmEtpAdapter,
+    private readonly msApiAdapter: MsApiAdapter,
     @Optional()
     private readonly settingsService?: SystemSettingsService,
   ) {}
@@ -85,7 +87,7 @@ export class IngressService implements IIngressPort {
       if (source === 'CORE_EX') {
         return this.coreExApiAdapter.download('CORE_EX', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'MS') {
-        return this.coreExApiAdapter.download('MS', { ...options, targetDirectory: outputDirectory });
+        return this.msApiAdapter.download('MS', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'CCP' || source === 'CORE_CCP') {
         return this.coreCcpApiAdapter.download('CCP', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'ACM') {
@@ -140,19 +142,11 @@ export class IngressService implements IIngressPort {
       }
 
       case 'CQG': {
-        const account1 = {
-          username: process.env.CQG1_USERNAME || '',
-          password: process.env.CQG1_PASSWORD || '',
-        };
-        const account2 = {
-          username: process.env.CQG2_USERNAME || '',
-          password: process.env.CQG2_PASSWORD || '',
-        };
-
         const result = await this.cqgScraper.downloadParallelAllRawFiles(
           outputDirectory,
-          account1,
-          account2,
+          undefined,
+          undefined,
+          options?.reportCodes,
         );
 
         for (const f of result.files) {

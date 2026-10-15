@@ -12,7 +12,7 @@ Năng lực:
 - Thêm Mã Hàng Hóa mới vào bảng Giá Trị Giao Dịch (chèn trước cột TỔNG GTGD).
 - Tự động kéo dãn công thức =SUM(...) ngang (phiên) và dọc (tháng/năm).
 - Tự động cập nhật liên kết sheet TONGHOP ('TMM.YYYY'!ColRow).
-- Tự động mở rộng dải ô banner tiêu đề gộp (merged cells banner).
+- Tự động dịch chuyển và mở rộng dải ô banner tiêu đề gộp (merged cells banner).
 - Bảo vệ file tuyệt đối bằng mô hình Giao Dịch Nguyên Tử (Safe Transactional Atomic Write).
 """
 
@@ -22,6 +22,8 @@ import re
 import uuid
 import shutil
 import argparse
+import unicodedata
+from copy import copy
 from datetime import datetime
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
@@ -41,6 +43,13 @@ if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
         pass
 
 
+def remove_accents(s: str) -> str:
+    """Loại bỏ dấu tiếng Việt để so khớp chuỗi không phụ thuộc bảng mã Unicode (NFC vs NFD)."""
+    if not s:
+        return ''
+    return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn').lower()
+
+
 def is_file_locked(filepath: str) -> bool:
     """Kiểm tra xem tệp Excel có đang bị ứng dụng khác khóa độc quyền (trên Windows) hay không."""
     if not os.path.exists(filepath):
@@ -52,8 +61,6 @@ def is_file_locked(filepath: str) -> bool:
     except IOError:
         return True
 
-
-from copy import copy
 
 def copy_cell_style(src_cell, dst_cell, include_value: bool = False, default_val=None):
     """Sao chép toàn bộ định dạng từ ô nguồn sang ô đích (Font, Fill, Border, Alignment, NumberFormat)."""
@@ -70,40 +77,53 @@ def copy_cell_style(src_cell, dst_cell, include_value: bool = False, default_val
         dst_cell.value = default_val
 
 
-def expand_merged_range_if_ends_at(ws, target_row: int, end_col: int):
+def shift_and_expand_merged_cells_on_insert(ws, insert_col: int, banner_row: int = 2):
     """
-    Nếu có một dải ô merged (ví dụ banner TVKD K2:BV3 hoặc Hàng Hóa BY2:CA3)
-    kết thúc đúng tại `end_col`, ta mở rộng dải đó thêm 1 cột sang phải (thành `end_col + 1`).
+    Do openpyxl không tự động dịch chuyển merged_cells khi gọi insert_cols,
+    hàm này chủ động dịch chuyển mọi merged_cell có min_col >= insert_col sang phải 1 cột,
+    đồng thời mở rộng dải banner tiêu đề kết thúc tại insert_col - 1 thêm 1 cột.
     """
-    ranges_to_modify = []
-    for rng in list(ws.merged_cells.ranges):
-        if rng.min_row <= target_row <= rng.max_row and rng.max_col == end_col:
-            ranges_to_modify.append(rng)
-
-    for rng in ranges_to_modify:
+    old_ranges = list(ws.merged_cells.ranges)
+    for rng in old_ranges:
         ws.merged_cells.remove(rng)
-        new_rng = CellRange(
-            min_col=rng.min_col,
+
+    for rng in old_ranges:
+        min_c = rng.min_col
+        max_c = rng.max_col
+
+        if min_c >= insert_col:
+            # Dải ô nằm từ hoặc sau cột chèn -> dịch sang phải 1 cột
+            min_c += 1
+            max_c += 1
+        elif max_c == insert_col - 1 and rng.min_row <= banner_row <= rng.max_row:
+            # Banner của phân hệ kết thúc ngay trước cột chèn -> mở rộng thêm 1 cột
+            max_c += 1
+            print(f"      [Merge] Da mo rong dải banner {rng.coord} thanh {get_column_letter(min_c)}{rng.min_row}:{get_column_letter(max_c)}{rng.max_row}")
+        elif max_c >= insert_col:
+            # Dải ô bao trùm qua cột chèn -> kéo dãn
+            max_c += 1
+
+        ws.merged_cells.add(CellRange(
+            min_col=min_c,
             min_row=rng.min_row,
-            max_col=rng.max_col + 1,
+            max_col=max_c,
             max_row=rng.max_row
-        )
-        ws.merged_cells.add(new_rng)
-        print(f"      [Merge] Da mo rong dải banner: {rng.coord} -> {new_rng.coord}")
+        ))
 
 
 def provision_tvkd_in_sheet(ws, code: str, label: str, sheet_name: str, wb) -> bool:
     """Xử lý chèn TVKD mới vào một sheet cụ thể."""
     is_tonghop = (sheet_name == 'TONGHOP')
 
-    # 1. Tìm vị trí cột TVKD đầu tiên và cột TỔNG TVKD
     tvkd_start_col = -1
     tvkd_tong_col = -1
 
-    # Quét Row 4 (hoặc Row 2/3) để tìm cột TVKD
+    # Quét tìm cột TVKD bắt đầu và cột TỔNG TVKD
     for col in range(1, ws.max_column + 1):
         c4_val = str(ws.cell(4, col).value or '').strip()
         c2_val = str(ws.cell(2, col).value or '').strip()
+        c2_clean = remove_accents(c2_val)
+        c4_clean = remove_accents(c4_val)
 
         # Kiểm tra xem mã TVKD này đã tồn tại chưa
         if re.search(r'\b' + re.escape(code) + r'\b', c4_val):
@@ -116,10 +136,9 @@ def provision_tvkd_in_sheet(ws, code: str, label: str, sheet_name: str, wb) -> b
 
         # Nhận diện cột TỔNG TVKD (cột 'Tổng' đầu tiên sau tvkd_start_col)
         if tvkd_start_col != -1 and col > tvkd_start_col:
-            if 'tổng' in c2_val.lower() or 'tong' in c2_val.lower() or 'tổng' in c4_val.lower() or 'tong' in c4_val.lower():
+            if 'tong' in c2_clean or 'tong' in c4_clean:
                 tvkd_tong_col = col
                 break
-            # Hoặc kiểm tra ô data có chứa formula =SUM
             f_val = str(ws.cell(5, col).value or '')
             if f_val.startswith('=SUM'):
                 tvkd_tong_col = col
@@ -133,54 +152,45 @@ def provision_tvkd_in_sheet(ws, code: str, label: str, sheet_name: str, wb) -> b
     new_col = tvkd_tong_col
     print(f"   [Insert] Sheet '{sheet_name}': Chen TVKD '{code}' tai cot {get_column_letter(new_col)} (truoc cot Tong {get_column_letter(tvkd_tong_col)})...")
 
+    # 1. Dịch chuyển và mở rộng merged cells trước khi insert
+    shift_and_expand_merged_cells_on_insert(ws, new_col, banner_row=2)
+
     # 2. Chèn 1 cột mới tại vị trí tvkd_tong_col
     ws.insert_cols(new_col)
     new_col_letter = get_column_letter(new_col)
     tvkd_start_letter = get_column_letter(tvkd_start_col)
-    tong_col_letter = get_column_letter(new_col + 1)  # Cột tổng bị đẩy sang phải 1
+    tong_col_letter = get_column_letter(new_col + 1)
 
-    # 3. Mở rộng dải merge banner TVKD ở Row 2-3 nếu có
-    expand_merged_range_if_ends_at(ws, 2, prev_col)
-
-    # 4. Ghi tiêu đề Row 4
+    # 3. Ghi tiêu đề Row 4
     header_cell = ws.cell(4, new_col)
-    header_cell.value = f"{label}\n{code}"
     copy_cell_style(ws.cell(4, prev_col), header_cell, include_value=False)
+    header_cell.value = f"{label}\n{code}"
+    header_cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-    # Đảm bảo wrap_text cho header
-    if header_cell.alignment:
-        header_cell.alignment = Alignment(
-            horizontal='center',
-            vertical='center',
-            wrap_text=True
-        )
-
-    # 5. Xử lý các dòng số liệu
+    # 4. Xử lý các dòng số liệu
     if not is_tonghop:
         # Sheet Tháng (TMM.YYYY):
-        # Tìm dòng Tổng cuối tháng (nơi Col A hoặc Col B có 'Tổng')
         total_row = -1
-        for r in range(5, ws.max_row + 1):
-            ca = str(ws.cell(r, 1).value or '').strip().lower()
-            cb = str(ws.cell(r, 2).value or '').strip().lower()
-            if 'tổng' in ca or 'tong' in ca or 'tổng' in cb or 'tong' in cb:
+        for r in range(5, min(ws.max_row + 1, 60)):
+            ca = remove_accents(str(ws.cell(r, 1).value or ''))
+            cb = remove_accents(str(ws.cell(r, 2).value or ''))
+            if 'tong' in ca or 'tong' in cb:
                 total_row = r
                 break
-            # Nếu gặp ô formula =SUM dọc ở prev_col
             f = str(ws.cell(r, prev_col).value or '')
             if f.startswith('=SUM(') and ':' in f:
                 total_row = r
                 break
 
         if total_row == -1:
-            total_row = 27  # Mặc định dòng 27 theo chuẩn MXV
+            total_row = 27
 
         # Ghi 0 vào các phiên đã qua (Row 5 đến total_row - 1)
         for r in range(5, total_row):
             cell = ws.cell(r, new_col)
             copy_cell_style(ws.cell(r, prev_col), cell, default_val=0)
 
-            # Cập nhật công thức tổng ngang tại cột TỔNG (bị đẩy sang new_col + 1)
+            # Cập nhật công thức tổng ngang tại cột TỔNG
             tong_cell = ws.cell(r, new_col + 1)
             tong_cell.value = f"=SUM({tvkd_start_letter}{r}:{new_col_letter}{r})"
 
@@ -194,7 +204,6 @@ def provision_tvkd_in_sheet(ws, code: str, label: str, sheet_name: str, wb) -> b
         tong_sum_cell.value = f"=SUM({tong_col_letter}5:{tong_col_letter}{total_row - 1})"
     else:
         # Sheet TONGHOP:
-        # Rows 5 đến 16 đại diện cho 12 tháng (Tháng 1 -> Tháng 12)
         total_row = 17
         for m in range(1, 13):
             r = 4 + m
@@ -202,14 +211,12 @@ def provision_tvkd_in_sheet(ws, code: str, label: str, sheet_name: str, wb) -> b
             cell = ws.cell(r, new_col)
             copy_cell_style(ws.cell(r, prev_col), cell)
 
-            # Nếu sheet tháng đó có trong workbook, link công thức sang
             if m_str in wb.sheetnames:
-                # Tìm dòng tổng của sheet tháng đó
                 m_ws = wb[m_str]
                 m_tot_row = 27
-                for mr in range(5, m_ws.max_row + 1):
-                    mca = str(m_ws.cell(mr, 1).value or '').strip().lower()
-                    if 'tổng' in mca or 'tong' in mca:
+                for mr in range(5, min(m_ws.max_row + 1, 60)):
+                    mca = remove_accents(str(m_ws.cell(mr, 1).value or ''))
+                    if 'tong' in mca:
                         m_tot_row = mr
                         break
                 cell.value = f"='{m_str}'!{new_col_letter}{m_tot_row}"
@@ -240,33 +247,30 @@ def provision_commodity_in_sheet(ws, code: str, label: str, sheet_name: str, wb,
 
     if is_gtgd:
         # File Giá trị giao dịch:
-        # Cột hàng hóa bắt đầu từ Cột 2 (B)
         hh_start_col = 2
-        # Cột Tổng là cột cuối cùng có header 'Tổng' tại Row 3 hoặc Row 4
         for col in range(2, ws.max_column + 1):
             c4_val = str(ws.cell(4, col).value or '').strip()
             c5_val = str(ws.cell(5, col).value or '').strip()
-            c3_val = str(ws.cell(3, col).value or '').strip()
+            c3_clean = remove_accents(str(ws.cell(3, col).value or ''))
+            c4_clean = remove_accents(c4_val)
 
             if c5_val.upper() == code.upper():
                 print(f"   [WARN] Hang hoa '{code}' da ton tai tai cot {get_column_letter(col)} cua sheet {sheet_name}. Bo qua.")
                 return False
 
-            if 'tổng' in c3_val.lower() or 'tong' in c3_val.lower() or 'tổng' in c4_val.lower() or 'tong' in c4_val.lower():
+            if 'tong' in c3_clean or 'tong' in c4_clean:
                 hh_tong_col = col
                 break
-            # Hoặc kiểm tra formula ở dòng 6
             if str(ws.cell(6, col).value or '').startswith('=SUM'):
                 hh_tong_col = col
                 break
     else:
         # File Số Lot:
-        # Hàng hóa nằm sau cột TỔNG TVKD. Tìm banner 'THỐNG KÊ SỐ LOT GIAO DỊCH THEO HÀNG HOÁ' tại Row 2
         for col in range(1, ws.max_column + 1):
-            c2_val = str(ws.cell(2, col).value or '').strip()
+            c2_clean = remove_accents(str(ws.cell(2, col).value or ''))
             c4_val = str(ws.cell(4, col).value or '').strip()
 
-            if 'hàng hoá' in c2_val.lower() or 'hang hoa' in c2_val.lower():
+            if 'hang hoa' in c2_clean or c4_val.upper() in ('SI5CO', 'PL1NY', 'CP2CO'):
                 if hh_start_col == -1:
                     hh_start_col = col
 
@@ -274,8 +278,8 @@ def provision_commodity_in_sheet(ws, code: str, label: str, sheet_name: str, wb,
                 print(f"   [WARN] Hang hoa '{code}' da ton tai tai cot {get_column_letter(col)} cua sheet {sheet_name}. Bo qua.")
                 return False
 
-            if hh_start_col != -1 and col >= hh_start_col:
-                if 'tổng' in c2_val.lower() or 'tong' in c2_val.lower() or 'tổng' in c4_val.lower() or 'tong' in c4_val.lower():
+            if hh_start_col != -1 and col > hh_start_col:
+                if 'tong' in c2_clean or 'tong' in remove_accents(c4_val):
                     hh_tong_col = col
                     break
                 if str(ws.cell(5, col).value or '').startswith('=SUM'):
@@ -290,41 +294,39 @@ def provision_commodity_in_sheet(ws, code: str, label: str, sheet_name: str, wb,
     new_col = hh_tong_col
     print(f"   [Insert] Sheet '{sheet_name}': Chen Hang hoa '{code}' tai cot {get_column_letter(new_col)} (truoc cot Tong {get_column_letter(hh_tong_col)})...")
 
-    # 1. Chèn cột
+    # 1. Dịch chuyển và mở rộng merged cells
+    banner_row = 3 if is_gtgd else 2
+    shift_and_expand_merged_cells_on_insert(ws, new_col, banner_row=banner_row)
+
+    # 2. Chèn 1 cột mới
     ws.insert_cols(new_col)
     new_col_letter = get_column_letter(new_col)
     hh_start_letter = get_column_letter(hh_start_col)
     tong_col_letter = get_column_letter(new_col + 1)
 
-    # 2. Mở rộng merge banner hàng hóa
-    banner_row = 3 if is_gtgd else 2
-    expand_merged_range_if_ends_at(ws, banner_row, prev_col)
-
     # 3. Ghi tiêu đề
     if is_gtgd:
-        # Row 4: Label (vd: Vàng Nano), Row 5: Code (vd: GLD1)
         c4 = ws.cell(4, new_col)
-        c4.value = label
         copy_cell_style(ws.cell(4, prev_col), c4, include_value=False)
+        c4.value = label
 
         c5 = ws.cell(5, new_col)
-        c5.value = code
         copy_cell_style(ws.cell(5, prev_col), c5, include_value=False)
+        c5.value = code
         first_data_row = 6
     else:
-        # File Số Lot: Row 4 là Mã (hoặc Label\nMã)
         c4 = ws.cell(4, new_col)
-        c4.value = code
         copy_cell_style(ws.cell(4, prev_col), c4, include_value=False)
+        c4.value = code
         first_data_row = 5
 
     # 4. Cập nhật dữ liệu & công thức
     if not is_tonghop:
         # Sheet Tháng:
         total_row = -1
-        for r in range(first_data_row, ws.max_row + 1):
-            ca = str(ws.cell(r, 1).value or '').strip().lower()
-            if 'tổng' in ca or 'tong' in ca:
+        for r in range(first_data_row, min(ws.max_row + 1, 60)):
+            ca = remove_accents(str(ws.cell(r, 1).value or ''))
+            if 'tong' in ca:
                 total_row = r
                 break
         if total_row == -1:
@@ -360,9 +362,9 @@ def provision_commodity_in_sheet(ws, code: str, label: str, sheet_name: str, wb,
             if m_str in wb.sheetnames:
                 m_ws = wb[m_str]
                 m_tot_row = 28 if is_gtgd else 27
-                for mr in range(first_data_row, m_ws.max_row + 1):
-                    mca = str(m_ws.cell(mr, 1).value or '').strip().lower()
-                    if 'tổng' in mca or 'tong' in mca:
+                for mr in range(first_data_row, min(m_ws.max_row + 1, 60)):
+                    mca = remove_accents(str(m_ws.cell(mr, 1).value or ''))
+                    if 'tong' in mca:
                         m_tot_row = mr
                         break
                 cell.value = f"='{m_str}'!{new_col_letter}{m_tot_row}"
@@ -384,6 +386,49 @@ def provision_commodity_in_sheet(ws, code: str, label: str, sheet_name: str, wb,
     return True
 
 
+def clean_comments_rels_zip(file_path: str):
+    """Chuẩn hóa zip archive để ExcelJS đọc 100% không bao giờ lỗi 'comments' relationship."""
+    import zipfile
+    import shutil
+    import re
+
+    temp_fixed = file_path + ".fixed.zip"
+    try:
+        with zipfile.ZipFile(file_path, 'r') as zin, zipfile.ZipFile(temp_fixed, 'w', compression=zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                if 'comments' in item.filename.lower() or 'vmldrawing' in item.filename.lower() or 'commentsdrawing' in item.filename.lower():
+                    continue
+
+                content = zin.read(item.filename)
+                if item.filename.startswith('xl/worksheets/_rels/sheet') and item.filename.endswith('.xml.rels'):
+                    try:
+                        text = content.decode('utf-8')
+                        text = re.sub(r'<Relationship[^>]*Type="[^"]*(?:comments|vmlDrawing)"[^>]*/>', '', text)
+                        zout.writestr(item, text.encode('utf-8'))
+                        continue
+                    except Exception:
+                        pass
+                elif item.filename.startswith('xl/worksheets/sheet') and item.filename.endswith('.xml'):
+                    try:
+                        text = content.decode('utf-8')
+                        text = re.sub(r'<legacyDrawing[^>]*/>', '', text)
+                        zout.writestr(item, text.encode('utf-8'))
+                        continue
+                    except Exception:
+                        pass
+
+                zout.writestr(item, content)
+
+        if os.path.exists(temp_fixed) and os.path.getsize(temp_fixed) > 1000:
+            shutil.copyfile(temp_fixed, file_path)
+            try:
+                os.remove(temp_fixed)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"   [WARN] Khong the postprocess comments relationship: {e}")
+
+
 def provision_column(excel_path: str, entity_type: str, code: str, label: str, dry_run: bool = False) -> bool:
     """
     Quy trình 5 bước Giao Dịch Nguyên Tử (Atomic Pattern):
@@ -402,11 +447,10 @@ def provision_column(excel_path: str, entity_type: str, code: str, label: str, d
     print(f"Ten hien thi:  {label}")
     print(f"Che do:        {'DRY-RUN (Kiem thu khong ghi)' if dry_run else 'PRODUCTION (Ghi thuc te)'}\n")
 
-    # 1. Pre-flight check
     if not os.path.exists(excel_path):
         raise FileNotFoundError(f"File muc tieu khong ton tai: {excel_path}")
 
-    if is_file_locked(excel_path):
+    if not dry_run and is_file_locked(excel_path):
         raise PermissionError(
             f"[CANH BAO KHOA FILE] File Excel dang duoc mo boi ung dung khac!\n"
             f"Vui long dong file '{os.path.basename(excel_path)}' truoc khi tiep tuc."
@@ -416,7 +460,6 @@ def provision_column(excel_path: str, entity_type: str, code: str, label: str, d
     if orig_size == 0:
         raise ValueError("File Excel rong (0 bytes)!")
 
-    # Xác định loại file (Số Lot hay GTGD)
     base_name = os.path.basename(excel_path).lower()
     is_gtgd = ('gia tri' in base_name or 'gtgd' in base_name)
 
@@ -424,7 +467,6 @@ def provision_column(excel_path: str, entity_type: str, code: str, label: str, d
         print("[INFO] File Gia tri giao dich ACM khong co phan he TVKD. Khong can xu ly file nay.")
         return True
 
-    # 2. Snapshot Backup
     file_dir = os.path.dirname(os.path.abspath(excel_path))
     backup_dir = os.path.join(file_dir, 'Backup_Snapshots')
     if not os.path.exists(backup_dir):
@@ -436,15 +478,12 @@ def provision_column(excel_path: str, entity_type: str, code: str, label: str, d
     shutil.copy2(excel_path, backup_file)
     print(f"1. [Backup] Da tao ban sao luu an toan:\n   {backup_file}")
 
-    # 3. Work on Staging (File tạm)
     staging_file = os.path.join(file_dir, f".staging_{uuid.uuid4().hex[:8]}.tmp.xlsx")
     shutil.copy2(excel_path, staging_file)
     print(f"2. [Staging] Dang thao tac tren file tam cach ly:\n   {staging_file}")
 
     try:
         wb = openpyxl.load_workbook(staging_file, data_only=False)
-
-        # Lấy danh sách các sheet cần cập nhật (TONGHOP và các sheet bắt đầu bằng 'T')
         target_sheets = [s for s in wb.sheetnames if s == 'TONGHOP' or s.startswith('T')]
         print(f"3. [Execute] Cac sheet se duoc cap nhat: {target_sheets}")
 
@@ -464,8 +503,8 @@ def provision_column(excel_path: str, entity_type: str, code: str, label: str, d
                 os.remove(staging_file)
             return True
 
-        # Lưu file staging
         wb.save(staging_file)
+        clean_comments_rels_zip(staging_file)
         print(f"   [Save] Da luu thay doi vao file staging ({modified_count} sheets cap nhat).")
 
         # 4. Integrity Check
@@ -473,12 +512,10 @@ def provision_column(excel_path: str, entity_type: str, code: str, label: str, d
         if staging_size < orig_size * 0.5:
             raise ValueError(f"Integrity check failed: File tam bi tut kich thuoc bat thuong ({staging_size} vs {orig_size})!")
 
-        # Mở thử lại để assert không có lỗi XML
         wb_check = openpyxl.load_workbook(staging_file, data_only=False)
         for s_name in target_sheets:
             ws_c = wb_check[s_name]
-            # Quét kiểm tra xem có ô nào bị #REF! không
-            for r in range(1, min(30, ws_c.max_row + 1)):
+            for r in range(1, min(35, ws_c.max_row + 1)):
                 for c in range(1, min(ws_c.max_column + 1, 100)):
                     val = str(ws_c.cell(r, c).value or '')
                     if '#REF!' in val:

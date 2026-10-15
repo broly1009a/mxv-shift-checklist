@@ -12,6 +12,7 @@ import { CoreExApiAdapter } from './adapters/coreex-api.adapter';
 import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 import { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
 import { AcmEtpAdapter } from './adapters/acm-etp.adapter';
+import { MsApiAdapter } from './adapters/ms-api.adapter';
 
 @Module({
   imports: [SystemSettingsModule],
@@ -29,6 +30,7 @@ import { AcmEtpAdapter } from './adapters/acm-etp.adapter';
     CoreCcpApiAdapter,
     AcmSftpAdapter,
     AcmEtpAdapter,
+    MsApiAdapter,
     // Facade Service
     IngressService,
   ],
@@ -45,6 +47,7 @@ import { AcmEtpAdapter } from './adapters/acm-etp.adapter';
     CoreCcpApiAdapter,
     AcmSftpAdapter,
     AcmEtpAdapter,
+    MsApiAdapter,
   ],
 })
 export class IngressModule {}

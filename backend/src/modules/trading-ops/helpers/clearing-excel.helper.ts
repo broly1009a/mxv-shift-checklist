@@ -108,13 +108,35 @@ export function sumPsLot(rows: ParsedRow[]): number {
   }, 0);
 }
 
+export function extractCcpBaseProduct(rawSymbol: string): string {
+  const s = toStr(rawSymbol).trim().toUpperCase();
+  if (!s || s === 'UNKNOWN') return 'UNKNOWN';
+
+  // Nhóm ACM và CoreCCP đặc thù đã biết
+  const known = ['SI5CO', 'CP2CO', 'PL1NY', 'GLD1', 'SIV', 'SIVE', 'SVR3L'];
+  for (const k of known) {
+    if (s.startsWith(k)) return k;
+  }
+
+  // Nhóm Quyền chọn (Options)
+  if (/^[CP]\./.test(s)) {
+    const m = s.match(/^([CP]\.[A-Z0-9]+?)([FGHJKMNQUVXZ]|\d{2})/);
+    return m ? m[1] : s.split(/\s+/)[0];
+  }
+
+  // Fallback: cắt bỏ ký tự tháng chữ/số + 2 số năm cuối (ví dụ ZCEZ26 -> ZCE, CADU26 -> CAD, CXR10627 -> CXR1)
+  const m = s.match(/^([A-Z0-9]+?)([FGHJKMNQUVXZ]\d{2}|\d{4})$/);
+  return m ? m[1] : s;
+}
+
 export function aggregateByProduct(rows: ParsedRow[]): LotByProduct[] {
   const map = new Map<string, { klm: number; klb: number }>();
 
   for (const r of rows) {
-    const maSP = toStr(r['Mã SP'] ?? r['Mã hàng hóa'] ?? r['Symbol'] ?? 'UNKNOWN');
+    const rawSymbol = toStr(r['Mã SP'] ?? r['Mã HĐ'] ?? r['Mã Hợp Đồng'] ?? r['Mã hàng hóa'] ?? r['Symbol'] ?? 'UNKNOWN');
+    const maSP = extractCcpBaseProduct(rawSymbol);
     const side = toStr(r['Mua/Bán'] ?? r['B/S'] ?? r['Side'] ?? '').toUpperCase();
-    const qty = toNum(r['KL'] ?? r['Qty'] ?? r['KL giao dịch'] ?? 0);
+    const qty = toNum(r['KL'] ?? r['Qty'] ?? r['KL giao dịch'] ?? r['KL khớp'] ?? 0);
 
     const cur = map.get(maSP) || { klm: 0, klb: 0 };
     if (side === 'B' || side === 'BUY' || side === 'MUA') {
@@ -141,10 +163,18 @@ export function aggregateByTvkd(rows: ParsedRow[]): LotByTvkd[] {
   const map = new Map<string, { klm: number; klb: number }>();
 
   for (const r of rows) {
-    const maTKGD = toStr(r['Mã TKGD'] ?? r['Account'] ?? '');
-    const tvkd = maTKGD.length >= 3 ? maTKGD.substring(0, 3).toUpperCase() : 'OTHER';
+    const memberCode = toStr(r['Mã thành viên'] ?? r['TVKD'] ?? r['Mã TVKD'] ?? '');
+    let tvkd = memberCode;
+    if (!tvkd) {
+      const maTKGD = toStr(r['Mã TKGD'] ?? r['Account'] ?? '');
+      tvkd = maTKGD.length >= 3 ? maTKGD.substring(0, 3).toUpperCase() : 'OTHER';
+    }
+    if (/^\d{1,2}$/.test(tvkd)) {
+      tvkd = tvkd.padStart(3, '0');
+    }
+
     const side = toStr(r['Mua/Bán'] ?? r['B/S'] ?? r['Side'] ?? '').toUpperCase();
-    const qty = toNum(r['KL'] ?? r['Qty'] ?? r['KL giao dịch'] ?? 0);
+    const qty = toNum(r['KL'] ?? r['Qty'] ?? r['KL giao dịch'] ?? r['KL khớp'] ?? 0);
 
     const cur = map.get(tvkd) || { klm: 0, klb: 0 };
     if (side === 'B' || side === 'BUY' || side === 'MUA') {
