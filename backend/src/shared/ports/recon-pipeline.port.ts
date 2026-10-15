@@ -6,6 +6,7 @@
 export interface IReconPipelinePort {
   handleCheckKlgdJob(job: any): Promise<any>;
   handleCheckPreEodJob(job: any): Promise<any>;
+  fetchEodEmail?(dateStr: string, destDir: string): Promise<any>;
 }
 
 export const RECON_PIPELINE_PORT = 'IReconPipelinePort';

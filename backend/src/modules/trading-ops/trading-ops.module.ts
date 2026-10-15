@@ -25,6 +25,9 @@ import { NegativeMarginWorker } from './workers/negative-margin.worker';
 import { CcpLotWorker } from './workers/ccp-lot.worker';
 import { CcpValueWorker } from './workers/ccp-value.worker';
 import { CcpEodWorker } from './workers/ccp-eod.worker';
+import { SodReconWorker } from './workers/sod-recon.worker';
+import { CqgSyncWorker } from './workers/cqg-sync.worker';
+import { EodMmWorker } from './workers/eod-mm.worker';
 
 import { IngressModule } from '../ingress/ingress.module';
 import { BotEngineModule } from '../bot-engine/bot-engine.module';
@@ -86,6 +89,9 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     CcpLotWorker,
     CcpValueWorker,
     CcpEodWorker,
+    SodReconWorker,
+    CqgSyncWorker,
+    EodMmWorker,
   ],
   exports: [
     CqgMergerService,
@@ -108,6 +114,9 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     CcpLotWorker,
     CcpValueWorker,
     CcpEodWorker,
+    SodReconWorker,
+    CqgSyncWorker,
+    EodMmWorker,
     MongooseModule,
   ],
 })
