@@ -46,6 +46,10 @@ const syncDirs = [
     remoteDir: '/opt/mxv-checklist/frontend/src',
   },
   {
+    localDir: path.join(repoRoot, 'frontend/legacy'),
+    remoteDir: '/opt/mxv-checklist/frontend/legacy',
+  },
+  {
     localDir: path.join(repoRoot, 'frontend/public'),
     remoteDir: '/opt/mxv-checklist/frontend/public',
   },
