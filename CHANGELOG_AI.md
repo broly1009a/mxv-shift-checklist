@@ -1,3 +1,41 @@
+## [2026-10-15T16:05] FIX CRITICAL: Khôi Phục Luồng Tải File Live (Ingress Pipeline) Cho Đối Chiếu CHECK_KLGD / CHECK_PRE_EOD & Chuẩn Hóa Huy Hiệu UI 'Đang Chờ File'
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố Job ID `6ad08d0fbfde2e2dfeeda1be` ("Đối Chiếu Khớp Lệnh (Trong Phiên)", `CHECK_KLGD`) chạy kết thúc trong 21ms (`08:21:37.809` -> `08:21:37.830`), ghi log `[BotDispatcher V2] [Đang chờ dữ liệu] Thư mục backup ngày 15.10.2026 đang chờ cập nhật đầy đủ file đối chiếu...`, và header UI hiện huy hiệu màu xanh "Thành công", nhưng **hoàn toàn không kích hoạt tự động đăng nhập và tải file từ M-System, CQG, ACM như V1**.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  1. `KlgdReconWorker` và `PreEodReconWorker` trong V2 ban đầu chỉ được thiết kế là các offline calculation worker gọi trực tiếp `klgdReconService.runAutoCheckKLGD(...)` và `preEodReconService.runAutoCheckPreEOD(...)` mà chưa nối luồng Ingress (RPA Scrapers Playwright). Khi `bot-job-queue.service.ts` ưu tiên `botDispatcher.hasWorker(botCheckType)`, nó bỏ qua `ReconJobsHandler`, khiến các bước tự động cào file không được kích hoạt.
+  2. Huy hiệu UI hiện "Thành công" ảo: Trong `bot-job-queue.service.ts#L455` và `bot-dispatcher.service.ts#L136`, biểu thức kiểm tra thành công là `dispatchRes.status !== 'FAILED'`. Do `'WAITING' !== 'FAILED'` là đúng, hệ thống gán `finalStatus = 'COMPLETED'` và lưu `status: 'COMPLETED'` vào MongoDB, khiến UI render badge màu xanh "Thành công".
+  3. Thiếu streaming log thời gian thực: Timer `logFlushTimer` (1.5s flush socket/DB) nằm sau khối `botDispatcher.dispatchJob`, nên các job chạy qua V2 Dispatcher không được flush log trực tiếp khi đang chạy.
+
+### 2. Danh sách file tác động & Giải pháp kiến trúc
+- **Tuân thủ quy chuẩn Isolation (`module-isolation.spec.ts`)**: Sử dụng Dependency Inversion thông qua Injection Token `RECON_PIPELINE_PORT`, không import chéo trực tiếp giữa các module domain.
+- [backend/src/shared/ports/recon-pipeline.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/ports/recon-pipeline.port.ts): Khai báo interface `IReconPipelinePort` và token `RECON_PIPELINE_PORT = 'IReconPipelinePort'`.
+- [backend/src/shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/index.ts): Export `IReconPipelinePort` và `RECON_PIPELINE_PORT`.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Implement `IReconPipelinePort`, mở public `handleCheckKlgdJob` và `handleCheckPreEodJob`.
+- [backend/src/modules/bot-engine/bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-engine.module.ts): Đăng ký provider `{ provide: RECON_PIPELINE_PORT, useExisting: ReconJobsHandler }` và export ra ngoài.
+- [backend/src/modules/trading-ops/workers/klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts): Inject `RECON_PIPELINE_PORT`. Khi chạy live (`parameters?.skipDownload !== true`), chuyển giao thực thi tải file live và đối chiếu qua `reconPipeline.handleCheckKlgdJob(jobToRun)`.
+- [backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts): Tương tự, chuyển giao qua `reconPipeline.handleCheckPreEodJob(jobToRun)`.
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-job-queue.service.ts):
+  - Kích hoạt `logFlushTimer` (1.5s interval) dùng chung cho cả V1 và V2, đảm bảo live log streaming qua Socket.IO.
+  - Truyền `taskContext.job` và `taskContext.parameters.job`.
+  - Nếu `isWaiting === true`, gán `finalStatus = 'WAITING'` thay vì `'COMPLETED'`.
+  - Trong `syncJobToChecklist`: Nếu `status === 'WAITING'`, giữ task ở trạng thái `'PENDING'` kèm log ghi chú chờ file, không gán `'COMPLETED'`.
+- [backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts): Đặt `finalStatus = 'WAITING'` và `completedAt: null` khi kết quả là `isWaiting`.
+- [frontend/legacy/components/trading-manager-components/job-queue/TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/legacy/components/trading-manager-components/job-queue/TradingManagerJobQueueSection.tsx): Cập nhật hàm `getStatusBadge` hiển thị huy hiệu màu vàng `<Clock size={11} /> Đang chờ file` khi `status === 'WAITING'` hoặc `payload.result.isWaitingFiles === true`.
+- [frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/JobQueuePanel.tsx): Cập nhật hàm `getStatusBadge` hiển thị huy hiệu màu vàng `<Clock size={11} /> Đang chờ file`.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%)**.
+- Boundary Isolation Test (`npm.cmd test src/tests/boundary/module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`npm.cmd test src/tests/twin-run/twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+- Multi-Instance Concurrency Test (`npm.cmd test src/tests/concurrency/multi-instance-queue.spec.ts`): **PASS 100% (Zero race condition)**.
+- Modular Shift E2E Test (`npm.cmd test src/tests/e2e/modular-shift-e2e.spec.ts`): **PASS 100% (1/1 test)**.
+- Frontend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%, 26/26 static pages generated)**.
+
+---
+
 ## [2026-10-15T15:42] FEATURE RESTORATION: Khôi Phục Toàn Diện Cơ Chế Ghi File Excel Master Lũy Kế & Tự Động Sinh Sheet Tháng Mới Bằng Python openpyxl Trên V2
 
 ### 1. Mục tiêu thay đổi
