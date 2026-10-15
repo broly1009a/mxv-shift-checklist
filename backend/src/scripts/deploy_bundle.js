@@ -103,6 +103,7 @@ const frontendDirs = [
   'frontend/src/app/trading-manager-v2',
   'frontend/src/features/trading',
   'frontend/src/legacy',
+  'frontend/legacy',
 ];
 
 frontendDirs.forEach((dirRel) => {
