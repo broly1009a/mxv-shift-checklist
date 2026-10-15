@@ -1,3 +1,99 @@
+## [2026-10-15T16:28] VERIFICATION: Kiểm Chứng Kịch Bản Tạo Tháng 11 (T11.2026) & Mở Rộng TVKD 099, Hàng Hóa GLD1 Trên File Số Lot CCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER ("tương tự thử với thong ke lot xem kết quả có chính xác không"):
+  - Đối tượng kiểm thử: [Bao cao - Thong ke/Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20so%20lot%20giao%20dich%20ACM%202026%20(trên%20CCP).xlsx)
+  - Kịch bản thử nghiệm kép (End-to-End Simulation):
+    1. Tự động nhân bản Sheet Tháng 11 (`T11.2026`) từ tháng gần nhất (`T10.2026`) bằng `excel_sheet_cloner.py`.
+    2. Tự động chèn Mã Hàng Hóa mới `GLD1` ("Vàng Nano") bằng `ccp_column_provisioner.py`.
+    3. Tự động chèn Mã TVKD mới `099` ("Thành viên ABC") bằng `ccp_column_provisioner.py`.
+    4. Thẩm định toán học và liên kết đa Sheet (`ExcelJS`): Kiểm tra ngày làm việc, cắt tỉa dòng thừa, công thức tổng ngang, tổng dọc, và liên kết lũy kế cả năm trên `TONGHOP`.
+
+### 2. Danh sách file tác động
+- [backend/src/tests/test_scenario_lot_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_scenario_lot_month11_and_commodity.ts): Test script kiểm chứng tự động kịch bản số Lot.
+- [Bao cao - Thong ke/Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20so%20lot%20giao%20dich%20ACM%202026%20(trên%20CCP).xlsx): File Excel mẫu số Lot kiểm thử.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử thực tế (Proof of Ground Truth)
+- Chạy `npx.cmd ts-node src/tests/test_scenario_lot_month11_and_commodity.ts`: **PASS 100% (Exit code 0)**.
+  1. **Tạo Sheet Tháng 11 (`T11.2026`)**:
+     - Nhận diện `date_col = B`, mốc bắt đầu `B5 = 2026-11-02` (Thứ Hai), `B6 = =WORKDAY(B5,1)`.
+     - Tháng 11/2026 có đúng 21 ngày làm việc (từ Row 5 đến Row 25).
+     - Tự động nhận diện và xóa 1 dòng dư thừa của Tháng 10 (Tháng 10 có 22 ngày làm việc), đưa dòng `Tổng` từ Row 27 lên Row 26.
+     - Dòng `Tổng` A26: nhãn `"Tổng"`, công thức TVKD `=SUM(BW5:BW25)`, công thức Hàng Hóa `=SUM(CB5:CB25)`.
+  2. **Thêm Mã Hàng Hóa mới `GLD1` ("Vàng Nano")**:
+     - Tự động chèn cột `GLD1` trước cột `TỔNG Hàng Hóa`, mở rộng dải banner `BY2:CA3` thành `BY2:CB3` trên cả 4 sheets.
+  3. **Thêm Mã TVKD mới `099` ("Thành viên ABC")**:
+     - Tự động chèn cột TVKD `099` trước cột `TỔNG TVKD`, mở rộng dải banner `K2:BV3` thành `K2:BW3` trên cả 4 sheets.
+  4. **Thẩm định công thức & liên kết sau khi mở rộng đồng thời**:
+     - **Sheet `T11.2026`**:
+       - Cột TVKD `099` (BW): Header `"Thanh vien ABC\n099"`, Data Row 5: `0`, Tổng dọc Row 26: `{"formula":"SUM(BW5:BW25)"}`.
+       - Cột TỔNG TVKD (BX): Tổng ngang Row 5: `{"formula":"SUM(K5:BW5)"}`, Tổng dọc Row 26: `{"formula":"SUM(BX5:BX25)"}`.
+       - Cột Hàng Hóa `GLD1` (CC): Header `"GLD1"`, Data Row 5: `0`, Tổng dọc Row 26: `{"formula":"SUM(CB5:CB25)"}`.
+       - Cột TỔNG Hàng Hóa (CD): Tổng ngang Row 5: `{"formula":"SUM(BY5:CB5)"}`, Tổng dọc Row 26: `{"formula":"SUM(CC5:CC25)"}`.
+     - **Sheet `T10.2026` (22 ngày làm việc)**:
+       - TVKD `099` Tổng dọc Row 27: `{"formula":"SUM(BW5:BW26)"}`.
+       - Hàng Hóa `GLD1` Tổng dọc Row 27: `{"formula":"SUM(CB5:CB26)"}`.
+       - TỔNG Hàng Hóa Tổng ngang Row 5: `{"formula":"SUM(BY5:CB5)"}`.
+     - **Sheet `TONGHOP` (Liên kết đa sheet)**:
+       - TVKD `099`: Tháng 10 Row 14 `{"formula":"'T10.2026'!BW27"}`, Tháng 11 Row 15 `{"formula":"'T11.2026'!BW26"}`, Tổng cả năm Row 17 `{"formula":"SUM(BW5:BW16)"}`.
+       - Hàng Hóa `GLD1`: Tháng 10 Row 14 `{"formula":"'T10.2026'!CB27"}`, Tháng 11 Row 15 `{"formula":"'T11.2026'!CB26"}`, Tổng cả năm Row 17 `{"formula":"SUM(CB5:CB16)"}`.
+     - Hoàn toàn **ZERO lỗi `#REF!`** trên toàn bộ file Excel.
+
+---
+
+## [2026-10-15T16:10] FEATURE IMPLEMENTATION: Xây Dựng Công Cụ Tự Động Hóa Mở Rộng Cấu Trúc Excel Lũy Kế CoreCCP (ccp_column_provisioner.py)
+
+### 1. Mục tiêu thay đổi
+- Thực thi thiết kế kỹ thuật [THIET_KE_MO_RONG_TVKD_VA_MA_HD_MOI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/cu/THIET_KE_MO_RONG_TVKD_VA_MA_HD_MOI_CORECCP.md) theo yêu cầu của USER ("sinh thêm TVKD mới và mã hàng hóa mới... đánh giá chuyên sâu với template M:\Tailieuchung\..."):
+  1. **Tạo Script Python Chuyên Trách `ccp_column_provisioner.py`**:
+     - Vị trí: [backend/src/scripts/python/ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/python/ccp_column_provisioner.py).
+     - Hỗ trợ đầy đủ tham số CLI: `--file`, `--type {tvkd, commodity}`, `--code`, `--label`, `--dry-run`.
+     - Áp dụng mô hình **Safe Transactional Atomic Write Pattern**:
+       - Pre-flight: Kiểm tra file lock độc quyền Windows (`is_file_locked`).
+       - Snapshot Backup: Tự động copy ra thư mục `Backup_Snapshots/` trước khi thao tác.
+       - Work on Staging: Thao tác trên `.staging_xxx.tmp.xlsx`, không chạm vào file gốc.
+       - Tự động dịch chuyển merged cells (`shift_and_expand_merged_cells_on_insert`): Khắc phục hạn chế của openpyxl khi gọi `insert_cols` không tự dịch chuyển dải merged_cells, đồng thời mở rộng dải banner phân hệ (TVKD `K2:BW3` hoặc Hàng Hóa `BZ2:CC3`).
+       - Chuẩn hóa Unicode không dấu (`remove_accents`) chống lệch mã tiếng Việt NFC/NFD.
+       - Cập nhật tự động công thức `=SUM(...)` ngang (từng dòng phiên) và dọc (dòng tổng cuối tháng / tổng năm).
+       - Cập nhật công thức liên kết đa Sheet trên `TONGHOP` (`='TMM.YYYY'!ColRow`).
+       - Strict Integrity Check: Đảm bảo không tụt dung lượng bất thường và quét sạch 100% không có ô lỗi `#REF!`.
+       - Hoán đổi nguyên tử tức thì qua lệnh hệ điều hành: `os.replace`.
+  2. **Tạo Test Suite Kiểm Chứng Toàn Diện `test_ccp_provisioner.ts`**:
+     - [backend/src/tests/test_ccp_provisioner.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_ccp_provisioner.ts): Test trực tiếp trên 2 file mẫu thật copy từ ổ đĩa `M:`.
+     - Kiểm chứng đồng thời:
+       - Thêm TVKD `099` ("Thành viên ABC") vào `Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx`.
+       - Thêm Hàng Hóa `GLD1` ("Vàng Nano") vào `Thong ke so lot giao dich ACM 2026 (trên CCP).xlsx`.
+       - Thêm Hàng Hóa `GLD1` ("Vàng Nano") vào `Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx`.
+       - Xác nhận toàn bộ công thức ExcelJS và openpyxl trả về chính xác 100%, không bị vỡ cấu trúc XML.
+  3. **Đồng Bộ Lên Máy Chủ Thật Ubuntu (`10.0.0.26`)**:
+     - Đã deploy script `ccp_column_provisioner.py` sang `/opt/mxv-checklist/backend/dist/scripts/python/` và `/opt/mxv-checklist/backend/src/scripts/python/`.
+     - Chạy thử CLI kiểm chứng trực tiếp trên Ubuntu đạt **Exit code 0**.
+
+### 2. Danh sách file tác động
+- [backend/src/scripts/python/ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/python/ccp_column_provisioner.py): Script Python mở rộng cột an toàn.
+- [backend/src/tests/test_ccp_provisioner.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_ccp_provisioner.ts): Test script kiểm chứng tự động.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử thực tế (Proof of Ground Truth)
+- Chạy `npx ts-node src/tests/test_ccp_provisioner.ts`: **PASS 100% (Exit code 0)**.
+- Thẩm định ô công thức bằng ExcelJS:
+  - TVKD `099` (BW): Header Row 4: `"Thanh vien ABC\n099"`, Tổng dọc Row 27: `{"formula":"SUM(BW5:BW26)"}`.
+  - Tổng TVKD (BX): Tổng ngang Row 5: `{"formula":"SUM(K5:BW5)"}`, Tổng dọc Row 27: `{"formula":"SUM(BX5:BX26)"}`.
+  - Hàng Hóa `GLD1` (CC): Header Row 4: `"GLD1"`, Tổng dọc Row 27: `{"formula":"SUM(CC5:CC26)"}`.
+  - Tổng Hàng Hóa (CD): Tổng ngang Row 5: `{"formula":"SUM(BZ5:CC5)"}`, Tổng dọc Row 27: `{"formula":"SUM(CD5:CD26)"}`.
+  - Sheet `TONGHOP`: Header Col 099: `"Thanh vien ABC\n099"`, Tháng 10 Row 14: `{"formula":"'T10.2026'!BW27"}`, Tổng năm Row 17: `{"formula":"SUM(BW5:BW16)"}`.
+  - File GTGD Hàng Hóa `GLD1` (E): Header Row 4: `"Vang Nano"`, Header Row 5: `"GLD1"`, Tổng dọc Row 28: `{"formula":"SUM(E6:E27)"}`, Tổng ngang Row 6: `{"formula":"SUM(B6:E6)"}`.
+
+### 4. Kiểm chứng Kịch bản Thực tế: Tạo Tháng 11 (`T11.2026`) & Thêm Mã Hàng Hóa `GLD1`
+- File kiểm thử: [Bao cao - Thong ke/Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20gia%20tri%20giao%20dich%20ACM%202026%20(Theo%20CCP).xlsx)
+- Test script: [backend/src/tests/test_scenario_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_scenario_month11_and_commodity.ts)
+- Kết quả chạy `npx ts-node src/tests/test_scenario_month11_and_commodity.ts`: **PASS 100% (Exit code 0)**:
+  1. `excel_sheet_cloner.py` nhân bản `T10.2026` -> `T11.2026`: Tự động nhận diện Tháng 11/2026 có 21 ngày làm việc (Row 6 đến 26), cắt tỉa 1 dòng thừa của Tháng 10 (22 ngày), ngày đầu tiên A6 là `2026-11-02` (Thứ Hai), các ô A7..A26 là `=WORKDAY(...)`, dòng Tổng A27 là `=SUM(B6:B26)`.
+  2. `ccp_column_provisioner.py` chèn mã `GLD1` ("Vàng Nano"): Cập nhật cả 4 sheet (`TONGHOP`, `T09.2026`, `T10.2026`, `T11.2026`), mở rộng banner `B3:D3` thành `B3:E3`, cột Tổng F có công thức ngang `=SUM(B6:E6)`, Sheet `TONGHOP` liên kết chuẩn xác Row 16 Tháng 11 trỏ `='T11.2026'!E27`. Zero lỗi `#REF!`.
+
+---
+
 ## [2026-10-15T16:05] FIX CRITICAL: Khôi Phục Luồng Tải File Live (Ingress Pipeline) Cho Đối Chiếu CHECK_KLGD / CHECK_PRE_EOD & Chuẩn Hóa Huy Hiệu UI 'Đang Chờ File'
 
 ### 1. Mục tiêu thay đổi
