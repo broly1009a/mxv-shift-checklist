@@ -411,4 +411,135 @@ export class PreEodReconService {
       qltkgdPath,
     };
   }
+
+  public buildPreEodEmailHtml(
+    passed: boolean,
+    totals: any,
+    mismatchedTrades: any[],
+    mismatchedPositions: any[],
+  ): string {
+    const statusColor = passed ? '#2e7d32' : '#c62828';
+    const statusText = passed ? 'KHỚP HOÀN TOÀN' : 'CÓ CHÊNH LỆCH';
+
+    let tradesRows = '';
+    if (mismatchedTrades.length > 0) {
+      tradesRows = mismatchedTrades
+        .map(
+          (t, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${t.source}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${t.maLenh || '-'}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${t.maTKGD}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${t.maHD}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${t.giaKhop.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">${t.klGiaoDich.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; color: #c62828;">${t.reason}</td>
+        </tr>
+      `,
+        )
+        .join('');
+    } else {
+      tradesRows = `<tr><td colspan="8" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không phát hiện chênh lệch khớp lệnh.</td></tr>`;
+    }
+
+    let positionsRows = '';
+    if (mismatchedPositions.length > 0) {
+      positionsRows = mismatchedPositions
+        .map(
+          (p, idx) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${p.account}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${p.symbol}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${p.msPosition.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${p.cqgPosition.toLocaleString()}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: #c62828;">${p.differ.toLocaleString()}</td>
+        </tr>
+      `,
+        )
+        .join('');
+    } else {
+      positionsRows = `<tr><td colspan="6" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #2e7d32;">Không phát hiện chênh lệch vị thế.</td></tr>`;
+    }
+
+    return `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f6f9; padding: 20px;">
+          <div style="max-width: 800px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 8px solid ${statusColor};">
+            <div style="padding: 20px;">
+              <h2 style="color: ${statusColor}; margin-top: 0;">Báo Cáo Đối Chiếu Pre-EOD (Khớp Lệnh & Vị Thế)</h2>
+              <p>Hệ thống vừa thực hiện kiểm tra đối chiếu cuối ngày (Pre-EOD) tự động.</p>
+              
+              <div style="background-color: ${passed ? '#e8f5e9' : '#ffebee'}; border-left: 4px solid ${statusColor}; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <span style="font-weight: bold; color: ${statusColor};">Kết quả: ${statusText}</span>
+              </div>
+
+              <h3>1. Tổng Hợp Khối Lượng Giao Dịch</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Hạng mục đối chiếu</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">M-System (Vô số)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Đối tác (Straits/CQG)</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Chênh lệch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Khối lượng ACM (Straits)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalACM_MS.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalACM_Straits.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: ${totals.differACM > 0 ? '#c62828' : '#2e7d32'};">${totals.differACM.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">Khối lượng CQG (FR)</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalCQG_MS.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${totals.totalCQG_FR.toLocaleString()}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: ${totals.differCQG > 0 ? '#c62828' : '#2e7d32'};">${totals.differCQG.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3>2. Chi Tiết Lệnh Lệch (Nếu Có)</h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Nguồn</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Mã Lệnh</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Số TK</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Hợp Đồng</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Giá</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Khối Lượng</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Lý Do</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tradesRows}
+                </tbody>
+              </table>
+
+              <h3>3. Chi Tiết Lệch Vị Thế (Nếu Có)</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background-color: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px;">STT</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Tài Khoản</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Mã Hàng Hóa</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Vị Thế MS</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Vị Thế CQG</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Chênh Lệch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${positionsRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
 }

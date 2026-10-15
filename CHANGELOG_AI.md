@@ -1,3 +1,44 @@
+## [2026-10-14T21:46] REFACTOR(LEGACY-RETIREMENT): Đóng Gói Toàn Diện Mã Nguồn V1 Sang Legacy Archive & Hoàn Tất Chuyển Đổi V2 (Playbook Giai Đoạn 3)
+
+### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)
+- **Mục tiêu**: Hoàn tất toàn diện Giai đoạn 3 (Deprecation & Archiving) theo Playbook [HUONG_DAN_CHUYEN_DOI_LEGACY_KHI_ON_DINH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/HUONG_DAN_CHUYEN_DOI_LEGACY_KHI_ON_DINH.md) theo yêu cầu chỉ đạo trực tiếp từ USER ("giờ tôi muốn cắt bỏ luôn chuyển hết sang legacy tất cả mã nguồn của v1"):
+  1. **Backend**:
+     - Đóng gói toàn bộ module `lot-statistics` sang `backend/src/legacy/archive/lot-statistics/` (V2 `ccp-clearing` tiếp quản 100%).
+     - Đóng gói toàn bộ module `ccp-statistics` sang `backend/src/legacy/archive/ccp-statistics/` (V2 `ccp-clearing` tiếp quản 100%).
+     - Tháo gỡ `LotStatisticsModule` và `CcpStatisticsModule` khỏi `AppModule` ([app.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/app.module.ts)) và `BotEngineModule` ([bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.module.ts)).
+     - Tinh gọn `CqgSyncService` ([cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts)): Lưu bản gốc 809 dòng sang `backend/src/legacy/archive/cqg-sync.service.v1.ts`, gọt sạch 370 dòng code thủ công lặp lại và ủy quyền 100% việc ghép file (`FR, OP, OD, PS`) sang `CqgMergerService` V2 ([cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts)), gỡ bỏ `// @ts-nocheck`.
+     - Nâng cấp các Bot Handler ([macro-lot.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-lot.handler.ts), [macro-value.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-value.handler.ts), [ccp-stats.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-stats.handler.ts)) chuyển sang gọi trực tiếp `CcpLotWorker`, `CcpValueWorker`, `CcpEodService` của V2.
+  2. **Frontend**:
+     - Di chuyển toàn bộ các component V1 cũ (hơn 10.000 dòng code: `LegacyReconSection`, `LegacyBackupThongKeSection`, `CcpLotStatisticsSection`, `LegacyCqgSyncSection`...) sang `frontend/legacy/`.
+     - Hoán đổi giao diện V2 Modular Monolith làm trang chính thức duy nhất tại `/trading-manager` ([frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)).
+     - Cấu hình `/trading-manager-v2` redirect tự động về `/trading-manager`.
+
+### 2. Danh sách file & Nội dung kỹ thuật
+1. **[app.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/app.module.ts)**:
+   - Gỡ bỏ `LotStatisticsModule` và `CcpStatisticsModule` khỏi imports.
+2. **[bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.module.ts)**:
+   - Gỡ bỏ `LotStatisticsModule` và `CcpStatisticsModule`.
+3. **[macro-lot.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-lot.handler.ts)**:
+   - Chuyển sang inject `CcpLotWorker` và `LotStatisticsService` từ `ccp-clearing` V2.
+4. **[macro-value.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-value.handler.ts)**:
+   - Chuyển sang inject `CcpValueWorker` và `ValueStatisticsService` từ `ccp-clearing` V2.
+5. **[ccp-stats.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-stats.handler.ts)**:
+   - Chuyển sang inject `CcpEodService` từ `ccp-clearing` V2.
+6. **[cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts)**:
+   - Lưu trữ bản V1 809 dòng sang `backend/src/legacy/archive/cqg-sync.service.v1.ts`.
+   - Rút gọn 370 dòng code, ủy quyền 100% sang `CqgMergerService` V2, bỏ `// @ts-nocheck`.
+7. **Lưu trữ Module**:
+   - `backend/src/modules/lot-statistics/` $\rightarrow$ `backend/src/legacy/archive/lot-statistics/`
+   - `backend/src/modules/ccp-statistics/` $\rightarrow$ `backend/src/legacy/archive/ccp-statistics/`
+   - `frontend/src/app/trading-manager/components/*` $\rightarrow$ `frontend/legacy/`
+
+### 3. Kết quả kiểm thử (Verification)
+- **Backend Build (`nest build`)**: Exit Code 0 (Biên dịch thành công 100%).
+- **Backend Twin-Run Test Suites (`twin-run-comparator.spec.ts`)**: 7/7 tests PASS (CQG Merger, Intraday Recon, Dispatcher, Clearing Statistics).
+- **Frontend TypeScript (`npx tsc --noEmit`)**: Exit Code 0 (Biên dịch thành công 100%, không còn bất kỳ lỗi nào).
+
+---
+
 ## [2026-10-14T21:15] REFACTOR(CLEANUP): Chuẩn Hóa Tinh Gọn Mã Nguồn Theo Playbook Chuyển Đổi V2 (Lưu Trữ KlgdRecon V1 & Dọn Rác Dự Án)
 
 ### 1. Mục tiêu & Cơ sở thực chứng (Ground Truth)

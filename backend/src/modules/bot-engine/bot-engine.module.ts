@@ -18,8 +18,6 @@ import { PostEodHandlerService } from './post-eod-handler.service';
 import { ReconciliationModule } from '../reconciliation/reconciliation.module';
 import { SchedulerService } from './scheduler.service';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { LotStatisticsModule } from '../lot-statistics/lot-statistics.module';
-import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 import { OmsWatcherService } from './oms-watcher.service';
 import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
 import { MarginChangeRequestsModule } from '../margin-change-requests/margin-change-requests.module';
@@ -52,8 +50,6 @@ import { CcpClearingModule } from '../ccp-clearing/ccp-clearing.module';
     forwardRef(() => ReconciliationModule),
     MarginChangeRequestsModule,
     NotificationsModule,
-    LotStatisticsModule,
-    CcpStatisticsModule,
     MarginCheckerModule,
     SystemLogsModule,
     ChecklistHubModule,

@@ -4,7 +4,6 @@ import {
   CqgSyncReconService,
   ReconConsoleSummaryService,
   DsgdBeforeEodService,
-  PreEodReconService as LegacyPreEodReconService,
   CheckDSGDBeforeEODResult,
   CheckKLGDResult,
   EODMismatchedItem,
@@ -51,7 +50,6 @@ export class ReconciliationService {
   constructor(
     private readonly tradingOpsKlgdService: TradingOpsKlgdReconService,
     private readonly tradingOpsPreEodService: TradingOpsPreEodReconService,
-    private readonly legacyPreEodReconService: LegacyPreEodReconService,
     private readonly ccpReconService: CcpReconService,
     private readonly cqgSyncReconService: CqgSyncReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
@@ -70,7 +68,7 @@ export class ReconciliationService {
   }
 
   buildPreEodEmailHtml(...args: any[]): string {
-    return (this.legacyPreEodReconService as any).buildPreEodEmailHtml(...args);
+    return (this.tradingOpsPreEodService as any).buildPreEodEmailHtml(...args);
   }
 
   buildNegativeMarginEmailHtml(...args: any[]): string {

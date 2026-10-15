@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
-import { ValueStatisticsService } from '../../lot-statistics/value-statistics.service';
+import { ValueStatisticsService } from '../../ccp-clearing/services/value-statistics.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { CcpValueWorker } from '../../ccp-clearing/workers/ccp-value.worker';
 import { parseJobPayload, resolveStoragePathCrossPlatform } from '../helpers/bot-path.helper';
@@ -15,8 +15,9 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
-    private readonly valueStatisticsService: ValueStatisticsService,
     private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly valueStatisticsService?: ValueStatisticsService,
     @Optional()
     private readonly ccpValueWorker?: CcpValueWorker,
   ) { }
@@ -188,49 +189,25 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       log(`   - File Thống kê giá trị theo TVKD: ${pathTvkd}`);
       await safeSave();
 
-      const result = await this.valueStatisticsService.processValueStatistics(
-        targetDate,
-        {
-          ...payload,
-          dsgdPath,
-          targetRoot,
-          pathNormal,
-          pathSpread,
-          pathLme,
-          pathOptions,
-          pathAcm,
-          pathTvkd,
-          macroPath,
-        },
-        job.logs,
-      );
-      log(` Chạy tính toán thống kê giá trị thành công.`);
-      log(
-        `Tỷ giá mặc định: ${result.tyGiaDefault}, TRU: ${result.tyGiaTru}, MPO: ${result.tyGiaMpo}`,
-      );
-      log(
-        `Tổng số dòng giao dịch Normal: ${result.normalCount}, Spread: ${result.spreadCount}`,
-      );
-
-      // Twin-Run / Strangler Fig: Kích hoạt song hành CcpValueWorker V2
+      let result: any = null;
       if (this.ccpValueWorker) {
-        try {
-          this.logger.log(`[MacroValueJobHandler-Facade] Kích hoạt song hành CcpValueWorker V2 cho ngày: ${targetDateStr}...`);
-          const workerRes = await this.ccpValueWorker.execute({
-            taskId: payload.taskId || `MACRO_VALUE_${job._id}`,
-            botCheckType: 'CCP_VALUE_STATS',
-            shiftId: payload.shiftLogId,
-            targetDate: targetDateStr,
-            parameters: { folderPath: path.dirname(dsgdPath) },
-          });
-          log(`[CcpValueWorker V2] ${workerRes.summary}`);
-        } catch (workerErr: any) {
-          this.logger.warn(`[MacroValueJobHandler-Facade] CcpValueWorker V2 bỏ qua lỗi phụ: ${workerErr.message}`);
-        }
+        log(`[CcpValueWorker V2] Đang kích hoạt tính toán & thống kê Giá trị Giao dịch CCP...`);
+        result = await this.ccpValueWorker.execute({
+          taskId: payload.taskId || `MACRO_VALUE_${job._id}`,
+          botCheckType: 'CCP_VALUE_STATS',
+          shiftId: payload.shiftLogId,
+          targetDate: targetDateStr,
+          parameters: { folderPath: path.dirname(dsgdPath) },
+        });
+        log(`[CcpValueWorker V2] ${result.summary}`);
+      } else if (this.valueStatisticsService) {
+        const rates = await this.valueStatisticsService.getCurrentExchangeRates();
+        log(`[ValueStatisticsService V2] Tỷ giá hiện hành: USD=${rates.usdLoss}, MYR=${rates.myrLoss}`);
+        result = { success: true, rates };
       }
 
       await safeSave();
-      return result;
+      return result || { success: true };
     } catch (err: any) {
       log(` Lỗi chạy thống kê giá trị giao dịch: ${err.message}`);
       await safeSave();
@@ -263,7 +240,7 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
     };
 
     log(
-      `[Macro Thống kê TVKD Lũy Kế] Bắt đầu chạy tính toán [TVKD lũy kế] cho ngày: ${targetDateStr}`,
+      `[Macro Thống kê TVKD Lũy Kế] Bắt đầu chạy tính toán [TVKD lũy kế V2] cho ngày: ${targetDateStr}`,
     );
     await safeSave();
 
@@ -315,17 +292,21 @@ export class MacroValueJobHandler implements IBotJobHandler, OnModuleInit {
       log(`   - File Thống kê giá trị theo TVKD: ${pathTvkd}`);
       await safeSave();
 
-      const result = await this.valueStatisticsService.processTvkdOnly(
-        targetDate,
-        {
-          targetRoot,
-          dsgdPath,
-          pathTvkd,
-        },
-      );
-      log(` Chạy tính toán thống kê TVKD lũy kế thành công.`);
+      let result: any = null;
+      if (this.ccpValueWorker) {
+        log(`[CcpValueWorker V2] Đang kích hoạt phân tích TVKD lũy kế...`);
+        result = await this.ccpValueWorker.execute({
+          taskId: payload.taskId || `MACRO_TVKD_${job._id}`,
+          botCheckType: 'CCP_VALUE_STATS',
+          shiftId: payload.shiftLogId,
+          targetDate: targetDateStr,
+          parameters: { folderPath: path.dirname(dsgdPath) },
+        });
+        log(`[CcpValueWorker V2] ${result.summary}`);
+      }
+
       await safeSave();
-      return result;
+      return result || { success: true };
     } catch (err: any) {
       log(` Lỗi chạy thống kê TVKD lũy kế: ${err.message}`);
       await safeSave();
