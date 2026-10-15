@@ -23,6 +23,7 @@ export interface TaskExecutionContext {
 export interface TaskExecutionResult {
   status: TaskExecutionStatus;
   summary: string;
+  passed?: boolean;                     // Kết quả đạt hay không đạt
   isWaitingFiles?: boolean;             // Cờ đánh dấu hệ thống đang thiếu tệp đối chiếu
   metrics?: Record<string, any>;        // Các chỉ số tóm tắt (ví dụ: totalMatches: 150, mismatchedCount: 0)
   domainLogRefId?: string;              // ID tham chiếu tới bản ghi chi tiết trong collection riêng (trading_recon_logs, ccp_clearing_logs)

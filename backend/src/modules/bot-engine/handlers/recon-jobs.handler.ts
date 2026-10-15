@@ -63,6 +63,13 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     }
   }
 
+  public async fetchEodEmail(dateStr: string, destDir: string): Promise<any> {
+    if (this.emailWatcherService) {
+      return await this.emailWatcherService.fetchEodEmail(dateStr, destDir);
+    }
+    return { success: false, message: 'EmailWatcherService chưa sẵn sàng' };
+  }
+
   private async handleAutoCheckSodJob(job: any) {
     const payload = parseJobPayload(job);
     let targetDate = new Date();

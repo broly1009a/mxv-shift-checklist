@@ -13,6 +13,9 @@ import { NegativeMarginWorker } from '../../trading-ops/workers/negative-margin.
 import { CcpLotWorker } from '../../trading-ops/workers/ccp-lot.worker';
 import { CcpValueWorker } from '../../trading-ops/workers/ccp-value.worker';
 import { CcpEodWorker } from '../../trading-ops/workers/ccp-eod.worker';
+import { SodReconWorker } from '../../trading-ops/workers/sod-recon.worker';
+import { CqgSyncWorker } from '../../trading-ops/workers/cqg-sync.worker';
+import { EodMmWorker } from '../../trading-ops/workers/eod-mm.worker';
 
 @Injectable()
 export class BotDispatcherService implements OnModuleInit {
@@ -29,6 +32,9 @@ export class BotDispatcherService implements OnModuleInit {
     @Optional() private readonly ccpLotWorker?: CcpLotWorker,
     @Optional() private readonly ccpValueWorker?: CcpValueWorker,
     @Optional() private readonly ccpEodWorker?: CcpEodWorker,
+    @Optional() private readonly sodWorker?: SodReconWorker,
+    @Optional() private readonly cqgSyncWorker?: CqgSyncWorker,
+    @Optional() private readonly eodMmWorker?: EodMmWorker,
   ) {}
 
   onModuleInit() {
@@ -38,6 +44,9 @@ export class BotDispatcherService implements OnModuleInit {
     if (this.ccpLotWorker) this.registerWorker(this.ccpLotWorker);
     if (this.ccpValueWorker) this.registerWorker(this.ccpValueWorker);
     if (this.ccpEodWorker) this.registerWorker(this.ccpEodWorker);
+    if (this.sodWorker) this.registerWorker(this.sodWorker);
+    if (this.cqgSyncWorker) this.registerWorker(this.cqgSyncWorker);
+    if (this.eodMmWorker) this.registerWorker(this.eodMmWorker);
 
     this.logger.log(
       `[BotDispatcherService] Khởi tạo Dispatcher thành công trên Instance [${this.instanceId}]. Đã đăng ký ${this.workers.size} Workers.`,

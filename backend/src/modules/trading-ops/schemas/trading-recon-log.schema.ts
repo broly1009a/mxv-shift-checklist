@@ -4,7 +4,7 @@ import { Document } from 'mongoose';
 @Schema({ timestamps: true, collection: 'trading_recon_logs' })
 export class TradingReconLog extends Document {
   @Prop({ required: true, index: true })
-  reconType: 'KLGD' | 'PRE_EOD' | 'NEGATIVE_MARGIN';
+  reconType: 'KLGD' | 'PRE_EOD' | 'NEGATIVE_MARGIN' | 'SOD_RECON' | 'CQG_SYNC' | 'EOD_MM' | string;
 
   @Prop({ required: true, index: true })
   tradingDate: string; // YYYY-MM-DD

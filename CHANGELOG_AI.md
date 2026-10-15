@@ -1,3 +1,33 @@
+## [2026-10-15T16:30] FEATURE MIGRATION: Hoàn Tất Chuyển Đổi 100% Mảng Đối Chiếu Sang Modular Monolith V2 Với 3 Workers Mới (SodReconWorker, CqgSyncWorker, EodMmWorker)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu chuyển đổi dứt điểm của USER ("có giúp tôi chuyển đổi chuẩn"):
+  - Đưa toàn bộ 3 tác vụ đối chiếu còn lại đang phải fallback về V1 (`AUTO_CHECK_SOD`, `CHECK_CQG_SYNC`, `CHECK_EOD_MM`) lên kiến trúc chuẩn **Modular Monolith V2**.
+  - Đảm bảo 100% tác vụ đối chiếu trong hệ thống đều được quản lý tập trung qua `BotDispatcherService`, áp dụng cơ chế khóa nguyên tử MongoDB chống race condition, tích hợp trạng thái an toàn `WAITING` (Đang chờ file), lưu log chuẩn vào `TradingReconLog`, và triệt tiêu hoàn toàn sự phụ thuộc vào V1 Fallback.
+
+### 2. Danh sách file tác động & Giải pháp kiến trúc
+- **Tuân thủ quy chuẩn rào chắn Isolation (`module-isolation.spec.ts`)**:
+- [backend/src/shared/ports/recon-pipeline.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/ports/recon-pipeline.port.ts): Bổ sung phương thức `fetchEodEmail?(dateStr: string, destDir: string): Promise<any>` vào contract port.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Implement `fetchEodEmail` kết nối tới `EmailWatcherService`.
+- [backend/src/modules/trading-ops/workers/sod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/sod-recon.worker.ts): Tạo mới `SodReconWorker` xử lý `AUTO_CHECK_SOD`, đối chiếu số dư đầu ngày M-System vs CQG CAST, fail-safe chờ file.
+- [backend/src/modules/trading-ops/workers/cqg-sync.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/cqg-sync.worker.ts): Tạo mới `CqgSyncWorker` xử lý `CHECK_CQG_SYNC`, đồng bộ số dư CQG qua `CqgMergerService`, fail-safe chờ file.
+- [backend/src/modules/trading-ops/workers/eod-mm.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-mm.worker.ts): Tạo mới `EodMmWorker` xử lý `CHECK_EOD_MM`, đối chiếu chốt sổ EOD M-System, tự động kéo email Outlook M365 khi thiếu file EOD.
+- [backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts): Mở rộng enum `reconType` hỗ trợ `'SOD_RECON' | 'CQG_SYNC' | 'EOD_MM' | string`.
+- [backend/src/shared/contracts/bot-execution.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/contracts/bot-execution.contract.ts): Bổ sung `passed?: boolean` vào `TaskExecutionResult`.
+- [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký 3 Worker mới vào `providers` và `exports`.
+- [backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts): Inject và tự động đăng ký cả 3 Worker vào capability registry lúc khởi tạo (nâng tổng số Workers V2 từ 6 lên 9).
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%)**.
+- Boundary Isolation Test (`npm.cmd test src/tests/boundary/module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`npm.cmd test src/tests/twin-run/twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+- Multi-Instance Concurrency Test (`npm.cmd test src/tests/concurrency/multi-instance-queue.spec.ts`): **PASS 100% (Zero race condition)**.
+- Modular Shift E2E Test (`npm.cmd test src/tests/e2e/modular-shift-e2e.spec.ts`): **PASS 100% (1/1 test)**.
+
+---
+
 ## [2026-10-15T16:05] FIX CRITICAL: Khôi Phục Luồng Tải File Live (Ingress Pipeline) Cho Đối Chiếu CHECK_KLGD / CHECK_PRE_EOD & Chuẩn Hóa Huy Hiệu UI 'Đang Chờ File'
 
 ### 1. Mục tiêu thay đổi
