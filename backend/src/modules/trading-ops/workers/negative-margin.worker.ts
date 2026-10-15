@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
+import * as fs from 'fs';
 import {
   IBotWorker,
   TaskExecutionContext,
@@ -38,6 +39,18 @@ export class NegativeMarginWorker implements IBotWorker {
       const filePath =
         context.parameters?.filePath ||
         path.join(process.cwd(), 'data', 'backup', 'eod.csv');
+
+      if (!fs.existsSync(filePath)) {
+        this.logger.warn(`[NegativeMarginWorker] Chưa tìm thấy file báo cáo ký quỹ: ${filePath}`);
+        return {
+          status: 'WAITING',
+          isWaitingFiles: true,
+          summary: `[Đang chờ dữ liệu] Chưa tìm thấy file báo cáo ký quỹ (${path.basename(filePath)}). Đang chờ cập nhật file.`,
+          metrics: { negativeCount: 0, accounts: [] },
+          durationMs: Date.now() - startTime,
+          executedAt: new Date(),
+        };
+      }
 
       const negativeAccounts = await this.marginCheckerService.scanNegativeMarginAccounts(filePath);
       const count = negativeAccounts.length;

@@ -36,6 +36,21 @@ export class CcpLotWorker implements IBotWorker {
     try {
       const res = this.lotStatisticsService.runAutoLotStatistics(context.parameters?.folderPath);
 
+      // Fail-Safe: Khi chưa có dữ liệu giao dịch hoặc thiếu file
+      const hasNoData = res.summary.dsgdTotal === 0 && res.summary.frTotal === 0;
+      if (hasNoData) {
+        this.logger.warn(`[CcpLotWorker] Chưa có dữ liệu giao dịch hoặc đang thiếu file đối chiếu số lot (DSGD/FR/TTM).`);
+        return {
+          status: 'WAITING',
+          isWaitingFiles: true,
+          summary: '[Đang chờ dữ liệu] Thư mục backup đang chờ cập nhật đầy đủ file đối chiếu số Lot (DSGD, FR, TTM...).',
+          metrics: res.summary,
+          details: res,
+          durationMs: Date.now() - startTime,
+          executedAt: new Date(),
+        };
+      }
+
       const status = res.passed ? 'SUCCESS' : 'WARNING';
       const summary = res.passed
         ? `Thống kê Lot CCP thành công: Tổng DSGD = ${res.summary.dsgdTotal} lots, Khớp 100% với CQG FR.`

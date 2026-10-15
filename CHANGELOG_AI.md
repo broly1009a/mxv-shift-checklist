@@ -1,3 +1,34 @@
+## [2026-10-15T15:15] HARDENING: Rà Soát Toàn Diện 4 Workers Khác & Bổ Sung SYNC_GUARD Chống Lỗi Ghép Sai Ca Trực
+
+### 1. Mục tiêu thay đổi
+- Thực hiện rà soát mở rộng theo chỉ đạo của USER ("đồng thời giúp tôi rà soát lại xem còn logic nào bị xót tương tự không"):
+  1. **Khắc phục lỗi gán sai ca trực khi chạy từ Console (`ReconConsoleSummaryService`)**:
+     - Khi mở Trading Operations Console bấm chạy đối chiếu nhưng ngày hôm đó không có ca nào chứa tác vụ này (ví dụ: ngày 15/10 chỉ có ca Vận Hành Đầu Ngày `TASK_EX_OPEN_...` mà không có ca Trong Phiên `CHECK_KLGD`), code cũ tự động gán nhầm ca mở đầu tiên (`targetShift = openShifts[0]`) và fallback cứng `taskId = 'TASK_CHECK_KLGD_s1'`. Dẫn tới khi job chạy xong, `updateTaskStatus` ném lỗi `NotFoundException: Không tìm thấy tác vụ tương ứng trong ca trực`.
+     - Sửa: Nếu các ca mở không chứa tác vụ mục tiêu, tự động chuyển sang chế độ Standalone (`shiftLogId: null`), đồng thời dùng fallback động `TASK_${targetJobType}`, triệt tiêu hoàn toàn hardcode `TASK_CHECK_KLGD_s1`.
+  2. **Bổ sung `[SYNC_GUARD]` an toàn tại `BotJobQueueService`**:
+     - Trước khi gọi `shiftsService.updateTaskStatus(shiftLogId, taskId, ...)`, kiểm tra trước xem ca trực có tồn tại không và `taskId` có nằm trong `details` của ca không. Nếu không thuộc ca, ghi log cảnh báo `[SYNC_GUARD]` và bỏ qua cập nhật checklist một cách an toàn thay vì ném ngoại lệ làm lỗi queue.
+  3. **Khắc phục 3 Workers khác có nguy cơ Báo Thành Công Ảo khi thiếu file**:
+     - `NegativeMarginWorker` ([negative-margin.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/negative-margin.worker.ts)): Kiểm tra `fs.existsSync(filePath)`. Nếu chưa có file, trả về `status: 'WAITING'`, `isWaitingFiles: true` thay vì báo thành công ảo "Không phát hiện tài khoản âm".
+     - `CcpLotWorker` ([ccp-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-lot.worker.ts)): Kiểm tra nếu chưa có dữ liệu giao dịch hoặc thiếu file (`dsgdTotal === 0 && frTotal === 0`), trả về `status: 'WAITING'`, `isWaitingFiles: true` thay vì báo "Khớp 100% với 0 lots".
+     - `CcpValueWorker` ([ccp-value.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-value.worker.ts)): Kiểm tra nếu `totalLots === 0`, trả về `status: 'WAITING'`, `isWaitingFiles: true` thay vì báo `status: 'WARNING'`.
+
+### 2. Danh sách file tác động
+- [backend/src/modules/trading-ops/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon-console-summary.service.ts): Chạy Standalone (`shiftLogId: null`) khi không có ca mở phù hợp.
+- [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts): Thêm guard `taskExists` trước khi gọi `updateTaskStatus`.
+- [backend/src/modules/trading-ops/workers/negative-margin.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/negative-margin.worker.ts): Bổ sung kiểm tra file ký quỹ.
+- [backend/src/modules/trading-ops/workers/ccp-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-lot.worker.ts): Bổ sung kiểm tra dữ liệu zero-lot khi thiếu file.
+- [backend/src/modules/trading-ops/workers/ccp-value.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-value.worker.ts): Bổ sung trạng thái `WAITING` khi thiếu file DSGD.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%)**.
+- Boundary Isolation Test (`npm.cmd test src/tests/boundary/module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`npm.cmd test src/tests/twin-run/twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+- Multi-Instance Concurrency Test (`npm.cmd test src/tests/concurrency/multi-instance-queue.spec.ts`): **PASS 100% (Zero race condition)**.
+
+---
+
 ## [2026-10-15T15:05] INCIDENT FIX: Khắc Phục Triệt Để Lỗi Báo Thành Công Ảo (Khớp 100% Với 0 Lệnh) Khi Thiếu File Trên Ubuntu
 
 ### 1. Mục tiêu thay đổi

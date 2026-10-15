@@ -1249,8 +1249,8 @@ export class ReconConsoleSummaryService {
         // Nhiều ca mở chứa task: ưu tiên ca trùng khung giờ hiện tại
         targetShift = candidateShifts.find(isShiftCoveringNow) || candidateShifts[0];
       } else {
-        // Không có ca mở nào chứa task: lấy ca mở trùng khung giờ hiện tại hoặc ca mở mới nhất
-        targetShift = openShifts.find(isShiftCoveringNow) || openShifts[0];
+        // Không có ca mở nào chứa task này: chạy Standalone mode (shiftLogId = null)
+        targetShift = null;
       }
 
       if (targetShift) {
@@ -1278,7 +1278,7 @@ export class ReconConsoleSummaryService {
     const targetTaskId =
       subTask?.taskId ||
       parentTask?.taskId ||
-      'TASK_CHECK_KLGD_s1';
+      `TASK_${targetJobType}`;
 
     const systemUser = {
       id: '000000000000000000000000',

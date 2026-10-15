@@ -722,6 +722,31 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     if (shiftLogId && taskId) {
       try {
+        const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
+        if (!rawShiftLog) {
+          this.logger.warn(
+            `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì không tìm thấy ca trực [${shiftLogId}].`,
+          );
+          return;
+        }
+
+        const taskExists = (rawShiftLog.details || []).some(
+          (d: any) => d.taskId === taskId,
+        );
+        if (!taskExists) {
+          this.logger.warn(
+            `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì tác vụ [${taskId}] không thuộc ca trực [${shiftLogId}].`,
+          );
+          return;
+        }
+
+        if (rawShiftLog.status === 'COMPLETED') {
+          this.logger.log(
+            `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
+          );
+          return;
+        }
+
         const systemUser = {
           id: '000000000000000000000000',
           fullName: 'Hệ thống tự động (Bot)',
@@ -804,14 +829,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             }
           }
 
-          const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
-          if (rawShiftLog && rawShiftLog.status === 'COMPLETED') {
-            this.logger.log(
-              `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
-            );
-            return;
-          }
-
           await this.shiftsService.updateTaskStatus(
             shiftLogId,
             taskId,
@@ -847,14 +864,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         } else if (status === 'FAILED' || status === 'ABORTED') {
           // Human Override Guard: Nếu ca trực đã chốt hoặc tác vụ đã được người dùng duyệt hoàn thành,
           // bot tuyệt đối không ghi đè trạng thái FAILED/ABORTED!
-          const rawShiftLog = await this.shiftsService.findShiftLogRaw(shiftLogId);
           if (rawShiftLog) {
-            if (rawShiftLog.status === 'COMPLETED') {
-              this.logger.log(
-                `[SYNC_GUARD] Bỏ qua cập nhật Checklist cho Job ${job._id} vì ca trực ${shiftLogId} đã chốt.`,
-              );
-              return;
-            }
             const existingTask = (rawShiftLog.details || []).find(
               (d: any) => d.taskId === taskId,
             );

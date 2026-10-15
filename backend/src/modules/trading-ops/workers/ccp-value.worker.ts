@@ -43,6 +43,24 @@ export class CcpValueWorker implements IBotWorker {
         context.parameters?.folderPath,
       );
 
+      // Fail-Safe: Khi chưa có dữ liệu giao dịch hoặc thiếu file DSGD
+      if (res.totalLots === 0) {
+        this.logger.warn(`[CcpValueWorker] Chưa có dữ liệu giao dịch hoặc đang thiếu file DSGD.`);
+        return {
+          status: 'WAITING',
+          isWaitingFiles: true,
+          summary: '[Đang chờ dữ liệu] Thư mục backup đang chờ cập nhật file DSGD để tính giá trị giao dịch.',
+          metrics: {
+            totalLots: 0,
+            totalValueVnd: 0,
+            formattedTotalValueVnd: '0.00 tỷ VND',
+          },
+          details: res,
+          durationMs: Date.now() - startTime,
+          executedAt: new Date(),
+        };
+      }
+
       const status = res.passed ? 'SUCCESS' : 'WARNING';
       const formattedTotalValue = (res.totalValueVnd / 1e9).toFixed(2);
       const summary = res.passed
