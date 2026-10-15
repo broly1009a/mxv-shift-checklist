@@ -28,6 +28,7 @@ import { decrypt } from '../../../shared';
 
 import { ValueStatisticsService } from '../services/value-statistics.service';
 import { CeCcpGttCheckerService } from '../services/ce-ccp-gtt.service';
+import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
 
 /**
@@ -44,6 +45,7 @@ export class CcpReconController {
     private readonly settingsService: SystemSettingsService,
     private readonly ccpCeDownloaderService: CcpCeScraperService,
     private readonly ceCcpGttService: CeCcpGttCheckerService,
+    private readonly ccpAccumulatorService: CcpAccumulatorService,
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel: Model<CcpClearingLog>,
   ) {}
@@ -341,4 +343,127 @@ export class CcpReconController {
       data: logs,
     };
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 5. QUẢN LÝ TEMPLATE EXCEL CORECCP & MỞ RỘNG CỘT (TVKD / HÀNG HÓA MỚI)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Kích hoạt mở rộng cột TVKD mới hoặc Hàng Hóa mới trên file Excel lũy kế CoreCCP
+   * Tuân thủ thiết kế 1-Click Provisioning có kiểm soát (THIET_KE_MO_RONG_TVKD_VA_MA_HD_MOI_CORECCP.md)
+   */
+  @Post('templates/provision-column')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async provisionColumn(
+    @Body()
+    body: {
+      filePath?: string;
+      type: 'tvkd' | 'commodity';
+      code: string;
+      label: string;
+      applyAll?: boolean;
+      year?: string;
+      customTargetRoot?: string;
+      dryRun?: boolean;
+    },
+  ) {
+    if (!body.code || !body.label || !body.type) {
+      throw new BadRequestException('Bắt buộc phải cung cấp đầy đủ: type (tvkd | commodity), code, label');
+    }
+
+    if (body.type !== 'tvkd' && body.type !== 'commodity') {
+      throw new BadRequestException("Tham số 'type' phải là 'tvkd' hoặc 'commodity'");
+    }
+
+    try {
+      if (body.applyAll) {
+        const results = await this.ccpAccumulatorService.provisionAllTemplates({
+          year: body.year,
+          customTargetRoot: body.customTargetRoot,
+          type: body.type,
+          code: body.code,
+          label: body.label,
+          dryRun: body.dryRun,
+        });
+
+        const successCount = results.filter((r) => r.result.success).length;
+        return {
+          success: successCount > 0,
+          totalFiles: results.length,
+          successCount,
+          results,
+          message: `Đã xử lý mở rộng cột ${body.type.toUpperCase()} '${body.code}' trên ${successCount}/${results.length} files template.`,
+        };
+      } else {
+        if (!body.filePath) {
+          throw new BadRequestException("Bắt buộc phải truyền 'filePath' khi không kích hoạt 'applyAll'");
+        }
+
+        const res = this.ccpAccumulatorService.provisionColumn({
+          filePath: body.filePath,
+          type: body.type,
+          code: body.code,
+          label: body.label,
+          dryRun: body.dryRun,
+        });
+
+        if (!res.success) {
+          throw new BadRequestException(res.message);
+        }
+
+        return {
+          success: true,
+          ...res,
+        };
+      }
+    } catch (err: any) {
+      throw new BadRequestException(`Lỗi mở rộng cột template: ${err.message}`);
+    }
+  }
+
+  /**
+   * Lấy danh sách các file template Excel CoreCCP lũy kế hiện có
+   */
+  @Get('templates/list')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async listTemplates(@Query('root') customRoot?: string) {
+    try {
+      const targetRoot = await this.ccpAccumulatorService.getTargetRoot(customRoot);
+      if (!targetRoot || !fs.existsSync(targetRoot)) {
+        return { success: true, targetRoot: '', files: [] };
+      }
+
+      const files: { name: string; relativePath: string; sizeBytes: number; modifiedAt: Date }[] = [];
+      const scanDir = (dir: string, baseRel = '') => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name.startsWith('.') || entry.name === 'Backup_Snapshots') continue;
+          const fullPath = path.join(dir, entry.name);
+          const relPath = path.join(baseRel, entry.name);
+          if (entry.isDirectory()) {
+            scanDir(fullPath, relPath);
+          } else if (entry.isFile() && (entry.name.endsWith('.xlsx') || entry.name.endsWith('.xls'))) {
+            const stat = fs.statSync(fullPath);
+            files.push({
+              name: entry.name,
+              relativePath: relPath,
+              sizeBytes: stat.size,
+              modifiedAt: stat.mtime,
+            });
+          }
+        }
+      };
+
+      scanDir(targetRoot);
+      return {
+        success: true,
+        targetRoot,
+        totalFiles: files.length,
+        files,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể lấy danh sách template: ${err.message}`);
+    }
+  }
 }
+

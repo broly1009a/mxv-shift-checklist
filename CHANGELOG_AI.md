@@ -1,4 +1,110 @@
-<<<<<<< HEAD
+## [2026-10-15T17:25] IMPLEMENTATION: Triển Khai Hoàn Thiện Nhóm 1 CoreCCP Accumulator (VNCLEAR Ground Truth)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER ("tôi đồng ý"):
+  1. **Khóa Chặt Nhận Diện File Template CoreCCP**:
+     - Loại bỏ hoàn toàn 2 file legacy M-System (`Thong ke so lot giao dich ACM 2026.xlsx` và `Thong ke gia tri giao dich ACM 2026.xlsx`) khỏi danh sách candidates của `CcpAccumulatorService`.
+     - Khóa cứng template CoreCCP chuẩn: `Thong ke so lot giao dich ACM ${year} (trên CCP).xlsx` và `Thong ke gia tri giao dich ACM ${year} (Theo CCP).xlsx`.
+  2. **Tự Động Kiểm Tra & Chèn Cột TVKD Mới Trước Khi Ghi (Auto-Provisioning On-The-Fly)**:
+     - Tích hợp phương thức `ensureAllTvkdColumnsExist` tự động đối soát mã TVKD phát sinh từ dữ liệu giao dịch thực tế (`byTvkd` / `breakdownByTvkd`) với header Row 4 của template Excel.
+     - Tự động kích hoạt công cụ Python `ccp_column_provisioner.py` để chèn cột mới (trước cột TỔNG), căn lề, sao chép định dạng và tự động kéo dãn công thức `=SUM(...)`.
+  3. **Hỗ Trợ Toàn Diện Tệp "Thống Kê Giá Trị Giao Dịch Theo TVKD"**:
+     - Bổ sung phương thức `writeGtgdByTvkdToAccumulator` ghi dữ liệu vào tệp `Thong ke gia tri giao dich 2026 theo TVKD.xlsx`.
+     - Phân định rõ cấu trúc: Cột 1 là STT, Cột 2 là Ngày giao dịch (sử dụng `findOrCreateTargetRow`), Row 4 chứa 64 TVKD (`HN 001` -> `Đông Đô 089`), Cột 67 là công thức `=SUM(C:BN)`.
+  4. **Triển Khai Chốt Chặn Fail-Fast An Toàn Tỷ Giá Ngoại Tệ**:
+     - Cập nhật `getCurrentExchangeRates` và `calculateTransactionValues`: Áp dụng guard `rate > 10` cho các ngoại tệ (USD, MYR, JPY, RMB), loại bỏ triệt để nguy cơ tỷ giá bị fallback sai về 1 làm méo mó quy mô giá trị gấp 25.000 lần.
+  5. **Bóc Tách Hàng Hóa Chuẩn CoreCCP**:
+     - Sử dụng `extractCcpBaseProduct` và bảng `CCP_MULTIPLIERS` cho ACM Nano (`SI5CO`, `CP2CO`, `PL1NY`, `GLD1`) và Bạc Thỏi niêm yết (`SIV`, `SIVE`, `SVR3L`).
+  6. **Khung Phương Thức Mở Rộng Cho Nhóm 2 (Spread, LME, Options)**:
+     - Khởi tạo sẵn các hàm kiến trúc `writeTypedLotToAccumulator` và `writeTypedValueToAccumulator`, sẵn sàng nhận quy tắc bóc tách mã hợp đồng từ tài liệu [docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md) sau khi USER cung cấp rule.
+
+### 2. Danh sách file tác động
+- [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts): Tích hợp auto-provision TVKD, khóa chặt file CoreCCP, bổ sung `writeGtgdByTvkdToAccumulator` và các method mở rộng.
+- [backend/src/modules/trading-ops/services/value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/value-statistics.service.ts): Bổ sung `TvkdValueBreakdown`, guard an toàn tỷ giá ngoại tệ > 10 và gom nhóm GTGD theo TVKD.
+- [backend/src/modules/trading-ops/helpers/clearing-excel.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/clearing-excel.helper.ts): Bộ bóc tách `extractCcpBaseProduct` và chuẩn hóa gom nhóm TVKD qua Col 21 (`Mã thành viên`).
+- [backend/src/tests/test-ccp-accumulator-provision.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test-ccp-accumulator-provision.ts): Bổ sung kiểm thử tự động ghi nhận tệp GTGD theo TVKD và kiểm chứng auto-provision TVKD 089.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán thay đổi.
+
+### 3. Kết quả kiểm thử & Biên dịch (Proof of Ground Truth)
+- Backend Build (`cmd.exe /c "npm run build"` -> `nest build`): **Exit code 0 (Pass 100%)**.
+- Frontend Build (`cmd.exe /c "npm run build"` -> `next build`): **Exit code 0 (Pass 100%)**.
+- Test tích hợp Sandbox (`test-ccp-accumulator-provision.ts`): **PASS 100% (Exit code 0)**:
+  - Tự động nhận diện và chèn cột TVKD mới `089` vào `Thong ke gia tri giao dich 2026 theo TVKD.xlsx` (2050ms).
+  - Ghi thành công số lot vào 2/2 templates (Normal & ACM trên CCP).
+  - Ghi thành công giá trị giao dịch vào 3/3 templates:
+    + `Thong ke gia tri giao dich 2026.xlsx` [Row 16]: success=true
+    + `Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx` [Row 16]: success=true
+    + `Thong ke gia tri giao dich 2026 theo TVKD.xlsx` [Row 15]: success=true
+
+---
+
+## [2026-10-15T17:10] ARCHITECTURE AUDIT & SPECIFICATION: Khung Quy Tắc Bóc Tách Mã Hợp Đồng & Định Danh Phân Hệ CoreCCP (VNCLEAR)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER ("như tôi đã nói mã hợp đồng của ccp sẽ khác ms nên tôi cần bạn viết tài liệu để sau tôi có rule sẽ bổ sung cho bạn thì bộ công thức bóc tách chưa có đủ căn cứ để code đúng không"):
+  1. **Xác nhận căn cứ kỹ thuật (Proof of Ground Truth)**: Khẳng định hệ thống hiện tại **CHƯA ĐỦ CĂN CỨ NGHIỆP VỤ & PHÁP LÝ** để code bộ công thức bóc tách toàn diện mã hợp đồng cho tất cả các phân hệ CoreCCP (Normal, Spread, LME, Options). Tuyệt đối cấm tự ý phỏng đoán hoặc áp đặt logic của M-System sang CoreCCP theo đúng Quy tắc 1 & Quy tắc 2 trong `AGENTS.md`.
+  2. **Soi chiếu dữ liệu thực tế từ CoreCCP Direct API & Sandbox**:
+     - Đã phân tích chi tiết toàn bộ 13 tệp trong thư mục [Bao cao - Thong ke/](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke).
+     - Khoanh vùng 11 file chuẩn CoreCCP và nhận diện 2 file legacy tồn dư của M-System (`Thong ke so lot giao dich ACM 2026.xlsx` và `Thong ke gia tri giao dich ACM 2026.xlsx`).
+     - Soi chiếu dữ liệu API thực tế ngày 13/10/2026 (`ORDERMATCH_DETAIL_32985.xlsx`), phát hiện các mẫu thực tế: ACM Nano (`SI5COZ26`, `PL1NYF27` - 1 chữ cái tháng), Bạc Thỏi Niêm Yết (`SIV0127`, `SVR3L0427` - 2 chữ số tháng), 10 TVKD mới (`646`, `713`, `714`, `712`...).
+  3. **Lập Tài Liệu Khung Đặc Tả Quy Tắc Nghiệp Vụ Chờ USER Bổ Sung**:
+     - Vị trí: [docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md).
+     - Liệt kê chi tiết 5 khoảng trống quy tắc (gaps) của các phân hệ Futures Thường, Spread, LME, Options.
+     - Thiết kế sẵn Biểu mẫu Bảng Quy Tắc (Rule Specification Template) để USER/Nghiệp vụ điền bổ sung.
+     - Thiết kế Kiến trúc Data-Driven Regex Engine sẵn sàng nạp cấu hình chạy ngay $100\%$ mà không cần sửa code backend.
+
+### 2. Danh sách file tác động
+- [docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KHUNG_QUY_TAC_BOC_TACH_MA_HOP_DONG_CORECCP.md): Tài liệu khung đặc tả kỹ thuật và biểu mẫu quy tắc.
+- [scratch/test_all_10_ccp_templates_simulation.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/test_all_10_ccp_templates_simulation.js): Script kiểm chứng pipeline độc lập trên Sandbox.
+- [scratch/test_ccp_all_13_reports_pipeline.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/test_ccp_all_13_reports_pipeline.js): Script bóc tách và phân loại dữ liệu API thực tế.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+---
+
+## [2026-10-15T16:40] FEATURE INTEGRATION: Áp Dụng Công Cụ Mở Rộng Cấu Trúc Excel & Ghi Lũy Kế Đa Phân Hệ Vào Toàn Bộ Logic Hệ Thống Hiện Tại
+
+### 1. Mục tiêu thay đổi
+- Thực thi yêu cầu của USER ("tôi thấy chuẩn rồi đó giúp tôi áp dụng vào logic hệ thống hiện tại"):
+  1. **Tạo Helper Đa Nền Tảng `ccp-column-provisioner.helper.ts`**:
+     - Vị trí: [backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts).
+     - Bọc an toàn script Python `ccp_column_provisioner.py`, tự động phân giải `python3` (Ubuntu Linux) / `python` (Windows).
+     - Hỗ trợ chế độ `--dry-run` và ghi log kép (PM2 Logger & DB `jobLogs`).
+  2. **Nâng cấp `CcpAccumulatorService`**:
+     - Vị trí: [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts).
+     - Cung cấp 2 phương thức mở rộng cột chuẩn thiết kế:
+       - `provisionColumn(...)`: Mở rộng 1 file cụ thể.
+       - `provisionAllTemplates(...)`: Cơ chế 1-Click mở rộng đồng loạt trên toàn bộ bộ Master Templates (Normal, ACM, Spread, LME, GTGD...).
+     - Hoàn thiện `writeLotStatsToAccumulator`: Tự động nhận diện cả `Thong ke so lot giao dich ACM ${year} (trên CCP).xlsx`, ghi đầy đủ dữ liệu tổng quan CCP (cols 3, 4, 5), phân bổ chi tiết theo TVKD (`byTvkd`) và Hàng Hóa (`byProduct`).
+     - Bổ sung Data-Driven Guard: Quét và cảnh báo nếu phát hiện TVKD/Hàng hóa mới phát sinh lệnh nhưng chưa có cột trong file Excel.
+     - Hoàn thiện `writeValueStatsToAccumulator`: Bổ sung ghi nhận lũy kế giá trị cho cả `Thong ke gia tri giao dich ACM ${year} (Theo CCP).xlsx`.
+  3. **Mở API Quản Trị Template Trên `CcpReconController`**:
+     - Vị trí: [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts).
+     - `POST /api/v1/ccp-clearing/templates/provision-column`: Cho phép Admin thêm TVKD mới hoặc Hàng Hóa mới 1-Click trên Web.
+     - `GET /api/v1/ccp-clearing/templates/list`: Liệt kê danh sách các file template hiện hữu và dung lượng/thời gian sửa đổi.
+  4. **Khắc phục lỗi 'comments' relationship của openpyxl (`clean_comments_rels_zip`)**:
+     - Bổ sung hàm lọc bỏ thẻ legacyDrawing/comments lỗi sau khi openpyxl lưu file trong `ccp_column_provisioner.py`, đảm bảo ExcelJS đọc và ghi lại không bao giờ ném lỗi `Cannot read properties of undefined (reading 'comments')`.
+
+### 2. Danh sách file tác động
+- [backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/ccp-column-provisioner.helper.ts): Helper gọi Python an toàn.
+- [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts): Service ghi lũy kế và điều phối mở rộng cột.
+- [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts): Controller API quản trị template.
+- [backend/src/scripts/python/ccp_column_provisioner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/python/ccp_column_provisioner.py): Bổ sung clean comments relationship & dry-run guard.
+- [backend/src/tests/test-ccp-accumulator-provision.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test-ccp-accumulator-provision.ts): Test suite kiểm chứng tích hợp toàn diện.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch (Proof of Ground Truth)
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%)**.
+- Test tích hợp Sandbox (`test-ccp-accumulator-provision.ts`): **PASS 100% (Exit code 0)**:
+  - Dry-run TVKD 098: PASS (1692ms).
+  - Provision đồng loạt 4 templates: PASS (4/4 files thành công).
+  - Ghi lũy kế Số Lot (Normal & ACM): PASS (2/2 files thành công).
+  - Ghi lũy kế Giá Trị (Normal & ACM): PASS (2/2 files thành công).
+- Boundary Isolation Test (`module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+
+---
+
 ## [2026-10-15T16:28] VERIFICATION: Kiểm Chứng Kịch Bản Tạo Tháng 11 (T11.2026) & Mở Rộng TVKD 099, Hàng Hóa GLD1 Trên File Số Lot CCP
 
 ### 1. Mục tiêu thay đổi
