@@ -7,6 +7,7 @@ import {
   toNum,
   toStr,
   ParsedRow,
+  extractCcpBaseProduct,
 } from '../helpers/clearing-excel.helper';
 
 export interface CcpExchangeRates {
@@ -24,8 +25,14 @@ export interface ProductValueBreakdown {
   product: string;
   lots: number;
   valueVnd: number;
-  currency: 'USD' | 'MYR' | 'JPY' | 'RMB';
+  currency: 'USD' | 'MYR' | 'JPY' | 'RMB' | 'VND';
   exchangeRate: number;
+}
+
+export interface TvkdValueBreakdown {
+  tvkd: string;
+  lots: number;
+  valueVnd: number;
 }
 
 export interface CcpTransactionValueResult {
@@ -33,6 +40,7 @@ export interface CcpTransactionValueResult {
   totalLots: number;
   totalValueVnd: number;
   breakdownByProduct: ProductValueBreakdown[];
+  breakdownByTvkd?: TvkdValueBreakdown[];
   rates: CcpExchangeRates;
   passed: boolean;
   calculatedAt: Date;
@@ -96,11 +104,18 @@ export class ValueStatisticsService {
 
     const getRate = (code: string, ccpFallback: string, msFallback: string, defaultRate: number) => {
       const item = matrix[code];
-      const conv = item?.conversionRate
-        ? Number(item.conversionRate)
-        : parseFloat(ccpFallback) || parseFloat(msFallback) || defaultRate;
-      const buy = item?.buyRate ? Number(item.buyRate) : conv;
-      const sell = item?.sellRate ? Number(item.sellRate) : conv;
+      const parsedCcp = parseFloat(ccpFallback);
+      const parsedMs = parseFloat(msFallback);
+      const parsedMatrixConv = item?.conversionRate ? Number(item.conversionRate) : NaN;
+
+      // An toàn: Tỷ giá ngoại tệ hợp lệ bắt buộc phải > 10 (tránh trường hợp fallback về 1 hoặc 0 làm lệch quy mô giá trị)
+      const validCcp = !isNaN(parsedCcp) && parsedCcp > 10 ? parsedCcp : 0;
+      const validMs = !isNaN(parsedMs) && parsedMs > 10 ? parsedMs : 0;
+      const validMatrix = !isNaN(parsedMatrixConv) && parsedMatrixConv > 10 ? parsedMatrixConv : 0;
+
+      const conv = validMatrix || validCcp || validMs || defaultRate;
+      const buy = (item?.buyRate && Number(item.buyRate) > 10) ? Number(item.buyRate) : conv;
+      const sell = (item?.sellRate && Number(item.sellRate) > 10) ? Number(item.sellRate) : conv;
       return { buy, sell, conv };
     };
 
@@ -133,48 +148,84 @@ export class ValueStatisticsService {
     rates: CcpExchangeRates,
     sessionDate?: string,
   ): CcpTransactionValueResult {
-    const productMap = new Map<string, { lots: number; valueVnd: number; currency: 'USD' | 'MYR' | 'JPY' | 'RMB'; exchangeRate: number }>();
+    const productMap = new Map<string, { lots: number; valueVnd: number; currency: 'USD' | 'MYR' | 'JPY' | 'RMB' | 'VND'; exchangeRate: number }>();
+    const tvkdMap = new Map<string, { lots: number; valueVnd: number }>();
     let totalLots = 0;
     let totalValueVnd = 0;
 
+    // Bảng tra độ lớn hợp đồng đặc thù đã kiểm chứng từ CoreCCP
+    const CCP_MULTIPLIERS: Record<string, { doCao: number; defaultCurrency: 'USD' | 'VND' }> = {
+      SI5CO: { doCao: 100, defaultCurrency: 'USD' },
+      CP2CO: { doCao: 1000, defaultCurrency: 'USD' },
+      PL1NY: { doCao: 5, defaultCurrency: 'USD' },
+      GLD1:  { doCao: 10, defaultCurrency: 'USD' },
+      SIV:   { doCao: 1, defaultCurrency: 'VND' },
+      SIVE:  { doCao: 1, defaultCurrency: 'VND' },
+      SVR3L: { doCao: 1, defaultCurrency: 'VND' },
+    };
+
     for (const row of rows) {
-      const lot = toNum(row['KL giao dịch'] ?? row['KL'] ?? row['Khối lượng'] ?? row['col13'] ?? row['col17']);
-      const price = toNum(row['Giá khớp'] ?? row['Giá'] ?? row['col14'] ?? row['col18']);
-      const rawProduct = toStr(row['Mã HĐ'] ?? row['Mã Hợp Đồng'] ?? row['Hàng hóa'] ?? row['col6'] ?? 'UNKNOWN').toUpperCase();
+      const lot = toNum(row['KL giao dịch'] ?? row['KL'] ?? row['Khối lượng'] ?? row['KL khớp'] ?? row['col13'] ?? row['col17']);
+      const price = toNum(row['Giá khớp'] ?? row['Giá'] ?? row['Giá khớp trung bình'] ?? row['col14'] ?? row['col18']);
+      const rawProduct = toStr(row['Mã HĐ'] ?? row['Mã Hợp Đồng'] ?? row['Mã SP'] ?? row['Hàng hóa'] ?? row['col6'] ?? 'UNKNOWN').toUpperCase();
 
       if (lot <= 0) continue;
 
-      // Nhận diện mã hàng hóa gốc (3 ký tự đầu hoặc trước số)
-      const numMatch = rawProduct.match(/\d/);
-      const product = numMatch && numMatch.index ? rawProduct.substring(0, numMatch.index) : rawProduct.substring(0, 3);
+      // Nhận diện mã hàng hóa gốc bằng bộ tách chuẩn CoreCCP
+      const product = extractCcpBaseProduct(rawProduct);
 
-      let currency: 'USD' | 'MYR' | 'JPY' | 'RMB' = 'USD';
-      let rate = rates.usdGain || 25400;
+      // Nhận diện mã TVKD
+      const memberCode = toStr(row['Mã thành viên'] ?? row['TVKD'] ?? row['Mã TVKD'] ?? '');
+      let tvkd = memberCode;
+      if (!tvkd) {
+        const maTKGD = toStr(row['Mã TKGD'] ?? row['Account'] ?? '');
+        tvkd = maTKGD.length >= 3 ? maTKGD.substring(0, 3).toUpperCase() : 'OTHER';
+      }
+      if (/^\d{1,2}$/.test(tvkd)) {
+        tvkd = tvkd.padStart(3, '0');
+      }
+
+      let currency: 'USD' | 'MYR' | 'JPY' | 'RMB' | 'VND' = 'USD';
+      let rate = rates.usdGain && rates.usdGain > 10 ? rates.usdGain : 25400;
       let divisor = 1;
 
-      if (product === 'TRU' || product.startsWith('JP') || rawProduct.includes('TOCOM') || rawProduct.includes('OSE')) {
+      // Tra cứu độ lớn doCao từ bảng chuẩn CoreCCP nếu có
+      const ccpSpec = CCP_MULTIPLIERS[product];
+      const doCao = ccpSpec?.doCao || 1;
+
+      if (ccpSpec?.defaultCurrency === 'VND') {
+        currency = 'VND';
+        rate = 1;
+      } else if (product === 'TRU' || product.startsWith('JP') || rawProduct.includes('TOCOM') || rawProduct.includes('OSE')) {
         currency = 'JPY';
-        rate = rates.jpyGain || 165;
+        rate = rates.jpyGain && rates.jpyGain > 10 ? rates.jpyGain : 165;
         divisor = 100; // JPY niêm yết theo 100 Yên
       } else if (product === 'MPO' || rawProduct.includes('BMD')) {
         currency = 'MYR';
-        rate = rates.myrGain || 5400;
+        rate = rates.myrGain && rates.myrGain > 10 ? rates.myrGain : 5400;
       } else if (product.startsWith('DCE') || product.startsWith('SHFE') || product.startsWith('ZCE')) {
         currency = 'RMB';
-        rate = rates.rmbGain || 3500;
+        rate = rates.rmbGain && rates.rmbGain > 10 ? rates.rmbGain : 3500;
       }
 
-      // Giá trị tính = Lot * Price * Rate / Divisor (nếu không có price thì nhân ước lượng lot * rate)
+      // Giá trị tính = Lot * Price * doCao * Rate / Divisor
       const effectivePrice = price > 0 ? price : 1;
-      const valueVnd = Math.round((lot * effectivePrice * rate) / divisor);
+      const valueVnd = Math.round((lot * effectivePrice * doCao * rate) / divisor);
 
       totalLots += lot;
       totalValueVnd += valueVnd;
 
-      const current = productMap.get(product) || { lots: 0, valueVnd: 0, currency, exchangeRate: rate };
-      current.lots += lot;
-      current.valueVnd += valueVnd;
-      productMap.set(product, current);
+      // Gom nhóm theo Hàng hóa
+      const currentProd = productMap.get(product) || { lots: 0, valueVnd: 0, currency, exchangeRate: rate };
+      currentProd.lots += lot;
+      currentProd.valueVnd += valueVnd;
+      productMap.set(product, currentProd);
+
+      // Gom nhóm theo TVKD
+      const currentTvkd = tvkdMap.get(tvkd) || { lots: 0, valueVnd: 0 };
+      currentTvkd.lots += lot;
+      currentTvkd.valueVnd += valueVnd;
+      tvkdMap.set(tvkd, currentTvkd);
     }
 
     const breakdownByProduct: ProductValueBreakdown[] = Array.from(productMap.entries()).map(
@@ -187,11 +238,20 @@ export class ValueStatisticsService {
       }),
     );
 
+    const breakdownByTvkd: TvkdValueBreakdown[] = Array.from(tvkdMap.entries()).map(
+      ([tvkd, data]) => ({
+        tvkd,
+        lots: data.lots,
+        valueVnd: data.valueVnd,
+      }),
+    ).sort((a, b) => b.valueVnd - a.valueVnd);
+
     return {
       sessionDate: sessionDate || new Date().toISOString().split('T')[0],
       totalLots,
       totalValueVnd,
       breakdownByProduct,
+      breakdownByTvkd,
       rates,
       passed: totalLots > 0 && totalValueVnd > 0,
       calculatedAt: new Date(),

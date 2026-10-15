@@ -1,3 +1,28 @@
+## [2026-10-15T17:42] SYNCHRONIZATION & TEST HARNESS: Khôi Phục MsApiAdapter, Đồng Bộ ValueStatisticsService Chuẩn CoreCCP & Cung Cấp Bộ Kịch Bản Test Cho User
+
+### 1. Mục tiêu thay đổi
+- Thực thi yêu cầu của USER:
+  1. Khôi phục đầu Direct REST API của M-System (`MsApiAdapter`) và 5 script test Direct API tương ứng.
+  2. Đồng bộ `value-statistics.service.ts` từ nhánh chuẩn `mxv-cqg-download-investigation` (tích hợp `extractCcpBaseProduct`, chốt an toàn tỷ giá `rate > 10`, `CCP_MULTIPLIERS`, độ lớn `doCao`, và thống kê theo TVKD `breakdownByTvkd`).
+  3. Bổ sung script kiểm thử `test_cqg_scraper_service.ts` và npm shortcuts (`test:cqg-fast`, `test:cqg-fast-all`, `test:cqg-fast-clean`, `test:cqg-service`) để USER tự chạy kiểm thử trên Terminal theo **Rule 8 của AGENTS.md**.
+
+### 2. Danh sách file tác động
+- [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/ms-api.adapter.ts): Tạo mới, triển khai `IIngressPort`, xác thực 2 bước PIN M-System, nạp credentials từ MongoDB `bot_credentials_msystem`, tải nhị phân 18 báo cáo `MS_REPORTS_REGISTRY`.
+- [backend/src/modules/ingress/ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.module.ts): Đăng ký `MsApiAdapter`.
+- [backend/src/modules/ingress/ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts): Tích hợp Direct REST API cho `MSYSTEM`.
+- [backend/src/modules/trading-ops/services/value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/value-statistics.service.ts): Đồng bộ chuẩn tách mã hợp đồng CoreCCP, tỷ giá `rate > 10`, và phân rã giá trị theo TVKD.
+- [backend/src/scripts/test_cqg_scraper_service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_cqg_scraper_service.ts): Script kiểm thử trực tiếp `CqgScraperService` trong context NestJS.
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/package.json): Bổ sung npm test scripts: `test:cqg-fast`, `test:cqg-fast-all`, `test:cqg-fast-clean`, `test:cqg-service`.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%)**.
+- Boundary Isolation Test (`npm.cmd test src/tests/boundary/module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`npm.cmd test src/tests/twin-run/twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+
+---
+
 ## [2026-10-15T17:22] FEATURE INTEGRATION: Áp Dụng Trọn Bộ Tối Ưu Tải Báo Cáo CQG Từ Script test_cqg_tab_downloads_fast.js Vào CqgScraperService
 
 ### 1. Mục tiêu thay đổi
