@@ -54,6 +54,7 @@ function copyDirRecursive(srcDir, destDir) {
 // 1. Files cần copy
 const filesToDeploy = [
   'backend/src/app.module.ts',
+  'backend/package.json',
   'backend/tsconfig.json',
   'backend/tsconfig.build.json',
   'backend/src/database/database.module.ts',
