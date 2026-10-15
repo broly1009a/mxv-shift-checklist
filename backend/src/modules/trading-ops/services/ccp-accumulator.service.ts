@@ -18,7 +18,7 @@ import {
 } from '../helpers/accumulator-date.helper';
 import { LotSummary } from './lot-statistics.service';
 import type { LotByProduct, LotByTvkd } from './lot-statistics.service';
-import { CcpTransactionValueResult } from './value-statistics.service';
+import { CcpTransactionValueResult, TvkdValueBreakdown } from './value-statistics.service';
 import { resolveStoragePathCrossPlatform } from '../../../shared';
 
 export interface AccumulatorWriteResult {
@@ -223,6 +223,63 @@ export class CcpAccumulatorService {
   }
 
   /**
+   * Đảm bảo tất cả TVKD phát sinh giao dịch đều có cột trong file template Excel.
+   * Nếu phát hiện TVKD mới, tự động chạy script Python để chèn cột và cập nhật công thức.
+   */
+  async ensureAllTvkdColumnsExist(
+    filePath: string,
+    tvkdCodes: string[],
+    jobLogs?: string[],
+  ): Promise<string[]> {
+    const newlyProvisioned: string[] = [];
+    if (!fs.existsSync(filePath)) return newlyProvisioned;
+
+    try {
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.readFile(filePath);
+      const ws = wb.worksheets.find((s) => !s.name.toUpperCase().includes('TONG') && !s.name.toUpperCase().includes('SUMMARY')) || wb.worksheets[0];
+      if (!ws) return newlyProvisioned;
+
+      const headerRow = ws.getRow(4);
+      const existingTvkd = new Set<string>();
+      for (let c = 1; c <= Math.min(ws.columnCount || 100, 160); c++) {
+        const val = String(headerRow.getCell(c).value || '');
+        const match = val.match(/\b(\d{3})\b/);
+        if (match) existingTvkd.add(match[1]);
+      }
+
+      for (const code of tvkdCodes) {
+        const cleanCode = code.padStart(3, '0');
+        if (!existingTvkd.has(cleanCode) && cleanCode !== '000' && cleanCode !== 'OTH') {
+          this.logger.log(`[CcpAccumulator] Phát hiện TVKD mới '${cleanCode}' chưa có cột trong ${path.basename(filePath)}. Đang tự động chèn cột...`);
+          jobLogs?.push(`[CcpAccumulator] Tự động chèn cột cho TVKD mới '${cleanCode}' vào ${path.basename(filePath)}...`);
+
+          const res = provisionExcelColumn({
+            filePath,
+            type: 'tvkd',
+            code: cleanCode,
+            label: `TVKD ${cleanCode}`,
+            dryRun: false,
+            jobLogs,
+          });
+
+          if (res.success) {
+            existingTvkd.add(cleanCode);
+            newlyProvisioned.push(cleanCode);
+            const msg = `[CcpAccumulator] Đã mở rộng thành công cột cho TVKD '${cleanCode}' trong ${path.basename(filePath)}`;
+            this.logger.log(msg);
+            jobLogs?.push(msg);
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`[CcpAccumulator] Lỗi kiểm tra/chèn cột TVKD trong ${path.basename(filePath)}: ${err.message}`);
+    }
+
+    return newlyProvisioned;
+  }
+
+  /**
    * Ghi kết quả Thống Kê Số Lot vào các file Excel lũy kế năm (Master Accumulator Files)
    * Tự động bổ sung Sheet tháng mới qua Python openpyxl nếu chưa có.
    */
@@ -330,10 +387,8 @@ export class CcpAccumulatorService {
     if (!acmLotPath) {
       const candidates = [
         path.join(targetRoot, 'Thong ke so lot giao dich', `Thong ke so lot giao dich ACM ${year} (trên CCP).xlsx`),
-        path.join(targetRoot, 'Thong ke so lot giao dich', `Thong ke so lot giao dich ACM ${year} 2.xlsx`),
-        path.join(targetRoot, 'Thong ke so lot giao dich', `Thong ke so lot giao dich ACM ${year}.xlsx`),
         path.join(targetRoot, `Thong ke so lot giao dich ACM ${year} (trên CCP).xlsx`),
-        path.join(targetRoot, `Thong ke so lot giao dich ACM ${year}.xlsx`),
+        path.join(targetRoot, 'Thong ke so lot giao dich', `Thong ke so lot giao dich ACM ${year} 2.xlsx`),
       ];
       acmLotPath = candidates.find((c) => fs.existsSync(this.resolveFilePath(c))) || '';
     }
@@ -341,6 +396,17 @@ export class CcpAccumulatorService {
 
     if (fs.existsSync(acmLotPath)) {
       try {
+        // Tự động kiểm tra và chèn cột cho các TVKD mới phát sinh
+        const activeTvkdCodes = byTvkd
+          .map((t) => {
+            const m = t.tvkd.match(/\b(\d{3})\b/);
+            return m ? m[1] : '';
+          })
+          .filter((c) => Boolean(c));
+        if (activeTvkdCodes.length > 0) {
+          await this.ensureAllTvkdColumnsExist(acmLotPath, activeTvkdCodes, jobLogs);
+        }
+
         this.backupFile(acmLotPath);
         const { wb, ws, sheetName, cloned } = await this.ensureAndLoadSheet(acmLotPath, targetDateObj, jobLogs);
         const targetRow = findOrCreateTargetRow(ws, targetDateObj);
@@ -522,9 +588,7 @@ export class CcpAccumulatorService {
     if (!acmValuePath) {
       const candidates = [
         path.join(targetRoot, 'Thong ke gia tri giao dich', `Thong ke gia tri giao dich ACM ${year} (Theo CCP).xlsx`),
-        path.join(targetRoot, 'Thong ke gia tri giao dich', `Thong ke gia tri giao dich ACM ${year}.xlsx`),
         path.join(targetRoot, `Thong ke gia tri giao dich ACM ${year} (Theo CCP).xlsx`),
-        path.join(targetRoot, `Thong ke gia tri giao dich ACM ${year}.xlsx`),
       ];
       acmValuePath = candidates.find((c) => fs.existsSync(this.resolveFilePath(c))) || '';
     }
@@ -581,6 +645,160 @@ export class CcpAccumulatorService {
       }
     }
 
+    // 3. File Thống kê giá trị giao dịch theo TVKD
+    if (result.breakdownByTvkd && result.breakdownByTvkd.length > 0) {
+      const tvkdRes = await this.writeGtgdByTvkdToAccumulator({
+        targetDateObj,
+        year,
+        targetRoot,
+        breakdownByTvkd: result.breakdownByTvkd,
+        jobLogs,
+      });
+      if (tvkdRes) {
+        results.push(tvkdRes);
+      }
+    }
+
     return results;
+  }
+
+  /**
+   * Ghi số liệu Giá Trị Giao Dịch theo từng Thành Viên Kinh Doanh (VND)
+   * vào tệp master: 'Thong ke gia tri giao dich 2026 theo TVKD.xlsx'
+   */
+  async writeGtgdByTvkdToAccumulator(params: {
+    targetDateObj: Date;
+    year: string;
+    targetRoot: string;
+    breakdownByTvkd: TvkdValueBreakdown[];
+    jobLogs?: string[];
+  }): Promise<AccumulatorWriteResult | null> {
+    const { targetDateObj, year, targetRoot, breakdownByTvkd, jobLogs } = params;
+
+    let tvkdFilePath = '';
+    if (this.settingsService) {
+      tvkdFilePath = await this.settingsService.getSetting('bot_lot_macro_path_tvkd_value', '');
+    }
+    if (!tvkdFilePath) {
+      const candidates = [
+        path.join(targetRoot, 'Thong ke gia tri giao dich', `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`),
+        path.join(targetRoot, `Thong ke gia tri giao dich ${year} theo TVKD.xlsx`),
+      ];
+      tvkdFilePath = candidates.find((c) => fs.existsSync(this.resolveFilePath(c))) || '';
+    }
+    tvkdFilePath = this.resolveFilePath(tvkdFilePath);
+
+    if (!fs.existsSync(tvkdFilePath)) {
+      return null;
+    }
+
+    try {
+      // 1. Tự động kiểm tra và chèn cột cho các TVKD mới phát sinh
+      const activeTvkdCodes = breakdownByTvkd
+        .map((t) => {
+          const m = t.tvkd.match(/\b(\d{3})\b/);
+          return m ? m[1] : '';
+        })
+        .filter((c) => Boolean(c));
+      if (activeTvkdCodes.length > 0) {
+        await this.ensureAllTvkdColumnsExist(tvkdFilePath, activeTvkdCodes, jobLogs);
+      }
+
+      this.backupFile(tvkdFilePath);
+      const { wb, ws, sheetName, cloned } = await this.ensureAndLoadSheet(tvkdFilePath, targetDateObj, jobLogs);
+      // Tệp này có Cột 1 là STT, Cột 2 là Ngày GD -> Dùng findOrCreateTargetRow
+      const targetRow = findOrCreateTargetRow(ws, targetDateObj);
+
+      const headerRow = ws.getRow(4);
+      let matchedCount = 0;
+      let totalValueWritten = 0;
+
+      // Quét các cột TVKD (từ Cột 3 trở đi)
+      for (let c = 3; c <= Math.min(ws.columnCount || 80, 100); c++) {
+        const headerText = String(headerRow.getCell(c).value || '');
+        const match = headerText.match(/\b(\d{3})\b/);
+        if (match) {
+          const tvkdCode = match[1];
+          const found = breakdownByTvkd.find(
+            (t) => t.tvkd.includes(tvkdCode) || t.tvkd.padStart(3, '0') === tvkdCode,
+          );
+          if (found) {
+            ws.getCell(targetRow, c).value = Math.round(found.valueVnd);
+            matchedCount++;
+            totalValueWritten += found.valueVnd;
+          }
+        }
+      }
+
+      // Đảm bảo công thức =SUM(C{targetRow}:BN{targetRow}) tại cột Tổng nếu chưa có
+      for (let c = 60; c <= Math.min(ws.columnCount || 75, 100); c++) {
+        const v2 = String(ws.getCell(2, c).value || '').toUpperCase();
+        const v4 = String(ws.getCell(4, c).value || '').toUpperCase();
+        if (v2.includes('TỔNG') || v4.includes('TỔNG') || v2.includes('TOTAL')) {
+          const totalCell = ws.getCell(targetRow, c);
+          if (!totalCell.value) {
+            const lastTvkdColLetter = ws.getColumn(c - 1).letter;
+            totalCell.value = { formula: `SUM(C${targetRow}:${lastTvkdColLetter}${targetRow})` };
+          }
+          break;
+        }
+      }
+
+      fixSharedFormulas(ws);
+      await safeWriteExcel(wb, tvkdFilePath);
+
+      const logMsg = `[CcpAccumulator] Đã ghi thành công GTGD theo TVKD (${matchedCount} TVKD, tổng ${Math.round(totalValueWritten)} VND) vào ${path.basename(tvkdFilePath)} [Sheet: ${sheetName}, Row: ${targetRow}]`;
+      this.logger.log(logMsg);
+      jobLogs?.push(logMsg);
+
+      return {
+        file: path.basename(tvkdFilePath),
+        sheet: sheetName,
+        row: targetRow,
+        clonedNewMonthSheet: cloned,
+        success: true,
+      };
+    } catch (err: any) {
+      const errMsg = `[CcpAccumulator] Lỗi ghi file ${path.basename(tvkdFilePath)}: ${err.message}`;
+      this.logger.error(errMsg);
+      jobLogs?.push(errMsg);
+      return {
+        file: path.basename(tvkdFilePath),
+        sheet: '',
+        row: -1,
+        clonedNewMonthSheet: false,
+        success: false,
+        error: err.message,
+      };
+    }
+  }
+
+  /**
+   * Phương thức kiến trúc mở rộng ghi nhận số lot Spread/LME/Options vào các file tích lũy
+   * (Sẽ được kích hoạt khi có quy tắc bóc tách mã hợp đồng chính thức từ Nghiệp vụ)
+   */
+  async writeTypedLotToAccumulator(params: {
+    type: 'spread' | 'lme' | 'options';
+    targetDate: string;
+    byProduct: LotByProduct[];
+    byTvkd: LotByTvkd[];
+    customTargetRoot?: string;
+    jobLogs?: string[];
+  }): Promise<AccumulatorWriteResult[]> {
+    return [];
+  }
+
+  /**
+   * Phương thức kiến trúc mở rộng ghi nhận giá trị Spread/LME/Options vào các file tích lũy
+   * (Sẽ được kích hoạt khi có quy tắc bóc tách mã hợp đồng chính thức từ Nghiệp vụ)
+   */
+  async writeTypedValueToAccumulator(params: {
+    type: 'spread' | 'lme' | 'options';
+    targetDate: string;
+    result: CcpTransactionValueResult;
+    customTargetRoot?: string;
+    jobLogs?: string[];
+  }): Promise<AccumulatorWriteResult[]> {
+    return [];
   }
 }

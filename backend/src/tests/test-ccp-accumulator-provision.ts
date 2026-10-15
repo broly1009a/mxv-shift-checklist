@@ -24,6 +24,7 @@ async function testAccumulatorIntegration() {
     'Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx',
     'Thong ke so lot giao dich 2026.xlsx',
     'Thong ke gia tri giao dich 2026.xlsx',
+    'Thong ke gia tri giao dich 2026 theo TVKD.xlsx',
   ];
 
   for (const f of sampleFiles) {
@@ -119,6 +120,11 @@ async function testAccumulatorIntegration() {
         { product: 'SI5CO', lots: 600, valueVnd: 30000000000, currency: 'USD', exchangeRate: 25400 },
         { product: 'PL1NY', lots: 400, valueVnd: 15000000000, currency: 'USD', exchangeRate: 25400 },
         { product: 'GLD1', lots: 200, valueVnd: 5000000000, currency: 'USD', exchangeRate: 25400 },
+      ],
+      breakdownByTvkd: [
+        { tvkd: 'HN 001', lots: 600, valueVnd: 25000000000 },
+        { tvkd: 'SF 002', lots: 400, valueVnd: 15000000000 },
+        { tvkd: 'Thanh vien Test 089', lots: 200, valueVnd: 10000000000 },
       ],
       rates: {
         usdLoss: 25400,
