@@ -3,7 +3,7 @@ dotenv.config();
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
-import { GttCheckerService } from '../modules/bot-engine/gtt-checker.service';
+import { GttCheckerService } from '../modules/trading-ops/services/gtt-checker.service';
 
 async function bootstrap() {
   console.log('Booting NestJS application context...');

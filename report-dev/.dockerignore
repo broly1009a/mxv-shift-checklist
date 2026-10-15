@@ -1,0 +1,38 @@
+# Build context = identity/. Giảm kích thước context gửi tới Docker daemon.
+
+# Dependencies & output build (sẽ được cài/biên dịch lại trong image)
+node_modules
+build
+dist
+
+# Logs & cache
+logs
+*.log
+.gitnexus
+.kluster
+.kiro
+.agent
+
+# Git & CI
+.git
+.gitlab-ci.yml
+.gitattributes
+.gitignore
+
+# Env nhạy cảm (env cụ thể được COPY tường minh trong Dockerfile)
+.env
+.env.local
+.env.staging
+
+# Agent/IDE
+AGENTS.md
+CLAUDE.md
+.claude
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Lưu ý: KHÔNG ignore .npmrc ở đây — nếu dùng registry riêng, truyền .npmrc
+# qua "docker build --secret id=npmrc,..." thay vì đưa vào image.

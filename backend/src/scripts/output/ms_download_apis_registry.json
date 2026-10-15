@@ -1,0 +1,213 @@
+[
+  {
+    "key": "NKTTHT",
+    "name": "Nhật ký thao tác hệ thống",
+    "hash": "#/systemManagement/activityHistory",
+    "subTab": null,
+    "success": true,
+    "api": {
+      "reportKey": "NKTTHT",
+      "url": "https://api-dev.newgen.dev/approval/admin/activities/excel?sort_by%3Ddesc(datetime)",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJteHZoaWVwdHJ1b25nIiwiYXV0aCI6W3siYXV0aG9yaXR5IjoiQURNSU4ifV0sImlhdCI6MTc5MTk1Mjc0MCwiZXhwIjoxNzkxOTk1OTQwfQ.HAc1fLj6BXBSL1fv32WawGdNcaJSHe7xCt6KNOGYn7s",
+        "referer": "https://admin-dev.msystem.newgen.dev/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
+        "accept": "application/json",
+        "sec-ch-ua": "\"Chromium\";v=\"154\", \"Microsoft Edge\";v=\"154\", \"Not A(Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "postData": null,
+      "capturedAt": "2026-10-14T04:39:03.012Z",
+      "responseStatus": 200,
+      "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "contentDisposition": "attachment; filename=nhat_ky_thao_tac_1791952743.xlsx"
+    }
+  },
+  {
+    "key": "DSTKGD-Futures",
+    "name": "Danh sách TKGD Futures",
+    "hash": "#/clientManagement/investorManagement",
+    "subTab": null,
+    "success": true,
+    "api": {
+      "reportKey": "DSTKGD-Futures",
+      "url": "https://api-dev.newgen.dev/am/admin/investors/excel?subInvestorType%5Beq%5D%3DNULL",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJteHZoaWVwdHJ1b25nIiwiYXV0aCI6W3siYXV0aG9yaXR5IjoiQURNSU4ifV0sImlhdCI6MTc5MTk1Mjc0MCwiZXhwIjoxNzkxOTk1OTQwfQ.HAc1fLj6BXBSL1fv32WawGdNcaJSHe7xCt6KNOGYn7s",
+        "referer": "https://admin-dev.msystem.newgen.dev/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
+        "accept": "application/json",
+        "sec-ch-ua": "\"Chromium\";v=\"154\", \"Microsoft Edge\";v=\"154\", \"Not A(Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "postData": null,
+      "capturedAt": "2026-10-14T04:39:08.595Z"
+    }
+  },
+  {
+    "key": "DSTKGD-Spread",
+    "name": "Danh sách TKGD Spread",
+    "hash": "#/clientManagement/investorManagement",
+    "subTab": "Spreads",
+    "success": true,
+    "api": {
+      "reportKey": "DSTKGD-Spread",
+      "url": "https://api-dev.newgen.dev/am/admin/investors/excel?subInvestorType%5Beq%5D%3DS",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJteHZoaWVwdHJ1b25nIiwiYXV0aCI6W3siYXV0aG9yaXR5IjoiQURNSU4ifV0sImlhdCI6MTc5MTk1Mjc0MCwiZXhwIjoxNzkxOTk1OTQwfQ.HAc1fLj6BXBSL1fv32WawGdNcaJSHe7xCt6KNOGYn7s",
+        "referer": "https://admin-dev.msystem.newgen.dev/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0",
+        "accept": "application/json",
+        "sec-ch-ua": "\"Chromium\";v=\"154\", \"Microsoft Edge\";v=\"154\", \"Not A(Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0"
+      },
+      "postData": null,
+      "capturedAt": "2026-10-14T04:39:16.215Z",
+      "responseStatus": 200,
+      "contentType": "application/vnd.ms-excel",
+      "contentDisposition": "attachment; filename=danh_sach_TKGD.xlsx"
+    }
+  },
+  {
+    "key": "DSTKGD-LME",
+    "name": "Danh sách TKGD LME",
+    "hash": "#/clientManagement/investorManagement",
+    "subTab": "LME",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSTKGD-ACM",
+    "name": "Danh sách TKGD ACM",
+    "hash": "#/clientManagement/investorManagement",
+    "subTab": "ACM",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "TLQHSKQ",
+    "name": "Thiết lập quan hệ số ký quỹ",
+    "hash": "#/clientManagement/marginRatioMultiplier",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "NR",
+    "name": "Danh sách nộp rút tiền",
+    "hash": "#/clientManagement/marginMoneyTransHistory",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSTrader",
+    "name": "Danh sách Trader",
+    "hash": "#/clientManagement/traderManagement",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "market truoc 6h",
+    "name": "Market trước 6h",
+    "hash": "#/orderManagement/orderCreating",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSLDK",
+    "name": "Danh sách lệnh dự kiến (đã khớp)",
+    "hash": "#/orderManagement/orderList",
+    "subTab": "Lệnh đã khớp",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSLCK",
+    "name": "Danh sách lệnh chờ khớp",
+    "hash": "#/orderManagement/orderList",
+    "subTab": "Lệnh chờ khớp",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSLH",
+    "name": "Danh sách lệnh hủy",
+    "hash": "#/orderManagement/orderList",
+    "subTab": "Lệnh đã hủy",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSLK",
+    "name": "Danh sách lệnh khác",
+    "hash": "#/orderManagement/orderList",
+    "subTab": "Lệnh khác",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSGD",
+    "name": "Danh sách giao dịch",
+    "hash": "#/orderManagement/transactionList",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "TTM",
+    "name": "Trạng thái mở (Vị thế mở)",
+    "hash": "#/positionManagement/openPositionInfo",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "TTTT",
+    "name": "Trạng thái tất toán",
+    "hash": "#/positionManagement/finalPositionInfo",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "TTCDH",
+    "name": "Trạng thái tất toán chờ đáo hạn LME",
+    "hash": "#/positionManagement/finalPositionInfo",
+    "subTab": "Trạng thái tất toán chờ đáo hạn LME",
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "DSQLKQ",
+    "name": "Danh sách quản lý ký quỹ",
+    "hash": "#/positionManagement/marginList",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "QLTKGD",
+    "name": "Quản lý tài khoản giao dịch",
+    "hash": "#/clientManagement/marginStatusManagement",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  },
+  {
+    "key": "QLTKGD âm KQ",
+    "name": "Quản lý TKGD âm ký quỹ",
+    "hash": "#/clientManagement/negativeMarginManagement",
+    "subTab": null,
+    "success": false,
+    "note": "Không thấy nút xuất file trên UI"
+  }
+]

@@ -48,9 +48,18 @@
     "test:ms-ttm": "node src/scripts/test_ms_download_ttm_tttt.js",
     "test:cqg-parallel": "node src/scripts/test_cqg_parallel_standalone.js",
     "test:ccp-25": "node src/scripts/test_ccp_download_25_files.js",
+    "test:ccp-headers": "node src/scripts/test_verify_ccp_ui_vs_excel_headers.js --headed",
+    "test:ccp-compare": "node src/scripts/test_compare_ccp_playwright_vs_api.js --headed",
     "test:tkgd-pipeline": "ts-node src/scripts/run_tkgd_pipeline.ts",
     "test:pre-eod": "ts-node src/scripts/run_auto_check_pre_eod_active.ts",
     "test:check-klgd": "node src/scripts/test_check_klgd_playwright.js --headed",
+    "test:ingress-ms": "node src/scripts/test_ingress_ms_api.js",
+    "test:api-ms": "node src/scripts/test_direct_api_msystem.js",
+    "test:api-ccp": "node src/scripts/test_direct_api_coreccp.js",
+    "test:api-ce": "node src/scripts/test_direct_api_coreex.js",
+    "test:api-acm": "node src/scripts/test_direct_api_acm_sftp.js",
+    "test:api-acm-etp": "node src/scripts/test_direct_api_acm_etp.js",
+    "benchmark:api-vs-pw": "node src/scripts/benchmark_playwright_vs_direct_api.js",
     "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
   },
   "dependencies": {

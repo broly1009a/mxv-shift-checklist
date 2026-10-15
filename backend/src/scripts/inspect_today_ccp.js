@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
 
-const folder = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\2026\\T09.2026\\16.09';
+const folder = '\\2026\\T09.2026\\16.09';
 const dsgdPath = path.join(folder, 'DSGD_16.09.2026.xlsx');
 const ttmPath = path.join(folder, 'TTM_16.09.2026.xlsx');
 const ttttPath = path.join(folder, 'TTTT_16.09.2026.xlsx');

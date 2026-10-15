@@ -1,0 +1,100 @@
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  IBotWorker,
+  TaskExecutionContext,
+  TaskExecutionResult,
+} from '../../../shared';
+import { KlgdReconService } from '../services/klgd-recon.service';
+import { TradingReconLog } from '../schemas/trading-recon-log.schema';
+
+@Injectable()
+export class KlgdReconWorker implements IBotWorker {
+  private readonly logger = new Logger(KlgdReconWorker.name);
+
+  readonly capabilityType = 'CHECK_KLGD';
+  readonly displayName = 'Đối Chiếu KLGD Trong Phiên (MS vs CQG vs ACM)';
+
+  constructor(
+    private readonly klgdReconService: KlgdReconService,
+    @Optional()
+    @InjectModel(TradingReconLog.name)
+    private readonly reconLogModel?: Model<TradingReconLog>,
+  ) {}
+
+  canHandle(capabilityType: string): boolean {
+    return capabilityType === this.capabilityType;
+  }
+
+  async execute(context: TaskExecutionContext): Promise<TaskExecutionResult> {
+    const startTime = Date.now();
+    this.logger.log(
+      `[KlgdReconWorker] Tiếp nhận thực thi CHECK_KLGD cho Task: ${context.taskId}, Ca: ${context.shiftId || 'N/A'}`,
+    );
+
+    try {
+      const targetDate = context.targetDate ? new Date(context.targetDate) : new Date();
+      const res = await this.klgdReconService.runAutoCheckKLGD(targetDate, {
+        cutoffTime: context.parameters?.cutoffTime ? new Date(context.parameters.cutoffTime) : undefined,
+        customDataDir: context.parameters?.dataDir,
+      });
+
+      const hasDiscrepancy = !res.passed;
+      const status = hasDiscrepancy ? 'WARNING' : 'SUCCESS';
+      const summary = res.passed
+        ? `Khớp 100% (DSGD: ${res.totals.totalDSGD}, FR: ${res.totals.totalFR}, Nano: ${res.totals.totalNano})`
+        : `Phát hiện lệch: Lệch CQG=${res.totals.differ}, Lệch ACM=${res.totals.differACM}, Lệch khớp lệnh=${res.mismatchedTrades.length}`;
+
+      let domainLogRefId: string | undefined;
+
+      // Lưu log chi tiết vào collection độc lập trading_recon_logs
+      if (this.reconLogModel) {
+        try {
+          const logRecord = await this.reconLogModel.create({
+            reconType: 'KLGD',
+            tradingDate: targetDate.toISOString().split('T')[0],
+            shiftLogId: context.shiftId,
+            taskId: context.taskId,
+            passed: res.passed,
+            totals: res.totals,
+            mismatchedTrades: res.mismatchedTrades,
+            mismatchedPositions: [],
+            cutoffTime: context.parameters?.cutoffTime ? new Date(context.parameters.cutoffTime) : undefined,
+          });
+          domainLogRefId = (logRecord as any)?._id?.toString();
+        } catch (dbErr: any) {
+          this.logger.warn(`[KlgdReconWorker] Lỗi lưu TradingReconLog: ${dbErr.message}`);
+        }
+      }
+
+      return {
+        status,
+        summary,
+        metrics: {
+          totalDSGD: res.totals.totalDSGD,
+          totalFR: res.totals.totalFR,
+          totalACM: res.totals.totalACM,
+          totalNano: res.totals.totalNano,
+          differ: res.totals.differ,
+          differACM: res.totals.differACM,
+          mismatchedTradesCount: res.mismatchedTrades.length,
+          mismatchedTTMCount: res.mismatchedTTM.length,
+          mismatchedTTTTCount: res.mismatchedTTTT?.length || 0,
+        },
+        domainLogRefId,
+        durationMs: Date.now() - startTime,
+        executedAt: new Date(),
+      };
+    } catch (err: any) {
+      this.logger.error(`[KlgdReconWorker] Lỗi thực thi CHECK_KLGD: ${err.message}`);
+      return {
+        status: 'FAILED',
+        summary: `Thất bại: ${err.message}`,
+        error: err.message,
+        durationMs: Date.now() - startTime,
+        executedAt: new Date(),
+      };
+    }
+  }
+}

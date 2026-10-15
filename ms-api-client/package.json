@@ -1,0 +1,29 @@
+{
+  "name": "@mxv/ms-api-client",
+  "version": "1.0.0",
+  "description": "Module API Client & Data Ingress độc lập cho hệ thống M-System (Vendor Newgen)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test:quick": "node scripts/test_quick_api.js",
+    "download:all": "node scripts/run_download_all.js"
+  },
+  "keywords": [
+    "mxv",
+    "msystem",
+    "newgen",
+    "ingress",
+    "api-client",
+    "reconciliation",
+    "trading-ops"
+  ],
+  "author": "MXV IT Automation Team",
+  "license": "UNLICENSED",
+  "dependencies": {},
+  "devDependencies": {
+    "playwright-core": "^1.40.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0"
+  }
+}

@@ -1,0 +1,492 @@
+[
+  {
+    "id": 1,
+    "fileName": "DSL CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Tất cả",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_1791885391807"
+    },
+    "notes": ""
+  },
+  {
+    "id": 2,
+    "fileName": "DSLDK CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Lệnh đã khớp",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_MATCH",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_MATCH_1791885396944"
+    },
+    "notes": ""
+  },
+  {
+    "id": 3,
+    "fileName": "DSLCK CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Lệnh chờ khớp",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_PENDING",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_PENDING_1791885401993"
+    },
+    "notes": ""
+  },
+  {
+    "id": 4,
+    "fileName": "DSLDH CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh",
+    "route": "/ORDERS/ORDERBOOK",
+    "tab": "Lệnh đã hủy",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_CANCEL",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_CANCEL_1791885407410"
+    },
+    "notes": ""
+  },
+  {
+    "id": 5,
+    "fileName": "DSGD CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh",
+    "route": "/ORDERS/ORDERMATCH_DETAIL",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERMATCH_DETAIL",
+      "search": {
+        "SESSION_DATE": {
+          "from": "13/10/2026",
+          "to": "13/10/2026"
+        }
+      },
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERMATCH_DETAIL_1791885414445"
+    },
+    "notes": ""
+  },
+  {
+    "id": 6,
+    "fileName": "DSL MM CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh MM",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Tất cả",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_MM",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_MM_1791885422131"
+    },
+    "notes": ""
+  },
+  {
+    "id": 7,
+    "fileName": "DSLDK MM CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh MM",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Lệnh đã khớp",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_MATCH_MM",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_MATCH_MM_1791885427524"
+    },
+    "notes": ""
+  },
+  {
+    "id": 8,
+    "fileName": "DSLCK MM CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh MM",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Lệnh chờ khớp",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_PENDING_MM",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_PENDING_MM_1791885432850"
+    },
+    "notes": ""
+  },
+  {
+    "id": 9,
+    "fileName": "DSLDH MM CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh MM",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "tab": "Lệnh đã hủy",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_CANCEL_MM",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_CANCEL_MM_1791885438136"
+    },
+    "notes": ""
+  },
+  {
+    "id": 10,
+    "fileName": "DSGD MM CCP.xlsx",
+    "group": "Lệnh & Khớp lệnh MM",
+    "route": "/ORDERS/ORDERBOOK_ALL_MM",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_ALL_MM",
+      "search": {
+        "SESSION_DATE": {
+          "from": "12/10/2026",
+          "to": "12/10/2026"
+        }
+      },
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_ALL_MM_1791885450107"
+    },
+    "notes": ""
+  },
+  {
+    "id": 11,
+    "fileName": "TTM truoc 4h20.xlsx",
+    "group": "Vị thế & Lãi lỗ",
+    "route": "/ORDERS/OPEN_POSITION",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "OPEN_POSITION_EXPORT",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 50
+      },
+      "exptype": "XLSX",
+      "fekey": "OPEN_POSITION_EXPORT_1791885456983"
+    },
+    "notes": ""
+  },
+  {
+    "id": 12,
+    "fileName": "TTM CCP.xlsx",
+    "group": "Vị thế & Lãi lỗ",
+    "route": "/ORDERS/OPEN_POSITION",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "OPEN_POSITION_EXPORT",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 50
+      },
+      "exptype": "XLSX",
+      "fekey": "OPEN_POSITION_EXPORT_1791885460908"
+    },
+    "notes": ""
+  },
+  {
+    "id": 13,
+    "fileName": "TTTT.xlsx",
+    "group": "Vị thế & Lãi lỗ",
+    "route": "/ORDERS/PNL_EXECUTED",
+    "tab": "Lịch sử tất toán",
+    "contractCode": "",
+    "detectedType": "KIỂU 3: CLIENT_SIDE_CURRENT_PAGE",
+    "endpoint": "",
+    "payloadDetails": null,
+    "notes": "FE xuất trực tiếp mảng hiện tại trên màn hình"
+  },
+  {
+    "id": 14,
+    "fileName": "QL TT TKGD truoc 4h20.xlsx",
+    "group": "Rủi ro & Ký quỹ",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "tab": "Danh sách trạng thái TKGD",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/ACCTMARGIN_ALL",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "ACCTMARGIN_ALL"
+    },
+    "notes": ""
+  },
+  {
+    "id": 15,
+    "fileName": "QL TT TKGD.xlsx",
+    "group": "Rủi ro & Ký quỹ",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "tab": "Danh sách trạng thái TKGD",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/ACCTMARGIN_ALL",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "ACCTMARGIN_ALL"
+    },
+    "notes": ""
+  },
+  {
+    "id": 16,
+    "fileName": "QL TT TVKD.xlsx",
+    "group": "Rủi ro & Ký quỹ",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "tab": "Danh sách trạng thái TKTVKD",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/MEMBERMARGIN_ALL",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "MEMBERMARGIN_ALL"
+    },
+    "notes": ""
+  },
+  {
+    "id": 17,
+    "fileName": "DSQLKQ TKGD.xlsx",
+    "group": "Rủi ro & Ký quỹ",
+    "route": "/RISKMNG/MARGIN_MNG",
+    "tab": "Quản lý ký quỹ TKGD",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/DASHBOARD/search/TRANSACTION",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "TRANSACTION"
+    },
+    "notes": ""
+  },
+  {
+    "id": 18,
+    "fileName": "DSQLKQ TVKD.xlsx",
+    "group": "Rủi ro & Ký quỹ",
+    "route": "/RISKMNG/MARGIN_MNG",
+    "tab": "Quản lý ký quỹ TVKD",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/DASHBOARD/search/TRANSACTION",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "TRANSACTION"
+    },
+    "notes": ""
+  },
+  {
+    "id": 19,
+    "fileName": "NR.xlsx",
+    "group": "Nộp rút & Tài khoản",
+    "route": "/CASHTRANFER/CASHTRANFER_HIST",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "CASHTRANFER_HIST",
+      "search": {
+        "CHECKERDT": {
+          "from": "13/10/2026",
+          "to": "13/10/2026"
+        }
+      },
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "CASHTRANFER_HIST_1791885512291"
+    },
+    "notes": ""
+  },
+  {
+    "id": 20,
+    "fileName": "DSTKGD ACM.xlsx",
+    "group": "Nộp rút & Tài khoản",
+    "route": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpoint": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ACCOUNTS_INFO",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ACCOUNTS_INFO_1791885518298"
+    },
+    "notes": ""
+  },
+  {
+    "id": 21,
+    "fileName": "GTT CCP.xlsx",
+    "group": "Hàng hóa & Giá",
+    "route": "/PRODUCT/SETTLEMENT",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/SETTLEMENT/search/SETTLEMENT",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "SETTLEMENT"
+    },
+    "notes": ""
+  },
+  {
+    "id": 22,
+    "fileName": "HH.xlsx",
+    "group": "Hàng hóa & Giá",
+    "route": "/PRODUCT/COMMODITY",
+    "tab": "",
+    "contractCode": "",
+    "detectedType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpoint": "/ccp/inquiry/maintain/COMMODITY/search/COMMODITY",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "COMMODITY"
+    },
+    "notes": ""
+  },
+  {
+    "id": 23,
+    "fileName": "HĐ CP2CO.xlsx",
+    "group": "Hàng hóa & Giá",
+    "route": "/PRODUCT/COMMODITY",
+    "tab": "",
+    "contractCode": "CP2CO",
+    "detectedType": "KIỂU 3: CLIENT_SIDE_CURRENT_PAGE",
+    "endpoint": "",
+    "payloadDetails": null,
+    "notes": "FE xuất trực tiếp mảng hợp đồng đang hiển thị trong modal"
+  },
+  {
+    "id": 24,
+    "fileName": "HĐ PL1NY.xlsx",
+    "group": "Hàng hóa & Giá",
+    "route": "/PRODUCT/COMMODITY",
+    "tab": "",
+    "contractCode": "PL1NY",
+    "detectedType": "KIỂU 3: CLIENT_SIDE_CURRENT_PAGE",
+    "endpoint": "",
+    "payloadDetails": null,
+    "notes": "FE xuất trực tiếp mảng hợp đồng đang hiển thị trong modal"
+  },
+  {
+    "id": 25,
+    "fileName": "HĐ SI5CO.xlsx",
+    "group": "Hàng hóa & Giá",
+    "route": "/PRODUCT/COMMODITY",
+    "tab": "",
+    "contractCode": "SI5CO",
+    "detectedType": "KIỂU 3: CLIENT_SIDE_CURRENT_PAGE",
+    "endpoint": "",
+    "payloadDetails": null,
+    "notes": "FE xuất trực tiếp mảng hợp đồng đang hiển thị trong modal"
+  }
+]

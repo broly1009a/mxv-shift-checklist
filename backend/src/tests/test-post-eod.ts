@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { EmailWatcherService } from '../modules/bot-engine/email-watcher.service';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
-import { PostEodHandlerService } from '../modules/bot-engine/post-eod-handler.service';
+import { MarginCheckerService } from '../modules/trading-ops/services/margin-checker.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -14,7 +14,7 @@ async function testPostEod() {
 
   const emailWatcherService = app.get(EmailWatcherService);
   const settingsService = app.get(SystemSettingsService);
-  const postEodHandlerService = app.get(PostEodHandlerService);
+  const postEodHandlerService = app.get(MarginCheckerService);
 
   // 1. Cấu hình thư mục tải file tạm trong workspace
   const tempDownloadDir = path.join(

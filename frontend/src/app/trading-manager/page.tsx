@@ -11,6 +11,7 @@ import {
   BookOpen,
   ArrowLeft,
   Terminal,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
@@ -253,6 +254,28 @@ export default function TradingManagerPage() {
               <BookOpen size={15} />
               <span>Hướng Dẫn Nghiệp Vụ</span>
             </button> */}
+
+            {/* Try V2 (Modular API) Link */}
+            <Link
+              href="/trading-manager-v2"
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.8rem',
+                padding: '9px 14px',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                borderColor: 'rgba(59, 130, 246, 0.35)',
+                color: '#60a5fa',
+                fontWeight: 700,
+              }}
+              title="Dùng thử giao diện V2 (API tập trung chuẩn kiến trúc)"
+            >
+              <span>Trải nghiệm V2</span>
+              <Sparkles size={14} />
+            </Link>
 
             {/* Back to Dashboard */}
             <Link

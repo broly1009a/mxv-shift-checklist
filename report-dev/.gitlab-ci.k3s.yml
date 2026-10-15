@@ -1,0 +1,84 @@
+k3s_build_image:
+  stage: k3s_build
+  image: docker:24
+  tags:
+    - mss-dev-be-runner
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  script:
+    - |
+      : "${REGISTRY_PUSH_HOST:=localhost:5000}"
+      : "${REGISTRY_PULL_HOST:=10.0.4.19:5000}"
+      : "${REGISTRY_NAMESPACE:=mss}"
+
+      PUSH_REPO="${REGISTRY_PUSH_HOST}/${REGISTRY_NAMESPACE}/${CI_PROJECT_NAME}"
+      PULL_REPO="${REGISTRY_PULL_HOST}/${REGISTRY_NAMESPACE}/${CI_PROJECT_NAME}"
+
+      IMAGE_SHA="${PUSH_REPO}:${CI_COMMIT_SHORT_SHA}"
+      IMAGE_TAG="${PUSH_REPO}:${CI_COMMIT_TAG}"
+
+      docker build \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        -t "$IMAGE_SHA" \
+        .
+
+      docker push "$IMAGE_SHA"
+
+      docker tag "$IMAGE_SHA" "$IMAGE_TAG"
+      docker push "$IMAGE_TAG"
+
+      echo "Pushed image: $IMAGE_TAG"
+      echo "Deploy image: ${PULL_REPO}:${CI_COMMIT_TAG}"
+
+k3s_deploy:
+  stage: k3s_deploy
+  image: alpine:3.20
+  tags:
+    - mss-dev-be-runner
+  needs:
+    - k3s_build_image
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  before_script:
+    - apk add --no-cache openssh-client tar
+  script:
+    - |
+      : "${REGISTRY_PULL_HOST:=10.0.4.19:5000}"
+      : "${REGISTRY_NAMESPACE:=mss}"
+      : "${K3S_HOST:=oper@10.0.4.20}"
+      : "${K3S_NAMESPACE:=mss-dev}"
+      : "${K3S_HELM:=/home/oper/bin/helm}"
+      : "${K3S_KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
+      : "${K3S_SSH_OPTS:=-o StrictHostKeyChecking=no -o BatchMode=yes}"
+
+      mkdir -p ~/.ssh
+      chmod 700 ~/.ssh
+      SSH_KEY_FILE="$HOME/.ssh/k3s_deploy_key"
+
+      if [ -n "${K3S_SSH_PRIVATE_KEY_FILE:-}" ] && [ -f "$K3S_SSH_PRIVATE_KEY_FILE" ]; then
+        tr -d '\r' < "$K3S_SSH_PRIVATE_KEY_FILE" > "$SSH_KEY_FILE"
+      elif [ -n "${K3S_SSH_PRIVATE_KEY:-}" ] && [ -f "$K3S_SSH_PRIVATE_KEY" ]; then
+        tr -d '\r' < "$K3S_SSH_PRIVATE_KEY" > "$SSH_KEY_FILE"
+      elif [ -n "${K3S_SSH_PRIVATE_KEY:-}" ]; then
+        printf '%s\n' "$K3S_SSH_PRIVATE_KEY" | tr -d '\r' > "$SSH_KEY_FILE"
+      else
+        echo "K3S_SSH_PRIVATE_KEY or K3S_SSH_PRIVATE_KEY_FILE must be configured" >&2
+        exit 1
+      fi
+      chmod 600 "$SSH_KEY_FILE"
+      K3S_SSH_OPTS="$K3S_SSH_OPTS -i $SSH_KEY_FILE -o IdentitiesOnly=yes"
+
+      REMOTE_CHART_DIR="/tmp/identity-chart"
+      tar -C helm -czf - identity | ssh $K3S_SSH_OPTS "$K3S_HOST" "set -e; rm -rf '$REMOTE_CHART_DIR'; mkdir -p '$REMOTE_CHART_DIR'; tar -C '$REMOTE_CHART_DIR' -xzf -"
+
+      ssh $K3S_SSH_OPTS "$K3S_HOST" "set -e; kubectl get namespace '$K3S_NAMESPACE' >/dev/null || kubectl create namespace '$K3S_NAMESPACE'"
+      ssh $K3S_SSH_OPTS "$K3S_HOST" "set -e; kubectl -n '$K3S_NAMESPACE' get secret identity-runtime >/dev/null || kubectl -n '$K3S_NAMESPACE' create secret generic identity-runtime"
+
+      ssh $K3S_SSH_OPTS "$K3S_HOST" "set -e; KUBECONFIG='$K3S_KUBECONFIG' '$K3S_HELM' upgrade --install identity '$REMOTE_CHART_DIR/identity' \
+        --namespace '$K3S_NAMESPACE' \
+        --set secret.existingSecret=identity-runtime \
+        --set image.repository='${REGISTRY_PULL_HOST}/${REGISTRY_NAMESPACE}/${CI_PROJECT_NAME}' \
+        --set image.tag='${CI_COMMIT_TAG}'"
+
+      ssh $K3S_SSH_OPTS "$K3S_HOST" "kubectl -n '$K3S_NAMESPACE' rollout status deployment/identity --timeout=180s"

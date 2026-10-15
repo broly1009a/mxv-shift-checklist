@@ -170,7 +170,7 @@ async function runTest() {
   }
   await mongoose.disconnect();
 
-  const msRawUrl = credentials.url || 'https://msystem.mxv.vn/';
+  const msRawUrl = credentials.url || '';
   const msBaseDomain = msRawUrl.split('#')[0].replace(/\/$/, '');
   const username = credentials.username || '';
   const password = credentials.password || '';

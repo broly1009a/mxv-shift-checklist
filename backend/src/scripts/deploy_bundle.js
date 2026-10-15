@@ -34,150 +34,82 @@ function copyFileWithDir(src, dest) {
 
 function copyDirRecursive(srcDir, destDir) {
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(srcDir, entry.name);
-    const destPath = path.join(destDir, entry.name);
-    if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
+  const entries = fs.readdirSync(srcDir);
+  for (const name of entries) {
+    const srcPath = path.join(srcDir, name);
+    const destPath = path.join(destDir, name);
+    try {
+      const stat = fs.statSync(srcPath);
+      if (stat.isDirectory()) {
+        copyDirRecursive(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    } catch (err) {
+      console.warn(`Skip error on ${srcPath}:`, err.message);
     }
   }
 }
 
 // 1. Files cần copy
 const filesToDeploy = [
+  'backend/src/app.module.ts',
+  'backend/tsconfig.json',
+  'backend/tsconfig.build.json',
   'backend/src/database/database.module.ts',
   'backend/src/database/seed.service.ts',
   'backend/sso-auto-assign.config.json',
   'backend/src/modules/auth/auth.service.ts',
-  'backend/src/modules/bot-engine/bot-engine.module.ts',
-  'backend/src/modules/bot-engine/bot-engine.controller.ts',
-  'backend/src/modules/bot-engine/bot-engine.service.ts',
-  'backend/src/modules/bot-engine/bot-job-queue.service.ts',
-  'backend/src/modules/bot-engine/scheduler.service.ts',
-  'backend/src/modules/bot-engine/email-watcher.service.ts',
-  'backend/src/modules/bot-engine/ccp-ce-downloader.service.ts',
-  'backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts',
-  'backend/src/modules/bot-engine/handlers/rpa-download.handler.ts',
-  'backend/src/modules/bot-engine/rpa-downloader.service.ts',
-  'backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts',
-  'backend/src/modules/bot-engine/handlers/file-audit.handler.ts',
-  'backend/src/modules/bot-engine/ce-ccp-gtt.service.ts',
-  'backend/src/modules/bot-engine/helpers/bot-path.helper.ts',
-  'backend/src/modules/reconciliation/services/recon-console-summary.service.ts',
-  'backend/src/modules/reconciliation/services/klgd-recon.service.ts',
-  'backend/src/modules/reconciliation/services/pre-eod-recon.service.ts',
-  'backend/src/modules/reconciliation/reconciliation.service.ts',
-  'backend/src/modules/reconciliation/reconciliation.controller.ts',
-  'backend/src/scripts/run_auto_check_pre_eod_active.ts',
-  'backend/src/modules/reconciliation/services/ccp-recon.service.ts',
-  'backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts',
-  'backend/src/modules/reconciliation/parsers/cqg-excel.parser.ts',
   'backend/src/modules/system-settings/system-settings.service.ts',
   'backend/src/schemas/ccp-lot-run-history.schema.ts',
-  'backend/src/modules/tkgd-automation/tkgd-automation.service.ts',
-  'backend/src/modules/tkgd-automation/tkgd-automation.controller.ts',
   'frontend/src/app/trading-manager/page.tsx',
-  'frontend/src/app/trading-manager/ccp-ce/page.tsx',
-  'frontend/src/app/trading-manager/ms-cqg/page.tsx',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx',
-  'backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts',
-  'backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts',
-  'frontend/src/app/trading-manager/utils/reconLogParser.ts',
-  'frontend/src/app/trading-manager/utils/tradingDateUtils.ts',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx',
-  'frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx',
-  'frontend/src/app/trading-manager/components/core-ccp/CoreCcpBackupSection.tsx',
-  'frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx',
-  'frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx',
-  'frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx',
+  'frontend/src/app/admin/tkgd-dashboard/page.tsx',
+  'frontend/src/app/admin/tkgd-config/page.tsx',
   'CHANGELOG_AI.md',
-  'docs/BAN_THIET_KE_MASTER_SWITCH_TAT_BAT_TU_DONG_TRADING_MANAGER.md',
-  'backend/docs/BAO_CAO_TONG_HOP_BUG_RPA_BACKUP_VA_DOI_CHIEU.md',
-  'backend/src/scripts/verify_fix_scenarios.js',
-  'backend/src/scripts/test_ms_tab_downloads.js',
-  'backend/src/scripts/test_cqg_tab_downloads.js',
-  'backend/src/scripts/test_gtt_cqg_benchmark.js',
-  'backend/src/modules/bot-engine/gtt-checker.service.ts',
-  'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx',
-  'backend/src/modules/bot-engine/handlers/macro-value.handler.ts',
-  'backend/src/modules/bot-engine/handlers/macro-lot.handler.ts',
-  'backend/src/scripts/test_check_klgd_playwright.js',
-  'backend/src/tests/test_overnight_cqg_time_fix.ts',
-  'backend/src/scripts/test_ms_headless_download.js',
-  'backend/src/scripts/test_ce_headless_download.js',
-  'backend/src/scripts/test_autonomous_backup_stat_suite.js',
-  'backend/src/scripts/test_physical_workflow_pipeline.js',
-  'backend/src/scripts/test_full_real_workflow_pipeline.js',
 ];
 
 for (const rel of filesToDeploy) {
   copyFileWithDir(path.join(rootDir, rel), path.join(tempDeployDir, rel));
 }
 
-// 1.1 Toàn bộ thư mục frontend job-queue
-const srcJobQueue = path.join(rootDir, 'frontend/src/app/trading-manager/components/job-queue');
-if (fs.existsSync(srcJobQueue)) {
-  const destJobQueue = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/job-queue');
-  copyDirRecursive(srcJobQueue, destJobQueue);
-  console.log('Copied full frontend job-queue folder.');
-}
+// 1. Đồng bộ toàn bộ các module Backend V1 & Modular V2
+const backendDirs = [
+  'backend/src/modules/bot-engine',
+  'backend/src/modules/reconciliation',
+  'backend/src/modules/ccp-statistics',
+  'backend/src/modules/lot-statistics',
+  'backend/src/modules/ingress',
+  'backend/src/modules/trading-ops',
+  'backend/src/modules/checklist-hub',
+  'backend/src/shared',
+  'backend/src/legacy',
+];
 
-// 1.2 Toàn bộ thư mục frontend ce-acm
-const srcCeAcm = path.join(rootDir, 'frontend/src/app/trading-manager/components/ce-acm');
-if (fs.existsSync(srcCeAcm)) {
-  const destCeAcm = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/ce-acm');
-  copyDirRecursive(srcCeAcm, destCeAcm);
-  console.log('Copied full frontend ce-acm folder.');
-}
+backendDirs.forEach((dirRel) => {
+  const src = path.join(rootDir, dirRel);
+  if (fs.existsSync(src)) {
+    const dest = path.join(tempDeployDir, dirRel);
+    copyDirRecursive(src, dest);
+    console.log(`Copied full ${dirRel} folder.`);
+  }
+});
 
-// 1.25 Toàn bộ thư mục frontend core-ccp
-const srcCoreCcp = path.join(rootDir, 'frontend/src/app/trading-manager/components/core-ccp');
-if (fs.existsSync(srcCoreCcp)) {
-  const destCoreCcp = path.join(tempDeployDir, 'frontend/src/app/trading-manager/components/core-ccp');
-  copyDirRecursive(srcCoreCcp, destCoreCcp);
-  console.log('Copied full frontend core-ccp folder.');
-}
+// 2. Đồng bộ toàn bộ các thư mục Frontend mới & Legacy
+const frontendDirs = [
+  'frontend/src/app/trading-manager',
+  'frontend/src/app/trading-manager-v2',
+  'frontend/src/features/trading',
+  'frontend/src/legacy',
+];
 
-// 1.3 Toàn bộ thư mục bot-engine
-const srcBotEngine = path.join(rootDir, 'backend/src/modules/bot-engine');
-if (fs.existsSync(srcBotEngine)) {
-  const destBotEngine = path.join(tempDeployDir, 'backend/src/modules/bot-engine');
-  copyDirRecursive(srcBotEngine, destBotEngine);
-  console.log('Copied full backend/src/modules/bot-engine folder.');
-}
-
-// 2. Toàn bộ thư mục ccp-statistics (bao gồm cả inputExampleCppFull_2 và review_output)
-const srcCcpStats = path.join(rootDir, 'backend/src/modules/ccp-statistics');
-const destCcpStats = path.join(tempDeployDir, 'backend/src/modules/ccp-statistics');
-copyDirRecursive(srcCcpStats, destCcpStats);
-console.log('Copied full backend/src/modules/ccp-statistics folder.');
-
-// 2.05 Toàn bộ thư mục lot-statistics
-const srcLotStats = path.join(rootDir, 'backend/src/modules/lot-statistics');
-const destLotStats = path.join(tempDeployDir, 'backend/src/modules/lot-statistics');
-copyDirRecursive(srcLotStats, destLotStats);
-console.log('Copied full backend/src/modules/lot-statistics folder.');
-
-// 2.1 Toàn bộ thư mục frontend/src/features/tkgd (đồng bộ chuẩn types & components)
-const srcTkgd = path.join(rootDir, 'frontend/src/features/tkgd');
-const destTkgd = path.join(tempDeployDir, 'frontend/src/features/tkgd');
-copyDirRecursive(srcTkgd, destTkgd);
-console.log('Copied full frontend/src/features/tkgd folder.');
-
-// 2.2 Toàn bộ thư mục backend/scripts
-const srcBackendScripts = path.join(rootDir, 'backend/scripts');
-if (fs.existsSync(srcBackendScripts)) {
-  const destBackendScripts = path.join(tempDeployDir, 'backend/scripts');
-  copyDirRecursive(srcBackendScripts, destBackendScripts);
-  console.log('Copied full backend/scripts folder.');
-}
+frontendDirs.forEach((dirRel) => {
+  const src = path.join(rootDir, dirRel);
+  if (fs.existsSync(src)) {
+    const dest = path.join(tempDeployDir, dirRel);
+    copyDirRecursive(src, dest);
+    console.log(`Copied full ${dirRel} folder.`);
+  }
+});
 
 // 3. Nén file tar.gz
 console.log('\n=== BƯỚC 2: NÉN FILE TAR.GZ ===');
@@ -206,15 +138,17 @@ conn.on('ready', () => {
         echo "=== 1. EXTRACTING BUNDLE ===" &&
         tar -xzf /tmp/deploy_bundle.tar.gz -C /opt/mxv-checklist/ &&
         rm -f /tmp/deploy_bundle.tar.gz &&
+        rm -rf /opt/mxv-checklist/backend/src/modules/tkgd-automation /opt/mxv-checklist/frontend/src/features/tkgd /opt/mxv-checklist/frontend/src/components/tkgd &&
         rm -f /opt/mxv-checklist/backend/src/modules/bot-engine/helpers/tkgd-reconcile-rules.helper.ts &&
+        rm -f /opt/mxv-checklist/backend/src/modules/reconciliation/reconciliation.service.backup.ts &&
 
         echo "=== 2. BUILDING BACKEND ===" &&
-        cd /opt/mxv-checklist/backend && npm run build &&
-        pm2 reload mxv-backend &&
+        cd /opt/mxv-checklist/backend && rm -f tsconfig*.tsbuildinfo && rm -rf dist && npm run build &&
+        pm2 restart mxv-backend &&
 
         echo "=== 3. BUILDING FRONTEND ===" &&
         cd /opt/mxv-checklist/frontend && npm run build &&
-        pm2 reload mxv-frontend &&
+        pm2 restart mxv-frontend &&
 
         echo "=== 4. PM2 STATUS ===" &&
         pm2 status

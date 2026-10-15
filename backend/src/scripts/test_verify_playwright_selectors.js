@@ -108,7 +108,7 @@ function staticAuditCodebase() {
     path.join(__dirname, '../modules/bot-engine/rpa-downloader.service.ts'),
     path.join(__dirname, '../modules/bot-engine/helpers/msystem-tab-navigator.helper.ts'),
     path.join(__dirname, '../modules/bot-engine/ccp-ce-downloader.service.ts'),
-    path.join(__dirname, '../modules/bot-engine/gtt-checker.service.ts'),
+    path.join(__dirname, '../modules/trading-ops/services/gtt-checker.service.ts'),
   ];
 
   let staticErrors = 0;

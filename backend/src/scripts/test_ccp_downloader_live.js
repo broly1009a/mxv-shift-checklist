@@ -90,7 +90,7 @@ async function main() {
   const {
     CcpCeDownloaderService,
     DEFAULT_CCP_REPORTS
-  } = require('../../dist/modules/bot-engine/ccp-ce-downloader.service');
+  } = require('../../dist/modules/ingress');
 
   const downloader = new CcpCeDownloaderService();
 

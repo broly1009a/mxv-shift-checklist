@@ -1,0 +1,30 @@
+{
+  "name": "@mxv/coreccp-api-client",
+  "version": "1.0.0",
+  "description": "Module API Client & Data Ingress độc lập cho hệ thống CoreCCP MXV Clearing",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test:quick": "node scripts/test_quick_api.js",
+    "download:all": "node scripts/run_download_all_25.js"
+  },
+  "keywords": [
+    "mxv",
+    "coreccp",
+    "clearing",
+    "ingress",
+    "api-client",
+    "reconciliation"
+  ],
+  "author": "MXV IT Automation Team",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.40.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0"
+  }
+}

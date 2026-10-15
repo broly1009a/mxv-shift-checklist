@@ -1,0 +1,272 @@
+[
+  {
+    "code": "CUSTOMERS_COMPANY",
+    "name": "Khách hàng tổ chức/DN",
+    "route": "/ACCOUNTMNG/CUSTOMERS_COMPANY",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpointCalled": "/ccp/inquiry/maintain/CUSTOMERS_COMPANY/search/CUSTOMERS_COMPANY",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "CUSTOMERS_COMPANY"
+    },
+    "notes": ""
+  },
+  {
+    "code": "ORDERBOOK",
+    "name": "Danh sách lệnh (DSL)",
+    "route": "/ORDERS/ORDERBOOK",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_1791885002944"
+    },
+    "notes": ""
+  },
+  {
+    "code": "ORDERMATCH_DETAIL",
+    "name": "Khớp lệnh chi tiết (DSGD)",
+    "route": "/ORDERS/ORDERMATCH_DETAIL",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERMATCH_DETAIL",
+      "search": {
+        "SESSION_DATE": {
+          "from": "13/10/2026",
+          "to": "13/10/2026"
+        }
+      },
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERMATCH_DETAIL_1791885009521"
+    },
+    "notes": ""
+  },
+  {
+    "code": "OPEN_POSITION",
+    "name": "Trạng thái mở (TTM)",
+    "route": "/ORDERS/OPEN_POSITION",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "OPEN_POSITION_EXPORT",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 50
+      },
+      "exptype": "XLSX",
+      "fekey": "OPEN_POSITION_EXPORT_1791885016367"
+    },
+    "notes": ""
+  },
+  {
+    "code": "PNL_EXECUTED",
+    "name": "Trạng thái tất toán (TTTT)",
+    "route": "/ORDERS/PNL_EXECUTED",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "PNL_EXECUTED_EXPORT",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 50
+      },
+      "exptype": "XLSX",
+      "fekey": "PNL_EXECUTED_EXPORT_1791885026110"
+    },
+    "notes": ""
+  },
+  {
+    "code": "CASHTRANFER_HIST",
+    "name": "Lịch sử nộp rút tiền (NR)",
+    "route": "/CASHTRANFER/CASHTRANFER_HIST",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "CASHTRANFER_HIST",
+      "search": {
+        "CHECKERDT": {
+          "from": "13/10/2026",
+          "to": "13/10/2026"
+        }
+      },
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "CASHTRANFER_HIST_1791885032325"
+    },
+    "notes": ""
+  },
+  {
+    "code": "ACCOUNTS_INFO",
+    "name": "Danh sách tài khoản (DSTKGD)",
+    "route": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ACCOUNTS_INFO",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ACCOUNTS_INFO_1791885038487"
+    },
+    "notes": ""
+  },
+  {
+    "code": "ACCTMARGIN_ALL",
+    "name": "Trạng thái TKGD (Ký quỹ)",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpointCalled": "/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/ACCTMARGIN_ALL",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "ACCTMARGIN_ALL"
+    },
+    "notes": ""
+  },
+  {
+    "code": "MARGIN_MNG",
+    "name": "Quản lý ký quỹ TKGD",
+    "route": "/RISKMNG/MARGIN_MNG",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpointCalled": "/ccp/inquiry/maintain/DASHBOARD/search/TRANSACTION",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "TRANSACTION"
+    },
+    "notes": ""
+  },
+  {
+    "code": "SETTLEMENT",
+    "name": "Quản lý giá thanh toán (GTT)",
+    "route": "/PRODUCT/SETTLEMENT",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpointCalled": "/ccp/inquiry/maintain/SETTLEMENT/search/SETTLEMENT",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "SETTLEMENT"
+    },
+    "notes": ""
+  },
+  {
+    "code": "COMMODITY",
+    "name": "Hàng hóa & Hợp đồng (HH)",
+    "route": "/PRODUCT/COMMODITY",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 1: CLIENT_SIDE_PAGESIZE_FULL",
+    "endpointCalled": "/ccp/inquiry/maintain/COMMODITY/search/COMMODITY",
+    "payloadDetails": {
+      "pageSize": 200000,
+      "searchcode": "COMMODITY"
+    },
+    "notes": ""
+  },
+  {
+    "code": "ORDERBOOK_MM",
+    "name": "Danh sách lệnh MM",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "hasExportButton": true,
+    "exportOptions": [
+      "Xuất trang hiện tại",
+      "Xuất tất cả"
+    ],
+    "detectedCallType": "KIỂU 2: SERVER_SIDE_EXPORT",
+    "endpointCalled": "POST /ccp/export/create",
+    "payloadDetails": {
+      "searchcode": "ORDERBOOK_MM",
+      "search": {},
+      "filter": {},
+      "orderBy": {},
+      "page": {
+        "pageIndex": 1,
+        "pageSize": 20
+      },
+      "exptype": "XLSX",
+      "fekey": "ORDERBOOK_MM_1791885074555"
+    },
+    "notes": ""
+  }
+]

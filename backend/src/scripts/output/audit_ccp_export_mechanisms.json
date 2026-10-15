@@ -1,0 +1,442 @@
+[
+  {
+    "code": "ORDERBOOK",
+    "name": "Danh sách lệnh (DSL)",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/ORDERBOOK",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ORDERBOOK/search/ORDERBOOK",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "ID",
+        "CUSTODYCD",
+        "TXDATE",
+        "TXTIME",
+        "EXECTIME",
+        "UPDATETIME",
+        "TRANSACTTIME",
+        "AFACCTNO"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "ORDERMATCH_DETAIL",
+    "name": "Lịch sử giao dịch chi tiết (DSGD)",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/ORDERMATCH_DETAIL",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ORDERMATCH_DETAIL/search/ORDERMATCH_DETAIL",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "TRADEID",
+        "SESSION_DATE",
+        "ODORDERID",
+        "AFACCTNO",
+        "TXDATE",
+        "ROOTORDERID",
+        "ORIGINORDERID",
+        "ORDERID"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "ORDERMATCH_ALL",
+    "name": "Lịch sử giao dịch gộp",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/ORDERMATCH_ALL",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ORDERMATCH_ALL/search/ORDERMATCH_ALL",
+      "supported": false,
+      "totalCount": null,
+      "sampleKeys": []
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "SERVER_SIDE_EXPORT (Tải .XLSX qua /export/create)"
+  },
+  {
+    "code": "OPEN_POSITION",
+    "name": "Trạng thái mở (TTM)",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/OPEN_POSITION",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/OPEN_POSITION/search/OPEN_POSITION",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "UACODE",
+        "ACCTNO",
+        "SYMBOL",
+        "CUSTODYCD",
+        "FULLNAME",
+        "MEMBERCODE",
+        "MEMBER_NAME",
+        "LONGQTTY"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "PNL_EXECUTED",
+    "name": "Trạng thái tất toán (TTTT)",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/PNL_EXECUTED",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/PNL_EXECUTED/search/PNL_EXECUTED",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "ACCTNO",
+        "ACCOUNT_ID",
+        "SYMBOL",
+        "LONGQTTY",
+        "SHORTQTTY",
+        "PNLEXCUTED",
+        "PNLEXCUTED_VND",
+        "PNLEXCUTED_USD"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "ORDERBOOK_MM",
+    "name": "Danh sách lệnh MM",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/ORDERBOOK_MM",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ORDERBOOK_MM/search/ORDERBOOK_MM",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "ID",
+        "CUSTODYCD",
+        "TXDATE",
+        "TXTIME",
+        "EXECTIME",
+        "UPDATETIME",
+        "TRANSACTTIME",
+        "AFACCTNO"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "ORDERBOOK_ALL_MM",
+    "name": "Lịch sử lệnh MM",
+    "group": "Lệnh và vị thế",
+    "route": "/ORDERS/ORDERBOOK_ALL_MM",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ORDERBOOK_ALL_MM/search/ORDERBOOK_ALL_MM",
+      "supported": false,
+      "totalCount": null,
+      "sampleKeys": []
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "SERVER_SIDE_EXPORT (Tải .XLSX qua /export/create)"
+  },
+  {
+    "code": "CASHTRANFER_HIST",
+    "name": "Lịch sử Nộp/ Rút tiền (NR)",
+    "group": "Nộp rút tiền",
+    "route": "/CASHTRANFER/CASHTRANFER_HIST",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/CASHTRANFER_HIST/search/CASHTRANFER_HIST",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "TXDATE",
+        "MEMBER_CODE",
+        "MEMBER_NAME",
+        "ACCTNO",
+        "FULLNAME",
+        "TYPE",
+        "AMOUNT",
+        "CURRENCY"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "ACCOUNTS_INFO",
+    "name": "Danh sách tài khoản (DSTKGD)",
+    "group": "Quản lý tài khoản",
+    "route": "/ACCOUNTMNG/ACCOUNTS_INFO",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ACCOUNTS_INFO/search/ACCOUNTS_INFO",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "CUSTODYCD",
+        "INVESTORCODE",
+        "ACCTNO",
+        "CUSTID",
+        "FULLNAME",
+        "MEMBERCODE",
+        "MEMBERNAME",
+        "STATUS"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "ACCTMARGIN_ALL",
+    "name": "Quản lý trạng thái TKGD (Ký quỹ)",
+    "group": "Quản lý rủi ro",
+    "route": "/RISKMNG/ACCTMARGIN_ALL",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/ACCTMARGIN_ALL",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "DELIVERY_FEE",
+        "SUBSTITUTE_FEE",
+        "DELIVERY_MARGIN",
+        "INVESTORCODE",
+        "ACCTNO",
+        "FULLNAME",
+        "MEMBERCODE",
+        "MEMBERNAME"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "MARGIN_MNG",
+    "name": "Quản lý ký quỹ TKGD",
+    "group": "Quản lý rủi ro",
+    "route": "/RISKMNG/MARGIN_MNG",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/MARGIN_MNG/search/MARGIN_MNG",
+      "supported": false,
+      "totalCount": null,
+      "sampleKeys": []
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "SERVER_SIDE_EXPORT (Tải .XLSX qua /export/create)"
+  },
+  {
+    "code": "SETTLEMENT",
+    "name": "Quản lý giá thanh toán (GTT)",
+    "group": "Quản lý sản phẩm",
+    "route": "/PRODUCT/SETTLEMENT",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/SETTLEMENT/search/SETTLEMENT",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "UACODE",
+        "SECTORCODE",
+        "SECTORCODE_DESC",
+        "EXCHANGE",
+        "EXCHANGE_DESC",
+        "VN_FULLNAME",
+        "EN_FULLNAME",
+        "SYMBOL"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "SETTLEMENT_HIST",
+    "name": "Lịch sử giá thanh toán",
+    "group": "Quản lý sản phẩm",
+    "route": "/PRODUCT/SETTLEMENT_HIST",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/SETTLEMENT_HIST/search/SETTLEMENT_HIST",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "UACODE",
+        "SECTORCODE",
+        "SECTORCODE_DESC",
+        "EXCHANGE",
+        "EXCHANGE_DESC",
+        "VN_FULLNAME",
+        "EN_FULLNAME",
+        "SYMBOL"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "COMMODITY",
+    "name": "Quản lý hàng hóa, hợp đồng (HH)",
+    "group": "Quản lý sản phẩm",
+    "route": "/PRODUCT/COMMODITY",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/COMMODITY/search/COMMODITY",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "UACODE",
+        "UACODE_EX",
+        "SECTORCODE",
+        "SECTORCODE_DESC",
+        "EXCHANGE",
+        "EXCHANGE_DESC",
+        "VN_FULLNAME",
+        "EN_FULLNAME"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "FCM_INFORMATION",
+    "name": "Danh sách FCM",
+    "group": "Quản lý FCM",
+    "route": "/FCMMNG/FCM_INFORMATION",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/FCM_INFORMATION/search/FCM_INFORMATION",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "FCMCODE",
+        "FCMNAME",
+        "OMNIBUS",
+        "ISUSETAN",
+        "ISUSETAN_DESC",
+        "STATUS",
+        "STATUS_DESC",
+        "APR_STATUS"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  },
+  {
+    "code": "TLPROFILES",
+    "name": "Người sử dụng",
+    "group": "Người dùng và phân quyền",
+    "route": "/USERMNG/TLPROFILES",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/TLPROFILES/search/TLPROFILES",
+      "supported": false,
+      "totalCount": null,
+      "sampleKeys": []
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "SERVER_SIDE_EXPORT (Tải .XLSX qua /export/create)"
+  },
+  {
+    "code": "CURRENCYEXCHANGERATE",
+    "name": "Tỷ giá nguyên tệ",
+    "group": "Tham số hệ thống",
+    "route": "/SYSCONFIGMNG/CURRENCYEXCHANGERATE",
+    "searchApi": {
+      "endpoint": "/ccp/inquiry/maintain/CURRENCYEXCHANGERATE/search/CURRENCYEXCHANGERATE",
+      "supported": true,
+      "totalCount": null,
+      "sampleKeys": [
+        "BASECURRENCY",
+        "EXCHANGERATE",
+        "BUYRATE",
+        "SELLRATE",
+        "CREATEDDATE",
+        "LASTCHANGE",
+        "STATUS_DESC",
+        "APPRV_STS"
+      ]
+    },
+    "serverSideExport": {
+      "endpoint": "/ccp/export/create",
+      "supported": true,
+      "code": "0"
+    },
+    "clientSideExport": false,
+    "recommendedMechanism": "HYBRID (API JSON siêu tốc & Server-Side XLSX)"
+  }
+]

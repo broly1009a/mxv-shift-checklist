@@ -7,21 +7,13 @@ import { BotEngineService } from './bot-engine.service';
 import { EmailWatcherService } from './email-watcher.service';
 import { FileWatcherService } from './file-watcher.service';
 import { ApiWatcherService } from './api-watcher.service';
-import { RpaDownloaderService } from './rpa-downloader.service';
-import { GttCheckerService } from './gtt-checker.service';
-import { CeCcpGttCheckerService } from './ce-ccp-gtt.service';
 import { BotJobQueueService } from './bot-job-queue.service';
 import { BotEngineController } from './bot-engine.controller';
 import { AgentController } from './bot-agent.controller';
 import { CqgSyncService } from './cqg-sync.service';
-import { PostEodHandlerService } from './post-eod-handler.service';
-import { ReconciliationModule } from '../reconciliation/reconciliation.module';
 import { SchedulerService } from './scheduler.service';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { LotStatisticsModule } from '../lot-statistics/lot-statistics.module';
-import { CcpStatisticsModule } from '../ccp-statistics/ccp-statistics.module';
 import { OmsWatcherService } from './oms-watcher.service';
-import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
 import { MarginChangeRequestsModule } from '../margin-change-requests/margin-change-requests.module';
 import { MarginCheckerModule } from '../margin-checker/margin-checker.module';
 import { SystemLogsModule } from '../system-logs/system-logs.module';
@@ -37,6 +29,9 @@ import { ReconJobsHandler } from './handlers/recon-jobs.handler';
 import { FileAuditJobHandler } from './handlers/file-audit.handler';
 import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
 import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
+import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
+import { IngressModule } from '../ingress/ingress.module';
+import { TradingOpsModule } from '../trading-ops/trading-ops.module';
 
 @Module({
   imports: [
@@ -45,13 +40,13 @@ import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
       { name: BotJob.name, schema: BotJobSchema },
     ]),
     ShiftsModule,
-    forwardRef(() => ReconciliationModule),
-    forwardRef(() => MarginChangeRequestsModule),
+    MarginChangeRequestsModule,
     NotificationsModule,
-    LotStatisticsModule,
-    CcpStatisticsModule,
     MarginCheckerModule,
     SystemLogsModule,
+    ChecklistHubModule,
+    IngressModule,
+    forwardRef(() => TradingOpsModule),
   ],
   providers: [
     // Core Registry & Handlers
@@ -70,16 +65,11 @@ import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
     EmailWatcherService,
     FileWatcherService,
     ApiWatcherService,
-    RpaDownloaderService,
-    GttCheckerService,
-    CeCcpGttCheckerService,
     BotJobQueueService,
     CqgSyncService,
-    PostEodHandlerService,
     BotEngineService,
     SchedulerService,
     OmsWatcherService,
-    CcpCeDownloaderService,
   ],
   controllers: [BotEngineController, AgentController],
   exports: [
@@ -87,14 +77,9 @@ import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
     BotJobQueueService,
     BotEngineService,
     EmailWatcherService,
-    RpaDownloaderService,
-    GttCheckerService,
-    CeCcpGttCheckerService,
     CqgSyncService,
-    PostEodHandlerService,
     SchedulerService,
     OmsWatcherService,
-    CcpCeDownloaderService,
     FileAuditJobHandler,
   ],
 })

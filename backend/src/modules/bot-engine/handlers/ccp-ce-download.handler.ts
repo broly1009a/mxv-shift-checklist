@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
-import { CcpCeDownloaderService, CcpReportConfig, DEFAULT_CCP_REPORTS, DEFAULT_CE_REPORTS } from '../ccp-ce-downloader.service';
+import { CcpCeScraperService, CcpReportConfig, DEFAULT_CCP_REPORTS, DEFAULT_CE_REPORTS } from '../../ingress/scrapers/ccp-ce-scraper.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { decrypt } from '../utils/crypto';
 import {
@@ -36,7 +36,7 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
-    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
+    private readonly ccpCeDownloaderService: CcpCeScraperService,
     private readonly settingsService: SystemSettingsService,
   ) {}
 
@@ -104,7 +104,7 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         // Tải để đối soát/kiểm tra -> Lưu vào thư mục riêng TradingCheck, tuyệt đối không ghi đè Backup
         const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
         const defaultSettingPath = isCcp
-          ? 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'
+          ? ''
           : 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
         const rawBackup = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
         baseDir = resolveStoragePathCrossPlatform(rawBackup)
@@ -115,7 +115,7 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         if (!baseDir || baseDir === 'backupCCP' || baseDir === 'backupCE') {
           const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
           const defaultSettingPath = isCcp
-            ? 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'
+            ? ''
             : 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
           baseDir = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
         }

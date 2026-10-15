@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
-import { RpaDownloaderService } from '../modules/bot-engine/rpa-downloader.service';
+import { RpaDownloaderService } from '../modules/ingress';
 import { decrypt } from '../modules/bot-engine/utils/crypto';
 import * as path from 'path';
 import * as fs from 'fs';

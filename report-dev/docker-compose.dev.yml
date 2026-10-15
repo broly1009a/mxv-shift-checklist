@@ -1,0 +1,33 @@
+services:
+  report-service:
+    build: 
+      context: .
+      secrets:
+        - npmrc
+        - npm_token
+    image: mrs-report:latest
+    container_name: mrs-report
+    restart: always
+    env_file:
+      - .env.development
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "${SERVICE_PORT}:${SERVICE_PORT}"
+    volumes:
+      - report-logs:/app/logs
+    networks:
+      - net-mxv
+
+volumes:
+  report-logs:
+
+networks:
+  net-mxv:
+    external: true
+
+secrets:
+  npmrc:
+    file: ./.npmrc
+  npm_token:
+    environment: NPM_TOKEN

@@ -25,9 +25,9 @@ import * as XLSX from 'xlsx';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { BotJobQueueService } from './bot-job-queue.service';
-import { RpaDownloaderService } from './rpa-downloader.service';
-import { GttCheckerService } from './gtt-checker.service';
-import { CeCcpGttCheckerService } from './ce-ccp-gtt.service';
+import { RpaScraperService } from '../ingress/scrapers/rpa-scraper.service';
+import { GttCheckerService } from '../trading-ops/services/gtt-checker.service';
+import { CeCcpGttCheckerService } from '../trading-ops/services/ce-ccp-gtt.service';
 import { BotJob } from '../../schemas/bot-job.schema';
 import { ShiftLog } from '../../schemas/shift-log.schema';
 import { encrypt, decrypt } from './utils/crypto';
@@ -42,7 +42,7 @@ import {
 import { ShiftsService } from '../shifts/shifts.service';
 import { AgentController } from './bot-agent.controller';
 import { getRelatedTaskIds } from './constants/bot-task-registry';
-import { CcpCeDownloaderService } from './ccp-ce-downloader.service';
+import { CcpCeScraperService } from '../ingress/scrapers/ccp-ce-scraper.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { REQUIRED_CCP_FILES, REQUIRED_CE_FILES } from './handlers/file-audit.handler';
 import {
@@ -62,7 +62,7 @@ export class BotEngineController {
   constructor(
     private readonly settingsService: SystemSettingsService,
     private readonly jobQueueService: BotJobQueueService,
-    private readonly rpaService: RpaDownloaderService,
+    private readonly rpaService: RpaScraperService,
     private readonly gttService: GttCheckerService,
     private readonly cqgSyncService: CqgSyncService,
     private readonly omsWatcherService: OmsWatcherService,
@@ -72,7 +72,7 @@ export class BotEngineController {
     private readonly shiftsService: ShiftsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
-    private readonly ccpCeDownloaderService: CcpCeDownloaderService,
+    private readonly ccpCeDownloaderService: CcpCeScraperService,
     private readonly ceCcpGttService: CeCcpGttCheckerService,
   ) {}
 
@@ -107,7 +107,7 @@ export class BotEngineController {
     );
 
     let msystem = {
-      url: 'https://msystem.mxv.vn/',
+      url: '',
       username: '',
       password: '',
       pin: '',
@@ -140,7 +140,7 @@ export class BotEngineController {
       sftpFileExtensions: '',
     };
     let cast = {
-      url: 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+      url: '',
       username: '',
       password: '',
     };
@@ -161,7 +161,7 @@ export class BotEngineController {
       try {
         const decrypted = JSON.parse(decrypt(msystemRaw));
         msystem = {
-          url: decrypted.url || 'https://msystem.mxv.vn/',
+          url: decrypted.url || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
           pin: decrypted.pin ? '****' : '',
@@ -213,7 +213,7 @@ export class BotEngineController {
         const decrypted = JSON.parse(decrypt(castRaw));
         cast = {
           url:
-            decrypted.url || 'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+            decrypted.url || '',
           username: decrypted.username || '',
           password: decrypted.password ? '********' : '',
         };
@@ -363,7 +363,7 @@ export class BotEngineController {
       }
 
       const mergedMsystem = {
-        url: msystem.url || currentMsystem.url || 'https://msystem.mxv.vn/',
+        url: msystem.url || currentMsystem.url || '',
         username:
           msystem.username !== undefined
             ? msystem.username
@@ -495,7 +495,7 @@ export class BotEngineController {
         url:
           cast.url ||
           currentCast.url ||
-          'https://www.cqgtrader.com/CAST/Logon/Logon.asp',
+          '',
         username:
           cast.username !== undefined ? cast.username : currentCast.username,
         password:
@@ -2119,7 +2119,7 @@ export class BotEngineController {
   async getBackupMsConfig() {
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     return { backupPath };
   }
@@ -2157,7 +2157,7 @@ export class BotEngineController {
     });
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
 
     const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, targetDate);
@@ -2223,7 +2223,7 @@ export class BotEngineController {
   async triggerAuditMs(@Body('targetDate') targetDateStr?: string) {
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
 
     const job = await this.jobQueueService.enqueue('FILE_AUDIT_MS', {
@@ -2513,11 +2513,11 @@ export class BotEngineController {
     );
     const backupMs = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const backupCqg = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      '',
     );
     const defaultScriptPath = (() => {
       const relPath = path.join(
@@ -2621,11 +2621,11 @@ export class BotEngineController {
     );
     const backupPathMs = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const backupPathCqg = await this.settingsService.getSetting(
       'bot_backup_path_cqg',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
+      '',
     );
     const pythonExe = await this.settingsService.getSetting(
       'bot_python_path',
@@ -2996,7 +2996,7 @@ export class BotEngineController {
     });
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ccp',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures',
+      '',
     );
 
     const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, targetDate);

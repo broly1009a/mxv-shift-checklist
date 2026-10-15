@@ -6,7 +6,7 @@ process.env.HEADLESS_BOT = 'true';
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
-import { RpaDownloaderService } from '../modules/bot-engine/rpa-downloader.service';
+import { RpaDownloaderService } from '../modules/ingress';
 import * as path from 'path';
 import * as fs from 'fs';
 

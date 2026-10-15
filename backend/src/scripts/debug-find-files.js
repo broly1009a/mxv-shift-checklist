@@ -39,8 +39,8 @@ async function main() {
   const db = client.db();
 
   const settingsCol = db.collection('system_settings');
-  const msBackupBase = await settingsCol.findOne({ key: 'bot_backup_path_ms' }).then(s => s ? s.value : 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
-  const cqgBackupBase = await settingsCol.findOne({ key: 'bot_backup_path_cqg' }).then(s => s ? s.value : 'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures');
+  const msBackupBase = await settingsCol.findOne({ key: 'bot_backup_path_ms' }).then(s => s ? s.value : '');
+  const cqgBackupBase = await settingsCol.findOne({ key: 'bot_backup_path_cqg' }).then(s => s ? s.value : '');
   const acmBackupBase = msBackupBase.replace(/Backup MS\\Futures/i, 'Backup MS\\ACM');
 
   const tradingDate = new Date('2026-08-07');

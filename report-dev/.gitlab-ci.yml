@@ -1,0 +1,32 @@
+include:
+  - local: .gitlab-ci.k3s.yml
+
+stages:
+  - build_and_deploy
+  - k3s_build
+  - k3s_deploy
+variables:
+  DOCKER_HOST: unix:///var/run/docker.sock
+
+deploy_dev:
+  stage: build_and_deploy
+  image: docker:24
+  only:
+    - dev
+  tags:
+    - mss-dev-be-runner
+  script:
+    - echo "Deploying Identity Service to Development Environment..."
+    
+    # Bỏ qua việc copy file ra /var/mss/identity vì source code đã được build thẳng vào trong Docker image.
+    # Thêm export PATH để phòng hờ nếu runner là shell. Nếu là docker executor thì `image: docker:latest` sẽ cấp lệnh docker.
+    - export PATH=$PATH:/usr/local/bin:/usr/bin
+    
+    # Gán biến NPM_TOKEN bằng CI_JOB_TOKEN có sẵn của Gitlab để truyền vào docker-compose
+    - export NPM_TOKEN=${CI_JOB_TOKEN}
+    
+    # Build và chạy service bằng docker compose ngay tại thư mục hiện tại của Gitlab Runner
+    - docker compose --env-file .env.development -f docker-compose.dev.yml down || true
+    - docker compose --env-file .env.development -f docker-compose.dev.yml up -d --build
+    
+    - echo "Deploy completed!"

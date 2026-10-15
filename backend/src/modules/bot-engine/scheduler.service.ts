@@ -451,7 +451,7 @@ export class SchedulerService implements OnModuleInit {
 
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
 
     try {

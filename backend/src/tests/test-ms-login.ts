@@ -19,7 +19,7 @@ async function runMSystemLoginTest() {
   let username = process.env.MS_USER;
   let password = process.env.MS_PASS;
   let pin = process.env.MS_PIN;
-  let msystemUrl = process.env.MS_URL || 'https://msystem.mxv.vn/';
+  let msystemUrl = process.env.MS_URL || '';
 
   if (!username || !password || !pin) {
     console.log(

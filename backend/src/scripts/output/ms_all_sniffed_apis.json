@@ -1,0 +1,76 @@
+[
+  {
+    "key": "TTTT",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/position/admin/settle/excel",
+    "postData": null
+  },
+  {
+    "key": "TTCDH",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/position/admin/settleLME/excel",
+    "postData": null,
+    "filename": "attachment; filename=trang-thai-tat-toan-1791961042406.xlsx"
+  },
+  {
+    "key": "DSLDK",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/order/admin/list/excel?status%5Bin%5D%3DPARTIALLY_FILLED%2CFILLED",
+    "postData": null,
+    "filename": "attachment; filename=danh-sach-lenh-1791961051512.xlsx"
+  },
+  {
+    "key": "DSLCK",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/order/admin/list/excel?status%5Bin%5D%3DWORKING",
+    "postData": null,
+    "filename": "attachment; filename=danh-sach-lenh-1791961060654.xlsx"
+  },
+  {
+    "key": "DSLH",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/order/admin/list/excel?status%5Bin%5D%3DCANCELLED",
+    "postData": null,
+    "filename": "attachment; filename=danh-sach-lenh-1791961069727.xlsx"
+  },
+  {
+    "key": "DSQLKQ",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/margin/admin/list/excel?limit%3D20%26offset%3D0",
+    "postData": null,
+    "filename": "attachment; filename=danh-sach-quan-ly-ky-quy-1791961076283.xlsx"
+  },
+  {
+    "key": "NR",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/am/admin/investors/marginTransactionHistory/excel",
+    "postData": null,
+    "filename": "attachment; filename=DS_lich_su_GD_tien_TKGD.xlsx"
+  },
+  {
+    "key": "QLTKGD",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/margin/admin/status/excel",
+    "postData": null
+  },
+  {
+    "key": "QLTKGD âm KQ",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/margin/admin/status/negative/excel",
+    "postData": null,
+    "filename": "attachment; filename=danh-sach-quan-ly-tt-tkgd-am-ky-quy-1791961097361.xlsx"
+  },
+  {
+    "key": "DSTrader",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/am/admin/traders/excel?sort_by%3Ddesc(createdDate)",
+    "postData": null,
+    "filename": "attachment; filename=danh_sach_Trader.xlsx"
+  },
+  {
+    "key": "TLQHSKQ",
+    "method": "GET",
+    "url": "https://api-dev.newgen.dev/am/admin/margin-ratio-multiplier/investors/excel?sort_by%3Ddesc(createdDate)",
+    "postData": null
+  }
+]
