@@ -1,3 +1,28 @@
+## [2026-10-15T18:32] FEATURE & ARCHITECTURE: Triển Khai Dashboard QLGD Báo Cáo Ban Giám Đốc (Mock UI) & Tài Liệu Gap Analysis Chuyên Sâu
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER tại Mục 8 Dashboard:
+  - *"Chỉnh sửa/bổ sung như sau (chia theo ACM/Còn lại):*
+    - *KLGD/GTGD tại thời điểm check gần nhất*
+    - *Biểu đồ từng lần check trong ngày*
+    - *4 mốc thời điểm phục vụ báo cáo BGĐ (- Đầu phiên 5h-8h, - Hết phiên Á 5h-16h, - Hết phiên Âu 5h-23h, - Hết phiên Mỹ cả ngày)*
+    - *Bảng thống kê lãi lỗ dự kiến/thực tế và tỷ lệ vị thế mở mua/bán.*
+  - *"Tôi cần tạo một trang dashboard tương tự dành cho QLGD với các dữ liệu mock rồi phân tích thành tài liệu dựa vào logic hiện tại xem cần những thông tin gì còn thiếu để hiển thị được bảng tương tự"*.
+
+### 2. Danh sách file tác động
+- [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx): Tạo mới component Executive Dashboard cho QLGD, mô phỏng 100% bản thiết kế gồm 2 phân vùng ACM vs Còn lại, 4 mốc thời điểm BGĐ, 2 biểu đồ Chart.js check timeline, và bảng ma trận 17 mặt hàng (Lãi lỗ dự kiến VND, Tổng vị thế mở, % Mua/Bán progress bar, Lãi lỗ thực tế VND, Trạng thái tất toán lots).
+- [frontend/src/app/trading-manager/dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/dashboard/page.tsx): Tạo trang sub-route chuyên dụng `/trading-manager/dashboard`.
+- [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/page.tsx): Tích hợp Tab `QLGD_DASHBOARD` ("Dashboard QLGD (Báo Cáo BGĐ)") với badge `MỚI` vào thanh điều hướng chính.
+- [docs/moi/PHAN_TICH_DASHBOARD_QLGD_VA_GAP_ANALYSIS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/PHAN_TICH_DASHBOARD_QLGD_VA_GAP_ANALYSIS.md): Tài liệu phân tích kỹ thuật chuyên sâu và Gap Analysis Matrix (chỉ ra 5 khoảng trống dữ liệu giữa logic hiện tại và yêu cầu bảng điều khiển mới).
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Tóm tắt nội dung thực hiện & Đảm bảo tiêu chuẩn
+- **Tuân thủ Rule 5 của AGENTS.md**: Tuyệt đối không dùng Unicode emoji thô, 100% sử dụng icon SVG từ `lucide-react`.
+- **Định dạng số chuẩn kế toán**: Số âm đặt trong ngoặc đơn màu đỏ `(xxx,xxx,xxx)`, số dương màu xanh lá nhạt, thanh progress bar hiển thị tỷ lệ Mua/Bán.
+- **Tính năng mở rộng**: Hỗ trợ xuất dữ liệu ra file CSV chuẩn kế toán, chuyển đổi giữa chế độ Mock Data và Live Data, bộ lọc nhóm hàng hóa trực quan.
+
+---
+
 ## [2026-10-15T18:15] DEPLOYMENT: Triển Khai Toàn Diện Codebase Mới Lên Máy Chủ Ubuntu 10.0.0.26
 
 ### 1. Mục tiêu thay đổi
