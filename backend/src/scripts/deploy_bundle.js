@@ -85,6 +85,7 @@ const backendDirs = [
   'backend/src/modules/telegram',
   'backend/src/shared',
   'backend/src/legacy',
+  'backend/src/scripts/python',
 ];
 
 backendDirs.forEach((dirRel) => {
@@ -157,6 +158,7 @@ conn.on('ready', () => {
 
         echo "=== 2. BUILDING BACKEND ===" &&
         cd /opt/mxv-checklist/backend && rm -f tsconfig*.tsbuildinfo && rm -rf dist && npm run build &&
+        mkdir -p /opt/mxv-checklist/backend/dist/scripts/python && cp -rf /opt/mxv-checklist/backend/src/scripts/python/* /opt/mxv-checklist/backend/dist/scripts/python/ 2>/dev/null || true &&
         pm2 restart mxv-backend &&
 
         echo "=== 3. BUILDING FRONTEND ===" &&

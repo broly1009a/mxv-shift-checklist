@@ -15,6 +15,7 @@ import { GttCheckerService } from './services/gtt-checker.service';
 import { ReconConsoleSummaryService } from './services/recon-console-summary.service';
 import { LotStatisticsService } from './services/lot-statistics.service';
 import { ValueStatisticsService } from './services/value-statistics.service';
+import { CcpAccumulatorService } from './services/ccp-accumulator.service';
 import { CcpClearingConfigService } from './services/ccp-clearing-config.service';
 import { CcpEodService } from './services/ccp-eod.service';
 import { CeCcpGttCheckerService } from './services/ce-ccp-gtt.service';
@@ -75,6 +76,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     ReconConsoleSummaryService,
     LotStatisticsService,
     ValueStatisticsService,
+    CcpAccumulatorService,
     CcpClearingConfigService,
     CcpEodService,
     CeCcpGttCheckerService,
@@ -96,6 +98,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     ReconConsoleSummaryService,
     LotStatisticsService,
     ValueStatisticsService,
+    CcpAccumulatorService,
     CcpClearingConfigService,
     CcpEodService,
     CeCcpGttCheckerService,

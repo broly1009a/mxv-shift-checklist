@@ -11,9 +11,9 @@ import {
   sumPsLot,
   aggregateByProduct,
   aggregateByTvkd,
-  LotByProduct,
-  LotByTvkd,
 } from '../helpers/clearing-excel.helper';
+import type { LotByProduct, LotByTvkd } from '../helpers/clearing-excel.helper';
+export type { LotByProduct, LotByTvkd };
 
 export interface LotSummary {
   dsgdTotal: number;

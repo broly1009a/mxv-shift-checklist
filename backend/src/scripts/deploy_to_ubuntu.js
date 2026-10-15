@@ -107,6 +107,10 @@ const specificFiles = [
     local: path.join(repoRoot, 'backend/src/scripts/python/recon_data_worker.py'),
     remote: '/opt/mxv-checklist/backend/dist/scripts/python/recon_data_worker.py',
   },
+  {
+    local: path.join(repoRoot, 'backend/src/scripts/python/excel_sheet_cloner.py'),
+    remote: '/opt/mxv-checklist/backend/dist/scripts/python/excel_sheet_cloner.py',
+  },
 ];
 
 specificFiles.forEach((item) => {

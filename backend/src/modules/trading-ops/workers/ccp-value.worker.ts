@@ -8,6 +8,7 @@ import {
 } from '../../../shared';
 import { ValueStatisticsService } from '../services/value-statistics.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
+import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
 
 @Injectable()
 export class CcpValueWorker implements IBotWorker {
@@ -21,13 +22,17 @@ export class CcpValueWorker implements IBotWorker {
     @Optional()
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel?: Model<CcpClearingLog>,
+    @Optional()
+    private readonly ccpAccumulatorService?: CcpAccumulatorService,
   ) {}
 
   canHandle(capabilityType: string): boolean {
     return (
       capabilityType === this.capabilityType ||
       capabilityType === 'CHECK_CCP_VALUE' ||
-      capabilityType === 'MACRO_VALUE'
+      capabilityType === 'MACRO_VALUE' ||
+      capabilityType === 'RUN_VALUE_MACRO' ||
+      capabilityType === 'RUN_VALUE_TVKD_MACRO'
     );
   }
 
@@ -94,6 +99,24 @@ export class CcpValueWorker implements IBotWorker {
           domainLogRefId = (logRecord as any)?._id?.toString();
         } catch (dbErr: any) {
           this.logger.warn(`[CcpValueWorker] Lỗi lưu CcpClearingLog: ${dbErr.message}`);
+        }
+      }
+
+      // Kế thừa luồng Master Excel Accumulation: Tự động ghi vào file Excel năm & sinh Sheet tháng mới bằng Python
+      if (this.ccpAccumulatorService && res.passed) {
+        try {
+          const targetDateStr = context.targetDate || res.sessionDate;
+          const writeResults = await this.ccpAccumulatorService.writeValueStatsToAccumulator({
+            targetDate: targetDateStr,
+            result: res,
+            customTargetRoot: context.parameters?.targetRoot || context.parameters?.folderPath,
+          });
+          const clonedCount = writeResults.filter((w) => w.clonedNewMonthSheet).length;
+          if (clonedCount > 0) {
+            this.logger.log(`[CcpValueWorker] Đã tự động sinh ${clonedCount} Sheet tháng mới qua Python openpyxl.`);
+          }
+        } catch (accErr: any) {
+          this.logger.warn(`[CcpValueWorker] Cảnh báo ghi file Excel lũy kế: ${accErr.message}`);
         }
       }
 

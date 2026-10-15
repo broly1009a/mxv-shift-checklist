@@ -8,6 +8,7 @@ import {
 } from '../../../shared';
 import { LotStatisticsService } from '../services/lot-statistics.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
+import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
 
 @Injectable()
 export class CcpLotWorker implements IBotWorker {
@@ -21,10 +22,17 @@ export class CcpLotWorker implements IBotWorker {
     @Optional()
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel?: Model<CcpClearingLog>,
+    @Optional()
+    private readonly ccpAccumulatorService?: CcpAccumulatorService,
   ) {}
 
   canHandle(capabilityType: string): boolean {
-    return capabilityType === this.capabilityType || capabilityType === 'CHECK_CCP_STATISTICS';
+    return (
+      capabilityType === this.capabilityType ||
+      capabilityType === 'CHECK_CCP_STATISTICS' ||
+      capabilityType === 'RUN_LOT_MACRO' ||
+      capabilityType === 'MACRO_LOT'
+    );
   }
 
   async execute(context: TaskExecutionContext): Promise<TaskExecutionResult> {
@@ -58,9 +66,10 @@ export class CcpLotWorker implements IBotWorker {
 
       let domainLogRefId: string | undefined;
 
+      const targetDateStr = context.targetDate || new Date().toISOString().split('T')[0];
+
       if (this.ccpLogModel) {
         try {
-          const targetDateStr = context.targetDate || new Date().toISOString().split('T')[0];
           const logRecord = await this.ccpLogModel.create({
             tradingDate: targetDateStr,
             shiftLogId: context.shiftId,
@@ -73,6 +82,25 @@ export class CcpLotWorker implements IBotWorker {
           domainLogRefId = (logRecord as any)?._id?.toString();
         } catch (dbErr: any) {
           this.logger.warn(`[CcpLotWorker] Lỗi lưu CcpClearingLog: ${dbErr.message}`);
+        }
+      }
+
+      // Kế thừa luồng Master Excel Accumulation: Tự động ghi vào file Excel năm & sinh Sheet tháng mới bằng Python
+      if (this.ccpAccumulatorService && res.passed) {
+        try {
+          const writeResults = await this.ccpAccumulatorService.writeLotStatsToAccumulator({
+            targetDate: targetDateStr,
+            summary: res.summary,
+            byProduct: res.byProduct,
+            byTvkd: res.byTvkd,
+            customTargetRoot: context.parameters?.targetRoot || context.parameters?.folderPath,
+          });
+          const clonedCount = writeResults.filter((w) => w.clonedNewMonthSheet).length;
+          if (clonedCount > 0) {
+            this.logger.log(`[CcpLotWorker] Đã tự động sinh ${clonedCount} Sheet tháng mới qua Python openpyxl.`);
+          }
+        } catch (accErr: any) {
+          this.logger.warn(`[CcpLotWorker] Cảnh báo ghi file Excel lũy kế: ${accErr.message}`);
         }
       }
 

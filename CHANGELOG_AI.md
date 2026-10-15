@@ -1,3 +1,48 @@
+## [2026-10-15T15:42] FEATURE RESTORATION: Khôi Phục Toàn Diện Cơ Chế Ghi File Excel Master Lũy Kế & Tự Động Sinh Sheet Tháng Mới Bằng Python openpyxl Trên V2
+
+### 1. Mục tiêu thay đổi
+- Thực hiện khôi phục hoàn chỉnh theo yêu cầu của USER ("check lại thống kê số lot và value xem v2 còn giữ logic dùng python để hỗ trợ bổ sung sheet tháng mới nếu chưa có không - giúp tôi khắc phục"):
+  1. **Khôi phục Script Python `excel_sheet_cloner.py`**:
+     - Đưa script `excel_sheet_cloner.py` từ `legacy/archive` vào vị trí chính thức của V2: `backend/src/scripts/python/excel_sheet_cloner.py`.
+     - Script sử dụng `openpyxl`: nhận diện tháng mới, tự tìm sheet tháng gần nhất (`T09.2026`), gọi `wb.copy_worksheet(source_sheet)` để clone cấu trúc, style, cell merge 100%; dọn ô ma `row > 60`; cập nhật tiêu đề A1/A2 `tháng MM/YYYY`; tự tính ngày làm việc đầu tiên của tháng mới; cập nhật `=WORKDAY(...)` và `=SUM(...)`; dọn sạch dữ liệu cũ; postprocess quan hệ comments/legacyDrawing an toàn.
+     - Cập nhật các script triển khai `deploy_to_ubuntu.js` và `deploy_bundle.js` để tự động đẩy và sao chép script này vào thư mục `dist/scripts/python/` trên Ubuntu `10.0.0.26`.
+  2. **Tạo Helper Đa Nền Tảng `excel-sheet-cloner.helper.ts` & `excel-safe-writer.helper.ts` trong V2**:
+     - [excel-sheet-cloner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/excel-sheet-cloner.helper.ts): Tự động tìm đường dẫn script Python đa nền tảng (cả dev `src` lẫn prod `dist` và Docker/Ubuntu), tự động phân giải `python3` (Linux) hoặc `python` (Windows).
+     - [excel-safe-writer.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/excel-safe-writer.helper.ts): Khử Invalid Date chống lỗi RangeError của ExcelJS, ghi vào file temp local trước khi ghi đè vào ổ đĩa mạng CIFS/Samba để bảo vệ file gốc.
+     - [accumulator-date.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/accumulator-date.helper.ts): Hỗ trợ `isSameDate`, `getSheetName` (`TMM.YYYY`), `findOrCreateTargetRow` (Số Lot), `findOrCreateValueTargetRow` (Giá Trị), `fixSharedFormulas`.
+  3. **Tạo Service Lũy Kế `CcpAccumulatorService` trong `trading-ops`**:
+     - [ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts):
+       - `writeLotStatsToAccumulator()`: Ghi các file `Thong ke so lot giao dich {year}.xlsx`, `Thong ke so lot giao dich ACM {year}.xlsx`.
+       - `writeValueStatsToAccumulator()`: Ghi các file `Thong ke gia tri giao dich {year}.xlsx`.
+       - Nếu sheet tháng chưa có, tự động kích hoạt `ensureMonthSheetExists` để Python sinh sheet mới trước khi ghi.
+  4. **Tích hợp vào Workers `CcpLotWorker` & `CcpValueWorker`**:
+     - `CcpLotWorker` ([ccp-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-lot.worker.ts)): Bổ sung khả năng nhận diện `RUN_LOT_MACRO`, `MACRO_LOT` và tự động gọi `CcpAccumulatorService.writeLotStatsToAccumulator` sau khi tính toán khớp lệnh thành công.
+     - `CcpValueWorker` ([ccp-value.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-value.worker.ts)): Bổ sung khả năng nhận diện `RUN_VALUE_MACRO`, `RUN_VALUE_TVKD_MACRO` và tự động gọi `CcpAccumulatorService.writeValueStatsToAccumulator` sau khi tính toán giá trị thành công.
+
+### 2. Danh sách file tác động
+- [backend/src/scripts/python/excel_sheet_cloner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/python/excel_sheet_cloner.py): Script Python openpyxl clone sheet tháng mới.
+- [backend/src/modules/trading-ops/helpers/excel-sheet-cloner.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/excel-sheet-cloner.helper.ts): Helper kích hoạt Python đa nền tảng.
+- [backend/src/modules/trading-ops/helpers/excel-safe-writer.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/excel-safe-writer.helper.ts): Atomic safe writer bảo vệ file mạng CIFS.
+- [backend/src/modules/trading-ops/helpers/accumulator-date.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/accumulator-date.helper.ts): Bộ helper ngày tháng và định vị dòng/sheet.
+- [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts): Service quản lý ghi Master Excel files và tự động sinh sheet mới.
+- [backend/src/modules/trading-ops/services/lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/lot-statistics.service.ts): Re-export `LotByProduct, LotByTvkd`.
+- [backend/src/modules/trading-ops/workers/ccp-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-lot.worker.ts): Tích hợp ghi lũy kế & sinh sheet mới.
+- [backend/src/modules/trading-ops/workers/ccp-value.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-value.worker.ts): Tích hợp ghi lũy kế giá trị & sinh sheet mới.
+- [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký `CcpAccumulatorService` vào providers và exports.
+- [backend/src/scripts/deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js): Đưa thư mục Python scripts vào gói deploy và copy ra dist.
+- [backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js): Bổ sung `excel_sheet_cloner.py` vào danh sách file deploy.
+- [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md): Ghi vết kiểm toán kiến trúc.
+
+### 3. Kết quả kiểm thử & Biên dịch
+- Backend Type Check (`npx.cmd tsc -p tsconfig.build.json --noEmit`): **Exit code 0 (Pass 100%)**.
+- Backend Build (`npm.cmd run build`): **Exit code 0 (Pass 100%)**.
+- Unit Integration Test (`test-ccp-accumulator.ts`): **PASS 100%**.
+- Boundary Isolation Test (`module-isolation.spec.ts`): **PASS 100% (2/2 tests)**.
+- Twin-Run Comparator Test (`twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
+- Multi-Instance Concurrency Test (`multi-instance-queue.spec.ts`): **PASS 100% (Zero race condition)**.
+
+---
+
 ## [2026-10-15T15:15] HARDENING: Rà Soát Toàn Diện 4 Workers Khác & Bổ Sung SYNC_GUARD Chống Lỗi Ghép Sai Ca Trực
 
 ### 1. Mục tiêu thay đổi
