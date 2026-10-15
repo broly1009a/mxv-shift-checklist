@@ -205,6 +205,13 @@
 - Twin-Run Comparator Test (`twin-run-comparator.spec.ts`): **PASS 100% (7/7 tests)**.
 - Multi-Instance Concurrency Test (`multi-instance-queue.spec.ts`): **PASS 100% (Zero race condition)**.
 
+### 4. Kiểm chứng Kịch bản Thực tế: Tạo Tháng 11 (`T11.2026`) & Thêm Mã Hàng Hóa `GLD1`
+- File kiểm thử: [Bao cao - Thong ke/Thong ke gia tri giao dich ACM 2026 (Theo CCP).xlsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/Bao%20cao%20-%20Thong%20ke/Thong%20ke%20gia%20tri%20giao%20dich%20ACM%202026%20(Theo%20CCP).xlsx)
+- Test script: [backend/src/tests/test_scenario_month11_and_commodity.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_scenario_month11_and_commodity.ts)
+- Kết quả chạy `npx ts-node src/tests/test_scenario_month11_and_commodity.ts`: **PASS 100% (Exit code 0)**:
+  1. `excel_sheet_cloner.py` nhân bản `T10.2026` -> `T11.2026`: Tự động nhận diện Tháng 11/2026 có 21 ngày làm việc (Row 6 đến 26), cắt tỉa 1 dòng thừa của Tháng 10 (22 ngày), ngày đầu tiên A6 là `2026-11-02` (Thứ Hai), các ô A7..A26 là `=WORKDAY(...)`, dòng Tổng A27 là `=SUM(B6:B26)`.
+  2. `ccp_column_provisioner.py` chèn mã `GLD1` ("Vàng Nano"): Cập nhật cả 4 sheet (`TONGHOP`, `T09.2026`, `T10.2026`, `T11.2026`), mở rộng banner `B3:D3` thành `B3:E3`, cột Tổng F có công thức ngang `=SUM(B6:E6)`, Sheet `TONGHOP` liên kết chuẩn xác Row 16 Tháng 11 trỏ `='T11.2026'!E27`. Zero lỗi `#REF!`.
+
 ---
 
 ## [2026-10-15T15:15] HARDENING: Rà Soát Toàn Diện 4 Workers Khác & Bổ Sung SYNC_GUARD Chống Lỗi Ghép Sai Ca Trực
