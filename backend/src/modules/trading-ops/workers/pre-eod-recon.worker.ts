@@ -1,11 +1,13 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
   IBotWorker,
   TaskExecutionContext,
   TaskExecutionResult,
+  RECON_PIPELINE_PORT,
 } from '../../../shared';
+import type { IReconPipelinePort } from '../../../shared';
 import { PreEodReconService } from '../services/pre-eod-recon.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
@@ -21,6 +23,9 @@ export class PreEodReconWorker implements IBotWorker {
     @Optional()
     @InjectModel(TradingReconLog.name)
     private readonly reconLogModel?: Model<TradingReconLog>,
+    @Optional()
+    @Inject(RECON_PIPELINE_PORT)
+    private readonly reconPipeline?: IReconPipelinePort,
   ) {}
 
   canHandle(capabilityType: string): boolean {
@@ -35,10 +40,31 @@ export class PreEodReconWorker implements IBotWorker {
 
     try {
       const targetDate = context.targetDate ? new Date(context.targetDate) : new Date();
-      const res = await this.preEodReconService.runAutoCheckPreEOD(
-        targetDate,
-        context.parameters?.dataDir,
-      );
+
+      let res: any;
+      if (this.reconPipeline && context.parameters?.skipDownload !== true) {
+        this.logger.log(`[PreEodReconWorker] Kích hoạt luồng Ingress tải dữ liệu tươi Pre-EOD trước khi đối soát...`);
+        const jobToRun = (context as any).job || context.parameters?.job || {
+          _id: context.taskId,
+          jobType: 'CHECK_PRE_EOD',
+          logs: [],
+          payload: {
+            taskId: context.taskId,
+            shiftLogId: context.shiftId,
+            targetDate: context.targetDate,
+            sessionDay: context.targetDate,
+            options: context.parameters?.options || context.parameters,
+          },
+          save: async () => {},
+          markModified: () => {},
+        };
+        res = await this.reconPipeline.handleCheckPreEodJob(jobToRun);
+      } else {
+        res = await this.preEodReconService.runAutoCheckPreEOD(
+          targetDate,
+          context.parameters?.dataDir,
+        );
+      }
 
       // ── BƯỚC 1: XỬ LÝ TRƯỜNG HỢP CHỜ FILE PRE-EOD (FAIL-SAFE / ZERO FALSE-POSITIVE) ──
       if (res.isWaitingFiles) {

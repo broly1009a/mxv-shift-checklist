@@ -133,20 +133,27 @@ export class BotDispatcherService implements OnModuleInit {
     try {
       const result = await this.dispatch(context);
 
-      const isSuccess = result.status !== 'FAILED';
+      const isWaiting = result.status === 'WAITING' || !!result.isWaitingFiles;
+      let finalStatus = 'COMPLETED';
+      if (result.status === 'FAILED') {
+        finalStatus = 'FAILED';
+      } else if (isWaiting) {
+        finalStatus = 'WAITING';
+      }
+
       await this.botJobModel.updateOne(
         { _id: job._id },
         {
           $set: {
-            status: isSuccess ? 'COMPLETED' : 'FAILED',
-            completedAt: new Date(),
+            status: finalStatus,
+            completedAt: finalStatus === 'COMPLETED' ? new Date() : null,
             'payload.result': {
               ...(result.metrics || {}),
               ...(result.details || {}),
               status: result.status,
               summary: result.summary,
               passed: result.status === 'SUCCESS',
-              isWaitingFiles: !!result.isWaitingFiles || result.status === 'WAITING',
+              isWaitingFiles: isWaiting,
             },
             'payload.summary': result.summary,
             'payload.domainLogRefId': result.domainLogRefId,
@@ -160,7 +167,7 @@ export class BotDispatcherService implements OnModuleInit {
 
       return {
         jobId: job._id.toString(),
-        status: isSuccess ? 'COMPLETED' : 'FAILED',
+        status: finalStatus,
       };
     } catch (dispatchErr: any) {
       this.logger.error(

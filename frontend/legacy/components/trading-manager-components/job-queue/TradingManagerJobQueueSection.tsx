@@ -374,7 +374,19 @@ export default function TradingManagerJobQueueSection({
   };
 
   // Status Badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, job?: any) => {
+    const isWaiting =
+      status === 'WAITING' ||
+      (status === 'COMPLETED' && (job?.payload?.result?.isWaitingFiles || job?.payload?.result?.status === 'WAITING'));
+
+    if (isWaiting) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+          <Clock size={11} /> Đang chờ file
+        </span>
+      );
+    }
+
     switch (status) {
       case 'COMPLETED':
         return (
@@ -714,7 +726,7 @@ export default function TradingManagerJobQueueSection({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {getStatusBadge(selectedJob.status)}
+                    {getStatusBadge(selectedJob.status, selectedJob)}
 
                     {/* Nút Dừng Tác Vụ nếu đang chạy */}
                     {['PENDING', 'PROCESSING', 'AWAITING_CAPTCHA'].includes(selectedJob.status) && (
@@ -1012,7 +1024,7 @@ export default function TradingManagerJobQueueSection({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {getStatusBadge(selectedJob.status)}
+                    {getStatusBadge(selectedJob.status, selectedJob)}
 
                     {/* Nút Sao chép Log */}
                     <button
@@ -1294,7 +1306,7 @@ export default function TradingManagerJobQueueSection({
                         {getJobLabel(job.jobType)}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {getStatusBadge(job.status)}
+                        {getStatusBadge(job.status, job)}
                         {['PENDING', 'PROCESSING', 'AWAITING_CAPTCHA'].includes(job.status) && (
                           <button
                             type="button"

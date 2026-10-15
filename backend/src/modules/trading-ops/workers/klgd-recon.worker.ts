@@ -1,11 +1,13 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
   IBotWorker,
   TaskExecutionContext,
   TaskExecutionResult,
+  RECON_PIPELINE_PORT,
 } from '../../../shared';
+import type { IReconPipelinePort } from '../../../shared';
 import { KlgdReconService } from '../services/klgd-recon.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
@@ -21,6 +23,9 @@ export class KlgdReconWorker implements IBotWorker {
     @Optional()
     @InjectModel(TradingReconLog.name)
     private readonly reconLogModel?: Model<TradingReconLog>,
+    @Optional()
+    @Inject(RECON_PIPELINE_PORT)
+    private readonly reconPipeline?: IReconPipelinePort,
   ) {}
 
   canHandle(capabilityType: string): boolean {
@@ -35,10 +40,33 @@ export class KlgdReconWorker implements IBotWorker {
 
     try {
       const targetDate = context.targetDate ? new Date(context.targetDate) : new Date();
-      const res = await this.klgdReconService.runAutoCheckKLGD(targetDate, {
-        cutoffTime: context.parameters?.cutoffTime ? new Date(context.parameters.cutoffTime) : undefined,
-        customDataDir: context.parameters?.dataDir,
-      });
+
+      let res: any;
+      // ── BƯỚC 1: NẾU CÓ PIPELINE TẢI DỮ LIỆU TƯƠI TỰ ĐỘNG (PLAYWRIGHT MS, CQG, ACM, CCP) ──
+      if (this.reconPipeline && context.parameters?.skipDownload !== true) {
+        this.logger.log(`[KlgdReconWorker] Kích hoạt luồng Ingress tải dữ liệu tươi từ M-System, CQG, ACM, CCP trước khi đối soát...`);
+        const jobToRun = (context as any).job || context.parameters?.job || {
+          _id: context.taskId,
+          jobType: 'CHECK_KLGD',
+          logs: [],
+          payload: {
+            taskId: context.taskId,
+            shiftLogId: context.shiftId,
+            targetDate: context.targetDate,
+            sessionDay: context.targetDate,
+            options: context.parameters?.options || context.parameters,
+          },
+          save: async () => {},
+          markModified: () => {},
+        };
+        res = await this.reconPipeline.handleCheckKlgdJob(jobToRun);
+      } else {
+        // Fallback: Quét file trực tiếp từ ổ đĩa (cho Unit tests hoặc chế độ Offline)
+        res = await this.klgdReconService.runAutoCheckKLGD(targetDate, {
+          cutoffTime: context.parameters?.cutoffTime ? new Date(context.parameters.cutoffTime) : undefined,
+          customDataDir: context.parameters?.dataDir,
+        });
+      }
 
       // ── BƯỚC 1: XỬ LÝ TRƯỜNG HỢP ĐANG CHỜ FILE (FAIL-SAFE / ZERO FALSE-POSITIVE) ──
       if (res.isWaitingFiles) {

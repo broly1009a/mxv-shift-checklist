@@ -8,7 +8,7 @@ import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { CqgSyncService } from '../cqg-sync.service';
 import { CcpCeScraperService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../../ingress/scrapers/ccp-ce-scraper.service';
 import { EmailWatcherService } from '../email-watcher.service';
-import { findLatestFile, findExactSessionEodFile } from '../../../shared';
+import { findLatestFile, findExactSessionEodFile, IReconPipelinePort } from '../../../shared';
 import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate, isMarketWeekendClosed } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 import { KlgdReconService as TradingOpsKlgdReconService } from '../../trading-ops/services/klgd-recon.service';
@@ -17,7 +17,7 @@ import { CcpEodService } from '../../trading-ops/services/ccp-eod.service';
 import { CqgMergerService } from '../../trading-ops/services/cqg-merger.service';
 
 @Injectable()
-export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
+export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnModuleInit {
   private readonly logger = new Logger(ReconJobsHandler.name);
   readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_EOD_CCP', 'CHECK_CQG_SYNC'];
 
@@ -115,7 +115,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     }
   }
 
-  private async handleCheckKlgdJob(job: any) {
+  public async handleCheckKlgdJob(job: any) {
     const payload = parseJobPayload(job);
     const sessionStartSetting = await this.settingsService.getSetting(
       'session_start_time',
@@ -1007,7 +1007,7 @@ export class ReconJobsHandler implements IBotJobHandler, OnModuleInit {
     }
   }
 
-  private async handleCheckPreEodJob(job: any) {
+  public async handleCheckPreEodJob(job: any) {
     const payload = parseJobPayload(job);
     let targetDate: Date;
     let dateStr: string;

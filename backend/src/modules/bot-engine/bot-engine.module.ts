@@ -29,6 +29,8 @@ import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
 import { IngressModule } from '../ingress/ingress.module';
 import { TradingOpsModule } from '../trading-ops/trading-ops.module';
 
+import { RECON_PIPELINE_PORT } from '../../shared';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -52,6 +54,10 @@ import { TradingOpsModule } from '../trading-ops/trading-ops.module';
     ReconJobsHandler,
     FileAuditJobHandler,
     VerifyEmailJobHandler,
+    {
+      provide: RECON_PIPELINE_PORT,
+      useExisting: ReconJobsHandler,
+    },
 
     // Services
     EmailWatcherService,
@@ -73,6 +79,8 @@ import { TradingOpsModule } from '../trading-ops/trading-ops.module';
     SchedulerService,
     OmsWatcherService,
     FileAuditJobHandler,
+    ReconJobsHandler,
+    RECON_PIPELINE_PORT,
   ],
 })
 export class BotEngineModule {}
