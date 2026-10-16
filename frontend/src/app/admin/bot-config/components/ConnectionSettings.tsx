@@ -616,7 +616,7 @@ export default function ConnectionSettings({
   const modalContentStyle: React.CSSProperties = {
     width: '100%',
     maxWidth: '680px',
-    background: 'var(--bg-app)',
+    background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: '16px',
     padding: '26px',
@@ -624,9 +624,19 @@ export default function ConnectionSettings({
     flexDirection: 'column',
     gap: '20px',
     margin: 'auto',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+    boxShadow: 'var(--shadow-lg)',
     maxHeight: '90vh',
     overflowY: 'auto',
+  };
+
+  const modalRowStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 14px',
+    background: 'var(--bg-input)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '8px',
   };
 
   // Helper render badge phương thức
@@ -715,27 +725,29 @@ export default function ConnectionSettings({
             style={{
               display: 'inline-flex',
               padding: '3px',
-              background: 'rgba(15, 23, 42, 0.4)',
+              backgroundColor: 'var(--bg-input)',
               borderRadius: '8px',
               border: '1px solid var(--border-color)',
+              gap: '3px',
             }}
           >
             <button
               type="button"
               onClick={() => setViewMode('table')}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
                 padding: '6px 14px',
                 fontSize: '0.78rem',
-                fontWeight: viewMode === 'table' ? 700 : 500,
-                background: viewMode === 'table' ? 'var(--color-accent)' : 'transparent',
-                color: viewMode === 'table' ? '#ffffff' : 'var(--text-muted)',
+                fontWeight: viewMode === 'table' ? 700 : 600,
+                backgroundColor: viewMode === 'table' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'table' ? '#ffffff' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                transition: 'all 0.2s ease',
+                boxShadow: viewMode === 'table' ? 'var(--shadow-sm)' : 'none',
               }}
             >
               <Table size={14} />
@@ -745,18 +757,19 @@ export default function ConnectionSettings({
               type="button"
               onClick={() => setViewMode('cards')}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
                 padding: '6px 14px',
                 fontSize: '0.78rem',
-                fontWeight: viewMode === 'cards' ? 700 : 500,
-                background: viewMode === 'cards' ? 'var(--color-accent)' : 'transparent',
-                color: viewMode === 'cards' ? '#ffffff' : 'var(--text-muted)',
+                fontWeight: viewMode === 'cards' ? 700 : 600,
+                backgroundColor: viewMode === 'cards' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'cards' ? '#ffffff' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                transition: 'all 0.2s ease',
+                boxShadow: viewMode === 'cards' ? 'var(--shadow-sm)' : 'none',
               }}
             >
               <LayoutGrid size={14} />
@@ -774,7 +787,7 @@ export default function ConnectionSettings({
           <div className="table-responsive-wrapper" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
               <thead>
-                <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                   <th style={{ padding: '14px 18px', width: '25%' }}>Hệ thống Nghiệp vụ</th>
                   <th style={{ padding: '14px 18px', width: '22%' }}>Phương thức Thu thập</th>
                   <th style={{ padding: '14px 18px', width: '25%' }}>Tài khoản & Máy chủ Kết nối</th>
@@ -784,7 +797,7 @@ export default function ConnectionSettings({
               </thead>
               <tbody>
                 {/* 1. M-SYSTEM */}
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
                   <td style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', flexShrink: 0 }}>
@@ -880,7 +893,7 @@ export default function ConnectionSettings({
                 </tr>
 
                 {/* 2. CQG DESKTOP */}
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
                   <td style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', flexShrink: 0 }}>
@@ -959,7 +972,7 @@ export default function ConnectionSettings({
                 </tr>
 
                 {/* 3. CORECCP */}
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
                   <td style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(236, 72, 153, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ec4899', flexShrink: 0 }}>
@@ -1053,7 +1066,7 @@ export default function ConnectionSettings({
                 </tr>
 
                 {/* 4. CORE EXCHANGE (CE) */}
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
                   <td style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
@@ -1147,7 +1160,7 @@ export default function ConnectionSettings({
                 </tr>
 
                 {/* 5. ACM & SFTP */}
-                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'transparent' }}>
                   <td style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(14, 165, 233, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0ea5e9', flexShrink: 0 }}>
@@ -1248,7 +1261,7 @@ export default function ConnectionSettings({
                 </tr>
 
                 {/* 6. MICROSOFT 365 */}
-                <tr style={{ background: 'rgba(255, 255, 255, 0.005)' }}>
+                <tr style={{ background: 'transparent' }}>
                   <td style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', flexShrink: 0 }}>
@@ -1506,14 +1519,71 @@ export default function ConnectionSettings({
                 </div>
 
                 {/* Sub-tabs CQG */}
-                <div style={{ display: 'flex', gap: '4px', background: 'rgba(15, 23, 42, 0.4)', padding: '4px', borderRadius: '8px' }}>
-                  <button type="button" onClick={() => setCqgActiveTab('trade')} style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'trade' ? 700 : 500, background: cqgActiveTab === 'trade' ? 'rgba(16, 185, 129, 0.2)' : 'transparent', color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    backgroundColor: 'var(--bg-input)',
+                    padding: '4px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCqgActiveTab('trade')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: cqgActiveTab === 'trade' ? 700 : 600,
+                      backgroundColor: cqgActiveTab === 'trade' ? 'var(--bg-card)' : 'transparent',
+                      color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-secondary)',
+                      border: cqgActiveTab === 'trade' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                      boxShadow: cqgActiveTab === 'trade' ? 'var(--shadow-sm)' : 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
                     CQG Trade (Tải Báo Cáo)
                   </button>
-                  <button type="button" onClick={() => setCqgActiveTab('price')} style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'price' ? 700 : 500, background: cqgActiveTab === 'price' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCqgActiveTab('price')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: cqgActiveTab === 'price' ? 700 : 600,
+                      backgroundColor: cqgActiveTab === 'price' ? 'var(--bg-card)' : 'transparent',
+                      color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-secondary)',
+                      border: cqgActiveTab === 'price' ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid transparent',
+                      boxShadow: cqgActiveTab === 'price' ? 'var(--shadow-sm)' : 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
                     CQG Price (Xem Giá)
                   </button>
-                  <button type="button" onClick={() => setCqgActiveTab('cast')} style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'cast' ? 700 : 500, background: cqgActiveTab === 'cast' ? 'rgba(244, 63, 94, 0.2)' : 'transparent', color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCqgActiveTab('cast')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: cqgActiveTab === 'cast' ? 700 : 600,
+                      backgroundColor: cqgActiveTab === 'cast' ? 'var(--bg-card)' : 'transparent',
+                      color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-secondary)',
+                      border: cqgActiveTab === 'cast' ? '1px solid rgba(244, 63, 94, 0.3)' : '1px solid transparent',
+                      boxShadow: cqgActiveTab === 'cast' ? 'var(--shadow-sm)' : 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
                     CQG CAST
                   </button>
                 </div>
@@ -1703,14 +1773,14 @@ export default function ConnectionSettings({
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '14px 24px',
-              background: 'rgba(15, 23, 42, 0.95)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              boxShadow: 'var(--shadow-lg)',
               backdropFilter: 'blur(12px)',
             }}
           >
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Mọi thay đổi thông tin xác thực và phương thức kết nối có hiệu lực ngay tại runtime.
             </span>
             <button
@@ -1762,23 +1832,23 @@ export default function ConnectionSettings({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '0.85rem' }}>
               {viewingSystem === 'msystem' && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
                     {renderMethodBadge(ingressModeMs, '#10b981')}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Địa chỉ máy chủ (URL):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemUrl || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tên đăng nhập:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemUsername || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Mật khẩu đăng nhập:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemPassword ? '•••••••• (Đã lưu)' : 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Mã PIN xác thực:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemPin ? '•••• (Đã lưu)' : 'Chưa cấu hình'}</span>
                   </div>
@@ -1787,27 +1857,27 @@ export default function ConnectionSettings({
 
               {viewingSystem === 'cqg' && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
                     <span style={{ fontWeight: 600, color: '#f59e0b' }}>Trình duyệt tự động (2 tài khoản song song)</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>CQG Trade Desktop URL:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUrlTrade}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG1 (FR1, PS1, OP1):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUsername1 || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG3 (FR2, PS2, OP2):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUsername2 || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG Price (Xem giá):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUsername || 'mxvprice'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG CAST (Ký quỹ):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{castUsername || 'Chưa cấu hình'}</span>
                   </div>
@@ -1816,19 +1886,19 @@ export default function ConnectionSettings({
 
               {viewingSystem === 'ccp' && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
                     {renderMethodBadge(ingressModeCcp, '#ec4899')}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Địa chỉ máy chủ (URL):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cppUrl}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tên đăng nhập:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cppUsername || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Thư mục lưu báo cáo:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cppOutputDir}</span>
                   </div>
@@ -1837,19 +1907,19 @@ export default function ConnectionSettings({
 
               {viewingSystem === 'ce' && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
                     {renderMethodBadge(ingressModeCe, '#8b5cf6')}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Địa chỉ máy chủ (URL):</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ceUrl}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tên đăng nhập:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ceUsername || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Thư mục lưu báo cáo:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ceOutputDir}</span>
                   </div>
@@ -1858,23 +1928,23 @@ export default function ConnectionSettings({
 
               {viewingSystem === 'acm' && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối ETP:</span>
                     {renderMethodBadge(ingressModeAcm, '#0ea5e9')}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>ACM ETP Web URL:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmUrl}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tài khoản ACM ETP:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmUsername || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Máy chủ SFTP Straits:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmSftpHost}:{acmSftpPort}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Tài khoản SFTP:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmSftpUsername || 'Chưa cấu hình'}</span>
                   </div>
@@ -1883,23 +1953,23 @@ export default function ConnectionSettings({
 
               {viewingSystem === 'm365' && (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
                     <span style={{ fontWeight: 600, color: '#3b82f6' }}>Microsoft Graph API (OAuth2)</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Hòm thư giám sát:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m365WatcherEmail || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Application (Client) ID:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m365ClientId || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Directory (Tenant) ID:</span>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m365TenantId || 'Chưa cấu hình'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <div style={modalRowStyle}>
                     <span style={{ color: 'var(--text-muted)' }}>Trạng thái OAuth2:</span>
                     <span style={{ fontWeight: 600, color: m365RefreshToken ? '#10b981' : '#f59e0b' }}>
                       {m365RefreshToken ? 'Đã liên kết token hợp lệ' : 'Chưa cấp quyền'}
@@ -2012,10 +2082,73 @@ export default function ConnectionSettings({
               {/* Form CQG */}
               {editingSystem === 'cqg' && (
                 <>
-                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(15, 23, 42, 0.4)', padding: '4px', borderRadius: '8px' }}>
-                    <button type="button" onClick={() => setCqgActiveTab('trade')} style={{ flex: 1, padding: '7px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'trade' ? 700 : 500, background: cqgActiveTab === 'trade' ? 'rgba(16, 185, 129, 0.2)' : 'transparent', color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>CQG Trade</button>
-                    <button type="button" onClick={() => setCqgActiveTab('price')} style={{ flex: 1, padding: '7px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'price' ? 700 : 500, background: cqgActiveTab === 'price' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>CQG Price</button>
-                    <button type="button" onClick={() => setCqgActiveTab('cast')} style={{ flex: 1, padding: '7px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'cast' ? 700 : 500, background: cqgActiveTab === 'cast' ? 'rgba(244, 63, 94, 0.2)' : 'transparent', color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>CQG CAST</button>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '4px',
+                      backgroundColor: 'var(--bg-input)',
+                      padding: '4px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setCqgActiveTab('trade')}
+                      style={{
+                        flex: 1,
+                        padding: '7px',
+                        fontSize: '0.75rem',
+                        fontWeight: cqgActiveTab === 'trade' ? 700 : 600,
+                        backgroundColor: cqgActiveTab === 'trade' ? 'var(--bg-card)' : 'transparent',
+                        color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-secondary)',
+                        border: cqgActiveTab === 'trade' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                        boxShadow: cqgActiveTab === 'trade' ? 'var(--shadow-sm)' : 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      CQG Trade
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCqgActiveTab('price')}
+                      style={{
+                        flex: 1,
+                        padding: '7px',
+                        fontSize: '0.75rem',
+                        fontWeight: cqgActiveTab === 'price' ? 700 : 600,
+                        backgroundColor: cqgActiveTab === 'price' ? 'var(--bg-card)' : 'transparent',
+                        color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-secondary)',
+                        border: cqgActiveTab === 'price' ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid transparent',
+                        boxShadow: cqgActiveTab === 'price' ? 'var(--shadow-sm)' : 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      CQG Price
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCqgActiveTab('cast')}
+                      style={{
+                        flex: 1,
+                        padding: '7px',
+                        fontSize: '0.75rem',
+                        fontWeight: cqgActiveTab === 'cast' ? 700 : 600,
+                        backgroundColor: cqgActiveTab === 'cast' ? 'var(--bg-card)' : 'transparent',
+                        color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-secondary)',
+                        border: cqgActiveTab === 'cast' ? '1px solid rgba(244, 63, 94, 0.3)' : '1px solid transparent',
+                        boxShadow: cqgActiveTab === 'cast' ? 'var(--shadow-sm)' : 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      CQG CAST
+                    </button>
                   </div>
                   {cqgActiveTab === 'trade' && (
                     <>
