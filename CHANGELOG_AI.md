@@ -1,3 +1,61 @@
+## [2026-10-16T14:15] BUSINESS LOGIC: Nâng Cấp Logic Lọc Giao Dịch Theo Giờ & Tích Lũy Lũy Kế 4 Mốc Phiên Trên Dashboard QLGD
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Chuẩn hóa logic tính toán và hiển thị Khối lượng giao dịch (KLGD) tại 4 mốc phiên trên Executive Dashboard (Mục 8: Báo Cáo Ban Giám Đốc) khớp 100% với quy trình vận hành thực tế của phòng Quản lý Giao dịch và file nghiệp vụ gốc `Check BGS All.xlsm`:
+  + Khi lấy file kiểm tra giao dịch định kỳ (`DSGD MS`), hệ thống bóc tách thời gian thực của từng lệnh (`Ngày giờ thực hiện` / `Thời gian khớp lệnh`) để phân bổ vào 4 rổ phiên:
+    - Rổ Đầu phiên: 05:00 - 08:00
+    - Rổ Phiên Á: 08:00 - 16:00
+    - Rổ Phiên Âu: 16:00 - 23:00
+    - Rổ Phiên Mỹ: Sau 23:00 (hoặc sau 06:00 sáng hôm sau tùy mùa)
+  + Tính toán khối lượng tích lũy lũy kế (Cumulative Volume) tăng dần qua từng mốc:
+    - **Đầu phiên (5h-8h)**: Khối lượng khớp trong rổ [05:00 - 08:00].
+    - **Hết phiên Á (5h-16h)**: Khối lượng khớp [05:00 - 16:00] (Đầu phiên + Khối lượng 8h-16h).
+    - **Hết phiên Âu (5h-23h)**: Khối lượng khớp [05:00 - 23:00] (Hết phiên Á + Khối lượng từ 16h đến thời điểm kiểm tra).
+    - **Hết phiên Mỹ (Cả ngày)**: Khối lượng toàn bộ phiên. Nếu thời điểm kiểm tra trong ngày chưa qua 23:00, hiển thị cờ `isAmericanSessionPending: true` với nhãn `Chưa qua 23h` và ký hiệu `*` hoặc `—`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts):
+   - Thêm helper `isSummerTradingSeason(date)`: Xác định mùa Hè (bắt đầu 05:00) hay mùa Đông (bắt đầu 06:00) theo Daylight Saving Time của các Sở Mỹ.
+   - Thêm helper `parseTradeHour(val)`: Trích xuất số giờ (float) từ chuỗi ngày giờ (`DD/MM/YYYY HH:mm:ss`, `HH:mm:ss`) hoặc Excel serial number.
+   - Thêm helper `getSessionBucket(hourFloat, isSummer)`: Phân loại chính xác 4 rổ: `'EARLY'` (5h-8h), `'ASIA'` (8h-16h), `'EURO'` (16h-23h), `'US'` (sau 23h).
+   - Tái cấu trúc hàm `extractMilestonesFromDsgd`:
+     + Lọc và phân bổ từng dòng giao dịch vào các rổ phiên độc lập cho cả nhóm ACM (`isAcmTrade`) và Còn lại (`others`).
+     + Tính khối lượng tích lũy lũy kế theo công thức:
+       - `earlySession = earlyVolume`
+       - `asianSession = earlyVolume + asiaVolume`
+       - `europeanSession = earlyVolume + asiaVolume + euroVolume`
+       - `americanSession = isPending ? null (hoặc lũy kế hiện tại) : totalVolume`
+     + Tự động nhận diện `isAmericanSessionPending` khi ngày giao dịch là hôm nay và thời điểm check chưa qua 23:00.
+2. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Cập nhật interface `MilestoneReportData`: Hỗ trợ `americanSession: number | null` và `isAmericanSessionPending?: boolean`.
+   - Bổ sung các `useMemo` hooks động: `acmMilestones`, `othersMilestones`, `acmLatestMetrics`, `othersLatestMetrics` tự động lấy từ `liveData` khi ở chế độ `LIVE` và fallback về Mock chuẩn BGĐ khi ở chế độ `MOCK`.
+   - Thẻ hiển thị 4 mốc thời điểm: Tự động cập nhật nhãn phụ `Chưa qua 23h` và số liệu hiển thị `formatInteger(milestones.americanSession)*` hoặc `—` khi phiên Mỹ chưa đóng.
+
+### 3. Xác nhận Build & Triển khai
+- Backend NestJS: `npm run build` hoàn tất 100% (Exit code 0).
+- Sẵn sàng đồng bộ lên máy chủ Ubuntu `10.0.0.26` qua `deploy_to_ubuntu.js`.
+
+---
+
+## [2026-10-16T12:10] REVERSE-ENGINEERING: Bóc Tách Toàn Diện 100% Công Thức & Logic File `Check BGS All.xlsm` Bằng Python
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Sử dụng Python đọc trực tiếp từ file Excel thực tế `backend/src/modules/trading-ops/excels/Check BGS All.xlsm` (dung lượng ~6MB, 10 Sheet), bóc tách toàn bộ công thức toán học, logic đối soát hai nguồn M-System (MS) và CoreCCP (CCP), 4 chu kỳ phiên, số tài khoản giao dịch duy nhất (TKGD), trạng thái mở (TTM) và tất toán (TTTT), từ điển 215 mã hàng hóa và 2 module VBA macros.
+- Biên soạn tài liệu kỹ thuật hoàn chỉnh và xuất bộ danh mục mã hàng hóa TypeScript cho Backend Modular V2.
+
+### 2. Danh sách file tạo mới & sửa đổi
+1. [docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md):
+   - Bóc tách chi tiết 10 Sheet: `Tổng hợp KLGD`, `Thống kê TTM`, `Thống kê TTTT`, `DSGD MS`, `DSGD CCP`, `TTM MS`, `TTM CCP`, `TTTT MS`, `TTTT CCP`, `Mã HH`.
+   - Trích dẫn chính xác công thức toán học (Daylight Saving Time, Ma trận mảng LET đếm UNIQUE tài khoản, Báo cáo tin nhắn tự động 16h, 23h, Kết phiên, PnL dự kiến loại trừ tài khoản ACM, PnL thực tế, Ngày mở nhiều vị thế nhất).
+   - Phân tích mã nguồn VBA macros `Module2.bas` (`RunAllChecks()`) và `Module1.bas` (`CopyO_DangChon()`).
+2. [backend/src/modules/trading-ops/constants/bgs-commodity-catalog.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/bgs-commodity-catalog.constant.ts):
+   - Trích xuất 214 mã hàng hóa từ Sheet `Mã HH` sang TypeScript constant (`BGS_COMMODITY_CATALOG`, `BGS_RAW_TO_STD_MAP`).
+
+### 3. Xác nhận Build & Kiểm thử
+- `npm run build` Backend NestJS: Biên dịch thành công 100% (Exit code 0).
+
+---
+
 ## [2026-10-16T11:35] UI OPTIMIZATION: Tối Ưu Bộ Chuyển Đổi Giao Diện Ca Trực (Dạng Bảng / Dạng Thẻ) Trong Checklist
 
 ### 1. Mục tiêu thay đổi

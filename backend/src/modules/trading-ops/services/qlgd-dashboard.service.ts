@@ -46,6 +46,14 @@ export interface CommodityDashboardItem {
   highlightLiquidated?: boolean;
 }
 
+export interface MilestoneReportData {
+  earlySession: number; // Đầu phiên (5h-8h)
+  asianSession: number; // Hết phiên Á (5h-16h)
+  europeanSession: number; // Hết phiên Âu (5h-23h)
+  americanSession: number | null; // Hết phiên Mỹ (cả ngày)
+  isAmericanSessionPending?: boolean;
+}
+
 export interface QlgdDashboardResponse {
   sessionDate: string;
   scope: 'ALL' | 'ACM' | 'OTHERS';
@@ -63,18 +71,8 @@ export interface QlgdDashboardResponse {
     };
   };
   milestones: {
-    acm: {
-      earlySession: number;
-      asianSession: number;
-      europeanSession: number;
-      americanSession: number;
-    };
-    others: {
-      earlySession: number;
-      asianSession: number;
-      europeanSession: number;
-      americanSession: number;
-    };
+    acm: MilestoneReportData;
+    others: MilestoneReportData;
   };
   items: CommodityDashboardItem[];
   totals: {
@@ -85,6 +83,55 @@ export interface QlgdDashboardResponse {
     avgLongRatio: number;
     avgShortRatio: number;
   };
+}
+
+/**
+ * Xác định xem ngày giao dịch có thuộc giờ Mùa Hè (Daylight Saving Time) của Sở Mỹ không.
+ * Giờ mùa hè bắt đầu từ Chủ nhật thứ 2 của tháng 3 đến Chủ nhật đầu tiên của tháng 11.
+ */
+function isSummerTradingSeason(dateStr: string): boolean {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const marchFirst = new Date(y, 2, 1);
+    const marchSecondSunday = 1 + ((7 - marchFirst.getDay() + 7) % 7) + 7;
+    const novFirst = new Date(y, 10, 1);
+    const novFirstSunday = 1 + ((7 - novFirst.getDay() + 7) % 7);
+    const summerStart = new Date(y, 2, marchSecondSunday);
+    const summerEnd = new Date(y, 10, novFirstSunday);
+    return dt >= summerStart && dt < summerEnd;
+  } catch {
+    return true; // Mặc định giờ mùa Hè
+  }
+}
+
+/**
+ * Trích xuất giờ trong ngày dạng số thực (ví dụ 14h30 -> 14.5) từ chuỗi thời gian khớp lệnh.
+ */
+function parseTradeHour(ngayGioStr: string): number | null {
+  if (!ngayGioStr) return null;
+  const str = String(ngayGioStr).trim();
+  const timeMatch = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!timeMatch) return null;
+  const h = parseInt(timeMatch[1], 10);
+  const m = parseInt(timeMatch[2], 10);
+  const s = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+  return h + m / 60 + s / 3600;
+}
+
+/**
+ * Phân bổ thời gian khớp lệnh vào 4 chu kỳ phiên giao dịch chuẩn (khớp 100% cột AG sheet DSGD MS).
+ */
+function getSessionBucket(hourFloat: number, isSummer: boolean): 'EARLY' | 'ASIA' | 'EURO' | 'US' {
+  const startHour = isSummer ? 5 : 6;
+  // Đầu phiên: [startHour, 8:00)
+  if (hourFloat >= startHour && hourFloat < 8) return 'EARLY';
+  // Hết phiên Á: [8:00, 16:00]
+  if (hourFloat >= 8 && hourFloat <= 16) return 'ASIA';
+  // Hết phiên Âu: (16:00, 23:00]
+  if (hourFloat > 16 && hourFloat <= 23) return 'EURO';
+  // Hết phiên Mỹ: (23:00, 24:00] hoặc [0:00, startHour)
+  return 'US';
 }
 
 @Injectable()
@@ -173,11 +220,24 @@ export class QlgdDashboardService {
       dsgdRows = dsgdRows.filter((r) => !isAcm(r.maTKGD));
     }
 
-    // 2. Tính toán KLGD & GTGD lần check gần nhất (phân tách ACM vs Còn lại)
+    // 2. Tính toán KLGD & GTGD và phân bổ khối lượng vào 4 rổ phiên theo thời gian thực
     let acmKlgd = 0;
     let othersKlgd = 0;
     let acmGtgdVnd = 0;
     let othersGtgdVnd = 0;
+
+    let acmEarly = 0;
+    let acmAsia = 0;
+    let acmEuro = 0;
+    let acmUs = 0;
+
+    let othersEarly = 0;
+    let othersAsia = 0;
+    let othersEuro = 0;
+    let othersUs = 0;
+
+    const isSummer = isSummerTradingSeason(targetDate);
+    const startHour = isSummer ? 5 : 6;
 
     for (const gd of dsgdRows) {
       const isAccountAcm = isAcm(gd.maTKGD);
@@ -186,14 +246,84 @@ export class QlgdDashboardService {
       // Quy đổi sơ bộ giá trị giao dịch dựa trên giá khớp và lot
       const estimatedValueVnd = lot * price * 25400;
 
+      const hourFloat = parseTradeHour(gd.ngayGio);
+
       if (isAccountAcm) {
         acmKlgd += lot;
         acmGtgdVnd += estimatedValueVnd;
+        if (hourFloat !== null) {
+          const bucket = getSessionBucket(hourFloat, isSummer);
+          if (bucket === 'EARLY') acmEarly += lot;
+          else if (bucket === 'ASIA') acmAsia += lot;
+          else if (bucket === 'EURO') acmEuro += lot;
+          else if (bucket === 'US') acmUs += lot;
+        } else {
+          acmEuro += lot;
+        }
       } else {
         othersKlgd += lot;
         othersGtgdVnd += estimatedValueVnd;
+        if (hourFloat !== null) {
+          const bucket = getSessionBucket(hourFloat, isSummer);
+          if (bucket === 'EARLY') othersEarly += lot;
+          else if (bucket === 'ASIA') othersAsia += lot;
+          else if (bucket === 'EURO') othersEuro += lot;
+          else if (bucket === 'US') othersUs += lot;
+        } else {
+          othersEuro += lot;
+        }
       }
     }
+
+    // Xác định thời điểm hiện tại để kiểm tra phiên Mỹ đã diễn ra chưa
+    const now = new Date();
+    const vnNowHour = (now.getUTCHours() + 7) % 24 + now.getUTCMinutes() / 60;
+    const vnTodayStr = new Date(now.getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
+    const isToday = targetDate === vnTodayStr;
+    const isAmericanSessionPending = isToday && (vnNowHour >= startHour && vnNowHour < 23);
+
+    // Tính toán số liệu lũy kế qua từng mốc (Cumulative) đúng chuẩn Excel Check BGS All
+    const acmEarlyCum = acmEarly;
+    const acmAsiaCum = acmEarlyCum + acmAsia;
+    const acmEuroCum = acmAsiaCum + acmEuro;
+    const acmUsCum = acmEuroCum + acmUs;
+
+    const othersEarlyCum = othersEarly;
+    const othersAsiaCum = othersEarlyCum + othersAsia;
+    const othersEuroCum = othersAsiaCum + othersEuro;
+    const othersUsCum = othersEuroCum + othersUs;
+
+    const acmMilestones: MilestoneReportData = hasActualFiles && (acmKlgd > 0 || othersKlgd > 0)
+      ? {
+          earlySession: acmEarlyCum,
+          asianSession: acmAsiaCum,
+          europeanSession: acmEuroCum,
+          americanSession: isAmericanSessionPending ? acmEuroCum : acmUsCum,
+          isAmericanSessionPending,
+        }
+      : {
+          earlySession: 123,
+          asianSession: 456,
+          europeanSession: 789,
+          americanSession: 1111,
+          isAmericanSessionPending: false,
+        };
+
+    const othersMilestones: MilestoneReportData = hasActualFiles && (acmKlgd > 0 || othersKlgd > 0)
+      ? {
+          earlySession: othersEarlyCum,
+          asianSession: othersAsiaCum,
+          europeanSession: othersEuroCum,
+          americanSession: isAmericanSessionPending ? othersEuroCum : othersUsCum,
+          isAmericanSessionPending,
+        }
+      : {
+          earlySession: 123,
+          asianSession: 456,
+          europeanSession: 789,
+          americanSession: 1111,
+          isAmericanSessionPending: false,
+        };
 
     // 3. Gom nhóm dữ liệu theo Mã hàng hóa cơ sở (Base Product)
     const productAggregation = new Map<
@@ -340,18 +470,8 @@ export class QlgdDashboardService {
         },
       },
       milestones: {
-        acm: {
-          earlySession: Math.round(acmKlgd * 0.15),
-          asianSession: Math.round(acmKlgd * 0.45),
-          europeanSession: Math.round(acmKlgd * 0.75),
-          americanSession: acmKlgd,
-        },
-        others: {
-          earlySession: Math.round(othersKlgd * 0.15),
-          asianSession: Math.round(othersKlgd * 0.45),
-          europeanSession: Math.round(othersKlgd * 0.75),
-          americanSession: othersKlgd,
-        },
+        acm: acmMilestones,
+        others: othersMilestones,
       },
       items,
       totals,

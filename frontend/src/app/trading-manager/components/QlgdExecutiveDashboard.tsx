@@ -76,7 +76,8 @@ export interface MilestoneReportData {
   earlySession: number; // Đầu phiên (5h-8h)
   asianSession: number; // Hết phiên Á (5h-16h)
   europeanSession: number; // Hết phiên Âu (5h-23h)
-  americanSession: number; // Hết phiên Mỹ (cả ngày)
+  americanSession: number | null; // Hết phiên Mỹ (cả ngày) - null hoặc pending nếu chưa qua 23h
+  isAmericanSessionPending?: boolean;
 }
 
 /**
@@ -452,6 +453,44 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0 }
     );
   }, [displayItems]);
+
+  // Dữ liệu 4 mốc thời điểm động (ưu tiên liveData nếu ở chế độ LIVE)
+  const acmMilestones: MilestoneReportData = useMemo(() => {
+    if (dataMode === 'LIVE' && liveData?.milestones?.acm) {
+      return liveData.milestones.acm;
+    }
+    return MOCK_ACM_SEGMENT.milestones;
+  }, [dataMode, liveData]);
+
+  const othersMilestones: MilestoneReportData = useMemo(() => {
+    if (dataMode === 'LIVE' && liveData?.milestones?.others) {
+      return liveData.milestones.others;
+    }
+    return MOCK_OTHERS_SEGMENT.milestones;
+  }, [dataMode, liveData]);
+
+  // Số liệu KLGD & GTGD lần check gần nhất
+  const acmLatestMetrics = useMemo(() => {
+    if (dataMode === 'LIVE' && liveData?.latestMetrics?.acm) {
+      return liveData.latestMetrics.acm;
+    }
+    return {
+      klgd: MOCK_ACM_SEGMENT.latestKlgd,
+      gtgdStr: MOCK_ACM_SEGMENT.latestGtgdStr,
+      gtgdVnd: MOCK_ACM_SEGMENT.latestGtgdVnd,
+    };
+  }, [dataMode, liveData]);
+
+  const othersLatestMetrics = useMemo(() => {
+    if (dataMode === 'LIVE' && liveData?.latestMetrics?.others) {
+      return liveData.latestMetrics.others;
+    }
+    return {
+      klgd: MOCK_OTHERS_SEGMENT.latestKlgd,
+      gtgdStr: MOCK_OTHERS_SEGMENT.latestGtgdStr,
+      gtgdVnd: MOCK_OTHERS_SEGMENT.latestGtgdVnd,
+    };
+  }, [dataMode, liveData]);
 
   // Cấu hình Biểu đồ Check Timeline cho Khối ACM
   const acmChartData = useMemo(() => {
@@ -880,14 +919,14 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>KLGD Gần Nhất</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatInteger(MOCK_ACM_SEGMENT.latestKlgd)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>lots</span>
+                  {formatInteger(acmLatestMetrics.klgd)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>lots</span>
                 </div>
               </div>
               <div style={{ width: '1px', height: '26px', backgroundColor: 'var(--border-color)' }} />
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>GTGD Gần Nhất</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0284c7' }}>
-                  {MOCK_ACM_SEGMENT.latestGtgdStr}
+                  {acmLatestMetrics.gtgdStr}
                 </div>
               </div>
             </div>
@@ -953,7 +992,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Đầu phiên</div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-8h</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatInteger(MOCK_ACM_SEGMENT.milestones.earlySession)}
+                  {formatInteger(acmMilestones.earlySession)}
                 </div>
               </div>
 
@@ -969,7 +1008,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Á</div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-16h</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
-                  {formatInteger(MOCK_ACM_SEGMENT.milestones.asianSession)}
+                  {formatInteger(acmMilestones.asianSession)}
                 </div>
               </div>
 
@@ -985,7 +1024,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Âu</div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-23h</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d97706' }}>
-                  {formatInteger(MOCK_ACM_SEGMENT.milestones.europeanSession)}
+                  {formatInteger(acmMilestones.europeanSession)}
                 </div>
               </div>
 
@@ -999,9 +1038,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>Hết phiên Mỹ</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cả ngày</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  {acmMilestones.isAmericanSessionPending ? 'Chưa qua 23h' : 'Cả ngày'}
+                </div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>
-                  {formatInteger(MOCK_ACM_SEGMENT.milestones.americanSession)}
+                  {acmMilestones.isAmericanSessionPending
+                    ? (acmMilestones.americanSession !== null ? `${formatInteger(acmMilestones.americanSession)}*` : '—')
+                    : (acmMilestones.americanSession !== null ? formatInteger(acmMilestones.americanSession) : '—')}
                 </div>
               </div>
             </div>
@@ -1076,14 +1119,14 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>KLGD Gần Nhất</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatInteger(MOCK_OTHERS_SEGMENT.latestKlgd)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>lots</span>
+                  {formatInteger(othersLatestMetrics.klgd)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>lots</span>
                 </div>
               </div>
               <div style={{ width: '1px', height: '26px', backgroundColor: 'var(--border-color)' }} />
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>GTGD Gần Nhất</div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#2563eb' }}>
-                  {MOCK_OTHERS_SEGMENT.latestGtgdStr}
+                  {othersLatestMetrics.gtgdStr}
                 </div>
               </div>
             </div>
@@ -1149,7 +1192,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Đầu phiên</div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-8h</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatInteger(MOCK_OTHERS_SEGMENT.milestones.earlySession)}
+                  {formatInteger(othersMilestones.earlySession)}
                 </div>
               </div>
 
@@ -1165,7 +1208,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Á</div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-16h</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
-                  {formatInteger(MOCK_OTHERS_SEGMENT.milestones.asianSession)}
+                  {formatInteger(othersMilestones.asianSession)}
                 </div>
               </div>
 
@@ -1181,7 +1224,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Âu</div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-23h</div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d97706' }}>
-                  {formatInteger(MOCK_OTHERS_SEGMENT.milestones.europeanSession)}
+                  {formatInteger(othersMilestones.europeanSession)}
                 </div>
               </div>
 
@@ -1195,9 +1238,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700 }}>Hết phiên Mỹ</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cả ngày</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  {othersMilestones.isAmericanSessionPending ? 'Chưa qua 23h' : 'Cả ngày'}
+                </div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#2563eb' }}>
-                  {formatInteger(MOCK_OTHERS_SEGMENT.milestones.americanSession)}
+                  {othersMilestones.isAmericanSessionPending
+                    ? (othersMilestones.americanSession !== null ? `${formatInteger(othersMilestones.americanSession)}*` : '—')
+                    : (othersMilestones.americanSession !== null ? formatInteger(othersMilestones.americanSession) : '—')}
                 </div>
               </div>
             </div>
