@@ -25,6 +25,8 @@ import {
   Check,
   X,
   Info,
+  Maximize2,
+  Search,
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -353,6 +355,358 @@ const MOCK_COMMODITY_ITEMS: CommodityPositionPnLItem[] = [
     shortRatio: 17,
     realizedPnL: -105339000,
     liquidatedLots: 71,
+    isTop17: true,
+  },
+  {
+    stt: 18,
+    category: 'Kim loại',
+    symbol: 'CP2CO',
+    name: 'Đồng Nano',
+    expectedPnL: 452000000,
+    openPositions: 181,
+    longRatio: 64,
+    shortRatio: 36,
+    realizedPnL: 12500000,
+    liquidatedLots: 42,
+    isTop17: false,
+  },
+  {
+    stt: 19,
+    category: 'Nông sản',
+    symbol: 'XW',
+    name: 'Lúa Mỳ Mini',
+    expectedPnL: -156000000,
+    openPositions: 92,
+    longRatio: 48,
+    shortRatio: 52,
+    realizedPnL: -8200000,
+    liquidatedLots: 15,
+    isTop17: false,
+  },
+  {
+    stt: 20,
+    category: 'Nông sản',
+    symbol: 'XC',
+    name: 'Ngô Mini',
+    expectedPnL: -320000000,
+    openPositions: 145,
+    longRatio: 40,
+    shortRatio: 60,
+    realizedPnL: 18500000,
+    liquidatedLots: 38,
+    isTop17: false,
+  },
+  {
+    stt: 21,
+    category: 'Nông sản',
+    symbol: 'XB',
+    name: 'Đậu Tương Mini',
+    expectedPnL: 180000000,
+    openPositions: 74,
+    longRatio: 72,
+    shortRatio: 28,
+    realizedPnL: 9400000,
+    liquidatedLots: 20,
+    isTop17: false,
+  },
+  {
+    stt: 22,
+    category: 'Nguyên liệu công nghiệp',
+    symbol: 'FEF',
+    name: 'Quặng sắt',
+    expectedPnL: -890000000,
+    openPositions: 210,
+    longRatio: 50,
+    shortRatio: 50,
+    realizedPnL: -45000000,
+    liquidatedLots: 60,
+    isTop17: false,
+  },
+  {
+    stt: 23,
+    category: 'Nông sản',
+    symbol: 'MZM',
+    name: 'Khô Đậu tương Micro',
+    expectedPnL: -42000000,
+    openPositions: 55,
+    longRatio: 58,
+    shortRatio: 42,
+    realizedPnL: 4100000,
+    liquidatedLots: 12,
+    isTop17: false,
+  },
+  {
+    stt: 24,
+    category: 'Nông sản',
+    symbol: 'MZC',
+    name: 'Ngô Micro',
+    expectedPnL: -78000000,
+    openPositions: 68,
+    longRatio: 35,
+    shortRatio: 65,
+    realizedPnL: -2500000,
+    liquidatedLots: 18,
+    isTop17: false,
+  },
+  {
+    stt: 25,
+    category: 'Nguyên liệu công nghiệp',
+    symbol: 'CCE',
+    name: 'Ca cao',
+    expectedPnL: 650000000,
+    openPositions: 85,
+    longRatio: 80,
+    shortRatio: 20,
+    realizedPnL: 75000000,
+    liquidatedLots: 24,
+    isTop17: false,
+  },
+  {
+    stt: 26,
+    category: 'Nông sản',
+    symbol: 'ZFT',
+    name: 'Cao su TSR20',
+    expectedPnL: -110000000,
+    openPositions: 40,
+    longRatio: 60,
+    shortRatio: 40,
+    realizedPnL: 5200000,
+    liquidatedLots: 8,
+    isTop17: false,
+  },
+  {
+    stt: 27,
+    category: 'Nông sản',
+    symbol: 'MZL',
+    name: 'Dầu đậu tương Micro',
+    expectedPnL: 85000000,
+    openPositions: 62,
+    longRatio: 65,
+    shortRatio: 35,
+    realizedPnL: 6400000,
+    liquidatedLots: 14,
+    isTop17: false,
+  },
+  {
+    stt: 28,
+    category: 'Nông sản',
+    symbol: 'MZW',
+    name: 'Lúa Mỳ Micro',
+    expectedPnL: -64000000,
+    openPositions: 48,
+    longRatio: 52,
+    shortRatio: 48,
+    realizedPnL: -3100000,
+    liquidatedLots: 10,
+    isTop17: false,
+  },
+  {
+    stt: 29,
+    category: 'Kim loại',
+    symbol: 'ALI',
+    name: 'Nhôm',
+    expectedPnL: 340000000,
+    openPositions: 115,
+    longRatio: 70,
+    shortRatio: 30,
+    realizedPnL: 28000000,
+    liquidatedLots: 35,
+    isTop17: false,
+  },
+  {
+    stt: 30,
+    category: 'Nông sản',
+    symbol: 'MZS',
+    name: 'Đậu tương Micro',
+    expectedPnL: -52000000,
+    openPositions: 50,
+    longRatio: 45,
+    shortRatio: 55,
+    realizedPnL: 1800000,
+    liquidatedLots: 11,
+    isTop17: false,
+  },
+  {
+    stt: 31,
+    category: 'Nông sản',
+    symbol: 'MPO',
+    name: 'Dầu cọ thô',
+    expectedPnL: 210000000,
+    openPositions: 78,
+    longRatio: 62,
+    shortRatio: 38,
+    realizedPnL: 14000000,
+    liquidatedLots: 19,
+    isTop17: false,
+  },
+  {
+    stt: 32,
+    category: 'Kim loại',
+    symbol: 'AHD',
+    name: 'Nhôm LME',
+    expectedPnL: -280000000,
+    openPositions: 95,
+    longRatio: 40,
+    shortRatio: 60,
+    realizedPnL: -19000000,
+    liquidatedLots: 22,
+    isTop17: false,
+  },
+  {
+    stt: 33,
+    category: 'Kim loại',
+    symbol: 'MQC',
+    name: 'Đồng mini',
+    expectedPnL: 195000000,
+    openPositions: 88,
+    longRatio: 68,
+    shortRatio: 32,
+    realizedPnL: 16500000,
+    liquidatedLots: 25,
+    isTop17: false,
+  },
+  {
+    stt: 34,
+    category: 'Nông sản',
+    symbol: 'TRU',
+    name: 'Cao su RSS3 TOCOM',
+    expectedPnL: -95000000,
+    openPositions: 35,
+    longRatio: 55,
+    shortRatio: 45,
+    realizedPnL: 3200000,
+    liquidatedLots: 7,
+    isTop17: false,
+  },
+  {
+    stt: 35,
+    category: 'Kim loại',
+    symbol: 'MQI',
+    name: 'Bạc mini',
+    expectedPnL: 420000000,
+    openPositions: 130,
+    longRatio: 75,
+    shortRatio: 25,
+    realizedPnL: 38000000,
+    liquidatedLots: 30,
+    isTop17: false,
+  },
+  {
+    stt: 36,
+    category: 'Kim loại',
+    symbol: 'SND',
+    name: 'Thiếc LME',
+    expectedPnL: -180000000,
+    openPositions: 45,
+    longRatio: 50,
+    shortRatio: 50,
+    realizedPnL: -8500000,
+    liquidatedLots: 9,
+    isTop17: false,
+  },
+  {
+    stt: 37,
+    category: 'Nguyên liệu công nghiệp',
+    symbol: 'QW',
+    name: 'Đường trắng',
+    expectedPnL: 260000000,
+    openPositions: 72,
+    longRatio: 65,
+    shortRatio: 35,
+    realizedPnL: 21000000,
+    liquidatedLots: 16,
+    isTop17: false,
+  },
+  {
+    stt: 38,
+    category: 'Kim loại',
+    symbol: 'ZDS',
+    name: 'Kẽm LME',
+    expectedPnL: -210000000,
+    openPositions: 65,
+    longRatio: 42,
+    shortRatio: 58,
+    realizedPnL: -12000000,
+    liquidatedLots: 14,
+    isTop17: false,
+  },
+  {
+    stt: 39,
+    category: 'Kim loại',
+    symbol: 'CAD',
+    name: 'Đồng LME',
+    expectedPnL: 310000000,
+    openPositions: 80,
+    longRatio: 70,
+    shortRatio: 30,
+    realizedPnL: 25000000,
+    liquidatedLots: 20,
+    isTop17: false,
+  },
+  {
+    stt: 40,
+    category: 'Kim loại',
+    symbol: 'SSR',
+    name: 'Thép thanh vằn FOB Thổ Nhĩ Kỳ',
+    expectedPnL: -140000000,
+    openPositions: 52,
+    longRatio: 45,
+    shortRatio: 55,
+    realizedPnL: -9000000,
+    liquidatedLots: 12,
+    isTop17: false,
+  },
+  {
+    stt: 41,
+    category: 'Kim loại',
+    symbol: 'SSC',
+    name: 'Thép phế liệu CFR Thổ Nhĩ Kỳ',
+    expectedPnL: -98000000,
+    openPositions: 44,
+    longRatio: 48,
+    shortRatio: 52,
+    realizedPnL: -6200000,
+    liquidatedLots: 10,
+    isTop17: false,
+  },
+  {
+    stt: 42,
+    category: 'Kim loại',
+    symbol: 'LHC',
+    name: 'Thép cuộn cán nóng FOB Trung Quốc',
+    expectedPnL: 175000000,
+    openPositions: 60,
+    longRatio: 60,
+    shortRatio: 40,
+    realizedPnL: 14500000,
+    liquidatedLots: 15,
+    isTop17: false,
+  },
+  {
+    stt: 43,
+    category: 'Kim loại',
+    symbol: 'NID',
+    name: 'Niken LME',
+    expectedPnL: -350000000,
+    openPositions: 58,
+    longRatio: 38,
+    shortRatio: 62,
+    realizedPnL: -28000000,
+    liquidatedLots: 13,
+    isTop17: false,
+  },
+  {
+    stt: 44,
+    category: 'Kim loại',
+    symbol: 'PBD',
+    name: 'Chì LME',
+    expectedPnL: 85000000,
+    openPositions: 38,
+    longRatio: 68,
+    shortRatio: 32,
+    realizedPnL: 7800000,
+    liquidatedLots: 8,
+    isTop17: false,
   },
 ];
 
@@ -388,7 +742,6 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('MOCK');
   const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
-  const [catalogScope, setCatalogScope] = useState<'TOP17' | 'ALL'>('TOP17');
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [liveData, setLiveData] = useState<any | null>(null);
   const [loadingLive, setLoadingLive] = useState<boolean>(false);
@@ -396,6 +749,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const [isBgsModalOpen, setIsBgsModalOpen] = useState<boolean>(false);
   const [activeBgsTab, setActiveBgsTab] = useState<'16H' | '23H' | 'EOD' | 'QLGD'>('16H');
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [isAllCommoditiesModalOpen, setIsAllCommoditiesModalOpen] = useState<boolean>(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState<string>('');
+  const [modalCategory, setModalCategory] = useState<string>('ALL');
 
   // Tải dữ liệu thực tế từ Backend API
   const fetchLiveDashboard = useCallback(
@@ -477,31 +833,29 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     return MOCK_COMMODITY_ITEMS;
   }, [dataMode, liveData]);
 
+  // 17 mặt hàng chủ lực cho Bảng chính trên Dashboard
+  const top17Items = useMemo(() => {
+    return rawDisplayItems.filter((item) => item.isTop17 !== false);
+  }, [rawDisplayItems]);
+
+  // Lọc dữ liệu theo Nhóm hàng hóa cho Bảng chính
   const displayItems = useMemo(() => {
-    if (catalogScope === 'TOP17') {
-      return rawDisplayItems.filter((item) => item.isTop17 !== false);
-    }
-    return rawDisplayItems;
-  }, [rawDisplayItems, catalogScope]);
+    if (selectedCategory === 'ALL') return top17Items;
+    return top17Items.filter((item) => item.category === selectedCategory);
+  }, [selectedCategory, top17Items]);
 
-  // Lọc dữ liệu theo Nhóm hàng hóa nếu có chọn
-  const filteredCommodities = useMemo(() => {
-    if (selectedCategory === 'ALL') return displayItems;
-    return displayItems.filter((item) => item.category === selectedCategory);
-  }, [selectedCategory, displayItems]);
-
-  // Gom nhóm danh mục phục vụ hiển thị gộp ô (Rowspan)
+  // Gom nhóm danh mục phục vụ hiển thị gộp ô (Rowspan) cho Bảng chính
   const categoryGroups = useMemo(() => {
     const map = new Map<string, CommodityPositionPnLItem[]>();
-    for (const item of filteredCommodities) {
+    for (const item of displayItems) {
       const list = map.get(item.category) || [];
       list.push(item);
       map.set(item.category, list);
     }
     return Array.from(map.entries());
-  }, [filteredCommodities]);
+  }, [displayItems]);
 
-  // Tính tổng chân trang
+  // Tính tổng chân trang Bảng chính
   const footerTotals = useMemo(() => {
     return displayItems.reduce(
       (acc, item) => {
@@ -514,6 +868,42 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0 }
     );
   }, [displayItems]);
+
+  // Dữ liệu cho Modal Toàn bộ 44 mặt hàng (Search + Filter nhóm)
+  const modalFilteredItems = useMemo(() => {
+    let list = rawDisplayItems;
+    if (modalCategory !== 'ALL') {
+      list = list.filter((item) => item.category === modalCategory);
+    }
+    if (modalSearchTerm.trim()) {
+      const q = modalSearchTerm.toLowerCase().trim();
+      list = list.filter((item) => item.symbol.toLowerCase().includes(q) || item.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [rawDisplayItems, modalCategory, modalSearchTerm]);
+
+  const modalCategoryGroups = useMemo(() => {
+    const map = new Map<string, CommodityPositionPnLItem[]>();
+    for (const item of modalFilteredItems) {
+      const list = map.get(item.category) || [];
+      list.push(item);
+      map.set(item.category, list);
+    }
+    return Array.from(map.entries());
+  }, [modalFilteredItems]);
+
+  const modalTotals = useMemo(() => {
+    return modalFilteredItems.reduce(
+      (acc, item) => {
+        acc.expectedPnL += item.expectedPnL;
+        acc.openPositions += item.openPositions;
+        acc.realizedPnL += item.realizedPnL;
+        acc.liquidatedLots += item.liquidatedLots;
+        return acc;
+      },
+      { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0 }
+    );
+  }, [modalFilteredItems]);
 
   // Dữ liệu 4 mốc thời điểm động (ưu tiên liveData nếu ở chế độ LIVE)
   const acmMilestones: MilestoneReportData = useMemo(() => {
@@ -1379,58 +1769,59 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              BẢNG THỐNG KÊ LÃI LỖ DỰ KIẾN/THỰC TẾ & TỶ LỆ VỊ THẾ MỞ MUA/BÁN
+              BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC (BAN GIÁM ĐỐC)
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong> | Tự động bóc tách từ TTM & TTTT
+              Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong> | Tự động bóc tách từ TTM & TTTT (Check BGS All.xlsm)
             </p>
           </div>
 
           {/* Scope & Category Filter Chips */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Scope Toggle: 17 vs 44 */}
-            <div
+            {/* Nút bật Modal xem đầy đủ 44 mặt hàng */}
+            <button
+              type="button"
+              onClick={() => {
+                setModalCategory('ALL');
+                setModalSearchTerm('');
+                setIsAllCommoditiesModalOpen(true);
+              }}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
                 borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                overflow: 'hidden',
-                backgroundColor: 'var(--bg-input)',
+                border: '1px solid #0284c7',
+                backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                color: '#0284c7',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(2, 132, 199, 0.22)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(2, 132, 199, 0.12)';
               }}
             >
-              <button
-                type="button"
-                onClick={() => setCatalogScope('TOP17')}
+              <Maximize2 size={14} />
+              <span>Xem toàn bộ 44 mặt hàng</span>
+              <span
                 style={{
-                  padding: '5px 12px',
-                  fontSize: '0.75rem',
-                  fontWeight: catalogScope === 'TOP17' ? 700 : 500,
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: catalogScope === 'TOP17' ? '#0284c7' : 'transparent',
-                  color: catalogScope === 'TOP17' ? '#ffffff' : 'var(--text-secondary)',
-                  transition: 'all 0.15s',
+                  fontSize: '0.68rem',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  fontWeight: 800,
                 }}
               >
-                Chủ lực (17 mặt hàng)
-              </button>
-              <button
-                type="button"
-                onClick={() => setCatalogScope('ALL')}
-                style={{
-                  padding: '5px 12px',
-                  fontSize: '0.75rem',
-                  fontWeight: catalogScope === 'ALL' ? 700 : 500,
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: catalogScope === 'ALL' ? '#0284c7' : 'transparent',
-                  color: catalogScope === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                Toàn bộ (44 mặt hàng)
-              </button>
-            </div>
+                44 mã
+              </span>
+            </button>
 
             <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
 
@@ -1462,6 +1853,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         {/* The Master Data Table */}
         <div
           style={{
+            maxHeight: '680px',
+            overflowY: 'auto',
             overflowX: 'auto',
             borderRadius: '10px',
             border: '1px solid var(--border-color)',
@@ -1476,8 +1869,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               color: 'var(--text-primary)',
             }}
           >
-            {/* Table Header */}
-            <thead>
+            {/* Table Header with Sticky */}
+            <thead
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                backgroundColor: 'var(--bg-input)',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+              }}
+            >
               <tr
                 style={{
                   backgroundColor: 'var(--bg-input)',
@@ -1753,8 +2154,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               })}
             </tbody>
 
-            {/* Table Footer (Tổng cộng) */}
-            <tfoot>
+            {/* Table Footer (Tổng cộng) with Sticky */}
+            <tfoot
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                zIndex: 8,
+                backgroundColor: 'var(--bg-input)',
+                boxShadow: '0 -1px 2px rgba(0, 0, 0, 0.08)',
+              }}
+            >
               <tr
                 style={{
                   backgroundColor: 'var(--bg-input)',
@@ -2083,6 +2492,610 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               >
                 {isCopied ? <Check size={14} /> : <Copy size={14} />}
                 <span>{isCopied ? 'Đã sao chép!' : 'Sao chép tin nhắn'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. MODAL TOÀN MÀN HÌNH: BẢNG TỔNG HỢP TOÀN BỘ 44 MẶT HÀNG PHÁI SINH (TABLE 3) */}
+      {/* ========================================================================= */}
+      {isAllCommoditiesModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+            backdropFilter: 'blur(5px)',
+          }}
+          onClick={() => setIsAllCommoditiesModalOpen(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              width: '96vw',
+              maxWidth: '1440px',
+              height: '92vh',
+              maxHeight: '92vh',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 22px',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(2, 132, 199, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#0284c7',
+                  }}
+                >
+                  <Layers size={20} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      BẢNG TỔNG HỢP TOÀN BỘ 44 MẶT HÀNG PHÁI SINH (TABLE 3)
+                    </h3>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        backgroundColor: 'rgba(2, 132, 199, 0.2)',
+                        color: '#0284c7',
+                        border: '1px solid rgba(2, 132, 199, 0.4)',
+                      }}
+                    >
+                      Đầy đủ 44 mã
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Bóc tách 100% từ Table 3 (Check BGS All.xlsm) | Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAllCommoditiesModalOpen(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '6px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Toolbar: Search + Category Filter + KPI summary */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                padding: '12px 22px',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+              }}
+            >
+              {/* Left: Search input + Category chips */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: 1 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    minWidth: '260px',
+                  }}
+                >
+                  <Search size={15} color="var(--text-muted)" />
+                  <input
+                    type="text"
+                    value={modalSearchTerm}
+                    onChange={(e) => setModalSearchTerm(e.target.value)}
+                    placeholder="Tìm theo mã (ZCE, SI5CO...) hoặc tên..."
+                    style={{
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      outline: 'none',
+                      width: '100%',
+                    }}
+                  />
+                  {modalSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setModalSearchTerm('')}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-color)' }} />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  {(['ALL', 'Nông sản', 'Nguyên liệu công nghiệp', 'Kim loại'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setModalCategory(cat)}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '0.75rem',
+                        fontWeight: modalCategory === cat ? 700 : 500,
+                        borderRadius: '6px',
+                        border: '1px solid',
+                        borderColor: modalCategory === cat ? '#0284c7' : 'var(--border-color)',
+                        backgroundColor: modalCategory === cat ? 'rgba(2, 132, 199, 0.15)' : 'var(--bg-input)',
+                        color: modalCategory === cat ? '#0284c7' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {cat === 'ALL' ? `Tất cả (${modalFilteredItems.length})` : cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: Quick KPI badges */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Tổng vị thế mở: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{formatInteger(modalTotals.openPositions)} lots</strong>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Lãi lỗ dự kiến: <strong style={{ color: modalTotals.expectedPnL < 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{formatAccountingCurrency(modalTotals.expectedPnL)} VND</strong>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Lãi lỗ thực tế: <strong style={{ color: modalTotals.realizedPnL < 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{formatAccountingCurrency(modalTotals.realizedPnL)} VND</strong>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Tất toán: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{formatInteger(modalTotals.liquidatedLots)} lots</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Table Container with internal scroll & sticky headers */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                overflowX: 'auto',
+                backgroundColor: 'var(--bg-card)',
+              }}
+            >
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <thead
+                  style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    backgroundColor: 'var(--bg-input)',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+                  }}
+                >
+                  <tr
+                    style={{
+                      borderBottom: '2px solid var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      textAlign: 'center',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <th style={{ padding: '10px 8px', borderRight: '1px solid var(--border-color)', width: '45px' }}>STT</th>
+                    <th style={{ padding: '10px 10px', borderRight: '1px solid var(--border-color)', width: '130px' }}>Nhóm HH</th>
+                    <th style={{ padding: '10px 8px', borderRight: '1px solid var(--border-color)', width: '70px' }}>Mã HH</th>
+                    <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'left', minWidth: '150px' }}>Tên HH</th>
+                    <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'right', minWidth: '160px' }}>Tổng lãi lỗ dự kiến (VND)</th>
+                    <th style={{ padding: '10px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'right', width: '110px' }}>Tổng vị thế mở</th>
+                    <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'center', width: '130px' }}>% mở Mua</th>
+                    <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'center', width: '130px' }}>% mở Bán</th>
+                    <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'right', minWidth: '140px' }}>Lãi lỗ thực tế (VND)</th>
+                    <th style={{ padding: '10px 10px', textAlign: 'right', width: '120px' }}>Trạng thái tất toán</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modalCategoryGroups.map(([catName, items]) => {
+                    return items.map((item, idx) => {
+                      const isFirstOfGroup = idx === 0;
+                      const isLastOfGroup = idx === items.length - 1;
+                      const isExpectedLoss = item.expectedPnL < 0;
+                      const isRealizedLoss = item.realizedPnL < 0;
+
+                      return (
+                        <tr
+                          key={item.symbol}
+                          style={{
+                            borderBottom: isLastOfGroup ? '2px solid var(--border-color)' : '1px solid var(--border-color)',
+                            backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.04)',
+                            transition: 'background-color 0.15s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              idx % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.04)';
+                          }}
+                        >
+                          <td style={{ padding: '9px 8px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{item.stt}</span>
+                          </td>
+                          {isFirstOfGroup ? (
+                            <td
+                              rowSpan={items.length}
+                              style={{
+                                padding: '10px',
+                                textAlign: 'center',
+                                verticalAlign: 'middle',
+                                fontWeight: 700,
+                                borderRight: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-input)',
+                                color:
+                                  catName === 'Nông sản'
+                                    ? '#10b981'
+                                    : catName === 'Kim loại'
+                                    ? '#0284c7'
+                                    : '#d97706',
+                                fontSize: '0.8rem',
+                              }}
+                            >
+                              {catName}
+                            </td>
+                          ) : null}
+                          <td
+                            style={{
+                              padding: '9px 8px',
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              borderRight: '1px solid var(--border-color)',
+                              color: item.isTop17 ? '#0284c7' : 'var(--text-primary)',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {item.symbol}
+                          </td>
+                          <td
+                            style={{
+                              padding: '9px 12px',
+                              borderRight: '1px solid var(--border-color)',
+                              color: 'var(--text-primary)',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {item.name}
+                            {item.isTop17 && (
+                              <span
+                                style={{
+                                  marginLeft: '6px',
+                                  fontSize: '0.65rem',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                                  color: '#0284c7',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Chủ lực
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              padding: '9px 12px',
+                              textAlign: 'right',
+                              borderRight: '1px solid var(--border-color)',
+                              fontWeight: 700,
+                              fontFamily: 'monospace',
+                              color: isExpectedLoss ? '#ef4444' : '#10b981',
+                              backgroundColor: item.highlightExpectedLoss
+                                ? 'rgba(239, 68, 68, 0.12)'
+                                : 'transparent',
+                            }}
+                          >
+                            {formatAccountingCurrency(item.expectedPnL)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '9px 10px',
+                              textAlign: 'right',
+                              borderRight: '1px solid var(--border-color)',
+                              fontWeight: 700,
+                              color: 'var(--text-primary)',
+                              fontFamily: 'monospace',
+                              backgroundColor: item.highlightOpenPosition
+                                ? 'rgba(16, 185, 129, 0.12)'
+                                : 'transparent',
+                            }}
+                          >
+                            {formatInteger(item.openPositions)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '6px 10px',
+                              borderRight: '1px solid var(--border-color)',
+                              verticalAlign: 'middle',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  height: '16px',
+                                  backgroundColor: 'rgba(148, 163, 184, 0.18)',
+                                  borderRadius: '4px',
+                                  overflow: 'hidden',
+                                  position: 'relative',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${item.longRatio}%`,
+                                    height: '100%',
+                                    backgroundColor: '#3b82f6',
+                                    borderRadius: '4px',
+                                    transition: 'width 0.4s ease',
+                                  }}
+                                />
+                              </div>
+                              <span
+                                style={{
+                                  width: '32px',
+                                  textAlign: 'right',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#2563eb',
+                                }}
+                              >
+                                {item.longRatio}%
+                              </span>
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: '6px 10px',
+                              borderRight: '1px solid var(--border-color)',
+                              verticalAlign: 'middle',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  height: '16px',
+                                  backgroundColor: 'rgba(148, 163, 184, 0.18)',
+                                  borderRadius: '4px',
+                                  overflow: 'hidden',
+                                  position: 'relative',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${item.shortRatio}%`,
+                                    height: '100%',
+                                    backgroundColor: '#94a3b8',
+                                    borderRadius: '4px',
+                                    transition: 'width 0.4s ease',
+                                  }}
+                                />
+                              </div>
+                              <span
+                                style={{
+                                  width: '32px',
+                                  textAlign: 'right',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  color: 'var(--text-muted)',
+                                }}
+                              >
+                                {item.shortRatio}%
+                              </span>
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: '9px 12px',
+                              textAlign: 'right',
+                              borderRight: '1px solid var(--border-color)',
+                              fontWeight: 700,
+                              fontFamily: 'monospace',
+                              color: isRealizedLoss ? '#ef4444' : '#10b981',
+                              backgroundColor: isRealizedLoss
+                                ? 'rgba(239, 68, 68, 0.08)'
+                                : 'rgba(16, 185, 129, 0.08)',
+                            }}
+                          >
+                            {formatAccountingCurrency(item.realizedPnL)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '9px 10px',
+                              textAlign: 'right',
+                              fontWeight: 700,
+                              fontFamily: 'monospace',
+                              color: 'var(--text-primary)',
+                              backgroundColor: item.highlightLiquidated
+                                ? 'rgba(16, 185, 129, 0.12)'
+                                : 'transparent',
+                            }}
+                          >
+                            {formatInteger(item.liquidatedLots)}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })}
+                </tbody>
+                <tfoot
+                  style={{
+                    position: 'sticky',
+                    bottom: 0,
+                    zIndex: 8,
+                    backgroundColor: 'var(--bg-input)',
+                    borderTop: '2px solid var(--border-color)',
+                    boxShadow: '0 -2px 4px rgba(0, 0, 0, 0.08)',
+                  }}
+                >
+                  <tr style={{ fontWeight: 800, fontSize: '0.85rem' }}>
+                    <td
+                      colSpan={4}
+                      style={{
+                        padding: '12px 14px',
+                        textAlign: 'center',
+                        borderRight: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Tổng cộng ({modalFilteredItems.length} mặt hàng)
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px',
+                        textAlign: 'right',
+                        borderRight: '1px solid var(--border-color)',
+                        color: modalTotals.expectedPnL < 0 ? '#ef4444' : '#10b981',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {formatAccountingCurrency(modalTotals.expectedPnL)}
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px 10px',
+                        textAlign: 'right',
+                        borderRight: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {formatInteger(modalTotals.openPositions)}
+                    </td>
+                    <td colSpan={2} style={{ padding: '12px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px',
+                        textAlign: 'right',
+                        borderRight: '1px solid var(--border-color)',
+                        color: modalTotals.realizedPnL < 0 ? '#ef4444' : '#10b981',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {formatAccountingCurrency(modalTotals.realizedPnL)}
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px 10px',
+                        textAlign: 'right',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {formatInteger(modalTotals.liquidatedLots)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 22px',
+                borderTop: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Info size={13} color="#38bdf8" />
+                  <span>Quy chuẩn kế toán: Số âm đặt trong ngoặc đơn (xxx)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ display: 'inline-block', width: '10px', height: '10px', backgroundColor: 'rgba(2, 132, 199, 0.3)', border: '1px solid #0284c7', borderRadius: '2px' }} />
+                  <span>Badge 'Chủ lực': Thuộc 17 mã cốt lõi Ban Giám Đốc theo dõi</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAllCommoditiesModalOpen(false)}
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
               </button>
             </div>
           </div>

@@ -1,0 +1,1853 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Calendar,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  Download,
+  Play,
+  Server,
+  Clock,
+  Sliders,
+  Loader2,
+  FileSpreadsheet,
+  FileText,
+  Mail,
+  Layers,
+  Database,
+  Lock,
+  Folder,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import Link from 'next/link';
+import { api } from '@/services/api';
+import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
+import LegacyCqgSyncSection from './LegacyCqgSyncSection';
+import BackupLogSummaryModal from './BackupLogSummaryModal';
+import CeAcmBackupSection from '../ce-acm/CeAcmBackupSection';
+
+// Danh sách 25 báo cáo VNCLEAR / CoreCCP theo chuẩn Ground Truth Maker
+export const CORE_CCP_REPORTS_LIST: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  group: 'ORDERS' | 'MM' | 'POSITION' | 'RISK' | 'CASH' | 'PRODUCT';
+  groupLabel: string;
+  phase: 1 | 2; // 1: Trước 16h20, 2: EOD cuối ngày
+}> = [
+  // 1. Sổ lệnh thường (5 file)
+  { key: 'DSL', name: 'DSL CCP', filename: 'DSL CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSLDK', name: 'DSLDK CCP', filename: 'DSLDK CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSLCK', name: 'DSLCK CCP', filename: 'DSLCK CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSLDH', name: 'DSLDH CCP', filename: 'DSLDH CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSGD', name: 'DSGD CCP', filename: 'DSGD CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+
+  // 2. Sổ lệnh MM (5 file)
+  { key: 'DSL_MM', name: 'DSL MM CCP', filename: 'DSL MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSLDK_MM', name: 'DSLDK MM CCP', filename: 'DSLDK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSLCK_MM', name: 'DSLCK MM CCP', filename: 'DSLCK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSLDH_MM', name: 'DSLDH MM CCP', filename: 'DSLDH MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSGD_MM', name: 'DSGD MM CCP', filename: 'DSGD MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+
+  // 3. Vị thế & Lãi lỗ (3 file)
+  { key: 'TTM_PRE1620', name: 'TTM trước 4h20', filename: 'TTM truoc 4h20.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 1 },
+  { key: 'TTM', name: 'TTM CCP', filename: 'TTM CCP.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
+  { key: 'TTTT', name: 'TTTT', filename: 'TTTT.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
+
+  // 4. Rủi ro & Ký quỹ (6 file)
+  { key: 'QLTTTKGD_PRE1620', name: 'QL TT TKGD trước 4h20', filename: 'QL TT TKGD truoc 4h20.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 1 },
+  { key: 'QLTTTKGD', name: 'QL TT TKGD', filename: 'QL TT TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'EOD', name: 'Kết quả EOD', filename: 'EOD.csv', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'QLTTTVKD', name: 'QL TT TVKD', filename: 'QL TT TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'DSQLKQ_TKGD', name: 'DSQLKQ TKGD', filename: 'DSQLKQ TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'DSQLKQ_TVKD', name: 'DSQLKQ TVKD', filename: 'DSQLKQ TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+
+  // 5. Nộp rút tiền & Tài khoản (2 file)
+  { key: 'NR', name: 'NR', filename: 'NR.xlsx', group: 'CASH', groupLabel: 'Nộp rút & TK', phase: 2 },
+  { key: 'DSTKGD', name: 'DSTKGD ACM', filename: 'DSTKGD ACM.xlsx', group: 'CASH', groupLabel: 'Nộp rút & TK', phase: 2 },
+
+  // 6. Hàng hóa & Hợp đồng (3 mục)
+  { key: 'HH', name: 'HH', filename: 'HH.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
+  { key: 'HD', name: 'Hợp đồng hàng hóa', filename: 'HĐ *.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
+  { key: 'GTT', name: 'GTT CCP', filename: 'GTT CCP.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
+];
+
+export const ACM_REPORTS_LIST: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  source: 'WEB' | 'SFTP';
+  description: string;
+}> = [
+  {
+    key: 'FILL',
+    name: 'Khớp lệnh ACM (Fill)',
+    filename: 'Fill.xlsx',
+    source: 'WEB',
+    description: 'Dữ liệu khớp lệnh tự doanh trích xuất từ giao diện Web ACM',
+  },
+  {
+    key: 'ORDER',
+    name: 'Sổ lệnh ACM (Order)',
+    filename: 'Order.xlsx',
+    source: 'WEB',
+    description: 'Sổ lệnh giao dịch tự doanh trích xuất từ giao diện Web ACM',
+  },
+  {
+    key: 'SFTP_CSV',
+    name: 'Straits EOD CSV',
+    filename: 'EOD FO trades_PT Straits...csv',
+    source: 'SFTP',
+    description: 'File đối chiếu chuẩn Straits Financial qua giao thức SFTP Server',
+  },
+  {
+    key: 'SFTP_XLS',
+    name: 'Báo cáo TK 10017890000',
+    filename: '<YYYY-MM-DD>_10017890000.xls',
+    source: 'SFTP',
+    description: 'File sao kê tài khoản Straits 10017890000 định dạng bảng tính XLS',
+  },
+];
+
+export interface LegacyBackupThongKeSectionProps {
+  token: string | null;
+  selectedDate: string;
+  onSelectDate?: (date: string) => void;
+  filterScope?: 'ALL' | 'MS_CQG' | 'OMS';
+}
+
+export default function LegacyBackupThongKeSection({
+  token,
+  selectedDate,
+  onSelectDate,
+  filterScope = 'ALL',
+}: LegacyBackupThongKeSectionProps) {
+  // Subtab điều hướng phân hệ backup: MS-CQG-CCP vs CE-ACM
+  const [backupSubTab, setBackupSubTab] = useState<'MS_CQG_CCP' | 'CE_ACM'>('MS_CQG_CCP');
+
+  // Checkbox settings
+  const [backupPeriodic, setBackupPeriodic] = useState<boolean>(true);
+  const [backupPeriodicMinutes, setBackupPeriodicMinutes] = useState<number>(60);
+  const [enableBackupTime, setEnableBackupTime] = useState<boolean>(true);
+  const [backupTime, setBackupTime] = useState<string>('');
+  const [enableStatTime, setEnableStatTime] = useState<boolean>(true);
+  const [statTime, setStatTime] = useState<string>('');
+
+  // Trạng thái ca trực hiện tại (đọc động từ /api/v1/shifts/active)
+  const [activeShiftName, setActiveShiftName] = useState<string>('');
+  const [shiftBackupTime, setShiftBackupTime] = useState<string | null>(null);
+  const [shiftStatTime, setShiftStatTime] = useState<string | null>(null);
+
+  // Master Switch: Tự động tải backup & thống kê (bot_auto_backup_enabled)
+  const [autoBackupActive, setAutoBackupActive] = useState<boolean>(true);
+  const [updatingAutoBackup, setUpdatingAutoBackup] = useState<boolean>(false);
+  const [sessionStartTime, setSessionStartTime] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_session_start_time') || '05:00';
+    }
+    return '05:00';
+  });
+
+  // Helper lưu cài đặt vào CSDL MongoDB system_settings
+  const saveSetting = useCallback(async (key: string, value: string) => {
+    if (!token) return;
+    try {
+      await api.admin.saveSystemSetting(key, value, token);
+    } catch (err: any) {
+      console.error(`[SystemSettings] Lỗi lưu cấu hình ${key}:`, err.message);
+    }
+  }, [token]);
+
+  // Debounce timer ref
+  const debounceTimerRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const debouncedSaveSetting = useCallback((key: string, value: string, delay = 600) => {
+    if (debounceTimerRef.current[key]) {
+      clearTimeout(debounceTimerRef.current[key]);
+    }
+    debounceTimerRef.current[key] = setTimeout(() => {
+      saveSetting(key, value);
+    }, delay);
+  }, [saveSetting]);
+
+  // Load toàn bộ cấu hình vận hành từ CSDL khi mở trang
+  useEffect(() => {
+    if (!token) return;
+    api.admin.getSystemSettings(token)
+      .then((settingsList: any) => {
+        if (!Array.isArray(settingsList)) return;
+        const map: Record<string, string> = {};
+        settingsList.forEach((s) => {
+          if (s?.key) map[s.key] = s.value;
+        });
+
+        if (map.session_start_time) {
+          setSessionStartTime(map.session_start_time);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tm_session_start_time', map.session_start_time);
+          }
+        }
+        if (map.bot_auto_backup_enabled !== undefined) {
+          setAutoBackupActive(map.bot_auto_backup_enabled !== 'false');
+        }
+        if (map.bot_backup_periodic_enabled !== undefined) {
+          setBackupPeriodic(map.bot_backup_periodic_enabled !== 'false');
+        }
+        if (map.bot_backup_periodic_minutes !== undefined) {
+          const m = parseInt(map.bot_backup_periodic_minutes, 10);
+          if (!isNaN(m) && m > 0) setBackupPeriodicMinutes(m);
+        }
+        if (map.bot_backup_time_enabled !== undefined) {
+          setEnableBackupTime(map.bot_backup_time_enabled !== 'false');
+        }
+        if (map.bot_backup_time !== undefined && /^\d{2}:\d{2}$/.test(map.bot_backup_time)) {
+          setBackupTime(map.bot_backup_time);
+        } else if (map.bot_scheduler_config) {
+          try {
+            const sc = JSON.parse(map.bot_scheduler_config);
+            const rpa = Array.isArray(sc) && sc.find((t: any) => t.id === 'RPA_DOWNLOAD_MS');
+            if (rpa?.time && /^\d{2}:\d{2}$/.test(rpa.time)) setBackupTime(rpa.time);
+          } catch {}
+        }
+        if (map.bot_stat_time_enabled !== undefined) {
+          setEnableStatTime(map.bot_stat_time_enabled !== 'false');
+        }
+        if (map.bot_stat_time !== undefined && /^\d{2}:\d{2}$/.test(map.bot_stat_time)) {
+          setStatTime(map.bot_stat_time);
+        } else if (map.stat_time !== undefined && /^\d{2}:\d{2}$/.test(map.stat_time)) {
+          setStatTime(map.stat_time);
+        } else if (map.bot_scheduler_config) {
+          try {
+            const sc = JSON.parse(map.bot_scheduler_config);
+            const stat = Array.isArray(sc) && sc.find((t: any) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO');
+            if (stat?.time && /^\d{2}:\d{2}$/.test(stat.time)) setStatTime(stat.time);
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
+    // Lấy thông tin ca trực hiện tại để đồng bộ hiển thị giờ lịch trình
+    api.checklistHub.getActiveShifts(token)
+      .then((data: any) => {
+        const shifts = Array.isArray(data) ? data : data?.data || [];
+        const active = shifts.find((s: any) => s.status === 'IN_PROGRESS') ||
+          shifts.find((s: any) => s.status === 'PENDING') ||
+          shifts[0];
+        if (active) {
+          const shiftTitle = active.templateId?.title || active.templateId?.name || 'Ca trực hôm nay';
+          setActiveShiftName(shiftTitle);
+
+          const details = Array.isArray(active.details) ? active.details : [];
+          // Tìm task backup M-System
+          const backupTask = details.find((d: any) =>
+            d.botCheckTypeSnapshot === 'RPA_DOWNLOAD' ||
+            d.botCheckTypeSnapshot === 'RPA_DOWNLOAD_REPORTS' ||
+            d.taskId?.toLowerCase().includes('backup') ||
+            d.taskNameSnapshot?.toLowerCase().includes('sao lưu') ||
+            d.taskNameSnapshot?.toLowerCase().includes('backup')
+          );
+          if (backupTask && backupTask.botTriggerTimeSnapshot) {
+            setShiftBackupTime(backupTask.botTriggerTimeSnapshot);
+          } else {
+            setShiftBackupTime(null);
+          }
+
+          // Tìm task thống kê macro
+          const statTask = details.find((d: any) =>
+            d.botCheckTypeSnapshot === 'RUN_MACRO' ||
+            d.botCheckTypeSnapshot === 'RUN_LOT_MACRO' ||
+            d.taskNameSnapshot?.toLowerCase().includes('thống kê') ||
+            d.taskNameSnapshot?.toLowerCase().includes('macro')
+          );
+          if (statTask && statTask.botTriggerTimeSnapshot) {
+            setShiftStatTime(statTask.botTriggerTimeSnapshot);
+          } else {
+            setShiftStatTime(null);
+          }
+        } else {
+          setActiveShiftName('');
+          setShiftBackupTime(null);
+          setShiftStatTime(null);
+        }
+      })
+      .catch((err) => {
+        console.warn('[LegacyBackupThongKeSection] Không thể tải thông tin ca trực active:', err.message);
+      });
+  }, [token]);
+
+  // Toggle bot_auto_backup_enabled
+  const handleToggleAutoBackup = async () => {
+    if (!token || updatingAutoBackup) return;
+    const nextVal = !autoBackupActive;
+    setUpdatingAutoBackup(true);
+    try {
+      await saveSetting('bot_auto_backup_enabled', nextVal ? 'true' : 'false');
+      setAutoBackupActive(nextVal);
+      if (nextVal) {
+        toast.success('Đã kích hoạt tự động tải backup & thống kê!');
+      } else {
+        toast('Đã tạm dừng tự động tải backup & thống kê');
+      }
+    } catch (err: any) {
+      toast.error('Lỗi khi cập nhật trạng thái: ' + err.message);
+    } finally {
+      setUpdatingAutoBackup(false);
+    }
+  };
+
+  // MS Reports (20 checkboxes)
+  const [msReports, setMsReports] = useState<Record<string, boolean>>({
+    NKTTHT: true,
+    'DSTKGD-Futures': true,
+    'DSTKGD-Spread': true,
+    'DSTKGD-LME': true,
+    'DSTKGD-ACM': true,
+    TLQHSKQ: true,
+    NR: true,
+    DSTrader: true,
+    'market truoc 6h': true,
+    DSLDK: true,
+    DSLCK: true,
+    DSLH: true,
+    DSLK: true,
+    DSGD: true,
+    TTM: true,
+    TTTT: true,
+    TTCDH: true,
+    DSQLKQ: true,
+    QLTKGD: true,
+    'QLTKGD âm KQ': true,
+  });
+
+  // CQG Reports (9 checkboxes)
+  const [cqgReports, setCqgReports] = useState<Record<string, boolean>>({
+    FR1: true,
+    FR2: true,
+    PS1: true,
+    PS2: true,
+    OP1: true,
+    OP2: true,
+    OD1: true,
+    OD2: true,
+    AS: true,
+  });
+
+
+
+  // CoreCCP Reports (25 checkboxes)
+  const [ccpReports, setCcpReports] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, true]))
+  );
+  const [downloadingCcp, setDownloadingCcp] = useState<boolean>(false);
+  const [auditingCcp, setAuditingCcp] = useState<boolean>(false);
+  const [auditCcpResult, setAuditCcpResult] = useState<any>(null);
+
+  // Execution states
+  const [auditingMs, setAuditingMs] = useState<boolean>(false);
+  const [auditingCqg, setAuditingCqg] = useState<boolean>(false);
+  const [auditingAcm, setAuditingAcm] = useState<boolean>(false);
+  const [auditMsResult, setAuditMsResult] = useState<any>(null);
+  const [auditCqgResult, setAuditCqgResult] = useState<any>(null);
+  const [auditAcmResult, setAuditAcmResult] = useState<any>(null);
+
+  // ACM Reports (4 checkboxes)
+  const [acmReports, setAcmReports] = useState<Record<string, boolean>>({
+    FILL: true,
+    ORDER: true,
+    SFTP_CSV: true,
+    SFTP_XLS: true,
+  });
+  const [downloadingAcm, setDownloadingAcm] = useState<boolean>(false);
+
+  // IMR State
+  const [imrLoading, setImrLoading] = useState<boolean>(false);
+  const [imrResult, setImrResult] = useState<{
+    g1: string[];
+    g2: string[];
+    g3: string[];
+    g4: string[];
+  } | null>(null);
+
+  // Macro State
+  const [lotMacroLoading, setLotMacroLoading] = useState<boolean>(false);
+  const [valueMacroLoading, setValueMacroLoading] = useState<boolean>(false);
+  const [downloadingMs, setDownloadingMs] = useState<boolean>(false);
+  const [downloadingCqg, setDownloadingCqg] = useState<boolean>(false);
+  const [fetchingEodEmail, setFetchingEodEmail] = useState<boolean>(false);
+
+  // Modal xem nhanh nhật ký tóm tắt Backup MS / CQG / ACM
+  const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
+  const [modalJobType, setModalJobType] = useState<'MS' | 'CQG' | 'ACM'>('MS');
+  const [lastMsJobId, setLastMsJobId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_last_ms_backup_job_id');
+    }
+    return null;
+  });
+  const [lastCqgJobId, setLastCqgJobId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_last_cqg_backup_job_id');
+    }
+    return null;
+  });
+  const [lastAcmJobId, setLastAcmJobId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tm_last_acm_backup_job_id');
+    }
+    return null;
+  });
+
+  // Tự động load jobId gần nhất từ CSDL nếu state chưa có
+  useEffect(() => {
+    if (!token) return;
+    api.checklistHub.getJobs({ jobTypes: 'RPA_DOWNLOAD_REPORTS', limit: 1 }, token)
+      .then((data: any) => {
+        if (Array.isArray(data) && data[0]?._id) {
+          setLastMsJobId((prev) => prev || data[0]._id);
+        }
+      })
+      .catch(() => {});
+
+    api.checklistHub.getJobs({ jobTypes: 'DOWNLOAD_CQG_BACKUP,FILE_AUDIT_CQG', limit: 1 }, token)
+      .then((data: any) => {
+        if (Array.isArray(data) && data[0]?._id) {
+          setLastCqgJobId((prev) => prev || data[0]._id);
+        }
+      })
+      .catch(() => {});
+
+    api.checklistHub.getJobs({ jobTypes: 'TRIGGER_ACM_DOWNLOAD,FILE_AUDIT_ACM', limit: 1 }, token)
+      .then((data: any) => {
+        if (Array.isArray(data) && data[0]?._id) {
+          setLastAcmJobId((prev) => prev || data[0]._id);
+        }
+      })
+      .catch(() => {});
+  }, [token]);
+
+  // Trigger real Playwright RPA download for selected MS reports
+  const handleDownloadMsBackup = async () => {
+    if (!token || downloadingMs) return;
+    const selected = Object.keys(msReports).filter((k) => msReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo MS để tải!');
+      return;
+    }
+
+    setDownloadingMs(true);
+    const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo MS...`);
+    try {
+      const data = await api.ingress.triggerMsDownload({ targets: selected, sessionDay: selectedDate }, token);
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã đưa yêu cầu tải báo cáo vào hàng đợi!', { id: toastId });
+        await handleAuditMsBackup();
+        return;
+      }
+
+      setLastMsJobId(jobId);
+      if (typeof window !== 'undefined') localStorage.setItem('tm_last_ms_backup_job_id', jobId);
+
+      toast.loading(`Bot đang đăng nhập M-System và tải ${selected.length} báo cáo...`, { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
+          if (job.status === 'COMPLETED') {
+            toast.success(`Đã tải xong ${selected.length} báo cáo MS về thư mục Backup!`, { id: toastId, duration: 5000 });
+            await handleAuditMsBackup();
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Tải báo cáo MS kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditMsBackup();
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.success('Tác vụ tải MS đang tiếp tục chạy ngầm trên server.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải MS: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingMs(false);
+    }
+  };
+
+  // Lấy file EOD từ Email M365 (it.support@mxv.vn)
+  const handleFetchEodEmail = async () => {
+    if (!token || fetchingEodEmail) return;
+    setFetchingEodEmail(true);
+    const toastId = toast.loading('Đang quét hòm thư Outlook M365 và tải file EOD...');
+    try {
+      const data = await api.ingress.fetchEodEmail(selectedDate, token);
+      if (data.success) {
+        toast.success(data.message || 'Tải file EOD từ email thành công!', { id: toastId, duration: 6000 });
+        await handleAuditMsBackup();
+      } else {
+        toast.error(data.message || 'Không tìm thấy email EOD trong hòm thư.', { id: toastId, duration: 6000 });
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi tải file EOD: ${err.message}`, { id: toastId, duration: 6000 });
+    } finally {
+      setFetchingEodEmail(false);
+    }
+  };
+
+  // Trigger CQG download & merge
+  const handleDownloadCqgBackup = async () => {
+    if (!token || downloadingCqg) return;
+    const selected = Object.keys(cqgReports).filter((k) => cqgReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo CQG để tải!');
+      return;
+    }
+    setDownloadingCqg(true);
+    const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo CQG...`);
+    try {
+      const data = await api.ingress.triggerCqgDownload({ reports: cqgReports, sessionDay: selectedDate }, token);
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã kích hoạt tải báo cáo CQG!', { id: toastId });
+        await handleAuditCqgBackup();
+        return;
+      }
+
+      setLastCqgJobId(jobId);
+      if (typeof window !== 'undefined') localStorage.setItem('tm_last_cqg_backup_job_id', jobId);
+
+      toast.loading(`Bot đang đăng nhập CQG và tải ${selected.length} báo cáo...`, { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
+          if (job.status === 'COMPLETED') {
+            toast.success('Đã tải & ghép thành công toàn bộ file CQG về thư mục Backup!', { id: toastId, duration: 5000 });
+            await handleAuditCqgBackup();
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Tải CQG kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditCqgBackup();
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.success('Tác vụ tải CQG đang tiếp tục chạy ngầm trên server.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải CQG: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingCqg(false);
+    }
+  };
+
+  // Audit MS Backup
+  const handleAuditMsBackup = async () => {
+    if (!token || auditingMs) return;
+    setAuditingMs(true);
+    const toastId = toast.loading('Đang kiểm tra thư mục Backup M-System...');
+    try {
+      const data = await api.ingress.auditMsBackup(selectedDate, token);
+      setAuditMsResult(data);
+      toast.success('Kiểm tra thư mục Backup M-System hoàn tất!', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi kiểm tra MS: ${err.message}`, { id: toastId });
+    } finally {
+      setAuditingMs(false);
+    }
+  };
+
+  // Audit CQG Backup
+  const handleAuditCqgBackup = async () => {
+    if (!token || auditingCqg) return;
+    setAuditingCqg(true);
+    const toastId = toast.loading('Đang kiểm tra và đồng bộ thư mục Backup CQG...');
+    try {
+      const data = await api.ingress.auditCqgBackup(selectedDate, token);
+      setAuditCqgResult(data);
+      toast.success('Kiểm tra thư mục Backup CQG hoàn tất!', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi kiểm tra CQG: ${err.message}`, { id: toastId });
+    } finally {
+      setAuditingCqg(false);
+    }
+  };
+
+  // Audit ACM Backup (Web & SFTP Straits)
+  const handleAuditAcmBackup = async (showToast: boolean = true) => {
+    if (!token || auditingAcm) return;
+    setAuditingAcm(true);
+    let toastId: string | undefined;
+    if (showToast) {
+      toastId = toast.loading('Đang quét thư mục backup ACM (Web & SFTP)...');
+    }
+    try {
+      const data = await api.ingress.auditAcmBackup(selectedDate, token);
+      setAuditAcmResult(data);
+      if (showToast && toastId) {
+        toast.success(
+          `Quét ACM hoàn tất: ${data.summary?.ok || 0}/${data.summary?.total || 0} file hợp lệ.`,
+          { id: toastId }
+        );
+      }
+    } catch (err: any) {
+      if (showToast && toastId) toast.error(`Lỗi kiểm tra backup ACM: ${err.message}`, { id: toastId });
+    } finally {
+      setAuditingAcm(false);
+    }
+  };
+
+  // Trigger real ACM download (Web & SFTP)
+  const handleDownloadAcmBackup = async () => {
+    if (!token || downloadingAcm) return;
+    const selected = Object.keys(acmReports).filter((k) => acmReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo ACM để tải!');
+      return;
+    }
+
+    setDownloadingAcm(true);
+    const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo ACM...`);
+    try {
+      const data = await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected }, token);
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã kích hoạt tải báo cáo ACM!', { id: toastId });
+        await handleAuditAcmBackup(false);
+        return;
+      }
+
+      setLastAcmJobId(jobId);
+      if (typeof window !== 'undefined') localStorage.setItem('tm_last_acm_backup_job_id', jobId);
+
+      toast.loading(`Bot đang đồng bộ ${selected.length} file ACM (Web & SFTP)...`, { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 180000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try {
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
+          if (job.status === 'COMPLETED') {
+            toast.success('Đã tải & đồng bộ thành công các file ACM về thư mục Backup!', { id: toastId, duration: 5000 });
+            await handleAuditAcmBackup(false);
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Đồng bộ ACM kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditAcmBackup(false);
+            return;
+          }
+        } catch {}
+      }
+      toast.success('Tác vụ tải ACM đang tiếp tục chạy ngầm trên server.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải ACM: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingAcm(false);
+    }
+  };
+
+  // Trigger Playwright RPA download for selected CoreCCP reports
+  const handleDownloadCcpBackup = async (overrideReports?: string[]) => {
+    if (!token || downloadingCcp) return;
+    const selected = overrideReports || Object.keys(ccpReports).filter((k) => ccpReports[k]);
+    if (selected.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 báo cáo CoreCCP để tải!');
+      return;
+    }
+
+    setDownloadingCcp(true);
+    const toastId = toast.loading(`Đang khởi động Robot tải ${selected.length} báo cáo CoreCCP...`);
+    try {
+      const data = await api.ingress.triggerCcpDownload({
+        date: selectedDate,
+        reports: selected,
+      }, token);
+      const jobId = data.jobId;
+
+      if (!jobId) {
+        toast.success(data.message || 'Đã kích hoạt tải CoreCCP!', { id: toastId });
+        await handleAuditCcpBackup();
+        return;
+      }
+
+      toast.loading('Robot Playwright đang tải báo cáo CoreCCP VNCLEAR...', { id: toastId });
+      const startTime = Date.now();
+      const MAX_WAIT_MS = 300000;
+      const POLL_INTERVAL_MS = 3000;
+
+      while (Date.now() - startTime < MAX_WAIT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        try {
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
+          if (job.status === 'COMPLETED') {
+            toast.success('Đã tải xong toàn bộ báo cáo CoreCCP về thư mục Backup!', { id: toastId, duration: 5000 });
+            await handleAuditCcpBackup();
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Tải CoreCCP kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            await handleAuditCcpBackup();
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.success('Tác vụ tải CoreCCP đang tiếp tục chạy ngầm.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi tải CoreCCP: ${err.message}`, { id: toastId });
+    } finally {
+      setDownloadingCcp(false);
+    }
+  };
+
+  // Audit CoreCCP Backup
+  const handleAuditCcpBackup = async () => {
+    if (!token || auditingCcp) return;
+    setAuditingCcp(true);
+    const toastId = toast.loading('Đang kiểm tra thư mục Backup CoreCCP...');
+    try {
+      const data = await api.ingress.auditCcpBackup(selectedDate, token);
+      setAuditCcpResult(data);
+      toast.success('Kiểm tra thư mục Backup CoreCCP hoàn tất!', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi kiểm tra CoreCCP: ${err.message}`, { id: toastId });
+    } finally {
+      setAuditingCcp(false);
+    }
+  };
+
+
+
+  // Restore IMR result from localStorage on date change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`mxv_imr_result_${selectedDate}`);
+        if (saved) {
+          setImrResult(JSON.parse(saved));
+        } else {
+          setImrResult(null);
+        }
+      } catch {
+        setImrResult(null);
+      }
+    }
+  }, [selectedDate]);
+
+  // Check IMR Negative Margin
+  const handleCheckIMR = async () => {
+    if (!token || imrLoading) return;
+    setImrLoading(true);
+    const toastId = toast.loading('Đang phân tích dữ liệu ký quỹ (QLTKGD, TTM, DSLCK)...');
+    try {
+      // 1. Thử gọi trực tiếp endpoint check-imr đồng bộ cực nhanh
+      try {
+        const fastData: any = await api.tradingOps.checkImr(selectedDate, token);
+        if (fastData && fastData.success) {
+          const resObj = {
+            g1: fastData.results?.group1 || [],
+            g2: fastData.results?.group2 || [],
+            g3: fastData.results?.group3 || [],
+            g4: fastData.results?.group4 || [],
+          };
+          setImrResult(resObj);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`mxv_imr_result_${selectedDate}`, JSON.stringify(resObj));
+          }
+          toast.success(
+            `Quét ký quỹ hoàn tất! G1: ${resObj.g1.length}, G2: ${resObj.g2.length}, G3: ${resObj.g3.length}, G4: ${resObj.g4.length}`,
+            { id: toastId, duration: 5000 }
+          );
+          return;
+        } else if (fastData && fastData.filesFound && !fastData.filesFound.qltkgd) {
+          toast.error(`Không tìm thấy file QLTKGD.xlsx trong thư mục backup ngày ${selectedDate}! Vui lòng tải báo cáo MS trước.`, { id: toastId, duration: 6000 });
+          return;
+        }
+      } catch {
+        // Tiếp tục fallback bên dưới nếu check-imr trực tiếp gặp lỗi
+      }
+
+      // 2. Fallback: Kích hoạt background bot job
+      const result = await api.tradingOps.triggerRun('SCAN_NEGATIVE_MARGIN', selectedDate, {}, token);
+      const jobId = result.jobId;
+
+      if (!jobId) {
+        toast.success(result.message || 'Đã kích hoạt quét ký quỹ!', { id: toastId });
+        return;
+      }
+
+      toast.loading('Bot đang phân tích file QLTKGD & TTM M-System...', { id: toastId });
+      const start = Date.now();
+      while (Date.now() - start < 120000) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          const job = await api.checklistHub.getJobDetail(jobId, token);
+          if (!job) continue;
+          if (job.status === 'COMPLETED') {
+            const r = job.payload?.result || job;
+            const resObj = {
+              g1: r.imrGroup1 || r.laiLoCoTTM || [],
+              g2: r.imrGroup2 || r.kyQuyKhongTTM || [],
+              g3: r.imrGroup3 || r.kqycttNeKqyc || [],
+              g4: r.imrGroup4 || r.kqkdttNeKqkd || [],
+            };
+            setImrResult(resObj);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`mxv_imr_result_${selectedDate}`, JSON.stringify(resObj));
+            }
+            toast.success('Quét ký quỹ hoàn tất!', { id: toastId, duration: 5000 });
+            return;
+          }
+          if (job.status === 'FAILED' || job.status === 'CANCELLED' || job.status === 'ABORTED') {
+            toast.error(`Quét ký quỹ kết thúc (${job.status}): ${job.error || ''}`, { id: toastId, duration: 6000 });
+            return;
+          }
+        } catch { /* poll error */ }
+      }
+      toast.success('Tác vụ đang chạy ngầm, sẽ hoàn thành sau.', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi quét ký quỹ: ${err.message}`, { id: toastId });
+    } finally {
+      setImrLoading(false);
+    }
+  };
+
+  // Run Lot Macro
+  const handleLotMacro = async () => {
+    if (!token || lotMacroLoading) return;
+    setLotMacroLoading(true);
+    const toastId = toast.loading('Đang kích hoạt Excel Macro thống kê số lot...');
+    try {
+      const data = await api.ccpClearing.triggerLotMacro({ targetDate: selectedDate }, token);
+      toast.success(data.message || 'Đã đưa yêu cầu chạy Macro số lot vào hàng đợi!', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi kích hoạt Macro số lot: ${err.message}`, { id: toastId });
+    } finally {
+      setLotMacroLoading(false);
+    }
+  };
+
+  // Run Value Macro
+  const handleValueMacro = async () => {
+    if (!token || valueMacroLoading) return;
+    setValueMacroLoading(true);
+    const toastId = toast.loading('Đang kích hoạt Excel Macro thống kê giá trị giao dịch...');
+    try {
+      const data = await api.ccpClearing.triggerValueMacro({ targetDate: selectedDate }, token);
+      toast.success(data.message || 'Đã đưa yêu cầu chạy Macro giá trị vào hàng đợi!', { id: toastId });
+    } catch (err: any) {
+      toast.error(`Lỗi kích hoạt Macro giá trị: ${err.message}`, { id: toastId });
+    } finally {
+      setValueMacroLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* ===== HEADER BAR: NGÀY PHIÊN & THỜI ĐIỂM BACKUP ===== */}
+      <div className="glass-panel" style={{ padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          {/* Ngày phiên hiện tại */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Calendar size={16} color="#10b981" />
+            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              Ngày phiên hiện tại:
+            </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => onSelectDate?.(e.target.value)}
+              className="form-input"
+              style={{ width: '150px', height: '34px', fontSize: '0.82rem', fontFamily: 'monospace', fontWeight: 700 }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                onSelectDate?.(getInitialTradingSessionDate(undefined, sessionStartTime));
+              }}
+              className="btn btn-secondary"
+              title="Đặt lại về phiên ngày hôm nay"
+              style={{
+                height: '34px',
+                padding: '0 10px',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Hôm nay
+            </button>
+          </div>
+
+          {/* 1. Backup định kỳ (phút) */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Tự động kiểm tra và quét tải file backup định kỳ độc lập (mặc định 60 phút/lần)"
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={backupPeriodic}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setBackupPeriodic(val);
+                  saveSetting('bot_backup_periodic_enabled', String(val));
+                }}
+                style={{
+                  accentColor: '#10b981',
+                  width: '15px',
+                  height: '15px',
+                  cursor: 'pointer',
+                }}
+              />
+              <span>Backup định kỳ (phút)</span>
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={1440}
+              step={5}
+              value={backupPeriodicMinutes}
+              disabled={!backupPeriodic}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setBackupPeriodicMinutes(isNaN(val) ? 60 : val);
+                if (!isNaN(val) && val >= 5) {
+                  debouncedSaveSetting('bot_backup_periodic_minutes', String(val));
+                }
+              }}
+              className="form-input"
+              style={{
+                width: '70px',
+                height: '32px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                fontWeight: 700,
+                backgroundColor: backupPeriodic ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                opacity: backupPeriodic ? 1 : 0.6,
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+              }}
+            />
+          </div>
+
+          {/* 2. Thời điểm backup */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Tự động tải báo cáo sao lưu chốt ngày M-System & CQG độc lập (mặc định 04:00 AM)"
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={enableBackupTime}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setEnableBackupTime(val);
+                  saveSetting('bot_backup_time_enabled', String(val));
+                }}
+                style={{
+                  accentColor: '#10b981',
+                  width: '15px',
+                  height: '15px',
+                  cursor: 'pointer',
+                }}
+              />
+              <span>Thời điểm backup</span>
+            </label>
+            <input
+              type="time"
+              value={backupTime}
+              disabled={!enableBackupTime}
+              onChange={(e) => {
+                const val = e.target.value;
+                setBackupTime(val);
+                if (/^\d{2}:\d{2}$/.test(val)) {
+                  debouncedSaveSetting('bot_backup_time', val);
+                }
+              }}
+              className="form-input"
+              style={{
+                width: '105px',
+                height: '32px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                fontWeight: 700,
+                backgroundColor: enableBackupTime ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                opacity: enableBackupTime ? 1 : 0.6,
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+              }}
+            />
+          </div>
+
+          {/* 3. Thời điểm tạo thống kê */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            title="Tự động kích hoạt Macro thống kê số lot & GTGD CCP độc lập (mặc định 06:30 AM)"
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={enableStatTime}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setEnableStatTime(val);
+                  saveSetting('bot_stat_time_enabled', String(val));
+                }}
+                style={{
+                  accentColor: '#10b981',
+                  width: '15px',
+                  height: '15px',
+                  cursor: 'pointer',
+                }}
+              />
+              <span>Thời điểm tạo thống kê</span>
+            </label>
+            <input
+              type="time"
+              value={statTime}
+              disabled={!enableStatTime}
+              onChange={(e) => {
+                const val = e.target.value;
+                setStatTime(val);
+                if (/^\d{2}:\d{2}$/.test(val)) {
+                  debouncedSaveSetting('bot_stat_time', val);
+                }
+              }}
+              className="form-input"
+              style={{
+                width: '105px',
+                height: '32px',
+                fontSize: '0.82rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                fontWeight: 700,
+                backgroundColor: enableStatTime ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                opacity: enableStatTime ? 1 : 0.6,
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+              }}
+            />
+          </div>
+
+          {/* Master Switch: Tự động Backup & Thống kê */}
+          <div>
+            <button
+              type="button"
+              onClick={handleToggleAutoBackup}
+              disabled={updatingAutoBackup}
+              className="btn"
+              style={{
+                height: '34px',
+                padding: '0 14px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                borderRadius: '8px',
+                transition: 'all 0.2s',
+                backgroundColor: autoBackupActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                color: autoBackupActive ? '#10b981' : '#ef4444',
+                border: autoBackupActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                cursor: 'pointer',
+              }}
+              title={autoBackupActive ? 'Click để TẮT (DỪNG) tự động tải backup & thống kê' : 'Click để BẬT lại tự động tải backup & thống kê'}
+            >
+              {updatingAutoBackup ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: autoBackupActive ? '#10b981' : '#ef4444',
+                    display: 'inline-block',
+                  }}
+                  className={autoBackupActive ? 'animate-pulse' : ''}
+                />
+              )}
+              <span>{autoBackupActive ? 'Tự động Backup: BẬT' : 'Tự động Backup: ĐÃ DỪNG'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== SUBTAB SWITCHER: MS-CQG-CCP vs CE-ACM ===== */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: '2px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setBackupSubTab('MS_CQG_CCP')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            borderRadius: '8px 8px 0 0',
+            border: 'none',
+            borderBottom: backupSubTab === 'MS_CQG_CCP' ? '2px solid #10b981' : '2px solid transparent',
+            color: backupSubTab === 'MS_CQG_CCP' ? '#10b981' : 'var(--text-secondary)',
+            backgroundColor: backupSubTab === 'MS_CQG_CCP' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Database size={16} color={backupSubTab === 'MS_CQG_CCP' ? '#10b981' : 'var(--text-muted)'} />
+          <span>Backup MS – CQG – CCP (Hiện tại)</span>
+        </button>
+
+        {(filterScope === 'ALL' || filterScope === 'OMS') && (
+        <button
+          type="button"
+          onClick={() => setBackupSubTab('CE_ACM')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            borderRadius: '8px 8px 0 0',
+            border: 'none',
+            borderBottom: backupSubTab === 'CE_ACM' ? '2px solid #3b82f6' : '2px solid transparent',
+            color: backupSubTab === 'CE_ACM' ? '#3b82f6' : 'var(--text-secondary)',
+            backgroundColor: backupSubTab === 'CE_ACM' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Layers size={16} color={backupSubTab === 'CE_ACM' ? '#3b82f6' : 'var(--text-muted)'} />
+          <span>Backup CE – ACM (Phân hệ mới)</span>
+          <span
+            style={{
+              fontSize: '0.66rem',
+              fontWeight: 800,
+              padding: '1px 6px',
+              borderRadius: '10px',
+              backgroundColor: backupSubTab === 'CE_ACM' ? '#3b82f6' : 'rgba(59, 130, 246, 0.15)',
+              color: backupSubTab === 'CE_ACM' ? '#ffffff' : '#3b82f6',
+            }}
+          >
+            MỚI
+          </span>
+        </button>
+        )}
+      </div>
+
+      {backupSubTab === 'MS_CQG_CCP' ? (
+        <>
+          {/* ===== SECTION 1: BACKUP MS, BACKUP CQG & BACKUP CORECCP (3 PHÂN HỆ) ===== */}
+          <div className="glass-panel" style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '16px' }}>
+          {/* CỘT 1: BACKUP MS (20 BÁO CÁO) */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>Backup MS</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={Object.values(msReports).every(Boolean)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setMsReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                      }}
+                      style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
+                    />
+                    <span>All</span>
+                  </label>
+                </div>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>20 báo cáo</span>
+              </div>
+
+              {/* 20 Checkboxes trong Grid 2 Cột */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 16px' }}>
+                {Object.keys(msReports).map((reportKey) => (
+                  <label key={reportKey} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!msReports[reportKey]}
+                      onChange={() => setMsReports((prev) => ({ ...prev, [reportKey]: !prev[reportKey] }))}
+                      style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '0.76rem' }}>{reportKey}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Nút Thao tác MS */}
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleDownloadMsBackup}
+                  disabled={downloadingMs || auditingMs}
+                  className="btn btn-primary"
+                  style={{ flex: 1, maxWidth: '200px', fontSize: '0.82rem', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  {downloadingMs ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingMs ? 'Đang tải MS...' : 'Tải Báo Cáo Đã Chọn'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAuditMsBackup}
+                  disabled={downloadingMs || auditingMs}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file trong thư mục backup"
+                >
+                  {auditingMs ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalJobType('MS');
+                    setShowBackupModal(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Xem nhật ký tóm tắt tải báo cáo M-System"
+                >
+                  <FileText size={14} />
+                  <span>Nhật ký</span>
+                </button>
+              </div>
+
+              {/* Nút Lấy file EOD từ Email M365 */}
+              <div style={{ width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={handleFetchEodEmail}
+                  disabled={fetchingEodEmail || downloadingMs || auditingMs}
+                  className="btn"
+                  style={{
+                    width: '100%',
+                    fontSize: '0.8rem',
+                    padding: '7px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                    color: '#0ea5e9',
+                    border: '1px solid rgba(14, 165, 233, 0.35)',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  title="Quét hòm thư Outlook M365 (it.support@mxv.vn) và tải file kết quả EOD về thư mục Backup M-System"
+                >
+                  {fetchingEodEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                  <span>{fetchingEodEmail ? 'Đang quét & tải file EOD...' : 'Lấy File EOD từ Email (it.support)'}</span>
+                </button>
+              </div>
+
+              {auditMsResult && (
+                <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
+                  {auditMsResult.summary ? `MS: ${auditMsResult.summary.ok}/${auditMsResult.summary.total} files OK` : 'Hoàn tất'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT 2: BACKUP CQG (9 FILE) */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>Backup CQG</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={Object.values(cqgReports).every(Boolean)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setCqgReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                      }}
+                      style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
+                    />
+                    <span>All</span>
+                  </label>
+                </div>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>9 file</span>
+              </div>
+
+              {/* 9 Checkboxes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 12px' }}>
+                {Object.keys(cqgReports).map((fileKey) => (
+                  <label key={fileKey} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!cqgReports[fileKey]}
+                      onChange={() => setCqgReports((prev) => ({ ...prev, [fileKey]: !prev[fileKey] }))}
+                      style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '0.76rem' }}>{fileKey}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Nút Thao tác CQG */}
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleDownloadCqgBackup}
+                  disabled={downloadingCqg || auditingCqg}
+                  className="btn btn-primary"
+                  style={{ flex: 1, maxWidth: '200px', fontSize: '0.82rem', padding: '8px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  {downloadingCqg ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingCqg ? 'Đang tải CQG...' : 'Tải Báo Cáo CQG'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAuditCqgBackup}
+                  disabled={downloadingCqg || auditingCqg}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file trong thư mục backup"
+                >
+                  {auditingCqg ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalJobType('CQG');
+                    setShowBackupModal(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Xem nhật ký tóm tắt đồng bộ CQG"
+                >
+                  <FileText size={14} />
+                  <span>Nhật ký</span>
+                </button>
+              </div>
+              {auditCqgResult && (
+                <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
+                  {auditCqgResult.summary ? `CQG: ${auditCqgResult.summary.ok}/${auditCqgResult.summary.total} files OK` : 'Hoàn tất'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT 3: BACKUP ACM (4 BÁO CÁO: WEB & SFTP STRAITS) */}
+          <div style={{ border: '1px solid rgba(14, 165, 233, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(14, 165, 233, 0.02)' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(14, 165, 233, 0.2)', paddingBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0284c7' }}>Backup ACM</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={Object.values(acmReports).every(Boolean)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAcmReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                      }}
+                      style={{ accentColor: '#0ea5e9', width: '14px', height: '14px' }}
+                    />
+                    <span>All</span>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(14, 165, 233, 0.12)', color: '#0ea5e9' }}>Straits</span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>4 file</span>
+                </div>
+              </div>
+
+              {/* 4 Checkboxes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {ACM_REPORTS_LIST.map((rep) => {
+                  const isChecked = !!acmReports[rep.key];
+                  return (
+                    <label
+                      key={rep.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: isChecked ? 'rgba(14, 165, 233, 0.04)' : 'transparent',
+                        border: '1px solid',
+                        borderColor: isChecked ? 'rgba(14, 165, 233, 0.25)' : 'transparent',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => setAcmReports((prev) => ({ ...prev, [rep.key]: !prev[rep.key] }))}
+                          style={{ accentColor: '#0ea5e9', width: '14px', height: '14px', cursor: 'pointer' }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>{rep.name}</span>
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-muted)' }}>{rep.filename}</span>
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          fontWeight: 800,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: rep.source === 'SFTP' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                          color: rep.source === 'SFTP' ? '#0ea5e9' : '#10b981',
+                        }}
+                      >
+                        {rep.source}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Thư mục lưu trữ ACM */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '10px',
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <Folder size={12} color="#0ea5e9" />
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace' }}>
+                  {auditAcmResult?.backupPath || 'M:\\...\\Backup ACM\\Futures\\...'}
+                </span>
+              </div>
+            </div>
+
+            {/* Nút Thao tác ACM */}
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleDownloadAcmBackup}
+                  disabled={downloadingAcm || auditingAcm}
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    maxWidth: '200px',
+                    fontSize: '0.82rem',
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    backgroundColor: '#0ea5e9',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {downloadingAcm ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingAcm ? 'Đang tải ACM...' : 'Tải Báo Cáo ACM'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAuditAcmBackup(true)}
+                  disabled={downloadingAcm || auditingAcm}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file trong thư mục backup ACM"
+                >
+                  {auditingAcm ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalJobType('ACM');
+                    setShowBackupModal(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Xem nhật ký tóm tắt đồng bộ ACM"
+                >
+                  <FileText size={14} />
+                  <span>Nhật ký</span>
+                </button>
+              </div>
+              {auditAcmResult && (
+                <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: 'var(--text-secondary)', fontFamily: 'monospace', textAlign: 'center' }}>
+                  {auditAcmResult.summary ? `ACM: ${auditAcmResult.summary.ok}/${auditAcmResult.summary.total} files OK` : 'Hoàn tất'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT 4: BACKUP CORECCP (25 BÁO CÁO VNCLEAR MAKER) */}
+          {(filterScope === 'ALL' || filterScope === 'OMS') && (
+          <div style={{ border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#10b981' }}>Backup CoreCCP</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={Object.values(ccpReports).every(Boolean)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setCcpReports(Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, checked])));
+                      }}
+                      style={{ accentColor: '#10b981', width: '13px', height: '13px' }}
+                    />
+                    <span>All</span>
+                  </label>
+                </div>
+
+                {/* Nút lọc nhanh theo Đợt */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, r.phase === 1]));
+                      setCcpReports(next);
+                    }}
+                    style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', cursor: 'pointer', color: '#f59e0b', fontWeight: 700 }}
+                    title="Chỉ chọn 2 file trước 16h20: QL TT TKGD truoc 4h20, TTM truoc 4h20"
+                  >
+                    Đợt 1 (16h20)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, r.phase === 2]));
+                      setCcpReports(next);
+                    }}
+                    style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', cursor: 'pointer', color: '#3b82f6', fontWeight: 700 }}
+                    title="Chọn 23 file EOD cuối ngày"
+                  >
+                    Đợt 2 (EOD)
+                  </button>
+                  <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>25 file</span>
+                </div>
+              </div>
+
+              {/* 25 Checkboxes chia theo 2 Cột có nhóm */}
+              <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px 8px', paddingRight: '4px' }}>
+                {CORE_CCP_REPORTS_LIST.map((rep) => (
+                  <label
+                    key={rep.key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.74rem',
+                      color: ccpReports[rep.key] ? 'var(--text-primary)' : 'var(--text-muted)',
+                      padding: '2px 4px',
+                      borderRadius: '4px',
+                      backgroundColor: ccpReports[rep.key] ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
+                    }}
+                    title={`${rep.filename} (${rep.groupLabel})`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!ccpReports[rep.key]}
+                      onChange={() => setCcpReports((prev) => ({ ...prev, [rep.key]: !prev[rep.key] }))}
+                      style={{ accentColor: '#10b981', width: '12px', height: '12px' }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {rep.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Nút Thao tác CoreCCP */}
+            <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadCcpBackup()}
+                  disabled={downloadingCcp || auditingCcp}
+                  className="btn btn-primary"
+                  style={{
+                    flex: 1,
+                    maxWidth: '220px',
+                    fontSize: '0.82rem',
+                    padding: '8px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    backgroundColor: '#10b981',
+                    borderColor: '#10b981',
+                  }}
+                >
+                  {downloadingCcp ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{downloadingCcp ? 'Đang tải CoreCCP...' : 'Tải Báo Cáo CoreCCP'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAuditCcpBackup}
+                  disabled={downloadingCcp || auditingCcp}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  title="Kiểm tra trạng thái file CoreCCP trong thư mục backup ngày"
+                >
+                  {auditingCcp ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  <span>Kiểm tra</span>
+                </button>
+              </div>
+              {auditCcpResult && (
+                <div style={{ width: '100%', padding: '6px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)', fontSize: '0.74rem', color: '#10b981', fontFamily: 'monospace', textAlign: 'center' }}>
+                  {auditCcpResult.summary ? `CoreCCP: ${auditCcpResult.summary.ok}/${auditCcpResult.summary.total} files OK` : 'Kiểm tra hoàn tất'}
+                </div>
+              )}
+            </div>
+          </div>
+          )}
+        </div>
+      </div>
+
+      {/* ===== SECTION 2: KẾT QUẢ ĐỒNG BỘ SỐ DƯ CQG (CHUYỂN TỪ TAB 2 SANG TAB 3) ===== */}
+      <LegacyCqgSyncSection token={token} selectedDate={selectedDate} />
+
+      {/* ===== SECTION 3: KIỂM TRA KÝ QUỸ TKGD (4 BOXES C#) ===== */}
+      <div className="glass-panel" style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            Kiểm tra ký quỹ TKGD
+          </span>
+          <button
+            type="button"
+            onClick={handleCheckIMR}
+            disabled={imrLoading}
+            className="btn btn-primary"
+            style={{ fontSize: '0.78rem', padding: '5px 16px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+          >
+            {imrLoading ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+            <span>{imrLoading ? 'Đang check IMR...' : 'Check IMR'}</span>
+          </button>
+        </div>
+
+        {/* 4 Boxes theo đúng layout C# FormMain */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+          {[
+            {
+              key: 'g1',
+              title: 'TK có lãi lỗ dự kiến nhưng không có TTM',
+              color: '#f59e0b',
+            },
+            {
+              key: 'g2',
+              title: 'TK không có TTM nhưng có KQYC',
+              color: '#ef4444',
+            },
+            {
+              key: 'g3',
+              title: 'TK có KQYCTT <> KQYC',
+              color: '#8b5cf6',
+            },
+            {
+              key: 'g4',
+              title: 'TK có KQKDTT <> KQKD',
+              color: '#3b82f6',
+            },
+          ].map(({ key, title, color }) => {
+            const group = imrResult?.[key as keyof typeof imrResult] || [];
+            return (
+              <div
+                key={key}
+                style={{
+                  border: `1px solid ${color}40`,
+                  borderRadius: '6px',
+                  padding: '10px',
+                  backgroundColor: 'var(--bg-input)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <div style={{ fontSize: '0.74rem', fontWeight: 700, color, marginBottom: '6px', minHeight: '32px', lineHeight: 1.3, textAlign: 'center' }}>
+                  {title}
+                </div>
+                <div
+                  style={{
+                    borderTop: `1px solid ${color}30`,
+                    paddingTop: '6px',
+                    minHeight: '60px',
+                    maxHeight: '100px',
+                    overflowY: 'auto',
+                    fontSize: '0.76rem',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'monospace',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {imrResult === null ? (
+                    <div style={{ color: 'var(--text-muted)', textAlign: 'center', paddingTop: '12px' }}>— Chưa check —</div>
+                  ) : group.length === 0 ? (
+                    <div style={{ color: '#10b981', fontWeight: 700, textAlign: 'center', paddingTop: '12px' }}>Không có tài khoản</div>
+                  ) : (
+                    group.map((acc: string, i: number) => (
+                      <div key={i} style={{ padding: '2px 0' }}>{acc}</div>
+                    ))
+                  )}
+                </div>
+                {group.length > 0 && (
+                  <div style={{ marginTop: '6px', padding: '2px 6px', borderRadius: '4px', backgroundColor: `${color}20`, fontSize: '0.7rem', fontWeight: 800, color, textAlign: 'center' }}>
+                    Phát hiện {group.length} tài khoản
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ===== SECTION 4: THỐNG KÊ (SỐ LOT & GIÁ TRỊ) ===== */}
+      <div className="glass-panel" style={{ padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            Thống kê
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleLotMacro}
+            disabled={lotMacroLoading}
+            className="btn btn-primary"
+            style={{ minWidth: '180px', fontSize: '0.82rem', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          >
+            {lotMacroLoading ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+            <span>{lotMacroLoading ? 'Đang chạy Macro...' : 'Thống kê số lot'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleValueMacro}
+            disabled={valueMacroLoading}
+            className="btn btn-secondary"
+            style={{ minWidth: '180px', fontSize: '0.82rem', padding: '9px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          >
+            {valueMacroLoading ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+            <span>{valueMacroLoading ? 'Đang chạy Macro...' : 'Thống kê giá trị'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ===== SECTION 5: SHORTCUT LINKS ===== */}
+      <div className="glass-panel" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+        <Link
+          href="/admin/upload-backup"
+          className="btn btn-secondary"
+          style={{ fontSize: '0.82rem', padding: '9px 18px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '7px' }}
+        >
+          <Server size={15} />
+          Mở Thư Mục Backup
+        </Link>
+        <Link
+          href="/history"
+          className="btn btn-secondary"
+          style={{ fontSize: '0.82rem', padding: '9px 18px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '7px' }}
+        >
+          <Clock size={15} />
+          Lịch Sử Ca Trực
+        </Link>
+        <Link
+          href="/admin/bot-config"
+          className="btn btn-secondary"
+          style={{ fontSize: '0.82rem', padding: '9px 18px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '7px' }}
+        >
+          <Sliders size={15} />
+          Cấu Hình Bot Toàn Diện
+        </Link>
+      </div>
+        </>
+      ) : (
+        <CeAcmBackupSection
+          token={token}
+          selectedDate={selectedDate}
+          onSelectDate={onSelectDate}
+        />
+      )}
+
+      {/* Modal Tóm Tắt Nhật Ký Tải Báo Cáo MS / CQG / ACM */}
+      <BackupLogSummaryModal
+        isOpen={showBackupModal}
+        onClose={() => setShowBackupModal(false)}
+        jobId={modalJobType === 'MS' ? lastMsJobId : modalJobType === 'CQG' ? lastCqgJobId : lastAcmJobId}
+        jobType={modalJobType}
+        token={token}
+        selectedDate={selectedDate}
+      />
+    </div>
+  );
+}

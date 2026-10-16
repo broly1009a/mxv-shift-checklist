@@ -1,3 +1,41 @@
+## [2026-10-16T15:15] RESTORATION & BUGFIX: Khôi Phục Toàn Diện Giao Diện Vận Hành Trading Manager, Giám Sát MS & CQG, Giám Sát CoreCCP & CE
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo khẩn cấp của USER: Khắc phục sự cố gãy navigation và chuyển hướng sai:
+  1. Khi người dùng bấm vào Sidebar **"Giám Sát MS & CQG"** (`/trading-manager/ms-cqg`) và **"Giám Sát CoreCCP & CE"** (`/trading-manager/ccp-ce`), hệ thống trước đó bị redirect sai sang `https://10.0.0.26/trading-manager?tab=RECON_OPS`.
+  2. Nút bấm "Xem Bản V1 Cũ" / "Về bản V1" trên trang bị vòng lặp liên kết vào chính nó, không quay lại được màn hình làm việc thực tế.
+  3. Khôi phục toàn bộ giao diện vận hành gốc của người dùng (gồm 5 phân hệ chuẩn: Check GD - EOD - Sync, Backup - Thống Kê - GTT, Cấu hình - Đường dẫn, Báo Cáo & Đối Chiếu CoreCCP, Hàng Đợi & Logs Robot).
+  4. Đưa màn hình thử nghiệm V2 sang route riêng biệt `/trading-manager-v2`, đồng thời tích hợp Dashboard QLGD (Báo Cáo BGĐ) thành Tab 5 tiện ích trong Hub và route độc lập `/trading-manager/dashboard`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/ms-cqg/page.tsx):
+   - Xóa bỏ câu lệnh redirect sai `redirect('/trading-manager?tab=RECON_OPS')`.
+   - Khôi phục 100% màn hình gốc "Giám Sát MS & CQG" (`MsCqgTradingManagerPage`) với 5 tab nghiệp vụ chuyên sâu: Đối soát khớp lệnh (`CHECK_KLGD`), Check & Chạy EOD MS-CQG (`CHECK_EOD_MS_CQG`), Backup & Thống kê (`BACKUP_THONG_KE`), Cấu hình (`CONFIG_MS_CQG`), Hàng đợi & Logs (`HANG_DOI_LOGS`).
+2. [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/ccp-ce/page.tsx):
+   - Xóa bỏ câu lệnh redirect sai `redirect('/trading-manager?tab=CCP_CLEARING')`.
+   - Khôi phục 100% màn hình gốc "Giám Sát CoreCCP & CE" (`CcpCeTradingManagerPage`) với 5 tab nghiệp vụ: Đối soát khớp lệnh (`CHECK_KLGD`), Check & Chạy EOD CCP-CE (`CHECK_EOD_CCP_CE`), Backup & Thống Kê (`BACKUP_THONG_KE_CCP_CE`), Cấu hình OMS (`CONFIG_OMS`), Hàng đợi & Logs (`HANG_DOI_LOGS`).
+3. [frontend/src/app/trading-manager/reconciliation/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/reconciliation/page.tsx):
+   - Xóa bỏ câu lệnh redirect `redirect('/trading-manager?tab=RECON_OPS')`.
+   - Khôi phục màn hình gốc "Đối chiếu giao dịch" (`RegularReconciliationPage`) tích hợp trực tiếp `LegacyReconSection`.
+4. [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/page.tsx):
+   - Khôi phục màn hình Trading Manager Hub gốc (`TradingManagerPage`) đầy đủ 5 tab truyền thống: `CHECK_GD_EOD_SYNC`, `BACKUP_THONG_KE_GTT`, `CAU_HINH_DUONG_DAN`, `CORE_CCP_VNCLEAR`, `HANG_DOI_LOGS`.
+   - Bổ sung Tab 5 `QLGD_DASHBOARD` tích hợp `QlgdExecutiveDashboard` (Báo Cáo BGĐ) theo yêu cầu nghiệp vụ mới.
+   - Thêm bộ lắng nghe URL query param `tab` trong `useEffect` để phân giải linh hoạt (bảo toàn tương thích ngược cho các bookmark/link cũ).
+   - Thêm nút liên kết "Trải nghiệm V2" trỏ sang `/trading-manager-v2`.
+5. [frontend/src/app/trading-manager-v2/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager-v2/page.tsx):
+   - Di dời màn hình thử nghiệm V2 sang route độc lập.
+   - Sửa nút "Xem Bản V1 Cũ" và "Về bản V1" trỏ chuẩn về `/trading-manager` (V1).
+   - Sửa import relative path `QlgdExecutiveDashboard`.
+6. [frontend/src/app/trading-manager/components/](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/):
+   - Khôi phục toàn bộ các thư mục component: `legacy-ms-cqg/`, `core-ccp/`, `ce-acm/`, `job-queue/`, `shared/` và utils `reconLogParser.ts`, `tradingDateUtils.ts`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Local & Remote Sync: Đã đồng bộ toàn bộ file sang `/opt/mxv-checklist/frontend/src/app/trading-manager/` trên Ubuntu Server `10.0.0.26`.
+- Frontend Next.js Build: `next build` hoàn tất 100% không cảnh báo lỗi (`Generating static pages 36/36 in 611ms`, Exit code 0).
+- PM2 Processes: Cả `mxv-backend` (pid: 392084) và `mxv-frontend` (pid: 392495) đều đã restart thành công và ở trạng thái **online**.
+
+---
+
 ## [2026-10-16T14:45] ARCHITECTURE & FEATURE: Chuyển Đổi 100% Mã Nguồn Check BGS All.xlsm Sang TypeScript Thực Thi Cho Executive Dashboard
 
 ### 1. Mục tiêu thay đổi
