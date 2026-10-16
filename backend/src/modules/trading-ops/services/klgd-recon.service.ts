@@ -786,10 +786,10 @@ export class KlgdReconService {
     const ttmPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTM.xlsx');
 
     const acmTradesPath =
-      findLatestFile(acmTradingDailyPath, /Straits/i) ||
       findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
-      findLatestFile(acmDailyPath, /Straits/i) ||
-      findLatestFile(acmDailyPath, /Nano|Fill/i);
+      findLatestFile(acmDailyPath, /Nano|Fill/i) ||
+      findLatestFile(acmTradingDailyPath, /Straits/i) ||
+      findLatestFile(acmDailyPath, /Straits/i);
 
     const cqgFrPath =
       resolveCqgFile(cqgTradingDailyPath, 'FR', this.logger) ||
@@ -835,7 +835,7 @@ export class KlgdReconService {
     const missingFiles: string[] = [];
     if (checkKlgdFlag) {
       if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
-      if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx / Straits.csv)`);
+      if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx)`);
       if (!cqgFrPath) missingFiles.push(`CQG FR`);
     }
     if (checkTtmFlag) {

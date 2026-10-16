@@ -533,13 +533,52 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         return;
       }
 
-      // ── DIRECT SFTP INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ĐỒNG BỘ RÀO CẢN) ──
+      // ── DIRECT INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ĐỒNG BỘ RÀO CẢN) ──
       const ingressModeAcm = await this.settingsService.getSetting(
         'ingress_mode_acm',
         await this.settingsService.getSetting('ingress_mode', 'REST_API'),
       );
 
-      if (this.ingressService && (ingressModeAcm === 'REST_API' || ingressModeAcm === 'API' || ingressModeAcm === 'SFTP')) {
+      if (this.ingressService && (ingressModeAcm === 'REST_API' || ingressModeAcm === 'API')) {
+        log('ACM ⚡ [Direct ETP REST API] Khởi động pre-flight kiểm tra phiên xác thực ACM Web ETP...');
+        let preflightSuccess = false;
+        try {
+          if (this.ingressService.checkHealth) {
+            await this.ingressService.checkHealth('ACM');
+          }
+          preflightSuccess = true;
+          log('ACM ⚡ [Direct ETP REST API] Pre-flight thành công (Phiên xác thực ACM Web ETP sẵn sàng).');
+        } catch (pfErr: any) {
+          log(`ACM ⚠️ Pre-flight Direct REST API ACM không thành công (${pfErr.message}). Tự động fallback sang Playwright...`);
+        }
+
+        if (preflightSuccess) {
+          readyState.acm = true;
+          log('ACM ⚡ [Direct ETP REST API] Đã sẵn sàng kết nối. Đang chờ CQG và các bên cùng vào vị trí...');
+          checkAllReadyAndTrigger();
+
+          try {
+            await barrierTriggerPromise;
+            log('ACM ⚡ [Direct ETP REST API] Rào cản đã mở! Kích hoạt tải báo cáo Khớp lệnh (Fill.xlsx) từ ACM Web ETP qua REST API...');
+
+            const acmRes = await this.ingressService.download('ACM', {
+              targetDate: dateStr,
+              outputDir: acmDailyPath,
+              reportCodes: ['FILL'],
+              mode: 'REST_API',
+            });
+            const downloadedNames = (acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+            log(`ACM ⚡ Tải Fill.xlsx qua Direct ETP REST API hoàn tất: ${downloadedNames}`);
+            log('ACM ⚡ Đã sẵn sàng dữ liệu Fill.xlsx qua Direct REST API đồng bộ thời gian với CQG.');
+            return;
+          } catch (acmApiErr: any) {
+            log(`ACM ⚠️ Direct REST API gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
+            errors.push(`ACM Direct REST API: ${acmApiErr.message}`);
+            abortBarrierIfStrict('ACM ETP REST API', acmApiErr.message);
+            return;
+          }
+        }
+      } else if (this.ingressService && ingressModeAcm === 'SFTP') {
         log('ACM ⚡ [Direct SFTP Ingress] Khởi động pre-flight kiểm tra kết nối SFTP...');
         let preflightSuccess = false;
         try {
@@ -559,14 +598,16 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
           try {
             await barrierTriggerPromise;
-            log('ACM ⚡ [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv đồng thời...');
+            log('ACM ⚡ [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv từ SFTP...');
 
             const acmRes = await this.ingressService.download('ACM', {
               targetDate: dateStr,
               outputDir: acmDailyPath,
-              reportType: 'STRAITS_CSV',
+              reportCodes: ['STRAITS_CSV'],
+              mode: 'SFTP',
             });
-            log(`ACM ⚡ Tải Straits.csv qua Direct SFTP hoàn tất: ${acmRes.files.join(', ')}`);
+            const downloadedNames = (acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+            log(`ACM ⚡ Tải Straits.csv qua Direct SFTP hoàn tất: ${downloadedNames}`);
             log('ACM ⚡ Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP đồng bộ thời gian với CQG.');
             return;
           } catch (acmApiErr: any) {
@@ -631,29 +672,21 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         // Chờ các hệ thống khác cùng sẵn sàng để xuất dữ liệu đồng thời
         await barrierTriggerPromise;
 
-        log('ACM  [Bước 2: Xuất dữ liệu] Đang tải file khớp lệnh Straits.csv (Fill)...');
+        log('ACM  [Bước 2: Xuất dữ liệu] Đang tải file khớp lệnh Fill.xlsx...');
         const btn = page.locator(exportBtnSelector).first();
         const isVisible = await btn.isVisible().catch(() => false);
-        const straitsFile = path.join(acmDailyPath, 'Straits.csv');
-        // const fillFile = path.join(acmDailyPath, 'Fill.xlsx');
+        const fillFile = path.join(acmDailyPath, 'Fill.xlsx');
 
         if (isVisible) {
           const dlPromise = page.waitForEvent('download', { timeout: 35000 });
           await btn.click();
           const dl = await dlPromise;
-          await dl.saveAs(straitsFile);
-          // // Tạo bản sao Fill.xlsx để tương thích hoàn toàn các parser cũ (Tạm comment: đối chiếu ACM hiện tại chỉ nhận diện Straits.csv)
-          // try {
-          //   fs.copyFileSync(straitsFile, fillFile);
-          // } catch { }
-          log('ACM  Tải Straits.csv (Fill) thành công.');
+          await dl.saveAs(fillFile);
+          log('ACM  Tải Fill.xlsx thành công.');
         } else {
           // Fallback tải chuẩn
-          await this.rpaDownloaderService.downloadAcmReport(page, straitsFile, fillUrl, jobLogFn);
-          // try {
-          //   if (fs.existsSync(fillFile)) fs.copyFileSync(fillFile, straitsFile);
-          // } catch { }
-          log('ACM  Tải báo cáo Straits.csv qua fallback thành công.');
+          await this.rpaDownloaderService.downloadAcmReport(page, fillFile, fillUrl, jobLogFn);
+          log('ACM  Tải báo cáo Fill.xlsx qua fallback thành công.');
         }
 
         // // Tải bổ sung Order nếu cần (Tạm comment để tối ưu tốc độ bot, giảm 60-90s và tránh lỗi 502 ALB do đối chiếu chỉ dùng Straits.csv)
@@ -716,8 +749,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
               targetDate: dateStr,
               outputDir: ccpDailyPath,
               reportType: 'CL_MATCH',
+              reportCodes: ['DSGD_CCP'],
+              mode: 'REST_API',
             });
-            log(`CCP ⚡ Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpRes.files.join(', ')}`);
+            const ccpFilesList = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+            log(`CCP ⚡ Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpFilesList}`);
             log('CCP ⚡ Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
             return;
           } catch (ccpApiErr: any) {

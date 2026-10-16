@@ -25,6 +25,7 @@ export interface IngressDownloadOptions {
   timeoutMs?: number;           // Timeout tối đa
   forceRefresh?: boolean;       // Bỏ qua cache nếu đã tải
   isFullBackup?: boolean;       // Kích hoạt chế độ tải toàn bộ file backup của hệ thống
+  mode?: 'REST_API' | 'SFTP' | 'PLAYWRIGHT' | string; // Chỉ định chế độ ingress tường minh (REST_API / SFTP / PLAYWRIGHT)
 }
 
 export interface IngressDownloadResult {

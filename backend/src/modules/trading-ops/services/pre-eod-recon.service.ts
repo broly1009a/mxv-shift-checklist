@@ -333,9 +333,7 @@ export class PreEodReconService {
     const dsgdPath = path.join(msDailyPath, 'DSGD.xlsx');
     const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
 
-    const acmTradesPath =
-      findLatestFile(acmDailyPath, /Straits/i) ||
-      findLatestFile(acmDailyPath, /Nano|Fill/i);
+    const acmTradesPath = findLatestFile(acmDailyPath, /Straits/i);
 
     const cqgFrPath = resolveCqgFile(cqgDailyPath, 'FR', this.logger);
     const cqgPsPath = resolveCqgFile(cqgDailyPath, 'PS', this.logger);

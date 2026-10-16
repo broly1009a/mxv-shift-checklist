@@ -40,6 +40,19 @@ export class AcmSftpAdapter implements IIngressPort {
           if (decrypted.remoteDir) remoteDir = decrypted.remoteDir;
         } catch {}
       }
+
+      // Cũng kiểm tra bot_credentials_acm (nơi ConnectionSettings.tsx lưu thông tin SFTP)
+      const rawAcm = await this.settingsService.getSetting('bot_credentials_acm', '');
+      if (rawAcm) {
+        try {
+          const decryptedAcm = JSON.parse(decrypt(rawAcm));
+          if (decryptedAcm.sftpHost) host = decryptedAcm.sftpHost;
+          if (decryptedAcm.sftpPort) port = parseInt(decryptedAcm.sftpPort, 10);
+          if (decryptedAcm.sftpUsername) username = decryptedAcm.sftpUsername;
+          if (decryptedAcm.sftpPassword) password = decryptedAcm.sftpPassword;
+          if (decryptedAcm.sftpRemoteDir) remoteDir = decryptedAcm.sftpRemoteDir;
+        } catch {}
+      }
     }
 
     return { host, port, username, password, remoteDir };
@@ -53,34 +66,34 @@ export class AcmSftpAdapter implements IIngressPort {
     if (!creds.host) {
       throw new Error('Chưa cấu hình SFTP host cho ACM');
     }
-    if (creds.password && creds.host) {
-      return new Promise<boolean>((resolve, reject) => {
-        const conn = new Client();
-        const timeoutTimer = setTimeout(() => {
-          conn.end();
-          reject(new Error(`SFTP connection timeout sau 4000ms tới ${creds.host}:${creds.port}`));
-        }, 4000);
-
-        conn.on('ready', () => {
-          clearTimeout(timeoutTimer);
-          conn.end();
-          resolve(true);
-        });
-        conn.on('error', (err) => {
-          clearTimeout(timeoutTimer);
-          conn.end();
-          reject(err);
-        });
-        conn.connect({
-          host: creds.host,
-          port: creds.port,
-          username: creds.username,
-          password: creds.password,
-          readyTimeout: 4000,
-        });
-      });
+    if (!creds.password) {
+      throw new Error('Chưa cấu hình mật khẩu SFTP cho ACM (Vui lòng điền SFTP Password tại Quản trị Bot)');
     }
-    return true;
+    return new Promise<boolean>((resolve, reject) => {
+      const conn = new Client();
+      const timeoutTimer = setTimeout(() => {
+        conn.end();
+        reject(new Error(`SFTP connection timeout sau 4000ms tới ${creds.host}:${creds.port}`));
+      }, 4000);
+
+      conn.on('ready', () => {
+        clearTimeout(timeoutTimer);
+        conn.end();
+        resolve(true);
+      });
+      conn.on('error', (err) => {
+        clearTimeout(timeoutTimer);
+        conn.end();
+        reject(err);
+      });
+      conn.connect({
+        host: creds.host,
+        port: creds.port,
+        username: creds.username,
+        password: creds.password,
+        readyTimeout: 4000,
+      });
+    });
   }
 
   /**
@@ -179,85 +192,34 @@ export class AcmSftpAdapter implements IIngressPort {
       }
     }
 
-    // Nếu tải trực tiếp từ SFTP thành công
-    if (sftpSuccess && fs.existsSync(straitsPath)) {
-      const stat = fs.statSync(straitsPath);
-      files.push({
-        fileName: straitsFileName,
-        absolutePath: straitsPath,
-        fileSize: stat.size,
-        mtime: stat.mtime,
-        category: 'ACM',
-        metadata: { transport: 'SFTP_SSH2_CLIENT', host: creds.host },
-      });
-    } else {
-      // Tìm file mẫu từ dataset chuẩn hoặc mock-sftp nếu SFTP server bên ngoài chưa mở
-      let foundSample = false;
-      const sampleCandidates = [
-        path.join(process.cwd(), 'Pictures', 'Dữ liệu chuẩn ngày 25', '25.09 ACM'),
-        path.join(process.cwd(), 'mock-sftp', 'data'),
-        path.join(process.cwd(), 'temp', 'test_ingress', 'acm'),
-      ];
-
-      for (const candDir of sampleCandidates) {
-        if (fs.existsSync(candDir)) {
-          const dirFiles = fs.readdirSync(candDir);
-          const sampleStraits = dirFiles.find((f) => f.toLowerCase().includes('straits') && f.endsWith('.csv'));
-          if (sampleStraits && !fs.existsSync(straitsPath)) {
-            fs.copyFileSync(path.join(candDir, sampleStraits), straitsPath);
-            foundSample = true;
-            break;
-          }
-        }
-      }
-
-      if (!foundSample && !fs.existsSync(straitsPath)) {
-        // Sinh cấu trúc chuẩn Straits CSV theo Ground Truth AGENTS.md
-        const sampleCsv = [
-          'Trade Date,Account,Exchange,Commodity,Contract,Direction,Price,Quantity,Currency,Order ID,Trade ID',
-          `${targetDateStr},10017890000,CME,CP,CP2CO,BUY,4.5250,5,USD,ORD_1001,TRD_5001`,
-          `${targetDateStr},10017890000,NYMEX,PL,PL1NY,SELL,985.20,2,USD,ORD_1002,TRD_5002`,
-        ].join('\n');
-        fs.writeFileSync(straitsPath, sampleCsv, 'utf8');
-      }
-
-      const stat = fs.statSync(straitsPath);
-      files.push({
-        fileName: straitsFileName,
-        absolutePath: straitsPath,
-        fileSize: stat.size,
-        mtime: stat.mtime,
-        category: 'ACM',
-        metadata: { transport: 'SFTP_STANDARDIZED_STRAITS', host: creds.host },
-      });
+    // Kiểm tra kết quả tải file thật từ SFTP
+    if (!sftpSuccess || !fs.existsSync(straitsPath)) {
+      throw new Error(
+        `Không thể kết nối hoặc không tìm thấy file Straits CSV trên máy chủ SFTP ${creds.host}:${creds.port} (Thư mục: ${creds.remoteDir}). Vui lòng kiểm tra thông tin tài khoản SFTP hoặc chuyển sang chế độ ACM Web Direct REST API.`,
+      );
     }
 
-    // Đảm bảo đủ 2 file chuẩn SFTP ACM (Straits CSV + Báo cáo XLS TK 10017890000)
-    if (!fs.existsSync(xlsPath)) {
-      // Tìm sample XLS từ ngày 25
-      const sampleXlsDir = path.join(process.cwd(), 'Pictures', 'Dữ liệu chuẩn ngày 25', '25.09 ACM');
-      let copiedXls = false;
-      if (fs.existsSync(sampleXlsDir)) {
-        const xlsCand = fs.readdirSync(sampleXlsDir).find((f) => f.includes('10017890000') && f.endsWith('.xls'));
-        if (xlsCand) {
-          fs.copyFileSync(path.join(sampleXlsDir, xlsCand), xlsPath);
-          copiedXls = true;
-        }
-      }
-      if (!copiedXls) {
-        fs.writeFileSync(xlsPath, Buffer.from('MOCK_STRAITS_ACCOUNT_XLS_PAYLOAD'), 'utf8');
-      }
-    }
-
-    const xlsStat = fs.statSync(xlsPath);
+    const stat = fs.statSync(straitsPath);
     files.push({
-      fileName: xlsFileName,
-      absolutePath: xlsPath,
-      fileSize: xlsStat.size,
-      mtime: xlsStat.mtime,
+      fileName: straitsFileName,
+      absolutePath: straitsPath,
+      fileSize: stat.size,
+      mtime: stat.mtime,
       category: 'ACM',
-      metadata: { transport: 'SFTP_ACCOUNT_XLS', host: creds.host },
+      metadata: { transport: 'SFTP_SSH2_CLIENT', host: creds.host },
     });
+
+    if (fs.existsSync(xlsPath)) {
+      const xlsStat = fs.statSync(xlsPath);
+      files.push({
+        fileName: xlsFileName,
+        absolutePath: xlsPath,
+        fileSize: xlsStat.size,
+        mtime: xlsStat.mtime,
+        category: 'ACM',
+        metadata: { transport: 'SFTP_ACCOUNT_XLS', host: creds.host },
+      });
+    }
 
     const totalDurationMs = Date.now() - startTime;
     this.logger.log(`[AcmSftpAdapter] Tải hoàn tất ${files.length} file SFTP ACM tại: ${outputDirectory}`);

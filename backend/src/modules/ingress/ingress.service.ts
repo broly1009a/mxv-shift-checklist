@@ -7,6 +7,7 @@ import {
   IngressDownloadOptions,
   IngressDownloadResult,
   IngressFileDetail,
+  decrypt,
 } from '../../shared';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { MSystemScraperService } from './scrapers/ms-scraper.service';
@@ -57,14 +58,14 @@ export class IngressService implements IIngressPort {
     const files: IngressFileDetail[] = [];
 
     // Cấu hình Động từ CSDL: Ưu tiên cờ riêng từng nguồn, fallback sang key chung 'ingress_mode'
-    let globalMode = 'PLAYWRIGHT';
+    let globalMode = 'REST_API';
     if (this.settingsService) {
       globalMode = await this.settingsService.getSetting(
         'ingress_mode',
-        process.env.INGRESS_MODE || 'PLAYWRIGHT',
+        process.env.INGRESS_MODE || 'REST_API',
       );
     } else {
-      globalMode = process.env.INGRESS_MODE || 'PLAYWRIGHT';
+      globalMode = process.env.INGRESS_MODE || 'REST_API';
     }
 
     const sourceKeyMap: Record<string, string> = {
@@ -75,14 +76,15 @@ export class IngressService implements IIngressPort {
       CORE_EX: 'ingress_mode_ce',
     };
     const specificKey = sourceKeyMap[source] || `ingress_mode_${source.toLowerCase()}`;
-    const ingressMode = this.settingsService
+    const configuredMode = this.settingsService
       ? await this.settingsService.getSetting(specificKey, globalMode)
       : (process.env[specificKey.toUpperCase()] || globalMode);
+    const ingressMode = (options as any)?.mode || configuredMode;
 
     // Feature Flag: Tắt Playwright và chuyển trực tiếp sang REST/SFTP API khi ingressMode = 'REST_API'
     if (ingressMode === 'REST_API') {
       this.logger.log(
-        `[IngressService] Kích hoạt Direct API Mode từ CSDL cho nguồn "${source}" (Cờ: ${specificKey}=REST_API)`,
+        `[IngressService] Kích hoạt Direct API Mode cho nguồn "${source}" (Cờ: ${specificKey}=${ingressMode})`,
       );
       if (source === 'CORE_EX') {
         return this.coreExApiAdapter.download('CORE_EX', { ...options, targetDirectory: outputDirectory });
@@ -106,16 +108,15 @@ export class IngressService implements IIngressPort {
             files: combinedFiles,
             downloadedAt: new Date(),
             durationMs: sftpRes.durationMs + etpRes.durationMs,
-            summary: `Đã tải trọn gói ${combinedFiles.length} file ACM (SFTP Straits CSV + ETP Orders & Trades)`,
+            summary: `Đã tải trọn gói ${combinedFiles.length} file ACM (SFTP Straits CSV + ETP Order & Fill)`,
           };
         }
-        // Tự động phân nhánh: Nếu yêu cầu báo cáo ETP (Orders/Trades) -> dùng AcmEtpAdapter, còn lại dùng AcmSftpAdapter (Straits CSV)
-        const isEtpReport = options?.reportCodes?.some((r) => r.includes('ETP') || r === 'ORDERS' || r === 'TRADES');
-        if (isEtpReport) {
-          return this.acmEtpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
-        }
-        return this.acmSftpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
+        // Direct REST API: Sử dụng AcmEtpAdapter để kéo dữ liệu từ Web Portal ETP (Order.xlsx & Fill.xlsx)
+        return this.acmEtpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
       }
+    } else if (ingressMode === 'SFTP' && source === 'ACM') {
+      this.logger.log(`[IngressService] Kích hoạt Direct SFTP Mode cho nguồn ACM`);
+      return this.acmSftpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
     }
 
     this.logger.log(
@@ -189,6 +190,20 @@ export class IngressService implements IIngressPort {
           localDir: outputDirectory,
         };
 
+        if (this.settingsService) {
+          const rawAcm = await this.settingsService.getSetting('bot_credentials_acm', '');
+          if (rawAcm) {
+            try {
+              const dec = JSON.parse(decrypt(rawAcm));
+              if (dec.sftpHost) sftpOptions.host = dec.sftpHost;
+              if (dec.sftpPort) sftpOptions.port = parseInt(dec.sftpPort, 10);
+              if (dec.sftpUsername) sftpOptions.username = dec.sftpUsername;
+              if (dec.sftpPassword) sftpOptions.password = dec.sftpPassword;
+              if (dec.sftpRemoteDir) sftpOptions.remoteDir = dec.sftpRemoteDir;
+            } catch {}
+          }
+        }
+
         const res = await this.acmScraper.downloadStraits(sftpOptions);
         files.push({
           fileName: res.fileName,
@@ -206,6 +221,18 @@ export class IngressService implements IIngressPort {
           username: process.env.CCP_USERNAME || '',
           password: process.env.CCP_PASSWORD || '',
         };
+
+        if (this.settingsService) {
+          const rawCcp = await this.settingsService.getSetting('bot_credentials_ccp', '');
+          if (rawCcp) {
+            try {
+              const dec = JSON.parse(decrypt(rawCcp));
+              if (dec.username) ccpCreds.username = dec.username;
+              if (dec.password) ccpCreds.password = dec.password;
+            } catch {}
+          }
+        }
+
         const ccpResults = await this.ccpScraper.downloadAll25Reports(outputDirectory, ccpCreds);
         for (const cf of ccpResults) {
           files.push({
@@ -252,8 +279,16 @@ export class IngressService implements IIngressPort {
       case 'CORE_EX':
         await this.coreExApiAdapter.getValidSession();
         return true;
-      case 'ACM':
-        return await this.acmSftpAdapter.testConnection();
+      case 'ACM': {
+        const ingressModeAcm = this.settingsService
+          ? await this.settingsService.getSetting('ingress_mode_acm', 'REST_API')
+          : 'REST_API';
+        if (ingressModeAcm === 'SFTP') {
+          return await this.acmSftpAdapter.testConnection();
+        }
+        await this.acmEtpAdapter.getValidSession();
+        return true;
+      }
       default:
         return true;
     }

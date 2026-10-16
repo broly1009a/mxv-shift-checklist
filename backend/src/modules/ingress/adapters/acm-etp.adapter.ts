@@ -273,89 +273,59 @@ export class AcmEtpAdapter implements IIngressPort {
       options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'ETP_FULL'].includes(c.toUpperCase()));
 
     const targets = isFullRequested || !options?.reportCodes || options.reportCodes.length === 0
-      ? ['ACM_ETP_ORDERS', 'ACM_ETP_TRADES']
+      ? ['ORDER', 'FILL']
       : options.reportCodes;
 
     const files: IngressFileDetail[] = [];
 
     try {
-      let session: IAcmEtpSession | null = null;
-      try {
-        session = await this.getValidSession();
-      } catch (authErr: any) {
-        this.logger.warn(`[AcmEtpAdapter] Đăng nhập ACM ETP thất bại (${authErr.message}), kích hoạt chế độ tạo file dự phòng.`);
+      const session = await this.getValidSession();
+      if (!session || !session.token) {
+        throw new Error('Không nhận được token xác thực hợp lệ từ ACM ETP Web');
       }
 
       const baseUrl = process.env.ACM_BASE_URL || this.defaultBaseUrl;
 
       for (const target of targets) {
+        const t = target.toUpperCase();
         let endpoint = '';
         let outputFileName = '';
 
-        if (target === 'ACM_ETP_ORDERS' || target === 'ORDERS' || target.includes('ORDER')) {
+        if (t.includes('ORDER')) {
           endpoint = '/exchange/business/tetporder/export';
-          outputFileName = `ACM_ETP_ORDERS_${targetDate.replace(/-/g, '')}.xlsx`;
-        } else if (target === 'ACM_ETP_TRADES' || target === 'TRADES' || target.includes('TRADE')) {
+          outputFileName = 'Order.xlsx';
+        } else if (t.includes('TRADE') || t.includes('FILL')) {
           endpoint = '/exchange/business/tetptrade/export';
-          outputFileName = `ACM_ETP_TRADES_${targetDate.replace(/-/g, '')}.xlsx`;
+          outputFileName = 'Fill.xlsx';
         } else {
           continue;
         }
 
         const filePath = path.join(outputDirectory, outputFileName);
+        const fullUrl = `${baseUrl}${endpoint}?token=${encodeURIComponent(session.token)}`;
 
-        if (session && session.token) {
-          try {
-            const fullUrl = `${baseUrl}${endpoint}?token=${encodeURIComponent(session.token)}`;
-            const res = await fetch(fullUrl, {
-              method: 'GET',
-              headers: {
-                Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*',
-                Cookie: session.cookies,
-                'User-Agent':
-                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              },
-            });
+        const res = await fetch(fullUrl, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*',
+            Cookie: session.cookies,
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
 
-            if (res.ok) {
-              const buf = Buffer.from(await res.arrayBuffer());
-              fs.writeFileSync(filePath, buf);
-              const stat = fs.statSync(filePath);
-              files.push({
-                fileName: outputFileName,
-                absolutePath: filePath,
-                fileSize: stat.size,
-                mtime: stat.mtime,
-                category: 'ACM',
-                metadata: { transport: 'REST_API_STREAM', endpoint },
-              });
-              this.logger.log(`[AcmEtpAdapter] Đã tải thành công ${outputFileName} (${stat.size} bytes)`);
-              continue;
-            }
-          } catch (dlErr: any) {
-            this.logger.warn(`[AcmEtpAdapter] Lỗi tải từ server cho ${outputFileName}: ${dlErr.message}`);
-          }
-        }
-
-        // Fallback: Tìm file mẫu từ dataset ngày 25 hoặc tạo file hợp lệ
-        const sampleDir = path.join(process.cwd(), 'Pictures', 'Dữ liệu chuẩn ngày 25', '25.09 ACM');
-        let copied = false;
-        if (fs.existsSync(sampleDir)) {
-          const sampleMatch = fs.readdirSync(sampleDir).find((f) =>
-            (target.includes('ORDER') && f.toLowerCase().includes('order')) ||
-            (target.includes('TRADE') && (f.toLowerCase().includes('fill') || f.toLowerCase().includes('trade'))),
+        if (!res.ok) {
+          throw new Error(
+            `Máy chủ ACM ETP từ chối xuất báo cáo ${outputFileName}: HTTP ${res.status} ${res.statusText}`,
           );
-          if (sampleMatch) {
-            fs.copyFileSync(path.join(sampleDir, sampleMatch), filePath);
-            copied = true;
-          }
         }
 
-        if (!copied && !fs.existsSync(filePath)) {
-          // Tạo dummy binary file
-          fs.writeFileSync(filePath, Buffer.from(`MOCK_${target}_DATA_${targetDate}`), 'utf8');
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length === 0) {
+          throw new Error(`Dữ liệu nhị phân trả về từ ${endpoint} bị rỗng (0 bytes).`);
         }
 
+        fs.writeFileSync(filePath, buf);
         const stat = fs.statSync(filePath);
         files.push({
           fileName: outputFileName,
@@ -363,8 +333,9 @@ export class AcmEtpAdapter implements IIngressPort {
           fileSize: stat.size,
           mtime: stat.mtime,
           category: 'ACM',
-          metadata: { transport: 'REST_API_FALLBACK', endpoint },
+          metadata: { transport: 'REST_API_STREAM', endpoint },
         });
+        this.logger.log(`[AcmEtpAdapter] Đã tải thành công ${outputFileName} từ ACM Web ETP (${stat.size} bytes)`);
       }
 
       return {
@@ -374,19 +345,11 @@ export class AcmEtpAdapter implements IIngressPort {
         files,
         downloadedAt: new Date(),
         durationMs: Date.now() - startTime,
-        summary: `Đã hoàn tất tải ${files.length} báo cáo ACM ETP qua REST API`,
+        summary: `Đã hoàn tất tải ${files.length} báo cáo thật từ ACM ETP qua REST API`,
       };
     } catch (err: any) {
       this.logger.error(`[AcmEtpAdapter] Lỗi tải báo cáo ACM ETP: ${err.message}`);
-      return {
-        success: false,
-        source: 'ACM',
-        outputDirectory,
-        files: [],
-        downloadedAt: new Date(),
-        error: err.message,
-        durationMs: Date.now() - startTime,
-      };
+      throw err;
     }
   }
 
