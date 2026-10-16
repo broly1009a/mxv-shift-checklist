@@ -14,10 +14,11 @@
  *  5. Tìm file DSGD snapshot: DSGD{timeSuffix}.xlsx → DSGD*.xlsx mới nhất
  *  6. Tính ngày T-1: while (getDay() === 0 || getDay() === 6) — bỏ qua T7+CN
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { WorkingCalendarService } from '../../working-calendar/working-calendar.service';
 import {
   getMsBackupBase,
   getAcmBackupBase,
@@ -53,8 +54,8 @@ export class DsgdBeforeEodService {
 
   constructor(
     private readonly settingsService: SystemSettingsService,
-    // NOTE: RpaDownloaderService đã bị loại khỏi V2 theo thiết kế Task 3.6
-    // Việc kích hoạt Bot RPA sẽ do BotDispatcherService (Pha 5) đảm nhiệm
+    @Optional()
+    private readonly workingCalendarService?: WorkingCalendarService,
   ) {}
 
   /**
@@ -74,6 +75,57 @@ export class DsgdBeforeEodService {
     while (d.getDay() === 0 || d.getDay() === 6) {
       d.setDate(d.getDate() - 1);
     }
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear().toString();
+    return {
+      dateObj: d,
+      day,
+      month,
+      year,
+      dateFormatted: `${day}/${month}/${year}`,
+    };
+  }
+
+  /**
+   * Tính ngày phiên giao dịch T-1 có kiểm tra Lịch Giao Dịch & Nghỉ Lễ/Tết (Working Calendar).
+   * Lặp lùi ngày và kiểm tra qua WorkingCalendarService để bỏ qua Thứ Bảy, Chủ Nhật và các ngày nghỉ Lễ/Tết.
+   * [Ground Truth: KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md Phase 3]
+   */
+  public async getPreviousTradingSession(inputDate?: Date | string): Promise<{
+    dateObj: Date;
+    day: string;
+    month: string;
+    year: string;
+    dateFormatted: string;
+  }> {
+    const d = inputDate ? new Date(inputDate) : new Date();
+    d.setDate(d.getDate() - 1);
+
+    // Lặp lùi tối đa 15 ngày để tìm ngày giao dịch hợp lệ gần nhất (bao quát các kỳ nghỉ lễ/Tết dài ngày)
+    for (let i = 0; i < 15; i++) {
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      if (!isWeekend) {
+        let isHolidayOrNonTrading = false;
+        if (this.workingCalendarService) {
+          try {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(d.getDate()).padStart(2, '0');
+            const ymd = `${y}-${m}-${dayStr}`;
+            const cal = await this.workingCalendarService.validateDate(ymd);
+            isHolidayOrNonTrading = Boolean(cal?.isHoliday || cal?.isTradingDay === false);
+          } catch (err: any) {
+            this.logger.warn(`Không thể tra cứu working calendar cho ngày ${d.toISOString()}: ${err.message}.`);
+          }
+        }
+        if (!isHolidayOrNonTrading) {
+          break; // Tìm thấy ngày phiên giao dịch hợp lệ gần nhất
+        }
+      }
+      d.setDate(d.getDate() - 1);
+    }
+
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear().toString();
@@ -236,7 +288,7 @@ export class DsgdBeforeEodService {
       year = d.getFullYear().toString();
       dateFormatted = `${day}/${month}/${year}`;
     } else {
-      const prev = this.calculatePreviousSessionDate(options?.tradingDate);
+      const prev = await this.getPreviousTradingSession(options?.tradingDate);
       day = prev.day;
       month = prev.month;
       year = prev.year;

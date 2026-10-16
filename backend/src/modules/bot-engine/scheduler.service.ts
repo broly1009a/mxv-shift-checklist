@@ -16,6 +16,32 @@ interface SchedulerTaskConfig {
   payload?: Record<string, any>;
 }
 
+/**
+ * Tính toán mốc giờ tải khuyến nghị theo quy luật giờ mùa hè (DST) và mùa đông của các sàn Mỹ (CME/CBOT).
+ * - Giờ mùa hè (Daylight Saving Time, từ Chủ Nhật tuần 2 tháng 3 đến Chủ Nhật tuần 1 tháng 11): 04:00 AM VN.
+ * - Giờ mùa đông (Standard Time): Thị trường đóng cửa trễ hơn 1 tiếng -> 05:00 AM VN.
+ */
+export function getRecommendedMarketCloseDownloadTime(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const dstStart = getNthSundayOfMonth(year, 3, 2);
+  const dstEnd = getNthSundayOfMonth(year, 11, 1);
+  const isDst = date >= dstStart && date < dstEnd;
+  return isDst ? '04:00' : '05:00';
+}
+
+function getNthSundayOfMonth(year: number, month: number, n: number): Date {
+  const date = new Date(year, month - 1, 1);
+  let count = 0;
+  while (count < n) {
+    if (date.getDay() === 0) {
+      count++;
+      if (count === n) return date;
+    }
+    date.setDate(date.getDate() + 1);
+  }
+  return date;
+}
+
 @Injectable()
 export class SchedulerService implements OnModuleInit {
   private readonly logger = new Logger(SchedulerService.name);
@@ -34,6 +60,7 @@ export class SchedulerService implements OnModuleInit {
   }
 
   private async seedDefaultConfig() {
+    const recommendedCloseTime = getRecommendedMarketCloseDownloadTime();
     const existing = await this.settingsService.getSetting(
       'bot_scheduler_config',
       '',
@@ -44,7 +71,7 @@ export class SchedulerService implements OnModuleInit {
           id: 'RPA_DOWNLOAD_MS',
           name: 'Tải báo cáo đối chiếu đầu ngày M-System',
           enabled: true,
-          time: '04:00',
+          time: recommendedCloseTime,
           jobType: 'RPA_DOWNLOAD_REPORTS',
           payload: {
             targets: [
@@ -64,7 +91,7 @@ export class SchedulerService implements OnModuleInit {
           id: 'DOWNLOAD_CQG_BACKUP',
           name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
           enabled: true,
-          time: '04:00',
+          time: recommendedCloseTime,
           jobType: 'DOWNLOAD_CQG_BACKUP',
         },
         {
@@ -134,7 +161,7 @@ export class SchedulerService implements OnModuleInit {
               id: 'RPA_DOWNLOAD_MS',
               name: 'Tải báo cáo đối chiếu đầu ngày M-System',
               enabled: true,
-              time: '04:30',
+              time: recommendedCloseTime,
               jobType: 'RPA_DOWNLOAD_REPORTS',
               payload: {
                 targets: [
@@ -153,8 +180,9 @@ export class SchedulerService implements OnModuleInit {
             updated = true;
           } else {
             const rpaTask = tasks[rpaTaskIdx];
-            if (rpaTask.time !== '04:00') {
-              rpaTask.time = '04:00';
+            // BẢO TỒN CẤU HÌNH NGƯỜI DÙNG: Không ghi đè giờ tải nếu đã có cấu hình
+            if (!rpaTask.time) {
+              rpaTask.time = recommendedCloseTime;
               updated = true;
             }
             if (!rpaTask.payload) {
@@ -188,12 +216,12 @@ export class SchedulerService implements OnModuleInit {
               id: 'DOWNLOAD_CQG_BACKUP',
               name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
               enabled: true,
-              time: '04:00',
+              time: recommendedCloseTime,
               jobType: 'DOWNLOAD_CQG_BACKUP',
             });
             updated = true;
-          } else if (existingCqg.time !== '04:00') {
-            existingCqg.time = '04:00';
+          } else if (!existingCqg.time) {
+            existingCqg.time = recommendedCloseTime;
             updated = true;
           }
 
@@ -206,9 +234,6 @@ export class SchedulerService implements OnModuleInit {
               time: '06:30',
               jobType: 'RUN_LOT_MACRO',
             });
-            updated = true;
-          } else if (existingStat.time !== '06:30') {
-            existingStat.time = '06:30';
             updated = true;
           }
 
@@ -522,9 +547,10 @@ export class SchedulerService implements OnModuleInit {
       return;
     }
 
+    const recommendedCloseTime = getRecommendedMarketCloseDownloadTime();
     // Đọc các cấu hình thời điểm vận hành động từ system_settings (Tab Backup & Thống kê)
     const [backupTime, backupTimeEnabled, statTime, statTimeEnabled] = await Promise.all([
-      this.settingsService.getSetting('bot_backup_time', '04:00'),
+      this.settingsService.getSetting('bot_backup_time', recommendedCloseTime),
       this.settingsService.getSetting('bot_backup_time_enabled', 'true'),
       this.settingsService.getSetting('bot_stat_time', '06:30'),
       this.settingsService.getSetting('bot_stat_time_enabled', 'true'),

@@ -239,7 +239,23 @@ export class IngressService implements IIngressPort {
     };
   }
 
-  async checkHealth(): Promise<boolean> {
-    return true;
+  async checkHealth(source?: IngressSourceType): Promise<boolean> {
+    if (!source) return true;
+    switch (source) {
+      case 'MS':
+        await this.msApiAdapter.getValidToken();
+        return true;
+      case 'CCP':
+      case 'CORE_CCP':
+        await this.coreCcpApiAdapter.getValidSession();
+        return true;
+      case 'CORE_EX':
+        await this.coreExApiAdapter.getValidSession();
+        return true;
+      case 'ACM':
+        return await this.acmSftpAdapter.testConnection();
+      default:
+        return true;
+    }
   }
 }

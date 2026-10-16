@@ -35,6 +35,7 @@ import { BotEngineModule } from '../bot-engine/bot-engine.module';
 import { ShiftsModule } from '../shifts/shifts.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
+import { WorkingCalendarModule } from '../working-calendar/working-calendar.module';
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 
@@ -52,6 +53,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     TelegramModule,
     IngressModule,
     ShiftsModule,
+    WorkingCalendarModule,
     forwardRef(() => BotEngineModule),
     MongooseModule.forFeature([
       { name: TradingReconLog.name, schema: TradingReconLogSchema },

@@ -66,6 +66,8 @@ export default function TradingManagerV2Page() {
   // Modal Check DSGD Trước EOD
   const [showDsgdBeforeEodModal, setShowDsgdBeforeEodModal] = useState<boolean>(false);
 
+
+
   // Tự động nhận diện tab từ URL query param (?tab=...)
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -114,6 +116,18 @@ export default function TradingManagerV2Page() {
   const [loadingJobs, setLoadingJobs] = useState<boolean>(false);
   const [systemConfigs, setSystemConfigs] = useState<Record<string, any>>({});
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
+
+  // Guard VNCLEAR EOD: Động hóa theo cấu hình hệ thống (mặc định 16:30 nếu chưa cấu hình trong system_settings)
+  const vnclearCutoffTime = systemConfigs['vnclear_cutoff_time'] || '16:30';
+  const isBeforeVnclearCutoff = useMemo(() => {
+    const now = new Date();
+    const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isToday = selectedDate === todayYmd;
+    const [cHour, cMin] = (vnclearCutoffTime || '16:30').split(':').map(Number);
+    const cutoffMinutes = (isNaN(cHour) ? 16 : cHour) * 60 + (isNaN(cMin) ? 30 : cMin);
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    return isToday && currentMins < cutoffMinutes;
+  }, [selectedDate, vnclearCutoffTime]);
 
   // Sound Beeper Alert
   const playAlertSound = useCallback(() => {
@@ -255,10 +269,10 @@ export default function TradingManagerV2Page() {
     if (selectedDate) {
       setSelectedRunId(null);
       fetchConsoleSummary(selectedDate, false, null);
+      fetchSettings();
       if (activeTab === 'RECON_OPS') fetchReconLogs(selectedDate);
       if (activeTab === 'CCP_CLEARING') fetchCcpData(selectedDate);
       if (activeTab === 'BOT_BACKUP') fetchBotJobs();
-      if (activeTab === 'SYSTEM_CONFIG') fetchSettings();
     }
   }, [selectedDate, activeTab, fetchConsoleSummary, fetchReconLogs, fetchCcpData, fetchBotJobs, fetchSettings]);
 
@@ -1281,6 +1295,27 @@ export default function TradingManagerV2Page() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {isBeforeVnclearCutoff && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      color: '#fbbf24',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                    }}
+                    title={`VNCLEAR chốt sổ sau ${vnclearCutoffTime}. Thực hiện sớm có thể đọc dữ liệu phiên cũ (T-1) hoặc chưa có file EOD.`}
+                  >
+                    <Clock size={14} color="#fbbf24" />
+                    <span>VNCLEAR chốt sổ sau {vnclearCutoffTime} (Thao tác sớm có thể chưa có EOD hôm nay)</span>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setShowDsgdBeforeEodModal(true)}
@@ -1306,6 +1341,15 @@ export default function TradingManagerV2Page() {
                 <button
                   type="button"
                   onClick={async () => {
+                    if (isBeforeVnclearCutoff) {
+                      const confirmed = window.confirm(
+                        'CẢNH BÁO AN TOÀN VNCLEAR:\n\n' +
+                        `Hiện tại là trước ${vnclearCutoffTime}, hệ thống VNCLEAR thường chưa hoàn tất chốt sổ phiên giao dịch hôm nay. ` +
+                        'Nếu tiếp tục, hệ thống có thể đọc file EOD của ngày cũ (T-1) và bị chốt chặn từ chối.\n\n' +
+                        'Bạn có chắc chắn muốn tiếp tục trích xuất không?'
+                      );
+                      if (!confirmed) return;
+                    }
                     const tid = toast.loading('Đang tải và bóc tách dữ liệu CoreCCP...');
                     try {
                       const res = await ccpClearingApi.downloadCcpMetrics(selectedDate, token);
@@ -1324,6 +1368,15 @@ export default function TradingManagerV2Page() {
                 <button
                   type="button"
                   onClick={async () => {
+                    if (isBeforeVnclearCutoff) {
+                      const confirmed = window.confirm(
+                        'CẢNH BÁO AN TOÀN VNCLEAR:\n\n' +
+                        `Hiện tại là trước ${vnclearCutoffTime}, file EOD.xlsx và dữ liệu bù trừ phiên hôm nay chưa được VNCLEAR chốt sổ. ` +
+                        'Chạy Macro trước giờ chốt sổ có thể dẫn tới số lot thống kê không đầy đủ.\n\n' +
+                        'Bạn có chắc chắn muốn kích hoạt Lot Macro ngay bây giờ không?'
+                      );
+                      if (!confirmed) return;
+                    }
                     const tid = toast.loading('Đang khởi chạy Macro Thống kê Khối lượng...');
                     try {
                       const res = await ccpClearingApi.triggerLotMacro(token);

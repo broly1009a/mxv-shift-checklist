@@ -324,45 +324,66 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         return;
       }
 
-      // ── DIRECT REST API INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER) ──
+      // ── DIRECT REST API INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ĐỒNG BỘ RÀO CẢN) ──
       const ingressModeMs = await this.settingsService.getSetting(
         'ingress_mode_ms',
         await this.settingsService.getSetting('ingress_mode', 'REST_API'),
       );
 
       if (this.ingressService && (ingressModeMs === 'REST_API' || ingressModeMs === 'API')) {
-        log('MS ⚡ [Direct REST API] Kích hoạt tải dữ liệu trực tiếp qua Ingress API Adapter...');
+        log('MS ⚡ [Direct REST API] Khởi động pre-flight kiểm tra phiên xác thực M-System...');
+        let preflightSuccess = false;
         try {
-          if (options.checkKlgd !== false) {
-            const dsgdRes = await this.ingressService.download('MS', {
-              targetDate: dateStr,
-              outputDir: msDailyPath,
-              reportType: 'DSGD',
-            });
-            log(`MS ⚡ Tải DSGD.xlsx qua Direct API hoàn tất: ${dsgdRes.files.join(', ')}`);
+          if (this.ingressService.checkHealth) {
+            await this.ingressService.checkHealth('MS');
           }
-          if (options.checkTtm !== false) {
-            const ttmRes = await this.ingressService.download('MS', {
-              targetDate: dateStr,
-              outputDir: msDailyPath,
-              reportType: 'TTM',
-            });
-            log(`MS ⚡ Tải TTM.xlsx qua Direct API hoàn tất: ${ttmRes.files.join(', ')}`);
-          }
-          if (options.checkTttt !== false) {
-            const ttttRes = await this.ingressService.download('MS', {
-              targetDate: dateStr,
-              outputDir: msDailyPath,
-              reportType: 'TTTT',
-            });
-            log(`MS ⚡ Tải TTTT.xlsx qua Direct API hoàn tất: ${ttttRes.files.join(', ')}`);
-          }
+          preflightSuccess = true;
+          log('MS ⚡ [Direct REST API] Pre-flight thành công (Phiên xác thực hợp lệ).');
+        } catch (pfErr: any) {
+          log(`MS ⚠️ Pre-flight Direct API không thành công (${pfErr.message}). Tự động fallback sang Playwright...`);
+        }
+
+        if (preflightSuccess) {
           readyState.ms = true;
-          log('MS ⚡ Đã sẵn sàng dữ liệu đầy đủ qua Direct API.');
+          log('MS ⚡ [Direct REST API] Đã sẵn sàng kết nối API. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
-          return;
-        } catch (apiErr: any) {
-          log(`MS ⚠️ Direct API gặp sự cố (${apiErr.message}). Tự động fallback chuyển hướng sang Playwright...`);
+
+          try {
+            await barrierTriggerPromise;
+            log('MS ⚡ [Direct REST API] Rào cản đã mở! Kích hoạt tải dữ liệu trực tiếp đồng thời...');
+
+            if (options.checkKlgd !== false) {
+              const dsgdRes = await this.ingressService.download('MS', {
+                targetDate: dateStr,
+                outputDir: msDailyPath,
+                reportType: 'DSGD',
+              });
+              log(`MS ⚡ Tải DSGD.xlsx qua Direct API hoàn tất: ${dsgdRes.files.join(', ')}`);
+            }
+            if (options.checkTtm !== false) {
+              const ttmRes = await this.ingressService.download('MS', {
+                targetDate: dateStr,
+                outputDir: msDailyPath,
+                reportType: 'TTM',
+              });
+              log(`MS ⚡ Tải TTM.xlsx qua Direct API hoàn tất: ${ttmRes.files.join(', ')}`);
+            }
+            if (options.checkTttt !== false) {
+              const ttttRes = await this.ingressService.download('MS', {
+                targetDate: dateStr,
+                outputDir: msDailyPath,
+                reportType: 'TTTT',
+              });
+              log(`MS ⚡ Tải TTTT.xlsx qua Direct API hoàn tất: ${ttttRes.files.join(', ')}`);
+            }
+            log('MS ⚡ Đã sẵn sàng dữ liệu đầy đủ qua Direct API đồng bộ thời gian với CQG.');
+            return;
+          } catch (apiErr: any) {
+            log(`MS ⚠️ Direct API gặp sự cố sau rào cản (${apiErr.message}). Ghi nhận lỗi đối soát...`);
+            errors.push(`MS Direct API: ${apiErr.message}`);
+            abortBarrierIfStrict('M-System API', apiErr.message);
+            return;
+          }
         }
       }
 
@@ -512,27 +533,48 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         return;
       }
 
-      // ── DIRECT SFTP INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ZERO-CAPTCHA) ──
+      // ── DIRECT SFTP INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ĐỒNG BỘ RÀO CẢN) ──
       const ingressModeAcm = await this.settingsService.getSetting(
         'ingress_mode_acm',
         await this.settingsService.getSetting('ingress_mode', 'REST_API'),
       );
 
       if (this.ingressService && (ingressModeAcm === 'REST_API' || ingressModeAcm === 'API' || ingressModeAcm === 'SFTP')) {
-        log('ACM ⚡ [Direct SFTP Ingress] Kích hoạt tải Straits.csv trực tiếp qua SFTP (Bỏ qua Captcha)...');
+        log('ACM ⚡ [Direct SFTP Ingress] Khởi động pre-flight kiểm tra kết nối SFTP...');
+        let preflightSuccess = false;
         try {
-          const acmRes = await this.ingressService.download('ACM', {
-            targetDate: dateStr,
-            outputDir: acmDailyPath,
-            reportType: 'STRAITS_CSV',
-          });
-          log(`ACM ⚡ Tải Straits.csv qua Direct SFTP hoàn tất: ${acmRes.files.join(', ')}`);
+          if (this.ingressService.checkHealth) {
+            await this.ingressService.checkHealth('ACM');
+          }
+          preflightSuccess = true;
+          log('ACM ⚡ [Direct SFTP] Pre-flight thành công (Cấu hình SFTP sẵn sàng).');
+        } catch (pfErr: any) {
+          log(`ACM ⚠️ Pre-flight Direct SFTP không thành công (${pfErr.message}). Tự động fallback sang Playwright...`);
+        }
+
+        if (preflightSuccess) {
           readyState.acm = true;
-          log('ACM ⚡ Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP.');
+          log('ACM ⚡ [Direct SFTP] Đã sẵn sàng kết nối. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
-          return;
-        } catch (acmApiErr: any) {
-          log(`ACM ⚠️ Direct SFTP gặp sự cố (${acmApiErr.message}). Tự động fallback chuyển hướng sang Playwright...`);
+
+          try {
+            await barrierTriggerPromise;
+            log('ACM ⚡ [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv đồng thời...');
+
+            const acmRes = await this.ingressService.download('ACM', {
+              targetDate: dateStr,
+              outputDir: acmDailyPath,
+              reportType: 'STRAITS_CSV',
+            });
+            log(`ACM ⚡ Tải Straits.csv qua Direct SFTP hoàn tất: ${acmRes.files.join(', ')}`);
+            log('ACM ⚡ Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP đồng bộ thời gian với CQG.');
+            return;
+          } catch (acmApiErr: any) {
+            log(`ACM ⚠️ Direct SFTP gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
+            errors.push(`ACM Direct SFTP: ${acmApiErr.message}`);
+            abortBarrierIfStrict('Straits ACM SFTP', acmApiErr.message);
+            return;
+          }
         }
       }
 
@@ -642,27 +684,48 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
     // ── 3. WORKER CORECCP (VNCLEAR) ──────────────────────────────────────────
     const runWorkerCcp = async () => {
-      // ── DIRECT REST API INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER) ──
+      // ── DIRECT REST API INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ĐỒNG BỘ RÀO CẢN) ──
       const ingressModeCcp = await this.settingsService.getSetting(
         'ingress_mode_ccp',
         await this.settingsService.getSetting('ingress_mode', 'REST_API'),
       );
 
       if (this.ingressService && (ingressModeCcp === 'REST_API' || ingressModeCcp === 'API')) {
-        log('CCP ⚡ [Direct REST API] Kích hoạt tải dữ liệu trực tiếp qua Ingress API Adapter...');
+        log('CCP ⚡ [Direct REST API] Khởi động pre-flight kiểm tra phiên xác thực CoreCCP...');
+        let preflightSuccess = false;
         try {
-          const ccpRes = await this.ingressService.download('CCP', {
-            targetDate: dateStr,
-            outputDir: ccpDailyPath,
-            reportType: 'CL_MATCH',
-          });
-          log(`CCP ⚡ Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpRes.files.join(', ')}`);
+          if (this.ingressService.checkHealth) {
+            await this.ingressService.checkHealth('CCP');
+          }
+          preflightSuccess = true;
+          log('CCP ⚡ [Direct REST API] Pre-flight thành công (Phiên xác thực CoreCCP hợp lệ).');
+        } catch (pfErr: any) {
+          log(`CCP ⚠️ Pre-flight Direct API CoreCCP không thành công (${pfErr.message}). Tự động fallback sang Playwright...`);
+        }
+
+        if (preflightSuccess) {
           readyState.ccp = true;
-          log('CCP ⚡ Đã sẵn sàng dữ liệu CoreCCP qua Direct API.');
+          log('CCP ⚡ [Direct REST API] Đã sẵn sàng kết nối API. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
-          return;
-        } catch (ccpApiErr: any) {
-          log(`CCP ⚠️ Direct API gặp sự cố (${ccpApiErr.message}). Tự động fallback chuyển hướng sang Playwright...`);
+
+          try {
+            await barrierTriggerPromise;
+            log('CCP ⚡ [Direct REST API] Rào cản đã mở! Kích hoạt tải báo cáo CoreCCP đồng thời...');
+
+            const ccpRes = await this.ingressService.download('CCP', {
+              targetDate: dateStr,
+              outputDir: ccpDailyPath,
+              reportType: 'CL_MATCH',
+            });
+            log(`CCP ⚡ Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpRes.files.join(', ')}`);
+            log('CCP ⚡ Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
+            return;
+          } catch (ccpApiErr: any) {
+            log(`CCP ⚠️ Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
+            errors.push(`CCP Direct API: ${ccpApiErr.message}`);
+            abortBarrierIfStrict('CoreCCP API', ccpApiErr.message);
+            return;
+          }
         }
       }
 
