@@ -285,6 +285,12 @@ export class BotEngineController {
       tokenRenewedAt: m365TokenRenewedAt,
     };
 
+    const ingressModeMs = await this.settingsService.getSetting('ingress_mode_ms', 'REST_API');
+    const ingressModeCcp = await this.settingsService.getSetting('ingress_mode_ccp', 'REST_API');
+    const ingressModeCe = await this.settingsService.getSetting('ingress_mode_ce', 'REST_API');
+    const ingressModeAcm = await this.settingsService.getSetting('ingress_mode_acm', 'REST_API');
+    const ingressMode = await this.settingsService.getSetting('ingress_mode', 'REST_API');
+
     return {
       msystem,
       cqg,
@@ -298,6 +304,11 @@ export class BotEngineController {
       sessionStartTime,
       usdExchangeRate,
       botAutoRecoveryEnabled,
+      ingressModeMs,
+      ingressModeCcp,
+      ingressModeCe,
+      ingressModeAcm,
+      ingressMode,
     };
   }
 
@@ -319,8 +330,29 @@ export class BotEngineController {
       sessionStartTime,
       usdExchangeRate,
       botAutoRecoveryEnabled,
+      ingressModeMs,
+      ingressModeCcp,
+      ingressModeCe,
+      ingressModeAcm,
+      ingressMode,
     } = body;
     const targetCcp = ccp || cpp;
+
+    if (ingressModeMs !== undefined) {
+      await this.settingsService.setSetting('ingress_mode_ms', ingressModeMs);
+    }
+    if (ingressModeCcp !== undefined) {
+      await this.settingsService.setSetting('ingress_mode_ccp', ingressModeCcp);
+    }
+    if (ingressModeCe !== undefined) {
+      await this.settingsService.setSetting('ingress_mode_ce', ingressModeCe);
+    }
+    if (ingressModeAcm !== undefined) {
+      await this.settingsService.setSetting('ingress_mode_acm', ingressModeAcm);
+    }
+    if (ingressMode !== undefined) {
+      await this.settingsService.setSetting('ingress_mode', ingressMode);
+    }
 
     if (schedulerConfig) {
       await this.settingsService.setSetting(

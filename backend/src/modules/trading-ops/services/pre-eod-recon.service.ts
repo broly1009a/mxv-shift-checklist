@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { MarginExcelParser } from '../parsers';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { WorkingCalendarService } from '../../working-calendar/working-calendar.service';
 import {
   resolveStoragePathCrossPlatform,
   resolveCqgFile,
@@ -58,7 +59,47 @@ export interface PreEodReconResult {
 export class PreEodReconService {
   private readonly logger = new Logger(PreEodReconService.name);
 
-  constructor(private readonly settingsService: SystemSettingsService) {}
+  constructor(
+    private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly workingCalendarService?: WorkingCalendarService,
+  ) {}
+
+  /**
+   * Tính ngày phiên giao dịch T-1 có kiểm tra Lịch Giao Dịch & Nghỉ Lễ/Tết (Working Calendar).
+   */
+  public async getPreviousTradingSession(
+    tradingDate: Date,
+    holidays: string[] = [],
+  ): Promise<Date> {
+    const targetDate = new Date(tradingDate);
+    targetDate.setDate(targetDate.getDate() - 1);
+
+    for (let i = 0; i < 15; i++) {
+      const isWeekend = targetDate.getDay() === 0 || targetDate.getDay() === 6;
+      if (!isWeekend) {
+        const y = targetDate.getFullYear();
+        const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const d = String(targetDate.getDate()).padStart(2, '0');
+        const ymd = `${y}-${m}-${d}`;
+
+        let isHoliday = holidays.includes(ymd);
+        if (!isHoliday && this.workingCalendarService) {
+          try {
+            const cal = await this.workingCalendarService.validateDate(ymd);
+            isHoliday = Boolean(cal?.isHoliday || cal?.isTradingDay === false);
+          } catch (err: any) {
+            this.logger.warn(`Không thể tra cứu working calendar cho ngày ${targetDate.toISOString()}: ${err.message}.`);
+          }
+        }
+        if (!isHoliday) {
+          break;
+        }
+      }
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+    return targetDate;
+  }
 
   /**
    * Thực hiện đối chiếu 3 bên chốt phiên Pre-EOD: M-System vs CQG vs ACM Straits
@@ -75,12 +116,8 @@ export class PreEodReconService {
     tradingDate: Date,
     holidays: string[] = [],
   ): Promise<PreEodReconResult> {
-    // 1. Tính toán ngày T-1 (lùi ngày làm việc, bỏ qua Thứ Bảy & Chủ Nhật)
-    const targetDate = new Date(tradingDate);
-    targetDate.setDate(targetDate.getDate() - 1);
-    while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
-      targetDate.setDate(targetDate.getDate() - 1);
-    }
+    // 1. Tính toán ngày T-1 (lùi ngày làm việc, bỏ qua Thứ Bảy & Chủ Nhật và Lễ/Tết)
+    const targetDate = await this.getPreviousTradingSession(tradingDate, holidays);
 
     const dayStr = String(targetDate.getDate()).padStart(2, '0');
     const monthStr = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -260,12 +297,8 @@ export class PreEodReconService {
     tradingDate: Date,
     dataDir?: string,
   ): Promise<PreEodReconResult> {
-    // 1. Xác định phiên T-1 (lùi ngày làm việc, bỏ qua Thứ 7 và Chủ Nhật)
-    const targetDate = new Date(tradingDate);
-    targetDate.setDate(targetDate.getDate() - 1);
-    while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
-      targetDate.setDate(targetDate.getDate() - 1);
-    }
+    // 1. Xác định phiên T-1 (lùi ngày làm việc, bỏ qua Thứ 7, Chủ Nhật và Lễ/Tết)
+    const targetDate = await this.getPreviousTradingSession(tradingDate);
     targetDate.setHours(0, 0, 0, 0);
 
     const msBackupBase = resolveStoragePathCrossPlatform(

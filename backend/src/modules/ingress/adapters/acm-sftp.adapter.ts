@@ -46,6 +46,44 @@ export class AcmSftpAdapter implements IIngressPort {
   }
 
   /**
+   * Kiểm tra kết nối nhanh tới máy chủ SFTP (Pre-flight check)
+   */
+  public async testConnection(): Promise<boolean> {
+    const creds = await this.getSftpCredentials();
+    if (!creds.host) {
+      throw new Error('Chưa cấu hình SFTP host cho ACM');
+    }
+    if (creds.password && creds.host) {
+      return new Promise<boolean>((resolve, reject) => {
+        const conn = new Client();
+        const timeoutTimer = setTimeout(() => {
+          conn.end();
+          reject(new Error(`SFTP connection timeout sau 4000ms tới ${creds.host}:${creds.port}`));
+        }, 4000);
+
+        conn.on('ready', () => {
+          clearTimeout(timeoutTimer);
+          conn.end();
+          resolve(true);
+        });
+        conn.on('error', (err) => {
+          clearTimeout(timeoutTimer);
+          conn.end();
+          reject(err);
+        });
+        conn.connect({
+          host: creds.host,
+          port: creds.port,
+          username: creds.username,
+          password: creds.password,
+          readyTimeout: 4000,
+        });
+      });
+    }
+    return true;
+  }
+
+  /**
    * Tải file Straits CSV và báo cáo XLS qua giao thức SFTP trực tiếp
    */
   async download(
@@ -237,5 +275,9 @@ export class AcmSftpAdapter implements IIngressPort {
 
   async checkHealth(): Promise<boolean> {
     return true;
+  }
+
+  async testConnection(): Promise<boolean> {
+    return this.checkHealth();
   }
 }

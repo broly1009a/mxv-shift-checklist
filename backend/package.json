@@ -64,8 +64,11 @@
     "test:dsgd-before-eod": "node src/scripts/test_check_dsgd_before_eod_m_drive.js",
     "test:cqg-merger-guard": "ts-node -r tsconfig-paths/register src/scripts/test_cqg_merger_freshness_guard.ts",
     "test:dsgd-guard": "ts-node -r tsconfig-paths/register src/scripts/test_dsgd_before_eod_safety_guard.ts",
+    "test:working-calendar-t1": "ts-node -r tsconfig-paths/register src/scripts/test_working_calendar_t_minus_one_guard.ts",
+    "test:dst-guard": "ts-node -r tsconfig-paths/register src/scripts/test_dst_scheduler_guard.ts",
     "test:api-all": "node src/scripts/test_autonomous_api_ingress_all_4.js",
     "test:check-klgd-benchmark": "node src/scripts/test_benchmark_check_klgd_api_vs_playwright.js",
+    "test:barrier-timing": "ts-node -r tsconfig-paths/register src/scripts/test_synchronized_barrier_timing.ts",
     "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
   },
   "dependencies": {
