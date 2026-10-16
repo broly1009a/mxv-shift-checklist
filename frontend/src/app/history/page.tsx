@@ -20,6 +20,7 @@ import { TableSkeleton } from '@/components/ui/Skeleton';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import CustomSelect from '@/components/ui/CustomSelect';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
+import { renderShiftStatusBadge } from '@/utils/shift-status.helper';
 
 interface Department {
   _id: string;
@@ -182,8 +183,8 @@ function HistoryAudit() {
 
   const statusFilterOptions = [
     { value: 'ALL', label: 'Tất cả trạng thái' },
-    { value: 'PENDING', label: 'Đang trực' },
-    { value: 'COMPLETED', label: 'Hoàn thành' }
+    { value: 'PENDING', label: 'Đang vận hành / Quá hạn' },
+    { value: 'COMPLETED', label: 'Đã chốt sổ' }
   ];
 
   if (!canViewChecklist) {
@@ -319,29 +320,7 @@ function HistoryAudit() {
                         <td style={{ padding: '14px 16px' }}>{getSessionBadge(log.templateId?.sessionType || '')}</td>
                         <td style={{ padding: '14px 16px' }}>{log.userId?.fullName}</td>
                         <td style={{ padding: '14px 16px' }}>
-                          {log.status === 'COMPLETED' ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '5px',
-                              fontSize: '0.75rem', fontWeight: 700,
-                              color: '#10b981',
-                              background: 'rgba(16,185,129,0.1)',
-                              border: '1px solid rgba(16,185,129,0.2)',
-                              borderRadius: '20px', padding: '3px 10px',
-                            }}>
-                              <CheckCircle2 size={12} /> Hoàn thành
-                            </span>
-                          ) : (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '5px',
-                              fontSize: '0.75rem', fontWeight: 700,
-                              color: '#f59e0b',
-                              background: 'rgba(245,158,11,0.1)',
-                              border: '1px solid rgba(245,158,11,0.2)',
-                              borderRadius: '20px', padding: '3px 10px',
-                            }}>
-                              <Clock size={12} className="animate-pulse" /> Đang chạy
-                            </span>
-                          )}
+                          {renderShiftStatusBadge(log)}
                         </td>
                         <td style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '80px' }}>

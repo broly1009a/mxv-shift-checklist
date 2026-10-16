@@ -188,6 +188,9 @@ export class ShiftLog extends Document {
   @Prop({ type: String, default: null })
   handoverNote?: string | null;
 
+  @Prop({ type: Boolean, default: false })
+  isAutoClosed?: boolean;
+
   @Prop({
     required: true,
     enum: ['SYSTEM_CRON', 'MANUAL_ADMIN', 'MANUAL_USER'],

@@ -56,6 +56,7 @@
     "test:api-ce": "node src/scripts/test_direct_api_coreex.js",
     "test:api-acm": "node src/scripts/test_direct_api_acm_sftp.js",
     "test:api-acm-etp": "node src/scripts/test_direct_api_acm_etp.js",
+    "test:dsgd-before-eod": "node src/scripts/test_check_dsgd_before_eod_m_drive.js",
     "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
   },
   "dependencies": {

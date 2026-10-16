@@ -579,6 +579,7 @@ export class KlgdReconController {
     @Body('tradingDate') tradingDateStr?: string,
     @Body('timeSuffix') timeSuffix?: string,
     @Body('triggerDownload') triggerDownload?: boolean,
+    @Body('exactDate') exactDate?: boolean,
     @Body('shiftLogId') shiftLogId?: string,
     @Body('taskId') taskId?: string,
   ) {
@@ -587,6 +588,7 @@ export class KlgdReconController {
         tradingDate: tradingDateStr ? new Date(tradingDateStr) : new Date(),
         timeSuffix,
         triggerDownload: Boolean(triggerDownload),
+        exactDate: Boolean(exactDate),
       });
 
       if (shiftLogId && taskId) {

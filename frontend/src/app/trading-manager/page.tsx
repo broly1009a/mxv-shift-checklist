@@ -44,6 +44,7 @@ import {
   BotJobItem,
   ExchangeRatesData,
   getInitialTradingSessionDate,
+  CheckDsgdBeforeEodModal,
 } from '@/features/trading';
 
 export default function TradingManagerV2Page() {
@@ -58,6 +59,20 @@ export default function TradingManagerV2Page() {
 
   // Top Tabs Navigation
   const [activeTab, setActiveTab] = useState<'RECON_OPS' | 'CCP_CLEARING' | 'BOT_BACKUP' | 'SYSTEM_CONFIG'>('RECON_OPS');
+
+  // Modal Check DSGD Trước EOD
+  const [showDsgdBeforeEodModal, setShowDsgdBeforeEodModal] = useState<boolean>(false);
+
+  // Tự động nhận diện tab từ URL query param (?tab=...)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam && ['RECON_OPS', 'CCP_CLEARING', 'BOT_BACKUP', 'SYSTEM_CONFIG'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+  }, []);
 
   // Audio Alerts State
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
@@ -745,6 +760,28 @@ export default function TradingManagerV2Page() {
 
                 <button
                   type="button"
+                  onClick={() => setShowDsgdBeforeEodModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    color: '#38bdf8',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                  }}
+                  title="Kiểm tra đối chiếu DSGD trước EOD giữa MS gốc và snapshot"
+                >
+                  <ShieldCheck size={14} />
+                  <span>Check DSGD Trước EOD</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleEmergencyStop}
                   disabled={cancelling}
                   style={{
@@ -1204,6 +1241,28 @@ export default function TradingManagerV2Page() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowDsgdBeforeEodModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    color: '#38bdf8',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                  }}
+                  title="Kiểm tra đối chiếu DSGD trước EOD giữa MS gốc và snapshot"
+                >
+                  <ShieldCheck size={14} />
+                  <span>Check DSGD Trước EOD</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={async () => {
@@ -1923,6 +1982,13 @@ export default function TradingManagerV2Page() {
             </Link>
           </div>
         </div>
+
+        {/* Modal Check DSGD Trước EOD */}
+        <CheckDsgdBeforeEodModal
+          isOpen={showDsgdBeforeEodModal}
+          onClose={() => setShowDsgdBeforeEodModal(false)}
+          defaultDate={selectedDate}
+        />
       </div>
     </ProtectedRoute>
   );

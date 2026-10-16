@@ -190,10 +190,28 @@ export class DsgdBeforeEodService {
     tradingDate?: Date | string;
     timeSuffix?: string;
     triggerDownload?: boolean;
+    exactDate?: boolean;
+    customMsDir?: string;
+    customAcmDir?: string;
   }): Promise<CheckDSGDBeforeEODResult> {
-    const { day, month, year, dateFormatted } = this.calculatePreviousSessionDate(
-      options?.tradingDate,
-    );
+    let day: string;
+    let month: string;
+    let year: string;
+    let dateFormatted: string;
+
+    if (options?.exactDate && options?.tradingDate) {
+      const d = options.tradingDate instanceof Date ? options.tradingDate : new Date(options.tradingDate);
+      day = String(d.getDate()).padStart(2, '0');
+      month = String(d.getMonth() + 1).padStart(2, '0');
+      year = d.getFullYear().toString();
+      dateFormatted = `${day}/${month}/${year}`;
+    } else {
+      const prev = this.calculatePreviousSessionDate(options?.tradingDate);
+      day = prev.day;
+      month = prev.month;
+      year = prev.year;
+      dateFormatted = prev.dateFormatted;
+    }
 
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -201,15 +219,31 @@ export class DsgdBeforeEodService {
     const timeSuffix = options?.timeSuffix || `${hours}h${minutes}`;
 
     this.logger.log(
-      `Bắt đầu kiểm tra trước EOD cho phiên T-1: ${dateFormatted}, timeSuffix: ${timeSuffix}`,
+      `Bắt đầu kiểm tra trước EOD cho phiên: ${dateFormatted}, timeSuffix: ${timeSuffix}`,
     );
 
     // 1. Xác định đường dẫn thư mục Backup MS và ACM
-    const msBackupBase = await getMsBackupBase(this.settingsService);
-    const dailyMsDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
+    const msBackupBase = options?.customMsDir || (await getMsBackupBase(this.settingsService));
+    let dailyMsDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
 
-    const acmBackupBase = await getAcmBackupBase(this.settingsService);
-    const dailyAcmDir = path.join(acmBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
+    if (!fs.existsSync(path.join(dailyMsDir, 'DSGD.xlsx'))) {
+      const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures';
+      const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
+      if (fs.existsSync(path.join(mShareDir, 'DSGD.xlsx'))) {
+        dailyMsDir = mShareDir;
+      }
+    }
+
+    const acmBackupBase = options?.customAcmDir || (await getAcmBackupBase(this.settingsService));
+    let dailyAcmDir = path.join(acmBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
+
+    if (!fs.existsSync(dailyAcmDir)) {
+      const mAcmBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures';
+      const mAcmDir = path.join(mAcmBase, year, `T${month}.${year}`, `${day}.${month}`);
+      if (fs.existsSync(mAcmDir)) {
+        dailyAcmDir = mAcmDir;
+      }
+    }
 
     // NOTE: triggerDownload sẽ được xử lý bởi BotDispatcherService trong Pha 5.
     // V2 chỉ đọc file đã có sẵn trên thư mục Backup.
@@ -235,26 +269,47 @@ export class DsgdBeforeEodService {
 
     if (fs.existsSync(dsgdTempPath)) {
       dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
-    } else if (fs.existsSync(dailyMsDir)) {
-      // ⚠️ LOGIC BẮT BUỘC: Tìm file DSGD*.xlsx mới nhất, loại trừ DSGD.xlsx gốc
-      const filesInDir = fs.readdirSync(dailyMsDir);
-      const candidates = filesInDir
-        .filter(
-          (f) =>
-            /^DSGD.+\.xlsx$/i.test(f) &&
-            !f.startsWith('~$') &&
-            f.toLowerCase() !== 'dsgd.xlsx',
-        )
-        .map((f) => {
-          const full = path.join(dailyMsDir, f);
-          return { name: f, path: full, mtime: fs.statSync(full).mtimeMs };
-        })
-        .sort((a, b) => b.mtime - a.mtime); // Lấy file mới nhất
+    } else {
+      // ⚠️ LOGIC BẮT BUỘC: Tìm file DSGD snapshot
+      // Quét trong dailyMsDir và thư mục TradingCheck tương ứng (chuẩn cấu trúc lưu file của C# IT Tool)
+      const searchDirs: string[] = [];
+      if (fs.existsSync(dailyMsDir)) searchDirs.push(dailyMsDir);
+      const tradingCheckDir = dailyMsDir.replace(/[\\/]Backup MS[\\/]/i, path.sep + 'TradingCheck' + path.sep);
+      if (fs.existsSync(tradingCheckDir) && !searchDirs.includes(tradingCheckDir)) {
+        searchDirs.push(tradingCheckDir);
+      }
 
-      if (candidates.length > 0) {
-        dsgdTempPath = candidates[0].path;
+      const candidates: Array<{ name: string; path: string; mtime: number }> = [];
+      for (const dir of searchDirs) {
+        try {
+          const filesInDir = fs.readdirSync(dir);
+          for (const f of filesInDir) {
+            if (/^DSGD.+\.xlsx$/i.test(f) && !f.startsWith('~$') && f.toLowerCase() !== 'dsgd.xlsx') {
+              const full = path.join(dir, f);
+              candidates.push({ name: f, path: full, mtime: fs.statSync(full).mtimeMs });
+            }
+          }
+        } catch {}
+      }
+
+      let matchedCandidate: { name: string; path: string; mtime: number } | undefined;
+      if (options?.timeSuffix) {
+        const cleanSuffix = options.timeSuffix.replace(/[^a-zA-Z0-9]/g, '');
+        matchedCandidate = candidates.find((c) => {
+          const cleanName = c.name.replace(/[^a-zA-Z0-9]/g, '');
+          return cleanName.includes(cleanSuffix);
+        });
+      }
+
+      if (!matchedCandidate && candidates.length > 0) {
+        candidates.sort((a, b) => b.mtime - a.mtime);
+        matchedCandidate = candidates[0];
+      }
+
+      if (matchedCandidate) {
+        dsgdTempPath = matchedCandidate.path;
         dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
-        this.logger.log(`Sử dụng file DSGD snapshot mới nhất: ${candidates[0].name}`);
+        this.logger.log(`Sử dụng file DSGD snapshot: ${matchedCandidate.name} (${matchedCandidate.path})`);
       } else {
         this.logger.warn(
           `Không tìm thấy file snapshot DSGD${timeSuffix}.xlsx, so sánh với chính file DSGD.xlsx gốc`,

@@ -7,6 +7,7 @@ import { api, TaskDetail, ShiftLog, AuditLog, Incident } from '@/services/api';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { MOCK_ACTIVE_LOGS, MOCK_AUDIT_LOGS } from '../mockChecklistData';
+import { resolveShiftStatus } from '@/utils/shift-status.helper';
 
 export type { TaskDetail, ShiftLog, AuditLog, Incident };
 
@@ -532,14 +533,18 @@ export function useChecklist() {
       `"${(item.note || '').replace(/"/g, '""')}"`
     ]);
 
+    const statusDesc = resolveShiftStatus(log);
+
     const csvContent = [
       'SỞ GIAO DỊCH HÀNG HÓA VIỆT NAM (MXV)',
       `BIÊN BẢN VẬN HÀNH: ${log.templateId?.title}`,
       `Ngày trực: ${log.shiftDate}`,
       `Người trực chính: ${log.userId?.fullName}`,
       `Phòng ban: ${log.templateId?.departmentId?.name || 'ADMIN Portal'}`,
-      `Trạng thái: ${log.status === 'COMPLETED' ? 'ĐÃ CHỐT CA' : 'ĐANG VẬN HÀNH'}`,
+      `Trạng thái vận hành: ${statusDesc.operationalLabel}`,
+      `Đánh giá chất lượng: ${statusDesc.label}`,
       `Tiến độ hoàn thành: ${log.progressPercentage}%`,
+      ...(log.handoverNote ? [`Biên bản bàn giao: "${log.handoverNote.replace(/"/g, '""')}"`] : []),
       '',
       headers.join(','),
       ...rows.map(r => r.join(','))
