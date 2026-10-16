@@ -1,3 +1,16 @@
+## [2026-10-16T11:35] UI OPTIMIZATION: Tối Ưu Bộ Chuyển Đổi Giao Diện Ca Trực (Dạng Bảng / Dạng Thẻ) Trong Checklist
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Di chuyển bộ chọn chế độ xem `Dạng bảng / Dạng thẻ` lên thanh công cụ nằm cạnh nút `Hướng dẫn` thay vì chiếm dụng một hàng riêng biệt gây lãng phí không gian màn hình.
+- Chuẩn hóa màu sắc nút bấm và khung container theo hệ thống token CSS `var(--bg-input)`, `var(--border-color)`, `var(--color-accent)`, `var(--text-secondary)`, xóa bỏ màu tối cứng `rgba(0, 0, 0, 0.25)` hiển thị bị đục trên Light Mode.
+
+### 2. Danh sách file sửa đổi
+- [frontend/src/app/checklist/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/checklist/page.tsx):
+  + Đưa cụm chuyển đổi giao diện lên ngang hàng với nút `Hướng dẫn`, `Xem mã kỹ thuật`, `Xuất file Excel`.
+  + Loại bỏ block banner riêng biệt ở dòng 573-640.
+
+---
+
 ## [2026-10-16T11:32] UI ENHANCEMENT: Chuẩn Hóa Màu Sắc Theme Hệ Thống Cho Dashboard QLGD (Executive Dashboard)
 
 ### 1. Mục tiêu thay đổi

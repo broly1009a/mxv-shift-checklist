@@ -453,7 +453,64 @@ function ChecklistWorksheet() {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* View Mode Switcher: Dạng bảng / Dạng thẻ */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                backgroundColor: 'var(--bg-input)',
+                padding: '3px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                gap: '3px',
+                height: '36px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode('spreadsheet')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 12px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: viewMode === 'spreadsheet' ? 'var(--color-accent)' : 'transparent',
+                  color: viewMode === 'spreadsheet' ? '#ffffff' : 'var(--text-secondary)',
+                }}
+              >
+                <LayoutList size={14} />
+                <span>Dạng bảng</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('legacy')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 12px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: viewMode === 'legacy' ? 'var(--color-accent)' : 'transparent',
+                  color: viewMode === 'legacy' ? '#ffffff' : 'var(--text-secondary)',
+                }}
+              >
+                <Columns2 size={14} />
+                <span>Dạng thẻ</span>
+              </button>
+            </div>
+
             {/* Tutorial Help Button */}
             <button
               onClick={() => {
@@ -569,74 +626,6 @@ function ChecklistWorksheet() {
 
         {/* Workspace Layout: Full width checklist, bottom side-by-side widgets */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-          {/* View Mode Switcher Header */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '12px',
-            padding: '8px 14px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Giao diện:</span>
-              <div style={{
-                display: 'inline-flex',
-                background: 'rgba(0, 0, 0, 0.25)',
-                padding: '2px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                gap: '2px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('spreadsheet')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '4px 12px',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    background: viewMode === 'spreadsheet' ? 'var(--color-accent)' : 'transparent',
-                    color: viewMode === 'spreadsheet' ? '#fff' : 'var(--text-muted)',
-                  }}
-                >
-                  <LayoutList size={13} />
-                  <span>Dạng bảng</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('legacy')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '4px 12px',
-                    fontSize: '0.76rem',
-                    fontWeight: 500,
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    background: viewMode === 'legacy' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                    color: viewMode === 'legacy' ? 'var(--text-primary)' : 'var(--text-muted)',
-                  }}
-                >
-                  <Columns2 size={13} />
-                  <span>Dạng thẻ</span>
-                </button>
-              </div>
-            </div>
-          </div>
 
           {/* Top Panel: Checklist Tasks */}
           <div id="tutorial-checklist-task-table">
