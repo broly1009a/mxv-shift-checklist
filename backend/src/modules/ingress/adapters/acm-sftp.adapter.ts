@@ -276,8 +276,4 @@ export class AcmSftpAdapter implements IIngressPort {
   async checkHealth(): Promise<boolean> {
     return true;
   }
-
-  async testConnection(): Promise<boolean> {
-    return this.checkHealth();
-  }
 }

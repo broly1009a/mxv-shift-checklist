@@ -1,3 +1,73 @@
+## [2026-10-16T18:10] UBUNTU SERVER AUDIT & 502 BAD GATEWAY RESOLUTION: Khắc Phục Sập Frontend PM2, Dọn Dẹp 1.5GB Log Rác & Lọc Polling Spam
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố Nginx trả về lỗi **502 Bad Gateway** khi người dùng truy cập `https://10.0.0.26/trading-manager/ms-cqg`.
+- Thực hiện kiểm tra, phân tích tình trạng log hệ thống trên máy chủ Ubuntu `10.0.0.26` theo phản ánh của USER: "Log gì mà lắm vậy có đang bị log rác không. giúp tôi check log trên ubtune".
+- Ngăn chặn nguy cơ tràn ổ cứng máy chủ (disk usage chạm ngưỡng 89%).
+
+### 2. Nguyên nhân gốc rễ được phát hiện
+1. **Lỗi 502 Bad Gateway**:
+   - Nginx tại máy chủ `10.0.0.26` reverse proxy mọi request `/` về `http://127.0.0.1:3000`.
+   - Tiến trình PM2 `mxv-frontend` (ID 1) bị crash-loop liên tục (restart hơn 490 lần) do thư mục `.next/` bị thiếu file `BUILD_ID` (`Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server`).
+   - Do cổng 3000 không mở để đón kết nối, Nginx upstream trả về `111: Connection refused` và xuất lỗi `502 Bad Gateway` cho client.
+2. **Log rác tràn ngập máy chủ**:
+   - File log `mxv-backend-out.log` đã phình to tới **1.4 GB**, file `mxv-backend-error.log` phình tới **105 MB**, đẩy dung lượng đĩa Ubuntu lên **89%** (chỉ còn trống 5.3 GB).
+   - Thủ phạm sinh log rác: [backend/src/middleware/logger.middleware.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/middleware/logger.middleware.ts) ghi log toàn bộ các request HTTP `GET 200 OK` polling định kỳ mỗi 5-10 giây (`/system-status`, `/summary`, `/agent-status`, `/jobs`). Khi người dùng mở nhiều tab trình duyệt, server phải ghi hàng nghìn dòng log vô bổ mỗi giờ.
+   - File error log 105MB bị phình do cảnh báo của thư viện `xlsx/xlsx.mjs:2766` (`Bad uncompressed size`) khi parse zip stream của báo cáo.
+
+### 3. Các bước xử lý kỹ thuật đã thực hiện
+1. **Khôi phục Frontend & Fix 502 Bad Gateway**:
+   - Chạy lệnh `npm run build` trực tiếp tại `/opt/mxv-checklist/frontend` trên máy chủ Ubuntu `10.0.0.26`, build thành công toàn bộ 36 static/dynamic routes và sinh file `BUILD_ID`.
+   - Khởi động lại tiến trình PM2 `mxv-frontend`.
+   - Xác thực: `curl -k -s -I https://10.0.0.26/trading-manager/ms-cqg` trả về **`HTTP/1.1 200 OK`**.
+2. **Giải phóng 1.5GB dung lượng đĩa Ubuntu**:
+   - Chạy `pm2 flush` dọn sạch 1.4GB log rác cũ, hạ mức chiếm dụng ổ đĩa từ 89% xuống 84.91% (giải phóng 1.5GB đĩa trống).
+3. **Lọc triệt để Polling Spam trên Backend**:
+   - Cập nhật [backend/src/middleware/logger.middleware.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/middleware/logger.middleware.ts): Lọc bỏ toàn bộ các request `GET 200 OK` / `304` từ polling định kỳ (`/system-status`, `/summary`, `/agent-status`, `/jobs`). Giữ nguyên 100% việc ghi log các thao tác quan trọng (`POST`, `PUT`, `DELETE`) và mọi request phát sinh lỗi (`statusCode >= 400`).
+   - Sửa lỗi TypeScript `TS2393: Duplicate function implementation` tại [backend/src/modules/ingress/adapters/acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts#L280).
+   - Rebuild và reload tiến trình PM2 `mxv-backend` trên máy chủ Ubuntu.
+   - Log hệ thống hiện tại sạch sẽ, hoạt động mượt mà và không còn hiện tượng log rác tràn ổ cứng.
+
+### 4. Xác nhận Build & Kiểm thử
+- Backend NestJS Build: `npm run build` -> **Exit code 0 (Clean, 0 lỗi TypeScript)**.
+- Frontend Next.js Build: `npm run build` -> **Exit code 0 (Pass 100%, 36/36 pages compiled)**.
+- Kiểm thử trực tiếp máy chủ Ubuntu:
+  - `curl -k -s -I https://10.0.0.26/trading-manager/ms-cqg` $\rightarrow$ `HTTP/1.1 200 OK`.
+  - PM2 Status: `mxv-backend` (Online, 0% CPU, 60MB RAM), `mxv-frontend` (Online, 0% CPU, 54MB RAM).
+
+---
+
+## [2026-10-16T17:20] BOT CONFIG CONNECTION UI: Đồng Bộ Triệt Để Biến CSS Global (Light & Dark Theme), Xóa Bỏ Màu Tối Cứng Gây Lệch Tương Phản
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi giao diện không ăn theo biến CSS động của `globals.css` (đặc biệt trong Light Mode) theo phản ánh kèm ảnh chụp từ USER:
+  1. Cụm chuyển đổi chế độ xem: **Dạng Bảng (Khuyên dùng)** & **Dạng Thẻ Đầy Đủ** bị chìm màu, chữ unselected mờ tịt không đọc được do container gán cứng nền tối `rgba(15, 23, 42, 0.4)`.
+  2. Cụm Sub-tabs CQG: **CQG Trade (Tải Báo Cáo)**, **CQG Price (Xem Giá)**, **CQG CAST** bị chìm mờ trong khung xám tối, độ tương phản kém.
+  3. Thanh lưu cấu hình cố định dưới đáy (Floating Bottom Bar): Bị biến thành thanh đen `rgba(15, 23, 42, 0.95)` với chữ `var(--text-secondary)` (màu xám tối trong Light mode) dẫn tới hiện tượng chữ đen trên nền đen không nhìn thấy nội dung.
+  4. Header dòng của Bảng (Table View) và các dòng thông số trong Modal xem chi tiết chưa phân tách rõ ràng trên nền sáng.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
+   - **Cụm chuyển đổi ViewMode (`table` vs `cards`)**:
+     - Thay `background: 'rgba(15, 23, 42, 0.4)'` bằng `backgroundColor: 'var(--bg-input)'` và `border: '1px solid var(--border-color)'`.
+     - Nút được chọn (Active): `backgroundColor: 'var(--color-accent)'`, `color: '#ffffff'`, `boxShadow: 'var(--shadow-sm)'`.
+     - Nút chưa chọn (Inactive): `backgroundColor: 'transparent'`, `color: 'var(--text-secondary)'` (đảm bảo độ tương phản cao ở cả Light Mode `#475569` và Dark Mode `#94a3b8`).
+   - **Cụm Sub-tabs CQG (Cả ở Dạng Thẻ và trong Modal Sửa)**:
+     - Thay khung chứa `rgba(15, 23, 42, 0.4)` bằng `backgroundColor: 'var(--bg-input)'`, `border: '1px solid var(--border-color)'`.
+     - Tab active chuyển thành thẻ pill nổi bật với `backgroundColor: 'var(--bg-card)'`, `boxShadow: 'var(--shadow-sm)'` và viền màu phân hệ tương ứng.
+     - Tab inactive dùng `backgroundColor: 'transparent'`, `color: 'var(--text-secondary)'` sắc nét, dễ đọc.
+   - **Thanh Lưu Cố Định Dưới Đáy (Floating Action Bar)**:
+     - Thay `background: 'rgba(15, 23, 42, 0.95)'` bằng `backgroundColor: 'var(--bg-card)'`, `border: '1px solid var(--border-color)'`, `boxShadow: 'var(--shadow-lg)'`.
+     - Text chú thích: `color: 'var(--text-secondary)'`, hiển thị thanh lịch, rõ nét trên cả nền trắng (Light Mode) và nền tối (Dark Mode).
+   - **Table View & Modals**:
+     - Đặt nền dòng header của bảng: `background: 'var(--bg-input)'`.
+     - Thay nền các dòng thông số Read-only Modal bằng `modalRowStyle` chuẩn `background: 'var(--bg-input)', border: '1px solid var(--border-color)'`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend Next.js Build: `npm run build` (`next build`) -> **Exit code 0 (Pass 100%, 36/36 static/dynamic pages compiled, TypeScript 0 lỗi)**.
+
+---
+
 ## [2026-10-16T15:40] BOT CONFIG CONNECTION UI OVERHAUL: Bổ Sung Dạng Bảng Doanh Nghiệp, Modal Xem/Sửa & Loại Bỏ 100% Thuật Ngữ AI Máy Móc
 
 ### 1. Mục tiêu thay đổi
