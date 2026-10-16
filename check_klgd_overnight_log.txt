@@ -2591,3 +2591,25 @@ Call log:
 [LOG] [2026-10-16T03:38:01.463Z] Dữ liệu đối chiếu chốt phiên T-1: 15/10/2026
 [LOG] [2026-10-16T03:38:01.463Z] [Đang chờ dữ liệu] Thư mục backup phiên T-1 ngày 15.10.2026 đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: DSGD.xlsx, TTTT.xlsx, ACM Trades (Straits.csv), CQG FR, CQG Positions/PS). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.
 
+================================================================================
+⏰ THỜI ĐIỂM CHẠY: 10:58:18 16/10/2026 (Ngày phiên: 2026-08-07)
+================================================================================
+ KẾT QUẢ TỔNG QUÁT:  KHỚP HOÀN TOÀN
+
+--- BẢNG TỔNG HỢP SỐ LIỆU ---
+• KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
+• TTM : MS = 0 | CQG = 0 | ACM = 0
+• TTTT: MS = 0 | CQG = 0 | ACM = 0
+
+--- NHẬT KÝ TIẾN TRÌNH BOT ---
+[LOG] [2026-09-14T03:42:10.354Z] Job enqueued.
+[LOG] [2026-10-16T03:58:18.125Z] Starting attempt 1/3...
+[LOG] [2026-10-16T03:58:18.184Z] Bắt đầu chạy đối chiếu Pre-EOD ngày ca trực 2026-08-10 (Phiên T-1: 2026-08-07)...
+[LOG] [2026-10-16T03:58:18.185Z] CQG → Ghép nối các file thô (FR, PS) phiên T-1 (7/8/2026)...
+[LOG] [2026-10-16T03:58:18.195Z] CQG Merge: Bắt đầu chạy quy trình tự động ghép file tại thư mục: C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\2026\T08.2026\07.08 (forceRemerge=true)
+[LOG] [2026-10-16T03:58:18.195Z] CQG Merge:  Không ghép file FR.xlsx vì thiếu file nguồn: FR1, FR2. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.
+[LOG] [2026-10-16T03:58:18.195Z] CQG Merge:  Bỏ qua ghép PS.xlsx vì thiếu toàn bộ file nguồn: PS1, PS2
+[LOG] [2026-10-16T03:58:18.195Z] CQG Merge: Hoàn tất quy trình kiểm tra và tự động ghép file.
+[LOG] [2026-10-16T03:58:18.206Z] Dữ liệu đối chiếu chốt phiên T-1: 7/8/2026
+[LOG] [2026-10-16T03:58:18.206Z] [Đang chờ dữ liệu] Thư mục backup phiên T-1 ngày 07.08.2026 đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: CQG FR, CQG Positions/PS). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.
+

@@ -1,3 +1,30 @@
+## [2026-10-16T11:02] VERIFICATION: Kiểm Chứng Thực Tế Tải Song Song 6 File CQG Đạt 54.7 Giây & Tự Động Log Off Chuẩn Nghiệp Vụ
+
+### 1. Mục tiêu kiểm chứng & Tinh chỉnh
+- Thực thi chỉ đạo của USER: Kiểm chứng tải đủ 6 file (`FR, PS, OP`) trên môi trường thực tế máy Windows người dùng, xác nhận thời gian tải thực tế và cơ chế giải phóng phiên làm việc (Log off) cho Giao dịch viên.
+- Bổ sung cờ điều khiển dòng lệnh cho [backend/src/scripts/test_cqg_parallel_live.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_cqg_parallel_live.ts):
+  - Hỗ trợ `--headed` để mở đồng thời 2 cửa sổ Chrome trên màn hình theo dõi trực quan.
+  - Hỗ trợ `--6` (tải 6 file thô đối chiếu phiên: `FR, PS, OP`) và `--all` (tải đủ 8 file thô: `FR, PS, OP, OD`).
+  - Tự động ghép nối các cặp file (`FR1+FR2 -> FR.xlsx`, `PS1+PS2 -> PS.xlsx`, `OP1+OP2 -> OP.xlsx`).
+
+### 2. Kết quả kiểm thử thực tế do USER tự chạy (Terminal Log 11:00:35 AM)
+- **Lệnh thực thi**: `node -r ts-node/register/transpile-only src/scripts/test_cqg_parallel_live.ts --6 --headed`
+- **Thời gian hoàn tất**: **54.7 giây** (So với thời kỳ cũ chạy tuần tự: ~148 giây $\implies$ Tiết kiệm 63% thời gian).
+- **Danh sách file tải về**: Đủ 6 file thô `FR1.xlsx, FR2.xlsx, PS1.xlsx, PS2.xlsx, OP1.xlsx, OP2.xlsx`.
+- **Đồng bộ thời gian xuất file (Snapshot Mtime)**:
+  - `FR1`: 11:00:04 | `FR2`: 11:00:02
+  - **Độ lệch mtime**: **1.56 giây** (Đạt chuẩn khắt khe < 5 giây của khối QLGD).
+- **Bảo toàn nghiệp vụ hoàn trả phiên (Log off)**:
+  - Cả 2 tài khoản CQG1 và CQG2 đều log off thành công qua UI:
+    `[CqgScraperService] [CQG] Đã hoàn tất Log off thành công.`
+  - Phiên làm việc trên máy chủ CQG được giải phóng ngay lập tức, không gây xung đột phiên với Giao dịch viên.
+- **Ghép file tự động**: Ghép thành công cả 3 file tổng hợp:
+  - `FR.xlsx`: Ghép 701 dòng (FR1) + 341 dòng (FR2).
+  - `OP.xlsx`: Ghép thành công trạng thái mở.
+  - `PS.xlsx`: Ghép thành công cả 3 sheet đối chiếu vị thế.
+
+---
+
 ## [2026-10-16T10:28] OPTIMIZATION & INGRESS: Đồng Bộ Hóa 100% Cơ Chế Tải Nhanh CQG Theo File Test Kiểm Chuẩn
 
 ### 1. Mục tiêu thay đổi
