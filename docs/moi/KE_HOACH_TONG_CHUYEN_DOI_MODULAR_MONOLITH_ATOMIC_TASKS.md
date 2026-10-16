@@ -1,4 +1,5 @@
 # KẾ HOẠCH TỔNG THỂ & LỘ TRÌNH CHIA NHỎ NHIỆM VỤ NGUYÊN TỬ (ATOMIC TASKS)
+
 ## CHUYỂN ĐỔI KIẾN TRÚC: MONOLITH V1 ➔ MODULAR MONOLITH V2
 
 ---
@@ -13,11 +14,13 @@
 ## 1. TỔNG QUAN CHIẾN LƯỢC: TẠI SAO PHẢI CHIA NHỎ NHIỆM VỤ NGUYÊN TỬ (ATOMIC TASKS)?
 
 Qua rà soát thực tế toàn bộ hệ thống Monolith V1 (5.382 dòng code của `rpa-downloader.service.ts`, 210KB của các service đối chiếu `reconciliation/`, 52 vị trí dùng `forwardRef()` chống vòng lặp), bất kỳ nỗ lực nào nhằm "viết lại cả cục" hoặc "refactor quy mô lớn trong một lượt" đều dẫn đến **3 thảm họa kinh điển**:
+
 1. **Mất mát logic ngầm**: Các đoạn xử lý đặc thù như cắt 2 dòng footer CQG (`slice(0, -2)`), chuẩn hóa hậu tố tài khoản (`-L`, `-S`), nhận diện session AWS ALB (`AWSELB`), hay thuật toán loại trừ EFP bị bỏ quên.
 2. **Crash runtime do Circular Dependency**: Một chỉnh sửa thiếu cẩn trọng trong dependency graph của NestJS sẽ làm sập toàn bộ backend khi khởi động (`Injector.lookupComponentInParentModules`).
 3. **Báo cáo thành công ảo (Silent Failure)**: Điển hình như sự cố Job `6ace13d41fe790bc64330c8d`, khi code V2 thiếu tích hợp CoreCCP và tìm file sai đường dẫn dẫn tới bảng trả về toàn số 0 nhưng vẫn báo "KHỚP".
 
 👉 **Chiến lược bắt buộc**:
+
 - **Nguyên tắc Nguyên Tử (Atomicity)**: Mỗi lượt thực thi chỉ xử lý duy nhất 1 nhiệm vụ độc lập, có phạm vi cô lập chặt chẽ, có file tác động cụ thể và có tiêu chuẩn nghiệm thu (DoD) đo lường được.
 - **Mô hình Cây Đa Bóp Cổ (Strangler Fig)**: Phân hệ V2 (`trading-ops`, `ccp-clearing`, `ingress`, `checklist-hub`) được bồi đắp dần dần. Monolith V1 chuyển thành Facade mỏng ủy quyền sang V2. Server production/dev đang chạy không bao giờ bị đứt gãy.
 - **Kiểm chứng song song (Twin-Run Validation)**: So sánh kết quả đối chiếu giữa V1 và V2 trước khi cho V2 thay thế hoàn toàn.
@@ -26,38 +29,38 @@ Qua rà soát thực tế toàn bộ hệ thống Monolith V1 (5.382 dòng code 
 
 ## 2. BẢNG MA TRẬN TIẾN ĐỘ THỰC TẾ: 7 PHA & 22 NHIỆM VỤ NGUYÊN TỬ
 
-*(Cập nhật trạng thái thực tế vào ngày 13/10/2026)*
+_(Cập nhật trạng thái thực tế vào ngày 13/10/2026)_
 
-| Pha | Mã Task | Tên Nhiệm Vụ Nguyên Tử | Phạm Vi & File Tác Động | Trạng Thái |
-| :---: | :---: | :--- | :--- | :---: |
-| **P0** | **Task 0.1** | Đóng băng Golden Dataset (08.07 & 13.10) | `src/tests/fixtures/golden_dataset/` | **HOÀN THÀNH** |
-| **P0** | **Task 0.2** | Rào chắn Module Isolation Boundary Test | `src/tests/boundary/module-isolation.spec.ts` | **HOÀN THÀNH** |
-| **P1** | **Task 1.1** | Cổng kéo dữ liệu `IIngressPort` & Contracts | `src/shared/ports/ingress.port.ts` | **HOÀN THÀNH** |
-| **P1** | **Task 1.2** | Cổng Bot Worker `IBotWorker` & Contracts | `src/shared/ports/bot-worker.port.ts` | **HOÀN THÀNH** |
-| **P1** | **Task 1.3** | Domain Configs Namespaces (QLGD, CCP, IT) | `src/shared/domain-configs/*.ts` | **HOÀN THÀNH** |
-| **P2** | **Task 2.1** | M-System Core Scraper (`ms-scraper.service.ts`) | `src/modules/ingress/scrapers/ms-scraper.service.ts` | **HOÀN THÀNH** |
-| **P2** | **Task 2.2** | M-System 16 Tab Scraper (`ms-tab-scraper.service.ts`)| `src/modules/ingress/scrapers/ms-tab-scraper.service.ts`| **HOÀN THÀNH** |
-| **P2** | **Task 2.3** | CQG Parallel 2-Account Scraper (`cqg-scraper.service.ts`)| `src/modules/ingress/scrapers/cqg-scraper.service.ts`| **HOÀN THÀNH** |
-| **P2** | **Task 2.4** | ACM Straits Scraper (`acm-scraper.service.ts`) | `src/modules/ingress/scrapers/acm-scraper.service.ts` | **HOÀN THÀNH** |
-| **P2** | **Task 2.5** | CoreCCP Scraper 25 Báo cáo (`ccp-scraper.service.ts`)| `src/modules/ingress/scrapers/ccp-scraper.service.ts` | **HOÀN THÀNH** |
-| **P2** | **Task 2.6** | Ingress Facade & V1 Backward Adapter (`rpa-downloader`)| `src/modules/bot-engine/rpa-downloader.service.ts` | **TIẾP THEO (Chờ nối V1)** |
-| **P3** | **Task 3.1** | Bộ Ghép File Thô CQG (`cqg-merger.service.ts`) | `src/modules/trading-ops/services/cqg-merger.service.ts` | **HOÀN THÀNH** |
-| **P3** | **Task 3.2** | Lõi V2 Đối Soát Khớp Lệnh (`KlgdReconService`) | `src/modules/trading-ops/services/klgd-recon.service.ts` | **HOÀN THÀNH** |
-| **P3** | **Task 3.3** | Lõi V2 Đối Soát Pre-EOD, SOD & EOD MM | `src/modules/trading-ops/services/pre-eod-recon.service.ts` | **HOÀN THÀNH** |
-| **P3** | **Task 3.4** | Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`) | `src/modules/trading-ops/workers/negative-margin.worker.ts` | **HOÀN THÀNH** |
-| **P3** | **Task 3.5** | Collection Log Riêng Cho Trading Ops (`trading_recon_logs`)| `src/modules/trading-ops/schemas/trading-recon-log.schema.ts` | **HOÀN THÀNH** |
-| **P3** | **Task 3.6** | Di chuyển `DsgdBeforeEodService` vào Trading Ops | `src/modules/trading-ops/services/dsgd-before-eod.service.ts` | **TIẾP THEO (Giai đoạn tới)** |
-| **P4** | **Task 4.1** | Di dời Thống kê Lot CCP (`lot-statistics.service.ts`)| `src/modules/ccp-clearing/services/lot-statistics.service.ts`| **HOÀN THÀNH** |
-| **P4** | **Task 4.2** | Đóng gói `CcpLotWorker` (`IBotWorker`) | `src/modules/ccp-clearing/workers/ccp-lot.worker.ts` | **HOÀN THÀNH** |
-| **P4** | **Task 4.3** | Tách Collection Log CCP (`ccp_clearing_logs`) | `src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts`| **HOÀN THÀNH** |
-| **P4** | **Task 4.4** | Xây dựng `ValueStatisticsService` & `CcpValueWorker`| `src/modules/ccp-clearing/services/value-statistics.service.ts`| **TIẾP THEO (Giai đoạn tới)** |
-| **P4** | **Task 4.5** | Di chuyển Đối soát CCP EOD vào `ccp-clearing` | `src/modules/ccp-clearing/services/ccp-eod.service.ts` | **TIẾP THEO (Giai đoạn tới)** |
-| **P5** | **Task 5.1** | Xây dựng Lõi `BotDispatcherService` Động | `src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`| **HOÀN THÀNH LÕI** |
-| **P5** | **Task 5.2** | Triệt tiêu Phụ thuộc vòng lặp `forwardRef()` | `src/modules/bot-engine/handlers/recon-jobs.handler.ts` | **TIẾP THEO (Giai đoạn tới)** |
-| **P5** | **Task 5.3** | Chuẩn hóa Cây Gia Phả Tác Vụ Động (Hierarchy Helper)| `src/modules/checklist-hub/helpers/task-hierarchy.helper.ts` | **TIẾP THEO (Giai đoạn tới)** |
-| **P6** | **Task 6.1** | MongoDB Atomic Lock trên `bot_jobs` Queue | `src/modules/bot-engine/bot-job-queue.service.ts` | **KẾ HOẠCH CUỐI** |
-| **P6** | **Task 6.2** | Khung CoreEX & CoreCCP REST API Adapters | `src/modules/ingress/adapters/*-api.adapter.ts` | **HOÀN THÀNH KHUNG** |
-| **P6** | **Task 6.3** | Twin-Run E2E Validation & Đóng Gói V1 vào Legacy | Toàn bộ dự án | **KẾ HOẠCH CUỐI** |
+|  Pha   |   Mã Task    | Tên Nhiệm Vụ Nguyên Tử                                      | Phạm Vi & File Tác Động                                          |          Trạng Thái           |
+| :----: | :----------: | :---------------------------------------------------------- | :--------------------------------------------------------------- | :---------------------------: |
+| **P0** | **Task 0.1** | Đóng băng Golden Dataset (08.07 & 13.10)                    | `src/tests/fixtures/golden_dataset/`                             |        **HOÀN THÀNH**         |
+| **P0** | **Task 0.2** | Rào chắn Module Isolation Boundary Test                     | `src/tests/boundary/module-isolation.spec.ts`                    |        **HOÀN THÀNH**         |
+| **P1** | **Task 1.1** | Cổng kéo dữ liệu `IIngressPort` & Contracts                 | `src/shared/ports/ingress.port.ts`                               |        **HOÀN THÀNH**         |
+| **P1** | **Task 1.2** | Cổng Bot Worker `IBotWorker` & Contracts                    | `src/shared/ports/bot-worker.port.ts`                            |        **HOÀN THÀNH**         |
+| **P1** | **Task 1.3** | Domain Configs Namespaces (QLGD, CCP, IT)                   | `src/shared/domain-configs/*.ts`                                 |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.1** | M-System Core Scraper (`ms-scraper.service.ts`)             | `src/modules/ingress/scrapers/ms-scraper.service.ts`             |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.2** | M-System 16 Tab Scraper (`ms-tab-scraper.service.ts`)       | `src/modules/ingress/scrapers/ms-tab-scraper.service.ts`         |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.3** | CQG Parallel 2-Account Scraper (`cqg-scraper.service.ts`)   | `src/modules/ingress/scrapers/cqg-scraper.service.ts`            |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.4** | ACM Straits Scraper (`acm-scraper.service.ts`)              | `src/modules/ingress/scrapers/acm-scraper.service.ts`            |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.5** | CoreCCP Scraper 25 Báo cáo (`ccp-scraper.service.ts`)       | `src/modules/ingress/scrapers/ccp-scraper.service.ts`            |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.6** | Ingress Facade & V1 Backward Adapter (`rpa-downloader`)     | `src/modules/bot-engine/rpa-downloader.service.ts`               |  **TIẾP THEO (Chờ nối V1)**   |
+| **P3** | **Task 3.1** | Bộ Ghép File Thô CQG (`cqg-merger.service.ts`)              | `src/modules/trading-ops/services/cqg-merger.service.ts`         |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.2** | Lõi V2 Đối Soát Khớp Lệnh (`KlgdReconService`)              | `src/modules/trading-ops/services/klgd-recon.service.ts`         |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.3** | Lõi V2 Đối Soát Pre-EOD, SOD & EOD MM                       | `src/modules/trading-ops/services/pre-eod-recon.service.ts`      |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.4** | Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`)              | `src/modules/trading-ops/workers/negative-margin.worker.ts`      |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.5** | Collection Log Riêng Cho Trading Ops (`trading_recon_logs`) | `src/modules/trading-ops/schemas/trading-recon-log.schema.ts`    |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.6** | Di chuyển `DsgdBeforeEodService` vào Trading Ops            | `src/modules/trading-ops/services/dsgd-before-eod.service.ts`    | **TIẾP THEO (Giai đoạn tới)** |
+| **P4** | **Task 4.1** | Di dời Thống kê Lot CCP (`lot-statistics.service.ts`)       | `src/modules/ccp-clearing/services/lot-statistics.service.ts`    |        **HOÀN THÀNH**         |
+| **P4** | **Task 4.2** | Đóng gói `CcpLotWorker` (`IBotWorker`)                      | `src/modules/ccp-clearing/workers/ccp-lot.worker.ts`             |        **HOÀN THÀNH**         |
+| **P4** | **Task 4.3** | Tách Collection Log CCP (`ccp_clearing_logs`)               | `src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts`    |        **HOÀN THÀNH**         |
+| **P4** | **Task 4.4** | Xây dựng `ValueStatisticsService` & `CcpValueWorker`        | `src/modules/ccp-clearing/services/value-statistics.service.ts`  | **TIẾP THEO (Giai đoạn tới)** |
+| **P4** | **Task 4.5** | Di chuyển Đối soát CCP EOD vào `ccp-clearing`               | `src/modules/ccp-clearing/services/ccp-eod.service.ts`           | **TIẾP THEO (Giai đoạn tới)** |
+| **P5** | **Task 5.1** | Xây dựng Lõi `BotDispatcherService` Động                    | `src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts` |      **HOÀN THÀNH LÕI**       |
+| **P5** | **Task 5.2** | Triệt tiêu Phụ thuộc vòng lặp `forwardRef()`                | `src/modules/bot-engine/handlers/recon-jobs.handler.ts`          | **TIẾP THEO (Giai đoạn tới)** |
+| **P5** | **Task 5.3** | Chuẩn hóa Cây Gia Phả Tác Vụ Động (Hierarchy Helper)        | `src/modules/checklist-hub/helpers/task-hierarchy.helper.ts`     | **TIẾP THEO (Giai đoạn tới)** |
+| **P6** | **Task 6.1** | MongoDB Atomic Lock trên `bot_jobs` Queue                   | `src/modules/bot-engine/bot-job-queue.service.ts`                |       **KẾ HOẠCH CUỐI**       |
+| **P6** | **Task 6.2** | Khung CoreEX & CoreCCP REST API Adapters                    | `src/modules/ingress/adapters/*-api.adapter.ts`                  |     **HOÀN THÀNH KHUNG**      |
+| **P6** | **Task 6.3** | Twin-Run E2E Validation & Đóng Gói V1 vào Legacy            | Toàn bộ dự án                                                    |       **KẾ HOẠCH CUỐI**       |
 
 ---
 
@@ -119,9 +122,11 @@ flowchart TD
 ---
 
 ### 🛡️ PHA 0: CHUẨN BỊ & ĐÓNG BĂNG MẪU BẢO CHỨNG (BASELINE & SHIELD)
-*Mục đích: Thiết lập bộ thước đo chuẩn để đối chiếu 1:1, ngăn ngừa tuyệt đối hành vi phá vỡ ranh giới module.*
+
+_Mục đích: Thiết lập bộ thước đo chuẩn để đối chiếu 1:1, ngăn ngừa tuyệt đối hành vi phá vỡ ranh giới module._
 
 #### Task 0.1: Đóng Băng Mẫu Dữ Liệu Đối Soát (Golden Dataset Freezing) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Lưu trữ cố định bộ file báo cáo mẫu chuẩn ngày `08.07` và ngày `13.10` vào thư mục test để dùng làm căn cứ kiểm tra đối ứng 1:1.
 - **Phạm vi cô lập**: Chỉ tạo thư mục fixture và file test, không sửa code sản xuất.
 - **File tác động**:
@@ -130,6 +135,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Chạy `npx jest src/tests/golden-baseline.spec.ts` đạt kết quả PASS.
 
 #### Task 0.2: Rào Chắn Chống Nhập Xuyên Module (Module Isolation Boundary Test) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Xây dựng test tự động quét cây thư mục, cấm mọi hành vi deep-import xuyên module (tuân thủ nguyên tắc Modular Monolith).
 - **Phạm vi cô lập**: 1 file test duy nhất.
 - **File tác động**:
@@ -139,9 +145,11 @@ flowchart TD
 ---
 
 ### 🔌 PHA 1: TẦNG HỢP ĐỒNG DÙNG CHUNG (SHARED PORTS & CONTRACTS)
-*Mục đích: Định nghĩa các interface chuẩn (Ports), giải phóng các module khỏi việc phụ thuộc thư viện cụ thể.*
+
+_Mục đích: Định nghĩa các interface chuẩn (Ports), giải phóng các module khỏi việc phụ thuộc thư viện cụ thể._
 
 #### Task 1.1: Tạo Cổng Kéo Dữ Liệu (`IIngressPort` & Ingress Contracts) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Định nghĩa interface thống nhất cho mọi hành động tải dữ liệu từ bên ngoài (Web scraping, SFTP, REST API, gRPC).
 - **Phạm vi cô lập**: Chỉ tạo interface và DTO trong `src/shared/`.
 - **File tác động**:
@@ -152,6 +160,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: `npm run build` Exit code 0.
 
 #### Task 1.2: Tạo Cổng Thực Thi Bot Worker (`IBotWorker` & Execution Contracts) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Định nghĩa interface chuẩn cho mọi Worker xử lý nghiệp vụ sàn.
 - **Phạm vi cô lập**: Tạo interface trong `src/shared/`.
 - **File tác động**:
@@ -164,6 +173,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: `npm run build` Exit code 0.
 
 #### Task 1.3: Thiết Lập Namespace Cấu Hình Độc Lập Cho Từng Khối — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Phân tách cấu hình tài khoản, mật khẩu, đường dẫn lưu trữ theo từng phân hệ (QLGD, CCP, IT).
 - **File tác động**:
   - `backend/src/shared/domain-configs/trading-ops.config.ts`
@@ -174,9 +184,11 @@ flowchart TD
 ---
 
 ### 📥 PHA 2: PHÂN RÃ TẦNG KÉO DỮ LIỆU (INGRESS LAYER & SCRAPERS)
-*Mục đích: Bóc tách file 5.382 dòng `rpa-downloader.service.ts` thành các Scraper nhỏ gọn độc lập, mỗi service chỉ phục vụ 1 nguồn.*
+
+_Mục đích: Bóc tách file 5.382 dòng `rpa-downloader.service.ts` thành các Scraper nhỏ gọn độc lập, mỗi service chỉ phục vụ 1 nguồn._
 
 #### Task 2.1: Bóc Tách M-System Core Scraper (`ms-scraper.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chuyển logic tải 3 báo cáo cốt lõi của M-System (`TTM`, `TTTT`, `DSGD`) và cơ chế đăng nhập ASP.NET ra service riêng.
 - **File tác động**: `backend/src/modules/ingress/scrapers/ms-scraper.service.ts`
 - **Kho Logic Bắt Buộc Bảo Tồn (Ground Truth)**:
@@ -185,6 +197,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: `test_ms_download_ttm_tttt.js` tải thành công cả 2 file.
 
 #### Task 2.2: Bóc Tách M-System 16 Tab Scraper (`ms-tab-scraper.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chuyển 16 báo cáo M-System còn lại (DSTKGD Futures, LME, Spread, Options, TLKQHSKQ...) sang service con.
 - **File tác động**: `backend/src/modules/ingress/scrapers/ms-tab-scraper.service.ts`
 - **Kho Logic Bắt Buộc Bảo Tồn (Ground Truth)**:
@@ -192,6 +205,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: `test_ms_tab_downloads.js` chạy thành công.
 
 #### Task 2.3: Bóc Tách CQG Parallel 2-Account Scraper (`cqg-scraper.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Bóc tách logic mở song song 2 browser context tải đồng thời 4 cặp file thô (`FR1+FR2`, `OP1+OP2`, `PS1+PS2`, `OD1+OD2`).
 - **File tác động**: `backend/src/modules/ingress/scrapers/cqg-scraper.service.ts`
 - **Kho Logic Bắt Buộc Bảo Tồn (Ground Truth)**:
@@ -199,6 +213,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Script test CQG tải đủ 8 file thô từ 2 tài khoản.
 
 #### Task 2.4: Bóc Tách ACM Straits Scraper (`acm-scraper.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Bóc tách logic tải báo cáo Straits CSV từ ACM (bao gồm cả SFTP Client và Web ETP giải Captcha).
 - **File tác động**: `backend/src/modules/ingress/scrapers/acm-scraper.service.ts`
 - **Kho Logic Bắt Buộc Bảo Tồn (Ground Truth)**:
@@ -206,11 +221,13 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Script test ACM tải về file Straits CSV hợp lệ.
 
 #### Task 2.5: Bóc Tách CoreCCP Scraper 25 Báo Cáo (`ccp-scraper.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Bóc tách logic tải đủ 25 báo cáo từ CoreCCP.
 - **File tác động**: `backend/src/modules/ingress/scrapers/ccp-scraper.service.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: `test_ccp_download_25_files.js` tải đủ 25 file.
 
 #### Task 2.6: Ingress Facade & V1 Backward Adapter (`rpa-downloader.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Kết nối các phương thức cũ trong `rpa-downloader.service.ts` (5.382 dòng) sang `IngressService`, biến `rpa-downloader.service.ts` thành Facade ủy quyền, đảm bảo tương thích ngược 100% với các Handler cũ của Monolith V1.
 - **Phạm vi cô lập**:
   - Chỉnh sửa [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts) (Ủy quyền Ingress V2 kèm Fail-Safe Dual-Engine).
@@ -225,9 +242,11 @@ flowchart TD
 ---
 
 ### 📊 PHA 3: ĐỘC LẬP HÓA NGHIỆP VỤ QUẢN LÝ GIAO DỊCH (TRADING OPS DOMAIN)
-*Mục đích: Đưa 100% thuật toán ghép file và đối soát khớp lệnh tài chính về Pure Logic độc lập.*
+
+_Mục đích: Đưa 100% thuật toán ghép file và đối soát khớp lệnh tài chính về Pure Logic độc lập._
 
 #### Task 3.1: Di Dời Bộ Ghép File Thô CQG (`cqg-merger.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chuyển logic ghép 4 cặp file thô từ `cqg-sync.service.ts` sang service độc lập trong module `trading-ops`.
 - **File tác động**: `backend/src/modules/trading-ops/services/cqg-merger.service.ts`
 - **Kho Logic Bắt Buộc Bảo Tồn (Ground Truth)**:
@@ -237,6 +256,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: File output khớp 100% số dòng và nội dung với tool C# gốc.
 
 #### Task 3.2: Lõi V2 Đối Soát Khớp Lệnh Trong Phiên (`KlgdReconService`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Nâng cấp toàn diện `KlgdReconService` thuộc V2 đạt 100% năng lực nghiệp vụ thực tế, khắc phục sự cố Job rỗng:
   1. Tích hợp `CcpExcelParser` bóc tách `dsgdCcp`, `ttmCcp`, `ttttCcp` và bù trừ `ACM + CoreCCP == Nano`.
   2. Phân giải đường dẫn động đa nền tảng (`SystemSettingsService`), xóa bỏ mock `data/backup`.
@@ -248,6 +268,7 @@ flowchart TD
   - `npm run build` Exit code 0, đã deploy thành công lên Ubuntu.
 
 #### Task 3.3: Lõi V2 Đối Soát Pre-EOD, SOD & EOD MM (`PreEodReconService`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chuyển giao toàn bộ nghiệp vụ chốt 3 bên cuối ngày và đầu ngày vào `PreEodReconService` V2:
   1. Phân giải đường dẫn động ngày T-1 từ `SystemSettingsService`.
   2. Bổ sung `runAutoCheckSOD()` (quét file đầu ngày, kiểm tra vị thế qua đêm).
@@ -257,6 +278,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: `npm run build` Exit code 0, đã deploy lên Ubuntu.
 
 #### Task 3.4: Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Đóng gói logic quét tài khoản vi phạm tỷ lệ ký quỹ sau phiên EOD sang `NegativeMarginWorker`.
 - **File tác động**:
   - `backend/src/modules/trading-ops/workers/negative-margin.worker.ts`
@@ -264,6 +286,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Phát hiện chính xác danh sách tài khoản vi phạm từ file `Balances`.
 
 #### Task 3.5: Tách Collection Log Riêng Cho Trading Ops (`trading_recon_logs`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Tạo collection MongoDB độc lập `trading_recon_logs` để lưu toàn bộ chi tiết so khớp lệnh, bảng kê diff, danh sách tài khoản mà không làm phình to `ShiftLog`.
 - **File tác động**:
   - `backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts`
@@ -271,6 +294,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Lưu log thành công, hiển thị trực tiếp lên bảng Audit Log của Frontend.
 
 #### Task 3.6: Di Chuyển `DsgdBeforeEodService` Vào Trading Ops — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Di dời logic kiểm tra giao dịch trước giờ chốt EOD từ [reconciliation/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod.service.ts) vào phân hệ `trading-ops`.
 - **Phạm vi cô lập**: Tạo service mới trong `modules/trading-ops/services/` và Facade ủy quyền tại V1.
 - **File tác động**:
@@ -284,24 +308,29 @@ flowchart TD
 ---
 
 ### 🏛️ PHA 4: ĐỘC LẬP HÓA NGHIỆP VỤ BÙ TRỪ CCP (CCP CLEARING DOMAIN)
-*Mục đích: Tách toàn bộ tính toán Macro Lot, Giá trị và Đối soát EOD CCP thành domain độc lập.*
+
+_Mục đích: Tách toàn bộ tính toán Macro Lot, Giá trị và Đối soát EOD CCP thành domain độc lập._
 
 #### Task 4.1: Di Dời Logic Thống Kê Số Lot Bù Trừ CCP (`lot-statistics.service.ts`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chuyển đổi logic tính toán thống kê số lot từ macro C# sang service TypeScript độc lập trong `ccp-clearing`.
 - **File tác động**: `backend/src/modules/ccp-clearing/services/lot-statistics.service.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Kết quả tính khớp 100% với macro C# gốc (sai số = 0).
 
 #### Task 4.2: Đóng Gói `CcpLotWorker` (`IBotWorker`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Đóng gói service tính lot vào Worker chuẩn implement `IBotWorker`.
 - **File tác động**: `backend/src/modules/ccp-clearing/workers/ccp-lot.worker.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Worker nhận `TaskExecutionContext` và trả về `TaskExecutionResult` chuẩn.
 
 #### Task 4.3: Tách Collection Log Riêng Cho CCP Clearing (`ccp_clearing_logs`) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Tạo collection MongoDB độc lập `ccp_clearing_logs` lưu dữ liệu chi tiết thống kê lot và giá trị của CCP.
 - **File tác động**: `backend/src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Lưu log thành công, hiển thị trực quan trên Frontend tab CCP.
 
 #### Task 4.4: Xây Dựng `ValueStatisticsService` & `CcpValueWorker` — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chuyển đổi logic tính giá trị giao dịch và quy đổi ngoại tệ sang service độc lập trong `ccp-clearing`.
 - **Phạm vi cô lập**: Tạo mới trong `modules/ccp-clearing/`.
 - **File tác động**:
@@ -315,6 +344,7 @@ flowchart TD
   - Test unit so sánh kết quả tính giá trị với file Excel gốc: Sai số = 0.
 
 #### Task 4.5: Di Dời Logic Đối Soát CCP EOD Vào `ccp-clearing` — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Đưa logic `checkEODCCP()` và `runAutoCheckEodCcp()` từ [reconciliation/services/ccp-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts) sang `ccp-clearing/services/ccp-eod.service.ts`.
 - **Phạm vi cô lập**: Tạo service mới trong `modules/ccp-clearing/` và Facade ủy quyền tại V1.
 - **File tác động**:
@@ -332,9 +362,11 @@ flowchart TD
 ---
 
 ### 🔄 PHA 5: TÁI CẤU TRÚC KHỐI CA TRỰC & BỘ ĐIỀU PHỐI ĐỘNG (CHECKLIST HUB & DISPATCHER)
-*Mục đích: Biến Checklist thành bộ khung điều phối thuần túy, triệt tiêu phụ thuộc vòng lặp `forwardRef`, quản lý quan hệ cây động.*
+
+_Mục đích: Biến Checklist thành bộ khung điều phối thuần túy, triệt tiêu phụ thuộc vòng lặp `forwardRef`, quản lý quan hệ cây động._
 
 #### Task 5.1: Xây Dựng Lõi `BotDispatcherService` Động — `[HOÀN THÀNH LÕI]`
+
 - **Mục tiêu**: Xây dựng bộ điều phối động theo mô hình của `report-dev/src/shared/dispatchers/`:
   - Worker tự đăng ký với Dispatcher qua token hoặc OnModuleInit dựa trên `botCheckType`.
   - Đã hỗ trợ 4 workers: `KlgdReconWorker`, `PreEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`.
@@ -342,6 +374,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Khởi tạo Dispatcher thành công với 4 workers đăng ký động.
 
 #### Task 5.2: Triệt Tiêu Phụ Thuộc Vòng Lặp (`forwardRef`) Giữa Bot-Engine & Reconciliation — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Gỡ bỏ vĩnh viễn các lệnh `forwardRef()` nội bộ không cần thiết và phụ thuộc vòng lặp giữa `recon-jobs.handler.ts` và `ReconciliationService`.
 - **Phạm vi cô lập**:
   - `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`: Gỡ `forwardRef()` nội bộ, inject trực tiếp các service V2 (`TradingOpsKlgdReconService`, `TradingOpsPreEodReconService`, `CcpEodService`), ủy quyền đối soát trực tiếp sang V2.
@@ -353,6 +386,7 @@ flowchart TD
   - Khởi động NestJS không còn cảnh báo Circular Dependency.
 
 #### Task 5.3: Chuẩn Hóa Cây Gia Phả Tác Vụ Động (Dynamic Tree Resolver) — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Đảm bảo mối quan hệ Cha - Con - Anh em của các Task trong ca trực được giải quyết 100% động qua `parentTaskIdSnapshot` trong CSDL, không suy diễn chuỗi (tuyệt đối không cộng chuỗi `_s1`, `_s2`).
 - **File tác động**:
   - Tạo mới: `backend/src/modules/checklist-hub/helpers/task-hierarchy.helper.ts` (Class `TaskHierarchyHelper` gồm 7 phương thức cốt lõi giải quyết cây quan hệ động).
@@ -365,9 +399,11 @@ flowchart TD
 ---
 
 ### 🚀 PHA 6: ATOMIC QUEUE MULTI-INSTANCE & SẴN SÀNG OFF PLAYWRIGHT
-*Mục đích: Mở rộng khả năng xử lý song song trên nhiều Instance không bị race condition, chuẩn bị hạ tầng đón nhận CoreEX/CoreCCP REST API thật.*
+
+_Mục đích: Mở rộng khả năng xử lý song song trên nhiều Instance không bị race condition, chuẩn bị hạ tầng đón nhận CoreEX/CoreCCP REST API thật._
 
 #### Task 6.1: Nâng Cấp Atomic Lock Trên MongoDB Cho `bot_jobs` Queue — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Nâng cấp khóa nguyên tử cấp cơ sở dữ liệu trên MongoDB cho `bot-job-queue.service.ts`:
   `botJobModel.findOneAndUpdate({ status: 'PENDING' }, { $set: { status: 'PROCESSING', lockedBy: instanceId, lockedAt: new Date() } })`.
 - **File tác động**:
@@ -378,6 +414,7 @@ flowchart TD
   - `npm run build` Exit code 0.
 
 #### Task 6.2: Khung CoreEX & CoreCCP REST API Adapters (Playwright Sunsetting Bridge) — `[HOÀN THÀNH KHUNG]`
+
 - **Mục tiêu**: Tạo sẵn 2 adapter `CoreExApiAdapter` và `CoreCcpApiAdapter` implement `IIngressPort`. Khi sàn MXV chính thức mở API thật, chỉ cần chuyển cấu hình `ingress_mode = 'REST_API'` là hệ thống tắt hẳn Playwright.
 - **File tác động**:
   - `backend/src/modules/ingress/adapters/coreex-api.adapter.ts`
@@ -385,6 +422,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Khung adapter đã sẵn sàng, implement chuẩn `IIngressPort`.
 
 #### Task 6.3: Kiểm Thử Toàn Trình Song Song (Twin-Run Validation) & Chốt Đóng Gói V1 — `[HOÀN THÀNH]`
+
 - **Mục tiêu**: Chạy kiểm thử đối chiếu kép (Twin-Run) giữa Monolith V1 và Modular Monolith V2 trên toàn bộ quy trình ca trực thực tế.
 - **Phạm vi hoàn tất**:
   - Backend NestJS `npm run build` (`nest build`) đạt **EXIT CODE 0**.
@@ -403,13 +441,13 @@ flowchart TD
 
 ```
 [TIẾN ĐỘ TỔNG THỂ: ĐÃ HOÀN THÀNH 100% (27/27 ATOMIC TASKS)]
-  ✅ Pha 0: Kiến Trúc Nền Tảng & Baseline Validation (Task 0.1, 0.2)
-  ✅ Pha 1: Chuẩn Hóa Hợp Đồng & Bộ Chuyển Đổi V1 (Task 1.1, 1.2, 1.3)
-  ✅ Pha 2: Thu Thập & Tải Báo Cáo Đa Kênh - Ingress Domain (Task 2.1, 2.2, 2.3, 2.4, 2.5, 2.6)
-  ✅ Pha 3: Quản Lý Giao Dịch - Trading Ops Domain (Task 3.1, 3.2, 3.3, 3.4, 3.5, 3.6)
-  ✅ Pha 4: Bù Trừ & Thống Kê - CCP Clearing Domain (Task 4.1, 4.2, 4.3, 4.4, 4.5)
-  ✅ Pha 5: Điều Phối Ca Trực - Checklist Hub & Dispatcher (Task 5.1, 5.2, 5.3)
-  ✅ Pha 6: Atomic Queue Multi-Instance & Sẵn Sàng Off Playwright (Task 6.1, 6.2, 6.3)
+   Pha 0: Kiến Trúc Nền Tảng & Baseline Validation (Task 0.1, 0.2)
+   Pha 1: Chuẩn Hóa Hợp Đồng & Bộ Chuyển Đổi V1 (Task 1.1, 1.2, 1.3)
+   Pha 2: Thu Thập & Tải Báo Cáo Đa Kênh - Ingress Domain (Task 2.1, 2.2, 2.3, 2.4, 2.5, 2.6)
+   Pha 3: Quản Lý Giao Dịch - Trading Ops Domain (Task 3.1, 3.2, 3.3, 3.4, 3.5, 3.6)
+   Pha 4: Bù Trừ & Thống Kê - CCP Clearing Domain (Task 4.1, 4.2, 4.3, 4.4, 4.5)
+   Pha 5: Điều Phối Ca Trực - Checklist Hub & Dispatcher (Task 5.1, 5.2, 5.3)
+   Pha 6: Atomic Queue Multi-Instance & Sẵn Sàng Off Playwright (Task 6.1, 6.2, 6.3)
 
 [HỆ THỐNG ĐÃ SẴN SÀNG VẬN HÀNH CHÍNH THỨC TRÊN MÔI TRƯỜNG PRODUCTION]
 ```

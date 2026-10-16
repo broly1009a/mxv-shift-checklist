@@ -49,7 +49,7 @@ export class IngressService implements IIngressPort {
   ): Promise<IngressDownloadResult> {
     const startTime = Date.now();
     const outputDirectory =
-      options?.targetDirectory || path.join(process.cwd(), 'data', 'ingress', source.toLowerCase());
+      options?.targetDirectory || options?.outputDir || path.join(process.cwd(), 'data', 'ingress', source.toLowerCase());
 
     if (!fs.existsSync(outputDirectory)) {
       fs.mkdirSync(outputDirectory, { recursive: true });

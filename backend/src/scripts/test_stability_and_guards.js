@@ -27,7 +27,7 @@ let totalFailed = 0;
 
 function assert(condition, testName, details = '') {
   if (condition) {
-    console.log(`  ✅ [PASS] ${testName}`);
+    console.log(`   [PASS] ${testName}`);
     if (details) console.log(`     └─ ${details}`);
     totalPassed++;
   } else {

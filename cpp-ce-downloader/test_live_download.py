@@ -15,7 +15,7 @@ import time
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 
-UAT_URL = "https://uat-coreccp.mxv.com.vn/login"
+UAT_URL = "https://coreccp.mxv.com.vn/login"
 USERNAME = "hieptruong"
 PASSWORD = "Taovipko0!"
 

@@ -35,7 +35,7 @@ export class CoreCcpSocketClient {
     if (this.isConnected && this.ws) return;
 
     this.userId = session.userId;
-    const hostUrl = (baseUrl || 'https://uat-coreccp.mxv.com.vn').replace(/\/+$/, '');
+    const hostUrl = (baseUrl || 'https://coreccp.mxv.com.vn').replace(/\/+$/, '');
     const wsHost = hostUrl.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
     const wsTicket = ticket || 'ticket_default';
     const wsUrl = `${wsHost}/notisocket/socket.io/?ticket=${wsTicket}&userId=${session.userId}&EIO=4&transport=websocket`;

@@ -171,7 +171,7 @@ async function runDirectAcmSftpTest() {
       if (parsed.sftpPort) sftpConfig.port = parsed.sftpPort;
       if (parsed.sftpUser) sftpConfig.username = parsed.sftpUser;
       if (parsed.sftpPassword) sftpConfig.password = parsed.sftpPassword;
-      console.log('✅ Đã nạp cấu hình SFTP ACM từ MongoDB system_settings');
+      console.log(' Đã nạp cấu hình SFTP ACM từ MongoDB system_settings');
     }
   } catch {
     console.log('ℹ️ Sử dụng cấu hình SFTP ACM từ biến môi trường / Mock server mặc định');
@@ -217,7 +217,7 @@ async function runDirectAcmSftpTest() {
   // 2. Thẩm định cấu trúc file CSV
   console.log('\n[2/3] Thẩm định tính hợp lệ của file Straits CSV...');
   const validation = parseAndValidateStraitsCsv(localSavePath);
-  console.log(`   - Trạng thái kiểm tra định dạng : ${validation.valid ? '✅ HỢP LỆ (Chuẩn Straits Format)' : '❌ KHÔNG ĐÚNG CẤU TRÚC'}`);
+  console.log(`   - Trạng thái kiểm tra định dạng : ${validation.valid ? ' HỢP LỆ (Chuẩn Straits Format)' : '❌ KHÔNG ĐÚNG CẤU TRÚC'}`);
   console.log(`   - Số dòng giao dịch            : ${validation.rowCount} dòng`);
   console.log(`   - Danh sách cột nhận diện (${validation.headers.length} cột): ${validation.headers.slice(0, 6).join(', ')}...`);
 
@@ -236,7 +236,7 @@ async function runDirectAcmSftpTest() {
   console.log('-----------------------------------------------------------------------------------------------------');
 
   console.log('\n🎯 KẾT LUẬN CHO NGUỒN ACM (STRAITS FINANCIAL):');
-  console.log('   ✅ ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT.');
+  console.log('    ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT.');
   console.log('   Khuyến nghị: Chuyển hoàn toàn sang AcmSftpAdapter (tải Straits.csv trực tiếp), bỏ browser & OCR.');
   console.log('========================================================================\n');
 }

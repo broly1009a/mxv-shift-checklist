@@ -113,7 +113,7 @@ async function runDirectAcmEtpTest() {
       if (parsed.username) username = parsed.username;
       if (parsed.password) password = parsed.password;
       if (parsed.geminiApiKey) geminiApiKey = parsed.geminiApiKey;
-      console.log('✅ Đã nạp tài khoản ACM ETP từ MongoDB system_settings');
+      console.log(' Đã nạp tài khoản ACM ETP từ MongoDB system_settings');
     }
   } catch {
     console.log('ℹ️ Sử dụng cấu hình ACM ETP từ biến môi trường / mặc định');
@@ -149,7 +149,7 @@ async function runDirectAcmEtpTest() {
         if (vData && vData.code === 0) {
           token = cached.token;
           cookies = cached.cookies || '';
-          console.log(`   -> ⚡ Tái sử dụng thành công Session Cache ACM ETP (User: ${cached.username})!`);
+          console.log(`   -> Tái sử dụng thành công Session Cache ACM ETP (User: ${cached.username})!`);
         }
       }
     } catch {}
@@ -213,7 +213,7 @@ async function runDirectAcmEtpTest() {
         fs.writeFileSync(sessionCachePath, JSON.stringify({ token, username, cookies, updatedAt: new Date().toISOString() }, null, 2));
       } catch {}
     } else {
-      console.log(`   ⚠️ Đăng nhập trực tiếp chưa thành công (${loginData?.msg || loginRes.statusText}).`);
+      console.log(`    Đăng nhập trực tiếp chưa thành công (${loginData?.msg || loginRes.statusText}).`);
       console.log('   -> Đang tạo dữ liệu mẫu ACM ETP chuẩn để thẩm định format xuất báo cáo...');
     }
   }
@@ -290,7 +290,7 @@ async function runDirectAcmEtpTest() {
   console.log('\n🎯 KẾT LUẬN CHO SÀN ACM:');
   console.log('   - Đối chiếu Trong phiên & Pre-EOD Nano: Dùng AcmSftpAdapter tải thẳng Straits.csv qua SFTP (npm run test:api-acm)');
   console.log('   - Báo cáo ETP Sổ lệnh & Khớp lệnh   : Dùng AcmEtpAdapter gọi REST API tải Orders/Trades (npm run test:api-acm-etp)');
-  console.log('   ✅ ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT CHO NGUỒN ACM!');
+  console.log('    ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT CHO NGUỒN ACM!');
   console.log('========================================================================\n');
 }
 

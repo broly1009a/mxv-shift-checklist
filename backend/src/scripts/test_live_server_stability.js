@@ -47,7 +47,7 @@ async function checkServer() {
   console.log("\\n=== 2. KIỂM TRA LƯỢNG JOB CHECK_KLGD SINH MỚI (30 PHÚT GẦN NHẤT) ===");
   console.log("  • Số Job CHECK_KLGD phát sinh trong 30 phút qua:", recentJobs.length);
   if (recentJobs.length === 0) {
-    console.log("  ✅ HOÀN TOÀN ỔN ĐỊNH: Bot không còn spam lặp các Job CHECK_KLGD vô nghĩa.");
+    console.log("   HOÀN TOÀN ỔN ĐỊNH: Bot không còn spam lặp các Job CHECK_KLGD vô nghĩa.");
   } else {
     for (const j of recentJobs) {
       console.log("  - Job ID:", j._id, "| Status:", j.status, "| ShiftLogId:", j.payload?.shiftLogId);

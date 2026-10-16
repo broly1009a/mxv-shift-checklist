@@ -536,7 +536,7 @@ export class KlgdReconController {
 
         let note = `[KIỂM TRA DSGD TRƯỚC EOD]\n`;
         if (result.isSnapshotMissing) {
-          note += `⚠️ CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!\n`;
+          note += ` CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!\n`;
           note += `• Hệ thống đã chặn so sánh file gốc với chính nó để ngăn chặn báo thành công ảo.\n`;
         }
         note += `• Khối lượng DSGD gốc: ${result.totalOriginal} lot\n`;
@@ -609,7 +609,7 @@ export class KlgdReconController {
           note += `• Ngày phiên đối chiếu: ${result.sessionDate}\n`;
         }
         if (result.isSnapshotMissing) {
-          note += `⚠️ CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!\n`;
+          note += ` CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!\n`;
           note += `• Hệ thống đã chặn so sánh file gốc với chính nó để ngăn chặn báo thành công ảo.\n`;
         }
         note += `• Khối lượng DSGD gốc: ${result.totalOriginal} lot\n`;

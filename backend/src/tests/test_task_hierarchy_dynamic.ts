@@ -15,7 +15,7 @@ function assert(condition: boolean, message: string) {
     console.error(`❌ FAILED: ${message}`);
     process.exit(1);
   }
-  console.log(`✅ PASSED: ${message}`);
+  console.log(` PASSED: ${message}`);
 }
 
 function runDynamicTreeTest() {

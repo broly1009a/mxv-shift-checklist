@@ -8,8 +8,10 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
   decrypt,
+  EXTERNAL_SYSTEM_MSYSTEM,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+
 
 export interface IMsCredentials {
   baseUrl?: string;
@@ -265,14 +267,15 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
 export class MsApiAdapter implements IIngressPort {
   private readonly logger = new Logger(MsApiAdapter.name);
   private currentSession: IMsSession | null = null;
-  private readonly defaultBaseUrl = 'https://api-dev.newgen.dev';
-  private readonly defaultAdminUrl = 'https://admin-dev.msystem.newgen.dev';
+  private readonly defaultBaseUrl = EXTERNAL_SYSTEM_MSYSTEM.apiUrl;
+  private readonly defaultAdminUrl = EXTERNAL_SYSTEM_MSYSTEM.adminUrl;
   private readonly sessionCachePath = path.resolve(process.cwd(), 'temp', 'ms_session.json');
 
   constructor(
     @Optional()
     private readonly settingsService?: SystemSettingsService,
   ) {}
+
 
   /**
    * Giải mã Payload JWT để kiểm tra thời hạn
@@ -328,9 +331,9 @@ export class MsApiAdapter implements IIngressPort {
   public async getCredentials(): Promise<IMsCredentials> {
     let baseUrl = process.env.MS_BASE_URL || this.defaultBaseUrl;
     let adminUrl = process.env.MS_ADMIN_URL || this.defaultAdminUrl;
-    let username = process.env.MS_USERNAME || 'mxvhieptruong';
-    let password = process.env.MS_PASSWORD || 'Taovipko0!';
-    let pin = process.env.MS_PIN || '269696';
+    let username = process.env.MS_USERNAME || '';
+    let password = process.env.MS_PASSWORD || '';
+    let pin = process.env.MS_PIN || '';
 
     if (this.settingsService) {
       const rawCred = await this.settingsService.getSetting('bot_credentials_msystem', '');
@@ -341,13 +344,10 @@ export class MsApiAdapter implements IIngressPort {
             try {
               const u = new URL(decrypted.url.split('#')[0]);
               adminUrl = u.origin;
-              if (adminUrl.includes('msadmin.')) {
-                baseUrl = adminUrl.replace('msadmin.', 'msapi.');
-              } else if (adminUrl.includes('admin-dev.msystem.newgen.dev')) {
-                baseUrl = 'https://api-dev.newgen.dev';
-              }
+              baseUrl = EXTERNAL_SYSTEM_MSYSTEM.resolveApiUrl(adminUrl);
             } catch {
               adminUrl = decrypted.url.split('#')[0];
+              baseUrl = EXTERNAL_SYSTEM_MSYSTEM.resolveApiUrl(adminUrl);
             }
           }
           if (decrypted.apiUrl) baseUrl = decrypted.apiUrl;
@@ -360,6 +360,7 @@ export class MsApiAdapter implements IIngressPort {
         }
       }
     }
+
 
     try {
       const uAdmin = new URL(adminUrl);
@@ -538,7 +539,7 @@ export class MsApiAdapter implements IIngressPort {
   ): Promise<IngressDownloadResult> {
     const startTime = Date.now();
     const outputDirectory =
-      options?.targetDirectory || path.join(process.cwd(), 'data', 'ingress', 'ms');
+      options?.targetDirectory || options?.outputDir || path.join(process.cwd(), 'data', 'ingress', 'ms');
 
     if (!fs.existsSync(outputDirectory)) {
       fs.mkdirSync(outputDirectory, { recursive: true });
@@ -556,6 +557,8 @@ export class MsApiAdapter implements IIngressPort {
     if (isFullRequested) {
       targetKeys = Object.keys(MS_REPORTS_REGISTRY);
       this.logger.log(`[MsApiAdapter] Kích hoạt chế độ FULL BACKUP cho M-System: tải toàn bộ ${targetKeys.length} báo cáo.`);
+    } else if (options?.reportType) {
+      targetKeys.push(options.reportType.trim());
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
       // Chuẩn hóa và bung các alias báo cáo
       for (const rawKey of options.reportCodes) {

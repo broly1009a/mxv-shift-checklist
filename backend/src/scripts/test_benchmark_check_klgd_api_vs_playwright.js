@@ -153,7 +153,7 @@ async function runCheckKlgdBenchmark() {
     }
 
     const authTime = Date.now() - authStart;
-    console.log(`  ⚡ Xác thực phiên REST API M-System hoàn tất trong: ${authTime} ms.`);
+    console.log(`  Xác thực phiên REST API M-System hoàn tất trong: ${authTime} ms.`);
 
     // Tải DSGD.xlsx
     const dsgdStart = Date.now();
@@ -188,7 +188,7 @@ async function runCheckKlgdBenchmark() {
       XLSX.writeFile(wb, dsgdPath);
     }
     const dsgdTime = Date.now() - dsgdStart;
-    console.log(`  ⚡ Tải file DSGD.xlsx hoàn tất trong: ${dsgdTime} ms.`);
+    console.log(`  Tải file DSGD.xlsx hoàn tất trong: ${dsgdTime} ms.`);
 
     // Tải TTM.xlsx & TTTT.xlsx
     const ttmPath = path.join(msDir, 'TTM.xlsx');
@@ -214,8 +214,8 @@ async function runCheckKlgdBenchmark() {
     benchmarkResults.ms.apiMs = msElapsed;
     benchmarkResults.ms.rows = 4;
     benchmarkResults.ms.status = 'SUCCESS';
-    console.log(`  ✅ TỔNG THỜI GIAN M-SYSTEM QUA DIRECT REST API: ${msElapsed} ms (So với Playwright: ~28.500 ms)`);
-    console.log(`  ⚡ TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.ms.playwrightAvgMs / msElapsed).toFixed(1)} lần!`);
+    console.log(`   TỔNG THỜI GIAN M-SYSTEM QUA DIRECT REST API: ${msElapsed} ms (So với Playwright: ~28.500 ms)`);
+    console.log(`  TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.ms.playwrightAvgMs / msElapsed).toFixed(1)} lần!`);
   } catch (msErr) {
     console.log(`  ❌ Lỗi M-System API Benchmark: ${msErr.message}`);
     benchmarkResults.ms.status = 'FAILED';
@@ -287,9 +287,9 @@ async function runCheckKlgdBenchmark() {
     try {
       await sshConnPromise;
       sftpSuccess = true;
-      console.log(`  ⚡ Kết nối SFTP thật thành công!`);
+      console.log(`  Kết nối SFTP thật thành công!`);
     } catch {
-      console.log(`  ⚡ SFTP Host offline. Tự động chuyển Direct SFTP Mock Data Engine...`);
+      console.log(`  SFTP Host offline. Tự động chuyển Direct SFTP Mock Data Engine...`);
     }
 
     // Ghi file Straits.csv chuẩn
@@ -308,8 +308,8 @@ async function runCheckKlgdBenchmark() {
     benchmarkResults.acm.apiMs = acmElapsed;
     benchmarkResults.acm.rows = 4;
     benchmarkResults.acm.status = 'SUCCESS';
-    console.log(`  ✅ TỔNG THỜI GIAN ACM QUA DIRECT SFTP: ${acmElapsed} ms (So với Playwright + Captcha: ~36.000 ms)`);
-    console.log(`  ⚡ TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.acm.playwrightAvgMs / acmElapsed).toFixed(1)} lần!`);
+    console.log(`   TỔNG THỜI GIAN ACM QUA DIRECT SFTP: ${acmElapsed} ms (So với Playwright + Captcha: ~36.000 ms)`);
+    console.log(`  TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.acm.playwrightAvgMs / acmElapsed).toFixed(1)} lần!`);
   } catch (acmErr) {
     console.log(`  ❌ Lỗi ACM SFTP Benchmark: ${acmErr.message}`);
     benchmarkResults.acm.status = 'FAILED';
@@ -346,8 +346,8 @@ async function runCheckKlgdBenchmark() {
     benchmarkResults.ccp.apiMs = ccpElapsed;
     benchmarkResults.ccp.rows = 4;
     benchmarkResults.ccp.status = 'SUCCESS';
-    console.log(`  ✅ TỔNG THỜI GIAN CORECCP QUA DIRECT REST API: ${ccpElapsed} ms (So với Playwright: ~31.000 ms)`);
-    console.log(`  ⚡ TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.ccp.playwrightAvgMs / ccpElapsed).toFixed(1)} lần!`);
+    console.log(`   TỔNG THỜI GIAN CORECCP QUA DIRECT REST API: ${ccpElapsed} ms (So với Playwright: ~31.000 ms)`);
+    console.log(`  TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.ccp.playwrightAvgMs / ccpElapsed).toFixed(1)} lần!`);
   } catch (ccpErr) {
     console.log(`  ❌ Lỗi CoreCCP API Benchmark: ${ccpErr.message}`);
     benchmarkResults.ccp.status = 'FAILED';
@@ -378,7 +378,7 @@ async function runCheckKlgdBenchmark() {
 
   const reconElapsed = Date.now() - reconStart;
   benchmarkResults.reconEngineMs = reconElapsed;
-  console.log(`  ⚡ Thuật toán so khớp ${matchedTrades} giao dịch (${totalMatchedLots} lots) hoàn tất trong: ${reconElapsed} ms.`);
+  console.log(`  Thuật toán so khớp ${matchedTrades} giao dịch (${totalMatchedLots} lots) hoàn tất trong: ${reconElapsed} ms.`);
 
   // Tính tổng thời gian chạy song song (Parallel Ingress)
   benchmarkResults.parallelTotalMs = Math.max(

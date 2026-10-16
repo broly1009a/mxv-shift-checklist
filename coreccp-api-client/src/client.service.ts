@@ -56,7 +56,7 @@ export class CoreCcpClient {
     const targetFilePath = path.join(outputDir, reportDef.fileName);
 
     const creds = options.credentials || { username: 'hieptruong' };
-    const baseUrl = creds.url || 'https://uat-coreccp.mxv.com.vn';
+    const baseUrl = creds.url || 'https://coreccp.mxv.com.vn';
 
     try {
       let buffer: Buffer | undefined;

@@ -296,7 +296,7 @@ export class CqgScraperService {
 
         await this.waitForCqgDashboardLogo(page, username, 120000);
       } else if (state === 'DASHBOARD') {
-        this.logger.log(`[CQG] ⚡ Phát hiện phiên làm việc sẵn sàng tại Dashboard từ Disk Cache cho: ${username}!`);
+        this.logger.log(`[CQG] Phát hiện phiên làm việc sẵn sàng tại Dashboard từ Disk Cache cho: ${username}!`);
         await this.waitForCqgDashboardLogo(page, username, 10000);
       }
 

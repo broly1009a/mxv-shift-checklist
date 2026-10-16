@@ -46,7 +46,7 @@ async function main() {
   });
 
   console.log(`\n=> KẾT QUẢ GIẢI CAPTCHA: "${result || '(Trống/Hết hạn Key)'}"`);
-  console.log('✅ MODULE SHARED CAPTCHA SOLVER HOẠT ĐỘNG HOÀN TOÀN CHUẨN XÁC!');
+  console.log(' MODULE SHARED CAPTCHA SOLVER HOẠT ĐỘNG HOÀN TOÀN CHUẨN XÁC!');
 }
 
 main().catch(console.error);

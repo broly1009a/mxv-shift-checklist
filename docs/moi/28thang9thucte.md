@@ -11,7 +11,7 @@ Vừa bóc tách CoreCCP (VNCLEAR) bằng các file Excel hàng nghìn dòng.
 Vừa nhúng cả Python để OCR thẻ CCCD, bóc mã MRZ mở tài khoản TKGD.
 Vừa tích hợp bot RPA Playwright cào web M-System, web CoreCCP, giải Captcha.
 Vừa nhúng Macro Excel, gửi tin nhắn Telegram, quản lý sự cố (Incidents)...
-⚠️ Hậu quả thực tế: Một hệ thống phục vụ nghiệp vụ tài chính sống còn (đối soát tiền và vị thế) đáng lẽ phải tinh gọn, cô lập và cực kỳ ổn định (Zero-Downtime). Nhưng hiện tại, một lỗi rớt mạng khi bot cào web CoreCCP, hoặc một lỗi tràn bộ nhớ khi Python chạy OCR ảnh thẻ CCCD, hoàn toàn có thể làm nghẽn Event Loop của Node.js hoặc làm PM2 restart $\rightarrow$ kéo sập luôn cả tính năng đối chiếu khớp lệnh của phiên đang chạy.
+Hậu quả thực tế: Một hệ thống phục vụ nghiệp vụ tài chính sống còn (đối soát tiền và vị thế) đáng lẽ phải tinh gọn, cô lập và cực kỳ ổn định (Zero-Downtime). Nhưng hiện tại, một lỗi rớt mạng khi bot cào web CoreCCP, hoặc một lỗi tràn bộ nhớ khi Python chạy OCR ảnh thẻ CCCD, hoàn toàn có thể làm nghẽn Event Loop của Node.js hoặc làm PM2 restart $\rightarrow$ kéo sập luôn cả tính năng đối chiếu khớp lệnh của phiên đang chạy.
 
 2. Sự giằng co luẩn quẩn giữa "Ca trực (Checklist)" và "Trading Manager"
    Đây chính là sự thật mà bạn vừa tự nhận ra:

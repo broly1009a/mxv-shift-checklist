@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
         row_url_layout = QHBoxLayout(self.row_url_widget)
         row_url_layout.setContentsMargins(0, 0, 0, 0)
         row_url_layout.addWidget(QLabel("URL Hệ thống:"))
-        self.txt_url = QLineEdit(self.cfg.get("system_url", "https://uat-coreccp.mxv.com.vn/login"))
+        self.txt_url = QLineEdit(self.cfg.get("system_url", "https://coreccp.mxv.com.vn/login"))
         row_url_layout.addWidget(self.txt_url)
         layout_auth.addWidget(self.row_url_widget)
 
@@ -488,7 +488,7 @@ class MainWindow(QMainWindow):
         if is_ex:
             curr_url = self.txt_url.text().strip()
             if not curr_url or "coreccp" in curr_url or "clearing" in curr_url:
-                self.txt_url.setText("https://uat-coreexchange.mxv.com.vn/login")
+                self.txt_url.setText("https://coreexchange.mxv.com.vn/login")
 
             for code, (cb, _) in self.checkboxes.items():
                 if code in ["NR", "TTTT", "LSGTT"]:
@@ -500,7 +500,7 @@ class MainWindow(QMainWindow):
         else:
             curr_url = self.txt_url.text().strip()
             if not curr_url or "coreexchange" in curr_url:
-                self.txt_url.setText("https://uat-coreccp.mxv.com.vn/login")
+                self.txt_url.setText("https://coreccp.mxv.com.vn/login")
 
             for code, (cb, _) in self.checkboxes.items():
                 cb.setEnabled(True)

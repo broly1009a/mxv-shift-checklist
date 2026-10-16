@@ -122,7 +122,7 @@ async function getSession() {
         });
         const vData = await verifyRes.json().catch(() => null);
         if (vData && vData.code === 0) {
-          console.log(`✅ Session cache hợp lệ! Sử dụng Token: [${cached.token.slice(0, 10)}...]`);
+          console.log(` Session cache hợp lệ! Sử dụng Token: [${cached.token.slice(0, 10)}...]`);
           return { token: cached.token, cookies: jar.getCookieHeader() };
         }
       }
@@ -253,7 +253,7 @@ async function getSession() {
           const targetPath = path.join(CONFIG.outputDir, rep.fileName);
           fs.writeFileSync(targetPath, buffer);
           const dur = Date.now() - start;
-          console.log(`✅ OK! ${(buffer.length / 1024).toFixed(1)} KB | ${dur}ms`);
+          console.log(` OK! ${(buffer.length / 1024).toFixed(1)} KB | ${dur}ms`);
           successCount++;
         } else {
           console.log(`❌ HTTP ${res.status}`);

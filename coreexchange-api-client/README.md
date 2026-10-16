@@ -1,6 +1,6 @@
 # Core Exchange (CE) API Ingress Client (@mxv/coreexchange-api-client)
 
-Gói thư viện và công cụ độc lập (**Standalone Package**) chuyên dụng xác thực và tải báo cáo từ hệ thống **Core Exchange (CE)** (`https://uat-coreexchange.mxv.com.vn` hoặc `https://coreexchange.mxv.com.vn`).
+Gói thư viện và công cụ độc lập (**Standalone Package**) chuyên dụng xác thực và tải báo cáo từ hệ thống **Core Exchange (CE)** (`https://coreexchange.mxv.com.vn` hoặc `https://coreexchange.mxv.com.vn`).
 
 Thư mục này được đóng gói **100% độc lập**, không phụ thuộc vào mã nguồn bên ngoài. Bạn có thể copy toàn bộ thư mục `coreexchange-api-client` sang bất kỳ máy chủ, project hay repo nào khác để sử dụng ngay!
 
@@ -34,6 +34,7 @@ coreexchange-api-client/
 ## 2. Hướng Dẫn Sử Dụng Nhanh
 
 ### Bước 1: Sao chép thư mục sang dự án đích
+
 Sao chép toàn bộ thư mục `coreexchange-api-client` vào dự án của bạn (ví dụ: `mxv-cqg-download-investigation`):
 
 ```powershell
@@ -41,18 +42,21 @@ Copy-Item -Recurse -Force "c:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIE
 ```
 
 ### Bước 2: Chạy kiểm thử đăng nhập
+
 ```bash
 cd coreexchange-api-client
 node scripts/test_login_ce.js
 ```
 
 Script sẽ:
+
 1. Tự động bẫy `_csrf` từ form HTML `/login`.
 2. Gửi thông tin đăng nhập và bẫy `SESSION` Cookie (HTTP 302 Found).
 3. Lấy `oauthCode` từ `/oauth2/authorize`.
 4. Verify `/dashboard` và lưu cache vào `coreexchange_session.json`.
 
 ### Bước 3: Tải trọn gói các báo cáo
+
 ```bash
 node scripts/run_download_all.js
 ```
@@ -62,22 +66,22 @@ node scripts/run_download_all.js
 ## 3. Cách Tích Hợp Vào Code Dự Án (TypeScript / NestJS)
 
 ```typescript
-import { CoreExchangeClient } from './coreexchange-api-client/src';
+import { CoreExchangeClient } from "./coreexchange-api-client/src";
 
 const ceClient = new CoreExchangeClient({
-  baseUrl: 'https://uat-coreexchange.mxv.com.vn',
-  username: 'hieptruong',
-  password: 'Taovipko0!',
+  baseUrl: "https://coreexchange.mxv.com.vn",
+  username: "hieptruong",
+  password: "Taovipko0!",
 });
 
 // 1. Tải Sổ lệnh tổng hợp CE (DSL)
-const ordersResult = await ceClient.downloadOrders('./output/dsl.xlsx');
+const ordersResult = await ceClient.downloadOrders("./output/dsl.xlsx");
 console.log(`Đã tải Sổ lệnh: ${ordersResult.sizeBytes} bytes`);
 
 // 2. Tải Danh sách giao dịch CE (DSGD)
-const tradesResult = await ceClient.downloadTrades('./output/dsgd.xlsx');
+const tradesResult = await ceClient.downloadTrades("./output/dsgd.xlsx");
 console.log(`Đã tải Giao dịch: ${tradesResult.sizeBytes} bytes`);
 
 // 3. Tải toàn bộ báo cáo
-const allResults = await ceClient.downloadAllReports('./output');
+const allResults = await ceClient.downloadAllReports("./output");
 ```

@@ -338,7 +338,7 @@ async function runTest() {
         } catch {}
 
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`   ✅ TẢI THÀNH CÔNG: ${rep.key}.xlsx (${sizeKb} KB, ${rowCount} dòng, ${elapsed}s)\n`);
+        console.log(`    TẢI THÀNH CÔNG: ${rep.key}.xlsx (${sizeKb} KB, ${rowCount} dòng, ${elapsed}s)\n`);
 
         results.push({
           key: rep.key,

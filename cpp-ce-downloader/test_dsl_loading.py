@@ -13,10 +13,10 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
-UAT_URL = "https://uat-coreccp.mxv.com.vn/login"
+UAT_URL = "https://coreccp.mxv.com.vn/login"
 USERNAME = "hieptruong"
 PASSWORD = "Taovipko0!"
-DSL_URL = "https://uat-coreccp.mxv.com.vn/clearing/order"
+DSL_URL = "https://coreccp.mxv.com.vn/clearing/order"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCREENSHOT_DIR = os.path.join(BASE_DIR, "debug_screenshots")

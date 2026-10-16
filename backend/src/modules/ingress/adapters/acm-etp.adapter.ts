@@ -10,6 +10,7 @@ import {
   IngressFileDetail,
   decrypt,
   CaptchaSolverHelper,
+  EXTERNAL_SYSTEM_ACM,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
@@ -21,6 +22,10 @@ export class CookieJar {
 
   constructor(initialCookies?: string) {
     if (initialCookies) this.setFromCookieString(initialCookies);
+  }
+
+  public set(key: string, value: string): void {
+    if (key) this.cookies.set(key, value);
   }
 
   public setFromHeaders(headers: any): void {
@@ -76,7 +81,7 @@ export interface IAcmEtpSession {
 @Injectable()
 export class AcmEtpAdapter implements IIngressPort {
   private readonly logger = new Logger(AcmEtpAdapter.name);
-  private readonly defaultBaseUrl = 'https://acm-etp.acmmex.com';
+  private readonly defaultBaseUrl = EXTERNAL_SYSTEM_ACM.baseUrl;
   private cachedSession: IAcmEtpSession | null = null;
   private readonly sessionCachePath = path.join(process.cwd(), 'temp', 'acm_session.json');
 
@@ -235,12 +240,20 @@ export class AcmEtpAdapter implements IIngressPort {
     jar.setFromHeaders(loginRes.headers);
     const loginData: any = await loginRes.json().catch(() => null);
 
-    if (!loginRes.ok || loginData?.code !== 0 || !loginData?.token) {
-      throw new Error(`Đăng nhập ACM ETP thất bại: ${loginData?.msg || loginRes.statusText}`);
+    if (!loginRes.ok || loginData?.code !== 0) {
+      throw new Error(`Đăng nhập ACM ETP thất bại (Code ${loginData?.code}): ${loginData?.msg || loginRes.statusText}`);
     }
 
+    const token = loginData?.data?.token || loginData?.token;
+    if (!token) {
+      throw new Error(`Không tìm thấy token trong phản hồi ACM ETP: ${JSON.stringify(loginData)}`);
+    }
+
+    jar.set('token', token);
+    jar.set('language', 'en');
+
     const session: IAcmEtpSession = {
-      token: loginData.token,
+      token,
       username,
       cookies: jar.getCookieHeader(),
       updatedAt: new Date().toISOString(),

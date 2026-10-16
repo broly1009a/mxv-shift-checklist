@@ -28,7 +28,7 @@ export class CoreCcpCrawlerService {
   ): Promise<void> {
     if (!playwright) throw new Error('Chưa cài đặt playwright-core');
 
-    const ccpUrl = (credentials.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/+$/, '');
+    const ccpUrl = (credentials.url || 'https://coreccp.mxv.com.vn').replace(/\/+$/, '');
     const { browser, page } = await this.launchHeadlessBrowser();
 
     try {
@@ -82,7 +82,7 @@ export class CoreCcpCrawlerService {
   ): Promise<void> {
     if (!playwright) throw new Error('Chưa cài đặt playwright-core');
 
-    const ccpUrl = (credentials.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/+$/, '');
+    const ccpUrl = (credentials.url || 'https://coreccp.mxv.com.vn').replace(/\/+$/, '');
     const { browser, page } = await this.launchHeadlessBrowser();
 
     try {

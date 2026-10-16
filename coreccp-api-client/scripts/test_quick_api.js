@@ -11,7 +11,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const CCP_URL = 'https://uat-coreccp.mxv.com.vn';
+const CCP_URL = 'https://coreccp.mxv.com.vn';
 const USERNAME = 'hieptruong';
 const PASSWORD = 'Taovipko0!';
 const OUTPUT_DIR = path.resolve(__dirname, '..', 'output');

@@ -1012,7 +1012,7 @@ export default function ConnectionSettings({
                         {cppUsername || <em style={{ color: 'var(--text-muted)' }}>Chưa cấu hình</em>}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                        {cppUrl || 'https://uat-coreccp.mxv.com.vn'}
+                        {cppUrl || 'https://coreccp.mxv.com.vn'}
                       </div>
                     </div>
                   </td>
@@ -1421,7 +1421,7 @@ export default function ConnectionSettings({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
                     <label style={labelStyle}>CoreCCP URL</label>
-                    <input type="url" className="form-input" placeholder="https://uat-coreccp.mxv.com.vn" value={cppUrl} onChange={(e) => setCppUrl(e.target.value)} required />
+                    <input type="url" className="form-input" placeholder="https://coreccp.mxv.com.vn" value={cppUrl} onChange={(e) => setCppUrl(e.target.value)} required />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>

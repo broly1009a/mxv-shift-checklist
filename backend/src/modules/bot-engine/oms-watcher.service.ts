@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { chromium, Browser, Page } from 'playwright-core';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
-import { decrypt } from './utils/crypto';
+import { decrypt, EXTERNAL_SYSTEM_CORECCP, EXTERNAL_SYSTEM_COREEX } from '../../shared';
 import * as path from 'path';
 import * as fs from 'fs';
+
 
 @Injectable()
 export class OmsWatcherService {
@@ -188,9 +189,9 @@ export class OmsWatcherService {
         };
       }
 
-      let ccpUrl = ccpCreds.url || 'https://uat-coreccp.mxv.com.vn';
+      let ccpUrl = ccpCreds.url || EXTERNAL_SYSTEM_CORECCP.baseUrl;
       ccpUrl = ccpUrl.replace(/\/login\/?$/, '').replace(/\/$/, '');
-      let ceUrl = ceCreds.url || 'https://uat-coreexchange.mxv.com.vn';
+      let ceUrl = ceCreds.url || EXTERNAL_SYSTEM_COREEX.baseUrl;
       ceUrl = ceUrl.replace(/\/login\/?$/, '').replace(/\/$/, '');
 
       // 2. Launch Browser
@@ -905,8 +906,8 @@ export class OmsWatcherService {
     let targetUrl =
       creds.url ||
       (type === 'ccp'
-        ? 'https://uat-coreccp.mxv.com.vn'
-        : 'https://uat-coreexchange.mxv.com.vn');
+        ? EXTERNAL_SYSTEM_CORECCP.baseUrl
+        : EXTERNAL_SYSTEM_COREEX.baseUrl);
     targetUrl = targetUrl.replace(/\/login\/?$/, '').replace(/\/$/, '');
 
     const executablePath = this.getChromeExecutablePath();

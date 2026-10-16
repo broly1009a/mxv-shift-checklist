@@ -27,13 +27,17 @@
 # PHẦN I: TỔNG QUAN & BỐI CẢNH CÁCH MẠNG HÓA TẦNG INGRESS
 
 ### 1. Giới hạn nghiêm trọng của giải pháp cào màn hình (Playwright UI Scraping)
+
 Trong kiến trúc Monolith V1 cũ, hệ thống phụ thuộc hoàn toàn vào việc giả lập trình duyệt Playwright để bấm nút trên giao diện các hệ thống đối tác (M-System, CoreCCP, ACM ETP, Core Exchange). Thực tế vận hành bộc lộ các điểm nghẽn nghiêm trọng:
+
 1. **Độ trễ rất cao (High Latency)**: Mỗi trang cần từ 15 đến 30 giây để render DOM, tải bảng và bấm nút xuất file. Việc tải toàn bộ 20 báo cáo M-System hoặc 25 báo cáo CoreCCP mất từ **5 đến 12 phút**, không đáp ứng được tần suất đối soát tức thời trong phiên (5-15 phút/lần).
 2. **Kém ổn định (Fragile DOM Coupling)**: Khi đối tác cập nhật layout, đổi class CSS, sửa tên nút hoặc DOM render chậm do mạng, bot lập tức bị timeout hoặc click hụt.
 3. **Quá tải tài nguyên máy chủ**: Việc mở hàng loạt tiến trình Chromium/Edge ngốn hàng gigabyte RAM và đẩy CPU lên 100%, gây nghẽn hàng đợi Job của ca trực.
 
 ### 2. Bước đột phá: Tầng Direct REST API Ingress Clients
+
 Toàn bộ 4 hệ thống đối tác đã được giải mã thành công 100% cơ chế mạng (Ground Truth Sniffed):
+
 - **CoreCCP**: Gọi Search API JSON hoặc kích hoạt Export Job qua WebSocket.
 - **M-System**: Đăng nhập 2 bước (Password + PIN) $\rightarrow$ Tải trực tiếp qua 18 Endpoint REST API nhị phân.
 - **ACM ETP**: Hứng AWS ALB Sticky Session + UUID + Hook Captcha $\rightarrow$ Gọi Endpoint Export file Excel trực tiếp.
@@ -41,13 +45,13 @@ Toàn bộ 4 hệ thống đối tác đã được giải mã thành công 100%
 
 ### 3. Bảng so sánh hiệu năng thực tế (Playwright UI vs Direct REST API)
 
-| Tiêu Chí So Sánh | Playwright UI Scraping (Monolith V1) | Direct REST API Ingress (Modular V2) | Mức Độ Cải Thiện |
-| :--- | :---: | :---: | :---: |
-| **Thời gian tải 1 báo cáo** | `15.000 ms - 30.000 ms` | **`8 ms - 1.100 ms`** | ⚡ **Nhanh hơn 30 - 50 lần** |
-| **Thời gian tải trọn gói (20 file)** | `5 - 10 phút` | **`15 - 25 giây`** | ⚡ **Tiết kiệm 95% thời gian ca** |
-| **Mức tiêu thụ RAM máy chủ** | `800 MB - 1.5 GB` (Per Worker) | **`< 25 MB`** (Pure Node.js Buffer) | 💾 **Giảm 97% RAM** |
-| **Mức tiêu thụ CPU** | `60% - 90%` | **`< 5%`** |  **Gần như triệt tiêu tải CPU** |
-| **Tỷ lệ lỗi do giao diện DOM** | Thường xuyên khi mạng chập chờn | **0%** (Giao tiếp tầng HTTP Data Engine) | 🛡️ **Độ tin cậy tối đa** |
+| Tiêu Chí So Sánh                     | Playwright UI Scraping (Monolith V1) |   Direct REST API Ingress (Modular V2)   |        Mức Độ Cải Thiện        |
+| :----------------------------------- | :----------------------------------: | :--------------------------------------: | :----------------------------: |
+| **Thời gian tải 1 báo cáo**          |       `15.000 ms - 30.000 ms`        |          **`8 ms - 1.100 ms`**           |   **Nhanh hơn 30 - 50 lần**    |
+| **Thời gian tải trọn gói (20 file)** |            `5 - 10 phút`             |            **`15 - 25 giây`**            | **Tiết kiệm 95% thời gian ca** |
+| **Mức tiêu thụ RAM máy chủ**         |    `800 MB - 1.5 GB` (Per Worker)    |   **`< 25 MB`** (Pure Node.js Buffer)    |      💾 **Giảm 97% RAM**       |
+| **Mức tiêu thụ CPU**                 |             `60% - 90%`              |                **`< 5%`**                | **Gần như triệt tiêu tải CPU** |
+| **Tỷ lệ lỗi do giao diện DOM**       |   Thường xuyên khi mạng chập chờn    | **0%** (Giao tiếp tầng HTTP Data Engine) |    🛡️ **Độ tin cậy tối đa**    |
 
 ---
 
@@ -58,6 +62,7 @@ Toàn bộ 4 hệ thống đối tác đã được giải mã thành công 100%
 ## 1. Phân hệ CoreCCP Clearing Ingress Client (`coreccp-api-client`)
 
 ### 1.1. Cấu trúc thư mục độc lập
+
 ```text
 coreccp-api-client/
 ├── package.json, tsconfig.json, SPECIFICATION.md, README.md
@@ -73,7 +78,8 @@ coreccp-api-client/
 ```
 
 ### 1.2. Cơ chế xác thực (Authentication Flow)
-- **Endpoint**: `POST https://uat-coreccp.mxv.com.vn/api/v1/auth/login` (hoặc domain cấu hình).
+
+- **Endpoint**: `POST https://coreccp.mxv.com.vn/api/v1/auth/login` (hoặc domain cấu hình).
 - **Payload**: `{ username, password }`.
 - **Headers nhận về**:
   - `Set-Cookie`: Bắt `SESSION=...` hoặc session cookies.
@@ -81,6 +87,7 @@ coreccp-api-client/
 - **Quản lý Cache**: Session được lưu vào đĩa kèm timestamp. Nếu token còn hạn > 5 phút, tái sử dụng mà không gọi lại API đăng nhập.
 
 ### 1.3. Ba cơ chế trích xuất dữ liệu (Export Mechanisms)
+
 ```mermaid
 graph TD
     A[Yêu Cầu Tải Báo Cáo CoreCCP] --> B{Cơ Chế Nghiệp Vụ}
@@ -106,6 +113,7 @@ graph TD
    - Dành riêng cho một số ít báo cáo hiển thị dạng popup dialog của Material React Table chưa mở API search công khai. Tự động bật headless Chromium/Edge tải file về.
 
 ### 1.4. Danh mục báo cáo trọng tâm
+
 - `GiaoDichKhopLenhToanThiTruong` (Khớp lệnh toàn thị trường - phục vụ tính số Lot & GTGD).
 - `ViTheMoToanThiTruong` (Vị thế mở toàn thị trường - phục vụ bù trừ & quản lý rủi ro).
 - `TatToanViTheToanThiTruong` (Tất toán vị thế toàn thị trường - đối soát PnL).
@@ -116,6 +124,7 @@ graph TD
 ## 2. Phân hệ M-System Newgen Ingress Client (`ms-api-client`)
 
 ### 2.1. Cấu trúc thư mục độc lập
+
 ```text
 ms-api-client/
 ├── package.json, tsconfig.json, SPECIFICATION.md, README.md
@@ -131,7 +140,9 @@ ms-api-client/
 ```
 
 ### 2.2. Kiến trúc xác thực 2 lớp (2-Step Authentication) của Newgen Admin
+
 Backend Newgen áp dụng cơ chế xác thực quản trị 2 lớp bảo mật nghiêm ngặt:
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -154,28 +165,29 @@ sequenceDiagram
 
 ### 2.3. Danh mục 18 Endpoint REST API đã giải mã chính xác 100%
 
-| STT | Mã Nghiệp Vụ | Tên Báo Cáo Ca Trực | Endpoint REST API Chính Xác | Dung Lượng File Thật | Phục Vụ Cho Worker V2 |
-| :---: | :--- | :--- | :--- | :---: | :--- |
-| 1 | **`TTM`** | Trạng thái mở (Vị thế mở) | `GET /position/admin/open/excel` | **169.0 KB** | `PreEodReconWorker` |
-| 2 | **`TTTT`** | Trạng thái tất toán | `GET /position/admin/settle/excel` | **860.0 KB** | `PreEodReconWorker` |
-| 3 | **`TTCDH`** | Tất toán chờ đáo hạn LME | `GET /position/admin/settleLME/excel` | **6.0 KB** | `PreEodReconWorker` |
-| 4 | **`DSLDK`** | Sổ lệnh: Đã khớp | `GET /order/admin/list/excel?status%5Bin%5D=PARTIALLY_FILLED,FILLED` | **10.3 KB** | `KlgdReconWorker` |
-| 5 | **`DSLCK`** | Sổ lệnh: Chờ khớp | `GET /order/admin/list/excel?status%5Bin%5D=WORKING` | **86.8 KB** | `KlgdReconWorker` |
-| 6 | **`DSLH`** | Sổ lệnh: Đã hủy | `GET /order/admin/list/excel?status%5Bin%5D=CANCELLED` | **6.0 KB** | `KlgdReconWorker` |
-| 7 | **`DSGD`** | Danh sách giao dịch khớp | `GET /transaction/admin/list/excel` | **8.7 KB** | `KlgdReconWorker` |
-| 8 | **`QLTKGD`** | Quản lý trạng thái TKGD | `GET /margin/admin/status/excel` | **2.72 MB** | `NegativeMarginWorker` |
-| 9 | **`QLTKGD âm`**| Quản lý TKGD âm ký quỹ | `GET /margin/admin/status/negative/excel` | **9.0 KB** | `NegativeMarginWorker` |
-| 10| **`DSQLKQ`** | Quản lý ký quỹ TVKD/NĐT | `GET /margin/admin/list/excel?limit=20&offset=0` | **214.6 KB** | `TradingOpsWorker` |
-| 11| **`DSTKGD-Futures`**| Danh sách TKGD Futures | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=NULL` | **1.75 MB** | `TkgdSyncWorker` |
-| 12| **`DSTKGD-Spread`** | Danh sách TKGD Spread | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=S` | **8.5 KB** | `TkgdSyncWorker` |
-| 13| **`DSTKGD-LME`** | Danh sách TKGD LME | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=LME` | **3.4 KB** | `TkgdSyncWorker` |
-| 14| **`DSTKGD-ACM`** | Danh sách TKGD ACM | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=ACM` | **3.4 KB** | `TkgdSyncWorker` |
-| 15| **`TLQHSKQ`** | Thiết lập quan hệ số KQ | `GET /am/admin/margin-ratio-multiplier/investors/excel?sort_by=desc(createdDate)` | **1.84 MB** | `MarginRatioWorker` |
-| 16| **`NR`** | Lịch sử nộp rút tiền | `GET /am/admin/investors/marginTransactionHistory/excel` | **3.5 KB** | `CashFlowWorker` |
-| 17| **`DSTrader`** | Danh sách Trader | `GET /am/admin/traders/excel?sort_by=desc(createdDate)` | **12.8 KB** | `TkgdSyncWorker` |
-| 18| **`NKTTHT`** | Nhật ký thao tác hệ thống | `GET /approval/admin/activities/excel?sort_by=desc(datetime)` | **8.8 KB** | `AuditLogWorker` |
+| STT | Mã Nghiệp Vụ         | Tên Báo Cáo Ca Trực       | Endpoint REST API Chính Xác                                                       | Dung Lượng File Thật | Phục Vụ Cho Worker V2  |
+| :-: | :------------------- | :------------------------ | :-------------------------------------------------------------------------------- | :------------------: | :--------------------- |
+|  1  | **`TTM`**            | Trạng thái mở (Vị thế mở) | `GET /position/admin/open/excel`                                                  |     **169.0 KB**     | `PreEodReconWorker`    |
+|  2  | **`TTTT`**           | Trạng thái tất toán       | `GET /position/admin/settle/excel`                                                |     **860.0 KB**     | `PreEodReconWorker`    |
+|  3  | **`TTCDH`**          | Tất toán chờ đáo hạn LME  | `GET /position/admin/settleLME/excel`                                             |      **6.0 KB**      | `PreEodReconWorker`    |
+|  4  | **`DSLDK`**          | Sổ lệnh: Đã khớp          | `GET /order/admin/list/excel?status%5Bin%5D=PARTIALLY_FILLED,FILLED`              |     **10.3 KB**      | `KlgdReconWorker`      |
+|  5  | **`DSLCK`**          | Sổ lệnh: Chờ khớp         | `GET /order/admin/list/excel?status%5Bin%5D=WORKING`                              |     **86.8 KB**      | `KlgdReconWorker`      |
+|  6  | **`DSLH`**           | Sổ lệnh: Đã hủy           | `GET /order/admin/list/excel?status%5Bin%5D=CANCELLED`                            |      **6.0 KB**      | `KlgdReconWorker`      |
+|  7  | **`DSGD`**           | Danh sách giao dịch khớp  | `GET /transaction/admin/list/excel`                                               |      **8.7 KB**      | `KlgdReconWorker`      |
+|  8  | **`QLTKGD`**         | Quản lý trạng thái TKGD   | `GET /margin/admin/status/excel`                                                  |     **2.72 MB**      | `NegativeMarginWorker` |
+|  9  | **`QLTKGD âm`**      | Quản lý TKGD âm ký quỹ    | `GET /margin/admin/status/negative/excel`                                         |      **9.0 KB**      | `NegativeMarginWorker` |
+| 10  | **`DSQLKQ`**         | Quản lý ký quỹ TVKD/NĐT   | `GET /margin/admin/list/excel?limit=20&offset=0`                                  |     **214.6 KB**     | `TradingOpsWorker`     |
+| 11  | **`DSTKGD-Futures`** | Danh sách TKGD Futures    | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=NULL`                      |     **1.75 MB**      | `TkgdSyncWorker`       |
+| 12  | **`DSTKGD-Spread`**  | Danh sách TKGD Spread     | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=S`                         |      **8.5 KB**      | `TkgdSyncWorker`       |
+| 13  | **`DSTKGD-LME`**     | Danh sách TKGD LME        | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=LME`                       |      **3.4 KB**      | `TkgdSyncWorker`       |
+| 14  | **`DSTKGD-ACM`**     | Danh sách TKGD ACM        | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=ACM`                       |      **3.4 KB**      | `TkgdSyncWorker`       |
+| 15  | **`TLQHSKQ`**        | Thiết lập quan hệ số KQ   | `GET /am/admin/margin-ratio-multiplier/investors/excel?sort_by=desc(createdDate)` |     **1.84 MB**      | `MarginRatioWorker`    |
+| 16  | **`NR`**             | Lịch sử nộp rút tiền      | `GET /am/admin/investors/marginTransactionHistory/excel`                          |      **3.5 KB**      | `CashFlowWorker`       |
+| 17  | **`DSTrader`**       | Danh sách Trader          | `GET /am/admin/traders/excel?sort_by=desc(createdDate)`                           |     **12.8 KB**      | `TkgdSyncWorker`       |
+| 18  | **`NKTTHT`**         | Nhật ký thao tác hệ thống | `GET /approval/admin/activities/excel?sort_by=desc(datetime)`                     |      **8.8 KB**      | `AuditLogWorker`       |
 
 ### 2.4. Điểm mấu chốt kỹ thuật (Critical Gotcha)
+
 - **Chuẩn hóa URL Encoding trên Query Parameters**: Các HTTP client Node.js hiện đại (Undici / Fetch standard) sẽ ném lỗi `HTTP 400 Bad Request` nếu query string chứa ký tự ngoặc vuông thô `[` và `]`. Do đó, toàn bộ query parameters của Newgen bắt buộc phải được encode chuẩn:
   - `status[in]=WORKING` $\rightarrow$ `status%5Bin%5D=WORKING`
   - `subInvestorType[eq]=NULL` $\rightarrow$ `subInvestorType%5Beq%5D=NULL`
@@ -185,6 +197,7 @@ sequenceDiagram
 ## 3. Phân hệ ACM ETP Exchange Ingress Client (`acm-etp-client`)
 
 ### 3.1. Cấu trúc thư mục độc lập
+
 ```text
 acm-etp-client/
 ├── package.json, tsconfig.json, SPECIFICATION.md, README.md
@@ -201,6 +214,7 @@ acm-etp-client/
 ```
 
 ### 3.2. Quy trình xác thực phiên ACM ETP
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -226,6 +240,7 @@ sequenceDiagram
 ```
 
 ### 3.3. Danh mục Endpoint & Kết quả kiểm chứng
+
 1. **Sổ lệnh ETP (`ACM_ETP_ORDERS`)**:
    - Endpoint: `GET /exchange/business/tetporder/export?token={token}&brokerid=&investorid=&direction=&comboffsetflag=&instrumentid=&orderstatus=&tradingfirmid=&orderref=&ordersysid=`.
    - Dung lượng file tải thực tế: **480.0 KB** (Thời gian tải: **942 ms**).
@@ -240,6 +255,7 @@ sequenceDiagram
 ## 4. Phân hệ Core Exchange (CE) Ingress Client (`coreexchange-api-client`)
 
 ### 4.1. Cấu trúc thư mục độc lập
+
 ```text
 coreexchange-api-client/
 ├── package.json, tsconfig.json, SPECIFICATION.md, README.md
@@ -256,6 +272,7 @@ coreexchange-api-client/
 ```
 
 ### 4.2. Quy trình xác thực Spring Security & OAuth2
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -282,6 +299,7 @@ sequenceDiagram
 ```
 
 ### 4.3. Danh mục 8 Báo cáo Cốt lõi của Core Exchange
+
 1. `DSL`: Sổ lệnh tổng hợp CE (`/ORDERS/ORDERBOOK_ALL_ACM`).
 2. `DSGD`: Danh sách giao dịch CE (`/ORDERS/ORDERMATCH_DETAIL_ACM`).
 3. `DSLCK`: Lệnh chờ khớp CE (`/ORDERS/ORDERBOOK_ACM` - Tab: Lệnh chờ khớp).
@@ -339,18 +357,19 @@ classDiagram
 ```
 
 ### Mã nguồn Adapter mẫu tích hợp vào V2 (`ms-api.adapter.ts`):
+
 ```typescript
-import { Injectable, Logger } from '@nestjs/common';
-import * as path from 'path';
+import { Injectable, Logger } from "@nestjs/common";
+import * as path from "path";
 import {
   IIngressPort,
   IngressSourceType,
   IngressDownloadOptions,
   IngressDownloadResult,
   IngressFileDetail,
-} from '../../../shared';
-import { MsClient } from '../../../../ms-api-client/src';
-import { SystemSettingsService } from '../../system-settings/system-settings.service';
+} from "../../../shared";
+import { MsClient } from "../../../../ms-api-client/src";
+import { SystemSettingsService } from "../../system-settings/system-settings.service";
 
 @Injectable()
 export class MsApiAdapter implements IIngressPort {
@@ -363,31 +382,58 @@ export class MsApiAdapter implements IIngressPort {
     options?: IngressDownloadOptions,
   ): Promise<IngressDownloadResult> {
     const startTime = Date.now();
-    const targetDir = options?.targetDirectory || path.join(process.cwd(), 'data', 'backup', 'MS');
-    const targetDate = options?.targetDate || new Date().toISOString().split('T')[0];
+    const targetDir =
+      options?.targetDirectory ||
+      path.join(process.cwd(), "data", "backup", "MS");
+    const targetDate =
+      options?.targetDate || new Date().toISOString().split("T")[0];
 
     // Lấy cấu hình động từ MongoDB (Zero-Hardcoding)
-    const baseUrl = await this.settingsService.getSetting('ms_api_base_url', 'https://api-dev.newgen.dev');
-    const adminUrl = await this.settingsService.getSetting('ms_admin_url', 'https://admin-dev.msystem.newgen.dev');
-    const username = await this.settingsService.getSetting('ms_username', 'mxvhieptruong');
-    const password = await this.settingsService.getSetting('ms_password', 'Taovipko0!');
-    const pin = await this.settingsService.getSetting('ms_pin', '269696');
+    const baseUrl = await this.settingsService.getSetting(
+      "ms_api_base_url",
+      "https://api-dev.newgen.dev",
+    );
+    const adminUrl = await this.settingsService.getSetting(
+      "ms_admin_url",
+      "https://admin-dev.msystem.newgen.dev",
+    );
+    const username = await this.settingsService.getSetting(
+      "ms_username",
+      "mxvhieptruong",
+    );
+    const password = await this.settingsService.getSetting(
+      "ms_password",
+      "Taovipko0!",
+    );
+    const pin = await this.settingsService.getSetting("ms_pin", "269696");
 
     const client = new MsClient({ baseUrl, adminUrl, username, password, pin });
-    const reportsToDownload = options?.reports || ['TTM', 'TTTT', 'DSLDK', 'DSLCK', 'DSLH', 'DSGD'];
+    const reportsToDownload = options?.reports || [
+      "TTM",
+      "TTTT",
+      "DSLDK",
+      "DSLCK",
+      "DSLH",
+      "DSGD",
+    ];
 
-    this.logger.log(`[MsApiAdapter] Bắt đầu tải ${reportsToDownload.length} báo cáo M-System qua REST API trực tiếp`);
+    this.logger.log(
+      `[MsApiAdapter] Bắt đầu tải ${reportsToDownload.length} báo cáo M-System qua REST API trực tiếp`,
+    );
 
     const downloadedFiles: IngressFileDetail[] = [];
     for (const key of reportsToDownload) {
-      const res = await client.downloadReport(key, path.join(targetDir, `${key}.xlsx`));
-      if (res.status === 'SUCCESS' && res.filePath) {
+      const res = await client.downloadReport(
+        key,
+        path.join(targetDir, `${key}.xlsx`),
+      );
+      if (res.status === "SUCCESS" && res.filePath) {
         downloadedFiles.push({
           fileName: res.fileName,
           absolutePath: res.filePath,
           sizeBytes: res.sizeBytes || 0,
           downloadDurationMs: res.durationMs || 0,
-          status: 'SUCCESS',
+          status: "SUCCESS",
         });
       }
     }
@@ -448,6 +494,7 @@ flowchart LR
 ```
 
 ### Phân tích chi tiết từng Worker:
+
 1. **`KlgdReconWorker` (`trading-ops`)**:
    - Nhận 4 file từ `MsApiAdapter`: `DSLDK` (Khớp), `DSLCK` (Chờ khớp), `DSLH` (Hủy), `DSGD` (Giao dịch).
    - Nhận 2 file từ `cqg-merger.service`: `FR.xlsx` (Khớp lệnh CQG), `Od.xlsx` (Sổ lệnh CQG).
@@ -472,6 +519,7 @@ flowchart LR
 ## 3. Cơ chế Fallback An toàn (Graceful Degradation)
 
 Để đảm bảo hệ thống ca trực vận hành 24/7 không bị gián đoạn ngay cả khi API đối tác bảo trì:
+
 ```typescript
 async downloadWithFallback(source: IngressSourceType, options: IngressDownloadOptions) {
   try {
@@ -491,6 +539,7 @@ async downloadWithFallback(source: IngressSourceType, options: IngressDownloadOp
 ## 4. Quản lý Phiên & Cấu hình Động (Zero-Hardcoding)
 
 Tuân thủ nghiêm ngặt **Quy chuẩn AGENTS.md Rule 6 & 7**:
+
 1. **Không hardcode Credentials**:
    - Tất cả tham số `username`, `password`, `pin`, `client_id`, `base_url` được lưu trữ tập trung tại bảng CSDL `system_settings` hoặc `bot_credentials` (được mã hóa AES-256).
    - Quản trị viên có thể cập nhật tài khoản trên màn hình Quản trị `/admin/bot-config` mà không cần sửa code hay build lại dự án.
@@ -527,4 +576,5 @@ Kế hoạch tích hợp được chia nhỏ thành 4 Atomic Tasks đảm bảo 
 ```
 
 ---
-*Tài liệu này là căn cứ kiến trúc và kim chỉ nam kỹ thuật chính thức phục vụ việc lập trình tích hợp tầng Ingress cho hệ thống MXV Shift Checklist V2.*
+
+_Tài liệu này là căn cứ kiến trúc và kim chỉ nam kỹ thuật chính thức phục vụ việc lập trình tích hợp tầng Ingress cho hệ thống MXV Shift Checklist V2._

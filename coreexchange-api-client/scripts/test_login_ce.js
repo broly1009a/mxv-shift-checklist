@@ -7,9 +7,9 @@ const fs = require('fs');
 const path = require('path');
 
 const CONFIG = {
-  baseUrl: process.env.COREEXCHANGE_BASE_URL || 'https://uat-coreexchange.mxv.com.vn',
+  baseUrl: process.env.COREEXCHANGE_BASE_URL || 'https://coreexchange.mxv.com.vn',
   clientId: 'web-exchange-mxv',
-  redirectUri: 'https://uat-coreexchange.mxv.com.vn/validate_code',
+  redirectUri: 'https://coreexchange.mxv.com.vn/validate_code',
   username: process.env.COREEXCHANGE_USERNAME || 'hieptruong',
   password: process.env.COREEXCHANGE_PASSWORD || 'Taovipko0!',
   outputSessionPath: path.resolve(__dirname, '../coreexchange_session.json'),
@@ -79,10 +79,10 @@ async function loginCoreExchange() {
           redirect: 'manual',
         });
         if (verifyRes.status === 200) {
-          console.log('✅ Session cache vẫn còn hiệu lực 100%! Bỏ qua bước đăng nhập lại.\n');
+          console.log(' Session cache vẫn còn hiệu lực 100%! Bỏ qua bước đăng nhập lại.\n');
           return cached;
         }
-        console.log('⚠️ Session cache đã hết hạn. Đang tiến hành đăng nhập mới...');
+        console.log(' Session cache đã hết hạn. Đang tiến hành đăng nhập mới...');
       }
     } catch {}
   }

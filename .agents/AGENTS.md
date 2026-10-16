@@ -47,7 +47,6 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 
 ---
 
-
 ## 2. Standard Business Rules for MXV Shift Checklist
 
 1. **Đối chiếu ACM (Nano)**:
@@ -62,11 +61,11 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
      - `OD1` + `OD2` $\rightarrow$ `Od.xlsx` (Sổ lệnh)
 
 3. **Phân định Tác vụ Đối chiếu trong phiên vs Pre-EOD**:
-   - **Tác vụ Trong phiên (CHECK_KLGD)** (*Giám sát & Đối chiếu MS vs CQG trong phiên*):
+   - **Tác vụ Trong phiên (CHECK_KLGD)** (_Giám sát & Đối chiếu MS vs CQG trong phiên_):
      - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_KLGD'`.
      - Monolith V1: Thực thi qua `runAutoCheckKLGD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
      - Modular Monolith V2: Thực thi qua `KlgdReconWorker` ([klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts)) thuộc phân hệ `trading-ops`.
-   - **Tác vụ Cuối ngày (CHECK_PRE_EOD)** (*Chốt đối chiếu 3 bên cuối ngày*):
+   - **Tác vụ Cuối ngày (CHECK_PRE_EOD)** (_Chốt đối chiếu 3 bên cuối ngày_):
      - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_PRE_EOD'`.
      - Monolith V1: Thực thi qua `runAutoCheckPreEOD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
      - Modular Monolith V2: Thực thi qua `PreEodReconWorker` ([pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts)) thuộc phân hệ `trading-ops`.
@@ -75,18 +74,18 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 
 ## 3. Reference Mapping: C# IT Tool vs Monolith V1 vs Modular Monolith V2
 
-| Chức năng Nghiệp vụ | C# Source File & Method | Monolith V1 (Cũ - Đang Chạy) | Modular Monolith V2 (Mới - Chuẩn Kiến Trúc) |
-| :--- | :--- | :--- | :--- |
-| **Tải Báo cáo M-System (RPA / API)** | `ChromeBot.cs` | `rpa-downloader.service.ts` | `modules/ingress/scrapers/ms-scraper.service.ts` & `ms-api.adapter.ts` |
-| **Tải Báo cáo CQG (Song song 2 TK)** | `ChromeBot.cs` | `rpa-downloader.service.ts` | `modules/ingress/scrapers/cqg-scraper.service.ts` & `cqg-api.adapter.ts` |
-| **Tải Báo cáo ACM (Straits CSV)** | SFTP / Web | `rpa-downloader.service.ts` | `modules/ingress/scrapers/acm-scraper.service.ts` |
-| **Tải Báo cáo CCP (25 file)** | Browser | `rpa-downloader.service.ts` | `modules/ingress/scrapers/ccp-scraper.service.ts` & `coreccp-api.adapter.ts` |
-| **Ghép file thô CQG (`FR, PS, OP, Od`)**| `FileUtils.cs` | `cqg-sync.service.ts` | `modules/trading-ops/services/cqg-merger.service.ts` |
-| **Đối chiếu KLGD Trong Phiên** | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` | `reconciliation.service.ts` $\rightarrow$ `checkKLGD()` | `modules/trading-ops/services/klgd-recon.service.ts` (`KlgdReconWorker`) |
-| **Đối chiếu Pre-EOD 3 Bên** | `TransactionCheckingService.cs` $\rightarrow$ `CheckEOD()` | `reconciliation.service.ts` $\rightarrow$ `checkPreEOD()` | `modules/trading-ops/services/pre-eod-recon.service.ts` (`PreEodReconWorker`) |
-| **Quét Ký Quỹ Âm (Post-EOD)** | `margin-checker` $\rightarrow$ `MarginChecking.cs` | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` | `modules/trading-ops/services/margin-checker.service.ts` (`NegativeMarginWorker`) |
-| **Thống kê Lot & Giá trị CCP (Macro)** | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs` | `bot-job-queue.service.ts` $\rightarrow$ `handleRun*MacroJob()` | `modules/ccp-clearing/services/lot-statistics.service.ts` (`CcpLotWorker`) |
-| **Điều phối Job Bot & Cập nhật Ca** | Windows Task Scheduler | `bot-engine.service.ts` & `bot-job-queue.service.ts` | `modules/checklist-hub/dispatcher/bot-dispatcher.service.ts` |
+| Chức năng Nghiệp vụ                      | C# Source File & Method                                     | Monolith V1 (Cũ - Đang Chạy)                                               | Modular Monolith V2 (Mới - Chuẩn Kiến Trúc)                                       |
+| :--------------------------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
+| **Tải Báo cáo M-System (RPA / API)**     | `ChromeBot.cs`                                              | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/ms-scraper.service.ts` & `ms-api.adapter.ts`            |
+| **Tải Báo cáo CQG (Song song 2 TK)**     | `ChromeBot.cs`                                              | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/cqg-scraper.service.ts` & `cqg-api.adapter.ts`          |
+| **Tải Báo cáo ACM (Straits CSV)**        | SFTP / Web                                                  | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/acm-scraper.service.ts`                                 |
+| **Tải Báo cáo CCP (25 file)**            | Browser                                                     | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/ccp-scraper.service.ts` & `coreccp-api.adapter.ts`      |
+| **Ghép file thô CQG (`FR, PS, OP, Od`)** | `FileUtils.cs`                                              | `cqg-sync.service.ts`                                                      | `modules/trading-ops/services/cqg-merger.service.ts`                              |
+| **Đối chiếu KLGD Trong Phiên**           | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` | `reconciliation.service.ts` $\rightarrow$ `checkKLGD()`                    | `modules/trading-ops/services/klgd-recon.service.ts` (`KlgdReconWorker`)          |
+| **Đối chiếu Pre-EOD 3 Bên**              | `TransactionCheckingService.cs` $\rightarrow$ `CheckEOD()`  | `reconciliation.service.ts` $\rightarrow$ `checkPreEOD()`                  | `modules/trading-ops/services/pre-eod-recon.service.ts` (`PreEodReconWorker`)     |
+| **Quét Ký Quỹ Âm (Post-EOD)**            | `margin-checker` $\rightarrow$ `MarginChecking.cs`          | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` | `modules/trading-ops/services/margin-checker.service.ts` (`NegativeMarginWorker`) |
+| **Thống kê Lot & Giá trị CCP (Macro)**   | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs`   | `bot-job-queue.service.ts` $\rightarrow$ `handleRun*MacroJob()`            | `modules/ccp-clearing/services/lot-statistics.service.ts` (`CcpLotWorker`)        |
+| **Điều phối Job Bot & Cập nhật Ca**      | Windows Task Scheduler                                      | `bot-engine.service.ts` & `bot-job-queue.service.ts`                       | `modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`                      |
 
 ---
 
@@ -107,8 +106,8 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
 4. **Chuẩn hóa Tiền tố API ở Frontend (`/api/v1`)**:
    - Tất cả các lệnh gọi fetch dữ liệu từ Frontend lên Backend đều phải prepend tiền tố `/api/v1` (ví dụ: `${API_BASE_URL}/api/v1/reconciliation/...`). Không gọi trực tiếp qua URL không có versioning.
 
-5. **Tuyệt đối Không Dùng Unicode Emojis trên Giao diện UI (`📁`, `💡`, ``, ``, `🔘`, `👁️`...)**:
-   - Trên toàn bộ giao diện Frontend (Modal, Button, Card, Tag, Preview...), **tuyệt đối KHÔNG** chèn các ký tự icon emoji thô dạng Unicode (như `📁`, `💡`, ``, ``, `🔘`, `👁️`, `🟢`, `🔵`...).
+5. **Tuyệt đối Không Dùng Unicode Emojis trên Giao diện UI (`📁`, `💡`, `, `, `🔘`, `👁️`...)**:
+   - Trên toàn bộ giao diện Frontend (Modal, Button, Card, Tag, Preview...), **tuyệt đối KHÔNG** chèn các ký tự icon emoji thô dạng Unicode (như `📁`, `💡`, `, `, `🔘`, `👁️`, `🟢`, `🔵`...).
    - **Bắt buộc 100%** sử dụng các icon SVG chuẩn từ thư viện **`lucide-react`** (ví dụ: `import { Folder, Sparkles, Info, Calendar } from 'lucide-react'`) hoặc văn bản rõ nghĩa. Việc dùng emoji thô làm mất tính chuyên nghiệp (Enterprise Look & Feel) và gây vỡ layout/lỗi hiển thị màu sắc trên các nền tảng khác nhau.
 
 ---
@@ -155,16 +154,16 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
 ### 1. Nhận Diện 4 Dạng Hardcode Nguy Hiểm Cần Tuyệt Đối Tránh
 
 1. **Entity ID Hardcoding (Gán cứng mã thực thể)**:
-   - *Biểu hiện*: Đưa các chuỗi ID cụ thể (`taskId: 'TASK_CHECK_KLGD'`, `roleId: 'ADMIN_01'`, `deptId: 'DEPT_IT'`, `userId: 'user_123'`) vào logic `if/else`, switch-case, constants hoặc mảng tĩnh.
-   - *Tác hại*: Khi người dùng tạo Template mới, ca mới, phòng ban mới hoặc CSDL dùng UUID tự sinh, code lập tức bị gãy và phát sinh bug ngầm.
+   - _Biểu hiện_: Đưa các chuỗi ID cụ thể (`taskId: 'TASK_CHECK_KLGD'`, `roleId: 'ADMIN_01'`, `deptId: 'DEPT_IT'`, `userId: 'user_123'`) vào logic `if/else`, switch-case, constants hoặc mảng tĩnh.
+   - _Tác hại_: Khi người dùng tạo Template mới, ca mới, phòng ban mới hoặc CSDL dùng UUID tự sinh, code lập tức bị gãy và phát sinh bug ngầm.
 2. **Business Threshold Hardcoding (Gán cứng hằng số/ngưỡng nghiệp vụ)**:
-   - *Biểu hiện*: Gán cứng các giá trị tần suất chạy (`frequency = 60`), hạn mức cảnh báo (`threshold = 0.85`), số ngày hết hạn (`expireDays = 30`), tỷ lệ phí vào sâu trong hàm xử lý.
-   - *Tác hại*: Mỗi lần thay đổi quy định nghiệp vụ phải mở code sửa, chạy lại kiểm thử, build bundle và deploy lại toàn bộ hệ thống.
+   - _Biểu hiện_: Gán cứng các giá trị tần suất chạy (`frequency = 60`), hạn mức cảnh báo (`threshold = 0.85`), số ngày hết hạn (`expireDays = 30`), tỷ lệ phí vào sâu trong hàm xử lý.
+   - _Tác hại_: Mỗi lần thay đổi quy định nghiệp vụ phải mở code sửa, chạy lại kiểm thử, build bundle và deploy lại toàn bộ hệ thống.
 3. **Infrastructure & Path Hardcoding (Gán cứng hạ tầng & đường dẫn)**:
-   - *Biểu hiện*: Gán cứng IP server (`10.0.0.26`), cổng (`3001`), đường dẫn ổ đĩa tuyệt đối (`C:\Trading\Backup\...`), URL dịch vụ bên ngoài vào code.
-   - *Tác hại*: Triệt tiêu khả năng portability; không thể chuyển đổi môi trường DEV/STAGING/PROD và gây sập hệ thống khi chuyển từ Windows sang Linux.
+   - _Biểu hiện_: Gán cứng IP server (`10.0.0.26`), cổng (`3001`), đường dẫn ổ đĩa tuyệt đối (`C:\Trading\Backup\...`), URL dịch vụ bên ngoài vào code.
+   - _Tác hại_: Triệt tiêu khả năng portability; không thể chuyển đổi môi trường DEV/STAGING/PROD và gây sập hệ thống khi chuyển từ Windows sang Linux.
 4. **Pseudo-Constants / Alias Hiding (Hardcode trá hình dạng danh mục)**:
-   - *Biểu hiện*: Gom hàng loạt ID cụ thể vào một object dictionary (`aliasTaskIds`, `patternTaskIds`) rồi ngụy biện là "đã cấu hình tập trung". Bản chất đây vẫn là hardcode, chỉ dọn rác từ file này sang file khác.
+   - _Biểu hiện_: Gom hàng loạt ID cụ thể vào một object dictionary (`aliasTaskIds`, `patternTaskIds`) rồi ngụy biện là "đã cấu hình tập trung". Bản chất đây vẫn là hardcode, chỉ dọn rác từ file này sang file khác.
 
 ---
 
@@ -183,8 +182,8 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
    - **Nghiêm cấm tuyệt đối** việc âm thầm fallback về một ID bản ghi cụ thể hoặc giả định một ID mặc định.
 5. **Nguyên Tắc 5: The "New Template / New Tenant" Acid Test (Bài Test Tự Kiểm Tra Bắt Buộc)**:
    - Trước khi hoàn thành bất kỳ task chỉnh sửa nào, Lập trình viên / AI Assistant **bắt buộc phải tự trả lời 2 câu hỏi**:
-     - *Câu hỏi 1*: "Nếu Admin vào giao diện Web tạo một Template mới hoàn toàn với các ID sinh ngẫu nhiên (UUID), module này có tự động nhận diện và hoạt động trơn tru 100% không?"
-     - *Câu hỏi 2*: "Nếu người dùng đổi tên, đổi mã task, hoặc phân cấp lại cây cha - con trong Database, hệ thống có tự thích ứng mà không bị gãy không?"
+     - _Câu hỏi 1_: "Nếu Admin vào giao diện Web tạo một Template mới hoàn toàn với các ID sinh ngẫu nhiên (UUID), module này có tự động nhận diện và hoạt động trơn tru 100% không?"
+     - _Câu hỏi 2_: "Nếu người dùng đổi tên, đổi mã task, hoặc phân cấp lại cây cha - con trong Database, hệ thống có tự thích ứng mà không bị gãy không?"
    - Nếu câu trả lời cho bất kỳ câu nào là **"KHÔNG (phải vào code thêm ID/sửa mảng)"** $\rightarrow$ Đoạn code đó **VI PHẠM NGUYÊN TẮC** và bắt buộc phải được tái cấu trúc lại ngay lập tức.
 
 ---
@@ -194,33 +193,38 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
 Để tránh việc phải viết lại test script mới mỗi lần debug hoặc kiểm thử, AI Assistant và Lập trình viên BẮT BUỘC tra cứu và ưu tiên gợi ý các file test chuẩn hóa đã có sẵn trong dự án:
 
 ### 1. Nhóm Crawler / RPA M-System
-| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
-| :--- | :--- | :--- |
-| **`test_ms_download_all_20_reports.js`** | `node src/scripts/test_ms_download_all_20_reports.js --headed`<br/>*hoặc* `npm run test:ms-20` | Tải và kiểm chứng toàn bộ **20 báo cáo M-System** (Bao gồm selector FontAwesome 5 `fas fa-file-csv`, tự động đăng nhập lại khi trùng phiên `ensureLoggedIn`, fallback Sidebar). Lưu file tại `temp/test_20_reports/`. |
-| **`test_ms_download_ttm_tttt.js`** | `node src/scripts/test_ms_download_ttm_tttt.js --headed`<br/>*hoặc* `npm run test:ms-ttm` | Chuyên biệt kiểm tra tải nhanh 2 file cốt lõi **`TTM` (Trạng thái mở)** và **`TTTT` (Trạng thái tất toán)**, chụp ảnh snapshot màn hình và đọc thẩm định cấu trúc cột Excel. |
-| **`test_ms_tab_downloads.js`** | `node src/scripts/test_ms_tab_downloads.js --headed` | Kiểm tra điều hướng và tải các sub-tab con đặc thù trên M-System (Spreads, LME, ACM, Chờ đáo hạn). |
+
+| Tên File Test                            | Lệnh Chạy (Terminal / NPM)                                                                     | Mục Đích & Phạm Vi Kiểm Thử                                                                                                                                                                                           |
+| :--------------------------------------- | :--------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`test_ms_download_all_20_reports.js`** | `node src/scripts/test_ms_download_all_20_reports.js --headed`<br/>_hoặc_ `npm run test:ms-20` | Tải và kiểm chứng toàn bộ **20 báo cáo M-System** (Bao gồm selector FontAwesome 5 `fas fa-file-csv`, tự động đăng nhập lại khi trùng phiên `ensureLoggedIn`, fallback Sidebar). Lưu file tại `temp/test_20_reports/`. |
+| **`test_ms_download_ttm_tttt.js`**       | `node src/scripts/test_ms_download_ttm_tttt.js --headed`<br/>_hoặc_ `npm run test:ms-ttm`      | Chuyên biệt kiểm tra tải nhanh 2 file cốt lõi **`TTM` (Trạng thái mở)** và **`TTTT` (Trạng thái tất toán)**, chụp ảnh snapshot màn hình và đọc thẩm định cấu trúc cột Excel.                                          |
+| **`test_ms_tab_downloads.js`**           | `node src/scripts/test_ms_tab_downloads.js --headed`                                           | Kiểm tra điều hướng và tải các sub-tab con đặc thù trên M-System (Spreads, LME, ACM, Chờ đáo hạn).                                                                                                                    |
 
 ### 2. Nhóm Crawler / RPA CQG
-| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
-| :--- | :--- | :--- |
-| **`test_cqg_parallel_standalone.js`** | `node src/scripts/test_cqg_parallel_standalone.js --headed`<br/>*hoặc* `npm run test:cqg-parallel` | Khởi chạy song song 2 tài khoản CQG1 và CQG3/CQG2 tải file `FR1` và `FR2` đồng thời, đo benchmark thời gian xuất và độ lệch mtime giữa 2 file. |
-| **`test_cqg_tab_downloads.js`** | `node src/scripts/test_cqg_tab_downloads.js --headed` | Kiểm tra tải các tab widget CQG: `FR` (Fills), `PS` (Positions), `OP` (Open Positions), `OD` (Orders). |
+
+| Tên File Test                         | Lệnh Chạy (Terminal / NPM)                                                                         | Mục Đích & Phạm Vi Kiểm Thử                                                                                                                    |
+| :------------------------------------ | :------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`test_cqg_parallel_standalone.js`** | `node src/scripts/test_cqg_parallel_standalone.js --headed`<br/>_hoặc_ `npm run test:cqg-parallel` | Khởi chạy song song 2 tài khoản CQG1 và CQG3/CQG2 tải file `FR1` và `FR2` đồng thời, đo benchmark thời gian xuất và độ lệch mtime giữa 2 file. |
+| **`test_cqg_tab_downloads.js`**       | `node src/scripts/test_cqg_tab_downloads.js --headed`                                              | Kiểm tra tải các tab widget CQG: `FR` (Fills), `PS` (Positions), `OP` (Open Positions), `OD` (Orders).                                         |
 
 ### 3. Nhóm Email M365 Graph API & Báo Cáo EOD
-| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
-| :--- | :--- | :--- |
-| **`test_m365_eod_email.ts`** | `ts-node src/scripts/test_m365_eod_email.ts`<br/>*hoặc* `npm run test:eod-email` | Chẩn đoán toàn diện kết nối Microsoft 365, kiểm tra hiệu lực Refresh Token, quyền Graph API `/me/messages`, quét và tải thử file `EOD.csv` từ `it.support@mxv.vn`. |
+
+| Tên File Test                | Lệnh Chạy (Terminal / NPM)                                                       | Mục Đích & Phạm Vi Kiểm Thử                                                                                                                                        |
+| :--------------------------- | :------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`test_m365_eod_email.ts`** | `ts-node src/scripts/test_m365_eod_email.ts`<br/>_hoặc_ `npm run test:eod-email` | Chẩn đoán toàn diện kết nối Microsoft 365, kiểm tra hiệu lực Refresh Token, quyền Graph API `/me/messages`, quét và tải thử file `EOD.csv` từ `it.support@mxv.vn`. |
 
 ### 4. Nhóm Core CCP & Thống Kê Lot / Giá Trị (Macro)
-| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
-| :--- | :--- | :--- |
-| **`test_ccp_download_25_files.js`** | `node src/scripts/test_ccp_download_25_files.js --headed`<br/>*hoặc* `npm run test:ccp-25` | Tải toàn bộ 25 báo cáo từ CoreCCP (`https://uat-coreccp.mxv.com.vn`), tự động xử lý phân trang và chọn rổ báo cáo. |
-| **`test_ccp_statistics_suite.ts`** | `ts-node src/scripts/test_ccp_statistics_suite.ts` | Bộ kiểm thử nghiệp vụ tính toán Thống kê Lot và Giá trị giao dịch CCP theo logic C# Macro sang TypeScript. |
+
+| Tên File Test                       | Lệnh Chạy (Terminal / NPM)                                                                 | Mục Đích & Phạm Vi Kiểm Thử                                                                                    |
+| :---------------------------------- | :----------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| **`test_ccp_download_25_files.js`** | `node src/scripts/test_ccp_download_25_files.js --headed`<br/>_hoặc_ `npm run test:ccp-25` | Tải toàn bộ 25 báo cáo từ CoreCCP (`https://coreccp.mxv.com.vn`), tự động xử lý phân trang và chọn rổ báo cáo. |
+| **`test_ccp_statistics_suite.ts`**  | `ts-node src/scripts/test_ccp_statistics_suite.ts`                                         | Bộ kiểm thử nghiệp vụ tính toán Thống kê Lot và Giá trị giao dịch CCP theo logic C# Macro sang TypeScript.     |
 
 ### 5. Nhóm Đối Chiếu Số Liệu Pre-EOD 3 Bên
-| Tên File Test | Lệnh Chạy (Terminal / NPM) | Mục Đích & Phạm Vi Kiểm Thử |
-| :--- | :--- | :--- |
-| **`run_auto_check_pre_eod_active.ts`** | `ts-node src/scripts/run_auto_check_pre_eod_active.ts`<br/>*hoặc* `npm run test:pre-eod` | Kích hoạt và kiểm thử toàn trình quy trình Đối chiếu Pre-EOD 3 bên (MS vs CQG vs Straits/ACM). |
+
+| Tên File Test                          | Lệnh Chạy (Terminal / NPM)                                                               | Mục Đích & Phạm Vi Kiểm Thử                                                                    |
+| :------------------------------------- | :--------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| **`run_auto_check_pre_eod_active.ts`** | `ts-node src/scripts/run_auto_check_pre_eod_active.ts`<br/>_hoặc_ `npm run test:pre-eod` | Kích hoạt và kiểm thử toàn trình quy trình Đối chiếu Pre-EOD 3 bên (MS vs CQG vs Straits/ACM). |
 
 ---
 
@@ -260,18 +264,18 @@ Hệ thống được chia làm 3 tầng độc lập, nghiêm cấm xâm lấn 
 
 Khi gặp bất kỳ yêu cầu/lỗi nào, AI BẮT BUỘC tra cứu đúng file mục tiêu, tuyệt đối không tìm lan man:
 
-| Vấn Đề / Chức Năng Cần Sửa | Thư Mục / File Mục Tiêu Duy Nhất | Tuyệt Đối CẤM Làm |
-| :--- | :--- | :--- |
-| **Lỗi cào web M-System** (đổi nút, rớt session) | `src/modules/ingress/scrapers/ms-scraper.service.ts` | CẤM sửa vào file của QLGD hay Checklist. |
-| **Lỗi tải song song CQG1 & CQG2** | `src/modules/ingress/scrapers/cqg-scraper.service.ts` | CẤM sửa vào file tính toán khớp lệnh. |
-| **Lỗi đăng nhập ACM / Giải Captcha Gemini** | `src/modules/ingress/scrapers/acm-scraper.service.ts` | CẤM hardcode cookie hay đoán session. |
-| **Lỗi ghép file thô CQG** (`FR, OP, PS, Od`) | `src/modules/trading-ops/services/cqg-merger.service.ts` | CẤM đoán mò thư mục; dùng `outputDir` từ Ingress. |
-| **Lỗi công thức so khớp lệnh trong phiên** | `src/modules/trading-ops/services/klgd-recon.service.ts` | CẤM nhồi code Playwright vào hàm này. |
-| **Lỗi chốt đối chiếu cuối ngày Pre-EOD** | `src/modules/trading-ops/services/pre-eod-recon.service.ts`| CẤM hardcode ngày T-1; dùng `working-calendar`. |
-| **Lỗi quét ký quỹ âm sau EOD** | `src/modules/trading-ops/services/margin-checker.service.ts`| CẤM thay đổi ngưỡng cảnh báo khi chưa có lệnh. |
-| **Lỗi đo CPU/RAM/Disk, Backup DB (IT)** | `src/modules/it-ops/` | CẤM đụng chạm vào thư mục `trading-ops`. |
-| **Lỗi Reconcile 04:15, SFTP CSV (Bù trừ)** | `src/modules/ccp-clearing/` | CẤM đụng chạm vào thư mục `trading-ops`. |
-| **Lỗi ca trực không mở/đóng được, giao ca** | `src/modules/checklist-hub/shifts/` | CẤM sửa vào logic nghiệp vụ của các Bot. |
+| Vấn Đề / Chức Năng Cần Sửa                      | Thư Mục / File Mục Tiêu Duy Nhất                             | Tuyệt Đối CẤM Làm                                 |
+| :---------------------------------------------- | :----------------------------------------------------------- | :------------------------------------------------ |
+| **Lỗi cào web M-System** (đổi nút, rớt session) | `src/modules/ingress/scrapers/ms-scraper.service.ts`         | CẤM sửa vào file của QLGD hay Checklist.          |
+| **Lỗi tải song song CQG1 & CQG2**               | `src/modules/ingress/scrapers/cqg-scraper.service.ts`        | CẤM sửa vào file tính toán khớp lệnh.             |
+| **Lỗi đăng nhập ACM / Giải Captcha Gemini**     | `src/modules/ingress/scrapers/acm-scraper.service.ts`        | CẤM hardcode cookie hay đoán session.             |
+| **Lỗi ghép file thô CQG** (`FR, OP, PS, Od`)    | `src/modules/trading-ops/services/cqg-merger.service.ts`     | CẤM đoán mò thư mục; dùng `outputDir` từ Ingress. |
+| **Lỗi công thức so khớp lệnh trong phiên**      | `src/modules/trading-ops/services/klgd-recon.service.ts`     | CẤM nhồi code Playwright vào hàm này.             |
+| **Lỗi chốt đối chiếu cuối ngày Pre-EOD**        | `src/modules/trading-ops/services/pre-eod-recon.service.ts`  | CẤM hardcode ngày T-1; dùng `working-calendar`.   |
+| **Lỗi quét ký quỹ âm sau EOD**                  | `src/modules/trading-ops/services/margin-checker.service.ts` | CẤM thay đổi ngưỡng cảnh báo khi chưa có lệnh.    |
+| **Lỗi đo CPU/RAM/Disk, Backup DB (IT)**         | `src/modules/it-ops/`                                        | CẤM đụng chạm vào thư mục `trading-ops`.          |
+| **Lỗi Reconcile 04:15, SFTP CSV (Bù trừ)**      | `src/modules/ccp-clearing/`                                  | CẤM đụng chạm vào thư mục `trading-ops`.          |
+| **Lỗi ca trực không mở/đóng được, giao ca**     | `src/modules/checklist-hub/shifts/`                          | CẤM sửa vào logic nghiệp vụ của các Bot.          |
 
 ### 3. Năm "Tối Kỵ" AI Tuyệt Đối Không Được Vi Phạm (Strict Prohibitions)
 
@@ -293,6 +297,7 @@ Khi gặp bất kỳ yêu cầu/lỗi nào, AI BẮT BUỘC tra cứu đúng fil
 ### 4. Quy Trình Kiểm Chứng Bắt Buộc Trước Khi Hoàn Thành Nhiệm Vụ
 
 Mỗi khi AI thực hiện chỉnh sửa Backend, bắt buộc phải:
+
 1. Đọc code hiện tại bằng `view_file` trước khi sửa (Verify-Before-Answer).
 2. Chạy kiểm tra biên dịch: `nest build` đạt Exit code 0.
 3. Ghi vết đầy đủ vào `CHANGELOG_AI.md`.
@@ -304,29 +309,27 @@ Mỗi khi AI thực hiện chỉnh sửa Backend, bắt buộc phải:
 Để quá trình chuyển đổi (Refactoring) sang Modular Monolith V2 trên nhánh `refactor/modular-architecture` không làm gián đoạn ca trực thực tế hoặc làm thất thoát nghiệp vụ:
 
 ### 1. Nguyên Tắc Strangler Fig (Xây Mới Song Song - Tuyệt Đối Cấm Đập Đi Xây Lại)
+
 - Các module mới (`modules/ingress/`, `modules/trading-ops/`, `modules/checklist-hub/`) được triển khai song song bên cạnh code hiện hữu (`modules/bot-engine/`).
 - Tuyệt đối **KHÔNG xóa đè hay phá vỡ code V1** khi module V2 chưa được kiểm chứng 100% qua bộ test so sánh kết quả.
 - Điều phối chạy chuyển đổi thông qua Dispatcher và Adapter bọc ngoài (Wrapping Pattern).
 
 ### 2. Nguyên Tắc Bảo Toàn 100% Logic Lõi & Hằng Số Ẩn (Business Logic Invariants)
+
 Khi di dời code từ `reconciliation.service.ts` sang `trading-ops/`:
+
 - **Loại trừ Footer CQG**: Luôn cắt bỏ 2 dòng tổng kết cuối của file `FR1` và `FR2` (`row.values.slice(0, -2)`).
 - **Chuẩn hóa Account Suffix**: Giữ nguyên quy tắc thay thế: đuôi `F$` $\rightarrow$ `""` (bỏ chữ F), đuôi `L$` $\rightarrow$ `"-L"`, đuôi `S$` $\rightarrow$ `"-S"`.
 - **Thư mục Ngày T-1**: Quy tắc ngày làm việc `DD.MM` (bỏ qua Thứ 7, CN) phải được lấy từ `WorkingCalendarService`.
 - **AWS ALB Sticky Cookies**: Giữ nguyên cơ chế bắt và duy trì cookie `AWSELB` / `AWSELBCORS` khi cào web M-System để không bị rớt về login page.
 
 ### 3. Nguyên Tắc Kiểm Chứng So Sánh Kết Quả 1:1 (Twin-Run Validation)
+
 - Mỗi Worker mới sau khi viết xong phải được kiểm chứng bằng cách chạy song song với kết quả cũ trên cùng 1 bộ dữ liệu đầu vào (Golden Dataset ngày `08.07` hoặc dữ liệu thực tế gần nhất).
 - Độ khớp số liệu giữa V1 và V2 phải đạt **100.00%** (zero variance). Nếu có bất kỳ sự sai lệch nào về số lot, giá trị hoặc trạng thái $\rightarrow$ BẮT BUỘC dừng lại kiểm tra công thức trước khi tích hợp vào ca trực.
 
 ### 4. Chiến Lược Tắt Hẳn Playwright & Chuyển Dịch Toàn Diện Sang API (Playwright Sunsetting)
+
 - **Bảo tồn vĩnh viễn Pure Logic**: Các thuật toán tính toán so khớp lệnh (`klgd-recon.service.ts`, `pre-eod-recon.service.ts`) được thiết kế hoàn toàn độc lập với phương thức lấy dữ liệu.
 - **Hoán đổi Adapter không xâm lấn**: Khi tắt Playwright, chỉ việc thay thế hoặc bổ sung Ingress Adapter mới (`CoreExApiAdapter`, `CoreCcpApiAdapter`) nạp vào Cổng `IIngressPort`. Toàn bộ mã nguồn nghiệp vụ của các Domain Worker được giữ nguyên vẹn 100%.
 - **Giải phóng tài nguyên**: Việc loại bỏ Playwright sẽ triệt tiêu 100% rủi ro ngốn RAM (giảm từ 1.5GB Chromium xuống vài chục MB HTTP Client) và tăng tốc thời gian lấy dữ liệu từ hàng chục giây xuống dưới 500ms.
-
-
-
-
-
-
-

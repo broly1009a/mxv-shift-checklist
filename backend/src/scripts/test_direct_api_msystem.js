@@ -52,7 +52,7 @@ async function runDirectMsApiTest() {
       if (parsed.pin) pin = parsed.pin;
       if (parsed.baseUrl) baseUrl = parsed.baseUrl;
       if (parsed.adminUrl) adminUrl = parsed.adminUrl;
-      console.log('✅ Đã nạp tài khoản M-System từ MongoDB system_settings');
+      console.log(' Đã nạp tài khoản M-System từ MongoDB system_settings');
     }
   } catch (err) {
     console.log('ℹ️ Không kết nối được MongoDB, sử dụng cấu hình từ .env / mặc định');
@@ -180,7 +180,7 @@ async function runDirectMsApiTest() {
   console.log('-----------------------------------------------------------------------------------------------------');
 
   console.log('\n🎯 KẾT LUẬN CHO M-SYSTEM:');
-  console.log('   ✅ ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT.');
+  console.log('    ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT.');
   console.log('   Khuyến nghị: Chuyển hẳn sang MsApiAdapter, tắt hoàn toàn headless browser cho M-System.');
   console.log('========================================================================\n');
 }

@@ -230,11 +230,11 @@ async function runCheckGttTest() {
   const ttmPath = findFirstExistingPath(defaultCcpTtmCandidates);
 
   console.log('1. TRẠNG THÁI FILE ĐẦU VÀO TRÊN MÁY:');
-  console.log(` • File GTT CoreEX (CE)   : ${ceGttPath ? `✅ ${ceGttPath}` : '❌ KHÔNG TÌM THẤY'}`);
-  console.log(` • File GTT CoreCCP (CCP) : ${ccpGttPath ? `✅ ${ccpGttPath}` : '❌ KHÔNG TÌM THẤY'}`);
-  console.log(` • File Bước giá CE (HH)  : ${ceHhPath ? `✅ ${ceHhPath}` : '⚠️ Dùng Fallback mặc định'}`);
-  console.log(` • File Bước giá CCP (HH) : ${ccpHhPath ? `✅ ${ccpHhPath}` : '⚠️ Dùng Fallback mặc định'}`);
-  console.log(` • File Vị thế mở (TTM)   : ${ttmPath ? `✅ ${ttmPath}` : '⚠️ Không lọc (So khớp toàn bộ)'}\n`);
+  console.log(` • File GTT CoreEX (CE)   : ${ceGttPath ? ` ${ceGttPath}` : '❌ KHÔNG TÌM THẤY'}`);
+  console.log(` • File GTT CoreCCP (CCP) : ${ccpGttPath ? ` ${ccpGttPath}` : '❌ KHÔNG TÌM THẤY'}`);
+  console.log(` • File Bước giá CE (HH)  : ${ceHhPath ? ` ${ceHhPath}` : ' Dùng Fallback mặc định'}`);
+  console.log(` • File Bước giá CCP (HH) : ${ccpHhPath ? ` ${ccpHhPath}` : ' Dùng Fallback mặc định'}`);
+  console.log(` • File Vị thế mở (TTM)   : ${ttmPath ? ` ${ttmPath}` : ' Không lọc (So khớp toàn bộ)'}\n`);
 
   // Kiểm tra thiếu file và hướng dẫn lệnh tải
   const missingFiles = [];
@@ -270,7 +270,7 @@ async function runCheckGttTest() {
   console.log(` • CoreEX (CE)  : ${ceData.map.size} hợp đồng (Ngày phiên: ${ceData.date || 'N/A'})`);
   console.log(` • CoreCCP (CCP): ${ccpData.map.size} hợp đồng (Ngày phiên: ${ccpData.date || 'N/A'})`);
   if (ceData.date && ccpData.date && ceData.date !== ccpData.date) {
-    console.log(` ⚠️ CẢNH BÁO: Ngày phiên giữa 2 file KHÁC NHAU! CE=[${ceData.date}] vs CCP=[${ccpData.date}]. Độ lệch có thể do khác ngày giao dịch.`);
+    console.log(`  CẢNH BÁO: Ngày phiên giữa 2 file KHÁC NHAU! CE=[${ceData.date}] vs CCP=[${ccpData.date}]. Độ lệch có thể do khác ngày giao dịch.`);
   }
   console.log();
 
@@ -383,8 +383,8 @@ async function runCheckGttTest() {
     const tickStr = r.tickSize.toString().padEnd(12);
 
     let tag = r.status;
-    if (r.status === 'MATCH') tag = '✅ KHỚP (MATCH)';
-    else if (r.status === 'MINOR_DIFF') tag = '⚠️ LỆCH NHỎ (<= 1 tick)';
+    if (r.status === 'MATCH') tag = ' KHỚP (MATCH)';
+    else if (r.status === 'MINOR_DIFF') tag = ' LỆCH NHỎ (<= 1 tick)';
     else if (r.status === 'DIFF') tag = '❌ LỆCH GIÁ (DIFF)';
     else if (r.status === 'CE_ONLY') tag = '🔵 CHỈ CÓ TRÊN CE';
     else if (r.status === 'CCP_ONLY') tag = '🟣 CHỈ CÓ TRÊN CCP';
@@ -403,7 +403,7 @@ async function runCheckGttTest() {
   console.log(` • Tổng số mã hợp đồng kiểm tra : ${comparisonRows.length}`);
   console.log(` • Khớp hoàn toàn (MATCH)       : ${countMatch} mã (${((countMatch / comparisonRows.length) * 100).toFixed(1)}%)`);
   console.log(` • Lệch trong biên độ 1 tick    : ${countMinorDiff} mã`);
-  console.log(` • Lệch bất thường (DIFF)       : ${countDiff} mã ${countDiff > 0 ? '❌ (CẦN XỬ LÝ)' : '✅'}`);
+  console.log(` • Lệch bất thường (DIFF)       : ${countDiff} mã ${countDiff > 0 ? '❌ (CẦN XỬ LÝ)' : ''}`);
   console.log(` • Chỉ có trên CoreEX (CE)      : ${countCeOnly} mã`);
   console.log(` • Chỉ có trên CoreCCP          : ${countCcpOnly} mã`);
   console.log('========================================================================================\n');

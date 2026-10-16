@@ -585,7 +585,7 @@ async function seedCcpExchangeTemplates() {
       { $set: tpl1Doc },
       { upsert: true }
     );
-    console.log(`✅ [1/3] Đã nạp thành công Mẫu: "${tpl1Title}" (${ccpDetailedTasks.length} nhiệm vụ theo mốc giờ)`);
+    console.log(` [1/3] Đã nạp thành công Mẫu: "${tpl1Title}" (${ccpDetailedTasks.length} nhiệm vụ theo mốc giờ)`);
     console.log(`     - Upsert: Matched=${res1.matchedCount}, Upserted=${res1.upsertedCount}, Modified=${res1.modifiedCount}`);
 
     // 4. Thực thi Upsert Mẫu 2: CCP - Vận Hành Đầu Ngày
@@ -604,7 +604,7 @@ async function seedCcpExchangeTemplates() {
       { $set: tpl2Doc },
       { upsert: true }
     );
-    console.log(`✅ [2/3] Đã nạp thành công Mẫu: "${tpl2Title}" (${ccpOpenTasks.length} nhiệm vụ hạ tầng)`);
+    console.log(` [2/3] Đã nạp thành công Mẫu: "${tpl2Title}" (${ccpOpenTasks.length} nhiệm vụ hạ tầng)`);
     console.log(`     - Upsert: Matched=${res2.matchedCount}, Upserted=${res2.upsertedCount}, Modified=${res2.modifiedCount}`);
 
     // 5. Thực thi Upsert Mẫu 3: Exchange - Vận Hành Đầu Ngày
@@ -623,7 +623,7 @@ async function seedCcpExchangeTemplates() {
       { $set: tpl3Doc },
       { upsert: true }
     );
-    console.log(`✅ [3/3] Đã nạp thành công Mẫu: "${tpl3Title}" (${exchangeOpenTasks.length} nhiệm vụ Exchange)`);
+    console.log(` [3/3] Đã nạp thành công Mẫu: "${tpl3Title}" (${exchangeOpenTasks.length} nhiệm vụ Exchange)`);
     console.log(`     - Upsert: Matched=${res3.matchedCount}, Upserted=${res3.upsertedCount}, Modified=${res3.modifiedCount}`);
 
     console.log('=======================================================================');

@@ -75,7 +75,7 @@ async function login() {
 
   try {
     const token = await login();
-    console.log(`✅ Đăng nhập M-System thành công! Bearer Token: ${token.slice(0, 35)}...\n`);
+    console.log(` Đăng nhập M-System thành công! Bearer Token: ${token.slice(0, 35)}...\n`);
 
     const outDir = path.resolve(__dirname, '../output');
     fs.mkdirSync(outDir, { recursive: true });
@@ -105,7 +105,7 @@ async function login() {
           const targetPath = path.join(outDir, rep.fileName);
           fs.writeFileSync(targetPath, buffer);
           const duration = Date.now() - startTime;
-          console.log(`✅ OK! ${(buffer.length / 1024).toFixed(1)} KB | ${duration}ms`);
+          console.log(` OK! ${(buffer.length / 1024).toFixed(1)} KB | ${duration}ms`);
           successCount++;
         } else {
           console.log(`❌ HTTP ${res.status}`);

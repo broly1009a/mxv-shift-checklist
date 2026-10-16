@@ -10,7 +10,7 @@
  *   node backend/src/scripts/test_ccp_downloader_live.js
  *
  *   # 3. Tùy chọn truyền tài khoản trực tiếp qua cờ dòng lệnh (nếu DB chưa cấu hình):
- *   node backend/src/scripts/test_ccp_downloader_live.js --headed --url "https://uat-coreccp.mxv.com.vn/login" --user "hieptruong" --pass "Taovipko0!" --report "NR"
+ *   node backend/src/scripts/test_ccp_downloader_live.js --headed --url "https://coreccp.mxv.com.vn/login" --user "hieptruong" --pass "Taovipko0!" --report "NR"
  */
 
 const path = require('path');
@@ -69,7 +69,7 @@ async function main() {
   console.log('[1/4] Đang lấy cấu hình CoreCCP...');
   const dbCreds = await getCredentialsFromDB();
 
-  const systemUrl = getArgValue('--url') || dbCreds?.url || 'https://uat-coreccp.mxv.com.vn/login';
+  const systemUrl = getArgValue('--url') || dbCreds?.url || 'https://coreccp.mxv.com.vn/login';
   const username = getArgValue('--user') || dbCreds?.username || 'hieptruong';
   const password = getArgValue('--pass') || dbCreds?.password || 'Taovipko0!';
   const outputDir = path.resolve(__dirname, '../../test_output_ccp');

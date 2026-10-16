@@ -1,5 +1,5 @@
 """
-core_ccp_page.py — Page Object định vị và điều hướng riêng cho hệ thống CoreCCP (uat-coreccp.mxv.com.vn).
+core_ccp_page.py — Page Object định vị và điều hướng riêng cho hệ thống CoreCCP (coreccp.mxv.com.vn).
 """
 
 try:

@@ -142,7 +142,7 @@ async function loadCredentialsFromDB() {
     await client.close();
     return { ccp, ms, cqg, acm };
   } catch (err) {
-    console.warn(`⚠️ [DB] Không thể kết nối MongoDB (${mongoUri}): ${err.message}`);
+    console.warn(` [DB] Không thể kết nối MongoDB (${mongoUri}): ${err.message}`);
     return { ccp: null, ms: null, cqg: null, acm: null };
   }
 }
@@ -217,14 +217,14 @@ function inspectExcelFile(filePath, label) {
     console.log(`   - Tổng số dòng: ${data.length}`);
 
     if (data.length <= 1) {
-      console.log(`   ⚠️ CẢNH BÁO: File chỉ có ${data.length} dòng (Không có dữ liệu giao dịch thực tế)!`);
+      console.log(`    CẢNH BÁO: File chỉ có ${data.length} dòng (Không có dữ liệu giao dịch thực tế)!`);
       if (data.length === 1) {
         console.log(`   - Dòng tiêu đề: ${JSON.stringify(data[0].slice(0, 8))}`);
       }
       return { exists: true, rows: data.length, size: stat.size, empty: true };
     }
 
-    console.log(`   ✅ DỮ LIỆU ĐẦY ĐỦ (${data.length - 1} bản ghi)`);
+    console.log(`    DỮ LIỆU ĐẦY ĐỦ (${data.length - 1} bản ghi)`);
     console.log(`   - Cột tiêu đề : ${data[0].slice(0, 6).join(' | ')} ...`);
     console.log(`   - Bản ghi mẫu 1: ${data[1].slice(0, 6).join(' | ')} ...`);
     if (data.length > 2) {
@@ -283,7 +283,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
 
     // Đợi thoát khỏi /login và xử lý Token SSO
     await page.waitForURL((url) => !url.href.includes('validate_code') && !url.pathname.toLowerCase().includes('/login'), { timeout: 25000 });
-    console.log(`[CCP] ✅ Đăng nhập thành công! URL: ${page.url()}`);
+    console.log(`[CCP]  Đăng nhập thành công! URL: ${page.url()}`);
     await page.waitForTimeout(1500);
 
     // 2. Tải DSGD (Lịch sử giao dịch / ORDERMATCH_DETAIL)
@@ -370,7 +370,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
     ]);
 
     await downloadDsgd.saveAs(dsgdDest);
-    console.log(`[CCP] ✅ Đã lưu file DSGD: ${dsgdDest}`);
+    console.log(`[CCP]  Đã lưu file DSGD: ${dsgdDest}`);
     results.dsgd = inspectExcelFile(dsgdDest, 'CORECCP DSGD');
 
     // 3. Tải TTM (Trạng thái mở / OPEN_POSITION)
@@ -386,7 +386,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
         clickExportOption(exportBtnTtm),
       ]);
       await downloadTtm.saveAs(ttmDest);
-      console.log(`[CCP] ✅ Đã lưu file TTM: ${ttmDest}`);
+      console.log(`[CCP]  Đã lưu file TTM: ${ttmDest}`);
       results.ttm = inspectExcelFile(ttmDest, 'CORECCP TTM');
     }
 
@@ -409,7 +409,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
         clickExportOption(exportBtnTttt),
       ]);
       await downloadTttt.saveAs(ttttDest);
-      console.log(`[CCP] ✅ Đã lưu file TTTT: ${ttttDest}`);
+      console.log(`[CCP]  Đã lưu file TTTT: ${ttttDest}`);
       results.tttt = inspectExcelFile(ttttDest, 'CORECCP TTTT');
     }
 
@@ -470,7 +470,7 @@ async function testMSystem(creds, cliConfig, browser) {
       await page.waitForTimeout(2000);
     }
 
-    console.log(`[MS] ✅ Đăng nhập M-System thành công! URL: ${page.url()}`);
+    console.log(`[MS]  Đăng nhập M-System thành công! URL: ${page.url()}`);
 
     // Điều hướng DSGD
     console.log(`[MS] Điều hướng đến QL giao dịch -> Danh sách giao dịch...`);
@@ -508,11 +508,11 @@ async function testMSystem(creds, cliConfig, browser) {
         if (await loc.isVisible().catch(() => false)) {
           exportBtn = loc;
           matchedSelector = sel;
-          console.log(`[MS] ✅ Tìm thấy nút xuất DSGD hợp lệ với selector: "${sel}"`);
+          console.log(`[MS]  Tìm thấy nút xuất DSGD hợp lệ với selector: "${sel}"`);
           break;
         }
       } catch (err) {
-        console.warn(`[MS] ⚠️ Selector không hợp lệ hoặc lỗi phân tích: "${sel}" - ${err.message}`);
+        console.warn(`[MS]  Selector không hợp lệ hoặc lỗi phân tích: "${sel}" - ${err.message}`);
       }
     }
 
@@ -544,7 +544,7 @@ async function testMSystem(creds, cliConfig, browser) {
     ]);
 
     await downloadMs.saveAs(msDest);
-    console.log(`[MS] ✅ Đã tải và lưu file M-System DSGD (bằng "${matchedSelector}"): ${msDest}`);
+    console.log(`[MS]  Đã tải và lưu file M-System DSGD (bằng "${matchedSelector}"): ${msDest}`);
     results.dsgd = inspectExcelFile(msDest, 'M-SYSTEM DSGD');
 
     if (cliConfig.keepOpen) {
@@ -608,10 +608,10 @@ async function testStraitsAcm(creds, cliConfig, browser) {
         exportBtn.click(),
       ]);
       await dl.saveAs(acmDest);
-      console.log(`[ACM] ✅ Tải Straits.csv thành công: ${acmDest}`);
+      console.log(`[ACM]  Tải Straits.csv thành công: ${acmDest}`);
       results.straits = inspectExcelFile(acmDest, 'STRAITS ACM CSV');
     } else {
-      console.log(`[ACM] ⚠️ Cần giải Captcha hoặc nút Export chưa sẵn sàng tại URL: ${page.url()}`);
+      console.log(`[ACM]  Cần giải Captcha hoặc nút Export chưa sẵn sàng tại URL: ${page.url()}`);
     }
 
     if (cliConfig.keepOpen) {
@@ -687,16 +687,16 @@ async function main() {
     console.log(`📊 TỔNG KẾT KẾT QUẢ KIỂM THỬ PLAYWRIGHT CHECK_KLGD`);
     console.log(`=============================================================`);
     if (summary.ccp && summary.ccp.dsgd) {
-      console.log(`- CoreCCP DSGD : ${summary.ccp.dsgd.rows > 1 ? `✅ THÀNH CÔNG (${summary.ccp.dsgd.rows - 1} dòng giao dịch)` : '⚠️ KHÔNG CÓ DỮ LIỆU'}`);
+      console.log(`- CoreCCP DSGD : ${summary.ccp.dsgd.rows > 1 ? ` THÀNH CÔNG (${summary.ccp.dsgd.rows - 1} dòng giao dịch)` : ' KHÔNG CÓ DỮ LIỆU'}`);
     }
     if (summary.ccp && summary.ccp.ttm) {
-      console.log(`- CoreCCP TTM  : ${summary.ccp.ttm.rows > 1 ? `✅ THÀNH CÔNG (${summary.ccp.ttm.rows - 1} dòng vị thế)` : '⚠️ KHÔNG CÓ DỮ LIỆU'}`);
+      console.log(`- CoreCCP TTM  : ${summary.ccp.ttm.rows > 1 ? ` THÀNH CÔNG (${summary.ccp.ttm.rows - 1} dòng vị thế)` : ' KHÔNG CÓ DỮ LIỆU'}`);
     }
     if (summary.ms && summary.ms.dsgd) {
-      console.log(`- M-System DSGD: ${summary.ms.dsgd.rows > 1 ? `✅ THÀNH CÔNG (${summary.ms.dsgd.rows - 1} dòng)` : '⚠️ KHÔNG CÓ DỮ LIỆU'}`);
+      console.log(`- M-System DSGD: ${summary.ms.dsgd.rows > 1 ? ` THÀNH CÔNG (${summary.ms.dsgd.rows - 1} dòng)` : ' KHÔNG CÓ DỮ LIỆU'}`);
     }
     if (summary.acm && summary.acm.straits) {
-      console.log(`- Straits ACM  : ${summary.acm.straits.rows > 1 ? `✅ THÀNH CÔNG (${summary.acm.straits.rows - 1} dòng)` : '⚠️ KHÔNG CÓ DỮ LIỆU'}`);
+      console.log(`- Straits ACM  : ${summary.acm.straits.rows > 1 ? ` THÀNH CÔNG (${summary.acm.straits.rows - 1} dòng)` : ' KHÔNG CÓ DỮ LIỆU'}`);
     }
     console.log(`📂 Các file tải về được lưu tại: ${cliConfig.outputDir}`);
     console.log(`=============================================================\n`);

@@ -6,7 +6,10 @@ import * as https from 'https';
 import { URL } from 'url';
 import * as ExcelJS from 'exceljs';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { decrypt, CaptchaSolverHelper } from '../../../shared';
+import { decrypt, CaptchaSolverHelper, EXTERNAL_SYSTEM_MSYSTEM } from '../../../shared';
+
+
+
 import { IngressService } from '../ingress.service';
 import { CcpScraperService } from './ccp-scraper.service';
 import {
@@ -1413,7 +1416,7 @@ export class RpaScraperService {
       throw new Error(`Không thể giải mã cấu hình tài khoản CCP: ${err.message}`);
     }
 
-    const ccpUrl = (ccpCreds.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
+    const ccpUrl = (ccpCreds.url || 'https://coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
 
     // Ingress Facade: Thử ủy quyền sang CcpScraperService V2
     if (this.ccpScraper) {
@@ -1815,14 +1818,15 @@ export class RpaScraperService {
     downloadDir: string,
     targetDate?: string,
   ): Promise<string> {
-    const adminUrl = 'https://msadmin.mxv.com.vn/';
+    const adminUrl = EXTERNAL_SYSTEM_MSYSTEM.adminUrl.replace(/\/+$/, '') + '/';
     const { browser, page } = await this.loginMSystem(downloadDir, adminUrl);
 
     try {
       this.logger.log('Navigating to automaticEmailSMSConfig page...');
       await page.goto(
-        'https://msadmin.mxv.com.vn/#/systemManagement/automaticEmailSMSConfig',
+        `${adminUrl}#/systemManagement/automaticEmailSMSConfig`,
       );
+
       await page.waitForTimeout(3000);
 
       this.logger.log('Selecting Tab: Danh sách gửi EMAIL...');
@@ -4211,7 +4215,7 @@ export class RpaScraperService {
           await page.waitForTimeout(800);
           this.logger.log(`[CQG] Đã chọn All accounts thành công cho ${tabLabel}!`);
         } else {
-          this.logger.log(`[CQG] ⚡ Tab ${tabLabel} đã là All accounts (bỏ qua modal chọn tài khoản, tiết kiệm 3-4s)!`);
+          this.logger.log(`[CQG] Tab ${tabLabel} đã là All accounts (bỏ qua modal chọn tài khoản, tiết kiệm 3-4s)!`);
         }
       } else {
         this.logger.debug(`[CQG] Không phát hiện nút đổi tài khoản (hoặc đã nhận mặc định All).`);

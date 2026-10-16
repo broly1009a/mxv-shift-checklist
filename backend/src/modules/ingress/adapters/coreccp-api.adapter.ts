@@ -10,7 +10,9 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
   decrypt,
+  EXTERNAL_SYSTEM_CORECCP,
 } from '../../../shared';
+
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
 export interface ICcpSession {
@@ -276,9 +278,10 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
 @Injectable()
 export class CoreCcpApiAdapter implements IIngressPort {
   private readonly logger = new Logger(CoreCcpApiAdapter.name);
-  private readonly defaultBaseUrl = 'https://uat-coreccp.mxv.com.vn';
+  private readonly defaultBaseUrl = EXTERNAL_SYSTEM_CORECCP.baseUrl;
   private cachedSession: ICcpSession | null = null;
   private readonly sessionCachePath = path.join(process.cwd(), 'temp', 'coreccp_session.json');
+
 
   constructor(
     @Optional()
@@ -331,8 +334,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
     }
 
     let baseUrl = process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
-    let username = process.env.CORECCP_USERNAME || 'hieptruong';
-    let password = process.env.CORECCP_PASSWORD || 'Taovipko0!';
+    let username = process.env.CORECCP_USERNAME || '';
+    let password = process.env.CORECCP_PASSWORD || '';
+
 
     if (this.settingsService) {
       baseUrl = await this.settingsService.getSetting('coreccp_base_url', baseUrl);
@@ -384,8 +388,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),
           Accept: 'application/json, text/plain, */*',
-          connectkey: 'fsscssiam2021',
+          connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
           'x-devicetype': 'WEB',
+
           'x-lang': 'vi',
           Origin: baseUrl,
           Referer: `${baseUrl}/login`,

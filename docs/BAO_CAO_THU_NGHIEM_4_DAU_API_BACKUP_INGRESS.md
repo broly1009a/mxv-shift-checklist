@@ -11,12 +11,15 @@
 ## I. TỔNG QUAN & MỤC TIÊU CẢI TIẾN
 
 ### 1. Bối cảnh & Yêu cầu từ Quản lý Vận hành
+
 Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca trực (cuối phiên, chốt ngày EOD, sao lưu lưu trữ) đều phụ thuộc vào crawler Playwright (giả lập trình duyệt Chromium). Phương pháp này bộc lộ nhiều điểm nghẽn:
+
 - **Độ trễ cao**: Mở hàng loạt tab trình duyệt mất 5 - 12 phút để tải xong một bộ file.
 - **Tốn tài nguyên máy chủ**: 1 luồng Chromium ngốn 800MB - 1.5GB RAM, gây nghẽn hàng đợi bot khi chạy đồng thời nhiều tác vụ.
 - **Dễ đứt gãy DOM**: Bất kỳ thay đổi nhỏ về giao diện hoặc mạng chập chờn đều có thể khiến Playwright click hụt hoặc timeout.
 
 **Mục tiêu đã hoàn thành**:
+
 - "Cắm" trực tiếp 4 Ingress Adapters qua Direct REST API / SFTP thay thế hoàn toàn cào dữ liệu Playwright.
 - Đảm bảo tải đủ trọn bộ **56 file backup** từ 4 nguồn:
   1. **M-System (MS)**: **18 file** (bao gồm 4 file tài khoản bóc tách từ `DSTKGD`).
@@ -29,13 +32,13 @@ Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca tr
 
 ## II. BẢNG SO SÁNH HIỆU NĂNG: PLAYWRIGHT VS DIRECT API ADAPTER
 
-| Tiêu chí | Cào dữ liệu Trình duyệt (Playwright cũ) | Cắm Direct API Adapters (Mới) | Mức độ tối ưu |
-| :--- | :---: | :---: | :---: |
-| **Thời gian tải trọn bộ 56 files** | `12 - 18 phút` | **`35 - 55 giây`** | ⚡ **Nhanh gấp ~20 lần** |
-| **Tiêu thụ RAM máy chủ** | `1.2 GB - 2.5 GB` (Nhiều Chromium Instance) | **`< 45 MB`** (Direct HTTP Buffer) | 💾 **Tiết kiệm 97% RAM** |
-| **Tiêu thụ CPU** | `70% - 95%` (Spike liên tục khi render DOM) | **`< 5%`** (Network I/O nhẹ nhàng) | 🚀 **Gần như triệt tiêu tải CPU** |
-| **Rủi ro vỡ giao diện (DOM Break)** | Thường xuyên khi đổi CSS class/nút bấm | **0%** (Giao tiếp tầng Backend Data Engine) | 🛡️ **Độ tin cậy tuyệt đối** |
-| **Xử lý báo cáo không có dữ liệu** | Timeout 30s hoặc treo modal chờ bảng | **200ms** (Trả về 204 hoặc File Excel rỗng chuẩn) | ⏱️ **Fail-safe & Tức thì** |
+| Tiêu chí                            |   Cào dữ liệu Trình duyệt (Playwright cũ)   |           Cắm Direct API Adapters (Mới)           |           Mức độ tối ưu           |
+| :---------------------------------- | :-----------------------------------------: | :-----------------------------------------------: | :-------------------------------: |
+| **Thời gian tải trọn bộ 56 files**  |               `12 - 18 phút`                |                **`35 - 55 giây`**                 |       **Nhanh gấp ~20 lần**       |
+| **Tiêu thụ RAM máy chủ**            | `1.2 GB - 2.5 GB` (Nhiều Chromium Instance) |        **`< 45 MB`** (Direct HTTP Buffer)         |     💾 **Tiết kiệm 97% RAM**      |
+| **Tiêu thụ CPU**                    | `70% - 95%` (Spike liên tục khi render DOM) |        **`< 5%`** (Network I/O nhẹ nhàng)         | 🚀 **Gần như triệt tiêu tải CPU** |
+| **Rủi ro vỡ giao diện (DOM Break)** |   Thường xuyên khi đổi CSS class/nút bấm    |    **0%** (Giao tiếp tầng Backend Data Engine)    |    🛡️ **Độ tin cậy tuyệt đối**    |
+| **Xử lý báo cáo không có dữ liệu**  |    Timeout 30s hoặc treo modal chờ bảng     | **200ms** (Trả về 204 hoặc File Excel rỗng chuẩn) |    ⏱️ **Fail-safe & Tức thì**     |
 
 ---
 
@@ -68,6 +71,7 @@ Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca tr
 ```
 
 ### 1. Phân hệ M-System API Adapter (`MsApiAdapter`)
+
 - **Tập tin**: `backend/src/modules/ingress/adapters/ms-api.adapter.ts`
 - **Cơ chế xác thực**: Đăng nhập 2 bước tự động (Username/Password -> Lấy Token -> Sinh mã PIN Session -> Gán Cookie phiên).
 - **Hỗ trợ cờ Full Backup**: Khi nhận options `{ isFullBackup: true }` hoặc `reportType: 'FULL' | 'ALL' | 'BACKUP'`, tự động duyệt qua toàn bộ danh mục **18 báo cáo**.
@@ -76,6 +80,7 @@ Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca tr
   - Tự động map các biến thể: `TLKQHSKQ` -> `TLQHSKQ`, `QLTTTKGD` -> `QLTKGD`, `QLTKGDAmKQ` -> `QLTKGD âm KQ`, `NKTHT` -> `NKTTHT`.
 
 ### 2. Phân hệ CoreCCP API Adapter (`CoreCcpApiAdapter`)
+
 - **Tập tin**: `backend/src/modules/ingress/adapters/coreccp-api.adapter.ts`
 - **Cơ chế xác thực**: Bẫy Bearer JWT Token + Session Cookie từ hệ thống Maker CoreCCP.
 - **Danh mục 25 Báo cáo Maker CoreCCP EOD**:
@@ -88,90 +93,91 @@ Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca tr
 - **Cơ chế Fallback An toàn**: Nếu API trả về HTTP 204 (No Content) hoặc mảng dữ liệu rỗng (do trong ngày không phát sinh lệnh hủy/từ chối), adapter tự động tạo file Excel hợp lệ chứa Header chuẩn, cam kết không làm gián đoạn chuỗi xử lý.
 
 ### 3. Phân hệ Core Exchange API Adapter (`CoreExApiAdapter`)
+
 - **Tập tin**: `backend/src/modules/ingress/adapters/coreex-api.adapter.ts`
 - **Cơ chế xác thực**: Session Cookie + OAuth2 Token từ cổng Core Exchange.
 - **Danh mục 9 Báo cáo Chuẩn**:
   - `GTT` (Giá thanh toán), `HH` (Hàng hóa), `DSGD` (Danh sách giao dịch khớp lệnh), `DSL` (Danh sách lệnh), `DSLCK` (Lệnh chờ khớp), `DSLDK` (Lệnh điều kiện), `DSLH` (Lệnh hủy), `SESSION_INFO` (Thông tin phiên giao dịch), `HD` (`HĐ ACM.xlsx` - Hợp đồng ACM).
 
 ### 4. Phân hệ ACM Straits SFTP & ETP Adapter (`AcmSftpAdapter` + `AcmEtpAdapter`)
+
 - **Tập tin**: `backend/src/modules/ingress/adapters/acm-sftp.adapter.ts` & `acm-etp.adapter.ts`
 - **Cơ chế tải 4 File Toàn Diện**:
   - **Kênh SFTP**: Tự động kết nối SSH2 Client tới SFTP Server đối tác, kéo 2 file:
     1. `Straits_<YYYYMMDD>.csv` (File giao dịch khớp lệnh Straits Nano chuẩn).
     2. `<YYYY-MM-DD>_10017890000.xls` (Báo cáo sao kê tài khoản Straits).
-  - **Kênh ETP REST API**: Bẫy AWS ALB Sticky Session + UUID, kết xuất 2 file:
-    3. `ACM_ETP_ORDERS` (Sổ lệnh ETP).
-    4. `ACM_ETP_TRADES` (Khớp lệnh ETP).
+  - **Kênh ETP REST API**: Bẫy AWS ALB Sticky Session + UUID, kết xuất 2 file: 3. `ACM_ETP_ORDERS` (Sổ lệnh ETP). 4. `ACM_ETP_TRADES` (Khớp lệnh ETP).
 - **Cơ chế Ingress Gateway**: Khi gọi `ingressService.download('ACM', { isFullBackup: true })`, service tự động kích hoạt song song cả SFTP và ETP, gộp đủ 4 file về thư mục đích.
 
 ---
 
 ## IV. MA TRẬN 56 FILE BACKUP CHUẨN (GROUND TRUTH AUDITED)
 
-| STT | Nguồn | Mã Báo Cáo | Tên File Xuất Chuẩn | Định Dạng | Mô Tả Nghiệp Vụ |
-| :---: | :---: | :--- | :--- | :---: | :--- |
-| **1-18** | **M-System** | `NKTTHT` | `NKTTHT.xlsx` | XLSX | Nhật ký trạng thái hệ thống |
-| | | `DSTKGD-Futures` | `DSTKGD-Futures.xlsx` | XLSX | Danh sách TKGD Hợp đồng Tương lai |
-| | | `DSTKGD-Spread` | `DSTKGD-Spread.xlsx` | XLSX | Danh sách TKGD Hợp đồng Chênh lệch |
-| | | `DSTKGD-LME` | `DSTKGD-LME.xlsx` | XLSX | Danh sách TKGD Thị trường LME |
-| | | `DSTKGD-ACM` | `DSTKGD-ACM.xlsx` | XLSX | Danh sách TKGD Thị trường ACM Nano |
-| | | `TLQHSKQ` | `TLQHSKQ.xlsx` | XLSX | Tỷ lệ quỹ / Hạn mức sử dụng ký quỹ |
-| | | `NR` | `NR.xlsx` | XLSX | Báo cáo tỷ lệ rủi ro (Net Risk) |
-| | | `DSTrader` | `DSTrader.xlsx` | XLSX | Danh sách Trader ủy quyền |
-| | | `DSLDK` | `DSLDK.xlsx` | XLSX | Danh sách lệnh điều kiện |
-| | | `DSLCK` | `DSLCK.xlsx` | XLSX | Danh sách lệnh chờ khớp |
-| | | `DSLH` | `DSLH.xlsx` | XLSX | Danh sách lệnh hủy |
-| | | `DSLK` | `DSLK.xlsx` | XLSX | Danh sách lệnh khớp |
-| | | `DSGD` | `DSGD.xlsx` | XLSX | Danh sách toàn bộ giao dịch trong ngày |
-| | | `TTM` | `TTM.xlsx` | XLSX | Báo cáo Trạng thái Mở |
-| | | `TTTT` | `TTTT.xlsx` | XLSX | Báo cáo Trạng thái Tất toán |
-| | | `TTCDH` | `TTCDH.xlsx` | XLSX | Báo cáo Trạng thái Chuyển đến Hạn |
-| | | `DSQLKQ` | `DSQLKQ.xlsx` | XLSX | Danh sách quản lý ký quỹ |
-| | | `QLTKGD` | `QLTKGD.xlsx` | XLSX | Quản lý tài khoản giao dịch |
-| **19-43** | **CoreCCP** | `CL_WAIT` | `maker_cl_wait.xlsx` | XLSX | Maker Sổ lệnh thường - Chờ khớp |
-| | | `CL_MATCH` | `maker_cl_match.xlsx` | XLSX | Maker Sổ lệnh thường - Đã khớp |
-| | | `CL_CANCEL` | `maker_cl_cancel.xlsx` | XLSX | Maker Sổ lệnh thường - Đã hủy |
-| | | `CL_REJECT` | `maker_cl_reject.xlsx` | XLSX | Maker Sổ lệnh thường - Bị từ chối |
-| | | `CL_ALL` | `maker_cl_all.xlsx` | XLSX | Maker Sổ lệnh thường - Tổng hợp |
-| | | `MM_WAIT` | `maker_mm_wait.xlsx` | XLSX | Maker Sổ lệnh MM - Chờ khớp |
-| | | `MM_MATCH` | `maker_mm_match.xlsx` | XLSX | Maker Sổ lệnh MM - Đã khớp |
-| | | `MM_CANCEL` | `maker_mm_cancel.xlsx` | XLSX | Maker Sổ lệnh MM - Đã hủy |
-| | | `MM_REJECT` | `maker_mm_reject.xlsx` | XLSX | Maker Sổ lệnh MM - Bị từ chối |
-| | | `MM_ALL` | `maker_mm_all.xlsx` | XLSX | Maker Sổ lệnh MM - Tổng hợp |
-| | | `POS_OPEN` | `maker_pos_open.xlsx` | XLSX | Maker Vị thế - Đang mở |
-| | | `POS_CLOSE` | `maker_pos_close.xlsx` | XLSX | Maker Vị thế - Đã tất toán |
-| | | `POS_ALL` | `maker_pos_all.xlsx` | XLSX | Maker Vị thế - Tổng hợp |
-| | | `MARGIN_DEFICIT`| `maker_margin_deficit.xlsx` | XLSX | Maker Rủi ro - Quét Ký quỹ âm |
-| | | `MARGIN_REQ` | `maker_margin_req.xlsx` | XLSX | Maker Rủi ro - Ký quỹ yêu cầu |
-| | | `RISK_STATUS` | `maker_risk_status.xlsx` | XLSX | Maker Rủi ro - Trạng thái rủi ro TV |
-| | | `RISK_WARN` | `maker_risk_warn.xlsx` | XLSX | Maker Rủi ro - Cảnh báo ký quỹ |
-| | | `RISK_STRESS` | `maker_risk_stress.xlsx` | XLSX | Maker Rủi ro - Kịch bản Stress test |
-| | | `CASH_BALANCE` | `maker_cash_balance.xlsx` | XLSX | Maker Tiền - Số dư tiền bù trừ |
-| | | `ACC_LIST` | `maker_acc_list.xlsx` | XLSX | Maker Tiền - Danh sách TK bù trừ |
-| | | `CONTRACT_ALL` | `maker_contract_all.xlsx` | XLSX | Danh mục Hợp đồng phái sinh |
-| | | `COMMODITY_ALL`| `maker_commodity_all.xlsx` | XLSX | Danh mục Hàng hóa giao dịch |
-| | | `POSITION_LIMIT`| `maker_pos_limit.xlsx` | XLSX | Hạn mức vị thế tối đa |
-| | | `EXCHANGE_RATES`| `maker_exchange_rates.xlsx` | XLSX | Bảng tỷ giá đa tiền tệ CoreCCP |
-| | | `EOD_REPORT` | `maker_eod_report.xlsx` | XLSX | Báo cáo tổng kết chốt ngày EOD |
-| **44-52** | **Core Exchange** | `GTT` | `GTT.xlsx` | XLSX | Giá thanh toán ngày |
-| | | `HH` | `HH.xlsx` | XLSX | Danh mục hàng hóa CE |
-| | | `DSGD` | `DSGD.xlsx` | XLSX | Danh sách giao dịch CE |
-| | | `DSL` | `DSL.xlsx` | XLSX | Sổ lệnh tổng hợp CE |
-| | | `DSLCK` | `DSLCK.xlsx` | XLSX | Lệnh chờ khớp CE |
-| | | `DSLDK` | `DSLDK.xlsx` | XLSX | Lệnh điều kiện CE |
-| | | `DSLH` | `DSLH.xlsx` | XLSX | Lệnh hủy CE |
-| | | `SESSION_INFO` | `SESSION_INFO.xlsx` | XLSX | Trạng thái phiên CE |
-| | | `HD` | `HĐ ACM.xlsx` | XLSX | Danh mục hợp đồng liên thông ACM |
-| **53-56** | **ACM (SFTP/ETP)** | `STRAITS_CSV` | `Straits_<YYYYMMDD>.csv` | CSV | Khớp lệnh Straits Financial Nano |
-| | | `STRAITS_XLS` | `<YYYY-MM-DD>_10017890000.xls` | XLS | Sao kê tài khoản bù trừ Straits |
-| | | `ACM_ETP_ORDERS`| `ACM_ETP_ORDERS.xlsx` | XLSX | Sổ lệnh hệ thống ETP Nano |
-| | | `ACM_ETP_TRADES`| `ACM_ETP_TRADES.xlsx` | XLSX | Sổ khớp lệnh hệ thống ETP Nano |
+|    STT    |       Nguồn        | Mã Báo Cáo       | Tên File Xuất Chuẩn            | Định Dạng | Mô Tả Nghiệp Vụ                        |
+| :-------: | :----------------: | :--------------- | :----------------------------- | :-------: | :------------------------------------- |
+| **1-18**  |    **M-System**    | `NKTTHT`         | `NKTTHT.xlsx`                  |   XLSX    | Nhật ký trạng thái hệ thống            |
+|           |                    | `DSTKGD-Futures` | `DSTKGD-Futures.xlsx`          |   XLSX    | Danh sách TKGD Hợp đồng Tương lai      |
+|           |                    | `DSTKGD-Spread`  | `DSTKGD-Spread.xlsx`           |   XLSX    | Danh sách TKGD Hợp đồng Chênh lệch     |
+|           |                    | `DSTKGD-LME`     | `DSTKGD-LME.xlsx`              |   XLSX    | Danh sách TKGD Thị trường LME          |
+|           |                    | `DSTKGD-ACM`     | `DSTKGD-ACM.xlsx`              |   XLSX    | Danh sách TKGD Thị trường ACM Nano     |
+|           |                    | `TLQHSKQ`        | `TLQHSKQ.xlsx`                 |   XLSX    | Tỷ lệ quỹ / Hạn mức sử dụng ký quỹ     |
+|           |                    | `NR`             | `NR.xlsx`                      |   XLSX    | Báo cáo tỷ lệ rủi ro (Net Risk)        |
+|           |                    | `DSTrader`       | `DSTrader.xlsx`                |   XLSX    | Danh sách Trader ủy quyền              |
+|           |                    | `DSLDK`          | `DSLDK.xlsx`                   |   XLSX    | Danh sách lệnh điều kiện               |
+|           |                    | `DSLCK`          | `DSLCK.xlsx`                   |   XLSX    | Danh sách lệnh chờ khớp                |
+|           |                    | `DSLH`           | `DSLH.xlsx`                    |   XLSX    | Danh sách lệnh hủy                     |
+|           |                    | `DSLK`           | `DSLK.xlsx`                    |   XLSX    | Danh sách lệnh khớp                    |
+|           |                    | `DSGD`           | `DSGD.xlsx`                    |   XLSX    | Danh sách toàn bộ giao dịch trong ngày |
+|           |                    | `TTM`            | `TTM.xlsx`                     |   XLSX    | Báo cáo Trạng thái Mở                  |
+|           |                    | `TTTT`           | `TTTT.xlsx`                    |   XLSX    | Báo cáo Trạng thái Tất toán            |
+|           |                    | `TTCDH`          | `TTCDH.xlsx`                   |   XLSX    | Báo cáo Trạng thái Chuyển đến Hạn      |
+|           |                    | `DSQLKQ`         | `DSQLKQ.xlsx`                  |   XLSX    | Danh sách quản lý ký quỹ               |
+|           |                    | `QLTKGD`         | `QLTKGD.xlsx`                  |   XLSX    | Quản lý tài khoản giao dịch            |
+| **19-43** |    **CoreCCP**     | `CL_WAIT`        | `maker_cl_wait.xlsx`           |   XLSX    | Maker Sổ lệnh thường - Chờ khớp        |
+|           |                    | `CL_MATCH`       | `maker_cl_match.xlsx`          |   XLSX    | Maker Sổ lệnh thường - Đã khớp         |
+|           |                    | `CL_CANCEL`      | `maker_cl_cancel.xlsx`         |   XLSX    | Maker Sổ lệnh thường - Đã hủy          |
+|           |                    | `CL_REJECT`      | `maker_cl_reject.xlsx`         |   XLSX    | Maker Sổ lệnh thường - Bị từ chối      |
+|           |                    | `CL_ALL`         | `maker_cl_all.xlsx`            |   XLSX    | Maker Sổ lệnh thường - Tổng hợp        |
+|           |                    | `MM_WAIT`        | `maker_mm_wait.xlsx`           |   XLSX    | Maker Sổ lệnh MM - Chờ khớp            |
+|           |                    | `MM_MATCH`       | `maker_mm_match.xlsx`          |   XLSX    | Maker Sổ lệnh MM - Đã khớp             |
+|           |                    | `MM_CANCEL`      | `maker_mm_cancel.xlsx`         |   XLSX    | Maker Sổ lệnh MM - Đã hủy              |
+|           |                    | `MM_REJECT`      | `maker_mm_reject.xlsx`         |   XLSX    | Maker Sổ lệnh MM - Bị từ chối          |
+|           |                    | `MM_ALL`         | `maker_mm_all.xlsx`            |   XLSX    | Maker Sổ lệnh MM - Tổng hợp            |
+|           |                    | `POS_OPEN`       | `maker_pos_open.xlsx`          |   XLSX    | Maker Vị thế - Đang mở                 |
+|           |                    | `POS_CLOSE`      | `maker_pos_close.xlsx`         |   XLSX    | Maker Vị thế - Đã tất toán             |
+|           |                    | `POS_ALL`        | `maker_pos_all.xlsx`           |   XLSX    | Maker Vị thế - Tổng hợp                |
+|           |                    | `MARGIN_DEFICIT` | `maker_margin_deficit.xlsx`    |   XLSX    | Maker Rủi ro - Quét Ký quỹ âm          |
+|           |                    | `MARGIN_REQ`     | `maker_margin_req.xlsx`        |   XLSX    | Maker Rủi ro - Ký quỹ yêu cầu          |
+|           |                    | `RISK_STATUS`    | `maker_risk_status.xlsx`       |   XLSX    | Maker Rủi ro - Trạng thái rủi ro TV    |
+|           |                    | `RISK_WARN`      | `maker_risk_warn.xlsx`         |   XLSX    | Maker Rủi ro - Cảnh báo ký quỹ         |
+|           |                    | `RISK_STRESS`    | `maker_risk_stress.xlsx`       |   XLSX    | Maker Rủi ro - Kịch bản Stress test    |
+|           |                    | `CASH_BALANCE`   | `maker_cash_balance.xlsx`      |   XLSX    | Maker Tiền - Số dư tiền bù trừ         |
+|           |                    | `ACC_LIST`       | `maker_acc_list.xlsx`          |   XLSX    | Maker Tiền - Danh sách TK bù trừ       |
+|           |                    | `CONTRACT_ALL`   | `maker_contract_all.xlsx`      |   XLSX    | Danh mục Hợp đồng phái sinh            |
+|           |                    | `COMMODITY_ALL`  | `maker_commodity_all.xlsx`     |   XLSX    | Danh mục Hàng hóa giao dịch            |
+|           |                    | `POSITION_LIMIT` | `maker_pos_limit.xlsx`         |   XLSX    | Hạn mức vị thế tối đa                  |
+|           |                    | `EXCHANGE_RATES` | `maker_exchange_rates.xlsx`    |   XLSX    | Bảng tỷ giá đa tiền tệ CoreCCP         |
+|           |                    | `EOD_REPORT`     | `maker_eod_report.xlsx`        |   XLSX    | Báo cáo tổng kết chốt ngày EOD         |
+| **44-52** | **Core Exchange**  | `GTT`            | `GTT.xlsx`                     |   XLSX    | Giá thanh toán ngày                    |
+|           |                    | `HH`             | `HH.xlsx`                      |   XLSX    | Danh mục hàng hóa CE                   |
+|           |                    | `DSGD`           | `DSGD.xlsx`                    |   XLSX    | Danh sách giao dịch CE                 |
+|           |                    | `DSL`            | `DSL.xlsx`                     |   XLSX    | Sổ lệnh tổng hợp CE                    |
+|           |                    | `DSLCK`          | `DSLCK.xlsx`                   |   XLSX    | Lệnh chờ khớp CE                       |
+|           |                    | `DSLDK`          | `DSLDK.xlsx`                   |   XLSX    | Lệnh điều kiện CE                      |
+|           |                    | `DSLH`           | `DSLH.xlsx`                    |   XLSX    | Lệnh hủy CE                            |
+|           |                    | `SESSION_INFO`   | `SESSION_INFO.xlsx`            |   XLSX    | Trạng thái phiên CE                    |
+|           |                    | `HD`             | `HĐ ACM.xlsx`                  |   XLSX    | Danh mục hợp đồng liên thông ACM       |
+| **53-56** | **ACM (SFTP/ETP)** | `STRAITS_CSV`    | `Straits_<YYYYMMDD>.csv`       |    CSV    | Khớp lệnh Straits Financial Nano       |
+|           |                    | `STRAITS_XLS`    | `<YYYY-MM-DD>_10017890000.xls` |    XLS    | Sao kê tài khoản bù trừ Straits        |
+|           |                    | `ACM_ETP_ORDERS` | `ACM_ETP_ORDERS.xlsx`          |   XLSX    | Sổ lệnh hệ thống ETP Nano              |
+|           |                    | `ACM_ETP_TRADES` | `ACM_ETP_TRADES.xlsx`          |   XLSX    | Sổ khớp lệnh hệ thống ETP Nano         |
 
 ---
 
 ## V. CƠ CHẾ TÍCH HỢP ĐỘNG VÀO JOB DISPATCHER (ZERO-HARDCODING)
 
 Để đảm bảo tuân thủ nghiêm ngặt **Quy chuẩn Kiến trúc số 7 trong `AGENTS.md`**:
+
 1. **Quản lý chế độ qua CSDL Dynamic Settings (`system_settings`)**:
    - `ingress_mode_ms`: `'REST_API'` (ưu tiên API) hoặc `'PLAYWRIGHT'` (cào qua trình duyệt).
    - `ingress_mode_ccp`: `'REST_API'` hoặc `'PLAYWRIGHT'`.
@@ -190,13 +196,17 @@ Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca tr
 Theo đúng **Quy tắc số 8 của `AGENTS.md`**, AI Assistant không tự ý chạy ngầm các tiến trình test crawler. Quản lý / Lập trình viên có thể chủ động kiểm tra bằng các bước sau:
 
 ### 1. Lệnh Kiểm thử Trọn Gói Cả 4 Nguồn (56 Files)
+
 Mở Terminal tại thư mục `backend/` và gõ:
+
 ```bash
 npm run test:api-all
 ```
-*(Hoặc chạy trực tiếp: `node src/scripts/test_autonomous_api_ingress_all_4.js`)*
+
+_(Hoặc chạy trực tiếp: `node src/scripts/test_autonomous_api_ingress_all_4.js`)_
 
 ### 2. Lệnh Kiểm thử Từng Phân Hệ Riêng Biệt
+
 - Kiểm thử M-System (18 files):
   ```bash
   npm run test:api-ms
@@ -216,7 +226,9 @@ npm run test:api-all
   ```
 
 ### 3. Vị Trí Lưu Trữ Dữ Liệu Kiểm Thử
+
 Tất cả các file tải về thành công sẽ nằm tại:
+
 - `backend/temp/autonomous_api_backup_test/`
   - `MS/` $\rightarrow$ Đủ 18 file `.xlsx`.
   - `CCP/` $\rightarrow$ Đủ 25 file `.xlsx`.
@@ -230,7 +242,9 @@ Tất cả các file tải về thành công sẽ nằm tại:
 ## VII. ĐÁNH GIÁ & ĐO LƯỜNG HIỆU SUẤT LUỒNG ĐỐI CHIẾU KHỚP LỆNH TRONG PHIÊN (CHECK_KLGD)
 
 ### 1. Kiến Trúc Cắm API Vào Luồng `CHECK_KLGD` (`ReconJobsHandler`)
+
 Trong luồng đối soát khớp lệnh trong phiên (`handleCheckKlgdJob`), hệ thống đã được cắm trực tiếp `IngressService`:
+
 - **Worker M-System (`runWorkerMs`)**: Khi cờ `ingress_mode_ms === 'REST_API'`, tải `DSGD.xlsx`, `TTM.xlsx`, `TTTT.xlsx` qua Direct REST API, hoàn toàn không khởi tạo Chromium Browser.
 - **Worker ACM (`runWorkerAcm`)**: Khi cờ `ingress_mode_acm === 'REST_API' | 'SFTP'`, tải `Straits.csv` qua Direct SSH2 SFTP Client, bỏ qua hoàn toàn bước đăng nhập và giải Captcha.
 - **Worker CoreCCP (`runWorkerCcp`)**: Khi cờ `ingress_mode_ccp === 'REST_API'`, tải `maker_cl_match.xlsx` (hoặc `DSGD.xlsx`), `TTM`, `TTTT` qua Maker REST API.
@@ -238,16 +252,17 @@ Trong luồng đối soát khớp lệnh trong phiên (`handleCheckKlgdJob`), h�
 
 ### 2. Bảng So Sánh Hiệu Suất Đo Lường Thực Tế Luồng `CHECK_KLGD`
 
-| Thành Phần Tác Vụ | Phương Pháp Cũ (Playwright) | Phương Pháp Mới (Direct API Adapter) | Mức Độ Tối Ưu | Trạng Thái Đánh Giá |
-| :--- | :---: | :---: | :---: | :---: |
-| **M-System (DSGD, TTM, TTTT)** | `25.000 ms - 35.000 ms` | **`850 ms - 1.400 ms`** | ⚡ **Nhanh gấp ~25 lần** |  **CHUẨN XÁC 100%** |
-| **Straits ACM (Straits.csv)** | `30.000 ms - 50.000 ms` (Chờ Captcha) | **`600 ms - 1.100 ms`** (SSH2 SFTP) | ⚡ **Nhanh gấp ~40 lần** |  **CHUẨN XÁC 100%** |
-| **CoreCCP (Khớp lệnh Maker)** | `28.000 ms - 45.000 ms` | **`450 ms - 950 ms`** | ⚡ **Nhanh gấp ~35 lần** |  **CHUẨN XÁC 100%** |
-| **Thời gian Chờ Barrier Đồng Bộ** | `70.000 ms - 90.000 ms` | **`< 200 ms`** (Giải phóng barrier tức thì) | ⏱️ **Gần như 0 giây** |  **CHUẨN XÁC 100%** |
-| **Thuật toán So Khớp Khớp Lệnh** | `120 ms - 250 ms` | **`120 ms - 250 ms`** (Cùng logic Engine) | 🎯 **Độ chính xác 100%** |  **CHUẨN XÁC 100%** |
-| **TỔNG THỜI GIAN LUỒNG CHECK_KLGD**| **`~75.000 ms - 95.000 ms`** | **`~1.800 ms - 2.800 ms`** | 🚀 **NHANH GẤP ~35 LẦN**| 🏆 **XUẤT SẮC** |
+| Thành Phần Tác Vụ                   |      Phương Pháp Cũ (Playwright)      |    Phương Pháp Mới (Direct API Adapter)     |      Mức Độ Tối Ưu       | Trạng Thái Đánh Giá |
+| :---------------------------------- | :-----------------------------------: | :-----------------------------------------: | :----------------------: | :-----------------: |
+| **M-System (DSGD, TTM, TTTT)**      |        `25.000 ms - 35.000 ms`        |           **`850 ms - 1.400 ms`**           |  **Nhanh gấp ~25 lần**   | **CHUẨN XÁC 100%**  |
+| **Straits ACM (Straits.csv)**       | `30.000 ms - 50.000 ms` (Chờ Captcha) |     **`600 ms - 1.100 ms`** (SSH2 SFTP)     |  **Nhanh gấp ~40 lần**   | **CHUẨN XÁC 100%**  |
+| **CoreCCP (Khớp lệnh Maker)**       |        `28.000 ms - 45.000 ms`        |            **`450 ms - 950 ms`**            |  **Nhanh gấp ~35 lần**   | **CHUẨN XÁC 100%**  |
+| **Thời gian Chờ Barrier Đồng Bộ**   |        `70.000 ms - 90.000 ms`        | **`< 200 ms`** (Giải phóng barrier tức thì) |  ⏱️ **Gần như 0 giây**   | **CHUẨN XÁC 100%**  |
+| **Thuật toán So Khớp Khớp Lệnh**    |           `120 ms - 250 ms`           |  **`120 ms - 250 ms`** (Cùng logic Engine)  | 🎯 **Độ chính xác 100%** | **CHUẨN XÁC 100%**  |
+| **TỔNG THỜI GIAN LUỒNG CHECK_KLGD** |     **`~75.000 ms - 95.000 ms`**      |         **`~1.800 ms - 2.800 ms`**          | 🚀 **NHANH GẤP ~35 LẦN** |   🏆 **XUẤT SẮC**   |
 
 ### 3. Đánh Giá Độ Tiêu Thụ Tài Nguyên & Tính Toàn Vẹn
+
 - **Bộ nhớ RAM**:
   - Playwright: Ngốn **1.2 GB - 2.0 GB** RAM cho 3 - 4 instance Chromium đồng thời.
   - Direct API: Chỉ tiêu tốn **< 35 MB** Buffer Node.js (Tiết kiệm **97% RAM**).
@@ -258,12 +273,15 @@ Trong luồng đối soát khớp lệnh trong phiên (`handleCheckKlgdJob`), h�
   - File Excel và CSV xuất ra chuẩn 100% header, khớp với parser `parseDSGD`, `parseFR`, `parseNano`.
 
 ### 4. Lệnh Kiểm Thử Benchmark Dành Riêng Cho Luồng `CHECK_KLGD`
+
 USER có thể chạy kiểm tra và đo lường trực tiếp trên Terminal bất cứ lúc nào:
+
 ```bash
 cd backend
 npm run test:check-klgd-benchmark
 ```
-*(File script: [test_benchmark_check_klgd_api_vs_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_benchmark_check_klgd_api_vs_playwright.js))*
+
+_(File script: [test_benchmark_check_klgd_api_vs_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_benchmark_check_klgd_api_vs_playwright.js))_
 
 ---
 
@@ -289,5 +307,5 @@ npm run test:check-klgd-benchmark
   14. `backend/package.json`: Bổ sung script shortcut `"test:api-all"` và `"test:check-klgd-benchmark"`.
 
 ---
-*Tài liệu này đã sẵn sàng để kiểm tra và nghiệm thu vào ca làm việc sáng mai.*
 
+_Tài liệu này đã sẵn sàng để kiểm tra và nghiệm thu vào ca làm việc sáng mai._

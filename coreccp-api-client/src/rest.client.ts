@@ -17,7 +17,7 @@ export class CoreCcpRestClient {
   async searchFullJson(
     session: ICcpAuthSession,
     searchCode: string,
-    baseUrl = 'https://uat-coreccp.mxv.com.vn',
+    baseUrl = 'https://coreccp.mxv.com.vn',
     refererRoute = '',
     filterPayload: Record<string, any> = {},
   ): Promise<{ rows: any[]; totalCount: number }> {
@@ -46,7 +46,7 @@ export class CoreCcpRestClient {
     session: ICcpAuthSession,
     searchCode: string,
     fekey: string,
-    baseUrl = 'https://uat-coreccp.mxv.com.vn',
+    baseUrl = 'https://coreccp.mxv.com.vn',
     refererRoute = '',
     filterPayload: Record<string, any> = {},
   ): Promise<{ success: boolean; code: string }> {
@@ -74,7 +74,7 @@ export class CoreCcpRestClient {
   async downloadReportBinary(
     session: ICcpAuthSession,
     reportId: string | number,
-    baseUrl = 'https://uat-coreccp.mxv.com.vn',
+    baseUrl = 'https://coreccp.mxv.com.vn',
     refererRoute = '',
   ): Promise<Buffer> {
     const endpoint = `/ccp/report/download/${reportId}`;

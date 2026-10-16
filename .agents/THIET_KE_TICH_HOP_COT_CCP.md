@@ -2,19 +2,22 @@
 
 **Dự án**: MXV Shift Checklist & Trading Manager  
 **Mục tiêu**: Bổ sung cột đối soát **CoreCCP** trong Bảng 1 (Giám sát & Đối chiếu Khớp lệnh trong phiên) tại trang `TradingManagerPage`.  
-**Phạm vi tài liệu**: Chỉ đặc tả thiết kế kiến trúc, mô hình dữ liệu, thuật toán bóc tách file Excel và kế hoạch kiểm thử (Tuyệt đối không can thiệp sửa mã nguồn code cho đến khi có phê duyệt).  
+**Phạm vi tài liệu**: Chỉ đặc tả thiết kế kiến trúc, mô hình dữ liệu, thuật toán bóc tách file Excel và kế hoạch kiểm thử (Tuyệt đối không can thiệp sửa mã nguồn code cho đến khi có phê duyệt).
 
 ---
 
 ## 1. TỔNG QUAN VÀ BỐI CẢNH NGHIỆP VỤ
 
 ### 1.1. Hiện trạng Bảng 1 (Trading Manager)
+
 Hiện tại Bảng 1 trên giao diện `TradingManagerPage` (`frontend/src/app/trading-manager/page.tsx`) phục vụ trực ban giám sát đối chiếu số liệu theo 3 dòng chính:
+
 - **Dòng 1 - KLGD (Khối lượng giao dịch)**: So khớp giữa `M-System (DSGD)` vs `CQG (FR)` vs `ACM (Straits / Nano)`.
 - **Dòng 2 - TTM (Trạng thái mở - Open Positions)**: So khớp giữa `M-System (TTM)` vs `CQG (OP)`.
 - **Dòng 3 - TTTT (Trạng thái tất toán - Settled/Closed Positions)**: So khớp giữa `M-System (TTTT)` vs `CQG (PS)`.
 
 Các cột hiện có:
+
 1. **Chỉ số / Nghiệp vụ**
 2. **M-System** (Hệ thống nội bộ MXV)
 3. **CQG** (Sở giao dịch quốc tế)
@@ -23,20 +26,22 @@ Các cột hiện có:
 6. **Chênh lệch / Trạng thái**
 
 ### 1.2. Mục tiêu Nâng cấp
+
 Bổ sung thêm cột **CoreCCP** ngay sau cột **Nano** để hoàn thiện chu trình kiểm soát 4 bên độc lập:
 $$\text{M-System} \longleftrightarrow \text{CQG} \longleftrightarrow \text{ACM/Nano} \longleftrightarrow \text{CoreCCP (VNCLEAR)}$$
 
-- **KLGD CCP**: Tổng khối lượng khớp từ báo cáo *Lịch sử giao dịch* của CoreCCP.
-- **TTM CCP**: Tổng vị thế mở từ báo cáo *Trạng thái mở* (`/ORDERS/OPEN_POSITION`) của CoreCCP.
-- **TTTT CCP**: Tổng khối lượng tất toán từ báo cáo *Trạng thái tất toán* của CoreCCP.
+- **KLGD CCP**: Tổng khối lượng khớp từ báo cáo _Lịch sử giao dịch_ của CoreCCP.
+- **TTM CCP**: Tổng vị thế mở từ báo cáo _Trạng thái mở_ (`/ORDERS/OPEN_POSITION`) của CoreCCP.
+- **TTTT CCP**: Tổng khối lượng tất toán từ báo cáo _Trạng thái tất toán_ của CoreCCP.
 
 ---
 
 ## 2. KẾT QUẢ ĐÁNH GIÁ DỮ LIỆU THỰC TẾ TỪ 3 FILE EXCEL CORECCP
 
-*(Dữ liệu phân tích trực tiếp từ thư mục `backend/src/modules/lot-statistics/Example file ccp/`, bảo đảm không phỏng đoán, đối chiếu chính xác từng ô dữ liệu)*
+_(Dữ liệu phân tích trực tiếp từ thư mục `backend/src/modules/lot-statistics/Example file ccp/`, bảo đảm không phỏng đoán, đối chiếu chính xác từng ô dữ liệu)_
 
 ### 2.1. File `DSGD_14.6.xlsx` (Thống kê Khối lượng khớp lệnh - KLGD)
+
 - **Cấu trúc Sheet**: Sheet duy nhất có tên `Export`.
 - **Dòng tiêu đề (Header Row)**: Dòng 0 (index 0), bao gồm 13 cột:
   - Cột 0: `Mã hợp đồng`
@@ -60,7 +65,8 @@ $$\text{M-System} \longleftrightarrow \text{CQG} \longleftrightarrow \text{ACM/N
   - $\implies$ **Tổng KL khớp = 2 lot**.
 
 ### 2.2. File `TTM_14.06.xlsx` (Thống kê Trạng thái mở - TTM)
-- **Menu/URL**: *Lệnh và vị thế* $\rightarrow$ *Trạng thái mở* (`https://uat-coreccp.mxv.com.vn/ORDERS/OPEN_POSITION`).
+
+- **Menu/URL**: _Lệnh và vị thế_ $\rightarrow$ _Trạng thái mở_ (`https://coreccp.mxv.com.vn/ORDERS/OPEN_POSITION`).
 - **Cấu trúc Sheet**: Sheet `Export`.
 - **Dòng tiêu đề (Header Row)**: Dòng 0, bao gồm 13 cột:
   - Cột 0: `Mã hợp đồng`
@@ -78,13 +84,14 @@ $$\text{M-System} \longleftrightarrow \text{CQG} \longleftrightarrow \text{ACM/N
   - Cột 12: `Lãi/lỗ dự kiến`
 - **Quy tắc trích xuất**:
   - Tương tự như quy chuẩn M-System và CQG OP: Tổng trạng thái mở là tổng khối lượng vị thế mở (gồm cả mở Mua và mở Bán).
-  $$\text{Total\_TTM}_{\text{CCP}} = \sum_{i=1}^{N} \Big( \text{Row}[i][\text{'Khối lượng mua'}] + \text{Row}[i][\text{'Khối lượng bán'}] \Big)$$
+    $$\text{Total\_TTM}_{\text{CCP}} = \sum_{i=1}^{N} \Big( \text{Row}[i][\text{'Khối lượng mua'}] + \text{Row}[i][\text{'Khối lượng bán'}] \Big)$$
 - **Kết quả kiểm toán trên file mẫu `TTM_14.06.xlsx`**:
   - Dòng 1: `Khối lượng mua` = `0`, `Khối lượng bán` = `1`.
   - $\implies$ **Tổng TTM = 1 lot**.
 
 ### 2.3. File `TTTT_14.06.xlsx` (Thống kê Trạng thái tất toán - TTTT)
-- **Menu/URL**: *Lệnh và vị thế* $\rightarrow$ *Trạng thái tất toán*.
+
+- **Menu/URL**: _Lệnh và vị thế_ $\rightarrow$ _Trạng thái tất toán_.
 - **Cấu trúc Sheet**: Sheet `Export`.
 - **Dòng tiêu đề (Header Row)**: Dòng 0, bao gồm 13 cột:
   - Cột 0: `Mã hợp đồng`
@@ -103,7 +110,7 @@ $$\text{M-System} \longleftrightarrow \text{CQG} \longleftrightarrow \text{ACM/N
 - **Quy tắc trích xuất**:
   - Trong nghiệp vụ tất toán vị thế (Close/Offset position), mỗi cặp khớp gồm 1 chân mua và 1 chân bán được ghép với nhau (ví dụ: tất toán 1 lot nghĩa là khớp 1 lot mua đối ứng với 1 lot bán).
   - Tránh tính 2 lần (double-counting), tổng khối lượng tất toán lấy theo chuẩn chân giao dịch (`Khối lượng bán` hoặc `Khối lượng mua`).
-  $$\text{Total\_TTTT}_{\text{CCP}} = \sum_{i=1}^{N} \text{Row}[i][\text{'Khối lượng bán'}]$$
+    $$\text{Total\_TTTT}_{\text{CCP}} = \sum_{i=1}^{N} \text{Row}[i][\text{'Khối lượng bán'}]$$
 - **Kết quả kiểm toán trên file mẫu `TTTT_14.06.xlsx`**:
   - Dòng 1: `Khối lượng mua` = 1, `Khối lượng bán` = 1.
   - $\implies$ **Tổng TTTT = 1 lot**.
@@ -113,6 +120,7 @@ $$\text{M-System} \longleftrightarrow \text{CQG} \longleftrightarrow \text{ACM/N
 ## 3. THIẾT KẾ KIẾN TRÚC LUỒNG THỰC THI (SEQUENCE ARCHITECTURE)
 
 ### 3.1. Lựa chọn Mô hình Thực thi: Kịch bản B (Asynchronous / Progressive Loading)
+
 - **Kịch bản A (Chặn đồng bộ - Sequential Blocking)**: Bắt người dùng chờ tải xong cả MS, CQG, ACM VÀ CoreCCP (mất 2 đến 3 phút) mới hiển thị bảng. Nếu CoreCCP bị bảo trì/lag, cả bảng đối soát bị đóng băng.
 - **Kịch bản B (Khuyên dùng - Bất đồng bộ / Cuốn chiếu)**:
   1. Luồng cốt lõi (MS, CQG, ACM) hoàn thành sau 20-40 giây $\rightarrow$ **Hiển thị ngay lập tức** kết quả đối soát trên màn hình để trực ban làm việc. Cột `CoreCCP` hiển thị trạng thái `Đang đồng bộ...` kèm spinner nhẹ.
@@ -169,36 +177,37 @@ sequenceDiagram
 ```typescript
 export interface CheckKLGDTotals {
   // Số liệu hiện tại
-  totalDSGD: number;      // M-System KLGD
-  totalFR: number;        // CQG KLGD
-  totalACM: number;       // ACM KLGD
-  totalNano: number;      // Nano KLGD
-  differ: number;         // Chênh lệch MS vs CQG
-  differACM: number;      // Chênh lệch MS vs ACM
-  
+  totalDSGD: number; // M-System KLGD
+  totalFR: number; // CQG KLGD
+  totalACM: number; // ACM KLGD
+  totalNano: number; // Nano KLGD
+  differ: number; // Chênh lệch MS vs CQG
+  differACM: number; // Chênh lệch MS vs ACM
+
   // Trạng thái mở (TTM)
-  totalTTM_MS?: number;   // M-System TTM
-  totalOP_CQG?: number;   // CQG OP
+  totalTTM_MS?: number; // M-System TTM
+  totalOP_CQG?: number; // CQG OP
   differTTM?: number;
 
   // Trạng thái tất toán (TTTT)
-  totalTTTT?: number;     // M-System TTTT
-  totalPS?: number;       // CQG PS
+  totalTTTT?: number; // M-System TTTT
+  totalPS?: number; // CQG PS
   differTTTT?: number;
 
   // BỔ SUNG MỚI CHO CORECCP:
   totalCCP_DSGD?: number; // CoreCCP Khối lượng khớp (DSGD)
-  totalCCP_TTM?: number;  // CoreCCP Vị thế mở (TTM)
+  totalCCP_TTM?: number; // CoreCCP Vị thế mở (TTM)
   totalCCP_TTTT?: number; // CoreCCP Khối lượng tất toán (TTTT)
-  differCCP_KLGD?: number;// Chênh lệch MS vs CoreCCP (KLGD)
+  differCCP_KLGD?: number; // Chênh lệch MS vs CoreCCP (KLGD)
   differCCP_TTM?: number; // Chênh lệch MS vs CoreCCP (TTM)
-  differCCP_TTTT?: number;// Chênh lệch MS vs CoreCCP (TTTT)
-  ccpStatus?: 'IDLE' | 'LOADING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+  differCCP_TTTT?: number; // Chênh lệch MS vs CoreCCP (TTTT)
+  ccpStatus?: "IDLE" | "LOADING" | "COMPLETED" | "FAILED" | "SKIPPED";
   ccpErrorMessage?: string;
 }
 ```
 
 ### 4.2. Thiết Kế Các Hàm Bóc Tách Độc Lập (Zero Side-Effects)
+
 Trong `reconciliation.service.ts`, xây dựng 3 hàm parser thuần túy (pure functions):
 
 1. **`parseCcpDSGD(buffer: Buffer): number`**:
@@ -220,16 +229,18 @@ Trong `reconciliation.service.ts`, xây dựng 3 hàm parser thuần túy (pure 
 ## 5. THIẾT KẾ GIAO DIỆN NGƯỜI DÙNG (FRONTEND UI SPECIFICATION)
 
 ### 5.1. Bố Cục Bảng 1 Sau Khi Tích Hợp
+
 Vị trí cột mới nằm giữa cột **Nano** và cột **Chênh lệch / Trạng thái**:
 
-| STT | Chỉ Số Đối Soát | M-System | CQG | ACM (Straits) | Nano | **CoreCCP** | Trạng Thái / Chênh Lệch |
-| :-: | :--- | :-: | :-: | :-: | :-: | :-: | :-: |
-| **1** | **Khối lượng giao dịch (KLGD)** | `1,250` | `1,250` | `0` | `0` | **`1,250`** *(hoặc spinner)* | `KHỚP TUYỆT ĐỐI` |
-| **2** | **Trạng thái mở (TTM)** | `320` | `320` | `-` | `-` | **`320`** *(hoặc spinner)* | `KHỚP VỊ THẾ MỞ` |
-| **3** | **Trạng thái tất toán (TTTT)**| `85` | `85` | `-` | `-` | **`85`** *(hoặc spinner)* | `KHỚP TẤT TOÁN` |
+|  STT  | Chỉ Số Đối Soát                 | M-System |   CQG   | ACM (Straits) | Nano |         **CoreCCP**          | Trạng Thái / Chênh Lệch |
+| :---: | :------------------------------ | :------: | :-----: | :-----------: | :--: | :--------------------------: | :---------------------: |
+| **1** | **Khối lượng giao dịch (KLGD)** | `1,250`  | `1,250` |      `0`      | `0`  | **`1,250`** _(hoặc spinner)_ |    `KHỚP TUYỆT ĐỐI`     |
+| **2** | **Trạng thái mở (TTM)**         |  `320`   |  `320`  |      `-`      | `-`  |  **`320`** _(hoặc spinner)_  |    `KHỚP VỊ THẾ MỞ`     |
+| **3** | **Trạng thái tất toán (TTTT)**  |   `85`   |  `85`   |      `-`      | `-`  |  **`85`** _(hoặc spinner)_   |     `KHỚP TẤT TOÁN`     |
 
 ### 5.2. Nguyên Tắc Thiết Kế Tuân Thủ `AGENTS.md`
-1. **Tuyệt đối không dùng Unicode Emoji thô (`📁`, `💡`, ``, ``, `🟢`...)**:
+
+1. **Tuyệt đối không dùng Unicode Emoji thô (`📁`, `💡`, `, `, `🟢`...)**:
    - Sử dụng icon SVG chuẩn từ thư viện **`lucide-react`**:
      - Header cột CoreCCP: `<ShieldCheck size={15} className="text-purple-500" />`
      - Trạng thái đang tải: `<Loader2 size={14} className="animate-spin text-purple-400" />`
@@ -249,12 +260,12 @@ Vị trí cột mới nằm giữa cột **Nano** và cột **Chênh lệch / Tr
 
 ## 6. MA TRẬN XỬ LÝ LỖI & PHÒNG NGỪA RỦI RO (FAILURE MODES & RESILIENCE)
 
-| Trường Hợp Sự Cố | Nguyên Nhân | Hành Vi Hệ Thống (Resilience Behavior) |
-| :--- | :--- | :--- |
-| **Tài khoản CoreCCP hết hạn / Sai mật khẩu** | Mật khẩu bot CoreCCP đổi định kỳ | Không gián đoạn đối soát MS & CQG. Báo cảnh báo nhẹ tại cột CCP: `"Lỗi xác thực CoreCCP"`. |
-| **CoreCCP đổi định dạng file hoặc vị trí cột** | Bản nâng cấp web VNCLEAR | Hàm parser tìm cột động theo chuỗi Header Name (`KL khớp`, `Khối lượng mua`), không gán cứng số index. Nếu không tìm thấy, ném cảnh báo rõ ràng. |
-| **Mạng CoreCCP UAT/PROD bị ngắt kết nối** | Timeout tải trang > 30s | Cơ chế abort controller ngắt tác vụ CCP sau 45s, trả ccpStatus: 'FAILED', ghi log cảnh báo và tiếp tục cho phép ca trực nghiệm thu ca. |
-| **File không có giao dịch trong phiên** | Phiên chưa phát sinh lệnh | File Excel chỉ có dòng header, không có dữ liệu $\rightarrow$ Tự động trả về `0` lot (hợp lệ), không ném lỗi `out of bounds`. |
+| Trường Hợp Sự Cố                               | Nguyên Nhân                      | Hành Vi Hệ Thống (Resilience Behavior)                                                                                                           |
+| :--------------------------------------------- | :------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tài khoản CoreCCP hết hạn / Sai mật khẩu**   | Mật khẩu bot CoreCCP đổi định kỳ | Không gián đoạn đối soát MS & CQG. Báo cảnh báo nhẹ tại cột CCP: `"Lỗi xác thực CoreCCP"`.                                                       |
+| **CoreCCP đổi định dạng file hoặc vị trí cột** | Bản nâng cấp web VNCLEAR         | Hàm parser tìm cột động theo chuỗi Header Name (`KL khớp`, `Khối lượng mua`), không gán cứng số index. Nếu không tìm thấy, ném cảnh báo rõ ràng. |
+| **Mạng CoreCCP UAT/PROD bị ngắt kết nối**      | Timeout tải trang > 30s          | Cơ chế abort controller ngắt tác vụ CCP sau 45s, trả ccpStatus: 'FAILED', ghi log cảnh báo và tiếp tục cho phép ca trực nghiệm thu ca.           |
+| **File không có giao dịch trong phiên**        | Phiên chưa phát sinh lệnh        | File Excel chỉ có dòng header, không có dữ liệu $\rightarrow$ Tự động trả về `0` lot (hợp lệ), không ném lỗi `out of bounds`.                    |
 
 ---
 
@@ -277,4 +288,5 @@ Trước khi tiến hành sửa code và bàn giao, quy trình kiểm thử bắ
    - Ghi vết đầy đủ vào file `CHANGELOG_AI.md` theo quy định tại `AGENTS.md`.
 
 ---
-*Tài liệu này được lập để người dùng phê duyệt về mặt thiết kế trước khi thực thi bất kỳ thay đổi nào vào mã nguồn.*
+
+_Tài liệu này được lập để người dùng phê duyệt về mặt thiết kế trước khi thực thi bất kỳ thay đổi nào vào mã nguồn._

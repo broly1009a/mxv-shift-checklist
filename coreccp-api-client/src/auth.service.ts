@@ -20,7 +20,7 @@ export class CoreCcpAuthService {
       return this.currentSession;
     }
 
-    const ccpUrl = (credentials.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/+$/, '');
+    const ccpUrl = (credentials.url || 'https://coreccp.mxv.com.vn').replace(/\/+$/, '');
     const username = credentials.username || 'hieptruong';
     const password = credentials.password || 'Taovipko0!';
 

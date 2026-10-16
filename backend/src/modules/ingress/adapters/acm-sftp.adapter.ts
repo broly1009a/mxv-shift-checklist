@@ -9,6 +9,7 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
   decrypt,
+  EXTERNAL_SYSTEM_ACM,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
@@ -22,11 +23,11 @@ export class AcmSftpAdapter implements IIngressPort {
   ) {}
 
   private async getSftpCredentials() {
-    let host = process.env.ACM_SFTP_HOST || 'sftp.mxv.com.vn';
-    let port = parseInt(process.env.ACM_SFTP_PORT || '2231', 10);
-    let username = process.env.ACM_SFTP_USER || 'straits_user';
+    let host = process.env.ACM_SFTP_HOST || EXTERNAL_SYSTEM_ACM.sftpHost;
+    let port = parseInt(process.env.ACM_SFTP_PORT || String(EXTERNAL_SYSTEM_ACM.sftpPort), 10);
+    let username = process.env.ACM_SFTP_USER || '';
     let password = process.env.ACM_SFTP_PASS || '';
-    let remoteDir = process.env.ACM_SFTP_REMOTE_DIR || '/data/';
+    let remoteDir = process.env.ACM_SFTP_REMOTE_DIR || EXTERNAL_SYSTEM_ACM.sftpRemoteDir;
 
     if (this.settingsService) {
       const rawCred = await this.settingsService.getSetting('bot_credentials_acm_sftp', '');

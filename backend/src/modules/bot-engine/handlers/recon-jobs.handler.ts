@@ -331,14 +331,14 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
       );
 
       if (this.ingressService && (ingressModeMs === 'REST_API' || ingressModeMs === 'API')) {
-        log('MS ⚡ [Direct REST API] Khởi động pre-flight kiểm tra phiên xác thực M-System...');
+        log('MS [Direct REST API] Khởi động pre-flight kiểm tra phiên xác thực M-System...');
         let preflightSuccess = false;
         try {
           if (this.ingressService.checkHealth) {
             await this.ingressService.checkHealth('MS');
           }
           preflightSuccess = true;
-          log('MS ⚡ [Direct REST API] Pre-flight thành công (Phiên xác thực hợp lệ).');
+          log('MS [Direct REST API] Pre-flight thành công (Phiên xác thực hợp lệ).');
         } catch (pfErr: any) {
           log(`MS ❌ Pre-flight Direct REST API thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
           errors.push(`MS Direct REST API Pre-flight: ${pfErr.message}`);
@@ -348,12 +348,12 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
         if (preflightSuccess) {
           readyState.ms = true;
-          log('MS ⚡ [Direct REST API] Đã sẵn sàng kết nối API. Đang chờ CQG và các bên cùng vào vị trí...');
+          log('MS [Direct REST API] Đã sẵn sàng kết nối API. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
 
           try {
             await barrierTriggerPromise;
-            log('MS ⚡ [Direct REST API] Rào cản đã mở! Kích hoạt tải dữ liệu trực tiếp đồng thời...');
+            log('MS [Direct REST API] Rào cản đã mở! Kích hoạt tải dữ liệu trực tiếp đồng thời...');
 
             if (options.checkKlgd !== false) {
               const dsgdRes = await this.ingressService.download('MS', {
@@ -361,7 +361,8 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
                 outputDir: msDailyPath,
                 reportType: 'DSGD',
               });
-              log(`MS ⚡ Tải DSGD.xlsx qua Direct API hoàn tất: ${dsgdRes.files.join(', ')}`);
+              const names = (dsgdRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+              log(`MS Tải DSGD.xlsx qua Direct API hoàn tất: ${names}`);
             }
             if (options.checkTtm !== false) {
               const ttmRes = await this.ingressService.download('MS', {
@@ -369,7 +370,8 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
                 outputDir: msDailyPath,
                 reportType: 'TTM',
               });
-              log(`MS ⚡ Tải TTM.xlsx qua Direct API hoàn tất: ${ttmRes.files.join(', ')}`);
+              const names = (ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+              log(`MS Tải TTM.xlsx qua Direct API hoàn tất: ${names}`);
             }
             if (options.checkTttt !== false) {
               const ttttRes = await this.ingressService.download('MS', {
@@ -377,12 +379,13 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
                 outputDir: msDailyPath,
                 reportType: 'TTTT',
               });
-              log(`MS ⚡ Tải TTTT.xlsx qua Direct API hoàn tất: ${ttttRes.files.join(', ')}`);
+              const names = (ttttRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+              log(`MS Tải TTTT.xlsx qua Direct API hoàn tất: ${names}`);
             }
-            log('MS ⚡ Đã sẵn sàng dữ liệu đầy đủ qua Direct API đồng bộ thời gian với CQG.');
+            log('MS Đã sẵn sàng dữ liệu đầy đủ qua Direct API đồng bộ thời gian với CQG.');
             return;
           } catch (apiErr: any) {
-            log(`MS ⚠️ Direct API gặp sự cố sau rào cản (${apiErr.message}). Ghi nhận lỗi đối soát...`);
+            log(`MS  Direct API gặp sự cố sau rào cản (${apiErr.message}). Ghi nhận lỗi đối soát...`);
             errors.push(`MS Direct API: ${apiErr.message}`);
             abortBarrierIfStrict('M-System API', apiErr.message);
             return;
@@ -543,14 +546,14 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
       );
 
       if (this.ingressService && (ingressModeAcm === 'REST_API' || ingressModeAcm === 'API')) {
-        log('ACM ⚡ [Direct ETP REST API] Khởi động pre-flight kiểm tra phiên xác thực ACM Web ETP...');
+        log('ACM [Direct ETP REST API] Khởi động pre-flight kiểm tra phiên xác thực ACM Web ETP...');
         let preflightSuccess = false;
         try {
           if (this.ingressService.checkHealth) {
             await this.ingressService.checkHealth('ACM');
           }
           preflightSuccess = true;
-          log('ACM ⚡ [Direct ETP REST API] Pre-flight thành công (Phiên xác thực ACM Web ETP sẵn sàng).');
+          log('ACM [Direct ETP REST API] Pre-flight thành công (Phiên xác thực ACM Web ETP sẵn sàng).');
         } catch (pfErr: any) {
           log(`ACM ❌ Pre-flight Direct REST API ACM thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
           errors.push(`ACM Direct REST API Pre-flight: ${pfErr.message}`);
@@ -560,12 +563,12 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
         if (preflightSuccess) {
           readyState.acm = true;
-          log('ACM ⚡ [Direct ETP REST API] Đã sẵn sàng kết nối. Đang chờ CQG và các bên cùng vào vị trí...');
+          log('ACM [Direct ETP REST API] Đã sẵn sàng kết nối. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
 
           try {
             await barrierTriggerPromise;
-            log('ACM ⚡ [Direct ETP REST API] Rào cản đã mở! Kích hoạt tải báo cáo Khớp lệnh (Fill.xlsx) từ ACM Web ETP qua REST API...');
+            log('ACM [Direct ETP REST API] Rào cản đã mở! Kích hoạt tải báo cáo Khớp lệnh (Fill.xlsx) từ ACM Web ETP qua REST API...');
 
             const acmRes = await this.ingressService.download('ACM', {
               targetDate: dateStr,
@@ -574,25 +577,25 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
               mode: 'REST_API',
             });
             const downloadedNames = (acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-            log(`ACM ⚡ Tải Fill.xlsx qua Direct ETP REST API hoàn tất: ${downloadedNames}`);
-            log('ACM ⚡ Đã sẵn sàng dữ liệu Fill.xlsx qua Direct REST API đồng bộ thời gian với CQG.');
+            log(`ACM Tải Fill.xlsx qua Direct ETP REST API hoàn tất: ${downloadedNames}`);
+            log('ACM Đã sẵn sàng dữ liệu Fill.xlsx qua Direct REST API đồng bộ thời gian với CQG.');
             return;
           } catch (acmApiErr: any) {
-            log(`ACM ⚠️ Direct REST API gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
+            log(`ACM  Direct REST API gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
             errors.push(`ACM Direct REST API: ${acmApiErr.message}`);
             abortBarrierIfStrict('ACM ETP REST API', acmApiErr.message);
             return;
           }
         }
       } else if (this.ingressService && ingressModeAcm === 'SFTP') {
-        log('ACM ⚡ [Direct SFTP Ingress] Khởi động pre-flight kiểm tra kết nối SFTP...');
+        log('ACM [Direct SFTP Ingress] Khởi động pre-flight kiểm tra kết nối SFTP...');
         let preflightSuccess = false;
         try {
           if (this.ingressService.checkHealth) {
             await this.ingressService.checkHealth('ACM');
           }
           preflightSuccess = true;
-          log('ACM ⚡ [Direct SFTP] Pre-flight thành công (Cấu hình SFTP sẵn sàng).');
+          log('ACM [Direct SFTP] Pre-flight thành công (Cấu hình SFTP sẵn sàng).');
         } catch (pfErr: any) {
           log(`ACM ❌ Pre-flight Direct SFTP thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình SFTP.`);
           errors.push(`ACM Direct SFTP Pre-flight: ${pfErr.message}`);
@@ -602,12 +605,12 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
         if (preflightSuccess) {
           readyState.acm = true;
-          log('ACM ⚡ [Direct SFTP] Đã sẵn sàng kết nối. Đang chờ CQG và các bên cùng vào vị trí...');
+          log('ACM [Direct SFTP] Đã sẵn sàng kết nối. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
 
           try {
             await barrierTriggerPromise;
-            log('ACM ⚡ [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv từ SFTP...');
+            log('ACM [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv từ SFTP...');
 
             const acmRes = await this.ingressService.download('ACM', {
               targetDate: dateStr,
@@ -616,11 +619,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
               mode: 'SFTP',
             });
             const downloadedNames = (acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-            log(`ACM ⚡ Tải Straits.csv qua Direct SFTP hoàn tất: ${downloadedNames}`);
-            log('ACM ⚡ Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP đồng bộ thời gian với CQG.');
+            log(`ACM Tải Straits.csv qua Direct SFTP hoàn tất: ${downloadedNames}`);
+            log('ACM Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP đồng bộ thời gian với CQG.');
             return;
           } catch (acmApiErr: any) {
-            log(`ACM ⚠️ Direct SFTP gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
+            log(`ACM  Direct SFTP gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
             errors.push(`ACM Direct SFTP: ${acmApiErr.message}`);
             abortBarrierIfStrict('Straits ACM SFTP', acmApiErr.message);
             return;
@@ -733,14 +736,14 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
       );
 
       if (this.ingressService && (ingressModeCcp === 'REST_API' || ingressModeCcp === 'API')) {
-        log('CCP ⚡ [Direct REST API] Khởi động pre-flight kiểm tra phiên xác thực CoreCCP...');
+        log('CCP [Direct REST API] Khởi động pre-flight kiểm tra phiên xác thực CoreCCP...');
         let preflightSuccess = false;
         try {
           if (this.ingressService.checkHealth) {
             await this.ingressService.checkHealth('CCP');
           }
           preflightSuccess = true;
-          log('CCP ⚡ [Direct REST API] Pre-flight thành công (Phiên xác thực CoreCCP hợp lệ).');
+          log('CCP [Direct REST API] Pre-flight thành công (Phiên xác thực CoreCCP hợp lệ).');
         } catch (pfErr: any) {
           log(`CCP ❌ Pre-flight Direct API CoreCCP thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
           errors.push(`CoreCCP Direct API Pre-flight: ${pfErr.message}`);
@@ -750,12 +753,12 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
         if (preflightSuccess) {
           readyState.ccp = true;
-          log('CCP ⚡ [Direct REST API] Đã sẵn sàng kết nối API. Đang chờ CQG và các bên cùng vào vị trí...');
+          log('CCP [Direct REST API] Đã sẵn sàng kết nối API. Đang chờ CQG và các bên cùng vào vị trí...');
           checkAllReadyAndTrigger();
 
           try {
             await barrierTriggerPromise;
-            log('CCP ⚡ [Direct REST API] Rào cản đã mở! Kích hoạt tải báo cáo CoreCCP đồng thời...');
+            log('CCP [Direct REST API] Rào cản đã mở! Kích hoạt tải báo cáo CoreCCP đồng thời...');
 
             const ccpRes = await this.ingressService.download('CCP', {
               targetDate: dateStr,
@@ -765,11 +768,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
               mode: 'REST_API',
             });
             const ccpFilesList = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-            log(`CCP ⚡ Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpFilesList}`);
-            log('CCP ⚡ Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
+            log(`CCP Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpFilesList}`);
+            log('CCP Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
             return;
           } catch (ccpApiErr: any) {
-            log(`CCP ⚠️ Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
+            log(`CCP  Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
             errors.push(`CCP Direct API: ${ccpApiErr.message}`);
             abortBarrierIfStrict('CoreCCP API', ccpApiErr.message);
             return;
@@ -1526,14 +1529,14 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           ? ` (${rawNegIMR.length - newNegIMR.length} TK đã nằm trong danh sách theo dõi)`
           : '';
         job.logs.push(
-          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu EOD MS: Phát hiện ${totalNegativeNew} tài khoản âm ký quỹ/số dư MỚI${noteMonitored}, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
+          `[${new Date().toISOString()}]  Hoàn thành đối chiếu EOD MS: Phát hiện ${totalNegativeNew} tài khoản âm ký quỹ/số dư MỚI${noteMonitored}, ${totalMismatchedEod} tài khoản lệch công thức EOD.`,
         );
         await job.save();
       } else {
         const noteMonitored = rawNegIMR.length > 0
           ? ` (${rawNegIMR.length} TK âm đã nằm trong danh sách theo dõi)`
           : '';
-        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu EOD MS: Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm ký quỹ mới${noteMonitored}.`);
+        job.logs.push(`[${new Date().toISOString()}]  Hoàn thành đối chiếu EOD MS: Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm ký quỹ mới${noteMonitored}.`);
         await job.save();
       }
       return result;
@@ -1594,11 +1597,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
       if (totalNegative > 0 || totalMismatchedEod > 0) {
         job.logs.push(
-          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu EOD CoreCCP: Phát hiện ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD. Đã lưu kết quả đối soát.`,
+          `[${new Date().toISOString()}]  Hoàn thành đối chiếu EOD CoreCCP: Phát hiện ${totalNegative} tài khoản âm margin/số dư, ${totalMismatchedEod} tài khoản lệch công thức EOD. Đã lưu kết quả đối soát.`,
         );
         await job.save();
       } else {
-        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu EOD CoreCCP: Tất cả tài khoản khớp số dư hoàn hảo.`);
+        job.logs.push(`[${new Date().toISOString()}]  Hoàn thành đối chiếu EOD CoreCCP: Tất cả tài khoản khớp số dư hoàn hảo.`);
         await job.save();
       }
       return result;
@@ -1658,7 +1661,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
             .map((d: any) => `TK ${d.maTKGD}: MS $${d.calculatedBalance.toFixed(2)} vs CQG $${d.cqgBalance.toFixed(2)}`)
             .join(' | ');
           job.logs.push(
-            `[${new Date().toISOString()}] ⚠️ Phát hiện ${cqgResultAll.length} TK lệch số dư CQG (vượt ngưỡng ${LOG_THRESHOLD}). ` +
+            `[${new Date().toISOString()}]  Phát hiện ${cqgResultAll.length} TK lệch số dư CQG (vượt ngưỡng ${LOG_THRESHOLD}). ` +
             `Chi tiết xem CSV email. Preview: ${preview}`,
           );
         } else {
@@ -1670,11 +1673,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           });
         }
         job.logs.push(
-          `[${new Date().toISOString()}] ⚠️ Hoàn thành đối chiếu số dư CQG: Phát hiện ${totalMismatched} tài khoản lệch vượt ngưỡng $100. Đã lưu kết quả đối soát.`,
+          `[${new Date().toISOString()}]  Hoàn thành đối chiếu số dư CQG: Phát hiện ${totalMismatched} tài khoản lệch vượt ngưỡng $100. Đã lưu kết quả đối soát.`,
         );
         await job.save();
       } else {
-        job.logs.push(`[${new Date().toISOString()}] ✅ Hoàn thành đối chiếu số dư CQG: Khớp hoàn toàn 100%.`);
+        job.logs.push(`[${new Date().toISOString()}]  Hoàn thành đối chiếu số dư CQG: Khớp hoàn toàn 100%.`);
         await job.save();
       }
       return result;

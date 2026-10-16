@@ -92,10 +92,10 @@ async function main() {
         });
         const navData = await navRes.json().catch(() => null);
         if (navData && navData.code === 0) {
-          console.log('✅ Session cache vẫn còn hiệu lực 100%! Bỏ qua bước giải captcha.\n');
+          console.log(' Session cache vẫn còn hiệu lực 100%! Bỏ qua bước giải captcha.\n');
           return cached;
         }
-        console.log('⚠️ Session cache đã hết hạn. Đang tiến hành đăng nhập mới...');
+        console.log(' Session cache đã hết hạn. Đang tiến hành đăng nhập mới...');
       }
     } catch {}
   }

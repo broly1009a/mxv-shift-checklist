@@ -535,7 +535,7 @@ async function runTest() {
             fileSizeStr = `${(sz / 1024).toFixed(1)} KB`;
           }
 
-          console.log(`   ✅ THÀNH CÔNG: Đã lưu "${rep.filename}" (${fileSizeStr}) trong ${elapsed}s\n`);
+          console.log(`    THÀNH CÔNG: Đã lưu "${rep.filename}" (${fileSizeStr}) trong ${elapsed}s\n`);
           results.push({
             key: rep.key,
             name: rep.name,
@@ -609,7 +609,7 @@ async function runTest() {
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
           if (contractRes.status === 'OK') {
-            console.log(`   ✅ THÀNH CÔNG: Đã lưu "${fileName}" (${contractRes.size}) trong ${elapsed}s\n`);
+            console.log(`    THÀNH CÔNG: Đã lưu "${fileName}" (${contractRes.size}) trong ${elapsed}s\n`);
             results.push({
               key: repKey,
               name: `Hợp đồng ${code}`,

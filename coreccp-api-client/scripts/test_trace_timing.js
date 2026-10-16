@@ -50,7 +50,7 @@ const fs = require('fs');
   // 1. Đăng nhập
   console.log('1. Đang đăng nhập CoreCCP...');
   const tLoginStart = Date.now();
-  await page.goto('https://uat-coreccp.mxv.com.vn/login', { waitUntil: 'domcontentloaded' });
+  await page.goto('https://coreccp.mxv.com.vn/login', { waitUntil: 'domcontentloaded' });
   await page.fill("input[name='username'], input[type='text']", 'hieptruong');
   await page.fill("input[name='password'], input[type='password']", 'Taovipko0!');
   await page.click("button[type='submit'], button:has-text('Đăng nhập')");
@@ -60,7 +60,7 @@ const fs = require('fs');
   // 2. Mở trang ORDERMATCH_DETAIL
   console.log('2. Mở trang ORDERMATCH_DETAIL (Khớp lệnh chi tiết)...');
   const tNavStart = Date.now();
-  await page.goto('https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL', { waitUntil: 'networkidle' });
+  await page.goto('https://coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL', { waitUntil: 'networkidle' });
   console.log(`✓ Mở trang xong (${Date.now() - tNavStart}ms)\n`);
 
   // 3. Đo lường tốc độ kết xuất & tải file

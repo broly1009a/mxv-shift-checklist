@@ -98,7 +98,7 @@ export class CaptchaSolverHelper {
 
     if (!apiKey) {
       if (options?.logCallback) {
-        await options.logCallback('⚠️ CaptchaSolver: Không tìm thấy Gemini API Key. Bỏ qua giải Captcha AI.');
+        await options.logCallback(' CaptchaSolver: Không tìm thấy Gemini API Key. Bỏ qua giải Captcha AI.');
       }
       return '';
     }
@@ -194,7 +194,7 @@ export class CaptchaSolverHelper {
 
         if (solvedCode) {
           this.lastSuccessfulModel = model;
-          await log(`[CaptchaSolver] ✅ Giải Captcha thành công bằng model (${model}): "${solvedCode}"`);
+          await log(`[CaptchaSolver]  Giải Captcha thành công bằng model (${model}): "${solvedCode}"`);
           return solvedCode;
         }
       } catch (err: any) {
@@ -203,7 +203,7 @@ export class CaptchaSolverHelper {
       }
     }
 
-    await log('⚠️ [CaptchaSolver] Đã thử toàn bộ danh sách Gemini models nhưng không có kết quả.');
+    await log(' [CaptchaSolver] Đã thử toàn bộ danh sách Gemini models nhưng không có kết quả.');
     return '';
   }
 }

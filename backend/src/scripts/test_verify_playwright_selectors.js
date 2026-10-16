@@ -135,7 +135,7 @@ function staticAuditCodebase() {
   }
 
   if (staticErrors === 0) {
-    console.log('✅ Quét tĩnh hoàn tất: Không phát hiện file nào trộn lẫn CSS và XPath trong mảng .join(\', \')!');
+    console.log(' Quét tĩnh hoàn tất: Không phát hiện file nào trộn lẫn CSS và XPath trong mảng .join(\', \')!');
   } else {
     console.error(`🚨 Phát hiện ${staticErrors} vi phạm cú pháp tĩnh trong mã nguồn!`);
   }
@@ -180,7 +180,7 @@ async function runtimeAuditSelectors() {
       // Test 2: Đếm số lượng phần tử khớp (Playwright sẽ parse selector ở bước này)
       const count = await locator.count();
       const isVisible = count > 0 ? await locator.first().isVisible() : false;
-      console.log(`  ✅ [PASS] ${item.label}`);
+      console.log(`   [PASS] ${item.label}`);
       console.log(`     -> Selector: ${item.selector.slice(0, 80)}${item.selector.length > 80 ? '...' : ''}`);
       console.log(`     -> Số phần tử khớp trên mock DOM: ${count} (Visible: ${isVisible})`);
       passed++;

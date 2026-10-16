@@ -4,7 +4,8 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { RpaScraperService } from '../../ingress';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { decrypt, resolveTradingSessionDate } from '../../../shared';
+import { decrypt, resolveTradingSessionDate, EXTERNAL_SYSTEM_MSYSTEM } from '../../../shared';
+
 import { chromium, Page } from 'playwright-core';
 import * as XLSX from 'xlsx';
 import { GttExcelParser } from '../parsers';
@@ -708,10 +709,11 @@ export class GttCheckerService {
         // =========================================================================
         this.logStep('Đăng nhập M-System và tải file báo cáo...');
 
-      let msUrl = 'https://msadmin.mxv.com.vn/';
+      let msUrl = EXTERNAL_SYSTEM_MSYSTEM.adminUrl;
       let msUser = process.env.MS_USER || '';
       let msPass = process.env.MS_PASSWORD || '';
       let msPin = process.env.MS_PIN || '';
+
 
       const credentialsRaw = await this.settingsService.getSetting(
         'bot_credentials_msystem',
@@ -1302,7 +1304,7 @@ export class GttCheckerService {
       formData.append('file', csvBlob, 'import-prices.csv');
 
       const response = await fetch(
-        'https://uat-msapi.mxv.com.vn/market/importPrice',
+        'https://msapi.mxv.com.vn/market/importPrice',
         {
           method: 'POST',
           headers: {

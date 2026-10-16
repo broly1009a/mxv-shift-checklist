@@ -124,7 +124,7 @@ async function resolveCredentials(isProd: boolean): Promise<{ rawEncryptedCreds:
     };
     return {
       rawEncryptedCreds: encrypt(JSON.stringify(demoCreds)),
-      displayInfo: `🌐 Môi trường: CQG DEMO (https://mdemo.cqg.com/cqg/desktop/main)\n✅ Tài khoản DEMO: ${demoCreds.username1} | Mật khẩu: ${demoCreds.password1}`,
+      displayInfo: `🌐 Môi trường: CQG DEMO (https://mdemo.cqg.com/cqg/desktop/main)\n Tài khoản DEMO: ${demoCreds.username1} | Mật khẩu: ${demoCreds.password1}`,
     };
   }
 
@@ -189,7 +189,7 @@ async function resolveCredentials(isProd: boolean): Promise<{ rawEncryptedCreds:
 
   return {
     rawEncryptedCreds: encrypt(JSON.stringify(prodCreds)),
-    displayInfo: `🌐 Môi trường: CQG PRODUCTION (${url})\n✅ Tài khoản PROD CQG1: ${u1} | CQG2: ${u2}`,
+    displayInfo: `🌐 Môi trường: CQG PRODUCTION (${url})\n Tài khoản PROD CQG1: ${u1} | CQG2: ${u2}`,
   };
 }
 
@@ -260,7 +260,7 @@ async function run() {
       console.log('\n======================================================================');
       console.log('            HOÀN TẤT DỌN DẸP TAB WIDGET THỪA TRÊN CQG                 ');
       console.log('======================================================================\n');
-      console.log('✅ Toàn bộ tab rác trong panel g1.w431 đã được dọn sạch.');
+      console.log(' Toàn bộ tab rác trong panel g1.w431 đã được dọn sạch.');
       console.log('🛡️ Panel g3.w0 bên dưới và các panel khác đã được bảo toàn nguyên vẹn 100%!');
       return;
     }
@@ -289,7 +289,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? '✅ CHUẨN' : '❌ LỆCH';
+      const statusStr = a.isMatch ? ' CHUẨN' : '❌ LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -314,7 +314,7 @@ async function run() {
       }
 
       if (!hasDuplicate) {
-        console.log('   ✅ TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
+        console.log('    TUYỆT VỜI: Tất cả các file tải về đều có mã MD5 khác nhau và độc lập 100%!');
       }
     }
 

@@ -110,10 +110,10 @@ async function run() {
 
     const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`\n⏱️ TỔNG THỜI GIAN HOÀN TẤT TẢI SONG SONG (${testDesc}): ${elapsedSeconds}s (Trước đây: ~148s)`);
-    console.log(`✅ Danh sách file đã tải (${result.downloaded.length} file): ${result.downloaded.join(', ')}`);
+    console.log(` Danh sách file đã tải (${result.downloaded.length} file): ${result.downloaded.join(', ')}`);
 
     if (result.errors.length > 0) {
-      console.warn(`⚠️ Có lỗi trong quá trình tải: ${result.errors.join(' | ')}`);
+      console.warn(` Có lỗi trong quá trình tải: ${result.errors.join(' | ')}`);
     }
 
     // Kiểm tra timestamp mtime giữa 2 file FR1 và FR2
@@ -141,7 +141,7 @@ async function run() {
         console.log(`   ${l}`);
       }
     } else {
-      console.warn('⚠️ Không tìm thấy đủ cả 2 file FR1.xlsx và FR2.xlsx để so sánh mtime.');
+      console.warn(' Không tìm thấy đủ cả 2 file FR1.xlsx và FR2.xlsx để so sánh mtime.');
     }
 
     console.log('\n====================================================');

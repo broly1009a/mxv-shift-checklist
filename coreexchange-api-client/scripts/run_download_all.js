@@ -71,7 +71,7 @@ const REPORTS = [
       await workbook.xlsx.writeFile(targetPath);
       const dur = Date.now() - start;
       const stat = fs.statSync(targetPath);
-      console.log(`✅ OK! ${(stat.size / 1024).toFixed(1)} KB | ${dur}ms`);
+      console.log(` OK! ${(stat.size / 1024).toFixed(1)} KB | ${dur}ms`);
       successCount++;
     }
 

@@ -9,7 +9,9 @@ import {
   IngressDownloadResult,
   IngressFileDetail,
   decrypt,
+  EXTERNAL_SYSTEM_COREEX,
 } from '../../../shared';
+
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
 /**
@@ -170,10 +172,11 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
 @Injectable()
 export class CoreExApiAdapter implements IIngressPort {
   private readonly logger = new Logger(CoreExApiAdapter.name);
-  private readonly defaultBaseUrl = 'https://uat-coreexchange.mxv.com.vn';
-  private readonly defaultClientId = 'web-exchange-mxv';
+  private readonly defaultBaseUrl = EXTERNAL_SYSTEM_COREEX.baseUrl;
+  private readonly defaultClientId = EXTERNAL_SYSTEM_COREEX.clientId;
   private cachedSession: ICoreExchangeAuthSession | null = null;
   private readonly sessionCachePath = path.join(process.cwd(), 'temp', 'coreexchange_session.json');
+
 
   constructor(
     @Optional()
@@ -228,9 +231,10 @@ export class CoreExApiAdapter implements IIngressPort {
    */
   public async getValidSession(): Promise<ICoreExchangeAuthSession> {
     let baseUrl = process.env.COREEXCHANGE_BASE_URL || this.defaultBaseUrl;
-    let username = process.env.COREEXCHANGE_USERNAME || 'hieptruong';
-    let password = process.env.COREEXCHANGE_PASSWORD || 'Taovipko0!';
+    let username = process.env.COREEXCHANGE_USERNAME || '';
+    let password = process.env.COREEXCHANGE_PASSWORD || '';
     let clientId = process.env.COREEXCHANGE_CLIENT_ID || this.defaultClientId;
+
 
     if (this.settingsService) {
       baseUrl = await this.settingsService.getSetting('coreex_base_url', baseUrl);

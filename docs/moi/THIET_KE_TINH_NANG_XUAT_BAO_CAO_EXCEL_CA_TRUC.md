@@ -10,6 +10,7 @@
 ## 1. TỔNG QUAN & BỐI CẢNH NGHIỆP VỤ (BUSINESS CONTEXT)
 
 ### 1.1. Mục Tiêu Thiết Kế
+
 Hệ thống quản lý ca trực số hóa đã hoàn thành việc quản lý trạng thái thời gian thực (Real-time Web UI) và tự động hóa tác vụ (Bot Engine). Tuy nhiên, để đáp ứng toàn diện quy trình kiểm toán ISO, thanh tra ngành hàng hóa và báo cáo quản trị Lãnh đạo, hệ thống cần chuẩn hóa **2 luồng xuất dữ liệu bảng tính chuyên nghiệp (Enterprise Excel Reports)**:
 
 1. **Luồng 1 (Maker Level - Single Shift Audit Sheet):** Xuất biên bản chi tiết của **01 ca trực cụ thể**, tái hiện 100% biểu mẫu bảng biểu nguyên văn từ tài liệu Word gốc, đóng dấu thời gian (Timestamp) thực chứng và chữ ký số hóa để lưu hồ sơ pháp lý.
@@ -19,23 +20,25 @@ Hệ thống quản lý ca trực số hóa đã hoàn thành việc quản lý 
 
 ### 1.2. Khảo Sát & Đánh Giá Hiện Trạng Mã Nguồn (Code-First Grounding)
 
-| Thành phần | Đường dẫn mã nguồn | Hiện trạng thực tế | Đánh giá & Khoảng cách (Gap Analysis) |
-| :--- | :--- | :--- | :--- |
-| **Thư viện Excel Backend** | [backend/package.json#L70-L81](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json#L70-L81) | Đã cài sẵn `exceljs` (`^4.4.0`) và `xlsx` (`^0.18.5`). | **Sẵn sàng 100%**. Có đầy đủ công cụ mạnh nhất để format cell, border, color, auto-width, merge cells. |
-| **Data Schema Ca Trực** | [shift-log.schema.ts#L5-L208](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/shift-log.schema.ts#L5-L208) | Lưu trữ đầy đủ: `shiftDate`, `status`, `progressPercentage`, `details` (từng task: `isChecked`, `checkedAt`, `updatedBy`, `note`, `timetableSnapshot`, `actionDescriptionSnapshot`), `closedBy`, `closedAt`, `handoverNote`. | **Dữ liệu đầy đủ 100%**, có quan hệ populate tới `ChecklistTemplate`, `User`, `Department`. |
-| **Data Schema Sự Cố** | [incident.schema.ts#L24-L60](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/incident.schema.ts#L24-L60) | Lưu trữ đầy đủ: `code`, `taskId`, `shiftLogId`, `severity` (M1/M2/M3), `requiredAction`, `status`, `detectedAt`, `resolvedAt`, `resolvedBy`. | **Sẵn sàng 100%** để trích xuất Sheet Sự cố cho báo cáo quản trị Lãnh đạo. |
-| **Luồng 1 (Frontend)** | [checklist/page.tsx#L505-L506](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/page.tsx#L505-L506)<br/>[useChecklist.ts#L510-L556](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/hooks/useChecklist.ts#L510-L556) | Đã có nút `"Xuất file Excel"` gọi `exportToExcel`. | ⚠️ **Hạn chế**: Hiện mới dùng chuỗi nối dấu phẩy xuất file `.csv` thô, chưa có style, chưa có format A4, thiếu các mốc giờ và khung chữ ký. |
-| **Luồng 2 (Frontend)** | [history/page.tsx#L80-L140](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/history/page.tsx#L80-L140) | Đã có bộ lọc: Phòng ban, Trạng thái, Từ ngày, Đến ngày. | ❌ **Chưa có**: Hoàn toàn chưa có nút bấm và API xuất báo cáo tổng hợp nhiều ca trực kèm KPI. |
+| Thành phần                 | Đường dẫn mã nguồn                                                                                                                                                                                                                                                                                                                                                                                                                | Hiện trạng thực tế                                                                                                                                                                                                           | Đánh giá & Khoảng cách (Gap Analysis)                                                                                                    |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thư viện Excel Backend** | [backend/package.json#L70-L81](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json#L70-L81)                                                                                                                                                                                                                                          | Đã cài sẵn `exceljs` (`^4.4.0`) và `xlsx` (`^0.18.5`).                                                                                                                                                                       | **Sẵn sàng 100%**. Có đầy đủ công cụ mạnh nhất để format cell, border, color, auto-width, merge cells.                                   |
+| **Data Schema Ca Trực**    | [shift-log.schema.ts#L5-L208](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/shift-log.schema.ts#L5-L208)                                                                                                                                                                                                                        | Lưu trữ đầy đủ: `shiftDate`, `status`, `progressPercentage`, `details` (từng task: `isChecked`, `checkedAt`, `updatedBy`, `note`, `timetableSnapshot`, `actionDescriptionSnapshot`), `closedBy`, `closedAt`, `handoverNote`. | **Dữ liệu đầy đủ 100%**, có quan hệ populate tới `ChecklistTemplate`, `User`, `Department`.                                              |
+| **Data Schema Sự Cố**      | [incident.schema.ts#L24-L60](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/incident.schema.ts#L24-L60)                                                                                                                                                                                                                          | Lưu trữ đầy đủ: `code`, `taskId`, `shiftLogId`, `severity` (M1/M2/M3), `requiredAction`, `status`, `detectedAt`, `resolvedAt`, `resolvedBy`.                                                                                 | **Sẵn sàng 100%** để trích xuất Sheet Sự cố cho báo cáo quản trị Lãnh đạo.                                                               |
+| **Luồng 1 (Frontend)**     | [checklist/page.tsx#L505-L506](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/page.tsx#L505-L506)<br/>[useChecklist.ts#L510-L556](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/hooks/useChecklist.ts#L510-L556) | Đã có nút `"Xuất file Excel"` gọi `exportToExcel`.                                                                                                                                                                           | **Hạn chế**: Hiện mới dùng chuỗi nối dấu phẩy xuất file `.csv` thô, chưa có style, chưa có format A4, thiếu các mốc giờ và khung chữ ký. |
+| **Luồng 2 (Frontend)**     | [history/page.tsx#L80-L140](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/history/page.tsx#L80-L140)                                                                                                                                                                                                                               | Đã có bộ lọc: Phòng ban, Trạng thái, Từ ngày, Đến ngày.                                                                                                                                                                      | ❌ **Chưa có**: Hoàn toàn chưa có nút bấm và API xuất báo cáo tổng hợp nhiều ca trực kèm KPI.                                            |
 
 ---
 
 ## 2. THIẾT KẾ KỸ THUẬT: LUỒNG 1 - BIÊN BẢN CA TRỰC CHI TIẾT (SINGLE-SHIFT AUDIT SHEET)
 
 ### 2.1. Mục Đích & Đối Tượng Sử Dụng
+
 - **Đối tượng:** Nhân viên trực ca (Maker) và Trưởng ca (Checker).
 - **Mục đích:** Đóng băng biên bản ca trực thành file `.xlsx` chuẩn form hành chính để in ký giấy, đính kèm hồ sơ bàn giao ca hoặc lưu trữ phục vụ giải trình thanh tra.
 
 ### 2.2. Đặc Tả API Backend
+
 - **Endpoint:** `GET /api/v1/shifts/:id/export-excel`
 - **Quyền hạn (Permissions):** `VIEW_CHECKLIST` (hoặc `APPROVE_SHIFT`)
 - **Headers trả về:**
@@ -74,6 +77,7 @@ Hệ thống quản lý ca trực số hóa đã hoàn thành việc quản lý 
 ```
 
 #### Quy tắc Style bằng `ExcelJS`:
+
 1. **Tiêu đề cột:** Nền xanh thương hiệu MXV (`#0F4C81`), chữ trắng đậm, canh giữa, chiều cao dòng 28px.
 2. **Cột Kết quả:**
    - Trạng thái `PASSED` / Đạt: Chữ xanh lá đậm (`#166534`), nền xanh nhạt (`#DCFCE7`), căn giữa, in đậm.
@@ -87,10 +91,12 @@ Hệ thống quản lý ca trực số hóa đã hoàn thành việc quản lý 
 ## 3. THIẾT KẾ KỸ THUẬT: LUỒNG 2 - BÁO CÁO TỔNG HỢP QUẢN TRỊ ĐỊNH KỲ (MANAGEMENT PERIOD REPORT)
 
 ### 3.1. Mục Đích & Đối Tượng Sử Dụng
+
 - **Đối tượng:** Trưởng phòng, Trưởng bộ phận, Ban Giám đốc, Ban Kiểm soát nội bộ.
 - **Mục đích:** Tổng kết hiệu quả vận hành theo tháng/quý; đánh giá tỷ lệ đạt hạn mức thời gian (SLA), thống kê tần suất phát sinh sự cố và mức độ giải quyết sự cố.
 
 ### 3.2. Đặc Tả API Backend
+
 - **Endpoint:** `GET /api/v1/shifts/export-summary-excel`
 - **Query Parameters:**
   - `departmentId`: Lọc theo phòng ban (hoặc rỗng nếu toàn Sở)
@@ -104,6 +110,7 @@ Hệ thống quản lý ca trực số hóa đã hoàn thành việc quản lý 
 ### 3.3. Cấu Trúc Workbook Gồm 3 Sheets
 
 #### 📑 Sheet 1: `TONG_QUAN_KPI` (Dashboard Tóm Tắt)
+
 - **Khối chỉ số tổng quan (KPI Cards):**
   - Tổng số ca trực trong kỳ: `COUNT(ShiftLogs)`
   - Tỷ lệ ca hoàn thành 100%: `(Số ca COMPLETED / Tổng ca) * 100%`
@@ -113,10 +120,12 @@ Hệ thống quản lý ca trực số hóa đã hoàn thành việc quản lý 
   - Bảng tổng hợp số lượng ca và tỷ lệ hoàn thành theo từng phòng ban (`IT_CORE`, `QLGD_OPS`, `QLRR_RISK`).
 
 #### 📑 Sheet 2: `CHI_TIET_CA_TRUC` (Shift History Log)
+
 - Danh sách toàn bộ các ca trực trong khoảng thời gian đã lọc:
   - Cột: `STT | Mã ca | Ngày trực | Ca làm việc | Mẫu Checklist | Phòng ban | Người mở ca | Người chốt ca | Giờ chốt | Tỷ lệ % | Số sự cố | Ghi chú bàn giao`.
 
 #### 📑 Sheet 3: `NHAT_KY_SU_CO` (Incident Register)
+
 - Toàn bộ các sự cố được liên kết từ collection `incidents`:
   - Cột: `Mã sự cố | Ngày phát sinh | Thuộc ca trực | Tác vụ liên quan | Mức độ (M1/M2/M3) | Thời điểm phát hiện | Thời điểm xử lý xong | Thời gian khắc phục (Phút) | Cán bộ xử lý | Biện pháp khắc phục & Ghi chú`.
 
@@ -147,57 +156,88 @@ frontend/src/
 ### 4.2. Kịch Bản Code Mẫu Tối Ưu (Core Implementation Pattern)
 
 #### Backend: Service `ShiftExcelExporterService` (sử dụng `ExcelJS`)
+
 ```typescript
-import { Injectable } from '@nestjs/common';
-import * as ExcelJS from 'exceljs';
-import { Response } from 'express';
+import { Injectable } from "@nestjs/common";
+import * as ExcelJS from "exceljs";
+import { Response } from "express";
 
 @Injectable()
 export class ShiftExcelExporterService {
   async exportSingleShift(shiftLog: any, res: Response) {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'MXV Shift Automation Platform';
-    const worksheet = workbook.addWorksheet('Bien_Ban_Ca_Truc', {
-      pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true }
+    workbook.creator = "MXV Shift Automation Platform";
+    const worksheet = workbook.addWorksheet("Bien_Ban_Ca_Truc", {
+      pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true },
     });
 
     // 1. Thêm Tiêu đề & Thông tin hành chính
-    worksheet.mergeCells('A1:F1');
-    worksheet.getCell('A1').value = 'SỞ GIAO DỊCH HÀNG HÓA VIỆT NAM (MXV)';
-    worksheet.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FF0F4C81' } };
+    worksheet.mergeCells("A1:F1");
+    worksheet.getCell("A1").value = "SỞ GIAO DỊCH HÀNG HÓA VIỆT NAM (MXV)";
+    worksheet.getCell("A1").font = {
+      bold: true,
+      size: 14,
+      color: { argb: "FF0F4C81" },
+    };
 
     // 2. Thiết lập Header Bảng
     const headerRow = worksheet.addRow([
-      'STT', 'Mốc giờ', 'Nội dung vận hành', 'Điểm kiểm tra', 'Kết quả', 'Thời gian thực tế', 'Người xác nhận', 'Ghi chú'
+      "STT",
+      "Mốc giờ",
+      "Nội dung vận hành",
+      "Điểm kiểm tra",
+      "Kết quả",
+      "Thời gian thực tế",
+      "Người xác nhận",
+      "Ghi chú",
     ]);
     headerRow.eachCell((cell) => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F4C81' } };
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF0F4C81" },
+      };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
     });
 
     // 3. Đổ dữ liệu từng tác vụ
     shiftLog.details.forEach((item: any, idx: number) => {
-      const isPassed = item.status === 'PASSED' || item.isChecked;
+      const isPassed = item.status === "PASSED" || item.isChecked;
       const row = worksheet.addRow([
         idx + 1,
-        item.timetableSnapshot || '',
+        item.timetableSnapshot || "",
         item.taskNameSnapshot,
-        item.actionDescriptionSnapshot || '',
-        isPassed ? 'ĐẠT' : 'CHƯA ĐẠT',
-        item.checkedAt ? new Date(item.checkedAt).toLocaleTimeString('vi-VN') : '',
-        item.updatedBy?.fullName || '',
-        item.note || ''
+        item.actionDescriptionSnapshot || "",
+        isPassed ? "ĐẠT" : "CHƯA ĐẠT",
+        item.checkedAt
+          ? new Date(item.checkedAt).toLocaleTimeString("vi-VN")
+          : "",
+        item.updatedBy?.fullName || "",
+        item.note || "",
       ]);
       // Tô màu có điều kiện cho ô Kết quả
       const statusCell = row.getCell(5);
-      statusCell.font = { bold: true, color: { argb: isPassed ? 'FF166534' : 'FF991B1B' } };
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isPassed ? 'FFDCFCE7' : 'FFFEE2E2' } };
+      statusCell.font = {
+        bold: true,
+        color: { argb: isPassed ? "FF166534" : "FF991B1B" },
+      };
+      statusCell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: isPassed ? "FFDCFCE7" : "FFFEE2E2" },
+      };
     });
 
     // 4. Stream trực tiếp ra HTTP Response (Không tốn RAM/Disk server)
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=Bien_Ban_Ca_${shiftLog.shiftDate}.xlsx`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Bien_Ban_Ca_${shiftLog.shiftDate}.xlsx`,
+    );
     await workbook.xlsx.write(res);
     res.end();
   }

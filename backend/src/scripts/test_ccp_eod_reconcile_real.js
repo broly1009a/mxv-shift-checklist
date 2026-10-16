@@ -78,8 +78,8 @@ async function runTest() {
   console.log(`\n1. Kiểm tra nhận diện file:`);
   console.log(`   - QL TT TKGD : ${qltkgdFile ? path.basename(qltkgdFile) : '❌ KHÔNG TÌM THẤY'}`);
   console.log(`   - EOD        : ${eodFile ? path.basename(eodFile) : '❌ KHÔNG TÌM THẤY'}`);
-  console.log(`   - TTTT       : ${ttttFile ? path.basename(ttttFile) : '⚠️ Không có (tùy chọn)'}`);
-  console.log(`   - NR         : ${nrFile ? path.basename(nrFile) : '⚠️ Không có (tùy chọn)'}`);
+  console.log(`   - TTTT       : ${ttttFile ? path.basename(ttttFile) : ' Không có (tùy chọn)'}`);
+  console.log(`   - NR         : ${nrFile ? path.basename(nrFile) : ' Không có (tùy chọn)'}`);
 
   if (!qltkgdFile || !eodFile) {
     console.error('❌ Thiếu file QL TT TKGD hoặc EOD. Dừng kiểm tra.');
@@ -216,7 +216,7 @@ async function runTest() {
         }
       }
     } catch (e) {
-      console.warn(`   ⚠️ Lỗi đọc TTTT: ${e.message}`);
+      console.warn(`    Lỗi đọc TTTT: ${e.message}`);
     }
   }
 
@@ -369,14 +369,14 @@ async function runTest() {
   console.log(`• Số tài khoản âm ký quỹ (IMR)  : ${negativeIMRAcc.length}`);
 
   if (negativeBalanceAccs.length > 0) {
-    console.log('\n⚠️ Chi tiết tài khoản âm số dư:');
+    console.log('\n Chi tiết tài khoản âm số dư:');
     negativeBalanceAccs.forEach((a) => {
       console.log(`   - TK ${a.acc}: Số dư = ${formatVnd(a.curBal)} VNĐ`);
     });
   }
 
   if (negativeIMRAcc.length > 0) {
-    console.log('\n⚠️ Chi tiết tài khoản âm ký quỹ IMR:');
+    console.log('\n Chi tiết tài khoản âm ký quỹ IMR:');
     negativeIMRAcc.forEach((a) => {
       console.log(`   - TK ${a.acc}: Ký quỹ khả dụng = ${formatVnd(a.avMargin)} | Mức bổ sung = ${formatVnd(a.addMargin)}`);
     });

@@ -279,12 +279,12 @@ async function downloadSingleCqgWidget(page, searchTerm, tabLabel, downloadText,
       await okBtn.waitFor({ state: 'visible', timeout: 8000 });
       await okBtn.click();
       await page.waitForTimeout(800);
-      console.log(`[CQG-FAST] ✅ Đã chọn All accounts thành công cho ${tabLabel}!`);
+      console.log(`[CQG-FAST]  Đã chọn All accounts thành công cho ${tabLabel}!`);
     } else {
-      console.log(`[CQG-FAST] ⚡ Tab ${tabLabel} đã là All accounts (bỏ qua modal chọn tài khoản)!`);
+      console.log(`[CQG-FAST] Tab ${tabLabel} đã là All accounts (bỏ qua modal chọn tài khoản)!`);
     }
   } else {
-    console.log(`[CQG-FAST] ⚡ Không phát hiện nút đổi tài khoản (hoặc đã nhận mặc định All).`);
+    console.log(`[CQG-FAST] Không phát hiện nút đổi tài khoản (hoặc đã nhận mặc định All).`);
   }
 
   // Bước 6: Dynamic Wait - Chờ dữ liệu bảng đồng bộ xong từ máy chủ CQG
@@ -353,7 +353,7 @@ async function downloadSingleCqgWidget(page, searchTerm, tabLabel, downloadText,
         ]);
         await download.saveAs(destFile);
         const fileSizeKb = (fs.statSync(destFile).size / 1024).toFixed(1);
-        console.log(`[CQG-FAST] ✅ ĐÃ LƯU FILE: ${path.basename(destFile)} (${fileSizeKb} KB)`);
+        console.log(`[CQG-FAST]  ĐÃ LƯU FILE: ${path.basename(destFile)} (${fileSizeKb} KB)`);
         downloaded = true;
         break;
       } catch (dlErr) {
@@ -724,7 +724,7 @@ async function run() {
 
     await waitForCqgNotLoading(page, 30000);
     timings.loginSec = ((Date.now() - loginStart) / 1000).toFixed(1);
-    console.log(`[CQG] ✅ Đăng nhập thành công và vào Dashboard trong: ${timings.loginSec}s!\n`);
+    console.log(`[CQG]  Đăng nhập thành công và vào Dashboard trong: ${timings.loginSec}s!\n`);
 
     // 3. Dọn dẹp thông báo và thực hiện tải báo cáo
     await cleanupStaleCqgWidgets(page);
@@ -791,7 +791,7 @@ async function run() {
       'Kích thước': `${(a.fileSize / 1024).toFixed(1)} KB`,
       'Loại mong đợi': a.expectedType,
       'Nhận diện nội dung': a.detectedType,
-      'Trạng thái': a.isMatch ? 'PASS ✅' : 'FAIL ❌',
+      'Trạng thái': a.isMatch ? 'PASS ' : 'FAIL ❌',
       'Số dòng': a.rowCount,
       'Mã MD5': a.md5 ? a.md5.slice(0, 10) : 'N/A',
     }));
@@ -803,7 +803,7 @@ async function run() {
       console.log(`\n🎉 TẤT CẢ ${analyses.length} BÁO CÁO CQG ĐỀU TẢI VỀ THÀNH CÔNG VÀ CHUẨN XÁC 100%!`);
       console.log(`📂 File lưu tại: ${defaultDestDir}`);
     } else {
-      console.log('\n⚠️ Có báo cáo chưa tải được hoặc không đúng nội dung. Xem chi tiết lỗi ở trên.');
+      console.log('\n Có báo cáo chưa tải được hoặc không đúng nội dung. Xem chi tiết lỗi ở trên.');
     }
   }
 }

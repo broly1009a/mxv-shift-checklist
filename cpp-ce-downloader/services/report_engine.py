@@ -336,7 +336,7 @@ class ReportEngine:
                 "name": "Lịch sử nộp rút tiền",
                 "parent_menu": "Quản lý tiền",
                 "child_menu": "Lịch sử nộp rút tiền",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
+                "cached_url": "https://coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST",
                 "enabled": True
             },
             {
@@ -361,7 +361,7 @@ class ReportEngine:
                 "parent_menu": "Lệnh và vị thế",
                 "child_menu": "Trạng thái tất toán",
                 "tab_name": "Lịch sử tất toán",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
+                "cached_url": "https://coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED",
                 "enabled": True
             },
             {
@@ -369,7 +369,7 @@ class ReportEngine:
                 "name": "Lịch sử giá thanh toán",
                 "parent_menu": "Quản lý sản phẩm",
                 "child_menu": "Quản lý lịch sử giá thanh toán",
-                "cached_url": "https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST",
+                "cached_url": "https://coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST",
                 "enabled": True
             }
         ]

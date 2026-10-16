@@ -82,7 +82,7 @@ async function runTests() {
   if (!res1.isValid) throw new Error(`TESTCASE 1 FAILED: Mong muốn hợp lệ nhưng trả về ${res1.reason}`);
 
   const mergeSuccess1 = merger.mergeFR(fr1_ok, fr2_ok, fr_dest1);
-  console.log(`• Kết quả mergeFR: ${mergeSuccess1 ? '✅ THÀNH CÔNG' : '❌ THẤT BẠI'}`);
+  console.log(`• Kết quả mergeFR: ${mergeSuccess1 ? ' THÀNH CÔNG' : '❌ THẤT BẠI'}`);
   console.log(`• File sinh ra: ${fs.existsSync(fr_dest1) ? 'Tồn tại' : 'Không tồn tại'}\n`);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ async function runTests() {
     merger.mergeFR(fr1_ok, fr2_missing, fr_dest2);
     throw new Error('TESTCASE 2 FAILED: mergeFR lẽ ra phải throw Error chặn ghép file thiếu!');
   } catch (err: any) {
-    console.log(`• Bắt lỗi thành công: "${err.message}" (✅ Đã chặn ghép file thiếu)\n`);
+    console.log(`• Bắt lỗi thành công: "${err.message}" ( Đã chặn ghép file thiếu)\n`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ async function runTests() {
     merger.mergeFR(fr1_ok, fr2_stale, fr_dest3);
     throw new Error('TESTCASE 3 FAILED: mergeFR lẽ ra phải throw Error chặn ghép file cũ!');
   } catch (err: any) {
-    console.log(`• Bắt lỗi thành công: "${err.message}" (✅ Đã chặn ghép file quá hạn)\n`);
+    console.log(`• Bắt lỗi thành công: "${err.message}" ( Đã chặn ghép file quá hạn)\n`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ async function runTests() {
     merger.mergeFR(fr1_day15, fr2_day16, fr_dest4);
     throw new Error('TESTCASE 4 FAILED: mergeFR lẽ ra phải throw Error chặn ghép file khác ngày!');
   } catch (err: any) {
-    console.log(`• Bắt lỗi thành công: "${err.message}" (✅ Đã chặn ghép file khác ngày Header)\n`);
+    console.log(`• Bắt lỗi thành công: "${err.message}" ( Đã chặn ghép file khác ngày Header)\n`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

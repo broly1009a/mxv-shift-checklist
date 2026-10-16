@@ -103,7 +103,7 @@ async function runTests() {
       dsgdTemp: snapshotBufferMatching,
     });
     if (res1.passed && !res1.isSnapshotMissing && res1.differTotal === 0) {
-      console.log('  ✅ PASSED: Kết quả passed=true, differTotal=0, isSnapshotMissing=false');
+      console.log('   PASSED: Kết quả passed=true, differTotal=0, isSnapshotMissing=false');
       passedCount++;
     } else {
       console.error('  ❌ FAILED: Kỳ vọng passed=true nhưng nhận:', res1);
@@ -122,7 +122,7 @@ async function runTests() {
       dsgdTemp: undefined,
     });
     if (!res2.passed && res2.isSnapshotMissing === true) {
-      console.log('  ✅ PASSED: Đã chặn thành công! passed=false, isSnapshotMissing=true');
+      console.log('   PASSED: Đã chặn thành công! passed=false, isSnapshotMissing=true');
       console.log(`    Thông báo: "${res2.messages[0]}"`);
       passedCount++;
     } else {
@@ -142,7 +142,7 @@ async function runTests() {
       dsgdTemp: Buffer.alloc(0),
     });
     if (!res3.passed && res3.isSnapshotMissing === true) {
-      console.log('  ✅ PASSED: Đã chặn thành công khi buffer rỗng!');
+      console.log('   PASSED: Đã chặn thành công khi buffer rỗng!');
       passedCount++;
     } else {
       console.error('  ❌ FAILED: Kỳ vọng passed=false khi buffer rỗng nhưng nhận:', res3);
@@ -181,7 +181,7 @@ async function runTests() {
     });
 
     if (!res4.passed && res4.isSnapshotMissing === true && res4.filesFound?.dsgdTemp === undefined) {
-      console.log('  ✅ PASSED: Đã từ chối so sánh với file gốc! passed=false, isSnapshotMissing=true');
+      console.log('   PASSED: Đã từ chối so sánh với file gốc! passed=false, isSnapshotMissing=true');
       console.log(`    Thông báo: "${res4.messages[0]}"`);
       passedCount++;
     } else {
@@ -206,7 +206,7 @@ async function runTests() {
     });
 
     if (res5.passed && !res5.isSnapshotMissing && res5.filesFound?.dsgdTemp?.includes('DSGD17h00.xlsx')) {
-      console.log('  ✅ PASSED: Đã nhận diện đúng snapshot DSGD17h00.xlsx và đối chiếu thành công!');
+      console.log('   PASSED: Đã nhận diện đúng snapshot DSGD17h00.xlsx và đối chiếu thành công!');
       passedCount++;
     } else {
       console.error('  ❌ FAILED: Kỳ vọng passed=true với file snapshot hợp lệ:', res5);

@@ -47,7 +47,7 @@ function assertTest(name, condition, details = '') {
   totalTests++;
   if (condition) {
     passedTests++;
-    console.log(`  ✅ [PASS] ${name}`);
+    console.log(`   [PASS] ${name}`);
   } else {
     failedTests++;
     console.error(`  ❌ [FAIL] ${name} ${details ? `(${details})` : ''}`);
@@ -90,7 +90,7 @@ async function runTestSuite() {
       `Kết quả: ${strictFor01}`
     );
   } else {
-    console.log('  ⚠️ Không tìm thấy ổ M: trên máy, bỏ qua Test Case 1 và chuyển sang Mock Test Case.');
+    console.log('   Không tìm thấy ổ M: trên máy, bỏ qua Test Case 1 và chuyển sang Mock Test Case.');
   }
 
   // ───────────────────────────────────────────────────────────────────────────

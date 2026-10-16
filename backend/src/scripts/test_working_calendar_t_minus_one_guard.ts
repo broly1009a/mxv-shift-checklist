@@ -74,7 +74,7 @@ async function runTests() {
   console.log('Test Case 1: Thứ Tư (2026-10-14) -> Thứ Ba (2026-10-13)...');
   const res1 = await dsgdService.getPreviousTradingSession('2026-10-14');
   if (res1.dateFormatted === '13/10/2026') {
-    console.log(`  ✅ PASSED: Kết quả đúng ${res1.dateFormatted}`);
+    console.log(`   PASSED: Kết quả đúng ${res1.dateFormatted}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 13/10/2026 nhưng nhận ${res1.dateFormatted}`);
@@ -85,7 +85,7 @@ async function runTests() {
   console.log('\nTest Case 2: Thứ Hai (2026-10-12) -> Thứ Sáu (2026-10-09)...');
   const res2 = await dsgdService.getPreviousTradingSession('2026-10-12');
   if (res2.dateFormatted === '09/10/2026') {
-    console.log(`  ✅ PASSED: Đã bỏ qua T7 (10) và CN (11), kết quả đúng ${res2.dateFormatted}`);
+    console.log(`   PASSED: Đã bỏ qua T7 (10) và CN (11), kết quả đúng ${res2.dateFormatted}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 09/10/2026 nhưng nhận ${res2.dateFormatted}`);
@@ -97,7 +97,7 @@ async function runTests() {
   const res3 = await dsgdService.getPreviousTradingSession('2026-09-03');
   // 03/09 lùi 1 ngày -> 02/09 (nghỉ) -> 01/09 (nghỉ) -> 31/08/2026 (Thứ Hai làm việc)
   if (res3.dateFormatted === '31/08/2026') {
-    console.log(`  ✅ PASSED: Đã bỏ qua cả 01/09 và 02/09, kết quả đúng ${res3.dateFormatted}`);
+    console.log(`   PASSED: Đã bỏ qua cả 01/09 và 02/09, kết quả đúng ${res3.dateFormatted}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 31/08/2026 nhưng nhận ${res3.dateFormatted}`);
@@ -110,7 +110,7 @@ async function runTests() {
   // Lùi: 22/02 (CN), 21/02 (T7), 20/02 (Tết), 19/02 (Tết), 18/02 (Tết), 17/02 (Tết), 16/02 (Tết), 15/02 (CN), 14/02 (T7) -> 13/02/2026 (Thứ Sáu trước Tết)!
   const res4 = await dsgdService.getPreviousTradingSession('2026-02-23');
   if (res4.dateFormatted === '13/02/2026') {
-    console.log(`  ✅ PASSED: Đã vượt qua thành công toàn bộ kỳ nghỉ Tết! Kết quả đúng ${res4.dateFormatted}`);
+    console.log(`   PASSED: Đã vượt qua thành công toàn bộ kỳ nghỉ Tết! Kết quả đúng ${res4.dateFormatted}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 13/02/2026 nhưng nhận ${res4.dateFormatted} (Code cũ bị kẹt vào ngày Tết!)`);
@@ -126,7 +126,7 @@ async function runTests() {
   const dateFormatted5 = `${day5}/${m5}/${y5}`;
 
   if (dateFormatted5 === '13/02/2026') {
-    console.log(`  ✅ PASSED: PreEodReconService trả về đúng ngày phiên trước Tết: ${dateFormatted5}`);
+    console.log(`   PASSED: PreEodReconService trả về đúng ngày phiên trước Tết: ${dateFormatted5}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: PreEodReconService kỳ vọng 13/02/2026 nhưng nhận ${dateFormatted5}`);

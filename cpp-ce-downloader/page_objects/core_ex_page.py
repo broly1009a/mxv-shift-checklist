@@ -1,5 +1,5 @@
 """
-core_ex_page.py — Page Object định vị và điều hướng riêng cho hệ thống CoreEX (uat-coreexchange.mxv.com.vn).
+core_ex_page.py — Page Object định vị và điều hướng riêng cho hệ thống CoreEX (coreexchange.mxv.com.vn).
 """
 
 from urllib.parse import urlparse

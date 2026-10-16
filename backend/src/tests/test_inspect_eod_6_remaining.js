@@ -142,7 +142,7 @@ for (const acc of SUSPECT_ACCS) {
     const tradeProfit = laiLoVND !== 0 ? (laiLoVND + phiQC * tyGia) : ((phiQC + laiLoUSD) * tyGia);
     const calc = dauNgay + nopRut - phiGD - phiDV + tradeProfit;
     const diff = Math.abs(calc - eodVal);
-    const match = diff < 1000 ? '✅ KHỚP' : `❌ LỆCH ${diff.toLocaleString('vi-VN')} đ`;
+    const match = diff < 1000 ? ' KHỚP' : `❌ LỆCH ${diff.toLocaleString('vi-VN')} đ`;
     console.log(`  [${rateSet.label}]: Tính toán = ${Math.round(calc).toLocaleString('vi-VN')} → ${match}`);
   }
 

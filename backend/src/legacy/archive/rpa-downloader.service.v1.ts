@@ -1412,7 +1412,7 @@ export class RpaDownloaderService {
       throw new Error(`Không thể giải mã cấu hình tài khoản CCP: ${err.message}`);
     }
 
-    const ccpUrl = (ccpCreds.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
+    const ccpUrl = (ccpCreds.url || 'https://coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
 
     // Ingress Facade: Thử ủy quyền sang CcpScraperService V2
     if (this.ccpScraper) {

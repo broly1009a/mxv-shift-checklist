@@ -28,7 +28,7 @@ function runTests() {
   console.log('Test Case 1: Giờ mùa hè tại Mỹ (15/07/2026)...');
   const summerTime = getRecommendedMarketCloseDownloadTime(new Date('2026-07-15T00:00:00Z'));
   if (summerTime === '04:00') {
-    console.log(`  ✅ PASSED: Mùa hè trả về đúng mốc ${summerTime}`);
+    console.log(`   PASSED: Mùa hè trả về đúng mốc ${summerTime}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 04:00 nhưng nhận ${summerTime}`);
@@ -39,7 +39,7 @@ function runTests() {
   console.log('\nTest Case 2: Giờ mùa đông tại Mỹ (15/01/2026)...');
   const winterTime = getRecommendedMarketCloseDownloadTime(new Date('2026-01-15T00:00:00Z'));
   if (winterTime === '05:00') {
-    console.log(`  ✅ PASSED: Mùa đông tự động lùi sang ${winterTime} để chờ sàn CME/CBOT đóng cửa!`);
+    console.log(`   PASSED: Mùa đông tự động lùi sang ${winterTime} để chờ sàn CME/CBOT đóng cửa!`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 05:00 nhưng nhận ${winterTime}`);
@@ -54,7 +54,7 @@ function runTests() {
   const postSpringDst = getRecommendedMarketCloseDownloadTime(new Date('2026-03-09T00:00:00Z'));
 
   if (preSpringDst === '05:00' && postSpringDst === '04:00') {
-    console.log(`  ✅ PASSED: Trước DST (07/03): ${preSpringDst}, Sau DST (09/03): ${postSpringDst}`);
+    console.log(`   PASSED: Trước DST (07/03): ${preSpringDst}, Sau DST (09/03): ${postSpringDst}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 05:00 -> 04:00 nhưng nhận ${preSpringDst} -> ${postSpringDst}`);
@@ -68,7 +68,7 @@ function runTests() {
   const postFallDst = getRecommendedMarketCloseDownloadTime(new Date('2026-11-02T00:00:00Z'));
 
   if (preFallDst === '04:00' && postFallDst === '05:00') {
-    console.log(`  ✅ PASSED: Cuối hè (31/10): ${preFallDst}, Vào đông (02/11): ${postFallDst}`);
+    console.log(`   PASSED: Cuối hè (31/10): ${preFallDst}, Vào đông (02/11): ${postFallDst}`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Kỳ vọng 04:00 -> 05:00 nhưng nhận ${preFallDst} -> ${postFallDst}`);
@@ -86,7 +86,7 @@ function runTests() {
   };
   // Logic mới: if (!task.time) task.time = recommendedTime; else keep task.time
   if (simulatedTask.time === '05:30') {
-    console.log(`  ✅ PASSED: Cấu hình ${simulatedTask.time} của người dùng được bảo toàn nguyên vẹn!`);
+    console.log(`   PASSED: Cấu hình ${simulatedTask.time} của người dùng được bảo toàn nguyên vẹn!`);
     passedCount++;
   } else {
     console.error(`  ❌ FAILED: Cấu hình bị ghi đè!`);

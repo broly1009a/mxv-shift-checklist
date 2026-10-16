@@ -62,7 +62,7 @@ async function main() {
 
   try {
     const cqgScraper = app.get(CqgScraperService);
-    console.log('✅ Đã resolve CqgScraperService thành công!\n');
+    console.log(' Đã resolve CqgScraperService thành công!\n');
 
     console.log('⏳ Đang tiến hành tải báo cáo qua Playwright...');
     const startTime = Date.now();

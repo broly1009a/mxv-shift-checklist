@@ -17,10 +17,10 @@ import {
 } from './types';
 
 export class CoreExchangeRestClient {
-  private readonly defaultBaseUrl = 'https://uat-coreexchange.mxv.com.vn';
+  private readonly defaultBaseUrl = 'https://coreexchange.mxv.com.vn';
 
   constructor(
-    private readonly baseUrl: string = process.env.COREEXCHANGE_BASE_URL || 'https://uat-coreexchange.mxv.com.vn'
+    private readonly baseUrl: string = process.env.COREEXCHANGE_BASE_URL || 'https://coreexchange.mxv.com.vn'
   ) {}
 
   /**

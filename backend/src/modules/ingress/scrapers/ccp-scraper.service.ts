@@ -62,7 +62,7 @@ export class CcpScraperService {
       throw new Error('Chưa cấu hình thông tin đăng nhập CoreCCP (username, password).');
     }
 
-    const ccpUrl = (credentials.url || 'https://uat-coreccp.mxv.com.vn')
+    const ccpUrl = (credentials.url || 'https://coreccp.mxv.com.vn')
       .replace(/\/login\/?$/, '')
       .replace(/\/$/, '');
 

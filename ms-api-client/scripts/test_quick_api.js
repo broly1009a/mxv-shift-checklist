@@ -74,7 +74,7 @@ async function login() {
   }
 
   const token = data2.data.user.accessToken;
-  console.log(`✅ Xác thực thành công! Bearer Token: ${token.slice(0, 35)}...`);
+  console.log(` Xác thực thành công! Bearer Token: ${token.slice(0, 35)}...`);
   return token;
 }
 
@@ -126,7 +126,7 @@ async function downloadReport(token, rep, outDir) {
       process.stdout.write(`   ⏳ Đang tải [${rep.name}]... `);
       try {
         const info = await downloadReport(token, rep, outDir);
-        console.log(`✅ OK! ${(info.sizeBytes / 1024).toFixed(1)} KB | ${info.durationMs}ms`);
+        console.log(` OK! ${(info.sizeBytes / 1024).toFixed(1)} KB | ${info.durationMs}ms`);
       } catch (err) {
         console.log(`❌ Lỗi: ${err.message}`);
       }

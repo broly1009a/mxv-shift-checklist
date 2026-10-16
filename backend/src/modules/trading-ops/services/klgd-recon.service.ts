@@ -393,47 +393,8 @@ export class KlgdReconService {
       }
     });
 
-    nanoData.forEach((gd) => {
-      const existsInDSGD = dsgdData.some(
-        (row) =>
-          row.maTKGD.toUpperCase().endsWith('A') &&
-          row.maGD === gd.maGD &&
-          row.klGiaoDich === gd.klGiaoDich,
-      );
-      if (!existsInDSGD) {
-        mismatchedTrades.push({
-          source: 'ACM',
-          maLenh: gd.maLenh,
-          maTKGD: gd.maTKGD,
-          maHD: gd.maHD,
-          giaKhop: gd.giaKhop,
-          klGiaoDich: gd.klGiaoDich,
-          ngayGio: gd.ngayGio,
-          reason: 'Giao dịch ACM không đồng bộ bên M-System',
-        });
-      }
-    });
-
-    dsgdData.forEach((gd) => {
-      if (!gd.maTKGD.toUpperCase().endsWith('A')) return;
-      const existsInNano = nanoData.some(
-        (row) => row.maGD === gd.maGD && row.klGiaoDich === gd.klGiaoDich,
-      );
-      if (!existsInNano) {
-        mismatchedTrades.push({
-          source: 'Nano',
-          maLenh: gd.maLenh,
-          maTKGD: gd.maTKGD,
-          maHD: gd.maHD,
-          giaKhop: gd.giaKhop,
-          klGiaoDich: gd.klGiaoDich,
-          ngayGio: gd.ngayGio,
-          reason: 'Giao dịch M-System (tự doanh) không có bên cổng ACM',
-        });
-      }
-    });
-
     // II. TTM
+
     let totalTTM = 0;
     let totalACM_TTM = 0;
     let totalOP = 0;
@@ -605,23 +566,8 @@ export class KlgdReconService {
       }
     }
 
-    // Nếu có CoreCCP DSGD, loại bỏ các lệnh ACM đã được ghi nhận trên CoreCCP
     let finalMismatchedTrades = checkKlgdFlag ? [...mismatchedTrades] : [];
-    if (finalMismatchedTrades.length > 0 && ccpDsgdRecords.length > 0) {
-      finalMismatchedTrades = finalMismatchedTrades.filter((m) => {
-        if (m.source !== 'ACM') return true;
-        const cleanAcc = m.maTKGD.replace(/[-\s]/g, '').trim().toUpperCase();
-        const existsInCcp = ccpDsgdRecords.some((r) => {
-          const ccpAcc = String(r.soTK || '').replace(/[-\s]/g, '').trim().toUpperCase();
-          const accMatch =
-            ccpAcc === cleanAcc ||
-            (cleanAcc.endsWith('A') && ccpAcc === cleanAcc.slice(0, -1)) ||
-            (ccpAcc.endsWith('A') && cleanAcc === ccpAcc.slice(0, -1));
-          return accMatch && Number(r.klKhop) === Number(m.klGiaoDich);
-        });
-        return !existsInCcp;
-      });
-    }
+
 
     let evaluatedDifferACM = finalDifferACM;
     const ccpDsgdLots = totalCCP_DSGD || 0;

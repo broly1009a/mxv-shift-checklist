@@ -82,7 +82,7 @@ async function main() {
     console.log(`⏱️ Thời gian thực thi: ${elapsed}s`);
 
     console.log('\n================================================================================');
-    console.log(`📊 KẾT QUẢ ĐỐI CHIẾU PRE-EOD: ${result.passed ? '✅ KHỚP 100%' : '⚠️ CÓ CHÊNH LỆCH'}`);
+    console.log(`📊 KẾT QUẢ ĐỐI CHIẾU PRE-EOD: ${result.passed ? ' KHỚP 100%' : ' CÓ CHÊNH LỆCH'}`);
     console.log('================================================================================');
     console.log(`• Phiên T-1 đã giải quyết : ${new Date(result.targetDate).toLocaleDateString('vi-VN')}`);
     console.log(`• Trạng thái chung (Passed): ${result.passed}`);
@@ -91,11 +91,11 @@ async function main() {
     console.log(' [ACM / Tự Doanh]');
     console.log(`   - M-System (tài khoản đuôi A) : ${result.totals.totalACM_MS.toLocaleString()} lot`);
     console.log(`   - ACM Straits (file CSV)      : ${result.totals.totalACM_Straits.toLocaleString()} lot`);
-    console.log(`   - Chênh lệch ACM              : ${result.totals.differACM.toLocaleString()} lot ${result.totals.differACM === 0 ? '✓' : '⚠️'}`);
+    console.log(`   - Chênh lệch ACM              : ${result.totals.differACM.toLocaleString()} lot ${result.totals.differACM === 0 ? '✓' : ''}`);
     console.log(' [CQG / Khách Hàng Thường]');
     console.log(`   - M-System (các tài khoản khác): ${result.totals.totalCQG_MS.toLocaleString()} lot`);
     console.log(`   - CQG FR (loại trừ ZWAZCE)    : ${result.totals.totalCQG_FR.toLocaleString()} lot`);
-    console.log(`   - Chênh lệch CQG              : ${result.totals.differCQG.toLocaleString()} lot ${result.totals.differCQG === 0 ? '✓' : '⚠️'}`);
+    console.log(`   - Chênh lệch CQG              : ${result.totals.differCQG.toLocaleString()} lot ${result.totals.differCQG === 0 ? '✓' : ''}`);
 
     console.log('\n--- 2. CHI TIẾT LỆNH LỆCH KHỚP LỆNH (Mismatched Trades) ---');
     console.log(`• Tổng số lệnh lệch: ${result.mismatchedTrades.length}`);

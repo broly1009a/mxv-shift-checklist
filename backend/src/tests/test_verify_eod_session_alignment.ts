@@ -64,11 +64,11 @@ async function runTest() {
   }
 
   console.log('📄 Trạng thái tệp tin đầu vào:');
-  console.log(` • File EOD chốt đêm 24/09: ${fs.existsSync(eodPath) ? `✅ ${eodPath}` : '❌ Thiếu'}`);
-  console.log(` • QLTKGD phiên 24.09 (T-1): ${fs.existsSync(path.join(dir24, 'QLTKGD.xlsx')) ? '✅ Có' : '❌ Thiếu'}`);
-  console.log(` • QLTKGD phiên 25.09 (T):   ${fs.existsSync(path.join(dir25, 'QLTKGD.xlsx')) ? '✅ Có' : '❌ Thiếu'}`);
-  console.log(` • TTTT phiên 24.09:         ${fs.existsSync(path.join(dir24, 'TTTT.xlsx')) ? '✅ Có' : '❌ Thiếu'}`);
-  console.log(` • TTTT phiên 25.09:         ${fs.existsSync(path.join(dir25, 'TTTT.xlsx')) ? '✅ Có' : '❌ Thiếu'}\n`);
+  console.log(` • File EOD chốt đêm 24/09: ${fs.existsSync(eodPath) ? ` ${eodPath}` : '❌ Thiếu'}`);
+  console.log(` • QLTKGD phiên 24.09 (T-1): ${fs.existsSync(path.join(dir24, 'QLTKGD.xlsx')) ? ' Có' : '❌ Thiếu'}`);
+  console.log(` • QLTKGD phiên 25.09 (T):   ${fs.existsSync(path.join(dir25, 'QLTKGD.xlsx')) ? ' Có' : '❌ Thiếu'}`);
+  console.log(` • TTTT phiên 24.09:         ${fs.existsSync(path.join(dir24, 'TTTT.xlsx')) ? ' Có' : '❌ Thiếu'}`);
+  console.log(` • TTTT phiên 25.09:         ${fs.existsSync(path.join(dir25, 'TTTT.xlsx')) ? ' Có' : '❌ Thiếu'}\n`);
 
   if (!fs.existsSync(eodPath)) {
     console.error('❌ Không tìm thấy file eod.2026-09-24.csv để đối chiếu!');

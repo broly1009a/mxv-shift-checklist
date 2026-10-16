@@ -13,7 +13,8 @@ import { CcpCeScraperService } from '../../ingress';
 import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
 import { TelegramService } from '../../telegram/telegram.service';
 import { findBotTasksInShift } from '../../bot-engine/constants/bot-task-registry';
-import { decrypt } from '../../bot-engine/utils/crypto';
+import { decrypt, EXTERNAL_SYSTEM_MSYSTEM } from '../../../shared';
+
 import {
   findHeaderIndex,
   findLatestFile,
@@ -76,10 +77,11 @@ export class ReconConsoleSummaryService {
   async syncUsdRateFromMSystem(): Promise<number> {
     this.logger.log('Khởi động bot đồng bộ tỷ giá USD từ M-System...');
 
-    let msUrl = 'https://msadmin.mxv.com.vn/';
+    let msUrl = EXTERNAL_SYSTEM_MSYSTEM.adminUrl;
     let msUser = process.env.MS_USER || '';
     let msPass = process.env.MS_PASSWORD || '';
     let msPin = process.env.MS_PIN || '';
+
 
     const credentialsRaw = await this.settingsService.getSetting(
       'bot_credentials_msystem',

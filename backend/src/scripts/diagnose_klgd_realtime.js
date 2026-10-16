@@ -207,7 +207,7 @@ async function runDiagnosis() {
       const mtimeFR1 = fs.existsSync(fr1Path) ? fs.statSync(fr1Path).mtimeMs : 0;
       const mtimeFR2 = fs.existsSync(fr2Path) ? fs.statSync(fr2Path).mtimeMs : 0;
       if (mtimeFR < mtimeFR1 || mtimeFR < mtimeFR2) {
-        console.log('   ⚠️  CẢNH BÁO LỆCH PHA: File gộp FR.xlsx CŨ HƠN file thô FR1/FR2!');
+        console.log('     CẢNH BÁO LỆCH PHA: File gộp FR.xlsx CŨ HƠN file thô FR1/FR2!');
         console.log('       → Cần kích hoạt forceRemerge để gộp lại file mới nhất.\\n');
       } else {
         console.log('   ✓ File gộp FR.xlsx đã được cập nhật đồng bộ sau các file thô.\\n');

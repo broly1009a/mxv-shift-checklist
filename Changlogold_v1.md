@@ -1,4 +1,5 @@
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [auth.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/auth/auth.service.ts#L195-L290):
   - Nháº­p `Logger` tá»« `@nestjs/common` vÃ  khá»Ÿi táº¡o `private readonly logger = new Logger(AuthService.name)`.
   - Cáº­p nháº­t hÃ m `validateMicrosoftSSO`:
@@ -10,13 +11,13 @@
   - Bá»• sung `'backend/src/modules/auth/auth.service.ts'` vÃ o danh sÃ¡ch `filesToDeploy` Ä‘á»ƒ Ä‘áº£m báº£o gÃ³i deploy Ä‘á»“ng bá»™ lÃªn server.
 
 ### 3. XÃ¡c nháº­n Build
+
 - Backend: `nest build` $\rightarrow$ Exit code 0 (ThÃ nh cÃ´ng 100%).
 
 ---
 
-
-
 ### 1. Má»¥c tiÃªu tÃ i liá»‡u
+
 - Cáº­p nháº­t vÃ  má»Ÿ rá»™ng toÃ n diá»‡n tÃ i liá»‡u kiáº¿n trÃºc ká»¹ thuáº­t theo cÃ¡c trao Ä‘á»•i chuyÃªn sÃ¢u vá»›i USER:
   1. **ÄÃ¡nh giÃ¡ giáº£i phÃ¡p Flat Task cho UAT**: Táº¡o ca trá»±c má»›i chá»‰ chá»©a cÃ¡c task bot Ä‘á»™c láº­p (khÃ´ng cÃ³ task con, khÃ´ng phá»¥ thuá»™c) Ä‘á»ƒ cáº¥p nhá»‹p tá»± Ä‘á»™ng cho Trading Manager mÃ  khÃ´ng lÃ m phÃ¡t sinh trá»… SLA áº£o hay xÃ¡o trá»™n Template gá»‘c.
   2. **Chiáº¿n lÆ°á»£c dÃ i háº¡n Ä‘Æ°a Trading Manager thÃ nh Primary Operation Hub**: TÃ¡ch rá»i hoÃ n toÃ n cÃ¡c tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u náº·ng ra khá»i ca trá»±c; Trading Manager tá»± váº­n hÃ nh chu ká»³ 24/5.
@@ -25,21 +26,24 @@
   5. **Lá»™ trÃ¬nh 2 giai Ä‘oáº¡n**: PhÃ¢n Ä‘á»‹nh rÃµ hÃ nh Ä‘á»™ng cho Giai Ä‘oáº¡n UAT (0 code change) vÃ  Giai Ä‘oáº¡n Chuáº©n hÃ³a trÆ°á»›c Go-Live.
 
 ### 2. Danh sÃ¡ch file táº¡o má»›i / cáº­p nháº­t
+
 - [DANH_GIA_LUONG_TU_DONG_TRADING_MANAGER_VA_TUONG_QUAN_CA_TRUC.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/DANH_GIA_LUONG_TU_DONG_TRADING_MANAGER_VA_TUONG_QUAN_CA_TRUC.md):
   - Bá»• sung 7 chÆ°Æ¡ng hoÃ n chá»‰nh kÃ¨m sÆ¡ Ä‘á»“ Sequence Diagram Mermaid chi tiáº¿t vá» luá»“ng Link-to-Latest vÃ  ma tráº­n so sÃ¡nh.
 
 ## [2026-09-28T10:48] FEATURE & ALIGNMENT: Káº¿t Ná»‘i Cáº¥u HÃ¬nh "Danh SÃ¡ch TKGD Ã‚m KQ" vÃ  "Danh SÃ¡ch NgÃ y Nghá»‰ LME" VÃ o Backend Chuáº©n C#
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER vá» viá»‡c kÃ­ch hoáº¡t vÃ  káº¿t ná»‘i 2 báº£ng cáº¥u hÃ¬nh Ä‘ang cÃ³ sáºµn trÃªn UI (`TradingManagerConfigSection.tsx`) vÃ o cÃ¡c service Backend Ä‘á»ƒ há»‡ thá»‘ng hoáº¡t Ä‘á»™ng Ä‘Ãºng 100% chuáº©n C#:
-  1. **Danh sÃ¡ch TKGD Ã¢m KQ (`negative_margin_monitored_accounts`)**: 
-     - Lá»c loáº¡i trá»« cÃ¡c tÃ i khoáº£n Ä‘Ã£ náº±m trong danh sÃ¡ch theo dÃµi cáº¥u hÃ¬nh khá»i danh sÃ¡ch "TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i (EOD)" (chuáº©n `FormMain.cs#L1625` vÃ  `TransactionCheckingService.cs#L576-L585`). 
+  1. **Danh sÃ¡ch TKGD Ã¢m KQ (`negative_margin_monitored_accounts`)**:
+     - Lá»c loáº¡i trá»« cÃ¡c tÃ i khoáº£n Ä‘Ã£ náº±m trong danh sÃ¡ch theo dÃµi cáº¥u hÃ¬nh khá»i danh sÃ¡ch "TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i (EOD)" (chuáº©n `FormMain.cs#L1625` vÃ  `TransactionCheckingService.cs#L576-L585`).
      - Khi táº¥t cáº£ tÃ i khoáº£n Ã¢m quÃ©t Ä‘Æ°á»£c tá»« file EOD Ä‘á»u Ä‘Ã£ náº±m trong danh sÃ¡ch theo dÃµi thÃ¬ UI hiá»ƒn thá»‹ "An ToÃ n: KhÃ´ng cÃ³ tÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i" (thay vÃ¬ cáº£nh bÃ¡o Ä‘á» nháº§m 14 tÃ i khoáº£n).
   2. **Danh sÃ¡ch ngÃ y nghá»‰ LME (`lme_holiday_replacements`)**:
      - Náº¡p cáº¥u hÃ¬nh mapping ngÃ y nghá»‰ LME (`originalDate` -> `replacementDate`) tá»« CSDL vÃ o cÃ¡c hÃ m Ä‘á»‘i chiáº¿u `checkKLGD` vÃ  `checkPreEOD` (thay vÃ¬ truyá»n cá»©ng máº£ng rá»—ng `[]`).
      - Há»— trá»£ cáº£ Ä‘á»‹nh dáº¡ng máº£ng object `{ originalDate, replacementDate }` tá»« Web UI vÃ  chuá»—i `"dd/MM/yyyy,dd/MM/yyyy"` tá»« file cáº¥u hÃ¬nh C# cÅ© trong `convertLMESymbol`.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [.gitignore](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.gitignore#L67):
   - Bá»• sung `tool-C#/` vÃ o danh sÃ¡ch ignore cá»§a Git theo yÃªu cáº§u cá»§a USER.
 - [recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts#L271-L283):
@@ -57,18 +61,20 @@
   - Cáº­p nháº­t log Ä‘á»‘i chiáº¿u EOD MS: Ghi rÃµ sá»‘ lÆ°á»£ng tÃ i khoáº£n Ã¢m má»›i phÃ¡t sinh vÃ  sá»‘ lÆ°á»£ng tÃ i khoáº£n Ä‘Ã£ náº±m trong danh sÃ¡ch theo dÃµi.
 
 ### 3. XÃ¡c nháº­n Build
+
 - Backend: `npm.cmd run build` (`nest build`) $\rightarrow$ Exit code 0 (ThÃ nh cÃ´ng 100%).
 - Frontend: `npx.cmd tsc --noEmit` $\rightarrow$ Exit code 0 (ThÃ nh cÃ´ng 100%).
 
 ---
 
-
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER dá»±a trÃªn Ä‘á»‘i chá»©ng mÃ£ nguá»“n Tool C# (`operate-transaction-app`) vÃ  file thá»±c táº¿ CoreCCP:
   1. **Fix 1 (`resolveTradingSessionDate`)**: Chuáº©n hÃ³a logic ngÃ y giao dá»‹ch khi cháº¡y vÃ o Thá»© 7 / Chá»§ Nháº­t tá»± Ä‘á»™ng lÃ¹i vá» ngÃ y lÃ m viá»‡c gáº§n nháº¥t (Thá»© 6), Ä‘á»“ng bá»™ vá»›i hÃ nh vi C# cá»§a `BackupService.cs#L111-L114` vÃ  `TransactionCheckingService.cs#L64-L67`.
   2. **Fix 2 (`CcpExcelParser.parseDSGD`)**: ThÃªm bá»™ lá»c tá»± thÃ­ch á»©ng (Self-Adaptive Trader Guard) cho cá»™t "NgÆ°á»i Ä‘áº·t lá»‡nh". Khi file DSGD cá»§a CoreCCP bá»‹ káº¿t xuáº¥t trá»™n láº«n (vá»«a cÃ³ lá»‡nh TVKD vá»«a cÃ³ lá»‡nh sÃ n liÃªn thÃ´ng Ä‘á»ƒ trá»‘ng ngÆ°á»i Ä‘áº·t lá»‡nh), bot tá»± Ä‘á»™ng loáº¡i bá» cÃ¡c dÃ²ng trá»‘ng Ä‘á»ƒ trÃ¡nh tÃ­nh láº·p (double counting) cÃ¡c lá»‡nh sÃ n Ä‘Ã£ náº±m trong `totalACM` cá»§a M-System.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [bot-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/bot-path.helper.ts#L135-L168):
   - Chuyá»ƒn vÃ²ng láº·p `while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6)` ra ngoÃ i khá»‘i `if (isOvernight)`, xá»­ lÃ½ chÃ­nh xÃ¡c cho cáº£ ban ngÃ y Thá»© 7 / Chá»§ Nháº­t vÃ  khi ngÆ°á»i dÃ¹ng chá»n ngÃ y hÃ´m nay trÃªn giao diá»‡n.
 - [ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/parsers/ccp-excel.parser.ts#L8-L15,L168-L236):
@@ -78,6 +84,7 @@
   - Chá»‰ tÃ­nh cÃ¡c dÃ²ng cÃ³ NgÆ°á»i Ä‘áº·t lá»‡nh há»£p lá»‡ khi phÃ¡t hiá»‡n file trá»™n láº«n; giá»¯ nguyÃªn 100% logic cÅ© Ä‘á»‘i vá»›i file thuáº§n TVKD hoáº·c khi khÃ´ng cÃ³ cá»™t.
 
 ### 3. XÃ¡c nháº­n Build
+
 - Backend: `nest build` $\rightarrow$ Exit code 0 (ThÃ nh cÃ´ng 100%).
 
 ---
@@ -85,16 +92,19 @@
 ## [2026-09-26T17:28] REFACTOR & BUGFIX: Bá» Háº³n Bá»™ Lá»c NgÃ y Cho PhiÃªn Realtime Trong prepareKlgdSession & Tá»‘i Æ¯u NÃºt Káº¿t Xuáº¥t
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Thá»±c hiá»‡n yÃªu cáº§u Ä‘Ã¡nh giÃ¡ sÃ¢u vÃ  sá»­a triá»‡t Ä‘á»ƒ tá»« USER: Trong tÃ¡c vá»¥ `CHECK_KLGD` thá»i gian thá»±c cá»§a CoreCCP, khÃ´ng thá»±c hiá»‡n báº¥t ká»³ thao tÃ¡c lá»c ngÃ y nÃ o cho phiÃªn hÃ´m nay (DSGD, TTM, TTTT), giá»¯ nguyÃªn báº£ng máº·c Ä‘á»‹nh cá»§a há»‡ thá»‘ng vÃ  káº¿t xuáº¥t trá»±c tiáº¿p.
 - Cáº£i tiáº¿n hÃ m `triggerExportDownload` Ä‘á»ƒ xá»­ lÃ½ má»Ÿ dropdown menu "Xuáº¥t táº¥t cáº£" cá»§a Material-UI báº±ng cáº£ hover vÃ  click, loáº¡i bá» nguy cÆ¡ trÆ°á»£t menu.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L1285-L1305):
   - `triggerExportDownload`: Bá»• sung click má»Ÿ menu MUI náº¿u hover khÃ´ng má»Ÿ Ä‘Æ°á»£c option "Xuáº¥t táº¥t cáº£".
   - `prepareKlgdSession`: Bá» qua hoÃ n toÃ n `setDateRangeAndSearch` khi cháº¡y ngÃ y hÃ´m nay cho cáº£ 3 bÃ¡o cÃ¡o (DSGD, TTM, TTTT), chá»‰ chá» táº£i báº£ng vÃ  chuyá»ƒn sang káº¿t xuáº¥t.
 - [test_check_klgd_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_check_klgd_playwright.js#L342-L375): Cáº­p nháº­t helper `clickExportOption` tÆ°Æ¡ng á»©ng.
 
 ### 3. XÃ¡c nháº­n Build
+
 - Backend: `nest build` $\rightarrow$ Exit code 0 (ThÃ nh cÃ´ng 100%).
 
 ---
@@ -102,15 +112,18 @@
 ## [2026-09-26T17:16] NEW FEATURE: XÃ¢y Dá»±ng Tool Kiá»ƒm Thá»­ Playwright Trá»±c Quan Cho CheckKLGD (test_check_klgd_playwright.js)
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: Viáº¿t file test cháº¡y thá»­ quy trÃ¬nh Ä‘á»‘i soÃ¡t khá»›p lá»‡nh trong phiÃªn (`CHECK_KLGD`) báº±ng Playwright (`test_check_klgd_playwright.js`).
 - Cho phÃ©p ngÆ°á»i dÃ¹ng quan sÃ¡t trá»±c quan táº­n máº¯t (`--headed`, slowMo) quy trÃ¬nh Ä‘Äƒng nháº­p, Ä‘iá»u hÆ°á»›ng, xuáº¥t file vÃ  bÃ³c tÃ¡ch dá»¯ liá»‡u cá»§a tá»«ng nguá»“n (CoreCCP, M-System, Straits ACM, CQG).
 - Kiá»ƒm chá»©ng thá»±c táº¿ táº¡i sao bÃ¡o cÃ¡o DSGD ngÃ y 26/09 trÃªn CoreCCP cÃ³ dá»¯ liá»‡u mÃ  táº£i vá» bá»‹ rá»—ng (xÃ¡c thá»±c nguyÃªn nhÃ¢n do viá»‡c clear Ã´ ngÃ y/báº¥m TÃ¬m kiáº¿m vs xuáº¥t trá»±c tiáº¿p).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [test_check_klgd_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_check_klgd_playwright.js): Script kiá»ƒm thá»­ Playwright Ä‘á»™c láº­p, tá»± Ä‘á»™ng Ä‘á»c credentials tá»« MongoDB, táº£i file vÃ  kiá»ƒm tra dung lÆ°á»£ng + sá»‘ dÃ²ng.
 - [package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json#L52): ThÃªm lá»‡nh `npm run test:check-klgd`.
 
 ### 3. TÃ³m táº¯t ná»™i dung & TÃ­nh nÄƒng
+
 1. Há»— trá»£ cháº¡y cÃ¡c cháº¿ Ä‘á»™:
    - `--source=ccp`: Kiá»ƒm thá»­ riÃªng CoreCCP (táº£i DSGD, TTM, TTTT).
    - `--source=ms`: Kiá»ƒm thá»­ riÃªng M-System (táº£i DSGD).
@@ -128,11 +141,13 @@
 ## [2026-09-26T17:10] CRITICAL BUGFIX: Xá»­ LÃ½ Triá»‡t Äá»ƒ Sá»± Cá»‘ Treo HÃ ng Äá»£i BotJob Queue & Tá»± Phá»¥c Há»“i Cá» isProcessing
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Kháº¯c phá»¥c sá»± cá»‘ theo pháº£n Ã¡nh cá»§a USER: HÃ ng Ä‘á»£i tÃ¡c vá»¥ cá»§a Checklist bá»‹ káº¹t toÃ n bá»™ (thÃªm job nÃ o cÅ©ng khÃ´ng cháº¡y, náº±m á»Ÿ tráº¡ng thÃ¡i PENDING vá»›i attempts: 0).
 - Kiá»ƒm chá»©ng vÃ  lÃ m rÃµ nghi váº¥n cÃ³ pháº£i do module TKGD gÃ¢y ngháº½n hay khÃ´ng.
 - Bá»• sung cÆ¡ cháº¿ tá»± phá»¥c há»“i (Self-Healing) cho cá» `isProcessing` vÃ  Timeout rÃ o cáº£n Ä‘á»“ng bá»™ 4 nguá»“n trong `ReconJobsHandler`.
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 1. **Module TKGD hoÃ n toÃ n KHÃ”NG liÃªn quan Ä‘áº¿n hÃ ng Ä‘á»£i Checklist**:
    - Module TKGD cháº¡y Cron Ä‘á»™c láº­p trÃªn cÃ¡c collection riÃªng (`clean_account_records`, `raw_account_mails`), khÃ´ng sá»­ dá»¥ng collection `bot_jobs` hay `BotJobQueueService`.
 2. **Tiáº¿n trÃ¬nh Playwright cÅ© bá»‹ treo tá»« 21:11:10 tá»‘i 25/09**:
@@ -145,6 +160,7 @@
    - Trong `recon-jobs.handler.ts#L207-L220`, `barrierTriggerPromise` khÃ´ng cÃ³ báº¥t ká»³ bá»™ Ä‘áº¿m thá»i gian (Timeout) nÃ o. Náº¿u 1 bÃªn Ä‘á»‘i tÃ¡c gáº·p sá»± cá»‘ mÃ  khÃ´ng kÃ­ch hoáº¡t `abortBarrierIfStrict`, Promise nÃ y treo vÄ©nh viá»…n.
 
 ### 3. Chi tiáº¿t cÃ¡c sá»­a Ä‘á»•i
+
 1. **Bá»• sung Timeout 120s cho rÃ o cáº£n Ä‘á»“ng bá»™ 4 bÃªn** ([recon-jobs.handler.ts#L225-L255](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L225-L255)):
    - ThÃªm `BARRIER_TIMEOUT_MS = 120_000` (2 phÃºt). Náº¿u quÃ¡ 2 phÃºt cÃ¡c há»‡ thá»‘ng chÆ°a cÃ¹ng sáºµn sÃ ng, tá»± Ä‘á»™ng há»§y rÃ o cáº£n vÃ  bÃ¡o lá»—i rÃµ rÃ ng thay vÃ¬ treo ngáº§m vÃ´ táº­n.
 2. **CÆ¡ cháº¿ Tá»± Phá»¥c Há»“i (Self-Healing) Cá» `isProcessing`** ([bot-job-queue.service.ts#L240-L248](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts#L240-L248)):
@@ -156,6 +172,7 @@
    - Khá»Ÿi Ä‘á»™ng láº¡i `mxv-backend`. HÃ ng Ä‘á»£i Ä‘Ã£ tá»± Ä‘á»™ng kÃ­ch hoáº¡t trá»Ÿ láº¡i ngay láº­p tá»©c: Job `6ab78f8ee3d0f7b1851bb488` Ä‘Ã£ xá»­ lÃ½ xong vÃ  Job `6ab78fa9e3d0f7b1851bb48a` (`CHECK_KLGD`) hiá»‡n Ä‘ang cháº¡y (`PROCESSING`).
 
 ### 4. XÃ¡c nháº­n Build/Kiá»ƒm thá»­
+
 - Backend: `nest build` $\rightarrow$ MÃ£ thoÃ¡t 0 (ThÃ nh cÃ´ng 100%).
 - Kiá»ƒm tra MongoDB thá»±c táº¿: HÃ ng Ä‘á»£i Ä‘Ã£ thÃ´ng luá»“ng vÃ  tá»± Ä‘á»™ng xá»­ lÃ½ cÃ¡c job káº¿ tiáº¿p bÃ¬nh thÆ°á»ng.
 
@@ -164,9 +181,11 @@
 ## [2026-09-26T17:00] OPTIMIZATION: Bá» Qua Bá»™ Lá»c NgÃ y Khi Táº£i BÃ¡o CÃ¡o CoreCCP/CoreEX Cho NgÃ y HÃ´m Nay
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: Trong luá»“ng táº£i bÃ¡o cÃ¡o CoreCCP (`CcpCeDownloaderService.run` vÃ  `setDateRangeAndSearch`), náº¿u táº£i dá»¯ liá»‡u cho **ngÃ y hÃ´m nay** thÃ¬ khÃ´ng cáº§n lá»c ngÃ y (khÃ´ng clear "NgÃ y há»‡ thá»‘ng", khÃ´ng gÃµ DatePicker, khÃ´ng báº¥m "TÃ¬m kiáº¿m" náº¿u khÃ´ng cÃ³ filter cá»™t riÃªng) mÃ  cá»© tháº¿ xuáº¥t file táº£i vá» luÃ´n, vÃ¬ trÃªn há»‡ thá»‘ng CoreCCP máº·c Ä‘á»‹nh khi má»Ÿ mÃ n hÃ¬nh Ä‘Ã£ hiá»ƒn thá»‹ dá»¯ liá»‡u cá»§a ngÃ y hÃ´m nay. Chá»‰ khi truyá»n ngÃ y **khÃ¡c hÃ´m nay** thÃ¬ má»›i thá»±c hiá»‡n lá»c ngÃ y.
 
 ### 2. Chi tiáº¿t thá»±c hiá»‡n (Code-First Grounding)
+
 1. **Bá»• sung cÃ¡c hÃ m tiá»‡n Ã­ch ngÃ y thÃ¡ng theo mÃºi giá» Viá»‡t Nam** ([ccp-ce-downloader.service.ts#L472-L525](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts#L472-L525)):
    - `getTodayVnDate()`: Láº¥y ngÃ y hiá»‡n táº¡i chuáº©n giá» Viá»‡t Nam (`Asia/Ho_Chi_Minh`).
    - `normalizeDateToYmd(s)`: Chuáº©n hÃ³a má»i Ä‘á»‹nh dáº¡ng ngÃ y (`YYYY-MM-DD`, `DD/MM/YYYY`, `DD.MM.YYYY`, `DD.MM`).
@@ -182,6 +201,7 @@
    - Nháº­n diá»‡n `isTodayJob`: Náº¿u lÃ  hÃ´m nay, chá»‰ sinh Ä‘Ãºng 1 khoáº£ng duy nháº¥t cho ngÃ y hÃ´m nay vÃ  ghi log: `Khoang: HOM NAY (...) - Mac dinh CoreCCP, bo qua filter ngay`.
 
 ### 3. XÃ¡c nháº­n Build/Kiá»ƒm thá»­
+
 - Backend: `nest build` $\rightarrow$ MÃ£ thoÃ¡t 0 (ThÃ nh cÃ´ng 100%).
 - Frontend: `next build` $\rightarrow$ MÃ£ thoÃ¡t 0 (ThÃ nh cÃ´ng 100%).
 
@@ -190,10 +210,12 @@
 ## [2026-09-26T16:30] BUGFIX & UI OVERHAUL: Kháº¯c Phá»¥c Máº¥t Dá»¯ Liá»‡u GTT Khi Táº£i Láº¡i Trang & NÃ¢ng Cáº¥p Giao Diá»‡n Modal Nháº­t KÃ½ GTT
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Kháº¯c phá»¥c sá»± cá»‘ theo pháº£n Ã¡nh cá»§a USER: Sau khi báº¥m "Check GTT" hoÃ n táº¥t, náº¿u ngÆ°á»i dÃ¹ng táº£i láº¡i trang (reload) thÃ¬ báº£ng káº¿t quáº£ GTT bá»‹ máº¥t sáº¡ch trÃªn giao diá»‡n vÃ  hiá»ƒn thá»‹ thÃ´ng bÃ¡o "ChÆ°a cÃ³ dá»¯ liá»‡u Ä‘á»‘i chiáº¿u giÃ¡ thanh toÃ¡n".
 - NÃ¢ng cáº¥p vÃ  chuáº©n hÃ³a toÃ n diá»‡n giao diá»‡n Modal "Nháº­t kÃ½ kiá»ƒm tra GiÃ¡ thanh toÃ¡n (GTT)" theo phong cÃ¡ch Enterprise Developer Terminal, kháº¯c phá»¥c hoÃ n toÃ n tÃ¬nh tráº¡ng lá»‡ch tÃ´ng mÃ u (mÃ u tráº¯ng - xÃ¡m Ä‘á»¥c - Ä‘en xen káº½ lá»™n xá»™n).
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 1. **Lá»‡ch NgÃ y PhiÃªn vs NgÃ y DÆ°Æ¡ng Lá»‹ch (Trading Session vs Calendar Date)**:
    - Khi cháº¡y "Check GTT" ([LegacyGttCheckerSection.tsx#L130-L137](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx#L130-L137)), há»‡ thá»‘ng khÃ´ng gá»­i kÃ¨m ngÃ y phiÃªn `targetDate: selectedDate`.
    - Backend `GttCheckerService` ([gtt-checker.service.ts#L858](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/gtt-checker.service.ts#L858)) chá»‰ lÆ°u `runAt = new Date().toISOString()`.
@@ -205,6 +227,7 @@
    - Thanh cÃ´ng cá»¥ tÃ¬m kiáº¿m dÃ¹ng ná»n má» `rgba(0, 0, 0, 0.2)` Ä‘Ã¨ lÃªn ná»n sÃ¡ng táº¡o thÃ nh vá»‡t xÃ¡m Ä‘á»¥c, Ã´ input mÃ u tráº¯ng viá»n má»ng khÃ´ng tÆ°Æ¡ng thÃ­ch.
 
 ### 3. Chi tiáº¿t cÃ¡c sá»­a Ä‘á»•i
+
 1. **Backend** ([gtt-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/gtt-checker.service.ts) & [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)):
    - Bá»• sung `targetDate` vÃ  `sessionDate` vÃ o `GttReport` vÃ  tham sá»‘ cá»§a `runFullGttCheck`.
    - Tá»± Ä‘á»™ng chuáº©n hÃ³a ngÃ y phiÃªn báº±ng `resolveTradingSessionDate(options.targetDate)`.
@@ -218,6 +241,7 @@
      - Footer `#131d31` hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§ chip thá»‘ng kÃª mÃ u: Tá»•ng há»£p Ä‘á»“ng, Sá»‘ khá»›p, Sá»‘ lá»‡ch, Thiáº¿u giÃ¡ vÃ  nÃºt ÄÃ³ng.
 
 ### 4. XÃ¡c nháº­n Build/Kiá»ƒm thá»­
+
 - Backend: `nest build` $\rightarrow$ MÃ£ thoÃ¡t 0 (ThÃ nh cÃ´ng 100%).
 - Frontend: `next build` $\rightarrow$ MÃ£ thoÃ¡t 0 (ThÃ nh cÃ´ng 100%).
 
@@ -226,10 +250,12 @@
 ## [2026-09-25T17:28] MIGRATION: BÃ³c TÃ¡ch VÃ  Chuáº©n HÃ³a 8 File Template CCP Output Tá»« Template Gá»‘c Cá»§a M-System
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: BÃ³c tÃ¡ch tá»«ng template chuáº©n tá»« thÆ° má»¥c `Thong ke so lot giao dich` vÃ  `Thong ke gia tri giao dich` sang thÆ° má»¥c `Thong ke ccp/output/` Ä‘á»ƒ thay tháº¿ hoÃ n toÃ n 8 file template áº£o (ngÃ y 17/9 vÃ  18/9), Ä‘Æ°a vá» cáº¥u trÃºc chuáº©n má»±c 2 sheet `['TONGHOP' / 'Tá»•ng há»£p', 'T09.2026']` giá»‘ng há»‡t file ACM.
 - Giáº£i mÃ£ cÆ¡ cháº¿ lá»c "TÃ i khoáº£n Ã¢m kÃ½ quá»¹ Má»šI" cá»§a Tool C# IT Tool (`TransactionCheckingService.cs#L490`): PhÃ¢n biá»‡t rÃµ giá»¯a tÃ i khoáº£n Ã¢m má»›i vÃ  danh sÃ¡ch tÃ i khoáº£n Ã¢m cá»‘ há»¯u Ä‘Ã£ biáº¿t (`NagativeMarginAccs`).
 
 ### 2. Chi tiáº¿t thá»±c hiá»‡n
+
 - ÄÃ£ sao lÆ°u toÃ n bá»™ 8 file cÅ© vÃ o: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/output/Backup_Templates_20260925/`.
 - Chuyá»ƒn Ä‘á»•i thÃ nh cÃ´ng 8 file template chuáº©n:
   1. `Thong ke so lot giao dich 2026.xlsx`: `['TONGHOP', 'T09.2026']` (162 cá»™t chuáº©n).
@@ -246,7 +272,8 @@
 ## [2026-09-25T17:11] REFACTOR: Báº£o Tá»“n Logic Äá»c File CoreCCP DÆ°á»›i Dáº¡ng Comment Phá»¥c Vá»¥ TÃ¡ch Module Äá»™c Láº­p
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- Thá»±c hiá»‡n chá»‰ Ä‘áº¡o cá»§a USER: *"comment láº¡i chá»© khÃ´ng Ä‘Æ°á»£c xÃ³a Ä‘i vÃ¬ nhá»¡ sau bÃª ra lÃ m module khÃ¡c"*.
+
+- Thá»±c hiá»‡n chá»‰ Ä‘áº¡o cá»§a USER: _"comment láº¡i chá»© khÃ´ng Ä‘Æ°á»£c xÃ³a Ä‘i vÃ¬ nhá»¡ sau bÃª ra lÃ m module khÃ¡c"_.
 - Giá»¯ nguyÃªn toÃ n bá»™ logic quÃ©t thÆ° má»¥c, Ä‘á»c buffer file `qltkgdCcp`, `eodCcp`, `ttttCcp` vÃ  bÃ³c tÃ¡ch dá»¯ liá»‡u CoreCCP dÆ°á»›i dáº¡ng block comment cÃ³ ghi chÃº rÃµ rÃ ng táº¡i [pre-eod-recon.service.ts#L663-L690](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L663-L690), khÃ´ng xÃ³a bá» mÃ£ nguá»“n Ä‘á»ƒ sáºµn sÃ ng tÃ¡i sá»­ dá»¥ng khi má»Ÿ rá»™ng module CoreCCP Ä‘á»™c láº­p.
 
 ---
@@ -254,9 +281,11 @@
 ## [2026-09-25T16:58] BUGFIX: Chuáº©n HÃ³a Logic Hiá»ƒn Thá»‹ 3 Khá»‘i Con EOD (BÃ¡m SÃ¡t Nghiá»‡p Vá»¥ C# IT Tool - KhÃ´ng BÃ¡o Giáº£ Khi ChÆ°a Cháº¡y)
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- Thá»±c hiá»‡n nghiÃªm tÃºc chá»‰ Ä‘áº¡o cá»§a USER: *"láº¥y job má»›i nháº¥t cá»§a ngÃ y hÃ´m nay náº¿u nay chÆ°a cháº¡y thÃ¬ khÃ´ng hiá»‡n nhÃ©"*, bÃ¡m sÃ¡t tuyá»‡t Ä‘á»‘i luá»“ng nghiá»‡p vá»¥ cá»§a tool C# gá»‘c (`operate-transaction-app`), cháº¥m dá»©t viá»‡c tá»± Ã½ fallback chÃ©o giá»¯a cÃ¡c tÃ¡c vá»¥ Ä‘á»™c láº­p.
+
+- Thá»±c hiá»‡n nghiÃªm tÃºc chá»‰ Ä‘áº¡o cá»§a USER: _"láº¥y job má»›i nháº¥t cá»§a ngÃ y hÃ´m nay náº¿u nay chÆ°a cháº¡y thÃ¬ khÃ´ng hiá»‡n nhÃ©"_, bÃ¡m sÃ¡t tuyá»‡t Ä‘á»‘i luá»“ng nghiá»‡p vá»¥ cá»§a tool C# gá»‘c (`operate-transaction-app`), cháº¥m dá»©t viá»‡c tá»± Ã½ fallback chÃ©o giá»¯a cÃ¡c tÃ¡c vá»¥ Ä‘á»™c láº­p.
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 1. **Tool C# gá»‘c**: 3 khá»‘i kiá»ƒm tra EOD tÆ°Æ¡ng á»©ng vá»›i 3 nÃºt Ä‘á»™c láº­p:
    - Khá»‘i 1: `btnCheckDSGDTruocEOD_Click` $\rightarrow$ `SCAN_NEGATIVE_MARGIN` / `CHECK_EOD_MM`.
    - Khá»‘i 2: `btnEODResult_Click` $\rightarrow$ `CHECK_EOD_MM` / `CHECK_EOD`.
@@ -267,6 +296,7 @@
    - Dáº«n Ä‘áº¿n viá»‡c dÃ¹ ngÆ°á»i dÃ¹ng ca chiá»u chÆ°a báº¥m Check CQG Sync hay vá»«a báº¥m Check EOD MM lÃºc 16:34:13, giao diá»‡n váº«n bá»‹ káº¹t á»Ÿ thá»i gian cÅ© `(09:47:06 25/09)` vÃ  hiá»ƒn thá»‹ thÃ´ng bÃ¡o "khá»›p hoÃ n toÃ n" tá»« sÃ¡ng.
 
 ### 3. Chi tiáº¿t cÃ¡c sá»­a Ä‘á»•i bÃ¡m sÃ¡t nghiá»‡p vá»¥
+
 1. **Backend** ([recon-console-summary.service.ts#L880-L1070](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L880-L1070)):
    - **Khá»‘i 1 (`negativeMargin`)**: Chá»‰ Ä‘á»c tá»« `marginJob` (`CHECK_EOD_MM` / `SCAN_NEGATIVE_MARGIN`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
    - **Khá»‘i 2 (`preEod` - Káº¿t quáº£ cháº¡y EOD)**: Láº¥y Job EOD má»›i nháº¥t cá»§a ngÃ y hÃ´m nay (`latestEodJob` giá»¯a `CHECK_EOD_MM` vÃ  `CHECK_PRE_EOD`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
@@ -280,13 +310,16 @@
 ## [2026-09-25T16:50] FEATURE & ENHANCEMENT: Má»Ÿ Rá»™ng HÃ ng Äá»£i TÃ¡c Vá»¥ Trading Manager - Hiá»ƒn Thá»‹ ToÃ n Bá»™ TÃ¡c Vá»¥ Há»‡ Thá»‘ng & Xem Log Trá»±c Tiáº¿p KhÃ´ng Cáº§n VÃ o Bot-Config
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - ÄÃ¡p á»©ng yÃªu cáº§u cá»§a USER: Hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§ táº¥t cáº£ cÃ¡c tÃ¡c vá»¥ trong HÃ ng Äá»£i (Job Queue) cá»§a mÃ n hÃ¬nh Trading Manager (nhÆ° `CHECK_EOD_MM`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...), cho phÃ©p kiá»ƒm soÃ¡t viÃªn xem trá»±c tiáº¿p tiáº¿n trÃ¬nh vÃ  nháº­t kÃ½ log thá»±c thi ngay táº¡i chá»— mÃ  khÃ´ng cáº§n pháº£i chuyá»ƒn sang trang `/admin/bot-config`.
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 - Trong [TradingManagerJobQueueSection.tsx#L32-L51](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L32-L51), máº£ng `TRADING_JOB_TYPES` chá»‰ chá»©a 18 tÃ¡c vá»¥ tÄ©nh vÃ  thiáº¿u cÃ¡c tÃ¡c vá»¥ cá»‘t lÃµi: `CHECK_EOD_MM`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...
 - HÃ m `fetchJobs` vÃ  `filteredJobs` thá»±c hiá»‡n lá»c kÃ©p theo `TRADING_JOB_TYPES`, khiáº¿n cÃ¡c tÃ¡c vá»¥ ngoÃ i danh sÃ¡ch nÃ y hoÃ n toÃ n biáº¿n máº¥t khá»i HÃ ng Äá»£i cá»§a Trading Manager, buá»™c ngÆ°á»i dÃ¹ng pháº£i má»Ÿ sang trang Quáº£n trá»‹ Bot (`/admin/bot-config`) má»›i tháº¥y Ä‘Æ°á»£c Job.
 
 ### 3. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
+
 1. **Má»Ÿ rá»™ng danh má»¥c tÃ¡c vá»¥ & Chuáº©n hÃ³a nhÃ£n tiáº¿ng Viá»‡t** ([TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx)):
    - Bá»• sung vÃ o `TRADING_JOB_TYPES`: `CHECK_EOD_MM`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `RUN_VALUE_TVKD_MACRO`, `VERIFY_EMAIL`, `EMAIL_PARSER`, `EMAIL_PARSE`, `TKGD_EXTRACT`, `TKGD_RECONCILE`.
    - Cáº­p nháº­t hÃ m `getJobLabel` hiá»ƒn thá»‹ tÃªn tiáº¿ng Viá»‡t rÃµ nghÄ©a vÃ  chuyÃªn nghiá»‡p cho táº¥t cáº£ cÃ¡c loáº¡i Job.
@@ -304,18 +337,21 @@
 ## [2026-09-25T16:40] BUGFIX: Cháº¥m Dá»©t Hiá»‡n TÆ°á»£ng Retry 3 Láº§n Láº·p Láº¡i VÃ´ Ãch Trong CÃ¡c Job Äá»‘i Chiáº¿u EOD & CQG Sync
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Kháº¯c phá»¥c hiá»‡n tÆ°á»£ng Job Ä‘á»‘i chiáº¿u EOD M-System (`CHECK_EOD`), EOD CoreCCP vÃ  CQG Sync cháº¡y láº·p láº¡i 3 láº§n (`Attempt 1/3`, `Attempt 2/3`, `Attempt 3/3`) rá»“i má»›i dá»«ng khi phÃ¡t hiá»‡n cÃ³ tÃ i khoáº£n Ã¢m margin hoáº·c lá»‡ch cÃ´ng thá»©c sá»‘ dÆ°.
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 - Trong cÃ¡c handler cÅ© ([recon-jobs.handler.ts#L1116-L1118](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1116-L1118)), khi phÃ¡t hiá»‡n `totalNegative > 0 || totalMismatchedEod > 0`, code láº¡i thá»±c hiá»‡n cÃ¢u lá»‡nh `throw new Error(...)`.
 - Bá»™ Ä‘iá»u phá»‘i hÃ ng Ä‘á»£i [bot-job-queue.service.ts#L444](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts#L444) báº¯t Ä‘Æ°á»£c Exception nÃ y vÃ  coi Ä‘Ã¢y lÃ  "Lá»—i ká»¹ thuáº­t há»‡ thá»‘ng (Crash/Network Error)", tá»« Ä‘Ã³ kÃ­ch hoáº¡t chÃ­nh sÃ¡ch tá»± Ä‘á»™ng thá»­ láº¡i 3 láº§n (`maxAttempts = 3`).
 - Do cÃ¡c file Excel nguá»“n lÃ  dá»¯ liá»‡u tÄ©nh trÃªn á»• Ä‘Ä©a, cáº£ 3 láº§n cháº¡y láº¡i Ä‘á»u cho káº¿t quáº£ giá»‘ng há»‡t nhau, gÃ¢y lÃ£ng phÃ­ tÃ i nguyÃªn vÃ  lÃ m ngÆ°á»i dÃ¹ng pháº£i chá» Ä‘á»£i khÃ´ng cáº§n thiáº¿t.
 
 ### 3. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
+
 1. **Chuáº©n hÃ³a luá»“ng tráº£ vá» cá»§a cÃ¡c tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u** ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)):
    - Trong `handleCheckEodJob`, `handleCheckEodCcpJob`, vÃ  `handleCheckCqgSyncJob`:
-     * Khi cÃ³ tÃ i khoáº£n Ã¢m margin hoáº·c chÃªnh lá»‡ch nghiá»‡p vá»¥, ghi nháº­n chi tiáº¿t cáº£nh bÃ¡o vÃ o `job.logs`, lÆ°u káº¿t quáº£ vÃ o `job.payload.result` vÃ  thá»±c hiá»‡n `return result` ngay (giá»‘ng nhÆ° logic chuáº©n cá»§a `CHECK_PRE_EOD` vÃ  `CHECK_KLGD`).
-     * Tuyá»‡t Ä‘á»‘i khÃ´ng `throw Error` Ä‘á»‘i vá»›i káº¿t quáº£ Ä‘á»‘i soÃ¡t nghiá»‡p vá»¥.
+     - Khi cÃ³ tÃ i khoáº£n Ã¢m margin hoáº·c chÃªnh lá»‡ch nghiá»‡p vá»¥, ghi nháº­n chi tiáº¿t cáº£nh bÃ¡o vÃ o `job.logs`, lÆ°u káº¿t quáº£ vÃ o `job.payload.result` vÃ  thá»±c hiá»‡n `return result` ngay (giá»‘ng nhÆ° logic chuáº©n cá»§a `CHECK_PRE_EOD` vÃ  `CHECK_KLGD`).
+     - Tuyá»‡t Ä‘á»‘i khÃ´ng `throw Error` Ä‘á»‘i vá»›i káº¿t quáº£ Ä‘á»‘i soÃ¡t nghiá»‡p vá»¥.
    - Nhá» Ä‘Ã³, Job sáº½ hoÃ n táº¥t ngay trong 1 láº§n cháº¡y duy nháº¥t (Completed kÃ¨m cáº£nh bÃ¡o nghiá»‡p vá»¥), khÃ´ng cÃ²n bá»‹ retry láº·p láº¡i 3 láº§n.
 2. **XÃ¡c nháº­n Build & Deploy**:
    - Backend NestJS build thÃ nh cÃ´ng 100% (`npm run build`).
@@ -326,27 +362,30 @@
 ## [2026-09-25T16:30] BUGFIX: Kháº¯c Phá»¥c Lá»—i ÄÆ°á»ng Dáº«n File LÅ©y Káº¿ CCP (Thiáº¿u ThÆ° Má»¥c output/) & Bá»• Sung Smart Path Resolver
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - Kháº¯c phá»¥c triá»‡t Ä‘á»ƒ lá»—i khi ngÆ°á»i dÃ¹ng báº¥m **"Ghi file Sá»‘ Lot"** vÃ  **"Ghi file GiÃ¡ Trá»‹"** trÃªn giao diá»‡n Trading Manager:
-  * *"Ghi file Sá»‘ Lot hoÃ n táº¥t nhÆ°ng cÃ³ cáº£nh bÃ¡o: Lá»—i ghi file lÅ©y káº¿ lot ACM: File lÅ©y káº¿ lot ACM CCP khÃ´ng tá»“n táº¡i: "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/Thong ke so lot giao dich ACM 2026.xlsx". Vui lÃ²ng kiá»ƒm tra cáº¥u hÃ¬nh Ä‘Æ°á»ng dáº«n."*
-  * *"Ghi file GiÃ¡ Trá»‹ hoÃ n táº¥t nhÆ°ng cÃ³ cáº£nh bÃ¡o: Lá»—i ghi file lÅ©y káº¿ GTGD ACM: File lÅ©y káº¿ GTGD ACM CCP khÃ´ng tá»“n táº¡i: "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/Thong ke gia tri giao dich ACM 2026.xlsx". Vui lÃ²ng kiá»ƒm tra cáº¥u hÃ¬nh Ä‘Æ°á»ng dáº«n."*
+  - _"Ghi file Sá»‘ Lot hoÃ n táº¥t nhÆ°ng cÃ³ cáº£nh bÃ¡o: Lá»—i ghi file lÅ©y káº¿ lot ACM: File lÅ©y káº¿ lot ACM CCP khÃ´ng tá»“n táº¡i: "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/Thong ke so lot giao dich ACM 2026.xlsx". Vui lÃ²ng kiá»ƒm tra cáº¥u hÃ¬nh Ä‘Æ°á»ng dáº«n."_
+  - _"Ghi file GiÃ¡ Trá»‹ hoÃ n táº¥t nhÆ°ng cÃ³ cáº£nh bÃ¡o: Lá»—i ghi file lÅ©y káº¿ GTGD ACM: File lÅ©y káº¿ GTGD ACM CCP khÃ´ng tá»“n táº¡i: "/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/Thong ke gia tri giao dich ACM 2026.xlsx". Vui lÃ²ng kiá»ƒm tra cáº¥u hÃ¬nh Ä‘Æ°á»ng dáº«n."_
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 - **Kiá»ƒm tra thá»±c táº¿ há»‡ thá»‘ng lÆ°u trá»¯ trÃªn mÃ¡y chá»§ Ubuntu (`10.0.0.26`)**:
-  * ThÆ° má»¥c cha: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/`
-  * Táº¥t cáº£ 10 file Excel lÅ©y káº¿ thÃ nh pháº©m thá»±c táº¿ Ä‘ang náº±m trong thÆ° má»¥c con `output/`:
+  - ThÆ° má»¥c cha: `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/`
+  - Táº¥t cáº£ 10 file Excel lÅ©y káº¿ thÃ nh pháº©m thá»±c táº¿ Ä‘ang náº±m trong thÆ° má»¥c con `output/`:
     `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/output/`
     (gá»“m: `Thong ke so lot giao dich ACM 2026.xlsx`, `Thong ke gia tri giao dich ACM 2026.xlsx`, `Thong ke so lot giao dich 2026.xlsx`, v.v.).
 - **NguyÃªn nhÃ¢n gá»‘c rá»…**:
-  * Báº£n ghi cáº¥u hÃ¬nh trong MongoDB `system_settings` (`ccp_lot_statistics_config`) trÆ°á»›c Ä‘Ã³ Ä‘Æ°á»£c lÆ°u vá»›i Ä‘Æ°á»ng dáº«n trá» trá»±c tiáº¿p vÃ o thÆ° má»¥c cha:
+  - Báº£n ghi cáº¥u hÃ¬nh trong MongoDB `system_settings` (`ccp_lot_statistics_config`) trÆ°á»›c Ä‘Ã³ Ä‘Æ°á»£c lÆ°u vá»›i Ä‘Æ°á»ng dáº«n trá» trá»±c tiáº¿p vÃ o thÆ° má»¥c cha:
     `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp\Thong ke so lot giao dich ACM ${YYYY}.xlsx` (thiáº¿u `output\`).
-  * Khi backend gá»i `ensureBaseFileExists(filePath)` vÃ  `fs.existsSync(filePath)`, kiá»ƒm tra tháº¥t báº¡i vÃ¬ file náº±m trong `output/` $\rightarrow$ nÃ©m ngoáº¡i lá»‡ cáº£nh bÃ¡o.
+  - Khi backend gá»i `ensureBaseFileExists(filePath)` vÃ  `fs.existsSync(filePath)`, kiá»ƒm tra tháº¥t báº¡i vÃ¬ file náº±m trong `output/` $\rightarrow$ nÃ©m ngoáº¡i lá»‡ cáº£nh bÃ¡o.
 
 ### 3. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
+
 1. **Bá»• sung Smart Path Resolver cho CCP Accumulator** ([ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/helpers/ccp-accumulator.helper.ts)):
    - ThÃªm hÃ m `resolveCcpAccumulatorFilePath(filePath, jobLogs?)`:
-     * Náº¿u file tá»“n táº¡i táº¡i `filePath` $\rightarrow$ giá»¯ nguyÃªn.
-     * Náº¿u khÃ´ng tÃ¬m tháº¥y, tá»± Ä‘á»™ng kiá»ƒm tra xem cÃ³ tá»“n táº¡i trong thÆ° má»¥c con `output/` khÃ´ng (`path.join(dir, 'output', base)`).
-     * NgÆ°á»£c láº¡i, náº¿u Ä‘Æ°á»ng dáº«n cÃ³ chá»©a `output/` nhÆ°ng file á»Ÿ thÆ° má»¥c cha, tá»± Ä‘á»™ng fallback lÃªn thÆ° má»¥c cha.
+     - Náº¿u file tá»“n táº¡i táº¡i `filePath` $\rightarrow$ giá»¯ nguyÃªn.
+     - Náº¿u khÃ´ng tÃ¬m tháº¥y, tá»± Ä‘á»™ng kiá»ƒm tra xem cÃ³ tá»“n táº¡i trong thÆ° má»¥c con `output/` khÃ´ng (`path.join(dir, 'output', base)`).
+     - NgÆ°á»£c láº¡i, náº¿u Ä‘Æ°á»ng dáº«n cÃ³ chá»©a `output/` nhÆ°ng file á»Ÿ thÆ° má»¥c cha, tá»± Ä‘á»™ng fallback lÃªn thÆ° má»¥c cha.
    - Ãp dá»¥ng vÃ o toÃ n bá»™ 5 hÃ m ghi file: `writeCcpLotToAccumulator`, `writeCcpGtgdToAccumulator`, `writeCcpTypedLotToAccumulator`, `writeCcpTypedValueToAccumulator`, `appendCcpRawDsgd`.
 2. **Cáº­p nháº­t Service Backend** ([ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts)):
    - Trong `writeToAccumulator`: Ãp dá»¥ng `resolveCcpAccumulatorFilePath` cho táº¥t cáº£ cÃ¡c Ä‘Æ°á»ng dáº«n resolved (Phase 1, Phase 2 Lot, GTGD, Raw DSGD).
@@ -366,12 +405,14 @@
 ## [2026-09-25T16:10] REFACTOR & BUGFIX: Chuáº©n HÃ³a 100% Theo Tool C# - LÆ°u ÄÃºng ThÆ° Má»¥c PhiÃªn & Check EOD Xá» ÄÃºng ThÆ° Má»¥c
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - BÃ¡m sÃ¡t 100% mÃ£ nguá»“n Tool C# gá»‘c (`operate-transaction-app/Utils/FIleUtils.cs#GetEODResult` & `TransactionCheckingService.cs#CheckEOD`):
   1. **LÆ°u file EOD Ä‘Ãºng ngÃ y**: Khi táº£i file EOD tá»« mail Outlook, tá»± Ä‘á»™ng bÃ³c tÃ¡ch ngÃ y phiÃªn (`ngÃ y phiÃªn YYYY-MM-DD` hoáº·c `eod.YYYY-MM-DD.csv`) vÃ  lÆ°u tháº³ng vÃ o Ä‘Ãºng thÆ° má»¥c phiÃªn `Backup MS/Futures/YYYY/T{MM}.{YYYY}/{DD}.{MM}/eod.YYYY-MM-DD.csv`.
   2. **Check EOD xá» Ä‘Ãºng thÆ° má»¥c**: Khi cháº¡y Ä‘á»‘i chiáº¿u EOD phiÃªn nÃ o, trá» tháº³ng vÃ o thÆ° má»¥c phiÃªn Ä‘Ã³, Ä‘á»c Ä‘á»“ng bá»™ bá»™ 3 file: `QLTKGD.xlsx`, `eod.{YYYY}-{MM}-{DD}.csv`, `TTTT.xlsx`. Tuyá»‡t Ä‘á»‘i khÃ´ng copy file qua láº¡i giá»¯a cÃ¡c ngÃ y, khÃ´ng nháº£y thÆ° má»¥c.
   3. **Chuáº©n hÃ³a cÃ´ng thá»©c EOD theo C#**: Äá»c Ä‘Ãºng `LÃ£i lá»— thá»±c táº¿` tá»« `TTTT.xlsx` quy Ä‘á»•i theo loáº¡i tiá»n tá»‡ (USD, JPY, MYR) vÃ  Ä‘á»c `PhÃ­ dá»‹ch vá»¥ thanh toÃ¡n (VND)` tá»« `QLTKGD.xlsx`, kháº¯c phá»¥c hoÃ n toÃ n tÃ¬nh tráº¡ng bÃ¡o lá»‡ch sá»‘ dÆ° do khÃ´ng tÃ­nh lÃ£i lá»— há»£p Ä‘á»“ng.
 
 ### 2. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
+
 1. **LÆ°u file EOD tá»« Email vá» Ä‘Ãºng thÆ° má»¥c phiÃªn** ([email-watcher.service.ts#L980-L990](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L980-L990)):
    - Tá»± Ä‘á»™ng nháº­n diá»‡n `sessionDateFromMail` tá»« email M-System. Báº¥t ká»ƒ caller truyá»n `customDir` tháº¿ nÃ o, file Ä‘Ã­nh kÃ¨m EOD luÃ´n Ä‘Æ°á»£c lÆ°u chuáº©n xÃ¡c vÃ o thÆ° má»¥c phiÃªn cá»§a ngÃ y trong email (`resolveDailySubfolder(msBackupBase, sessionDateFromMail)`).
 2. **Check EOD xá» vÃ o Ä‘Ãºng thÆ° má»¥c phiÃªn** ([recon-jobs.handler.ts#L1026-L1085](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1026-L1085) & [pre-eod-recon.service.ts#L620-L665](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L620-L665)):
@@ -388,19 +429,22 @@
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u & Pháº£n há»“i tá»« USER**:
   1. Loáº¡i bá» cÆ¡ cháº¿ "Self-Healing tá»± copy file EOD tá»« thÆ° má»¥c ngÃ y káº¿ tiáº¿p (T+1) sang ngÃ y phiÃªn (T-1)": ÄÃ¢y lÃ  cÆ¡ cháº¿ tá»± suy diá»…n, vÃ´ lÃ½ vÃ  lÃ m xÃ¡o trá»™n cáº¥u trÃºc file lÆ°u trá»¯. ThÆ° má»¥c phiÃªn nÃ o thÃ¬ chá»‰ Ä‘á»c Ä‘Ãºng thÆ° má»¥c Ä‘Ã³.
   2. Kháº¯c phá»¥c sá»± cá»‘ nÃºt **"Láº¥y File EOD tá»« Email (it.support)"** trÃªn giao diá»‡n khÃ´ng táº£i Ä‘Æ°á»£c file vá» thÆ° má»¥c Backup M-System.
   3. Giáº£i thÃ­ch rÃµ nguyÃªn nhÃ¢n báº£ng "Káº¿t quáº£ cháº¡y EOD" hiá»ƒn thá»‹ lá»‡ch 2 tÃ i khoáº£n `003C0531975` (-75) vÃ  `012C0113545` (-137.5).
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
+
 1. **Lá»—i nÃºt "Láº¥y File EOD tá»« Email" khÃ´ng lÆ°u file**:
    - Khi kiá»ƒm tra thá»±c táº¿ hÃ²m thÆ° Microsoft 365 (`it.support@mxv.vn`):
-     * LÃºc `09:36:53 (25/09)`: MÃ´i trÆ°á»ng Staging gá»­i email test `[STG] MXV M-System - ThÃ´ng bÃ¡o káº¿t quáº£ cháº¡y EOD há»‡ thá»‘ng - ngÃ y phiÃªn 2026-09-24` vá»›i ná»™i dung **cháº¡y EOD khÃ´ng thÃ nh cÃ´ng** $\rightarrow$ Email nÃ y **hoÃ n toÃ n KHÃ”NG cÃ³ file Ä‘Ã­nh kÃ¨m (`hasAttachments: false`)**.
-     * LÃºc `00:08:21 (25/09)`: M-System tháº­t gá»­i email `MXV M-System - ThÃ´ng bÃ¡o káº¿t quáº£ cháº¡y EOD há»‡ thá»‘ng - ngÃ y phiÃªn 2026-09-24` $\rightarrow$ Email nÃ y **CÃ“ file Ä‘Ã­nh kÃ¨m (`hasAttachments: true`)** lÃ  file `eod.2026-09-24.csv` (8.36 MB).
+     - LÃºc `09:36:53 (25/09)`: MÃ´i trÆ°á»ng Staging gá»­i email test `[STG] MXV M-System - ThÃ´ng bÃ¡o káº¿t quáº£ cháº¡y EOD há»‡ thá»‘ng - ngÃ y phiÃªn 2026-09-24` vá»›i ná»™i dung **cháº¡y EOD khÃ´ng thÃ nh cÃ´ng** $\rightarrow$ Email nÃ y **hoÃ n toÃ n KHÃ”NG cÃ³ file Ä‘Ã­nh kÃ¨m (`hasAttachments: false`)**.
+     - LÃºc `00:08:21 (25/09)`: M-System tháº­t gá»­i email `MXV M-System - ThÃ´ng bÃ¡o káº¿t quáº£ cháº¡y EOD há»‡ thá»‘ng - ngÃ y phiÃªn 2026-09-24` $\rightarrow$ Email nÃ y **CÃ“ file Ä‘Ã­nh kÃ¨m (`hasAttachments: true`)** lÃ  file `eod.2026-09-24.csv` (8.36 MB).
    - Trong code cÅ© [email-watcher.service.ts#L930](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L930), hÃ m chá»‰ láº¥y `candidates[0]` (email má»›i nháº¥t) mÃ  **khÃ´ng kiá»ƒm tra `em.hasAttachments === true`**, dáº«n tá»›i viá»‡c bá»‘c trÃºng email STG khÃ´ng cÃ³ tá»‡p Ä‘Ã­nh kÃ¨m $\rightarrow$ Táº£i vá» `0` file (`downloadedFiles: []`).
 
 ### 3. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
+
 1. **Loáº¡i bá» cÆ¡ cháº¿ Self-Healing copy ngÃ y káº¿ tiáº¿p** ([recon-jobs.handler.ts#L1044-L1070](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L1044-L1070)):
    - XÃ³a bá» hoÃ n toÃ n Ä‘oáº¡n quÃ©t vÃ  copy file `eod` tá»« thÆ° má»¥c ngÃ y T+1 sang thÆ° má»¥c phiÃªn.
    - Dá»n sáº¡ch file `eod.2026-09-24.csv` bá»‹ copy nháº§m vÃ o thÆ° má»¥c `25.09` trÃªn server Ubuntu.
@@ -411,6 +455,7 @@
    - Tá»± Ä‘á»™ng Ä‘á»‘i chiáº¿u cáº£ ngÃ y ca trá»±c vÃ  ngÃ y phiÃªn (T-1) Ä‘á»ƒ match chuáº©n xÃ¡c email EOD.
 
 ### 4. Kiá»ƒm chá»©ng thá»±c táº¿
+
 - ÄÃ£ test gá»i API `/api/v1/bot-engine/fetch-eod-email`:
   `{"success": true, "message": "ÄÃ£ táº£i 1 tá»‡p Ä‘Ã­nh kÃ¨m tá»« email \"MXV M-System - ThÃ´ng bÃ¡o káº¿t quáº£ cháº¡y EOD há»‡ thá»‘ng - ngÃ y phiÃªn 2026-09-24\" vá» /mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T09.2026/24.09", "downloadedFiles": [".../eod.2026-09-24.csv"]}` $\rightarrow$ **ThÃ nh cÃ´ng 100%**.
 - ÄÃ£ deploy báº£n má»›i lÃªn Ubuntu Server `10.0.0.26` vÃ  reload PM2 (`mxv-backend`, `mxv-frontend`).
@@ -420,6 +465,7 @@
 ## [2026-09-25T14:15] OPTIMIZATION & BUGFIX: CÄƒn Chá»‰nh Äá»‘i SoÃ¡t EOD Chuáº©n PhiÃªn T-1, CÆ¡ Cháº¿ Last-Known-Good Captcha Model & Chuáº©n HÃ³a Thá»i LÆ°á»£ng Job
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**:
   1. Xá»­ lÃ½ triá»‡t Ä‘á»ƒ lá»—i Ä‘á»‘i soÃ¡t EOD bÃ¡o lá»‡ch áº£o 641 tÃ i khoáº£n do so sÃ¡nh chÃ©o phiÃªn (Ä‘á»c `QLTKGD.xlsx` ngÃ y hÃ´m nay so vá»›i `eod.YYYY-MM-DD.csv` cá»§a phiÃªn hÃ´m qua).
   2. PhÃ¢n tÃ­ch nguyÃªn nhÃ¢n thá»i lÆ°á»£ng cháº¡y Job hiá»ƒn thá»‹ > 8 phÃºt (~498s) vÃ  tá»‘i Æ°u.
@@ -427,6 +473,7 @@
   4. Tá»‘i Æ°u Worker Straits ACM: Loáº¡i bá» viá»‡c táº£i thá»«a file `Order.xlsx` (tiáº¿t kiá»‡m thÃªm 60-90s) vÃ  bá» copy giáº£ máº¡o Ä‘uÃ´i `.xlsx` tá»« file `.csv`.
 
 ### 2. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
+
 1. **Chuáº©n hÃ³a ngÃ y phiÃªn T-1 cho Job EOD M-System** ([recon-jobs.handler.ts#L985-L1082](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L985-L1082)):
    - Tá»± Ä‘á»™ng xÃ¡c Ä‘á»‹nh `targetDate` lÃ  T-1 khi job cháº¡y tá»± Ä‘á»™ng.
    - ThÃªm cÆ¡ cháº¿ tá»± phá»¥c há»“i (Self-Healing): QuÃ©t thÆ° má»¥c ngÃ y káº¿ tiáº¿p (T+1), náº¿u phÃ¡t hiá»‡n file `eod.YYYY-MM-DD.csv` bá»‹ lÆ°u nháº§m thÃ¬ tá»± Ä‘á»™ng copy vá» Ä‘Ãºng thÆ° má»¥c ngÃ y phiÃªn T-1.
@@ -447,6 +494,7 @@
    - ThÃªm trÆ°á»ng `durationFormatted`: Hiá»ƒn thá»‹ dáº¡ng thÃ¢n thiá»‡n `1m 34s (94s)` trÃªn UI modal.
 
 ### 3. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)
 - [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts)
 - [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts)
@@ -456,11 +504,13 @@
 - [backend/src/scripts/deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js)
 
 ### 4. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `nest build` $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**: Giáº£i thÃ­ch lá»—i vÃ  há»— trá»£ sá»­a: `Object is possibly 'undefined'. @[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts:L492]`.
 - **NguyÃªn nhÃ¢n cá»‘t lÃµi**:
   - Trong [ReconJobsHandler](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L28-L30), dependency `ccpCeDownloaderService` Ä‘Æ°á»£c inject dÆ°á»›i dáº¡ng `@Optional()` vÃ  cÃ³ kiá»ƒu dá»¯ liá»‡u `CcpCeDownloaderService | undefined`.
@@ -471,9 +521,11 @@
   - Sá»­ dá»¥ng biáº¿n `ccpService` Ä‘Ã£ Ä‘Æ°á»£c TypeScript tá»± Ä‘á»™ng thu háº¹p kiá»ƒu (type narrowing) thÃ nh `CcpCeDownloaderService` an toÃ n 100%.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): L464-L498.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Typecheck: `npx tsc --noEmit` $\rightarrow$ `recon-jobs.handler.ts` **0 lá»—i**.
 - Backend build: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
@@ -482,10 +534,11 @@
 ## [2026-09-25T09:50] FEATURE & UI/UX: Chuáº©n HÃ³a 3 Khá»‘i EOD (Ã‚m KÃ½ Quá»¹, Káº¿t Quáº£ EOD, Äá»“ng Bá»™ Sá»‘ DÆ° CQG) Theo PhiÃªn HÃ´m Nay
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- **PhÃ¡t hiá»‡n & YÃªu cáº§u tá»« USER**: *"váº­y dá»±a vÃ o gtt giÃºp tÃ´i bá»• sung logic hiá»ƒn thá»‹ thÃªm cho component con trÃªn"*.
+
+- **PhÃ¡t hiá»‡n & YÃªu cáº§u tá»« USER**: _"váº­y dá»±a vÃ o gtt giÃºp tÃ´i bá»• sung logic hiá»ƒn thá»‹ thÃªm cho component con trÃªn"_.
 - **PhÃ¢n tÃ­ch váº¥n Ä‘á» thá»±c táº¿**:
   1. Trong [recon-console-summary.service.ts#L628-L656](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L628-L656), khi hÃ´m nay chÆ°a cÃ³ job nÃ o cháº¡y, code cÃ³ Ä‘oáº¡n fallback tá»± Ã½ truy váº¥n `botJobModel.findOne({ jobType: ... }).sort({ createdAt: -1 })` mÃ  khÃ´ng cÃ³ Ä‘iá»u kiá»‡n lá»c ngÃ y, dáº«n Ä‘áº¿n viá»‡c Ã¢m tháº§m náº¡p káº¿t quáº£ cá»§a ngÃ y hÃ´m qua hoáº·c ngÃ y cÅ© lÃªn giao diá»‡n hÃ´m nay.
-  2. TrÃªn giao diá»‡n [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx), 3 khá»‘i con ("TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i", "Káº¿t quáº£ cháº¡y EOD", "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG") khi máº£ng rá»—ng (chÆ°a cháº¡y) láº¡i tá»± Ä‘á»™ng hiá»ƒn thá»‹ icon tick xanh *"An ToÃ n: KhÃ´ng cÃ³ tÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i"* vÃ  *"Sá»‘ dÆ° tÃ i khoáº£n Ä‘á»“ng bá»™ khá»›p hoÃ n toÃ n giá»¯a MS vÃ  CQG"*, gÃ¢y hiá»ƒu nháº§m nguy hiá»ƒm lÃ  hÃ´m nay Ä‘Ã£ kiá»ƒm tra vÃ  an toÃ n.
+  2. TrÃªn giao diá»‡n [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx), 3 khá»‘i con ("TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i", "Káº¿t quáº£ cháº¡y EOD", "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG") khi máº£ng rá»—ng (chÆ°a cháº¡y) láº¡i tá»± Ä‘á»™ng hiá»ƒn thá»‹ icon tick xanh _"An ToÃ n: KhÃ´ng cÃ³ tÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i"_ vÃ  _"Sá»‘ dÆ° tÃ i khoáº£n Ä‘á»“ng bá»™ khá»›p hoÃ n toÃ n giá»¯a MS vÃ  CQG"_, gÃ¢y hiá»ƒu nháº§m nguy hiá»ƒm lÃ  hÃ´m nay Ä‘Ã£ kiá»ƒm tra vÃ  an toÃ n.
 - **Giáº£i phÃ¡p thá»±c thi (Chuáº©n hÃ³a toÃ n diá»‡n giá»‘ng GTT)**:
   1. **Táº§ng Backend API** ([recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts)):
      - Loáº¡i bá» toÃ n bá»™ cÃ¡c fallback kÃ©o job cÅ© tá»« ngÃ y hÃ´m qua vÃ o phiÃªn hÃ´m nay. Náº¿u phiÃªn hÃ´m nay chÆ°a cháº¡y, `preEodJob`, `marginJob`, `cqgSyncJob` sáº½ tráº£ vá» `null` vÃ  `status: 'IDLE'`.
@@ -493,25 +546,28 @@
   2. **Táº§ng Frontend UI** ([LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)):
      - ThÃªm cá» kiá»ƒm tra thá»±c thi cho tá»«ng khá»‘i: `hasExecutedMargin`, `hasExecutedEod`, `hasExecutedCqgSync`.
      - **Khi phiÃªn hÃ´m nay chÆ°a cháº¡y**: Hiá»ƒn thá»‹ tráº¡ng thÃ¡i chá» kiá»ƒm tra sáº¡ch sáº½ vá»›i icon Ä‘á»“ng há»“ trung tÃ­nh:
-       * Khá»‘i Ã‚m kÃ½ quá»¹: *"ChÆ°a cháº¡y kiá»ƒm tra tÃ i khoáº£n Ã¢m kÃ½ quá»¹ phiÃªn nÃ y. Báº¥m 'Check' Ä‘á»ƒ quÃ©t."*
-       * Khá»‘i Káº¿t quáº£ EOD: *"ChÆ°a cháº¡y Ä‘á»‘i chiáº¿u EOD phiÃªn nÃ y. Báº¥m 'Check' Ä‘á»ƒ báº¯t Ä‘áº§u Ä‘á»‘i soÃ¡t."*
-       * Khá»‘i Äá»“ng bá»™ CQG: *"ChÆ°a cháº¡y Ä‘á»“ng bá»™ sá»‘ dÆ° CQG phiÃªn nÃ y. Báº¥m 'Check' Ä‘á»ƒ kiá»ƒm tra."*
+       - Khá»‘i Ã‚m kÃ½ quá»¹: _"ChÆ°a cháº¡y kiá»ƒm tra tÃ i khoáº£n Ã¢m kÃ½ quá»¹ phiÃªn nÃ y. Báº¥m 'Check' Ä‘á»ƒ quÃ©t."_
+       - Khá»‘i Káº¿t quáº£ EOD: _"ChÆ°a cháº¡y Ä‘á»‘i chiáº¿u EOD phiÃªn nÃ y. Báº¥m 'Check' Ä‘á»ƒ báº¯t Ä‘áº§u Ä‘á»‘i soÃ¡t."_
+       - Khá»‘i Äá»“ng bá»™ CQG: _"ChÆ°a cháº¡y Ä‘á»“ng bá»™ sá»‘ dÆ° CQG phiÃªn nÃ y. Báº¥m 'Check' Ä‘á»ƒ kiá»ƒm tra."_
      - **Khi phiÃªn hÃ´m nay Ä‘Ã£ cháº¡y**:
-       * Hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§ sá»‘ liá»‡u lá»‡ch (náº¿u cÃ³ lá»—i) hoáº·c tick xanh (náº¿u khá»›p hoÃ n toÃ n/an toÃ n).
-       * Hiá»ƒn thá»‹ nhÃ£n thá»i gian kiá»ƒm tra thá»±c táº¿: `Kiá»ƒm tra lÃºc: HH:mm:ss DD/MM` á»Ÿ cáº£ header vÃ  trong báº£ng káº¿t quáº£.
+       - Hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§ sá»‘ liá»‡u lá»‡ch (náº¿u cÃ³ lá»—i) hoáº·c tick xanh (náº¿u khá»›p hoÃ n toÃ n/an toÃ n).
+       - Hiá»ƒn thá»‹ nhÃ£n thá»i gian kiá»ƒm tra thá»±c táº¿: `Kiá»ƒm tra lÃºc: HH:mm:ss DD/MM` á»Ÿ cáº£ header vÃ  trong báº£ng káº¿t quáº£.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts): L628-L665, L1040-L1055.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx): L764-L790, L1945-L2255.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `npm run build` (`next build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**, 25/25 static pages compiled.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- **YÃªu cáº§u tá»« USER**: *"Ä‘Æ°á»£c giÃºp tÃ´i thÃªm thÃªm bá» sung nhÆ°ng mÃ  log ra nÃªn Ä‘á»ƒ thuáº­t ngá»¯ ngÆ°á»i dÃ¹ng thay vÃ¬ quÃ¡ mÃ¡y mÃ³c ká»¹ thuáº­t"*.
+
+- **YÃªu cáº§u tá»« USER**: _"Ä‘Æ°á»£c giÃºp tÃ´i thÃªm thÃªm bá» sung nhÆ°ng mÃ  log ra nÃªn Ä‘á»ƒ thuáº­t ngá»¯ ngÆ°á»i dÃ¹ng thay vÃ¬ quÃ¡ mÃ¡y mÃ³c ká»¹ thuáº­t"_.
 - **Giáº£i phÃ¡p ká»¹ thuáº­t (Clean Single-Pass Supplementary Download)**:
   1. Trong [rpa-download.handler.ts#L288-L345](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts#L288-L345):
      - Sau khi duyá»‡t háº¿t danh sÃ¡ch 20 bÃ¡o cÃ¡o láº§n 1, náº¿u cÃ³ bÃ¡o cÃ¡o bá»‹ giÃ¡n Ä‘oáº¡n hoáº·c ngháº½n máº¡ng táº¡m thá»i (vÃ­ dá»¥ dÃ­nh 429 Rate Limit), bot khÃ´ng nÃ©m lá»—i ngay mÃ  **tá»± Ä‘á»™ng táº¡m dá»«ng 3 giÃ¢y** Ä‘á»ƒ Ä‘Æ°á»ng truyá»n vÃ  Rate Limit cá»§a M-System á»•n Ä‘á»‹nh hoÃ n toÃ n.
@@ -520,21 +576,24 @@
      - GiÃºp toÃ n bá»™ 20/20 bÃ¡o cÃ¡o Ä‘Æ°á»£c táº£i vá» trá»n váº¹n ngay trong LÆ°á»£t 1 mÃ  khÃ´ng cáº§n pháº£i táº¯t má»Ÿ láº¡i trÃ¬nh duyá»‡t sang LÆ°á»£t 2.
   2. **Chuáº©n hÃ³a thÃ´ng Ä‘iá»‡p nháº­t kÃ½ (User-Friendly Logs)**:
      - ToÃ n bá»™ thÃ´ng Ä‘iá»‡p ghi log Ä‘Æ°á»£c biÃªn táº­p báº±ng ngÃ´n ngá»¯ tá»± nhiÃªn, dá»… hiá»ƒu, trÃ¡nh cÃ¡c thuáº­t ngá»¯ ká»¹ thuáº­t mÃ¡y mÃ³c:
-       * `CÃ³ X bÃ¡o cÃ¡o chÆ°a táº£i xong. Táº¡m nghá»‰ 3 giÃ¢y vÃ  tá»± Ä‘á»™ng táº£i láº¡i bá»• sung...`
-       * `[Táº£i bá»• sung] Äang táº£i láº¡i bÃ¡o cÃ¡o: X...`
-       * `[Táº£i bá»• sung] ÄÃ£ lÆ°u thÃ nh cÃ´ng X vÃ o thÆ° má»¥c Backup.`
-       * `[Táº£i bá»• sung] BÃ¡o cÃ¡o X váº«n chÆ°a táº£i Ä‘Æ°á»£c: ...`
+       - `CÃ³ X bÃ¡o cÃ¡o chÆ°a táº£i xong. Táº¡m nghá»‰ 3 giÃ¢y vÃ  tá»± Ä‘á»™ng táº£i láº¡i bá»• sung...`
+       - `[Táº£i bá»• sung] Äang táº£i láº¡i bÃ¡o cÃ¡o: X...`
+       - `[Táº£i bá»• sung] ÄÃ£ lÆ°u thÃ nh cÃ´ng X vÃ o thÆ° má»¥c Backup.`
+       - `[Táº£i bá»• sung] BÃ¡o cÃ¡o X váº«n chÆ°a táº£i Ä‘Æ°á»£c: ...`
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts): L288-L345.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- **YÃªu cáº§u tá»« USER**: *"api láº¥y ra GiÃ¡ thanh toÃ¡n (GTT M-System vs CQG) nÃ y giÃºp tÃ´i sá»­a láº¡i Ä‘áº§u api chá»‰ láº¥y ra gtt cá»§a phiÃªn hÃ´m nay vÃ¬ hiá»‡n táº¡i user báº£o Ä‘á»ƒ hiá»‡n cáº£ phiÃªn hÃ´m qua dá»… nhÃ¬n nháº§m. náº¿u hÃ´m nay chÆ°a cháº¡y thÃ¬ Ä‘á»ƒ trá»‘ng"*.
+
+- **YÃªu cáº§u tá»« USER**: _"api láº¥y ra GiÃ¡ thanh toÃ¡n (GTT M-System vs CQG) nÃ y giÃºp tÃ´i sá»­a láº¡i Ä‘áº§u api chá»‰ láº¥y ra gtt cá»§a phiÃªn hÃ´m nay vÃ¬ hiá»‡n táº¡i user báº£o Ä‘á»ƒ hiá»‡n cáº£ phiÃªn hÃ´m qua dá»… nhÃ¬n nháº§m. náº¿u hÃ´m nay chÆ°a cháº¡y thÃ¬ Ä‘á»ƒ trá»‘ng"_.
 - **Giáº£i phÃ¡p thá»±c thi**:
   1. **Táº§ng Backend API** ([bot-engine.controller.ts#L1592](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts#L1592)):
      - Cáº­p nháº­t endpoint `@Get('gtt-report')` nháº­n tham sá»‘ `@Query('date') dateQuery?: string`.
@@ -542,22 +601,25 @@
      - **Náº¿u hÃ´m nay chÆ°a cháº¡y Ä‘á»‘i soÃ¡t GTT** (bÃ¡o cÃ¡o lÆ°u trÃªn Ä‘Ä©a lÃ  cá»§a phiÃªn hÃ´m qua hoáº·c ngÃ y cÅ©): API chá»§ Ä‘á»™ng tráº£ vá» `report: null` kÃ¨m thÃ´ng bÃ¡o: `PhiÃªn ngÃ y YYYY-MM-DD chÆ°a cháº¡y Ä‘á»‘i soÃ¡t GTT. BÃ¡o cÃ¡o gáº§n nháº¥t lÃ  cá»§a ngÃ y ...`.
   2. **Táº§ng Frontend UI** ([LegacyGttCheckerSection.tsx#L70](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx#L70)):
      - Cáº­p nháº­t `fetchGttReport`: Gá»­i kÃ¨m `selectedDate` lÃªn API vÃ  gÃ¡n `setGttReport(data.report || null)`.
-     - Khi phiÃªn hÃ´m nay chÆ°a cháº¡y (`gttReport === null`): Báº£ng dá»¯ liá»‡u hiá»ƒn thá»‹ tráº¡ng thÃ¡i trá»‘ng sáº¡ch sáº½ *"ChÆ°a cÃ³ dá»¯ liá»‡u Ä‘á»‘i chiáº¿u giÃ¡ thanh toÃ¡n. Báº¥m 'Check GTT' Ä‘á»ƒ kiá»ƒm tra."*, áº©n nhÃ£n thá»i gian vÃ  vÃ´ hiá»‡u hÃ³a nÃºt *"Táº¡o file nháº­p GTT"*, loáº¡i bá» 100% rá»§i ro nhÃ¬n nháº§m sá»‘ liá»‡u cá»§a phiÃªn hÃ´m qua.
+     - Khi phiÃªn hÃ´m nay chÆ°a cháº¡y (`gttReport === null`): Báº£ng dá»¯ liá»‡u hiá»ƒn thá»‹ tráº¡ng thÃ¡i trá»‘ng sáº¡ch sáº½ _"ChÆ°a cÃ³ dá»¯ liá»‡u Ä‘á»‘i chiáº¿u giÃ¡ thanh toÃ¡n. Báº¥m 'Check GTT' Ä‘á»ƒ kiá»ƒm tra."_, áº©n nhÃ£n thá»i gian vÃ  vÃ´ hiá»‡u hÃ³a nÃºt _"Táº¡o file nháº­p GTT"_, loáº¡i bá» 100% rá»§i ro nhÃ¬n nháº§m sá»‘ liá»‡u cá»§a phiÃªn hÃ´m qua.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts): L1592-L1645.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx): L70-L105.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `npm run build` (`next build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**, 25/25 static pages compiled.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- **PhÃ¡t hiá»‡n tá»« USER**: 
+
+- **PhÃ¡t hiá»‡n tá»« USER**:
   - Khi bot táº£i liÃªn tiáº¿p 14 bÃ¡o cÃ¡o quÃ¡ nhanh, API backend cá»§a M-System (`https://msapi.mxv.com.vn/position/admin/open`) kÃ­ch hoáº¡t cÆ¡ cháº¿ WAF Rate Limiting tráº£ vá» lá»—i: `vendor-network-DSg34y-G.js:2 GET https://msapi.mxv.com.vn/position/admin/open?limit=20&offset=0 429 (Too Many Requests)`.
-  - Káº¿t quáº£: Báº£ng Tráº¡ng thÃ¡i má»Ÿ bá»‹ tráº¯ng dá»¯ liá»‡u (`0 to 0 of 0`), khi bot click nÃºt xuáº¥t file thÃ¬ M-System hiá»‡n thÃ´ng bÃ¡o lá»—i *"Download file khÃ´ng thÃ nh cÃ´ng"* vÃ  khÃ´ng kÃ­ch hoáº¡t sá»± kiá»‡n download. Khi ngÆ°á»i dÃ¹ng chá» má»™t lÃºc vÃ  báº¥m F5 reload láº¡i trang thÃ¬ dá»¯ liá»‡u láº¡i hiá»ƒn thá»‹ bÃ¬nh thÆ°á»ng.
+  - Káº¿t quáº£: Báº£ng Tráº¡ng thÃ¡i má»Ÿ bá»‹ tráº¯ng dá»¯ liá»‡u (`0 to 0 of 0`), khi bot click nÃºt xuáº¥t file thÃ¬ M-System hiá»‡n thÃ´ng bÃ¡o lá»—i _"Download file khÃ´ng thÃ nh cÃ´ng"_ vÃ  khÃ´ng kÃ­ch hoáº¡t sá»± kiá»‡n download. Khi ngÆ°á»i dÃ¹ng chá» má»™t lÃºc vÃ  báº¥m F5 reload láº¡i trang thÃ¬ dá»¯ liá»‡u láº¡i hiá»ƒn thá»‹ bÃ¬nh thÆ°á»ng.
 - **Giáº£i phÃ¡p ká»¹ thuáº­t (Anti-Throttling & Self-Healing)**:
   1. **Táº§ng RPA Service** ([rpa-downloader.service.ts#L1368](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts#L1368)):
      - Trong `downloadTTM`: Bá»• sung cÆ¡ cháº¿ phÃ¡t hiá»‡n báº£ng trá»‘ng `"0 to 0 of 0"` hoáº·c thÃ´ng bÃ¡o lá»—i `toast-error` / `alert-danger` do 429.
@@ -569,17 +631,20 @@
      - Bá»• sung kiá»ƒm tra `"0 to 0 of 0"`, dá»«ng 6s vÃ  F5 reload náº¡p láº¡i dá»¯ liá»‡u, Ä‘á»“ng thá»i thÃªm khoáº£ng nghá»‰ 2s giá»¯a cÃ¡c file.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts): L1368-L1435.
 - [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts): L270-L272.
 - [backend/src/scripts/test_ms_download_all_20_reports.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ms_download_all_20_reports.js): L304-L320.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm.cmd run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- **YÃªu cáº§u tá»« USER**: *"giÃºp tÃ´i lÆ°u cÃ¡c file test quan trá»ng vÃ o ngá»¯ cáº£nh cá»§a ai láº§n sau báº¡n cÃ³ thá»ƒ gá»£i Ã½ cho tÃ´i mÃ  test thay vÃ¬ pháº£i code má»›i"*.
+
+- **YÃªu cáº§u tá»« USER**: _"giÃºp tÃ´i lÆ°u cÃ¡c file test quan trá»ng vÃ o ngá»¯ cáº£nh cá»§a ai láº§n sau báº¡n cÃ³ thá»ƒ gá»£i Ã½ cho tÃ´i mÃ  test thay vÃ¬ pháº£i code má»›i"_.
 - **Giáº£i phÃ¡p thá»±c thi**:
   1. Cáº­p nháº­t trá»±c tiáº¿p vÃ o file chá»‰ thá»‹ cá»‘t lÃµi cá»§a trá»£ lÃ½ AI [`.agents/AGENTS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md) má»¥c `## 9. Danh Má»¥c Test Scripts Chuáº©n HÃ³a Cá»§a Dá»± Ãn (Standard Test Scripts Registry)` Ä‘á»ƒ AI luÃ´n tá»± Ä‘á»™ng Ä‘á»c Ä‘Æ°á»£c toÃ n bá»™ danh sÃ¡ch script kiá»ƒm thá»­ má»—i khi báº¯t Ä‘áº§u phiÃªn lÃ m viá»‡c.
   2. Táº¡o sá»• tay tra cá»©u táº­p trung cho láº­p trÃ¬nh viÃªn táº¡i [`docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md).
@@ -587,6 +652,7 @@
   4. Sá»­a chuáº©n hÃ³a [test_ms_download_all_20_reports.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_ms_download_all_20_reports.js) khá»›p 100% logic cá»§a `rpa-downloader.service.ts` (sá»­a 7 URL bá»‹ lá»‡ch, thÃªm cÆ¡ cháº¿ tá»± Ä‘á»™ng tÃ¡i káº¿t ná»‘i `ensureLoggedIn` vÃ  fallback qua Sidebar).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [`.agents/AGENTS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md): Bá»• sung Section 9 lÆ°u trá»¯ vÄ©nh viá»…n danh má»¥c test scripts cho AI Assistant.
 - [`docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/DANH_MUC_TEST_SCRIPTS_CHUAN_HOA.md): Táº¡o má»›i tÃ i liá»‡u sá»• tay tra cá»©u.
 - [`backend/package.json`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json): Bá»• sung 6 lá»‡nh cháº¡y táº¯t NPM kiá»ƒm thá»­.
@@ -597,22 +663,26 @@
 ## [2026-09-25T08:24] REVERT & OPTIMIZE: Giá»¯ Thá»© Tá»± VÃ o URL Trá»±c Tiáº¿p TrÆ°á»›c Cho TTM & TTTT (KÃ¨m Dá»± PhÃ²ng Sidebar Khi Lá»—i)
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
-- **YÃªu cáº§u tá»« USER**: *"thÃ´i váº­y thÃ¬ cho vÃ o url trÆ°á»›c Ä‘i cho nhanh Ä‘á»•i láº¡i nhÆ° ttm vÃ  ttt nhÆ° cÅ©"*.
+
+- **YÃªu cáº§u tá»« USER**: _"thÃ´i váº­y thÃ¬ cho vÃ o url trÆ°á»›c Ä‘i cho nhanh Ä‘á»•i láº¡i nhÆ° ttm vÃ  ttt nhÆ° cÅ©"_.
 - **CÆ¡ cháº¿ thá»±c thi**:
   1. Giá»¯ nguyÃªn tÃ­nh Ä‘á»“ng bá»™ tá»‘c Ä‘á»™ cao cá»§a há»‡ thá»‘ng: Thá»­ Ä‘iá»u hÆ°á»›ng trá»±c tiáº¿p báº±ng URL hash (`gotoAndDownload`) trÆ°á»›c Ä‘á»ƒ táº£i file nhanh nháº¥t cÃ³ thá»ƒ.
   2. KÃ¨m cÆ¡ cháº¿ an toÃ n: Náº¿u vÃ o URL hash gáº·p sá»± cá»‘ (vÃ­ dá»¥ khÃ´ng báº¯t Ä‘Æ°á»£c nÃºt do route chÆ°a táº£i), bot tá»± Ä‘á»™ng chuyá»ƒn sang fallback báº¥m nÃºt Menu Sidebar (`navigateAndDownload` qua `['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i má»Ÿ']` hoáº·c `['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i táº¥t toÃ¡n']`).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
-  * L1222-L1254: `downloadTTTT`: Cháº¡y `gotoAndDownload('#/positionManagement/finalPositionInfo')` trÆ°á»›c $\rightarrow$ Lá»—i fallback sang `navigateAndDownload(['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i táº¥t toÃ¡n'])`.
-  * L1368-L1399: `downloadTTM`: Cháº¡y `gotoAndDownload('#/positionManagement/openPositionInfo')` trÆ°á»›c $\rightarrow$ Lá»—i fallback sang `navigateAndDownload(['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i má»Ÿ'])`.
+  - L1222-L1254: `downloadTTTT`: Cháº¡y `gotoAndDownload('#/positionManagement/finalPositionInfo')` trÆ°á»›c $\rightarrow$ Lá»—i fallback sang `navigateAndDownload(['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i táº¥t toÃ¡n'])`.
+  - L1368-L1399: `downloadTTM`: Cháº¡y `gotoAndDownload('#/positionManagement/openPositionInfo')` trÆ°á»›c $\rightarrow$ Lá»—i fallback sang `navigateAndDownload(['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i má»Ÿ'])`.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm.cmd run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**:
   - Táº¡i khá»‘i **"Káº¿t quáº£ cháº¡y EOD"** trÃªn giao diá»‡n [LegacyReconSection.tsx#L2007](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2007): Khi báº¥m nÃºt "Check" cháº¡y Ä‘á»‘i chiáº¿u sá»‘ liá»‡u EOD (`CHECK_EOD_MM`), náº¿u há»‡ thá»‘ng kiá»ƒm tra trong thÆ° má»¥c Backup MS cá»¥c bá»™ mÃ  chÆ°a cÃ³ file EOD (`eod.YYYY-MM-DD.csv`, `EOD.csv`), há»‡ thá»‘ng sáº½ **tá»± Ä‘á»™ng quÃ©t vÃ  láº¥y file EOD tá»« mail Outlook M365 (`it.support@mxv.vn`) vá» thÆ° má»¥c luÃ´n**.
   - ÄÃ¢y lÃ  luá»“ng ngoáº¡i lá»‡ dá»± phÃ²ng (vÃ¬ tÃ­nh nÄƒng quÃ©t mail Ä‘á»‹nh ká»³ cá»§a bot hiá»‡n Ä‘ang táº¡m táº¯t). YÃªu cáº§u bá»• sung cÆ¡ cháº¿ nÃ y thÃ´ng minh, liá»n máº¡ch, **khÃ´ng phÃ¡ vá»¡ cáº¥u trÃºc luá»“ng chÃ­nh á»•n Ä‘á»‹nh** cá»§a há»‡ thá»‘ng.
@@ -629,16 +699,18 @@
      - Bá»• sung `title` tooltip mÃ´ táº£ trá»±c quan cÆ¡ cháº¿ dá»± phÃ²ng tá»± Ä‘á»™ng táº£i file EOD cho nÃºt "Check" táº¡i khá»‘i "Káº¿t quáº£ cháº¡y EOD".
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
-  * L1-L30: Inject `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
-  * L998-L1052: Bá»• sung logic kiá»ƒm tra file EOD trong thÆ° má»¥c Backup MS; tá»± Ä‘á»™ng gá»i `emailWatcherService.fetchEodEmail` khi chÆ°a cÃ³ file, kÃ¨m log real-time rÃµ rÃ ng.
+  - L1-L30: Inject `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
+  - L998-L1052: Bá»• sung logic kiá»ƒm tra file EOD trong thÆ° má»¥c Backup MS; tá»± Ä‘á»™ng gá»i `emailWatcherService.fetchEodEmail` khi chÆ°a cÃ³ file, kÃ¨m log real-time rÃµ rÃ ng.
 - [backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts):
-  * L1-L36: Inject `@Optional() @Inject(forwardRef(() => CcpReconService)) private readonly ccpReconService?: CcpReconService` vÃ  `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
-  * L632-L700: Cáº­p nháº­t `runAutoCheckEodMm`: Bá»• sung fallback tá»± Ä‘á»™ng táº£i EOD tá»« email náº¿u thiáº¿u file, vÃ  gá»i `this.ccpReconService.checkEOD(...)` tráº£ vá» Ä‘áº§y Ä‘á»§ `eodResult`.
+  - L1-L36: Inject `@Optional() @Inject(forwardRef(() => CcpReconService)) private readonly ccpReconService?: CcpReconService` vÃ  `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
+  - L632-L700: Cáº­p nháº­t `runAutoCheckEodMm`: Bá»• sung fallback tá»± Ä‘á»™ng táº£i EOD tá»« email náº¿u thiáº¿u file, vÃ  gá»i `this.ccpReconService.checkEOD(...)` tráº£ vá» Ä‘áº§y Ä‘á»§ `eodResult`.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
-  * L2014: ThÃªm tooltip `title` trá»±c quan trÃªn nÃºt "Check" cá»§a khá»‘i "Káº¿t quáº£ cháº¡y EOD".
+  - L2014: ThÃªm tooltip `title` trá»±c quan trÃªn nÃºt "Check" cá»§a khá»‘i "Káº¿t quáº£ cháº¡y EOD".
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm.cmd run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `cmd /c npm.cmd run build` (`next build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
@@ -647,31 +719,35 @@
 ## [2026-09-24T18:22] FIX & OPTIMIZE: Sá»­a Triá»‡t Äá»ƒ Lá»—i Táº£i BÃ¡o CÃ¡o TTM (FontAwesome fas fa-file-csv) & CÆ¡ Cháº¿ Skip File Khi Retry
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**:
   1. USER cung cáº¥p HTML vÃ  áº£nh thá»±c táº¿ cá»§a nÃºt xuáº¥t file trÃªn trang Tráº¡ng thÃ¡i má»Ÿ (`#/positionManagement/openPositionInfo`):
      `<button class="ladda-button btn btn-ghost-primary active" ...><span class="ladda-label"><i class="fas fa-file-csv"></i></span></button>`.
-  2. USER Ä‘áº·t váº¥n Ä‘á»: *"hiá»‡n táº¡i tÃ´i Ä‘ang tháº¥y táº£i lá»—i má»—i TTM mÃ  cá»© táº£i láº¡i toÃ n bá»™ liÃªn tá»¥c xem cÃ³ pháº£i bug (vÃ¬ náº¿u táº£i láº¡i thÃ¬ nÃªn táº£i láº¡i file TTM thÃ´i Ä‘Ãºng khÃ´ng)"*.
+  2. USER Ä‘áº·t váº¥n Ä‘á»: _"hiá»‡n táº¡i tÃ´i Ä‘ang tháº¥y táº£i lá»—i má»—i TTM mÃ  cá»© táº£i láº¡i toÃ n bá»™ liÃªn tá»¥c xem cÃ³ pháº£i bug (vÃ¬ náº¿u táº£i láº¡i thÃ¬ nÃªn táº£i láº¡i file TTM thÃ´i Ä‘Ãºng khÃ´ng)"_.
 - **NguyÃªn nhÃ¢n ká»¹ thuáº­t Ä‘Ã£ giáº£i quyáº¿t**:
   1. **Lá»—i Selector icon `fas fa-file-csv`**: Giao diá»‡n M-System dÃ¹ng FontAwesome 5 Solid (`<i class="fas fa-file-csv"></i>`). Selector cÅ© chá»‰ tÃ¬m `i.fa-file-csv` hoáº·c `button.btn-info`. Class `btn-info` xuáº¥t hiá»‡n trÆ°á»›c nÃºt xuáº¥t file trong cÃ¢y DOM khiáº¿n bot click nháº§m vÃ o nÃºt TÃ¬m kiáº¿m/Filter, khÃ´ng phÃ¡t sinh download vÃ  timeout 90s.
   2. **Táº£i láº¡i toÃ n bá»™ 20 file khi retry**: VÃ²ng láº·p `for (const target of targets)` khÃ´ng kiá»ƒm tra file Ä‘Ã£ cÃ³ trong thÆ° má»¥c Backup. Khi 1 file lá»—i, queue kÃ­ch hoáº¡t `Attempt 2/3` vÃ  táº£i láº¡i toÃ n bá»™ 19 file Ä‘Ã£ thÃ nh cÃ´ng.
   3. **Thiáº¿u fallback cho TTM**: HÃ m `downloadTTM` chá»‰ cÃ³ `gotoAndDownload` mÃ  khÃ´ng cÃ³ fallback sang Sidebar `['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i má»Ÿ']`.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/helpers/msystem-tab-navigator.helper.ts):
-  * L49-L85: Cáº­p nháº­t `MS_SPECIFIC_EXPORT_BUTTON_SELECTORS` vÃ  `MS_EXPORT_BUTTON_SELECTORS`:
+  - L49-L85: Cáº­p nháº­t `MS_SPECIFIC_EXPORT_BUTTON_SELECTORS` vÃ  `MS_EXPORT_BUTTON_SELECTORS`:
     - ThÃªm selector chuáº©n xÃ¡c khá»›p HTML thá»±c táº¿: `button:has(i[class*="fa-file-csv"])`, `button:has(i.fas.fa-file-csv)`, `button.ladda-button:has(i[class*="fa-file-csv"])`, `button.btn-ghost-primary:has(i[class*="fa-file-csv"])`.
     - Loáº¡i bá» class generic `button.btn-info` khá»i máº£ng selector Ä‘á»ƒ trÃ¡nh click nháº§m nÃºt TÃ¬m kiáº¿m/Bá»™ lá»c.
 - [backend/src/modules/bot-engine/rpa-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts):
-  * L1353-L1380: NÃ¢ng cáº¥p `downloadTTM` thÃªm khá»‘i fallback: Náº¿u `gotoAndDownload` tháº¥t báº¡i, tá»± Ä‘á»™ng chuyá»ƒn sang Ä‘iá»u hÆ°á»›ng Sidebar qua menu `['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i má»Ÿ']` vá»›i pattern regex `/openPositionInfo/`.
+  - L1353-L1380: NÃ¢ng cáº¥p `downloadTTM` thÃªm khá»‘i fallback: Náº¿u `gotoAndDownload` tháº¥t báº¡i, tá»± Ä‘á»™ng chuyá»ƒn sang Ä‘iá»u hÆ°á»›ng Sidebar qua menu `['QL tráº¡ng thÃ¡i', 'Tráº¡ng thÃ¡i má»Ÿ']` vá»›i pattern regex `/openPositionInfo/`.
 - [backend/src/modules/bot-engine/handlers/rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts):
-  * L140-L157: ThÃªm bÆ°á»›c kiá»ƒm tra thÃ´ng minh á»Ÿ Ä‘áº§u vÃ²ng láº·p: Náº¿u file `finalBackupFile` Ä‘Ã£ tá»“n táº¡i trong thÆ° má»¥c Backup MS (`stats.size > 100 bytes`), bot tá»± Ä‘á»™ng ghi log skip vÃ  chuyá»ƒn sang file tiáº¿p theo. Nhá» Ä‘Ã³ cÃ¡c láº§n retry (Attempt 2/3) **chá»‰ táº£i duy nháº¥t cÃ¡c file cÃ²n thiáº¿u hoáº·c bá»‹ lá»—i (nhÆ° TTM)**.
+  - L140-L157: ThÃªm bÆ°á»›c kiá»ƒm tra thÃ´ng minh á»Ÿ Ä‘áº§u vÃ²ng láº·p: Náº¿u file `finalBackupFile` Ä‘Ã£ tá»“n táº¡i trong thÆ° má»¥c Backup MS (`stats.size > 100 bytes`), bot tá»± Ä‘á»™ng ghi log skip vÃ  chuyá»ƒn sang file tiáº¿p theo. Nhá» Ä‘Ã³ cÃ¡c láº§n retry (Attempt 2/3) **chá»‰ táº£i duy nháº¥t cÃ¡c file cÃ²n thiáº¿u hoáº·c bá»‹ lá»—i (nhÆ° TTM)**.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**:
   1. Kiá»ƒm tra nguyÃªn nhÃ¢n bot `TASK_CHECK_EOD_sb1` (`EMAIL_PARSER` / `EMAIL_PARSE`) khÃ´ng quÃ©t Ä‘Æ°á»£c email káº¿t quáº£ EOD tá»« M-System vÃ  khÃ´ng láº¥y Ä‘Æ°á»£c file EOD vá» server.
   2. Viáº¿t test script cháº©n Ä‘oÃ¡n luá»“ng hoáº¡t Ä‘á»™ng M365 Graph API.
@@ -684,41 +760,45 @@
   5. **Nháº­n diá»‡n loáº¡i bot**: Há»— trá»£ Ä‘á»“ng thá»i cáº£ `EMAIL_PARSE` vÃ  `EMAIL_PARSER`.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a & táº¡o má»›i
-- [backend/src/scripts/test_m365_eod_email.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_m365_eod_email.ts): *(Táº¡o má»›i)* Script cháº©n Ä‘oÃ¡n toÃ n diá»‡n káº¿t ná»‘i M365, kiá»ƒm tra hiá»‡u lá»±c Refresh Token, kiá»ƒm tra quyá»n Graph API, quÃ©t tÃ¬m email EOD vÃ  Ä‘á»‘i chiáº¿u cáº¥u hÃ¬nh.
+
+- [backend/src/scripts/test_m365_eod_email.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_m365_eod_email.ts): _(Táº¡o má»›i)_ Script cháº©n Ä‘oÃ¡n toÃ n diá»‡n káº¿t ná»‘i M365, kiá»ƒm tra hiá»‡u lá»±c Refresh Token, kiá»ƒm tra quyá»n Graph API, quÃ©t tÃ¬m email EOD vÃ  Ä‘á»‘i chiáº¿u cáº¥u hÃ¬nh.
 - [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json): ThÃªm script `"test:eod-email": "ts-node src/scripts/test_m365_eod_email.ts"`.
 - [backend/src/modules/bot-engine/email-watcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts):
-  * L5: Import `resolveDailySubfolder`.
-  * L188-L225: NÃ¢ng cáº¥p `downloadAttachments` tá»± Ä‘á»™ng thá»­ endpoint `/me/messages/{id}/attachments` trÆ°á»›c khi fallback sang `/users/{email}`.
-  * L570-L640: NÃ¢ng cáº¥p `checkEmailTaskDelegated` má»Ÿ rá»™ng thá»i gian quÃ©t lÃªn 48 giá», Æ°u tiÃªn endpoint `/me/messages`, normalize kÃ½ tá»± En-dash/Em-dash vÃ  há»— trá»£ so khá»›p ngÆ°á»i gá»­i linh hoáº¡t.
-  * L812-L950: Bá»• sung method `fetchEodEmail(targetDateStr?, customDir?)` chuyÃªn dá»¥ng Ä‘á»ƒ quÃ©t vÃ  táº£i file EOD tá»« M365 vá» Ä‘Ãºng thÆ° má»¥c Backup MS ngÃ y tÆ°Æ¡ng á»©ng (`resolveDailySubfolder`).
+  - L5: Import `resolveDailySubfolder`.
+  - L188-L225: NÃ¢ng cáº¥p `downloadAttachments` tá»± Ä‘á»™ng thá»­ endpoint `/me/messages/{id}/attachments` trÆ°á»›c khi fallback sang `/users/{email}`.
+  - L570-L640: NÃ¢ng cáº¥p `checkEmailTaskDelegated` má»Ÿ rá»™ng thá»i gian quÃ©t lÃªn 48 giá», Æ°u tiÃªn endpoint `/me/messages`, normalize kÃ½ tá»± En-dash/Em-dash vÃ  há»— trá»£ so khá»›p ngÆ°á»i gá»­i linh hoáº¡t.
+  - L812-L950: Bá»• sung method `fetchEodEmail(targetDateStr?, customDir?)` chuyÃªn dá»¥ng Ä‘á»ƒ quÃ©t vÃ  táº£i file EOD tá»« M365 vá» Ä‘Ãºng thÆ° má»¥c Backup MS ngÃ y tÆ°Æ¡ng á»©ng (`resolveDailySubfolder`).
 - [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
-  * L2130-L2152: ThÃªm endpoint `POST /api/v1/bot-engine/fetch-eod-email` nháº­n `targetDate` vÃ  `customDir`, gá»i `this.emailWatcherService.fetchEodEmail(...)`.
+  - L2130-L2152: ThÃªm endpoint `POST /api/v1/bot-engine/fetch-eod-email` nháº­n `targetDate` vÃ  `customDir`, gá»i `this.emailWatcherService.fetchEodEmail(...)`.
 - [backend/src/modules/bot-engine/bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts):
-  * L239: Há»— trá»£ cáº£ `checkType === 'EMAIL_PARSE' || checkType === 'EMAIL_PARSER'`.
+  - L239: Há»— trá»£ cáº£ `checkType === 'EMAIL_PARSE' || checkType === 'EMAIL_PARSER'`.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
-  * L17: Import icon `Mail` tá»« `lucide-react`.
-  * L249: ThÃªm state `fetchingEodEmail`.
-  * L352-L380: ThÃªm handler `handleFetchEodEmail` gá»i API `POST /api/v1/bot-engine/fetch-eod-email`, hiá»ƒn thá»‹ toast loading/success/error vÃ  tá»± Ä‘á»™ng lÃ m má»›i tráº¡ng thÃ¡i thÆ° má»¥c backup MS qua `handleAuditMsBackup()`.
-  * L933-L962: TÃ­ch há»£p nÃºt báº¥m trá»±c quan **"Láº¥y File EOD tá»« Email (it.support)"** trong khá»‘i Cá»™t 1 (Backup MS).
+  - L17: Import icon `Mail` tá»« `lucide-react`.
+  - L249: ThÃªm state `fetchingEodEmail`.
+  - L352-L380: ThÃªm handler `handleFetchEodEmail` gá»i API `POST /api/v1/bot-engine/fetch-eod-email`, hiá»ƒn thá»‹ toast loading/success/error vÃ  tá»± Ä‘á»™ng lÃ m má»›i tráº¡ng thÃ¡i thÆ° má»¥c backup MS qua `handleAuditMsBackup()`.
+  - L933-L962: TÃ­ch há»£p nÃºt báº¥m trá»±c quan **"Láº¥y File EOD tá»« Email (it.support)"** trong khá»‘i Cá»™t 1 (Backup MS).
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `cmd /c npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
 
 ---
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**: Pháº£n Ã¡nh API `https://10.0.0.26/api/v1/bot-engine/jobs/6ab4f7965c9b1f507981910f/download-zip` khÃ´ng hoáº¡t Ä‘á»™ng khi báº¥m nÃºt "Táº£i BÃ¡o CÃ¡o (ZIP)" trong [TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx).
 - **NguyÃªn nhÃ¢n ká»¹ thuáº­t Ä‘Ã£ xÃ¡c minh**:
   1. API backend [bot-engine.controller.ts#L1921](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts#L1921) trÆ°á»›c Ä‘Ã¢y **chá»‰ kiá»ƒm tra duy nháº¥t má»™t Ä‘Æ°á»ng dáº«n cá»‘ Ä‘á»‹nh** `temp/reports/${jobId}`. Khi cháº¡y trÃªn mÃ´i trÆ°á»ng thá»±c táº¿ (PM2/Ubuntu) hoáº·c cÃ¡c Job khÃ¡c loáº¡i (`DOWNLOAD_CCP_REPORT`, `DOWNLOAD_CE_REPORT`, `CAST_DOWNLOAD_REPORTS`, `RUN_LOT_MACRO`...):
      - CÃ¡c file bÃ¡o cÃ¡o Ä‘Æ°á»£c lÆ°u tháº³ng vÃ o thÆ° má»¥c Backup (`destFolder` / `outputDir`) hoáº·c file káº¿t quáº£ `result.outputPath`, khÃ´ng há» náº±m trong thÆ° má»¥c táº¡m `temp/reports/${jobId}`.
-     - Ngay cáº£ vá»›i M-System, sau khi táº£i vá», file Ä‘Ã£ Ä‘Æ°á»£c copy sang thÆ° má»¥c Backup MS (`destFolder`), vÃ  thÆ° má»¥c `temp/` cÃ³ thá»ƒ Ä‘Ã£ bá»‹ dá»n dáº¹p dáº«n Ä‘áº¿n 404: *"ThÆ° má»¥c lÆ°u trá»¯ bÃ¡o cÃ¡o cá»§a Job nÃ y khÃ´ng tá»“n táº¡i hoáº·c Ä‘Ã£ bá»‹ xÃ³a"*.
+     - Ngay cáº£ vá»›i M-System, sau khi táº£i vá», file Ä‘Ã£ Ä‘Æ°á»£c copy sang thÆ° má»¥c Backup MS (`destFolder`), vÃ  thÆ° má»¥c `temp/` cÃ³ thá»ƒ Ä‘Ã£ bá»‹ dá»n dáº¹p dáº«n Ä‘áº¿n 404: _"ThÆ° má»¥c lÆ°u trá»¯ bÃ¡o cÃ¡o cá»§a Job nÃ y khÃ´ng tá»“n táº¡i hoáº·c Ä‘Ã£ bá»‹ xÃ³a"_.
   2. Frontend hiá»ƒn thá»‹ nÃºt "Táº£i BÃ¡o CÃ¡o (ZIP)" trÃ n lan cho má»i job `COMPLETED`, ká»ƒ cáº£ nhá»¯ng job khÃ´ng sinh tá»‡p (nhÆ° verify email, ping agent).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
-  * L52: Import `parseJobPayload`.
-  * L1904-L1965: TÃ¡i cáº¥u trÃºc hÃ m `downloadJobZip` vá»›i cÆ¡ cháº¿ quÃ©t Ä‘a nguá»“n (Multi-Source Resolution):
+  - L52: Import `parseJobPayload`.
+  - L1904-L1965: TÃ¡i cáº¥u trÃºc hÃ m `downloadJobZip` vá»›i cÆ¡ cháº¿ quÃ©t Ä‘a nguá»“n (Multi-Source Resolution):
     - QuÃ©t ThÆ° má»¥c táº¡m `temp/reports/${jobId}`.
     - QuÃ©t ThÆ° má»¥c Ä‘Ã­ch trong `payload` & `result` (`destFolder`, `outputDir`, `backupFolder`, `targetFolder`, `tempDir`).
     - QuÃ©t File Ä‘Æ¡n láº» (`result.outputPath`, `result.filePath`, `payload.outputPath`) vÃ  máº£ng file (`result.downloadedFiles`, `payload.files`).
@@ -726,11 +806,12 @@
     - Lá»c file há»£p lá»‡, Ä‘Ã³ng gÃ³i nÃ©n ZIP qua `JSZip` vá»›i compression `DEFLATE` vÃ  tráº£ vá» `Content-Disposition: attachment; filename=BaoCao_${job.jobType}_${jobId}.zip`.
     - ThÃ´ng bÃ¡o lá»—i rÃµ rÃ ng náº¿u khÃ´ng tÃ¬m tháº¥y tá»‡p thay vÃ¬ crash.
 - [frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
-  * L256-L270: ThÃªm hÃ m helper `hasDownloadableReports(job)` Ä‘á»ƒ kiá»ƒm tra chÃ­nh xÃ¡c cÃ¡c tÃ¡c vá»¥ thá»±c sá»± cÃ³ sinh ra tá»‡p bÃ¡o cÃ¡o.
-  * L272-L290: NÃ¢ng cáº¥p `handleDownloadZip` tá»± Ä‘á»™ng bÃ³c tÃ¡ch tÃªn file chuáº©n tá»« header `Content-Disposition` do server tráº£ vá» thay vÃ¬ gÃ¡n tÃªn chung.
-  * L655 & L980: RÃ ng buá»™c hiá»ƒn thá»‹ nÃºt "Táº£i BÃ¡o CÃ¡o (ZIP)" theo `hasDownloadableReports(selectedJob)`.
+  - L256-L270: ThÃªm hÃ m helper `hasDownloadableReports(job)` Ä‘á»ƒ kiá»ƒm tra chÃ­nh xÃ¡c cÃ¡c tÃ¡c vá»¥ thá»±c sá»± cÃ³ sinh ra tá»‡p bÃ¡o cÃ¡o.
+  - L272-L290: NÃ¢ng cáº¥p `handleDownloadZip` tá»± Ä‘á»™ng bÃ³c tÃ¡ch tÃªn file chuáº©n tá»« header `Content-Disposition` do server tráº£ vá» thay vÃ¬ gÃ¡n tÃªn chung.
+  - L655 & L980: RÃ ng buá»™c hiá»ƒn thá»‹ nÃºt "Táº£i BÃ¡o CÃ¡o (ZIP)" theo `hasDownloadableReports(selectedJob)`.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `cmd /c npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
 
@@ -739,43 +820,46 @@
 ## [2026-09-24T17:50] REFACTOR: Triá»‡t Äá»ƒ Loáº¡i Bá» Má»i Hardcode & Magic Numbers Tá»· GiÃ¡ (Zero-Hardcoding Standard)
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**: "giÃºp tÃ´i kiá»ƒm tra xem Ä‘oáº¡n nÃ o cÃ²n hardcode khÃ´ng", phÃ¡t hiá»‡n `let dbUsdRate = 25920; let dbJpyRate = 170; let dbMyrRate = 6383; let dbRmbRate = 3871;` vÃ  yÃªu cáº§u lÃ m sáº¡ch toÃ n bá»™ cÃ¡c vá»‹ trÃ­ hardcode tá»· giÃ¡ trong há»‡ thá»‘ng.
 - **TuÃ¢n thá»§ quy chuáº©n**: Universal Zero-Hardcoding Standard (AGENTS.md Má»¥c 8) vÃ  Fail-Fast & Zero-Silent-Swallow:
-  * KhÃ´ng gÃ¡n cá»©ng magic numbers (`25920`, `25220`, `26000`, `6383`, `3871`, `170`) trong biáº¿n khá»Ÿi táº¡o hoáº·c fallback máº·c Ä‘á»‹nh.
-  * Má»i tá»· giÃ¡ pháº£i láº¥y 100% Ä‘á»™ng tá»« CSDL MongoDB (`system_settings`) hoáº·c tá»« Live Bot Crawler.
-  * Náº¿u CSDL chÆ°a cÃ³ dá»¯ liá»‡u vÃ  file bÃ¡o cÃ¡o chÆ°a táº£i vá», há»‡ thá»‘ng bÃ¡o lá»—i rÃµ rÃ ng (Fail-Fast) yÃªu cáº§u cáº¥u hÃ¬nh/Ä‘á»“ng bá»™, khÃ´ng Ã¢m tháº§m fallback vá» sá»‘ áº£o.
+  - KhÃ´ng gÃ¡n cá»©ng magic numbers (`25920`, `25220`, `26000`, `6383`, `3871`, `170`) trong biáº¿n khá»Ÿi táº¡o hoáº·c fallback máº·c Ä‘á»‹nh.
+  - Má»i tá»· giÃ¡ pháº£i láº¥y 100% Ä‘á»™ng tá»« CSDL MongoDB (`system_settings`) hoáº·c tá»« Live Bot Crawler.
+  - Náº¿u CSDL chÆ°a cÃ³ dá»¯ liá»‡u vÃ  file bÃ¡o cÃ¡o chÆ°a táº£i vá», há»‡ thá»‘ng bÃ¡o lá»—i rÃµ rÃ ng (Fail-Fast) yÃªu cáº§u cáº¥u hÃ¬nh/Ä‘á»“ng bá»™, khÃ´ng Ã¢m tháº§m fallback vá» sá»‘ áº£o.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
+
 - [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
-  * L275-L278 & L291-L302: Khá»Ÿi táº¡o cÃ¡c biáº¿n `dbUsdRate = 0`, `dbJpyRate = 0`, `dbMyrRate = 0`, `dbRmbRate = 0`; Ä‘á»c `system_settings` khÃ´ng dÃ¹ng default string tÄ©nh `26000`, `170`, `6383`, `3871`; kiá»ƒm tra `dbUsdRate > 0`, náº¿u khÃ´ng cÃ³ nÃ©m ngoáº¡i lá»‡ rÃµ rÃ ng.
-  * L341: XÃ³a bá» `tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;`, thay báº±ng fail-fast check `if (!tyGiaMap['USD'] || tyGiaMap['USD'] <= 0) throw new Error(...)`.
-  * L1311-L1335 (trong `scanDailyFiles`): Äá»•i biáº¿n khá»Ÿi táº¡o vá» `0`, loáº¡i bá» cÃ¡c fallback `25920`, `170`, `6383`, `3871`.
+  - L275-L278 & L291-L302: Khá»Ÿi táº¡o cÃ¡c biáº¿n `dbUsdRate = 0`, `dbJpyRate = 0`, `dbMyrRate = 0`, `dbRmbRate = 0`; Ä‘á»c `system_settings` khÃ´ng dÃ¹ng default string tÄ©nh `26000`, `170`, `6383`, `3871`; kiá»ƒm tra `dbUsdRate > 0`, náº¿u khÃ´ng cÃ³ nÃ©m ngoáº¡i lá»‡ rÃµ rÃ ng.
+  - L341: XÃ³a bá» `tyGiaMap['USD'] = tyGiaMap['USD'] ?? 25920;`, thay báº±ng fail-fast check `if (!tyGiaMap['USD'] || tyGiaMap['USD'] <= 0) throw new Error(...)`.
+  - L1311-L1335 (trong `scanDailyFiles`): Äá»•i biáº¿n khá»Ÿi táº¡o vá» `0`, loáº¡i bá» cÃ¡c fallback `25920`, `170`, `6383`, `3871`.
 - [backend/src/modules/reconciliation/services/ccp-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts):
-  * L65-L105: Äá»•i cÃ¡c fallback `getSetting` tá»« `26000`, `6383`, `170`, `3871` thÃ nh chuá»—i rá»—ng `''`; hÃ m `getRate` fallback vá» `0` thay vÃ¬ magic numbers.
+  - L65-L105: Äá»•i cÃ¡c fallback `getSetting` tá»« `26000`, `6383`, `170`, `3871` thÃ nh chuá»—i rá»—ng `''`; hÃ m `getRate` fallback vá» `0` thay vÃ¬ magic numbers.
 - [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
-  * L243-L245: Báº£ng `paymentRates` khá»Ÿi táº¡o fallback `0` thay vÃ¬ `6383`, `170`, `3871`.
-  * L394-L403: HÃ m `getCurrentExchangeRates` Ä‘á»c `system_settings` fallback `0`.
-  * L417-L422: HÃ m `getCurrentUsdRate` Ä‘á»c `usd_exchange_rate` khÃ´ng fallback `25920`, tráº£ vá» `0` náº¿u chÆ°a cáº¥u hÃ¬nh.
+  - L243-L245: Báº£ng `paymentRates` khá»Ÿi táº¡o fallback `0` thay vÃ¬ `6383`, `170`, `3871`.
+  - L394-L403: HÃ m `getCurrentExchangeRates` Ä‘á»c `system_settings` fallback `0`.
+  - L417-L422: HÃ m `getCurrentUsdRate` Ä‘á»c `usd_exchange_rate` khÃ´ng fallback `25920`, tráº£ vá» `0` náº¿u chÆ°a cáº¥u hÃ¬nh.
 - [backend/src/modules/reconciliation/services/cqg-sync-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/cqg-sync-recon.service.ts):
-  * L210: Äá»•i `if (!effectiveRate || effectiveRate === 25220)` thÃ nh `if (!effectiveRate || effectiveRate <= 0)` vÃ  fail-fast nÃ©m Error náº¿u khÃ´ng tÃ¬m tháº¥y tá»· giÃ¡.
-  * L742-L763: Äá»•i `let usdRate = 25220;` thÃ nh `0`, Ä‘á»c Ä‘á»™ng tá»« service/DB, khÃ´ng fallback `25920`.
+  - L210: Äá»•i `if (!effectiveRate || effectiveRate === 25220)` thÃ nh `if (!effectiveRate || effectiveRate <= 0)` vÃ  fail-fast nÃ©m Error náº¿u khÃ´ng tÃ¬m tháº¥y tá»· giÃ¡.
+  - L742-L763: Äá»•i `let usdRate = 25220;` thÃ nh `0`, Ä‘á»c Ä‘á»™ng tá»« service/DB, khÃ´ng fallback `25920`.
 - [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts):
-  * L659 & L750: Thay tháº¿ fallback `25220` báº±ng `await this.reconciliationService.getCurrentUsdRate()`.
+  - L659 & L750: Thay tháº¿ fallback `25220` báº±ng `await this.reconciliationService.getCurrentUsdRate()`.
 - [backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts):
-  * L258-L260: XÃ³a fallback `25220`, Ä‘á»c giÃ¡ trá»‹ thá»±c tá»« CSDL MongoDB.
+  - L258-L260: XÃ³a fallback `25220`, Ä‘á»c giÃ¡ trá»‹ thá»±c tá»« CSDL MongoDB.
 - [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
-  * L820 & L1840: XÃ³a bá» `|| 25920`, hiá»ƒn thá»‹ Ä‘á»™ng `result.tyGiaUsed?.['USD'] ? fmtNum(...) : 'ChÆ°a cÃ³'`.
-  * L1411: XÃ³a bá» `|| 25920` trong text hiá»ƒn thá»‹ tráº¡ng thÃ¡i DB.
+  - L820 & L1840: XÃ³a bá» `|| 25920`, hiá»ƒn thá»‹ Ä‘á»™ng `result.tyGiaUsed?.['USD'] ? fmtNum(...) : 'ChÆ°a cÃ³'`.
+  - L1411: XÃ³a bá» `|| 25920` trong text hiá»ƒn thá»‹ tráº¡ng thÃ¡i DB.
 - [frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/ReconciliationModal.tsx):
-  * L84: Khá»Ÿi táº¡o `useState<number>(0)` thay vÃ¬ `25220`.
+  - L84: Khá»Ÿi táº¡o `useState<number>(0)` thay vÃ¬ `25220`.
 - [frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ReconciliationPanel.tsx):
-  * L22 & L311: Khá»Ÿi táº¡o `reconUsdRate = 0`, placeholder `"0"`. Bá»• sung useEffect tá»± Ä‘á»™ng náº¡p tá»· giÃ¡ tá»« API `/api/v1/reconciliation/usd-rate`.
+  - L22 & L311: Khá»Ÿi táº¡o `reconUsdRate = 0`, placeholder `"0"`. Bá»• sung useEffect tá»± Ä‘á»™ng náº¡p tá»· giÃ¡ tá»« API `/api/v1/reconciliation/usd-rate`.
 - [frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx):
-  * L29: Khá»Ÿi táº¡o `useState(0)` thay vÃ¬ `25220`.
+  - L29: Khá»Ÿi táº¡o `useState(0)` thay vÃ¬ `25220`.
 - [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
-  * L87: Khá»Ÿi táº¡o `useState(0)` thay vÃ¬ `25220`.
+  - L87: Khá»Ÿi táº¡o `useState(0)` thay vÃ¬ `25220`.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `cmd /c npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `cmd /c npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
 
@@ -784,6 +868,7 @@
 ## [2026-09-24T17:30] FEAT: HoÃ n Thiá»‡n Äá»“ng Bá»™ Tá»· GiÃ¡ M-System (4 Cáº·p Tiá»n Thanh ToÃ¡n & Quy Äá»•i) VÃ  Tá»· GiÃ¡ NguyÃªn Tá»‡ CoreCCP (Bot Playwright Active Download)
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**: Triá»ƒn khai hoÃ n thiá»‡n 2 váº¥n Ä‘á» lá»›n vá» Ä‘á»“ng bá»™ tá»· giÃ¡ theo tÃ i liá»‡u thiáº¿t káº¿ [TAI_LIEU_THIET_KE_HOAN_THIEN_DONG_BO_TY_GIA_MSYSTEM_VA_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_HOAN_THIEN_DONG_BO_TY_GIA_MSYSTEM_VA_CORECCP.md):
   1. **Váº¥n Ä‘á» 1 (Tá»· giÃ¡ M-System)**:
      - Kháº¯c phá»¥c giao diá»‡n Web bá»‹ hardcode chá»‰ cÃ³ duy nháº¥t 1 option `USD/VND` á»Ÿ dropdown Tá»· giÃ¡ thanh toÃ¡n, thiáº¿u 3 cáº·p ngoáº¡i tá»‡ `MYR/VND`, `JPY/VND`, `RMB/VND` nhÆ° Tool C# (`cmbPaymentExchange`).
@@ -794,29 +879,31 @@
      - Loáº¡i bá» triá»‡t Ä‘á»ƒ fallback sang file TTTT theo chuáº©n Zero-Silent-Swallow.
 
 ### 2. Danh sÃ¡ch file thay Ä‘á»•i
+
 - [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
-  * L42-L50: Má»Ÿ rá»™ng state `msPaymentRates` lÆ°u trá»¯ dictionary `{ 'USD/VND': { buy, sell }, 'MYR/VND': { buy, sell }, 'JPY/VND': { buy, sell }, 'RMB/VND': { buy, sell } }`.
-  * L120-L148: Cáº­p nháº­t `fetchConfig` Ä‘á»ƒ Ä‘á»c vÃ  parse `ms_payment_rates` tá»« MongoDB `system_settings`.
-  * L190-L225: Cáº­p nháº­t `handleSyncMsRate` gá»i POST `/api/v1/reconciliation/sync-exchange-rates` Ä‘á»ƒ nháº­n cáº£ tá»· giÃ¡ quy Ä‘á»•i láº«n tá»· giÃ¡ thanh toÃ¡n M-System cá»§a cáº£ 4 cáº·p tiá»n.
-  * L330-L345: Cáº­p nháº­t `handleSaveConfig` lÆ°u `ms_payment_rates` dáº¡ng JSON vÃ o CSDL.
-  * L525-L570: Má»Ÿ rá»™ng selectbox `currencyUnit` Ä‘á»§ 4 options (`USD/VND`, `MYR/VND`, `JPY/VND`, `RMB/VND`), 2 Ã´ input Mua/BÃ¡n tá»± Ä‘á»™ng binding vÃ  cho phÃ©p chá»‰nh sá»­a theo cáº·p tiá»n Ä‘ang chá»n.
+  - L42-L50: Má»Ÿ rá»™ng state `msPaymentRates` lÆ°u trá»¯ dictionary `{ 'USD/VND': { buy, sell }, 'MYR/VND': { buy, sell }, 'JPY/VND': { buy, sell }, 'RMB/VND': { buy, sell } }`.
+  - L120-L148: Cáº­p nháº­t `fetchConfig` Ä‘á»ƒ Ä‘á»c vÃ  parse `ms_payment_rates` tá»« MongoDB `system_settings`.
+  - L190-L225: Cáº­p nháº­t `handleSyncMsRate` gá»i POST `/api/v1/reconciliation/sync-exchange-rates` Ä‘á»ƒ nháº­n cáº£ tá»· giÃ¡ quy Ä‘á»•i láº«n tá»· giÃ¡ thanh toÃ¡n M-System cá»§a cáº£ 4 cáº·p tiá»n.
+  - L330-L345: Cáº­p nháº­t `handleSaveConfig` lÆ°u `ms_payment_rates` dáº¡ng JSON vÃ o CSDL.
+  - L525-L570: Má»Ÿ rá»™ng selectbox `currencyUnit` Ä‘á»§ 4 options (`USD/VND`, `MYR/VND`, `JPY/VND`, `RMB/VND`), 2 Ã´ input Mua/BÃ¡n tá»± Ä‘á»™ng binding vÃ  cho phÃ©p chá»‰nh sá»­a theo cáº·p tiá»n Ä‘ang chá»n.
 - [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
-  * L234-L315: NÃ¢ng cáº¥p hÃ m `syncUsdRateFromMSystem`: Sau khi Ä‘á»c Tab "Tá»‰ giÃ¡ quy Ä‘á»•i", tá»± Ä‘á»™ng click chuyá»ƒn sang Tab "Tá»‰ giÃ¡ thanh toÃ¡n" (vá»›i selector thÃ´ng minh ag-Grid/DOM), bÃ³c tÃ¡ch giÃ¡ Mua/BÃ¡n cho USD, MYR, JPY, RMB; lÆ°u Ä‘á»“ng thá»i `usd_exchange_rate`, `ms_payment_rates`, `usd_settlement_rate_buy`, `usd_settlement_rate_sell` vÃ o MongoDB.
-  * L318-L345: NÃ¢ng cáº¥p `syncAllExchangeRatesFromMSystem` tráº£ vá» cáº£ `conversionRates`, `paymentRates`, `usdRate` vÃ  `rates` (Ä‘áº£m báº£o 100% backward compatibility).
+  - L234-L315: NÃ¢ng cáº¥p hÃ m `syncUsdRateFromMSystem`: Sau khi Ä‘á»c Tab "Tá»‰ giÃ¡ quy Ä‘á»•i", tá»± Ä‘á»™ng click chuyá»ƒn sang Tab "Tá»‰ giÃ¡ thanh toÃ¡n" (vá»›i selector thÃ´ng minh ag-Grid/DOM), bÃ³c tÃ¡ch giÃ¡ Mua/BÃ¡n cho USD, MYR, JPY, RMB; lÆ°u Ä‘á»“ng thá»i `usd_exchange_rate`, `ms_payment_rates`, `usd_settlement_rate_buy`, `usd_settlement_rate_sell` vÃ o MongoDB.
+  - L318-L345: NÃ¢ng cáº¥p `syncAllExchangeRatesFromMSystem` tráº£ vá» cáº£ `conversionRates`, `paymentRates`, `usdRate` vÃ  `rates` (Ä‘áº£m báº£o 100% backward compatibility).
 - [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
-  * L330-L340: Cáº­p nháº­t kiá»ƒu tráº£ vá» cá»§a `syncAllExchangeRatesFromMSystem`.
+  - L330-L340: Cáº­p nháº­t kiá»ƒu tráº£ vá» cá»§a `syncAllExchangeRatesFromMSystem`.
 - [backend/src/modules/reconciliation/reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts):
-  * L991-L998: Endpoint `POST /sync-exchange-rates` tráº£ vá» Ä‘áº§y Ä‘á»§ Ä‘á»‘i tÆ°á»£ng káº¿t quáº£.
+  - L991-L998: Endpoint `POST /sync-exchange-rates` tráº£ vá» Ä‘áº§y Ä‘á»§ Ä‘á»‘i tÆ°á»£ng káº¿t quáº£.
 - [backend/src/modules/bot-engine/ccp-ce-downloader.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ccp-ce-downloader.service.ts):
-  * L1430-L1440: Cáº­p nháº­t hÃ m `downloadReport` Æ°u tiÃªn sá»­ dá»¥ng `report.outputFileName` (vÃ­ dá»¥ `Tá»· giÃ¡ CCP.xlsx`) khi lÆ°u file vÃ o thÆ° má»¥c ngÃ y.
+  - L1430-L1440: Cáº­p nháº­t hÃ m `downloadReport` Æ°u tiÃªn sá»­ dá»¥ng `report.outputFileName` (vÃ­ dá»¥ `Tá»· giÃ¡ CCP.xlsx`) khi lÆ°u file vÃ o thÆ° má»¥c ngÃ y.
 - [backend/src/modules/ccp-statistics/ccp-statistics.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-statistics.module.ts):
-  * L12-L20: Import `forwardRef(() => BotEngineModule)` Ä‘á»ƒ giáº£i quyáº¿t phá»¥ thuá»™c 2 chiá»u vÃ  cho phÃ©p inject `CcpCeDownloaderService`.
+  - L12-L20: Import `forwardRef(() => BotEngineModule)` Ä‘á»ƒ giáº£i quyáº¿t phá»¥ thuá»™c 2 chiá»u vÃ  cho phÃ©p inject `CcpCeDownloaderService`.
 - [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
-  * L18-L26 & L189-L195: Inject `CcpCeDownloaderService` vá»›i `@Optional()` vÃ  `forwardRef`.
-  * L1245-L1265: Cáº­p nháº­t regex quÃ©t file `tyGia` há»— trá»£ cáº£ `TYGIA` (`/^(?:Tá»·\s*giÃ¡|Ty_?gia|ExchangeRate|TYGIA).*\.(?:xlsx|xls|csv)$/i`).
-  * L1380-L1495: Viáº¿t láº¡i `syncAndSaveExchangeRates`: Chá»§ Ä‘á»™ng gá»i `this.ccpCeDownloaderService.run` Ä‘Äƒng nháº­p CoreCCP táº£i file bÃ¡o cÃ¡o `TYGIA` vá» thÆ° má»¥c ngÃ y; bÃ³c tÃ¡ch Ä‘a nguyÃªn tá»‡ báº±ng `parseTyGiaDetails`; cáº­p nháº­t `ccp_exchange_rates_matrix` vÃ o CSDL MongoDB; loáº¡i bá» hoÃ n toÃ n fallback sang file TTTT; nÃ©m ngoáº¡i lá»‡ rÃµ rÃ ng khi khÃ´ng cÃ³ file.
+  - L18-L26 & L189-L195: Inject `CcpCeDownloaderService` vá»›i `@Optional()` vÃ  `forwardRef`.
+  - L1245-L1265: Cáº­p nháº­t regex quÃ©t file `tyGia` há»— trá»£ cáº£ `TYGIA` (`/^(?:Tá»·\s*giÃ¡|Ty_?gia|ExchangeRate|TYGIA).*\.(?:xlsx|xls|csv)$/i`).
+  - L1380-L1495: Viáº¿t láº¡i `syncAndSaveExchangeRates`: Chá»§ Ä‘á»™ng gá»i `this.ccpCeDownloaderService.run` Ä‘Äƒng nháº­p CoreCCP táº£i file bÃ¡o cÃ¡o `TYGIA` vá» thÆ° má»¥c ngÃ y; bÃ³c tÃ¡ch Ä‘a nguyÃªn tá»‡ báº±ng `parseTyGiaDetails`; cáº­p nháº­t `ccp_exchange_rates_matrix` vÃ o CSDL MongoDB; loáº¡i bá» hoÃ n toÃ n fallback sang file TTTT; nÃ©m ngoáº¡i lá»‡ rÃµ rÃ ng khi khÃ´ng cÃ³ file.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­ & Build
+
 - Backend: `npm run build` (`nest build`) $\rightarrow$ **Exit code 0 (ThÃ nh cÃ´ng 100%)**.
 - Frontend: `npm run build` (`next build`) $\rightarrow$ **Exit code 0 (Compiled successfully, 25/25 static pages, 0 errors)**.
 
@@ -825,30 +912,33 @@
 ## [2026-09-24T17:01] FEAT: TÃ¡ch Äá»™c Láº­p 2 TÃ¡c Vá»¥ "Thá»‘ng KÃª Sá»‘ Lot" & "Thá»‘ng KÃª GiÃ¡ Trá»‹" Ghi Trá»±c Tiáº¿p 1-Cháº¡m VÃ o File Excel CoreCCP
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **YÃªu cáº§u tá»« USER**:
-  * TÃ¡ch module CoreCCP ([CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)) thÃ nh 2 nÃºt Ä‘á»™c láº­p: **"Thá»‘ng KÃª Sá»‘ Lot (CoreCCP)"** vÃ  **"Thá»‘ng KÃª GiÃ¡ Trá»‹ (CoreCCP)"**.
-  * Cháº¡y theo cÆ¡ cháº¿ "1 cháº¡m" (One-Click Execute): Vá»«a tÃ­nh toÃ¡n vá»«a ghi trá»±c tiáº¿p vÃ o cÃ¡c file Excel lÅ©y káº¿, khÃ´ng báº¯t ca trá»±c pháº£i thao tÃ¡c 2 bÆ°á»›c rÆ°á»m rÃ  (BÆ°á»›c 1 xem trÆ°á»›c $\rightarrow$ BÆ°á»›c 2 ghi file).
-  * Báº£o toÃ n 100% luá»“ng 2 bÆ°á»›c cÅ© trong mÃ£ nguá»“n (comment láº¡i khá»‘i nÃºt cÅ© Ä‘á»ƒ dá»± phÃ²ng rollback náº¿u cáº§n).
-  * Viáº¿t tÃ i liá»‡u thiáº¿t káº¿ ká»¹ thuáº­t chi tiáº¿t lÃ m cÆ¡ sá»Ÿ cÄƒn cá»©: [TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md).
+  - TÃ¡ch module CoreCCP ([CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)) thÃ nh 2 nÃºt Ä‘á»™c láº­p: **"Thá»‘ng KÃª Sá»‘ Lot (CoreCCP)"** vÃ  **"Thá»‘ng KÃª GiÃ¡ Trá»‹ (CoreCCP)"**.
+  - Cháº¡y theo cÆ¡ cháº¿ "1 cháº¡m" (One-Click Execute): Vá»«a tÃ­nh toÃ¡n vá»«a ghi trá»±c tiáº¿p vÃ o cÃ¡c file Excel lÅ©y káº¿, khÃ´ng báº¯t ca trá»±c pháº£i thao tÃ¡c 2 bÆ°á»›c rÆ°á»m rÃ  (BÆ°á»›c 1 xem trÆ°á»›c $\rightarrow$ BÆ°á»›c 2 ghi file).
+  - Báº£o toÃ n 100% luá»“ng 2 bÆ°á»›c cÅ© trong mÃ£ nguá»“n (comment láº¡i khá»‘i nÃºt cÅ© Ä‘á»ƒ dá»± phÃ²ng rollback náº¿u cáº§n).
+  - Viáº¿t tÃ i liá»‡u thiáº¿t káº¿ ká»¹ thuáº­t chi tiáº¿t lÃ m cÆ¡ sá»Ÿ cÄƒn cá»©: [TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md).
 
 ### 2. Danh sÃ¡ch file thay Ä‘á»•i
+
 - [backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-lot-statistics.service.ts):
-  * L490-L620: Bá»• sung tham sá»‘ `targetScope: 'ALL' | 'LOT_ONLY' | 'VALUE_ONLY' = 'ALL'` vÃ o `writeToAccumulator`. Khi `targetScope === 'LOT_ONLY'`, há»‡ thá»‘ng chá»‰ má»Ÿ vÃ  ghi 5 file Sá»‘ Lot (Normal, ACM, Spread, LME, Options); khi `targetScope === 'VALUE_ONLY'`, há»‡ thá»‘ng chá»‰ má»Ÿ vÃ  ghi 5 file GiÃ¡ Trá»‹.
-  * L1595-L1720: Bá»• sung 2 phÆ°Æ¡ng thá»©c xá»­ lÃ½ chuyÃªn biá»‡t:
-    + `runLotStatisticsDirect(dateStr)`: Äá»™c láº­p 100% vá»›i tá»· giÃ¡, tÃ­nh toÃ¡n sá»‘ lot vÃ  ghi tháº³ng vÃ o cÃ¡c file Sá»‘ Lot.
-    + `runValueStatisticsDirect(dateStr)`: Äá»c tá»· giÃ¡ tá»« DB/file ngÃ y, tÃ­nh toÃ¡n GTGD quy Ä‘á»•i VND vÃ  ghi tháº³ng vÃ o cÃ¡c file GiÃ¡ Trá»‹.
+  - L490-L620: Bá»• sung tham sá»‘ `targetScope: 'ALL' | 'LOT_ONLY' | 'VALUE_ONLY' = 'ALL'` vÃ o `writeToAccumulator`. Khi `targetScope === 'LOT_ONLY'`, há»‡ thá»‘ng chá»‰ má»Ÿ vÃ  ghi 5 file Sá»‘ Lot (Normal, ACM, Spread, LME, Options); khi `targetScope === 'VALUE_ONLY'`, há»‡ thá»‘ng chá»‰ má»Ÿ vÃ  ghi 5 file GiÃ¡ Trá»‹.
+  - L1595-L1720: Bá»• sung 2 phÆ°Æ¡ng thá»©c xá»­ lÃ½ chuyÃªn biá»‡t:
+    - `runLotStatisticsDirect(dateStr)`: Äá»™c láº­p 100% vá»›i tá»· giÃ¡, tÃ­nh toÃ¡n sá»‘ lot vÃ  ghi tháº³ng vÃ o cÃ¡c file Sá»‘ Lot.
+    - `runValueStatisticsDirect(dateStr)`: Äá»c tá»· giÃ¡ tá»« DB/file ngÃ y, tÃ­nh toÃ¡n GTGD quy Ä‘á»•i VND vÃ  ghi tháº³ng vÃ o cÃ¡c file GiÃ¡ Trá»‹.
 - [backend/src/modules/ccp-statistics/ccp-statistics.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/ccp-statistics.controller.ts):
-  * L385-L435: Bá»• sung 2 endpoints RESTful:
-    + `POST /api/v1/ccp-statistics/lot-statistics/run-lot`
-    + `POST /api/v1/ccp-statistics/lot-statistics/run-value`
+  - L385-L435: Bá»• sung 2 endpoints RESTful:
+    - `POST /api/v1/ccp-statistics/lot-statistics/run-lot`
+    - `POST /api/v1/ccp-statistics/lot-statistics/run-value`
 - [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
-  * L468-L555: Bá»• sung 2 state loading Ä‘á»™c láº­p `runningLot`, `runningValue` vÃ  2 hÃ m gá»i API 1-cháº¡m `handleRunLotDirect`, `handleRunValueDirect`.
-  * L655-L745: Thay tháº¿ cá»¥m nÃºt 2 bÆ°á»›c á»Ÿ cháº¿ Ä‘á»™ USER báº±ng 2 nÃºt 1-cháº¡m: **"Thá»‘ng KÃª Sá»‘ Lot (CoreCCP)"** (Xanh ngá»c / Layers icon) vÃ  **"Thá»‘ng KÃª GiÃ¡ Trá»‹ (CoreCCP)"** (VÃ ng cam / DollarSign icon). Khá»‘i nÃºt cÅ© Ä‘Æ°á»£c comment láº¡i dá»± phÃ²ng.
-  * L955-L1015: Cáº­p nháº­t cáº£ á»Ÿ cháº¿ Ä‘á»™ EXPERT khi á»Ÿ nguá»“n dá»¯ liá»‡u `AUTO_DETECT`.
+  - L468-L555: Bá»• sung 2 state loading Ä‘á»™c láº­p `runningLot`, `runningValue` vÃ  2 hÃ m gá»i API 1-cháº¡m `handleRunLotDirect`, `handleRunValueDirect`.
+  - L655-L745: Thay tháº¿ cá»¥m nÃºt 2 bÆ°á»›c á»Ÿ cháº¿ Ä‘á»™ USER báº±ng 2 nÃºt 1-cháº¡m: **"Thá»‘ng KÃª Sá»‘ Lot (CoreCCP)"** (Xanh ngá»c / Layers icon) vÃ  **"Thá»‘ng KÃª GiÃ¡ Trá»‹ (CoreCCP)"** (VÃ ng cam / DollarSign icon). Khá»‘i nÃºt cÅ© Ä‘Æ°á»£c comment láº¡i dá»± phÃ²ng.
+  - L955-L1015: Cáº­p nháº­t cáº£ á»Ÿ cháº¿ Ä‘á»™ EXPERT khi á»Ÿ nguá»“n dá»¯ liá»‡u `AUTO_DETECT`.
 - [docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_THIET_KE_TACH_THONG_KE_LOT_VA_GIA_TRI_CORECCP.md):
-  * Soáº¡n tháº£o toÃ n bá»™ tÃ i liá»‡u thiáº¿t káº¿ ká»¹ thuáº­t chi tiáº¿t Ä‘á»‘i chiáº¿u C# vÃ  TypeScript.
+  - Soáº¡n tháº£o toÃ n bá»™ tÃ i liá»‡u thiáº¿t káº¿ ká»¹ thuáº­t chi tiáº¿t Ä‘á»‘i chiáº¿u C# vÃ  TypeScript.
 
 ### 3. Káº¿t quáº£ xÃ¡c nháº­n Kiá»ƒm thá»­
+
 - Typecheck Frontend: `node node_modules/typescript/bin/tsc --noEmit` $\rightarrow$ **0 errors (Pass 100%)**.
 - Typecheck Backend: Module `src/modules/ccp-statistics/` $\rightarrow$ **0 errors (Pass 100%)**.
 
@@ -857,31 +947,34 @@
 ## [2026-09-24T15:56] FIX & VERIFY: Kháº¯c Phá»¥c Triá»‡t Äá»ƒ Hiá»‡n TÆ°á»£ng TrÃ n DÃ²ng Sang ThÃ¡ng Sau (10/1/2026) Khi NhÃ¢n Báº£n Sheet
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
+
 - **PhÃ¡t hiá»‡n tá»« USER**: Trong file `Thong ke gia tri giao dich Options 2026.xlsx`, sau khi sinh sheet `T9.2026`, táº¡i Row 28 xuáº¥t hiá»‡n ngÃ y `10/1/2026` (thÃ¡ng 10) ngay phÃ­a trÃªn dÃ²ng `Tá»•ng` (Row 29).
 - **NguyÃªn nhÃ¢n gá»‘c rá»… (Code-First Grounding)**:
-  * Trong thÃ¡ng 8 (sheet máº«u `T8.2026`), do sao chÃ©p tá»« thÃ¡ng 7 (cÃ³ 23 ngÃ y lÃ m viá»‡c), sheet cÃ³ 23 dÃ²ng ngÃ y (Row 6 Ä‘áº¿n Row 28).
-  * ThÃ¡ng 9/2026 chá»‰ cÃ³ **chÃ­nh xÃ¡c 22 ngÃ y lÃ m viá»‡c** (tá»« Thá»© Ba 01/09/2026 Ä‘áº¿n Thá»© TÆ° 30/09/2026: Row 6 Ä‘áº¿n Row 27).
-  * Row 28 mang cÃ´ng thá»©c `=WORKDAY(A27,1)`. VÃ¬ mang cÃ´ng thá»©c chuá»—i nÃªn `isinstance(cell_date, datetime)` tráº£ vá» `False`, khiáº¿n Ä‘iá»u kiá»‡n dá»n dáº¹p trÆ°á»›c Ä‘Ã¢y bá» sÃ³t Row 28. Khi Excel má»Ÿ file, cÃ´ng thá»©c `=WORKDAY(A27,1)` tá»± tÃ­nh ra ngÃ y lÃ m viá»‡c káº¿ tiáº¿p lÃ  `10/1/2026` (Thá»© NÄƒm).
+  - Trong thÃ¡ng 8 (sheet máº«u `T8.2026`), do sao chÃ©p tá»« thÃ¡ng 7 (cÃ³ 23 ngÃ y lÃ m viá»‡c), sheet cÃ³ 23 dÃ²ng ngÃ y (Row 6 Ä‘áº¿n Row 28).
+  - ThÃ¡ng 9/2026 chá»‰ cÃ³ **chÃ­nh xÃ¡c 22 ngÃ y lÃ m viá»‡c** (tá»« Thá»© Ba 01/09/2026 Ä‘áº¿n Thá»© TÆ° 30/09/2026: Row 6 Ä‘áº¿n Row 27).
+  - Row 28 mang cÃ´ng thá»©c `=WORKDAY(A27,1)`. VÃ¬ mang cÃ´ng thá»©c chuá»—i nÃªn `isinstance(cell_date, datetime)` tráº£ vá» `False`, khiáº¿n Ä‘iá»u kiá»‡n dá»n dáº¹p trÆ°á»›c Ä‘Ã¢y bá» sÃ³t Row 28. Khi Excel má»Ÿ file, cÃ´ng thá»©c `=WORKDAY(A27,1)` tá»± tÃ­nh ra ngÃ y lÃ m viá»‡c káº¿ tiáº¿p lÃ  `10/1/2026` (Thá»© NÄƒm).
 - **Giáº£i phÃ¡p xá»­ lÃ½ triá»‡t Ä‘á»ƒ**:
-  * Tá»± Ä‘á»™ng tÃ­nh toÃ¡n chÃ­nh xÃ¡c 100% danh sÃ¡ch ngÃ y lÃ m viá»‡c trong thÃ¡ng má»¥c tiÃªu báº±ng hÃ m `get_month_workdays(target_year, target_month)` (ThÃ¡ng 9 cÃ³ Ä‘Ãºng 22 ngÃ y).
-  * XÃ¡c Ä‘á»‹nh chÃ­nh xÃ¡c `last_date_row = first_date_row + num_workdays - 1` (Row 27 Ä‘á»‘i vá»›i thÃ¡ng 9).
-  * Náº¿u dÃ²ng `old_tong_row` náº±m dÆ°á»›i `last_date_row + 1`, engine tá»± Ä‘á»™ng xÃ³a sáº¡ch toÃ n bá»™ cÃ¡c dÃ²ng dÆ° thá»«a (`new_sheet.delete_rows(last_date_row + 1, excess_rows)`).
-  * Náº¿u thÃ¡ng má»›i cÃ³ nhiá»u ngÃ y hÆ¡n thÃ¡ng cÅ©, engine tá»± Ä‘á»™ng chÃ¨n thÃªm dÃ²ng (`insert_rows`) vÃ  bá»• sung cÃ´ng thá»©c `=WORKDAY(...)` liÃªn tá»¥c.
-  * Cáº­p nháº­t láº¡i toÃ n bá»™ cÃ´ng thá»©c `=SUM(...)` táº¡i dÃ²ng `Tá»•ng` má»›i (Row 28) thÃ nh `=SUM({col_letter}{first_date_row}:{col_letter}{last_date_row})` (vÃ­ dá»¥ `=SUM(B6:B27)`).
+  - Tá»± Ä‘á»™ng tÃ­nh toÃ¡n chÃ­nh xÃ¡c 100% danh sÃ¡ch ngÃ y lÃ m viá»‡c trong thÃ¡ng má»¥c tiÃªu báº±ng hÃ m `get_month_workdays(target_year, target_month)` (ThÃ¡ng 9 cÃ³ Ä‘Ãºng 22 ngÃ y).
+  - XÃ¡c Ä‘á»‹nh chÃ­nh xÃ¡c `last_date_row = first_date_row + num_workdays - 1` (Row 27 Ä‘á»‘i vá»›i thÃ¡ng 9).
+  - Náº¿u dÃ²ng `old_tong_row` náº±m dÆ°á»›i `last_date_row + 1`, engine tá»± Ä‘á»™ng xÃ³a sáº¡ch toÃ n bá»™ cÃ¡c dÃ²ng dÆ° thá»«a (`new_sheet.delete_rows(last_date_row + 1, excess_rows)`).
+  - Náº¿u thÃ¡ng má»›i cÃ³ nhiá»u ngÃ y hÆ¡n thÃ¡ng cÅ©, engine tá»± Ä‘á»™ng chÃ¨n thÃªm dÃ²ng (`insert_rows`) vÃ  bá»• sung cÃ´ng thá»©c `=WORKDAY(...)` liÃªn tá»¥c.
+  - Cáº­p nháº­t láº¡i toÃ n bá»™ cÃ´ng thá»©c `=SUM(...)` táº¡i dÃ²ng `Tá»•ng` má»›i (Row 28) thÃ nh `=SUM({col_letter}{first_date_row}:{col_letter}{last_date_row})` (vÃ­ dá»¥ `=SUM(B6:B27)`).
 
 ### 2. Danh sÃ¡ch file thay Ä‘á»•i
+
 - [backend/src/modules/lot-statistics/scripts/excel_sheet_cloner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/lot-statistics/scripts/excel_sheet_cloner.py):
-  * L160-L225: TÃ­nh toÃ¡n Ä‘á»™ng sá»‘ ngÃ y lÃ m viá»‡c cá»§a thÃ¡ng, xÃ³a bá» hoÃ n toÃ n cÃ¡c dÃ²ng trÃ n sang thÃ¡ng sau, Ä‘á»“ng bá»™ láº¡i cÃ´ng thá»©c dÃ²ng Tá»•ng.
+  - L160-L225: TÃ­nh toÃ¡n Ä‘á»™ng sá»‘ ngÃ y lÃ m viá»‡c cá»§a thÃ¡ng, xÃ³a bá» hoÃ n toÃ n cÃ¡c dÃ²ng trÃ n sang thÃ¡ng sau, Ä‘á»“ng bá»™ láº¡i cÃ´ng thá»©c dÃ²ng Tá»•ng.
 - [backend/dist/modules/lot-statistics/scripts/excel_sheet_cloner.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/dist/modules/lot-statistics/scripts/excel_sheet_cloner.py):
-  * Äá»“ng bá»™ báº£n build sang `dist/`.
+  - Äá»“ng bá»™ báº£n build sang `dist/`.
 - [backend/src/scripts/test_sheet_cloner_e2e.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_sheet_cloner_e2e.py):
-  * Cáº­p nháº­t ASSERT 6 mÃ´ phá»ng chuá»—i tÃ­nh toÃ¡n `=WORKDAY` Ä‘á»ƒ assert khÃ´ng cÃ³ báº¥t ká»³ ngÃ y nÃ o trÃ n sang thÃ¡ng sau.
+  - Cáº­p nháº­t ASSERT 6 mÃ´ phá»ng chuá»—i tÃ­nh toÃ¡n `=WORKDAY` Ä‘á»ƒ assert khÃ´ng cÃ³ báº¥t ká»³ ngÃ y nÃ o trÃ n sang thÃ¡ng sau.
 
 ### 3. Káº¿t quáº£ Kiá»ƒm thá»­
+
 - File thá»±c táº¿ `Thong ke gia tri giao dich Options 2026.xlsx` trÃªn á»• `M:`:
-  * Row 27: `=WORKDAY(A26,1)` (ngÃ y 30/09/2026 - ngÃ y cuá»‘i cÃ¹ng cá»§a thÃ¡ng 9).
-  * Row 28: DÃ²ng `Tá»•ng` mang cÃ´ng thá»©c `=SUM(B6:B27)` chuáº©n xÃ¡c.
-  * HoÃ n toÃ n biáº¿n máº¥t dÃ²ng `10/1/2026`!
+  - Row 27: `=WORKDAY(A26,1)` (ngÃ y 30/09/2026 - ngÃ y cuá»‘i cÃ¹ng cá»§a thÃ¡ng 9).
+  - Row 28: DÃ²ng `Tá»•ng` mang cÃ´ng thá»©c `=SUM(B6:B27)` chuáº©n xÃ¡c.
+  - HoÃ n toÃ n biáº¿n máº¥t dÃ²ng `10/1/2026`!
 - Batch test E2E 6 file: **100% PASS**.
 
 ---
@@ -1382,7 +1475,7 @@
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i & Nhiá»‡m vá»¥
 
-- Thá»±c hiá»‡n chá»‰ Ä‘áº¡o cá»§a USER: QuÃ©t toÃ n bá»™ há»‡ thá»‘ng Core Exchange (CE - `https://uat-coreexchange.mxv.com.vn`), tá»± Ä‘á»™ng Ä‘Äƒng nháº­p, duyá»‡t qua tá»«ng phÃ¢n há»‡, trÃ­ch xuáº¥t táº¥t cáº£ menu cha/con, direct routes, bá»™ lá»c tÃ¬m kiáº¿m, báº£ng dá»¯ liá»‡u, vÃ  nÃºt káº¿t xuáº¥t (export) kÃ¨m Ä‘á»‹nh dáº¡ng file.
+- Thá»±c hiá»‡n chá»‰ Ä‘áº¡o cá»§a USER: QuÃ©t toÃ n bá»™ há»‡ thá»‘ng Core Exchange (CE - `https://coreexchange.mxv.com.vn`), tá»± Ä‘á»™ng Ä‘Äƒng nháº­p, duyá»‡t qua tá»«ng phÃ¢n há»‡, trÃ­ch xuáº¥t táº¥t cáº£ menu cha/con, direct routes, bá»™ lá»c tÃ¬m kiáº¿m, báº£ng dá»¯ liá»‡u, vÃ  nÃºt káº¿t xuáº¥t (export) kÃ¨m Ä‘á»‹nh dáº¡ng file.
 - Tá»•ng há»£p thÃ nh tÃ i liá»‡u Ä‘áº·c táº£ chuáº©n ká»¹ thuáº­t vÃ  file JSON Ä‘á»ƒ phá»¥c vá»¥ phÃ¡t triá»ƒn module tÃ­nh nÄƒng Backup CE tá»± Ä‘á»™ng.
 
 ### 2. Danh sÃ¡ch file táº¡o má»›i & káº¿t quáº£
@@ -1436,28 +1529,28 @@
 
 ### 3. Báº£ng Káº¿t Quáº£ Kiá»ƒm Thá»­ Thá»±c Táº¿ (20/20 PASS)
 
-| STT | MÃ£ BÃ¡o CÃ¡o       | TÃªn BÃ¡o CÃ¡o                          | Direct Hash URL                                       | Thá»i gian | Tráº¡ng thÃ¡i |
-| :-- | :--------------- | :----------------------------------- | :---------------------------------------------------- | :-------- | :--------- |
-| 1   | `DSGD`           | Danh sÃ¡ch giao dá»‹ch CoreCCP          | `#/orderManagement/transactionList`                   | 1.5s      | **PASS**   |
-| 2   | `TTM`            | BÃ¡o cÃ¡o Vá»‹ tháº¿ má»Ÿ (TTM)              | `#/positionManagement/openPositionInfo`               | 1.5s      | **PASS**   |
-| 3   | `TTTT`           | Tráº¡ng thÃ¡i táº¥t toÃ¡n (TTTT)           | `#/positionManagement/finalPositionInfo`              | 1.5s      | **PASS**   |
-| 4   | `TTCDH`          | Tráº¡ng thÃ¡i táº¥t toÃ¡n chá» Ä‘Ã¡o háº¡n LME  | `#/positionManagement/finalPositionInfo` (Tab TTCDH)  | 3.1s      | **PASS**   |
-| 5   | `QLTKGD`         | Quáº£n lÃ½ tÃ i khoáº£n giao dá»‹ch (QLTKGD) | `#/clientManagement/marginStatusManagement`           | 1.5s      | **PASS**   |
-| 6   | `QLTKGDAmKQ`     | QL TKGD Ã¢m kÃ½ quá»¹                    | `#/clientManagement/negativeMarginManagement`         | 1.5s      | **PASS**   |
-| 7   | `NKTTHT`         | Nháº­t kÃ½ thao tÃ¡c há»‡ thá»‘ng            | `#/systemManagement/activityHistory`                  | 1.5s      | **PASS**   |
-| 8   | `DSTKGD-Futures` | Danh sÃ¡ch TKGD - Futures             | `#/clientManagement/investorManagement` (Tab Futures) | 1.5s      | **PASS**   |
-| 9   | `DSTKGD-Spread`  | Danh sÃ¡ch TKGD - Spread              | `#/clientManagement/investorManagement` (Tab Spreads) | 3.1s      | **PASS**   |
-| 10  | `DSTKGD-LME`     | Danh sÃ¡ch TKGD - LME                 | `#/clientManagement/investorManagement` (Tab LME)     | 3.1s      | **PASS**   |
-| 11  | `DSTKGD-ACM`     | Danh sÃ¡ch TKGD - ACM                 | `#/clientManagement/investorManagement` (Tab ACM)     | 3.0s      | **PASS**   |
-| 12  | `TLKQHSKQ`       | Tá»‰ lá»‡ kÃ½ quá»¹ vÃ  Hiá»‡u sá»‘ kÃ½ quá»¹       | `#/clientManagement/marginRatioMultiplier`            | 1.5s      | **PASS**   |
-| 13  | `DSQLKQ`         | Danh sÃ¡ch quáº£n lÃ½ kÃ½ quá»¹             | `#/positionManagement/marginList`                     | 1.5s      | **PASS**   |
-| 14  | `NR`             | Lá»‹ch sá»­ giao dá»‹ch tiá»n TKGD          | `#/clientManagement/marginMoneyTransHistory`          | 1.5s      | **PASS**   |
-| 15  | `DSTrader`       | Danh sÃ¡ch Trader hoáº¡t Ä‘á»™ng           | `#/clientManagement/traderManagement`                 | 1.5s      | **PASS**   |
-| 16  | `Markettruoc6h`  | BÃ¡o cÃ¡o Market trÆ°á»›c 6h              | `#/orderManagement/orderCreating`                     | 1.5s      | **PASS**   |
-| 17  | `DSLDK`          | Danh sÃ¡ch lá»‡nh Ä‘Ã£ khá»›p               | `#/orderManagement/orderList` (Tab Lá»‡nh Ä‘Ã£ khá»›p)      | 3.0s      | **PASS**   |
-| 18  | `DSLCK`          | Danh sÃ¡ch lá»‡nh chá» khá»›p              | `#/orderManagement/orderList` (Tab Lá»‡nh chá» khá»›p)     | 3.1s      | **PASS**   |
-| 19  | `DSLH`           | Danh sÃ¡ch lá»‡nh Ä‘Ã£ há»§y                | `#/orderManagement/orderList` (Tab Lá»‡nh Ä‘Ã£ há»§y)       | 3.1s      | **PASS**   |
-| 20  | `DSLK`           | Danh sÃ¡ch lá»‡nh khÃ¡c                  | `#/orderManagement/orderList` (Tab Lá»‡nh khÃ¡c)         | 3.1s      | **PASS**   |
+| STT | MÃ£ BÃ¡o CÃ¡o    | TÃªn BÃ¡o CÃ¡o                                 | Direct Hash URL                                        | Thá»i gian | Tráº¡ng thÃ¡i |
+| :-- | :--------------- | :--------------------------------------------- | :----------------------------------------------------- | :--------- | :------------ |
+| 1   | `DSGD`           | Danh sÃ¡ch giao dá»‹ch CoreCCP                 | `#/orderManagement/transactionList`                    | 1.5s       | **PASS**      |
+| 2   | `TTM`            | BÃ¡o cÃ¡o Vá»‹ tháº¿ má»Ÿ (TTM)                | `#/positionManagement/openPositionInfo`                | 1.5s       | **PASS**      |
+| 3   | `TTTT`           | Tráº¡ng thÃ¡i táº¥t toÃ¡n (TTTT)               | `#/positionManagement/finalPositionInfo`               | 1.5s       | **PASS**      |
+| 4   | `TTCDH`          | Tráº¡ng thÃ¡i táº¥t toÃ¡n chá» Ä‘Ã¡o háº¡n LME | `#/positionManagement/finalPositionInfo` (Tab TTCDH)   | 3.1s       | **PASS**      |
+| 5   | `QLTKGD`         | Quáº£n lÃ½ tÃ i khoáº£n giao dá»‹ch (QLTKGD)   | `#/clientManagement/marginStatusManagement`            | 1.5s       | **PASS**      |
+| 6   | `QLTKGDAmKQ`     | QL TKGD Ã¢m kÃ½ quá»¹                          | `#/clientManagement/negativeMarginManagement`          | 1.5s       | **PASS**      |
+| 7   | `NKTTHT`         | Nháº­t kÃ½ thao tÃ¡c há»‡ thá»‘ng              | `#/systemManagement/activityHistory`                   | 1.5s       | **PASS**      |
+| 8   | `DSTKGD-Futures` | Danh sÃ¡ch TKGD - Futures                      | `#/clientManagement/investorManagement` (Tab Futures)  | 1.5s       | **PASS**      |
+| 9   | `DSTKGD-Spread`  | Danh sÃ¡ch TKGD - Spread                       | `#/clientManagement/investorManagement` (Tab Spreads)  | 3.1s       | **PASS**      |
+| 10  | `DSTKGD-LME`     | Danh sÃ¡ch TKGD - LME                          | `#/clientManagement/investorManagement` (Tab LME)      | 3.1s       | **PASS**      |
+| 11  | `DSTKGD-ACM`     | Danh sÃ¡ch TKGD - ACM                          | `#/clientManagement/investorManagement` (Tab ACM)      | 3.0s       | **PASS**      |
+| 12  | `TLKQHSKQ`       | Tá»‰ lá»‡ kÃ½ quá»¹ vÃ  Hiá»‡u sá»‘ kÃ½ quá»¹  | `#/clientManagement/marginRatioMultiplier`             | 1.5s       | **PASS**      |
+| 13  | `DSQLKQ`         | Danh sÃ¡ch quáº£n lÃ½ kÃ½ quá»¹                | `#/positionManagement/marginList`                      | 1.5s       | **PASS**      |
+| 14  | `NR`             | Lá»‹ch sá»­ giao dá»‹ch tiá»n TKGD             | `#/clientManagement/marginMoneyTransHistory`           | 1.5s       | **PASS**      |
+| 15  | `DSTrader`       | Danh sÃ¡ch Trader hoáº¡t Ä‘á»™ng               | `#/clientManagement/traderManagement`                  | 1.5s       | **PASS**      |
+| 16  | `Markettruoc6h`  | BÃ¡o cÃ¡o Market trÆ°á»›c 6h                   | `#/orderManagement/orderCreating`                      | 1.5s       | **PASS**      |
+| 17  | `DSLDK`          | Danh sÃ¡ch lá»‡nh Ä‘Ã£ khá»›p                  | `#/orderManagement/orderList` (Tab Lá»‡nh Ä‘Ã£ khá»›p) | 3.0s       | **PASS**      |
+| 18  | `DSLCK`          | Danh sÃ¡ch lá»‡nh chá» khá»›p                  | `#/orderManagement/orderList` (Tab Lá»‡nh chá» khá»›p) | 3.1s       | **PASS**      |
+| 19  | `DSLH`           | Danh sÃ¡ch lá»‡nh Ä‘Ã£ há»§y                   | `#/orderManagement/orderList` (Tab Lá»‡nh Ä‘Ã£ há»§y)  | 3.1s       | **PASS**      |
+| 20  | `DSLK`           | Danh sÃ¡ch lá»‡nh khÃ¡c                        | `#/orderManagement/orderList` (Tab Lá»‡nh khÃ¡c)       | 3.1s       | **PASS**      |
 
 ### 4. XÃ¡c nháº­n Build & Kiá»ƒm thá»­
 
@@ -4552,7 +4645,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i & kiá»ƒm thá»­
 
-- Dá»±a trÃªn áº£nh chá»¥p mÃ n hÃ¬nh vÃ  file `ACCTMARGIN_ALL.mhtml` do USER cung cáº¥p táº¡i mÃ n hÃ¬nh Quáº£n lÃ½ tráº¡ng thÃ¡i TKGD CoreCCP (`https://uat-coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL`):
+- Dá»±a trÃªn áº£nh chá»¥p mÃ n hÃ¬nh vÃ  file `ACCTMARGIN_ALL.mhtml` do USER cung cáº¥p táº¡i mÃ n hÃ¬nh Quáº£n lÃ½ tráº¡ng thÃ¡i TKGD CoreCCP (`https://coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL`):
   - Bá»• sung cáº¥u hÃ¬nh bÃ¡o cÃ¡o `QLTTTKGD` vÃ o `DEFAULT_CCP_REPORTS` (Menu: "Quáº£n lÃ½ rá»§i ro" -> "Quáº£n lÃ½ tráº¡ng thÃ¡i TKGD", Tab: "Danh sÃ¡ch tráº¡ng thÃ¡i TKGD", URL: `/RISKMNG/ACCTMARGIN_ALL`).
   - Viáº¿t method chuyÃªn biá»‡t `downloadQltkgdCcp()` trong `CcpCeDownloaderService` Ä‘á»ƒ tá»± Ä‘á»™ng táº£i snapshot tráº¡ng thÃ¡i tÃ i khoáº£n kÃ½ quá»¹ thá»i gian thá»±c (trÆ°á»›c 05:00) mÃ  khÃ´ng cáº§n nháº­p ngÃ y.
   - Tá»‘i Æ°u `setDateRangeAndSearch`: Tá»± Ä‘á»™ng bá» qua bá»™ lá»c ngÃ y DatePicker khi táº£i bÃ¡o cÃ¡o `QLTTTKGD`.
@@ -4563,7 +4656,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
 
 ### 3. Káº¿t quáº£ kiá»ƒm thá»­ thá»±c táº¿ (Live Execution)
 
-- **Há»‡ thá»‘ng má»¥c tiÃªu**: `https://uat-coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL`.
+- **Há»‡ thá»‘ng má»¥c tiÃªu**: `https://coreccp.mxv.com.vn/RISKMNG/ACCTMARGIN_ALL`.
 - **Thá»±c thi táº£i**: Direct navigation thÃ nh cÃ´ng trong 19s $\rightarrow$ Click tab "Danh sÃ¡ch tráº¡ng thÃ¡i TKGD" $\rightarrow$ Click TÃ¬m kiáº¿m $\rightarrow$ Báº¥m Xuáº¥t táº¥t cáº£ $\rightarrow$ Download hoÃ n táº¥t sau 93s.
 - **File táº£i vá»**: `test_output_ccp/QLTTTKGD/QLTTTKGD0926.csv` dung lÆ°á»£ng **3,957,855 bytes (~3.96 MB)**.
 - **Cáº¥u trÃºc dá»¯ liá»‡u**: Gá»“m **2,317 dÃ²ng (1 dÃ²ng tiÃªu Ä‘á» + Ä‘Ãºng 2,316 báº£n ghi)**, khá»›p chÃ­nh xÃ¡c 100.000% vá»›i con sá»‘ `1-20 trÃªn 2.316` trÃªn giao diá»‡n CoreCCP UAT mÃ  USER gá»­i.
@@ -4574,7 +4667,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i & kiá»ƒm thá»­
 
-- Dá»±a trÃªn áº£nh chá»¥p mÃ n hÃ¬nh thá»±c táº¿ do USER cung cáº¥p táº¡i mÃ n hÃ¬nh Káº¿t quáº£ EOD CoreCCP (`https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST`):
+- Dá»±a trÃªn áº£nh chá»¥p mÃ n hÃ¬nh thá»±c táº¿ do USER cung cáº¥p táº¡i mÃ n hÃ¬nh Káº¿t quáº£ EOD CoreCCP (`https://coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST`):
   - Bá»• sung cáº¥u hÃ¬nh bÃ¡o cÃ¡o `EOD` vÃ o danh má»¥c `DEFAULT_CCP_REPORTS` (Menu: "Váº­n hÃ nh" -> "Káº¿t quáº£ EOD", URL: `/EOD/ACCTMARGIN_HIST`).
   - Viáº¿t method chuyÃªn biá»‡t `downloadEodCcp()` trong `CcpCeDownloaderService` Ä‘á»ƒ phá»¥c vá»¥ táº£i riÃªng file EOD CCP cho ca trá»±c hoáº·c tá»± Ä‘á»™ng hÃ³a.
   - Viáº¿t helper `resolveReportUrl()` há»— trá»£ Direct Navigation nhanh vÃ  á»•n Ä‘á»‹nh tá»›i trang bÃ¡o cÃ¡o.
@@ -4589,7 +4682,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
 
 ### 3. Káº¿t quáº£ kiá»ƒm thá»­ thá»±c táº¿ (Live Execution)
 
-- **Há»‡ thá»‘ng má»¥c tiÃªu**: `https://uat-coreccp.mxv.com.vn/login` $\rightarrow$ `https://uat-coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST`.
+- **Há»‡ thá»‘ng má»¥c tiÃªu**: `https://coreccp.mxv.com.vn/login` $\rightarrow$ `https://coreccp.mxv.com.vn/EOD/ACCTMARGIN_HIST`.
 - **Thá»±c thi táº£i**: Direct navigation thÃ nh cÃ´ng trong 18s $\rightarrow$ Lá»c ngÃ y `08/09/2026 -> 11/09/2026` $\rightarrow$ Báº¥m Xuáº¥t táº¥t cáº£ $\rightarrow$ Download hoÃ n táº¥t sau 90s.
 - **File táº£i vá»**: `test_output_ccp/EOD/EOD0926.csv` dung lÆ°á»£ng **2,139,114 bytes (~2.14 MB)**.
 - **Cáº¥u trÃºc dá»¯ liá»‡u**: Gá»“m **2,295 dÃ²ng dá»¯ liá»‡u thá»±c táº¿** vá»›i 27 cá»™t chuáº©n (Khá»›p 100% vá»›i tÃ i khoáº£n `012C0000204-M - LÃª Thá»‹ Trang` trong áº£nh mÃ n hÃ¬nh cá»§a USER).
@@ -4600,7 +4693,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i & kiá»ƒm thá»­
 
-- Thá»±c thi kiá»ƒm thá»­ end-to-end theo yÃªu cáº§u trá»±c tiáº¿p cá»§a USER: Kiá»ƒm tra robot Playwright Ä‘Äƒng nháº­p UAT CoreCCP (`https://uat-coreccp.mxv.com.vn/login`) vÃ  tá»± Ä‘á»™ng táº£i bÃ¡o cÃ¡o thá»±c táº¿.
+- Thá»±c thi kiá»ƒm thá»­ end-to-end theo yÃªu cáº§u trá»±c tiáº¿p cá»§a USER: Kiá»ƒm tra robot Playwright Ä‘Äƒng nháº­p UAT CoreCCP (`https://coreccp.mxv.com.vn/login`) vÃ  tá»± Ä‘á»™ng táº£i bÃ¡o cÃ¡o thá»±c táº¿.
 - Bá»• sung cÆ¡ cháº¿ tá»± Ä‘á»™ng tÃ¬m Ä‘Æ°á»ng dáº«n Chrome/Chromium portable (`it-tool-src/operate-transaction-app/Chrome/chrome-win/chrome.exe`) hoáº·c MS Edge trÃªn mÃ´i trÆ°á»ng Windows vÃ o `CcpCeDownloaderService` Ä‘á»ƒ kháº¯c phá»¥c lá»—i thiáº¿u browser binary cá»§a Playwright.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
@@ -4613,7 +4706,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
 
 ### 3. Káº¿t quáº£ kiá»ƒm thá»­ thá»±c táº¿ (Live Execution Report)
 
-- **Há»‡ thá»‘ng má»¥c tiÃªu**: `https://uat-coreccp.mxv.com.vn/login` (TÃ i khoáº£n: `hieptruong`).
+- **Há»‡ thá»‘ng má»¥c tiÃªu**: `https://coreccp.mxv.com.vn/login` (TÃ i khoáº£n: `hieptruong`).
 - **Binary thá»±c thi**: `it-tool-src\operate-transaction-app\Chrome\chrome-win\chrome.exe` (Chrome v114+).
 - **Káº¿t quáº£ Ä‘Äƒng nháº­p**: ÄÄƒng nháº­p CoreCCP thÃ nh cÃ´ng (`page.url()` chuyá»ƒn hÆ°á»›ng ra khá»i trang login).
 - **Káº¿t quáº£ xuáº¥t file**: Táº£i thÃ nh cÃ´ng bÃ¡o cÃ¡o `NR0926.csv` (dung lÆ°á»£ng: **35,879 bytes**).
@@ -4830,11 +4923,11 @@ TÃ i liá»‡u nÃ y dÃ¹ng Ä‘á»ƒ ghi váº¿t táº¥t cáº£ cÃ¡
 
 ### 3. TÃ³m táº¯t ná»™i dung trÆ°á»›c vÃ  sau khi sá»­a
 
-| Váº¥n Ä‘á» trÆ°á»›c                                                      | Sau khi sá»­a                                                                                                            |
-| :---------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| Fallback cá»©ng vá» `acm-etp.acmmex.com` khi `credentials.url` rá»—ng  | NÃ©m lá»—i rÃµ rÃ ng, yÃªu cáº§u Admin cáº¥u hÃ¬nh URL trÃªn UI                                                                    |
+| Váº¥n Ä‘á» trÆ°á»›c                                                     | Sau khi sá»­a                                                                                                                                |
+| :---------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fallback cá»©ng vá» `acm-etp.acmmex.com` khi `credentials.url` rá»—ng   | NÃ©m lá»—i rÃµ rÃ ng, yÃªu cáº§u Admin cáº¥u hÃ¬nh URL trÃªn UI                                                                              |
 | URL Order/Fill luÃ´n ghÃ©p cá»©ng tá»« `baseUrl + #/business-tetporder` | Äá»c `orderUrl` / `fillUrl` tá»« `bot_credentials_acm` náº¿u Admin Ä‘Ã£ cáº¥u hÃ¬nh; chá»‰ fallback ghÃ©p tá»± Ä‘á»™ng khi chÆ°a cáº¥u hÃ¬nh |
-| `baseUrl` normalize báº¥t ká»ƒ path                                   | Chá»‰ normalize path khi cháº¯c cháº¯n path lÃ  `/exchange/*`                                                                 |
+| `baseUrl` normalize báº¥t ká»ƒ path                                     | Chá»‰ normalize path khi cháº¯c cháº¯n path lÃ  `/exchange/*`                                                                                |
 
 ### 4. Schema cáº¥u hÃ¬nh `bot_credentials_acm` (má»›i)
 
@@ -10087,7 +10180,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
    - Sá»­a hÃ m `navigate_to_report()`: Cho phÃ©p `page.goto(cached_url)` truy cáº­p tháº³ng vÃ o trang bÃ¡o cÃ¡o ngay khi cÃ³ `cached_url` thay vÃ¬ báº¯t buá»™c URL hiá»‡n táº¡i pháº£i trÃ¹ng tiá»n tá»‘.
    - NÃ¢ng cáº¥p bá»™ Ä‘á»‹nh vá»‹ Menu Sidebar dá»± phÃ²ng (dÃ¹ng `MuiListItemButton-root` vÃ  `a[contains(@href, '/')]`) náº¿u `goto` gáº·p sá»± cá»‘.
 2. **XÃ¡c nháº­n kiá»ƒm thá»­ & Build**:
-   - ÄÃ£ kiá»ƒm thá»­ tá»± Ä‘á»™ng thá»±c táº¿ thÃ nh cÃ´ng: ÄÄƒng nháº­p CoreCCP vÃ  má»Ÿ tháº³ng trang `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`, lá»c MÃ£ TV `711` vÃ  káº¿t xuáº¥t file CSV chuáº©n xÃ¡c.
+   - ÄÃ£ kiá»ƒm thá»­ tá»± Ä‘á»™ng thá»±c táº¿ thÃ nh cÃ´ng: ÄÄƒng nháº­p CoreCCP vÃ  má»Ÿ tháº³ng trang `https://coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`, lá»c MÃ£ TV `711` vÃ  káº¿t xuáº¥t file CSV chuáº©n xÃ¡c.
    - ÄÃ£ rebuild láº¡i file Standalone [`dist/CPP_CE_Report_Downloader.exe`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/cpp-ce-downloader/dist/CPP_CE_Report_Downloader.exe).
 
 ---
@@ -10207,7 +10300,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 
 ### XÃ¡c nháº­n Build/Kiá»ƒm thá»­
 
-- ÄÃ£ cháº¡y script kiá»ƒm thá»­ thá»±c táº¿ trÃªn há»‡ thá»‘ng VNCLEAR UAT (`https://uat-coreccp.mxv.com.vn/login`): Tá»± Ä‘á»™ng click `áº¨n/hiá»‡n bá»™ lá»c`, Ä‘iá»n mÃ£ TV `711` vÃ  táº£i thÃ nh cÃ´ng file `DSGD0826_TV711.csv`.
+- ÄÃ£ cháº¡y script kiá»ƒm thá»­ thá»±c táº¿ trÃªn há»‡ thá»‘ng VNCLEAR UAT (`https://coreccp.mxv.com.vn/login`): Tá»± Ä‘á»™ng click `áº¨n/hiá»‡n bá»™ lá»c`, Ä‘iá»n mÃ£ TV `711` vÃ  táº£i thÃ nh cÃ´ng file `DSGD0826_TV711.csv`.
 
 ---
 
@@ -10364,14 +10457,14 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 
 ### XÃ¡c nháº­n Build/Kiá»ƒm thá»­
 
-- **Cháº¡y kiá»ƒm thá»­ thá»±c táº¿ trÃªn UAT (`https://uat-coreccp.mxv.com.vn/login`)**:
+- **Cháº¡y kiá»ƒm thá»­ thá»±c táº¿ trÃªn UAT (`https://coreccp.mxv.com.vn/login`)**:
   - ÄÄƒng nháº­p tÃ i khoáº£n `hieptruong` thÃ nh cÃ´ng.
   - Tá»± Ä‘á»™ng báº¯t vÃ  lÆ°u 5 URL thá»±c táº¿ chuáº©n xÃ¡c cá»§a há»‡ thá»‘ng UAT:
-    - NR: `https://uat-coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST`
-    - DSL: `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERBOOK`
-    - DSGD: `https://uat-coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`
-    - TTTT: `https://uat-coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED`
-    - LSGTT: `https://uat-coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST`
+    - NR: `https://coreccp.mxv.com.vn/CASHTRANFER/CASHTRANFER_HIST`
+    - DSL: `https://coreccp.mxv.com.vn/ORDERS/ORDERBOOK`
+    - DSGD: `https://coreccp.mxv.com.vn/ORDERS/ORDERMATCH_DETAIL`
+    - TTTT: `https://coreccp.mxv.com.vn/ORDERS/PNL_EXECUTED`
+    - LSGTT: `https://coreccp.mxv.com.vn/PRODUCT/SETTLEMENT_HIST`
   - **Lá»c ngÃ y chuáº©n xÃ¡c & Chuyá»ƒn Tab**:
     - Sá»­ dá»¥ng `picker_inputs.nth(0)` vÃ  `picker_inputs.nth(1)` Ä‘á»ƒ gÃµ chuáº©n ngÃ y `01/08/2026` -> `17/08/2026` vÃ o Ã´ (Tá»«) NgÃ y vÃ  (Äáº¿n) NgÃ y.
     - Tá»± Ä‘á»™ng click chuyá»ƒn tab **`Lá»‹ch sá»­ táº¥t toÃ¡n`** cho bÃ¡o cÃ¡o `TTTT`.
@@ -12520,11 +12613,11 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 
 #### Bug 1: Key mismatch giá»¯a UI vÃ  Service (`processTvkdOnly`)
 
-|                                                        | Setting Key                                |
-| ------------------------------------------------------ | ------------------------------------------ |
-| **UI lÆ°u macro path** (`PUT /value-statistics/config`) | `bot_macro_value_path`                     |
-| **`processTvkdOnly()` Ä‘á»c** (trÆ°á»›c fix)                | `bot_lot_macro_path_value` â† **KHÃC KEY!** |
-| **`processValueStatistics()` Ä‘á»c**                     | `bot_macro_value_path` â† Ä‘Ãºng              |
+|                                                         | Setting Key                                 |
+| ------------------------------------------------------- | ------------------------------------------- |
+| **UI lÆ°u macro path** (`PUT /value-statistics/config`) | `bot_macro_value_path`                      |
+| **`processTvkdOnly()` Ä‘á»c** (trÆ°á»›c fix)            | `bot_lot_macro_path_value` â† **KHÃC KEY!** |
+| **`processValueStatistics()` Ä‘á»c**                    | `bot_macro_value_path` â† Ä‘Ãºng            |
 
 - `processTvkdOnly` dÃ¹ng key sai `bot_lot_macro_path_value` â†’ key nÃ y khÃ´ng bao giá» Ä‘Æ°á»£c UI lÆ°u â†’ luÃ´n rá»—ng â†’ throw Error.
 - Trong khi Ä‘Ã³ `processValueStatistics` dÃ¹ng Ä‘Ãºng key `bot_macro_value_path`.
@@ -12533,10 +12626,10 @@ mongosh "mongodb://127.0.0.1:27017/mxv_shift_checklist" --eval "db.shift_logs.up
 
 Hai file DSGD cho ngÃ y 22/06/2026:
 
-| File                            | Rows        | Format                                                              | Total GTGD                                                   |
-| ------------------------------- | ----------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `marco/.../DSGD22.06.2026.xlsx` | 14,757 rows | KhÃ´ng cÃ³ header (col1â€¦col15), raw CQG format                        | **113,791,066,218** â† khá»›p vá»›i dá»¯ liá»‡u sai trong file output |
-| `Downloads/.../22.06/DSGD.xlsx` | 5,684 rows  | CÃ³ header Ä‘áº§y Ä‘á»§ (MÃ£ TKGD, MÃ£ HÄ, KL giao dá»‹ch...), M-System export | **6,441,554,012,692** â† Ä‘Ãºng                                 |
+| File                            | Rows        | Format                                                                         | Total GTGD                                                            |
+| ------------------------------- | ----------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `marco/.../DSGD22.06.2026.xlsx` | 14,757 rows | KhÃ´ng cÃ³ header (col1â€¦col15), raw CQG format                               | **113,791,066,218** â† khá»›p vá»›i dá»¯ liá»‡u sai trong file output |
+| `Downloads/.../22.06/DSGD.xlsx` | 5,684 rows  | CÃ³ header Ä‘áº§y Ä‘á»§ (MÃ£ TKGD, MÃ£ HÄ, KL giao dá»‹ch...), M-System export | **6,441,554,012,692** â† Ä‘Ãºng                                       |
 
 - Há»‡ thá»‘ng Ä‘Ã£ Ä‘á»c DSGD tá»« **marco folder** (CQG raw format) thay vÃ¬ **Downloads folder** (M-System export Ä‘Ãºng).
 - **NguyÃªn nhÃ¢n chÆ°a xÃ¡c Ä‘á»‹nh hoÃ n toÃ n**: cáº§n kiá»ƒm tra tiáº¿p láº§n cháº¡y nÃ o Ä‘Ã£ trigger viá»‡c ghi 113B. CÃ³ thá»ƒ lÃ :
@@ -17313,4 +17406,3 @@ export interface CheckKLGDResult {
 
 - **Backend TypeCheck**: `cmd /c "cd backend && node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.build.json"` $\rightarrow$ **Exit code 0 (0 errors)**.
 - **Backend Production Build**: `cmd /c "cd backend && npm run build"` (`nest build`) $\rightarrow$ **Exit code 0 (Success)**.
-

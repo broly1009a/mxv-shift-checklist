@@ -1,4 +1,5 @@
 # KẾ HOẠCH CHUYỂN ĐỔI TIẾP THEO (STAGE 2: RUNTIME INTEGRATION & PRODUCTION CUTOVER)
+
 ## CHUYỂN GIAO TOÀN DIỆN: TÁCH LOG ĐỘC LẬP — CẤU HÌNH RIÊNG TỪNG KHỐI — ĐA INSTANCE CONCURRENCY — TẮT PLAYWRIGHT THAY BẰNG REST API
 
 ---
@@ -23,7 +24,7 @@ Giai đoạn 1 đã xây dựng thành công 100% khung sườn và lõi nghiệ
    - Tách biệt hoàn toàn tài khoản mật khẩu, thư mục lưu trữ, endpoint giữa các khối: **QLGD** (M-System, CQG, ACM), **CCP** (CoreCCP, Clearing), **IT Ops** (Mail, Telegram, SSH).
    - Triệt tiêu 100% nguy cơ tranh chấp tài nguyên, ghi đè đường dẫn hay xung đột credential.
 
-3. ⚡ **Mở Rộng Đa Instance Không Xung Đột (Horizontal Multi-Instance Concurrency)**:
+3. **Mở Rộng Đa Instance Không Xung Đột (Horizontal Multi-Instance Concurrency)**:
    - Đưa cơ chế khóa nguyên tử MongoDB (`findOneAndUpdate({ status: 'PENDING' }, { $set: { status: 'PROCESSING', lockedBy: instanceId } })`) của `BotDispatcherService` vào vận hành thực tế.
    - Hỗ trợ triển khai nhiều Node.js worker/container cùng lúc để xử lý song song các tác vụ nặng (vừa cào dữ liệu, vừa tính toán lot, vừa đọc email) mà **không bị tranh chấp hay chạy trùng Job (Zero Race Conditions)**.
 
@@ -82,6 +83,7 @@ flowchart TD
 > **Mục tiêu**: Tuyệt đối không nhét bảng kê so khớp hàng nghìn dòng lệnh vào `ShiftLog`. Tạo các collection lưu log chuyên ngành độc lập.
 
 #### Task 7.1: Tạo Mongoose Schema `TradingReconLog` (`trading_recon_logs`)
+
 - **Vị trí file**: `backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts`
 - **Mục tiêu**: Lưu trữ toàn bộ dữ liệu đối soát chi tiết của QLGD.
 - **Cấu trúc trường dữ liệu (Schema Definition)**:
@@ -98,11 +100,13 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Schema được export sạch sẽ, có đầy đủ indexes cho `tradingDate`, `reconType`, `shiftLogId`.
 
 #### Task 7.2: Tạo Mongoose Schema `CcpClearingLog` (`ccp_clearing_logs`)
+
 - **Vị trí file**: `backend/src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts`
 - **Mục tiêu**: Lưu trữ toàn bộ bảng kê thống kê Lot, giá trị giao dịch bù trừ CCP.
 - **Tiêu chuẩn nghiệm thu (DoD)**: Schema export sạch sẽ, index `tradingDate`.
 
 #### Task 7.3: Cập Nhật Workers Ghi Log Độc Lập & Trả Về `domainLogRefId`
+
 - **File tác động**:
   - `backend/src/modules/trading-ops/workers/klgd-recon.worker.ts`
   - `backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts`
@@ -117,6 +121,7 @@ flowchart TD
   - `TaskExecutionResult.domainLogRefId` luôn có giá trị ObjectId hợp lệ.
 
 #### Task 7.4: Xây Dựng REST API Tra Cứu Log Chi Tiết Theo `domainLogRefId`
+
 - **Vị trí file**:
   - `backend/src/modules/trading-ops/controllers/trading-recon-log.controller.ts`
   - `backend/src/modules/ccp-clearing/controllers/ccp-clearing-log.controller.ts`
@@ -132,11 +137,13 @@ flowchart TD
 > **Mục tiêu**: Loại bỏ việc nhồi nhét cấu hình của tất cả các phòng ban vào một mớ hỗn độn trong `system_settings`. Phân chia rõ ràng thành 3 khối tự quản: QLGD, CCP, IT Support.
 
 #### Task 8.1: Schema Cấu Hình Phân Vùng `DomainConfig`
+
 - **Vị trí file**: `backend/src/schemas/domain-config.schema.ts`
 - **Mục tiêu**: Quản lý cấu hình có namespace theo khối (`QLGD`, `CCP`, `IT_OPS`, `RISK`).
 - **Tiêu chuẩn nghiệm thu (DoD)**: Schema có unique index trên trường `namespace`.
 
 #### Task 8.2: Service Cấu Hình Khối Quản Lý Giao Dịch (`TradingOpsConfigService`)
+
 - **Vị trí file**: `backend/src/modules/trading-ops/services/trading-ops-config.service.ts`
 - **Phạm vi quản lý**:
   - Đường dẫn Backup M-System, CQG, ACM.
@@ -145,6 +152,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Method `getConfig(): Promise<ITradingOpsConfig>`, fallback `.env`.
 
 #### Task 8.3: Service Cấu Hình Khối Bù Trừ CCP (`CcpClearingConfigService`)
+
 - **Vị trí file**: `backend/src/modules/ccp-clearing/services/ccp-clearing-config.service.ts`
 - **Phạm vi quản lý**:
   - Đường dẫn Backup 25 báo cáo CCP.
@@ -153,6 +161,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Method `getConfig(): Promise<ICcpClearingConfig>`.
 
 #### Task 8.4: Service Cấu Hình Khối Kỹ Thuật IT (`ItOpsConfigService`)
+
 - **Vị trí file**: `backend/src/modules/checklist-hub/services/it-ops-config.service.ts`
 - **Phạm vi quản lý**:
   - Thông số SMTP gửi mail cảnh báo.
@@ -167,11 +176,13 @@ flowchart TD
 > **Mục tiêu**: Đưa toàn bộ các Module V2 vào đồ thị phụ thuộc (DI Graph) của ứng dụng chính và kích hoạt khả năng chạy song song đa instance.
 
 #### Task 9.1: Import V2 Modules Vào `backend/src/app.module.ts`
+
 - **File tác động**: `backend/src/app.module.ts`
 - **Nội dung thay đổi**: Thêm `IngressModule`, `TradingOpsModule`, `CcpClearingModule`, `ChecklistHubModule` vào mảng `imports`.
 - **Tiêu chuẩn nghiệm thu (DoD)**: `npm run build` Exit code 0, dev server reload mượt mà.
 
 #### Task 9.2: Tích Hợp `BotDispatcherService` Vào `BotJobQueueService` (Strangler Fig Delegation)
+
 - **File tác động**: `backend/src/modules/bot-engine/bot-job-queue.service.ts`
 - **Nội dung thay đổi**:
   - Inject `BotDispatcherService`.
@@ -179,6 +190,7 @@ flowchart TD
 - **Tiêu chuẩn nghiệm thu (DoD)**: Khóa nguyên tử được kích hoạt, ghi nhận `lockedBy`.
 
 #### Task 9.3: Kiểm Thử Đa Instance Song Song (Multi-Instance Concurrency Test)
+
 - **Vị trí file**: `backend/src/tests/concurrency/multi-instance-queue.spec.ts`
 - **Kịch bản kiểm thử**:
   1. Khởi tạo 2 instance `BotDispatcherService` độc lập.
@@ -194,18 +206,22 @@ flowchart TD
 > **Mục tiêu**: Hiện thực hóa chỉ đạo "về sau sẽ off Playwright hết, viết mới hết theo gọi API". Xây dựng cầu nối để chuyển đổi không gián đoạn.
 
 #### Task 10.1: Xây Dựng `CoreExApiAdapter` (M-System Direct Ingress)
+
 - **Vị trí file**: `backend/src/modules/ingress/adapters/coreex-api.adapter.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Implement đầy đủ `IIngressPort.downloadReport()`.
 
 #### Task 10.2: Xây Dựng `CoreCcpApiAdapter` (CoreCCP Direct Ingress)
+
 - **Vị trí file**: `backend/src/modules/ingress/adapters/coreccp-api.adapter.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Implement đầy đủ `IIngressPort.downloadReport()`.
 
 #### Task 10.3: Xây Dựng `AcmSftpAdapter` (ACM Native Ingress)
+
 - **Vị trí file**: `backend/src/modules/ingress/adapters/acm-sftp.adapter.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Tải đúng file Straits CSV theo ngày phiên qua SFTP Client.
 
 #### Task 10.4: Cơ Chế Chuyển Đổi Tức Thì Qua Feature Flag (Zero-Downtime Sunsetting Switch)
+
 - **File tác động**: `backend/src/modules/ingress/ingress.service.ts`
 - **Logic chuyển đổi**: Đọc cấu hình `INGRESS_MODE`: nếu là `'REST_API'` thì gọi HTTP REST API; nếu là `'PLAYWRIGHT'` thì gọi browser crawler.
 - **Tiêu chuẩn nghiệm thu (DoD)**: Chuyển đổi runtime không cần build lại code hay restart server.
@@ -215,11 +231,13 @@ flowchart TD
 ### PHA 11: MỞ RỘNG WORKERS ĐỘC LẬP (MAIL, CALENDAR, OCR)
 
 #### Task 11.1: Tạo `EmailWatcherWorker`
+
 - **Vị trí file**: `backend/src/modules/checklist-hub/workers/email-watcher.worker.ts`
 - **Năng lực định danh**: `capabilityType: 'EMAIL_ATTACHMENT_INGRESS'`
 - **Nhiệm vụ**: Tự động quét hòm thư, bóc tách file đính kèm.
 
 #### Task 11.2: Tạo `CalendarSyncWorker`
+
 - **Vị trí file**: `backend/src/modules/checklist-hub/workers/calendar-sync.worker.ts`
 - **Năng lực định danh**: `capabilityType: 'CALENDAR_SYNC'`
 - **Nhiệm vụ**: Đồng bộ lịch nghỉ lễ và ngày bù trừ từ các sở giao dịch quốc tế.
@@ -229,37 +247,39 @@ flowchart TD
 ### PHA 12: KIỂM THỬ KHÉP KÍN TOÀN TRÌNH & NGHIỆM THU BÀN GIAO (FULL CUTOVER)
 
 #### Task 12.1: Kịch Bản Test Mô Phỏng Toàn Trình Ca Trực 24h (End-to-End Shift Simulation)
+
 - **Vị trí file**: `backend/src/tests/e2e/modular-shift-e2e.spec.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: `PASS src/tests/e2e/modular-shift-e2e.spec.ts`.
 
 #### Task 12.2: Đồng Bộ Lên Nhánh Refactor & Khép Lại Kế Hoạch
+
 - **Nhiệm vụ**: Đồng bộ mã nguồn, ghi log [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md).
 
 ---
 
 ## 4. MA TRẬN PHÂN CHIA NHIỆM VỤ NGUYÊN TỬ (ATOMIC TASKS SUMMARY TABLE)
 
-| Mã Task | Phân Hệ | File Thực Hiện | Nhiệm Vụ Cụ Thể | Lệnh Kiểm Chứng |
-| :--- | :--- | :--- | :--- | :--- |
-| **Task 7.1** | `trading-ops` | `trading-recon-log.schema.ts` | Tạo Schema lưu log đối soát QLGD độc lập | `nest build` |
-| **Task 7.2** | `ccp-clearing`| `ccp-clearing-log.schema.ts` | Tạo Schema lưu log thống kê CCP độc lập | `nest build` |
-| **Task 7.3** | `workers` | Cập nhật 4 Workers | Ghi chi tiết vào collection riêng, trả `domainLogRefId` | `jest twin-run` |
-| **Task 7.4** | `controllers`| 2 Log Controllers | REST API xem chi tiết log theo ID | `nest build` |
-| **Task 8.1** | `shared` | `domain-config.schema.ts` | Schema quản lý cấu hình phân vùng theo namespace | `nest build` |
-| **Task 8.2** | `trading-ops` | `trading-ops-config.service.ts`| Service quản lý cấu hình riêng khối QLGD | `nest build` |
-| **Task 8.3** | `ccp-clearing`| `ccp-clearing-config.service.ts`| Service quản lý cấu hình riêng khối CCP | `nest build` |
-| **Task 8.4** | `checklist-hub`| `it-ops-config.service.ts` | Service quản lý cấu hình riêng khối IT | `nest build` |
-| **Task 9.1** | `core` | `backend/src/app.module.ts` | Đấu nối 4 V2 Modules vào đồ thị DI chính | `nest build` (Exit 0) |
-| **Task 9.2** | `bot-engine` | `bot-job-queue.service.ts` | Ủy quyền xử lý Job sang `BotDispatcherService` | `nest build` |
-| **Task 9.3** | `tests` | `multi-instance-queue.spec.ts` | Test chứng minh 0% race condition trên 2 workers | `jest multi-instance` |
-| **Task 10.1**| `ingress` | `coreex-api.adapter.ts` | REST API Adapter cho M-System (thay Playwright) | `nest build` |
-| **Task 10.2**| `ingress` | `coreccp-api.adapter.ts` | REST API Adapter cho CoreCCP (thay Playwright) | `nest build` |
-| **Task 10.3**| `ingress` | `acm-sftp.adapter.ts` | SFTP Native Adapter cho ACM Straits CSV | `nest build` |
-| **Task 10.4**| `ingress` | `ingress.service.ts` | Feature Flag chuyển đổi tức thì Playwright $\rightarrow$ API | `nest build` |
-| **Task 11.1**| `checklist-hub`| `email-watcher.worker.ts` | Worker độc lập tải đính kèm email ca trực | `nest build` |
-| **Task 11.2**| `checklist-hub`| `calendar-sync.worker.ts` | Worker độc lập đồng bộ lịch giao dịch sàn | `nest build` |
-| **Task 12.1**| `tests` | `modular-shift-e2e.spec.ts` | Mô phỏng toàn trình 24h ca trực V2 | `jest e2e` |
-| **Task 12.2**| `git` | CHANGELOG & Git Commit | Nghiệm thu và đóng băng mốc hoàn thành | `git status` |
+| Mã Task       | Phân Hệ         | File Thực Hiện                   | Nhiệm Vụ Cụ Thể                                              | Lệnh Kiểm Chứng       |
+| :------------ | :-------------- | :------------------------------- | :----------------------------------------------------------- | :-------------------- |
+| **Task 7.1**  | `trading-ops`   | `trading-recon-log.schema.ts`    | Tạo Schema lưu log đối soát QLGD độc lập                     | `nest build`          |
+| **Task 7.2**  | `ccp-clearing`  | `ccp-clearing-log.schema.ts`     | Tạo Schema lưu log thống kê CCP độc lập                      | `nest build`          |
+| **Task 7.3**  | `workers`       | Cập nhật 4 Workers               | Ghi chi tiết vào collection riêng, trả `domainLogRefId`      | `jest twin-run`       |
+| **Task 7.4**  | `controllers`   | 2 Log Controllers                | REST API xem chi tiết log theo ID                            | `nest build`          |
+| **Task 8.1**  | `shared`        | `domain-config.schema.ts`        | Schema quản lý cấu hình phân vùng theo namespace             | `nest build`          |
+| **Task 8.2**  | `trading-ops`   | `trading-ops-config.service.ts`  | Service quản lý cấu hình riêng khối QLGD                     | `nest build`          |
+| **Task 8.3**  | `ccp-clearing`  | `ccp-clearing-config.service.ts` | Service quản lý cấu hình riêng khối CCP                      | `nest build`          |
+| **Task 8.4**  | `checklist-hub` | `it-ops-config.service.ts`       | Service quản lý cấu hình riêng khối IT                       | `nest build`          |
+| **Task 9.1**  | `core`          | `backend/src/app.module.ts`      | Đấu nối 4 V2 Modules vào đồ thị DI chính                     | `nest build` (Exit 0) |
+| **Task 9.2**  | `bot-engine`    | `bot-job-queue.service.ts`       | Ủy quyền xử lý Job sang `BotDispatcherService`               | `nest build`          |
+| **Task 9.3**  | `tests`         | `multi-instance-queue.spec.ts`   | Test chứng minh 0% race condition trên 2 workers             | `jest multi-instance` |
+| **Task 10.1** | `ingress`       | `coreex-api.adapter.ts`          | REST API Adapter cho M-System (thay Playwright)              | `nest build`          |
+| **Task 10.2** | `ingress`       | `coreccp-api.adapter.ts`         | REST API Adapter cho CoreCCP (thay Playwright)               | `nest build`          |
+| **Task 10.3** | `ingress`       | `acm-sftp.adapter.ts`            | SFTP Native Adapter cho ACM Straits CSV                      | `nest build`          |
+| **Task 10.4** | `ingress`       | `ingress.service.ts`             | Feature Flag chuyển đổi tức thì Playwright $\rightarrow$ API | `nest build`          |
+| **Task 11.1** | `checklist-hub` | `email-watcher.worker.ts`        | Worker độc lập tải đính kèm email ca trực                    | `nest build`          |
+| **Task 11.2** | `checklist-hub` | `calendar-sync.worker.ts`        | Worker độc lập đồng bộ lịch giao dịch sàn                    | `nest build`          |
+| **Task 12.1** | `tests`         | `modular-shift-e2e.spec.ts`      | Mô phỏng toàn trình 24h ca trực V2                           | `jest e2e`            |
+| **Task 12.2** | `git`           | CHANGELOG & Git Commit           | Nghiệm thu và đóng băng mốc hoàn thành                       | `git status`          |
 
 ---
 

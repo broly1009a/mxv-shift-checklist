@@ -24,7 +24,7 @@ async function runCcpDownloadTest() {
     return;
   }
   const ccpCreds = JSON.parse(decrypt(ccpRaw));
-  const ccpUrl = (ccpCreds.url || 'https://uat-coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
+  const ccpUrl = (ccpCreds.url || 'https://coreccp.mxv.com.vn').replace(/\/login\/?$/, '').replace(/\/$/, '');
 
   const bundledPath = path.join(
     process.cwd(),

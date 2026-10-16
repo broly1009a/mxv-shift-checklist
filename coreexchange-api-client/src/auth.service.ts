@@ -10,7 +10,7 @@ import { CookieJar } from './cookie-jar';
 import { ICoreExchangeAuthSession, ICoreExchangeCredentials } from './types';
 
 export class CoreExchangeAuthService {
-  private readonly defaultBaseUrl = 'https://uat-coreexchange.mxv.com.vn';
+  private readonly defaultBaseUrl = 'https://coreexchange.mxv.com.vn';
   private readonly defaultClientId = 'web-exchange-mxv';
   private sessionFilePath: string;
   private cachedSession: ICoreExchangeAuthSession | null = null;

@@ -74,7 +74,7 @@ async function runDirectCoreCcpTest() {
   console.log('  Mục tiêu: Đánh giá khả năng rút bỏ hoàn toàn Playwright cho CoreCCP   ');
   console.log('========================================================================\n');
 
-  let baseUrl = process.env.CORECCP_URL || 'https://uat-coreccp.mxv.com.vn';
+  let baseUrl = process.env.CORECCP_URL || 'https://coreccp.mxv.com.vn';
   let username = process.env.CCP_USERNAME || 'hieptruong';
   let password = process.env.CCP_PASSWORD || 'Taovipko0!';
 
@@ -88,7 +88,7 @@ async function runDirectCoreCcpTest() {
       if (parsed.username) username = parsed.username;
       if (parsed.password) password = parsed.password;
       if (parsed.url) baseUrl = parsed.url;
-      console.log('✅ Đã nạp tài khoản CoreCCP từ MongoDB system_settings');
+      console.log(' Đã nạp tài khoản CoreCCP từ MongoDB system_settings');
     }
   } catch {
     console.log('ℹ️ Sử dụng cấu hình CoreCCP từ biến môi trường / mặc định');
@@ -192,7 +192,7 @@ async function runDirectCoreCcpTest() {
   console.log('-----------------------------------------------------------------------------------------------------');
 
   console.log('\n🎯 KẾT LUẬN CHO CORECCP:');
-  console.log('   ✅ ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT.');
+  console.log('    ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT.');
   console.log('   Khuyến nghị: Chuyển hẳn sang CoreCcpApiAdapter, bật cờ INGRESS_MODE_CCP=REST_API.');
   console.log('========================================================================\n');
 }

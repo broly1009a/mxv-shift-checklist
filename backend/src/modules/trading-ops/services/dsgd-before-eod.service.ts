@@ -71,7 +71,7 @@ export class DsgdBeforeEodService {
   } {
     const d = inputDate ? new Date(inputDate) : new Date();
     d.setDate(d.getDate() - 1);
-    // ⚠️ LOGIC BẮT BUỘC: Bỏ qua Thứ Bảy (6) và Chủ Nhật (0)
+    //  LOGIC BẮT BUỘC: Bỏ qua Thứ Bảy (6) và Chủ Nhật (0)
     while (d.getDay() === 0 || d.getDay() === 6) {
       d.setDate(d.getDate() - 1);
     }
@@ -213,7 +213,7 @@ export class DsgdBeforeEodService {
       const kl = Number(gd.klGiaoDich) || 0;
       totalTemp += kl;
       const acc = String(gd.maTKGD || '').trim().toUpperCase();
-      // ⚠️ LOGIC BẮT BUỘC: Lọc tài khoản ACM theo hậu tố 'A' — Đặc thù MXV
+      //  LOGIC BẮT BUỘC: Lọc tài khoản ACM theo hậu tố 'A' — Đặc thù MXV
       if (acc.endsWith('A')) {
         totalACMMS += kl;
       }
@@ -226,7 +226,7 @@ export class DsgdBeforeEodService {
       totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
     }
 
-    // ⚠️ LOGIC BẮT BUỘC: Làm tròn 4 chữ số thập phân tránh floating point error
+    //  LOGIC BẮT BUỘC: Làm tròn 4 chữ số thập phân tránh floating point error
     totalOriginal = Math.round(totalOriginal * 10000) / 10000;
     totalTemp = Math.round(totalTemp * 10000) / 10000;
     totalACMMS = Math.round(totalACMMS * 10000) / 10000;
@@ -247,7 +247,7 @@ export class DsgdBeforeEodService {
       messages.push('Không có chênh lệch khối lượng giao dịch');
     }
 
-    // ⚠️ NGƯỠNG BẮT BUỘC: 0.0001 — chuẩn C# TransactionCheckingService.cs#L452-L466
+    //  NGƯỠNG BẮT BUỘC: 0.0001 — chuẩn C# TransactionCheckingService.cs#L452-L466
     const passed = differTotal <= 0.0001 && differACM <= 0.0001;
 
     return {
@@ -352,7 +352,7 @@ export class DsgdBeforeEodService {
     if (fs.existsSync(dsgdTempPath)) {
       dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
     } else {
-      // ⚠️ LOGIC BẮT BUỘC: Tìm file DSGD snapshot
+      //  LOGIC BẮT BUỘC: Tìm file DSGD snapshot
       // Quét trong dailyMsDir và thư mục TradingCheck tương ứng (chuẩn cấu trúc lưu file của C# IT Tool)
       const searchDirs: string[] = [];
       if (fs.existsSync(dailyMsDir)) searchDirs.push(dailyMsDir);
@@ -480,7 +480,7 @@ export class DsgdBeforeEodService {
 
     if (fs.existsSync(dailyAcmDir)) {
       const acmFiles = fs.readdirSync(dailyAcmDir);
-      // ⚠️ LOGIC BẮT BUỘC: Nhận diện file ACM Straits — pattern /straits/i KHÔNG mở rộng
+      //  LOGIC BẮT BUỘC: Nhận diện file ACM Straits — pattern /straits/i KHÔNG mở rộng
       const expectedAcmFile = `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${day}${month}${year}.csv`;
       const directAcmPath = path.join(dailyAcmDir, expectedAcmFile);
 
