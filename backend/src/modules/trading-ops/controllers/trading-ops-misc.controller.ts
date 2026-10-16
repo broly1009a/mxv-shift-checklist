@@ -11,6 +11,7 @@ import {
   Get,
   Body,
   Query,
+  Res,
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
@@ -29,6 +30,7 @@ import { resolveStoragePathCrossPlatform } from '../../../shared';
 import { PreEodReconService } from '../services/pre-eod-recon.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
 import { QlgdDashboardService } from '../services/qlgd-dashboard.service';
+import { QlgdExcelExportService } from '../services/qlgd-excel-export.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])
@@ -41,6 +43,7 @@ export class TradingOpsMiscController {
     private readonly shiftsService: ShiftsService,
     private readonly settingsService: SystemSettingsService,
     private readonly qlgdDashboardService: QlgdDashboardService,
+    private readonly qlgdExcelExportService: QlgdExcelExportService,
   ) {}
 
   /**
@@ -384,6 +387,30 @@ export class TradingOpsMiscController {
   @Permissions('ACCESS_AUTO_SHIFT')
   async syncExecutiveDashboard(@Body('date') dateStr?: string) {
     return this.qlgdDashboardService.syncFreshDataFromApis(dateStr);
+  }
+
+  /**
+   * Xuất file Excel báo cáo Ban Giám Đốc chuẩn template 1:1 từ Check BGS All.xlsm.
+   */
+  @Get('export-executive-dashboard')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async exportExecutiveDashboard(
+    @Query('date') dateStr?: string,
+    @Query('catalogScope') catalogScope: 'TOP17' | 'ALL' = 'TOP17',
+    @Res() res?: any,
+  ) {
+    try {
+      const buffer = await this.qlgdExcelExportService.generateExecutiveDashboardExcel(dateStr, catalogScope);
+      const cleanDate = (dateStr || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+      const filename = `Bao_Cao_BGS_QLGD_${cleanDate}.xlsx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+      return res.end(buffer);
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể xuất báo cáo Excel BGS: ${err.message}`);
+    }
   }
 }
 

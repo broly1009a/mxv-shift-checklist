@@ -351,35 +351,44 @@ export default function TradingManagerConfigSection({
 
     try {
       const settingsToSave: Array<{ key: string; value: string }> = [
-        { key: 'usd_settlement_rate_sell', value: String(msPaymentRates['USD/VND']?.sell ?? usdSettlementRateSell) },
-        { key: 'usd_settlement_rate_buy', value: String(msPaymentRates['USD/VND']?.buy ?? usdSettlementRateBuy) },
-        { key: 'ms_payment_rates', value: JSON.stringify(msPaymentRates) },
-        { key: 'usd_exchange_rate', value: String(usdExchangeRate) },
-        { key: 'ccp_usd_exchange_rate', value: String(ccpRatesMatrix['USD']?.conversionRate || ccpUsdExchangeRate) },
-        { key: 'ccp_exchange_rates_matrix', value: JSON.stringify(ccpRatesMatrix) },
-        { key: 'ccp_rates_last_synced', value: exchangeRatesLastSynced },
-        { key: 'exchange_rates_last_synced', value: exchangeRatesLastSynced },
-        { key: 'exchange_rate_source', value: exchangeRateSource },
-        ...(ccpRatesMatrix['JPY'] ? [{ key: 'ccp_jpy_exchange_rate', value: String(ccpRatesMatrix['JPY'].conversionRate) }] : []),
-        ...(ccpRatesMatrix['MYR'] ? [{ key: 'ccp_myr_exchange_rate', value: String(ccpRatesMatrix['MYR'].conversionRate) }] : []),
-        ...(ccpRatesMatrix['RMB'] ? [{ key: 'ccp_rmb_exchange_rate', value: String(ccpRatesMatrix['RMB'].conversionRate) }] : []),
+        ...(filterScope !== 'OMS'
+          ? [
+              { key: 'usd_settlement_rate_sell', value: String(msPaymentRates['USD/VND']?.sell ?? usdSettlementRateSell) },
+              { key: 'usd_settlement_rate_buy', value: String(msPaymentRates['USD/VND']?.buy ?? usdSettlementRateBuy) },
+              { key: 'ms_payment_rates', value: JSON.stringify(msPaymentRates) },
+              { key: 'usd_exchange_rate', value: String(usdExchangeRate) },
+              { key: 'recon_folder_check_path', value: reconFolderCheckPath },
+              { key: 'recon_result_folder_path', value: reconResultFolderPath },
+              { key: 'morning_ms_data_path', value: morningMsDataPath },
+              { key: 'gtt_import_path', value: gttImportPath },
+              { key: 'bot_backup_path_cqg', value: botBackupPathCqg },
+              { key: 'bot_backup_path_ms', value: botBackupPathMs },
+              { key: 'bot_backup_path_acm', value: botBackupPathAcm },
+              { key: 'bot_macro_lot_path', value: botLotMacroPath },
+              { key: 'bot_lot_macro_path', value: botLotMacroPath },
+              { key: 'bot_macro_value_path', value: botMacroValuePath },
+              { key: 'news_team_stat_path', value: newsTeamStatPath },
+              { key: 'negative_margin_monitored_accounts', value: JSON.stringify(negativeAccounts) },
+              { key: 'lme_holiday_replacements', value: JSON.stringify(lmeHolidays) },
+            ]
+          : []),
+        ...(filterScope !== 'MS_CQG'
+          ? [
+              { key: 'ccp_usd_exchange_rate', value: String(ccpRatesMatrix['USD']?.conversionRate || ccpUsdExchangeRate) },
+              { key: 'ccp_exchange_rates_matrix', value: JSON.stringify(ccpRatesMatrix) },
+              { key: 'ccp_rates_last_synced', value: exchangeRatesLastSynced },
+              { key: 'exchange_rates_last_synced', value: exchangeRatesLastSynced },
+              { key: 'exchange_rate_source', value: exchangeRateSource },
+              ...(ccpRatesMatrix['JPY'] ? [{ key: 'ccp_jpy_exchange_rate', value: String(ccpRatesMatrix['JPY'].conversionRate) }] : []),
+              ...(ccpRatesMatrix['MYR'] ? [{ key: 'ccp_myr_exchange_rate', value: String(ccpRatesMatrix['MYR'].conversionRate) }] : []),
+              ...(ccpRatesMatrix['RMB'] ? [{ key: 'ccp_rmb_exchange_rate', value: String(ccpRatesMatrix['RMB'].conversionRate) }] : []),
+              { key: 'bot_backup_path_ccp', value: botBackupPathCcp },
+              { key: 'bot_backup_path_ce', value: botBackupPathCe },
+            ]
+          : []),
+        // BỘ GIỜ PHIÊN GIAO DỊCH DÙNG CHUNG TOÀN HỆ THỐNG (MS, CQG, CoreCCP, CE)
         { key: 'session_start_time', value: sessionStartTime },
         { key: 'session_end_time', value: sessionEndTime },
-        { key: 'recon_folder_check_path', value: reconFolderCheckPath },
-        { key: 'recon_result_folder_path', value: reconResultFolderPath },
-        { key: 'morning_ms_data_path', value: morningMsDataPath },
-        { key: 'gtt_import_path', value: gttImportPath },
-        { key: 'bot_backup_path_cqg', value: botBackupPathCqg },
-        { key: 'bot_backup_path_ms', value: botBackupPathMs },
-        { key: 'bot_backup_path_acm', value: botBackupPathAcm },
-        { key: 'bot_macro_lot_path', value: botLotMacroPath },
-        { key: 'bot_lot_macro_path', value: botLotMacroPath },
-        { key: 'bot_macro_value_path', value: botMacroValuePath },
-        { key: 'news_team_stat_path', value: newsTeamStatPath },
-        { key: 'bot_backup_path_ccp', value: botBackupPathCcp },
-        { key: 'bot_backup_path_ce', value: botBackupPathCe },
-        { key: 'negative_margin_monitored_accounts', value: JSON.stringify(negativeAccounts) },
-        { key: 'lme_holiday_replacements', value: JSON.stringify(lmeHolidays) },
       ];
 
       await Promise.all(
@@ -512,84 +521,105 @@ export default function TradingManagerConfigSection({
         </div>
       </div>
 
-      {/* SECTION 1: CẤU HÌNH TỶ GIÁ M-SYSTEM & PHIÊN GIAO DỊCH */}
-      {(filterScope === 'ALL' || filterScope === 'MS_CQG') && (
-        <div className="glass-panel" style={{ padding: '20px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-          {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) */}
-          <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <DollarSign size={16} color="#3b82f6" />
-                <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Tỷ giá M-System (MXV)
+      {/* SECTION 1: CẤU HÌNH TỶ GIÁ M-SYSTEM & PHIÊN GIAO DỊCH (DÙNG CHUNG TOÀN HỆ THỐNG) */}
+      <div className="glass-panel" style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: filterScope === 'OMS' ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+          {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) - Chỉ hiển thị cho MS_CQG hoặc ALL */}
+          {(filterScope === 'ALL' || filterScope === 'MS_CQG') && (
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <DollarSign size={16} color="#3b82f6" />
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Tỷ giá M-System (MXV)
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  /#/currencyManagement/exchangeRate
                 </span>
               </div>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                /#/currencyManagement/exchangeRate
-              </span>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', flexWrap: 'wrap' }}>
-              {/* Tỷ giá thanh toán M-System */}
-              <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    Tỷ giá thanh toán
-                  </span>
-                  <select
-                    value={currencyUnit}
-                    onChange={(e) => setCurrencyUnit(e.target.value)}
-                    className="form-input"
-                    style={{ fontSize: '0.75rem', padding: '2px 6px', height: '26px' }}
-                  >
-                    <option value="USD/VND">USD/VND</option>
-                    <option value="MYR/VND">MYR/VND</option>
-                    <option value="JPY/VND">JPY/VND</option>
-                    <option value="RMB/VND">RMB/VND</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Bán:</label>
-                    <input
-                      type="number"
-                      value={msPaymentRates[currencyUnit]?.sell ?? 0}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setMsPaymentRates((prev) => ({
-                          ...prev,
-                          [currencyUnit]: {
-                            buy: prev[currencyUnit]?.buy ?? val,
-                            sell: val,
-                          },
-                        }));
-                        if (currencyUnit === 'USD/VND') {
-                          setUsdSettlementRateSell(val);
-                        }
-                      }}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', flexWrap: 'wrap' }}>
+                {/* Tỷ giá thanh toán M-System */}
+                <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      Tỷ giá thanh toán
+                    </span>
+                    <select
+                      value={currencyUnit}
+                      onChange={(e) => setCurrencyUnit(e.target.value)}
                       className="form-input"
-                      style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
-                    />
+                      style={{ fontSize: '0.75rem', padding: '2px 6px', height: '26px' }}
+                    >
+                      <option value="USD/VND">USD/VND</option>
+                      <option value="MYR/VND">MYR/VND</option>
+                      <option value="JPY/VND">JPY/VND</option>
+                      <option value="RMB/VND">RMB/VND</option>
+                    </select>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Mua:</label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Bán:</label>
+                      <input
+                        type="number"
+                        value={msPaymentRates[currencyUnit]?.sell ?? 0}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setMsPaymentRates((prev) => ({
+                            ...prev,
+                            [currencyUnit]: {
+                              buy: prev[currencyUnit]?.buy ?? val,
+                              sell: val,
+                            },
+                          }));
+                          if (currencyUnit === 'USD/VND') {
+                            setUsdSettlementRateSell(val);
+                          }
+                        }}
+                        className="form-input"
+                        style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Mua:</label>
+                      <input
+                        type="number"
+                        value={msPaymentRates[currencyUnit]?.buy ?? 0}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setMsPaymentRates((prev) => ({
+                            ...prev,
+                            [currencyUnit]: {
+                              buy: val,
+                              sell: prev[currencyUnit]?.sell ?? val,
+                            },
+                          }));
+                          if (currencyUnit === 'USD/VND') {
+                            setUsdSettlementRateBuy(val);
+                          }
+                        }}
+                        className="form-input"
+                        style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tỷ giá quy đổi M-System */}
+                <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      Tỷ giá quy đổi
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>USD/VND</span>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Quy đổi:</label>
                     <input
                       type="number"
-                      value={msPaymentRates[currencyUnit]?.buy ?? 0}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setMsPaymentRates((prev) => ({
-                          ...prev,
-                          [currencyUnit]: {
-                            buy: val,
-                            sell: prev[currencyUnit]?.sell ?? val,
-                          },
-                        }));
-                        if (currencyUnit === 'USD/VND') {
-                          setUsdSettlementRateBuy(val);
-                        }
-                      }}
+                      value={usdExchangeRate}
+                      onChange={(e) => setUsdExchangeRate(Number(e.target.value))}
                       className="form-input"
                       style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
                     />
@@ -597,57 +627,52 @@ export default function TradingManagerConfigSection({
                 </div>
               </div>
 
-              {/* Tỷ giá quy đổi M-System */}
-              <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    Tỷ giá quy đổi
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>USD/VND</span>
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Quy đổi:</label>
-                  <input
-                    type="number"
-                    value={usdExchangeRate}
-                    onChange={(e) => setUsdExchangeRate(Number(e.target.value))}
-                    className="form-input"
-                    style={{ fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
-                  />
-                </div>
+              {/* Công cụ đồng bộ M-System */}
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px dashed var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={handleSyncMsRate}
+                  disabled={syncingMsRate}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  title="Tự động crawl trang quản lý tỷ giá trên M-System"
+                >
+                  <RefreshCw size={12} className={syncingMsRate ? 'animate-spin' : ''} />
+                  <span>{syncingMsRate ? 'Đang cào M-System...' : 'Đồng bộ từ M-System'}</span>
+                </button>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  Áp dụng cho giám sát KLGD và đối chiếu trong ca trực
+                </span>
               </div>
             </div>
+          )}
 
-            {/* Công cụ đồng bộ M-System */}
-            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px dashed var(--border-color)' }}>
-              <button
-                type="button"
-                onClick={handleSyncMsRate}
-                disabled={syncingMsRate}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                title="Tự động crawl trang quản lý tỷ giá trên M-System"
-              >
-                <RefreshCw size={12} className={syncingMsRate ? 'animate-spin' : ''} />
-                <span>{syncingMsRate ? 'Đang cào M-System...' : 'Đồng bộ từ M-System'}</span>
-              </button>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Áp dụng cho giám sát KLGD và đối chiếu trong ca trực
-              </span>
-            </div>
-          </div>
-
-          {/* Cụm 2: Cấu hình phiên giao dịch */}
+          {/* Cụm 2: Cấu hình phiên giao dịch - HIỂN THỊ DÙNG CHUNG CHO CẢ MS-CQG, OMS VÀ ALL */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <Clock size={16} color="#10b981" />
-              <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Cấu hình phiên giao dịch
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} color="#10b981" />
+                <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Cấu hình phiên giao dịch
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  fontWeight: 700,
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                }}
+              >
+                Dùng chung toàn hệ thống (MS, CQG, CoreCCP, CE)
               </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginTop: '12px' }}>
-              <div style={{ flex: 1, padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
                 <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   Bắt đầu phiên:
                 </label>
@@ -660,7 +685,7 @@ export default function TradingManagerConfigSection({
                 />
               </div>
 
-              <div style={{ flex: 1, padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+              <div style={{ flex: '1 1 200px', padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
                 <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   Kết thúc phiên:
                 </label>
@@ -679,7 +704,6 @@ export default function TradingManagerConfigSection({
           </div>
         </div>
       </div>
-      )}
 
       {/* SECTION 1.5: MA TRẬN TỶ GIÁ ĐA NGUYÊN TỆ CORECCP (VNCLEAR) */}
       {(filterScope === 'ALL' || filterScope === 'OMS') && (

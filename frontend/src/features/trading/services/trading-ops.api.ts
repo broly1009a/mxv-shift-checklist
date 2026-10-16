@@ -1,4 +1,4 @@
-import { requestJson } from './api-client';
+import { requestJson, buildUrl, getAuthHeaders } from './api-client';
 import {
   ConsoleSummaryData,
   TriggerConsoleRunParams,
@@ -164,6 +164,33 @@ export const tradingOpsApi = {
       },
       token,
     );
+  },
+
+  /**
+   * Tải file Excel báo cáo Ban Giám Đốc chuẩn template 1:1 từ Check BGS All.xlsm
+   */
+  async exportExecutiveDashboardExcel(
+    params?: { date?: string; catalogScope?: 'TOP17' | 'ALL' },
+    token?: string | null,
+  ): Promise<Blob> {
+    const url = buildUrl('/api/v1/trading-ops/export-executive-dashboard', {
+      ...(params?.date ? { date: params.date } : {}),
+      ...(params?.catalogScope ? { catalogScope: params.catalogScope } : {}),
+    });
+
+    const headers = getAuthHeaders(token);
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Lỗi tải file');
+      throw new Error(errText || 'Lỗi xuất file Excel');
+    }
+
+    return res.blob();
   },
 };
 

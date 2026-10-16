@@ -155,6 +155,11 @@ export class AcmEtpAdapter implements IIngressPort {
       }
     }
 
+    try {
+      const urlObj = new URL(baseUrl);
+      baseUrl = urlObj.origin;
+    } catch {}
+
     // 1. Tái sử dụng session cache nếu còn hiệu lực
     if (this.cachedSession && this.cachedSession.token) {
       const isValid = await this.verifyToken(baseUrl, this.cachedSession.token, this.cachedSession.cookies);

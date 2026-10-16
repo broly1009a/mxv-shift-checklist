@@ -72,10 +72,25 @@ export default function CcpCeTradingManagerPage() {
     klgdStatus: 'IDLE',
   });
 
-  // Khởi tạo ngày phiên hiện tại (tự động nhận diện ca đêm T-1 trước 06:30 sáng)
+  // Khởi tạo ngày phiên hiện tại & nạp giờ bắt đầu phiên từ CSDL MongoDB (dùng chung với MS-CQG)
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
-  }, []);
+
+    if (!token) return;
+    const fetchSessionStart = async () => {
+      try {
+        const data = await api.admin.getSystemSettings(token);
+        if (Array.isArray(data)) {
+          const item = data.find((s: any) => s.key === 'session_start_time');
+          if (item && item.value) {
+            localStorage.setItem('tm_session_start_time', item.value);
+            setSelectedDate(getInitialTradingSessionDate(undefined, item.value));
+          }
+        }
+      } catch {}
+    };
+    fetchSessionStart();
+  }, [token]);
 
   // Polling số lượng tác vụ CoreCCP & CE đang chạy
   useEffect(() => {

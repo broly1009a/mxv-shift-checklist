@@ -1056,48 +1056,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     },
   };
 
-  // Xử lý xuất file CSV/Excel mock
-  const handleExportCsv = () => {
+  // Xử lý xuất file Excel Báo cáo Ban Giám Đốc chuẩn template 1:1 từ Check BGS All.xlsm
+  const handleExportExcel = async (scope: 'TOP17' | 'ALL' = 'TOP17') => {
     setIsExporting(true);
     try {
-      const headers = [
-        'STT',
-        'Nhóm HH',
-        'Mã HH',
-        'Tên HH',
-        'Tổng lãi lỗ dự kiến (VND)',
-        'Tổng vị thế mở (Lots)',
-        '% mở Mua',
-        '% mở Bán',
-        'Lãi lỗ thực tế (VND)',
-        'Trạng thái tất toán (Lots)',
-      ];
-
-      const rows = MOCK_COMMODITY_ITEMS.map((item) => [
-        item.stt,
-        `"${item.category}"`,
-        item.symbol,
-        `"${item.name}"`,
-        item.expectedPnL,
-        item.openPositions,
-        `${item.longRatio}%`,
-        `${item.shortRatio}%`,
-        item.realizedPnL,
-        item.liquidatedLots,
-      ]);
-
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      toast.loading('Đang khởi tạo file Excel báo cáo BGS theo chuẩn template...', { id: 'export-excel' });
+      const blob = await tradingOpsApi.exportExecutiveDashboardExcel(
+        { date: sessionDate, catalogScope: scope },
+        token,
+      );
+      const cleanDate = (sessionDate || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+      const filename = `Bao_Cao_BGS_QLGD_${cleanDate}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Bao_cao_QLGD_BGD_${sessionDate}.csv`);
+      link.href = url;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Đã xuất báo cáo CSV thành công!');
-    } catch {
-      toast.error('Lỗi khi xuất file báo cáo.');
+      window.URL.revokeObjectURL(url);
+      toast.success('Xuất file Excel báo cáo BGS thành công!', { id: 'export-excel' });
+    } catch (e: any) {
+      toast.error(`Lỗi xuất Excel: ${e.message}`, { id: 'export-excel' });
     } finally {
       setIsExporting(false);
     }
@@ -1312,11 +1292,11 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             <span>Làm mới</span>
           </button>
 
-          {/* Export CSV Button */}
+          {/* Export Excel Button */}
           <button
             type="button"
             disabled={isExporting}
-            onClick={handleExportCsv}
+            onClick={() => handleExportExcel('TOP17')}
             className="btn btn-primary"
             style={{
               padding: '8px 14px',
@@ -1329,12 +1309,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               backgroundColor: '#10b981',
               color: '#ffffff',
               border: 'none',
-              cursor: 'pointer',
+              cursor: isExporting ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
             }}
+            title="Xuất file Excel báo cáo Ban Giám Đốc chuẩn template 1:1"
           >
-            <Download size={14} />
-            <span>{isExporting ? 'Đang xuất...' : 'Xuất Báo Cáo'}</span>
+            <FileSpreadsheet size={15} />
+            <span>{isExporting ? 'Đang xuất Excel...' : 'Xuất File Excel'}</span>
           </button>
         </div>
       </div>
@@ -2702,6 +2683,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Tất toán: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{formatInteger(modalTotals.liquidatedLots)} lots</strong>
                 </div>
+                <button
+                  type="button"
+                  disabled={isExporting}
+                  onClick={() => handleExportExcel('ALL')}
+                  style={{
+                    padding: '6px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: isExporting ? 'not-allowed' : 'pointer',
+                  }}
+                  title="Xuất file Excel đầy đủ 44 mặt hàng chuẩn template 1:1"
+                >
+                  <FileSpreadsheet size={14} />
+                  <span>{isExporting ? 'Đang xuất...' : 'Xuất Excel 44 Mã'}</span>
+                </button>
               </div>
             </div>
 

@@ -20,6 +20,7 @@ import { CcpClearingConfigService } from './services/ccp-clearing-config.service
 import { CcpEodService } from './services/ccp-eod.service';
 import { CeCcpGttCheckerService } from './services/ce-ccp-gtt.service';
 import { QlgdDashboardService } from './services/qlgd-dashboard.service';
+import { QlgdExcelExportService } from './services/qlgd-excel-export.service';
 import { KlgdReconWorker } from './workers/klgd-recon.worker';
 import { PreEodReconWorker } from './workers/pre-eod-recon.worker';
 import { NegativeMarginWorker } from './workers/negative-margin.worker';
@@ -87,6 +88,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     CcpEodService,
     CeCcpGttCheckerService,
     QlgdDashboardService,
+    QlgdExcelExportService,
     KlgdReconWorker,
     PreEodReconWorker,
     NegativeMarginWorker,
@@ -113,6 +115,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     CcpEodService,
     CeCcpGttCheckerService,
     QlgdDashboardService,
+    QlgdExcelExportService,
     KlgdReconWorker,
     PreEodReconWorker,
     NegativeMarginWorker,

@@ -1,3 +1,68 @@
+## [2026-10-16T15:45] FEATURE: Dùng Chung Cấu Hình Phiên Giao Dịch Giữa MS-CQG và CoreCCP-CE (05:00 AM - 05:00 AM)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Đồng bộ và dùng chung bộ giờ cấu hình của "Cấu hình phiên giao dịch" (Bắt đầu phiên: 05:00 AM, Kết thúc phiên: 05:00 AM, ghi chú loại trừ lệnh xuyên đêm T-1 khi đối soát khớp lệnh và đối chiếu EOD) giữa hai phân hệ `https://10.0.0.26/trading-manager/ms-cqg` và `https://10.0.0.26/trading-manager/ccp-ce`:
+  1. Hiển thị card "Cấu hình phiên giao dịch" trong Tab 4 "Cấu hình OMS" của màn hình CoreCCP & CoreEX (`ccp-ce`), đồng bộ giao diện và dữ liệu 1:1 với MS & CQG.
+  2. Dùng chung khóa cấu hình MongoDB `session_start_time` và `session_end_time` trong `system_settings` và `localStorage ('tm_session_start_time')`.
+  3. Khi lưu trên bất kỳ màn hình nào (`ms-cqg` hoặc `ccp-ce`), dữ liệu được cập nhật tập trung, phân tách ranh giới rõ ràng tránh ghi đè các cấu hình riêng biệt (Tỷ giá MS vs Ma trận tỷ giá CoreCCP).
+  4. Cả hai phân hệ tự động nạp `session_start_time` từ CSDL MongoDB ngay khi mở trang để nhận diện chính xác ngày phiên giao dịch hiện tại (nhận diện lệnh đêm T-1).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+   - Mở rộng Section 1 để render Cụm 2 "Cấu hình phiên giao dịch" cho cả 3 phạm vi: `ALL`, `MS_CQG` và `OMS` (trước đó bị bọc trong điều kiện chỉ hiện cho `MS_CQG`).
+   - Thêm nhãn nhận diện: `Dùng chung toàn hệ thống (MS, CQG, CoreCCP, CE)`.
+   - Cải tiến `handleSaveConfig`: Phân vùng lưu cấu hình theo `filterScope`, bảo đảm lưu chung `session_start_time` và `session_end_time` mà không ghi đè chéo các thông số riêng biệt giữa MS và CoreCCP.
+2. [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/ccp-ce/page.tsx):
+   - Bổ sung effect nạp `session_start_time` từ MongoDB `system_settings` qua `api.admin.getSystemSettings` trên mount, đồng bộ vào `localStorage` và cập nhật `selectedDate`.
+3. [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/ms-cqg/page.tsx):
+   - Bổ sung effect nạp `session_start_time` từ MongoDB `system_settings` trên mount, bảo đảm đồng bộ 100% hai chiều với `ccp-ce`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend NestJS: `npm run build` hoàn tất 100% (Exit code 0).
+- Frontend Next.js: `next build` hoàn tất 100% (36/36 static pages, Exit code 0).
+- Deploy lên máy chủ Ubuntu `10.0.0.26`: Cả 2 service PM2 `mxv-backend` và `mxv-frontend` đều đang hoạt động **online**.
+
+---
+
+## [2026-10-16T15:30] FEATURE: Bổ Sung Logic Xuất File Excel Báo Cáo Ban Giám Đốc 1:1 Chuẩn Template Từ Check BGS All.xlsm
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Bổ sung tính năng xuất file Excel báo cáo Ban Giám Đốc (Executive Dashboard QLGD) tái hiện chính xác 1:1 theo mẫu template chuẩn từ ảnh chụp:
+  1. Hai khối tóm tắt trên cùng: Khối **"ACM"** và Khối **"Còn lại"** (KLGD, GTGD, ô Biểu đồ theo lần check, và 4 mốc phiên Đầu phiên, Phiên Á, Phiên Âu, Phiên Mỹ).
+  2. Bảng dữ liệu chính với STT, Nhóm HH gộp dòng dọc (Nông sản, Nguyên liệu công nghiệp, Kim loại...), Mã HH, Tên HH, Ngày phiên làm việc gộp 6 cột (Tổng lãi lỗ dự kiến, Tổng vị thế mở, % mở Mua, % mở Bán, Lãi lỗ thực tế, Trạng thái tất toán).
+  3. Màu sắc trực quan chuyên nghiệp: Ô Lãi lỗ dự kiến/thực tế âm có nền đỏ hồng (`#FECACA` / `#F87171`), ô Vị thế mở / Tất toán lớn có nền xanh lá (`#86EFAC`), cột % mở Mua có màu xanh nước biển (`#93C5FD`), viền đen mảnh chuẩn chỉ.
+  4. Hàng tổng kết (Total Row) gộp từ cột A-D ("Tổng") và tổng cộng đầy đủ các giá trị số học.
+  5. Cung cấp nút bấm "Xuất File Excel" trên thanh công cụ chính và nút "Xuất Excel 44 Mã" trong Modal xem toàn bộ 44 mặt hàng.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-excel-export.service.ts):
+   - Tạo mới service sử dụng thư viện `ExcelJS` chuyên trách dựng worksheet `'Báo Cáo BGS'`.
+   - Cấu hình chuẩn khổ giấy A4 ngang, độ rộng từng cột từ A đến J.
+   - Dựng 2 card tóm tắt `ACM` (Col A-D) và `Còn lại` (Col G-J) với đầy đủ thông số KLGD, GTGD và các mốc phiên.
+   - Gộp ô header 2 tầng: Dòng 10 chứa STT, Nhóm HH, Mã HH, Tên HH và chuỗi ngày tháng gộp E10:J10; Dòng 11 chứa tiêu đề 6 cột số liệu.
+   - Nhóm dữ liệu theo Category và thực hiện `sheet.mergeCells()` cho cột B.
+   - Định dạng số kế toán: `#,##0;(#,##0);"-"` và phần trăm `0%`.
+   - Áp dụng bộ màu cảnh báo: Đỏ hồng cho lãi lỗ âm, Xanh lá cho top vị thế mở/tất toán, Xanh nước biển cho % mở Mua.
+2. [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts):
+   - Đăng ký `QlgdExcelExportService` vào `providers` và `exports`.
+3. [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts):
+   - Thêm endpoint `GET /api/v1/trading-ops/export-executive-dashboard`: Nhận query `date` và `catalogScope` (`TOP17` | `ALL`), trả về stream nhị phân file Excel với header `Content-Disposition: attachment; filename="Bao_Cao_BGS_QLGD_...xlsx"`.
+4. [backend/src/modules/ingress/adapters/acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts):
+   - Khắc phục lỗi khai báo trùng lặp `testConnection()` giúp `npm run build` backend thành công 100%.
+5. [frontend/src/features/trading/services/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/services/trading-ops.api.ts):
+   - Thêm hàm `exportExecutiveDashboardExcel(params, token)` gọi endpoint backend và nhận `Blob`.
+6. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Triển khai hàm `handleExportExcel(scope: 'TOP17' | 'ALL')`: Tạo blob URL, kích hoạt download và dọn dẹp URL an toàn.
+   - Nâng cấp nút "Xuất File Excel" với icon `FileSpreadsheet` từ `lucide-react`.
+   - Bổ sung nút "Xuất Excel 44 Mã" trong Modal xem toàn bộ 44 mặt hàng phái sinh.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend NestJS: `npm run build` hoàn tất 100% (Exit code 0).
+- Frontend Next.js: `next build` hoàn tất 100% (36/36 static pages, Exit code 0).
+- Đã đồng bộ và deploy lên máy chủ Ubuntu `10.0.0.26`. Cả 2 service PM2 `mxv-backend` và `mxv-frontend` đều đang hoạt động **online**.
+
+---
+
 ## [2026-10-16T15:15] RESTORATION & BUGFIX: Khôi Phục Toàn Diện Giao Diện Vận Hành Trading Manager, Giám Sát MS & CQG, Giám Sát CoreCCP & CE
 
 ### 1. Mục tiêu thay đổi
