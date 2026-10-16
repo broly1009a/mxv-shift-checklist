@@ -15,8 +15,15 @@ import * as fs from 'fs';
  * npx ts-node -r tsconfig-paths/register backend/src/scripts/test_cqg_parallel_live.ts
  */
 async function run() {
+  const isHeaded = process.argv.includes('--headed') || process.argv.includes('--head');
+  if (isHeaded) {
+    process.env.HEADLESS_BOT = 'false';
+    process.env.PLAYWRIGHT_HEADLESS = 'false';
+  }
+
   console.log('================================================================');
   console.log('  KIỂM TRA TẢI SONG SONG ĐỒNG THỜI 2 TÀI KHOẢN CQG (CQG1 & CQG2)');
+  console.log(`  Chế độ hiển thị: ${isHeaded ? 'CÓ GIAO DIỆN (Headed - Mở 2 cửa sổ Chrome trên màn hình)' : 'CHẠY NGẦM (Headless)'}`);
   console.log('================================================================\n');
 
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -61,18 +68,49 @@ async function run() {
   console.log(`🔑 Tài khoản CQG1: ${creds.username1 || creds.usernameCQG1 || 'Chưa cấu hình'}`);
   console.log(`🔑 Tài khoản CQG2: ${creds.username2 || creds.usernameCQG2 || 'Chưa cấu hình'}\n`);
 
-  console.log('🚀 Bắt đầu kích hoạt tải song song FR1 và FR2...');
+  // Hỗ trợ tham số dòng lệnh: --all (8 files) hoặc --6 (6 files đối chiếu) hoặc mặc định (2 files FR)
+  const isAll = process.argv.includes('--all');
+  const is6Files = process.argv.includes('--6') || process.argv.includes('--6files');
+
+  let reportConfig: any = { FR1: true, FR2: true };
+  let testDesc = '2 file (FR1 + FR2)';
+  let mergeTypes = ['FR'];
+
+  if (isAll) {
+    reportConfig = {
+      FR1: true, PS1: true, OP1: true, OD1: true,
+      FR2: true, PS2: true, OP2: true, OD2: true,
+    };
+    testDesc = 'ĐẦY ĐỦ 8 FILE (FR, PS, OP, OD)';
+    mergeTypes = ['FR', 'PS', 'OP', 'OD'];
+  } else if (is6Files) {
+    reportConfig = {
+      FR1: true, PS1: true, OP1: true,
+      FR2: true, PS2: true, OP2: true,
+    };
+    testDesc = 'ĐỐI CHIẾU 6 FILE (FR, PS, OP)';
+    mergeTypes = ['FR', 'PS', 'OP'];
+  }
+
+  console.log(`🚀 Bắt đầu kích hoạt tải song song ${testDesc}...`);
   const startTime = Date.now();
 
   try {
+    /*
+    // Code cũ chỉ test cứng 2 file:
     const result = await rpaDownloader.downloadCqgBackup(
       { FR1: true, FR2: true },
       destDir,
     );
+    */
+    const result = await rpaDownloader.downloadCqgBackup(
+      reportConfig,
+      destDir,
+    );
 
     const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`\n⏱️ TỔNG THỜI GIAN HOÀN TẤT TẢI SONG SONG: ${elapsedSeconds}s (Trước đây: ~148s)`);
-    console.log(`✅ Danh sách file đã tải: ${result.downloaded.join(', ')}`);
+    console.log(`\n⏱️ TỔNG THỜI GIAN HOÀN TẤT TẢI SONG SONG (${testDesc}): ${elapsedSeconds}s (Trước đây: ~148s)`);
+    console.log(`✅ Danh sách file đã tải (${result.downloaded.length} file): ${result.downloaded.join(', ')}`);
 
     if (result.errors.length > 0) {
       console.warn(`⚠️ Có lỗi trong quá trình tải: ${result.errors.join(' | ')}`);
@@ -91,9 +129,13 @@ async function run() {
       console.log(` - FR2 mtime: ${stat2.mtime.toLocaleTimeString('vi-VN')} (${stat2.mtime.toISOString()})`);
       console.log(` - Độ chênh lệch giữa 2 file: ${(diffMs / 1000).toFixed(2)}s (Mục tiêu: < 5s)`);
 
-      // Thử nghiệm ghép file tự động
-      console.log('\n🔄 Kích hoạt tự động ghép file FR1 + FR2 -> FR.xlsx...');
+      // Thử nghiệm ghép file tự động theo danh sách loại file vừa tải
+      console.log(`\n🔄 Kích hoạt tự động ghép file (${mergeTypes.map(t => `${t}1 + ${t}2 -> ${t}.xlsx`).join(', ')})...`);
+      /*
+      // Code cũ:
       const mergeRes = await cqgSyncService.autoMergeMissingFiles(today, ['FR'], true);
+      */
+      const mergeRes = await cqgSyncService.autoMergeMissingFiles(today, mergeTypes, true);
       console.log(` Ghép file thành công: ${mergeRes.success}`);
       for (const l of mergeRes.logs) {
         console.log(`   ${l}`);
