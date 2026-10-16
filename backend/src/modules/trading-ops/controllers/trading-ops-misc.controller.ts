@@ -370,7 +370,20 @@ export class TradingOpsMiscController {
   async getExecutiveDashboard(
     @Query('date') dateStr?: string,
     @Query('scope') scope: 'ALL' | 'ACM' | 'OTHERS' = 'ALL',
+    @Query('catalogScope') catalogScope: 'TOP17' | 'ALL' = 'TOP17',
+    @Query('refresh') refresh?: string,
   ) {
-    return this.qlgdDashboardService.getExecutiveDashboard(dateStr, scope);
+    const shouldRefresh = refresh === 'true' || refresh === '1';
+    return this.qlgdDashboardService.getExecutiveDashboard(dateStr, scope, catalogScope, shouldRefresh);
+  }
+
+  /**
+   * Kích hoạt đồng bộ dữ liệu tươi từ API Ingress của MS và CoreCCP
+   */
+  @Post('sync-executive-dashboard')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async syncExecutiveDashboard(@Body('date') dateStr?: string) {
+    return this.qlgdDashboardService.syncFreshDataFromApis(dateStr);
   }
 }
+

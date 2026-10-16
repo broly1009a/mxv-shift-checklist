@@ -410,4 +410,130 @@ export class CcpExcelParser {
 
     return { totalTTTT, records };
   }
+
+  /**
+   * Bóc tách file TTM của CoreCCP phục vụ Dashboard QLGD (Executive Dashboard):
+   * Bao gồm Mã TKGD, Mã HĐ, KL Mua, KL Bán, và Lãi lỗ dự kiến (VND).
+   */
+  public static parseCcpTTMForExecutive(buffer: Buffer): Array<{
+    account: string;
+    symbol: string;
+    tongMua: number;
+    tongBan: number;
+    expectedPnLVnd: number;
+  }> {
+    if (!buffer || buffer.length === 0) return [];
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find((n) => n.toLowerCase() === 'export') || workbook.SheetNames[0];
+    if (!sheetName) return [];
+
+    const sheet = workbook.Sheets[sheetName];
+    const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (rows.length < 2) return [];
+
+    const header = rows[0].map((h) => String(h || '').trim());
+    const klMuaIdx = this.findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'Buy Volume', 'Long Vol', 'Long']);
+    const klBanIdx = this.findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'Sell Volume', 'Short Vol', 'Short']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
+    const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Ma TKGD']);
+    const pnlVndIdx = this.findHeaderIndex(header, 'Lãi lỗ dự kiến(VND)', [
+      'Lãi lỗ dự kiến (VND)', 'Lãi lỗ dự kiến', 'PnL (VND)', 'Lai lo du kien',
+    ]);
+
+    if (maHDIdx === -1) return [];
+
+    const result: Array<{
+      account: string;
+      symbol: string;
+      tongMua: number;
+      tongBan: number;
+      expectedPnLVnd: number;
+    }> = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      const account = soTKIdx !== -1 ? String(row[soTKIdx] || '').trim() : '';
+      const rawMaHD = String(row[maHDIdx] || '').trim();
+      const symbol = rawMaHD.length >= 5 ? rawMaHD.substring(0, 5).trim() : rawMaHD;
+      const tongMua = klMuaIdx !== -1 ? this.parseNumber(row[klMuaIdx]) : 0;
+      const tongBan = klBanIdx !== -1 ? this.parseNumber(row[klBanIdx]) : 0;
+      const expectedPnLVnd = pnlVndIdx !== -1 ? this.parseNumber(row[pnlVndIdx]) : 0;
+
+      if (!rawMaHD) continue;
+
+      result.push({
+        account,
+        symbol,
+        tongMua,
+        tongBan,
+        expectedPnLVnd,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Bóc tách file TTTT của CoreCCP phục vụ Dashboard QLGD (Executive Dashboard):
+   * Bao gồm Mã TKGD, Mã HĐ, Khối lượng tất toán, và Lãi lỗ thực tế (VND).
+   */
+  public static parseCcpTTTTForExecutive(buffer: Buffer): Array<{
+    account: string;
+    symbol: string;
+    liquidatedLots: number;
+    realizedPnLVnd: number;
+  }> {
+    if (!buffer || buffer.length === 0) return [];
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find((n) => n.toLowerCase() === 'export') || workbook.SheetNames[0];
+    if (!sheetName) return [];
+
+    const sheet = workbook.Sheets[sheetName];
+    const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (rows.length < 2) return [];
+
+    const header = rows[0].map((h) => String(h || '').trim());
+    const klBanIdx = this.findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'Sell Volume', 'Settled Vol']);
+    const klMuaIdx = this.findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'Buy Volume']);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
+    const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Ma TKGD']);
+    const pnlThucTeIdx = this.findHeaderIndex(header, 'Lãi lỗ thực tế', [
+      'Lãi lỗ thực tế(VND)', 'Lãi lỗ thực tế (VND)', 'Realized PnL', 'Lai lo thuc te',
+    ]);
+
+    const targetColIdx = klBanIdx !== -1 ? klBanIdx : klMuaIdx;
+    if (targetColIdx === -1 || maHDIdx === -1) return [];
+
+    const result: Array<{
+      account: string;
+      symbol: string;
+      liquidatedLots: number;
+      realizedPnLVnd: number;
+    }> = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      const account = soTKIdx !== -1 ? String(row[soTKIdx] || '').trim() : '';
+      const rawMaHD = String(row[maHDIdx] || '').trim();
+      const symbol = rawMaHD.length >= 5 ? rawMaHD.substring(0, 5).trim() : rawMaHD;
+      const liquidatedLots = this.parseNumber(row[targetColIdx]);
+      const realizedPnLVnd = pnlThucTeIdx !== -1 ? this.parseNumber(row[pnlThucTeIdx]) : 0;
+
+      if (!rawMaHD) continue;
+
+      result.push({
+        account,
+        symbol,
+        liquidatedLots,
+        realizedPnLVnd,
+      });
+    }
+
+    return result;
+  }
 }
+

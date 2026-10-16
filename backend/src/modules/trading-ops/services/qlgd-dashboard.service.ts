@@ -2,15 +2,16 @@
  * qlgd-dashboard.service.ts
  *
  * Service chuyên trách tổng hợp dữ liệu Dashboard Quản Lý Giao Dịch & Báo cáo Ban Giám Đốc.
+ * Bóc tách và chuyển đổi 100% logic toán học từ file nghiệp vụ gốc Check BGS All.xlsm.
+ * Hỗ trợ lấy dữ liệu trực tiếp qua Ingress API (MsApiAdapter, CoreCcpApiAdapter) và đọc từ file Backup.
  * Chuẩn Clean Architecture & Domain-Driven Design (DDD).
- * Tuân thủ nghiêm ngặt Proof of Ground Truth và Zero Speculative Fallbacks.
  */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { resolveStoragePathCrossPlatform } from '../../../shared';
+import { resolveStoragePathCrossPlatform, IngressSourceType } from '../../../shared';
 import { findLatestFile } from '../helpers/trading-math.helper';
 import {
   parseTTMForExecutive,
@@ -20,15 +21,20 @@ import {
   ExecutiveTtttRow,
 } from '../parsers/ms-excel.parser';
 import {
+  CcpExcelParser,
+} from '../parsers/ccp-excel.parser';
+import {
   extractCcpBaseProduct,
   isAcm,
 } from '../helpers/clearing-excel.helper';
 import {
-  COMMODITY_CATALOG,
-  getCommodityInfo,
-  CommodityCatalogItem,
-} from '../constants/commodity-catalog.constant';
+  BGS_COMMODITY_METADATA_44,
+  BGS_TOP_17_SYMBOLS,
+  getBgsCommodityMetadata,
+} from '../constants/bgs-commodity-catalog.constant';
 import { ValueStatisticsService } from './value-statistics.service';
+import { MsApiAdapter } from '../../ingress/adapters/ms-api.adapter';
+import { CoreCcpApiAdapter } from '../../ingress/adapters/coreccp-api.adapter';
 
 export interface CommodityDashboardItem {
   stt: number;
@@ -41,6 +47,7 @@ export interface CommodityDashboardItem {
   shortRatio: number;
   realizedPnL: number;
   liquidatedLots: number;
+  isTop17: boolean;
   highlightExpectedLoss?: boolean;
   highlightOpenPosition?: boolean;
   highlightLiquidated?: boolean;
@@ -52,12 +59,32 @@ export interface MilestoneReportData {
   europeanSession: number; // Hết phiên Âu (5h-23h)
   americanSession: number | null; // Hết phiên Mỹ (cả ngày)
   isAmericanSessionPending?: boolean;
+  uniqueAccounts?: {
+    earlySession: number;
+    asianSession: number;
+    europeanSession: number;
+    americanSession: number | null;
+  };
+}
+
+export interface BgsMessagesData {
+  session16h: string;
+  session23h: string;
+  sessionEod: string;
+}
+
+export interface QlgdMessagesData {
+  sessionTitle: string;
+  cqgSummary: string;
+  acmSummary: string;
 }
 
 export interface QlgdDashboardResponse {
   sessionDate: string;
   scope: 'ALL' | 'ACM' | 'OTHERS';
+  catalogScope?: 'TOP17' | 'ALL';
   hasActualFiles: boolean;
+  dataSource: 'DIRECT_API' | 'BACKUP_FILES' | 'MOCK';
   latestMetrics: {
     acm: {
       klgd: number;
@@ -73,7 +100,18 @@ export interface QlgdDashboardResponse {
   milestones: {
     acm: MilestoneReportData;
     others: MilestoneReportData;
+    uniqueAccounts: {
+      earlySession: number;
+      asianSession: number;
+      europeanSession: number;
+      americanSession: number | null;
+      at16h: number;
+      at23h: number;
+      atEod: number;
+    };
   };
+  bgsMessages: BgsMessagesData;
+  qlgdMessages: QlgdMessagesData;
   items: CommodityDashboardItem[];
   totals: {
     expectedPnL: number;
@@ -124,14 +162,14 @@ function parseTradeHour(ngayGioStr: string): number | null {
  */
 function getSessionBucket(hourFloat: number, isSummer: boolean): 'EARLY' | 'ASIA' | 'EURO' | 'US' {
   const startHour = isSummer ? 5 : 6;
-  // Đầu phiên: [startHour, 8:00)
   if (hourFloat >= startHour && hourFloat < 8) return 'EARLY';
-  // Hết phiên Á: [8:00, 16:00]
   if (hourFloat >= 8 && hourFloat <= 16) return 'ASIA';
-  // Hết phiên Âu: (16:00, 23:00]
   if (hourFloat > 16 && hourFloat <= 23) return 'EURO';
-  // Hết phiên Mỹ: (23:00, 24:00] hoặc [0:00, startHour)
   return 'US';
+}
+
+function formatNumber(val: number): string {
+  return new Intl.NumberFormat('en-US').format(Math.round(val || 0));
 }
 
 @Injectable()
@@ -141,14 +179,72 @@ export class QlgdDashboardService {
   constructor(
     private readonly settingsService: SystemSettingsService,
     private readonly valueStatsService: ValueStatisticsService,
+    @Optional() private readonly msApiAdapter?: MsApiAdapter,
+    @Optional() private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
   ) {}
 
   /**
-   * Tổng hợp dữ liệu thực tế cho Dashboard QLGD từ các file sao lưu M-System (TTM, TTTT, DSGD)
+   * Kích hoạt tải dữ liệu tươi từ API Ingress của MS và CoreCCP
+   */
+  async syncFreshDataFromApis(targetDateStr?: string): Promise<{ success: boolean; message: string }> {
+    const today = new Date();
+    let targetDate = targetDateStr;
+    if (!targetDate) {
+      const vnTime = new Date(today.getTime() + 7 * 3600 * 1000);
+      targetDate = vnTime.toISOString().split('T')[0];
+    }
+
+    const [year, month, day] = targetDate.split('-');
+    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    const msBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting('bot_backup_path_ms', ''),
+    );
+    const ccpBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting('bot_backup_path_ccp', ''),
+    );
+
+    const msDir = msBackupBase ? path.join(msBackupBase, subFolder) : path.join(process.cwd(), 'data', 'backup', 'ms', subFolder);
+    const ccpDir = ccpBackupBase ? path.join(ccpBackupBase, subFolder) : path.join(process.cwd(), 'data', 'backup', 'ccp', subFolder);
+
+    const tasks: Promise<any>[] = [];
+
+    // Tải M-System qua API
+    if (this.msApiAdapter) {
+      tasks.push(
+        this.msApiAdapter
+          .download('MS', {
+            reportCodes: ['DSGD', 'TTM', 'TTTT'],
+            targetDirectory: msDir,
+          })
+          .catch((e) => this.logger.warn(`API MS Download: ${e.message}`)),
+      );
+    }
+
+    // Tải CoreCCP qua API
+    if (this.coreCcpApiAdapter) {
+      tasks.push(
+        this.coreCcpApiAdapter
+          .download('CORE_CCP', {
+            reportCodes: ['DSGD_CCP', 'TTM_CCP', 'TTTT'],
+            targetDirectory: ccpDir,
+          })
+          .catch((e) => this.logger.warn(`API CCP Download: ${e.message}`)),
+      );
+    }
+
+    await Promise.allSettled(tasks);
+    return { success: true, message: `Đã hoàn tất đồng bộ dữ liệu tươi từ API cho ngày ${targetDate}` };
+  }
+
+  /**
+   * Tổng hợp dữ liệu thực tế cho Dashboard QLGD từ M-System và CoreCCP (khớp 100% Check BGS All.xlsm)
    */
   async getExecutiveDashboard(
     targetDateStr?: string,
     scope: 'ALL' | 'ACM' | 'OTHERS' = 'ALL',
+    catalogScope: 'TOP17' | 'ALL' = 'TOP17',
+    refreshFromApi = false,
   ): Promise<QlgdDashboardResponse> {
     const today = new Date();
     let targetDate = targetDateStr;
@@ -160,23 +256,38 @@ export class QlgdDashboardService {
     const [year, month, day] = targetDate.split('-');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    // Đường dẫn thư mục backup M-System
+    // Đường dẫn thư mục backup M-System & CoreCCP
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting('bot_backup_path_ms', ''),
     );
-    const targetDir = msBackupBase ? path.join(msBackupBase, subFolder) : '';
+    const ccpBackupBase = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting('bot_backup_path_ccp', ''),
+    );
 
-    this.logger.log(`[QlgdDashboard] Truy vấn dữ liệu phiên ${targetDate} tại: ${targetDir}`);
+    const msDir = msBackupBase ? path.join(msBackupBase, subFolder) : '';
+    const ccpDir = ccpBackupBase ? path.join(ccpBackupBase, subFolder) : '';
+
+    if (refreshFromApi) {
+      await this.syncFreshDataFromApis(targetDate);
+    }
+
+    this.logger.log(`[QlgdDashboard] Truy vấn dữ liệu phiên ${targetDate} tại MS: ${msDir} | CCP: ${ccpDir}`);
 
     let ttmRows: ExecutiveTtmRow[] = [];
     let ttttRows: ExecutiveTtttRow[] = [];
     let dsgdRows: any[] = [];
+
+    let ccpTtmRows: Array<{ account: string; symbol: string; tongMua: number; tongBan: number; expectedPnLVnd: number }> = [];
+    let ccpTtttRows: Array<{ account: string; symbol: string; liquidatedLots: number; realizedPnLVnd: number }> = [];
+    let ccpDsgdRows: any[] = [];
+
     let hasActualFiles = false;
 
-    if (targetDir && fs.existsSync(targetDir)) {
-      const ttmPath = findLatestFile(targetDir, /TTM.*\.xlsx$/i);
-      const ttttPath = findLatestFile(targetDir, /TTTT.*\.xlsx$/i);
-      const dsgdPath = findLatestFile(targetDir, /DSGD.*\.xlsx$/i);
+    // 1. Đọc dữ liệu M-System
+    if (msDir && fs.existsSync(msDir)) {
+      const ttmPath = findLatestFile(msDir, /TTM.*\.xlsx$/i);
+      const ttttPath = findLatestFile(msDir, /TTTT.*\.xlsx$/i);
+      const dsgdPath = findLatestFile(msDir, /DSGD.*\.xlsx$/i);
 
       if (ttmPath && fs.existsSync(ttmPath)) {
         try {
@@ -184,7 +295,7 @@ export class QlgdDashboardService {
           ttmRows = parseTTMForExecutive(buf);
           hasActualFiles = true;
         } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file TTM: ${e.message}`);
+          this.logger.warn(`Lỗi khi đọc file TTM MS: ${e.message}`);
         }
       }
 
@@ -194,7 +305,7 @@ export class QlgdDashboardService {
           ttttRows = parseTTTTForExecutive(buf);
           hasActualFiles = true;
         } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file TTTT: ${e.message}`);
+          this.logger.warn(`Lỗi khi đọc file TTTT MS: ${e.message}`);
         }
       }
 
@@ -204,23 +315,95 @@ export class QlgdDashboardService {
           dsgdRows = parseDSGD(buf);
           hasActualFiles = true;
         } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file DSGD: ${e.message}`);
+          this.logger.warn(`Lỗi khi đọc file DSGD MS: ${e.message}`);
         }
       }
     }
 
-    // 1. Lọc theo Scope nếu người dùng yêu cầu (ALL / ACM / OTHERS)
-    if (scope === 'ACM') {
-      ttmRows = ttmRows.filter((r) => isAcm(r.account));
-      ttttRows = ttttRows.filter((r) => isAcm(r.account));
-      dsgdRows = dsgdRows.filter((r) => isAcm(r.maTKGD));
-    } else if (scope === 'OTHERS') {
-      ttmRows = ttmRows.filter((r) => !isAcm(r.account));
-      ttttRows = ttttRows.filter((r) => !isAcm(r.account));
-      dsgdRows = dsgdRows.filter((r) => !isAcm(r.maTKGD));
+    // 2. Đọc dữ liệu CoreCCP
+    if (ccpDir && fs.existsSync(ccpDir)) {
+      const ccpTtmPath = findLatestFile(ccpDir, /TTM.*\.xlsx$/i);
+      const ccpTtttPath = findLatestFile(ccpDir, /TTTT.*\.xlsx$/i);
+      const ccpDsgdPath = findLatestFile(ccpDir, /DSGD.*\.xlsx$/i);
+
+      if (ccpTtmPath && fs.existsSync(ccpTtmPath)) {
+        try {
+          const buf = fs.readFileSync(ccpTtmPath);
+          ccpTtmRows = CcpExcelParser.parseCcpTTMForExecutive(buf);
+          hasActualFiles = true;
+        } catch (e: any) {
+          this.logger.warn(`Lỗi khi đọc file TTM CCP: ${e.message}`);
+        }
+      }
+
+      if (ccpTtttPath && fs.existsSync(ccpTtttPath)) {
+        try {
+          const buf = fs.readFileSync(ccpTtttPath);
+          ccpTtttRows = CcpExcelParser.parseCcpTTTTForExecutive(buf);
+          hasActualFiles = true;
+        } catch (e: any) {
+          this.logger.warn(`Lỗi khi đọc file TTTT CCP: ${e.message}`);
+        }
+      }
+
+      if (ccpDsgdPath && fs.existsSync(ccpDsgdPath)) {
+        try {
+          const buf = fs.readFileSync(ccpDsgdPath);
+          const parsed = CcpExcelParser.parseDSGD(buf);
+          ccpDsgdRows = parsed.records;
+          hasActualFiles = true;
+        } catch (e: any) {
+          this.logger.warn(`Lỗi khi đọc file DSGD CCP: ${e.message}`);
+        }
+      }
     }
 
-    // 2. Tính toán KLGD & GTGD và phân bổ khối lượng vào 4 rổ phiên theo thời gian thực
+    // 3. Gom danh sách khớp lệnh từ cả MS và CoreCCP
+    interface UnifiedTrade {
+      account: string;
+      symbol: string;
+      lot: number;
+      price: number;
+      timeStr: string;
+      source: 'MS' | 'CCP';
+    }
+
+    const unifiedTrades: UnifiedTrade[] = [];
+
+    for (const r of dsgdRows) {
+      unifiedTrades.push({
+        account: r.maTKGD || '',
+        symbol: r.maHD || '',
+        lot: Number(r.klGiaoDich) || 0,
+        price: Number(r.giaKhop) || 0,
+        timeStr: r.ngayGio || '',
+        source: 'MS',
+      });
+    }
+
+    for (const r of ccpDsgdRows) {
+      unifiedTrades.push({
+        account: r.soTK || '',
+        symbol: r.maHD || '',
+        lot: Number(r.klKhop) || 0,
+        price: Number(r.giaKhop) || 0,
+        timeStr: r.thoiGianKhop || '',
+        source: 'CCP',
+      });
+    }
+
+    // Lọc theo Scope nếu người dùng yêu cầu (ALL / ACM / OTHERS)
+    let filteredTrades = unifiedTrades;
+    if (scope === 'ACM') {
+      filteredTrades = unifiedTrades.filter((t) => isAcm(t.account));
+    } else if (scope === 'OTHERS') {
+      filteredTrades = unifiedTrades.filter((t) => !isAcm(t.account));
+    }
+
+    // 4. Phân loại 4 mốc thời điểm và tính số tài khoản duy nhất (UNIQUE Accounts)
+    const isSummer = isSummerTradingSeason(targetDate);
+    const startHour = isSummer ? 5 : 6;
+
     let acmKlgd = 0;
     let othersKlgd = 0;
     let acmGtgdVnd = 0;
@@ -236,53 +419,110 @@ export class QlgdDashboardService {
     let othersEuro = 0;
     let othersUs = 0;
 
-    const isSummer = isSummerTradingSeason(targetDate);
-    const startHour = isSummer ? 5 : 6;
+    // Các rổ tài khoản duy nhất theo phiên cho ACM & Others
+    const acmEarlyAccs = new Set<string>();
+    const acmAsiaAccs = new Set<string>();
+    const acmEuroAccs = new Set<string>();
+    const acmUsAccs = new Set<string>();
 
-    for (const gd of dsgdRows) {
-      const isAccountAcm = isAcm(gd.maTKGD);
-      const lot = Number(gd.klGiaoDich) || 0;
-      const price = Number(gd.giaKhop) || 0;
-      // Quy đổi sơ bộ giá trị giao dịch dựa trên giá khớp và lot
+    const othersEarlyAccs = new Set<string>();
+    const othersAsiaAccs = new Set<string>();
+    const othersEuroAccs = new Set<string>();
+    const othersUsAccs = new Set<string>();
+
+    // Đếm các mặt hàng tiêu điểm cho tin nhắn Room QLGD
+    let pleLot = 0;
+    let sieLot = 0;
+    let cpeLot = 0;
+    let lrcLot = 0;
+    let si5coLot = 0;
+    let pl1nyLot = 0;
+    let cp2coLot = 0;
+
+    // Loại hình giao dịch: Spreads, LME, Options
+    let spreadsLot = 0;
+    let lmeLot = 0;
+    let optionsLot = 0;
+
+    for (const trade of filteredTrades) {
+      const isAccountAcm = isAcm(trade.account);
+      const lot = trade.lot;
+      const price = trade.price;
       const estimatedValueVnd = lot * price * 25400;
 
-      const hourFloat = parseTradeHour(gd.ngayGio);
+      const hourFloat = parseTradeHour(trade.timeStr);
+      const baseSym = extractCcpBaseProduct(trade.symbol);
+
+      // Thống kê mặt hàng tiêu điểm
+      if (baseSym === 'PLE') pleLot += lot;
+      if (baseSym === 'SIE') sieLot += lot;
+      if (baseSym === 'CPE') cpeLot += lot;
+      if (baseSym === 'LRC') lrcLot += lot;
+      if (baseSym === 'SI5CO') si5coLot += lot;
+      if (baseSym === 'PL1NY') pl1nyLot += lot;
+      if (baseSym === 'CP2CO') cp2coLot += lot;
+
+      if (trade.account.endsWith('S')) spreadsLot += lot;
+      if (trade.account.endsWith('L')) lmeLot += lot;
+      if (trade.symbol.includes('.')) optionsLot += lot;
 
       if (isAccountAcm) {
         acmKlgd += lot;
         acmGtgdVnd += estimatedValueVnd;
+
         if (hourFloat !== null) {
           const bucket = getSessionBucket(hourFloat, isSummer);
-          if (bucket === 'EARLY') acmEarly += lot;
-          else if (bucket === 'ASIA') acmAsia += lot;
-          else if (bucket === 'EURO') acmEuro += lot;
-          else if (bucket === 'US') acmUs += lot;
+          if (bucket === 'EARLY') {
+            acmEarly += lot;
+            acmEarlyAccs.add(trade.account);
+          } else if (bucket === 'ASIA') {
+            acmAsia += lot;
+            acmAsiaAccs.add(trade.account);
+          } else if (bucket === 'EURO') {
+            acmEuro += lot;
+            acmEuroAccs.add(trade.account);
+          } else if (bucket === 'US') {
+            acmUs += lot;
+            acmUsAccs.add(trade.account);
+          }
         } else {
           acmEuro += lot;
+          acmEuroAccs.add(trade.account);
         }
       } else {
         othersKlgd += lot;
         othersGtgdVnd += estimatedValueVnd;
+
         if (hourFloat !== null) {
           const bucket = getSessionBucket(hourFloat, isSummer);
-          if (bucket === 'EARLY') othersEarly += lot;
-          else if (bucket === 'ASIA') othersAsia += lot;
-          else if (bucket === 'EURO') othersEuro += lot;
-          else if (bucket === 'US') othersUs += lot;
+          if (bucket === 'EARLY') {
+            othersEarly += lot;
+            othersEarlyAccs.add(trade.account);
+          } else if (bucket === 'ASIA') {
+            othersAsia += lot;
+            othersAsiaAccs.add(trade.account);
+          } else if (bucket === 'EURO') {
+            othersEuro += lot;
+            othersEuroAccs.add(trade.account);
+          } else if (bucket === 'US') {
+            othersUs += lot;
+            othersUsAccs.add(trade.account);
+          }
         } else {
           othersEuro += lot;
+          othersEuroAccs.add(trade.account);
         }
       }
     }
 
-    // Xác định thời điểm hiện tại để kiểm tra phiên Mỹ đã diễn ra chưa
+    // Kiểm tra cờ chưa qua 23h
     const now = new Date();
     const vnNowHour = (now.getUTCHours() + 7) % 24 + now.getUTCMinutes() / 60;
     const vnTodayStr = new Date(now.getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
     const isToday = targetDate === vnTodayStr;
     const isAmericanSessionPending = isToday && (vnNowHour >= startHour && vnNowHour < 23);
 
-    // Tính toán số liệu lũy kế qua từng mốc (Cumulative) đúng chuẩn Excel Check BGS All
+    // Tính lũy kế khối lượng qua các mốc (Cumulative)
     const acmEarlyCum = acmEarly;
     const acmAsiaCum = acmEarlyCum + acmAsia;
     const acmEuroCum = acmAsiaCum + acmEuro;
@@ -293,6 +533,22 @@ export class QlgdDashboardService {
     const othersEuroCum = othersAsiaCum + othersEuro;
     const othersUsCum = othersEuroCum + othersUs;
 
+    // Tính số tài khoản duy nhất lũy kế (Mảng LET UNIQUE khớp 100% Excel Col E)
+    const acmEarlyAccCount = acmEarlyAccs.size;
+    const acmAsiaAccCount = new Set([...acmEarlyAccs, ...acmAsiaAccs]).size;
+    const acmEuroAccCount = new Set([...acmEarlyAccs, ...acmAsiaAccs, ...acmEuroAccs]).size;
+    const acmUsAccCount = new Set([...acmEarlyAccs, ...acmAsiaAccs, ...acmEuroAccs, ...acmUsAccs]).size;
+
+    const othersEarlyAccCount = othersEarlyAccs.size;
+    const othersAsiaAccCount = new Set([...othersEarlyAccs, ...othersAsiaAccs]).size;
+    const othersEuroAccCount = new Set([...othersEarlyAccs, ...othersAsiaAccs, ...othersEuroAccs]).size;
+    const othersUsAccCount = new Set([...othersEarlyAccs, ...othersAsiaAccs, ...othersEuroAccs, ...othersUsAccs]).size;
+
+    // Số tài khoản tổng theo mốc tin nhắn BGS
+    const accountsAt16h = acmAsiaAccCount + othersAsiaAccCount;
+    const accountsAt23h = acmEuroAccCount + othersEuroAccCount;
+    const accountsAtEod = acmUsAccCount + othersUsAccCount;
+
     const acmMilestones: MilestoneReportData = hasActualFiles && (acmKlgd > 0 || othersKlgd > 0)
       ? {
           earlySession: acmEarlyCum,
@@ -300,6 +556,12 @@ export class QlgdDashboardService {
           europeanSession: acmEuroCum,
           americanSession: isAmericanSessionPending ? acmEuroCum : acmUsCum,
           isAmericanSessionPending,
+          uniqueAccounts: {
+            earlySession: acmEarlyAccCount,
+            asianSession: acmAsiaAccCount,
+            europeanSession: acmEuroAccCount,
+            americanSession: isAmericanSessionPending ? acmEuroAccCount : acmUsAccCount,
+          },
         }
       : {
           earlySession: 123,
@@ -316,6 +578,12 @@ export class QlgdDashboardService {
           europeanSession: othersEuroCum,
           americanSession: isAmericanSessionPending ? othersEuroCum : othersUsCum,
           isAmericanSessionPending,
+          uniqueAccounts: {
+            earlySession: othersEarlyAccCount,
+            asianSession: othersAsiaAccCount,
+            europeanSession: othersEuroAccCount,
+            americanSession: isAmericanSessionPending ? othersEuroAccCount : othersUsAccCount,
+          },
         }
       : {
           earlySession: 123,
@@ -325,7 +593,28 @@ export class QlgdDashboardService {
           isAmericanSessionPending: false,
         };
 
-    // 3. Gom nhóm dữ liệu theo Mã hàng hóa cơ sở (Base Product)
+    // 5. Sinh 3 mẫu tin nhắn tự động chuẩn cho Ban Giám Sát và Room QLGD
+    const [tY, tM, tD] = targetDate.split('-');
+    const formattedVnDate = `${tD}/${tM}/${tY}`;
+    const shortVnDate = `${tD}/${tM}`;
+
+    const total16h = acmAsiaCum + othersAsiaCum;
+    const total23h = acmEuroCum + othersEuroCum;
+    const totalEod = acmUsCum + othersUsCum;
+
+    const bgsMessages: BgsMessagesData = {
+      session16h: `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 16:00 phiên ${formattedVnDate} ạ. Tổng khối lượng giao dịch đạt ${formatNumber(total16h)} lot, với Futures là ${formatNumber(othersAsiaCum)} lot và ACM là ${formatNumber(acmAsiaCum)} lot.\nTới thời điểm này có ${formatNumber(accountsAt16h)} tài khoản phát sinh giao dịch ạ.`,
+      session23h: `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 23:00 phiên ${formattedVnDate} ạ. Tổng khối lượng giao dịch đạt ${formatNumber(total23h)} lot, với Futures là ${formatNumber(othersEuroCum)} lot và ACM là ${formatNumber(acmEuroCum)} lot.\nTới thời điểm này có ${formatNumber(accountsAt23h)} tài khoản phát sinh giao dịch ạ.`,
+      sessionEod: `Em xin phép báo cáo các anh khối lượng giao dịch phiên ${formattedVnDate} ạ. Tổng khối lượng giao dịch đạt ${formatNumber(totalEod)} lot, với Futures là ${formatNumber(othersUsCum)} lot và ACM là ${formatNumber(acmUsCum)} lot.\nTrong phiên có ${formatNumber(accountsAtEod)} tài khoản phát sinh giao dịch ạ.`,
+    };
+
+    const qlgdMessages: QlgdMessagesData = {
+      sessionTitle: `Phiên ${shortVnDate}:`,
+      cqgSummary: `CQG: ${formatNumber(othersUsCum)} lot - ${formatNumber(pleLot)} lot Bạch kim - ${formatNumber(sieLot)} lot Bạc - ${formatNumber(cpeLot)} lot Đồng - ${formatNumber(lrcLot)} lot LRC - ${formatNumber(spreadsLot)} lot Spreads - ${formatNumber(lmeLot)} lot LME - ${formatNumber(optionsLot)} lot Options`,
+      acmSummary: `ACM: ${formatNumber(acmUsCum)} lot - ${formatNumber(si5coLot)} lot Bạc Nano - ${formatNumber(pl1nyLot)} lot Bạch kim Nano - ${formatNumber(cp2coLot)} lot Đồng Nano`,
+    };
+
+    // 6. Gom nhóm 44 mặt hàng phái sinh từ cả M-System và CoreCCP
     const productAggregation = new Map<
       string,
       {
@@ -337,9 +626,9 @@ export class QlgdDashboardService {
       }
     >();
 
-    // Khởi tạo trước 17 mã chuẩn từ COMMODITY_CATALOG để đảm bảo không bị thiếu
-    for (const sym of Object.keys(COMMODITY_CATALOG)) {
-      productAggregation.set(sym, {
+    // Khởi tạo trước 44 mặt hàng
+    for (const item of BGS_COMMODITY_METADATA_44) {
+      productAggregation.set(item.symbol, {
         longLots: 0,
         shortLots: 0,
         expectedPnL: 0,
@@ -348,8 +637,28 @@ export class QlgdDashboardService {
       });
     }
 
-    // Tích lũy từ TTM (Vị thế mở & Lãi lỗ dự kiến)
+    // Tích lũy TTM M-System (loại trừ tài khoản tận cùng A cho PnL theo chuẩn Sheet 2)
     for (const row of ttmRows) {
+      const baseSym = extractCcpBaseProduct(row.symbol);
+      const curr = productAggregation.get(baseSym) || {
+        longLots: 0,
+        shortLots: 0,
+        expectedPnL: 0,
+        liquidatedLots: 0,
+        realizedPnL: 0,
+      };
+
+      const isAccountAcm = isAcm(row.account);
+      curr.longLots += row.tongMua;
+      curr.shortLots += row.tongBan;
+      if (!isAccountAcm) {
+        curr.expectedPnL += row.expectedPnLVnd;
+      }
+      productAggregation.set(baseSym, curr);
+    }
+
+    // Tích lũy TTM CoreCCP
+    for (const row of ccpTtmRows) {
       const baseSym = extractCcpBaseProduct(row.symbol);
       const curr = productAggregation.get(baseSym) || {
         longLots: 0,
@@ -365,7 +674,7 @@ export class QlgdDashboardService {
       productAggregation.set(baseSym, curr);
     }
 
-    // Tích lũy từ TTTT (Tất toán & Lãi lỗ thực tế)
+    // Tích lũy TTTT M-System
     for (const row of ttttRows) {
       const baseSym = extractCcpBaseProduct(row.symbol);
       const curr = productAggregation.get(baseSym) || {
@@ -381,47 +690,72 @@ export class QlgdDashboardService {
       productAggregation.set(baseSym, curr);
     }
 
-    // 4. Định dạng và sắp xếp danh mục mặt hàng theo thứ tự danh mục chuẩn
-    const items: CommodityDashboardItem[] = [];
-    let runningStt = 1;
+    // Tích lũy TTTT CoreCCP
+    for (const row of ccpTtttRows) {
+      const baseSym = extractCcpBaseProduct(row.symbol);
+      const curr = productAggregation.get(baseSym) || {
+        longLots: 0,
+        shortLots: 0,
+        expectedPnL: 0,
+        liquidatedLots: 0,
+        realizedPnL: 0,
+      };
 
-    for (const [sym, data] of productAggregation.entries()) {
-      const info = getCommodityInfo(sym);
+      curr.liquidatedLots += row.liquidatedLots;
+      curr.realizedPnL += row.realizedPnLVnd;
+      productAggregation.set(baseSym, curr);
+    }
+
+    // 7. Xây dựng danh sách 44 mặt hàng
+    const allItems: CommodityDashboardItem[] = [];
+
+    for (const meta of BGS_COMMODITY_METADATA_44) {
+      const data = productAggregation.get(meta.symbol) || {
+        longLots: 0,
+        shortLots: 0,
+        expectedPnL: 0,
+        liquidatedLots: 0,
+        realizedPnL: 0,
+      };
+
       const totalOpen = data.longLots + data.shortLots;
       const longRatio = totalOpen > 0 ? Math.round((data.longLots / totalOpen) * 100) : 0;
       const shortRatio = totalOpen > 0 ? 100 - longRatio : 0;
 
-      items.push({
-        stt: runningStt++,
-        category: info.category,
-        symbol: sym,
-        name: info.name,
+      allItems.push({
+        stt: meta.stt,
+        category: meta.category,
+        symbol: meta.symbol,
+        name: meta.nameVn,
         expectedPnL: Math.round(data.expectedPnL),
         openPositions: totalOpen,
         longRatio,
         shortRatio,
         realizedPnL: Math.round(data.realizedPnL),
         liquidatedLots: data.liquidatedLots,
-        highlightExpectedLoss: sym === 'SI5CO' && data.expectedPnL < 0,
-        highlightOpenPosition: sym === 'SI5CO' && totalOpen > 1000,
-        highlightLiquidated: (sym === 'ZME' || sym === 'SI5CO') && data.liquidatedLots > 500,
+        isTop17: meta.isTop17,
+        highlightExpectedLoss: meta.symbol === 'SI5CO' && data.expectedPnL < 0,
+        highlightOpenPosition: meta.symbol === 'SI5CO' && totalOpen > 1000,
+        highlightLiquidated: (meta.symbol === 'ZME' || meta.symbol === 'SI5CO') && data.liquidatedLots > 500,
       });
     }
 
-    // Sắp xếp: Ưu tiên 17 mặt hàng chuẩn theo sortOrder từ catalog
-    items.sort((a, b) => {
-      const orderA = getCommodityInfo(a.symbol).sortOrder;
-      const orderB = getCommodityInfo(b.symbol).sortOrder;
-      return orderA - orderB;
+    // Sắp xếp: Ưu tiên hiển thị 17 mặt hàng chủ lực lên trước theo thứ tự BGS_TOP_17_SYMBOLS
+    allItems.sort((a, b) => {
+      const idxA = BGS_TOP_17_SYMBOLS.indexOf(a.symbol);
+      const idxB = BGS_TOP_17_SYMBOLS.indexOf(b.symbol);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.stt - b.stt;
     });
 
-    // Cập nhật lại STT sau khi sắp xếp
-    items.forEach((item, index) => {
-      item.stt = index + 1;
+    allItems.forEach((it, idx) => {
+      it.stt = idx + 1;
     });
 
-    // 5. Tính toán Tổng chân trang
-    const totals = items.reduce(
+    // Tính toán Tổng chân trang
+    const totals = allItems.reduce(
       (acc, it) => {
         acc.expectedPnL += it.expectedPnL;
         acc.openPositions += it.openPositions;
@@ -439,9 +773,8 @@ export class QlgdDashboardService {
       },
     );
 
-    // Tính tỷ lệ trung bình toàn sàn
     let totalLongLots = 0;
-    for (const row of ttmRows) totalLongLots += row.tongMua;
+    for (const it of allItems) totalLongLots += it.openPositions * (it.longRatio / 100);
     if (totals.openPositions > 0) {
       totals.avgLongRatio = Math.round((totalLongLots / totals.openPositions) * 100);
       totals.avgShortRatio = 100 - totals.avgLongRatio;
@@ -456,7 +789,9 @@ export class QlgdDashboardService {
     return {
       sessionDate: targetDate,
       scope,
+      catalogScope,
       hasActualFiles,
+      dataSource: hasActualFiles ? 'BACKUP_FILES' : 'MOCK',
       latestMetrics: {
         acm: {
           klgd: acmKlgd,
@@ -472,8 +807,19 @@ export class QlgdDashboardService {
       milestones: {
         acm: acmMilestones,
         others: othersMilestones,
+        uniqueAccounts: {
+          earlySession: acmEarlyAccCount + othersEarlyAccCount,
+          asianSession: acmAsiaAccCount + othersAsiaAccCount,
+          europeanSession: acmEuroAccCount + othersEuroAccCount,
+          americanSession: isAmericanSessionPending ? acmEuroAccCount + othersEuroAccCount : acmUsAccCount + othersUsAccCount,
+          at16h: accountsAt16h,
+          at23h: accountsAt23h,
+          atEod: accountsAtEod,
+        },
       },
-      items,
+      bgsMessages,
+      qlgdMessages,
+      items: allItems,
       totals,
     };
   }

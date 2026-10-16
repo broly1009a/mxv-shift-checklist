@@ -1,3 +1,44 @@
+## [2026-10-16T14:45] ARCHITECTURE & FEATURE: Chuyển Đổi 100% Mã Nguồn Check BGS All.xlsm Sang TypeScript Thực Thi Cho Executive Dashboard
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER chuyển đổi toàn diện tài liệu bóc tách `docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md` thành mã nguồn thực thi cho hệ thống Executive Dashboard (Mục 8: Báo Cáo Ban Giám Đốc & Vận Hành QLGD) theo 3 điểm xác nhận:
+  1. **Điểm 1 (Nguồn dữ liệu CoreCCP & M-System)**: Triển khai Phương án B - Kết nối trực tiếp qua API Ingress Adapter (`MsApiAdapter` và `CoreCcpApiAdapter`) tự động nạp đủ 6 báo cáo (`DSGD MS`, `TTM MS`, `TTTT MS`, `DSGD CCP`, `TTM CCP`, `TTTT CCP`). Kết hợp cơ chế đọc từ thư mục backup an toàn khi offline.
+  2. **Điểm 2 (Phạm vi mặt hàng hiển thị)**: Triển khai Option 1 - Mặc định hiển thị 17 mặt hàng chủ lực của Ban Giám Đốc (`Table15`), tích hợp nút gạt chuyển đổi nhanh (Toggle Switcher) cho phép xem toàn bộ 44 mặt hàng phái sinh chuẩn (`Table3` từ `SI5CO` đến `PBD`).
+  3. **Điểm 3 (Tính năng sinh tin nhắn BGS tự động)**: Bổ sung nút "Tin Nhắn BGS" trên thanh công cụ Header mở Modal sao chép nhanh với 4 mẫu báo cáo chuẩn (16h, 23h, Kết phiên, và Room QLGD), hỗ trợ 1-click Copy vào Clipboard để dán trực tiếp vào các kênh Zalo/Telegram nội bộ.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/constants/bgs-commodity-catalog.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/bgs-commodity-catalog.constant.ts):
+   - Bổ sung `BGS_TOP_17_SYMBOLS`: Danh sách 17 mã chủ lực của Ban Giám Đốc.
+   - Bổ sung `BGS_COMMODITY_METADATA_44`: Danh mục metadata hoàn chỉnh cho 44 mặt hàng chuẩn từ `Table3` gồm STT, symbol, nameVn, category, `isTop17`.
+   - Cung cấp helper `getBgsCommodityMetadata(symbol)` để tra cứu nhanh thông tin phân loại.
+2. [backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts):
+   - Thêm parser `parseCcpTTMForExecutive(buffer)`: Bóc tách file Trạng thái mở CCP lấy tài khoản, mã mặt hàng chuẩn hóa, số lot mua/bán, giá trị.
+   - Thêm parser `parseCcpTTTTForExecutive(buffer)`: Bóc tách file Trạng thái tất toán CCP lấy mã mặt hàng chuẩn hóa và số lot đã tất toán.
+3. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts):
+   - Tích hợp 2 Ingress API Adapters: `MsApiAdapter` và `CoreCcpApiAdapter`.
+   - Bổ sung hàm `syncFreshDataFromApis(targetDateStr)` hỗ trợ đồng bộ dữ liệu tươi từ CoreCCP và MS.
+   - Tái cấu trúc hàm `getExecutiveDashboard`:
+     + Hỗ trợ tham số `catalogScope` (`TOP17` | `ALL`) và cờ `refreshFromApi`.
+     + Đếm số tài khoản duy nhất (`uniqueAccounts`) lũy kế qua 4 mốc (Đầu phiên, Á, Âu, Mỹ và các mốc 16h, 23h, EOD) bằng `Set<string>` O(N), khớp 100% công thức mảng `LET/FILTER/UNIQUE` trong Sheet 1 của Excel.
+     + Tự động sinh nội dung 3 mẫu tin nhắn BGS (`session16h`, `session23h`, `sessionEod`) và 2 báo cáo Room QLGD (`cqgSummary`, `acmSummary`).
+     + Tổng hợp 44 mặt hàng, tính TTM Mua/Bán, % Mua/Bán, PnL dự kiến (loại trừ tài khoản `*A` trên MS), PnL thực tế theo chuẩn công thức `Check BGS All.xlsm`.
+4. [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts):
+   - Mở rộng endpoint `GET /api/v1/trading-ops/executive-dashboard`: Hỗ trợ query params `catalogScope`, `refresh`.
+   - Thêm endpoint `POST /api/v1/trading-ops/sync-executive-dashboard`: Kích hoạt đồng bộ tươi từ API Ingress.
+5. [frontend/src/features/trading/services/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/services/trading-ops.api.ts):
+   - Cập nhật hàm `getExecutiveDashboard` nhận `catalogScope` và `refresh`.
+   - Thêm API caller `syncExecutiveDashboard(params, token)`.
+6. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Thêm nút gạt chế độ hiển thị mặt hàng: `Chủ lực (17 mặt hàng)` vs `Toàn bộ (44 mặt hàng)`.
+   - Thêm nút `Đồng bộ API` gọi API Ingress đồng bộ tươi dữ liệu MS và CoreCCP.
+   - Thêm nút `Tin Nhắn BGS` mở Modal tương tác 4 tab (`16:00 BGS`, `23:00 BGS`, `Kết phiên BGS`, `Room QLGD`) kèm tính năng copy 1-click vào clipboard và thông báo toast.
+   - Tuân thủ 100% Rule 5: Sử dụng icon SVG từ thư viện `lucide-react` (`Copy`, `MessageSquare`, `Check`, `X`, `Layers`, `RefreshCw`, `SlidersHorizontal`), không dùng emoji thô.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend NestJS: `npm run build` hoàn tất 100% (Exit code 0).
+
+---
+
 ## [2026-10-16T14:15] BUSINESS LOGIC: Nâng Cấp Logic Lọc Giao Dịch Theo Giờ & Tích Lũy Lũy Kế 4 Mốc Phiên Trên Dashboard QLGD
 
 ### 1. Mục tiêu thay đổi

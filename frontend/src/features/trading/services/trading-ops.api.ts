@@ -131,7 +131,7 @@ export const tradingOpsApi = {
    * Lấy dữ liệu Executive Dashboard QLGD phục vụ báo cáo Ban Giám Đốc
    */
   async getExecutiveDashboard(
-    params?: { date?: string; scope?: 'ALL' | 'ACM' | 'OTHERS' },
+    params?: { date?: string; scope?: 'ALL' | 'ACM' | 'OTHERS'; catalogScope?: 'TOP17' | 'ALL'; refresh?: boolean },
     token?: string | null,
   ): Promise<any> {
     return requestJson<any>(
@@ -141,10 +141,30 @@ export const tradingOpsApi = {
         params: {
           ...(params?.date ? { date: params.date } : {}),
           ...(params?.scope ? { scope: params.scope } : {}),
+          ...(params?.catalogScope ? { catalogScope: params.catalogScope } : {}),
+          ...(params?.refresh ? { refresh: 'true' } : {}),
         },
       },
       token,
     );
   },
+
+  /**
+   * Đồng bộ dữ liệu tươi từ API Ingress của MS và CoreCCP
+   */
+  async syncExecutiveDashboard(
+    params?: { date?: string },
+    token?: string | null,
+  ): Promise<{ success: boolean; message: string }> {
+    return requestJson<{ success: boolean; message: string }>(
+      '/api/v1/trading-ops/sync-executive-dashboard',
+      {
+        method: 'POST',
+        body: JSON.stringify(params || {}),
+      },
+      token,
+    );
+  },
 };
+
 

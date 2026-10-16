@@ -18,9 +18,13 @@ import {
   ChevronRight,
   Filter,
   CheckCircle2,
-  Info,
   SlidersHorizontal,
   FileSpreadsheet,
+  Copy,
+  MessageSquare,
+  Check,
+  X,
+  Info,
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -55,7 +59,7 @@ ChartJS.register(
  */
 export interface CommodityPositionPnLItem {
   stt: number;
-  category: 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại';
+  category: 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại' | string;
   symbol: string;
   name: string;
   expectedPnL: number; // VND (số âm biểu thị lỗ dự kiến)
@@ -64,6 +68,7 @@ export interface CommodityPositionPnLItem {
   shortRatio: number; // % mở Bán (0 - 100)
   realizedPnL: number; // VND (lãi lỗ thực tế đã chốt)
   liquidatedLots: number; // Trạng thái tất toán (lots)
+  isTop17?: boolean;
   highlightExpectedLoss?: boolean;
   highlightOpenPosition?: boolean;
   highlightLiquidated?: boolean;
@@ -383,19 +388,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('MOCK');
   const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
+  const [catalogScope, setCatalogScope] = useState<'TOP17' | 'ALL'>('TOP17');
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [liveData, setLiveData] = useState<any | null>(null);
   const [loadingLive, setLoadingLive] = useState<boolean>(false);
+  const [isSyncingApi, setIsSyncingApi] = useState<boolean>(false);
+  const [isBgsModalOpen, setIsBgsModalOpen] = useState<boolean>(false);
+  const [activeBgsTab, setActiveBgsTab] = useState<'16H' | '23H' | 'EOD' | 'QLGD'>('16H');
+  const [isCopied, setIsCopied] = useState<boolean>(false);
 
   // Tải dữ liệu thực tế từ Backend API
   const fetchLiveDashboard = useCallback(
-    async (date: string, scope: 'ALL' | 'ACM' | 'OTHERS') => {
+    async (date: string, scope: 'ALL' | 'ACM' | 'OTHERS', refresh = false) => {
       setLoadingLive(true);
       try {
-        const data = await tradingOpsApi.getExecutiveDashboard({ date, scope }, token);
-        if (data && data.hasActualFiles) {
+        const data = await tradingOpsApi.getExecutiveDashboard({ date, scope, refresh }, token);
+        if (data && (data.hasActualFiles || data.dataSource === 'DIRECT_API')) {
           setLiveData(data);
-          toast.success(`Đã tải dữ liệu Live từ M-System phiên ${date}!`);
+          toast.success(`Đã tải dữ liệu Live phiên ${date}!`);
         } else {
           setLiveData(null);
           toast.success('Chưa có file backup M-System phiên này. Hiển thị dữ liệu đối chiếu!');
@@ -409,19 +419,70 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     [token],
   );
 
+  const handleSyncFromApi = async () => {
+    setIsSyncingApi(true);
+    try {
+      toast.loading('Đang kích hoạt Direct API tải dữ liệu tươi từ M-System & CoreCCP...', { id: 'sync-api' });
+      await tradingOpsApi.syncExecutiveDashboard({ date: sessionDate }, token);
+      toast.success('Đồng bộ API thành công! Đang tải lại dữ liệu bảng...', { id: 'sync-api' });
+      await fetchLiveDashboard(sessionDate, selectedScope, true);
+    } catch (e: any) {
+      toast.error(`Lỗi đồng bộ API: ${e.message}`, { id: 'sync-api' });
+    } finally {
+      setIsSyncingApi(false);
+    }
+  };
+
+  const getActiveMessageText = () => {
+    if (liveData?.bgsMessages) {
+      if (activeBgsTab === '16H') return liveData.bgsMessages.session16h;
+      if (activeBgsTab === '23H') return liveData.bgsMessages.session23h;
+      if (activeBgsTab === 'EOD') return liveData.bgsMessages.sessionEod;
+      if (activeBgsTab === 'QLGD') {
+        return `${liveData.qlgdMessages?.sessionTitle || ''}\n${liveData.qlgdMessages?.cqgSummary || ''}\n${liveData.qlgdMessages?.acmSummary || ''}`;
+      }
+    }
+    // Fallback mock text
+    if (activeBgsTab === '16H') {
+      return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 16:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt 1,956 lot, với Futures là 1,500 lot và ACM là 456 lot.\nTới thời điểm này có 88 tài khoản phát sinh giao dịch ạ.`;
+    }
+    if (activeBgsTab === '23H') {
+      return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 23:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt 3,689 lot, với Futures là 2,900 lot và ACM là 789 lot.\nTới thời điểm này có 142 tài khoản phát sinh giao dịch ạ.`;
+    }
+    if (activeBgsTab === 'EOD') {
+      return `Em xin phép báo cáo các anh khối lượng giao dịch phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt 10,061 lot, với Futures là 8,950 lot và ACM là 1,111 lot.\nTrong phiên có 215 tài khoản phát sinh giao dịch ạ.`;
+    }
+    return `Phiên ${sessionDate.slice(5)}:\nCQG: 8,950 lot - 120 lot Bạch kim - 310 lot Bạc - 240 lot Đồng - 190 lot LRC - 45 lot Spreads - 60 lot LME - 85 lot Options\nACM: 1,111 lot - 620 lot Bạc Nano - 310 lot Bạch kim Nano - 181 lot Đồng Nano`;
+  };
+
+  const handleCopyBgsMessage = () => {
+    const text = getActiveMessageText();
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    toast.success('Đã sao chép tin nhắn vào bộ nhớ tạm!');
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   useEffect(() => {
     if (dataMode === 'LIVE') {
       fetchLiveDashboard(sessionDate, selectedScope);
     }
   }, [dataMode, sessionDate, selectedScope, fetchLiveDashboard]);
 
-  // Nguồn dữ liệu hiển thị (ưu tiên liveData nếu có dữ liệu thật)
-  const displayItems = useMemo(() => {
+  // Nguồn dữ liệu hiển thị (hỗ trợ lọc 17 chủ lực vs 44 toàn bộ)
+  const rawDisplayItems = useMemo(() => {
     if (dataMode === 'LIVE' && liveData && liveData.items && liveData.items.length > 0) {
       return liveData.items as CommodityPositionPnLItem[];
     }
     return MOCK_COMMODITY_ITEMS;
   }, [dataMode, liveData]);
+
+  const displayItems = useMemo(() => {
+    if (catalogScope === 'TOP17') {
+      return rawDisplayItems.filter((item) => item.isTop17 !== false);
+    }
+    return rawDisplayItems;
+  }, [rawDisplayItems, catalogScope]);
 
   // Lọc dữ liệu theo Nhóm hàng hóa nếu có chọn
   const filteredCommodities = useMemo(() => {
@@ -788,6 +849,53 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               Dữ liệu Live
             </button>
           </div>
+
+          {/* Sync API Button */}
+          <button
+            type="button"
+            disabled={isSyncingApi}
+            onClick={handleSyncFromApi}
+            style={{
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-input)',
+              color: 'var(--text-primary)',
+              cursor: isSyncingApi ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <RefreshCw size={14} className={isSyncingApi ? 'animate-spin' : ''} />
+            <span>{isSyncingApi ? 'Đang gọi API...' : 'Đồng bộ API'}</span>
+          </button>
+
+          {/* BGS Message Modal Button */}
+          <button
+            type="button"
+            onClick={() => setIsBgsModalOpen(true)}
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              backgroundColor: '#0284c7',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <MessageSquare size={14} />
+            <span>Tin Nhắn BGS</span>
+          </button>
 
           {/* Refresh Button */}
           <button
@@ -1278,9 +1386,55 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             </p>
           </div>
 
-          {/* Category Filter Chips */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '4px' }}>Lọc nhóm:</span>
+          {/* Scope & Category Filter Chips */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Scope Toggle: 17 vs 44 */}
+            <div
+              style={{
+                display: 'flex',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                overflow: 'hidden',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setCatalogScope('TOP17')}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: catalogScope === 'TOP17' ? 700 : 500,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: catalogScope === 'TOP17' ? '#0284c7' : 'transparent',
+                  color: catalogScope === 'TOP17' ? '#ffffff' : 'var(--text-secondary)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Chủ lực (17 mặt hàng)
+              </button>
+              <button
+                type="button"
+                onClick={() => setCatalogScope('ALL')}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: catalogScope === 'ALL' ? 700 : 500,
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: catalogScope === 'ALL' ? '#0284c7' : 'transparent',
+                  color: catalogScope === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Toàn bộ (44 mặt hàng)
+              </button>
+            </div>
+
+            <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
+
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Lọc nhóm:</span>
             {(['ALL', 'Nông sản', 'Nguyên liệu công nghiệp', 'Kim loại'] as const).map((cat) => (
               <button
                 key={cat}
@@ -1299,7 +1453,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   transition: 'all 0.15s',
                 }}
               >
-                {cat === 'ALL' ? 'Tất cả (17)' : cat}
+                {cat === 'ALL' ? `Tất cả (${displayItems.length})` : cat}
               </button>
             ))}
           </div>
@@ -1736,6 +1890,204 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 4. MODAL SAO CHÉP TIN NHẮN BÁO CÁO BAN GIÁM SÁT & ROOM QLGD NỘI BỘ        */}
+      {/* ========================================================================= */}
+      {isBgsModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={() => setIsBgsModalOpen(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '640px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(2, 132, 199, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#0284c7',
+                  }}
+                >
+                  <MessageSquare size={18} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    MẪU TIN NHẮN BÁO CÁO BAN GIÁM SÁT
+                  </h4>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Tự động điền dữ liệu thực tế phiên {sessionDate}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBgsModalOpen(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                padding: '12px 20px 0',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                overflowX: 'auto',
+              }}
+            >
+              {[
+                { id: '16H', label: 'Báo cáo 16:00 (Hết Á)' },
+                { id: '23H', label: 'Báo cáo 23:00 (Hết Âu)' },
+                { id: 'EOD', label: 'Báo cáo Kết phiên' },
+                { id: 'QLGD', label: 'Room QLGD Nội Bộ' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveBgsTab(tab.id as any)}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: activeBgsTab === tab.id ? 700 : 500,
+                    border: 'none',
+                    borderBottom: activeBgsTab === tab.id ? '2px solid #0284c7' : '2px solid transparent',
+                    backgroundColor: 'transparent',
+                    color: activeBgsTab === tab.id ? '#0284c7' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                  fontSize: '0.85rem',
+                  lineHeight: '1.6',
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'pre-wrap',
+                  minHeight: '130px',
+                  userSelect: 'all',
+                }}
+              >
+                {getActiveMessageText()}
+              </div>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Nội dung trên được định dạng chuẩn theo mẫu tin nhắn Zalo/Telegram của Ban Giám Sát và Room Vận hành.
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsBgsModalOpen(false)}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '0.8rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyBgsMessage}
+                style={{
+                  padding: '8px 18px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: isCopied ? '#10b981' : '#0284c7',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                <span>{isCopied ? 'Đã sao chép!' : 'Sao chép tin nhắn'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

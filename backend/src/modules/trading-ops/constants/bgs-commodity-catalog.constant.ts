@@ -1090,3 +1090,91 @@ for (const item of BGS_COMMODITY_CATALOG) {
     nameVn: item.nameVn,
   };
 }
+
+export interface BgsCommodityMetadata {
+  stt: number;
+  symbol: string;
+  nameVn: string;
+  category: 'Nông sản' | 'Kim loại' | 'Nguyên liệu & Năng lượng';
+  isTop17: boolean;
+}
+
+export const BGS_TOP_17_SYMBOLS: string[] = [
+  'ZWA', 'ZLE', 'ZCE', 'ZSE', 'ZME', 'KWE', 'KCE', 'SBE', 'LRC', 'CTE',
+  'SIE', 'SIL', 'CPE', 'MHG', 'PLE', 'SI5CO', 'PL1NY',
+];
+
+export const BGS_COMMODITY_METADATA_44: BgsCommodityMetadata[] = [
+  { stt: 1, symbol: 'SI5CO', nameVn: 'Bạc Nano', category: 'Kim loại', isTop17: true },
+  { stt: 2, symbol: 'ZCE', nameVn: 'Ngô', category: 'Nông sản', isTop17: true },
+  { stt: 3, symbol: 'ZWA', nameVn: 'Lúa Mỳ', category: 'Nông sản', isTop17: true },
+  { stt: 4, symbol: 'SBE', nameVn: 'Đường 11', category: 'Nguyên liệu & Năng lượng', isTop17: true },
+  { stt: 5, symbol: 'LRC', nameVn: 'Cà phê Robusta', category: 'Nguyên liệu & Năng lượng', isTop17: true },
+  { stt: 6, symbol: 'ZSE', nameVn: 'Đậu Tương', category: 'Nông sản', isTop17: true },
+  { stt: 7, symbol: 'ZLE', nameVn: 'Dầu Đậu Tương', category: 'Nông sản', isTop17: true },
+  { stt: 8, symbol: 'ZME', nameVn: 'Khô Đậu Tương', category: 'Nông sản', isTop17: true },
+  { stt: 9, symbol: 'PL1NY', nameVn: 'Bạch kim Nano', category: 'Kim loại', isTop17: true },
+  { stt: 10, symbol: 'CP2CO', nameVn: 'Đồng Nano', category: 'Kim loại', isTop17: false },
+  { stt: 11, symbol: 'SIL', nameVn: 'Bạc micro', category: 'Kim loại', isTop17: true },
+  { stt: 12, symbol: 'MHG', nameVn: 'Đồng micro', category: 'Kim loại', isTop17: true },
+  { stt: 13, symbol: 'KWE', nameVn: 'Lúa Mỳ Kansas', category: 'Nông sản', isTop17: true },
+  { stt: 14, symbol: 'XW', nameVn: 'Lúa Mỳ Mini', category: 'Nông sản', isTop17: false },
+  { stt: 15, symbol: 'XC', nameVn: 'Ngô Mini', category: 'Nông sản', isTop17: false },
+  { stt: 16, symbol: 'KCE', nameVn: 'Cà phê Arabica', category: 'Nguyên liệu & Năng lượng', isTop17: true },
+  { stt: 17, symbol: 'XB', nameVn: 'Đậu Tương Mini', category: 'Nông sản', isTop17: false },
+  { stt: 18, symbol: 'CTE', nameVn: 'Bông Sợi', category: 'Nguyên liệu & Năng lượng', isTop17: true },
+  { stt: 19, symbol: 'FEF', nameVn: 'Quặng sắt', category: 'Nguyên liệu & Năng lượng', isTop17: false },
+  { stt: 20, symbol: 'MZM', nameVn: 'Khô Đậu tương Micro', category: 'Nông sản', isTop17: false },
+  { stt: 21, symbol: 'MZC', nameVn: 'Ngô Micro', category: 'Nông sản', isTop17: false },
+  { stt: 22, symbol: 'PLE', nameVn: 'Bạch kim', category: 'Kim loại', isTop17: true },
+  { stt: 23, symbol: 'CCE', nameVn: 'Ca cao', category: 'Nguyên liệu & Năng lượng', isTop17: false },
+  { stt: 24, symbol: 'CPE', nameVn: 'Đồng', category: 'Kim loại', isTop17: true },
+  { stt: 25, symbol: 'ZFT', nameVn: 'Cao su TSR20', category: 'Nông sản', isTop17: false },
+  { stt: 26, symbol: 'MZL', nameVn: 'Dầu đậu tương Micro', category: 'Nông sản', isTop17: false },
+  { stt: 27, symbol: 'MZW', nameVn: 'Lúa Mỳ Micro', category: 'Nông sản', isTop17: false },
+  { stt: 28, symbol: 'ALI', nameVn: 'Nhôm', category: 'Kim loại', isTop17: false },
+  { stt: 29, symbol: 'MZS', nameVn: 'Đậu tương Micro', category: 'Nông sản', isTop17: false },
+  { stt: 30, symbol: 'SIE', nameVn: 'Bạc', category: 'Kim loại', isTop17: true },
+  { stt: 31, symbol: 'MPO', nameVn: 'Dầu cọ thô', category: 'Nông sản', isTop17: false },
+  { stt: 32, symbol: 'AHD', nameVn: 'Nhôm LME', category: 'Kim loại', isTop17: false },
+  { stt: 33, symbol: 'MQC', nameVn: 'Đồng mini', category: 'Kim loại', isTop17: false },
+  { stt: 34, symbol: 'TRU', nameVn: 'Cao su RSS3 TOCOM', category: 'Nông sản', isTop17: false },
+  { stt: 35, symbol: 'MQI', nameVn: 'Bạc mini', category: 'Kim loại', isTop17: false },
+  { stt: 36, symbol: 'SND', nameVn: 'Thiếc LME', category: 'Kim loại', isTop17: false },
+  { stt: 37, symbol: 'QW', nameVn: 'Đường trắng', category: 'Nguyên liệu & Năng lượng', isTop17: false },
+  { stt: 38, symbol: 'ZDS', nameVn: 'Kẽm LME', category: 'Kim loại', isTop17: false },
+  { stt: 39, symbol: 'CAD', nameVn: 'Đồng LME', category: 'Kim loại', isTop17: false },
+  { stt: 40, symbol: 'SSR', nameVn: 'Thép thanh vằn FOB Thổ Nhĩ Kỳ', category: 'Kim loại', isTop17: false },
+  { stt: 41, symbol: 'SSC', nameVn: 'Thép phế liệu CFR Thổ Nhĩ Kỳ', category: 'Kim loại', isTop17: false },
+  { stt: 42, symbol: 'LHC', nameVn: 'Thép cuộn cán nóng FOB Trung Quốc', category: 'Kim loại', isTop17: false },
+  { stt: 43, symbol: 'NID', nameVn: 'Niken LME', category: 'Kim loại', isTop17: false },
+  { stt: 44, symbol: 'PBD', nameVn: 'Chì LME', category: 'Kim loại', isTop17: false },
+];
+
+export function getBgsCommodityMetadata(symbol: string): BgsCommodityMetadata {
+  const sym = symbol.toUpperCase().trim();
+  const found = BGS_COMMODITY_METADATA_44.find((item) => item.symbol === sym);
+  if (found) return found;
+
+  const mapped = BGS_RAW_TO_STD_MAP[sym];
+  if (mapped) {
+    const stdFound = BGS_COMMODITY_METADATA_44.find((item) => item.symbol === mapped.stdCode);
+    if (stdFound) return stdFound;
+    return {
+      stt: 99,
+      symbol: mapped.stdCode,
+      nameVn: mapped.nameVn,
+      category: 'Nông sản',
+      isTop17: BGS_TOP_17_SYMBOLS.includes(mapped.stdCode),
+    };
+  }
+
+  return {
+    stt: 99,
+    symbol: sym,
+    nameVn: sym,
+    category: 'Nông sản',
+    isTop17: BGS_TOP_17_SYMBOLS.includes(sym),
+  };
+}
+
