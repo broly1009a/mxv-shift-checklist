@@ -15,6 +15,7 @@ import { KlgdReconService as TradingOpsKlgdReconService } from '../../trading-op
 import { PreEodReconService as TradingOpsPreEodReconService } from '../../trading-ops/services/pre-eod-recon.service';
 import { CcpEodService } from '../../trading-ops/services/ccp-eod.service';
 import { CqgMergerService } from '../../trading-ops/services/cqg-merger.service';
+import { IngressService } from '../../ingress/ingress.service';
 
 @Injectable()
 export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnModuleInit {
@@ -38,6 +39,8 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     private readonly ccpCeDownloaderService?: CcpCeScraperService,
     @Optional()
     private readonly emailWatcherService?: EmailWatcherService,
+    @Optional()
+    private readonly ingressService?: IngressService,
   ) { }
 
   onModuleInit() {
@@ -321,6 +324,48 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         return;
       }
 
+      // ── DIRECT REST API INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER) ──
+      const ingressModeMs = await this.settingsService.getSetting(
+        'ingress_mode_ms',
+        await this.settingsService.getSetting('ingress_mode', 'REST_API'),
+      );
+
+      if (this.ingressService && (ingressModeMs === 'REST_API' || ingressModeMs === 'API')) {
+        log('MS ⚡ [Direct REST API] Kích hoạt tải dữ liệu trực tiếp qua Ingress API Adapter...');
+        try {
+          if (options.checkKlgd !== false) {
+            const dsgdRes = await this.ingressService.download('MS', {
+              targetDate: dateStr,
+              outputDir: msDailyPath,
+              reportType: 'DSGD',
+            });
+            log(`MS ⚡ Tải DSGD.xlsx qua Direct API hoàn tất: ${dsgdRes.files.join(', ')}`);
+          }
+          if (options.checkTtm !== false) {
+            const ttmRes = await this.ingressService.download('MS', {
+              targetDate: dateStr,
+              outputDir: msDailyPath,
+              reportType: 'TTM',
+            });
+            log(`MS ⚡ Tải TTM.xlsx qua Direct API hoàn tất: ${ttmRes.files.join(', ')}`);
+          }
+          if (options.checkTttt !== false) {
+            const ttttRes = await this.ingressService.download('MS', {
+              targetDate: dateStr,
+              outputDir: msDailyPath,
+              reportType: 'TTTT',
+            });
+            log(`MS ⚡ Tải TTTT.xlsx qua Direct API hoàn tất: ${ttttRes.files.join(', ')}`);
+          }
+          readyState.ms = true;
+          log('MS ⚡ Đã sẵn sàng dữ liệu đầy đủ qua Direct API.');
+          checkAllReadyAndTrigger();
+          return;
+        } catch (apiErr: any) {
+          log(`MS ⚠️ Direct API gặp sự cố (${apiErr.message}). Tự động fallback chuyển hướng sang Playwright...`);
+        }
+      }
+
       log('MS  [Bước 1: Chuẩn bị] Đang mở trình duyệt và đăng nhập M-System...');
       let browser: any = null;
       let page: any = null;
@@ -467,6 +512,30 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         return;
       }
 
+      // ── DIRECT SFTP INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER & ZERO-CAPTCHA) ──
+      const ingressModeAcm = await this.settingsService.getSetting(
+        'ingress_mode_acm',
+        await this.settingsService.getSetting('ingress_mode', 'REST_API'),
+      );
+
+      if (this.ingressService && (ingressModeAcm === 'REST_API' || ingressModeAcm === 'API' || ingressModeAcm === 'SFTP')) {
+        log('ACM ⚡ [Direct SFTP Ingress] Kích hoạt tải Straits.csv trực tiếp qua SFTP (Bỏ qua Captcha)...');
+        try {
+          const acmRes = await this.ingressService.download('ACM', {
+            targetDate: dateStr,
+            outputDir: acmDailyPath,
+            reportType: 'STRAITS_CSV',
+          });
+          log(`ACM ⚡ Tải Straits.csv qua Direct SFTP hoàn tất: ${acmRes.files.join(', ')}`);
+          readyState.acm = true;
+          log('ACM ⚡ Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP.');
+          checkAllReadyAndTrigger();
+          return;
+        } catch (acmApiErr: any) {
+          log(`ACM ⚠️ Direct SFTP gặp sự cố (${acmApiErr.message}). Tự động fallback chuyển hướng sang Playwright...`);
+        }
+      }
+
       log('ACM  [Bước 1: Chuẩn bị] Đang mở trình duyệt và đăng nhập ACM (giải Captcha)...');
       const jobLogFn = (msg: string) => log(`ACM: ${msg}`);
       let browser: any = null;
@@ -573,6 +642,30 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
     // ── 3. WORKER CORECCP (VNCLEAR) ──────────────────────────────────────────
     const runWorkerCcp = async () => {
+      // ── DIRECT REST API INGRESS CHUYỂN MẠCH RUNTIME (ZERO-BROWSER) ──
+      const ingressModeCcp = await this.settingsService.getSetting(
+        'ingress_mode_ccp',
+        await this.settingsService.getSetting('ingress_mode', 'REST_API'),
+      );
+
+      if (this.ingressService && (ingressModeCcp === 'REST_API' || ingressModeCcp === 'API')) {
+        log('CCP ⚡ [Direct REST API] Kích hoạt tải dữ liệu trực tiếp qua Ingress API Adapter...');
+        try {
+          const ccpRes = await this.ingressService.download('CCP', {
+            targetDate: dateStr,
+            outputDir: ccpDailyPath,
+            reportType: 'CL_MATCH',
+          });
+          log(`CCP ⚡ Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpRes.files.join(', ')}`);
+          readyState.ccp = true;
+          log('CCP ⚡ Đã sẵn sàng dữ liệu CoreCCP qua Direct API.');
+          checkAllReadyAndTrigger();
+          return;
+        } catch (ccpApiErr: any) {
+          log(`CCP ⚠️ Direct API gặp sự cố (${ccpApiErr.message}). Tự động fallback chuyển hướng sang Playwright...`);
+        }
+      }
+
       const ccpService = this.ccpCeDownloaderService;
       if (!ccpService) {
         log('CCP  Dịch vụ CcpCeDownloaderService chưa được khởi tạo. Bỏ qua.');
@@ -875,6 +968,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           timeZone: 'Asia/Ho_Chi_Minh',
         });
         log(`Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+      }
+      if (result.pendingSyncTrades && result.pendingSyncTrades.length > 0) {
+        log(
+          `[Bảo lưu lệnh khớp muộn] Ghi nhận ${result.pendingSyncTrades.length} giao dịch phát sinh sau mốc snapshot dữ liệu. Tự động bảo lưu sang chu kỳ kế tiếp.`,
+        );
       }
       if (result.acmSessionAnomaly && result.acmAnomalyNote) {
         log(` ${result.acmAnomalyNote}`);

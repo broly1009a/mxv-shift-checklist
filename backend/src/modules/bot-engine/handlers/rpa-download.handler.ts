@@ -1,9 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
+import { IngressService } from '../../ingress/ingress.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
   parseJobPayload,
@@ -22,6 +23,8 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly registry: BotJobHandlerRegistry,
     private readonly rpaDownloaderService: RpaScraperService,
     private readonly settingsService: SystemSettingsService,
+    @Optional()
+    private readonly ingressService?: IngressService,
   ) { }
 
   onModuleInit() {
@@ -107,9 +110,6 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     );
     await job.save();
 
-    const { browser, page } =
-      await this.rpaDownloaderService.loginMSystem(tempDir);
-
     const isTradingCheck = payload.isTradingCheck === true || payload.purpose === 'CHECK';
     let rawBackupMs = payload.outputDir || payload.backupPathMs;
     if (!rawBackupMs) {
@@ -122,15 +122,17 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const backupMsBase = resolveStoragePathCrossPlatform(rawBackupMs);
 
     let destFolder: string | null = null;
+    let resolvedDateStr = new Date().toISOString().split('T')[0];
     if (backupMsBase) {
       const sessionStartStr = await this.settingsService.getSetting(
         'session_start_time',
         '05:00',
       );
-      const { dateObj: targetDate, dateStr: resolvedDateStr } = resolveTradingSessionDate(
+      const { dateObj: targetDate, dateStr } = resolveTradingSessionDate(
         sessionDay || payload.targetDate,
         { sessionStartStr },
       );
+      resolvedDateStr = dateStr;
       const { fullPath } = resolveDailySubfolder(backupMsBase, targetDate);
       destFolder = fullPath;
       if (!fs.existsSync(destFolder)) {
@@ -144,6 +146,49 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
     const successfulTargets: string[] = [];
     const failedTargets: Array<{ target: string; error: string }> = [];
+
+    // KIỂM TRA CHẾ ĐỘ DIRECT REST API TỪ CẤU HÌNH CSDL
+    const globalMode = await this.settingsService.getSetting('ingress_mode', process.env.INGRESS_MODE || 'PLAYWRIGHT');
+    const ingressModeMs = await this.settingsService.getSetting('ingress_mode_ms', process.env.INGRESS_MODE_MS || globalMode);
+
+    if (ingressModeMs === 'REST_API' && this.ingressService) {
+      this.logger.log(`[RpaDownloadJobHandler] Kích hoạt Direct REST API Mode cho M-System (Cờ: ingress_mode_ms=REST_API). Bỏ qua mở Chromium!`);
+      job.logs.push(`[${new Date().toISOString()}] Kích hoạt Direct REST API Mode cho M-System (MsApiAdapter), không mở trình duyệt...`);
+      await job.save();
+
+      const targetDir = destFolder || tempDir;
+      try {
+        const ingressRes = await this.ingressService.download('MS', {
+          targetDirectory: targetDir,
+          reportCodes: targets,
+          targetDate: resolvedDateStr,
+        });
+
+        for (const f of ingressRes.files) {
+          successfulTargets.push(f.category || f.fileName);
+          job.logs.push(`[${new Date().toISOString()}] [Direct API OK] ${f.fileName} (${(f.fileSize / 1024).toFixed(1)} KB)`);
+        }
+
+        job.logs.push(`[${new Date().toISOString()}] Hoàn tất tải ${ingressRes.files.length}/${targets.length} báo cáo M-System qua Direct REST API (${ingressRes.durationMs}ms)`);
+        job.status = ingressRes.success ? 'COMPLETED' : 'FAILED';
+        if (ingressRes.error) job.error = ingressRes.error;
+        await job.save();
+
+        return {
+          successfulTargets,
+          failedTargets,
+          destFolder: targetDir,
+          mode: 'DIRECT_REST_API',
+        };
+      } catch (apiErr: any) {
+        this.logger.error(`[RpaDownloadJobHandler] Lỗi Direct REST API (${apiErr.message}), fallback về Playwright...`);
+        job.logs.push(`[${new Date().toISOString()}] [WARN] Direct REST API lỗi (${apiErr.message}), kích hoạt Playwright fallback...`);
+        await job.save();
+      }
+    }
+
+    const { browser, page } =
+      await this.rpaDownloaderService.loginMSystem(tempDir);
 
     try {
       for (const target of targets) {

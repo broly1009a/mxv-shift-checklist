@@ -230,3 +230,35 @@ export function parsePSForRecon(
   }
   return result;
 }
+
+/**
+ * Trích xuất mốc thời gian chốt dữ liệu (Snapshot Time) từ dòng đầu tiên của file CQG (FR1, FR2, OP, PS, OD).
+ * Chuẩn ground truth từ Header: "Fills reported as of 10/16/26 8:29:46 AM for the following accounts: All"
+ */
+export function extractCqgSnapshotTime(filePathOrBuffer: string | Buffer): Date | null {
+  try {
+    let buf: Buffer;
+    if (typeof filePathOrBuffer === 'string') {
+      const fs = require('fs');
+      if (!fs.existsSync(filePathOrBuffer)) return null;
+      buf = fs.readFileSync(filePathOrBuffer);
+    } else {
+      buf = filePathOrBuffer;
+    }
+    const wb = XLSX.read(buf, { type: 'buffer' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) return null;
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    if (!rows || rows.length === 0 || !rows[0]) return null;
+    const headerText = String(rows[0][0] || '').trim();
+    const match = headerText.match(
+      /reported as of\s+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4}\s+[0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?\s*(?:\u202f|\s)*(?:AM|PM)?)/i,
+    );
+    if (!match) return null;
+    const cleanStr = match[1].replace(/\u202f|\s+/g, ' ');
+    const parsed = new Date(cleanStr);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  } catch {
+    return null;
+  }
+}

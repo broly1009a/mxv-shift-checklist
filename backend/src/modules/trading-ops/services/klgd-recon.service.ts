@@ -20,6 +20,7 @@ import {
   parseTradeDateTime,
   parseCqgDateTime,
   findLatestFile,
+  extractCqgSnapshotTime,
 } from '../helpers/trading-math.helper';
 
 export interface CheckKLGDResult {
@@ -103,6 +104,7 @@ export interface CheckKLGDResult {
     reason?: string;
   }>;
   cutoffTime?: Date;
+  cqgCutoffTime?: Date;
   sessionStart?: Date;
   checkTime?: Date;
   passed?: boolean;
@@ -149,6 +151,7 @@ export class KlgdReconService {
       checkTtm?: boolean;
       checkTttt?: boolean;
       cutoffTime?: Date;
+      cqgCutoffTime?: Date;
     },
   ): Promise<CheckKLGDResult> {
     if (sessionStartStr) {
@@ -193,17 +196,10 @@ export class KlgdReconService {
     }
 
     const dsgdUpperBound = checkTime;
-
-    const dsgdData = rawDsgdData.filter((gd) => {
-      if (!gd.ngayGio) return true;
-      const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
-      if (!tradeTime) return true;
-      return tradeTime <= dsgdUpperBound;
-    });
-
     const effectiveCutoffTime = options?.cutoffTime;
+    const effectiveCqgCutoffTime = options?.cqgCutoffTime;
     const pendingSyncTrades: Array<{
-      source: 'CQG' | 'ACM';
+      source: 'MSystem' | 'CQG' | 'ACM';
       maLenh?: string;
       maTKGD: string;
       maHD: string;
@@ -213,6 +209,32 @@ export class KlgdReconService {
       cutoffTime: string;
       note: string;
     }> = [];
+
+    const dsgdData = rawDsgdData.filter((gd) => {
+      if (!gd.ngayGio) return true;
+      const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
+      if (!tradeTime) return true;
+      // Chiều 2: Lệnh M-System khớp sau mốc chốt dữ liệu CQG -> Tự động bảo lưu pendingSyncTrades
+      if (
+        effectiveCqgCutoffTime &&
+        !gd.maTKGD.toUpperCase().endsWith('A') &&
+        tradeTime > effectiveCqgCutoffTime
+      ) {
+        pendingSyncTrades.push({
+          source: 'MSystem',
+          maLenh: gd.maLenh,
+          maTKGD: gd.maTKGD,
+          maHD: gd.maHD,
+          giaKhop: gd.giaKhop,
+          klGiaoDich: gd.klGiaoDich,
+          ngayGio: gd.ngayGio,
+          cutoffTime: effectiveCqgCutoffTime.toISOString(),
+          note: `Giao dịch M-System khớp lúc ${gd.ngayGio}, sau mốc chốt dữ liệu CQG (${effectiveCqgCutoffTime.toLocaleTimeString('vi-VN')})`,
+        });
+        return false;
+      }
+      return tradeTime <= dsgdUpperBound;
+    });
 
     const nanoUpperBound = dsgdUpperBound;
     const nanoData = rawNanoData.filter((gd) => {
@@ -679,6 +701,7 @@ export class KlgdReconService {
       mismatchedTTTT: finalMismatchedTTTT,
       pendingSyncTrades: pendingSyncTrades.length > 0 ? pendingSyncTrades : undefined,
       cutoffTime: effectiveCutoffTime,
+      cqgCutoffTime: effectiveCqgCutoffTime,
       sessionStart,
       checkTime,
       passed: !hasDiscrepancy,
@@ -697,6 +720,7 @@ export class KlgdReconService {
       checkTtm?: boolean;
       checkTttt?: boolean;
       cutoffTime?: Date;
+      cqgCutoffTime?: Date;
       customDataDir?: string;
     },
   ): Promise<CheckKLGDResult> {
@@ -863,9 +887,28 @@ export class KlgdReconService {
     if (ttmCcpPath && fs.existsSync(ttmCcpPath)) files.ttmCcp = fs.readFileSync(ttmCcpPath);
     if (ttttCcpPath && fs.existsSync(ttttCcpPath)) files.ttttCcp = fs.readFileSync(ttttCcpPath);
 
+    // Trích xuất mốc chốt dữ liệu thực tế của CQG từ Header file thô (FR1/FR2) hoặc FR.xlsx
+    let cqgCutoffTime: Date | undefined = options?.cqgCutoffTime;
+    if (!cqgCutoffTime && cqgFrPath) {
+      const frDir = path.dirname(cqgFrPath);
+      const snap1 = extractCqgSnapshotTime(path.join(frDir, 'FR1.xlsx'));
+      const snap2 = extractCqgSnapshotTime(path.join(frDir, 'FR2.xlsx'));
+      if (snap1 && snap2) {
+        cqgCutoffTime = new Date(Math.max(snap1.getTime(), snap2.getTime()));
+      } else {
+        cqgCutoffTime = snap1 || snap2 || extractCqgSnapshotTime(cqgFrPath);
+      }
+      if (cqgCutoffTime) {
+        this.logger.log(
+          `[Recon] Xác định mốc cắt dữ liệu CQG (CQG Cutoff Time) từ Header file: ${cqgCutoffTime.toLocaleTimeString('vi-VN')} (${cqgCutoffTime.toISOString()})`,
+        );
+      }
+    }
+
     const reconOptions = {
       ...options,
       cutoffTime: options?.cutoffTime || dsgdCutoffTime,
+      cqgCutoffTime,
     };
 
     const lmeHolidaysStr = await this.settingsService.getSetting(

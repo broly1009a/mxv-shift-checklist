@@ -347,9 +347,10 @@ async function downloadSingleCqgWidget(page, searchTerm, tabLabel, downloadText,
     if (isClickable) {
       console.log(`[CQG-FAST] Nút "${downloadText}" sẵn sàng! Bấm tải...`);
       try {
-        const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
-        await downloadBtn.click();
-        const download = await downloadPromise;
+        const [download] = await Promise.all([
+          page.waitForEvent('download', { timeout: 30000 }),
+          downloadBtn.click({ timeout: 5000 }),
+        ]);
         await download.saveAs(destFile);
         const fileSizeKb = (fs.statSync(destFile).size / 1024).toFixed(1);
         console.log(`[CQG-FAST] ✅ ĐÃ LƯU FILE: ${path.basename(destFile)} (${fileSizeKb} KB)`);
@@ -606,13 +607,21 @@ async function run() {
       '--disable-renderer-backgrounding',
       '--disable-session-crashed-bubble',
       '--hide-crash-restore-bubble',
+      '--disable-features=DownloadBubble,DownloadBubbleV2,InsecureDownloadWarnings',
+      '--no-default-browser-check',
     ],
     viewport: null,
     userAgent:
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     acceptDownloads: true,
   };
-  if (executablePath) launchOptions.executablePath = executablePath;
+
+  const forceChromium = args.includes('--chromium') || args.includes('--bundled');
+  if (executablePath && !forceChromium) {
+    launchOptions.executablePath = executablePath;
+  } else {
+    console.log('⚡ Sử dụng Playwright Bundled Chromium (độc lập, chống xung đột Edge/Chrome)...');
+  }
 
   console.log('\n2. Khởi chạy trình duyệt và đăng nhập CQG...');
   const context = await chromium.launchPersistentContext(profileDir, launchOptions);

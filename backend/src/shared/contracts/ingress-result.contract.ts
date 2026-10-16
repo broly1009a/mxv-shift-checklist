@@ -18,10 +18,13 @@ export interface IngressFileDetail {
 export interface IngressDownloadOptions {
   targetDate?: string;          // Định dạng YYYY-MM-DD hoặc DD/MM/YYYY
   targetDirectory?: string;     // Thư mục đích chỉ định (nếu có)
+  outputDir?: string;           // Alias của targetDirectory
+  reportType?: string;          // Loại báo cáo cụ thể (DSGD, TTM, TTTT, STRAITS_CSV,...)
   accountIds?: string[];        // Danh sách tài khoản (cho CQG1, CQG2,...)
   reportCodes?: string[];       // Mã báo cáo cần lấy (cho M-System hoặc CCP 25 files)
   timeoutMs?: number;           // Timeout tối đa
   forceRefresh?: boolean;       // Bỏ qua cache nếu đã tải
+  isFullBackup?: boolean;       // Kích hoạt chế độ tải toàn bộ file backup của hệ thống
 }
 
 export interface IngressDownloadResult {

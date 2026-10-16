@@ -198,3 +198,170 @@ export function parseTTTTForRecon(buffer: Buffer): { account: string; symbol: st
   }
   return result;
 }
+
+export interface ExecutiveTtmRow {
+  account: string;
+  symbol: string;
+  tongMua: number;
+  tongBan: number;
+  expectedPnLVnd: number;
+}
+
+export interface ExecutiveTtttRow {
+  account: string;
+  symbol: string;
+  liquidatedLots: number;
+  realizedPnLVnd: number;
+}
+
+function parseAccountingNumber(val: any): number {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  let str = String(val).trim();
+  if (!str) return 0;
+  let isNegative = false;
+  if (str.startsWith('(') && str.endsWith(')')) {
+    isNegative = true;
+    str = str.substring(1, str.length - 1);
+  }
+  str = str.replace(/,/g, '').trim();
+  const n = parseFloat(str);
+  if (isNaN(n)) return 0;
+  return isNegative ? -Math.abs(n) : n;
+}
+
+/**
+ * Đọc chi tiết file TTM phục vụ Dashboard QLGD:
+ * Bóc tách Mã TKGD, Mã HĐ, KL Mua, KL Bán, và Lãi lỗ dự kiến (VND).
+ */
+export function parseTTMForExecutive(buffer: Buffer): ExecutiveTtmRow[] {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) return [];
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+  if (rows.length < 2) return [];
+
+  let headerRowIdx = 0;
+  let maTKGDIdx = -1;
+  let maHDIdx = -1;
+  let tongMuaIdx = -1;
+  let tongBanIdx = -1;
+  let pnlVndIdx = -1;
+
+  const scanLimit = Math.min(rows.length, 5);
+  for (let r = 0; r < scanLimit; r++) {
+    if (!rows[r]) continue;
+    const header = rows[r].map((h) => String(h || '').trim());
+    const tempAcc = findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'TKGD']);
+    const tempSym = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Hợp đồng']);
+    const tempMua = findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'KLM', 'Mua']);
+    const tempBan = findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'KLB', 'Bán']);
+    const tempPnl = findHeaderIndex(header, 'Lãi lỗ dự kiến(VND)', ['Lãi lỗ dự kiến (VND)', 'Lãi lỗ dự kiến', 'PnL (VND)']);
+
+    if (tempAcc !== -1 && tempSym !== -1) {
+      headerRowIdx = r;
+      maTKGDIdx = tempAcc;
+      maHDIdx = tempSym;
+      tongMuaIdx = tempMua;
+      tongBanIdx = tempBan;
+      pnlVndIdx = tempPnl;
+      break;
+    }
+  }
+
+  if (maTKGDIdx === -1 || maHDIdx === -1) return [];
+
+  const result: ExecutiveTtmRow[] = [];
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+
+    const account = getNormalizedAccount(String(row[maTKGDIdx] || ''));
+    const rawMaHD = String(row[maHDIdx] || '').trim();
+    const symbol = normalizeContractCode(rawMaHD, 'MS');
+    const tongMua = tongMuaIdx !== -1 ? parseAccountingNumber(row[tongMuaIdx]) : 0;
+    const tongBan = tongBanIdx !== -1 ? parseAccountingNumber(row[tongBanIdx]) : 0;
+    const expectedPnLVnd = pnlVndIdx !== -1 ? parseAccountingNumber(row[pnlVndIdx]) : 0;
+
+    if (!account || !symbol) continue;
+
+    result.push({
+      account,
+      symbol,
+      tongMua,
+      tongBan,
+      expectedPnLVnd,
+    });
+  }
+  return result;
+}
+
+/**
+ * Đọc chi tiết file TTTT phục vụ Dashboard QLGD:
+ * Bóc tách Mã TKGD, Mã HĐ, Khối lượng tất toán, và Lãi lỗ thực tế (VND).
+ */
+export function parseTTTTForExecutive(buffer: Buffer): ExecutiveTtttRow[] {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) return [];
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+  if (rows.length < 2) return [];
+
+  let headerRowIdx = 0;
+  let maTKGDIdx = -1;
+  let maHDIdx = -1;
+  let muaTatToanIdx = -1;
+  let banTatToanIdx = -1;
+  let pnlThucTeIdx = -1;
+
+  const scanLimit = Math.min(rows.length, 5);
+  for (let r = 0; r < scanLimit; r++) {
+    if (!rows[r]) continue;
+    const header = rows[r].map((h) => String(h || '').trim());
+    const tempAcc = findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'TKGD']);
+    const tempSym = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Hợp đồng']);
+    const tempMua = findHeaderIndex(header, 'KL Mua tất toán', ['KL Mua', 'Số lô', 'KL tất toán']);
+    const tempBan = findHeaderIndex(header, 'KL Bán tất toán', ['KL Bán', 'KL bán tất toán']);
+    const tempPnl = findHeaderIndex(header, 'Lãi lỗ thực tế', ['Lãi lỗ thực tế(VND)', 'Lãi lỗ thực tế (VND)', 'Realized PnL']);
+
+    if (tempAcc !== -1 && tempSym !== -1) {
+      headerRowIdx = r;
+      maTKGDIdx = tempAcc;
+      maHDIdx = tempSym;
+      muaTatToanIdx = tempMua;
+      banTatToanIdx = tempBan;
+      pnlThucTeIdx = tempPnl;
+      break;
+    }
+  }
+
+  if (maTKGDIdx === -1 || maHDIdx === -1) return [];
+
+  const result: ExecutiveTtttRow[] = [];
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+
+    const account = getNormalizedAccount(String(row[maTKGDIdx] || ''));
+    const rawMaHD = String(row[maHDIdx] || '').trim();
+    const symbol = normalizeContractCode(rawMaHD, 'MS');
+
+    const klMua = muaTatToanIdx !== -1 ? parseAccountingNumber(row[muaTatToanIdx]) : 0;
+    const klBan = banTatToanIdx !== -1 ? parseAccountingNumber(row[banTatToanIdx]) : 0;
+    const liquidatedLots = klMua + klBan;
+    const realizedPnLVnd = pnlThucTeIdx !== -1 ? parseAccountingNumber(row[pnlThucTeIdx]) : 0;
+
+    if (!account || !symbol) continue;
+
+    result.push({
+      account,
+      symbol,
+      liquidatedLots,
+      realizedPnLVnd,
+    });
+  }
+  return result;
+}
+

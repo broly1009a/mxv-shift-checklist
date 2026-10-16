@@ -824,7 +824,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       PS2: true,
       OP2: true,
       OD2: true,
-      AS: true,
+      // AS: true, // Tạm comment: CQG không có widget AS thực tế, tránh sleep 2s và sinh file ảo
     };
     const reports: Partial<
       Record<

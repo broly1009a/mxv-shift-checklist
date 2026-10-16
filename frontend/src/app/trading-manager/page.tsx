@@ -30,10 +30,13 @@ import {
   ShieldCheck,
   CheckSquare,
   Filter,
+  BarChart3,
+  LayoutDashboard,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { QlgdExecutiveDashboard } from './components/QlgdExecutiveDashboard';
 import {
   tradingOpsApi,
   ccpClearingApi,
@@ -58,7 +61,7 @@ export default function TradingManagerV2Page() {
   const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
 
   // Top Tabs Navigation
-  const [activeTab, setActiveTab] = useState<'RECON_OPS' | 'CCP_CLEARING' | 'BOT_BACKUP' | 'SYSTEM_CONFIG'>('RECON_OPS');
+  const [activeTab, setActiveTab] = useState<'RECON_OPS' | 'CCP_CLEARING' | 'QLGD_DASHBOARD' | 'BOT_BACKUP' | 'SYSTEM_CONFIG'>('RECON_OPS');
 
   // Modal Check DSGD Trước EOD
   const [showDsgdBeforeEodModal, setShowDsgdBeforeEodModal] = useState<boolean>(false);
@@ -581,7 +584,44 @@ export default function TradingManagerV2Page() {
             <span>Bù Trừ & Thống Kê CoreCCP</span>
           </button>
 
-          {/* Tab 3: Hạ Tầng Robot & Sao Lưu */}
+          {/* Tab 3: Dashboard Ban Giám Đốc / QLGD (MỚI) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('QLGD_DASHBOARD')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: activeTab === 'QLGD_DASHBOARD' ? '2px solid #38bdf8' : '2px solid transparent',
+              color: activeTab === 'QLGD_DASHBOARD' ? '#38bdf8' : 'var(--text-secondary)',
+              backgroundColor: activeTab === 'QLGD_DASHBOARD' ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <BarChart3 size={16} color={activeTab === 'QLGD_DASHBOARD' ? '#38bdf8' : 'var(--text-muted)'} />
+            <span>Dashboard QLGD (Báo Cáo BGĐ)</span>
+            <span
+              style={{
+                fontSize: '0.62rem',
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(56, 189, 248, 0.25)',
+                color: '#38bdf8',
+                letterSpacing: '0.04em',
+              }}
+            >
+              MỚI
+            </span>
+          </button>
+
+          {/* Tab 4: Hạ Tầng Robot & Sao Lưu */}
           <button
             type="button"
             onClick={() => setActiveTab('BOT_BACKUP')}
@@ -1440,7 +1480,17 @@ export default function TradingManagerV2Page() {
         )}
 
         {/* ========================================================================= */}
-        {/* 5. TAB 3: HẠ TẦNG ROBOT & BACKUP */}
+        {/* 5. TAB 3: DASHBOARD BAN GIÁM ĐỐC & QLGD (MỚI) */}
+        {/* ========================================================================= */}
+        {activeTab === 'QLGD_DASHBOARD' && (
+          <QlgdExecutiveDashboard
+            initialDate={selectedDate}
+            onRefresh={() => fetchConsoleSummary(selectedDate, true)}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* 6. TAB 4: HẠ TẦNG ROBOT & BACKUP */}
         {/* ========================================================================= */}
         {activeTab === 'BOT_BACKUP' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>

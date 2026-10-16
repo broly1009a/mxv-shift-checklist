@@ -395,9 +395,10 @@ export class CqgScraperService {
       if (isClickable) {
         this.logger.log(`[CQG] Nút "${downloadText}" sẵn sàng 100%! Bấm tải...`);
         try {
-          const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
-          await downloadBtn.click();
-          const download = await downloadPromise;
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 30000 }),
+            downloadBtn.click({ timeout: 5000 }),
+          ]);
 
           // Snapshot file cũ nếu đã tồn tại
           if (fs.existsSync(destFile)) {

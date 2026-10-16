@@ -80,6 +80,8 @@ export class BrowserLauncherHelper {
         '--disable-infobars',
         '--disable-dev-shm-usage',
         '--disable-extensions',
+        '--disable-features=DownloadBubble,DownloadBubbleV2,InsecureDownloadWarnings',
+        '--no-default-browser-check',
         '--window-size=1280,800',
       ],
     };
