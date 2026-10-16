@@ -1,5 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { Browser, Page } from 'playwright-core';
+import { Browser, BrowserContext, Page, chromium } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
 import { BrowserLauncherHelper } from '../helpers/browser-launcher.helper';
@@ -159,59 +159,152 @@ export class CqgScraperService {
   }
 
   /**
-   * Đăng nhập 1 tài khoản CQG
+   * Đăng nhập 1 tài khoản CQG với Browser Persistent Profile Cache & Dual-State Router
+   * Chuẩn hóa từ test_cqg_tab_downloads_fast.js
    */
   async loginAccount(
     credentials: ICqgLoginCredentials,
-    options?: { downloadDir?: string },
-  ): Promise<{ browser: Browser; page: Page }> {
+    options?: { downloadDir?: string; profileSuffix?: string },
+  ): Promise<{ browser: Browser | BrowserContext; page: Page }> {
     const { username, password } = credentials;
     if (!username || !password) {
       throw new Error('Chưa cấu hình tài khoản CQG (username, password).');
     }
 
     const cqgUrl = credentials.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
-    const { browser, page } = await BrowserLauncherHelper.launchBrowser();
+    const profileSuffix = options?.profileSuffix || '1';
+    const profileDir = path.join(process.cwd(), 'temp', `cqg_profile_${profileSuffix}`);
+    if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
-    page.on('console', (msg) => {
-      this.logger.debug(`[CQG Console] [${msg.type()}] ${msg.text()}`);
-    });
-    page.on('pageerror', (err) => {
-      this.logger.error(`[CQG PageError] ${err.message}`, err.stack);
-    });
+    // Dọn dẹp file lock mồ côi (SingletonLock) phòng ngừa PM2 restart hoặc crash đột ngột
+    try {
+      const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+      for (const file of lockFiles) {
+        const lockPath = path.join(profileDir, file);
+        if (fs.existsSync(lockPath)) {
+          fs.unlinkSync(lockPath);
+          this.logger.warn(`[CQG] Đã dọn dẹp file lock mồ côi: ${file} trong ${profileDir}`);
+        }
+      }
+    } catch (lockErr: any) {
+      this.logger.warn(`[CQG] Không thể xóa file lock cũ (${lockErr?.message}), tiếp tục khởi chạy...`);
+    }
+
+    const executablePath = BrowserLauncherHelper.getChromeExecutablePath();
+    const isHeadless =
+      process.env.HEADLESS_BOT !== 'false' &&
+      process.env.PLAYWRIGHT_HEADLESS !== 'false';
+    const launchOptions: any = {
+      headless: isHeadless,
+      slowMo: isHeadless ? 0 : 50,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-extensions',
+        '--start-maximized',
+        '--ignore-gpu-blocklist',
+        '--enable-gpu-rasterization',
+        '--enable-zero-copy',
+        '--disk-cache-size=209715200',
+        '--enable-features=V8CodeCache,WebAssembly',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-session-crashed-bubble',
+        '--hide-crash-restore-bubble',
+        '--disable-features=DownloadBubble,DownloadBubbleV2,InsecureDownloadWarnings',
+        '--no-default-browser-check',
+      ],
+      viewport: null,
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      acceptDownloads: true,
+    };
+    if (executablePath) launchOptions.executablePath = executablePath;
+
+    const context = await chromium.launchPersistentContext(profileDir, launchOptions);
 
     try {
+      const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+      });
+      page.setDefaultTimeout(60000);
+
+      page.on('console', (msg) => {
+        this.logger.debug(`[CQG Console] [${msg.type()}] ${msg.text()}`);
+      });
+      page.on('pageerror', (err) => {
+        this.logger.error(`[CQG PageError] ${err.message}`, err.stack);
+      });
+
       this.logger.log(`Điều hướng tới CQG: ${cqgUrl} (${username})...`);
       try {
-        await page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 });
       } catch (navErr: any) {
         this.logger.warn(`[CQG] Tải trang lần 1 bị chậm (${navErr.message}), tự động reload trang...`);
         await page
-          .reload({ waitUntil: 'domcontentloaded', timeout: 30000 })
-          .catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }));
+          .reload({ waitUntil: 'commit', timeout: 60000 })
+          .catch(() => page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 }));
       }
 
-      let hasLoginForm = await page
-        .waitForSelector('input[name="userName"]', { state: 'visible', timeout: 15000 })
-        .catch(() => null);
+      // ── Dual-State Router: Lắng nghe đồng thời Form đăng nhập HOẶC Dashboard (tận dụng session cache) ──
+      const detectState = async (timeoutMs: number = 15000): Promise<'LOGIN' | 'DASHBOARD' | 'TIMEOUT'> => {
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+          const hasLogin = await page
+            .locator('input[name="userName"], input[name="username"], input[type="password"]')
+            .first()
+            .isVisible()
+            .catch(() => false);
+          if (hasLogin) return 'LOGIN';
 
-      if (!hasLoginForm) {
-        this.logger.log('[CQG] Form login chưa hiển thị, tự động reload lại trang...');
-        await page
-          .reload({ waitUntil: 'domcontentloaded', timeout: 25000 })
-          .catch(() => page.goto(cqgUrl, { waitUntil: 'domcontentloaded', timeout: 25000 }));
-        await page.waitForSelector('input[name="userName"]', { state: 'visible', timeout: 30000 });
+          const hasDashboard = await page
+            .locator('div.wpfe-logo-image, .wpfe-main-toolbar, //div[text()=\'Ho\']')
+            .first()
+            .isVisible()
+            .catch(() => false);
+          if (hasDashboard) return 'DASHBOARD';
+
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+        return 'TIMEOUT';
+      };
+
+      let state = await detectState(15000);
+      if (state === 'TIMEOUT') {
+        this.logger.log(`[CQG] Bản web bị quay spinner quá 15s, tự động reload lại trang để nạp từ Disk Cache...`);
+        await page.reload({ waitUntil: 'commit', timeout: 60000 }).catch(() =>
+          page.goto(cqgUrl, { waitUntil: 'commit', timeout: 60000 }),
+        );
+        state = await detectState(30000);
+        if (state === 'TIMEOUT') {
+          throw new Error(`[CQG] Không tìm thấy Form đăng nhập hoặc Dashboard sau 60s chờ tải trang (${username}).`);
+        }
       }
 
-      await page.fill('input[name="userName"]', username);
-      await page.fill('input[name="password"]', password);
-      await page.click('button[type="submit"]');
+      if (state === 'LOGIN') {
+        this.logger.log(`[CQG] Phát hiện form đăng nhập, tiến hành xác thực tài khoản: ${username}...`);
+        await page.fill('input[name="userName"]', username);
+        await page.fill('input[name="password"]', password);
+        await page.click('button[type="submit"]');
 
-      await this.waitForCqgDashboardLogo(page, username, 120000);
-      return { browser, page };
+        await this.waitForCqgDashboardLogo(page, username, 120000);
+      } else if (state === 'DASHBOARD') {
+        this.logger.log(`[CQG] ⚡ Phát hiện phiên làm việc sẵn sàng tại Dashboard từ Disk Cache cho: ${username}!`);
+        await this.waitForCqgDashboardLogo(page, username, 10000);
+      }
+
+      await this.waitForCqgNotLoading(page, 30000);
+      return { browser: context as any, page };
     } catch (err: any) {
       this.logger.error(`Đăng nhập CQG thất bại (${username}): ${err.message}`);
-      await browser.close().catch(() => {});
+      await context.close().catch(() => {});
       throw err;
     }
   }
@@ -582,8 +675,8 @@ export class CqgScraperService {
       `Bắt đầu khởi chạy song song 2 trình duyệt CQG1 (${acc1.username}) và CQG2 (${acc2.username})...`,
     );
     const [session1, session2] = await Promise.all([
-      this.loginAccount(acc1),
-      this.loginAccount(acc2),
+      this.loginAccount(acc1, { profileSuffix: '1' }),
+      this.loginAccount(acc2, { profileSuffix: '2' }),
     ]);
 
     const files: Array<{ name: string; path: string; size: number; mtime: Date }> = [];
