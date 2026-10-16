@@ -39,9 +39,10 @@ import CcpStatisticsModal from './components/CcpStatisticsModal';
 import TradingReportModal from './components/TradingReportModal';
 import OmsStatusModal from './components/OmsStatusModal';
 import MaturityTemplateModal from './components/MaturityTemplateModal';
-import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
 import CustomSelect from '@/components/ui/CustomSelect';
+import BotLogViewerModal from '@/components/ui/BotLogViewerModal';
 import CloseShiftModal from './components/CloseShiftModal';
+import { renderShiftStatusBadge } from '@/utils/shift-status.helper';
 
 function ChecklistWorksheet() {
   const { canViewChecklist } = usePermissions();
@@ -529,12 +530,7 @@ function ChecklistWorksheet() {
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isCompleted ? <Lock size={15} color="var(--color-primary)" /> : <Unlock size={15} color="var(--color-accent)" />}
-                Trạng thái:
-                {isCompleted ? (
-                  <strong style={{ color: 'var(--color-primary)' }}>ĐÃ CHỐT</strong>
-                ) : (
-                  <strong style={{ color: 'var(--color-accent)' }}>ĐANG TRỰC</strong>
-                )}
+                Trạng thái: {renderShiftStatusBadge(log, { size: 'sm' })}
               </span>
               {isCompleted && log.closedBy && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -862,6 +858,7 @@ function ChecklistWorksheet() {
           onClose={() => setIsCloseShiftModalOpen(false)}
           onSubmit={handleCloseShift}
           isSubmitting={loading}
+          shiftLog={log}
         />
       )}
 

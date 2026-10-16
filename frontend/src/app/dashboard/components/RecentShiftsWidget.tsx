@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { GripVertical, FolderOpen, CheckCircle2, Clock } from 'lucide-react';
+import { GripVertical, FolderOpen } from 'lucide-react';
 import { ShiftLog } from '../types';
+import { renderShiftStatusBadge } from '@/utils/shift-status.helper';
 
 interface RecentShiftsWidgetProps {
   showAuditLogs: boolean;
@@ -61,15 +62,7 @@ export const RecentShiftsWidget: React.FC<RecentShiftsWidgetProps> = ({ showAudi
                   <td style={{ padding: '12px 12px' }}>{getSessionBadge(log.templateId?.sessionType || 'OPEN')}</td>
                   <td style={{ padding: '12px 12px' }}>{log.userId?.fullName || 'Hệ thống'}</td>
                   <td style={{ padding: '12px 12px' }}>
-                    {log.status === 'COMPLETED' ? (
-                      <span style={{ color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                        <CheckCircle2 size={12} /> HOÀN THÀNH
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                        <Clock size={12} /> ĐANG CHẠY
-                      </span>
-                    )}
+                    {renderShiftStatusBadge(log, { size: 'sm' })}
                   </td>
                   <td style={{ padding: '12px 12px', fontWeight: 700 }}>{log.progressPercentage}%</td>
                   <td style={{ padding: '12px 12px' }}>

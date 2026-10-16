@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { MarginExcelParser } from '../parsers';
+import { extractCqgSnapshotTime } from '../parsers/cqg-excel.parser';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TelegramService } from '../../telegram/telegram.service';
 import { resolveStoragePathCrossPlatform } from '../../../shared';
@@ -12,6 +13,110 @@ export interface ICqgMergeResult {
   mergedFiles: string[];
   logs: string[];
   errors: string[];
+}
+
+export interface CqgPairValidationResult {
+  isValid: boolean;
+  reason?: string;
+  stat1?: fs.Stats;
+  stat2?: fs.Stats;
+  mtimeDiffMinutes?: number;
+  snap1?: Date | null;
+  snap2?: Date | null;
+}
+
+export interface CqgMergeOptions {
+  checkFreshness?: boolean;
+  maxTimeGapMinutes?: number;
+  requireBothFiles?: boolean;
+}
+
+/**
+ * Kiểm định tính đồng bộ và độ tươi của 2 file thô từ 2 tài khoản CQG trước khi ghép nối.
+ * Ngăn chặn tuyệt đối việc ghép 1 file mới hôm nay với 1 file sót lại từ hôm qua (Fail-Fast & Zero-Silent-Swallow).
+ */
+export function validateCqgPairFreshness(
+  src1: string,
+  src2: string,
+  options?: {
+    maxTimeGapMinutes?: number;
+    requireBothFiles?: boolean;
+    logger?: Logger;
+  },
+): CqgPairValidationResult {
+  const exists1 = fs.existsSync(src1);
+  const exists2 = fs.existsSync(src2);
+
+  if (!exists1 && !exists2) {
+    return {
+      isValid: false,
+      reason: `Cả hai file nguồn đều không tồn tại: ${path.basename(src1)}, ${path.basename(src2)}`,
+    };
+  }
+
+  // 1. Kiểm tra thiếu file khi bắt buộc cả 2 tài khoản
+  if (!exists1 || !exists2) {
+    const presentFile = exists1 ? src1 : src2;
+    const missingFile = exists1 ? src2 : src1;
+    if (options?.requireBothFiles !== false) {
+      return {
+        isValid: false,
+        reason: `Thiếu file nguồn của 1 tài khoản CQG (${path.basename(missingFile)}). Chỉ tìm thấy ${path.basename(presentFile)}. Cần đủ cả 2 tài khoản để tránh thiếu hụt 50% dữ liệu.`,
+      };
+    }
+    return {
+      isValid: true,
+      reason: `Chỉ tồn tại 1 file (${path.basename(presentFile)}), nhưng cờ requireBothFiles=false cho phép xử lý.`,
+    };
+  }
+
+  // 2. Cả 2 file đều tồn tại -> Lấy stat
+  const stat1 = fs.statSync(src1);
+  const stat2 = fs.statSync(src2);
+
+  // 3. Kiểm tra Header Snapshot Date (nếu có trong nội dung file)
+  const snap1 = extractCqgSnapshotTime(src1);
+  const snap2 = extractCqgSnapshotTime(src2);
+  if (snap1 && snap2) {
+    const d1 = snap1.toISOString().split('T')[0];
+    const d2 = snap2.toISOString().split('T')[0];
+    if (d1 !== d2) {
+      return {
+        isValid: false,
+        stat1,
+        stat2,
+        snap1,
+        snap2,
+        reason: `Phát hiện 2 file CQG thuộc về 2 ngày giao dịch khác nhau trong Header: ${path.basename(src1)} (${d1}) vs ${path.basename(src2)} (${d2}). Tuyệt đối không được ghép!`,
+      };
+    }
+  }
+
+  // 4. Kiểm tra khoảng cách thời gian ghi đĩa (mtime gap)
+  const maxGapMs = (options?.maxTimeGapMinutes ?? 60) * 60 * 1000;
+  const diffMs = Math.abs(stat1.mtimeMs - stat2.mtimeMs);
+  const diffMin = Math.round(diffMs / (60 * 1000));
+
+  if (diffMs > maxGapMs) {
+    return {
+      isValid: false,
+      stat1,
+      stat2,
+      snap1,
+      snap2,
+      mtimeDiffMinutes: diffMin,
+      reason: `Khoảng cách thời gian sửa đổi giữa ${path.basename(src1)} (${stat1.mtime.toLocaleTimeString('vi-VN')}) và ${path.basename(src2)} (${stat2.mtime.toLocaleTimeString('vi-VN')}) vượt ngưỡng an toàn (${diffMin} phút > ${options?.maxTimeGapMinutes ?? 60} phút). Nghi ngờ 1 trong 2 file là file tồn đọng từ phiên cũ!`,
+    };
+  }
+
+  return {
+    isValid: true,
+    stat1,
+    stat2,
+    snap1,
+    snap2,
+    mtimeDiffMinutes: diffMin,
+  };
 }
 
 function findHeaderIndex(header: string[], primary: string, aliases: string[] = []): number {
@@ -74,7 +179,19 @@ export class CqgMergerService {
    * - Lấy header từ hàng 2 (index 1) hoặc hàng 1.
    * - Bỏ 2 dòng chân trang (Footer rows) của từng file thô: data = rows.slice(2, lr - 2).
    */
-  mergeFR(src1: string, src2: string, dest: string): boolean {
+  mergeFR(src1: string, src2: string, dest: string, options?: CqgMergeOptions): boolean {
+    if (options?.checkFreshness !== false) {
+      const validation = validateCqgPairFreshness(src1, src2, {
+        maxTimeGapMinutes: options?.maxTimeGapMinutes,
+        requireBothFiles: options?.requireBothFiles,
+        logger: this.logger,
+      });
+      if (!validation.isValid) {
+        this.logger.error(`[CQG Merger Guard] Chặn ghép FR: ${validation.reason}`);
+        throw new Error(`[CQG Merger Guard] ${validation.reason}`);
+      }
+    }
+
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
@@ -122,20 +239,43 @@ export class CqgMergerService {
   /**
    * Ghép OP1.xlsx + OP2.xlsx -> OP.xlsx (Trạng thái mở)
    */
-  mergeOP(src1: string, src2: string, dest: string): boolean {
-    const wb1 = XLSX.readFile(src1);
-    const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+  mergeOP(src1: string, src2: string, dest: string, options?: CqgMergeOptions): boolean {
+    if (options?.checkFreshness !== false) {
+      const validation = validateCqgPairFreshness(src1, src2, {
+        maxTimeGapMinutes: options?.maxTimeGapMinutes,
+        requireBothFiles: options?.requireBothFiles,
+        logger: this.logger,
+      });
+      if (!validation.isValid) {
+        this.logger.error(`[CQG Merger Guard] Chặn ghép OP: ${validation.reason}`);
+        throw new Error(`[CQG Merger Guard] ${validation.reason}`);
+      }
+    }
+
+    let rows1: any[][] = [];
+    if (fs.existsSync(src1)) {
+      try {
+        const wb1 = XLSX.readFile(src1);
+        rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
+      }
+    }
 
     const headerRow = rows1[1] || [];
     const data1 = rows1.slice(2);
     const mergedData = [headerRow, ...data1];
 
     if (fs.existsSync(src2)) {
-      const wb2 = XLSX.readFile(src2);
-      const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
-      if (rows2.length > 3) {
-        const data2 = rows2.slice(2);
-        mergedData.push(...data2);
+      try {
+        const wb2 = XLSX.readFile(src2);
+        const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
+        if (rows2.length > 3) {
+          const data2 = rows2.slice(2);
+          mergedData.push(...data2);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src2}: ${err.message}`);
       }
     }
 
@@ -153,24 +293,48 @@ export class CqgMergerService {
   /**
    * Ghép OD1.xlsx + OD2.xlsx -> Od.xlsx (Sổ lệnh)
    */
-  mergeOD(src1: string, src2: string, dest: string): boolean {
-    const wb1 = XLSX.readFile(src1);
-    const rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+  mergeOD(src1: string, src2: string, dest: string, options?: CqgMergeOptions): boolean {
+    if (options?.checkFreshness !== false) {
+      const validation = validateCqgPairFreshness(src1, src2, {
+        maxTimeGapMinutes: options?.maxTimeGapMinutes,
+        requireBothFiles: options?.requireBothFiles,
+        logger: this.logger,
+      });
+      if (!validation.isValid) {
+        this.logger.error(`[CQG Merger Guard] Chặn ghép OD: ${validation.reason}`);
+        throw new Error(`[CQG Merger Guard] ${validation.reason}`);
+      }
+    }
+
+    let rows1: any[][] = [];
+    if (fs.existsSync(src1)) {
+      try {
+        const wb1 = XLSX.readFile(src1);
+        rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
+      }
+    }
+
     const lr1 = rows1.length;
     const data1 = rows1.slice(2);
     let mergedData = [...data1];
 
     if (fs.existsSync(src2)) {
-      const wb2 = XLSX.readFile(src2);
-      const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
-      if (rows2.length > 3) {
-        const data2 = rows2.slice(3);
-        const pasteIdx = lr1 - 4;
-        if (pasteIdx >= 0 && pasteIdx < data1.length) {
-          mergedData = data1.slice(0, pasteIdx).concat(data2);
-        } else {
-          mergedData.push(...data2);
+      try {
+        const wb2 = XLSX.readFile(src2);
+        const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
+        if (rows2.length > 3) {
+          const data2 = rows2.slice(3);
+          const pasteIdx = lr1 - 4;
+          if (pasteIdx >= 0 && pasteIdx < data1.length) {
+            mergedData = data1.slice(0, pasteIdx).concat(data2);
+          } else {
+            mergedData.push(...data2);
+          }
         }
+      } catch (err: any) {
+        this.logger.warn(`Lỗi đọc ${src2}: ${err.message}`);
       }
     }
 
@@ -191,7 +355,18 @@ export class CqgMergerService {
    * Sheet 2: Check CQG-MS (Quy chuẩn hậu tố tài khoản: F$ -> "", L$ -> "-L", S$ -> "-S")
    * Sheet 3: Check MS-CQG (Đối soát với TTM của M-System)
    */
-  mergePS(src1: string, src2: string, dest: string, ttmPath?: string): boolean {
+  mergePS(src1: string, src2: string, dest: string, ttmPath?: string, options?: CqgMergeOptions): boolean {
+    if (options?.checkFreshness !== false) {
+      const validation = validateCqgPairFreshness(src1, src2, {
+        maxTimeGapMinutes: options?.maxTimeGapMinutes,
+        requireBothFiles: options?.requireBothFiles,
+        logger: this.logger,
+      });
+      if (!validation.isValid) {
+        this.logger.error(`[CQG Merger Guard] Chặn ghép PS: ${validation.reason}`);
+        throw new Error(`[CQG Merger Guard] ${validation.reason}`);
+      }
+    }
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
@@ -336,7 +511,7 @@ export class CqgMergerService {
   /**
    * Tự động quét và ghép toàn bộ 4 cặp file thô có trong thư mục chỉ định
    */
-  mergeAll(folder: string, ttmPath?: string): ICqgMergeResult {
+  mergeAll(folder: string, ttmPath?: string, options?: CqgMergeOptions): ICqgMergeResult {
     const logs: string[] = [];
     const errors: string[] = [];
     const mergedFiles: string[] = [];
@@ -347,7 +522,7 @@ export class CqgMergerService {
     const frDest = path.join(folder, 'FR.xlsx');
     if (fs.existsSync(fr1) || fs.existsSync(fr2)) {
       try {
-        this.mergeFR(fr1, fr2, frDest);
+        this.mergeFR(fr1, fr2, frDest, options);
         mergedFiles.push(frDest);
         logs.push('Ghép thành công FR.xlsx');
       } catch (e: any) {
@@ -361,7 +536,7 @@ export class CqgMergerService {
     const opDest = path.join(folder, 'OP.xlsx');
     if (fs.existsSync(op1) || fs.existsSync(op2)) {
       try {
-        this.mergeOP(op1, op2, opDest);
+        this.mergeOP(op1, op2, opDest, options);
         mergedFiles.push(opDest);
         logs.push('Ghép thành công OP.xlsx');
       } catch (e: any) {
@@ -375,7 +550,7 @@ export class CqgMergerService {
     const odDest = path.join(folder, 'Od.xlsx');
     if (fs.existsSync(od1) || fs.existsSync(od2)) {
       try {
-        this.mergeOD(od1, od2, odDest);
+        this.mergeOD(od1, od2, odDest, options);
         mergedFiles.push(odDest);
         logs.push('Ghép thành công Od.xlsx');
       } catch (e: any) {
@@ -389,7 +564,7 @@ export class CqgMergerService {
     const psDest = path.join(folder, 'PS.xlsx');
     if (fs.existsSync(ps1) || fs.existsSync(ps2)) {
       try {
-        this.mergePS(ps1, ps2, psDest, ttmPath);
+        this.mergePS(ps1, ps2, psDest, ttmPath, options);
         mergedFiles.push(psDest);
         logs.push('Ghép thành công PS.xlsx');
       } catch (e: any) {

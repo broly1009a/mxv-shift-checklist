@@ -123,32 +123,53 @@ export function parseNano(buffer: Buffer): any[] {
 }
 
 /**
- * Đọc tổng khối lượng giao dịch từ file CSV Straits Financial.
+ * Đọc tổng khối lượng giao dịch từ file Straits Financial (Hỗ trợ cả CSV dạng Buy/Sell và Excel BIFF8/XLSX dạng Volume).
  */
 export function parseStraitsCsv(buffer: Buffer): { totalVolume: number } {
-  const text = buffer.toString('utf-8');
-  const lines = text.split(/\r?\n/);
-  if (lines.length === 0) throw new Error('File Straits CSV rỗng');
+  if (!buffer || buffer.length === 0) throw new Error('File Straits rỗng');
 
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-  const buyColIndex = headers.indexOf('buy');
-  const sellColIndex = headers.indexOf('sell');
+  // 1. Kiểm tra nếu file là Excel nhị phân (BIFF8 .xls bắt đầu bằng D0 CF 11 E0 hoặc OOXML .xlsx bắt đầu bằng PK)
+  const isBinaryExcel =
+    (buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0) ||
+    (buffer[0] === 0x50 && buffer[1] === 0x4b);
 
-  if (buyColIndex === -1 || sellColIndex === -1) {
-    throw new Error("Không tìm thấy cột 'Buy' hoặc 'Sell' trong file CSV Straits");
+  if (!isBinaryExcel) {
+    const text = buffer.toString('utf-8');
+    const lines = text.split(/\r?\n/);
+    if (lines.length > 0) {
+      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+      const buyColIndex = headers.indexOf('buy');
+      const sellColIndex = headers.indexOf('sell');
+
+      if (buyColIndex !== -1 && sellColIndex !== -1) {
+        let totalVolume = 0;
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const values = line.split(',');
+          if (buyColIndex < values.length) {
+            totalVolume += parseFloat(values[buyColIndex].replace(/"/g, '').trim()) || 0;
+          }
+          if (sellColIndex < values.length) {
+            totalVolume += parseFloat(values[sellColIndex].replace(/"/g, '').trim()) || 0;
+          }
+        }
+        return { totalVolume };
+      }
+    }
   }
 
-  let totalVolume = 0;
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const values = line.split(',');
-    if (buyColIndex < values.length) {
-      totalVolume += parseFloat(values[buyColIndex].replace(/"/g, '').trim()) || 0;
+  // 2. Fallback sang parseNano (hỗ trợ file Straits dạng Excel có cột 'volume')
+  try {
+    const nanoTrades = parseNano(buffer);
+    let totalVolume = 0;
+    for (const trade of nanoTrades) {
+      totalVolume += Number(trade.klGiaoDich) || 0;
     }
-    if (sellColIndex < values.length) {
-      totalVolume += parseFloat(values[sellColIndex].replace(/"/g, '').trim()) || 0;
-    }
+    return { totalVolume };
+  } catch (err: any) {
+    throw new Error(
+      `Không thể đọc dữ liệu từ file Straits: ${err.message}. Đã thử cả CSV (cột Buy/Sell) và Excel Nano (cột Volume).`,
+    );
   }
-  return { totalVolume };
 }
