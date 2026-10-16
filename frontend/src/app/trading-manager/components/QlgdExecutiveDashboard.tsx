@@ -528,15 +528,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         position: 'top' as const,
         labels: {
           boxWidth: 10,
-          color: '#94a3b8',
+          color: '#64748b',
           font: { size: 10, family: 'Inter, sans-serif' },
         },
       },
       tooltip: {
-        backgroundColor: 'rgba(15, 23, 42, 0.92)',
-        titleColor: '#f8fafc',
-        bodyColor: '#cbd5e1',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: '#1e293b',
+        titleColor: '#ffffff',
+        bodyColor: '#e2e8f0',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
         borderWidth: 1,
         padding: 8,
         cornerRadius: 6,
@@ -544,21 +544,21 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     },
     scales: {
       x: {
-        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+        grid: { color: 'rgba(148, 163, 184, 0.12)' },
         ticks: { color: '#64748b', font: { size: 9 } },
       },
       yVolume: {
         type: 'linear' as const,
         position: 'left' as const,
-        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-        ticks: { color: '#94a3b8', font: { size: 9 } },
+        grid: { color: 'rgba(148, 163, 184, 0.12)' },
+        ticks: { color: '#64748b', font: { size: 9 } },
       },
       yValue: {
         type: 'linear' as const,
         position: 'right' as const,
         grid: { drawOnChartArea: false },
         ticks: {
-          color: '#38bdf8',
+          color: '#0284c7',
           font: { size: 9 },
           callback: (val: any) => `${val}T`,
         },
@@ -681,13 +681,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--bg-input)',
               border: '1px solid var(--border-color)',
               borderRadius: '8px',
               padding: '6px 12px',
             }}
           >
-            <Calendar size={15} color="#94a3b8" />
+            <Calendar size={15} color="var(--text-muted)" />
             <input
               type="date"
               value={sessionDate}
@@ -710,7 +710,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               borderRadius: '8px',
               border: '1px solid var(--border-color)',
               overflow: 'hidden',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--bg-input)',
             }}
           >
             <button
@@ -766,7 +766,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               fontSize: '0.8rem',
               borderRadius: '8px',
               border: '1px solid var(--border-color)',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--bg-input)',
               color: 'var(--text-primary)',
               cursor: 'pointer',
             }}
@@ -816,13 +816,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         <div
           style={{
             backgroundColor: 'var(--bg-card)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
             borderRadius: '14px',
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+            boxShadow: 'var(--shadow-sm)',
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -852,13 +852,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#34d399',
+                  color: '#10b981',
                 }}
               >
                 <Building2 size={20} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#34d399', letterSpacing: '0.03em' }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#10b981', letterSpacing: '0.03em' }}>
                   {MOCK_ACM_SEGMENT.title}
                 </h3>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{MOCK_ACM_SEGMENT.subTitle}</span>
@@ -873,20 +873,20 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 gap: '12px',
                 padding: '6px 14px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
               }}
             >
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>KLGD Gần Nhất</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {formatInteger(MOCK_ACM_SEGMENT.latestKlgd)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>lots</span>
                 </div>
               </div>
               <div style={{ width: '1px', height: '26px', backgroundColor: 'var(--border-color)' }} />
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>GTGD Gần Nhất</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0284c7' }}>
                   {MOCK_ACM_SEGMENT.latestGtgdStr}
                 </div>
               </div>
@@ -906,7 +906,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             style={{
               height: '180px',
               width: '100%',
-              backgroundColor: 'rgba(15, 23, 42, 0.4)',
+              backgroundColor: 'var(--bg-input)',
               borderRadius: '8px',
               border: '1px solid var(--border-color)',
               padding: '8px',
@@ -943,7 +943,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             >
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
@@ -951,15 +951,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Đầu phiên</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>5h-8h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-8h</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {formatInteger(MOCK_ACM_SEGMENT.milestones.earlySession)}
                 </div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
@@ -967,15 +967,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Á</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>5h-16h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-16h</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
                   {formatInteger(MOCK_ACM_SEGMENT.milestones.asianSession)}
                 </div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
@@ -983,24 +983,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Âu</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>5h-23h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f59e0b' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-23h</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d97706' }}>
                   {formatInteger(MOCK_ACM_SEGMENT.milestones.europeanSession)}
                 </div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
                   borderRadius: '8px',
                   padding: '8px 10px',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 700 }}>Hết phiên Mỹ</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>Cả ngày</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#34d399' }}>
+                <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>Hết phiên Mỹ</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cả ngày</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>
                   {formatInteger(MOCK_ACM_SEGMENT.milestones.americanSession)}
                 </div>
               </div>
@@ -1012,13 +1012,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         <div
           style={{
             backgroundColor: 'var(--bg-card)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
+            border: '1px solid rgba(59, 130, 246, 0.35)',
             borderRadius: '14px',
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+            boxShadow: 'var(--shadow-sm)',
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -1048,13 +1048,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#60a5fa',
+                  color: '#2563eb',
                 }}
               >
                 <Users size={20} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#60a5fa', letterSpacing: '0.03em' }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#2563eb', letterSpacing: '0.03em' }}>
                   {MOCK_OTHERS_SEGMENT.title}
                 </h3>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{MOCK_OTHERS_SEGMENT.subTitle}</span>
@@ -1069,20 +1069,20 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 gap: '12px',
                 padding: '6px 14px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
               }}
             >
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>KLGD Gần Nhất</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {formatInteger(MOCK_OTHERS_SEGMENT.latestKlgd)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>lots</span>
                 </div>
               </div>
               <div style={{ width: '1px', height: '26px', backgroundColor: 'var(--border-color)' }} />
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>GTGD Gần Nhất</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#60a5fa' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#2563eb' }}>
                   {MOCK_OTHERS_SEGMENT.latestGtgdStr}
                 </div>
               </div>
@@ -1102,7 +1102,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             style={{
               height: '180px',
               width: '100%',
-              backgroundColor: 'rgba(15, 23, 42, 0.4)',
+              backgroundColor: 'var(--bg-input)',
               borderRadius: '8px',
               border: '1px solid var(--border-color)',
               padding: '8px',
@@ -1126,7 +1126,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 letterSpacing: '0.04em',
               }}
             >
-              <Clock size={13} color="#3b82f6" />
+              <Clock size={13} color="#2563eb" />
               <span>4 Mốc Thời Điểm Phục Vụ Báo Cáo BGĐ</span>
             </div>
 
@@ -1139,7 +1139,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             >
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
@@ -1147,15 +1147,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Đầu phiên</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>5h-8h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-8h</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {formatInteger(MOCK_OTHERS_SEGMENT.milestones.earlySession)}
                 </div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
@@ -1163,15 +1163,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Á</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>5h-16h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-16h</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
                   {formatInteger(MOCK_OTHERS_SEGMENT.milestones.asianSession)}
                 </div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                  backgroundColor: 'var(--bg-input)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
@@ -1179,24 +1179,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 }}
               >
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Âu</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>5h-23h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f59e0b' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-23h</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d97706' }}>
                   {formatInteger(MOCK_OTHERS_SEGMENT.milestones.europeanSession)}
                 </div>
               </div>
 
               <div
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.65)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid rgba(59, 130, 246, 0.35)',
                   borderRadius: '8px',
                   padding: '8px 10px',
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 700 }}>Hết phiên Mỹ</div>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '4px' }}>Cả ngày</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#60a5fa' }}>
+                <div style={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700 }}>Hết phiên Mỹ</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cả ngày</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#2563eb' }}>
                   {formatInteger(MOCK_OTHERS_SEGMENT.milestones.americanSession)}
                 </div>
               </div>
@@ -1214,7 +1214,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           border: '1px solid var(--border-color)',
           borderRadius: '14px',
           padding: '20px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+          boxShadow: 'var(--shadow-sm)',
           display: 'flex',
           flexDirection: 'column',
           gap: '14px',
@@ -1227,7 +1227,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               BẢNG THỐNG KÊ LÃI LỖ DỰ KIẾN/THỰC TẾ & TỶ LỆ VỊ THẾ MỞ MUA/BÁN
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Dữ liệu phiên chốt: <strong style={{ color: '#38bdf8' }}>{sessionDate}</strong> | Tự động bóc tách từ TTM & TTTT
+              Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong> | Tự động bóc tách từ TTM & TTTT
             </p>
           </div>
 
@@ -1240,14 +1240,14 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
                 style={{
-                  padding: '4px 10px',
-                  fontSize: '0.72rem',
+                  padding: '5px 12px',
+                  fontSize: '0.75rem',
                   fontWeight: selectedCategory === cat ? 700 : 500,
                   borderRadius: '6px',
                   border: '1px solid',
                   borderColor: selectedCategory === cat ? '#3b82f6' : 'var(--border-color)',
-                  backgroundColor: selectedCategory === cat ? 'rgba(59, 130, 246, 0.2)' : 'rgba(15, 23, 42, 0.4)',
-                  color: selectedCategory === cat ? '#60a5fa' : 'var(--text-secondary)',
+                  backgroundColor: selectedCategory === cat ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-input)',
+                  color: selectedCategory === cat ? '#2563eb' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }}
@@ -1264,6 +1264,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             overflowX: 'auto',
             borderRadius: '10px',
             border: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-card)',
           }}
         >
           <table
@@ -1278,10 +1279,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             <thead>
               <tr
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                  backgroundColor: 'var(--bg-input)',
                   borderBottom: '2px solid var(--border-color)',
                   color: 'var(--text-secondary)',
                   textAlign: 'center',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
                 }}
               >
                 <th style={{ padding: '10px 8px', borderRight: '1px solid var(--border-color)', width: '45px' }}>STT</th>
@@ -1324,8 +1327,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     <tr
                       key={item.symbol}
                       style={{
-                        borderBottom: isLastOfGroup ? '2px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(255, 255, 255, 0.05)',
-                        backgroundColor: idx % 2 === 0 ? 'rgba(15, 23, 42, 0.25)' : 'rgba(15, 23, 42, 0.45)',
+                        borderBottom: isLastOfGroup ? '2px solid var(--border-color)' : '1px solid var(--border-color)',
+                        backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.04)',
                         transition: 'background-color 0.15s',
                       }}
                       onMouseEnter={(e) => {
@@ -1333,7 +1336,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor =
-                          idx % 2 === 0 ? 'rgba(15, 23, 42, 0.25)' : 'rgba(15, 23, 42, 0.45)';
+                          idx % 2 === 0 ? 'transparent' : 'rgba(148, 163, 184, 0.04)';
                       }}
                     >
                       {/* 1. STT */}
@@ -1351,13 +1354,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             verticalAlign: 'middle',
                             fontWeight: 700,
                             borderRight: '1px solid var(--border-color)',
-                            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+                            backgroundColor: 'var(--bg-input)',
                             color:
                               catName === 'Nông sản'
-                                ? '#34d399'
+                                ? '#10b981'
                                 : catName === 'Kim loại'
-                                ? '#38bdf8'
-                                : '#f59e0b',
+                                ? '#0284c7'
+                                : '#d97706',
                             fontSize: '0.8rem',
                           }}
                         >
@@ -1372,7 +1375,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           textAlign: 'center',
                           fontWeight: 700,
                           borderRight: '1px solid var(--border-color)',
-                          color: '#f8fafc',
+                          color: 'var(--text-primary)',
                           fontFamily: 'monospace',
                         }}
                       >
@@ -1399,9 +1402,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           borderRight: '1px solid var(--border-color)',
                           fontWeight: 700,
                           fontFamily: 'monospace',
-                          color: isExpectedLoss ? '#f87171' : '#34d399',
+                          color: isExpectedLoss ? '#ef4444' : '#10b981',
                           backgroundColor: item.highlightExpectedLoss
-                            ? 'rgba(239, 68, 68, 0.22)'
+                            ? 'rgba(239, 68, 68, 0.12)'
                             : 'transparent',
                         }}
                       >
@@ -1415,10 +1418,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
                           fontWeight: 700,
-                          color: '#f8fafc',
+                          color: 'var(--text-primary)',
                           fontFamily: 'monospace',
                           backgroundColor: item.highlightOpenPosition
-                            ? 'rgba(16, 185, 129, 0.22)'
+                            ? 'rgba(16, 185, 129, 0.12)'
                             : 'transparent',
                         }}
                       >
@@ -1438,7 +1441,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             style={{
                               flex: 1,
                               height: '16px',
-                              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                              backgroundColor: 'rgba(148, 163, 184, 0.18)',
                               borderRadius: '4px',
                               overflow: 'hidden',
                               position: 'relative',
@@ -1460,7 +1463,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               textAlign: 'right',
                               fontSize: '0.75rem',
                               fontWeight: 700,
-                              color: '#60a5fa',
+                              color: '#2563eb',
                             }}
                           >
                             {item.longRatio}%
@@ -1468,7 +1471,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         </div>
                       </td>
 
-                      {/* 8. % mở Bán (Progress bar xám/xanh nhạt) */}
+                      {/* 8. % mở Bán (Progress bar xám) */}
                       <td
                         style={{
                           padding: '6px 10px',
@@ -1481,7 +1484,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             style={{
                               flex: 1,
                               height: '16px',
-                              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                              backgroundColor: 'rgba(148, 163, 184, 0.18)',
                               borderRadius: '4px',
                               overflow: 'hidden',
                               position: 'relative',
@@ -1491,7 +1494,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               style={{
                                 width: `${item.shortRatio}%`,
                                 height: '100%',
-                                backgroundColor: '#64748b',
+                                backgroundColor: '#94a3b8',
                                 borderRadius: '4px',
                                 transition: 'width 0.4s ease',
                               }}
@@ -1503,7 +1506,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               textAlign: 'right',
                               fontSize: '0.75rem',
                               fontWeight: 600,
-                              color: '#94a3b8',
+                              color: 'var(--text-muted)',
                             }}
                           >
                             {item.shortRatio}%
@@ -1519,7 +1522,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           borderRight: '1px solid var(--border-color)',
                           fontWeight: 700,
                           fontFamily: 'monospace',
-                          color: isRealizedLoss ? '#f87171' : '#34d399',
+                          color: isRealizedLoss ? '#ef4444' : '#10b981',
                           backgroundColor: isRealizedLoss
                             ? 'rgba(239, 68, 68, 0.08)'
                             : 'rgba(16, 185, 129, 0.08)',
@@ -1535,9 +1538,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           textAlign: 'right',
                           fontWeight: 700,
                           fontFamily: 'monospace',
-                          color: '#f8fafc',
+                          color: 'var(--text-primary)',
                           backgroundColor: item.highlightLiquidated
-                            ? 'rgba(16, 185, 129, 0.22)'
+                            ? 'rgba(16, 185, 129, 0.12)'
                             : 'transparent',
                         }}
                       >
@@ -1553,8 +1556,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             <tfoot>
               <tr
                 style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.98)',
-                  borderTop: '2px solid rgba(255, 255, 255, 0.25)',
+                  backgroundColor: 'var(--bg-input)',
+                  borderTop: '2px solid var(--border-color)',
                   fontWeight: 800,
                   fontSize: '0.85rem',
                 }}
@@ -1565,7 +1568,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '12px 14px',
                     textAlign: 'center',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#f8fafc',
+                    color: 'var(--text-primary)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                   }}
@@ -1579,7 +1582,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '12px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#f87171',
+                    color: '#ef4444',
                     fontFamily: 'monospace',
                   }}
                 >
@@ -1592,7 +1595,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '12px 10px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#f8fafc',
+                    color: 'var(--text-primary)',
                     fontFamily: 'monospace',
                   }}
                 >
@@ -1606,11 +1609,11 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '12px 10px',
                     textAlign: 'center',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#94a3b8',
+                    color: 'var(--text-secondary)',
                     fontSize: '0.75rem',
                   }}
                 >
-                  Toàn sàn: <strong style={{ color: '#60a5fa' }}>78% Mua</strong> / <strong style={{ color: '#94a3b8' }}>22% Bán</strong>
+                  Toàn sàn: <strong style={{ color: '#2563eb' }}>78% Mua</strong> / <strong style={{ color: 'var(--text-muted)' }}>22% Bán</strong>
                 </td>
 
                 {/* Lãi lỗ thực tế */}
@@ -1619,7 +1622,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '12px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#34d399',
+                    color: '#10b981',
                     fontFamily: 'monospace',
                   }}
                 >
@@ -1631,7 +1634,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   style={{
                     padding: '12px 10px',
                     textAlign: 'right',
-                    color: '#34d399',
+                    color: 'var(--text-primary)',
                     fontFamily: 'monospace',
                   }}
                 >

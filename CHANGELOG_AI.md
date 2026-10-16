@@ -1,3 +1,29 @@
+## [2026-10-16T11:32] UI ENHANCEMENT: Chuẩn Hóa Màu Sắc Theme Hệ Thống Cho Dashboard QLGD (Executive Dashboard)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Sửa lại toàn bộ màu sắc của Dashboard QLGD cho ăn nhập hoàn hảo với hệ thống (Light Mode / Dark Mode), loại bỏ các khối nền đen/xám cứng gây lệch tông màu so với layout chung.
+
+### 2. Chi tiết kỹ thuật & Danh sách file sửa đổi
+1. **Frontend Component** [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Thay thế toàn bộ mã màu cứng tối `rgba(15, 23, 42, ...)` bằng biến hệ thống chuẩn `var(--bg-input)`, `var(--bg-card)`, `var(--border-color)`.
+   - Chuẩn hóa màu chữ theo `var(--text-primary)`, `var(--text-secondary)`, `var(--text-muted)` thay cho `#f8fafc` cố định.
+   - Nền Chart Canvas & các thẻ 4 mốc thời điểm: Sử dụng `var(--bg-input)` và viền `var(--border-color)`.
+   - Bảng ma trận 17 mặt hàng:
+     + Header `<thead>`: Dùng `var(--bg-input)` với viền dưới 2px `var(--border-color)`.
+     + Hàng bảng `<tbody>`: Nền trong suốt / sọc mờ `rgba(148, 163, 184, 0.04)`, hover êm ái `rgba(59, 130, 246, 0.08)`.
+     + Ô gộp nhóm (Rowspan): Sử dụng `var(--bg-input)` với màu phân loại rõ nét (`#10b981` Nông sản, `#0284c7` Kim loại, `#d97706` NLCN).
+     + Track thanh tiến trình (% mở Mua/Bán): Dùng `rgba(148, 163, 184, 0.18)` hiển thị tương phản chuẩn xác trên cả nền sáng và nền tối.
+     + Chân trang `<tfoot>`: Nền `var(--bg-input)` viền trên 2px `var(--border-color)`.
+   - Cấu hình biểu đồ Chart.js: Lưới trục tọa độ `rgba(148, 163, 184, 0.12)`, màu nhãn trục `#64748b`, tooltip nền `#1e293b`.
+2. **Standalone Page** [frontend/src/app/trading-manager/dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/dashboard/page.tsx):
+   - Nút quay lại và tiêu đề trang đồng bộ theo `var(--bg-input)` và `var(--text-primary)`.
+
+### 3. Kết quả Build và Reload PM2 trên Ubuntu 10.0.0.26
+- `next build` hoàn tất không có bất kỳ lỗi nào (**36/36 static pages**).
+- `pm2 restart mxv-frontend` thành công, PID `256666` trạng thái `online`.
+
+---
+
 ## [2026-10-16T11:20] DEPLOYMENT: Triển Khai Đồng Bộ Dashboard QLGD (Executive Dashboard) Lên Máy Chủ Ubuntu 10.0.0.26
 
 ### 1. Mục tiêu triển khai

@@ -41,7 +41,7 @@ export default function QlgdDashboardStandalonePage() {
                 gap: '6px',
                 padding: '8px 14px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                backgroundColor: 'var(--bg-input)',
                 border: '1px solid var(--border-color)',
                 color: 'var(--text-secondary)',
                 fontSize: '0.85rem',
@@ -54,8 +54,8 @@ export default function QlgdDashboardStandalonePage() {
             </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <LayoutDashboard size={20} color="#38bdf8" />
-              <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#f8fafc' }}>
+              <LayoutDashboard size={20} color="#0284c7" />
+              <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
                 TRUNG TÂM ĐIỀU HÀNH & BÁO CÁO BGĐ (QLGD)
               </h1>
             </div>
@@ -71,7 +71,7 @@ export default function QlgdDashboardStandalonePage() {
                 borderRadius: '6px',
                 backgroundColor: 'rgba(16, 185, 129, 0.12)',
                 border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: '#34d399',
+                color: '#10b981',
                 fontSize: '0.8rem',
                 fontWeight: 700,
               }}
