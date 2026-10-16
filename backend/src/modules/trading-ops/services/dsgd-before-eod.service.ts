@@ -38,6 +38,8 @@ export interface CheckDSGDBeforeEODResult {
   messages: string[];
   sessionDate: string;
   timeSuffix?: string;
+  isSnapshotMissing?: boolean;
+  warning?: string;
   filesFound?: {
     dsgdOriginal?: string;
     dsgdTemp?: string;
@@ -110,30 +112,58 @@ export class DsgdBeforeEodService {
       totalOriginal += Number(gd.klGiaoDich) || 0;
     }
 
-    // 2. Parse DSGD snapshot (nếu có, không có thì fallback về file gốc)
-    let totalTemp = totalOriginal;
-    let totalACMMS = 0;
-
-    if (files.dsgdTemp && files.dsgdTemp.length > 0) {
-      const dsgdTempData = parseDSGD(files.dsgdTemp);
-      totalTemp = 0;
-      for (const gd of dsgdTempData) {
-        const kl = Number(gd.klGiaoDich) || 0;
-        totalTemp += kl;
-        const acc = String(gd.maTKGD || '').trim().toUpperCase();
-        // ⚠️ LOGIC BẮT BUỘC: Lọc tài khoản ACM theo hậu tố 'A' — Đặc thù MXV
-        if (acc.endsWith('A')) {
-          totalACMMS += kl;
-        }
-      }
-    } else {
-      // Fallback tính totalACMMS từ dsgdOriginal
+    // 2. Kiểm tra bắt buộc có file DSGD snapshot trước EOD (Ngăn chặn so sánh file gốc với chính nó)
+    if (!files.dsgdTemp || files.dsgdTemp.length === 0) {
+      let totalACMMS = 0;
       for (const gd of dsgdOriginalData) {
         const kl = Number(gd.klGiaoDich) || 0;
         const acc = String(gd.maTKGD || '').trim().toUpperCase();
         if (acc.endsWith('A')) {
           totalACMMS += kl;
         }
+      }
+
+      let totalACMSFTP = totalACMMS;
+      if (files.acmTrades && files.acmTrades.length > 0) {
+        const straitsResult = parseStraitsCsv(files.acmTrades);
+        totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
+      }
+
+      totalOriginal = Math.round(totalOriginal * 10000) / 10000;
+      totalACMMS = Math.round(totalACMMS * 10000) / 10000;
+      totalACMSFTP = Math.round(totalACMSFTP * 10000) / 10000;
+      const differACM = Math.round(Math.abs(totalACMMS - totalACMSFTP) * 10000) / 10000;
+
+      return {
+        passed: false,
+        isSnapshotMissing: true,
+        totalOriginal,
+        totalTemp: 0,
+        totalACMMS,
+        totalACMSFTP,
+        differTotal: totalOriginal,
+        differACM,
+        messages: [
+          'LỖI: Không có file snapshot DSGD (dsgdTemp/dsgdSnapshot).',
+          'Hệ thống bảo vệ dữ liệu đã chặn hành vi so sánh file gốc với chính nó để giả mạo chênh lệch 0 lot!',
+        ],
+        warning: 'Thiếu file snapshot DSGD trước EOD.',
+        sessionDate: options?.sessionDate || '',
+        timeSuffix: options?.timeSuffix || '',
+      };
+    }
+
+    // 3. Parse DSGD snapshot
+    let totalTemp = 0;
+    let totalACMMS = 0;
+    const dsgdTempData = parseDSGD(files.dsgdTemp);
+    for (const gd of dsgdTempData) {
+      const kl = Number(gd.klGiaoDich) || 0;
+      totalTemp += kl;
+      const acc = String(gd.maTKGD || '').trim().toUpperCase();
+      // ⚠️ LOGIC BẮT BUỘC: Lọc tài khoản ACM theo hậu tố 'A' — Đặc thù MXV
+      if (acc.endsWith('A')) {
+        totalACMMS += kl;
       }
     }
 
@@ -311,11 +341,84 @@ export class DsgdBeforeEodService {
         dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
         this.logger.log(`Sử dụng file DSGD snapshot: ${matchedCandidate.name} (${matchedCandidate.path})`);
       } else {
-        this.logger.warn(
-          `Không tìm thấy file snapshot DSGD${timeSuffix}.xlsx, so sánh với chính file DSGD.xlsx gốc`,
+        this.logger.error(
+          `[BẢO VỆ DỮ LIỆU] Không tìm thấy bất kỳ file snapshot DSGD nào (hậu tố: "${timeSuffix || 'mới nhất'}") trong các thư mục đối soát: ${searchDirs.join(', ')}. Từ chối so sánh với file gốc!`,
         );
-        dsgdTempPath = dsgdOriginalPath;
-        dsgdTempBuffer = dsgdOriginalBuffer;
+
+        // Tính toán số liệu file gốc để người dùng nắm được khối lượng đã ghi nhận
+        const dsgdOriginalData = parseDSGD(dsgdOriginalBuffer);
+        let totalOriginal = 0;
+        let totalACMMS = 0;
+        for (const gd of dsgdOriginalData) {
+          const kl = Number(gd.klGiaoDich) || 0;
+          totalOriginal += kl;
+          const acc = String(gd.maTKGD || '').trim().toUpperCase();
+          if (acc.endsWith('A')) {
+            totalACMMS += kl;
+          }
+        }
+
+        // Tìm file ACM Straits CSV nếu có
+        let acmTradesBuffer: Buffer | undefined;
+        let foundAcmPath: string | undefined;
+
+        if (fs.existsSync(dailyAcmDir)) {
+          const acmFiles = fs.readdirSync(dailyAcmDir);
+          const expectedAcmFile = `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${day}${month}${year}.csv`;
+          const directAcmPath = path.join(dailyAcmDir, expectedAcmFile);
+
+          if (fs.existsSync(directAcmPath)) {
+            foundAcmPath = directAcmPath;
+            acmTradesBuffer = fs.readFileSync(directAcmPath);
+          } else {
+            const matched =
+              acmFiles.find(
+                (f) =>
+                  /straits/i.test(f) &&
+                  f.includes(`${day}${month}${year}`) &&
+                  f.endsWith('.csv'),
+              ) || acmFiles.find((f) => /straits/i.test(f) && f.endsWith('.csv'));
+
+            if (matched) {
+              foundAcmPath = path.join(dailyAcmDir, matched);
+              acmTradesBuffer = fs.readFileSync(foundAcmPath);
+            }
+          }
+        }
+
+        let totalACMSFTP = totalACMMS;
+        if (acmTradesBuffer && acmTradesBuffer.length > 0) {
+          const straitsResult = parseStraitsCsv(acmTradesBuffer);
+          totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
+        }
+
+        totalOriginal = Math.round(totalOriginal * 10000) / 10000;
+        totalACMMS = Math.round(totalACMMS * 10000) / 10000;
+        totalACMSFTP = Math.round(totalACMSFTP * 10000) / 10000;
+        const differACM = Math.round(Math.abs(totalACMMS - totalACMSFTP) * 10000) / 10000;
+
+        return {
+          passed: false,
+          isSnapshotMissing: true,
+          totalOriginal,
+          totalTemp: 0,
+          totalACMMS,
+          totalACMSFTP,
+          differTotal: totalOriginal,
+          differACM,
+          messages: [
+            `LỖI: Không tìm thấy file snapshot DSGD${options?.timeSuffix ? ' ' + options.timeSuffix : ''}.xlsx trong thư mục đối soát.`,
+            'Hệ thống bảo vệ dữ liệu đã chặn hành vi so sánh file gốc với chính nó để giả mạo chênh lệch 0 lot. Vui lòng tải snapshot phiên chiều trước EOD!',
+          ],
+          warning: `Không tìm thấy file snapshot DSGD${options?.timeSuffix ? ' ' + options.timeSuffix : ''}.xlsx.`,
+          sessionDate: dateFormatted,
+          timeSuffix,
+          filesFound: {
+            dsgdOriginal: dsgdOriginalPath,
+            dsgdTemp: undefined,
+            acmTrades: foundAcmPath,
+          },
+        };
       }
     }
 

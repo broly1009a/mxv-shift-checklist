@@ -56,6 +56,8 @@ export default function CheckDsgdBeforeEodModal({
         setResult(res.result);
         if (res.result.passed) {
           toast.success('Đối chiếu DSGD trước EOD: KHỚP 100%!');
+        } else if (res.result.isSnapshotMissing) {
+          toast.error('LỖI: Không tìm thấy file snapshot DSGD trước EOD!');
         } else {
           toast.error('Phát hiện chênh lệch khối lượng trước EOD!');
         }
@@ -290,7 +292,11 @@ export default function CheckDsgdBeforeEodModal({
                   )}
                   <div>
                     <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: result.passed ? '#10b981' : '#ef4444' }}>
-                      {result.passed ? 'KẾT QUẢ ĐỐI SOÁT: KHỚP HOÀN TOÀN (PASSED)' : 'KẾT QUẢ ĐỐI SOÁT: PHÁT HIỆN CHÊNH LỆCH'}
+                      {result.passed
+                        ? 'KẾT QUẢ ĐỐI SOÁT: KHỚP HOÀN TOÀN (PASSED)'
+                        : result.isSnapshotMissing
+                        ? 'LỖI BẢO VỆ DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD'
+                        : 'KẾT QUẢ ĐỐI SOÁT: PHÁT HIỆN CHÊNH LỆCH'}
                     </h4>
                     <p style={{ margin: '3px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary, #94a3b8)' }}>
                       Phiên giao dịch: <strong>{result.sessionDate || tradingDate}</strong>
@@ -308,9 +314,34 @@ export default function CheckDsgdBeforeEodModal({
                     color: '#ffffff',
                   }}
                 >
-                  {result.passed ? 'PASSED' : 'DISCREPANCY'}
+                  {result.passed ? 'PASSED' : result.isSnapshotMissing ? 'MISSING SNAPSHOT' : 'DISCREPANCY'}
                 </div>
               </div>
+
+              {/* Snapshot Missing Data Integrity Alert */}
+              {result.isSnapshotMissing && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    padding: '14px 18px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#fca5a5',
+                  }}
+                >
+                  <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>
+                    <strong style={{ color: '#ef4444', fontSize: '0.86rem', display: 'block', marginBottom: '4px' }}>
+                      Cảnh Báo An Toàn Dữ Liệu (Data Integrity Guard):
+                    </strong>
+                    Không tìm thấy file snapshot khớp lệnh chiều (như <code style={{ color: '#f8fafc', background: '#334155', padding: '2px 6px', borderRadius: '4px' }}>DSGD17h00.xlsx</code> hoặc <code style={{ color: '#f8fafc', background: '#334155', padding: '2px 6px', borderRadius: '4px' }}>DSGD_bak_*.xlsx</code>) trong thư mục đối soát.
+                    Hệ thống đã chặn hành vi so sánh file gốc với chính nó để ngăn chặn báo thành công ảo (0 lot chênh lệch giả). Vui lòng tải file snapshot phiên chiều hoặc kiểm tra lại đường dẫn lưu trữ.
+                  </div>
+                </div>
+              )}
 
               {/* 2 Comparison Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
@@ -339,7 +370,17 @@ export default function CheckDsgdBeforeEodModal({
 
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-secondary, #94a3b8)' }}>DSGD snapshot ({result.timeSuffix || 'Mới nhất'}):</span>
-                      <strong style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{result.totalTemp?.toLocaleString('vi-VN')} lot</strong>
+                      <strong
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '0.9rem',
+                          color: result.isSnapshotMissing ? '#ef4444' : 'inherit',
+                        }}
+                      >
+                        {result.isSnapshotMissing
+                          ? 'Chưa có file snapshot'
+                          : `${result.totalTemp?.toLocaleString('vi-VN')} lot`}
+                      </strong>
                     </div>
 
                     <div
@@ -355,10 +396,16 @@ export default function CheckDsgdBeforeEodModal({
                         style={{
                           fontFamily: 'monospace',
                           fontSize: '0.95rem',
-                          color: result.differTotal <= 0.0001 ? '#10b981' : '#ef4444',
+                          color: result.isSnapshotMissing
+                            ? '#ef4444'
+                            : result.differTotal <= 0.0001
+                            ? '#10b981'
+                            : '#ef4444',
                         }}
                       >
-                        {result.differTotal?.toLocaleString('vi-VN')} lot
+                        {result.isSnapshotMissing
+                          ? 'Chưa xác định (Thiếu file)'
+                          : `${result.differTotal?.toLocaleString('vi-VN')} lot`}
                       </strong>
                     </div>
                   </div>

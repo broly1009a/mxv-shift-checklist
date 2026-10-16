@@ -1,3 +1,66 @@
+## [2026-10-16T10:55] PHASE 2 IMPLEMENTATION: Khắc Phục Lỗ Hổng 4 - Chặn Ghi Đè File Baseline & Báo Thành Công Ảo Trong Check DSGD Trước EOD
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Triển khai chuẩn xác Phase 2 theo tài liệu [KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md).
+- **Khắc phục triệt để Lỗ hổng 4**: Xóa bỏ hoàn toàn hành vi code cũ tự động gán `dsgdTempBuffer = dsgdOriginalBuffer` (lấy file gốc đem so với chính nó) khi không tìm thấy file snapshot khớp lệnh chiều, dẫn đến chênh lệch 0 lot giả mạo và thông báo thành công ảo "Không có chênh lệch khối lượng giao dịch".
+- Đảm bảo cơ chế Fail-fast & Zero-Silent-Swallow: Thiếu file snapshot là báo lỗi ngay lập tức, cảnh báo rõ ràng trên cả Backend, Shift Log và giao diện UI Frontend.
+
+### 2. Chi tiết giải pháp kỹ thuật
+1. **Triệt tiêu 100% việc gán file so với chính nó trong `DsgdBeforeEodService`** ([dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)):
+   - Mở rộng interface `CheckDSGDBeforeEODResult`: Thêm các trường `isSnapshotMissing?: boolean;` và `warning?: string;`.
+   - Trong `checkDSGDBeforeEODFromBuffers`: Khi `!files.dsgdTemp || files.dsgdTemp.length === 0`, từ chối fallback về `totalTemp = totalOriginal`. Trả về `passed: false`, `isSnapshotMissing: true`, `differTotal: totalOriginal` kèm thông báo cảnh báo bảo vệ dữ liệu.
+   - Trong `runAutoCheckDSGDBeforeEOD`: Khi không tìm thấy bất kỳ file candidate nào khớp `timeSuffix` trong cả `dailyMsDir` và `TradingCheckDir`, ghi log `this.logger.error(...)` và trả về `passed: false, isSnapshotMissing: true`, không bao giờ gán `dsgdTempPath = dsgdOriginalPath`.
+2. **Cập nhật Controller `klgd-recon.controller.ts`**:
+   - Khi ghi chú ca trực (`noteJson`), kiểm tra `result.isSnapshotMissing` để hiển thị cảnh báo `⚠️ CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!`.
+   - Trạng thái ca trực được đánh dấu chuẩn `NEEDS_ATTENTION` thay vì `PASSED` ảo.
+3. **Nâng cấp giao diện UI `CheckDsgdBeforeEodModal.tsx`**:
+   - Bổ sung khối Alert màu đỏ `Cảnh Báo An Toàn Dữ Liệu (Data Integrity Guard)` khi `result.isSnapshotMissing === true` (dùng icon `AlertTriangle` chuẩn từ `lucide-react`, không emoji).
+   - Thẻ hiển thị snapshot ghi rõ: `Chưa có file snapshot`, độ lệch: `Chưa xác định (Thiếu file)` màu đỏ.
+   - Badge hiển thị: `MISSING SNAPSHOT` màu đỏ, tiêu đề banner: `LỖI BẢO VỆ DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD`.
+4. **Tạo kịch bản kiểm thử tự động Phase 2**:
+   - Viết mới [test_dsgd_before_eod_safety_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_dsgd_before_eod_safety_guard.ts) gồm 5 testcase: Happy Path buffer, Chặn thiếu buffer, Chặn buffer rỗng, Chặn quét đĩa khi thiếu snapshot, Happy path quét đĩa khi có snapshot hợp lệ.
+   - Đăng ký npm script: `"test:dsgd-guard": "ts-node -r tsconfig-paths/register src/scripts/test_dsgd_before_eod_safety_guard.ts"`.
+
+### 3. Danh sách file tác động
+- [backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)
+- [backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts)
+- [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx)
+- [backend/src/scripts/test_dsgd_before_eod_safety_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_dsgd_before_eod_safety_guard.ts)
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json)
+
+### 4. Kết quả Build & Biên dịch
+- Backend Build: `npm run build` (`nest build`) -> **Exit code 0 (Pass 100% không lỗi)**.
+- Frontend Build: `npm run build` (`next build`) -> **Exit code 0 (Pass 100% không lỗi, 30/30 pages static)**.
+
+---
+
+## [2026-10-16T10:38] PHASE 1 IMPLEMENTATION: Khắc Phục Lỗ Hổng 5 - Bảo Vệ Ghép File CQG Thô (CQG Raw Merging Asynchrony Guard)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Tiến hành sửa chuẩn từng Phase độc lập theo tài liệu [KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md).
+- **Khắc phục triệt để Lỗ hổng 5**: Ngăn chặn rủi ro nghiêm trọng khi ghép 1 file mới của hôm nay với 1 file sót lại từ ngày hôm trước do 1 tài khoản CQG bị lỗi mạng, captcha hoặc tài khoản bị khóa.
+- Triệt tiêu hoàn toàn thói quen kiểm tra hời hợt `fs.existsSync(src2)` mà không kiểm định thời điểm sinh file (`mtime`) và mốc thời gian Header (`extractCqgSnapshotTime`).
+
+### 2. Chi tiết giải pháp kỹ thuật
+1. **Xây dựng hàm kiểm định chốt chặn `validateCqgPairFreshness`** ([cqg-merger.service.ts#L36-L118](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts#L36-L118)):
+   - **Chốt chặn 1 (Missing Account Check)**: Chặn ghép khi thiếu 1 trong 2 file nguồn của 2 tài khoản CQG (`requireBothFiles = true`), tránh việc sinh file gộp thiếu hụt 50% khối lượng giao dịch.
+   - **Chốt chặn 2 (Cross-Day Header Check)**: Gọi `extractCqgSnapshotTime` đọc trực tiếp Header của cả 2 file thô. Nếu ngày chốt dữ liệu trên Header khác nhau (ví dụ: `15/10/2026` vs `16/10/2026`) $\implies$ Chặn đứng 100% không cho ghép.
+   - **Chốt chặn 3 (Time Window Gap Check)**: So sánh `Math.abs(stat1.mtimeMs - stat2.mtimeMs)`. Nếu khoảng cách ghi đĩa giữa 2 tài khoản vượt quá ngưỡng an toàn (mặc định 60 phút) $\implies$ Từ chối ghép và ném Exception với thông báo minh bạch.
+2. **Tích hợp vào toàn bộ 4 hàm ghép file thô**: `mergeFR`, `mergeOP`, `mergeOD`, `mergePS`, và bộ điều phối `mergeAll`.
+3. **Bọc an toàn `try/catch` chống sập luồng đọc nhị phân Excel**: Bọc kiểm tra `fs.existsSync` và `try/catch` cho cả `src1` và `src2` trong `mergeOP` và `mergeOD`, bảo đảm không bị crash tiến trình nếu file bất ngờ bị khóa đọc/xóa.
+4. **Tạo kịch bản kiểm thử chuẩn hóa**: [test_cqg_merger_freshness_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_merger_freshness_guard.ts) kiểm thử 5 testcase: Happy Path, Thiếu tài khoản 2, File tài khoản 2 lệch 24h, Header 2 ngày khác nhau, và `mergeAll` ghi nhận lỗi.
+5. **Thêm lệnh chạy vào `package.json`**: `"test:cqg-merger-guard": "ts-node -r tsconfig-paths/register src/scripts/test_cqg_merger_freshness_guard.ts"`.
+
+### 3. Danh sách file tác động
+- [backend/src/modules/trading-ops/services/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts)
+- [backend/src/scripts/test_cqg_merger_freshness_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_merger_freshness_guard.ts)
+- [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json)
+
+### 4. Kết quả Build & Biên dịch
+- Backend Build: `npm run build` (`nest build`) -> **Exit code 0 (Pass 100% không lỗi)**.
+
+---
+
 ## [2026-10-16T08:35] IMPLEMENTATION: Đồng Bộ Nút Check DSGD Trước EOD Sang Tab CCP_CLEARING (/trading-manager/ccp-ce)
 
 ### 1. Mục tiêu thay đổi
