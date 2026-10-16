@@ -16,14 +16,19 @@ import {
   TrendingUp,
   DownloadCloud,
   Folder,
-  Zap,
   Shield,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Sparkles,
   Sliders,
   Layers,
+  Table,
+  LayoutGrid,
+  Edit3,
+  X,
+  Lock,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import SmartPathInput from '@/components/admin/SmartPathInput';
 import { api } from '@/services/api';
@@ -91,7 +96,7 @@ const AutomationSwitch: React.FC<AutomationSwitchProps> = ({
                 gap: '3px',
               }}
             >
-              <Zap size={10} />
+              <Check size={10} />
               {badgeOn}
             </span>
           )}
@@ -159,13 +164,20 @@ export default function ConnectionSettings({
 }: ConnectionSettingsProps) {
   const [loadingConfig, setLoadingConfig] = useState(true);
 
-  // Ingress Mode Automations (4 phân hệ hỗ trợ Direct REST API Adapter: MS, CCP, CE, ACM Web ETP)
+  // Chế độ xem: 'table' (Mặc định doanh nghiệp) vs 'cards' (Chi tiết mở rộng)
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+  // Trạng thái Modal
+  const [viewingSystem, setViewingSystem] = useState<'msystem' | 'cqg' | 'ccp' | 'ce' | 'acm' | 'm365' | null>(null);
+  const [editingSystem, setEditingSystem] = useState<'msystem' | 'cqg' | 'ccp' | 'ce' | 'acm' | 'm365' | null>(null);
+
+  // Phương thức kết nối (4 phân hệ hỗ trợ Direct API Adapter: MS, CCP, CE, ACM Web ETP)
   const [ingressModeMs, setIngressModeMs] = useState<'REST_API' | 'PLAYWRIGHT'>('REST_API');
   const [ingressModeCcp, setIngressModeCcp] = useState<'REST_API' | 'PLAYWRIGHT'>('REST_API');
   const [ingressModeCe, setIngressModeCe] = useState<'REST_API' | 'PLAYWRIGHT'>('REST_API');
   const [ingressModeAcm, setIngressModeAcm] = useState<'REST_API' | 'PLAYWRIGHT'>('REST_API');
 
-  // Sub-tab cho CQG Card để giữ bố cục gọn gàng, không bị dài ngoặc
+  // Sub-tab cho CQG Card để giữ bố cục gọn gàng
   const [cqgActiveTab, setCqgActiveTab] = useState<'trade' | 'price' | 'cast'>('trade');
 
   // M-System credentials states
@@ -339,12 +351,40 @@ export default function ConnectionSettings({
     fetchConfig();
   }, [token]);
 
+  // Chuyển đổi phương thức kết nối nhanh ngay trên dòng Bảng
+  const handleToggleIngress = async (
+    systemKey: 'ms' | 'ccp' | 'ce' | 'acm',
+    newMode: 'REST_API' | 'PLAYWRIGHT'
+  ) => {
+    if (systemKey === 'ms') setIngressModeMs(newMode);
+    if (systemKey === 'ccp') setIngressModeCcp(newMode);
+    if (systemKey === 'ce') setIngressModeCe(newMode);
+    if (systemKey === 'acm') setIngressModeAcm(newMode);
+
+    try {
+      await api.ingress.saveBotConfig(
+        {
+          ingressModeMs: systemKey === 'ms' ? newMode : ingressModeMs,
+          ingressModeCcp: systemKey === 'ccp' ? newMode : ingressModeCcp,
+          ingressModeCe: systemKey === 'ce' ? newMode : ingressModeCe,
+          ingressModeAcm: systemKey === 'acm' ? newMode : ingressModeAcm,
+        },
+        token,
+      );
+      toast.success(
+        `Đã chuyển phương thức kết nối sang: ${newMode === 'REST_API' ? 'API Trực tiếp' : 'Trình duyệt tự động'}`,
+      );
+    } catch (err: any) {
+      toast.error('Lỗi khi lưu phương thức kết nối: ' + err.message);
+    }
+  };
+
   // Save configurations
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!token) return;
     setSavingConfig(true);
-    const toastId = toast.loading('Đang lưu cấu hình tài khoản & chế độ tự động...');
+    const toastId = toast.loading('Đang lưu cấu hình tài khoản kết nối...');
 
     try {
       await api.ingress.saveBotConfig(
@@ -360,7 +400,7 @@ export default function ConnectionSettings({
             pin: msystemPin,
           },
           cqg: {
-            url: cqgUrlTrade.trim() || cqgUrl.trim(),
+            url: cqgUrl.trim(),
             urlPrice: cqgUrlPrice.trim(),
             urlTrade: cqgUrlTrade.trim(),
             username: cqgUsername.trim(),
@@ -376,7 +416,7 @@ export default function ConnectionSettings({
             fillUrl: acmFillUrl.trim(),
             username: acmUsername.trim(),
             password: acmPassword,
-            geminiApiKey: acmGeminiApiKey,
+            geminiApiKey: acmGeminiApiKey.trim(),
             downloadUrl: acmDownloadUrl.trim(),
             downloadBtnSelector: acmDownloadBtnSelector.trim(),
             sftpHost: acmSftpHost.trim(),
@@ -413,8 +453,9 @@ export default function ConnectionSettings({
         token,
       );
 
-      toast.success('Lưu cấu hình hệ thống & chế độ tự động thành công!', { id: toastId });
+      toast.success('Lưu cấu hình hệ thống thành công!', { id: toastId });
       fetchConfig();
+      if (editingSystem) setEditingSystem(null);
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi lưu cấu hình', { id: toastId });
     } finally {
@@ -533,8 +574,18 @@ export default function ConnectionSettings({
     testingCqg3Connection ||
     testingAcmConnection ||
     testingCppConnection ||
-    testingCeConnection ||
-    savingConfig;
+    testingCeConnection;
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--bg-card)',
+    borderRadius: '12px',
+    padding: '24px',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    boxShadow: 'var(--shadow-sm)',
+  };
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
@@ -542,1234 +593,1603 @@ export default function ConnectionSettings({
     fontWeight: 600,
     color: 'var(--text-secondary)',
     marginBottom: '6px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  };
+
+  const modalBackdropStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.7)',
+    backdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflowY: 'auto',
+    zIndex: 9999,
+    padding: '20px',
+  };
+
+  const modalContentStyle: React.CSSProperties = {
+    width: '100%',
+    maxWidth: '680px',
+    background: 'var(--bg-app)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '16px',
+    padding: '26px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    margin: 'auto',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+  };
+
+  // Helper render badge phương thức
+  const renderMethodBadge = (mode: 'REST_API' | 'PLAYWRIGHT', color: string = '#10b981') => {
+    const isApi = mode === 'REST_API';
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          padding: '4px 10px',
+          borderRadius: '6px',
+          background: isApi ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.12)',
+          color: isApi ? color : 'var(--text-muted)',
+          border: `1px solid ${isApi ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
+        }}
+      >
+        <span
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: isApi ? color : 'var(--text-muted)',
+          }}
+        />
+        {isApi ? 'API Trực tiếp' : 'Trình duyệt tự động'}
+      </span>
+    );
   };
 
   if (loadingConfig) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-        <RefreshCw size={24} className="animate-spin" style={{ marginRight: '10px' }} />
-        Đang nạp cấu hình tài khoản hệ thống...
+      <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+        <span>Đang tải cấu hình kết nối hệ thống...</span>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
-      {/* ── TOP ACTION BAR & OVERVIEW ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* ── THANH TIÊU ĐỀ DOANH NGHIỆP & CHUYỂN ĐỔI CHẾ ĐỘ XEM ── */}
       <div
-        className="glass-panel"
         style={{
-          padding: '20px 24px',
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '16px',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          gap: '16px',
+          padding: '16px 20px',
+          background: 'var(--bg-card)',
+          borderRadius: '12px',
+          border: '1px solid var(--border-color)',
         }}
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <Sliders size={20} style={{ color: 'var(--primary, #3b82f6)' }} />
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Cấu hình Kết nối & Tự động hóa Ingress
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              Cấu hình Tài khoản Kết nối Hệ thống
             </h3>
             <span
               style={{
-                fontSize: '0.68rem',
-                fontWeight: 700,
+                fontSize: '0.7rem',
+                fontWeight: 600,
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'rgba(59, 130, 246, 0.15)',
-                color: '#60a5fa',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
+                background: 'rgba(59, 130, 246, 0.12)',
+                color: '#3b82f6',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
               }}
             >
-              Multi-System Synchronized
+              Đồng bộ Đa Hệ thống
             </span>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-            Quản lý credentials các phân hệ, chuyển mạch chế độ tự động Direct API/SFTP và kiểm tra kết nối thời gian thực.
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+            Quản lý thông tin xác thực máy chủ và phương thức thu thập dữ liệu (API Trực tiếp hoặc Trình duyệt) cho từng phân hệ nghiệp vụ.
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={handleTestConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+        {/* NÚT CHUYỂN CHẾ ĐỘ XEM (BẢNG VS THẺ) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              padding: '3px',
+              background: 'rgba(15, 23, 42, 0.4)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+            }}
           >
-            <Play size={12} className={testingConnection ? 'animate-spin' : ''} />
-            Test MS
-          </button>
-          <button
-            type="button"
-            onClick={handleTestCqg1Connection}
-            disabled={anyTesting}
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Play size={12} className={testingCqg1Connection ? 'animate-spin' : ''} />
-            Test CQG
-          </button>
-          <button
-            type="button"
-            onClick={handleTestCppConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Play size={12} className={testingCppConnection ? 'animate-spin' : ''} />
-            Test CoreCCP
-          </button>
-          <button
-            type="button"
-            onClick={handleTestCeConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Play size={12} className={testingCeConnection ? 'animate-spin' : ''} />
-            Test CoreEX
-          </button>
-          <button
-            type="button"
-            onClick={handleTestAcmConnection}
-            disabled={anyTesting}
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Play size={12} className={testingAcmConnection ? 'animate-spin' : ''} />
-            Test ACM
-          </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                fontSize: '0.78rem',
+                fontWeight: viewMode === 'table' ? 700 : 500,
+                background: viewMode === 'table' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'table' ? '#ffffff' : 'var(--text-muted)',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <Table size={14} />
+              Dạng Bảng (Khuyên dùng)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                fontSize: '0.78rem',
+                fontWeight: viewMode === 'cards' ? 700 : 500,
+                background: viewMode === 'cards' ? 'var(--color-accent)' : 'transparent',
+                color: viewMode === 'cards' ? '#ffffff' : 'var(--text-muted)',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <LayoutGrid size={14} />
+              Dạng Thẻ Đầy Đủ
+            </button>
+          </div>
         </div>
       </div>
 
-      <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* ── 2-COLUMN BALANCED GRID ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '24px', alignItems: 'start' }}>
-
-          {/* ══════════════════════════════════════════════════════════
-              CỘT TRÁI: CÁC PHÂN HỆ NỘI ĐỊA & SÀN MXV (MS, CCP, CE)
-             ══════════════════════════════════════════════════════════ */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-            {/* ── CARD 1: M-SYSTEM ── */}
-            <div className="glass-panel" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Server size={18} />
-                  Cấu hình M-System (Newgen)
-                </h4>
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={anyTesting || !msystemUsername}
-                  className="btn btn-xs btn-outline"
-                  style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <Play size={11} className={testingConnection ? 'animate-spin' : ''} />
-                  Test MS
-                </button>
-              </div>
-
-              {/* NÚT GẠT BẬT TẮT TỰ ĐỘNG M-SYSTEM */}
-              <AutomationSwitch
-                checked={ingressModeMs === 'REST_API'}
-                onChange={(checked) => setIngressModeMs(checked ? 'REST_API' : 'PLAYWRIGHT')}
-                title="Tự động hóa Direct REST API"
-                labelOn="BẬT: Tải siêu tốc qua API Stream (0.8s, Không mở Browser)"
-                labelOff="TẮT: Sử dụng trình duyệt Playwright Chromium để cào web"
-                badgeOn="SIÊU TỐC"
-                badgeOff="PLAYWRIGHT"
-                color="#10b981"
-              />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>M-System URL (Portal / API Gateway)</label>
-                  <div style={{ position: 'relative' }}>
-                    <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type="url"
-                      className="form-input"
-                      style={{ paddingLeft: '38px' }}
-                      placeholder="https://msadmin.mxv.com.vn/#/login"
-                      value={msystemUrl}
-                      onChange={(e) => setMsystemUrl(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>Username M-System</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Tên đăng nhập..."
-                      value={msystemUsername}
-                      onChange={(e) => setMsystemUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Mã PIN ảo</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showMsystemPin ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="Mã PIN 6 số..."
-                        value={msystemPin}
-                        onChange={(e) => setMsystemPin(e.target.value)}
-                        required
-                      />
+      {/* ══════════════════════════════════════════════════════════
+          CHẾ ĐỘ XEM 1: DẠNG BẢNG & CỘT (TABLE VIEW) - CHUẨN DOANH NGHIỆP
+         ══════════════════════════════════════════════════════════ */}
+      {viewMode === 'table' && (
+        <div className="glass-panel" style={{ padding: '0px', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          <div className="table-responsive-wrapper" style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: '980px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '14px 18px', width: '25%' }}>Hệ thống Nghiệp vụ</th>
+                  <th style={{ padding: '14px 18px', width: '22%' }}>Phương thức Thu thập</th>
+                  <th style={{ padding: '14px 18px', width: '25%' }}>Tài khoản & Máy chủ Kết nối</th>
+                  <th style={{ padding: '14px 18px', width: '13%' }}>Kiểm tra Kết nối</th>
+                  <th style={{ padding: '14px 18px', width: '15%', textAlign: 'right' }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* 1. M-SYSTEM */}
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', flexShrink: 0 }}>
+                        <Server size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>M-System (Newgen)</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Quản trị & Giám sát Giao dịch MXV</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button
                         type="button"
-                        onClick={() => setShowMsystemPin(!showMsystemPin)}
+                        role="switch"
+                        aria-checked={ingressModeMs === 'REST_API'}
+                        onClick={() => handleToggleIngress('ms', ingressModeMs === 'REST_API' ? 'PLAYWRIGHT' : 'REST_API')}
                         style={{
-                          position: 'absolute',
-                          right: '12px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
+                          position: 'relative',
+                          width: '40px',
+                          height: '22px',
+                          borderRadius: '11px',
+                          background: ingressModeMs === 'REST_API' ? '#10b981' : '#475569',
                           border: 'none',
-                          color: 'var(--text-muted)',
                           cursor: 'pointer',
+                          padding: '2px',
+                          transition: 'background 0.2s',
+                          flexShrink: 0,
                         }}
                       >
-                        {showMsystemPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                        <span
+                          style={{
+                            display: 'block',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            background: '#ffffff',
+                            transform: ingressModeMs === 'REST_API' ? 'translateX(18px)' : 'translateX(0px)',
+                            transition: 'transform 0.2s',
+                          }}
+                        />
                       </button>
+                      {renderMethodBadge(ingressModeMs, '#10b981')}
                     </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={labelStyle}>Mật khẩu</label>
-                  <div style={{ position: 'relative' }}>
-                    <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type={showMsystemPassword ? 'text' : 'password'}
-                      className="form-input"
-                      style={{ paddingLeft: '38px', paddingRight: '38px' }}
-                      placeholder="Mật khẩu..."
-                      value={msystemPassword}
-                      onChange={(e) => setMsystemPassword(e.target.value)}
-                      required
-                    />
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                        <Globe size={13} style={{ color: 'var(--text-muted)' }} />
+                        <span style={{ fontWeight: 600 }}>{msystemUsername || <em style={{ color: 'var(--text-muted)' }}>Chưa cấu hình</em>}</span>
+                        {msystemPassword && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>• Mật khẩu: ••••••••</span>}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        {msystemUrl || 'https://msadmin.mxv.com.vn'}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
                     <button
                       type="button"
-                      onClick={() => setShowMsystemPassword(!showMsystemPassword)}
+                      onClick={handleTestConnection}
+                      disabled={anyTesting || !msystemUsername}
+                      className="btn btn-xs btn-outline"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Play size={10} className={testingConnection ? 'animate-spin' : ''} />
+                      Kiểm tra
+                    </button>
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSystem('msystem')}
+                        className="btn btn-xs btn-secondary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} />
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSystem('msystem')}
+                        className="btn btn-xs btn-primary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={12} />
+                        Sửa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* 2. CQG DESKTOP */}
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', flexShrink: 0 }}>
+                        <DownloadCloud size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Hệ thống CQG (Quốc tế)</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Cổng Dữ liệu CME / CBOT (Desktop & CAST)</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <span
                       style={{
-                        position: 'absolute',
-                        right: '12px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        color: '#f59e0b',
+                        border: '1px solid rgba(245, 158, 11, 0.25)',
                       }}
                     >
-                      {showMsystemPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── CARD 2: CORE CCP ── */}
-            <div className="glass-panel" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ec4899', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Server size={18} />
-                  Cấu hình CoreCCP (VNCLEAR Clearing)
-                </h4>
-                <button
-                  type="button"
-                  onClick={handleTestCppConnection}
-                  disabled={anyTesting || !cppUsername}
-                  className="btn btn-xs btn-outline"
-                  style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <Play size={11} className={testingCppConnection ? 'animate-spin' : ''} />
-                  Test CCP
-                </button>
-              </div>
-
-              {/* NÚT GẠT BẬT TẮT TỰ ĐỘNG CORE CCP */}
-              <AutomationSwitch
-                checked={ingressModeCcp === 'REST_API'}
-                onChange={(checked) => setIngressModeCcp(checked ? 'REST_API' : 'PLAYWRIGHT')}
-                title="Tự động hóa Direct REST API"
-                labelOn="BẬT: Tải báo cáo bù trừ trực tiếp qua REST API (1.2s)"
-                labelOff="TẮT: Sử dụng trình duyệt Playwright Chromium"
-                badgeOn="SIÊU TỐC"
-                badgeOff="PLAYWRIGHT"
-                color="#ec4899"
-              />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>CoreCCP URL</label>
-                  <div style={{ position: 'relative' }}>
-                    <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type="url"
-                      className="form-input"
-                      style={{ paddingLeft: '38px' }}
-                      placeholder="https://uat-coreccp.mxv.com.vn/"
-                      value={cppUrl}
-                      onChange={(e) => setCppUrl(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>Username CCP</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Username CCP..."
-                      value={cppUsername}
-                      onChange={(e) => setCppUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Mật khẩu CCP</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showCppPassword ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="Mật khẩu..."
-                        value={cppPassword}
-                        onChange={(e) => setCppPassword(e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCppPassword(!showCppPassword)}
-                        style={{
-                          position: 'absolute',
-                          right: '12px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {showCppPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <SmartPathInput
-                    value={cppOutputDir}
-                    onChange={setCppOutputDir}
-                    label="Thư mục lưu báo cáo CoreCCP (outputDir):"
-                    placeholder="M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures (hoặc backupCCP)"
-                    targetType="folder"
-                    presets={[
-                      { name: 'Mặc định ổ M Backup CCP', path: '' },
-                      { name: 'Mặc định local (backupCCP)', path: 'backupCCP' },
-                    ]}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ── CARD 3: CORE EXCHANGE (CE) ── */}
-            <div className="glass-panel" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Server size={18} />
-                  Cấu hình Core Exchange (CE)
-                </h4>
-                <button
-                  type="button"
-                  onClick={handleTestCeConnection}
-                  disabled={anyTesting || !ceUsername}
-                  className="btn btn-xs btn-outline"
-                  style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <Play size={11} className={testingCeConnection ? 'animate-spin' : ''} />
-                  Test CE
-                </button>
-              </div>
-
-              {/* NÚT GẠT BẬT TẮT TỰ ĐỘNG CORE EX */}
-              <AutomationSwitch
-                checked={ingressModeCe === 'REST_API'}
-                onChange={(checked) => setIngressModeCe(checked ? 'REST_API' : 'PLAYWRIGHT')}
-                title="Tự động hóa Direct REST API"
-                labelOn="BẬT: Tải báo cáo CE trực tiếp qua API OAuth2 Session (1.0s)"
-                labelOff="TẮT: Sử dụng trình duyệt Playwright Chromium"
-                badgeOn="SIÊU TỐC"
-                badgeOff="PLAYWRIGHT"
-                color="#8b5cf6"
-              />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>Core Exchange URL</label>
-                  <div style={{ position: 'relative' }}>
-                    <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type="url"
-                      className="form-input"
-                      style={{ paddingLeft: '38px' }}
-                      placeholder="https://uat-coreexchange.mxv.com.vn/"
-                      value={ceUrl}
-                      onChange={(e) => setCeUrl(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>Username CE</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Username CE..."
-                      value={ceUsername}
-                      onChange={(e) => setCeUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Mật khẩu CE</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showCePassword ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="Mật khẩu..."
-                        value={cePassword}
-                        onChange={(e) => setCePassword(e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCePassword(!showCePassword)}
-                        style={{
-                          position: 'absolute',
-                          right: '12px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {showCePassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <SmartPathInput
-                    value={ceOutputDir}
-                    onChange={setCeOutputDir}
-                    label="Thư mục lưu báo cáo CoreEX (outputDir):"
-                    placeholder="M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures (hoặc backupCE)"
-                    targetType="folder"
-                    presets={[
-                      { name: 'Mặc định ổ M Backup CE', path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures' },
-                      { name: 'Mặc định local (backupCE)', path: 'backupCE' },
-                    ]}
-                  />
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ══════════════════════════════════════════════════════════
-              CỘT PHẢI: CÁC PHÂN HỆ QUỐC TẾ (CQG ECOSYSTEM & ACM)
-             ══════════════════════════════════════════════════════════ */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-            {/* ── CARD 4: CQG ECOSYSTEM (TRADE, PRICE, CAST TÍCH HỢP SUB-TABS) ── */}
-            <div className="glass-panel" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Cpu size={18} />
-                  Hệ thống CQG (Desktop & CAST)
-                </h4>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    color: '#f59e0b',
-                  }}
-                >
-                  Playwright Crawler
-                </span>
-              </div>
-
-              {/* SUB-TABS NAVIGATION CHO CQG ĐỂ GIỮ CARD GỌN GÀNG */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '6px',
-                  padding: '4px',
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setCqgActiveTab('trade')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: cqgActiveTab === 'trade' ? 700 : 500,
-                    background: cqgActiveTab === 'trade' ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                    color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-muted)',
-                    border: cqgActiveTab === 'trade' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <DownloadCloud size={13} />
-                  CQG Trade (Tải Báo Cáo)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCqgActiveTab('price')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: cqgActiveTab === 'price' ? 700 : 500,
-                    background: cqgActiveTab === 'price' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                    color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-muted)',
-                    border: cqgActiveTab === 'price' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid transparent',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <TrendingUp size={13} />
-                  CQG Price (Xem Giá)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCqgActiveTab('cast')}
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: cqgActiveTab === 'cast' ? 700 : 500,
-                    background: cqgActiveTab === 'cast' ? 'rgba(244, 63, 94, 0.2)' : 'transparent',
-                    color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-muted)',
-                    border: cqgActiveTab === 'cast' ? '1px solid rgba(244, 63, 94, 0.4)' : '1px solid transparent',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <Shield size={13} />
-                  CQG CAST
-                </button>
-              </div>
-
-              {/* TAB 1: CQG TRADE (TẢI BÁO CÁO FR/PS/OP) */}
-              {cqgActiveTab === 'trade' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div>
-                    <label style={labelStyle}>CQG Trade Desktop URL (Áp dụng cho CQG1 & CQG3)</label>
-                    <div style={{ position: 'relative' }}>
-                      <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '38px' }}
-                        placeholder="https://m.cqg.com/cqg/desktop/logon?ref=forced"
-                        value={cqgUrlTrade}
-                        onChange={(e) => setCqgUrlTrade(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* TK 1 */}
-                  <div style={{ border: '1px dashed rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(16, 185, 129, 0.03)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Folder size={14} style={{ color: '#10b981' }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>
-                          Tài khoản CQG1 (Tải: FR1, PS1, OP1, OD1)
-                        </span>
+                      Trình duyệt tự động (2 tài khoản song song)
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', gap: '6px' }}>
+                        <span>TK1: <strong>{cqgUsername1 || 'Chưa cấu hình'}</strong></span>
+                        <span style={{ color: 'var(--text-muted)' }}>|</span>
+                        <span>TK2: <strong>{cqgUsername2 || 'Chưa cấu hình'}</strong></span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleTestCqg1Connection}
-                        disabled={testingCqg1Connection || !cqgUsername1}
-                        className="btn btn-xs btn-outline"
-                        style={{ fontSize: '0.7rem' }}
-                      >
-                        <Play size={10} className={testingCqg1Connection ? 'animate-spin' : ''} />
-                        Test CQG1
-                      </button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label style={labelStyle}>Username CQG1</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="CQG1 Username..."
-                          value={cqgUsername1}
-                          onChange={(e) => setCqgUsername1(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Mật khẩu CQG1</label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type={showCqgPassword1 ? 'text' : 'password'}
-                            className="form-input"
-                            style={{ paddingRight: '38px' }}
-                            placeholder="Mật khẩu..."
-                            value={cqgPassword1}
-                            onChange={(e) => setCqgPassword1(e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowCqgPassword1(!showCqgPassword1)}
-                            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                          >
-                            {showCqgPassword1 ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Giá: {cqgUsername || 'mxvprice'} • CAST: {castUsername || 'Chưa có'}
                       </div>
                     </div>
-                  </div>
-
-                  {/* TK 2 */}
-                  <div style={{ border: '1px dashed rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(16, 185, 129, 0.03)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Folder size={14} style={{ color: '#10b981' }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981' }}>
-                          Tài khoản CQG3 (Tải: FR2, PS2, OP2, OD2)
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleTestCqg3Connection}
-                        disabled={testingCqg3Connection || !cqgUsername2}
-                        className="btn btn-xs btn-outline"
-                        style={{ fontSize: '0.7rem' }}
-                      >
-                        <Play size={10} className={testingCqg3Connection ? 'animate-spin' : ''} />
-                        Test CQG3
-                      </button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label style={labelStyle}>Username CQG3</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="CQG3 Username..."
-                          value={cqgUsername2}
-                          onChange={(e) => setCqgUsername2(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Mật khẩu CQG3</label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type={showCqgPassword2 ? 'text' : 'password'}
-                            className="form-input"
-                            style={{ paddingRight: '38px' }}
-                            placeholder="Mật khẩu..."
-                            value={cqgPassword2}
-                            onChange={(e) => setCqgPassword2(e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowCqgPassword2(!showCqgPassword2)}
-                            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                          >
-                            {showCqgPassword2 ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: CQG PRICE (MXVPRICE) */}
-              {cqgActiveTab === 'price' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(245, 158, 11, 0.03)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Tài khoản xem giá thị trường & kiểm tra lệnh GTT (không dùng tải file khớp lệnh).
-                  </span>
-                  <div>
-                    <label style={labelStyle}>CQG Price Desktop URL</label>
-                    <div style={{ position: 'relative' }}>
-                      <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '38px' }}
-                        placeholder="https://mdemo.cqg.com/cqg/desktop/logon?ref=forced"
-                        value={cqgUrlPrice}
-                        onChange={(e) => setCqgUrlPrice(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={labelStyle}>Username CQG Price</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Mã giá (VD: mxvprice)..."
-                        value={cqgUsername}
-                        onChange={(e) => setCqgUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Mật khẩu CQG Price</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type={showCqgPassword ? 'text' : 'password'}
-                          className="form-input"
-                          style={{ paddingRight: '38px' }}
-                          placeholder="Mật khẩu..."
-                          value={cqgPassword}
-                          onChange={(e) => setCqgPassword(e.target.value)}
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCqgPassword(!showCqgPassword)}
-                          style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                        >
-                          {showCqgPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
                     <button
                       type="button"
-                      onClick={handleTestCqgConnection}
-                      disabled={testingCqgConnection || !cqgUsername}
-                      className="btn btn-sm btn-outline"
-                      style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={handleTestCqg1Connection}
+                      disabled={anyTesting || !cqgUsername1}
+                      className="btn btn-xs btn-outline"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
-                      <Play size={12} className={testingCqgConnection ? 'animate-spin' : ''} />
-                      Test CQG Price
+                      <Play size={10} className={testingCqg1Connection ? 'animate-spin' : ''} />
+                      Kiểm tra
                     </button>
-                  </div>
-                </div>
-              )}
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSystem('cqg')}
+                        className="btn btn-xs btn-secondary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} />
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSystem('cqg')}
+                        className="btn btn-xs btn-primary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={12} />
+                        Sửa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
 
-              {/* TAB 3: CQG CAST */}
-              {cqgActiveTab === 'cast' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(244, 63, 94, 0.03)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(244, 63, 94, 0.2)' }}>
-                  <div>
-                    <label style={labelStyle}>CAST URL</label>
-                    <div style={{ position: 'relative' }}>
-                      <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '38px' }}
-                        placeholder="https://www.cqgtrader.com/CAST/Logon/Logon.asp"
-                        value={castUrl}
-                        onChange={(e) => setCastUrl(e.target.value)}
-                        required
-                      />
+                {/* 3. CORECCP */}
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(236, 72, 153, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ec4899', flexShrink: 0 }}>
+                        <Shield size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>CoreCCP (VNCLEAR Clearing)</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hệ thống Bù trừ & Quản lý Ký quỹ</div>
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={labelStyle}>Username CAST</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Username CAST..."
-                        value={castUsername}
-                        onChange={(e) => setCastUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Mật khẩu CAST</label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type={showCastPassword ? 'text' : 'password'}
-                          className="form-input"
-                          style={{ paddingRight: '38px' }}
-                          placeholder="Mật khẩu..."
-                          value={castPassword}
-                          onChange={(e) => setCastPassword(e.target.value)}
-                          required
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={ingressModeCcp === 'REST_API'}
+                        onClick={() => handleToggleIngress('ccp', ingressModeCcp === 'REST_API' ? 'PLAYWRIGHT' : 'REST_API')}
+                        style={{
+                          position: 'relative',
+                          width: '40px',
+                          height: '22px',
+                          borderRadius: '11px',
+                          background: ingressModeCcp === 'REST_API' ? '#ec4899' : '#475569',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          transition: 'background 0.2s',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'block',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            background: '#ffffff',
+                            transform: ingressModeCcp === 'REST_API' ? 'translateX(18px)' : 'translateX(0px)',
+                            transition: 'transform 0.2s',
+                          }}
                         />
+                      </button>
+                      {renderMethodBadge(ingressModeCcp, '#ec4899')}
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {cppUsername || <em style={{ color: 'var(--text-muted)' }}>Chưa cấu hình</em>}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        {cppUrl || 'https://uat-coreccp.mxv.com.vn'}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <button
+                      type="button"
+                      onClick={handleTestCppConnection}
+                      disabled={anyTesting || !cppUsername}
+                      className="btn btn-xs btn-outline"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Play size={10} className={testingCppConnection ? 'animate-spin' : ''} />
+                      Kiểm tra
+                    </button>
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSystem('ccp')}
+                        className="btn btn-xs btn-secondary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} />
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSystem('ccp')}
+                        className="btn btn-xs btn-primary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={12} />
+                        Sửa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* 4. CORE EXCHANGE (CE) */}
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
+                        <Cpu size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Core Exchange (CE)</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hệ thống Khớp lệnh & Sàn Giao dịch</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={ingressModeCe === 'REST_API'}
+                        onClick={() => handleToggleIngress('ce', ingressModeCe === 'REST_API' ? 'PLAYWRIGHT' : 'REST_API')}
+                        style={{
+                          position: 'relative',
+                          width: '40px',
+                          height: '22px',
+                          borderRadius: '11px',
+                          background: ingressModeCe === 'REST_API' ? '#8b5cf6' : '#475569',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          transition: 'background 0.2s',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'block',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '50%',
+                            background: '#ffffff',
+                            transform: ingressModeCe === 'REST_API' ? 'translateX(18px)' : 'translateX(0px)',
+                            transition: 'transform 0.2s',
+                          }}
+                        />
+                      </button>
+                      {renderMethodBadge(ingressModeCe, '#8b5cf6')}
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {ceUsername || <em style={{ color: 'var(--text-muted)' }}>Chưa cấu hình</em>}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        {ceUrl || 'https://corex.mxv.com.vn'}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <button
+                      type="button"
+                      onClick={handleTestCeConnection}
+                      disabled={anyTesting || !ceUsername}
+                      className="btn btn-xs btn-outline"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Play size={10} className={testingCeConnection ? 'animate-spin' : ''} />
+                      Kiểm tra
+                    </button>
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSystem('ce')}
+                        className="btn btn-xs btn-secondary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} />
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSystem('ce')}
+                        className="btn btn-xs btn-primary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={12} />
+                        Sửa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* 5. ACM & SFTP */}
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255, 255, 255, 0.005)' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(14, 165, 233, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0ea5e9', flexShrink: 0 }}>
+                        <Globe size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Cổng Đối tác ACM & SFTP</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Báo cáo Straits CSV & Cổng ETP Orders/Trades</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <button
                           type="button"
-                          onClick={() => setShowCastPassword(!showCastPassword)}
-                          style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          role="switch"
+                          aria-checked={ingressModeAcm === 'REST_API'}
+                          onClick={() => handleToggleIngress('acm', ingressModeAcm === 'REST_API' ? 'PLAYWRIGHT' : 'REST_API')}
+                          style={{
+                            position: 'relative',
+                            width: '36px',
+                            height: '20px',
+                            borderRadius: '10px',
+                            background: ingressModeAcm === 'REST_API' ? '#0ea5e9' : '#475569',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            transition: 'background 0.2s',
+                            flexShrink: 0,
+                          }}
                         >
-                          {showCastPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          <span
+                            style={{
+                              display: 'block',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#ffffff',
+                              transform: ingressModeAcm === 'REST_API' ? 'translateX(16px)' : 'translateX(0px)',
+                              transition: 'transform 0.2s',
+                            }}
+                          />
+                        </button>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: ingressModeAcm === 'REST_API' ? '#0ea5e9' : 'var(--text-muted)' }}>
+                          ETP: {ingressModeAcm === 'REST_API' ? 'API Trực tiếp' : 'Trình duyệt'}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                        Straits: Giao thức SFTP (Port {acmSftpPort})
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                        ETP: <strong>{acmUsername || 'Chưa cấu hình'}</strong>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        SFTP: {acmSftpUsername || 'Chưa cấu hình'} @ {acmSftpHost}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <button
+                      type="button"
+                      onClick={handleTestAcmConnection}
+                      disabled={anyTesting || (!acmUsername && !acmSftpUsername)}
+                      className="btn btn-xs btn-outline"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Play size={10} className={testingAcmConnection ? 'animate-spin' : ''} />
+                      Kiểm tra
+                    </button>
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSystem('acm')}
+                        className="btn btn-xs btn-secondary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} />
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSystem('acm')}
+                        className="btn btn-xs btn-primary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={12} />
+                        Sửa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* 6. MICROSOFT 365 */}
+                <tr style={{ background: 'rgba(255, 255, 255, 0.005)' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', flexShrink: 0 }}>
+                        <Mail size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Microsoft 365 Watcher</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Giám sát & Bóc tách Hòm thư Báo cáo EOD</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(59, 130, 246, 0.12)',
+                        color: '#3b82f6',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                      }}
+                    >
+                      Microsoft Graph API
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {m365WatcherEmail || <em style={{ color: 'var(--text-muted)' }}>Chưa cấu hình email</em>}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: m365RefreshToken ? '#10b981' : '#f59e0b' }}>
+                        {m365RefreshToken ? 'Đã liên kết OAuth2 hợp lệ' : 'Chưa cấp quyền đăng nhập'}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <button
+                      type="button"
+                      onClick={handleM365Reauthorize}
+                      className="btn btn-xs btn-outline"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Link2 size={10} />
+                      Cấp quyền
+                    </button>
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setViewingSystem('m365')}
+                        className="btn btn-xs btn-secondary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Eye size={12} />
+                        Xem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSystem('m365')}
+                        className="btn btn-xs btn-primary"
+                        style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={12} />
+                        Sửa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          CHẾ ĐỘ XEM 2: DẠNG THẺ (CARD VIEW) - TOÀN BỘ VĂN PHONG DOANH NGHIỆP
+         ══════════════════════════════════════════════════════════ */}
+      {viewMode === 'cards' && (
+        <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '24px', alignItems: 'start' }}>
+            {/* CỘT TRÁI */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* CARD M-SYSTEM */}
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Server size={18} style={{ color: '#10b981' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Cấu hình M-System (Newgen)
+                    </h4>
+                  </div>
+                  <button type="button" onClick={handleTestConnection} disabled={anyTesting} className="btn btn-xs btn-outline" style={{ fontSize: '0.72rem' }}>
+                    <Play size={10} className={testingConnection ? 'animate-spin' : ''} /> Test MS
+                  </button>
+                </div>
+
+                <AutomationSwitch
+                  checked={ingressModeMs === 'REST_API'}
+                  onChange={(checked) => setIngressModeMs(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                  title="Phương thức kết nối"
+                  labelOn="API Trực tiếp: Kết nối và nhận dữ liệu trực tiếp từ cổng dịch vụ"
+                  labelOff="Trình duyệt tự động: Khởi chạy trình duyệt mô phỏng thao tác người dùng (Dự phòng)"
+                  badgeOn="API TRỰC TIẾP"
+                  badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                  color="#10b981"
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>M-System URL (Portal / Gateway)</label>
+                    <input type="url" className="form-input" placeholder="https://msadmin.mxv.com.vn/#/login" value={msystemUrl} onChange={(e) => setMsystemUrl(e.target.value)} required />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Tên đăng nhập</label>
+                      <input type="text" className="form-input" placeholder="Username..." value={msystemUsername} onChange={(e) => setMsystemUsername(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mã PIN xác thực</label>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showMsystemPin ? 'text' : 'password'} className="form-input" style={{ paddingRight: '36px' }} placeholder="Mã PIN..." value={msystemPin} onChange={(e) => setMsystemPin(e.target.value)} required />
+                        <button type="button" onClick={() => setShowMsystemPin(!showMsystemPin)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                          {showMsystemPin ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ══════════════════════════════════════════════════════════
-            HÀNG GIỮA (FULL-WIDTH): CỔNG ACM & WINSCP SFTP
-           ══════════════════════════════════════════════════════════ */}
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Layers size={20} style={{ color: '#0ea5e9' }} />
-              <div>
-                <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0ea5e9', margin: 0 }}>
-                  Cấu hình Cổng ACM & WinSCP SFTP
-                </h4>
-                <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                  Quản lý 2 kênh độc lập: Cổng Web ETP (Báo cáo Orders & Trades) và Máy chủ SFTP (Đồng bộ Straits.csv)
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleTestAcmConnection}
-              disabled={anyTesting}
-              className="btn btn-xs btn-outline"
-              style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <Play size={11} className={testingAcmConnection ? 'animate-spin' : ''} />
-              Test ACM
-            </button>
-          </div>
-
-          {/* LƯỚI 2 CỘT SÓNG ĐÔI: ACM WEB LOGIN vs SFTP SYNC CONFIGURATION */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '24px', alignItems: 'start' }}>
-
-            {/* ── CỘT 1: ACM WEB LOGIN (CỔNG ETP ORDERS & TRADES) ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(14, 165, 233, 0.03)', padding: '18px', borderRadius: '10px', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0ea5e9', borderLeft: '3px solid #0ea5e9', paddingLeft: '8px' }}>
-                  ACM Web Login (Cổng ETP Orders & Trades)
-                </span>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  Xuất Sổ lệnh (tetporder) & Khớp lệnh (tetptrade)
-                </span>
-              </div>
-
-              {/* NÚT GẠT CHUYỂN MẠCH DIRECT REST API (AcmEtpAdapter) */}
-              <AutomationSwitch
-                checked={ingressModeAcm === 'REST_API'}
-                onChange={(checked) => setIngressModeAcm(checked ? 'REST_API' : 'PLAYWRIGHT')}
-                title="Tự động hóa Direct REST API (AcmEtpAdapter)"
-                labelOn="BẬT: API Stream kết hợp Gemini AI tự động giải Captcha (0.8s, Không mở Browser)"
-                labelOff="TẮT: Sử dụng trình duyệt Playwright Chromium để cào web"
-                badgeOn="DIRECT API"
-                badgeOff="PLAYWRIGHT"
-                color="#0ea5e9"
-              />
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>ACM URL</label>
-                  <div style={{ position: 'relative' }}>
-                    <Globe size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type="url"
-                      className="form-input"
-                      style={{ paddingLeft: '38px' }}
-                      placeholder="https://acm-etp.acmmex.com/exchange/index.html#/login"
-                      value={acmUrl}
-                      onChange={(e) => setAcmUrl(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>
-                      URL Báo cáo Order <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(tùy chọn)</span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Link2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        id="acm-order-url"
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '38px' }}
-                        placeholder="Mặc định: ghép từ ACM URL + #/business-tetporder"
-                        value={acmOrderUrl}
-                        onChange={(e) => setAcmOrderUrl(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>
-                      URL Báo cáo Fill/Trade <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(tùy chọn)</span>
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Link2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        id="acm-fill-url"
-                        type="url"
-                        className="form-input"
-                        style={{ paddingLeft: '38px' }}
-                        placeholder="Mặc định: ghép từ ACM URL + #/business-tetptrade"
-                        value={acmFillUrl}
-                        onChange={(e) => setAcmFillUrl(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>Username</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="MXVRO..."
-                      value={acmUsername}
-                      onChange={(e) => setAcmUsername(e.target.value)}
-                    />
                   </div>
                   <div>
                     <label style={labelStyle}>Mật khẩu</label>
                     <div style={{ position: 'relative' }}>
-                      <input
-                        type={showAcmPassword ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="Mật khẩu Web..."
-                        value={acmPassword}
-                        onChange={(e) => setAcmPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowAcmPassword(!showAcmPassword)}
-                        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                      >
-                        {showAcmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <input type={showMsystemPassword ? 'text' : 'password'} className="form-input" style={{ paddingRight: '36px' }} placeholder="Mật khẩu..." value={msystemPassword} onChange={(e) => setMsystemPassword(e.target.value)} required />
+                      <button type="button" onClick={() => setShowMsystemPassword(!showMsystemPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                        {showMsystemPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div>
-                  <label style={labelStyle}>API Key giải Captcha (Gemini API)</label>
-                  <div style={{ position: 'relative' }}>
-                    <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type={showAcmGeminiApiKey ? 'text' : 'password'}
-                      className="form-input"
-                      style={{ paddingLeft: '38px', paddingRight: '38px' }}
-                      placeholder="AIzaSy..."
-                      value={acmGeminiApiKey}
-                      onChange={(e) => setAcmGeminiApiKey(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAcmGeminiApiKey(!showAcmGeminiApiKey)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                    >
-                      {showAcmGeminiApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+              {/* CARD CORECCP */}
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Shield size={18} style={{ color: '#ec4899' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Cấu hình CoreCCP (VNCLEAR Clearing)
+                    </h4>
+                  </div>
+                  <button type="button" onClick={handleTestCppConnection} disabled={anyTesting} className="btn btn-xs btn-outline" style={{ fontSize: '0.72rem' }}>
+                    <Play size={10} className={testingCppConnection ? 'animate-spin' : ''} /> Test CCP
+                  </button>
+                </div>
+
+                <AutomationSwitch
+                  checked={ingressModeCcp === 'REST_API'}
+                  onChange={(checked) => setIngressModeCcp(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                  title="Phương thức kết nối"
+                  labelOn="API Trực tiếp: Tải dữ liệu bù trừ qua cổng REST API"
+                  labelOff="Trình duyệt tự động: Khởi chạy trình duyệt tự động (Dự phòng)"
+                  badgeOn="API TRỰC TIẾP"
+                  badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                  color="#ec4899"
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>CoreCCP URL</label>
+                    <input type="url" className="form-input" placeholder="https://uat-coreccp.mxv.com.vn" value={cppUrl} onChange={(e) => setCppUrl(e.target.value)} required />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Tên đăng nhập</label>
+                      <input type="text" className="form-input" placeholder="Username..." value={cppUsername} onChange={(e) => setCppUsername(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mật khẩu</label>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showCppPassword ? 'text' : 'password'} className="form-input" style={{ paddingRight: '36px' }} placeholder="Mật khẩu..." value={cppPassword} onChange={(e) => setCppPassword(e.target.value)} required />
+                        <button type="button" onClick={() => setShowCppPassword(!showCppPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                          {showCppPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD CORE EXCHANGE */}
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Cpu size={18} style={{ color: '#8b5cf6' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Cấu hình Core Exchange (CE)
+                    </h4>
+                  </div>
+                  <button type="button" onClick={handleTestCeConnection} disabled={anyTesting} className="btn btn-xs btn-outline" style={{ fontSize: '0.72rem' }}>
+                    <Play size={10} className={testingCeConnection ? 'animate-spin' : ''} /> Test CE
+                  </button>
+                </div>
+
+                <AutomationSwitch
+                  checked={ingressModeCe === 'REST_API'}
+                  onChange={(checked) => setIngressModeCe(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                  title="Phương thức kết nối"
+                  labelOn="API Trực tiếp: Tải dữ liệu qua cổng API OAuth2 Session"
+                  labelOff="Trình duyệt tự động: Khởi chạy trình duyệt tự động (Dự phòng)"
+                  badgeOn="API TRỰC TIẾP"
+                  badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                  color="#8b5cf6"
+                />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Core Exchange URL</label>
+                    <input type="url" className="form-input" placeholder="https://corex.mxv.com.vn" value={ceUrl} onChange={(e) => setCeUrl(e.target.value)} required />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Tên đăng nhập</label>
+                      <input type="text" className="form-input" placeholder="Username..." value={ceUsername} onChange={(e) => setCeUsername(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mật khẩu</label>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showCePassword ? 'text' : 'password'} className="form-input" style={{ paddingRight: '36px' }} placeholder="Mật khẩu..." value={cePassword} onChange={(e) => setCePassword(e.target.value)} required />
+                        <button type="button" onClick={() => setShowCePassword(!showCePassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                          {showCePassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── CỘT 2: SFTP SYNC CONFIGURATION (ĐỒNG BỘ STRAITS.CSV) ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(16, 185, 129, 0.03)', padding: '18px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#10b981', borderLeft: '3px solid #10b981', paddingLeft: '8px' }}>
-                  SFTP Sync Configuration (Đồng bộ Straits.csv)
-                </span>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  File đối chiếu cuối ngày ACM Nano
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>SFTP Host</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="127.0.0.1 hoặc sftp.mxv.com.vn"
-                      value={acmSftpHost}
-                      onChange={(e) => setAcmSftpHost(e.target.value)}
-                    />
+            {/* CỘT PHẢI: CQG */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <DownloadCloud size={18} style={{ color: '#f59e0b' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Hệ thống CQG (Desktop & CAST)
+                    </h4>
                   </div>
-                  <div>
-                    <label style={labelStyle}>Port</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="2231"
-                      value={acmSftpPort}
-                      onChange={(e) => setAcmSftpPort(e.target.value)}
-                    />
-                  </div>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                    Trình duyệt tự động
+                  </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>SFTP Username</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="testuser / straits..."
-                      value={acmSftpUsername}
-                      onChange={(e) => setAcmSftpUsername(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>SFTP Password</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showAcmSftpPassword ? 'text' : 'password'}
-                        className="form-input"
-                        style={{ paddingRight: '38px' }}
-                        placeholder="••••••••"
-                        value={acmSftpPassword}
-                        onChange={(e) => setAcmSftpPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowAcmSftpPassword(!showAcmSftpPassword)}
-                        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                      >
-                        {showAcmSftpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                {/* Sub-tabs CQG */}
+                <div style={{ display: 'flex', gap: '4px', background: 'rgba(15, 23, 42, 0.4)', padding: '4px', borderRadius: '8px' }}>
+                  <button type="button" onClick={() => setCqgActiveTab('trade')} style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'trade' ? 700 : 500, background: cqgActiveTab === 'trade' ? 'rgba(16, 185, 129, 0.2)' : 'transparent', color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                    CQG Trade (Tải Báo Cáo)
+                  </button>
+                  <button type="button" onClick={() => setCqgActiveTab('price')} style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'price' ? 700 : 500, background: cqgActiveTab === 'price' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                    CQG Price (Xem Giá)
+                  </button>
+                  <button type="button" onClick={() => setCqgActiveTab('cast')} style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'cast' ? 700 : 500, background: cqgActiveTab === 'cast' ? 'rgba(244, 63, 94, 0.2)' : 'transparent', color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                    CQG CAST
+                  </button>
+                </div>
+
+                {cqgActiveTab === 'trade' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div>
+                      <label style={labelStyle}>CQG Trade Desktop URL</label>
+                      <input type="url" className="form-input" value={cqgUrlTrade} onChange={(e) => setCqgUrlTrade(e.target.value)} required />
+                    </div>
+                    {/* TK1 */}
+                    <div style={{ border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '12px', background: 'rgba(16, 185, 129, 0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>Tài khoản CQG1 (FR1, PS1, OP1)</span>
+                        <button type="button" onClick={handleTestCqg1Connection} disabled={anyTesting} className="btn btn-xs btn-outline" style={{ fontSize: '0.7rem' }}>Test CQG1</button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <input type="text" className="form-input" placeholder="Username..." value={cqgUsername1} onChange={(e) => setCqgUsername1(e.target.value)} />
+                        <div style={{ position: 'relative' }}>
+                          <input type={showCqgPassword1 ? 'text' : 'password'} className="form-input" placeholder="Mật khẩu..." value={cqgPassword1} onChange={(e) => setCqgPassword1(e.target.value)} />
+                          <button type="button" onClick={() => setShowCqgPassword1(!showCqgPassword1)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)' }}>
+                            {showCqgPassword1 ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {/* TK2 */}
+                    <div style={{ border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '12px', background: 'rgba(16, 185, 129, 0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>Tài khoản CQG3 (FR2, PS2, OP2)</span>
+                        <button type="button" onClick={handleTestCqg3Connection} disabled={anyTesting} className="btn btn-xs btn-outline" style={{ fontSize: '0.7rem' }}>Test CQG3</button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <input type="text" className="form-input" placeholder="Username..." value={cqgUsername2} onChange={(e) => setCqgUsername2(e.target.value)} />
+                        <div style={{ position: 'relative' }}>
+                          <input type={showCqgPassword2 ? 'text' : 'password'} className="form-input" placeholder="Mật khẩu..." value={cqgPassword2} onChange={(e) => setCqgPassword2(e.target.value)} />
+                          <button type="button" onClick={() => setShowCqgPassword2(!showCqgPassword2)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)' }}>
+                            {showCqgPassword2 ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label style={labelStyle}>Remote Directory Path</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="/data/"
-                    value={acmSftpRemoteDir}
-                    onChange={(e) => setAcmSftpRemoteDir(e.target.value)}
-                  />
-                </div>
+                {cqgActiveTab === 'price' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>CQG Price Desktop URL</label>
+                      <input type="url" className="form-input" value={cqgUrlPrice} onChange={(e) => setCqgUrlPrice(e.target.value)} required />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <input type="text" className="form-input" placeholder="Username (mxvprice)..." value={cqgUsername} onChange={(e) => setCqgUsername(e.target.value)} />
+                      <input type={showCqgPassword ? 'text' : 'password'} className="form-input" placeholder="Mật khẩu..." value={cqgPassword} onChange={(e) => setCqgPassword(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+
+                {cqgActiveTab === 'cast' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>CAST URL</label>
+                      <input type="url" className="form-input" value={castUrl} onChange={(e) => setCastUrl(e.target.value)} required />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <input type="text" className="form-input" placeholder="Username CAST..." value={castUsername} onChange={(e) => setCastUsername(e.target.value)} />
+                      <input type={showCastPassword ? 'text' : 'password'} className="form-input" placeholder="Mật khẩu..." value={castPassword} onChange={(e) => setCastPassword(e.target.value)} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
           </div>
-        </div>
 
-        {/* ══════════════════════════════════════════════════════════
-            HÀNG DƯỚI: HỘP THƯ MICROSOFT 365 (GRAPH API)
-           ══════════════════════════════════════════════════════════ */}
-        <div className="glass-panel" style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-              <Mail size={18} />
-              Cấu hình Hòm Thư Microsoft 365 (EOD Email Watcher)
-            </h4>
+          {/* KHỐI FULL-WIDTH: CỔNG ACM & SFTP */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Globe size={18} style={{ color: '#0ea5e9' }} />
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Cấu hình Cổng ACM & WinSCP SFTP (Straits)
+                </h4>
+              </div>
+              <button type="button" onClick={handleTestAcmConnection} disabled={anyTesting} className="btn btn-xs btn-outline" style={{ fontSize: '0.72rem' }}>
+                <Play size={10} className={testingAcmConnection ? 'animate-spin' : ''} /> Test ACM
+              </button>
+            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {m365TokenRenewedAt && (
-                <span style={{ fontSize: '0.72rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle2 size={13} />
-                  Token hoạt động: {new Date(m365TokenRenewedAt).toLocaleString('vi-VN')}
-                </span>
-              )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '20px' }}>
+              {/* CỘT 1: ACM WEB LOGIN */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(14, 165, 233, 0.02)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0ea5e9' }}>ACM Web Login (Cổng ETP Orders & Trades)</span>
+                <AutomationSwitch
+                  checked={ingressModeAcm === 'REST_API'}
+                  onChange={(checked) => setIngressModeAcm(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                  title="Phương thức kết nối ETP"
+                  labelOn="API Trực tiếp: Tải qua API và tự động xác thực Captcha"
+                  labelOff="Trình duyệt tự động: Khởi chạy trình duyệt tự động (Dự phòng)"
+                  badgeOn="API TRỰC TIẾP"
+                  badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                  color="#0ea5e9"
+                />
+                <input type="url" className="form-input" placeholder="ACM URL..." value={acmUrl} onChange={(e) => setAcmUrl(e.target.value)} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <input type="text" className="form-input" placeholder="Username..." value={acmUsername} onChange={(e) => setAcmUsername(e.target.value)} />
+                  <input type={showAcmPassword ? 'text' : 'password'} className="form-input" placeholder="Mật khẩu..." value={acmPassword} onChange={(e) => setAcmPassword(e.target.value)} />
+                </div>
+              </div>
+
+              {/* CỘT 2: SFTP SYNC */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(16, 185, 129, 0.02)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>SFTP Sync Configuration (Straits CSV)</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '10px' }}>
+                  <input type="text" className="form-input" placeholder="Host (sftp.mxv.com.vn)..." value={acmSftpHost} onChange={(e) => setAcmSftpHost(e.target.value)} />
+                  <input type="number" className="form-input" placeholder="Port (2231)..." value={acmSftpPort} onChange={(e) => setAcmSftpPort(e.target.value)} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <input type="text" className="form-input" placeholder="SFTP Username..." value={acmSftpUsername} onChange={(e) => setAcmSftpUsername(e.target.value)} />
+                  <input type={showAcmSftpPassword ? 'text' : 'password'} className="form-input" placeholder="SFTP Mật khẩu..." value={acmSftpPassword} onChange={(e) => setAcmSftpPassword(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* KHỐI FULL-WIDTH: MICROSOFT 365 */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Mail size={18} style={{ color: '#3b82f6' }} />
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Hòm Thư Microsoft 365 (Báo cáo EOD Watcher)
+                </h4>
+              </div>
+              <button type="button" onClick={handleM365Reauthorize} className="btn btn-xs btn-outline" style={{ fontSize: '0.72rem' }}>
+                <Link2 size={10} /> Cấp quyền lại OAuth2
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={labelStyle}>Watcher Email</label>
+                <input type="email" className="form-input" placeholder="bot.report@mxv.com.vn" value={m365WatcherEmail} onChange={(e) => setM365WatcherEmail(e.target.value)} />
+              </div>
+              <div>
+                <label style={labelStyle}>Client ID (Application ID)</label>
+                <input type="text" className="form-input" placeholder="Application (Client) ID..." value={m365ClientId} onChange={(e) => setM365ClientId(e.target.value)} />
+              </div>
+              <div>
+                <label style={labelStyle}>Tenant ID</label>
+                <input type="text" className="form-input" placeholder="Directory (Tenant) ID..." value={m365TenantId} onChange={(e) => setM365TenantId(e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* THANH LƯU TỔNG DƯỚI CÙNG Ở DẠNG THẺ */}
+          <div
+            style={{
+              position: 'sticky',
+              bottom: '16px',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 24px',
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Mọi thay đổi thông tin xác thực và phương thức kết nối có hiệu lực ngay tại runtime.
+            </span>
+            <button
+              type="submit"
+              disabled={anyTesting || savingConfig}
+              className="btn btn-primary"
+              style={{ padding: '10px 28px', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Save size={16} />
+              {savingConfig ? 'Đang lưu...' : 'Lưu tất cả cấu hình'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          MODAL 1: XEM CHI TIẾT KẾT NỐI (READ-ONLY VIEW MODAL)
+         ══════════════════════════════════════════════════════════ */}
+      {viewingSystem && (
+        <div style={modalBackdropStyle} onClick={() => setViewingSystem(null)}>
+          <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Eye size={20} style={{ color: 'var(--color-accent)' }} />
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Chi tiết Cấu hình Kết nối
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {viewingSystem === 'msystem' && 'Hệ thống Quản trị & Giám sát Giao dịch M-System'}
+                    {viewingSystem === 'cqg' && 'Hệ thống Khớp lệnh Quốc tế CQG Desktop & CAST'}
+                    {viewingSystem === 'ccp' && 'Hệ thống Bù trừ & Quản lý Ký quỹ CoreCCP VNCLEAR'}
+                    {viewingSystem === 'ce' && 'Hệ thống Khớp lệnh Sàn Giao dịch Core Exchange'}
+                    {viewingSystem === 'acm' && 'Cổng Đối tác ACM & Dịch vụ SFTP Straits'}
+                    {viewingSystem === 'm365' && 'Dịch vụ Giám sát Hòm thư Báo cáo Microsoft 365'}
+                  </span>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={handleM365Reauthorize}
-                className="btn btn-xs btn-outline"
-                style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                onClick={() => setViewingSystem(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
               >
-                <Link2 size={12} />
-                Cấp quyền OAuth2
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Chi tiết từng hệ thống */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '0.85rem' }}>
+              {viewingSystem === 'msystem' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
+                    {renderMethodBadge(ingressModeMs, '#10b981')}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Địa chỉ máy chủ (URL):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemUrl || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tên đăng nhập:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemUsername || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Mật khẩu đăng nhập:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemPassword ? '•••••••• (Đã lưu)' : 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Mã PIN xác thực:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msystemPin ? '•••• (Đã lưu)' : 'Chưa cấu hình'}</span>
+                  </div>
+                </>
+              )}
+
+              {viewingSystem === 'cqg' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
+                    <span style={{ fontWeight: 600, color: '#f59e0b' }}>Trình duyệt tự động (2 tài khoản song song)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>CQG Trade Desktop URL:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUrlTrade}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG1 (FR1, PS1, OP1):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUsername1 || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG3 (FR2, PS2, OP2):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUsername2 || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG Price (Xem giá):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cqgUsername || 'mxvprice'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tài khoản CQG CAST (Ký quỹ):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{castUsername || 'Chưa cấu hình'}</span>
+                  </div>
+                </>
+              )}
+
+              {viewingSystem === 'ccp' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
+                    {renderMethodBadge(ingressModeCcp, '#ec4899')}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Địa chỉ máy chủ (URL):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cppUrl}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tên đăng nhập:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cppUsername || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Thư mục lưu báo cáo:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cppOutputDir}</span>
+                  </div>
+                </>
+              )}
+
+              {viewingSystem === 'ce' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
+                    {renderMethodBadge(ingressModeCe, '#8b5cf6')}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Địa chỉ máy chủ (URL):</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ceUrl}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tên đăng nhập:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ceUsername || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Thư mục lưu báo cáo:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ceOutputDir}</span>
+                  </div>
+                </>
+              )}
+
+              {viewingSystem === 'acm' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối ETP:</span>
+                    {renderMethodBadge(ingressModeAcm, '#0ea5e9')}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>ACM ETP Web URL:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmUrl}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tài khoản ACM ETP:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmUsername || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Máy chủ SFTP Straits:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmSftpHost}:{acmSftpPort}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Tài khoản SFTP:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{acmSftpUsername || 'Chưa cấu hình'}</span>
+                  </div>
+                </>
+              )}
+
+              {viewingSystem === 'm365' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phương thức kết nối:</span>
+                    <span style={{ fontWeight: 600, color: '#3b82f6' }}>Microsoft Graph API (OAuth2)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Hòm thư giám sát:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m365WatcherEmail || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Application (Client) ID:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m365ClientId || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Directory (Tenant) ID:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m365TenantId || 'Chưa cấu hình'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Trạng thái OAuth2:</span>
+                    <span style={{ fontWeight: 600, color: m365RefreshToken ? '#10b981' : '#f59e0b' }}>
+                      {m365RefreshToken ? 'Đã liên kết token hợp lệ' : 'Chưa cấp quyền'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setViewingSystem(null)}
+                className="btn btn-secondary"
+                style={{ padding: '8px 18px', fontSize: '0.82rem' }}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = viewingSystem;
+                  setViewingSystem(null);
+                  setEditingSystem(target);
+                }}
+                className="btn btn-primary"
+                style={{ padding: '8px 20px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Edit3 size={14} />
+                Chuyển sang Chỉnh sửa
               </button>
             </div>
           </div>
+        </div>
+      )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div>
-              <label style={labelStyle}>Watcher Email (Hòm thư của Bot)</label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="hieptruong@mxv.vn..."
-                value={m365WatcherEmail}
-                onChange={(e) => setM365WatcherEmail(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-              <div>
-                <label style={labelStyle}>Client ID (App ID)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Application (client) ID..."
-                  value={m365ClientId}
-                  onChange={(e) => setM365ClientId(e.target.value)}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Tenant ID (Directory ID)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Directory (tenant) ID..."
-                  value={m365TenantId}
-                  onChange={(e) => setM365TenantId(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-              <div>
-                <label style={labelStyle}>Client Secret</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showM365ClientSecret ? 'text' : 'password'}
-                    className="form-input"
-                    style={{ paddingRight: '38px' }}
-                    placeholder="Client Secret Value..."
-                    value={m365ClientSecret}
-                    onChange={(e) => setM365ClientSecret(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowM365ClientSecret(!showM365ClientSecret)}
-                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                  >
-                    {showM365ClientSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+      {/* ══════════════════════════════════════════════════════════
+          MODAL 2: CHỈNH SỬA CẤU HÌNH (EDIT CONFIGURATION MODAL)
+         ══════════════════════════════════════════════════════════ */}
+      {editingSystem && (
+        <div style={modalBackdropStyle} onClick={() => setEditingSystem(null)}>
+          <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Edit3 size={20} style={{ color: 'var(--color-accent)' }} />
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Cấu hình Tài khoản: {editingSystem === 'msystem' ? 'M-System' : editingSystem === 'cqg' ? 'CQG' : editingSystem === 'ccp' ? 'CoreCCP' : editingSystem === 'ce' ? 'Core Exchange' : editingSystem === 'acm' ? 'ACM & SFTP' : 'Microsoft 365'}
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Cập nhật tham số kết nối máy chủ và phương thức thu thập dữ liệu
+                  </span>
                 </div>
               </div>
-
-              <div>
-                <label style={labelStyle}>Refresh Token</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showM365RefreshToken ? 'text' : 'password'}
-                    className="form-input"
-                    style={{ paddingRight: '38px' }}
-                    placeholder="M365 Refresh Token..."
-                    value={m365RefreshToken}
-                    onChange={(e) => setM365RefreshToken(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowM365RefreshToken(!showM365RefreshToken)}
-                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                  >
-                    {showM365RefreshToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setEditingSystem(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
             </div>
+
+            <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Form M-System */}
+              {editingSystem === 'msystem' && (
+                <>
+                  <AutomationSwitch
+                    checked={ingressModeMs === 'REST_API'}
+                    onChange={(checked) => setIngressModeMs(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                    title="Phương thức kết nối"
+                    labelOn="API Trực tiếp: Kết nối và nhận dữ liệu trực tiếp từ cổng dịch vụ"
+                    labelOff="Trình duyệt tự động: Khởi chạy trình duyệt mô phỏng thao tác người dùng (Dự phòng)"
+                    badgeOn="API TRỰC TIẾP"
+                    badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                    color="#10b981"
+                  />
+                  <div>
+                    <label style={labelStyle}>M-System URL (Portal / Gateway)</label>
+                    <input type="url" className="form-input" value={msystemUrl} onChange={(e) => setMsystemUrl(e.target.value)} required />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Tên đăng nhập</label>
+                      <input type="text" className="form-input" value={msystemUsername} onChange={(e) => setMsystemUsername(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mã PIN xác thực</label>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showMsystemPin ? 'text' : 'password'} className="form-input" style={{ paddingRight: '36px' }} value={msystemPin} onChange={(e) => setMsystemPin(e.target.value)} required />
+                        <button type="button" onClick={() => setShowMsystemPin(!showMsystemPin)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)' }}>
+                          {showMsystemPin ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Mật khẩu đăng nhập</label>
+                    <div style={{ position: 'relative' }}>
+                      <input type={showMsystemPassword ? 'text' : 'password'} className="form-input" style={{ paddingRight: '36px' }} value={msystemPassword} onChange={(e) => setMsystemPassword(e.target.value)} required />
+                      <button type="button" onClick={() => setShowMsystemPassword(!showMsystemPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)' }}>
+                        {showMsystemPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Form CQG */}
+              {editingSystem === 'cqg' && (
+                <>
+                  <div style={{ display: 'flex', gap: '4px', background: 'rgba(15, 23, 42, 0.4)', padding: '4px', borderRadius: '8px' }}>
+                    <button type="button" onClick={() => setCqgActiveTab('trade')} style={{ flex: 1, padding: '7px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'trade' ? 700 : 500, background: cqgActiveTab === 'trade' ? 'rgba(16, 185, 129, 0.2)' : 'transparent', color: cqgActiveTab === 'trade' ? '#10b981' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>CQG Trade</button>
+                    <button type="button" onClick={() => setCqgActiveTab('price')} style={{ flex: 1, padding: '7px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'price' ? 700 : 500, background: cqgActiveTab === 'price' ? 'rgba(245, 158, 11, 0.2)' : 'transparent', color: cqgActiveTab === 'price' ? '#f59e0b' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>CQG Price</button>
+                    <button type="button" onClick={() => setCqgActiveTab('cast')} style={{ flex: 1, padding: '7px', fontSize: '0.75rem', fontWeight: cqgActiveTab === 'cast' ? 700 : 500, background: cqgActiveTab === 'cast' ? 'rgba(244, 63, 94, 0.2)' : 'transparent', color: cqgActiveTab === 'cast' ? '#f43f5e' : 'var(--text-muted)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>CQG CAST</button>
+                  </div>
+                  {cqgActiveTab === 'trade' && (
+                    <>
+                      <div>
+                        <label style={labelStyle}>CQG Trade Desktop URL</label>
+                        <input type="url" className="form-input" value={cqgUrlTrade} onChange={(e) => setCqgUrlTrade(e.target.value)} required />
+                      </div>
+                      <div style={{ border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '12px', background: 'rgba(16, 185, 129, 0.02)' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981', display: 'block', marginBottom: '8px' }}>Tài khoản CQG1 (FR1, PS1, OP1, OD1)</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <input type="text" className="form-input" placeholder="Username..." value={cqgUsername1} onChange={(e) => setCqgUsername1(e.target.value)} />
+                          <input type="password" className="form-input" placeholder="Mật khẩu..." value={cqgPassword1} onChange={(e) => setCqgPassword1(e.target.value)} />
+                        </div>
+                      </div>
+                      <div style={{ border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', padding: '12px', background: 'rgba(16, 185, 129, 0.02)' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981', display: 'block', marginBottom: '8px' }}>Tài khoản CQG3 (FR2, PS2, OP2, OD2)</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <input type="text" className="form-input" placeholder="Username..." value={cqgUsername2} onChange={(e) => setCqgUsername2(e.target.value)} />
+                          <input type="password" className="form-input" placeholder="Mật khẩu..." value={cqgPassword2} onChange={(e) => setCqgPassword2(e.target.value)} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {cqgActiveTab === 'price' && (
+                    <>
+                      <div>
+                        <label style={labelStyle}>CQG Price Desktop URL</label>
+                        <input type="url" className="form-input" value={cqgUrlPrice} onChange={(e) => setCqgUrlPrice(e.target.value)} required />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <input type="text" className="form-input" placeholder="Username (mxvprice)..." value={cqgUsername} onChange={(e) => setCqgUsername(e.target.value)} />
+                        <input type="password" className="form-input" placeholder="Mật khẩu..." value={cqgPassword} onChange={(e) => setCqgPassword(e.target.value)} />
+                      </div>
+                    </>
+                  )}
+                  {cqgActiveTab === 'cast' && (
+                    <>
+                      <div>
+                        <label style={labelStyle}>CAST URL</label>
+                        <input type="url" className="form-input" value={castUrl} onChange={(e) => setCastUrl(e.target.value)} required />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <input type="text" className="form-input" placeholder="Username CAST..." value={castUsername} onChange={(e) => setCastUsername(e.target.value)} />
+                        <input type="password" className="form-input" placeholder="Mật khẩu..." value={castPassword} onChange={(e) => setCastPassword(e.target.value)} />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Form CoreCCP */}
+              {editingSystem === 'ccp' && (
+                <>
+                  <AutomationSwitch
+                    checked={ingressModeCcp === 'REST_API'}
+                    onChange={(checked) => setIngressModeCcp(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                    title="Phương thức kết nối"
+                    labelOn="API Trực tiếp: Tải dữ liệu bù trừ qua cổng REST API"
+                    labelOff="Trình duyệt tự động: Khởi chạy trình duyệt tự động (Dự phòng)"
+                    badgeOn="API TRỰC TIẾP"
+                    badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                    color="#ec4899"
+                  />
+                  <div>
+                    <label style={labelStyle}>CoreCCP URL</label>
+                    <input type="url" className="form-input" value={cppUrl} onChange={(e) => setCppUrl(e.target.value)} required />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Tên đăng nhập</label>
+                      <input type="text" className="form-input" value={cppUsername} onChange={(e) => setCppUsername(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mật khẩu</label>
+                      <input type="password" className="form-input" value={cppPassword} onChange={(e) => setCppPassword(e.target.value)} required />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Thư mục lưu báo cáo</label>
+                    <input type="text" className="form-input" value={cppOutputDir} onChange={(e) => setCppOutputDir(e.target.value)} />
+                  </div>
+                </>
+              )}
+
+              {/* Form CoreCE */}
+              {editingSystem === 'ce' && (
+                <>
+                  <AutomationSwitch
+                    checked={ingressModeCe === 'REST_API'}
+                    onChange={(checked) => setIngressModeCe(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                    title="Phương thức kết nối"
+                    labelOn="API Trực tiếp: Tải dữ liệu qua cổng API OAuth2 Session"
+                    labelOff="Trình duyệt tự động: Khởi chạy trình duyệt tự động (Dự phòng)"
+                    badgeOn="API TRỰC TIẾP"
+                    badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                    color="#8b5cf6"
+                  />
+                  <div>
+                    <label style={labelStyle}>Core Exchange URL</label>
+                    <input type="url" className="form-input" value={ceUrl} onChange={(e) => setCeUrl(e.target.value)} required />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>Tên đăng nhập</label>
+                      <input type="text" className="form-input" value={ceUsername} onChange={(e) => setCeUsername(e.target.value)} required />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Mật khẩu</label>
+                      <input type="password" className="form-input" value={cePassword} onChange={(e) => setCePassword(e.target.value)} required />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Thư mục lưu báo cáo</label>
+                    <input type="text" className="form-input" value={ceOutputDir} onChange={(e) => setCeOutputDir(e.target.value)} />
+                  </div>
+                </>
+              )}
+
+              {/* Form ACM & SFTP */}
+              {editingSystem === 'acm' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(14, 165, 233, 0.02)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0ea5e9' }}>Cổng ETP Web</span>
+                    <AutomationSwitch
+                      checked={ingressModeAcm === 'REST_API'}
+                      onChange={(checked) => setIngressModeAcm(checked ? 'REST_API' : 'PLAYWRIGHT')}
+                      title="Phương thức kết nối ETP"
+                      labelOn="API Trực tiếp: Tải qua API và tự động xác thực Captcha"
+                      labelOff="Trình duyệt tự động: Khởi chạy trình duyệt tự động (Dự phòng)"
+                      badgeOn="API TRỰC TIẾP"
+                      badgeOff="TRÌNH DUYỆT TỰ ĐỘNG"
+                      color="#0ea5e9"
+                    />
+                    <input type="url" className="form-input" placeholder="ACM URL..." value={acmUrl} onChange={(e) => setAcmUrl(e.target.value)} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <input type="text" className="form-input" placeholder="Username..." value={acmUsername} onChange={(e) => setAcmUsername(e.target.value)} />
+                      <input type="password" className="form-input" placeholder="Mật khẩu..." value={acmPassword} onChange={(e) => setAcmPassword(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(16, 185, 129, 0.02)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>Đồng bộ SFTP (Straits CSV)</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: '10px' }}>
+                      <input type="text" className="form-input" placeholder="Host..." value={acmSftpHost} onChange={(e) => setAcmSftpHost(e.target.value)} />
+                      <input type="number" className="form-input" placeholder="Port (2231)..." value={acmSftpPort} onChange={(e) => setAcmSftpPort(e.target.value)} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <input type="text" className="form-input" placeholder="SFTP Username..." value={acmSftpUsername} onChange={(e) => setAcmSftpUsername(e.target.value)} />
+                      <input type="password" className="form-input" placeholder="SFTP Password..." value={acmSftpPassword} onChange={(e) => setAcmSftpPassword(e.target.value)} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Form M365 */}
+              {editingSystem === 'm365' && (
+                <>
+                  <div>
+                    <label style={labelStyle}>Hòm thư giám sát (Watcher Email)</label>
+                    <input type="email" className="form-input" value={m365WatcherEmail} onChange={(e) => setM365WatcherEmail(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Application (Client) ID</label>
+                    <input type="text" className="form-input" value={m365ClientId} onChange={(e) => setM365ClientId(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Directory (Tenant) ID</label>
+                    <input type="text" className="form-input" value={m365TenantId} onChange={(e) => setM365TenantId(e.target.value)} required />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Client Secret</label>
+                    <input type="password" className="form-input" placeholder="Client secret..." value={m365ClientSecret} onChange={(e) => setM365ClientSecret(e.target.value)} />
+                  </div>
+                </>
+              )}
+
+              {/* Modal Footer */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingSystem(null)}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 18px', fontSize: '0.82rem' }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingConfig}
+                  className="btn btn-primary"
+                  style={{ padding: '8px 24px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Save size={14} />
+                  {savingConfig ? 'Đang lưu...' : 'Lưu Cấu Hình'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        {/* ── STICKY BOTTOM SAVE ACTION BAR ── */}
-        <div
-          style={{
-            position: 'sticky',
-            bottom: '16px',
-            zIndex: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 24px',
-            background: 'rgba(15, 23, 42, 0.95)',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Sparkles size={18} style={{ color: '#38bdf8' }} />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Mọi thay đổi thông tin xác thực và chế độ tự động hóa sẽ có hiệu lực ngay tại runtime mà không cần khởi động lại Server.
-            </span>
-          </div>
-
-          <button
-            type="submit"
-            disabled={anyTesting || savingConfig}
-            className="btn btn-primary"
-            style={{
-              padding: '12px 32px',
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)',
-            }}
-          >
-            <Save size={16} />
-            {savingConfig ? 'Đang lưu cấu hình...' : 'Lưu tất cả cấu hình & Chế độ tự động'}
-          </button>
-        </div>
-      </form>
+      )}
     </div>
   );
 }

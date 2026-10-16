@@ -137,6 +137,34 @@
 ---
 
 ## [2026-10-16T15:15] RESTORATION & BUGFIX: Khôi Phục Toàn Diện Giao Diện Vận Hành Trading Manager, Giám Sát MS & CQG, Giám Sát CoreCCP & CE
+## [2026-10-16T15:40] BOT CONFIG CONNECTION UI OVERHAUL: Bổ Sung Dạng Bảng Doanh Nghiệp, Modal Xem/Sửa & Loại Bỏ 100% Thuật Ngữ AI Máy Móc
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Thay thế giao diện form card phơi bày dữ liệu cồng kềnh, lộn xộn ("kinh dị") bằng **Giao diện Dạng Bảng Chuẩn Doanh nghiệp (Enterprise Data Table)**.
+- Bổ sung bộ chuyển đổi chế độ xem linh hoạt (Segmented Switcher): **Dạng Bảng (Khuyên dùng)** và **Dạng Thẻ Đầy Đủ**.
+- Tích hợp **Modal Xem Chi Tiết (View Modal)** và **Modal Chỉnh Sửa (Edit Modal)** riêng biệt cho từng hệ thống để xem và cập nhật thông số một cách an toàn, bảo mật, không làm vỡ bố cục tổng thể.
+- **Loại bỏ 100% các thuật ngữ AI / máy móc khoa trương** ("Tự động hóa Direct REST API ⚡ SIÊU TỐC", "Tải siêu tốc 0.8s Không mở Browser", "Gemini AI tự động giải Captcha", "Multi-System Synchronized", "Playwright Crawler"). Thay bằng văn phong chuẩn mực ngành tài chính / sở giao dịch: "API Trực tiếp (Khuyên dùng)", "Trình duyệt tự động (Dự phòng)", "Giao thức SFTP", "Cấu hình tài khoản kết nối".
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
+   - **Thêm bộ chuyển đổi chế độ xem**: State `viewMode: 'table' | 'cards'` (mặc định `'table'`).
+   - **Xây dựng Bảng Cấu Hình Hệ Thống (Table View)**:
+     - 6 dòng phân hệ: `M-System (Newgen)`, `Hệ thống CQG (Quốc tế)`, `CoreCCP (VNCLEAR Clearing)`, `Core Exchange (CE)`, `Cổng Đối tác ACM & SFTP`, `Microsoft 365 Watcher`.
+     - 5 cột chuẩn: `Hệ thống Nghiệp vụ`, `Phương thức Thu thập`, `Tài khoản & Máy chủ Kết nối`, `Kiểm tra Kết nối`, `Thao tác`.
+     - Cho phép chuyển đổi nhanh phương thức (`API Trực tiếp` vs `Trình duyệt tự động`) ngay trên dòng bằng công tắc nhỏ kèm hàm `handleToggleIngress` lưu tức thì vào CSDL.
+     - Nút "Kiểm tra" kết nối trực tiếp cho từng hệ thống.
+     - Cặp nút thao tác: **"Xem"** (View Details Modal) và **"Sửa"** (Edit Configuration Modal).
+   - **Xây dựng 2 Modal Chuyên Nghiệp**:
+     - `viewingSystem`: Modal hiển thị tóm tắt thông số cấu hình an toàn, có nút chuyển sang chế độ chỉnh sửa.
+     - `editingSystem`: Modal form chỉnh sửa đầy đủ cho riêng hệ thống đó với nút "Hủy bỏ" và "Lưu Cấu Hình" độc lập.
+   - **Chuẩn hóa Văn phong Doanh nghiệp**: Làm sạch toàn bộ text trên cả Dạng Bảng và Dạng Thẻ.
+
+### 3. Xác nhận Build
+- Frontend Next.js Build: `npm run build` (`next build`) -> **Exit code 0 (Pass 100%, 36/36 static/dynamic pages compiled)**.
+
+---
+
+
 
 ### 1. Mục tiêu thay đổi
 - Thực thi chỉ đạo khẩn cấp của USER: Khắc phục sự cố gãy navigation và chuyển hướng sai:
