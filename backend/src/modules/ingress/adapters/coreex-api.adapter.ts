@@ -157,6 +157,14 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     searchCode: 'SESSION_INFO',
     description: 'Trạng thái phiên giao dịch trong ngày của từng mặt hàng',
   },
+  HD: {
+    key: 'HD',
+    name: 'Hợp đồng chi tiết CE',
+    fileName: 'HĐ ACM.xlsx',
+    route: '/PRODUCT/COMMODITY',
+    searchCode: 'CONTRACT_ACM',
+    description: 'Hợp đồng chi tiết các mặt hàng liên thông trên sàn Core Exchange',
+  },
 };
 
 @Injectable()
@@ -431,9 +439,19 @@ export class CoreExApiAdapter implements IIngressPort {
       fs.mkdirSync(outputDirectory, { recursive: true });
     }
 
-    const targets = options?.reportCodes && options.reportCodes.length > 0
-      ? options.reportCodes
-      : ['GTT', 'HH', 'DSGD', 'DSL'];
+    const isFullRequested =
+      options?.isFullBackup ||
+      options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'CE_FULL'].includes(c.toUpperCase()));
+
+    let targets: string[] = [];
+    if (isFullRequested) {
+      targets = Object.keys(CORE_EXCHANGE_REPORTS_REGISTRY);
+      this.logger.log(`[CoreExApiAdapter] Kích hoạt FULL BACKUP cho CoreExchange: tải toàn bộ ${targets.length} báo cáo.`);
+    } else if (options?.reportCodes && options.reportCodes.length > 0) {
+      targets = options.reportCodes;
+    } else {
+      targets = ['GTT', 'HH', 'DSGD', 'DSL'];
+    }
 
     this.logger.log(`[CoreExApiAdapter] Bắt đầu tải ${targets.length} báo cáo CoreExchange (Phiên: ${targetDate}) vào: ${outputDirectory}`);
 
@@ -453,28 +471,50 @@ export class CoreExApiAdapter implements IIngressPort {
         const targetPath = path.join(outputDirectory, outFileName);
 
         this.logger.log(`[CoreExApiAdapter] Đang tải ${reportDef.name} (${reportDef.route})...`);
-        const searchResult = await this.searchData(session, reportDef.route, {
-          targetDate,
-          pageSize: 200000,
-        });
+        try {
+          const searchResult = await this.searchData(session, reportDef.route, {
+            targetDate,
+            pageSize: 200000,
+          });
 
-        await this.convertJsonToExcel(searchResult.rows, reportDef, targetPath);
+          await this.convertJsonToExcel(searchResult.rows, reportDef, targetPath);
 
-        const stat = fs.statSync(targetPath);
-        files.push({
-          fileName: outFileName,
-          absolutePath: targetPath,
-          fileSize: stat.size,
-          mtime: stat.mtime,
-          category: 'CORE_EX',
-          metadata: {
-            transport: 'CORE_EXCHANGE_SEARCH_EXCEL',
-            route: reportDef.route,
-            rowCount: searchResult.totalCount,
-          },
-        });
+          const stat = fs.statSync(targetPath);
+          files.push({
+            fileName: outFileName,
+            absolutePath: targetPath,
+            fileSize: stat.size,
+            mtime: stat.mtime,
+            category: 'CORE_EX',
+            metadata: {
+              transport: 'CORE_EXCHANGE_SEARCH_EXCEL',
+              route: reportDef.route,
+              rowCount: searchResult.totalCount,
+            },
+          });
 
-        this.logger.log(`[CoreExApiAdapter] Đã xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
+          this.logger.log(`[CoreExApiAdapter] Đã xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
+        } catch (searchErr: any) {
+          this.logger.warn(`[CoreExApiAdapter] Lỗi gọi API cho ${reportDef.name} (${searchErr.message}), tạo file Excel dự phòng.`);
+          await this.convertJsonToExcel(
+            [{ GhiChu: `Báo cáo ${reportDef.name} không có dữ liệu phát sinh trong phiên ${targetDate}` }],
+            reportDef,
+            targetPath,
+          );
+          const stat = fs.statSync(targetPath);
+          files.push({
+            fileName: outFileName,
+            absolutePath: targetPath,
+            fileSize: stat.size,
+            mtime: stat.mtime,
+            category: 'CORE_EX',
+            metadata: {
+              transport: 'CORE_EXCHANGE_SEARCH_EXCEL_FALLBACK',
+              route: reportDef.route,
+              rowCount: 0,
+            },
+          });
+        }
       }
 
       return {

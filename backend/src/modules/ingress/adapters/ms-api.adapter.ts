@@ -531,12 +531,41 @@ export class MsApiAdapter implements IIngressPort {
     const { token, baseUrl, adminUrl } = await this.getValidToken();
 
     // Xác định danh sách báo cáo cần tải:
-    // Nếu options?.reportCodes có truyền -> tải theo danh sách đó
-    // Mặc định cho ca đối chiếu -> tải 3 báo cáo cốt lõi: TTM, TTTT, DSGD
-    let targetKeys = ['TTM', 'TTTT', 'DSGD'];
-    if (options?.reportCodes && options.reportCodes.length > 0) {
-      targetKeys = options.reportCodes;
+    // Hỗ trợ FULL / ALL / BACKUP để tải trọn gói toàn bộ 18 báo cáo M-System
+    const isFullRequested =
+      options?.isFullBackup ||
+      options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'MS_FULL'].includes(c.toUpperCase()));
+
+    let targetKeys: string[] = [];
+    if (isFullRequested) {
+      targetKeys = Object.keys(MS_REPORTS_REGISTRY);
+      this.logger.log(`[MsApiAdapter] Kích hoạt chế độ FULL BACKUP cho M-System: tải toàn bộ ${targetKeys.length} báo cáo.`);
+    } else if (options?.reportCodes && options.reportCodes.length > 0) {
+      // Chuẩn hóa và bung các alias báo cáo
+      for (const rawKey of options.reportCodes) {
+        const k = rawKey.trim();
+        const upper = k.toUpperCase();
+        if (upper === 'DSTKGD') {
+          targetKeys.push('DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM');
+        } else if (upper === 'TLKQHSKQ') {
+          targetKeys.push('TLQHSKQ');
+        } else if (upper === 'QLTTTKGD') {
+          targetKeys.push('QLTKGD');
+        } else if (upper === 'QLTKGDAMKQ' || upper === 'QLTTTKGDAMKQ' || upper === 'QLTKGD_AM_KQ') {
+          targetKeys.push('QLTKGD âm KQ');
+        } else if (upper === 'NKTHT') {
+          targetKeys.push('NKTTHT');
+        } else {
+          targetKeys.push(k);
+        }
+      }
+    } else {
+      // Mặc định đối chiếu trong phiên: 3 báo cáo cốt lõi
+      targetKeys = ['TTM', 'TTTT', 'DSGD'];
     }
+
+    // Loại bỏ trùng lặp
+    targetKeys = Array.from(new Set(targetKeys));
 
     const files: IngressFileDetail[] = [];
     const errors: string[] = [];
@@ -545,9 +574,12 @@ export class MsApiAdapter implements IIngressPort {
       // Chuẩn hóa key
       let reportDef = MS_REPORTS_REGISTRY[key];
       if (!reportDef) {
-        // Tìm gần đúng
+        // Tìm gần đúng theo key hoặc fileName
         const found = Object.values(MS_REPORTS_REGISTRY).find(
-          (r) => r.key.toLowerCase() === key.toLowerCase() || r.fileName.toLowerCase() === key.toLowerCase(),
+          (r) =>
+            r.key.toLowerCase() === key.toLowerCase() ||
+            r.fileName.toLowerCase() === key.toLowerCase() ||
+            r.name.toLowerCase() === key.toLowerCase(),
         );
         if (found) reportDef = found;
       }

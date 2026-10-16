@@ -7,3 +7,4 @@ export * from './domain-configs/trading-ops.config';
 export * from './domain-configs/ccp-clearing.config';
 export * from './helpers/file-path.helper';
 export * from './helpers/crypto';
+export * from './helpers/captcha-solver.helper';

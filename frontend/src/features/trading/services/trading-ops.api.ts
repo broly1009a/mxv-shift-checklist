@@ -126,4 +126,25 @@ export const tradingOpsApi = {
       token,
     );
   },
+
+  /**
+   * Lấy dữ liệu Executive Dashboard QLGD phục vụ báo cáo Ban Giám Đốc
+   */
+  async getExecutiveDashboard(
+    params?: { date?: string; scope?: 'ALL' | 'ACM' | 'OTHERS' },
+    token?: string | null,
+  ): Promise<any> {
+    return requestJson<any>(
+      '/api/v1/trading-ops/executive-dashboard',
+      {
+        method: 'GET',
+        params: {
+          ...(params?.date ? { date: params.date } : {}),
+          ...(params?.scope ? { scope: params.scope } : {}),
+        },
+      },
+      token,
+    );
+  },
 };
+

@@ -28,6 +28,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { resolveStoragePathCrossPlatform } from '../../../shared';
 import { PreEodReconService } from '../services/pre-eod-recon.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
+import { QlgdDashboardService } from '../services/qlgd-dashboard.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])
@@ -39,6 +40,7 @@ export class TradingOpsMiscController {
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
     private readonly shiftsService: ShiftsService,
     private readonly settingsService: SystemSettingsService,
+    private readonly qlgdDashboardService: QlgdDashboardService,
   ) {}
 
   /**
@@ -358,5 +360,17 @@ export class TradingOpsMiscController {
   @Permissions('ACCESS_AUTO_SHIFT')
   async downloadCcpMetrics(@Body('date') dateStr?: string) {
     return this.reconConsoleSummaryService.downloadAndExtractCcpMetrics(dateStr);
+  }
+
+  /**
+   * Lấy dữ liệu tổng hợp Dashboard QLGD phục vụ báo cáo Ban Giám Đốc.
+   */
+  @Get('executive-dashboard')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getExecutiveDashboard(
+    @Query('date') dateStr?: string,
+    @Query('scope') scope: 'ALL' | 'ACM' | 'OTHERS' = 'ALL',
+  ) {
+    return this.qlgdDashboardService.getExecutiveDashboard(dateStr, scope);
   }
 }

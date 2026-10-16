@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { tradingOpsApi } from '@/features/trading';
 import {
   TrendingUp,
   BarChart3,
@@ -375,16 +377,56 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   initialDate = '2026-10-08',
   onRefresh,
 }) => {
+  const { token } = useAuth();
   const [sessionDate, setSessionDate] = useState<string>(initialDate);
   const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('MOCK');
+  const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [liveData, setLiveData] = useState<any | null>(null);
+  const [loadingLive, setLoadingLive] = useState<boolean>(false);
+
+  // Tải dữ liệu thực tế từ Backend API
+  const fetchLiveDashboard = useCallback(
+    async (date: string, scope: 'ALL' | 'ACM' | 'OTHERS') => {
+      setLoadingLive(true);
+      try {
+        const data = await tradingOpsApi.getExecutiveDashboard({ date, scope }, token);
+        if (data && data.hasActualFiles) {
+          setLiveData(data);
+          toast.success(`Đã tải dữ liệu Live từ M-System phiên ${date}!`);
+        } else {
+          setLiveData(null);
+          toast.success('Chưa có file backup M-System phiên này. Hiển thị dữ liệu đối chiếu!');
+        }
+      } catch (e: any) {
+        toast.error(`Lỗi tải dữ liệu Live: ${e.message}`);
+      } finally {
+        setLoadingLive(false);
+      }
+    },
+    [token],
+  );
+
+  useEffect(() => {
+    if (dataMode === 'LIVE') {
+      fetchLiveDashboard(sessionDate, selectedScope);
+    }
+  }, [dataMode, sessionDate, selectedScope, fetchLiveDashboard]);
+
+  // Nguồn dữ liệu hiển thị (ưu tiên liveData nếu có dữ liệu thật)
+  const displayItems = useMemo(() => {
+    if (dataMode === 'LIVE' && liveData && liveData.items && liveData.items.length > 0) {
+      return liveData.items as CommodityPositionPnLItem[];
+    }
+    return MOCK_COMMODITY_ITEMS;
+  }, [dataMode, liveData]);
 
   // Lọc dữ liệu theo Nhóm hàng hóa nếu có chọn
   const filteredCommodities = useMemo(() => {
-    if (selectedCategory === 'ALL') return MOCK_COMMODITY_ITEMS;
-    return MOCK_COMMODITY_ITEMS.filter((item) => item.category === selectedCategory);
-  }, [selectedCategory]);
+    if (selectedCategory === 'ALL') return displayItems;
+    return displayItems.filter((item) => item.category === selectedCategory);
+  }, [selectedCategory, displayItems]);
 
   // Gom nhóm danh mục phục vụ hiển thị gộp ô (Rowspan)
   const categoryGroups = useMemo(() => {
@@ -399,7 +441,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
 
   // Tính tổng chân trang
   const footerTotals = useMemo(() => {
-    return MOCK_COMMODITY_ITEMS.reduce(
+    return displayItems.reduce(
       (acc, item) => {
         acc.expectedPnL += item.expectedPnL;
         acc.openPositions += item.openPositions;
@@ -409,7 +451,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       },
       { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0 }
     );
-  }, []);
+  }, [displayItems]);
 
   // Cấu hình Biểu đồ Check Timeline cho Khối ACM
   const acmChartData = useMemo(() => {

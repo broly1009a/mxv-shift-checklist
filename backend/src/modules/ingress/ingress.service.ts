@@ -91,6 +91,24 @@ export class IngressService implements IIngressPort {
       } else if (source === 'CCP' || source === 'CORE_CCP') {
         return this.coreCcpApiAdapter.download('CCP', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'ACM') {
+        const isFull =
+          options?.isFullBackup ||
+          options?.reportCodes?.some((r) => ['FULL', 'ALL', 'BACKUP'].includes(r.toUpperCase()));
+        if (isFull) {
+          // Tải trọn gói cả SFTP (Straits CSV + XLS) và ETP (Orders + Trades)
+          const sftpRes = await this.acmSftpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
+          const etpRes = await this.acmEtpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
+          const combinedFiles = [...sftpRes.files, ...etpRes.files];
+          return {
+            source: 'ACM',
+            outputDirectory,
+            success: combinedFiles.length > 0,
+            files: combinedFiles,
+            downloadedAt: new Date(),
+            durationMs: sftpRes.durationMs + etpRes.durationMs,
+            summary: `Đã tải trọn gói ${combinedFiles.length} file ACM (SFTP Straits CSV + ETP Orders & Trades)`,
+          };
+        }
         // Tự động phân nhánh: Nếu yêu cầu báo cáo ETP (Orders/Trades) -> dùng AcmEtpAdapter, còn lại dùng AcmSftpAdapter (Straits CSV)
         const isEtpReport = options?.reportCodes?.some((r) => r.includes('ETP') || r === 'ORDERS' || r === 'TRADES');
         if (isEtpReport) {

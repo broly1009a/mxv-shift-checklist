@@ -61,6 +61,8 @@
     "test:api-ce": "node src/scripts/test_direct_api_coreex.js",
     "test:api-acm": "node src/scripts/test_direct_api_acm_sftp.js",
     "test:api-acm-etp": "node src/scripts/test_direct_api_acm_etp.js",
+    "test:api-all": "node src/scripts/test_autonomous_api_ingress_all_4.js",
+    "test:check-klgd-benchmark": "node src/scripts/test_benchmark_check_klgd_api_vs_playwright.js",
     "start:sftp": "ts-node src/scripts/run-mock-sftp.ts"
   },
   "dependencies": {
