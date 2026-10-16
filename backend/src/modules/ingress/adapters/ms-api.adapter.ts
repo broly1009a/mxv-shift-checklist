@@ -338,13 +338,20 @@ export class MsApiAdapter implements IIngressPort {
         try {
           const decrypted = JSON.parse(decrypt(rawCred));
           if (decrypted.url) {
-            // Trường url có thể là admin url hoặc api url
-            if (decrypted.url.includes('api')) {
-              baseUrl = decrypted.url;
-            } else {
-              adminUrl = decrypted.url;
+            try {
+              const u = new URL(decrypted.url.split('#')[0]);
+              adminUrl = u.origin;
+              if (adminUrl.includes('msadmin.')) {
+                baseUrl = adminUrl.replace('msadmin.', 'msapi.');
+              } else if (adminUrl.includes('admin-dev.msystem.newgen.dev')) {
+                baseUrl = 'https://api-dev.newgen.dev';
+              }
+            } catch {
+              adminUrl = decrypted.url.split('#')[0];
             }
           }
+          if (decrypted.apiUrl) baseUrl = decrypted.apiUrl;
+          if (decrypted.baseUrl) baseUrl = decrypted.baseUrl;
           if (decrypted.username) username = decrypted.username;
           if (decrypted.password) password = decrypted.password;
           if (decrypted.pin) pin = decrypted.pin;
@@ -353,6 +360,15 @@ export class MsApiAdapter implements IIngressPort {
         }
       }
     }
+
+    try {
+      const uAdmin = new URL(adminUrl);
+      adminUrl = uAdmin.origin;
+    } catch {}
+    try {
+      const uBase = new URL(baseUrl);
+      baseUrl = uBase.origin;
+    } catch {}
 
     return { baseUrl, adminUrl, username, password, pin };
   }

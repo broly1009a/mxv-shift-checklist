@@ -1621,6 +1621,32 @@ export default function ConnectionSettings({
                   <input type="text" className="form-input" placeholder="Username..." value={acmUsername} onChange={(e) => setAcmUsername(e.target.value)} />
                   <input type={showAcmPassword ? 'text' : 'password'} className="form-input" placeholder="Mật khẩu..." value={acmPassword} onChange={(e) => setAcmPassword(e.target.value)} />
                 </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showAcmGeminiApiKey ? 'text' : 'password'}
+                    className="form-input"
+                    placeholder="Google Gemini API Key (Giải Captcha AI ETP)..."
+                    value={acmGeminiApiKey}
+                    onChange={(e) => setAcmGeminiApiKey(e.target.value)}
+                    style={{ paddingRight: '35px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAcmGeminiApiKey(!showAcmGeminiApiKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {showAcmGeminiApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
 
               {/* CỘT 2: SFTP SYNC */}
@@ -2127,6 +2153,32 @@ export default function ConnectionSettings({
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <input type="text" className="form-input" placeholder="Username..." value={acmUsername} onChange={(e) => setAcmUsername(e.target.value)} />
                       <input type="password" className="form-input" placeholder="Mật khẩu..." value={acmPassword} onChange={(e) => setAcmPassword(e.target.value)} />
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showAcmGeminiApiKey ? 'text' : 'password'}
+                        className="form-input"
+                        placeholder="Google Gemini API Key (Giải Captcha AI ETP)..."
+                        value={acmGeminiApiKey}
+                        onChange={(e) => setAcmGeminiApiKey(e.target.value)}
+                        style={{ paddingRight: '35px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAcmGeminiApiKey(!showAcmGeminiApiKey)}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {showAcmGeminiApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
                     </div>
                   </div>
 

@@ -1,3 +1,30 @@
+## [2026-10-16T17:22] FIX: Khắc Phục Lỗi 403 M-System Direct REST API (msapi.mxv.com.vn), Triệt Tiêu Silent Fallback Playwright & Bổ Sung Input Gemini Key Cho ACM
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER tại Job `6ad1f67a72be1280a4ce2b10`: *"Hủy thủ công sang vẫn mở sang giao diện thế này đã call sang api đâu"*:
+  1. **Khắc phục lỗi 403 M-System Direct REST API**:
+     - Trong [ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/ms-api.adapter.ts), `baseUrl` trước đây bị gán cứng mặc định là `https://api-dev.newgen.dev`. Khi Quản trị viên cấu hình `url: 'https://msadmin.mxv.com.vn/#/login'`, adapter chỉ gán `adminUrl` mà không cập nhật `baseUrl` sang cổng API Production tương ứng là `https://msapi.mxv.com.vn`. Điều này dẫn đến request đăng nhập Bước 1 gửi user `mxvsupport` tới server DEV và bị phản hồi HTTP 403 Forbidden.
+     - Cập nhật logic phân giải URL động (Data-Driven Dynamic URL Resolver): Tự động ánh xạ `https://msadmin.mxv.com.vn` $\rightarrow$ `https://msapi.mxv.com.vn`, đồng thời ưu tiên `decrypted.apiUrl` / `decrypted.baseUrl` nếu được cấu hình.
+  2. **Triệt tiêu cơ chế Silent Fallback mở Playwright khi người dùng cấu hình REST_API (Rule 4 AGENTS.md)**:
+     - Trong [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Trước đây khi pre-flight Direct REST API của MS, ACM hoặc CCP gặp sự cố, code tự ý log *"Tự động fallback sang Playwright..."* rồi nhảy xuống hàm mở trình duyệt Playwright khiến các cửa sổ Chrome bật lên ngoài ý muốn của người dùng.
+     - Đã áp dụng nguyên tắc **Fail-Fast**: Khi cấu hình là `REST_API`, nếu pre-flight thất bại thì báo lỗi rõ ràng, ghi nhận `errors` và dừng rào cản (`abortBarrierIfStrict`), **TUYỆT ĐỐI KHÔNG TỰ Ý BẬT TRÌNH DUYỆT CHROME**.
+  3. **Bổ sung ô nhập Google Gemini API Key cho ACM trên giao diện Bot Config**:
+     - Trong [ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx): Bổ sung input `Google Gemini API Key (Giải Captcha AI ETP)` kèm nút bật/tắt ẩn hiện mật khẩu ở cả Card View và Modal View để người dùng dễ dàng cập nhật key khi key cũ bị hết hạn/hết quota (HTTP 429).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/ms-api.adapter.ts):
+   - Động hóa phân giải `baseUrl`: Khi `adminUrl` chứa `msadmin.`, tự động ánh xạ sang `msapi.` (e.g. `https://msadmin.mxv.com.vn` $\rightarrow$ `https://msapi.mxv.com.vn`). Đã kiểm chứng trực tiếp từ server Ubuntu, cả Bước 1 (Password) và Bước 2 (PIN) đều trả về HTTP 200 OK và lấy được Bearer Token chính thức.
+2. [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
+   - Thắt chặt nhánh `REST_API` cho M-System, ACM Web ETP và CoreCCP: Nếu pre-flight thất bại, lập tức dừng và abort rào cản, không để dòng chảy rơi xuống khối khởi tạo Playwright browser.
+3. [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
+   - Bổ sung ô nhập `Google Gemini API Key` cho Cổng ACM Web ETP trong cả giao diện Card và Modal chỉnh sửa.
+
+### 3. Xác nhận Build & Kiểm thử
+- Backend NestJS: `npm run build` thành công 100% (Exit code 0).
+- Frontend Next.js: Kiểm tra cấu trúc JSX hợp lệ, sẵn sàng build production trên Ubuntu.
+
+---
+
 ## [2026-10-16T16:25] REFACTOR: Xóa Bỏ Hoàn Toàn Logic Tự Chế "Copy Straits.csv" & Chuẩn Hóa Rành Mạch ACM Web ETP (Order & Fill) vs Straits Financial SFTP
 
 ### 1. Mục tiêu thay đổi
