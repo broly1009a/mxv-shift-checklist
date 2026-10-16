@@ -1,3 +1,26 @@
+## [2026-10-16T11:20] DEPLOYMENT: Triển Khai Đồng Bộ Dashboard QLGD (Executive Dashboard) Lên Máy Chủ Ubuntu 10.0.0.26
+
+### 1. Mục tiêu triển khai
+- Thực thi chỉ đạo của USER: Đồng bộ toàn bộ mã nguồn Dashboard QLGD (Mục 8: Báo cáo Ban Giám Đốc, phân tách ACM vs Còn lại, 4 mốc thời điểm, ma trận 17 mặt hàng) lên máy chủ Ubuntu `10.0.0.26`.
+- Giải quyết triệt để lỗi `404 This page could not be found` khi truy cập đường dẫn `/trading-manager/dashboard` trên máy chủ.
+
+### 2. Các thành phần được đồng bộ & Build thành công trên Ubuntu
+1. **Frontend Route & Component**:
+   - [frontend/src/app/trading-manager/dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/dashboard/page.tsx): Route độc lập toàn màn hình `○ /trading-manager/dashboard`.
+   - [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx): Thành phần giao diện đầy đủ 2 chế độ MOCK và LIVE.
+   - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/page.tsx): Tích hợp Tab 3 `Dashboard QLGD (Báo Cáo BGĐ)`.
+2. **Backend API & Service**:
+   - [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts): Service tổng hợp ma trận 17 mặt hàng, phân tách ACM vs Còn lại từ file M-System.
+   - [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts): Endpoint `GET /api/v1/trading-ops/executive-dashboard`.
+   - [backend/src/modules/trading-ops/parsers/ms-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/ms-excel.parser.ts): Hàm bóc tách TTM và TTTT cho báo cáo BGĐ.
+   - [backend/src/modules/trading-ops/constants/commodity-catalog.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/commodity-catalog.constant.ts): Từ điển 17 mã hàng chuẩn MXV.
+
+### 3. Kết quả Build và Reload PM2 trên Ubuntu (Log Exit Code 0)
+- **Backend NestJS**: `npm run build` hoàn tất, `pm2 restart mxv-backend` trạng thái `online` (pid 248617).
+- **Frontend Next.js**: `next build` hoàn tất với **36/36 static pages** (bao gồm `○ /trading-manager/dashboard`), `pm2 restart mxv-frontend` trạng thái `online` (pid 249025).
+
+---
+
 ## [2026-10-16T11:02] VERIFICATION: Kiểm Chứng Thực Tế Tải Song Song 6 File CQG Đạt 54.7 Giây & Tự Động Log Off Chuẩn Nghiệp Vụ
 
 ### 1. Mục tiêu kiểm chứng & Tinh chỉnh
