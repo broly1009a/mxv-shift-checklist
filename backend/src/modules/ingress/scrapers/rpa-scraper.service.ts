@@ -4107,7 +4107,7 @@ export class RpaScraperService {
       const homeMenu = page.locator("//div[text()='Ho']").first();
       await homeMenu.waitFor({ state: 'visible', timeout: 10000 });
       await homeMenu.click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(400);
 
       // Bước 2 (C#): Bấm nút dấu cộng add widget trong panel thao tác (ưu tiên g1.w431, loại trừ g3.w0)
       let plusIcon = page.locator("wpfe-widget-tab-control[data-help-id='g1.w431'] .wpfe-add-widget-btn").first();
@@ -4119,13 +4119,13 @@ export class RpaScraperService {
       }
       await plusIcon.waitFor({ state: 'visible', timeout: 10000 });
       await plusIcon.click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(400);
 
       // Bước 3 (C#): Nhập từ khóa tìm kiếm
       const searchField = page.locator("//input[@placeholder='Search...']").first();
       await searchField.waitFor({ state: 'visible', timeout: 10000 });
       await searchField.fill(searchTerm);
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(400);
 
       // Bước 4 (C#): Chọn widget trong danh sách
       const itemText =
@@ -4141,9 +4141,12 @@ export class RpaScraperService {
         .first();
       await widgetItem.waitFor({ state: 'visible', timeout: 10000 });
       await widgetItem.click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(600);
 
-      // Bước 5 (C#): Chọn account selector
+      // ── BƯỚC 5: CHỌN ALL ACCOUNTS (ĐÃ ĐỒNG BỘ 100% THEO test_cqg_tab_downloads_fast.js) ──
+      // [Bảo lưu logic cũ dưới dạng comment theo yêu cầu USER]
+      /*
+      // Bước 5 (C#): Chọn account selector (Cũ: luôn mở modal và delay 1000ms mỗi bước)
       const selectAccountBtn = page
         .locator("//button[contains(@class, 'wpfe-widget-account-selector-button')]")
         .first();
@@ -4163,9 +4166,59 @@ export class RpaScraperService {
       const okBtn = page.locator("//div[text()='OK']").first();
       await okBtn.waitFor({ state: 'visible', timeout: 10000 });
       await okBtn.click();
+      */
 
-      // Bước 8 (C#): Chờ dữ liệu bảng đồng bộ xong (Dynamic Wait)
-      // Chờ tối thiểu 4s, tối đa 16s hoặc cho đến khi con quay loading của widget biến mất
+      // Bước 5 (CQG-FAST): Check DOM thông minh cho Account Selector của Tab vừa mở
+      // Sử dụng scoped selector theo active tab và check innerText trên DOM. Nếu đã là All thì bỏ qua modal.
+      const scopedBtn = page
+        .locator(
+          `//div[contains(@class, 'wpfe-tab-header-active')]/ancestor::wpfe-widget-tab-control[not(@data-help-id='g3.w0')][1]//button[contains(@class, 'wpfe-widget-account-selector-button')]`,
+        )
+        .locator('visible=true')
+        .first();
+
+      const targetAccountBtn =
+        (await scopedBtn.count().catch(() => 0)) > 0
+          ? scopedBtn
+          : page.locator('button.wpfe-widget-account-selector-button:visible').first();
+
+      const hasAccountBtn = await targetAccountBtn
+        .waitFor({ state: 'visible', timeout: 4000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (hasAccountBtn) {
+        const currentAccountText = await targetAccountBtn.innerText().catch(() => '');
+        this.logger.debug(`[CQG] Nút tài khoản hiện tại: "${currentAccountText.trim()}"`);
+
+        if (!currentAccountText.includes('All')) {
+          this.logger.log(`[CQG] Đang đổi sang All accounts cho tab ${tabLabel}...`);
+          await targetAccountBtn.click();
+          await page.waitForTimeout(600);
+
+          const allAccountsItem = page
+            .locator(
+              "//div[contains(@class, 'wpfe-account-selector-item-list-item') and .//span[text()='All accounts']]",
+            )
+            .first();
+          await allAccountsItem.waitFor({ state: 'visible', timeout: 8000 });
+          await allAccountsItem.click();
+          await page.waitForTimeout(400);
+
+          const okBtn = page.locator("//div[text()='OK']").first();
+          await okBtn.waitFor({ state: 'visible', timeout: 8000 });
+          await okBtn.click();
+          await page.waitForTimeout(800);
+          this.logger.log(`[CQG] Đã chọn All accounts thành công cho ${tabLabel}!`);
+        } else {
+          this.logger.log(`[CQG] ⚡ Tab ${tabLabel} đã là All accounts (bỏ qua modal chọn tài khoản, tiết kiệm 3-4s)!`);
+        }
+      } else {
+        this.logger.debug(`[CQG] Không phát hiện nút đổi tài khoản (hoặc đã nhận mặc định All).`);
+      }
+
+      // Bước 6 (C#): Chờ dữ liệu bảng đồng bộ xong (Dynamic Wait)
+      // Chờ tối thiểu 3s, tối đa 16s hoặc cho đến khi con quay loading của widget biến mất
       this.logger.log(`[CQG] Chờ dữ liệu bảng "${tabLabel}" đồng bộ từ máy chủ CQG Gateway...`);
       await this.waitForCqgNotLoading(page, 16000);
 
@@ -4173,10 +4226,10 @@ export class RpaScraperService {
         "wpfe-widget-tab-control:has(.wpfe-tab-header-active) mat-spinner, wpfe-widget-tab-control:has(.wpfe-tab-header-active) .mat-mdc-progress-spinner, wpfe-widget-tab-control:has(.wpfe-tab-header-active) .wpfe-loading-spinner";
       const startWait = Date.now();
       while (Date.now() - startWait < 16000) {
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(400);
         const hasSpinner = await page.locator(widgetSpinnerSelector).first().isVisible().catch(() => false);
-        // Đợi tối thiểu 4s để bảng kịp kích hoạt kết nối WebSocket ban đầu
-        if (!hasSpinner && Date.now() - startWait >= 4000) {
+        // Đợi tối thiểu 3s để bảng kịp kích hoạt kết nối WebSocket ban đầu
+        if (!hasSpinner && Date.now() - startWait >= 3000) {
           break;
         }
       }
@@ -4706,7 +4759,9 @@ export class RpaScraperService {
         );
         browser1 = browser;
         page1 = page;
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        // Tối ưu hóa: giảm sleep tĩnh từ 5000ms xuống 1000ms theo chuẩn test_cqg_tab_downloads_fast.js
+        // await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const ensureSessionActive1 = async () => {
           const isLoginScreen = await page
@@ -4827,7 +4882,9 @@ export class RpaScraperService {
         );
         browser2 = browser;
         page2 = page;
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        // Tối ưu hóa: giảm sleep tĩnh từ 5000ms xuống 1000ms theo chuẩn test_cqg_tab_downloads_fast.js
+        // await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const ensureSessionActive2 = async () => {
           const isLoginScreen = await page

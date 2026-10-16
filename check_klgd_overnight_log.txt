@@ -2571,3 +2571,23 @@ Call log:
 [LOG] [2026-10-09T12:48:32.482Z]  Phát hiện 2440 lệch KLGD (vượt ngưỡng 50). Chi tiết đầy đủ xem file CSV đính kèm email. Preview 30 đầu tiên: [CQG] TK 003C0759386, HĐ SILZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C5963357, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C4928868, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C0636868, HĐ PLEF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C0636868, HĐ SILZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C3861246, HĐ SILZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 001C0128789, HĐ SILZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C0332438, HĐ PLEF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 001C0665689, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 003C2796666, HĐ SILF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C8854116, HĐ MHGZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C2788299, HĐ SILZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 003C1928686, HĐ SILZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C2185275, HĐ ZMEZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 002C5522223, HĐ ZSEH27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C8031982, HĐ ZSEF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C2600858, HĐ ZSEF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 002C0811111, HĐ ZSEX26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C3089086, HĐ ZSEX26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 002C5311569, HĐ ZLEZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C0332438, HĐ PLEF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 080C6787869, HĐ ZMEZ26: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 072C6824543, HĐ ZSEF27: Lệnh CQG không tìm thấy bên M-System | [CQG] TK 012C1678795, HĐ ZWAZ26: Lệnh CQG không tìm thấy bên M-System
 [LOG] [2026-10-09T12:48:32.482Z] Hoàn thành đối chiếu: Phát hiện chênh lệch khớp lệnh (LỆCH). Đã cập nhật kết quả đối soát.
 
+================================================================================
+⏰ THỜI ĐIỂM CHẠY: 10:38:01 16/10/2026 (Ngày phiên: 2026-10-15)
+================================================================================
+ KẾT QUẢ TỔNG QUÁT:  KHỚP HOÀN TOÀN
+
+--- BẢNG TỔNG HỢP SỐ LIỆU ---
+• KLGD: MS = 0 | CQG = 0 | ACM = 0 | Nano = 0 | Lệch CQG = 0 | Lệch ACM = 0
+• TTM : MS = 0 | CQG = 0 | ACM = 0
+• TTTT: MS = 0 | CQG = 0 | ACM = 0
+
+--- NHẬT KÝ TIẾN TRÌNH BOT ---
+[LOG] [2026-10-16T03:38:01.441Z] Bắt đầu chạy đối chiếu Pre-EOD ngày ca trực 2026-10-16 (Phiên T-1: 2026-10-15)...
+[LOG] [2026-10-16T03:38:01.441Z] CQG → Ghép nối các file thô (FR, PS) phiên T-1 (15/10/2026)...
+[LOG] [2026-10-16T03:38:01.456Z] CQG Merge: Bắt đầu chạy quy trình tự động ghép file tại thư mục: C:\Users\hiepth\Downloads\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures\2026\T10.2026\15.10 (forceRemerge=true)
+[LOG] [2026-10-16T03:38:01.456Z] CQG Merge:  Không ghép file FR.xlsx vì thiếu file nguồn: FR1, FR2. Cần đủ cả FR1 và FR2 để tránh mất dữ liệu giao dịch.
+[LOG] [2026-10-16T03:38:01.456Z] CQG Merge:  Bỏ qua ghép PS.xlsx vì thiếu toàn bộ file nguồn: PS1, PS2
+[LOG] [2026-10-16T03:38:01.456Z] CQG Merge: Hoàn tất quy trình kiểm tra và tự động ghép file.
+[LOG] [2026-10-16T03:38:01.463Z] Dữ liệu đối chiếu chốt phiên T-1: 15/10/2026
+[LOG] [2026-10-16T03:38:01.463Z] [Đang chờ dữ liệu] Thư mục backup phiên T-1 ngày 15.10.2026 đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: DSGD.xlsx, TTTT.xlsx, ACM Trades (Straits.csv), CQG FR, CQG Positions/PS). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.
+

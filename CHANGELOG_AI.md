@@ -150,6 +150,34 @@
 ### 3. Kết quả kiểm thử & Biên dịch (Proof of Ground Truth)
 - Backend Build (`cmd.exe /c "npm run build"` -> `nest build`): **Exit code 0 (Pass 100%)**.
 - Frontend Build (`cmd.exe /c "npm run build"` -> `next build`): **Exit code 0 (Pass 100%)**.
+## [2026-10-16T10:28] OPTIMIZATION & INGRESS: Đồng Bộ Hóa 100% Cơ Chế Tải Nhanh CQG Theo File Test Kiểm Chuẩn
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: *"đã đáp ứng như file test chưa"* và *"có giúp tôi"*.
+- Đồng bộ hóa 100% cơ chế tải nhanh, cơ chế cache trình duyệt và kiểm tra DOM từ file test kiểm chuẩn [test_cqg_tab_downloads_fast.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_cqg_tab_downloads_fast.js) vào cả 2 phân hệ:
+  1. **Tầng Scraper V1 ([rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts))**:
+     - Nâng cấp Bước 5 trong `downloadCqgWidget` sang Scoped Selector theo tab active và **Check DOM** `if (!currentAccountText.includes('All'))`. Nếu tab đã là All accounts thì lập tức bỏ qua modal chọn tài khoản, tiết kiệm 3–4 giây cho mỗi tab widget. Bảo lưu logic cũ dưới dạng comment block theo yêu cầu USER.
+     - Tinh chỉnh các khoảng nghỉ tĩnh (`waitForTimeout`) từ 1000ms xuống 400ms – 600ms; giảm sleep tĩnh sau khi đăng nhập từ 5000ms xuống 1000ms.
+  2. **Tầng Ingress V2 ([cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts))**:
+     - Nâng cấp `loginAccount` sang **Browser Persistent Profile Cache** (`chromium.launchPersistentContext(profileDir)` với `temp/cqg_profile_1` & `temp/cqg_profile_2`), tự động dọn dẹp file lock mồ côi (`SingletonLock`).
+     - Tích hợp bộ cờ tối ưu Chromium Disk Cache: `--disk-cache-size=209715200` (200MB), `--enable-features=V8CodeCache,WebAssembly`.
+     - Tích hợp **Dual-State Router**: Lắng nghe đồng thời form `LOGIN` hoặc `DASHBOARD` để vào thẳng khi session cache còn hiệu lực; tự động kích hoạt F5 reload sau 15s nếu spinner bị nghẽn mạng để nạp ngay từ Disk Cache.
+     - Cập nhật `downloadParallelAllRawFiles` truyền `{ profileSuffix: '1' }` và `{ profileSuffix: '2' }` để 2 tài khoản chạy song song trên 2 profile tách biệt hoàn toàn, không xung đột file lock.
+
+### 2. Danh sách file tác động
+- [backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts):
+  - Bước 5 hàm `downloadCqgWidget`: Scoped Selector + Check DOM `currentAccountText.includes('All')`.
+  - Giảm độ trễ sleep tĩnh trong `runCqg1` và `runCqg2` từ 5000ms xuống 1000ms.
+- [backend/src/modules/ingress/scrapers/cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts):
+  - Hàm `loginAccount`: Persistent context profile, dọn dẹp lock files, cờ cache V8/Wasm, Dual-State Router.
+  - Hàm `downloadParallelAllRawFiles`: Phân tách profile 1 và profile 2 độc lập.
+
+### 3. Kết quả kiểm thử & Biên dịch
+- TypeScript Compilation (`tsc -p tsconfig.build.json --noEmit`): **Pass 100% không lỗi**.
+- NestJS Build (`nest build`): **Pass 100% không lỗi (exit code 0)**.
+
+---
+
 ## [2026-10-16T09:53] OPTIMIZATION & INGRESS: Tạm Comment Logic Tải Thừa Báo Cáo Giả Lập AS & Chuẩn Hóa Facade Reconcile EOD
 
 ### 1. Mục tiêu thay đổi
