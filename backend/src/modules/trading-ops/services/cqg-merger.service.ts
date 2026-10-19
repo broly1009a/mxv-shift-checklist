@@ -219,11 +219,41 @@ export class CqgMergerService {
     const data1 = lr1 > 4 ? rows1.slice(2, lr1 - 2) : lr1 > 2 ? rows1.slice(2) : [];
     const data2 = lr2 > 4 ? rows2.slice(2, lr2 - 2) : lr2 > 2 ? rows2.slice(2) : [];
 
+    // Khử trùng (Deduplicate) theo Ord #: Nếu một lệnh xuất hiện ở cả FR1 và FR2 (do tài khoản thuộc quyền xem của cả 2 user CQG)
+    const normHeaders = headerRow.map((h: any) => String(h || '').trim());
+    const ordIdx = findHeaderIndex(normHeaders, 'Ord #', ['ord', 'ord #', 'order', 'order #']);
+
+    const seenOrds = new Set<string>();
+    if (ordIdx !== -1) {
+      for (const r of data1) {
+        const ord = String(r[ordIdx] || '').trim();
+        if (ord) seenOrds.add(ord);
+      }
+    }
+
+    const uniqueData2: any[] = [];
+    let dupCount = 0;
+    for (const r of data2) {
+      if (ordIdx !== -1) {
+        const ord = String(r[ordIdx] || '').trim();
+        if (ord && seenOrds.has(ord)) {
+          dupCount++;
+          continue;
+        }
+        if (ord) seenOrds.add(ord);
+      }
+      uniqueData2.push(r);
+    }
+
+    if (dupCount > 0) {
+      this.logger.log(`[CQG Merger] Đã khử trùng ${dupCount} lệnh trùng lặp giữa FR1 và FR2 theo Ord #.`);
+    }
+
     const mergedData: any[] = [];
     if (headerRow && headerRow.length > 0) {
       mergedData.push(headerRow);
     }
-    mergedData.push(...data1, ...data2);
+    mergedData.push(...data1, ...uniqueData2);
 
     const destDir = path.dirname(dest);
     if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
@@ -232,7 +262,9 @@ export class CqgMergerService {
     const ns = XLSX.utils.aoa_to_sheet(mergedData);
     XLSX.utils.book_append_sheet(nwb, ns, 'Sheet1');
     XLSX.writeFile(nwb, dest, { compression: true });
-    this.logger.log(`[CQG Merger] Ghép FR thành công: FR1 (${data1.length}) + FR2 (${data2.length}) -> ${dest}`);
+    this.logger.log(
+      `[CQG Merger] Ghép FR thành công: FR1 (${data1.length}) + FR2 (${uniqueData2.length}${dupCount > 0 ? `, đã khử ${dupCount} trùng` : ''}) -> ${dest}`,
+    );
     return true;
   }
 

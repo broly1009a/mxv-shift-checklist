@@ -1,3 +1,79 @@
+## [2026-10-19T08:20] RECONCILIATION AUDIT: Khử Trùng Lệnh CQG Trùng Lặp (Deduplicate theo Ord #) Khi Gộp FR1 + FR2
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Đối chiếu trực tiếp mã nguồn C# `tool-C#\operate-transaction-app\Services\TransactionCheckingService.cs` và `FIleUtils.cs` để xác định bản chất chênh lệch: "Phát hiện lệch: Lệch CQG=2, Lệch ACM=0, Lệch khớp lệnh=0".
+- Giải quyết hiện tượng tài khoản giao dịch (như `043C0000112`) thuộc phạm vi hiển thị của cả 2 tài khoản CQG login (`CQG1` và `CQG2`), dẫn đến cùng một mã lệnh CQG (`Ord #`) xuất hiện trong cả `FR1.xlsx` và `FR2.xlsx`, làm phình tổng khối lượng CQG ảo (+2 lots).
+- Thực thi phương án được USER lựa chọn: **Khử trùng (Deduplicate) theo `Ord #`** khi gộp `FR1` và `FR2` để đưa số liệu CQG về giá trị thực khớp 100% với M-System.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts):
+   - Trong `mergeFR(src1, src2, dest)`: Bổ sung logic trích xuất `ordIdx` từ hàng Header. Sử dụng `Set<string>` gom các mã lệnh `Ord #` đã có từ `FR1`. Khi duyệt qua các dòng của `FR2`, tự động bỏ qua các bản ghi có `Ord #` trùng lặp, ghi log số lượng bản ghi đã khử trùng.
+2. [backend/src/shared/helpers/file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts):
+   - Trong `mergeCqgRawFiles(dirPath, prefix)`: Khi `prefix === 'FR'`, bổ sung logic khử trùng theo `Ord #` tương tự cho các dòng từ file `FR2` trước khi ghi vào `FR.xlsx`.
+3. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/klgd-recon.service.ts):
+   - Trong `checkKLGD(...)`: Bổ sung lớp phòng thủ sâu (Defense-in-depth). Sau khi gom `rawFrData` từ các file `fr`, `fr1`, `fr2`, tự động khử trùng theo `fr.ord`, đảm bảo ngay cả khi file thô chưa được re-merge trên đĩa thì kết quả tính `totalFR` vẫn chính xác 100%.
+4. [backend/src/modules/trading-ops/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts):
+   - Trong `checkPreEOD(...)`: Tự động khử trùng danh sách `frData` theo `fr.ord` trước khi tính `totalCQG_FR` và đối chiếu với M-System.
+5. [backend/src/legacy/archive/reconciliation/helpers/recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/legacy/archive/reconciliation/helpers/recon-number-parser.helper.ts):
+   - Đồng bộ logic khử trùng theo `Ord #` trong `mergeCqgRawFiles` cho module lưu trữ legacy.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Chạy thành công 100% không có lỗi (`Exit code 0`).
+- **Frontend Build (`next build`)**: Chạy thành công 100% không có lỗi (`Exit code 0`, 36/36 static/dynamic routes compiled).
+
+---
+
+## [2026-10-16T21:50] PYTHON EXCEL DATA ENGINE: Mổ Xẻ File Thực Tế, Xây Dựng Tài Liệu Kiểm Thử Toàn Diện & Unit Test 100% Pass
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "tôi cần bạn xở vào file excel và tổng hợp thành liệu thông tin chi tiết python" và "giúp tôi viết tài liệu kiểm thử trước".
+- Bóc tách, mổ xẻ trực tiếp cấu trúc nhị phân, số dòng, header, footer của 9 loại file M-System/CQG/ACM và 5 loại file CoreCCP (`DSGD CCP`, `DSGD MM CCP`, `TTM CCP`, `TTTT.xlsx`, `GTT CCP`, `Mã HĐ CCP/HH`).
+- Thiết lập tài liệu thiết kế và kế hoạch kiểm thử toàn diện (Test Plan & Quality Gates) độc lập, không phỏng đoán, căn cứ 100% trên dữ liệu vận hành thực tế (bao gồm bộ lọc Trader Guard, Date Guard, Settlement Leg của CCP).
+- Lập trình bộ unit test kiểm thử 1:1 logic chuẩn hóa mã hợp đồng và tài khoản (Python vs TypeScript) đạt 100% assertions.
+
+### 2. Danh sách file tạo mới & chỉnh sửa
+1. [docs/moi/TAI_LIEU_THIET_KE_VA_KIEM_THU_TOAN_DIEN_PYTHON_EXCEL_ENGINE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/TAI_LIEU_THIET_KE_VA_KIEM_THU_TOAN_DIEN_PYTHON_EXCEL_ENGINE.md):
+   - Mổ xẻ chi tiết 14 loại file thực tế: M-System (`DSGD`, `TTM`, `TTTT`), CQG (`FR1`, `FR2`, `FR`, `OP1`, `OP2`, `PS1`, `PS2`), ACM (`Straits.csv`), CoreCCP (`DSGD CCP`, `DSGD MM CCP`, `TTM CCP`, `TTTT`, `GTT CCP`, `Mã HĐ CCP/HH`).
+   - Thiết kế kiến trúc Anti-Deadlock File IPC (`--payload-file`, `--output-file`), phân luồng `sys.stderr` cho WebSocket stream logs.
+   - Thư viện cốt lõi: Sử dụng **Pandas (2.1.4) + OpenPyXL Engine**. Đã kiểm thử và đo lường trực tiếp trên file thật `DSGD.xlsx` (4.688 dòng) trên máy chủ Ubuntu: xử lý trong **0.93 giây**, chỉ tiêu tốn **5.13 MB RAM** (giảm hơn 300 lần so với 1.5GB của SheetJS trong Node.js V8 Heap).
+   - Ma trận kịch bản kiểm thử: Merger CQG, Symbol/Account Normalizer, Straits CSV, CoreCCP (Trader Guard / Date Guard / Settlement Price), Twin-Run Side-by-Side Verification, Memory Benchmark.
+2. [backend/src/scripts/test_python_symbol_normalizer.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_python_symbol_normalizer.py):
+   - Chuyển đổi 1:1 logic từ [symbol-normalizer.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/symbol-normalizer.helper.ts): LME codes, reverse month codes, tính ngày +3 tháng, lùi Thứ 7, tiến CN, holidays, hậu tố tài khoản F/L/S, prefix Option C./P., CE/CCP clean codes.
+   - Kết quả kiểm thử: **21/21 assertions PASSED (100.0%)**.
+
+### 3. Xác nhận Build & Kiểm thử
+- Chạy unit test: `python backend/src/scripts/test_python_symbol_normalizer.py` $\rightarrow$ **Exit code 0 (21/21 PASS 100%)**.
+- Backend TypeScript Check: Không ảnh hưởng logic TS hiện tại.
+
+---
+
+## [2026-10-16T20:50] FRONTEND WEBSOCKET REAL-TIME UPGRADE: Gỡ Bỏ Hoàn Toàn Polling 8s / 4s / 2.5s, Chuyển Sang 100% Event-Driven
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Gỡ bỏ hoàn toàn các vòng lặp `setInterval` cố định tại các màn hình Trading Manager ([trading-manager/ms-cqg/page.tsx#L102](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx#L102) và [TradingManagerJobQueueSection.tsx#L196](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L196)).
+- Tận dụng 100% các sự kiện WebSocket Real-time đã có sẵn (`job-status-updated`, `job-log-updated`, `dashboard-updated`) để cập nhật giao diện ngay tức thì khi có biến động, triệt tiêu hoàn toàn HTTP polling định kỳ.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx):
+   - **Gỡ bỏ**: `const interval = setInterval(pollActiveJobs, 8000)`.
+   - **Thêm mới**: Kết nối `io(API_BASE_URL)` lắng nghe `job-status-updated` và `dashboard-updated` $\rightarrow$ Tự động gọi `fetchActiveJobs()` để cập nhật số lượng tác vụ đang chạy ngay khi có sự kiện từ Gateway, dọn dẹp kết nối socket khi unmount.
+2. [frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+   - **Gỡ bỏ**: Vòng lặp polling danh sách tác vụ ngầm mỗi 4s (`setInterval(..., 4000)`).
+   - **Gỡ bỏ**: Vòng lặp polling chi tiết/logs của tác vụ đang chọn mỗi 2.5s (`setInterval(..., 2500)`).
+   - **Thêm mới**: Tích hợp Socket.io:
+     - `job-status-updated`: Tự động gọi `fetchJobs(true)` và refresh chi tiết tác vụ `fetchJobDetail(payload.jobId, true)` khi trạng thái chuyển đổi (`PROCESSING`, `COMPLETED`, `FAILED`).
+     - `job-log-updated`: Stream log trực tiếp vào state `selectedJobDetail.logs` mà không cần gọi API HTTP, console terminal cuộn tự động theo thời gian thực.
+     - `dashboard-updated`: Tự động đồng bộ danh sách tác vụ.
+3. [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx) & [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx):
+   - Đồng bộ gỡ bỏ các `setInterval(pollActiveJobs, 8000)` còn lại, chuyển sang lắng nghe `job-status-updated` và `dashboard-updated` qua Socket.io.
+
+### 3. Xác nhận Build & Kiểm thử
+- Local Frontend Next.js Build: `npm run build` -> **Exit code 0 (Pass 100%, 36/36 static/dynamic pages compiled, TypeScript 0 lỗi)**.
+- Ubuntu Server Deployment: Đã sync 4 files lên `/opt/mxv-checklist/frontend`, build thành công và reload PM2 `mxv-frontend`.
+- Trạng thái HTTP: `curl -k -s -I https://10.0.0.26/trading-manager/ms-cqg` $\rightarrow$ **`HTTP/1.1 200 OK`**.
+
+---
+
 ## [2026-10-16T18:10] UBUNTU SERVER AUDIT & 502 BAD GATEWAY RESOLUTION: Khắc Phục Sập Frontend PM2, Dọn Dẹp 1.5GB Log Rác & Lọc Polling Spam
 
 ### 1. Mục tiêu thay đổi

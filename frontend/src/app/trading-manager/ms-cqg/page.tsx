@@ -12,7 +12,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { io } from 'socket.io-client';
 import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TradingManagerGuideModal from '../components/shared/TradingManagerGuideModal';
@@ -64,7 +65,7 @@ export default function MsCqgTradingManagerPage() {
     setSelectedDate(getInitialTradingSessionDate());
   }, []);
 
-  // Polling số lượng tác vụ MS-CQG đang chạy
+  // Đồng bộ số lượng tác vụ MS-CQG đang chạy 100% qua WebSocket Real-time (Zero Polling)
   useEffect(() => {
     if (!token) return;
     const MS_CQG_JOB_TYPES = [
@@ -86,7 +87,7 @@ export default function MsCqgTradingManagerPage() {
       'GENERATE_IMPORT_GTT_FILE',
     ].join(',');
 
-    const pollActiveJobs = async () => {
+    const fetchActiveJobs = async () => {
       try {
         const data = await api.checklistHub.getJobs({ jobTypes: MS_CQG_JOB_TYPES }, token);
         if (Array.isArray(data)) {
@@ -98,9 +99,25 @@ export default function MsCqgTradingManagerPage() {
       } catch {}
     };
 
-    pollActiveJobs();
-    const interval = setInterval(pollActiveJobs, 8000);
-    return () => clearInterval(interval);
+    // Tải 1 lần duy nhất khi vào trang
+    fetchActiveJobs();
+
+    // Kết nối WebSocket nhận cập nhật tức thời từ Gateway
+    const socket = io(API_BASE_URL, {
+      transports: ['websocket'],
+    });
+
+    socket.on('job-status-updated', () => {
+      fetchActiveJobs();
+    });
+
+    socket.on('dashboard-updated', () => {
+      fetchActiveJobs();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [token]);
 
   // Fullscreen toggle handler
