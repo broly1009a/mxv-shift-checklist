@@ -1,3 +1,250 @@
+## [2026-10-19T11:50] REFACTOR: Triệt Tiêu Hoàn Toàn Cơ Chế Fallback Sang M-System Cho Vị Thế Mở & Lãi Lỗ Dự Kiến (100% CoreCCP Only)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo dứt khoát của USER: *"hiện tại lãi lỗ dự kiến có tính cả MS vào không . còn hoặc nếu chưa có file CCP mới fallback sang MS không được fallback nhé"*.
+- **Nguyên tắc nghiệp vụ**:
+  1. CoreCCP là Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV, quản lý 100% vị thế mở (Open Interest) và Lãi lỗ dự kiến (Unrealized PnL).
+  2. Tuyệt đối không tính MS và **không được fallback sang MS**. Nếu CoreCCP chưa có dữ liệu TTM thì hiển thị 0 chứ không lấy từ M-System, ngăn ngừa triệt để việc lẫn lộn số liệu cũ từ M-System.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L868-L895):
+   - Xóa bỏ hoàn toàn khối `else if (ttmRows.length > 0)` fallback sang `TTM MS`.
+   - Vòng lặp tích lũy Vị thế mở (`longLots`, `shortLots`) và Lãi lỗ dự kiến (`expectedPnLVnd`) chỉ duyệt duy nhất `ccpTtmRows` (CoreCCP).
+2. [docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L173-L177):
+   - Cập nhật quy chuẩn nghiệp vụ: Ghi rõ ràng không fallback sang M-System khi thiếu file CoreCCP.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**:
+  - `cmd /c npm run build`: Backend biên dịch thành công (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ `qlgd-dashboard.service.ts` lên `/opt/mxv-checklist/backend/...`.
+  - Biên dịch `npm run build` trên Ubuntu thành công 100%.
+  - Khởi động lại service PM2 `mxv-backend` (PID `2829995`, trạng thái `online`).
+
+---
+
+## [2026-10-19T11:40] FEATURE: Nâng Cấp Khối Thông Báo Đối Soát Bot Thành Thanh Tiến Trình % Ngắn Gọn (Sleek Compact Progress Bar)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"@[code_item] Bot đang thực hiện quy trình đối soát theo bạn có nên chuyển thành thanh % ngắn gọn cho dễ nhìn hơn không"*, *"giúp tôi nâng cấp"*.
+- **Vấn đề của giao diện cũ**: Khối box thông báo dạng card chiếm nhiều diện tích dọc (~80px), text dài dòng tĩnh cố định (*"Đang tự động tải báo cáo DSGD/TTM từ M-System, file CQG và đối chiếu khớp lệnh."*), không thể hiện được phần trăm hoàn thành hay tiến trình thực tế của Bot khiến người dùng bối rối.
+- **Giải pháp UX/UI mới**:
+  1. Giảm chiều cao từ ~80px xuống **44px** (tiết kiệm 45% không gian màn hình), giúp các bảng số liệu bên dưới luôn trong tầm mắt.
+  2. Tự động tính toán phần trăm tiến độ (%) và giai đoạn chạy dựa trên stream log thực tế (`displayLogs`):
+     - **20% - Khởi tạo quy trình**: Kết nối hàng đợi bot & kiểm tra rào cản.
+     - **30% - 68% - Đang tải dữ liệu 4 nguồn**: Theo dõi số lượng báo cáo M-System, CoreCCP, CQG, Straits tải về.
+     - **75% - Xử lý & Ghép file thô**: Ghép file CQG và kiểm soát tính toàn vẹn.
+     - **90% - Đang so khớp & Kiểm tra chênh lệch**: Đối chiếu khớp lệnh & vị thế chi tiết.
+  3. Hiển thị dòng log mới nhất theo thời gian thực (ví dụ: *"Bắt được reportId=43011, tải xong DSGD CCP.xlsx"*).
+  4. Tích hợp thanh Progress Bar gradient mượt mà (`#2563eb` -> `#38bdf8`) kèm nút hành động `Log` và `Stop` compact.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L717-L772):
+   - Thêm hook `botProgressInfo = useMemo(...)` phân tích mảng log và sinh tiến trình động.
+   - Thay thế toàn bộ khối UI `isBotRunning ? (...)` bằng thanh tiến trình Sleek Compact Progress Bar.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**:
+  - `cmd /c npx tsc --noEmit`: 0 lỗi type-check (Exit code 0).
+  - `cmd /c npm run build`: Next.js Turbopack biên dịch thành công 100% 36 routes (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ `LegacyReconSection.tsx` lên `/opt/mxv-checklist/frontend/...`.
+  - Biên dịch `npm run build` trên Ubuntu thành công 100% (`Compiled successfully in 9.9s`).
+  - Khởi động lại service PM2 `mxv-frontend` (PID `2827310`, trạng thái `online`).
+
+---
+
+## [2026-10-19T11:20] FIX: Triệt Tiêu Race Condition CoreCCP WebSocket Timeout (50000ms) Bằng Subscribe-Before-Export & Chuẩn Hóa Cơ Chế Retry / Abort Không Làm Sập Ca Trực
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"giúp tôi check log để xem nguyên nhân cụ thể xem có thể fix được lỗi Timeout 50000ms chờ notification WebSocket cho fekey được không"*, *"giúp tôi fix chuẩn(không phỏng đoán tự chế)"*.
+- **Căn cứ & Bằng chứng thực nghiệm (Ground Truth Verification)**:
+  1. Trích xuất trực tiếp log `mxv-backend-out.log` trên Ubuntu Server 10.0.0.26 tại thời điểm 10:39:22 - 10:40:12 AM ngày 19/10/2026: Lệnh xuất `DSGD_CCP` (ORDERMATCH_DETAIL) gửi HTTP POST tạo job nhưng bị timeout 50000ms do không nhận được WebSocket event.
+  2. Bắt trace WebSocket Engine.IO v4 thời gian thực: Server CoreCCP render file cực nhanh và broadcast event `REPORT` chỉ sau đúng **90ms (0.09 giây)**!
+  3. **Root Cause 1 (Race Condition WebSocket Timeout)**: Client gọi `createExportJob` song song với việc mở WebSocket. Vì WebSocket cần 1.5s - 2.5s để lấy ticket `/sso/api/v1/oauth/issue-ws-ticket` và hoàn tất handshake `40`, nên khi client chưa kịp gửi bản tin `42["SUBSCRIBE",{"room":["REPORT"]}]` thì Server CoreCCP đã bắn xong event! Client bị lỡ bản tin broadcast (Missed broadcast) và phải chờ đến hết 50 giây.
+  4. **Root Cause 2 (Bỏ quên Retry trong Modular V2 BotDispatcher)**: Trong `bot-job-queue.service.ts#L481-L498`, khi điều phối qua BotDispatcher V2, nếu worker trả về `status: 'FAILED'`, code gán cứng `finalStatus = 'FAILED'` và đánh sập ca trực ngay Attempt 1/3, bỏ qua hoàn toàn cơ chế kiểm tra `job.attempts < job.maxAttempts` và mã lỗi sự cố đối tác `[PARTNER_SERVICE_UNAVAILABLE]`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L596-L815):
+   - **Hiện thực cơ chế Subscribe-Before-Export**: Nâng cấp `waitForReportIdViaSocket` nhận callback `onSubscribed?: () => Promise<void>`.
+   - Client chỉ gửi HTTP POST `/ccp/export/create` sau khi WebSocket đã nhận frame `40` (handshake thành công) và gửi xong frame `42["SUBSCRIBE",{"action":"SUBSCRIBE","room":["NOTI","REPORT","SOCKET"]}]`.
+   - Nâng cấp bộ lọc bắt event: Nhận diện cả `fekey`, `searchCode` và `reportId` (`content?.autoid || content?.reportId || content?.id`).
+   - Cập nhật `downloadServerExport` truyền callback `onSubscribed` tạo job ngay khi socket đã sẵn sàng phòng `REPORT`.
+2. [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-job-queue.service.ts#L481-L501):
+   - Sửa nhánh xử lý kết quả của `BotDispatcher V2`: Khi `dispatchRes.status === 'FAILED'`, ném lỗi `throw new Error(errorMsg)` để rơi vào khối catch chung của Job Queue.
+   - Kích hoạt quy trình Retry tự động:
+     - Nếu `job.attempts < job.maxAttempts`: Chuyển `job.status = 'PENDING'`, giải phóng lock (`lockedBy = null`, `lockedAt = null`), cập nhật task ca trực sang trạng thái `PENDING` kèm thông báo *"Sàn/Dịch vụ đối tác tạm thời chưa phản hồi... Bot sẽ tự động thử lại..."*. Ca trực hoàn toàn an toàn, không bị đánh FAILED!
+     - Nếu `job.attempts >= job.maxAttempts` và lỗi là `[PARTNER_SERVICE_UNAVAILABLE]`: Chuyển `job.status = 'ABORTED'`, task ca trực chuyển sang `NEEDS_ATTENTION` (Cần chú ý xem xét do đối tác ngoài tạm dừng), không đánh `FAILED` và không báo động giả lỗi hệ thống.
+
+### 3. Kiểm thử & Bằng chứng thực tế (Proof of Ground Truth)
+- **Local Build**:
+  - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
+  - `cmd /c npx tsc --noEmit` (Frontend): Không có lỗi kiểu dữ liệu (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ `coreccp-api.adapter.ts` và `bot-job-queue.service.ts` lên `/opt/mxv-checklist/backend/`.
+  - Biên dịch `npm run build` trên Ubuntu thành công 100%.
+  - Khởi động lại service PM2 `mxv-backend` (PID 2821159, trạng thái `online`).
+- **Thực nghiệm tải thực tế báo cáo CoreCCP `DSGD_CCP` (ORDERMATCH_DETAIL)**:
+  - Chạy `adapter.download('CCP', { reportCodes: ['DSGD_CCP'] })` trên máy chủ:
+    - `NotiSocket đã Subscribe sẵn sàng phòng REPORT. Đang kích hoạt tạo export ORDERMATCH_DETAIL...`
+    - `Bắt được reportId=43011, đang tải file nhị phân...`
+    - `✅ Tải thành công DSGD CCP.xlsx qua Server Export (47422 bytes)`
+    - **Thời gian hoàn thành trọn gói: đúng 635 milliseconds (0.635 giây)**! Triệt tiêu 100% lỗi Timeout 50000ms.
+
+---
+
+## [2026-10-19T11:05] REFACTOR: Chuẩn Hóa Logic Tính Vị Thế Mở (TTM) & Lãi Lỗ Dự Kiến Chỉ Trên CoreCCP & Lưu Trữ Nguyên Vẹn Logic Cũ
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo của USER: *"nãy tôi đối chiếu với user thì anh ý bảo logic của hệ thống đang tính cả Tổng vị thế mở trên cả MS... lẽ ra phải không tính trên MS chỉ tính trên ccp đúng không"*, *"đúng rồi nhưng giờ tôi vẫn muốn giữ logic cũ bằng cách comment lại hoặc lưu trữ ở đâu đó rồi mới về viết logic mới để sử dụng (để phòng nếu cần hiển thị cả ms thì có thể vẫn còn src code)"*.
+- **Nguyên nhân nghiệp vụ**:
+  1. Trong file Excel gốc `Check BGS All.xlsm` Sheet 2 `Thống kê TTM` ([TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L150-L171](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L150-L171)), công thức macro viết: `=SUMIFS('TTM MS') + SUMIFS('TTM CCP')` do được lập trong giai đoạn chuyển đổi song song (migration phase).
+  2. Hiện tại, CoreCCP đã chính thức là Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV, quản lý toàn bộ vị thế mở (Open Interest) của thị trường. Việc cộng thêm `TTM MS` dẫn đến rủi ro nhân đôi vị thế (double counting).
+  3. Do đó, theo nghiệp vụ chuẩn mới: **Chỉ tính Vị thế mở & PnL dự kiến từ CoreCCP (`TTM CCP`)**. Nếu CoreCCP chưa có dữ liệu (offline/chưa chạy API kết xuất), hệ thống tự động fallback an toàn sang `TTM MS`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L812-L910):
+   - Bổ sung hằng số cấu hình `const INCLUDE_MS_TTM = false;`.
+   - **Logic mới**: Khi `INCLUDE_MS_TTM === false`, hệ thống chỉ duyệt qua danh sách `ccpTtmRows` (CoreCCP). Nếu CoreCCP rỗng nhưng M-System có dữ liệu, tự động fallback sang `ttmRows` để không bị trống màn hình.
+   - **Lưu trữ logic cũ**: Khối code tích lũy cộng gộp cả M-System và CoreCCP theo công thức macro Sheet 2 được lưu trữ nguyên vẹn ngay bên dưới cờ `INCLUDE_MS_TTM`, sẵn sàng kích hoạt lại tức thì chỉ bằng việc đổi `INCLUDE_MS_TTM = true`.
+2. [docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L170-L176):
+   - Bổ sung callout note ghi rõ sự khác biệt giữa công thức file Excel gốc và quy chuẩn vận hành chuẩn hóa mới của MXV.
+   - Dẫn link đối chiếu trực tiếp tới khối code lưu trữ trong `qlgd-dashboard.service.ts`.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**:
+  - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
+  - `cmd /c npx tsc --noEmit` (Frontend): Không có lỗi kiểu dữ liệu (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ `qlgd-dashboard.service.ts` lên `/opt/mxv-checklist/backend/src/modules/trading-ops/services/`.
+  - Biên dịch `npm run build` trên Ubuntu thành công 100%.
+  - Khởi động lại service PM2 `mxv-backend` (PID 2817011, trạng thái `online`).
+
+---
+
+## [2026-10-19T10:55] FIX: Khắc Phục Triệt Để Bug Deduplicate CQG Làm Mất 136 Khớp Lệnh Từng Phần (Partial Fills) Báo Lệch Ảo 279-285 Lots
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"giúp tôi check xem có phải lỗi không hay do lệch thật"*, *"giúp tôi fix"*.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  1. Trong đợt chỉnh sửa sáng 19/10/2026, logic khử trùng lệnh CQG theo `Ord #` (`seenCqgOrders.has(fr.ord)`) đã được áp dụng sai lầm trên toàn bộ danh sách `rawFrData` tại [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts) và [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts).
+  2. Trong giao dịch hàng hóa phái sinh CQG, một lệnh đặt (`Ord #`) thường xuyên **khớp làm nhiều lần (Partial Fills)** tại các thời điểm hoặc mức giá khác nhau. Vòng lặp `seenCqgOrders` đã giữ lại lần khớp đầu tiên và **XÓA SẠCH toàn bộ 136 lần khớp thật tiếp theo** của khách hàng!
+  3. Hậu quả: Làm sụt giảm tổng khối lượng CQG từ 1.239 lot xuống 956 lot, gây ra hiện tượng báo lệch ảo nghiêm trọng: `Lệch CQG = 279 - 285 lots` và `Lệch khớp lệnh = 34 lệnh`.
+  4. Thực tế giữa M-System và CQG chỉ chênh lệch đúng **2 lots** do thời điểm xuất file CQG (lệnh cuối lúc 10:37:43) sớm hơn 2 phút so với file M-System (có 2 lệnh khớp lúc 10:38:58 và 10:39:03).
+  5. Căn cứ mã nguồn chuẩn C# IT Tool ([FIleUtils.cs#L985-L1064](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Utils/FIleUtils.cs#L985-L1064) và [TransactionCheckingService.cs#L136-L159](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L136-L159)), hệ thống gốc duyệt toàn bộ từng dòng `frData` và cộng trực tiếp `totalFR += qty`, tuyệt đối không khử trùng theo `Ord #`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L168):
+   - Xóa bỏ hoàn toàn khối code khử trùng theo `seenCqgOrders` loop trên `rawFrData`. Bảo toàn 100% tất cả các lần khớp lệnh (partial fills) của CQG.
+2. [backend/src/modules/trading-ops/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts#L159):
+   - Xóa bỏ hoàn toàn khối code khử trùng theo `seenCqgOrders` loop trên `rawFrData`. Bảo toàn toàn bộ các dòng khớp của CQG trước khi tính tổng `totalCQG_FR`.
+3. [backend/src/modules/trading-ops/services/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/cqg-merger.service.ts#L222-L250):
+   - Nâng cấp cơ chế ghép file `FR1` và `FR2`: Thay thế việc deduplicate thô thiển theo `Ord #` bằng **Composite Key Matching** đầy đủ (`ord|account|symbol|qty|fillP|time`).
+   - Chỉ loại bỏ bản ghi trong `FR2` nếu bản ghi đó trùng khớp nguyên bản 100% với một bản ghi đã có ở `FR1`. Tuyệt đối không xóa các dòng khớp từng phần trong nội bộ `FR2`.
+4. [backend/src/shared/helpers/file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/file-path.helper.ts#L366-L392):
+   - Đồng bộ cơ chế Composite Key Matching khi ghép file thô CQG trong hàm `mergeCqgRawFiles`.
+5. [backend/src/legacy/archive/reconciliation/helpers/recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/legacy/archive/reconciliation/helpers/recon-number-parser.helper.ts#L498-L525):
+   - Đồng bộ cơ chế Composite Key Matching trong hàm `mergeCqgRawFiles` của module legacy archive.
+
+### 3. Kiểm thử & Xác nhận Triển khai
+- **Local Build**:
+  - `cmd /c npm run build` (Backend): Biên dịch thành công 100% không có lỗi (Exit code 0).
+  - `cmd /c npx tsc --noEmit` (Frontend): Không có lỗi kiểu dữ liệu (Exit code 0).
+- **Kiểm thử trực tiếp trên dữ liệu thật ngày 19/10/2026**:
+  - Tái tạo lại file gộp `FR.xlsx` trên ổ đĩa `M:\...`: 578 dòng (FR1) + 256 dòng (FR2) = 834 dòng dữ liệu thật (1.239 lots).
+  - Chạy `klgdReconService.checkKLGD`:
+    - `totalDSGD`: **1.241 lots**.
+    - `totalFR`: **1.239 lots** (khôi phục toàn vẹn 283 lots bị mất).
+    - `differ`: **2 lots** (đúng bằng 2 lệnh khớp sau mốc cutoff: 1 lệnh 10:38:58 và 1 lệnh 10:39:03).
+    - `differACM`: **0**.
+    - Triệt tiêu hoàn toàn 34 lệnh lệch ảo.
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ cả 5 file đã sửa lên `/opt/mxv-checklist/backend/`.
+  - Biên dịch `npm run build` trên Ubuntu thành công 100%.
+  - Khởi động lại service PM2 `mxv-backend` (PID 2814408, trạng thái `online`).
+
+---
+
+## [2026-10-19T10:25] FEATURE: Bổ Sung Bộ Lọc Xem Lại Các Lượt Lịch Sử Chạy Trong Ngày (Run History Filter) Trên Executive Dashboard
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: *"giúp tôi thêm filter như checkklgd để xem các lượt lịch sử chạy trong ngày nếu có ( do chạy tự động hoặc chạy thủ công)"*.
+- **Mục đích**:
+  1. Cho phép người dùng và Ban Giám Đốc xem lại dữ liệu Dashboard Quản lý giao dịch tại bất kỳ thời điểm quét nào trong ngày (cả lượt tự động bởi Bot và lượt chạy thủ công do người dùng kích hoạt).
+  2. Bổ sung cụm điều khiển Lượt chạy: Nút lùi lượt cũ hơn (`<`), dropdown chọn lượt (`Lượt #N (HH:mm:ss) - Tự động/Thủ công`), nút tiến lượt mới hơn (`>`) và nút `[Về Live]` quay về dữ liệu thời gian thực mới nhất, chuẩn 1:1 theo phong cách của màn hình Check KLGD (`LegacyReconSection`).
+  3. Lọc dữ liệu lệnh khớp theo thời gian cutoff (`cutoffTime`) của từng lượt lịch sử để tái hiện chính xác 100% bức tranh thị trường tại thời điểm đó.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts):
+   - **Inject `botJobModel`**: Bổ sung `@Optional() @InjectModel(BotJob.name) private readonly botJobModel?: Model<BotJob>`.
+   - **Mở rộng `QlgdDashboardResponse` & `ExecutiveRunItem`**: Bổ sung các trường `runs: ExecutiveRunItem[]`, `currentJobId: string | null`, `isViewingHistorical: boolean`.
+   - **Truy vấn danh mục Lượt chạy**: Tự động truy vấn các job `CHECK_KLGD` và `CHECK_PRE_EOD` của ngày phiên (`targetDate`) trong `bot_jobs`, phân loại rõ trạng thái (`COMPLETED`, `FAILED`) và nguồn kích hoạt (`Tự động` vs `Thủ công`).
+   - **Tái hiện dữ liệu lịch sử theo Cutoff Time**: Viết hàm `parseTradeDateTime`; khi người dùng chọn một `jobId` trong quá khứ, hệ thống lọc danh sách giao dịch có thời gian `<= cutoffTime` của job đó để tái lập chính xác số liệu tích lũy tại mốc thời điểm đó.
+2. [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts):
+   - Mở rộng endpoint `GET /api/v1/trading-ops/executive-dashboard`: Thêm `@Query('jobId') jobId?: string`.
+3. [frontend/src/features/trading/services/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/services/trading-ops.api.ts):
+   - Cập nhật `getExecutiveDashboard`: Bổ sung tham số `jobId?: string | null` truyền lên backend.
+4. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Import `History, ChevronLeft, ChevronRight, RotateCcw` từ `lucide-react`.
+   - Thêm state quản lý lượt: `selectedRunJobId`, `runs`, `currentRunIndex`, `hasPrevRun`, `hasNextRun`.
+   - Viết các hàm điều hướng: `handleSelectRun`, `goToPrevRun`, `goToNextRun`.
+   - Tích hợp cụm Selector Lượt chạy trên thanh điều khiển (cạnh DatePicker): Dropdown hiển thị đầy đủ thông tin `Lượt #N (HH:mm:ss) - Tự động/Thủ công [Lỗi/Khớp]`, 2 nút điều hướng `<` và `>`.
+   - Bổ sung Banner cảnh báo màu cam nổi bật khi đang xem lượt lịch sử kèm nút `Quay lại Dữ liệu Live mới nhất`.
+
+### 3. Kiểm thử & Xác nhận Triển khai
+- **Local Build**:
+  - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
+  - `npx tsc --noEmit` (Frontend): Hoàn toàn không có lỗi kiểu dữ liệu (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ cả 4 file lên máy chủ `/opt/mxv-checklist/`.
+  - Biên dịch thành công cả backend (`nest build`) và frontend Next.js Turbopack (36/36 static pages).
+  - Khởi động lại PM2 `mxv-backend` (PID 2805743) và `mxv-frontend` (PID 2805989) đều `online`.
+  - Kiểm thử trực tiếp API: Tìm thấy đầy đủ **13 lượt chạy** trong ngày 19/10/2026. Thử nghiệm truy vấn lượt cũ `6ad579d87940c0e955b5ce7c` (09:00 AM) tái hiện chính xác số liệu `338` lot ACM và `982` lot Others.
+
+---
+
+## [2026-10-19T09:45] FEATURE & AUDIT: Nâng Cấp Executive Dashboard Tính Toán 100% Theo Direct API Thực Tế (Loại Bỏ Số Ảo) & Rà Soát Toàn Diện Các Đầu Nút LegacyReconSection Chuẩn Modular Monolith V2
+
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER:
+  1. *"từ luồng call api chuẩn rồi giúp tôi đánh giá nâng cấp hệ thống để tính chuẩn chuẩn theo đầu api đã call thay vì dữ liệu ảo"*
+  2. *"Tôi đồng ý nhưng phải chuẩn theo PHAN_TICH_DASHBOARD_QLGD_VA_GAP_ANALYSIS.md và Check BGS All.xlsm phải code chuẩn theo logic hệ thống không được phỏng đoán tự chế code"*
+  3. *"giúp tôi check lại các đầu nút call api ở trang fe này xem đã call tới backend chuẩn nghiệp vụ sau v2 chuyển đổi chưa"*
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts):
+   - **Áp dụng cơ chế phân giải đường dẫn kép (Dual Priority Resolution)**: Bổ sung quét đồng thời cả thư mục kiểm tra trong phiên `TradingCheck` (`bot_trading_check_path`) và thư mục `Backup` (`bot_backup_path_ms`, `bot_backup_path_ccp`), đồng nhất với chuẩn `klgd-recon.service.ts`.
+   - **Cập nhật `syncFreshDataFromApis`**: Tải trực tiếp các báo cáo M-System (`DSGD`, `TTM`, `TTTT`) và CoreCCP (`DSGD_CCP`, `TTM_CCP`, `TTTT`) vào thư mục `TradingCheck` của phiên giao dịch.
+   - **Triệt tiêu 100% số liệu giả lập `123, 456, 789, 1111`**: Khối lượng các mốc giờ (Đầu phiên, Phiên Á, Phiên Âu, Phiên Mỹ) và số tài khoản duy nhất (Unique Accounts) được tính toán trung thực theo thời gian khớp lệnh thực tế; nếu chưa có lệnh thì phản ánh đúng `0` lot.
+   - **Chuẩn hóa phân loại nghiệp vụ**: Sử dụng các helper chuẩn từ `clearing-excel.helper.ts` (`isSpread`, `isLme`, `isOptions`, `isAcm`) thay cho việc cắt chuỗi thủ công.
+   - **Đồng bộ công thức 1:1 từ `Check BGS All.xlsm`**: Khớp chính xác logic của các sheet `Tổng hợp KLGD`, `Thống kê TTM` (loại trừ tài khoản `-A` cho PnL dự kiến), `Thống kê TTTT`.
+2. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Thay đổi `initialDate`: Tự động lấy ngày hiện tại theo múi giờ Việt Nam (`new Date(Date.now() + 7*3600*1000).toISOString().split('T')[0]`) thay vì fix cứng `2026-10-08`.
+   - Mặc định `dataMode`: Đổi từ `'MOCK'` sang `'LIVE'`.
+   - Cập nhật `fetchLiveDashboard`: Giữ nguyên dữ liệu Live khi nhận từ backend, không ép `setLiveData(null)` khi khối lượng bằng 0.
+   - Sửa `rawDisplayItems`: Trong chế độ `'LIVE'`, chỉ hiển thị dữ liệu thực hoặc mảng rỗng `[]`, không fallback về mảng 44 mã `MOCK_COMMODITY_ITEMS`.
+3. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+   - Rà soát toàn bộ các đầu nút gọi API:
+     - Nút "Check thủ công" `CHECK_KLGD` -> `POST /api/v1/trading-ops/trigger-console-run` -> `KlgdReconWorker`.
+     - Nút "Đối chiếu Pre-EOD" -> `POST /api/v1/trading-ops/trigger-console-run` (`jobType: 'CHECK_PRE_EOD'`) -> `PreEodReconWorker`.
+     - Nút "Tự động: BẬT/TẮT" -> `POST /api/v1/system-settings`.
+     - Nút "Lượt check / Điều hướng lịch sử" -> `GET /api/v1/trading-ops/console-summary?jobId=...`.
+     - Nút "Dừng khẩn cấp bot" -> `POST /api/v1/bot-engine/jobs/:id/cancel`.
+     - Nhánh GTT (`LegacyGttCheckerSection`): `GET /api/v1/trading-ops/gtt-report`, `POST /api/v1/trading-ops/run-gtt-check`, `GET /api/v1/trading-ops/gtt-report/export-correction`.
+   - **Kết luận**: 100% các đầu nút đã được chuyển đổi hoàn chỉnh sang Modular Monolith V2, không còn endpoint monolith cũ nào.
+
+### 3. Kiểm thử & Xác nhận Triển khai
+- **Local Build**:
+  - `cmd /c npm run build` trong `backend`: Thành công 100% (Exit code 0).
+  - `cmd /c npm run build` trong `frontend`: Thành công 100% (Turbopack, 36/36 static pages).
+- **Deploy Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ `qlgd-dashboard.service.ts` và `QlgdExecutiveDashboard.tsx` lên `/opt/mxv-checklist/`.
+  - Biên dịch NestJS và Next.js trên Ubuntu thành công 100%.
+  - Khởi động lại PM2 `mxv-backend` (PID 2794520) & `mxv-frontend` (PID 2794532), cả hai process đều đang `online` ổn định.
+
+---
+
 ## [2026-10-19T09:28] FEATURE & INTEGRATION: Mở Rộng Toàn Diện CoreCCP TTM (Vị Thế Mở) và TTTT (Tất Toán) Trong Controller, Adapter & Bot Worker
 
 ### 1. Mục tiêu thay đổi

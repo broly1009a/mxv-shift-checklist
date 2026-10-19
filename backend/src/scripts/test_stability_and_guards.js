@@ -31,7 +31,7 @@ function assert(condition, testName, details = '') {
     if (details) console.log(`     └─ ${details}`);
     totalPassed++;
   } else {
-    console.error(`  ❌ [FAIL] ${testName}`);
+    console.error(`   [FAIL] ${testName}`);
     if (details) console.error(`     └─ ${details}`);
     totalFailed++;
   }

@@ -480,8 +480,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
           let finalStatus = 'COMPLETED';
           if (dispatchRes.status === 'FAILED') {
-            finalStatus = 'FAILED';
-            job.error = dispatchRes.error || dispatchRes.summary;
+            const errorMsg =
+              dispatchRes.error ||
+              dispatchRes.summary ||
+              'Thất bại không rõ nguyên nhân từ BotDispatcher V2';
+            throw new Error(errorMsg);
           } else if (isWaiting) {
             finalStatus = 'WAITING';
           }
@@ -706,6 +709,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     } else if (status === 'CANCELLED' || status === 'ABORTED') {
       job.completedAt = now;
       job.error = error;
+    } else if (status === 'PENDING') {
+      job.lockedBy = null;
+      job.lockedAt = null;
+      if (error) {
+        job.error = error;
+      }
     }
 
     await this.botJobModel
@@ -777,6 +786,22 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             'PENDING',
             systemUser,
             noteMsg,
+            true,
+          );
+        } else if (status === 'PENDING') {
+          const isPartner = error && error.includes('[PARTNER_SERVICE_UNAVAILABLE]');
+          const cleanError = error ? error.replace(/\[PARTNER_SERVICE_UNAVAILABLE\]\s*/g, '') : '';
+          const retryMsg = error
+            ? isPartner
+              ? `[Tạm dừng chờ thử lại] Sàn/Dịch vụ đối tác tạm thời chưa phản hồi (Lần ${job.attempts}/${job.maxAttempts}). Bot sẽ tự động thử lại... (${cleanError.substring(0, 100)})`
+              : `[Chờ thử lại] Gặp sự cố lần ${job.attempts}/${job.maxAttempts}: ${cleanError.substring(0, 100)}. Sẽ tự động thử lại...`
+            : `Đang chờ thực thi tự động (Lần thử ${job.attempts}/${job.maxAttempts})...`;
+          await this.shiftsService.updateTaskStatus(
+            shiftLogId,
+            taskId,
+            'PENDING',
+            systemUser,
+            retryMsg,
             true,
           );
         } else if (status === 'COMPLETED') {

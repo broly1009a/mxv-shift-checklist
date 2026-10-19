@@ -240,7 +240,7 @@ async function runSynchronizedBarrierTimingTest() {
       'Chờ Rào Cản (ms)': w.barrierWaitMs,
       'Tải File (ms)': w.downloadDurationMs,
       'Lệch so với CQG (s)': `${deltaSec}s`,
-      'Trạng Thái': passed ? ' CHUẨN ĐỒNG BỘ' : '❌ LỆCH THỜI GIAN',
+      'Trạng Thái': passed ? ' CHUẨN ĐỒNG BỘ' : ' LỆCH THỜI GIAN',
     };
   });
 
@@ -252,9 +252,9 @@ async function runSynchronizedBarrierTimingTest() {
   const acmDelta = Math.abs(timings['ACM'].writeTimestampMs - cqgTime);
 
   console.log(`\n ĐÁNH GIÁ ĐỘ LỆCH THỜI GIAN:`);
-  console.log(`  • Chênh lệch M-System vs CQG : ${msDelta}ms  (${msDelta <= 2000 ? ' ĐẠT (<= 2000ms)' : '❌ LỖI'})`);
-  console.log(`  • Chênh lệch CoreCCP vs CQG  : ${ccpDelta}ms (${ccpDelta <= 2000 ? ' ĐẠT (<= 2000ms)' : '❌ LỖI'})`);
-  console.log(`  • Chênh lệch ACM vs CQG      : ${acmDelta}ms (${acmDelta <= 2000 ? ' ĐẠT (<= 2000ms)' : '❌ LỖI'})`);
+  console.log(`  • Chênh lệch M-System vs CQG : ${msDelta}ms  (${msDelta <= 2000 ? ' ĐẠT (<= 2000ms)' : ' LỖI'})`);
+  console.log(`  • Chênh lệch CoreCCP vs CQG  : ${ccpDelta}ms (${ccpDelta <= 2000 ? ' ĐẠT (<= 2000ms)' : ' LỖI'})`);
+  console.log(`  • Chênh lệch ACM vs CQG      : ${acmDelta}ms (${acmDelta <= 2000 ? ' ĐẠT (<= 2000ms)' : ' LỖI'})`);
 
   if (msDelta <= 2000 && ccpDelta <= 2000 && acmDelta <= 2000) {
     console.log('\n TẤT CẢ FILE ĐÃ ĐƯỢC XUẤT VÀ GHI ĐĨA TẠI CÙNG 1 CỬA SỔ THỜI GIAN (< 2s)!');

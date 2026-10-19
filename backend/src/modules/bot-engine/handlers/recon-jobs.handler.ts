@@ -340,7 +340,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           preflightSuccess = true;
           log('MS [Direct REST API] Pre-flight thành công (Phiên xác thực hợp lệ).');
         } catch (pfErr: any) {
-          log(`MS ❌ Pre-flight Direct REST API thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
+          log(`MS  Pre-flight Direct REST API thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
           errors.push(`MS Direct REST API Pre-flight: ${pfErr.message}`);
           abortBarrierIfStrict('MS Direct REST API Pre-flight', pfErr.message);
           return;
@@ -582,7 +582,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           preflightSuccess = true;
           log('ACM [Direct ETP REST API] Pre-flight thành công (Phiên xác thực ACM Web ETP sẵn sàng).');
         } catch (pfErr: any) {
-          log(`ACM ❌ Pre-flight Direct REST API ACM thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
+          log(`ACM  Pre-flight Direct REST API ACM thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
           errors.push(`ACM Direct REST API Pre-flight: ${pfErr.message}`);
           abortBarrierIfStrict('ACM Direct REST API Pre-flight', pfErr.message);
           return;
@@ -624,7 +624,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           preflightSuccess = true;
           log('ACM [Direct SFTP] Pre-flight thành công (Cấu hình SFTP sẵn sàng).');
         } catch (pfErr: any) {
-          log(`ACM ❌ Pre-flight Direct SFTP thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình SFTP.`);
+          log(`ACM  Pre-flight Direct SFTP thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình SFTP.`);
           errors.push(`ACM Direct SFTP Pre-flight: ${pfErr.message}`);
           abortBarrierIfStrict('ACM Direct SFTP Pre-flight', pfErr.message);
           return;
@@ -772,7 +772,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           preflightSuccess = true;
           log('CCP [Direct REST API] Pre-flight thành công (Phiên xác thực CoreCCP hợp lệ).');
         } catch (pfErr: any) {
-          log(`CCP ❌ Pre-flight Direct API CoreCCP thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
+          log(`CCP  Pre-flight Direct API CoreCCP thất bại (${pfErr.message}). Không mở trình duyệt tự động theo cấu hình REST_API.`);
           errors.push(`CoreCCP Direct API Pre-flight: ${pfErr.message}`);
           abortBarrierIfStrict('CoreCCP Direct API Pre-flight', pfErr.message);
           return;
@@ -802,7 +802,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
             log('CCP Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
             return;
           } catch (ccpApiErr: any) {
-            log(`CCP ❌ Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
+            log(`CCP  Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
             errors.push(`CCP Direct API: ${ccpApiErr.message}`);
             abortBarrierIfStrict('CoreCCP API', ccpApiErr.message);
             return;

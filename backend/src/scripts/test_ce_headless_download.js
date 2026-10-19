@@ -397,7 +397,7 @@ async function runTest() {
     }
 
     if (!setting) {
-      console.error('❌ Không tìm thấy cấu hình tài khoản CoreEX trong Database!');
+      console.error(' Không tìm thấy cấu hình tài khoản CoreEX trong Database!');
       console.error('💡 Gợi ý: Nếu muốn dùng DB Ubuntu, hãy bật SSH tunnel rồi chạy:');
       console.error('   ssh -N -L 27018:localhost:27017 ubuntu@<IP_SERVER> -p <PORT>');
       console.error('   node src/scripts/test_ce_headless_download.js --all --headed --db-uri="mongodb://localhost:27018/checklist"');
@@ -411,7 +411,7 @@ async function runTest() {
     try {
       credentials = JSON.parse(decrypt(setting.value));
     } catch (e) {
-      console.error('❌ Lỗi giải mã credentials:', e.message);
+      console.error(' Lỗi giải mã credentials:', e.message);
       await mongoose.disconnect();
       return;
     }
@@ -546,7 +546,7 @@ async function runTest() {
           });
         } catch (err) {
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          console.error(`   ❌ THẤT BẠI: ${err.message} (${elapsed}s)\n`);
+          console.error(`    THẤT BẠI: ${err.message} (${elapsed}s)\n`);
           results.push({
             key: rep.key,
             name: rep.name,
@@ -631,7 +631,7 @@ async function runTest() {
           }
         } catch (contractErr) {
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          console.error(`   ❌ THẤT BẠI: ${contractErr.message} (${elapsed}s)\n`);
+          console.error(`    THẤT BẠI: ${contractErr.message} (${elapsed}s)\n`);
           results.push({
             key: repKey,
             name: `Hợp đồng ${code}`,
@@ -683,7 +683,7 @@ async function runTest() {
       await new Promise(() => {});
     }
   } catch (globalErr) {
-    console.error('❌ Lỗi toàn cục trong quá trình chạy:', globalErr.message);
+    console.error(' Lỗi toàn cục trong quá trình chạy:', globalErr.message);
   } finally {
     if (!keepOpen) {
       await context.close().catch(() => {});

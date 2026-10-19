@@ -31,7 +31,7 @@ function runTests() {
     console.log(`   PASSED: Mùa hè trả về đúng mốc ${summerTime}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 04:00 nhưng nhận ${summerTime}`);
+    console.error(`   FAILED: Kỳ vọng 04:00 nhưng nhận ${summerTime}`);
     failedCount++;
   }
 
@@ -42,7 +42,7 @@ function runTests() {
     console.log(`   PASSED: Mùa đông tự động lùi sang ${winterTime} để chờ sàn CME/CBOT đóng cửa!`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 05:00 nhưng nhận ${winterTime}`);
+    console.error(`   FAILED: Kỳ vọng 05:00 nhưng nhận ${winterTime}`);
     failedCount++;
   }
 
@@ -57,7 +57,7 @@ function runTests() {
     console.log(`   PASSED: Trước DST (07/03): ${preSpringDst}, Sau DST (09/03): ${postSpringDst}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 05:00 -> 04:00 nhưng nhận ${preSpringDst} -> ${postSpringDst}`);
+    console.error(`   FAILED: Kỳ vọng 05:00 -> 04:00 nhưng nhận ${preSpringDst} -> ${postSpringDst}`);
     failedCount++;
   }
 
@@ -71,7 +71,7 @@ function runTests() {
     console.log(`   PASSED: Cuối hè (31/10): ${preFallDst}, Vào đông (02/11): ${postFallDst}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 04:00 -> 05:00 nhưng nhận ${preFallDst} -> ${postFallDst}`);
+    console.error(`   FAILED: Kỳ vọng 04:00 -> 05:00 nhưng nhận ${preFallDst} -> ${postFallDst}`);
     failedCount++;
   }
 
@@ -89,7 +89,7 @@ function runTests() {
     console.log(`   PASSED: Cấu hình ${simulatedTask.time} của người dùng được bảo toàn nguyên vẹn!`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Cấu hình bị ghi đè!`);
+    console.error(`   FAILED: Cấu hình bị ghi đè!`);
     failedCount++;
   }
 

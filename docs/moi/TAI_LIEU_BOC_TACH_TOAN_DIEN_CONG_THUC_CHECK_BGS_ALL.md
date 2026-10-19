@@ -152,7 +152,7 @@ Bảng này chứa dữ liệu vị thế mở của **44 mặt hàng phái sinh
   =SUMIFS('TTM MS'!S:S, 'TTM MS'!AA:AA, B3, 'TTM MS'!H:H, "<>*A") + SUMIFS('TTM CCP'!O:O, 'TTM CCP'!Y:Y, B3)
   ```
   > [!IMPORTANT]
-  > **Quy Tắc Lọc Cực Kỳ Quan Trọng**: Trên sheet `TTM MS`, điều kiện `'TTM MS'!H:H, "<>*A"` loại trừ các tài khoản kết thúc bằng chữ cái `"A"` (tức tài khoản giao dịch Straits/ACM). Các tài khoản ACM không tính PnL dự kiến tại cột này.
+  > **Quy Tắc Lọc Cực Kỳ Quan Trọng Trong File Gốc**: Trên sheet `TTM MS`, điều kiện `'TTM MS'!H:H, "<>*A"` loại trừ các tài khoản kết thúc bằng chữ cái `"A"` (tức tài khoản giao dịch Straits/ACM). Các tài khoản ACM không tính PnL dự kiến tại cột này.
 - **`D3` (Tổng Vị Thế Mở - TTM)**:
   ```excel
   =SUMIFS('TTM MS'!N:N, 'TTM MS'!AA:AA, B3, 'TTM MS'!H:H, "<>*A") 
@@ -168,6 +168,12 @@ Bảng này chứa dữ liệu vị thế mở của **44 mặt hàng phái sinh
   `=IFERROR(Table3[[#This Row],[TTM Mua]] / Table3[[#This Row],[TTM]], "")`
 - **`H3` (% Mở Bán)**:
   `=IFERROR(Table3[[#This Row],[TTM Bán]] / Table3[[#This Row],[TTM]], "")`
+
+> [!NOTE]
+> **Quy Chuẩn Chuyển Đổi Nghiệp Vụ Vị Thế Mở (Cập nhật 19/10/2026)**:
+> 1. **Logic File Excel Gốc (`INCLUDE_MS_TTM = true`)**: Được thiết kế trong giai đoạn chuyển đổi song song (migration), khi một số tài khoản vẫn mở vị thế trên M-System và một số mở trên CoreCCP $\rightarrow$ Macro Excel buộc phải cộng gộp cả 2 nguồn (`TTM MS` + `TTM CCP`).
+> 2. **Logic Vận Hành Chuẩn Hóa Mới (`INCLUDE_MS_TTM = false`)**: Hiện tại CoreCCP đã chính thức trở thành Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV. Mọi vị thế mở của thị trường đều được chốt trên CoreCCP. Do đó, hệ thống **CHỈ TÍNH VỊ THẾ MỞ & LÃI LỖ DỰ KIẾN TRÊN CORECCP (`TTM CCP`)**, loại bỏ hoàn toàn phần cộng thêm từ `TTM MS` nhằm tránh rủi ro nhân đôi số liệu (double counting). Theo chỉ đạo dứt khoát của USER, **hệ thống tuyệt đối không fallback sang M-System** khi CoreCCP chưa có dữ liệu (nếu thiếu file CCP thì để 0).
+> 3. Mã nguồn logic cũ vẫn được lưu trữ nguyên vẹn tại [qlgd-dashboard.service.ts#L828-L865](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L828-L865) và có thể kích hoạt lại tức thì bằng cách bật cờ `INCLUDE_MS_TTM = true`.
 
 ### 3.2. Bảng Báo Cáo Ban Giám Sát (`Table15`: Dải `K2:O21`)
 - Tiêu đề: `="Lãi lỗ dự kiến thời điểm kết phiên "&TEXT($T$1,"dd/mm/yyyy")&""`

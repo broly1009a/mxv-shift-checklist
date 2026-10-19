@@ -36,7 +36,7 @@ async function run() {
 
   const credRaw = await settingsService.getSetting('bot_credentials_cqg', '');
   if (!credRaw) {
-    console.error('❌ Chưa cấu hình bot_credentials_cqg trong Settings.');
+    console.error(' Chưa cấu hình bot_credentials_cqg trong Settings.');
     await app.close();
     process.exit(1);
   }
@@ -45,7 +45,7 @@ async function run() {
   try {
     creds = JSON.parse(decrypt(credRaw));
   } catch (err: any) {
-    console.error(`❌ Lỗi giải mã bot_credentials_cqg: ${err.message}`);
+    console.error(` Lỗi giải mã bot_credentials_cqg: ${err.message}`);
     await app.close();
     process.exit(1);
   }
@@ -148,7 +148,7 @@ async function run() {
     console.log('         KIỂM TRA HOÀN TẤT THÀNH CÔNG!              ');
     console.log('====================================================');
   } catch (err: any) {
-    console.error(`\n❌ Quá trình kiểm tra thất bại: ${err.message}`);
+    console.error(`\n Quá trình kiểm tra thất bại: ${err.message}`);
   } finally {
     await app.close();
   }

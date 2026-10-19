@@ -10,7 +10,7 @@ async function main() {
   const baseDir = 'C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Pictures\\Dữ liệu chuẩn ngày 25';
 
   if (!fs.existsSync(baseDir)) {
-    console.error(`❌ Thư mục không tồn tại: ${baseDir}`);
+    console.error(` Thư mục không tồn tại: ${baseDir}`);
     process.exit(1);
   }
 
@@ -33,7 +33,7 @@ async function main() {
 
   const missing = [dsgdPath, ttttPath, acmPath, frPath, psPath].filter(p => !fs.existsSync(p));
   if (missing.length > 0) {
-    console.error(`❌ Thiếu các file sau: ${missing.join(', ')}`);
+    console.error(` Thiếu các file sau: ${missing.join(', ')}`);
     process.exit(1);
   }
 
@@ -127,7 +127,7 @@ async function main() {
 
     console.log('================================================================================');
   } catch (err: any) {
-    console.error('❌ Lỗi xảy ra trong quá trình đối chiếu Pre-EOD:', err.message);
+    console.error(' Lỗi xảy ra trong quá trình đối chiếu Pre-EOD:', err.message);
     if (err.stack) console.error(err.stack);
   }
 }

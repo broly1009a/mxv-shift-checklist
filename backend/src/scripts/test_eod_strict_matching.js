@@ -50,7 +50,7 @@ function assertTest(name, condition, details = '') {
     console.log(`   [PASS] ${name}`);
   } else {
     failedTests++;
-    console.error(`  ❌ [FAIL] ${name} ${details ? `(${details})` : ''}`);
+    console.error(`   [FAIL] ${name} ${details ? `(${details})` : ''}`);
   }
 }
 

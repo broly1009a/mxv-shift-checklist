@@ -133,7 +133,7 @@ async function runTest() {
   } else if (targetReport) {
     reportsToRun = ALL_REPORTS.filter((r) => r.key.toUpperCase() === targetReport);
     if (reportsToRun.length === 0) {
-      console.error(`❌ Không tìm thấy báo cáo có mã: "${targetReport}". Danh sách mã hợp lệ:`);
+      console.error(` Không tìm thấy báo cáo có mã: "${targetReport}". Danh sách mã hợp lệ:`);
       console.log(ALL_REPORTS.map((r) => r.key).join(', '));
       return;
     }
@@ -155,7 +155,7 @@ async function runTest() {
 
   const setting = await db.collection('system_settings').findOne({ key: 'bot_credentials_msystem' });
   if (!setting) {
-    console.error('❌ Không tìm thấy cấu hình bot_credentials_msystem trong Database!');
+    console.error(' Không tìm thấy cấu hình bot_credentials_msystem trong Database!');
     await mongoose.disconnect();
     return;
   }
@@ -164,7 +164,7 @@ async function runTest() {
   try {
     credentials = JSON.parse(decrypt(setting.value));
   } catch (e) {
-    console.error('❌ Lỗi giải mã credentials:', e.message);
+    console.error(' Lỗi giải mã credentials:', e.message);
     await mongoose.disconnect();
     return;
   }
@@ -351,7 +351,7 @@ async function runTest() {
         });
       } catch (err) {
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.error(`   ❌ LỖI: ${err.message} (${elapsed}s)\n`);
+        console.error(`    LỖI: ${err.message} (${elapsed}s)\n`);
         results.push({
           key: rep.key,
           name: rep.name,

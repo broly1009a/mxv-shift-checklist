@@ -201,7 +201,7 @@ async function loginCoreExchange() {
 
 if (require.main === module) {
   loginCoreExchange().catch((err) => {
-    console.error('\n❌ LỖI:', err.message);
+    console.error('\n LỖI:', err.message);
     process.exit(1);
   });
 }

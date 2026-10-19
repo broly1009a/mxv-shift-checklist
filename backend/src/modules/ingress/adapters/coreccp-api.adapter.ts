@@ -595,16 +595,31 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
   /**
    * Lắng nghe WebSocket NotiSocket Engine.IO v4 bắt chính xác reportId sau khi Server hoàn tất xuất file
+   * Áp dụng cơ chế Subscribe-Before-Export: Chỉ phát lệnh tạo file khi socket đã mở và đã subscribe phòng REPORT.
    */
   private waitForReportIdViaSocket(
     session: ICcpSession,
     baseUrl: string,
     fekey: string,
     timeoutMs = 50000,
+    onSubscribed?: () => Promise<void>,
+    searchCode?: string,
   ): Promise<string | number> {
     return new Promise(async (resolve, reject) => {
       const parsed = new URL(baseUrl);
       let wsTicket = 'ticket_default';
+      let exportTriggered = false;
+      let timer: any = null;
+      let ws: any = null;
+
+      const cleanup = () => {
+        if (timer) clearTimeout(timer);
+        if (ws) {
+          try {
+            ws.close();
+          } catch {}
+        }
+      };
 
       try {
         const ticketRes = await fetch(`${baseUrl}/sso/api/v1/oauth/issue-ws-ticket`, {
@@ -629,28 +644,40 @@ export class CoreCcpApiAdapter implements IIngressPort {
         return reject(err);
       }
 
-      const ws = new WebSocketClass(wsUrl, {
+      ws = new WebSocketClass(wsUrl, {
         headers: {
           Cookie: session.sessionCookie,
           Origin: baseUrl,
         },
       });
 
-      const timer = setTimeout(() => {
-        try { ws.close(); } catch {}
+      timer = setTimeout(() => {
+        cleanup();
         reject(new Error(`Timeout ${timeoutMs}ms chờ notification WebSocket cho fekey ${fekey}`));
       }, timeoutMs);
 
-      ws.onmessage = (event: any) => {
+      ws.onmessage = async (event: any) => {
         const msg = event.data;
         if (typeof msg === 'string' && msg.startsWith('0')) {
           ws.send('40');
           return;
         }
         if (typeof msg === 'string' && msg.startsWith('40')) {
+          // Handshake Engine.IO v4 thành công: Gửi bản tin SUBSCRIBE room REPORT
           ws.send(
             `42["SUBSCRIBE",{"action":"SUBSCRIBE","userID":${userId},"room":["NOTI","REPORT","SOCKET"]}]`,
           );
+
+          // Cơ chế Subscribe-Before-Export: Kích hoạt tạo Export Job khi socket đã sẵn sàng phòng REPORT
+          if (onSubscribed && !exportTriggered) {
+            exportTriggered = true;
+            try {
+              await onSubscribed();
+            } catch (createErr: any) {
+              cleanup();
+              return reject(createErr);
+            }
+          }
           return;
         }
         if (msg === '2') {
@@ -664,10 +691,14 @@ export class CoreCcpApiAdapter implements IIngressPort {
             const content = evData?.content || evData;
             const rId = content?.autoid || content?.reportId || content?.id || evData?.reportId;
             const rFekey = content?.fekey || content?.feKey || evData?.fekey;
+            const rSearchCode = content?.searchcode || content?.searchCode;
 
-            if (rFekey === fekey || (rId && !rFekey)) {
-              clearTimeout(timer);
-              try { ws.close(); } catch {}
+            const isMatch =
+              rFekey === fekey ||
+              (rId && (!rFekey || (searchCode && rSearchCode === searchCode)));
+
+            if (isMatch) {
+              cleanup();
               resolve(rId);
             }
           } catch {}
@@ -675,7 +706,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       };
 
       ws.onerror = (err: any) => {
-        clearTimeout(timer);
+        cleanup();
         reject(new Error(`WebSocket NotiSocket gặp sự cố: ${err.message || err}`));
       };
     });
@@ -763,10 +794,30 @@ export class CoreCcpApiAdapter implements IIngressPort {
     targetPath: string,
   ): Promise<Buffer> {
     const fekey = `${searchCode}_${Date.now()}`;
-    const reportPromise = this.waitForReportIdViaSocket(session, baseUrl, fekey, 50000);
+    this.logger.log(
+      `[CoreCcpApiAdapter] Khởi động WebSocket NotiSocket chờ xuất ${searchCode} (fekey=${fekey})...`,
+    );
 
-    await this.createExportJob(session, searchCode, fekey, baseUrl, refererRoute, filterPayload);
-    const reportId = await reportPromise;
+    const reportId = await this.waitForReportIdViaSocket(
+      session,
+      baseUrl,
+      fekey,
+      50000,
+      async () => {
+        this.logger.log(
+          `[CoreCcpApiAdapter] NotiSocket đã Subscribe sẵn sàng phòng REPORT. Đang kích hoạt tạo export ${searchCode}...`,
+        );
+        await this.createExportJob(
+          session,
+          searchCode,
+          fekey,
+          baseUrl,
+          refererRoute,
+          filterPayload,
+        );
+      },
+      searchCode,
+    );
 
     this.logger.log(`[CoreCcpApiAdapter] Bắt được reportId=${reportId}, đang tải file nhị phân...`);
     const buffer = await this.downloadReportBinary(session, reportId, baseUrl, refererRoute);

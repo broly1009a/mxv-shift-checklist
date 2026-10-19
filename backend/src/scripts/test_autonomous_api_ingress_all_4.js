@@ -454,6 +454,6 @@ async function runAll() {
 }
 
 runAll().catch((err) => {
-  console.error('\n❌ Lỗi kiểm thử Ingress Suite:', err);
+  console.error('\n Lỗi kiểm thử Ingress Suite:', err);
   process.exit(1);
 });

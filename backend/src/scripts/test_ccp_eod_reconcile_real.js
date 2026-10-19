@@ -65,7 +65,7 @@ async function runTest() {
   console.log(`📁 Thư mục kiểm tra: ${targetDir}`);
 
   if (!fs.existsSync(targetDir)) {
-    console.error(`❌ Thư mục không tồn tại: ${targetDir}`);
+    console.error(` Thư mục không tồn tại: ${targetDir}`);
     process.exit(1);
   }
 
@@ -76,13 +76,13 @@ async function runTest() {
   const nrFile = findFile(targetDir, /nr/i);
 
   console.log(`\n1. Kiểm tra nhận diện file:`);
-  console.log(`   - QL TT TKGD : ${qltkgdFile ? path.basename(qltkgdFile) : '❌ KHÔNG TÌM THẤY'}`);
-  console.log(`   - EOD        : ${eodFile ? path.basename(eodFile) : '❌ KHÔNG TÌM THẤY'}`);
+  console.log(`   - QL TT TKGD : ${qltkgdFile ? path.basename(qltkgdFile) : ' KHÔNG TÌM THẤY'}`);
+  console.log(`   - EOD        : ${eodFile ? path.basename(eodFile) : ' KHÔNG TÌM THẤY'}`);
   console.log(`   - TTTT       : ${ttttFile ? path.basename(ttttFile) : ' Không có (tùy chọn)'}`);
   console.log(`   - NR         : ${nrFile ? path.basename(nrFile) : ' Không có (tùy chọn)'}`);
 
   if (!qltkgdFile || !eodFile) {
-    console.error('❌ Thiếu file QL TT TKGD hoặc EOD. Dừng kiểm tra.');
+    console.error(' Thiếu file QL TT TKGD hoặc EOD. Dừng kiểm tra.');
     process.exit(1);
   }
 
@@ -92,7 +92,7 @@ async function runTest() {
   const qlSheet = qlWb.Sheets[qlWb.SheetNames[0]];
   const qlRows = XLSX.utils.sheet_to_json(qlSheet, { header: 1 });
   if (qlRows.length < 2) {
-    console.error('❌ File QL TT TKGD rỗng');
+    console.error(' File QL TT TKGD rỗng');
     process.exit(1);
   }
 
@@ -176,7 +176,7 @@ async function runTest() {
   console.log(`   - Nhận diện cột Phí DV thanh toán: Cột [${phiDVIdx}] (${qlHeaders[phiDVIdx]})`);
 
   if (laiLoVNDIdx === -1) {
-    console.error('❌ LỖI: Không tìm thấy cột Lãi lỗ thực tế (VND)!');
+    console.error(' LỖI: Không tìm thấy cột Lãi lỗ thực tế (VND)!');
     process.exit(1);
   }
 
@@ -385,7 +385,7 @@ async function runTest() {
   if (mismatched.length === 0) {
     console.log('\n🎉 THÀNH CÔNG RỰC RỠ: TẤT CẢ 7,092 TÀI KHOẢN KHỚP 100%! ZERO LỆCH!');
   } else {
-    console.log(`\n❌ PHÁT HIỆN ${mismatched.length} TÀI KHOẢN LỆCH (Top 10):`);
+    console.log(`\n PHÁT HIỆN ${mismatched.length} TÀI KHOẢN LỆCH (Top 10):`);
     mismatched.slice(0, 10).forEach((m) => {
       console.log(`   - [CCP] TK ${m.acc}: Tính toán ${formatVnd(m.calculated)} vs EOD ${formatVnd(m.eodVal)} (Lệch: ${formatVnd(m.differ)})`);
     });

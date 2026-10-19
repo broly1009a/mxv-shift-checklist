@@ -162,10 +162,10 @@ Nó gửi toàn bộ chuỗi Windows `M:\Tailieuchung\...` lưu đè vào MongoD
 | Tiêu chí | File Test `test_ms_tab_downloads.js` (20/20 PASS) | Backend Production (`rpa-downloader.service.ts` & Handlers) | Trạng thái & Giải pháp |
 | :--- | :--- | :--- | :--- |
 | **URL Navigation** | Direct Hash `#/...` + Click SubTab | Direct Hash `#/...` + Click SubTab |  Đồng nhất 100% |
-| **Selector nút Xuất file** | Ưu tiên `button:has(i.fa-file-excel), i.fa-file-excel...` loại trừ nút generic | Dùng `MS_EXPORT_BUTTON_SELECTORS` gộp chung `button.btn-info` | ❌ Production click nhầm $\rightarrow$ Cần đồng bộ selector từ file test |
-| **Xử lý Timeout TTM** | Thành công trong **20.3s** (file 936 KB) | Bị timeout sau **90s** | ❌ Cần sửa selector và chờ bảng render |
-| **Đường dẫn Lưu file** | Lưu theo path tham số truyền vào (`--dest`) | Lấy từ DB nhưng **thiếu** `resolveStoragePathCrossPlatform` | ❌ Ghi file vào thư mục ma $\rightarrow$ Cần bọc hàm chuyển đổi chéo OS |
-| **Cơ chế Báo lỗi & Retry** | Log chi tiết từng file, báo đúng PASS/FAIL | Nếu `successfulTargets > 0` thì nuốt lỗi, không retry lần 2/3 | ❌ Cần throw Error khi còn file lỗi để kích hoạt retry 2/3 |
+| **Selector nút Xuất file** | Ưu tiên `button:has(i.fa-file-excel), i.fa-file-excel...` loại trừ nút generic | Dùng `MS_EXPORT_BUTTON_SELECTORS` gộp chung `button.btn-info` |  Production click nhầm $\rightarrow$ Cần đồng bộ selector từ file test |
+| **Xử lý Timeout TTM** | Thành công trong **20.3s** (file 936 KB) | Bị timeout sau **90s** |  Cần sửa selector và chờ bảng render |
+| **Đường dẫn Lưu file** | Lưu theo path tham số truyền vào (`--dest`) | Lấy từ DB nhưng **thiếu** `resolveStoragePathCrossPlatform` |  Ghi file vào thư mục ma $\rightarrow$ Cần bọc hàm chuyển đổi chéo OS |
+| **Cơ chế Báo lỗi & Retry** | Log chi tiết từng file, báo đúng PASS/FAIL | Nếu `successfulTargets > 0` thì nuốt lỗi, không retry lần 2/3 |  Cần throw Error khi còn file lỗi để kích hoạt retry 2/3 |
 
 ---
 

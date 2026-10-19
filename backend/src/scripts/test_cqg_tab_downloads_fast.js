@@ -359,7 +359,7 @@ async function downloadSingleCqgWidget(page, searchTerm, tabLabel, downloadText,
       } catch (dlErr) {
         console.log(`[CQG-FAST] Chờ tải file (${dlErr.message}). Thử lại...`);
         if (page.isClosed()) {
-          console.error(`❌ Trình duyệt đã bị đóng trong lúc tải file!`);
+          console.error(` Trình duyệt đã bị đóng trong lúc tải file!`);
           break;
         }
         await page.keyboard.press('Escape').catch(() => {});
@@ -482,7 +482,7 @@ async function run() {
 
   const setting = await db.collection('system_settings').findOne({ key: 'bot_credentials_cqg' });
   if (!setting) {
-    console.error('❌ Không tìm thấy cấu hình bot_credentials_cqg trong CSDL!');
+    console.error(' Không tìm thấy cấu hình bot_credentials_cqg trong CSDL!');
     await mongoose.disconnect();
     return;
   }
@@ -491,7 +491,7 @@ async function run() {
   try {
     creds = JSON.parse(decrypt(setting.value));
   } catch (err) {
-    console.error('❌ Lỗi giải mã credentials CQG:', err.message);
+    console.error(' Lỗi giải mã credentials CQG:', err.message);
     await mongoose.disconnect();
     return;
   }
@@ -502,7 +502,7 @@ async function run() {
   const password = creds.password1 || creds.passwordCQG1;
 
   if (!username || !password) {
-    console.error('❌ Thiếu username/password cho tài khoản CQG1!');
+    console.error(' Thiếu username/password cho tài khoản CQG1!');
     return;
   }
 
@@ -731,7 +731,7 @@ async function run() {
 
     for (const report of reportsToRun) {
       if (page.isClosed()) {
-        console.error('❌ Trình duyệt đã bị đóng trước khi mở tab ' + report.fileName + '! Dừng phiên.');
+        console.error(' Trình duyệt đã bị đóng trước khi mở tab ' + report.fileName + '! Dừng phiên.');
         break;
       }
       const destFile = path.join(defaultDestDir, report.fileName);
@@ -748,7 +748,7 @@ async function run() {
           durationSec: widgetResult ? widgetResult.durationSec : 'N/A',
         });
       } catch (err) {
-        console.error('❌ [LỖI TẢI TAB ' + report.fileName + ']:', err.message);
+        console.error(' [LỖI TẢI TAB ' + report.fileName + ']:', err.message);
         errors.push(`${report.fileName}: ${err.message}`);
       }
     }
@@ -759,7 +759,7 @@ async function run() {
     // Đăng xuất
     if (!page.isClosed()) await logoutCqg(page);
   } catch (err) {
-    console.error(`❌ Lỗi phiên CQG: ${err.message}`);
+    console.error(` Lỗi phiên CQG: ${err.message}`);
     errors.push(err.message);
   } finally {
     await context.close().catch(() => { });
@@ -791,7 +791,7 @@ async function run() {
       'Kích thước': `${(a.fileSize / 1024).toFixed(1)} KB`,
       'Loại mong đợi': a.expectedType,
       'Nhận diện nội dung': a.detectedType,
-      'Trạng thái': a.isMatch ? 'PASS ' : 'FAIL ❌',
+      'Trạng thái': a.isMatch ? 'PASS ' : 'FAIL ',
       'Số dòng': a.rowCount,
       'Mã MD5': a.md5 ? a.md5.slice(0, 10) : 'N/A',
     }));

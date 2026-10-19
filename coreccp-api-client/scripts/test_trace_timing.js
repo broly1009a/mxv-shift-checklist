@@ -94,7 +94,7 @@ const fs = require('fs');
     console.log(`   - TỔNG THỜI GIAN TẢI FILE: ${exportTotalTime}ms (~${(exportTotalTime / 1000).toFixed(2)} giây)`);
     console.log(`   - Đánh giá tốc độ: CỰC KỲ NHANH (dưới 2 giây cho một file đầy đủ dữ liệu toàn sàn!)`);
   } else {
-    console.log(`❌ Quá thời gian chờ tải file (${exportTotalTime}ms)`);
+    console.log(` Quá thời gian chờ tải file (${exportTotalTime}ms)`);
   }
   console.log('========================================================================\n');
 

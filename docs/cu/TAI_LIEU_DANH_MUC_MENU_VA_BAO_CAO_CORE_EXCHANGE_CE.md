@@ -154,7 +154,7 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/MONITOR_ME/RESEND_ORDER`
 - **Tiêu đề / Breadcrumbs**: Monitor ME Resend Order
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**: Không
 
 ---
 
@@ -548,7 +548,7 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/PRODUCT/REPORTS`
 - **Tiêu đề / Breadcrumbs**: Báo cáo phân hệ sản phẩm
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**: Không
 
 ---
 
@@ -837,7 +837,7 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/MEMBERSMNG/MEMBERSEND`
 - **Tiêu đề / Breadcrumbs**: Thành viên ngừng hoạt động
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**: Không
 
 #### 29. Báo cáo thành viên (`/MEMBERSMNG/REPORTS`)
 
@@ -1119,7 +1119,7 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/SYSCONFIGMNG/CALENDAR`
 - **Tiêu đề / Breadcrumbs**: Lịch làm việc / Ngày nghỉ
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**: Không
 - **Bộ lọc / Tiêu chí tìm kiếm**: `Loại hàng hóa`
 - **Nút thao tác trên màn hình**: [Mở] [Thêm năm]
 

@@ -80,6 +80,6 @@ const REPORTS = [
     console.log(`📁 Thư mục lưu file: ${OUTPUT_DIR}`);
     console.log('========================================================================\n');
   } catch (err) {
-    console.error('❌ Lỗi:', err.message);
+    console.error(' Lỗi:', err.message);
   }
 })();

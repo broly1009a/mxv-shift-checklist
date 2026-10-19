@@ -217,7 +217,7 @@ async function runDirectAcmSftpTest() {
   // 2. Thẩm định cấu trúc file CSV
   console.log('\n[2/3] Thẩm định tính hợp lệ của file Straits CSV...');
   const validation = parseAndValidateStraitsCsv(localSavePath);
-  console.log(`   - Trạng thái kiểm tra định dạng : ${validation.valid ? ' HỢP LỆ (Chuẩn Straits Format)' : '❌ KHÔNG ĐÚNG CẤU TRÚC'}`);
+  console.log(`   - Trạng thái kiểm tra định dạng : ${validation.valid ? ' HỢP LỆ (Chuẩn Straits Format)' : ' KHÔNG ĐÚNG CẤU TRÚC'}`);
   console.log(`   - Số dòng giao dịch            : ${validation.rowCount} dòng`);
   console.log(`   - Danh sách cột nhận diện (${validation.headers.length} cột): ${validation.headers.slice(0, 6).join(', ')}...`);
 
@@ -242,6 +242,6 @@ async function runDirectAcmSftpTest() {
 }
 
 runDirectAcmSftpTest().catch((err) => {
-  console.error('\n❌ Lỗi kiểm thử ACM SFTP:', err.message);
+  console.error('\n Lỗi kiểm thử ACM SFTP:', err.message);
   process.exit(1);
 });

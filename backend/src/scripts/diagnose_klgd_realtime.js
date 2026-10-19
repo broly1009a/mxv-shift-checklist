@@ -228,7 +228,7 @@ async function runDiagnosis() {
     }
     if (!activeJob) {
       console.log('=== [3] CHI TIẾT JOB ĐÍCH DANH ===');
-      console.log('   ❌ Không tìm thấy bản ghi bot_jobs nào với ID: [' + TARGET_JOB_ID + ']\\n');
+      console.log('    Không tìm thấy bản ghi bot_jobs nào với ID: [' + TARGET_JOB_ID + ']\\n');
     }
   } else {
     activeJob = await db.collection('bot_jobs')
@@ -394,7 +394,7 @@ if (isRunningOnUbuntu) {
       stream.end(remoteDiagnosisScript);
     });
   }).on('error', (err) => {
-    console.error('❌ Không thể kết nối SSH tới máy chủ Ubuntu (10.0.0.26):', err.message);
+    console.error(' Không thể kết nối SSH tới máy chủ Ubuntu (10.0.0.26):', err.message);
   }).connect({
     host: '10.0.0.26',
     port: 22,

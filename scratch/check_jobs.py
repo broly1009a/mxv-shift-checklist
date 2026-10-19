@@ -1,35 +1,30 @@
 import paramiko
+import json
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('10.0.0.26', port=22, username='mxvadmin', password='MxV!,#2o26', timeout=10)
+ssh.connect('10.0.0.26', username='mxvadmin', password='MxV!,#2o26', timeout=10)
 
-js_code = """
-const mongoose = require('mongoose');
-mongoose.connect('mongodb://127.0.0.1:27017/mxv_shift_checklist').then(async () => {
-  const db = mongoose.connection.db;
-  const jobs = await db.collection('bot_jobs').find({
-    createdAt: { $gte: new Date('2026-10-16T10:00:00Z'), $lte: new Date('2026-10-16T16:00:00Z') }
-  }).sort({ createdAt: 1 }).toArray();
-  console.log('Jobs count:', jobs.length);
+cmd = '''cd /opt/mxv-checklist/backend && node -e '
+const mongoose = require("mongoose");
+async function run() {
+  await mongoose.connect("mongodb://127.0.0.1:27017/mxv_shift_checklist");
+  const jobs = await mongoose.connection.collection("bot_jobs").find({
+    createdAt: { $gte: new Date("2026-10-18T17:00:00Z") }
+  }).sort({ createdAt: -1 }).limit(20).toArray();
+  
+  console.log("Total jobs found:", jobs.length);
   for (const j of jobs) {
-    console.log('JOB:', j._id.toString(), j.jobType, j.status, j.createdAt);
-    if (j.error) console.log('  Error:', j.error);
-    if (j.logs) {
-      const msLogs = j.logs.filter(l => l.includes('MS'));
-      console.log('  MS logs:', msLogs.slice(-2));
-    }
+    console.log(j._id, j.jobType, j.status, j.triggerType || j.triggeredBy, j.createdAt, j.payload?.result ? "hasResult" : "noResult");
   }
-  process.exit(0);
-}).catch(e => { console.error(e); process.exit(1); });
-"""
+  await mongoose.disconnect();
+}
+run();
+'
+'''
 
-sftp = ssh.open_sftp()
-with sftp.file('/tmp/check_jobs_tmp.js', 'w') as f:
-    f.write(js_code)
-sftp.close()
 
-stdin, stdout, stderr = ssh.exec_command('NODE_PATH=/opt/mxv-checklist/backend/node_modules node /tmp/check_jobs_tmp.js')
-out = stdout.read().decode('utf-8', errors='ignore')
-print(out.encode('ascii', errors='replace').decode('ascii'))
+stdin, stdout, stderr = ssh.exec_command(cmd)
+print(stdout.read().decode('utf-8'))
+print(stderr.read().decode('utf-8'))
 ssh.close()

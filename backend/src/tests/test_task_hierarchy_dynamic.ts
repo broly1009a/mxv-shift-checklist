@@ -12,7 +12,7 @@ import { TaskHierarchyHelper, ITaskItem } from '../modules/checklist-hub/helpers
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
-    console.error(`❌ FAILED: ${message}`);
+    console.error(` FAILED: ${message}`);
     process.exit(1);
   }
   console.log(` PASSED: ${message}`);

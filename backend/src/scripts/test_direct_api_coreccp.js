@@ -198,6 +198,6 @@ async function runDirectCoreCcpTest() {
 }
 
 runDirectCoreCcpTest().catch((err) => {
-  console.error('\n❌ Lỗi kiểm thử CoreCCP Direct API:', err.message);
+  console.error('\n Lỗi kiểm thử CoreCCP Direct API:', err.message);
   process.exit(1);
 });

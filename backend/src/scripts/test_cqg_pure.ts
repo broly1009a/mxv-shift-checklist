@@ -289,7 +289,7 @@ async function run() {
 
     for (const a of analyses) {
       const sizeStr = `${(a.fileSize / 1024).toFixed(1)} KB`;
-      const statusStr = a.isMatch ? ' CHUẨN' : '❌ LỆCH';
+      const statusStr = a.isMatch ? ' CHUẨN' : ' LỆCH';
       const shortMd5 = a.md5 ? a.md5.slice(0, 8) : 'N/A';
       console.log(
         `| ${a.fileName.padEnd(10)} | ${sizeStr.padEnd(11)} | ${a.expectedType.padEnd(15)} | ${a.detectedType.slice(0, 25).padEnd(25)} | ${statusStr.padEnd(10)} | ${shortMd5.padEnd(18)} |`,
@@ -307,7 +307,7 @@ async function run() {
       for (let i = 0; i < analyses.length; i++) {
         for (let j = i + 1; j < analyses.length; j++) {
           if (analyses[i].md5 && analyses[i].md5 === analyses[j].md5) {
-            console.log(`   ❌ PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
+            console.log(`    PHÁT HIỆN TRÙNG LẶP: ${analyses[i].fileName} và ${analyses[j].fileName} có mã MD5 giống hệt nhau (${analyses[i].md5})!`);
             hasDuplicate = true;
           }
         }
@@ -331,7 +331,7 @@ async function run() {
       console.log('    Vẫn còn file chưa khớp hoặc chưa tải được, vui lòng kiểm tra lại log chi tiết ở trên.');
     }
   } catch (err: any) {
-    console.error(`❌ Lỗi thực thi: ${err.message}`);
+    console.error(` Lỗi thực thi: ${err.message}`);
   }
 }
 

@@ -375,10 +375,12 @@ export class TradingOpsMiscController {
     @Query('scope') scope: 'ALL' | 'ACM' | 'OTHERS' = 'ALL',
     @Query('catalogScope') catalogScope: 'TOP17' | 'ALL' = 'TOP17',
     @Query('refresh') refresh?: string,
+    @Query('jobId') jobId?: string,
   ) {
     const shouldRefresh = refresh === 'true' || refresh === '1';
-    return this.qlgdDashboardService.getExecutiveDashboard(dateStr, scope, catalogScope, shouldRefresh);
+    return this.qlgdDashboardService.getExecutiveDashboard(dateStr, scope, catalogScope, shouldRefresh, jobId);
   }
+
 
   /**
    * Kích hoạt đồng bộ dữ liệu tươi từ API Ingress của MS và CoreCCP

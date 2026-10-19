@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { tradingOpsApi } from '@/features/trading';
 import {
@@ -16,6 +16,9 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
+  ChevronLeft,
+  History,
+  RotateCcw,
   Filter,
   CheckCircle2,
   SlidersHorizontal,
@@ -28,6 +31,7 @@ import {
   Maximize2,
   Search,
 } from 'lucide-react';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -728,18 +732,24 @@ function formatInteger(val: number): string {
   return val.toLocaleString('en-US');
 }
 
+const getTodayVnDate = () => {
+  const vnTime = new Date(Date.now() + 7 * 3600 * 1000);
+  return vnTime.toISOString().split('T')[0];
+};
+
 export interface QlgdExecutiveDashboardProps {
   initialDate?: string;
   onRefresh?: () => void;
 }
 
 export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
-  initialDate = '2026-10-08',
+  initialDate,
   onRefresh,
 }) => {
   const { token } = useAuth();
-  const [sessionDate, setSessionDate] = useState<string>(initialDate);
-  const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('MOCK');
+  const defaultDate = useMemo(() => initialDate || getTodayVnDate(), [initialDate]);
+  const [sessionDate, setSessionDate] = useState<string>(defaultDate);
+  const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('LIVE');
   const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -753,18 +763,80 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const [modalSearchTerm, setModalSearchTerm] = useState<string>('');
   const [modalCategory, setModalCategory] = useState<string>('ALL');
 
+  const [selectedRunJobId, setSelectedRunJobId] = useState<string | null>(null);
+  const selectedRunJobIdRef = useRef<string | null>(null);
+
+  // Danh sách các lượt chạy trong ngày (như checkklgd)
+  const runs = useMemo(() => {
+    return (liveData?.runs || []) as Array<{
+      id: string;
+      jobId: string;
+      time: string;
+      label: string;
+      createdAt: string;
+      status: string;
+      triggerType: 'AUTO' | 'MANUAL';
+      triggerLabel: string;
+      hasDiscrepancy: boolean;
+      totalDSGD?: number;
+      totalNano?: number;
+      cutoffTime?: string;
+    }>;
+  }, [liveData?.runs]);
+
+  const isViewingHistorical = useMemo(() => {
+    return Boolean(
+      liveData?.isViewingHistorical ||
+        (selectedRunJobId && runs.length > 0 && selectedRunJobId !== runs[0].id),
+    );
+  }, [liveData?.isViewingHistorical, selectedRunJobId, runs]);
+
+  const currentRunIndex = useMemo(() => {
+    if (!runs || runs.length === 0) return -1;
+    const targetId = selectedRunJobId || liveData?.currentJobId || runs[0]?.id;
+    return runs.findIndex((r) => r.id === targetId);
+  }, [runs, selectedRunJobId, liveData?.currentJobId]);
+
+  const hasPrevRun = currentRunIndex >= 0 && currentRunIndex < runs.length - 1; // Lượt cũ hơn
+  const hasNextRun = currentRunIndex > 0; // Lượt mới hơn
+
   // Tải dữ liệu thực tế từ Backend API
   const fetchLiveDashboard = useCallback(
-    async (date: string, scope: 'ALL' | 'ACM' | 'OTHERS', refresh = false) => {
+    async (
+      date: string,
+      scope: 'ALL' | 'ACM' | 'OTHERS',
+      refresh = false,
+      jobId?: string | null,
+    ) => {
       setLoadingLive(true);
       try {
-        const data = await tradingOpsApi.getExecutiveDashboard({ date, scope, refresh }, token);
-        if (data && (data.hasActualFiles || data.dataSource === 'DIRECT_API')) {
+        const targetJobId = jobId !== undefined ? jobId : selectedRunJobIdRef.current;
+        const data = await tradingOpsApi.getExecutiveDashboard(
+          { date, scope, refresh, jobId: targetJobId || undefined },
+          token,
+        );
+        if (data) {
           setLiveData(data);
-          toast.success(`Đã tải dữ liệu Live phiên ${date}!`);
-        } else {
-          setLiveData(null);
-          toast.success('Chưa có file backup M-System phiên này. Hiển thị dữ liệu đối chiếu!');
+          if (
+            data.hasActualFiles ||
+            data.dataSource === 'DIRECT_API' ||
+            data.dataSource === 'BACKUP_FILES'
+          ) {
+            if (data.isViewingHistorical) {
+              const runItem = data.runs?.find((r: any) => r.id === targetJobId);
+              toast.success(
+                `Đang xem dữ liệu lịch sử lượt ${runItem?.label || targetJobId}!`,
+                { id: 'live-toast' },
+              );
+            } else {
+              toast.success(`Đã tải dữ liệu Live phiên ${date}!`, { id: 'live-toast' });
+            }
+          } else {
+            toast(
+              `Phiên ${date} chưa có file giao dịch. Bạn có thể bấm "Đồng bộ API" để tải dữ liệu tươi!`,
+              { icon: 'ℹ️' },
+            );
+          }
         }
       } catch (e: any) {
         toast.error(`Lỗi tải dữ liệu Live: ${e.message}`);
@@ -774,6 +846,40 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     },
     [token],
   );
+
+  const handleSelectRun = useCallback(
+    (jobId: string | null, forceLatest: boolean = false) => {
+      if (forceLatest || !jobId || (runs.length > 0 && jobId === runs[0].id)) {
+        selectedRunJobIdRef.current = null;
+        setSelectedRunJobId(null);
+        fetchLiveDashboard(sessionDate, selectedScope, false, null);
+      } else {
+        selectedRunJobIdRef.current = jobId;
+        setSelectedRunJobId(jobId);
+        fetchLiveDashboard(sessionDate, selectedScope, false, jobId);
+      }
+    },
+    [runs, sessionDate, selectedScope, fetchLiveDashboard],
+  );
+
+  const goToPrevRun = useCallback(() => {
+    if (hasPrevRun && currentRunIndex >= 0 && runs[currentRunIndex + 1]) {
+      handleSelectRun(runs[currentRunIndex + 1].id);
+    }
+  }, [hasPrevRun, currentRunIndex, runs, handleSelectRun]);
+
+  const goToNextRun = useCallback(() => {
+    if (hasNextRun && currentRunIndex > 0 && runs[currentRunIndex - 1]) {
+      handleSelectRun(runs[currentRunIndex - 1].id);
+    }
+  }, [hasNextRun, currentRunIndex, runs, handleSelectRun]);
+
+  // Reset selected run khi đổi ngày
+  useEffect(() => {
+    selectedRunJobIdRef.current = null;
+    setSelectedRunJobId(null);
+  }, [sessionDate]);
+
 
   const handleSyncFromApi = async () => {
     setIsSyncingApi(true);
@@ -827,8 +933,11 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
 
   // Nguồn dữ liệu hiển thị (hỗ trợ lọc 17 chủ lực vs 44 toàn bộ)
   const rawDisplayItems = useMemo(() => {
-    if (dataMode === 'LIVE' && liveData && liveData.items && liveData.items.length > 0) {
-      return liveData.items as CommodityPositionPnLItem[];
+    if (dataMode === 'LIVE') {
+      if (liveData && liveData.items && liveData.items.length > 0) {
+        return liveData.items as CommodityPositionPnLItem[];
+      }
+      return [];
     }
     return MOCK_COMMODITY_ITEMS;
   }, [dataMode, liveData]);
@@ -1173,7 +1282,143 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             />
           </div>
 
+          {/* Bộ lọc xem lại các lượt check trong ngày (chuẩn như checkklgd) */}
+          {dataMode === 'LIVE' && runs && runs.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 8px',
+                borderRadius: '8px',
+                backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.12)' : 'var(--bg-input)',
+                border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.45)' : '1px solid var(--border-color)',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: isViewingHistorical ? '#ea580c' : 'var(--text-secondary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <History size={14} style={{ color: isViewingHistorical ? '#ea580c' : 'var(--text-muted)' }} />
+                <span>Lượt:</span>
+              </span>
+
+              {/* Nút lùi về lượt cũ hơn (<) */}
+              <button
+                type="button"
+                title="Xem lượt chạy trước đó (cũ hơn)"
+                disabled={!hasPrevRun}
+                onClick={goToPrevRun}
+                style={{
+                  padding: '4px 6px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: hasPrevRun ? 'var(--bg-card)' : 'transparent',
+                  color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  opacity: hasPrevRun ? 1 : 0.35,
+                  cursor: hasPrevRun ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <ChevronLeft size={15} />
+              </button>
+
+              {/* Select chọn lượt chạy */}
+              <select
+                value={selectedRunJobId || (runs[0]?.id || '')}
+                onChange={(e) => handleSelectRun(e.target.value)}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  backgroundColor: 'transparent',
+                  color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
+                  border: 'none',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  maxWidth: '260px',
+                }}
+              >
+                {runs.map((r, idx) => {
+                  const runNumber = runs.length - idx;
+                  const isLatest = idx === 0;
+                  const trigger = r.triggerLabel || (r.triggerType === 'MANUAL' ? 'Thủ công' : 'Tự động');
+                  const statusNote = r.status === 'FAILED' ? ' [Lỗi]' : '';
+                  const labelText = `Lượt #${runNumber} (${r.time}) - ${trigger}${statusNote}${isLatest ? ' (Mới nhất)' : ''}`;
+                  return (
+                    <option key={r.id} value={r.id}>
+                      {labelText}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Nút tiến tới lượt mới hơn (>) */}
+              <button
+                type="button"
+                title="Xem lượt chạy tiếp theo (mới hơn)"
+                disabled={!hasNextRun}
+                onClick={goToNextRun}
+                style={{
+                  padding: '4px 6px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: hasNextRun ? 'var(--bg-card)' : 'transparent',
+                  color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  opacity: hasNextRun ? 1 : 0.35,
+                  cursor: hasNextRun ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <ChevronRight size={15} />
+              </button>
+
+              {/* Nút quay về lượt mới nhất khi đang xem quá khứ */}
+              {isViewingHistorical && (
+                <button
+                  type="button"
+                  title="Quay lại dữ liệu Live mới nhất"
+                  onClick={() => handleSelectRun(null, true)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    backgroundColor: '#ea580c',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    marginLeft: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <RotateCcw size={12} />
+                  <span>Về Live</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Mode Switcher */}
+
           <div
             style={{
               display: 'flex',
@@ -1320,9 +1565,62 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         </div>
       </div>
 
+
+      {/* Banner cảnh báo đang xem dữ liệu lịch sử của một lượt cụ thể */}
+      {isViewingHistorical && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 18px',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(234, 88, 12, 0.12)',
+            border: '1px solid rgba(234, 88, 12, 0.35)',
+            color: '#ea580c',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            boxShadow: 'var(--shadow-sm)',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <History size={17} />
+            <span>
+              Bạn đang xem dữ liệu lịch sử tại thời điểm Lượt #{currentRunIndex >= 0 ? runs.length - currentRunIndex : ''}{' '}
+              ({runs[currentRunIndex]?.time} - {runs[currentRunIndex]?.triggerLabel || 'Tự động'}
+              {runs[currentRunIndex]?.status === 'FAILED' ? ' - Thất bại' : ''}).
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleSelectRun(null, true)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              backgroundColor: '#ea580c',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <RotateCcw size={13} />
+            <span>Quay lại Dữ liệu Live mới nhất</span>
+          </button>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* 2. DUAL SEGMENT CARDS (ACM vs CÒN LẠI) WITH TIMELINE CHARTS & 4 MILESTONES */}
       {/* ========================================================================= */}
+
       <div
         style={{
           display: 'grid',

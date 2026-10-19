@@ -46,7 +46,7 @@ let totalNodeKLGD = 0;
 for (const trade of sampleTrades) {
   const tradeTime = parseTradeDateTime(trade.ngayGio, tradingDateNode);
   const isValid = tradeTime && tradeTime >= sessionStartNode && tradeTime <= checkTimeNode;
-  console.log(`  • Lệnh ${trade.maGD} lúc ${trade.ngayGio} (${tradeTime?.toISOString()}): ${isValid ? ' HỢP LỆ' : '❌ BỊ LỌC BỎ (tradeTime < sessionStart)'}`);
+  console.log(`  • Lệnh ${trade.maGD} lúc ${trade.ngayGio} (${tradeTime?.toISOString()}): ${isValid ? ' HỢP LỆ' : ' BỊ LỌC BỎ (tradeTime < sessionStart)'}`);
   if (isValid) totalNodeKLGD += trade.kl;
 }
 console.log(`=> TỔNG KHỐI LƯỢNG KHỚP LỆNH NODE.JS TÍNH ĐƯỢC: ${totalNodeKLGD} (BỊ RA 0 HẾT DO LỌC Ở TƯƠNG LAI!)\n`);
@@ -97,7 +97,7 @@ for (const trade of sampleTrades) {
   // C# rule đối với DSGD: chỉ cần tradeTime <= now (không chặn dưới sessionStart)
   const tradeTime = parseTradeDateTime(trade.ngayGio, new Date('2026-09-23'));
   const isValid = tradeTime && tradeTime <= executionTime && tradeTime >= csharpSessionStart;
-  console.log(`  • Lệnh ${trade.maGD} lúc ${trade.ngayGio}: ${isValid ? ` NHẬN (+${trade.kl} lots)` : '❌ BỎ'}`);
+  console.log(`  • Lệnh ${trade.maGD} lúc ${trade.ngayGio}: ${isValid ? ` NHẬN (+${trade.kl} lots)` : ' BỎ'}`);
   if (isValid) totalCsharpKLGD += trade.kl;
 }
 console.log(`=> TỔNG KHỐI LƯỢNG KHỚP LỆNH THEO CHUẨN C#: ${totalCsharpKLGD} lots (KHỚP HOÀN TOÀN DỮ LIỆU THỰC TẾ!)\n`);

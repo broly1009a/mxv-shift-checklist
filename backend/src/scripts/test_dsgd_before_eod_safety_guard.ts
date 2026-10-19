@@ -106,11 +106,11 @@ async function runTests() {
       console.log('   PASSED: Kết quả passed=true, differTotal=0, isSnapshotMissing=false');
       passedCount++;
     } else {
-      console.error('  ❌ FAILED: Kỳ vọng passed=true nhưng nhận:', res1);
+      console.error('   FAILED: Kỳ vọng passed=true nhưng nhận:', res1);
       failedCount++;
     }
   } catch (err: any) {
-    console.error('  ❌ FAILED:', err.message);
+    console.error('   FAILED:', err.message);
     failedCount++;
   }
 
@@ -126,11 +126,11 @@ async function runTests() {
       console.log(`    Thông báo: "${res2.messages[0]}"`);
       passedCount++;
     } else {
-      console.error('  ❌ FAILED: Hệ thống vẫn cho passed ảo khi thiếu snapshot!', res2);
+      console.error('   FAILED: Hệ thống vẫn cho passed ảo khi thiếu snapshot!', res2);
       failedCount++;
     }
   } catch (err: any) {
-    console.error('  ❌ FAILED:', err.message);
+    console.error('   FAILED:', err.message);
     failedCount++;
   }
 
@@ -145,11 +145,11 @@ async function runTests() {
       console.log('   PASSED: Đã chặn thành công khi buffer rỗng!');
       passedCount++;
     } else {
-      console.error('  ❌ FAILED: Kỳ vọng passed=false khi buffer rỗng nhưng nhận:', res3);
+      console.error('   FAILED: Kỳ vọng passed=false khi buffer rỗng nhưng nhận:', res3);
       failedCount++;
     }
   } catch (err: any) {
-    console.error('  ❌ FAILED:', err.message);
+    console.error('   FAILED:', err.message);
     failedCount++;
   }
 
@@ -185,11 +185,11 @@ async function runTests() {
       console.log(`    Thông báo: "${res4.messages[0]}"`);
       passedCount++;
     } else {
-      console.error('  ❌ FAILED: Hệ thống đã tự ý so sánh với file gốc để báo thành công ảo!', res4);
+      console.error('   FAILED: Hệ thống đã tự ý so sánh với file gốc để báo thành công ảo!', res4);
       failedCount++;
     }
   } catch (err: any) {
-    console.error('  ❌ FAILED:', err.message);
+    console.error('   FAILED:', err.message);
     failedCount++;
   }
 
@@ -209,11 +209,11 @@ async function runTests() {
       console.log('   PASSED: Đã nhận diện đúng snapshot DSGD17h00.xlsx và đối chiếu thành công!');
       passedCount++;
     } else {
-      console.error('  ❌ FAILED: Kỳ vọng passed=true với file snapshot hợp lệ:', res5);
+      console.error('   FAILED: Kỳ vọng passed=true với file snapshot hợp lệ:', res5);
       failedCount++;
     }
   } catch (err: any) {
-    console.error('  ❌ FAILED:', err.message);
+    console.error('   FAILED:', err.message);
     failedCount++;
   }
 

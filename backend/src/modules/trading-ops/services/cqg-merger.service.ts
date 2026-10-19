@@ -219,34 +219,36 @@ export class CqgMergerService {
     const data1 = lr1 > 4 ? rows1.slice(2, lr1 - 2) : lr1 > 2 ? rows1.slice(2) : [];
     const data2 = lr2 > 4 ? rows2.slice(2, lr2 - 2) : lr2 > 2 ? rows2.slice(2) : [];
 
-    // Khử trùng (Deduplicate) theo Ord #: Nếu một lệnh xuất hiện ở cả FR1 và FR2 (do tài khoản thuộc quyền xem của cả 2 user CQG)
+    // Khử trùng (Deduplicate) giữa FR1 và FR2 nếu có bản ghi khớp lệnh xuất hiện ở cả 2 file (do tài khoản thuộc quyền xem của cả 2 user CQG)
+    // Lưu ý quan trọng: Một lệnh (Ord #) có thể khớp làm nhiều phần (partial fills). TUYỆT ĐỐI không khử trùng chỉ theo Ord # vì sẽ làm mất các lần khớp tiếp theo.
+    // Chỉ loại bỏ bản ghi trong FR2 nếu bản ghi đó trùng khớp hoàn toàn (composite key: ord, account, symbol, qty, fillP, time) với một bản ghi đã có ở FR1.
     const normHeaders = headerRow.map((h: any) => String(h || '').trim());
     const ordIdx = findHeaderIndex(normHeaders, 'Ord #', ['ord', 'ord #', 'order', 'order #']);
+    const accIdx = findHeaderIndex(normHeaders, 'Account', ['account', 'acc', 'tk']);
+    const symIdx = findHeaderIndex(normHeaders, 'Symbol', ['symbol', 'sym', 'contract']);
+    const qtyIdx = findHeaderIndex(normHeaders, 'Qty', ['qty', 'quantity', 'kl']);
+    const fillPIdx = findHeaderIndex(normHeaders, 'Fill P', ['fill p', 'fill price', 'price', 'gia']);
+    const timeIdx = findHeaderIndex(normHeaders, 'Time', ['time', 'gio']);
 
-    const seenOrds = new Set<string>();
-    if (ordIdx !== -1) {
-      for (const r of data1) {
-        const ord = String(r[ordIdx] || '').trim();
-        if (ord) seenOrds.add(ord);
-      }
+    const seenFr1Records = new Set<string>();
+    for (const r of data1) {
+      const key = `${r[ordIdx] || ''}|${r[accIdx] || ''}|${r[symIdx] || ''}|${r[qtyIdx] || ''}|${r[fillPIdx] || ''}|${r[timeIdx] || ''}`;
+      seenFr1Records.add(key);
     }
 
     const uniqueData2: any[] = [];
     let dupCount = 0;
     for (const r of data2) {
-      if (ordIdx !== -1) {
-        const ord = String(r[ordIdx] || '').trim();
-        if (ord && seenOrds.has(ord)) {
-          dupCount++;
-          continue;
-        }
-        if (ord) seenOrds.add(ord);
+      const key = `${r[ordIdx] || ''}|${r[accIdx] || ''}|${r[symIdx] || ''}|${r[qtyIdx] || ''}|${r[fillPIdx] || ''}|${r[timeIdx] || ''}`;
+      if (seenFr1Records.has(key)) {
+        dupCount++;
+        continue;
       }
       uniqueData2.push(r);
     }
 
     if (dupCount > 0) {
-      this.logger.log(`[CQG Merger] Đã khử trùng ${dupCount} lệnh trùng lặp giữa FR1 và FR2 theo Ord #.`);
+      this.logger.log(`[CQG Merger] Đã khử trùng ${dupCount} bản ghi khớp lệnh trùng lặp giữa FR1 và FR2 theo composite key (Ord/Account/Symbol/Qty/Price/Time).`);
     }
 
     const mergedData: any[] = [];

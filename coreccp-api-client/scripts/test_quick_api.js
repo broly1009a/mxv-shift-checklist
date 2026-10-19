@@ -293,7 +293,7 @@ async function run() {
     await testKieu2(auth.token, auth.sessionCookie, auth.userId, auth.wsTicket, 'ACCOUNTS_INFO', 'DSTKGD_ACM_test.xlsx');
     console.log('\n🎉 HOÀN THÀNH TẤT CẢ KIỂM THỬ THÀNH CÔNG!');
   } catch (err) {
-    console.error('\n❌ Thất bại:', err.message);
+    console.error('\n Thất bại:', err.message);
   }
 }
 

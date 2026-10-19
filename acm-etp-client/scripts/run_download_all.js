@@ -256,10 +256,10 @@ async function getSession() {
           console.log(` OK! ${(buffer.length / 1024).toFixed(1)} KB | ${dur}ms`);
           successCount++;
         } else {
-          console.log(`❌ HTTP ${res.status}`);
+          console.log(` HTTP ${res.status}`);
         }
       } catch (err) {
-        console.log(`❌ Lỗi: ${err.message}`);
+        console.log(` Lỗi: ${err.message}`);
       }
     }
 
@@ -268,6 +268,6 @@ async function getSession() {
     console.log(`📁 Thư mục lưu file: ${CONFIG.outputDir}`);
     console.log('========================================================================\n');
   } catch (err) {
-    console.error('❌ Lỗi:', err.message);
+    console.error(' Lỗi:', err.message);
   }
 })();

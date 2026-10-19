@@ -108,11 +108,11 @@ async function login() {
           console.log(` OK! ${(buffer.length / 1024).toFixed(1)} KB | ${duration}ms`);
           successCount++;
         } else {
-          console.log(`❌ HTTP ${res.status}`);
+          console.log(` HTTP ${res.status}`);
           failCount++;
         }
       } catch (err) {
-        console.log(`❌ Lỗi kết nối: ${err.message}`);
+        console.log(` Lỗi kết nối: ${err.message}`);
         failCount++;
       }
     }
@@ -123,6 +123,6 @@ async function login() {
     console.log('========================================================================\n');
 
   } catch (err) {
-    console.error('❌ Lỗi:', err.message);
+    console.error(' Lỗi:', err.message);
   }
 })();

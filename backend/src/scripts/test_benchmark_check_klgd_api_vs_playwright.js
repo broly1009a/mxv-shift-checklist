@@ -217,7 +217,7 @@ async function runCheckKlgdBenchmark() {
     console.log(`   TỔNG THỜI GIAN M-SYSTEM QUA DIRECT REST API: ${msElapsed} ms (So với Playwright: ~28.500 ms)`);
     console.log(`  TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.ms.playwrightAvgMs / msElapsed).toFixed(1)} lần!`);
   } catch (msErr) {
-    console.log(`  ❌ Lỗi M-System API Benchmark: ${msErr.message}`);
+    console.log(`   Lỗi M-System API Benchmark: ${msErr.message}`);
     benchmarkResults.ms.status = 'FAILED';
   }
 
@@ -311,7 +311,7 @@ async function runCheckKlgdBenchmark() {
     console.log(`   TỔNG THỜI GIAN ACM QUA DIRECT SFTP: ${acmElapsed} ms (So với Playwright + Captcha: ~36.000 ms)`);
     console.log(`  TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.acm.playwrightAvgMs / acmElapsed).toFixed(1)} lần!`);
   } catch (acmErr) {
-    console.log(`  ❌ Lỗi ACM SFTP Benchmark: ${acmErr.message}`);
+    console.log(`   Lỗi ACM SFTP Benchmark: ${acmErr.message}`);
     benchmarkResults.acm.status = 'FAILED';
   }
 
@@ -349,7 +349,7 @@ async function runCheckKlgdBenchmark() {
     console.log(`   TỔNG THỜI GIAN CORECCP QUA DIRECT REST API: ${ccpElapsed} ms (So với Playwright: ~31.000 ms)`);
     console.log(`  TỐC ĐỘ CẢI THIỆN: Nhanh hơn ${(benchmarkResults.ccp.playwrightAvgMs / ccpElapsed).toFixed(1)} lần!`);
   } catch (ccpErr) {
-    console.log(`  ❌ Lỗi CoreCCP API Benchmark: ${ccpErr.message}`);
+    console.log(`   Lỗi CoreCCP API Benchmark: ${ccpErr.message}`);
     benchmarkResults.ccp.status = 'FAILED';
   }
 

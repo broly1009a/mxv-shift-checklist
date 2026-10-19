@@ -156,7 +156,7 @@ function assert(description: string, condition: boolean, extraInfo?: string) {
     passedTests++;
     console.log(` [PASS] ${description}`);
   } else {
-    console.error(`❌ [FAIL] ${description}`);
+    console.error(` [FAIL] ${description}`);
   }
   if (extraInfo) {
     console.log(`   └─ ${extraInfo}`);

@@ -368,26 +368,29 @@ export function mergeCqgRawFiles(
       const ordIdx = normHeaders.findIndex(
         (h: string) => h === 'ord #' || h === 'ord' || h === 'order #' || h === 'order',
       );
-      if (ordIdx !== -1) {
-        const seenOrds = new Set<string>();
-        for (const r of data1) {
-          const ord = String(r[ordIdx] || '').trim();
-          if (ord) seenOrds.add(ord);
+      const accIdx = normHeaders.findIndex((h: string) => h === 'account' || h === 'acc');
+      const symIdx = normHeaders.findIndex((h: string) => h === 'symbol' || h === 'sym');
+      const qtyIdx = normHeaders.findIndex((h: string) => h === 'qty' || h === 'quantity');
+      const fillPIdx = normHeaders.findIndex((h: string) => h === 'fill p' || h === 'fill price' || h === 'price');
+      const timeIdx = normHeaders.findIndex((h: string) => h === 'time');
+
+      const seenKeys = new Set<string>();
+      for (const r of data1) {
+        const key = `${r[ordIdx] || ''}|${r[accIdx] || ''}|${r[symIdx] || ''}|${r[qtyIdx] || ''}|${r[fillPIdx] || ''}|${r[timeIdx] || ''}`;
+        seenKeys.add(key);
+      }
+      let dupCount = 0;
+      finalData2 = [];
+      for (const r of data2) {
+        const key = `${r[ordIdx] || ''}|${r[accIdx] || ''}|${r[symIdx] || ''}|${r[qtyIdx] || ''}|${r[fillPIdx] || ''}|${r[timeIdx] || ''}`;
+        if (seenKeys.has(key)) {
+          dupCount++;
+          continue;
         }
-        let dupCount = 0;
-        finalData2 = [];
-        for (const r of data2) {
-          const ord = String(r[ordIdx] || '').trim();
-          if (ord && seenOrds.has(ord)) {
-            dupCount++;
-            continue;
-          }
-          if (ord) seenOrds.add(ord);
-          finalData2.push(r);
-        }
-        if (dupCount > 0) {
-          logger?.log(`[CQG Merge] Đã khử trùng ${dupCount} lệnh trùng lặp giữa FR1 và FR2 theo Ord #.`);
-        }
+        finalData2.push(r);
+      }
+      if (dupCount > 0) {
+        logger?.log(`[CQG Merge] Đã khử trùng ${dupCount} bản ghi khớp lệnh trùng lặp giữa FR1 và FR2 theo composite key.`);
       }
     }
 

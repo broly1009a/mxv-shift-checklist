@@ -714,6 +714,62 @@ export default function LegacyReconSection({
       ? activeJobLogs
       : klgdLogs;
 
+  // Tính toán phần trăm tiến độ (%) và giai đoạn chạy của Bot dựa trên stream log thực tế
+  const botProgressInfo = useMemo(() => {
+    if (!isBotRunning) {
+      return { percent: 0, stage: '', detail: '' };
+    }
+
+    const logs = displayLogs || [];
+    const lastLogRaw = logs.length > 0 ? logs[logs.length - 1] : '';
+    const cleanLog = lastLogRaw.replace(/^\[.*?\]\s*/, '').trim();
+
+    let percent = 20;
+    let stage = 'Khởi tạo quy trình';
+    let detail = cleanLog || 'Đang kết nối worker và kiểm tra rào cản dữ liệu...';
+
+    const fullLogText = logs.join(' ').toLowerCase();
+
+    if (
+      fullLogText.includes('so khớp') ||
+      fullLogText.includes('đối chiếu khớp lệnh') ||
+      fullLogText.includes('khoảng thời gian lọc') ||
+      fullLogText.includes('runautocheckklgd')
+    ) {
+      percent = 90;
+      stage = 'Đang so khớp & Kiểm tra chênh lệch';
+      detail = cleanLog || 'Đang so khớp chi tiết từng lệnh giữa MS, CQG, CoreCCP và Straits...';
+    } else if (
+      fullLogText.includes('ghép') ||
+      fullLogText.includes('hoàn tất quy trình tải') ||
+      fullLogText.includes('barrier') ||
+      fullLogText.includes('kiểm soát toàn vẹn')
+    ) {
+      percent = 75;
+      stage = 'Xử lý & Ghép file thô';
+      detail = cleanLog || 'Ghép nối dữ liệu CQG và kiểm tra tính toàn vẹn 4 nguồn...';
+    } else if (
+      fullLogText.includes('ccp') ||
+      fullLogText.includes('cqg') ||
+      fullLogText.includes('ms') ||
+      fullLogText.includes('straits') ||
+      fullLogText.includes('tải') ||
+      fullLogText.includes('worker')
+    ) {
+      let sourceCount = 0;
+      if (fullLogText.includes('ms') && (fullLogText.includes('thành công') || fullLogText.includes('tải'))) sourceCount++;
+      if (fullLogText.includes('ccp') && (fullLogText.includes('thành công') || fullLogText.includes('tải'))) sourceCount++;
+      if (fullLogText.includes('cqg') && (fullLogText.includes('thành công') || fullLogText.includes('tải'))) sourceCount++;
+      if (fullLogText.includes('straits') || fullLogText.includes('acm')) sourceCount++;
+
+      percent = Math.min(68, 30 + sourceCount * 10);
+      stage = 'Đang tải dữ liệu 4 nguồn';
+      detail = cleanLog || 'Đang tải dữ liệu M-System, CoreCCP, CQG và Straits...';
+    }
+
+    return { percent, stage, detail };
+  }, [isBotRunning, displayLogs]);
+
   // Discrepancy Trades
   const mismatchedTrades = summaryData?.klgd?.mismatchedTrades || [];
   const mismatchedTTM = summaryData?.klgd?.mismatchedTTM || [];
@@ -964,89 +1020,143 @@ export default function LegacyReconSection({
                 </div>
               </div>
             ) : isBotRunning ? (
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                borderRadius: '12px',
-                padding: '14px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#2563eb',
-                    flexShrink: 0
-                  }}>
-                    <Loader2 size={20} className="animate-spin" />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                      Bot đang thực hiện quy trình đối soát...
+              <div
+                style={{
+                  background: 'var(--bg-card, #ffffff)',
+                  border: '1px solid rgba(59, 130, 246, 0.28)',
+                  borderRadius: '10px',
+                  padding: '9px 16px',
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.06)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '7px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Hàng nội dung chính: Spinner + Tên bước + Badge % + Trích xuất Log + Nút hành động */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                        color: '#2563eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Loader2 size={15} className="animate-spin" />
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Đang tự động tải báo cáo DSGD/TTM từ M-System, file CQG và đối chiếu khớp lệnh.
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {botProgressInfo.stage}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 800,
+                          color: '#2563eb',
+                          backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                          padding: '1px 7px',
+                          borderRadius: '10px',
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {botProgressInfo.percent}%
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.78rem',
+                          color: 'var(--text-secondary)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '460px',
+                        }}
+                        title={botProgressInfo.detail}
+                      >
+                        — {botProgressInfo.detail}
+                      </span>
                     </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  {(displayLogs.length > 0 || klgdLogs.length > 0) && (
+
+                  {/* Cụm nút thao tác bên phải */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {(displayLogs.length > 0 || klgdLogs.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowLogModal(true)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '5px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                        }}
+                      >
+                        <Terminal size={13} />
+                        <span>Log</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setShowLogModal(true)}
+                      onClick={handleEmergencyStopBot}
+                      disabled={cancellingBot}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
-                        padding: '8px 14px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                        gap: '5px',
+                        padding: '5px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(220, 38, 38, 0.3)',
+                        backgroundColor: 'rgba(220, 38, 38, 0.06)',
+                        color: '#dc2626',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: cancellingBot ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
+                      title="Dừng khẩn cấp tiến trình đối soát của Bot"
                     >
-                      <Terminal size={14} />
-                      <span>Xem Log tiến trình</span>
+                      <Square size={11} fill={cancellingBot ? 'none' : '#dc2626'} className={cancellingBot ? 'animate-pulse' : ''} />
+                      <span>{cancellingBot ? 'Đang dừng...' : 'Stop'}</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleEmergencyStopBot}
-                    disabled={cancellingBot}
+                  </div>
+                </div>
+
+                {/* Hàng dưới: Thanh Progress Bar mượt mà */}
+                <div
+                  style={{
+                    width: '100%',
+                    height: '4px',
+                    backgroundColor: 'rgba(226, 232, 240, 0.7)',
+                    borderRadius: '999px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(220, 38, 38, 0.4)',
-                      backgroundColor: 'rgba(220, 38, 38, 0.08)',
-                      color: '#dc2626',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      cursor: cancellingBot ? 'not-allowed' : 'pointer',
-                      boxShadow: '0 1px 3px rgba(220, 38, 38, 0.1)',
-                      transition: 'all 0.2s',
+                      width: `${botProgressInfo.percent}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #2563eb, #38bdf8)',
+                      borderRadius: '999px',
+                      transition: 'width 0.35s ease-in-out',
                     }}
-                    title="Dừng khẩn cấp tiến trình đối soát của Bot"
-                  >
-                    <Square size={13} fill={cancellingBot ? 'none' : '#dc2626'} className={cancellingBot ? 'animate-pulse' : ''} />
-                    <span>{cancellingBot ? 'Đang dừng...' : 'Stop'}</span>
-                  </button>
+                  />
                 </div>
               </div>
             ) : null}

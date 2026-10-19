@@ -82,7 +82,7 @@ async function runTests() {
   if (!res1.isValid) throw new Error(`TESTCASE 1 FAILED: Mong muốn hợp lệ nhưng trả về ${res1.reason}`);
 
   const mergeSuccess1 = merger.mergeFR(fr1_ok, fr2_ok, fr_dest1);
-  console.log(`• Kết quả mergeFR: ${mergeSuccess1 ? ' THÀNH CÔNG' : '❌ THẤT BẠI'}`);
+  console.log(`• Kết quả mergeFR: ${mergeSuccess1 ? ' THÀNH CÔNG' : ' THẤT BẠI'}`);
   console.log(`• File sinh ra: ${fs.existsSync(fr_dest1) ? 'Tồn tại' : 'Không tồn tại'}\n`);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +174,6 @@ async function runTests() {
 }
 
 runTests().catch((e) => {
-  console.error('❌ LỖI KIỂM THỬ:', e);
+  console.error(' LỖI KIỂM THỬ:', e);
   process.exit(1);
 });

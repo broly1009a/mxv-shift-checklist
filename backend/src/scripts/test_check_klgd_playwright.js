@@ -199,7 +199,7 @@ function isTodayDate(dateStr) {
 
 function inspectExcelFile(filePath, label) {
   if (!fs.existsSync(filePath)) {
-    console.log(`❌ [${label}] File không tồn tại: ${filePath}`);
+    console.log(` [${label}] File không tồn tại: ${filePath}`);
     return { exists: false, rows: 0, size: 0 };
   }
 
@@ -233,7 +233,7 @@ function inspectExcelFile(filePath, label) {
 
     return { exists: true, rows: data.length, size: stat.size, empty: false, data };
   } catch (err) {
-    console.log(`   ❌ Lỗi khi đọc nội dung Excel: ${err.message}`);
+    console.log(`    Lỗi khi đọc nội dung Excel: ${err.message}`);
     return { exists: true, rows: 0, size: stat.size, error: err.message };
   }
 }
@@ -254,7 +254,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
   };
 
   if (!activeCreds.url || !activeCreds.username || !activeCreds.password) {
-    console.error(`❌ Thiếu thông tin đăng nhập CoreCCP trong CSDL hoặc tham số CLI!`);
+    console.error(` Thiếu thông tin đăng nhập CoreCCP trong CSDL hoặc tham số CLI!`);
     console.error(`   Gợi ý: Truyền --url, --user, --pass nếu không kết nối được MongoDB.`);
     return null;
   }
@@ -418,7 +418,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
       await page.waitForTimeout(30000);
     }
   } catch (err) {
-    console.error(`❌ [CCP LỖI]: ${err.message}`);
+    console.error(` [CCP LỖI]: ${err.message}`);
   } finally {
     await context.close().catch(() => { });
   }
@@ -436,7 +436,7 @@ async function testMSystem(creds, cliConfig, browser) {
   console.log(`=============================================================`);
 
   if (!creds || !creds.username || !creds.password) {
-    console.error(`❌ Thiếu thông tin đăng nhập M-System trong CSDL hoặc cấu hình!`);
+    console.error(` Thiếu thông tin đăng nhập M-System trong CSDL hoặc cấu hình!`);
     return null;
   }
 
@@ -552,7 +552,7 @@ async function testMSystem(creds, cliConfig, browser) {
       await page.waitForTimeout(20000);
     }
   } catch (err) {
-    console.error(`❌ [MS LỖI]: ${err.message}`);
+    console.error(` [MS LỖI]: ${err.message}`);
   } finally {
     await context.close().catch(() => { });
   }
@@ -570,7 +570,7 @@ async function testStraitsAcm(creds, cliConfig, browser) {
   console.log(`=============================================================`);
 
   if (!creds || !creds.username || !creds.password) {
-    console.error(`❌ Thiếu thông tin đăng nhập Straits ACM trong CSDL hoặc cấu hình!`);
+    console.error(` Thiếu thông tin đăng nhập Straits ACM trong CSDL hoặc cấu hình!`);
     return null;
   }
 
@@ -619,7 +619,7 @@ async function testStraitsAcm(creds, cliConfig, browser) {
       await page.waitForTimeout(20000);
     }
   } catch (err) {
-    console.error(`❌ [ACM LỖI]: ${err.message}`);
+    console.error(` [ACM LỖI]: ${err.message}`);
   } finally {
     await context.close().catch(() => { });
   }

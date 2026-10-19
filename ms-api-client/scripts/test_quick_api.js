@@ -128,12 +128,12 @@ async function downloadReport(token, rep, outDir) {
         const info = await downloadReport(token, rep, outDir);
         console.log(` OK! ${(info.sizeBytes / 1024).toFixed(1)} KB | ${info.durationMs}ms`);
       } catch (err) {
-        console.log(`❌ Lỗi: ${err.message}`);
+        console.log(` Lỗi: ${err.message}`);
       }
     }
 
     console.log('\n🎉 HOÀN TẤT THỬ NGHIỆM! File đã tải thành công tại thư mục output/.');
   } catch (err) {
-    console.error('❌ Lỗi:', err.message);
+    console.error(' Lỗi:', err.message);
   }
 })();

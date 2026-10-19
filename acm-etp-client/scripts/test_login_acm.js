@@ -190,7 +190,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch((err) => {
-    console.error('\n❌ LỖI:', err.message);
+    console.error('\n LỖI:', err.message);
     process.exit(1);
   });
 }

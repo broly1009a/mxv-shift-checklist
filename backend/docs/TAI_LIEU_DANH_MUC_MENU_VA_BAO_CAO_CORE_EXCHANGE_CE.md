@@ -122,7 +122,7 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/MONITOR_ME/RESEND_ORDER`
 - **Tiêu đề / Breadcrumbs**: Monitor ME Resend Order
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -382,13 +382,13 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/ORDERS/ORDERMATCH_DETAIL_MM`
 - **Tiêu đề / Breadcrumbs**: Lịch sử khớp lệnh MM chi tiết
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 14. Báo cáo phân hệ sổ lệnh (`/ORDERS/REPORTS`)
 
 - **URL Route**: `/ORDERS/REPORTS`
 - **Tiêu đề / Breadcrumbs**: Báo cáo phân hệ sổ lệnh
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -398,19 +398,19 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/PRODUCT/COMMODITY`
 - **Tiêu đề / Breadcrumbs**: Quản lý hàng hóa, hợp đồng
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 16. Quản lý hàng hóa liên thông (ACM) (`/PRODUCT/COMMODITY_ACM`)
 
 - **URL Route**: `/PRODUCT/COMMODITY_ACM`
 - **Tiêu đề / Breadcrumbs**: Quản lý hàng hóa liên thông (ACM)
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 17. Báo cáo phân hệ sản phẩm (`/PRODUCT/REPORTS`)
 
 - **URL Route**: `/PRODUCT/REPORTS`
 - **Tiêu đề / Breadcrumbs**: Báo cáo phân hệ sản phẩm
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -420,31 +420,31 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/SESSIONMNG/TRADING_SESSION`
 - **Tiêu đề / Breadcrumbs**: Cấu hình phiên giao dịch
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 19. Danh sách cấu hình phiên (`/SESSIONMNG/SESSION_CONFIG_ALL`)
 
 - **URL Route**: `/SESSIONMNG/SESSION_CONFIG_ALL`
 - **Tiêu đề / Breadcrumbs**: Danh sách cấu hình phiên
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 20. Thông tin phiên trong ngày (`/SESSIONMNG/SESSION_INFO`)
 
 - **URL Route**: `/SESSIONMNG/SESSION_INFO`
 - **Tiêu đề / Breadcrumbs**: Thông tin phiên trong ngày
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 21. Lịch sử phiên giao dịch quá khứ (`/SESSIONMNG/TRADING_SESSION_HIST`)
 
 - **URL Route**: `/SESSIONMNG/TRADING_SESSION_HIST`
 - **Tiêu đề / Breadcrumbs**: Lịch sử phiên giao dịch quá khứ
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 22. Báo cáo phiên giao dịch (`/SESSIONMNG/REPORTS`)
 
 - **URL Route**: `/SESSIONMNG/REPORTS`
 - **Tiêu đề / Breadcrumbs**: Báo cáo phiên giao dịch
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -454,25 +454,25 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/ACCOUNTMNG/CUSTOMERS`
 - **Tiêu đề / Breadcrumbs**: Quản lý khách hàng
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 24. Quản lý khách hàng (đầy đủ) (`/ACCOUNTMNG/CUSTOMERS_PUBLIC`)
 
 - **URL Route**: `/ACCOUNTMNG/CUSTOMERS_PUBLIC`
 - **Tiêu đề / Breadcrumbs**: Quản lý khách hàng (đầy đủ)
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 25. Danh sách tài khoản giao dịch (`/ACCOUNTMNG/ACCOUNTS_INFO`)
 
 - **URL Route**: `/ACCOUNTMNG/ACCOUNTS_INFO`
 - **Tiêu đề / Breadcrumbs**: Danh sách tài khoản giao dịch
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 26. Yêu cầu mở tài khoản (`/ACCOUNTMNG/OPENACCREQ`)
 
 - **URL Route**: `/ACCOUNTMNG/OPENACCREQ`
 - **Tiêu đề / Breadcrumbs**: Yêu cầu mở tài khoản
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -482,19 +482,19 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/MEMBERSMNG/MEMBERS`
 - **Tiêu đề / Breadcrumbs**: Thông tin thành viên
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 28. Thành viên ngừng hoạt động (`/MEMBERSMNG/MEMBERSEND`)
 
 - **URL Route**: `/MEMBERSMNG/MEMBERSEND`
 - **Tiêu đề / Breadcrumbs**: Thành viên ngừng hoạt động
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 29. Báo cáo thành viên (`/MEMBERSMNG/REPORTS`)
 
 - **URL Route**: `/MEMBERSMNG/REPORTS`
 - **Tiêu đề / Breadcrumbs**: Báo cáo thành viên
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -504,7 +504,7 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/FCMMNG/FCM_INFORMATION`
 - **Tiêu đề / Breadcrumbs**: Khai báo FCM
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -514,37 +514,37 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/EOD/SODPROCESS`
 - **Tiêu đề / Breadcrumbs**: SOD Quy trình đầu ngày
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 32. EOD Quy trình cuối ngày (`/EODEXCHANGE/EODPROCESS`)
 
 - **URL Route**: `/EODEXCHANGE/EODPROCESS`
 - **Tiêu đề / Breadcrumbs**: EOD Quy trình cuối ngày
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 33. Đối chiếu dữ liệu liên thông CSV (`/EOD/COMPARECSV`)
 
 - **URL Route**: `/EOD/COMPARECSV`
 - **Tiêu đề / Breadcrumbs**: Đối chiếu dữ liệu liên thông CSV
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 34. Đối chiếu lệnh liên thông (`/EOD/ACM_RECON_ORDERS`)
 
 - **URL Route**: `/EOD/ACM_RECON_ORDERS`
 - **Tiêu đề / Breadcrumbs**: Đối chiếu lệnh liên thông
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 35. Truy vấn dữ liệu liên thông ACM (`/EOD/ACM_SYNC_REQUEST_LOG`)
 
 - **URL Route**: `/EOD/ACM_SYNC_REQUEST_LOG`
 - **Tiêu đề / Breadcrumbs**: Truy vấn dữ liệu liên thông ACM
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 36. Đối chiếu lệnh Active (`/EOD/COMPARE_ORDER_ACTIVE`)
 
 - **URL Route**: `/EOD/COMPARE_ORDER_ACTIVE`
 - **Tiêu đề / Breadcrumbs**: Đối chiếu lệnh Active
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -554,55 +554,55 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/SYSCONFIGMNG/CALENDAR`
 - **Tiêu đề / Breadcrumbs**: Lịch làm việc / Ngày nghỉ
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 38. Tham số hệ thống (`/SYSCONFIGMNG/SYSCONFIG`)
 
 - **URL Route**: `/SYSCONFIGMNG/SYSCONFIG`
 - **Tiêu đề / Breadcrumbs**: Tham số hệ thống
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 39. Cấu hình Noti / SMS / Email (`/SYSCONFIGMNG/NOTIFICATION`)
 
 - **URL Route**: `/SYSCONFIGMNG/NOTIFICATION`
 - **Tiêu đề / Breadcrumbs**: Cấu hình Noti / SMS / Email
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 40. Tỷ giá tiền tệ (`/SYSCONFIGMNG/CURRENCYEXCHANGERATE`)
 
 - **URL Route**: `/SYSCONFIGMNG/CURRENCYEXCHANGERATE`
 - **Tiêu đề / Breadcrumbs**: Tỷ giá tiền tệ
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 41. Phân khúc giao dịch (`/TRANSPARAMMNG/TRADESEGMENTS`)
 
 - **URL Route**: `/TRANSPARAMMNG/TRADESEGMENTS`
 - **Tiêu đề / Breadcrumbs**: Phân khúc giao dịch
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 42. Biểu phí giao dịch (`/TRANSPARAMMNG/FEETYPE`)
 
 - **URL Route**: `/TRANSPARAMMNG/FEETYPE`
 - **Tiêu đề / Breadcrumbs**: Biểu phí giao dịch
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 43. Rổ ký quỹ ban đầu (`/TRANSPARAMMNG/IMBASKETS`)
 
 - **URL Route**: `/TRANSPARAMMNG/IMBASKETS`
 - **Tiêu đề / Breadcrumbs**: Rổ ký quỹ ban đầu
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 44. Rổ hạn mức vị thế (`/TRANSPARAMMNG/POSLIMITBASKETS`)
 
 - **URL Route**: `/TRANSPARAMMNG/POSLIMITBASKETS`
 - **Tiêu đề / Breadcrumbs**: Rổ hạn mức vị thế
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 45. Tài khoản mặc định (`/TRANSPARAMMNG/DEFACCOUNTS`)
 
 - **URL Route**: `/TRANSPARAMMNG/DEFACCOUNTS`
 - **Tiêu đề / Breadcrumbs**: Tài khoản mặc định
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---
 
@@ -612,12 +612,12 @@ Bảng dưới đây liệt kê toàn bộ các màn hình trên Core Exchange (
 
 - **URL Route**: `/USERMNG/TLGROUPS`
 - **Tiêu đề / Breadcrumbs**: Quản lý nhóm quyền
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 #### 47. Người sử dụng (`/USERMNG/TLPROFILES`)
 
 - **URL Route**: `/USERMNG/TLPROFILES`
 - **Tiêu đề / Breadcrumbs**: Người sử dụng
-- **Nút Kết xuất (Export)**: ❌ Không
+- **Nút Kết xuất (Export)**:  Không
 
 ---

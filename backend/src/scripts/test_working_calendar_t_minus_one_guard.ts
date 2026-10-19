@@ -77,7 +77,7 @@ async function runTests() {
     console.log(`   PASSED: Kết quả đúng ${res1.dateFormatted}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 13/10/2026 nhưng nhận ${res1.dateFormatted}`);
+    console.error(`   FAILED: Kỳ vọng 13/10/2026 nhưng nhận ${res1.dateFormatted}`);
     failedCount++;
   }
 
@@ -88,7 +88,7 @@ async function runTests() {
     console.log(`   PASSED: Đã bỏ qua T7 (10) và CN (11), kết quả đúng ${res2.dateFormatted}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 09/10/2026 nhưng nhận ${res2.dateFormatted}`);
+    console.error(`   FAILED: Kỳ vọng 09/10/2026 nhưng nhận ${res2.dateFormatted}`);
     failedCount++;
   }
 
@@ -100,7 +100,7 @@ async function runTests() {
     console.log(`   PASSED: Đã bỏ qua cả 01/09 và 02/09, kết quả đúng ${res3.dateFormatted}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 31/08/2026 nhưng nhận ${res3.dateFormatted}`);
+    console.error(`   FAILED: Kỳ vọng 31/08/2026 nhưng nhận ${res3.dateFormatted}`);
     failedCount++;
   }
 
@@ -113,7 +113,7 @@ async function runTests() {
     console.log(`   PASSED: Đã vượt qua thành công toàn bộ kỳ nghỉ Tết! Kết quả đúng ${res4.dateFormatted}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: Kỳ vọng 13/02/2026 nhưng nhận ${res4.dateFormatted} (Code cũ bị kẹt vào ngày Tết!)`);
+    console.error(`   FAILED: Kỳ vọng 13/02/2026 nhưng nhận ${res4.dateFormatted} (Code cũ bị kẹt vào ngày Tết!)`);
     failedCount++;
   }
 
@@ -129,7 +129,7 @@ async function runTests() {
     console.log(`   PASSED: PreEodReconService trả về đúng ngày phiên trước Tết: ${dateFormatted5}`);
     passedCount++;
   } else {
-    console.error(`  ❌ FAILED: PreEodReconService kỳ vọng 13/02/2026 nhưng nhận ${dateFormatted5}`);
+    console.error(`   FAILED: PreEodReconService kỳ vọng 13/02/2026 nhưng nhận ${dateFormatted5}`);
     failedCount++;
   }
 

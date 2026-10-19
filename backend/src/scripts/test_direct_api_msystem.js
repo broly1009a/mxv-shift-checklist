@@ -130,7 +130,7 @@ async function runDirectMsApiTest() {
     });
 
     if (!res.ok) {
-      console.error(`   ❌ Tải ${r.key} thất bại: HTTP ${res.status}`);
+      console.error(`    Tải ${r.key} thất bại: HTTP ${res.status}`);
       continue;
     }
 
@@ -186,6 +186,6 @@ async function runDirectMsApiTest() {
 }
 
 runDirectMsApiTest().catch((err) => {
-  console.error('\n❌ Lỗi kiểm thử M-System Direct API:', err.message);
+  console.error('\n Lỗi kiểm thử M-System Direct API:', err.message);
   process.exit(1);
 });

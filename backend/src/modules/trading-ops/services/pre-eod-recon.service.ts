@@ -156,26 +156,8 @@ export class PreEodReconService {
 
     // 4. Parse CQG FR
     const rawFrData = parseFR(files.cqgFr, tradingDate, holidays);
-    const seenCqgOrders = new Set<string>();
-    const frData: any[] = [];
-    let cqgDupCount = 0;
-    for (const fr of rawFrData) {
-      if (!fr.ord) {
-        frData.push(fr);
-        continue;
-      }
-      if (seenCqgOrders.has(fr.ord)) {
-        cqgDupCount++;
-        continue;
-      }
-      seenCqgOrders.add(fr.ord);
-      frData.push(fr);
-    }
-    if (cqgDupCount > 0) {
-      this.logger.log(
-        `[Pre-EOD] Đã tự động khử trùng ${cqgDupCount} lệnh CQG trùng lặp giữa 2 tài khoản CQG theo Ord #.`,
-      );
-    }
+    // Bảo toàn toàn bộ các lần khớp (partial fills) của CQG theo chuẩn C# IT Tool (FIleUtils.cs & TransactionCheckingService.cs)
+    const frData = rawFrData;
     let totalCQG_FR = 0;
     frData.forEach((fr) => {
       if (fr.symbol !== 'ZWAZCE') {

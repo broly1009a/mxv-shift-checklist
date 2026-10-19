@@ -140,6 +140,6 @@ async function runDirectCoreExTest() {
 }
 
 runDirectCoreExTest().catch((err) => {
-  console.error('\n❌ Lỗi kiểm thử CoreExchange Direct API:', err.message);
+  console.error('\n Lỗi kiểm thử CoreExchange Direct API:', err.message);
   process.exit(1);
 });

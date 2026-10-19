@@ -295,6 +295,6 @@ async function runDirectAcmEtpTest() {
 }
 
 runDirectAcmEtpTest().catch((err) => {
-  console.error('\n❌ Lỗi kiểm thử ACM ETP API:', err.message);
+  console.error('\n Lỗi kiểm thử ACM ETP API:', err.message);
   process.exit(1);
 });

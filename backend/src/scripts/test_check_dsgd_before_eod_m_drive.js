@@ -91,7 +91,7 @@ async function main() {
     console.log('  KẾT THÚC KIỂM THỬ THÀNH CÔNG');
     console.log('================================================================================');
   } catch (err) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH KIỂM THỬ:', err.message);
+    console.error('\n LỖI TRONG QUÁ TRÌNH KIỂM THỬ:', err.message);
     process.exit(1);
   }
 }

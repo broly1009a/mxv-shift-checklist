@@ -83,7 +83,7 @@ async function main() {
 
     console.log('\n🎉 Hoàn thành kiểm thử CqgScraperService.');
   } catch (err: any) {
-    console.error('❌ Lỗi khi thực thi CqgScraperService:', err.message);
+    console.error(' Lỗi khi thực thi CqgScraperService:', err.message);
   } finally {
     await app.close();
   }

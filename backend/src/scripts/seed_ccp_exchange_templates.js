@@ -50,7 +50,7 @@ async function seedCcpExchangeTemplates() {
     const defaultDept = itDept || opsDept || (await db.collection('departments').findOne({}));
 
     if (!defaultDept) {
-      throw new Error('❌ Không tìm thấy phòng ban nào trong CSDL! Vui lòng kiểm tra lại bảng departments.');
+      throw new Error(' Không tìm thấy phòng ban nào trong CSDL! Vui lòng kiểm tra lại bảng departments.');
     }
     console.log(`🏢 Phòng ban áp dụng: ${defaultDept.name} (Mã: ${defaultDept.code}, ID: ${defaultDept._id})`);
 
@@ -633,7 +633,7 @@ async function seedCcpExchangeTemplates() {
     console.log('=======================================================================');
 
   } catch (err) {
-    console.error('❌ Lỗi khi nạp templates:', err);
+    console.error(' Lỗi khi nạp templates:', err);
   } finally {
     await client.close();
   }

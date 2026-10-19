@@ -121,14 +121,14 @@ function staticAuditCodebase() {
     // Kiểm tra mẫu nguy hiểm: mảng có cả CSS và 'xpath=' rồi .join(', ')
     const badPattern = /\[[^\]]*xpath=[^\]]*\]\.join\(['"],\s*['"]\)/s;
     if (badPattern.test(content)) {
-      console.error(`❌ PHÁT HIỆN LỖI TĨNH TẠI ${path.basename(filePath)}: Có mảng chứa 'xpath=' được nối bằng .join(', ')!`);
+      console.error(` PHÁT HIỆN LỖI TĨNH TẠI ${path.basename(filePath)}: Có mảng chứa 'xpath=' được nối bằng .join(', ')!`);
       staticErrors++;
     }
 
     lines.forEach((line, idx) => {
       // Bắt trực tiếp dòng chứa chuỗi tai hại
       if (line.includes("xpath=//") && line.includes("button:") && line.includes(",")) {
-        console.error(`❌ Dòng ${idx + 1} trong ${path.basename(filePath)}: Ghép chung selector CSS và XPath trên cùng 1 chuỗi: ${line.trim()}`);
+        console.error(` Dòng ${idx + 1} trong ${path.basename(filePath)}: Ghép chung selector CSS và XPath trên cùng 1 chuỗi: ${line.trim()}`);
         staticErrors++;
       }
     });
@@ -185,7 +185,7 @@ async function runtimeAuditSelectors() {
       console.log(`     -> Số phần tử khớp trên mock DOM: ${count} (Visible: ${isVisible})`);
       passed++;
     } catch (err) {
-      console.error(`  ❌ [FAIL] ${item.label}`);
+      console.error(`   [FAIL] ${item.label}`);
       console.error(`     -> Selector: ${item.selector}`);
       console.error(`     -> LỖI CÚ PHÁP: ${err.message}`);
       failed++;

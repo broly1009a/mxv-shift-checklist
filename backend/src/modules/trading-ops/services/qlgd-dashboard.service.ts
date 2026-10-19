@@ -8,10 +8,19 @@
  */
 
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
+import { BotJob } from '../../../schemas/bot-job.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { resolveStoragePathCrossPlatform, IngressSourceType } from '../../../shared';
+
+import {
+  resolveStoragePathCrossPlatform,
+  IngressSourceType,
+  getCcpBackupBasePath,
+  resolveCcpDailyPath,
+} from '../../../shared';
 import { findLatestFile } from '../helpers/trading-math.helper';
 import {
   parseTTMForExecutive,
@@ -26,6 +35,9 @@ import {
 import {
   extractCcpBaseProduct,
   isAcm,
+  isSpread,
+  isLme,
+  isOptions,
 } from '../helpers/clearing-excel.helper';
 import {
   BGS_COMMODITY_METADATA_44,
@@ -79,6 +91,21 @@ export interface QlgdMessagesData {
   acmSummary: string;
 }
 
+export interface ExecutiveRunItem {
+  id: string;
+  jobId: string;
+  time: string;
+  label: string;
+  createdAt: string;
+  status: string;
+  triggerType: 'AUTO' | 'MANUAL';
+  triggerLabel: string;
+  hasDiscrepancy: boolean;
+  totalDSGD?: number;
+  totalNano?: number;
+  cutoffTime?: string;
+}
+
 export interface QlgdDashboardResponse {
   sessionDate: string;
   scope: 'ALL' | 'ACM' | 'OTHERS';
@@ -121,7 +148,11 @@ export interface QlgdDashboardResponse {
     avgLongRatio: number;
     avgShortRatio: number;
   };
+  runs?: ExecutiveRunItem[];
+  currentJobId?: string | null;
+  isViewingHistorical?: boolean;
 }
+
 
 /**
  * Xác định xem ngày giao dịch có thuộc giờ Mùa Hè (Daylight Saving Time) của Sở Mỹ không.
@@ -168,6 +199,30 @@ function getSessionBucket(hourFloat: number, isSummer: boolean): 'EARLY' | 'ASIA
   return 'US';
 }
 
+function parseTradeDateTime(tradeTimeStr: string, sessionDate: string): Date | null {
+  if (!tradeTimeStr) return null;
+  const str = String(tradeTimeStr).trim();
+  // Case 1: DD/MM/YYYY HH:mm(:ss)
+  const dmyMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (dmyMatch) {
+    const [, d, m, y, h, min, s = '0'] = dmyMatch;
+    return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${h.padStart(2, '0')}:${min.padStart(2, '0')}:${s.padStart(2, '0')}+07:00`);
+  }
+  // Case 2: YYYY-MM-DD(THH:mm:ss)
+  const ymdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (ymdMatch) {
+    const [, y, m, d, h, min, s = '0'] = ymdMatch;
+    return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${h.padStart(2, '0')}:${min.padStart(2, '0')}:${s.padStart(2, '0')}+07:00`);
+  }
+  // Case 3: HH:mm(:ss)
+  const timeMatch = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (timeMatch) {
+    const [, h, min, s = '0'] = timeMatch;
+    return new Date(`${sessionDate}T${h.padStart(2, '0')}:${min.padStart(2, '0')}:${s.padStart(2, '0')}+07:00`);
+  }
+  return null;
+}
+
 function formatNumber(val: number): string {
   return new Intl.NumberFormat('en-US').format(Math.round(val || 0));
 }
@@ -181,7 +236,9 @@ export class QlgdDashboardService {
     private readonly valueStatsService: ValueStatisticsService,
     @Optional() private readonly msApiAdapter?: MsApiAdapter,
     @Optional() private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
+    @Optional() @InjectModel(BotJob.name) private readonly botJobModel?: Model<BotJob>,
   ) {}
+
 
   /**
    * Kích hoạt tải dữ liệu tươi từ API Ingress của MS và CoreCCP
@@ -200,34 +257,47 @@ export class QlgdDashboardService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting('bot_backup_path_ms', ''),
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(
-      await this.settingsService.getSetting('bot_backup_path_ccp', ''),
+    const tradingCheckBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
+    );
+    const msTradingDailyPath = path.join(tradingCheckBase, subFolder);
+
+    const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
+    const ccpTradingDailyPath = path.join(
+      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
+      subFolder,
     );
 
-    const msDir = msBackupBase ? path.join(msBackupBase, subFolder) : path.join(process.cwd(), 'data', 'backup', 'ms', subFolder);
-    const ccpDir = ccpBackupBase ? path.join(ccpBackupBase, subFolder) : path.join(process.cwd(), 'data', 'backup', 'ccp', subFolder);
+    // Đảm bảo thư mục TradingCheck tồn tại trước khi tải
+    if (!fs.existsSync(msTradingDailyPath)) {
+      fs.mkdirSync(msTradingDailyPath, { recursive: true });
+    }
+    if (!fs.existsSync(ccpTradingDailyPath)) {
+      fs.mkdirSync(ccpTradingDailyPath, { recursive: true });
+    }
 
     const tasks: Promise<any>[] = [];
 
-    // Tải M-System qua API
+    // Tải M-System qua API trực tiếp vào thư mục kiểm tra trong phiên TradingCheck
     if (this.msApiAdapter) {
       tasks.push(
         this.msApiAdapter
           .download('MS', {
             reportCodes: ['DSGD', 'TTM', 'TTTT'],
-            targetDirectory: msDir,
+            targetDirectory: msTradingDailyPath,
           })
           .catch((e) => this.logger.warn(`API MS Download: ${e.message}`)),
       );
     }
 
-    // Tải CoreCCP qua API
+    // Tải CoreCCP qua API trực tiếp vào thư mục kiểm tra trong phiên TradingCheck
     if (this.coreCcpApiAdapter) {
       tasks.push(
         this.coreCcpApiAdapter
           .download('CORE_CCP', {
             reportCodes: ['DSGD_CCP', 'TTM_CCP', 'TTTT'],
-            targetDirectory: ccpDir,
+            targetDirectory: ccpTradingDailyPath,
           })
           .catch((e) => this.logger.warn(`API CCP Download: ${e.message}`)),
       );
@@ -245,6 +315,7 @@ export class QlgdDashboardService {
     scope: 'ALL' | 'ACM' | 'OTHERS' = 'ALL',
     catalogScope: 'TOP17' | 'ALL' = 'TOP17',
     refreshFromApi = false,
+    jobId?: string,
   ): Promise<QlgdDashboardResponse> {
     const today = new Date();
     let targetDate = targetDateStr;
@@ -253,25 +324,132 @@ export class QlgdDashboardService {
       targetDate = vnTime.toISOString().split('T')[0];
     }
 
+    let runs: ExecutiveRunItem[] = [];
+    let selectedJob: any = null;
+    let isViewingHistorical = false;
+
+    if (this.botJobModel) {
+      const dayStartVN = new Date(`${targetDate}T00:00:00.000+07:00`);
+      const dayEndVN = new Date(`${targetDate}T23:59:59.999+07:00`);
+      const dayStartUTC = new Date(`${targetDate}T00:00:00.000Z`);
+      const dayEndUTC = new Date(`${targetDate}T23:59:59.999Z`);
+      const minDate = new Date(Math.min(dayStartVN.getTime(), dayStartUTC.getTime()));
+      const maxDate = new Date(Math.max(dayEndVN.getTime(), dayEndUTC.getTime()));
+
+      const parts = targetDate.split('-');
+      const slashDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : targetDate;
+
+      const dateFilterCondition = {
+        $or: [
+          { createdAt: { $gte: minDate, $lte: maxDate } },
+          { 'payload.targetDate': { $in: [targetDate, slashDate] } },
+          { 'payload.sessionDay': { $in: [targetDate, slashDate] } },
+          { 'payload.shiftDate': { $in: [targetDate, slashDate] } },
+          { 'payload.date': { $in: [targetDate, slashDate] } },
+        ],
+      };
+
+      try {
+        const pastJobs = await this.botJobModel
+          .find({
+            jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] },
+            ...dateFilterCondition,
+          })
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .lean()
+          .exec();
+
+        if (Array.isArray(pastJobs) && pastJobs.length > 0) {
+          runs = pastJobs.map((j: any) => {
+            const payload = j.payload
+              ? typeof j.payload.toObject === 'function' ? j.payload.toObject() : j.payload
+              : {};
+            const res = payload.result || {};
+            const totals = res.totals || {};
+            const isManual = payload.isManual || j.triggerType === 'MANUAL' || j.triggeredBy === 'MANUAL' || payload.options?.bypassCooldown;
+            const trigger = isManual ? 'Thủ công' : 'Tự động';
+            const created = new Date(j.createdAt);
+            const vnDate = new Date(created.getTime() + 7 * 3600 * 1000);
+            const timeStr = `${String(vnDate.getUTCHours()).padStart(2, '0')}:${String(vnDate.getUTCMinutes()).padStart(2, '0')}:${String(vnDate.getUTCSeconds()).padStart(2, '0')}`;
+            const differ = (totals.differ || 0) + (totals.differACM || 0);
+
+            return {
+              id: String(j._id || j.jobId),
+              jobId: String(j._id || j.jobId),
+              time: timeStr,
+              label: `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')} ${timeStr}`,
+              createdAt: created.toISOString(),
+              status: j.status,
+              triggerType: isManual ? 'MANUAL' : 'AUTO',
+              triggerLabel: trigger,
+              hasDiscrepancy: differ > 0,
+              totalDSGD: totals.totalDSGD || 0,
+              totalNano: totals.totalNano || 0,
+              cutoffTime: res.cutoffTime || j.createdAt,
+            };
+          });
+        }
+
+        if (jobId) {
+          selectedJob = pastJobs.find((j: any) => String(j._id) === jobId || String(j.jobId) === jobId);
+          if (!selectedJob) {
+            try {
+              selectedJob = await this.botJobModel.findById(jobId).lean().exec();
+            } catch {
+              // ignore invalid ObjectId
+            }
+          }
+          if (selectedJob && runs.length > 0 && String(selectedJob._id) !== runs[0].id) {
+            isViewingHistorical = true;
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Lỗi khi truy vấn bot_jobs cho Dashboard: ${err.message}`);
+      }
+    }
+
+
     const [year, month, day] = targetDate.split('-');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    // Đường dẫn thư mục backup M-System & CoreCCP
+    // Đường dẫn thư mục kiểm tra trong phiên (TradingCheck) và backup M-System / CoreCCP
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting('bot_backup_path_ms', ''),
     );
-    const ccpBackupBase = resolveStoragePathCrossPlatform(
-      await this.settingsService.getSetting('bot_backup_path_ccp', ''),
+    const tradingCheckBase = resolveStoragePathCrossPlatform(
+      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
     );
 
-    const msDir = msBackupBase ? path.join(msBackupBase, subFolder) : '';
-    const ccpDir = ccpBackupBase ? path.join(ccpBackupBase, subFolder) : '';
+    const msTradingDailyPath = path.join(tradingCheckBase, subFolder);
+    const msDailyPath = msBackupBase ? path.join(msBackupBase, subFolder) : '';
+
+    const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
+    const ccpTradingDailyPath = path.join(
+      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
+      subFolder,
+    );
+    const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
 
     if (refreshFromApi) {
       await this.syncFreshDataFromApis(targetDate);
     }
 
-    this.logger.log(`[QlgdDashboard] Truy vấn dữ liệu phiên ${targetDate} tại MS: ${msDir} | CCP: ${ccpDir}`);
+    this.logger.log(`[QlgdDashboard] Truy vấn dữ liệu phiên ${targetDate} tại MS Check: ${msTradingDailyPath} | Backup: ${msDailyPath} | CCP Check: ${ccpTradingDailyPath} | Backup: ${ccpDailyPath}`);
+
+    // Cơ chế phân giải đường dẫn kép: Ưu tiên đọc từ thư mục kiểm tra trong phiên (TradingCheck), nếu chưa có mới fallback sang Backup
+    const resolvePriorityFile = (primaryDir: string, fallbackDir: string, pattern: RegExp): string => {
+      if (primaryDir && fs.existsSync(primaryDir)) {
+        const found = findLatestFile(primaryDir, pattern);
+        if (found && fs.existsSync(found)) return found;
+      }
+      if (fallbackDir && fs.existsSync(fallbackDir)) {
+        const found = findLatestFile(fallbackDir, pattern);
+        if (found && fs.existsSync(found)) return found;
+      }
+      return '';
+    };
 
     let ttmRows: ExecutiveTtmRow[] = [];
     let ttttRows: ExecutiveTtttRow[] = [];
@@ -284,77 +462,73 @@ export class QlgdDashboardService {
     let hasActualFiles = false;
 
     // 1. Đọc dữ liệu M-System
-    if (msDir && fs.existsSync(msDir)) {
-      const ttmPath = findLatestFile(msDir, /TTM.*\.xlsx$/i);
-      const ttttPath = findLatestFile(msDir, /TTTT.*\.xlsx$/i);
-      const dsgdPath = findLatestFile(msDir, /DSGD.*\.xlsx$/i);
+    const ttmPath = resolvePriorityFile(msTradingDailyPath, msDailyPath, /TTM.*\.xlsx$/i);
+    const ttttPath = resolvePriorityFile(msTradingDailyPath, msDailyPath, /TTTT.*\.xlsx$/i);
+    const dsgdPath = resolvePriorityFile(msTradingDailyPath, msDailyPath, /DSGD.*\.xlsx$/i);
 
-      if (ttmPath && fs.existsSync(ttmPath)) {
-        try {
-          const buf = fs.readFileSync(ttmPath);
-          ttmRows = parseTTMForExecutive(buf);
-          hasActualFiles = true;
-        } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file TTM MS: ${e.message}`);
-        }
+    if (ttmPath && fs.existsSync(ttmPath)) {
+      try {
+        const buf = fs.readFileSync(ttmPath);
+        ttmRows = parseTTMForExecutive(buf);
+        hasActualFiles = true;
+      } catch (e: any) {
+        this.logger.warn(`Lỗi khi đọc file TTM MS: ${e.message}`);
       }
+    }
 
-      if (ttttPath && fs.existsSync(ttttPath)) {
-        try {
-          const buf = fs.readFileSync(ttttPath);
-          ttttRows = parseTTTTForExecutive(buf);
-          hasActualFiles = true;
-        } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file TTTT MS: ${e.message}`);
-        }
+    if (ttttPath && fs.existsSync(ttttPath)) {
+      try {
+        const buf = fs.readFileSync(ttttPath);
+        ttttRows = parseTTTTForExecutive(buf);
+        hasActualFiles = true;
+      } catch (e: any) {
+        this.logger.warn(`Lỗi khi đọc file TTTT MS: ${e.message}`);
       }
+    }
 
-      if (dsgdPath && fs.existsSync(dsgdPath)) {
-        try {
-          const buf = fs.readFileSync(dsgdPath);
-          dsgdRows = parseDSGD(buf);
-          hasActualFiles = true;
-        } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file DSGD MS: ${e.message}`);
-        }
+    if (dsgdPath && fs.existsSync(dsgdPath)) {
+      try {
+        const buf = fs.readFileSync(dsgdPath);
+        dsgdRows = parseDSGD(buf);
+        hasActualFiles = true;
+      } catch (e: any) {
+        this.logger.warn(`Lỗi khi đọc file DSGD MS: ${e.message}`);
       }
     }
 
     // 2. Đọc dữ liệu CoreCCP
-    if (ccpDir && fs.existsSync(ccpDir)) {
-      const ccpTtmPath = findLatestFile(ccpDir, /TTM.*\.xlsx$/i);
-      const ccpTtttPath = findLatestFile(ccpDir, /TTTT.*\.xlsx$/i);
-      const ccpDsgdPath = findLatestFile(ccpDir, /DSGD.*\.xlsx$/i);
+    const ccpTtmPath = resolvePriorityFile(ccpTradingDailyPath, ccpDailyPath, /TTM.*\.xlsx$/i);
+    const ccpTtttPath = resolvePriorityFile(ccpTradingDailyPath, ccpDailyPath, /TTTT.*\.xlsx$/i);
+    const ccpDsgdPath = resolvePriorityFile(ccpTradingDailyPath, ccpDailyPath, /DSGD.*\.xlsx$/i);
 
-      if (ccpTtmPath && fs.existsSync(ccpTtmPath)) {
-        try {
-          const buf = fs.readFileSync(ccpTtmPath);
-          ccpTtmRows = CcpExcelParser.parseCcpTTMForExecutive(buf);
-          hasActualFiles = true;
-        } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file TTM CCP: ${e.message}`);
-        }
+    if (ccpTtmPath && fs.existsSync(ccpTtmPath)) {
+      try {
+        const buf = fs.readFileSync(ccpTtmPath);
+        ccpTtmRows = CcpExcelParser.parseCcpTTMForExecutive(buf);
+        hasActualFiles = true;
+      } catch (e: any) {
+        this.logger.warn(`Lỗi khi đọc file TTM CCP: ${e.message}`);
       }
+    }
 
-      if (ccpTtttPath && fs.existsSync(ccpTtttPath)) {
-        try {
-          const buf = fs.readFileSync(ccpTtttPath);
-          ccpTtttRows = CcpExcelParser.parseCcpTTTTForExecutive(buf);
-          hasActualFiles = true;
-        } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file TTTT CCP: ${e.message}`);
-        }
+    if (ccpTtttPath && fs.existsSync(ccpTtttPath)) {
+      try {
+        const buf = fs.readFileSync(ccpTtttPath);
+        ccpTtttRows = CcpExcelParser.parseCcpTTTTForExecutive(buf);
+        hasActualFiles = true;
+      } catch (e: any) {
+        this.logger.warn(`Lỗi khi đọc file TTTT CCP: ${e.message}`);
       }
+    }
 
-      if (ccpDsgdPath && fs.existsSync(ccpDsgdPath)) {
-        try {
-          const buf = fs.readFileSync(ccpDsgdPath);
-          const parsed = CcpExcelParser.parseDSGD(buf);
-          ccpDsgdRows = parsed.records;
-          hasActualFiles = true;
-        } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file DSGD CCP: ${e.message}`);
-        }
+    if (ccpDsgdPath && fs.existsSync(ccpDsgdPath)) {
+      try {
+        const buf = fs.readFileSync(ccpDsgdPath);
+        const parsed = CcpExcelParser.parseDSGD(buf);
+        ccpDsgdRows = parsed.records;
+        hasActualFiles = true;
+      } catch (e: any) {
+        this.logger.warn(`Lỗi khi đọc file DSGD CCP: ${e.message}`);
       }
     }
 
@@ -368,7 +542,7 @@ export class QlgdDashboardService {
       source: 'MS' | 'CCP';
     }
 
-    const unifiedTrades: UnifiedTrade[] = [];
+    let unifiedTrades: UnifiedTrade[] = [];
 
     for (const r of dsgdRows) {
       unifiedTrades.push({
@@ -392,6 +566,19 @@ export class QlgdDashboardService {
       });
     }
 
+    // Nếu đang xem một lượt trong quá khứ, lọc các giao dịch xảy ra trước hoặc tại thời điểm cutoff của lượt đó
+    if (isViewingHistorical && selectedJob) {
+      const jobCutoffStr = selectedJob.payload?.result?.cutoffTime || selectedJob.createdAt;
+      const jobCutoff = jobCutoffStr ? new Date(jobCutoffStr) : null;
+      if (jobCutoff && !isNaN(jobCutoff.getTime())) {
+        unifiedTrades = unifiedTrades.filter((t) => {
+          const dt = parseTradeDateTime(t.timeStr, targetDate);
+          if (!dt) return true;
+          return dt.getTime() <= jobCutoff.getTime();
+        });
+      }
+    }
+
     // Lọc theo Scope nếu người dùng yêu cầu (ALL / ACM / OTHERS)
     let filteredTrades = unifiedTrades;
     if (scope === 'ACM') {
@@ -399,6 +586,7 @@ export class QlgdDashboardService {
     } else if (scope === 'OTHERS') {
       filteredTrades = unifiedTrades.filter((t) => !isAcm(t.account));
     }
+
 
     // 4. Phân loại 4 mốc thời điểm và tính số tài khoản duy nhất (UNIQUE Accounts)
     const isSummer = isSummerTradingSeason(targetDate);
@@ -462,9 +650,9 @@ export class QlgdDashboardService {
       if (baseSym === 'PL1NY') pl1nyLot += lot;
       if (baseSym === 'CP2CO') cp2coLot += lot;
 
-      if (trade.account.endsWith('S')) spreadsLot += lot;
-      if (trade.account.endsWith('L')) lmeLot += lot;
-      if (trade.symbol.includes('.')) optionsLot += lot;
+      if (isSpread(trade.account)) spreadsLot += lot;
+      if (isLme(trade.account)) lmeLot += lot;
+      if (isOptions(trade.symbol)) optionsLot += lot;
 
       if (isAccountAcm) {
         acmKlgd += lot;
@@ -549,49 +737,33 @@ export class QlgdDashboardService {
     const accountsAt23h = acmEuroAccCount + othersEuroAccCount;
     const accountsAtEod = acmUsAccCount + othersUsAccCount;
 
-    const acmMilestones: MilestoneReportData = hasActualFiles && (acmKlgd > 0 || othersKlgd > 0)
-      ? {
-          earlySession: acmEarlyCum,
-          asianSession: acmAsiaCum,
-          europeanSession: acmEuroCum,
-          americanSession: isAmericanSessionPending ? acmEuroCum : acmUsCum,
-          isAmericanSessionPending,
-          uniqueAccounts: {
-            earlySession: acmEarlyAccCount,
-            asianSession: acmAsiaAccCount,
-            europeanSession: acmEuroAccCount,
-            americanSession: isAmericanSessionPending ? acmEuroAccCount : acmUsAccCount,
-          },
-        }
-      : {
-          earlySession: 123,
-          asianSession: 456,
-          europeanSession: 789,
-          americanSession: 1111,
-          isAmericanSessionPending: false,
-        };
+    const acmMilestones: MilestoneReportData = {
+      earlySession: acmEarlyCum,
+      asianSession: acmAsiaCum,
+      europeanSession: acmEuroCum,
+      americanSession: isAmericanSessionPending ? acmEuroCum : acmUsCum,
+      isAmericanSessionPending,
+      uniqueAccounts: {
+        earlySession: acmEarlyAccCount,
+        asianSession: acmAsiaAccCount,
+        europeanSession: acmEuroAccCount,
+        americanSession: isAmericanSessionPending ? acmEuroAccCount : acmUsAccCount,
+      },
+    };
 
-    const othersMilestones: MilestoneReportData = hasActualFiles && (acmKlgd > 0 || othersKlgd > 0)
-      ? {
-          earlySession: othersEarlyCum,
-          asianSession: othersAsiaCum,
-          europeanSession: othersEuroCum,
-          americanSession: isAmericanSessionPending ? othersEuroCum : othersUsCum,
-          isAmericanSessionPending,
-          uniqueAccounts: {
-            earlySession: othersEarlyAccCount,
-            asianSession: othersAsiaAccCount,
-            europeanSession: othersEuroAccCount,
-            americanSession: isAmericanSessionPending ? othersEuroAccCount : othersUsAccCount,
-          },
-        }
-      : {
-          earlySession: 123,
-          asianSession: 456,
-          europeanSession: 789,
-          americanSession: 1111,
-          isAmericanSessionPending: false,
-        };
+    const othersMilestones: MilestoneReportData = {
+      earlySession: othersEarlyCum,
+      asianSession: othersAsiaCum,
+      europeanSession: othersEuroCum,
+      americanSession: isAmericanSessionPending ? othersEuroCum : othersUsCum,
+      isAmericanSessionPending,
+      uniqueAccounts: {
+        earlySession: othersEarlyAccCount,
+        asianSession: othersAsiaAccCount,
+        europeanSession: othersEuroAccCount,
+        americanSession: isAmericanSessionPending ? othersEuroAccCount : othersUsAccCount,
+      },
+    };
 
     // 5. Sinh 3 mẫu tin nhắn tự động chuẩn cho Ban Giám Sát và Room QLGD
     const [tY, tM, tD] = targetDate.split('-');
@@ -637,41 +809,86 @@ export class QlgdDashboardService {
       });
     }
 
-    // Tích lũy TTM M-System (loại trừ tài khoản tận cùng A cho PnL theo chuẩn Sheet 2)
-    for (const row of ttmRows) {
-      const baseSym = extractCcpBaseProduct(row.symbol);
-      const curr = productAggregation.get(baseSym) || {
-        longLots: 0,
-        shortLots: 0,
-        expectedPnL: 0,
-        liquidatedLots: 0,
-        realizedPnL: 0,
-      };
+    // =========================================================================
+    // CẤU HÌNH NGUỒN TÍNH VỊ THẾ MỞ (TTM) & LÃI LỖ DỰ KIẾN (PnL UNREALIZED):
+    // -------------------------------------------------------------------------
+    // - CHUẨN NGHIỆP VỤ MỚI (Mặc định: INCLUDE_MS_TTM = false):
+    //   CoreCCP hiện là Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV.
+    //   Toàn bộ vị thế mở (Open Interest) được quản lý trên CoreCCP.
+    //   Chỉ lấy dữ liệu từ CoreCCP ('TTM CCP') để phản ánh chính xác và tránh bị
+    //   nhân đôi số liệu (double counting) do cộng thêm M-System.
+    //   (Nếu CoreCCP chưa có dữ liệu, hệ thống tự động fallback sang MS để không bị trống).
+    //
+    // - LOGIC CŨ THEO FILE EXCEL GỐC Check BGS All.xlsm Sheet 2 (INCLUDE_MS_TTM = true):
+    //   Giai đoạn chuyển đổi (migration), Excel cộng cả 2 nguồn:
+    //   =SUMIFS('TTM MS'!N:N...) + SUMIFS('TTM CCP'!I:I...)
+    //   Được lưu trữ nguyên vẹn bên dưới để phục vụ tra cứu hoặc kích hoạt lại khi cần.
+    // =========================================================================
+    const INCLUDE_MS_TTM = false;
 
-      const isAccountAcm = isAcm(row.account);
-      curr.longLots += row.tongMua;
-      curr.shortLots += row.tongBan;
-      if (!isAccountAcm) {
-        curr.expectedPnL += row.expectedPnLVnd;
+    if (INCLUDE_MS_TTM) {
+      // ── LOGIC CŨ (LƯU TRỮ NGUYÊN BẢN): CỘNG GỘP CẢ M-SYSTEM VÀ CORECCP ──
+      // 1. Tích lũy TTM M-System (loại trừ tài khoản tận cùng A cho PnL theo chuẩn Sheet 2)
+      for (const row of ttmRows) {
+        const baseSym = extractCcpBaseProduct(row.symbol);
+        const curr = productAggregation.get(baseSym) || {
+          longLots: 0,
+          shortLots: 0,
+          expectedPnL: 0,
+          liquidatedLots: 0,
+          realizedPnL: 0,
+        };
+
+        const isAccountAcm = isAcm(row.account);
+        curr.longLots += row.tongMua;
+        curr.shortLots += row.tongBan;
+        if (!isAccountAcm) {
+          curr.expectedPnL += row.expectedPnLVnd;
+        }
+        productAggregation.set(baseSym, curr);
       }
-      productAggregation.set(baseSym, curr);
-    }
 
-    // Tích lũy TTM CoreCCP
-    for (const row of ccpTtmRows) {
-      const baseSym = extractCcpBaseProduct(row.symbol);
-      const curr = productAggregation.get(baseSym) || {
-        longLots: 0,
-        shortLots: 0,
-        expectedPnL: 0,
-        liquidatedLots: 0,
-        realizedPnL: 0,
-      };
+      // 2. Tích lũy TTM CoreCCP
+      for (const row of ccpTtmRows) {
+        const baseSym = extractCcpBaseProduct(row.symbol);
+        const curr = productAggregation.get(baseSym) || {
+          longLots: 0,
+          shortLots: 0,
+          expectedPnL: 0,
+          liquidatedLots: 0,
+          realizedPnL: 0,
+        };
 
-      curr.longLots += row.tongMua;
-      curr.shortLots += row.tongBan;
-      curr.expectedPnL += row.expectedPnLVnd;
-      productAggregation.set(baseSym, curr);
+        curr.longLots += row.tongMua;
+        curr.shortLots += row.tongBan;
+        curr.expectedPnL += row.expectedPnLVnd;
+        productAggregation.set(baseSym, curr);
+      }
+    } else {
+      // ── LOGIC MỚI: CHỈ TÍNH TRÊN CORECCP (100% CORECCP, TUYỆT ĐỐI KHÔNG FALLBACK SANG MS) ──
+      // Theo chỉ đạo của USER: Nếu CoreCCP chưa có dữ liệu TTM thì để 0, tuyệt đối không fallback sang MS.
+      for (const row of ccpTtmRows) {
+        const baseSym = extractCcpBaseProduct(row.symbol);
+        const curr = productAggregation.get(baseSym) || {
+          longLots: 0,
+          shortLots: 0,
+          expectedPnL: 0,
+          liquidatedLots: 0,
+          realizedPnL: 0,
+        };
+
+        curr.longLots += row.tongMua;
+        curr.shortLots += row.tongBan;
+        curr.expectedPnL += row.expectedPnLVnd;
+        productAggregation.set(baseSym, curr);
+      }
+
+      /*
+      // [ARCHIVED - ĐÃ VÔ HIỆU HÓA THEO CHỈ ĐẠO USER] Tuyệt đối không fallback sang M-System
+      if (ccpTtmRows.length === 0 && ttmRows.length > 0) {
+        this.logger.log(`Fallback M-System đã bị vô hiệu hóa.`);
+      }
+      */
     }
 
     // Tích lũy TTTT M-System
@@ -791,7 +1008,7 @@ export class QlgdDashboardService {
       scope,
       catalogScope,
       hasActualFiles,
-      dataSource: hasActualFiles ? 'BACKUP_FILES' : 'MOCK',
+      dataSource: hasActualFiles ? 'DIRECT_API' : 'MOCK',
       latestMetrics: {
         acm: {
           klgd: acmKlgd,
@@ -821,6 +1038,10 @@ export class QlgdDashboardService {
       qlgdMessages,
       items: allItems,
       totals,
+      runs,
+      currentJobId: jobId || (runs.length > 0 ? runs[0].id : null),
+      isViewingHistorical,
     };
   }
 }
+

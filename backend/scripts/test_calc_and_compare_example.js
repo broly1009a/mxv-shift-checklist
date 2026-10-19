@@ -282,7 +282,7 @@ console.log('===================================================================
 function printComparison(label, sysVal, qlgdVal, unit = 'lot') {
   const match = sysVal === qlgdVal;
   const diff = sysVal - qlgdVal;
-  const statusStr = match ? ' KHỚP 100%' : `❌ LỆCH (${diff > 0 ? '+' : ''}${diff})`;
+  const statusStr = match ? ' KHỚP 100%' : ` LỆCH (${diff > 0 ? '+' : ''}${diff})`;
   const formattedSys = typeof sysVal === 'number' && sysVal > 1000000 ? formatVnd(sysVal) : `${sysVal} ${unit}`;
   const formattedQlgd = typeof qlgdVal === 'number' && qlgdVal > 1000000 ? formatVnd(qlgdVal) : `${qlgdVal} ${unit}`;
   console.log(`  - ${label.padEnd(35)}: Hệ thống = ${formattedSys.padStart(15)} | QLGD = ${formattedQlgd.padStart(15)} -> ${statusStr}`);
@@ -314,7 +314,7 @@ for (const code of allAcmTvkdCodes) {
   if (sysV !== 0 || qlgdV !== 0) {
     const isMatch = sysV === qlgdV;
     if (!isMatch) acmTvkdAllMatch = false;
-    console.log(`    + TVKD ${code}: Hệ thống = ${String(sysV).padStart(5)} lot | QLGD = ${String(qlgdV).padStart(5)} lot -> ${isMatch ? ' KHỚP' : '❌ LỆCH'}`);
+    console.log(`    + TVKD ${code}: Hệ thống = ${String(sysV).padStart(5)} lot | QLGD = ${String(qlgdV).padStart(5)} lot -> ${isMatch ? ' KHỚP' : ' LỆCH'}`);
   }
 }
 console.log(`  => KẾT LUẬN TVKD ACM: ${acmTvkdAllMatch ? 'TẤT CẢ 100% CÁC THÀNH VIÊN ĐỀU KHỚP TUYỆT ĐỐI!' : 'CÓ LỆCH'}`);
@@ -333,7 +333,7 @@ for (const code of allNormTvkdCodes) {
     const isMatch = sysTotal === qlgdV;
     if (!isMatch) normTvkdAllMatch = false;
     const lmeNote = sysLme > 0 ? ` (gồm ${sysNormal} lot thường + ${sysLme} lot LME)` : '';
-    console.log(`    + TVKD ${code}: Hệ thống = ${String(sysTotal).padStart(5)} lot${lmeNote.padEnd(35)} | QLGD = ${String(qlgdV).padStart(5)} lot -> ${isMatch ? ' KHỚP' : '❌ LỆCH'}`);
+    console.log(`    + TVKD ${code}: Hệ thống = ${String(sysTotal).padStart(5)} lot${lmeNote.padEnd(35)} | QLGD = ${String(qlgdV).padStart(5)} lot -> ${isMatch ? ' KHỚP' : ' LỆCH'}`);
   }
 }
 console.log(`  => KẾT LUẬN TVKD SỔ THƯỜNG: ${normTvkdAllMatch ? 'TẤT CẢ 100% CÁC THÀNH VIÊN ĐỀU KHỚP TUYỆT ĐỐI!' : 'CÓ LỆCH'}`);
