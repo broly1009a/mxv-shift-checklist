@@ -152,6 +152,7 @@ export class CoreExApiAdapter implements IIngressPort {
     let username = process.env.COREEXCHANGE_USERNAME || '';
     let password = process.env.COREEXCHANGE_PASSWORD || '';
     let clientId = process.env.COREEXCHANGE_CLIENT_ID || this.defaultClientId;
+    let clientSecret = process.env.COREEXCHANGE_CLIENT_SECRET || '';
 
     if (this.settingsService) {
       baseUrl = await this.settingsService.getSetting('coreex_base_url', baseUrl);
@@ -163,8 +164,13 @@ export class CoreExApiAdapter implements IIngressPort {
           if (decrypted.username) username = decrypted.username;
           if (decrypted.password) password = decrypted.password;
           if (decrypted.clientId) clientId = decrypted.clientId;
+          if (decrypted.clientSecret) clientSecret = decrypted.clientSecret;
         } catch {}
       }
+    }
+
+    if (!clientSecret) {
+      clientSecret = baseUrl.includes('uat') ? 'jY3lgfDQQdJceOILsjKIxKLa0MQ7IU' : '865lhHVYOWQ93CicOirSZv4NR5JBe8';
     }
 
     try {
@@ -277,10 +283,11 @@ export class CoreExApiAdapter implements IIngressPort {
         tokenParams.append('code', oauthCode);
         tokenParams.append('redirect_uri', redirectUri);
 
+        const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
         const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
           method: 'POST',
           headers: {
-            Authorization: 'Basic d2ViLWV4Y2hhbmdlLW14djo4NjVsaEhWWU9XUTkzQ2ljT2lyU1p2NE5SNUpCZTg=',
+            Authorization: `Basic ${basicAuth}`,
             'Content-Type': 'application/x-www-form-urlencoded',
             Cookie: sessionCookie,
           },

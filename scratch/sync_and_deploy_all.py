@@ -17,12 +17,14 @@ files_to_sync = [
     'backend/src/modules/ingress/scrapers/rpa-scraper.service.ts',
     'backend/src/modules/ingress/scrapers/ms-scraper.service.ts',
     'backend/src/modules/ingress/scrapers/ccp-scraper.service.ts',
+    'backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts',
     'backend/src/modules/ingress/adapters/ms-api.adapter.ts',
     'backend/src/modules/ingress/adapters/coreccp-api.adapter.ts',
     'backend/src/modules/ingress/adapters/coreex-api.adapter.ts',
     'backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts',
     'backend/src/modules/bot-engine/handlers/file-audit.handler.ts',
     'frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx',
+    'CHANGELOG_AI.md',
 ]
 
 base_local = r'c:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation'

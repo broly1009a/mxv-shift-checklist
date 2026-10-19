@@ -1,3 +1,21 @@
+## [2026-10-19T17:55] BUGFIX: Khắc Phục Lỗi Cào Giao Diện (Playwright Scraper) Không Tải Báo Cáo Nào Khi Nhận Mã "FULL" / Chuỗi Mã Báo Cáo
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi trong Job ID `6ad5f61e67544cdff20cac11`: Khi người dùng bật chế độ Cào Giao Diện (Playwright), bot đăng nhập thành công vào CoreExchange (`/DASHBOARD`) nhưng lập tức in `HOAN THANH TOAN BO TIEN TRINH TAI BAO CAO!` mà không tải bất kỳ file nào.
+- Nguyên nhân gốc: `ccp-ce-download.handler.ts` truyền mảng chuỗi `reports: ["FULL"]` vào `ccpCeDownloaderService.run()`. Trong `ccp-ce-scraper.service.ts`, lệnh `(runOpts.reports ?? DEFAULT_CE_REPORTS).filter((r) => r.enabled)` kiểm tra `r.enabled` trên phần tử dạng string `"FULL"` (`"FULL".enabled === undefined`), dẫn đến kết quả `reportsToRun` bị xóa sạch thành `[]` (0 báo cáo). Vòng lặp tải không chạy lần nào.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts#L1767-L1787):
+   - Chuẩn hóa bộ lọc `reportsToRun`: Kiểm tra nếu `runOpts.reports` là mảng chuỗi (như `["FULL"]`, `["ALL"]`, `["DSL"]`):
+     - Nếu chứa `FULL`, `ALL` hoặc `BACKUP` $\rightarrow$ Tự động nạp toàn bộ danh mục báo cáo mặc định (`DEFAULT_CE_REPORTS` hoặc `DEFAULT_CCP_REPORTS`).
+     - Nếu chứa danh sách mã cụ thể $\rightarrow$ Lọc theo `setCodes.has(r.code.toUpperCase())`.
+     - Nếu đã là danh sách `CcpReportConfig` $\rightarrow$ Lọc theo `r.enabled`.
+   - Áp dụng Fail-Fast (Rule 4): Nếu sau khi lọc mà `reportsToRun.length === 0`, ném Exception ngay lập tức thay vì âm thầm trả về `true`.
+2. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L168-L171):
+   - Động hóa `CLIENT_SECRET` của CoreExchange giữa UAT (`jY3lgfDQQdJceOILsjKIxKLa0MQ7IU`) và PROD (`865lhHVYOWQ93CicOirSZv4NR5JBe8`).
+
+---
+
 ## [2026-10-19T16:45] ZERO-HARDCODING FIX: Xóa Bỏ Hoàn Toàn Hardcode Hợp Đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`), Tự Động Trích Xuất Hợp Đồng Theo Danh Mục Hàng Hóa Động & Chuẩn Hóa Header Tiếng Việt
 
 ### 1. Mục tiêu thay đổi

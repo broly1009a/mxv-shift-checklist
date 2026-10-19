@@ -1764,8 +1764,26 @@ export class CcpCeScraperService {
       acctNo: runOpts.options?.acctNo ?? '',
     };
 
-    const reportsToRun = (runOpts.reports ?? (this.isCoreExSystem(systemUrl) ? DEFAULT_CE_REPORTS : DEFAULT_CCP_REPORTS))
-      .filter((r) => r.enabled);
+    const defaultReports = this.isCoreExSystem(systemUrl) ? DEFAULT_CE_REPORTS : DEFAULT_CCP_REPORTS;
+    let reportsToRun: CcpReportConfig[] = [];
+
+    if (!runOpts.reports || (Array.isArray(runOpts.reports) && runOpts.reports.length === 0)) {
+      reportsToRun = defaultReports.filter((r) => r.enabled);
+    } else if (Array.isArray(runOpts.reports) && typeof runOpts.reports[0] === 'string') {
+      const stringCodes = (runOpts.reports as unknown as string[]).map((c) => c.toUpperCase());
+      if (stringCodes.some((c) => ['FULL', 'ALL', 'BACKUP'].includes(c))) {
+        reportsToRun = defaultReports.filter((r) => r.enabled);
+      } else {
+        const setCodes = new Set(stringCodes);
+        reportsToRun = defaultReports.filter((r) => setCodes.has(r.code.toUpperCase()));
+      }
+    } else {
+      reportsToRun = (runOpts.reports as CcpReportConfig[]).filter((r) => r.enabled);
+    }
+
+    if (reportsToRun.length === 0) {
+      throw new Error(`[${this.isCoreExSystem(systemUrl) ? 'CoreEX' : 'CoreCCP'}] Không tìm thấy báo cáo hợp lệ nào để tải (danh sách yêu cầu rỗng hoặc không khớp mã báo cáo).`);
+    }
 
     const todayDmy = formatDmY(new Date());
     const effStartDate = startDate || todayDmy;
