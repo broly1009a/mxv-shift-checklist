@@ -23,6 +23,112 @@
 
 ---
 
+## [2026-10-19T15:40] ARCHITECTURE REFACTOR & FIX: Tách Rời Cấu Hình Báo Cáo CoreCCP & CoreEX Ra Shared Domain Configs, Khắc Phục Lỗi 404/403 Và Tải Thành Công 24 Báo Cáo Ca Trực Qua Direct REST API
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo & câu hỏi của USER: *"báo lỗi gì đây"* (lỗi 404/403 khi tải CoreCCP) và *"sao không đưa riêng ra ngoài để dùng chung dễ maintain"*.
+- Tách rời hoàn toàn định nghĩa danh mục báo cáo (~350 dòng) ra khỏi `CoreCcpApiAdapter` và `CoreExApiAdapter` để trở thành các Domain Config độc lập, dùng chung (Shared SSOT) theo đúng chuẩn Enterprise & Clean Architecture.
+- Khắc phục triệt để lỗi gọi API tới các endpoint không tồn tại (HTTP 404: `ORDERBOOK_FILLED`, `ORDERBOOK_WORKING`...) và lỗi quyền WebSocket export (HTTP 403: `ORDERBOOK_ALL_MM`).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - **Tạo mới Domain Config độc lập cho CoreCCP**: Định nghĩa interface `ICcpReportMapping`, bảng tra cứu `CORECCP_API_REPORTS`, và hàm resolver `resolveCoreCcpReport()`.
+   - **Ground Truth 100%**: Chỉ gọi REST API tới đúng 12 SearchCode gốc thực tế đã audit thành công HTTP 200 trên máy chủ (`ORDERBOOK`, `ORDERMATCH_DETAIL`, `ORDERBOOK_MM`, `OPEN_POSITION`, `PNL_EXECUTED`, `ACCTMARGIN_ALL`, `ACCTMARGIN_POS`, `CASHTRANFER_HIST`, `ACCOUNTS_INFO`, `SETTLEMENT`, `COMMODITY`, `CURRENCYEXCHANGERATE`).
+   - **Cấu hình Quy tắc dẫn xuất (`CORECCP_DERIVED_RULES`)**: Tự động sinh ra các file phái sinh cho ca trực (`DSLDK CCP.xlsx`, `DSLCK CCP.xlsx`, `DSLDH CCP.xlsx`, `DSLDK MM CCP.xlsx`, `DSLCK MM CCP.xlsx`, `DSLDH MM CCP.xlsx`, `DSGD MM CCP.xlsx`, `TTM truoc 4h20.xlsx`, `QL TT TKGD truoc 4h20.xlsx`, `DSGD_<date>.xlsx`, `TTTT_<date>.xlsx`, `TTM_<date>.xlsx`), bảo đảm ca trực có trọn vẹn đủ 19-24 file mà không bị 404.
+2. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - **Tạo mới Domain Config độc lập cho CoreEX**: Chuyển `CORE_EXCHANGE_REPORTS_REGISTRY`, `CANONICAL_COREEX_API_KEYS`, và `resolveCoreExchangeReport()` ra khỏi adapter.
+3. [backend/src/shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts#L6-L10):
+   - Export công khai 2 module cấu hình báo cáo mới để Ingress Adapters, Scrapers, Workers, UI components và test scripts cùng dùng chung.
+4. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L11-L20,L710-L750,L860-L890):
+   - Giảm hơn 300 dòng code thừa; import toàn bộ types, constants và rules từ `src/shared`.
+   - Cơ chế tự động fallback: Nếu Server WebSocket Export bị 403 hoặc timeout, tự động chuyển ngay sang Direct JSON Search + ExcelJS an toàn.
+   - Sửa cơ chế kết quả: Giữ nguyên `files` tải được khi hoàn tất, không nuốt lỗi làm rỗng danh sách.
+5. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L10-L20,L380-L425):
+   - Import registry từ `src/shared`, dọn sạch code duplicate.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**: `npm run build` Backend thành công 100% (Nest build code 0).
+- **Server Ubuntu (10.0.0.26)**:
+   - Đồng bộ toàn bộ file mới và biên dịch cả Backend lẫn Frontend thành công.
+   - Restart các dịch vụ PM2: `mxv-backend` (PID `2890172`), `mxv-frontend` (PID `2890415`).
+- **Live Verification**:
+   - Chạy lệnh trigger thực tế qua curl: Job `6ad5d73ae0738cfeb7352145` hoàn tất **COMPLETED** trong 3094ms, tải thành công trọn vẹn **24 báo cáo CoreCCP** lưu vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/19.10`, 0 lỗi, 0 retry.
+
+---
+
+## [2026-10-19T15:20] AUDIT & REFACTOR: Rà Soát Toàn Diện Luồng Tải Báo Cáo M-System (MS), Chuẩn Hóa Tên File Báo Cáo Theo Ground Truth & Tối Ưu Hóa Phối Hợp Direct REST API - Playwright RPA
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu kiểm tra toàn diện của USER: *"còn bug nào khi tải file nữa không giúp tôi check lại luôn luồng tải ms"*.
+- Rà soát toàn bộ luồng tải M-System từ Backend Handler (`FileAuditJobHandler`, `RpaDownloadJobHandler`), Ingress Port (`MsApiAdapter`), đến RPA Playwright Scraper (`MSystemScraperService`, `MsTabScraperService`).
+- So sánh đối chiếu Ground Truth 100% với thư mục lưu trữ thực tế của MXV trên máy chủ `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T10.2026/14.10/`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts#L48-L75,L110-L135,L265-L290,L645-L680):
+   - **Chuẩn hóa tên file theo Ground Truth**:
+     - Sửa `QLTKGD_am_KQ.xlsx` $\rightarrow$ `QLTKGDAmKQ.xlsx` (viết liền, đúng theo tên file thực tế của MXV tại `14.10`).
+     - Sửa `TLQHSKQ.xlsx` $\rightarrow$ `TLKQHSKQ.xlsx` (có ký tự `K`, đúng theo chuẩn nghiệp vụ).
+   - **Khai báo `CANONICAL_MS_KEYS`**: Danh sách 19 báo cáo chuẩn gốc của M-System, ngăn ngừa việc duyệt trùng lặp alias khi chạy chế độ Full Backup (`isFullRequested`).
+   - Bổ sung alias mapping: `QLTKGDAmKQ`, `TLKQHSKQ`, `QLTKGD ÂM KQ` trỏ chính xác về canonical key trong registry.
+2. [backend/src/modules/bot-engine/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/file-audit.handler.ts#L683-L735):
+   - **Khắc phục Bug mở Playwright bắt buộc trong `handleFileAuditMsJob`**: Trước đây khi thiếu file, code luôn mở Chromium Playwright `loginMSystem` bất kể cấu hình. Nay đã bổ sung kiểm tra cờ `ingress_mode_ms`. Nếu bật `REST_API`, hệ thống ưu tiên tải nhanh các file thiếu qua Direct REST API, sau đó mới chỉ khởi động Playwright cho những file đặc thù chưa có API (như `market truoc 6h.csv`) hoặc khi API gặp sự cố.
+3. [backend/src/modules/ingress/scrapers/ms-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ms-scraper.service.ts#L130-L155):
+   - **Khắc phục Bug Timeout kiểm tra Dashboard**: Bổ sung fallback kiểm tra URL hash rời khỏi `/login` và sự hiện diện của layout/navbar/user-profile khi widget "Ngày phiên hiện tại:" tải chậm (>15s), ngăn chặn việc báo lỗi sai dù người dùng đã đăng nhập thành công.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**:
+   - `cmd.exe /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
+   - `cmd.exe /c npm run build` (Frontend): Next.js Turbopack biên dịch thành công 36 routes (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+   - Đồng bộ toàn bộ các file cập nhật lên máy chủ.
+   - Build và restart thành công: `mxv-backend` (PID `2884607`, online), `mxv-frontend` (PID `2884827`, online).
+
+---
+
+## [2026-10-19T14:45] REFACTOR & FIX: Chuẩn Hóa Danh Mục Báo Cáo CoreCCP (19 File + HĐ Động) & CoreEX (12 File + HĐ Động), Khắc Phục Triệt Để Luồng Tải SFTP ACM & Chống Nuốt Lỗi Fail-Fast
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu & chỉ đạo trực tiếp từ USER:
+  1. Điều tra và khắc phục việc Job CoreCCP (`6ad5bf6d12bcb2f871c97a27`) chỉ tải 6 file (`NR`, `TTTT`, `DSL CCP`, `DSGD CCP`, `GTT CCP`, `HH`).
+  2. Điều tra và khắc phục việc Job CoreEX (`6ad5bfe112bcb2f871c97a2a`) báo hoàn tất trong 172ms nhưng tải 0 file và nuốt lỗi.
+  3. Khắc phục việc Job ACM (`6ad5bfef12bcb2f871c97a2d`) tải xong Web (`Order.xlsx`, `Fill.xlsx`) nhưng báo thiếu file SFTP (`*_19102026.csv`, `2026-10-19_*.xls`).
+  4. Chuẩn hóa lại cơ cấu danh mục theo đúng thực tế sàn MXV: **CoreCCP là 19 file chuẩn + các file hợp đồng hàng hóa động**, **CoreEX là 12 file chuẩn + các file hợp đồng hàng hóa động** (số lượng động không cố định).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx#L33-L90):
+   - Thay thế toàn bộ mảng tĩnh 12 mã cũ bằng `CORE_CCP_REPORTS_LIST`: 19 file chuẩn cố định (5 sổ lệnh thường `DSL`, `DSLDK`, `DSLCK`, `DSLDH`, `DSGD`; 5 sổ lệnh MM `DSL_MM`, `DSLDK_MM`, `DSLCK_MM`, `DSLDH_MM`, `DSGD_MM`; 3 vị thế `TTM_PRE1620`, `TTM`, `TTTT`; 5 rủi ro/ký quỹ `QLTTTKGD_PRE1620`, `QLTTTKGD`, `QLTTTVKD`, `DSQLKQ_TKGD`, `DSQLKQ_TVKD`; 2 nộp rút/TK `NR`, `DSTKGD`; GTT, HH, TYGIA) + mục `HD` (Hợp đồng hàng hóa động `HĐ *.xlsx`).
+   - Cập nhật `CORE_EX_REPORTS_LIST`: 12 file liên thông (5 sổ lệnh `DSGD`, `DSL`, `DSLCK`, `DSLDK`, `DSLH`; 4 giá/phiên `GTT`, `HH`, `SESSION_INFO`, `SESSION_CONFIG`; `TTM`, `ACM_RECON`) + mục `HD` (Hợp đồng chi tiết CE).
+   - Khi người dùng bấm nút tải tất cả hoặc chọn All, payload tự động gửi `reports: ['FULL']` kích hoạt Full Backup.
+2. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L240-L295,L1040-L1095):
+   - Bổ sung toàn bộ các alias (`DSLDK`, `DSLCK`, `DSLDH`, `DSL_MM`, `DSLDK_MM`, `DSLCK_MM`, `DSLDH_MM`, `DSGD_MM`, `QLTTTKGD_PRE1620`, `QLTTTVKD`, `DSTKGD`) vào dictionary `CORECCP_API_REPORTS`.
+   - Cấu hình mảng `CANONICAL_CORECCP_KEYS` gồm 26 key chuẩn gốc (19 file chuẩn EOD + 2 PRE1620 + hỗ trợ + 3 HĐ nano), loại bỏ tình trạng duyệt đè alias trùng lặp.
+   - Chuẩn hóa hàm so khớp `cleanTarget = upper.replace(/[\s_-]/g, '')` triệt tiêu lệch cú pháp giữa Frontend và Backend.
+3. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L95-L185,L540-L565):
+   - Chuẩn hóa `baseUrl` qua `new URL(baseUrl).origin` ngăn chặn lỗi nối URL `/login/login`.
+   - Bổ sung đầy đủ 12 báo cáo liên thông vào `CORE_EXCHANGE_REPORTS_REGISTRY` (`DSGD_ALL`, `DSL_SESSION`, `DSGD_MM`, `DSL_MM`, `SESSION_CONFIG`, `TTM`, `ACM_RECON`).
+   - Tích hợp chuẩn hóa `cleanTarget` fuzzy match cho CoreEX.
+4. [backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts#L125-L132):
+   - Thêm rào cản Fail-Fast (Zero-Silent-Swallow): Khi `!ingressRes.success || ingressRes.files.length === 0`, bắt buộc gán `job.status = 'FAILED'` và `throw new Error(...)`, cấm đánh dấu `COMPLETED` ảo khi tải 0 file.
+5. [backend/src/modules/ingress/adapters/acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts#L113-L235):
+   - Sửa định dạng ngày từ `targetDateStr.replace(/-/g, '')` (YYYYMMDD) thành định dạng chuẩn `${day}${month}${year}` (DDMMYYYY = `19102026`).
+   - Tải toàn bộ các file khớp từ remote SFTP: file CSV kết thúc bằng `_${ddmmyyyy}.csv` và file XLS bắt đầu bằng `${yyyy_mm_dd}_`.
+   - Lưu đúng tên file gốc và tự động tạo alias `Straits_${ddmmyyyy}.csv` để tương thích tuyệt đối với mọi dịch vụ trong hệ thống.
+6. [backend/src/modules/ingress/ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts#L95-L120):
+   - Điều phối thông minh nguồn ACM: Nếu `reportCodes` có `SFTP`, gọi trực tiếp `AcmSftpAdapter`; nếu `isFull`, tải trọn gói cả SFTP (CSV/XLS) và ETP Web (`Order`/`Fill`).
+7. [backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts#L3110-L3124):
+   - Truyền `reportCodes: ['SFTP']` khi ủy quyền tải SFTP ACM sang `IngressService`, đồng thời kiểm tra `result.files.length > 0` trước khi kết thúc để tránh nuốt việc tải file.
+8. [backend/src/modules/bot-engine/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/file-audit.handler.ts#L930-L1045):
+   - Đọc cờ `ingress_mode_acm` từ CSDL/Settings: Nếu `ingress_mode_acm === 'REST_API'`, kích hoạt Direct API thông qua `AcmEtpAdapter` (tải `Order.xlsx` & `Fill.xlsx`) trực tiếp không mở trình duyệt Playwright Chromium. Chỉ fallback sang Playwright khi không dùng API hoặc API gặp lỗi.
+   - **Tách độc lập 100% giữa SFTP và Web/API ETP**: Khi báo cáo Web ETP (`Order.xlsx` & `Fill.xlsx`) đã tải về thành công, Job hoàn tất **THÀNH CÔNG**; nếu thiếu file SFTP (`*_19102026.csv` hoặc `2026-10-19_*.xls`), hệ thống chỉ ghi log cảnh báo SFTP chứ không ném lỗi làm `FAILED` cả Job của ca trực.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**:
+  - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
+  - `cmd /c npm run build` (Frontend): Next.js Turbopack biên dịch thành công 36 routes (Exit code 0).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ toàn bộ 7 file bị ảnh hưởng lên `/opt/mxv-checklist/`.
+  - Chạy `npm run build` trên cả `backend` và `frontend` trên Ubuntu: 100% thành công.
+  - Restart các tiến trình PM2: `mxv-backend` (PID: `2873890`), `mxv-frontend` (PID: `2874139`), dịch vụ đang `online` và ổn định.
 ## [2026-10-19T15:20] FRONTEND UPGRADE: Tách Bạch Rõ Ràng Màn Hình Cấu Hình Trading Manager Giữa MS - CQG (OMS Cũ) và CoreCCP & CoreEX (Bù Trừ & Sàn Mới)
 
 ### 1. Mục tiêu nâng cấp

@@ -46,8 +46,30 @@ export interface IMsReportDef {
 }
 
 /**
- * DANH MỤC 18 BÁO CÁO M-SYSTEM CHUẨN XÁC 100% (GROUND TRUTH AUDITED)
+ * DANH MỤC 19 BÁO CÁO M-SYSTEM CHUẨN XÁC 100% (GROUND TRUTH AUDITED)
  */
+export const CANONICAL_MS_KEYS: string[] = [
+  'NKTTHT',
+  'DSTKGD-Futures',
+  'DSTKGD-Spread',
+  'DSTKGD-LME',
+  'DSTKGD-ACM',
+  'TLKQHSKQ',
+  'NR',
+  'DSTrader',
+  'DSLDK',
+  'DSLCK',
+  'DSLH',
+  'DSLK',
+  'DSGD',
+  'TTM',
+  'TTTT',
+  'TTCDH',
+  'DSQLKQ',
+  'QLTKGD',
+  'QLTKGDAmKQ',
+];
+
 export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
   // 1. NHẬT KÝ THAO TÁC HỆ THỐNG
   'NKTTHT': {
@@ -109,16 +131,27 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
   },
 
   // 3. THIẾT LẬP KÝ QUỸ & NỘP RÚT TIỀN
-  'TLQHSKQ': {
-    key: 'TLQHSKQ',
+  'TLKQHSKQ': {
+    key: 'TLKQHSKQ',
     name: 'Thiết lập quan hệ số ký quỹ',
-    fileName: 'TLQHSKQ.xlsx',
+    fileName: 'TLKQHSKQ.xlsx',
     group: 'QL Khách hàng',
     endpoint: '/am/admin/margin-ratio-multiplier/investors/excel',
     method: 'GET',
     ext: 'xlsx',
     queryParams: { sort_by: 'desc(createdDate)' },
     description: 'Bảng thiết lập hệ số ký quỹ và tỷ lệ ký quỹ theo tài khoản',
+  },
+  'TLQHSKQ': {
+    key: 'TLQHSKQ',
+    name: 'Thiết lập quan hệ số ký quỹ (Alias)',
+    fileName: 'TLKQHSKQ.xlsx',
+    group: 'QL Khách hàng',
+    endpoint: '/am/admin/margin-ratio-multiplier/investors/excel',
+    method: 'GET',
+    ext: 'xlsx',
+    queryParams: { sort_by: 'desc(createdDate)' },
+    description: 'Bảng thiết lập hệ số ký quỹ và tỷ lệ ký quỹ theo tài khoản (Alias)',
   },
   'NR': {
     key: 'NR',
@@ -251,15 +284,25 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
     ext: 'xlsx',
     description: 'Quản lý trạng thái ký quỹ tài khoản giao dịch',
   },
-  'QLTKGD âm KQ': {
-    key: 'QLTKGD âm KQ',
+  'QLTKGDAmKQ': {
+    key: 'QLTKGDAmKQ',
     name: 'Quản lý TKGD âm ký quỹ',
-    fileName: 'QLTKGD_am_KQ.xlsx',
+    fileName: 'QLTKGDAmKQ.xlsx',
     group: 'QL Khách hàng',
     endpoint: '/margin/admin/status/negative/excel',
     method: 'GET',
     ext: 'xlsx',
     description: 'Danh sách tài khoản giao dịch rơi vào tình trạng âm ký quỹ',
+  },
+  'QLTKGD âm KQ': {
+    key: 'QLTKGD âm KQ',
+    name: 'Quản lý TKGD âm ký quỹ (Alias)',
+    fileName: 'QLTKGDAmKQ.xlsx',
+    group: 'QL Khách hàng',
+    endpoint: '/margin/admin/status/negative/excel',
+    method: 'GET',
+    ext: 'xlsx',
+    description: 'Danh sách tài khoản giao dịch rơi vào tình trạng âm ký quỹ (Alias)',
   },
 };
 
@@ -605,7 +648,7 @@ export class MsApiAdapter implements IIngressPort {
 
     let targetKeys: string[] = [];
     if (isFullRequested) {
-      targetKeys = Object.keys(MS_REPORTS_REGISTRY);
+      targetKeys = [...CANONICAL_MS_KEYS];
       this.logger.log(`[MsApiAdapter] Kích hoạt chế độ FULL BACKUP cho M-System: tải toàn bộ ${targetKeys.length} báo cáo.`);
     } else if (options?.reportType) {
       targetKeys.push(options.reportType.trim());
@@ -616,12 +659,12 @@ export class MsApiAdapter implements IIngressPort {
         const upper = k.toUpperCase();
         if (upper === 'DSTKGD') {
           targetKeys.push('DSTKGD-Futures', 'DSTKGD-Spread', 'DSTKGD-LME', 'DSTKGD-ACM');
-        } else if (upper === 'TLKQHSKQ') {
-          targetKeys.push('TLQHSKQ');
+        } else if (upper === 'TLKQHSKQ' || upper === 'TLQHSKQ') {
+          targetKeys.push('TLKQHSKQ');
         } else if (upper === 'QLTTTKGD') {
           targetKeys.push('QLTKGD');
-        } else if (upper === 'QLTKGDAMKQ' || upper === 'QLTTTKGDAMKQ' || upper === 'QLTKGD_AM_KQ') {
-          targetKeys.push('QLTKGD âm KQ');
+        } else if (upper === 'QLTKGDAMKQ' || upper === 'QLTTTKGDAMKQ' || upper === 'QLTKGD_AM_KQ' || upper === 'QLTKGD ÂM KQ') {
+          targetKeys.push('QLTKGDAmKQ');
         } else if (upper === 'NKTHT') {
           targetKeys.push('NKTTHT');
         } else {

@@ -113,21 +113,19 @@ export class AcmSftpAdapter implements IIngressPort {
       fs.mkdirSync(outputDirectory, { recursive: true });
     }
 
-    const ddmmyyyy = targetDateStr.replace(/-/g, '');
-    const cleanDateHyphen = targetDateStr; // YYYY-MM-DD
-    const straitsFileName = `Straits_${ddmmyyyy}.csv`;
-    const straitsPath = path.join(outputDirectory, straitsFileName);
-
-    const xlsFileName = `${cleanDateHyphen}_10017890000.xls`;
-    const xlsPath = path.join(outputDirectory, xlsFileName);
+    const cleanDateHyphen = targetDateStr.split('T')[0]; // YYYY-MM-DD
+    const [year, month, day] = cleanDateHyphen.split('-');
+    const ddmmyyyy = `${day}${month}${year}`; // 19102026
+    const yyyy_mm_dd = `${year}-${month}-${day}`;
+    const csvSuffix = `_${ddmmyyyy}.csv`;
+    const xlsPrefix = `${yyyy_mm_dd}_`;
 
     const creds = await this.getSftpCredentials();
-    this.logger.log(`[AcmSftpAdapter] Bắt đầu tải file Straits CSV từ SFTP ${creds.host}:${creds.port} (Phiên: ${targetDateStr})`);
+    this.logger.log(`[AcmSftpAdapter] Bắt đầu tải file SFTP ACM từ ${creds.host}:${creds.port} (Phiên: ${targetDateStr}, Thư mục remote: ${creds.remoteDir})`);
 
     const files: IngressFileDetail[] = [];
-
-    // Thử kết nối SFTP thật
     let sftpSuccess = false;
+
     if (creds.password && creds.host) {
       try {
         await new Promise<void>((resolve, reject) => {
@@ -145,31 +143,66 @@ export class AcmSftpAdapter implements IIngressPort {
                 return reject(err);
               }
 
-              sftp.readdir(creds.remoteDir, (readdirErr, list) => {
+              sftp.readdir(creds.remoteDir, async (readdirErr, list) => {
                 if (readdirErr) {
                   clearTimeout(timeoutTimer);
                   conn.end();
                   return reject(readdirErr);
                 }
 
-                const straitsItem = (list || []).find((f) => {
-                  const n = (f.filename || '').toLowerCase();
-                  return n.includes('straits') && n.endsWith('.csv') && !n.includes('fill') && !n.includes('order');
+                // Lọc các file phù hợp: File CSV (*_<ddmmyyyy>.csv hoặc chứa 'straits') và File XLS (<yyyy-mm-dd>_*.xls)
+                const candidateFiles = (list || []).filter((item) => {
+                  const name = item.filename;
+                  if (!name) return false;
+                  const isCsvMatch =
+                    name.toLowerCase().endsWith(csvSuffix.toLowerCase()) ||
+                    (name.toLowerCase().includes('straits') &&
+                      name.toLowerCase().endsWith('.csv') &&
+                      !name.toLowerCase().includes('fill') &&
+                      !name.toLowerCase().includes('order'));
+                  const isXlsMatch =
+                    name.toLowerCase().startsWith(xlsPrefix.toLowerCase()) &&
+                    name.toLowerCase().endsWith('.xls');
+                  return isCsvMatch || isXlsMatch;
                 });
 
-                if (straitsItem) {
-                  const remotePath = path.posix.join(creds.remoteDir, straitsItem.filename);
-                  sftp.fastGet(remotePath, straitsPath, (getErr) => {
-                    clearTimeout(timeoutTimer);
-                    conn.end();
-                    if (getErr) return reject(getErr);
-                    sftpSuccess = true;
-                    resolve();
-                  });
-                } else {
+                if (candidateFiles.length === 0) {
                   clearTimeout(timeoutTimer);
                   conn.end();
-                  reject(new Error(`Không tìm thấy file Straits CSV trong thư mục SFTP ${creds.remoteDir}`));
+                  return reject(new Error(`Không tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) trong thư mục SFTP ${creds.remoteDir}`));
+                }
+
+                try {
+                  for (const item of candidateFiles) {
+                    const remotePath = path.posix.join(creds.remoteDir, item.filename);
+                    const localPath = path.join(outputDirectory, item.filename);
+
+                    await new Promise<void>((getRes, getRej) => {
+                      sftp.fastGet(remotePath, localPath, (getErr) => {
+                        if (getErr) return getRej(getErr);
+                        getRes();
+                      });
+                    });
+
+                    // Nếu là file Straits CSV có tên dài, tạo thêm alias Straits_<ddmmyyyy>.csv để tương thích tuyệt đối
+                    if (item.filename.toLowerCase().includes('straits') && item.filename.toLowerCase().endsWith('.csv')) {
+                      const aliasPath = path.join(outputDirectory, `Straits_${ddmmyyyy}.csv`);
+                      if (aliasPath !== localPath && !fs.existsSync(aliasPath)) {
+                        try {
+                          fs.copyFileSync(localPath, aliasPath);
+                        } catch {}
+                      }
+                    }
+                  }
+
+                  sftpSuccess = true;
+                  clearTimeout(timeoutTimer);
+                  conn.end();
+                  resolve();
+                } catch (dlErr) {
+                  clearTimeout(timeoutTimer);
+                  conn.end();
+                  reject(dlErr);
                 }
               });
             });
@@ -189,37 +222,43 @@ export class AcmSftpAdapter implements IIngressPort {
           });
         });
       } catch (connErr: any) {
-        this.logger.warn(`[AcmSftpAdapter] Kết nối SFTP trực tiếp không khả dụng (${connErr.message}), kích hoạt cơ chế chuẩn bị dữ liệu mẫu.`);
+        this.logger.warn(`[AcmSftpAdapter] Kết nối SFTP trực tiếp gặp lỗi: ${connErr.message}`);
       }
     }
 
-    // Kiểm tra kết quả tải file thật từ SFTP
-    if (!sftpSuccess || !fs.existsSync(straitsPath)) {
-      throw new Error(
-        `Không thể kết nối hoặc không tìm thấy file Straits CSV trên máy chủ SFTP ${creds.host}:${creds.port} (Thư mục: ${creds.remoteDir}). Vui lòng kiểm tra thông tin tài khoản SFTP hoặc chuyển sang chế độ ACM Web Direct REST API.`,
-      );
+    // Quét lại thư mục local để thu thập các file đã tải
+    if (fs.existsSync(outputDirectory)) {
+      const localFiles = fs.readdirSync(outputDirectory);
+      for (const fn of localFiles) {
+        const isTargetCsv =
+          fn.toLowerCase().endsWith(csvSuffix.toLowerCase()) ||
+          fn.toLowerCase() === `straits_${ddmmyyyy}.csv`.toLowerCase();
+        const isTargetXls =
+          fn.toLowerCase().startsWith(xlsPrefix.toLowerCase()) && fn.toLowerCase().endsWith('.xls');
+
+        if (isTargetCsv || isTargetXls) {
+          const absPath = path.join(outputDirectory, fn);
+          const stat = fs.statSync(absPath);
+          files.push({
+            fileName: fn,
+            absolutePath: absPath,
+            fileSize: stat.size,
+            mtime: stat.mtime,
+            category: 'ACM',
+            metadata: {
+              transport: 'SFTP_SSH2_CLIENT',
+              host: creds.host,
+              fileType: isTargetCsv ? 'STRAITS_CSV' : 'ACCOUNT_XLS',
+            },
+          });
+        }
+      }
     }
 
-    const stat = fs.statSync(straitsPath);
-    files.push({
-      fileName: straitsFileName,
-      absolutePath: straitsPath,
-      fileSize: stat.size,
-      mtime: stat.mtime,
-      category: 'ACM',
-      metadata: { transport: 'SFTP_SSH2_CLIENT', host: creds.host },
-    });
-
-    if (fs.existsSync(xlsPath)) {
-      const xlsStat = fs.statSync(xlsPath);
-      files.push({
-        fileName: xlsFileName,
-        absolutePath: xlsPath,
-        fileSize: xlsStat.size,
-        mtime: xlsStat.mtime,
-        category: 'ACM',
-        metadata: { transport: 'SFTP_ACCOUNT_XLS', host: creds.host },
-      });
+    if (!sftpSuccess && files.length === 0) {
+      throw new Error(
+        `Không thể kết nối hoặc không tìm thấy file Straits CSV/XLS trên máy chủ SFTP ${creds.host}:${creds.port} (Thư mục: ${creds.remoteDir}, Phiên: ${cleanDateHyphen}).`,
+      );
     }
 
     const totalDurationMs = Date.now() - startTime;

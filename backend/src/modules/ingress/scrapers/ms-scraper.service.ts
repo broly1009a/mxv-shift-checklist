@@ -127,14 +127,34 @@ export class MSystemScraperService {
         await page.waitForTimeout(500);
       }
 
-      this.logger.log('Xác thực đăng nhập M-System thành công...');
+      this.logger.log('Xác thực đăng nhập M-System...');
       if (options?.overrideUrl) {
         await page.waitForURL(/.*dashboard.*/, { timeout: 15000 }).catch(() => {});
       } else {
-        await page.waitForSelector(
-          'xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]',
-          { state: 'visible', timeout: 15000 },
-        );
+        const hasSessionHeader = await page
+          .waitForSelector('xpath=.//div[contains(text(),"Ngày phiên hiện tại:")]', {
+            state: 'visible',
+            timeout: 15000,
+          })
+          .catch(() => null);
+
+        if (!hasSessionHeader) {
+          const curUrl = page.url();
+          const isAwayFromLogin = !curUrl.includes('/login');
+          const hasNav = await page
+            .locator('.sidebar, .navbar, .header, div.ant-layout, #root')
+            .first()
+            .isVisible()
+            .catch(() => false);
+
+          if (!isAwayFromLogin && !hasNav) {
+            const errNotice = await this.checkForLoginErrors(page);
+            throw new Error(
+              `Đăng nhập M-System không thành công: ${errNotice || 'Không tìm thấy trang chủ sau khi nhập PIN'}`,
+            );
+          }
+          this.logger.log(`Xác thực phiên M-System qua URL/Navbar fallback thành công (URL: ${curUrl})`);
+        }
       }
 
       this.logger.log('Đăng nhập M-System THÀNH CÔNG.');

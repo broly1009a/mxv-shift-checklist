@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
@@ -7,6 +7,8 @@ import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interf
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { BotJob } from '../../../schemas/bot-job.schema';
 import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
+import { IngressService } from '../../ingress/ingress.service';
+import { AcmEtpAdapter } from '../../ingress/adapters/acm-etp.adapter';
 import { CqgSyncService } from '../cqg-sync.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
@@ -275,6 +277,8 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     private readonly rpaDownloaderService: RpaScraperService,
     private readonly cqgSyncService: CqgSyncService,
     private readonly settingsService: SystemSettingsService,
+    @Optional() private readonly ingressService?: IngressService,
+    @Optional() private readonly acmEtpAdapter?: AcmEtpAdapter,
   ) { }
 
   onModuleInit() {
@@ -679,11 +683,48 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     );
     await job.save();
 
+    const globalMode = await this.settingsService.getSetting('ingress_mode', process.env.INGRESS_MODE || 'PLAYWRIGHT');
+    const ingressModeMs = await this.settingsService.getSetting('ingress_mode_ms', process.env.INGRESS_MODE_MS || globalMode);
+
+    let stillMissing = [...missingOrOutdated];
+
+    // NẾU CẤU HÌNH REST_API: Thử tải bổ sung các file qua Direct REST API trước
+    if (ingressModeMs === 'REST_API' && this.ingressService) {
+      job.logs.push(`[${new Date().toISOString()}] [M-System] Kích hoạt Direct REST API Mode để tải bổ sung các file thiếu...`);
+      await job.save();
+      try {
+        const missingKeys = missingOrOutdated.map((m) => m.key).filter((k) => k !== 'Markettruoc6h');
+        if (missingKeys.length > 0) {
+          const apiRes = await this.ingressService.download('MS', {
+            targetDirectory: backupPath,
+            reportCodes: missingKeys,
+          });
+          job.logs.push(`[${new Date().toISOString()}] [Direct REST API] Đã tải ${apiRes.files.length} file M-System qua API.`);
+          await job.save();
+        }
+      } catch (apiErr: any) {
+        job.logs.push(`[${new Date().toISOString()}] [Direct REST API WARN] Tải qua API gặp sự cố (${apiErr.message}), chuẩn bị fallback sang Playwright...`);
+        await job.save();
+      }
+
+      // Quét lại thư mục để kiểm tra
+      const interimScan = await this.scanMsBackupFiles(backupPath, targetDate);
+      stillMissing = interimScan.filter((r) => r.status !== 'OK');
+      if (stillMissing.length === 0) {
+        job.logs.push(`[${new Date().toISOString()}] Tất cả ${interimScan.length} file M-System đã được tải đầy đủ qua REST API.`);
+        await job.save();
+        return;
+      }
+    }
+
+    job.logs.push(`[${new Date().toISOString()}] Đang khởi động Playwright để tải ${stillMissing.length} file M-System còn lại...`);
+    await job.save();
+
     const { browser, page } = await this.rpaDownloaderService.loginMSystem(backupPath);
     const failedFiles: string[] = [];
 
     try {
-      for (const item of missingOrOutdated) {
+      for (const item of stillMissing) {
         const destFile = path.join(backupPath, item.filename);
         job.logs.push(
           `[${new Date().toISOString()}] Đang tải bổ sung: ${item.filename}...`,
@@ -927,61 +968,106 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       return;
     }
 
+    const globalMode = await this.settingsService.getSetting('ingress_mode', process.env.INGRESS_MODE || 'PLAYWRIGHT');
+    const ingressModeAcm = await this.settingsService.getSetting(
+      'ingress_mode_acm',
+      process.env.INGRESS_MODE_ACM || globalMode,
+    );
+
     const webMissing = missingOrOutdated.some(
       (r) => r.key === 'ORDER' || r.key === 'FILL',
     );
     if (webMissing) {
-      await logAndSave(
-        ` Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập và tải bổ sung...`,
-      );
+      let apiDownloaded = false;
 
-      const getCaptchaFromUI = (base64Img: string): Promise<string> => {
-        return new Promise<string>((resolve, reject) => {
-          const timeoutId = setTimeout(
-            () => {
-              this.captchaResolvers.delete(job._id.toString());
-              reject(
-                new Error(
-                  'Hết thời gian chờ người dùng nhập Captcha (5 phút).',
-                ),
-              );
-            },
-            5 * 60 * 1000,
-          );
+      // ── PHÂN NHÁNH 1: TẢI TRỰC TIẾP QUA REST API (KHÔNG MỞ CHROMIUM) ─────────
+      if (ingressModeAcm === 'REST_API' && (this.acmEtpAdapter || this.ingressService)) {
+        await logAndSave(
+          `[ACM Direct API] Kích hoạt tải Order & Fill qua Direct REST API (Cờ ingress_mode_acm=REST_API, Không mở Chromium)...`,
+        );
+        try {
+          if (this.acmEtpAdapter) {
+            await this.acmEtpAdapter.download('ACM', {
+              targetDirectory: dailyPath,
+              targetDate: targetDate.toISOString(),
+              reportCodes: ['ORDER', 'FILL'],
+            });
+          } else if (this.ingressService) {
+            await this.ingressService.download('ACM', {
+              targetDirectory: dailyPath,
+              targetDate: targetDate.toISOString(),
+              reportCodes: ['ORDER', 'FILL'],
+            });
+          }
 
-          const currentPayload = parseJobPayload(job);
-          job.payload = {
-            ...currentPayload,
-            captchaImage: base64Img,
-          };
+          const intermediateScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
+          const webOkAfterApi = intermediateScan
+            .filter((r) => r.key === 'ORDER' || r.key === 'FILL')
+            .every((r) => r.status === 'OK');
+          if (webOkAfterApi) {
+            apiDownloaded = true;
+            await logAndSave(`[ACM Direct API] Hoàn tất tải báo cáo Web (Order/Fill) qua Direct REST API.`);
+          }
+        } catch (apiErr: any) {
+          await logAndSave(`[ACM Direct API] Gọi Direct REST API gặp lỗi: ${apiErr.message}. Fallback sang Playwright...`);
+        }
+      }
 
-          logAndSave(
-            ` Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`,
-          )
-            .then(() => context.syncJobToChecklist(job, 'AWAITING_CAPTCHA'))
-            .then(() => {
-              this.captchaResolvers.set(job._id.toString(), (userCaptcha: string) => {
-                clearTimeout(timeoutId);
-                resolve(userCaptcha);
-              });
-            })
-            .catch(reject);
-        });
-      };
+      // ── PHÂN NHÁNH 2: PLAYWRIGHT CHROMIUM (CHỈ CHẠY KHI KHÔNG DÙNG REST_API HOẶC REST_API LỖI) ──
+      if (!apiDownloaded) {
+        await logAndSave(
+          ` Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập Playwright và tải bổ sung...`,
+        );
 
-      const { browser, page } = await this.rpaDownloaderService.loginACM(
-        dailyPath,
-        getCaptchaFromUI,
-        logAndSave,
-      );
+        const getCaptchaFromUI = (base64Img: string): Promise<string> => {
+          return new Promise<string>((resolve, reject) => {
+            const timeoutId = setTimeout(
+              () => {
+                this.captchaResolvers.delete(job._id.toString());
+                reject(
+                  new Error(
+                    'Hết thời gian chờ người dùng nhập Captcha (5 phút).',
+                  ),
+                );
+              },
+              5 * 60 * 1000,
+            );
 
-      try {
-        await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, logAndSave);
-      } finally {
-        await browser.close().catch(() => { });
+            const currentPayload = parseJobPayload(job);
+            job.payload = {
+              ...currentPayload,
+              captchaImage: base64Img,
+            };
+
+            logAndSave(
+              ` Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`,
+            )
+              .then(() => context.syncJobToChecklist(job, 'AWAITING_CAPTCHA'))
+              .then(() => {
+                this.captchaResolvers.set(job._id.toString(), (userCaptcha: string) => {
+                  clearTimeout(timeoutId);
+                  resolve(userCaptcha);
+                });
+              })
+              .catch(reject);
+          });
+        };
+
+        const { browser, page } = await this.rpaDownloaderService.loginACM(
+          dailyPath,
+          getCaptchaFromUI,
+          logAndSave,
+        );
+
+        try {
+          await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, logAndSave);
+        } finally {
+          await browser.close().catch(() => { });
+        }
       }
     }
 
+    // ── PHÂN NHÁNH 3: ĐỒNG BỘ SFTP ĐỘC LẬP ──────────────────────────────────
     const sftpMissing = missingOrOutdated.some(
       (r) => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS',
     );
@@ -998,47 +1084,55 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
         await logAndSave(` Hoàn tất đồng bộ file từ SFTP.`);
       } catch (err: any) {
         await logAndSave(` Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
-
-        const currentScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
-        const webReportsOk = currentScan
-          .filter((r) => r.key === 'ORDER' || r.key === 'FILL')
-          .every((r) => r.status === 'OK');
-
-        if (webReportsOk) {
-          await logAndSave(
-            `Báo cáo Web (Order/Fill) đã đầy đủ. Chấp nhận lỗi SFTP và hoàn tất job với cảnh báo.`,
-          );
-        } else {
-          await logAndSave(
-            ` Lỗi đồng bộ SFTP và Báo cáo Web cũng không đầy đủ. Thất bại job.`,
-          );
-          throw err;
-        }
       }
     }
 
+    // ── PHÂN NHÁNH 4: THẨM ĐỊNH KẾT QUẢ & XỬ LÝ ĐỘC LẬP (WEB API VS SFTP) ────
     const finalScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
-    const hasMissingFiles = finalScan.some((r) => r.status !== 'OK');
+    const webReportsOk = finalScan
+      .filter((r) => r.key === 'ORDER' || r.key === 'FILL')
+      .every((r) => r.status === 'OK');
+    const sftpOk = finalScan
+      .filter((r) => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS')
+      .every((r) => r.status === 'OK');
+
     const currentPayload = parseJobPayload(job);
     job.payload = {
       ...currentPayload,
       result: {
-        isWaitingFiles: hasMissingFiles,
+        isWaitingFiles: !webReportsOk,
         scanResults: finalScan,
+        webReportsOk,
+        sftpOk,
       },
     };
     await this.botJobModel
       .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
       .exec();
 
-    if (hasMissingFiles) {
-      const missingKeys = finalScan
-        .filter((r) => r.status !== 'OK')
+    // NGUYÊN TẮC NGHIỆP VỤ: SFTP và Call API ACM ETP là hoàn toàn độc lập.
+    // Nếu báo cáo Web (Order.xlsx & Fill.xlsx) đã đầy đủ -> Job BÁO THÀNH CÔNG 100%.
+    // Nếu không tải được SFTP -> Chỉ ghi cảnh báo lỗi cho SFTP, không làm thất bại Job ca trực.
+    if (!webReportsOk) {
+      const missingWeb = finalScan
+        .filter((r) => (r.key === 'ORDER' || r.key === 'FILL') && r.status !== 'OK')
         .map((r) => `${r.key} (${r.filename})`)
         .join(', ');
       throw new Error(
-        `Kiểm tra file backup ACM thất bại: Thiếu hoặc chưa cập nhật các file [${missingKeys}]`,
+        `Kiểm tra file backup ACM thất bại: Thiếu báo cáo Web bắt buộc [${missingWeb}]`,
       );
+    }
+
+    if (!sftpOk) {
+      const missingSftp = finalScan
+        .filter((r) => (r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS') && r.status !== 'OK')
+        .map((r) => `${r.key} (${r.filename})`)
+        .join(', ');
+      await logAndSave(
+        `[Cảnh báo SFTP] Báo cáo Web ETP đã đầy đủ (Job Hoàn Tất Thành Công), nhưng chưa có đủ file SFTP [${missingSftp}]. Ca trực có thể đồng bộ bổ sung file SFTP sau khi sàn chốt phiên.`,
+      );
+    } else {
+      await logAndSave(`Toàn bộ báo cáo ACM (Web & SFTP) đã đồng bộ đầy đủ.`);
     }
   }
 }

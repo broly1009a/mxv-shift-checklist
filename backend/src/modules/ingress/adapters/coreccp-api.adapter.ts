@@ -11,6 +11,11 @@ import {
   IngressFileDetail,
   decrypt,
   EXTERNAL_SYSTEM_CORECCP,
+  ICcpReportMapping,
+  CORECCP_API_REPORTS,
+  CANONICAL_CORECCP_API_KEYS,
+  CORECCP_DERIVED_RULES,
+  resolveCoreCcpReport,
 } from '../../../shared';
 
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
@@ -22,265 +27,6 @@ export interface ICcpSession {
   username: string;
   expiresAt: number;
 }
-
-export interface ICcpReportMapping {
-  key: string;
-  fileName: string;
-  searchCode: string;
-  route: string;
-  description: string;
-  filterPayload?: Record<string, any>;
-}
-
-/**
- * Danh mục các báo cáo CoreCCP thông dụng hỗ trợ Direct API
- */
-export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
-  // ── 1. NHÓM LỆNH THƯỜNG (/ORDERS/ORDERBOOK) ────────────────────────────────
-  DSL_CCP: {
-    key: 'DSL_CCP',
-    fileName: 'DSL CCP.xlsx',
-    searchCode: 'ORDERBOOK',
-    route: '/ORDERS/ORDERBOOK',
-    description: 'Danh sách toàn bộ lệnh giao dịch thông thường',
-  },
-  DSLDK_CCP: {
-    key: 'DSLDK_CCP',
-    fileName: 'DSLDK CCP.xlsx',
-    searchCode: 'ORDERBOOK_FILLED',
-    route: '/ORDERS/ORDERBOOK',
-    description: 'Danh sách lệnh thường đã khớp',
-  },
-  DSLCK_CCP: {
-    key: 'DSLCK_CCP',
-    fileName: 'DSLCK CCP.xlsx',
-    searchCode: 'ORDERBOOK_WORKING',
-    route: '/ORDERS/ORDERBOOK',
-    description: 'Danh sách lệnh thường chờ khớp',
-  },
-  DSLDH_CCP: {
-    key: 'DSLDH_CCP',
-    fileName: 'DSLDH CCP.xlsx',
-    searchCode: 'ORDERBOOK_CANCELLED',
-    route: '/ORDERS/ORDERBOOK',
-    description: 'Danh sách lệnh thường đã hủy',
-  },
-  DSGD_CCP: {
-    key: 'DSGD_CCP',
-    fileName: 'DSGD CCP.xlsx',
-    searchCode: 'ORDERMATCH_DETAIL',
-    route: '/ORDERS/ORDERMATCH_DETAIL',
-    description: 'Khớp lệnh chi tiết toàn sàn (DSGD)',
-  },
-
-  // ── 2. NHÓM LỆNH MARKET MAKER (/ORDERS/ORDERBOOK_MM) ───────────────────────
-  DSL_MM_CCP: {
-    key: 'DSL_MM_CCP',
-    fileName: 'DSL MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
-    route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Danh sách lệnh Market Maker (Tất cả)',
-  },
-  DSLDK_MM_CCP: {
-    key: 'DSLDK_MM_CCP',
-    fileName: 'DSLDK MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM_FILLED',
-    route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Danh sách lệnh Market Maker đã khớp',
-  },
-  DSLCK_MM_CCP: {
-    key: 'DSLCK_MM_CCP',
-    fileName: 'DSLCK MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM_WORKING',
-    route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Danh sách lệnh Market Maker chờ khớp',
-  },
-  DSLDH_MM_CCP: {
-    key: 'DSLDH_MM_CCP',
-    fileName: 'DSLDH MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM_CANCELLED',
-    route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Danh sách lệnh Market Maker đã hủy',
-  },
-  DSGD_MM_CCP: {
-    key: 'DSGD_MM_CCP',
-    fileName: 'DSGD MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_ALL_MM',
-    route: '/ORDERS/ORDERBOOK_ALL_MM',
-    description: 'Chi tiết khớp lệnh Market Maker',
-  },
-
-  // ── 3. NHÓM VỊ THẾ & LÃI LỖ ───────────────────────────────────────────────
-  TTM_PRE1620: {
-    key: 'TTM_PRE1620',
-    fileName: 'TTM truoc 4h20.xlsx',
-    searchCode: 'OPEN_POSITION_PRE1620',
-    route: '/ORDERS/OPEN_POSITION',
-    description: 'Trạng thái mở trước 16h20',
-  },
-  TTM_CCP: {
-    key: 'TTM_CCP',
-    fileName: 'TTM CCP.xlsx',
-    searchCode: 'OPEN_POSITION',
-    route: '/ORDERS/OPEN_POSITION',
-    description: 'Trạng thái mở toàn sàn chốt cuối ngày (EOD)',
-  },
-  TTTT: {
-    key: 'TTTT',
-    fileName: 'TTTT.xlsx',
-    searchCode: 'PNL_EXECUTED',
-    route: '/ORDERS/PNL_EXECUTED',
-    description: 'Trạng thái tất toán vị thế và lãi lỗ thực hiện',
-  },
-
-  // ── 4. NHÓM RỦI RO & KÝ QUỸ ───────────────────────────────────────────────
-  QLTT_TKGD_PRE1620: {
-    key: 'QLTT_TKGD_PRE1620',
-    fileName: 'QL TT TKGD truoc 4h20.xlsx',
-    searchCode: 'ACCTMARGIN_ALL_PRE1620',
-    route: '/RISKMNG/ACCTMARGIN_ALL',
-    description: 'Quản lý trạng thái TKGD trước 16h20',
-  },
-  QL_TT_TKGD: {
-    key: 'QL_TT_TKGD',
-    fileName: 'QL TT TKGD.xlsx',
-    searchCode: 'ACCTMARGIN_ALL',
-    route: '/RISKMNG/ACCTMARGIN_ALL',
-    description: 'Quản lý trạng thái ký quỹ TKGD cuối ngày (EOD)',
-  },
-  QLTT_TVKD: {
-    key: 'QLTT_TVKD',
-    fileName: 'QL TT TVKD.xlsx',
-    searchCode: 'BROKERMARGIN_ALL',
-    route: '/RISKMNG/ACCTMARGIN_ALL',
-    description: 'Quản lý trạng thái ký quỹ TVKD cuối ngày',
-  },
-  DSQLKQ_TKGD: {
-    key: 'DSQLKQ_TKGD',
-    fileName: 'DSQLKQ TKGD.xlsx',
-    searchCode: 'ACCTMARGIN_POS',
-    route: '/RISKMNG/ACCTMARGIN_POS',
-    description: 'Danh sách quản lý ký quỹ tài khoản giao dịch',
-  },
-  DSQLKQ_TVKD: {
-    key: 'DSQLKQ_TVKD',
-    fileName: 'DSQLKQ TVKD.xlsx',
-    searchCode: 'BROKER_MARGIN_MNG',
-    route: '/RISKMNG/MARGIN_MNG',
-    description: 'Danh sách quản lý ký quỹ thành viên kinh doanh',
-  },
-
-  // ── 5. NHÓM TIỀN & TÀI KHOẢN ──────────────────────────────────────────────
-  NR: {
-    key: 'NR',
-    fileName: 'NR.xlsx',
-    searchCode: 'CASHTRANFER_HIST',
-    route: '/CASHTRANFER/CASHTRANFER_HIST',
-    description: 'Lịch sử nộp rút tiền CoreCCP',
-  },
-  DSTKGD_ACM: {
-    key: 'DSTKGD_ACM',
-    fileName: 'DSTKGD ACM.xlsx',
-    searchCode: 'ACCOUNTS_INFO',
-    route: '/ACCOUNTMNG/ACCOUNTS_INFO',
-    description: 'Danh sách tài khoản giao dịch toàn hệ thống',
-  },
-
-  // ── 6. NHÓM HÀNG HÓA, HỢP ĐỒNG & GIÁ ──────────────────────────────────────
-  GTT_CCP: {
-    key: 'GTT_CCP',
-    fileName: 'GTT CCP.xlsx',
-    searchCode: 'SETTLEMENT',
-    route: '/PRODUCT/SETTLEMENT',
-    description: 'Giá thanh toán hàng ngày toàn bộ hợp đồng',
-  },
-  HH: {
-    key: 'HH',
-    fileName: 'HH.xlsx',
-    searchCode: 'COMMODITY',
-    route: '/PRODUCT/COMMODITY',
-    description: 'Danh mục mặt hàng và quy cách giao dịch hàng hóa',
-  },
-  HD_CP2CO: {
-    key: 'HD_CP2CO',
-    fileName: 'HĐ CP2CO.xlsx',
-    searchCode: 'CONTRACT_CP2CO',
-    route: '/PRODUCT/COMMODITY',
-    description: 'Hợp đồng Đồng Nano ACM (CP2CO)',
-  },
-  HD_PL1NY: {
-    key: 'HD_PL1NY',
-    fileName: 'HĐ PL1NY.xlsx',
-    searchCode: 'CONTRACT_PL1NY',
-    route: '/PRODUCT/COMMODITY',
-    description: 'Hợp đồng Bạch kim Nano ACM (PL1NY)',
-  },
-  HD_SI5CO: {
-    key: 'HD_SI5CO',
-    fileName: 'HĐ SI5CO.xlsx',
-    searchCode: 'CONTRACT_SI5CO',
-    route: '/PRODUCT/COMMODITY',
-    description: 'Hợp đồng Bạc Nano ACM (SI5CO)',
-  },
-  TYGIA: {
-    key: 'TYGIA',
-    fileName: 'Tỷ giá CCP.xlsx',
-    searchCode: 'CURRENCYEXCHANGERATE',
-    route: '/SYSCONFIGMNG/CURRENCYEXCHANGERATE',
-    description: 'Tỷ giá nguyên tệ CoreCCP',
-  },
-  EOD: {
-    key: 'EOD',
-    fileName: 'EOD.xlsx',
-    searchCode: 'ACCTMARGIN_HIST',
-    route: '/EOD/ACCTMARGIN_HIST',
-    description: 'Kết quả EOD Vận hành',
-  },
-
-  // ── Legacy Aliases ────────────────────────────────────────────────────────
-  GTT: {
-    key: 'GTT',
-    fileName: 'GTT CCP.xlsx',
-    searchCode: 'SETTLEMENT',
-    route: '/PRODUCT/SETTLEMENT',
-    description: 'Giá thanh toán hàng ngày toàn bộ hợp đồng (Alias)',
-  },
-  DSGD: {
-    key: 'DSGD',
-    fileName: 'DSGD CCP.xlsx',
-    searchCode: 'ORDERMATCH_DETAIL',
-    route: '/ORDERS/ORDERMATCH_DETAIL',
-    description: 'Khớp lệnh chi tiết toàn sàn (Alias)',
-  },
-  TTM: {
-    key: 'TTM',
-    fileName: 'TTM CCP.xlsx',
-    searchCode: 'OPEN_POSITION',
-    route: '/ORDERS/OPEN_POSITION',
-    description: 'Trạng thái mở toàn sàn chốt cuối ngày (Alias)',
-  },
-  DSL: {
-    key: 'DSL',
-    fileName: 'DSL CCP.xlsx',
-    searchCode: 'ORDERBOOK',
-    route: '/ORDERS/ORDERBOOK',
-    description: 'Danh sách lệnh thường (Alias)',
-  },
-  QLTTTKGD: {
-    key: 'QLTTTKGD',
-    fileName: 'QL TT TKGD.xlsx',
-    searchCode: 'ACCTMARGIN_ALL',
-    route: '/RISKMNG/ACCTMARGIN_ALL',
-    description: 'Quản lý trạng thái ký quỹ TKGD (Alias)',
-  },
-  TTTT_CCP: {
-    key: 'TTTT_CCP',
-    fileName: 'TTTT CCP.xlsx',
-    searchCode: 'PNL_EXECUTED',
-    route: '/ORDERS/PNL_EXECUTED',
-    description: 'Trạng thái tất toán vị thế và lãi lỗ thực hiện (Alias)',
-  },
-};
 
 export class CookieJar {
   private cookies = new Map<string, string>();
@@ -965,13 +711,23 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     let targets: string[] = [];
     if (isFullRequested) {
-      const aliasKeys = new Set(['GTT', 'DSGD', 'TTM', 'DSL', 'QLTTTKGD']);
-      targets = Object.keys(CORECCP_API_REPORTS).filter((k) => !aliasKeys.has(k));
-      this.logger.log(`[CoreCcpApiAdapter] Kích hoạt FULL BACKUP cho CoreCCP: tải trọn gói ${targets.length} báo cáo Maker.`);
+      targets = [...CANONICAL_CORECCP_API_KEYS];
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
-      targets = options.reportCodes;
+      targets = options.reportCodes.flatMap((code) => {
+        if (code === 'HD' || code === 'HD_ALL') {
+          return ['HH'];
+        }
+        const resolved = resolveCoreCcpReport(code);
+        if (resolved?.isDerived && resolved.derivedFrom) {
+          return [resolved.derivedFrom];
+        }
+        return [resolved?.key || code];
+      });
+      // Loại bỏ key trùng lặp
+      targets = Array.from(new Set(targets));
     } else if (options?.reportType) {
-      targets = [options.reportType];
+      const resolved = resolveCoreCcpReport(options.reportType);
+      targets = [resolved?.derivedFrom || resolved?.key || options.reportType];
     } else {
       targets = ['GTT_CCP', 'DSGD_CCP', 'TTM_CCP', 'TTTT', 'QL_TT_TKGD'];
     }
@@ -992,18 +748,29 @@ export class CoreCcpApiAdapter implements IIngressPort {
         baseUrl = parsedUrl.origin;
       } catch {}
 
-      for (const target of targets) {
-        let reportDef = CORECCP_API_REPORTS[target];
-        if (!reportDef) {
-          const upper = target.toUpperCase();
-          reportDef = Object.values(CORECCP_API_REPORTS).find(
-            (r) =>
-              r.key.toUpperCase() === upper ||
-              r.searchCode.toUpperCase() === upper ||
-              r.fileName.toUpperCase().includes(upper) ||
-              (upper === 'CL_MATCH' && r.searchCode === 'ORDERMATCH_DETAIL'),
-          );
+      const cleanDate = targetDate.includes('-')
+        ? targetDate.split('-').reverse().join('.')
+        : targetDate;
+
+      const addDerivedFile = (sourceFilePath: string, destFileName: string, category = 'CCP') => {
+        const destPath = path.join(outputDirectory, destFileName);
+        if (fs.existsSync(sourceFilePath) && destPath !== sourceFilePath) {
+          fs.copyFileSync(sourceFilePath, destPath);
+          const stat = fs.statSync(destPath);
+          files.push({
+            fileName: destFileName,
+            absolutePath: destPath,
+            fileSize: stat.size,
+            mtime: stat.mtime,
+            category,
+            metadata: { transport: 'DERIVED_EXPORT', source: path.basename(sourceFilePath) },
+          });
+          this.logger.log(`[CoreCcpApiAdapter] 📄 Tự động tạo bản sao phái sinh: ${destFileName} (${stat.size} bytes)`);
         }
+      };
+
+      for (const target of targets) {
+        const reportDef = resolveCoreCcpReport(target);
         if (!reportDef) {
           this.logger.warn(`[CoreCcpApiAdapter] Bỏ qua báo cáo chưa được cấu hình mapping: ${target}`);
           continue;
@@ -1016,69 +783,41 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
         this.logger.log(`[CoreCcpApiAdapter] Đang tải ${reportDef.key} (${reportDef.searchCode})...`);
         try {
-          const isServerExport =
+          let downloadSuccess = false;
+
+          // Thử xuất Server Export nếu searchCode hỗ trợ và không bị cấm
+          const isServerExportEligible =
             reportDef.searchCode === 'ORDERMATCH_DETAIL' ||
             reportDef.key === 'DSGD_CCP' ||
             reportDef.key === 'DSGD' ||
-            reportDef.searchCode === 'ORDERBOOK_ALL_MM' ||
             reportDef.searchCode === 'OPEN_POSITION' ||
             reportDef.key === 'TTM_CCP' ||
-            reportDef.key === 'TTM' ||
             reportDef.searchCode === 'PNL_EXECUTED' ||
-            reportDef.key === 'TTTT' ||
-            reportDef.key === 'TTTT_CCP';
+            reportDef.key === 'TTTT';
 
-          if (isServerExport) {
-            this.logger.log(
-              `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
-            );
-            const buffer = await this.downloadServerExport(
-              session,
-              reportDef.searchCode,
-              baseUrl,
-              reportDef.route,
-              reportDef.filterPayload || {},
-              targetPath,
-            );
-
-            // Đồng bộ thêm định dạng tên chuẩn ngày cho KlgdReconService
-            const cleanDate = targetDate.includes('-')
-              ? targetDate.split('-').reverse().join('.')
-              : targetDate;
-
-            if (reportDef.key === 'DSGD_CCP' || reportDef.key === 'DSGD') {
-              const aliasPath = path.join(outputDirectory, `DSGD_${cleanDate}.xlsx`);
-              if (aliasPath !== targetPath) {
-                fs.writeFileSync(aliasPath, buffer);
-              }
-            } else if (reportDef.key === 'TTM_CCP' || reportDef.key === 'TTM' || reportDef.searchCode === 'OPEN_POSITION') {
-              const aliasPath = path.join(outputDirectory, `TTM_${cleanDate}.xlsx`);
-              if (aliasPath !== targetPath) {
-                fs.writeFileSync(aliasPath, buffer);
-              }
-            } else if (reportDef.key === 'TTTT' || reportDef.key === 'TTTT_CCP' || reportDef.searchCode === 'PNL_EXECUTED') {
-              const aliasPath = path.join(outputDirectory, `TTTT_${cleanDate}.xlsx`);
-              if (aliasPath !== targetPath) {
-                fs.writeFileSync(aliasPath, buffer);
-              }
+          if (isServerExportEligible) {
+            try {
+              this.logger.log(
+                `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
+              );
+              const buffer = await this.downloadServerExport(
+                session,
+                reportDef.searchCode,
+                baseUrl,
+                reportDef.route,
+                reportDef.filterPayload || {},
+                targetPath,
+              );
+              downloadSuccess = true;
+            } catch (wsErr: any) {
+              this.logger.warn(
+                `[CoreCcpApiAdapter] Server Export WebSocket gặp sự cố (${wsErr.message}), tự động fallback sang Direct JSON Search...`,
+              );
             }
+          }
 
-            const stat = fs.statSync(targetPath);
-            files.push({
-              fileName: outFileName,
-              absolutePath: targetPath,
-              fileSize: stat.size,
-              mtime: stat.mtime,
-              category: 'CCP',
-              metadata: {
-                transport: 'SERVER_SIDE_EXPORT_WEBSOCKET',
-                searchCode: reportDef.searchCode,
-                fileSize: stat.size,
-              },
-            });
-            this.logger.log(`[CoreCcpApiAdapter] ✅ Tải thành công ${outFileName} qua Server Export (${stat.size} bytes)`);
-          } else {
-            // KIỂU 1: Tra cứu JSON
+          // Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không dùng
+          if (!downloadSuccess) {
             const searchResult = await this.searchFullJson(
               session,
               reportDef.searchCode,
@@ -1088,7 +827,10 @@ export class CoreCcpApiAdapter implements IIngressPort {
             );
 
             await this.convertJsonToExcel(searchResult.rows, reportDef.searchCode, targetPath);
+            downloadSuccess = true;
+          }
 
+          if (fs.existsSync(targetPath)) {
             const stat = fs.statSync(targetPath);
             files.push({
               fileName: outFileName,
@@ -1097,12 +839,21 @@ export class CoreCcpApiAdapter implements IIngressPort {
               mtime: stat.mtime,
               category: 'CCP',
               metadata: {
-                transport: 'DIRECT_JSON_SEARCH_EXCEL',
+                transport: 'DIRECT_REST_API',
                 searchCode: reportDef.searchCode,
-                rowCount: searchResult.totalCount,
+                fileSize: stat.size,
               },
             });
-            this.logger.log(`[CoreCcpApiAdapter] ✅ Xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
+            this.logger.log(`[CoreCcpApiAdapter] ✅ Tải thành công ${outFileName} (${stat.size} bytes)`);
+
+            // Tự động sinh các file phái sinh đồng bộ cho toàn ca trực dựa theo cấu hình CORECCP_DERIVED_RULES
+            const derivedRules = CORECCP_DERIVED_RULES[reportDef.key] || [];
+            for (const rule of derivedRules) {
+              const destName = rule.isDated
+                ? rule.targetFileName.replace('{date}', cleanDate)
+                : rule.targetFileName;
+              addDerivedFile(targetPath, destName);
+            }
           }
         } catch (searchErr: any) {
           this.logger.error(`[CoreCcpApiAdapter] Lỗi gọi API cho ${reportDef.key}: ${searchErr.message}`);
@@ -1110,26 +861,24 @@ export class CoreCcpApiAdapter implements IIngressPort {
         }
       }
 
-      if (errors.length > 0) {
-        throw new Error(`[CoreCcpApiAdapter] Tải báo cáo CoreCCP thất bại: ${errors.join('; ')}`);
-      }
-
+      const isSuccess = files.length > 0;
       return {
-        success: true,
+        success: isSuccess,
         source: 'CCP',
         outputDirectory,
         files,
         downloadedAt: new Date(),
         durationMs: Date.now() - startTime,
         summary: `Đã tải thành công ${files.length} báo cáo CoreCCP qua Direct REST API`,
+        error: errors.length > 0 ? errors.join('; ') : undefined,
       };
     } catch (err: any) {
       this.logger.error(`[CoreCcpApiAdapter] Thất bại khi tải báo cáo CoreCCP: ${err.message}`);
       return {
-        success: false,
+        success: files.length > 0,
         source: 'CCP',
         outputDirectory,
-        files: [],
+        files,
         downloadedAt: new Date(),
         error: err.message,
         durationMs: Date.now() - startTime,

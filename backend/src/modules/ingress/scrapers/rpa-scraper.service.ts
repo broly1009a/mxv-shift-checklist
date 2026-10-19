@@ -3110,13 +3110,17 @@ export class RpaScraperService {
     // Ingress Facade: Thử ủy quyền sang IngressService V2
     if (this.ingressService) {
       try {
-        await log(`[RpaDownloader-Facade] Thử ủy quyền tải ACM sang IngressService V2...`);
-        await this.ingressService.download('ACM', {
+        await log(`[RpaDownloader-Facade] Thử ủy quyền tải ACM sang IngressService V2 (Chế độ SFTP)...`);
+        const result = await this.ingressService.download('ACM', {
           targetDirectory: dailyPath,
           targetDate: targetDate.toISOString(),
+          reportCodes: ['SFTP'],
         });
-        await log('Đã hoàn thành đồng bộ SFTP ACM qua IngressService V2.');
-        return;
+        if (result && result.files && result.files.length > 0) {
+          await log(`Đã hoàn thành đồng bộ ${result.files.length} file SFTP ACM qua IngressService V2.`);
+          return;
+        }
+        await log(`[RpaDownloader-Facade] IngressService V2 không tải được file SFTP nào, tiếp tục chạy ssh2 nội bộ...`);
       } catch (err: any) {
         this.logger.warn(`[RpaDownloader-Facade] IngressService V2 lỗi (${err.message}), fallback về ssh2 nội bộ...`);
       }
