@@ -165,6 +165,30 @@ export class KlgdReconService {
     if (files.fr1) rawFrData.push(...parseFR(files.fr1, tradingDate, holidays));
     if (files.fr2) rawFrData.push(...parseFR(files.fr2, tradingDate, holidays));
 
+    // Khử trùng (Deduplicate) lệnh CQG theo Ord #: Nếu một lệnh xuất hiện ở cả FR1 và FR2 (tài khoản thuộc quyền xem của cả 2 user CQG)
+    const seenCqgOrders = new Set<string>();
+    const uniqueFrData: any[] = [];
+    let cqgDupCount = 0;
+    for (const fr of rawFrData) {
+      if (!fr.ord) {
+        uniqueFrData.push(fr);
+        continue;
+      }
+      if (seenCqgOrders.has(fr.ord)) {
+        cqgDupCount++;
+        continue;
+      }
+      seenCqgOrders.add(fr.ord);
+      uniqueFrData.push(fr);
+    }
+    if (cqgDupCount > 0) {
+      this.logger.log(
+        `[Recon KLGD] Đã tự động khử trùng ${cqgDupCount} lệnh CQG trùng lặp giữa 2 tài khoản (CQG1 & CQG2) theo Ord #.`,
+      );
+    }
+    rawFrData.length = 0;
+    rawFrData.push(...uniqueFrData);
+
     const sessionStart = new Date(tradingDate);
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
 

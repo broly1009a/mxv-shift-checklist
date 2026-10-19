@@ -495,11 +495,40 @@ export function mergeCqgRawFiles(
           ? rows2.slice(2)
           : [];
 
+    let finalData2 = data2;
+    if (prefix === 'FR' && headerRow.length > 0) {
+      const normHeaders = headerRow.map((h: any) => String(h || '').trim().toLowerCase().replace(/\s+/g, ' '));
+      const ordIdx = normHeaders.findIndex(
+        (h: string) => h === 'ord #' || h === 'ord' || h === 'order #' || h === 'order',
+      );
+      if (ordIdx !== -1) {
+        const seenOrds = new Set<string>();
+        for (const r of data1) {
+          const ord = String(r[ordIdx] || '').trim();
+          if (ord) seenOrds.add(ord);
+        }
+        let dupCount = 0;
+        finalData2 = [];
+        for (const r of data2) {
+          const ord = String(r[ordIdx] || '').trim();
+          if (ord && seenOrds.has(ord)) {
+            dupCount++;
+            continue;
+          }
+          if (ord) seenOrds.add(ord);
+          finalData2.push(r);
+        }
+        if (dupCount > 0) {
+          logger?.log(`[CQG Merge] Đã khử trùng ${dupCount} lệnh trùng lặp giữa FR1 và FR2 theo Ord #.`);
+        }
+      }
+    }
+
     const mergedData: any[] = [];
     if (headerRow && headerRow.length > 0) {
       mergedData.push(headerRow);
     }
-    mergedData.push(...data1, ...data2);
+    mergedData.push(...data1, ...finalData2);
 
     const nwb = XLSX.utils.book_new();
     const ns = XLSX.utils.aoa_to_sheet(mergedData);
