@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
+import { io } from 'socket.io-client';
+import { API_BASE_URL } from '@/context/AuthContext';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
 export interface CcpCeEodReconSectionProps {
@@ -122,26 +124,55 @@ export default function CcpCeEodReconSection({
     try {
       const data = await api.tradingOps.getConsoleSummary(dateStr, undefined, token);
       if (data) {
-        // Parse CoreCCP / CoreEX EOD info if available
-        if (data?.negativeMargin) {
-          setHasExecutedMargin(!!data.negativeMargin.executedAt);
-          setMarginExecutedAt(data.negativeMargin.executedAt || null);
-          setNegativeMarginAccounts(data.negativeMargin.accounts || []);
+        // 1. Tài khoản âm ký quỹ (EOD CoreCCP)
+        const negJob = data?.negativeMargin;
+        const ccpTotals = data?.ccpSummary?.totals;
+        const negExecuted = negJob?.executedAt || data?.ccpSummary?.checkJob?.executedAt;
+        if (negExecuted || (negJob?.negativeIMRAcc && negJob.negativeIMRAcc.length > 0) || (ccpTotals?.negativeIMRCount && ccpTotals.negativeIMRCount > 0)) {
+          setHasExecutedMargin(true);
+          setMarginExecutedAt(negExecuted || null);
+          const rawAccs = negJob?.accounts || negJob?.negativeIMRAcc || negJob?.negativeBalanceAccs || ccpTotals?.negativeIMRAcc || [];
+          setNegativeMarginAccounts(
+            rawAccs.map((a: any) => (typeof a === 'string' ? { accountNumber: a } : a))
+          );
+        } else {
+          setHasExecutedMargin(false);
+          setMarginExecutedAt(null);
+          setNegativeMarginAccounts([]);
         }
-        if (data?.eodRun) {
-          setHasExecutedEod(!!data.eodRun.executedAt);
-          setEodExecutedAt(data.eodRun.executedAt || null);
-          setEodResults(data.eodRun.results || []);
+
+        // 2. Kết quả chạy EOD (CoreCCP ↔ CoreEX)
+        const eodSource = data?.eodRun || data?.eod;
+        const ccpCheckJob = data?.ccpSummary?.checkJob;
+        const eodExecuted = eodSource?.executedAt || ccpCheckJob?.executedAt;
+        if (eodExecuted || (eodSource && (eodSource.status === 'COMPLETED' || eodSource.jobId))) {
+          setHasExecutedEod(true);
+          setEodExecutedAt(eodExecuted || null);
+          const rawResults = eodSource?.results || eodSource?.mismatchedEOD || ccpTotals?.mismatchedEOD || [];
+          setEodResults(
+            rawResults.map((item: any) => ({
+              account: item.account || item.maTKGD || '',
+              qltkgd: item.qltkgd ?? item.calculatedBalance ?? 0,
+              eodResult: item.eodResult ?? item.eodBalance ?? 0,
+              diff: item.diff ?? item.differ ?? 0,
+            }))
+          );
+        } else {
+          setHasExecutedEod(false);
+          setEodExecutedAt(null);
+          setEodResults([]);
         }
+
+        // 3. Đối soát Pre-EOD (CoreCCP ↔ CoreEX)
         if (data?.preEod) {
           setHasExecutedPreEod(!!data.preEod.executedAt);
           setPreEodExecutedAt(data.preEod.executedAt || null);
           setPreEodTotals({
-            totalCcpVolume: data.preEod.ccpVolume || 0,
-            totalCeVolume: data.preEod.ceVolume || 0,
-            differLots: data.preEod.differLots || 0,
-            mismatchedTradesCount: data.preEod.mismatchedTradesCount || 0,
-            mismatchedPositionsCount: data.preEod.mismatchedPositionsCount || 0,
+            totalCcpVolume: data.preEod.ccpVolume || data.preEod.totals?.totalACM_MS || 0,
+            totalCeVolume: data.preEod.ceVolume || data.preEod.totals?.totalACM_Straits || 0,
+            differLots: data.preEod.differLots || data.preEod.totals?.differACM || 0,
+            mismatchedTradesCount: data.preEod.mismatchedTradesCount || (data.preEod.mismatchedTrades || []).length,
+            mismatchedPositionsCount: data.preEod.mismatchedPositionsCount || (data.preEod.mismatchedPositions || []).length,
           });
           setMismatchedTrades(data.preEod.mismatchedTrades || []);
           setMismatchedPositions(data.preEod.mismatchedPositions || []);
@@ -158,6 +189,26 @@ export default function CcpCeEodReconSection({
     if (token && selectedDate) {
       fetchEodSummary(selectedDate);
     }
+  }, [token, selectedDate]);
+
+  // Lắng nghe WebSocket để tự động refresh giao diện ngay khi có lượt chạy EOD / Pre-EOD mới
+  useEffect(() => {
+    if (!token || !selectedDate) return;
+    const socket = io(API_BASE_URL, {
+      transports: ['websocket'],
+    });
+
+    socket.on('dashboard-updated', () => {
+      fetchEodSummary(selectedDate);
+    });
+
+    socket.on('job-status-updated', () => {
+      fetchEodSummary(selectedDate);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [token, selectedDate]);
 
   // Trigger Action Handlers

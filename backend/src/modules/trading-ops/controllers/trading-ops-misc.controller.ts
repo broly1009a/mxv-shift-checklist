@@ -337,6 +337,30 @@ export class TradingOpsMiscController {
   }
 
   /**
+   * Kích hoạt đối chiếu chốt sổ EOD CoreCCP (CHECK_EOD_CCP).
+   */
+  @Post('check-eod-run')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async checkEodRun(
+    @Body('sessionDate') sessionDate?: string,
+    @Body('date') dateStr?: string,
+  ) {
+    return this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_EOD_CCP');
+  }
+
+  /**
+   * Kích hoạt đối soát Pre-EOD CoreCCP ↔ CoreEX.
+   */
+  @Post('run-check-pre-eod')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runCheckPreEod(
+    @Body('sessionDate') sessionDate?: string,
+    @Body('date') dateStr?: string,
+  ) {
+    return this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_PRE_EOD');
+  }
+
+  /**
    * Kích hoạt tải các báo cáo tùy chọn từ M-System hoặc CQG.
    */
   @Post('trigger-selective-backup')
