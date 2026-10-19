@@ -375,23 +375,39 @@ export class MsApiAdapter implements IIngressPort {
   }
 
   /**
-   * Lấy Bearer Token hợp lệ (Tự động tái sử dụng session cache nếu còn hạn >= 5 phút)
+   * Xóa sạch cache phiên đăng nhập (RAM + File) khi token bị vô hiệu hóa
    */
-  public async getValidToken(): Promise<{ token: string; baseUrl: string; adminUrl: string }> {
+  public clearSession(): void {
+    this.currentSession = null;
+    try {
+      if (fs.existsSync(this.sessionCachePath)) {
+        fs.unlinkSync(this.sessionCachePath);
+      }
+    } catch {}
+  }
+
+  /**
+   * Lấy Bearer Token hợp lệ (Tự động tái sử dụng session cache nếu còn hạn >= 5 phút, hoặc forceRefresh)
+   */
+  public async getValidToken(forceRefresh = false): Promise<{ token: string; baseUrl: string; adminUrl: string }> {
     const creds = await this.getCredentials();
     const baseUrl = creds.baseUrl || this.defaultBaseUrl;
     const adminUrl = creds.adminUrl || this.defaultAdminUrl;
 
-    // 1. Kiểm tra RAM cache
-    if (this.currentSession && this.isSessionValid(this.currentSession)) {
-      return { token: this.currentSession.token, baseUrl, adminUrl };
-    }
+    if (!forceRefresh) {
+      // 1. Kiểm tra RAM cache
+      if (this.currentSession && this.isSessionValid(this.currentSession)) {
+        return { token: this.currentSession.token, baseUrl, adminUrl };
+      }
 
-    // 2. Kiểm tra File cache
-    const fileSession = this.loadSessionFromFile();
-    if (fileSession && this.isSessionValid(fileSession)) {
-      this.currentSession = fileSession;
-      return { token: fileSession.token, baseUrl, adminUrl };
+      // 2. Kiểm tra File cache
+      const fileSession = this.loadSessionFromFile();
+      if (fileSession && this.isSessionValid(fileSession)) {
+        this.currentSession = fileSession;
+        return { token: fileSession.token, baseUrl, adminUrl };
+      }
+    } else {
+      this.clearSession();
     }
 
     // 3. Tiến hành đăng nhập 2 bước Password + PIN
@@ -472,6 +488,35 @@ export class MsApiAdapter implements IIngressPort {
   }
 
   /**
+   * Kiểm tra tình trạng kết nối và hiệu lực phiên làm việc với M-System
+   */
+  public async checkHealth(): Promise<boolean> {
+    try {
+      const { token, baseUrl, adminUrl } = await this.getValidToken();
+      // Gửi 1 request kiểm tra nhẹ để đảm bảo token thực tế còn được M-System chấp nhận
+      const pingUrl = `${baseUrl}/am/admin/investors/excel?limit=1`;
+      const res = await fetch(pingUrl, {
+        method: 'GET',
+        headers: {
+          accept: 'application/json, text/plain, */*',
+          authorization: `Bearer ${token}`,
+          origin: adminUrl,
+          referer: `${adminUrl}/`,
+        },
+      });
+      if (res.status === 401) {
+        this.logger.warn('[MsApiAdapter] Token cached nhận HTTP 401 khi test. Tự động làm mới phiên...');
+        await this.getValidToken(true);
+      }
+      return true;
+    } catch (err: any) {
+      this.logger.warn(`[MsApiAdapter] checkHealth gặp sự cố: ${err.message}. Tự động làm mới phiên...`);
+      await this.getValidToken(true);
+      return true;
+    }
+  }
+
+  /**
    * Tải 1 file báo cáo từ Newgen API
    */
   private async downloadSingleReport(
@@ -505,7 +550,9 @@ export class MsApiAdapter implements IIngressPort {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      throw new Error(`Tải báo cáo [${reportDef.name}] thất bại (HTTP ${res.status}): ${errText.slice(0, 200)}`);
+      const err = new Error(`Tải báo cáo [${reportDef.name}] thất bại (HTTP ${res.status}): ${errText.slice(0, 200)}`);
+      (err as any).status = res.status;
+      throw err;
     }
 
     const arrayBuf = await res.arrayBuffer();
@@ -545,7 +592,10 @@ export class MsApiAdapter implements IIngressPort {
       fs.mkdirSync(outputDirectory, { recursive: true });
     }
 
-    const { token, baseUrl, adminUrl } = await this.getValidToken();
+    let session = await this.getValidToken();
+    let token = session.token;
+    let baseUrl = session.baseUrl;
+    let adminUrl = session.adminUrl;
 
     // Xác định danh sách báo cáo cần tải:
     // Hỗ trợ FULL / ALL / BACKUP để tải trọn gói toàn bộ 18 báo cáo M-System
@@ -612,6 +662,28 @@ export class MsApiAdapter implements IIngressPort {
         const fileDetail = await this.downloadSingleReport(token, baseUrl, adminUrl, reportDef, outputDirectory);
         files.push(fileDetail);
       } catch (err: any) {
+        const is401 =
+          err?.status === 401 ||
+          err?.message?.includes('401') ||
+          err?.message?.toLowerCase().includes('invalid accesstoken');
+
+        if (is401) {
+          this.logger.warn(`[MsApiAdapter] Token hết hạn hoặc không hợp lệ (HTTP 401) khi tải ${reportDef.fileName}. Tự động làm mới phiên 2 bước và tải lại...`);
+          try {
+            const fresh = await this.getValidToken(true);
+            token = fresh.token;
+            baseUrl = fresh.baseUrl;
+            adminUrl = fresh.adminUrl;
+            const fileDetail = await this.downloadSingleReport(token, baseUrl, adminUrl, reportDef, outputDirectory);
+            files.push(fileDetail);
+            continue;
+          } catch (retryErr: any) {
+            this.logger.error(`[MsApiAdapter] Tải lại file ${reportDef.fileName} sau khi làm mới phiên thất bại: ${retryErr.message}`);
+            errors.push(`${reportDef.fileName}: ${retryErr.message}`);
+            continue;
+          }
+        }
+
         this.logger.error(`[MsApiAdapter] Lỗi tải file ${reportDef.fileName}: ${err.message}`);
         errors.push(`${reportDef.fileName}: ${err.message}`);
       }

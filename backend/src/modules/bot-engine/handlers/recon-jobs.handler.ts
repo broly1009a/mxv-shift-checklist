@@ -361,6 +361,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
                 outputDir: msDailyPath,
                 reportType: 'DSGD',
               });
+              if (!dsgdRes || !dsgdRes.success || !dsgdRes.files || dsgdRes.files.length === 0) {
+                throw new Error(
+                  `Direct API M-System không tải được file DSGD.xlsx (${dsgdRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                );
+              }
               const names = (dsgdRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
               log(`MS Tải DSGD.xlsx qua Direct API hoàn tất: ${names}`);
             }
@@ -370,6 +375,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
                 outputDir: msDailyPath,
                 reportType: 'TTM',
               });
+              if (!ttmRes || !ttmRes.success || !ttmRes.files || ttmRes.files.length === 0) {
+                throw new Error(
+                  `Direct API M-System không tải được file TTM.xlsx (${ttmRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                );
+              }
               const names = (ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
               log(`MS Tải TTM.xlsx qua Direct API hoàn tất: ${names}`);
             }
@@ -379,6 +389,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
                 outputDir: msDailyPath,
                 reportType: 'TTTT',
               });
+              if (!ttttRes || !ttttRes.success || !ttttRes.files || ttttRes.files.length === 0) {
+                throw new Error(
+                  `Direct API M-System không tải được file TTTT.xlsx (${ttttRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                );
+              }
               const names = (ttttRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
               log(`MS Tải TTTT.xlsx qua Direct API hoàn tất: ${names}`);
             }
@@ -767,12 +782,15 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
               reportCodes: ['DSGD_CCP'],
               mode: 'REST_API',
             });
+            if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) {
+              throw new Error(`Direct API CoreCCP không tải được file nào (${ccpRes?.error || '0 files returned'})`);
+            }
             const ccpFilesList = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
             log(`CCP Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpFilesList}`);
             log('CCP Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
             return;
           } catch (ccpApiErr: any) {
-            log(`CCP  Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
+            log(`CCP ❌ Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
             errors.push(`CCP Direct API: ${ccpApiErr.message}`);
             abortBarrierIfStrict('CoreCCP API', ccpApiErr.message);
             return;

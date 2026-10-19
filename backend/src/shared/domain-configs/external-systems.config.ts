@@ -34,7 +34,7 @@ export const EXTERNAL_SYSTEMS_CONFIG = {
 
   // 3. CoreCCP (Clearing & Settlement)
   coreccp: {
-    baseUrl: process.env.CORECCP_BASE_URL || 'https://coreccp.mxv.com.vn',
+    baseUrl: process.env.CORECCP_BASE_URL || 'https://coreccp.vnclear.vn',
     connectKey: 'fsscssiam2021',
   },
 

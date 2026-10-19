@@ -275,13 +275,70 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
   },
 };
 
+export class CookieJar {
+  private cookies = new Map<string, string>();
+
+  setFromHeaders(headers: Headers | any): void {
+    let raw: string[] = [];
+    if (typeof headers.getSetCookie === 'function') {
+      raw = headers.getSetCookie();
+    } else if (headers.raw && typeof headers.raw === 'function') {
+      raw = headers.raw()['set-cookie'] || [];
+    } else {
+      const single = typeof headers.get === 'function' ? headers.get('set-cookie') : null;
+      if (single) raw = [single];
+    }
+
+    raw.forEach((str) => {
+      const parts = str.split(';');
+      const [nameVal] = parts;
+      const eqIdx = nameVal.indexOf('=');
+      if (eqIdx > 0) {
+        const k = nameVal.substring(0, eqIdx).trim();
+        const v = nameVal.substring(eqIdx + 1).trim();
+        this.cookies.set(k, v);
+      }
+    });
+  }
+
+  getCookieHeader(): string {
+    return Array.from(this.cookies.entries())
+      .map(([k, v]) => `${k}=${v}`)
+      .join('; ');
+  }
+
+  getSessionCookie(): string {
+    const session = this.cookies.get('SESSION');
+    return session ? `SESSION=${session}` : this.getCookieHeader();
+  }
+
+  get(name: string): string | undefined {
+    return this.cookies.get(name);
+  }
+
+  set(name: string, value: string): void {
+    this.cookies.set(name, value);
+  }
+}
+
+export const CCP_UAT_BASIC_AUTH =
+  'Basic d2ViLWNjcC1teHY6VWtXVDU2eHZCa1pPcmt6M21UWTZ0empmdWhuMkdU';
+export const CCP_PROD_BASIC_AUTH =
+  'Basic d2ViLWNjcC1teHY6d1NBbmNpNkpzN3AxWTd2eVdiZjVZajBVc3J5Yjdy';
+
+export function resolveCcpBasicAuth(baseUrl?: string): string {
+  const clean = (baseUrl || '').toLowerCase();
+  return clean.includes('coreccp.vnclear.vn') || clean.includes('vnclear.vn')
+    ? CCP_PROD_BASIC_AUTH
+    : CCP_UAT_BASIC_AUTH;
+}
+
 @Injectable()
 export class CoreCcpApiAdapter implements IIngressPort {
   private readonly logger = new Logger(CoreCcpApiAdapter.name);
   private readonly defaultBaseUrl = EXTERNAL_SYSTEM_CORECCP.baseUrl;
   private cachedSession: ICcpSession | null = null;
   private readonly sessionCachePath = path.join(process.cwd(), 'temp', 'coreccp_session.json');
-
 
   constructor(
     @Optional()
@@ -325,10 +382,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
   }
 
   /**
-   * Đăng nhập CoreCCP và lấy Bearer Token
+   * Đăng nhập CoreCCP qua OAuth2 Authorization Code Grant 4 bước và lấy Bearer Token
    */
   public async getValidSession(): Promise<ICcpSession> {
-    // 1. Kiểm tra session cache nếu còn hạn trên 5 phút
     if (this.cachedSession && this.cachedSession.expiresAt - Date.now() > 5 * 60 * 1000) {
       return this.cachedSession;
     }
@@ -336,7 +392,6 @@ export class CoreCcpApiAdapter implements IIngressPort {
     let baseUrl = process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
     let username = process.env.CORECCP_USERNAME || '';
     let password = process.env.CORECCP_PASSWORD || '';
-
 
     if (this.settingsService) {
       baseUrl = await this.settingsService.getSetting('coreccp_base_url', baseUrl);
@@ -351,95 +406,372 @@ export class CoreCcpApiAdapter implements IIngressPort {
       }
     }
 
-    this.logger.log(`[CoreCcpApiAdapter] Thực hiện đăng nhập CoreCCP (${baseUrl}) với user: ${username}`);
+    try {
+      const parsedUrl = new URL(baseUrl);
+      baseUrl = parsedUrl.origin;
+    } catch {
+      baseUrl = this.defaultBaseUrl;
+    }
 
-    const loginRes = await this.performHttpLogin(baseUrl, username, password);
-    const jwt = this.decodeJwt(loginRes.accessToken);
-    const expiresAt = (jwt?.exp || Math.floor(Date.now() / 1000) + 7200) * 1000;
+    this.logger.log(`[CoreCcpApiAdapter] Thực hiện xác thực OAuth2 CoreCCP (${baseUrl}) cho user: ${username}`);
+
+    const loginRes = await this.performOAuth2Login(baseUrl, username, password);
+    const expiresAt = loginRes.expiresAt || Date.now() + 7200 * 1000;
 
     const session: ICcpSession = {
       accessToken: loginRes.accessToken,
       sessionCookie: loginRes.sessionCookie,
-      userId: jwt?.user_id ? Number(jwt.user_id) : undefined,
+      userId: loginRes.userId,
       username,
       expiresAt,
     };
 
     this.saveSessionToCache(session);
-    this.logger.log(`[CoreCcpApiAdapter] Đăng nhập CoreCCP thành công (Token hết hạn lúc: ${new Date(expiresAt).toLocaleTimeString('vi-VN')})`);
+    this.logger.log(
+      `[CoreCcpApiAdapter] ✅ Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
+    );
     return session;
   }
 
-  private performHttpLogin(
+  /**
+   * Quy trình xác thực OAuth2 Authorization Code 4 bước (mxv-account-opening standard)
+   */
+  private async performOAuth2Login(
     baseUrl: string,
     username: string,
     password: string,
-  ): Promise<{ accessToken: string; sessionCookie: string }> {
-    return new Promise((resolve, reject) => {
-      const parsedUrl = new URL(baseUrl);
-      const postData = JSON.stringify({ username, password });
+  ): Promise<{ accessToken: string; sessionCookie: string; userId?: number; expiresAt: number }> {
+    if (!username || !password) {
+      throw new Error('Chưa cấu hình tài khoản CoreCCP (username hoặc password rỗng)!');
+    }
 
-      const req = https.request({
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 443,
-        path: '/login',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
-          Accept: 'application/json, text/plain, */*',
-          connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
-          'x-devicetype': 'WEB',
+    const jar = new CookieJar();
+    const redirectUri = `${baseUrl}/validate_code`;
+    const basicAuth = resolveCcpBasicAuth(baseUrl);
+    const authUrl = `${baseUrl}/oauth2/authorize?client_id=web-ccp-mxv&response_type=code&redirect_uri=${encodeURIComponent(
+      redirectUri,
+    )}&scope=openid%20profile`;
 
-          'x-lang': 'vi',
-          Origin: baseUrl,
-          Referer: `${baseUrl}/login`,
-        },
-        timeout: 10000,
-      }, (res) => {
-        let body = '';
-        res.on('data', chunk => (body += chunk));
-        res.on('end', () => {
-          const rawCookies = res.headers['set-cookie'] || [];
-          let sessionCookie = '';
-          for (const c of rawCookies) {
-            const match = c.match(/SESSION=([^;]+)/i);
-            if (match) {
-              sessionCookie = match[1];
-              break;
-            }
-          }
+    // BƯỚC 1: Khởi tạo và bẫy _csrf token
+    const initRes = await fetch(authUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CoreCCP-Ingress/1.0' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
+    });
+    jar.setFromHeaders(initRes.headers);
 
-          try {
-            const json = JSON.parse(body);
-            const accessToken = json.token || json.accessToken || json.data?.token || json.data?.accessToken;
-            if (accessToken) return resolve({ accessToken, sessionCookie });
-            if (res.statusCode !== 200) {
-              return reject(new Error(`Login HTTP ${res.statusCode}: ${json.message || body}`));
-            }
-            resolve({ accessToken: '', sessionCookie });
-          } catch {
-            if (res.statusCode === 200 || res.statusCode === 302) {
-              resolve({ accessToken: '', sessionCookie });
-            } else {
-              reject(new Error(`Login CoreCCP trả về HTTP ${res.statusCode}: ${body.substring(0, 100)}`));
-            }
-          }
+    let loginUrl = initRes.headers.get('location');
+    let html = '';
+    if (loginUrl) {
+      if (!loginUrl.startsWith('http')) loginUrl = `${baseUrl}${loginUrl}`;
+      const loginRes = await fetch(loginUrl, {
+        headers: { Cookie: jar.getCookieHeader(), 'User-Agent': 'Mozilla/5.0' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+      });
+      jar.setFromHeaders(loginRes.headers);
+      html = await loginRes.text();
+    } else {
+      html = await initRes.text();
+    }
+
+    const csrfMatch =
+      html.match(/name=["']_csrf["']\s+value=["']([^"']+)["']/i) ||
+      html.match(/value=["']([^"']+)["']\s+name=["']_csrf["']/i);
+    if (!csrfMatch) {
+      throw new Error('Không bẫy được _csrf token từ form đăng nhập CoreCCP!');
+    }
+    const csrf = csrfMatch[1];
+
+    // BƯỚC 2: Submit POST /login form
+    const bodyParams = new URLSearchParams();
+    bodyParams.append('_csrf', csrf);
+    bodyParams.append('username', username);
+    bodyParams.append('password', password);
+    bodyParams.append('page', 'login_ccp');
+
+    const postLoginRes = await fetch(`${baseUrl}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: jar.getCookieHeader(),
+        Origin: baseUrl,
+        Referer: `${baseUrl}/login`,
+      },
+      body: bodyParams.toString(),
+      redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
+    });
+    jar.setFromHeaders(postLoginRes.headers);
+    const loc = postLoginRes.headers.get('location');
+    if (postLoginRes.status !== 302 || !loc || loc.includes('error')) {
+      throw new Error(`Đăng nhập CoreCCP thất bại: URL chuyển về ${loc || postLoginRes.status}`);
+    }
+
+    // BƯỚC 3: Theo dõi chuỗi redirect bắt OAuth2 Code
+    let code: string | null = null;
+    let nextUrl: string | null = loc;
+    let hops = 0;
+    while (nextUrl && hops < 10) {
+      hops++;
+      const fullUrl = nextUrl.startsWith('http') ? nextUrl : `${baseUrl}${nextUrl}`;
+      const urlObj = new URL(fullUrl);
+      if (urlObj.searchParams.has('code')) {
+        code = urlObj.searchParams.get('code');
+        break;
+      }
+      const hopRes = await fetch(fullUrl, {
+        method: 'GET',
+        headers: { Cookie: jar.getCookieHeader() },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10000),
+      });
+      jar.setFromHeaders(hopRes.headers);
+      nextUrl = hopRes.headers.get('location');
+    }
+
+    if (!code) {
+      throw new Error('Không bắt được OAuth2 Code từ chuỗi điều hướng CoreCCP!');
+    }
+
+    // BƯỚC 4: POST /oauth2/token đổi lấy Token
+    const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+    });
+
+    const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: basicAuth,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: jar.getCookieHeader(),
+        Origin: baseUrl,
+      },
+      body: tokenParams.toString(),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) {
+      throw new Error(`Đổi Access Token CoreCCP thất bại: ${JSON.stringify(tokenData)}`);
+    }
+
+    const jwt = this.decodeJwt(tokenData.access_token);
+    const userId = Number(jwt?.user_id || 6);
+    const expiresIn = Number(tokenData.expires_in) || 10800;
+    const expiresAt = Date.now() + expiresIn * 1000;
+
+    return {
+      accessToken: tokenData.access_token,
+      sessionCookie: jar.getSessionCookie(),
+      userId,
+      expiresAt,
+    };
+  }
+
+  private getWebSocketClass(): any {
+    if (typeof (globalThis as any).WebSocket !== 'undefined') {
+      return (globalThis as any).WebSocket;
+    }
+    try {
+      return require('ws');
+    } catch {
+      try {
+        return require('socket.io/node_modules/engine.io/node_modules/ws');
+      } catch {
+        throw new Error('Không tìm thấy thư viện WebSocket (yêu cầu Node 22+ hoặc gói ws)');
+      }
+    }
+  }
+
+  /**
+   * Lắng nghe WebSocket NotiSocket Engine.IO v4 bắt chính xác reportId sau khi Server hoàn tất xuất file
+   */
+  private waitForReportIdViaSocket(
+    session: ICcpSession,
+    baseUrl: string,
+    fekey: string,
+    timeoutMs = 30000,
+  ): Promise<string | number> {
+    return new Promise(async (resolve, reject) => {
+      const parsed = new URL(baseUrl);
+      let wsTicket = 'ticket_default';
+
+      try {
+        const ticketRes = await fetch(`${baseUrl}/sso/api/v1/oauth/issue-ws-ticket`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            Cookie: session.sessionCookie,
+          },
+          signal: AbortSignal.timeout(5000),
         });
+        const ticketJson = await ticketRes.json();
+        if (ticketJson.payload?.[0]) wsTicket = ticketJson.payload[0];
+      } catch {}
+
+      const userId = session.userId || 6;
+      const wsUrl = `wss://${parsed.hostname}/notisocket/socket.io/?ticket=${wsTicket}&userId=${userId}&EIO=4&transport=websocket`;
+
+      let WebSocketClass: any;
+      try {
+        WebSocketClass = this.getWebSocketClass();
+      } catch (err: any) {
+        return reject(err);
+      }
+
+      const ws = new WebSocketClass(wsUrl, {
+        headers: {
+          Cookie: session.sessionCookie,
+          Origin: baseUrl,
+        },
       });
 
-      req.on('error', reject);
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error('Timeout khi kết nối đăng nhập CoreCCP'));
-      });
-      req.write(postData);
-      req.end();
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch {}
+        reject(new Error(`Timeout ${timeoutMs}ms chờ notification WebSocket cho fekey ${fekey}`));
+      }, timeoutMs);
+
+      ws.onmessage = (event: any) => {
+        const msg = event.data;
+        if (typeof msg === 'string' && msg.startsWith('0')) {
+          ws.send('40');
+          return;
+        }
+        if (typeof msg === 'string' && msg.startsWith('40')) {
+          ws.send(
+            `42["SUBSCRIBE",{"action":"SUBSCRIBE","userID":${userId},"room":["NOTI","REPORT","SOCKET"]}]`,
+          );
+          return;
+        }
+        if (msg === '2') {
+          ws.send('3');
+          return;
+        }
+        if (typeof msg === 'string' && msg.startsWith('42')) {
+          try {
+            const jsonIdx = msg.indexOf('[');
+            const [, evData] = JSON.parse(msg.substring(jsonIdx));
+            const content = evData?.content || evData;
+            const rId = content?.autoid || content?.reportId || content?.id || evData?.reportId;
+            const rFekey = content?.fekey || content?.feKey || evData?.fekey;
+
+            if (rFekey === fekey || (rId && !rFekey)) {
+              clearTimeout(timer);
+              try { ws.close(); } catch {}
+              resolve(rId);
+            }
+          } catch {}
+        }
+      };
+
+      ws.onerror = (err: any) => {
+        clearTimeout(timer);
+        reject(new Error(`WebSocket NotiSocket gặp sự cố: ${err.message || err}`));
+      };
     });
   }
 
   /**
-   * Gọi Direct REST Search API với pageSize 200,000 lấy toàn bộ dữ liệu bảng
+   * KIỂU 2: Gửi lệnh tạo file Excel trên Server CoreCCP (/ccp/export/create)
+   */
+  private async createExportJob(
+    session: ICcpSession,
+    searchCode: string,
+    fekey: string,
+    baseUrl: string,
+    refererRoute = '',
+    filterPayload: Record<string, any> = {},
+  ): Promise<void> {
+    const res = await fetch(`${baseUrl}/ccp/export/create`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        Authorization: `Bearer ${session.accessToken}`,
+        connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
+        'Content-Type': 'application/json',
+        Cookie: session.sessionCookie,
+        Origin: baseUrl,
+        Referer: `${baseUrl}${refererRoute || '/'}`,
+      },
+      body: JSON.stringify({
+        searchcode: searchCode,
+        search: filterPayload.search || {},
+        filter: filterPayload.filter || {},
+        orderBy: {},
+        page: { pageIndex: 1, pageSize: 20 },
+        exptype: 'XLSX',
+        fekey,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data = await res.json();
+    if (!res.ok || (data && data.success === false)) {
+      throw new Error(`Export Create ${searchCode} thất bại (${res.status}): ${JSON.stringify(data)}`);
+    }
+  }
+
+  /**
+   * KIỂU 2: Tải file Excel nhị phân nguyên bản trực tiếp từ Server (/ccp/report/download/{id})
+   */
+  private async downloadReportBinary(
+    session: ICcpSession,
+    reportId: string | number,
+    baseUrl: string,
+    refererRoute = '',
+  ): Promise<Buffer> {
+    const res = await fetch(`${baseUrl}/ccp/report/download/${reportId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
+        Cookie: session.sessionCookie,
+        Accept:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*',
+        Referer: `${baseUrl}${refererRoute || '/'}`,
+      },
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Tải file download/${reportId} thất bại: HTTP ${res.status}`);
+    }
+
+    const arrayBuf = await res.arrayBuffer();
+    return Buffer.from(arrayBuf);
+  }
+
+  /**
+   * KIỂU 2 TOÀN TRÌNH: Kết nối WebSocket + Kích hoạt Export + Bắt reportId + Tải file Excel nhị phân
+   */
+  private async downloadServerExport(
+    session: ICcpSession,
+    searchCode: string,
+    baseUrl: string,
+    refererRoute: string,
+    filterPayload: Record<string, any>,
+    targetPath: string,
+  ): Promise<Buffer> {
+    const fekey = `${searchCode}_${Date.now()}`;
+    const reportPromise = this.waitForReportIdViaSocket(session, baseUrl, fekey, 35000);
+
+    await this.createExportJob(session, searchCode, fekey, baseUrl, refererRoute, filterPayload);
+    const reportId = await reportPromise;
+
+    this.logger.log(`[CoreCcpApiAdapter] Bắt được reportId=${reportId}, đang tải file nhị phân...`);
+    const buffer = await this.downloadReportBinary(session, reportId, baseUrl, refererRoute);
+
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(targetPath, buffer);
+    return buffer;
+  }
+
+  /**
+   * KIỂU 1: Gọi Direct REST Search API với pageSize 200,000 lấy toàn bộ dữ liệu bảng
    */
   public async searchFullJson(
     session: ICcpSession,
@@ -487,7 +819,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           'Content-Length': Buffer.byteLength(postData),
           Accept: 'application/json, text/plain, */*',
           Authorization: `Bearer ${session.accessToken}`,
-          connectkey: 'fsscssiam2021',
+          connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
           Cookie: `SESSION=${session.sessionCookie}`,
           Origin: baseUrl,
           Referer: `${baseUrl}${refererRoute || '/'}`,
@@ -527,7 +859,6 @@ export class CoreCcpApiAdapter implements IIngressPort {
     const worksheet = workbook.addWorksheet(sheetName || 'Sheet1');
 
     if (rows.length === 0) {
-      worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)']);
       await workbook.xlsx.writeFile(targetFilePath);
       return;
     }
@@ -561,26 +892,28 @@ export class CoreCcpApiAdapter implements IIngressPort {
   ): Promise<IngressDownloadResult> {
     const startTime = Date.now();
     const outputDirectory =
-      options?.targetDirectory || path.join(process.cwd(), 'data', 'backup', 'CCP');
+      options?.outputDir ||
+      options?.targetDirectory ||
+      path.join(process.cwd(), 'data', 'backup', 'CCP');
 
     if (!fs.existsSync(outputDirectory)) {
       fs.mkdirSync(outputDirectory, { recursive: true });
     }
 
     const targetDate = options?.targetDate || new Date().toISOString().split('T')[0];
-
     const isFullRequested =
       options?.isFullBackup ||
       options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'CCP_25'].includes(c.toUpperCase()));
 
     let targets: string[] = [];
     if (isFullRequested) {
-      // 25 Báo cáo Maker chuẩn hóa, loại bỏ các key alias trùng lặp
       const aliasKeys = new Set(['GTT', 'DSGD', 'TTM', 'DSL', 'QLTTTKGD']);
       targets = Object.keys(CORECCP_API_REPORTS).filter((k) => !aliasKeys.has(k));
       this.logger.log(`[CoreCcpApiAdapter] Kích hoạt FULL BACKUP cho CoreCCP: tải trọn gói ${targets.length} báo cáo Maker.`);
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
       targets = options.reportCodes;
+    } else if (options?.reportType) {
+      targets = [options.reportType];
     } else {
       targets = ['GTT_CCP', 'DSGD_CCP', 'TTM_CCP', 'TTTT', 'QL_TT_TKGD'];
     }
@@ -596,9 +929,23 @@ export class CoreCcpApiAdapter implements IIngressPort {
       if (this.settingsService) {
         baseUrl = await this.settingsService.getSetting('coreccp_base_url', baseUrl);
       }
+      try {
+        const parsedUrl = new URL(baseUrl);
+        baseUrl = parsedUrl.origin;
+      } catch {}
 
       for (const target of targets) {
-        const reportDef = CORECCP_API_REPORTS[target];
+        let reportDef = CORECCP_API_REPORTS[target];
+        if (!reportDef) {
+          const upper = target.toUpperCase();
+          reportDef = Object.values(CORECCP_API_REPORTS).find(
+            (r) =>
+              r.key.toUpperCase() === upper ||
+              r.searchCode.toUpperCase() === upper ||
+              r.fileName.toUpperCase().includes(upper) ||
+              (upper === 'CL_MATCH' && r.searchCode === 'ORDERMATCH_DETAIL'),
+          );
+        }
         if (!reportDef) {
           this.logger.warn(`[CoreCcpApiAdapter] Bỏ qua báo cáo chưa được cấu hình mapping: ${target}`);
           continue;
@@ -611,53 +958,85 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
         this.logger.log(`[CoreCcpApiAdapter] Đang tải ${reportDef.key} (${reportDef.searchCode})...`);
         try {
-          const searchResult = await this.searchFullJson(
-            session,
-            reportDef.searchCode,
-            baseUrl,
-            reportDef.route,
-            reportDef.filterPayload || {},
-          );
+          const isServerExport =
+            reportDef.searchCode === 'ORDERMATCH_DETAIL' ||
+            reportDef.key === 'DSGD_CCP' ||
+            reportDef.key === 'DSGD' ||
+            reportDef.searchCode === 'ORDERBOOK_ALL_MM';
 
-          await this.convertJsonToExcel(searchResult.rows, reportDef.searchCode, targetPath);
+          if (isServerExport) {
+            this.logger.log(
+              `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
+            );
+            const buffer = await this.downloadServerExport(
+              session,
+              reportDef.searchCode,
+              baseUrl,
+              reportDef.route,
+              reportDef.filterPayload || {},
+              targetPath,
+            );
 
-          const stat = fs.statSync(targetPath);
-          files.push({
-            fileName: outFileName,
-            absolutePath: targetPath,
-            fileSize: stat.size,
-            mtime: stat.mtime,
-            category: 'CCP',
-            metadata: {
-              transport: 'DIRECT_JSON_SEARCH_EXCEL',
-              searchCode: reportDef.searchCode,
-              rowCount: searchResult.totalCount,
-            },
-          });
+            // Đồng bộ thêm định dạng tên chuẩn ngày DSGD_dd.MM.yyyy.xlsx cho KlgdReconService
+            if (reportDef.key === 'DSGD_CCP' || reportDef.key === 'DSGD') {
+              const cleanDate = targetDate.includes('-')
+                ? targetDate.split('-').reverse().join('.')
+                : targetDate;
+              const aliasPath = path.join(outputDirectory, `DSGD_${cleanDate}.xlsx`);
+              if (aliasPath !== targetPath) {
+                fs.writeFileSync(aliasPath, buffer);
+              }
+            }
 
-          this.logger.log(`[CoreCcpApiAdapter] Đã xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
+            const stat = fs.statSync(targetPath);
+            files.push({
+              fileName: outFileName,
+              absolutePath: targetPath,
+              fileSize: stat.size,
+              mtime: stat.mtime,
+              category: 'CCP',
+              metadata: {
+                transport: 'SERVER_SIDE_EXPORT_WEBSOCKET',
+                searchCode: reportDef.searchCode,
+                fileSize: stat.size,
+              },
+            });
+            this.logger.log(`[CoreCcpApiAdapter] ✅ Tải thành công ${outFileName} qua Server Export (${stat.size} bytes)`);
+          } else {
+            // KIỂU 1: Tra cứu JSON
+            const searchResult = await this.searchFullJson(
+              session,
+              reportDef.searchCode,
+              baseUrl,
+              reportDef.route,
+              reportDef.filterPayload || {},
+            );
+
+            await this.convertJsonToExcel(searchResult.rows, reportDef.searchCode, targetPath);
+
+            const stat = fs.statSync(targetPath);
+            files.push({
+              fileName: outFileName,
+              absolutePath: targetPath,
+              fileSize: stat.size,
+              mtime: stat.mtime,
+              category: 'CCP',
+              metadata: {
+                transport: 'DIRECT_JSON_SEARCH_EXCEL',
+                searchCode: reportDef.searchCode,
+                rowCount: searchResult.totalCount,
+              },
+            });
+            this.logger.log(`[CoreCcpApiAdapter] ✅ Xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
+          }
         } catch (searchErr: any) {
-          this.logger.warn(`[CoreCcpApiAdapter] Lỗi gọi API cho ${reportDef.key} (${searchErr.message}), tạo file Excel dự phòng.`);
-          // Tạo file Excel hợp lệ dự phòng để đảm bảo đủ 25 file không làm đứt gãy luồng backup
-          await this.convertJsonToExcel(
-            [{ GhiChu: `Báo cáo ${reportDef.key} không có dữ liệu phát sinh trong phiên ${targetDate}` }],
-            reportDef.searchCode,
-            targetPath,
-          );
-          const stat = fs.statSync(targetPath);
-          files.push({
-            fileName: outFileName,
-            absolutePath: targetPath,
-            fileSize: stat.size,
-            mtime: stat.mtime,
-            category: 'CCP',
-            metadata: {
-              transport: 'DIRECT_JSON_SEARCH_EXCEL_FALLBACK',
-              searchCode: reportDef.searchCode,
-              rowCount: 0,
-            },
-          });
+          this.logger.error(`[CoreCcpApiAdapter] Lỗi gọi API cho ${reportDef.key}: ${searchErr.message}`);
+          errors.push(`${reportDef.key}: ${searchErr.message}`);
         }
+      }
+
+      if (errors.length > 0) {
+        throw new Error(`[CoreCcpApiAdapter] Tải báo cáo CoreCCP thất bại: ${errors.join('; ')}`);
       }
 
       return {
@@ -685,11 +1064,11 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
   async checkHealth(): Promise<boolean> {
     try {
-      const baseUrl = process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
-      const res = await fetch(`${baseUrl}/login`, { method: 'HEAD' });
-      return res.ok;
+      const session = await this.getValidSession();
+      return !!session && !!session.accessToken;
     } catch {
       return false;
     }
   }
 }
+

@@ -1,3 +1,66 @@
+## [2026-10-16T22:05] FIX & INTEGRATION: Nâng Cấp Toàn Diện CoreCcpApiAdapter Sang Cơ Chế Server Export Kiểu 2 (WebSocket NotiSocket + OAuth2), Khắc Phục Lỗi Thiếu File Tươi CCP Tại Thư Mục M:\
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: *"tôi vừa check M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\CCP\Futures\2026\T10.2026\16.10 không thấy tải file tươi từ ccp về là sao"*, *"sao lại chưa hỗ trợ tôi viết đầy đủ tải về được rồi cơ mà"*, *"giúp tôi tiến hành"*.
+- **Nguyên nhân gốc rễ**:
+  1. Trong [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L763-L775): Có lỗi nuốt kết quả rỗng khi chạy Direct API CCP. Khi `ingressService.download('CCP')` trả về mảng rỗng `files: []`, code cũ chỉ in log rỗng `CCP Tải báo cáo CoreCCP qua Direct API hoàn tất: ` mà không kích hoạt Fail-Fast.
+  2. Báo cáo DSGD (`ORDERMATCH_DETAIL`) của CoreCCP (VNCLEAR) không hỗ trợ tra cứu toàn bộ dòng qua REST JSON thông thường (trả về 0 dòng khi gọi trang lớn). Bắt buộc phải qua **Cơ chế Server Export Kiểu 2** (`POST /ccp/export/create` -> WebSocket NotiSocket Engine.IO v4 bắt `reportId` -> `GET /ccp/report/download/{id}` tải file nhị phân nguyên bản).
+  3. Giải mã cấu hình tài khoản `bot_credentials_ccp` (tài khoản `anhdao`) cần cơ chế Dual-Tier Fallback hỗ trợ đồng thời cả `ENCRYPTION_KEY` và `mxv_secret_salt_fixed`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/helpers/crypto.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/crypto.ts#L29-L61):
+   - Nâng cấp hàm `decrypt()` với Dual-Tier Decryption: Thử nghiệm giải mã cấp 1 bằng `getSecretKey()` (sha256 từ `ENCRYPTION_KEY`); nếu lỗi Provider bad decrypt, tự động fallback cấp 2 sang sha256 của `mxv_secret_salt_fixed`.
+   - Kết quả: Giải mã chính xác 100% tài khoản bot CoreCCP `anhdao` từ bảng `system_settings`.
+2. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Bổ sung `CookieJar` và hàm `resolveCcpBasicAuth(baseUrl)` phân giải Basic Auth chuẩn UAT/PROD.
+   - Hiện thực hóa `performOAuth2Login()` theo chuẩn 4 bước OAuth2 Authorization Code Grant (`_csrf` -> `POST /login` -> redirect `validate_code` -> `POST /oauth2/token`).
+   - Hiện thực hóa `waitForReportIdViaSocket()` sử dụng Engine.IO v4 WebSocket Client kết nối `wss://coreccp.vnclear.vn/notisocket/socket.io/`, cấp vé `issue-ws-ticket`, gửi bản tin Subscribe channel `REPORT`, và lắng nghe payload nhận `content.autoid` (`reportId`).
+   - Hiện thực hóa `downloadServerExport()`: Tạo job qua `POST /ccp/export/create`, đợi WebSocket báo xong (mất ~1-2s), và tải binary trực tiếp qua `GET /ccp/report/download/{reportId}`.
+   - Tự động sinh đồng thời cả 2 định dạng file: `DSGD CCP.xlsx` và `DSGD_dd.MM.yyyy.xlsx` (ví dụ `DSGD_16.10.2026.xlsx`) để `KlgdReconService` tự động nhận diện cả 2 pattern file.
+3. [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L770-L773):
+   - Thêm chốt chặn Fail-Fast: `if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) throw new Error(...)`. Ngăn chặn hoàn toàn việc nuốt kết quả rỗng.
+
+### 3. Kiểm thử & Xác nhận thực tế trên hệ thống
+- **Build Backend**: `npm run build` thành công trên cả local và Ubuntu `10.0.0.26` (Exit code 0). Đã restart PM2 `mxv-backend`.
+- **Tải file thực tế**:
+  - Tải thành công file tươi trực tiếp vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/CCP/Futures/2026/T10.2026/16.10`:
+    - `DSGD CCP.xlsx`: **123,283 bytes** (mtime: 2026-10-16 22:04:05).
+    - `DSGD_16.10.2026.xlsx`: **123,283 bytes** (mtime: 2026-10-16 22:04:05).
+  - Kiểm tra trực tiếp trên ổ mạng Windows `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\CCP\Futures\2026\T10.2026\16.10`: Đã xuất hiện đầy đủ 2 file tươi với dung lượng 123,283 bytes.
+- **Đối soát KLGD**:
+  - `KlgdReconService.runAutoCheckKLGD` bóc tách thành công file tươi: `totalCCP_DSGD = 1367`, `ccpStatus = 'COMPLETED'`.
+
+---
+
+## [2026-10-16T21:10] FIX: Triệt Tiêu Hoàn Toàn Logic Tự Chế File Excel Giả Trong CoreCCP & CoreEX, Chống Nuốt Lỗi & Khôi Phục File Thật DSGD CCP
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: *"sao lại có tự chế không có dữ liệu phát sinh trong phiên trong DSGD call api bằng api dowload mà đâu có phải json giúp tôi check lại"* và *"giúp tôi fix"*.
+- **Nguyên nhân gốc rễ dẫn đến Dashboard báo `CCP = 0` và `Lệch ACM = 985` trong ca chạy 20:37:01 (Job `6ad2287d98f8079c51339ba6`)**:
+  1. Trong `coreccp-api.adapter.ts` và `coreex-api.adapter.ts`, code cũ vi phạm nghiêm trọng **Quy tắc 4 (Fail-Fast & Zero-Silent-Swallow)**: khi hàm `searchFullJson` bị lỗi (ví dụ 401 do thiếu Bearer Token), catch block đã tự ý tạo ra file Excel giả mạo với text `Báo cáo DSGD_CCP không có dữ liệu phát sinh trong phiên 2026-10-16` lưu thành `DSGD CCP.xlsx` (6,602 bytes).
+  2. File giả mạo này có `mtime` mới hơn file thật `DSGD_16.10.2026.xlsx` (87,004 bytes, 980 lot khớp) do Playwright tải trước đó trong thư mục `/mnt/qlgd-it/.../16.10`.
+  3. Khi module `KlgdReconService` chạy, hàm `findLatestFile(ccpDailyPath, /dsgd/i)` bốc trúng file rác `DSGD CCP.xlsx` (0 lệnh), dẫn đến hệ thống tính `CCP = 0` và kéo theo `differACM = |985 - (0 + 0)| = 985`.
+  4. Cơ chế tải báo cáo DSGD (`ORDERMATCH_DETAIL`) của CoreCCP (VNCLEAR) theo thiết kế chuẩn là **KIỂU 2 (Server-Side Export qua `POST /ccp/export/create` -> Socket.IO bắt `reportId` -> `GET /ccp/report/download/{id}` tải file nhị phân nguyên bản)**, không phải là Direct JSON search rồi dùng ExcelJS tự convert.
+
+### 2. Chi tiết sửa đổi & Xử lý dứt điểm
+1. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Xóa bỏ dòng tự chèn text giả `worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)'])` khi `rows.length === 0` trong `convertJsonToExcel`.
+   - Xóa bỏ toàn bộ block tạo file Excel dự phòng trong catch block của `download()`.
+   - Áp dụng nguyên tắc **Fail-Fast**: Khi gọi API thất bại, ghi nhận `errors.push` và `throw new Error(...)`, tuyệt đối không tạo file giả đè lên file thật của phiên.
+2. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Xóa bỏ dòng chèn text `(Không có dữ liệu phát sinh trong phiên)` trong `convertJsonToExcel`.
+   - Xóa bỏ việc tạo file Excel dự phòng giả mạo trong catch block.
+   - Thêm `errors.push` và `throw new Error(...)` để bảo đảm Fail-Fast.
+3. **Dọn dẹp file rác trên Server Ubuntu 10.0.0.26**:
+   - Đã xóa bỏ file rác `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/CCP/Futures/2026/T10.2026/16.10/DSGD CCP.xlsx` (6,602 bytes).
+   - Thư mục đối soát hiện tại chỉ lưu trữ đúng các file nguyên bản: `DSGD_16.10.2026.xlsx` (87,004 bytes, 980 lot khớp), `TTM_16.10.2026.xlsx` và `TTTT_16.10.2026.xlsx`.
+4. **Build & Triển khai**:
+   - Backend NestJS `npm run build` thành công (0 errors).
+   - Frontend Next.js build thành công (Turbopack, 36/36 static pages).
+   - Đã deploy và restart PM2 `mxv-backend` & `mxv-frontend` trên Ubuntu 10.0.0.26 (Exit code 0).
+
+---
+
 ## [2026-10-16T18:20] FIX & REFACTOR: Điều Tra Gốc Rễ Lệch CQG=1 & Lệch ACM=5, Triệt Tiêu Logic So Sánh Dòng Tự Chế Theo Chuẩn C# IT Tool, Dọn Dẹp URL Rải Rác
 
 ### 1. Mục tiêu thay đổi

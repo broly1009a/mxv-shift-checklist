@@ -402,7 +402,6 @@ export class CoreExApiAdapter implements IIngressPort {
     const worksheet = workbook.addWorksheet(reportDef.name || 'Sheet1');
 
     if (rows.length === 0) {
-      worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)']);
       await workbook.xlsx.writeFile(targetFilePath);
       return;
     }
@@ -460,6 +459,7 @@ export class CoreExApiAdapter implements IIngressPort {
     this.logger.log(`[CoreExApiAdapter] Bắt đầu tải ${targets.length} báo cáo CoreExchange (Phiên: ${targetDate}) vào: ${outputDirectory}`);
 
     const files: IngressFileDetail[] = [];
+    const errors: string[] = [];
 
     try {
       const session = await this.getValidSession();
@@ -499,26 +499,13 @@ export class CoreExApiAdapter implements IIngressPort {
 
           this.logger.log(`[CoreExApiAdapter] Đã xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
         } catch (searchErr: any) {
-          this.logger.warn(`[CoreExApiAdapter] Lỗi gọi API cho ${reportDef.name} (${searchErr.message}), tạo file Excel dự phòng.`);
-          await this.convertJsonToExcel(
-            [{ GhiChu: `Báo cáo ${reportDef.name} không có dữ liệu phát sinh trong phiên ${targetDate}` }],
-            reportDef,
-            targetPath,
-          );
-          const stat = fs.statSync(targetPath);
-          files.push({
-            fileName: outFileName,
-            absolutePath: targetPath,
-            fileSize: stat.size,
-            mtime: stat.mtime,
-            category: 'CORE_EX',
-            metadata: {
-              transport: 'CORE_EXCHANGE_SEARCH_EXCEL_FALLBACK',
-              route: reportDef.route,
-              rowCount: 0,
-            },
-          });
+          this.logger.error(`[CoreExApiAdapter] Lỗi gọi API cho ${reportDef.name}: ${searchErr.message}`);
+          errors.push(`${reportDef.name}: ${searchErr.message}`);
         }
+      }
+
+      if (errors.length > 0) {
+        throw new Error(`[CoreExApiAdapter] Tải báo cáo CoreExchange thất bại: ${errors.join('; ')}`);
       }
 
       return {

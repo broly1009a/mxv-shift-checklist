@@ -30,12 +30,32 @@ export function decrypt(encryptedText: string): string {
   if (!encryptedText) return '';
   const parts = encryptedText.split(':');
   if (parts.length !== 2) {
-    throw new Error('Format mã hóa không hợp lệ (thiếu IV)');
+    try {
+      JSON.parse(encryptedText);
+      return encryptedText;
+    } catch {
+      throw new Error('Format mã hóa không hợp lệ (thiếu IV)');
+    }
   }
   const iv = Buffer.from(parts[0], 'hex');
   const encrypted = Buffer.from(parts[1], 'hex');
-  const decipher = crypto.createDecipheriv(ALGORITHM, getSecretKey(), iv);
-  let decrypted = decipher.update(encrypted);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString('utf8');
+
+  // Thử 1: Giải mã bằng getSecretKey() (ENCRYPTION_KEY)
+  try {
+    const decipher = crypto.createDecipheriv(ALGORITHM, getSecretKey(), iv);
+    let decrypted = decipher.update(encrypted);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString('utf8');
+  } catch (err1) {
+    // Thử 2: Giải mã bằng mxv_secret_salt_fixed (chuẩn bot_credentials)
+    try {
+      const fixedKey = crypto.createHash('sha256').update('mxv_secret_salt_fixed').digest();
+      const decipherFixed = crypto.createDecipheriv(ALGORITHM, fixedKey, iv);
+      let decryptedFixed = decipherFixed.update(encrypted);
+      decryptedFixed = Buffer.concat([decryptedFixed, decipherFixed.final()]);
+      return decryptedFixed.toString('utf8');
+    } catch {
+      throw err1;
+    }
+  }
 }
