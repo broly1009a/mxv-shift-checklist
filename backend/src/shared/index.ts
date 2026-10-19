@@ -8,6 +8,8 @@ export * from './domain-configs/ccp-clearing.config';
 export * from './domain-configs/external-systems.config';
 export * from './domain-configs/coreccp-reports.config';
 export * from './domain-configs/coreex-reports.config';
+export * from './domain-configs/ms-reports.config';
+export * from './domain-configs/acm-reports.config';
 export * from './helpers/file-path.helper';
 export * from './helpers/crypto';
 export * from './helpers/captcha-solver.helper';
