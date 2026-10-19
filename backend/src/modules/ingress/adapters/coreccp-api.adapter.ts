@@ -16,6 +16,7 @@ import {
   CANONICAL_CORECCP_API_KEYS,
   CORECCP_DERIVED_RULES,
   resolveCoreCcpReport,
+  resolveVnclearColumnHeader,
 } from '../../../shared';
 
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
@@ -583,20 +584,25 @@ export class CoreCcpApiAdapter implements IIngressPort {
     baseUrl: string,
     refererRoute = '',
     filterPayload: Record<string, any> = {},
+    parentSearchCode?: string,
   ): Promise<{ rows: any[]; totalCount: number }> {
-    const endpoint = `/ccp/inquiry/maintain/${searchCode}/search/${searchCode}`;
+    const parentCode = parentSearchCode || (searchCode === 'INSTRUMENTS' ? 'COMMODITY' : searchCode);
+    const endpoint = `/ccp/inquiry/maintain/${parentCode}/search/${searchCode}`;
+    const searchObj = filterPayload.search
+      ? filterPayload.search
+      : (filterPayload.KEYVAL ? { KEYVAL: filterPayload.KEYVAL } : {});
     const payload = {
       searchcode: searchCode,
-      search: filterPayload.search || {},
+      search: searchObj,
       filter: filterPayload.filter || {},
       orderBy: {},
       page: { pageIndex: 1, pageSize: 200000 },
     };
 
     const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);
-    if (res.status === 200 && res.data && res.data.success) {
-      const rows = res.data.data || [];
-      const totalCount = res.data.page?.totalCount || rows.length;
+    if (res.status === 200 && res.data && (res.data.success || res.data.code === '0')) {
+      const rows = res.data.data || res.data.payload?.data || [];
+      const totalCount = res.data.page?.totalCount || res.data.payload?.page?.totalCount || rows.length;
       return { rows, totalCount };
     }
     throw new Error(`Search API ${searchCode} thất bại (${res.status}): ${JSON.stringify(res.data)}`);
@@ -654,22 +660,24 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
   /**
    * Xuất mảng dữ liệu JSON ra file Excel .xlsx chuẩn bằng ExcelJS
+   * Tự động ánh xạ tiêu đề tiếng Việt chuẩn từ schemas
    */
-  private async convertJsonToExcel(rows: any[], sheetName: string, targetFilePath: string): Promise<void> {
+  private async convertJsonToExcel(rows: any[], searchCodeOrSheetName: string, targetFilePath: string): Promise<void> {
     const dir = path.dirname(targetFilePath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet(sheetName || 'Sheet1');
+    const worksheet = workbook.addWorksheet(searchCodeOrSheetName || 'Sheet1');
 
     if (rows.length === 0) {
+      worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)']);
       await workbook.xlsx.writeFile(targetFilePath);
       return;
     }
 
     const headers = Object.keys(rows[0]);
     worksheet.columns = headers.map(key => ({
-      header: key,
+      header: resolveVnclearColumnHeader(searchCodeOrSheetName, key),
       key,
       width: Math.max(key.length + 4, 15),
     }));
@@ -678,10 +686,11 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' },
+      fgColor: { argb: 'FFE8F0FE' },
     };
 
     await workbook.xlsx.writeFile(targetFilePath);
@@ -714,7 +723,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       targets = [...CANONICAL_CORECCP_API_KEYS];
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
       targets = options.reportCodes.flatMap((code) => {
-        if (code === 'HD' || code === 'HD_ALL') {
+        if (code === 'HD' || code === 'HD_ALL' || code.startsWith('HD_')) {
           return ['HH'];
         }
         const resolved = resolveCoreCcpReport(code);
@@ -729,7 +738,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       const resolved = resolveCoreCcpReport(options.reportType);
       targets = [resolved?.derivedFrom || resolved?.key || options.reportType];
     } else {
-      targets = ['GTT_CCP', 'DSGD_CCP', 'TTM_CCP', 'TTTT', 'QL_TT_TKGD'];
+      targets = ['GTT_CCP', 'DSGD_CCP', 'TTM_CCP', 'TTTT', 'QL_TT_TKGD', 'HH'];
     }
 
     this.logger.log(`[CoreCcpApiAdapter] Bắt đầu tải ${targets.length} báo cáo CoreCCP (Phiên: ${targetDate}) vào: ${outputDirectory}`);
@@ -784,6 +793,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
         this.logger.log(`[CoreCcpApiAdapter] Đang tải ${reportDef.key} (${reportDef.searchCode})...`);
         try {
           let downloadSuccess = false;
+          let searchResult: { rows: any[]; totalCount: number } | null = null;
 
           // Thử xuất Server Export nếu searchCode hỗ trợ và không bị cấm
           const isServerExportEligible =
@@ -818,7 +828,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
           // Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không dùng
           if (!downloadSuccess) {
-            const searchResult = await this.searchFullJson(
+            searchResult = await this.searchFullJson(
               session,
               reportDef.searchCode,
               baseUrl,
@@ -845,6 +855,50 @@ export class CoreCcpApiAdapter implements IIngressPort {
               },
             });
             this.logger.log(`[CoreCcpApiAdapter] ✅ Tải thành công ${outFileName} (${stat.size} bytes)`);
+
+            // ── TỰ ĐỘNG TRÍCH XUẤT TOÀN BỘ HỢP ĐỒNG (INSTRUMENTS) THEO TỪNG MÃ HÀNG HÓA THỰC TẾ ──
+            if (reportDef.key === 'HH' && searchResult && Array.isArray(searchResult.rows)) {
+              for (const comm of searchResult.rows) {
+                const uacode = (comm.UACODE || comm.uacode || comm.SYMBOL || comm.commodityCode || '').trim();
+                if (!uacode) continue;
+
+                const hdFileName = `HĐ ${uacode}.xlsx`;
+                const hdPath = path.join(outputDirectory, hdFileName);
+                try {
+                  this.logger.log(`[CoreCcpApiAdapter] Đang tải chi tiết hợp đồng cho hàng hóa ${uacode} (SearchCode: INSTRUMENTS)...`);
+                  const contractResult = await this.searchFullJson(
+                    session,
+                    'INSTRUMENTS',
+                    baseUrl,
+                    reportDef.route,
+                    { KEYVAL: uacode },
+                    'COMMODITY',
+                  );
+
+                  await this.convertJsonToExcel(contractResult.rows, 'INSTRUMENTS', hdPath);
+
+                  const hdStat = fs.statSync(hdPath);
+                  files.push({
+                    fileName: hdFileName,
+                    absolutePath: hdPath,
+                    fileSize: hdStat.size,
+                    mtime: hdStat.mtime,
+                    category: 'CCP',
+                    metadata: {
+                      transport: 'DIRECT_REST_API',
+                      searchCode: 'INSTRUMENTS',
+                      commodityCode: uacode,
+                      fileSize: hdStat.size,
+                      rowCount: contractResult.totalCount,
+                    },
+                  });
+                  this.logger.log(`[CoreCcpApiAdapter] ✅ Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
+                } catch (hdErr: any) {
+                  this.logger.error(`[CoreCcpApiAdapter] Lỗi tải hợp đồng cho hàng hóa ${uacode}: ${hdErr.message}`);
+                  errors.push(`HĐ ${uacode}: ${hdErr.message}`);
+                }
+              }
+            }
 
             // Tự động sinh các file phái sinh đồng bộ cho toàn ca trực dựa theo cấu hình CORECCP_DERIVED_RULES
             const derivedRules = CORECCP_DERIVED_RULES[reportDef.key] || [];

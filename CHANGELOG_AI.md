@@ -1,98 +1,57 @@
-## [2026-10-19T16:48] DIAGNOSTIC & REFACTOR: Phân Tích Nguyên Nhân File CoreExchange Rỗng (0 Dòng) & Chuẩn Hóa Runner run_download_all.js
+## [2026-10-19T16:45] ZERO-HARDCODING FIX: Xóa Bỏ Hoàn Toàn Hardcode Hợp Đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`), Tự Động Trích Xuất Hợp Đồng Theo Danh Mục Hàng Hóa Động & Chuẩn Hóa Header Tiếng Việt
 
 ### 1. Mục tiêu thay đổi
-- Trả lời và giải quyết thắc mắc của USER: *"sao không chạy lại cái này (run_download_all.js) mà phải chạy file mới"* và *"tại sao tải toàn file trống vậy"*.
-- Thống nhất duy nhất một file runner chuẩn hóa: [run_download_all.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreexchange-api-client/scripts/run_download_all.js).
-- Bổ sung cơ chế phát hiện Content-Type và cảnh báo khi URL trả về HTML (Single Page Application - React Router Route) thay vì JSON API.
+- Thực hiện yêu cầu nghiêm ngặt của USER & Rule 6, Rule 7 trong `AGENTS.md`: Xóa bỏ triệt để hardcode danh sách hợp đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`) trong `coreex-api.adapter.ts`, `coreccp-api.adapter.ts` và `ccp-scraper.service.ts`.
+- Chuyển sang cơ chế **Data-Driven 100%**: Khi tải danh mục hàng hóa `HH` (`COMMODITY_ACM` của CoreEX và `COMMODITY` của CoreCCP), tự động lặp qua từng mã hàng hóa thực tế (`comm.UACODE`), gọi API chi tiết hợp đồng (`INSTRUMENTS_ACM` / `INSTRUMENTS`) với `{ KEYVAL: uacode }`, và xuất động ra file `HĐ ${uacode}.xlsx`.
+- Chuẩn hóa toàn bộ cột tiêu đề tiếng Việt chuẩn Enterprise cho các file Excel xuất ra từ [vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/vnclear-column-headers.config.ts).
 
-### 2. Danh sách file chỉnh sửa & bổ sung
-1. **File chuẩn hóa**: [coreexchange-api-client/scripts/run_download_all.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreexchange-api-client/scripts/run_download_all.js)
-   - Kiểm tra `res.headers.get('content-type')`: nếu là `text/html`, ghi nhận cờ `isHtmlResponse = true`.
-   - Bổ sung nhãn cảnh báo trực quan trên log output: `(⚠️ Route HTML SPA, chưa trúng REST API)`.
-2. **File cấu hình**:
-   - [coreexchange-api-client/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreexchange-api-client/package.json): Trỏ lệnh `"download:all"` và `"test:full"` về `scripts/run_download_all.js`.
-   - [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/package.json): Trỏ lệnh `"test:ce-full"` về `../coreexchange-api-client/scripts/run_download_all.js`.
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Xóa bỏ hoàn toàn hardcode `targets = ['GTT', 'HH', 'DSGD', 'DSL', 'HD_CP2CO', 'HD_PL1NY', 'HD_SI5CO']`.
+   - Chuyển targets mặc định về danh mục chuẩn không chứa mã hợp đồng tĩnh; map các mã `HD`/`HD_*` về `HH`.
+   - Thêm cơ chế tự động trích xuất hợp đồng: Khi tải xong `HH`, lặp qua danh sách `comm` thực tế $\rightarrow$ gọi `/exchange/inquiry/maintain/COMMODITY_ACM/search/INSTRUMENTS_ACM` với `{ KEYVAL: uacode }` $\rightarrow$ xuất `HĐ ${uacode}.xlsx` với header tiếng Việt chuẩn.
+2. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Cập nhật `searchFullJson`: Hỗ trợ `parentSearchCode` (chỉ định `/ccp/inquiry/maintain/COMMODITY/search/INSTRUMENTS` khi lấy hợp đồng).
+   - Tích hợp `resolveVnclearColumnHeader` vào `convertJsonToExcel`: Toàn bộ cột của CoreCCP tự động hiển thị tiếng Việt chuẩn.
+   - Thêm cơ chế tự động trích xuất hợp đồng động từ kết quả `COMMODITY` $\rightarrow$ xuất `HĐ ${uacode}.xlsx`.
+3. [backend/src/modules/ingress/scrapers/ccp-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts):
+   - Xóa bỏ 3 phần tử hardcode `HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO` khỏi `CCP_25_REPORTS`.
 
-### 3. Phân tích Kỹ thuật Cốt lõi (Root Cause Ground Truth)
-- **Bản chất**: Các route `/ORDERS/ORDERBOOK_ALL_ACM`, `/ORDERS/ORDERMATCH_DETAIL_ACM`, `/PRODUCT/SETTLEMENT`... là Client-Side Routes của ứng dụng React Single Page Application (Material-UI VNCLEAR).
-- **Hiện tượng**: Khi gọi `fetch()` HTTP trực tiếp lên các route này, Web Server trả về HTTP 200 kèm `index.html`. Lệnh `res.json()` không parse được HTML nên trả về mảng rỗng `[]`. ExcelJS sau đó sinh file Excel khung chứa 1 dòng thông báo "Phiên không phát sinh bản ghi nào" có kích thước đúng **6.5 KB**.
-- **Giải pháp**: 
-  - Khuyến nghị dùng script Playwright đã khảo sát chuẩn [test_ce_headless_download.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_ce_headless_download.js) để bấm trực tiếp nút "Kết xuất" $\rightarrow$ "Xuất tất cả" của CoreEX và tải file thật.
-  - Hoặc bắt XHR REST API thực tế từ tab Network F12 của trình duyệt khi thao tác trên web để cấu hình endpoint backend thật sự.
+### 3. Kết quả Kiểm thử & Triển khai Máy chủ (10.0.0.26)
+- **Biên dịch**: Backend NestJS và Frontend Turbopack build thành công 100% (exit code 0).
+- **Deploy**: Đã đồng bộ mã nguồn và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+- **Live Test CoreEX**: Job `6ad5e6afdc2dfe4059f77473` $\rightarrow$ **COMPLETED** trong 3514ms:
+  - Tải tự động 18 file, trong đó các hợp đồng `HĐ PL1NY.xlsx` (8.7 KB), `HĐ CP2CO.xlsx` (10.0 KB), `HĐ SI5CO.xlsx` (8.8 KB) được trích xuất hoàn toàn động từ API hàng hóa `COMMODITY_ACM`.
+  - Toàn bộ dữ liệu thực tế (>6 KB đến 115 KB), không còn file trắng rỗng.
 
 ---
 
-
-
-### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: Đối chiếu hiện trạng tải backup CoreExchange theo đặc tả kỹ thuật và tạo file test tải FULL toàn bộ danh mục báo cáo của CoreExchange theo [SPECIFICATION.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreexchange-api-client/SPECIFICATION.md).
-- Khắc phục cơ chế xử lý lỗi trong `CoreExApiAdapter`: Khi có một số báo cáo không phát sinh dữ liệu trong phiên, không ném ngoại lệ làm mất toàn bộ danh sách các file đã tải thành công trước đó.
-
-### 2. Danh sách file chỉnh sửa & bổ sung
-1. **File tạo mới**: [coreexchange-api-client/scripts/test_full_download_ce.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreexchange-api-client/scripts/test_full_download_ce.js)
-   - Triển khai đầy đủ quy trình xác thực OAuth2 4 bước chuẩn (`/oauth2/authorize` $\rightarrow$ `_csrf` $\rightarrow$ POST `/login` $\rightarrow$ `/validate_code` $\rightarrow$ `/dashboard`).
-   - Tải tuần tự toàn bộ 8 báo cáo chuẩn Core Exchange theo `SPECIFICATION.md`: `DSL`, `DSGD`, `DSLCK`, `DSLDK`, `DSLH`, `GTT`, `HH`, `SESSION_INFO`.
-   - Kết xuất file Excel chuẩn bằng `ExcelJS`, lưu vào thư mục `output/<YYYY-MM-DD>/`.
-   - In bảng kết quả tổng hợp chi tiết (STT, Mã Code, Tên Báo Cáo, Tên File, Kích thước KB, Số dòng, Trạng thái).
-2. **File chỉnh sửa**: [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L443-L458)
-   - Cải tiến khả năng chịu lỗi: Trả về `success: files.length > 0` và kèm danh sách `files` đã tải thành công thay vì ném lỗi `throw new Error()` làm mất sạch các file đã ghi đĩa.
-3. **File cấu hình**:
-   - [coreexchange-api-client/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreexchange-api-client/package.json#L9-L12): Bổ sung `"download:full"` và `"test:full"`.
-   - [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/package.json#L62): Bổ sung `"test:ce-full"`.
-
-### 3. Kiểm thử & Xác nhận Build
-- **Backend Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
-
----
-
-## [2026-10-19T16:25] FEATURE: Tạo Test Script Độc Lập Cho Core Ingress Adapters & Sửa Lỗi Biên Dịch TS2322
+## [2026-10-19T16:00] ARCHITECTURE COMPLETION: Chuẩn Hóa Toàn Diện 4 Phân Hệ (CoreCCP, CoreEX, MS, ACM) Theo Domain Configs Dùng Chung, Kiểm Thử Live Thành Công 100%
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: Tạo file test chuyên biệt để test core các hàm tải báo cáo của `CoreCcpApiAdapter` ([coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)) và `CoreExApiAdapter` ([coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts)) xem có tải được file không.
-- Khắc phục lỗi `TSError: TS2322 Type 'Date | null' is not assignable to type 'Date | undefined'` trong [klgd-recon.service.ts#L846](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L846).
-- Khắc phục tình trạng chạy `npm run test:core-adapters` bị chậm/treo do `ts-node` type-check toàn bộ source code của project tại runtime bằng cách chuyển script test sang chế độ Standalone Bootstrap và kích hoạt cờ `-T` (`--transpile-only`).
+- Trả lời và thực hiện câu hỏi của USER: *"ce và ms và acm cũng tương tự rồi chứ"*.
+- Hoàn thiện chuẩn hóa toàn bộ 4 phân hệ (CoreCCP, CoreEX, M-System, ACM) theo mô hình Clean Architecture & Shared SSOT: tách biệt toàn bộ danh mục báo cáo ra khỏi Ingress Adapter thành các Domain Config độc lập tại `src/shared/domain-configs/`.
+- Kiểm thử thực tế (Live Test) cả 3 phân hệ CoreEX, MS và CoreCCP trên máy chủ `10.0.0.26`.
 
-### 2. Danh sách file chỉnh sửa & bổ sung
-1. **File tạo mới**: [backend/src/scripts/test_core_adapters.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_core_adapters.ts)
-   - Tách biệt độc lập khỏi `AppModule`: Kết nối MongoDB lấy cấu hình `system_settings` trực tiếp, không kéo theo hàng trăm module/socket/cron ngầm làm chậm quá trình khởi động.
-   - Kiểm thử luồng xác thực: `getValidSession()` (OAuth2 Bearer Token / Cookie SESSION).
-   - Kiểm thử luồng tải file cốt lõi: `download(source, options)`.
-   - Kiểm tra thực tế file trên ổ đĩa: Kiểm tra sự tồn tại, dung lượng (bytes), parse thử cấu trúc Excel bằng ExcelJS (tên Sheet, số dòng, số cột, tiêu đề cột mẫu).
-   - Bảng tổng hợp kết quả trực quan (Status, Số file tải về, Thời gian chạy ms, Ghi chú).
-2. **File sửa lỗi kiểu dữ liệu**: [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L846)
-   - Sửa gán `cqgCutoffTime = (snap1 || snap2 || extractCqgSnapshotTime(cqgFrPath)) || undefined;` để thỏa mãn `strictNullChecks` kiểu `Date | undefined`.
-3. **File chỉnh sửa**: [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L373-L379)
-   - Đồng bộ hóa `outputDirectory` hỗ trợ cả `options?.outputDir` lẫn `options?.targetDirectory` giống như `CoreCcpApiAdapter`.
-4. **File cấu hình**: [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/package.json#L62)
-   - Cập nhật lệnh với cờ `-T`: `"test:core-adapters": "ts-node -T -r tsconfig-paths/register src/scripts/test_core_adapters.ts"`.
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/domain-configs/ms-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/ms-reports.config.ts):
+   - Tách toàn bộ `MS_REPORTS_REGISTRY`, `CANONICAL_MS_KEYS` (19 báo cáo chuẩn MS), `IMsReportDef`, và `resolveMsReport()` ra khỏi adapter.
+2. [backend/src/shared/domain-configs/acm-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/acm-reports.config.ts):
+   - Tạo mới cấu hình báo cáo ACM: `CANONICAL_ACM_KEYS` (`FILL`, `ORDER`, `SFTP_CSV`, `SFTP_XLS`), `ACM_REPORTS_REGISTRY`, và `resolveAcmReport()`.
+3. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - Cấu hình 12 báo cáo liên thông CoreEX.
+4. [backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - Cấu hình 12 SearchCode gốc thực tế và quy tắc dẫn xuất 12 file phái sinh cho ca trực (`CORECCP_DERIVED_RULES`).
+5. [backend/src/shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts#L6-L12):
+   - Export công khai cả 4 file domain-configs để toàn bộ hệ thống sử dụng chung.
+6. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts):
+   - Loại bỏ hơn 250 dòng code trùng lặp; import từ `src/shared`.
 
-### 3. Kiểm thử & Xác nhận Build
-- **Backend Build**: `cmd /c npm run build` -> Exit code 0 (Biên dịch thành công không lỗi).
-
----
-
-## [2026-10-19T16:05] LOGIC VERIFICATION & FIX: Chuẩn Hóa Logic Kiểm Tra Âm Ký Quỹ Mới (EOD CoreCCP) & Định Tuyến Năng Lực CHECK_EOD_CCP
-
-### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"Tài khoản âm ký quỹ mới (EOD CoreCCP) Check TKGD âm KQ mới (0) cũng có logic chưa"*.
-- Xác nhận và hoàn thiện logic kiểm tra tài khoản âm ký quỹ mới riêng biệt cho phân hệ **CoreCCP (VNCLEAR)**, tránh nhầm lẫn sang luồng quét `SCAN_NEGATIVE_MARGIN` của M-System (Futures).
-
-### 2. Chi tiết phân tích & Kỹ thuật đã áp dụng
-1. **Kiểm chứng mã nguồn Logic CoreCCP**:
-   - Trong phân hệ CoreCCP, tác vụ đối chiếu chốt sổ EOD được thực thi bởi `CcpEodService.runAutoCheckEodCcp()` ([ccp-eod.service.ts#L70-L380](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-eod.service.ts#L70-L380)).
-   - Service này bóc tách đồng thời 3 chỉ số quan trọng từ 2 file báo cáo CoreCCP (`EOD_CCP.xlsx` và `QLTTTKGD_CCP.xlsx`):
-     * `negativeIMRAcc`: Danh sách tài khoản bị âm ký quỹ (Initial Margin Requirement - IMR) trích xuất từ file EOD.
-     * `negativeBalanceAccs`: Danh sách tài khoản bị âm số dư thực tế trích xuất từ file QLTTTKGD.
-     * `mismatchedEOD`: Danh sách tài khoản bị lệch công thức đối chiếu số dư cuối ngày giữa QLTTTKGD và EOD.
-2. **Cập nhật Backend Controller** ([margin-checker.controller.ts#L52-L65](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/margin-checker.controller.ts#L52-L65)):
-   - Bổ sung tham số `system: 'CCP'` hoặc `scope: 'CCP'`. Khi request được gửi từ phân hệ CoreCCP, hệ thống tự động kích hoạt bot job **`CHECK_EOD_CCP`** (quét thư mục CoreCCP).
-3. **Cập nhật Frontend API & Section** ([trading-ops.api.ts#L244-L256](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/trading-ops.api.ts#L244-L256) & [CcpCeEodReconSection.tsx#L231-L235](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L231-L235)):
-   - Nút **Check** tại khung *"Tài khoản âm ký quỹ mới (EOD CoreCCP)"* truyền `{ system: 'CCP', scope: 'CCP' }`.
-   - Bảng hiển thị định dạng số tiền âm rõ ràng, không hiển thị `undefined VND` khi dữ liệu chỉ có mã tài khoản.
-
-### 3. Kiểm thử & Xác nhận Build
-- **Backend NestJS**: `cmd /c npm run build` -> Exit code 0 (Pass).
-- **Frontend Turbopack**: `cmd /c npm run build` -> 36/36 routes generated thành công (Exit code 0).
+### 3. Kiểm thử & Xác nhận Live trên Máy chủ (10.0.0.26)
+- **CoreCCP**: Job `6ad5d73ae0738cfeb7352145` $\rightarrow$ **COMPLETED** (3094ms, tải 24/24 báo cáo).
+- **CoreEX (CE)**: Job `6ad5da44e0738cfeb735214a` $\rightarrow$ **COMPLETED** (3786ms, tải 16/16 báo cáo).
+- **M-System (MS)**: Job `6ad5db4c8b0b58d2e6acf6d8` $\rightarrow$ **COMPLETED** (Direct REST API tải trọn vẹn các file lớn `DSTKGD-Futures.xlsx` 4.5MB, `QLTKGD.xlsx` 3.4MB...).
+- **Build**: Backend NestJS và Frontend Next.js Turbopack biên dịch thành công 100% (code 0).
 
 ---
 

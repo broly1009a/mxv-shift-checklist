@@ -23,7 +23,7 @@ try:
     print('Checking job:', job_id)
     for i in range(15):
         time.sleep(2)
-        cmd_job = f"curl -s -k -H 'Authorization: Bearer {token}' https://localhost/api/v1/bot-jobs/{job_id}"
+        cmd_job = f"curl -s -k -H 'Authorization: Bearer {token}' https://localhost/api/v1/bot-engine/jobs/{job_id}"
         _, stdout_j, _ = ssh.exec_command(cmd_job)
         raw_j = stdout_j.read().decode('utf-8')
         j_data = json.loads(raw_j)
