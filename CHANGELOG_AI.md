@@ -1,3 +1,28 @@
+## [2026-10-19T15:40] FIX: Khắc Phục Lỗi Cannot POST /api/v1/trading-ops/check-eod-run & Đồng Bộ Trigger EOD CoreCCP và Âm Ký Quỹ
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi khi người dùng bấm nút **Check** tại khung *"Kết quả chạy EOD (CoreCCP ↔ CoreEX)"*: `Lỗi thực hiện: Cannot POST /api/v1/trading-ops/check-eod-run báo lỗi check eod ccp`.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  1. Frontend gọi `POST /api/v1/trading-ops/check-eod-run` nhưng trên Backend `TradingOpsMiscController` chưa khai báo route này mà đang điều phối qua `POST /api/v1/trading-ops/trigger-console-run` với `jobType: 'CHECK_EOD_CCP'`.
+  2. Nút bấm *"Check (Âm ký quỹ CoreCCP)"* gọi `POST /api/v1/trading-ops/negative-margin` bằng payload JSON `{ sessionDate }`, trong khi `MarginCheckerController` trước đó bắt buộc phải upload file multipart `qltkgd`/`eod`, gây ra lỗi `File QLTKGD.xlsx là bắt buộc`.
+  3. `fetchEodSummary` trong `CcpCeEodReconSection.tsx` đọc `data.eodRun` trong khi backend trả về cấu trúc `data.eod` và `data.ccpSummary`, dẫn đến việc không cập nhật được trạng thái sau khi job chạy xong.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts#L339-L362):
+   - Bổ sung endpoint `@Post('check-eod-run')`: Chuyển tiếp tới `this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_EOD_CCP')`.
+   - Bổ sung endpoint `@Post('run-check-pre-eod')`: Chuyển tiếp tới `this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_PRE_EOD')`.
+2. [backend/src/modules/trading-ops/controllers/margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/margin-checker.controller.ts#L46-L65):
+   - Hỗ trợ gọi trigger kiểm tra âm ký quỹ tự động qua JSON body `{ sessionDate, date }`: Nếu không có file upload thủ công, tự động kích hoạt `triggerConsoleRun(sessionDate || dateStr, 'SCAN_NEGATIVE_MARGIN')`.
+3. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L125-L185):
+   - Cập nhật `fetchEodSummary`: Bóc tách linh hoạt dữ liệu từ cả `eodRun`, `eod`, `ccpSummary.checkJob` và `ccpSummary.totals`.
+   - Tích hợp kết nối WebSocket (`socket.on('dashboard-updated')` & `socket.on('job-status-updated')`) để tự động làm mới giao diện ngay tức thì khi Bot Job chạy xong.
+
+### 3. Kiểm thử & Xác nhận
+- **Backend NestJS Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
+- **Frontend Turbopack Build**: `cmd /c npm run build` -> Biên dịch 36/36 routes thành công (Exit code 0).
+
+---
+
 ## [2026-10-19T15:20] FRONTEND UPGRADE: Tách Bạch Rõ Ràng Màn Hình Cấu Hình Trading Manager Giữa MS - CQG (OMS Cũ) và CoreCCP & CoreEX (Bù Trừ & Sàn Mới)
 
 ### 1. Mục tiêu nâng cấp

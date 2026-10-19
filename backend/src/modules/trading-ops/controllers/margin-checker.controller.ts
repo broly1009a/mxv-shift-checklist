@@ -49,6 +49,8 @@ export class MarginCheckerController {
       qltkgd?: any[];
       eod?: any[];
     },
+    @Body('sessionDate') sessionDate?: string,
+    @Body('date') dateStr?: string,
   ) {
     const fileBuffers = {
       qltkgd: files?.qltkgd?.[0]?.buffer,
@@ -56,7 +58,10 @@ export class MarginCheckerController {
     };
 
     if (!fileBuffers.qltkgd) {
-      throw new BadRequestException('File QLTKGD.xlsx là bắt buộc.');
+      return this.reconConsoleSummaryService.triggerConsoleRun(
+        sessionDate || dateStr,
+        'SCAN_NEGATIVE_MARGIN',
+      );
     }
 
     try {
