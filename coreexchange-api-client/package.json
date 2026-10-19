@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc",
     "test:login": "node scripts/test_login_ce.js",
-    "download:all": "node scripts/run_download_all.js"
+    "download:all": "node scripts/run_download_all.js",
+    "download:full": "node scripts/test_full_download_ce.js",
+    "test:full": "node scripts/test_full_download_ce.js"
   },
   "keywords": [
     "mxv",

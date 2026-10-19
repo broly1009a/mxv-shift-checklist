@@ -229,7 +229,7 @@ export default function CcpCeEodReconSection({
     try {
       let data: any;
       if (type === 'margin') {
-        data = await api.tradingOps.checkNegativeMargin(selectedDate, token);
+        data = await api.tradingOps.checkNegativeMargin(selectedDate, token, { system: 'CCP', scope: 'CCP' });
       } else if (type === 'eod_run') {
         data = await api.tradingOps.checkEodRun(selectedDate, token);
       } else {
@@ -443,7 +443,7 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                       }}
                     >
                       <td style={{ padding: '10px 16px', fontSize: '0.84rem', fontFamily: 'monospace', color: '#ef4444', fontWeight: 700 }}>
-                        {acc.accountNumber} {acc.accountName ? `- ${acc.accountName}` : ''} (Âm: {acc.difference?.toLocaleString('en-US')} VND)
+                        {acc.accountNumber} {acc.accountName ? `- ${acc.accountName}` : ''} {acc.difference !== undefined ? `(Âm: ${acc.difference.toLocaleString('en-US')} VND)` : ''}
                       </td>
                     </tr>
                   ))
