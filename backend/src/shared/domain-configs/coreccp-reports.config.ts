@@ -39,7 +39,7 @@ export const CANONICAL_CORECCP_API_KEYS = [
   'NR',           // CASHTRANFER_HIST -> NR.xlsx
   'DSTKGD_ACM',   // ACCOUNTS_INFO -> DSTKGD ACM.xlsx
   'GTT_CCP',      // SETTLEMENT -> GTT CCP.xlsx
-  'HH',           // COMMODITY -> HH.xlsx
+  'HH',           // COMMODITY -> HH.xlsx (Hàng hóa & tự động trích xuất HĐ theo từng mã hàng hóa động)
   'TYGIA',        // CURRENCYEXCHANGERATE -> Tỷ giá CCP.xlsx
 ] as const;
 
@@ -187,6 +187,15 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     searchCode: 'COMMODITY',
     route: '/PRODUCT/COMMODITY',
     description: 'Danh mục mặt hàng và quy cách giao dịch hàng hóa',
+    group: 'PRODUCT',
+    phase: 'EOD',
+  },
+  HD: {
+    key: 'HD',
+    fileName: 'HĐ *.xlsx',
+    searchCode: 'INSTRUMENTS',
+    route: '/PRODUCT/COMMODITY',
+    description: 'Hợp đồng chi tiết theo từng mã hàng hóa thực tế trên sàn',
     group: 'PRODUCT',
     phase: 'EOD',
   },

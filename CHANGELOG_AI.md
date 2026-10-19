@@ -1,3 +1,60 @@
+## [2026-10-19T16:45] ZERO-HARDCODING FIX: Xóa Bỏ Hoàn Toàn Hardcode Hợp Đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`), Tự Động Trích Xuất Hợp Đồng Theo Danh Mục Hàng Hóa Động & Chuẩn Hóa Header Tiếng Việt
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu nghiêm ngặt của USER & Rule 6, Rule 7 trong `AGENTS.md`: Xóa bỏ triệt để hardcode danh sách hợp đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`) trong `coreex-api.adapter.ts`, `coreccp-api.adapter.ts` và `ccp-scraper.service.ts`.
+- Chuyển sang cơ chế **Data-Driven 100%**: Khi tải danh mục hàng hóa `HH` (`COMMODITY_ACM` của CoreEX và `COMMODITY` của CoreCCP), tự động lặp qua từng mã hàng hóa thực tế (`comm.UACODE`), gọi API chi tiết hợp đồng (`INSTRUMENTS_ACM` / `INSTRUMENTS`) với `{ KEYVAL: uacode }`, và xuất động ra file `HĐ ${uacode}.xlsx`.
+- Chuẩn hóa toàn bộ cột tiêu đề tiếng Việt chuẩn Enterprise cho các file Excel xuất ra từ [vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/vnclear-column-headers.config.ts).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Xóa bỏ hoàn toàn hardcode `targets = ['GTT', 'HH', 'DSGD', 'DSL', 'HD_CP2CO', 'HD_PL1NY', 'HD_SI5CO']`.
+   - Chuyển targets mặc định về danh mục chuẩn không chứa mã hợp đồng tĩnh; map các mã `HD`/`HD_*` về `HH`.
+   - Thêm cơ chế tự động trích xuất hợp đồng: Khi tải xong `HH`, lặp qua danh sách `comm` thực tế $\rightarrow$ gọi `/exchange/inquiry/maintain/COMMODITY_ACM/search/INSTRUMENTS_ACM` với `{ KEYVAL: uacode }` $\rightarrow$ xuất `HĐ ${uacode}.xlsx` với header tiếng Việt chuẩn.
+2. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Cập nhật `searchFullJson`: Hỗ trợ `parentSearchCode` (chỉ định `/ccp/inquiry/maintain/COMMODITY/search/INSTRUMENTS` khi lấy hợp đồng).
+   - Tích hợp `resolveVnclearColumnHeader` vào `convertJsonToExcel`: Toàn bộ cột của CoreCCP tự động hiển thị tiếng Việt chuẩn.
+   - Thêm cơ chế tự động trích xuất hợp đồng động từ kết quả `COMMODITY` $\rightarrow$ xuất `HĐ ${uacode}.xlsx`.
+3. [backend/src/modules/ingress/scrapers/ccp-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts):
+   - Xóa bỏ 3 phần tử hardcode `HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO` khỏi `CCP_25_REPORTS`.
+
+### 3. Kết quả Kiểm thử & Triển khai Máy chủ (10.0.0.26)
+- **Biên dịch**: Backend NestJS và Frontend Turbopack build thành công 100% (exit code 0).
+- **Deploy**: Đã đồng bộ mã nguồn và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
+- **Live Test CoreEX**: Job `6ad5e6afdc2dfe4059f77473` $\rightarrow$ **COMPLETED** trong 3514ms:
+  - Tải tự động 18 file, trong đó các hợp đồng `HĐ PL1NY.xlsx` (8.7 KB), `HĐ CP2CO.xlsx` (10.0 KB), `HĐ SI5CO.xlsx` (8.8 KB) được trích xuất hoàn toàn động từ API hàng hóa `COMMODITY_ACM`.
+  - Toàn bộ dữ liệu thực tế (>6 KB đến 115 KB), không còn file trắng rỗng.
+
+---
+
+## [2026-10-19T16:00] ARCHITECTURE COMPLETION: Chuẩn Hóa Toàn Diện 4 Phân Hệ (CoreCCP, CoreEX, MS, ACM) Theo Domain Configs Dùng Chung, Kiểm Thử Live Thành Công 100%
+
+### 1. Mục tiêu thay đổi
+- Trả lời và thực hiện câu hỏi của USER: *"ce và ms và acm cũng tương tự rồi chứ"*.
+- Hoàn thiện chuẩn hóa toàn bộ 4 phân hệ (CoreCCP, CoreEX, M-System, ACM) theo mô hình Clean Architecture & Shared SSOT: tách biệt toàn bộ danh mục báo cáo ra khỏi Ingress Adapter thành các Domain Config độc lập tại `src/shared/domain-configs/`.
+- Kiểm thử thực tế (Live Test) cả 3 phân hệ CoreEX, MS và CoreCCP trên máy chủ `10.0.0.26`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/domain-configs/ms-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/ms-reports.config.ts):
+   - Tách toàn bộ `MS_REPORTS_REGISTRY`, `CANONICAL_MS_KEYS` (19 báo cáo chuẩn MS), `IMsReportDef`, và `resolveMsReport()` ra khỏi adapter.
+2. [backend/src/shared/domain-configs/acm-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/acm-reports.config.ts):
+   - Tạo mới cấu hình báo cáo ACM: `CANONICAL_ACM_KEYS` (`FILL`, `ORDER`, `SFTP_CSV`, `SFTP_XLS`), `ACM_REPORTS_REGISTRY`, và `resolveAcmReport()`.
+3. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - Cấu hình 12 báo cáo liên thông CoreEX.
+4. [backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - Cấu hình 12 SearchCode gốc thực tế và quy tắc dẫn xuất 12 file phái sinh cho ca trực (`CORECCP_DERIVED_RULES`).
+5. [backend/src/shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts#L6-L12):
+   - Export công khai cả 4 file domain-configs để toàn bộ hệ thống sử dụng chung.
+6. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts):
+   - Loại bỏ hơn 250 dòng code trùng lặp; import từ `src/shared`.
+
+### 3. Kiểm thử & Xác nhận Live trên Máy chủ (10.0.0.26)
+- **CoreCCP**: Job `6ad5d73ae0738cfeb7352145` $\rightarrow$ **COMPLETED** (3094ms, tải 24/24 báo cáo).
+- **CoreEX (CE)**: Job `6ad5da44e0738cfeb735214a` $\rightarrow$ **COMPLETED** (3786ms, tải 16/16 báo cáo).
+- **M-System (MS)**: Job `6ad5db4c8b0b58d2e6acf6d8` $\rightarrow$ **COMPLETED** (Direct REST API tải trọn vẹn các file lớn `DSTKGD-Futures.xlsx` 4.5MB, `QLTKGD.xlsx` 3.4MB...).
+- **Build**: Backend NestJS và Frontend Next.js Turbopack biên dịch thành công 100% (code 0).
+
+---
+
 ## [2026-10-19T15:40] FIX: Khắc Phục Lỗi Cannot POST /api/v1/trading-ops/check-eod-run & Đồng Bộ Trigger EOD CoreCCP và Âm Ký Quỹ
 
 ### 1. Mục tiêu thay đổi

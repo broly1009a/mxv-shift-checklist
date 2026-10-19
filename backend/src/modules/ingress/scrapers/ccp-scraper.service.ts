@@ -42,9 +42,6 @@ export const CCP_25_REPORTS: ICcpReportDef[] = [
   { key: 'DSTKGD_ACM', fileName: 'DSTKGD ACM.xlsx', urlPath: '/CLIENT/ACCOUNT_LIST' },
   { key: 'GTT_CCP', fileName: 'GTT CCP.xlsx', urlPath: '/CLEARING/SETTLEMENT_PRICE' },
   { key: 'HH', fileName: 'HH.xlsx', urlPath: '/COMMODITY/COMMODITY_LIST', isCommodity: true },
-  { key: 'HD_CP2CO', fileName: 'HĐ CP2CO.xlsx', urlPath: '/COMMODITY/CONTRACT_LIST', isCommodity: true },
-  { key: 'HD_PL1NY', fileName: 'HĐ PL1NY.xlsx', urlPath: '/COMMODITY/CONTRACT_LIST', isCommodity: true },
-  { key: 'HD_SI5CO', fileName: 'HĐ SI5CO.xlsx', urlPath: '/COMMODITY/CONTRACT_LIST', isCommodity: true },
 ];
 
 @Injectable()
