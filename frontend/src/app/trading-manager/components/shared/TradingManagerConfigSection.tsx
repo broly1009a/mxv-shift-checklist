@@ -16,6 +16,7 @@ import {
   Loader2,
   Info,
   Layers,
+  Activity,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
@@ -32,7 +33,7 @@ export interface CcpExchangeRateItem {
 
 export interface TradingManagerConfigSectionProps {
   token: string | null;
-  filterScope?: 'ALL' | 'MS_CQG' | 'OMS';
+  filterScope?: 'ALL' | 'MS_CQG' | 'OMS' | 'CCP_CE';
 }
 
 export default function TradingManagerConfigSection({
@@ -41,6 +42,12 @@ export default function TradingManagerConfigSection({
 }: TradingManagerConfigSectionProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Sub-tab khi ở chế độ ALL (Màn hình tổng Hub)
+  const [activeScopeTab, setActiveScopeTab] = useState<'MS_CQG' | 'CCP_CE'>('MS_CQG');
+
+  const isMsCqgScope = (filterScope === 'ALL' && activeScopeTab === 'MS_CQG') || filterScope === 'MS_CQG';
+  const isCcpCeScope = (filterScope === 'ALL' && activeScopeTab === 'CCP_CE') || filterScope === 'CCP_CE' || filterScope === 'OMS';
 
   // Exchange rates - M-System (MXV) - Nạp 100% từ Database MongoDB hoặc Đồng bộ từ M-System
   const [usdSettlementRateSell, setUsdSettlementRateSell] = useState<number>(0);
@@ -79,6 +86,7 @@ export default function TradingManagerConfigSection({
   const [newsTeamStatPath, setNewsTeamStatPath] = useState<string>('');
   const [botBackupPathCcp, setBotBackupPathCcp] = useState<string>('');
   const [botBackupPathCe, setBotBackupPathCe] = useState<string>('');
+  const [botCcpStatTargetRoot, setBotCcpStatTargetRoot] = useState<string>('');
 
   // Path check statuses
   const [pathChecking, setPathChecking] = useState<Record<string, boolean>>({});
@@ -178,11 +186,12 @@ export default function TradingManagerConfigSection({
       setBotBackupPathCqg(toWindowsM(map.bot_backup_path_cqg || ''));
       setBotBackupPathMs(toWindowsM(map.bot_backup_path_ms || ''));
       setBotBackupPathAcm(toWindowsM(map.bot_backup_path_acm || ''));
-      setBotLotMacroPath(toWindowsM(map.bot_macro_lot_path || map.bot_lot_macro_path || ''));
-      setBotMacroValuePath(toWindowsM(map.bot_macro_value_path || ''));
+      setBotLotMacroPath(toWindowsM(map.bot_ms_lot_stat_path || map.bot_lot_macro_target_root || map.bot_macro_lot_path || map.bot_lot_macro_path || ''));
+      setBotMacroValuePath(toWindowsM(map.bot_ms_value_stat_path || map.bot_macro_value_path || ''));
       setNewsTeamStatPath(toWindowsM(map.news_team_stat_path || ''));
       setBotBackupPathCcp(toWindowsM(map.bot_backup_path_ccp || ''));
       setBotBackupPathCe(toWindowsM(map.bot_backup_path_ce || ''));
+      setBotCcpStatTargetRoot(toWindowsM(map.bot_ccp_stat_target_root || ''));
 
       if (map.negative_margin_monitored_accounts) {
         try {
@@ -351,7 +360,7 @@ export default function TradingManagerConfigSection({
 
     try {
       const settingsToSave: Array<{ key: string; value: string }> = [
-        ...(filterScope !== 'OMS'
+        ...(filterScope !== 'OMS' && filterScope !== 'CCP_CE'
           ? [
               { key: 'usd_settlement_rate_sell', value: String(msPaymentRates['USD/VND']?.sell ?? usdSettlementRateSell) },
               { key: 'usd_settlement_rate_buy', value: String(msPaymentRates['USD/VND']?.buy ?? usdSettlementRateBuy) },
@@ -364,8 +373,11 @@ export default function TradingManagerConfigSection({
               { key: 'bot_backup_path_cqg', value: botBackupPathCqg },
               { key: 'bot_backup_path_ms', value: botBackupPathMs },
               { key: 'bot_backup_path_acm', value: botBackupPathAcm },
+              { key: 'bot_ms_lot_stat_path', value: botLotMacroPath },
+              { key: 'bot_lot_macro_target_root', value: botLotMacroPath },
               { key: 'bot_macro_lot_path', value: botLotMacroPath },
               { key: 'bot_lot_macro_path', value: botLotMacroPath },
+              { key: 'bot_ms_value_stat_path', value: botMacroValuePath },
               { key: 'bot_macro_value_path', value: botMacroValuePath },
               { key: 'news_team_stat_path', value: newsTeamStatPath },
               { key: 'negative_margin_monitored_accounts', value: JSON.stringify(negativeAccounts) },
@@ -384,6 +396,7 @@ export default function TradingManagerConfigSection({
               ...(ccpRatesMatrix['RMB'] ? [{ key: 'ccp_rmb_exchange_rate', value: String(ccpRatesMatrix['RMB'].conversionRate) }] : []),
               { key: 'bot_backup_path_ccp', value: botBackupPathCcp },
               { key: 'bot_backup_path_ce', value: botBackupPathCe },
+              { key: 'bot_ccp_stat_target_root', value: botCcpStatTargetRoot },
             ]
           : []),
         // BỘ GIỜ PHIÊN GIAO DỊCH DÙNG CHUNG TOÀN HỆ THỐNG (MS, CQG, CoreCCP, CE)
@@ -521,11 +534,73 @@ export default function TradingManagerConfigSection({
         </div>
       </div>
 
-      {/* SECTION 1: CẤU HÌNH TỶ GIÁ M-SYSTEM & PHIÊN GIAO DỊCH (DÙNG CHUNG TOÀN HỆ THỐNG) */}
-      <div className="glass-panel" style={{ padding: '20px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: filterScope === 'OMS' ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-          {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) - Chỉ hiển thị cho MS_CQG hoặc ALL */}
-          {(filterScope === 'ALL' || filterScope === 'MS_CQG') && (
+      {/* NẾU Ở MÀN HÌNH TỔNG (filterScope === 'ALL'): BỘ ĐIỀU HƯỚNG 2 PHÂN HỆ RÀNH MẠCH */}
+      {filterScope === 'ALL' && (
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            borderBottom: '1px solid var(--border-color)',
+            paddingBottom: '10px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveScopeTab('MS_CQG')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 22px',
+              fontSize: '0.86rem',
+              fontWeight: 800,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              backgroundColor: activeScopeTab === 'MS_CQG' ? '#2563eb' : 'var(--bg-input)',
+              color: activeScopeTab === 'MS_CQG' ? '#ffffff' : 'var(--text-secondary)',
+              borderBottom: activeScopeTab === 'MS_CQG' ? '2px solid #60a5fa' : '2px solid transparent',
+              boxShadow: activeScopeTab === 'MS_CQG' ? '0 4px 14px rgba(37, 99, 235, 0.3)' : 'none',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Activity size={16} />
+            <span>Phân Hệ MS – CQG (OMS Cũ - Chuẩn C#)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveScopeTab('CCP_CE')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 22px',
+              fontSize: '0.86rem',
+              fontWeight: 800,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              backgroundColor: activeScopeTab === 'CCP_CE' ? '#059669' : 'var(--bg-input)',
+              color: activeScopeTab === 'CCP_CE' ? '#ffffff' : 'var(--text-secondary)',
+              borderBottom: activeScopeTab === 'CCP_CE' ? '2px solid #34d399' : '2px solid transparent',
+              boxShadow: activeScopeTab === 'CCP_CE' ? '0 4px 14px rgba(5, 150, 105, 0.3)' : 'none',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Layers size={16} />
+            <span>Phân Hệ CoreCCP & CoreEX (Bù Trừ & Sàn Mới)</span>
+          </button>
+        </div>
+      )}
+
+      {/* SECTION 1: CẤU HÌNH TỶ GIÁ M-SYSTEM & PHIÊN GIAO DỊCH (CHO PHÂN HỆ MS - CQG) */}
+      {isMsCqgScope && (
+        <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #3b82f6' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+            {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -645,7 +720,6 @@ export default function TradingManagerConfigSection({
                 </span>
               </div>
             </div>
-          )}
 
           {/* Cụm 2: Cấu hình phiên giao dịch - HIỂN THỊ DÙNG CHUNG CHO CẢ MS-CQG, OMS VÀ ALL */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
@@ -699,14 +773,15 @@ export default function TradingManagerConfigSection({
               </div>
             </div>
             <p style={{ margin: '10px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              * Mốc giờ bắt đầu phiên được dùng để lọc loại trừ các lệnh xuyên đêm (T-1) khi đối soát khớp lệnh và đối chiếu EOD.
+              * Mốc giờ bắt đầu phiên được dùng để lọc loại trừ các lệnh xuyên đêm (T-1) khi đối soát khớp lệnh và đối chiếu EOD MS-CQG.
             </p>
           </div>
         </div>
       </div>
+      )}
 
       {/* SECTION 1.5: MA TRẬN TỶ GIÁ ĐA NGUYÊN TỆ CORECCP (VNCLEAR) */}
-      {(filterScope === 'ALL' || filterScope === 'OMS') && (
+      {isCcpCeScope && (
         <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #10b981' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -951,9 +1026,103 @@ export default function TradingManagerConfigSection({
       </div>
       )}
 
-      {/* SECTION 2: HAI BẢNG SONG SONG (DANH SÁCH TK ÂM KQ & NGÀY NGHỈ LME) */}
-      {(filterScope === 'ALL' || filterScope === 'MS_CQG') && (
-        <div className="glass-panel" style={{ padding: '20px 24px' }}>
+      {/* CỤM PHIÊN GIAO DỊCH & TỶ GIÁ THAM CHIẾU CORECCP */}
+      {isCcpCeScope && (
+        <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #10b981' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+            {/* Giờ phiên CoreCCP */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={16} color="#10b981" />
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Cấu hình phiên giao dịch (CoreCCP & CoreEX)
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    color: '#10b981',
+                    fontWeight: 700,
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  Đồng bộ toàn sàn
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 180px', padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Bắt đầu phiên:
+                  </label>
+                  <input
+                    type="time"
+                    value={sessionStartTime}
+                    onChange={(e) => setSessionStartTime(e.target.value)}
+                    className="form-input"
+                    style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'center' }}
+                  />
+                </div>
+
+                <div style={{ flex: '1 1 180px', padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    Kết thúc phiên:
+                  </label>
+                  <input
+                    type="time"
+                    value={sessionEndTime}
+                    onChange={(e) => setSessionEndTime(e.target.value)}
+                    className="form-input"
+                    style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'center' }}
+                  />
+                </div>
+              </div>
+              <p style={{ margin: '10px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                * Mốc giờ phiên được hệ thống dùng để bóc tách và đối chiếu dữ liệu phiên bù trừ CoreCCP.
+              </p>
+            </div>
+
+            {/* Tỷ giá USD tham chiếu CoreCCP */}
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <DollarSign size={16} color="#10b981" />
+                  <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Tỷ giá USD/VND Tham Chiếu CoreCCP
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  USD_VND_RATE
+                </span>
+              </div>
+
+              <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  Tỷ giá USD mặc định quy đổi ký quỹ / giá trị:
+                </label>
+                <input
+                  type="number"
+                  value={ccpUsdExchangeRate || 25400}
+                  onChange={(e) => setCcpUsdExchangeRate(Number(e.target.value))}
+                  className="form-input"
+                  style={{ width: '100%', fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right' }}
+                />
+                <p style={{ margin: '8px 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  * Tỷ giá quy đổi mặc định áp dụng khi bóc tách giá trị giao dịch và ký quỹ VNCLEAR.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 2: HAI BẢNG SONG SONG (DANH SÁCH TK ÂM KQ & NGÀY NGHỈ LME) - CHỈ CHO MS-CQG */}
+      {isMsCqgScope && (
+        <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #3b82f6' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
           {/* Bảng Trái: Danh sách TKGD âm KQ */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
@@ -1135,13 +1304,28 @@ export default function TradingManagerConfigSection({
       )}
 
       {/* SECTION 3: CÁC ĐƯỜNG DẪN HOẠT ĐỘNG THỰC TẾ (HỆ THỐNG SỬ DỤNG) */}
-      <div className="glass-panel" style={{ padding: '22px 24px' }}>
+      <div
+        className="glass-panel"
+        style={{
+          padding: '22px 24px',
+          borderLeft: isMsCqgScope ? '4px solid #3b82f6' : '4px solid #10b981',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Folder size={18} color="#10b981" />
-            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Đường Dẫn Thư Mục Backup & Thống Kê Hoạt Động (Chuẩn Ổ M:\)
-            </h4>
+            <Folder size={18} color={isMsCqgScope ? '#3b82f6' : '#10b981'} />
+            <div>
+              <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {isMsCqgScope
+                  ? 'Đường Dẫn Thư Mục MS – CQG (Chuẩn Ổ M:\\ theo C#)'
+                  : 'Đường Dẫn Thư Mục CoreCCP & CoreEX (Bù Trừ & Sàn Mới)'}
+              </h4>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                {isMsCqgScope
+                  ? 'Gồm 8 thư mục chuẩn: Backup MS/CQG/ACM, Thư mục TradingCheck, 2 Sổ Master FOM (Lot & Giá trị) và Ban Tin Tức'
+                  : 'Gồm 3 thư mục độc lập: Backup 25 báo cáo CoreCCP, Backup CoreEX và Thư mục 10 Master Templates CCP'}
+              </p>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
@@ -1152,24 +1336,31 @@ export default function TradingManagerConfigSection({
                   const parsed = parseWindowsStoragePath(p);
                   return parsed?.suggestedPath || p;
                 };
-                setBotBackupPathMs((p) => toWindowsM(p));
-                setBotBackupPathCqg((p) => toWindowsM(p));
-                setBotBackupPathAcm((p) => toWindowsM(p));
-                setBotBackupPathCcp((p) => toWindowsM(p));
-                setBotBackupPathCe((p) => toWindowsM(p));
-                setBotLotMacroPath((p) => toWindowsM(p));
-                setBotMacroValuePath((p) => toWindowsM(p));
+                if (isMsCqgScope) {
+                  setBotBackupPathMs((p) => toWindowsM(p));
+                  setBotBackupPathCqg((p) => toWindowsM(p));
+                  setBotBackupPathAcm((p) => toWindowsM(p));
+                  setReconFolderCheckPath((p) => toWindowsM(p));
+                  setReconResultFolderPath((p) => toWindowsM(p));
+                  setBotLotMacroPath((p) => toWindowsM(p));
+                  setBotMacroValuePath((p) => toWindowsM(p));
+                  setNewsTeamStatPath((p) => toWindowsM(p));
+                } else {
+                  setBotBackupPathCcp((p) => toWindowsM(p));
+                  setBotBackupPathCe((p) => toWindowsM(p));
+                  setBotCcpStatTargetRoot((p) => toWindowsM(p));
+                }
                 toast.success('Đã chuẩn hóa toàn bộ đường dẫn về định dạng ổ M:\\ (Windows)!');
               }}
               className="btn btn-secondary"
               style={{ fontSize: '0.72rem', padding: '3px 10px', height: '26px', display: 'flex', alignItems: 'center', gap: '5px' }}
-              title="Chuyển đổi toàn bộ đường dẫn sang định dạng chuẩn ổ M:\ (Windows)"
+              title="Chuyển đổi toàn bộ đường dẫn đang xem sang định dạng chuẩn ổ M:\ (Windows)"
             >
               <RefreshCw size={12} />
               <span>Chuẩn hóa ổ M:\</span>
             </button>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              7 đường dẫn đang hoạt động trong hệ thống
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+              {isMsCqgScope ? 'Phân hệ MS – CQG' : 'Phân hệ CoreCCP & CoreEX'}
             </span>
           </div>
         </div>
@@ -1194,10 +1385,50 @@ export default function TradingManagerConfigSection({
             },
             {
               id: 'botBackupPathAcm',
-              label: 'Đường dẫn backup ACM (Straits)',
+              label: 'Đường dẫn backup ACM (Straits CSV)',
               val: botBackupPathAcm,
               setVal: setBotBackupPathAcm,
               desc: 'Thư mục lưu trữ file Straits CSV giao dịch khớp lệnh ACM Nano',
+              category: 'MS_CQG',
+            },
+            {
+              id: 'reconFolderCheckPath',
+              label: 'Đường dẫn tải file check trong phiên (TradingCheck)',
+              val: reconFolderCheckPath,
+              setVal: setReconFolderCheckPath,
+              desc: 'Thư mục lưu trữ các file tải nhanh giữa phiên phục vụ kiểm tra đối chiếu KLGD',
+              category: 'MS_CQG',
+            },
+            {
+              id: 'reconResultFolderPath',
+              label: 'Đường dẫn lưu kết quả check KLGD',
+              val: reconResultFolderPath,
+              setVal: setReconResultFolderPath,
+              desc: 'Thư mục xuất file báo cáo Kết quả check KLGD_{suffix}.xlsx',
+              category: 'MS_CQG',
+            },
+            {
+              id: 'botLotMacroPath',
+              label: 'Thư mục Sổ sách Thống kê Số Lot (MS - CQG)',
+              val: botLotMacroPath,
+              setVal: setBotLotMacroPath,
+              desc: 'Thư mục lưu trữ sổ Master năm (FOM - Thong ke so lot giao dich...) và file tháng (DSGD T{MM}.{YYYY}.xlsx)',
+              category: 'MS_CQG',
+            },
+            {
+              id: 'botMacroValuePath',
+              label: 'Thư mục Sổ sách Thống kê Giá Trị (MS - CQG)',
+              val: botMacroValuePath,
+              setVal: setBotMacroValuePath,
+              desc: 'Thư mục lưu trữ sổ Master năm (FOM - Thong ke gia tri giao dich - {YYYY}.xlsx...)',
+              category: 'MS_CQG',
+            },
+            {
+              id: 'newsTeamStatPath',
+              label: 'Thư mục Báo cáo Ban Tin Tức',
+              val: newsTeamStatPath,
+              setVal: setNewsTeamStatPath,
+              desc: 'Thư mục lưu file báo cáo Giá trị giao dịch phiên cho Ban Tin Tức',
               category: 'MS_CQG',
             },
             {
@@ -1205,37 +1436,29 @@ export default function TradingManagerConfigSection({
               label: 'Đường dẫn backup CoreCCP (VNCLEAR)',
               val: botBackupPathCcp,
               setVal: setBotBackupPathCcp,
-              desc: 'Thư mục lưu trữ 8 báo cáo chuẩn từ hệ thống bù trừ thanh toán CoreCCP (DSGD, TTM, TTTT...)',
+              desc: 'Thư mục lưu 25 báo cáo chuẩn hệ thống bù trừ thanh toán CoreCCP (DSL, DSLDK, DSGD CCP, TTM CCP, TTTT, GTT CCP...)',
               category: 'OMS',
             },
             {
               id: 'botBackupPathCe',
-              label: 'Đường dẫn backup CoreEX (Giao Dịch Mới)',
+              label: 'Đường dẫn backup CoreEX (Giao Dịch Liên Thông CE)',
               val: botBackupPathCe,
               setVal: setBotBackupPathCe,
-              desc: 'Thư mục lưu trữ báo cáo từ hệ thống giao dịch CoreEX',
+              desc: 'Thư mục lưu trữ báo cáo từ hệ thống giao dịch CoreEX (DSGD ACM CE, DSL ACM CE, GTT ACM...)',
               category: 'OMS',
             },
             {
-              id: 'botLotMacroPath',
-              label: 'Đường dẫn Macro thống kê số lot giao dịch',
-              val: botLotMacroPath,
-              setVal: setBotLotMacroPath,
-              desc: 'Đường dẫn file Excel Macro tổng hợp số lot giao dịch hàng ngày (Macro thong ke so lot...)',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'botMacroValuePath',
-              label: 'Đường dẫn Macro thống kê giá trị giao dịch',
-              val: botMacroValuePath,
-              setVal: setBotMacroValuePath,
-              desc: 'Đường dẫn file Excel Macro tính toán tổng giá trị giao dịch thị trường (Macro thong ke gia tri...)',
-              category: 'MS_CQG',
+              id: 'botCcpStatTargetRoot',
+              label: 'Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)',
+              val: botCcpStatTargetRoot,
+              setVal: setBotCcpStatTargetRoot,
+              desc: 'Thư mục chứa 10 Master Templates CCP (Thống kê số lot & giá trị CCP) và thư mục output bảng tháng',
+              category: 'OMS',
             },
           ]
             .filter((item) => {
-              if (filterScope === 'MS_CQG') return item.category === 'MS_CQG';
-              if (filterScope === 'OMS') return item.category === 'OMS';
+              if (isMsCqgScope) return item.category === 'MS_CQG';
+              if (isCcpCeScope) return item.category === 'OMS';
               return true;
             })
             .map((item) => {

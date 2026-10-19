@@ -1,3 +1,118 @@
+## [2026-10-19T15:20] FRONTEND UPGRADE: Tách Bạch Rõ Ràng Màn Hình Cấu Hình Trading Manager Giữa MS - CQG (OMS Cũ) và CoreCCP & CoreEX (Bù Trừ & Sàn Mới)
+
+### 1. Mục tiêu nâng cấp
+- Thực hiện yêu cầu của USER: *"giúp tôi tiến hành nâng cấp"* màn hình cấu hình Trading Manager nhằm phân định độc lập 100% giữa **Phân hệ MS – CQG (OMS cũ - chuẩn 1:1 theo Tool C#)** và **Phân hệ CoreCCP & CoreEX (Bù trừ & Sàn giao dịch mới)**.
+- Khắc phục tình trạng các trường cấu hình của MS-CQG và CoreCCP bị trộn lẫn hoặc dùng chung nhãn "Cấu hình OMS" gây khó khăn cho việc quản trị, bảo trì.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+   - Mở rộng prop `filterScope: 'ALL' | 'MS_CQG' | 'OMS' | 'CCP_CE'`.
+   - Bổ sung bộ chuyển Tab doanh nghiệp (Enterprise Sub-Tab Switcher) khi xem tại Hub (`filterScope === 'ALL'`):
+     * **Tab 1: 🔵 Phân Hệ MS – CQG (OMS Cũ)**:
+       + Tỷ giá thanh toán M-System & Tỷ giá quy đổi (kèm nút cào trực tiếp từ M-System).
+       + Cấu hình phiên giao dịch (Giờ bắt đầu / kết thúc phiên, lọc trừ lệnh xuyên đêm T-1).
+       + Danh sách tài khoản âm ký quỹ (ListBox + Thêm / Xóa).
+       + Danh sách ngày nghỉ LME mapping ngày gốc - ngày thay thế.
+       + 8 đường dẫn thư mục hoạt động chuẩn ổ `M:\` (Backup MS, CQG, ACM, TradingCheck, Kết quả check KLGD, Master Lot, Master Giá Trị, Thư mục Ban Tin Tức).
+     * **Tab 2: 🟢 Phân Hệ CoreCCP & CoreEX (Bù Trừ & Sàn Mới)**:
+       + Ma trận tỷ giá đa nguyên tệ CoreCCP VNCLEAR (USD, EUR, JPY, MYR, VND...) có bảng quản lý tỷ giá quy đổi, mua, bán và nút Thêm/Xóa nguyên tệ.
+       + Cấu hình phiên giao dịch độc lập cho CoreCCP & CoreEX.
+       + Tỷ giá USD tham chiếu CoreCCP (`USD_VND_RATE`, mặc định `25,400`).
+       + 3 đường dẫn thư mục độc lập (Backup 25 báo cáo CoreCCP, Backup 5 báo cáo CoreEX, Thư mục chứa 10 Master Templates CCP).
+   - Chuẩn hóa nút bấm và icon: 100% dùng SVG từ `lucide-react` (`Activity`, `DollarSign`, `Layers`, `Folder`, `Calendar`, `Clock`, `Plus`, `Trash2`...), tuyệt đối không dùng icon Unicode emojis thô.
+2. [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/ccp-ce/page.tsx):
+   - Đổi nhãn Tab từ `"Cấu hình OMS"` thành `"Cấu Hình CoreCCP & CoreEX"` với mã tab `CONFIG_CCP_CE` và màu chủ đạo xanh ngọc `#10b981`.
+   - Truyền `filterScope="CCP_CE"` vào `TradingManagerConfigSection`, đảm bảo khi mở từ phân hệ CoreCCP & CE chỉ hiển thị duy nhất các tham số và đường dẫn liên quan đến CoreCCP & CoreEX.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Frontend Turbopack Build**: `cmd /c npm run build` -> Biên dịch thành công 36/36 routes (Exit code 0).
+- **Backend NestJS Build**: `cmd /c npm run build` -> Biên dịch thành công (Exit code 0).
+
+---
+
+## [2026-10-19T14:55] FIX & REFACTOR: Chuẩn Hóa Logic Vị Thế Mở (TTM) - Bỏ Toàn Bộ ACM Trên M-System (*A) & Cộng Tài Khoản Futures MS Với CoreCCP Chuẩn 1:1 File Gốc
+
+### 1. Mục tiêu thay đổi
+- Thực hiện làm rõ nghiệp vụ từ USER & phản hồi từ anh Đào (QLGD):
+  *"ở TTM thì bỏ các ACM của MS mới đúng . đây là nội dung user nhắn lại: 'Bỏ ACM MS/ TTM ACM trên MS thì bỏ đi a nhé /chắc ý a Đào bảo trong giai đoạn này, nếu ACM thì bỏ TTM MS đi chỉ dùng input CCP chứ nhỉ còn future thì vẫn phải dùng MS mà' giúp tôi check lại"*.
+- **Phân tích Ground Truth từ dữ liệu thật máy chủ (File TTM.xlsx 19/10/2026)**:
+  * Trích xuất trực tiếp file `/mnt/qlgd-it/.../TradingCheck/Futures/2026/T10.2026/19.10/TTM.xlsx`: Có 10,940 dòng vị thế mở.
+  * Trong đó gồm **4,223 dòng tài khoản ACM (đuôi `-A`)** và **6,717 dòng tài khoản Futures thông thường**.
+- **Nguyên nhân gốc rễ (Root Cause) & Phát hiện BUG trong code cũ**:
+  1. Trong file Excel gốc `Check BGS All.xlsm` Sheet 2 `Thống kê TTM` (D3, E3, F3, C3), công thức viết:
+     `=SUMIFS('TTM MS'!N:N, 'TTM MS'!AA:AA, B3, 'TTM MS'!H:H, "<>*A") + SUMIFS('TTM MS'!O:O, 'TTM MS'!AA:AA, B3, 'TTM MS'!H:H, "<>*A") + SUMIFS('TTM CCP'...)`
+     $\rightarrow$ Điều kiện `'TTM MS'!H:H, "<>*A"` **loại trừ toàn bộ 4,223 dòng tài khoản ACM trên M-System** (vì vị thế mở ACM đã quản lý trên CoreCCP). Còn lại **6,717 dòng tài khoản Futures thông thường trên MS vẫn phải tính bình thường**!
+  2. Tuy nhiên trong mã nguồn cũ [qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts), chỉ có `expectedPnL` được kiểm tra `if (!isAccountAcm)`, còn `curr.longLots` và `curr.shortLots` lại chạy không điều kiện! Dẫn tới 4,223 dòng ACM trên MS vẫn bị cộng vào làm thừa số lot vị thế mở.
+  3. Đó là lý do anh Đào bảo *"bỏ TTM ACM trên MS đi, còn Futures thì vẫn phải dùng MS"*.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L812-L865):
+   - Chuẩn hóa vòng lặp duyệt `ttmRows` (MS): Nếu `isAccountAcm === true` (tài khoản kết thúc bằng `A` hoặc `-A`) $\rightarrow$ `continue` (bỏ qua hoàn toàn, không cộng cả Mua, Bán, PnL).
+   - Duyệt và cộng toàn bộ các dòng Futures thông thường (`<>*A`) của M-System.
+   - Cộng tiếp toàn bộ vị thế mở và PnL dự kiến từ `ccpTtmRows` (CoreCCP).
+2. [docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L170-L177):
+   - Cập nhật quy chuẩn bóc tách Sheet 2: Ghi rõ nguyên tắc loại trừ 100% ACM trên MS và cộng dồn Futures MS với CoreCCP.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
+- **Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ `qlgd-dashboard.service.ts` lên `/opt/mxv-checklist/backend/...`.
+  - Biên dịch `npm run build` trên Ubuntu thành công 100%.
+  - Khởi động lại service PM2 `mxv-backend` (PID `2876461`, trạng thái `online`).
+
+---
+
+## [2026-10-19T14:50] CONFIG: Chuẩn Hóa và Bổ Sung Đầy Đủ Biến Môi Trường backend/.env
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: `backend/.env giúp tôi bổ sung`.
+- Bổ sung toàn diện các biến môi trường cấu hình cần thiết theo kiến trúc Modular Monolith V2 và Zero Hardcoding:
+  * Khóa bí mật AES-256 (`ENCRYPTION_KEY`) dùng để giải mã thông tin tài khoản Bot trong MongoDB.
+  * Tách bạch độc lập 2 phân hệ MS-CQG và CoreCCP-CE (Backup, Stat paths, Recon paths).
+  * Khai báo đầy đủ Domain/URL hệ thống ngoại bộ: M-System, CQG Web, ACM ETP, Straits SFTP, CoreCCP, CoreEX.
+  * Tham số tỷ giá tính toán (`USD_VND_RATE`), AI Captcha Solver (`GEMINI_API_KEY`), Ingress Mode (`INGRESS_MODE=REST_API`).
+
+### 2. Danh sách file chỉnh sửa
+- [backend/.env](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/.env): Cấu hình đầy đủ 8 nhóm tham số môi trường chuẩn hóa.
+
+### 3. Kiểm thử & Xác nhận
+- **Backend Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
+
+---
+
+## [2026-10-19T14:30] ARCHITECTURE & REFACTOR: Chuẩn Hóa Cấu Hình Đường Dẫn Phân Hệ MS-CQG & CoreCCP-CE (Zero Hardcoding & Tách Rời 100%)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. *"hiện tại trong databse đang lưu cấu hình setting trong bot-config vậy có cần tổ chức lại không? Nếu có rủi ro khi tổ chức lại cao không vì giờ tôi cần quản lý chuẩn đường dẫn"*
+  2. *"sau đấy tôi phải coppy lại các file thống kê vào đúng folder tôi cấu hình đúng không"*
+  3. *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke so lot giao dich và M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke gia tri giao dich đây hiện tại là thống kê của MS - CQG từ ngày trước tôi lưu và M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp đây là thống kê ccp hiện tại tôi cần bạn đánh giá để tổ chức lại để lưu trên cấu hình"*
+  4. *"giúp tôi tổ chức lại lưu cấu hình đường dẫn lại cho cả hai phân hệ MS- CQG(có thể dựa theo tool C# ) và CE - CCP nữa"*
+  5. Phát hiện và xử lý triệt để phản hồi của USER: *"'M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp', tôi thấy bạn đang có dấu hiệu harccode vậy sau này maintain kiểu gì"* -> Loại bỏ hoàn toàn mọi hardcoded path Windows.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts#L85-L115):
+   - Xóa bỏ 100% hardcode chuỗi đường dẫn `M:\Tailieuchung\...` hoặc `M:\Quanlygiaodich\...` trong code TypeScript.
+   - Chuyển `getTargetRoot` sang kiến trúc Data-Driven 100%:
+     * Ưu tiên đọc cấu hình `bot_ccp_stat_target_root` từ MongoDB `system_settings` (hoặc `process.env.BOT_CCP_STAT_TARGET_ROOT`).
+     * Fallback đọc cấu hình cũ `bot_lot_macro_target_root` từ MongoDB (hoặc `process.env.BOT_LOT_MACRO_TARGET_ROOT`).
+     * Tự động phân giải đường dẫn đa nền tảng (`resolveStoragePathCrossPlatform`).
+2. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L70-L85):
+   - Bổ sung state `botCcpStatTargetRoot`.
+   - Cập nhật hàm `fetchConfig` và `handleSaveConfig`: Lưu độc lập các cấu hình:
+     * Nhóm MS-CQG: `bot_backup_path_ms`, `bot_backup_path_cqg`, `bot_backup_path_acm`, `recon_folder_check_path`, `recon_result_folder_path`, `bot_ms_lot_stat_path` (đồng bộ `bot_lot_macro_target_root`), `bot_ms_value_stat_path` (đồng bộ `bot_macro_value_path`), `news_team_stat_path`.
+     * Nhóm CoreCCP & CoreEX: `bot_backup_path_ccp`, `bot_backup_path_ce`, `bot_ccp_stat_target_root`.
+   - Cập nhật danh sách giao diện Section 3:
+     * Chuyển đổi nhãn từ "File Macro .xlsm" sang đúng bản chất nghiệp vụ: **"Thư mục Sổ sách Thống kê Số Lot (MS - CQG)"** và **"Thư mục Sổ sách Thống kê Giá Trị (MS - CQG)"**.
+     * Bổ sung ô cấu hình riêng cho **"Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)"** (`bot_ccp_stat_target_root`).
+     * Thêm ô cấu hình trực quan cho **"Đường dẫn tải file check trong phiên (TradingCheck)"** (`reconFolderCheckPath`) và **"Đường dẫn lưu kết quả check KLGD"** (`reconResultFolderPath`).
+
+### 3. Kiểm thử & Xác nhận
+- **Backend**: `cmd /c npm run build` -> Exit code 0 (Biên dịch thành công).
+- **Frontend**: `cmd /c npm run build` -> Exit code 0 (Next.js Turbo biên dịch 36 routes thành công 100%).
+
+---
+
 ## [2026-10-19T11:50] REFACTOR: Triệt Tiêu Hoàn Toàn Cơ Chế Fallback Sang M-System Cho Vị Thế Mở & Lãi Lỗ Dự Kiến (100% CoreCCP Only)
 
 ### 1. Mục tiêu thay đổi

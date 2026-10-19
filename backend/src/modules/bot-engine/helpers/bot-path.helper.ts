@@ -275,6 +275,15 @@ export async function getCcpBackupBase(settingsService: { getSetting: (key: stri
   return resolveStoragePathCrossPlatform(raw);
 }
 
+export async function getCeBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  const raw = await settingsService.getSetting(
+    'bot_backup_path_ce',
+    process.env.DEFAULT_BACKUP_PATH_CE ||
+    '',
+  );
+  return resolveStoragePathCrossPlatform(raw);
+}
+
 /**
  * Thay thế biến động ngày/tháng/năm (${YYYY}, ${MM}, ${DD}) vào chuỗi đường dẫn.
  * Nếu không truyền dateInput, mặc định lấy theo thời gian thực tế hiện tại (GMT+7).

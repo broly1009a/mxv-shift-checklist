@@ -555,6 +555,30 @@ export async function getAcmBackupBase(settingsService: { getSetting: (key: stri
 }
 
 /**
+ * Lấy thư mục gốc backup của CoreCCP từ SystemSettings
+ */
+export async function getCcpBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  const raw = await settingsService.getSetting(
+    'bot_backup_path_ccp',
+    process.env.DEFAULT_BACKUP_PATH_CCP ||
+    '',
+  );
+  return resolveStoragePathCrossPlatform(raw);
+}
+
+/**
+ * Lấy thư mục gốc backup của CoreEX từ SystemSettings
+ */
+export async function getCeBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
+  const raw = await settingsService.getSetting(
+    'bot_backup_path_ce',
+    process.env.DEFAULT_BACKUP_PATH_CE ||
+    '',
+  );
+  return resolveStoragePathCrossPlatform(raw);
+}
+
+/**
  * Tìm vị trí index của tiêu đề cột Excel theo tên hoặc alias
  */
 export function findHeaderIndex(headers: string[], target: string, aliases: string[] = []): number {
