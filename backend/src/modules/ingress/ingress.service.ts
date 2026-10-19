@@ -93,21 +93,30 @@ export class IngressService implements IIngressPort {
       } else if (source === 'CCP' || source === 'CORE_CCP') {
         return this.coreCcpApiAdapter.download('CCP', { ...options, targetDirectory: outputDirectory });
       } else if (source === 'ACM') {
+        const isSftpOnly = options?.reportCodes?.some((r) =>
+          ['SFTP', 'SFTP_CSV', 'SFTP_XLS', 'STRAITS'].includes(r.toUpperCase()),
+        );
         const isFull =
           options?.isFullBackup ||
           options?.reportCodes?.some((r) => ['FULL', 'ALL', 'BACKUP'].includes(r.toUpperCase()));
+
+        if (isSftpOnly) {
+          this.logger.log(`[IngressService] Kích hoạt tải SFTP ACM chuyên biệt (reportCodes bao gồm SFTP)`);
+          return this.acmSftpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
+        }
+
         if (isFull) {
           // Tải trọn gói cả SFTP (Straits CSV + XLS) và ETP (Orders + Trades)
           const sftpRes = await this.acmSftpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
           const etpRes = await this.acmEtpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
-          const combinedFiles = [...sftpRes.files, ...etpRes.files];
+          const combinedFiles = [...(sftpRes?.files || []), ...(etpRes?.files || [])];
           return {
             source: 'ACM',
             outputDirectory,
             success: combinedFiles.length > 0,
             files: combinedFiles,
             downloadedAt: new Date(),
-            durationMs: sftpRes.durationMs + etpRes.durationMs,
+            durationMs: (sftpRes?.durationMs || 0) + (etpRes?.durationMs || 0),
             summary: `Đã tải trọn gói ${combinedFiles.length} file ACM (SFTP Straits CSV + ETP Order & Fill)`,
           };
         }

@@ -266,12 +266,89 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     route: '/ORDERS/ORDERBOOK',
     description: 'Danh sách lệnh thường (Alias)',
   },
+  DSLDK: {
+    key: 'DSLDK',
+    fileName: 'DSLDK CCP.xlsx',
+    searchCode: 'ORDERBOOK_FILLED',
+    route: '/ORDERS/ORDERBOOK',
+    description: 'Danh sách lệnh thường đã khớp (Alias)',
+  },
+  DSLCK: {
+    key: 'DSLCK',
+    fileName: 'DSLCK CCP.xlsx',
+    searchCode: 'ORDERBOOK_WORKING',
+    route: '/ORDERS/ORDERBOOK',
+    description: 'Danh sách lệnh thường chờ khớp (Alias)',
+  },
+  DSLDH: {
+    key: 'DSLDH',
+    fileName: 'DSLDH CCP.xlsx',
+    searchCode: 'ORDERBOOK_CANCELLED',
+    route: '/ORDERS/ORDERBOOK',
+    description: 'Danh sách lệnh thường đã hủy (Alias)',
+  },
+  DSL_MM: {
+    key: 'DSL_MM',
+    fileName: 'DSL MM CCP.xlsx',
+    searchCode: 'ORDERBOOK_MM',
+    route: '/ORDERS/ORDERBOOK_MM',
+    description: 'Danh sách lệnh Market Maker (Alias)',
+  },
+  DSLDK_MM: {
+    key: 'DSLDK_MM',
+    fileName: 'DSLDK MM CCP.xlsx',
+    searchCode: 'ORDERBOOK_MM_FILLED',
+    route: '/ORDERS/ORDERBOOK_MM',
+    description: 'Danh sách lệnh Market Maker đã khớp (Alias)',
+  },
+  DSLCK_MM: {
+    key: 'DSLCK_MM',
+    fileName: 'DSLCK MM CCP.xlsx',
+    searchCode: 'ORDERBOOK_MM_WORKING',
+    route: '/ORDERS/ORDERBOOK_MM',
+    description: 'Danh sách lệnh Market Maker chờ khớp (Alias)',
+  },
+  DSLDH_MM: {
+    key: 'DSLDH_MM',
+    fileName: 'DSLDH MM CCP.xlsx',
+    searchCode: 'ORDERBOOK_MM_CANCELLED',
+    route: '/ORDERS/ORDERBOOK_MM',
+    description: 'Danh sách lệnh Market Maker đã hủy (Alias)',
+  },
+  DSGD_MM: {
+    key: 'DSGD_MM',
+    fileName: 'DSGD MM CCP.xlsx',
+    searchCode: 'ORDERBOOK_ALL_MM',
+    route: '/ORDERS/ORDERBOOK_ALL_MM',
+    description: 'Chi tiết khớp lệnh Market Maker (Alias)',
+  },
+  QLTTTKGD_PRE1620: {
+    key: 'QLTTTKGD_PRE1620',
+    fileName: 'QL TT TKGD truoc 4h20.xlsx',
+    searchCode: 'ACCTMARGIN_ALL_PRE1620',
+    route: '/RISKMNG/ACCTMARGIN_ALL',
+    description: 'Quản lý trạng thái TKGD trước 16h20 (Alias)',
+  },
   QLTTTKGD: {
     key: 'QLTTTKGD',
     fileName: 'QL TT TKGD.xlsx',
     searchCode: 'ACCTMARGIN_ALL',
     route: '/RISKMNG/ACCTMARGIN_ALL',
     description: 'Quản lý trạng thái ký quỹ TKGD (Alias)',
+  },
+  QLTTTVKD: {
+    key: 'QLTTTVKD',
+    fileName: 'QL TT TVKD.xlsx',
+    searchCode: 'BROKERMARGIN_ALL',
+    route: '/RISKMNG/ACCTMARGIN_ALL',
+    description: 'Quản lý trạng thái ký quỹ TVKD (Alias)',
+  },
+  DSTKGD: {
+    key: 'DSTKGD',
+    fileName: 'DSTKGD ACM.xlsx',
+    searchCode: 'ACCOUNTS_INFO',
+    route: '/ACCOUNTMNG/ACCOUNTS_INFO',
+    description: 'Danh sách tài khoản giao dịch (Alias)',
   },
   TTTT_CCP: {
     key: 'TTTT_CCP',
@@ -963,13 +1040,25 @@ export class CoreCcpApiAdapter implements IIngressPort {
       options?.isFullBackup ||
       options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'CCP_25'].includes(c.toUpperCase()));
 
+    const CANONICAL_CORECCP_KEYS = [
+      'DSL_CCP', 'DSLDK_CCP', 'DSLCK_CCP', 'DSLDH_CCP', 'DSGD_CCP',
+      'DSL_MM_CCP', 'DSLDK_MM_CCP', 'DSLCK_MM_CCP', 'DSLDH_MM_CCP', 'DSGD_MM_CCP',
+      'TTM_PRE1620', 'TTM_CCP', 'TTTT',
+      'QLTT_TKGD_PRE1620', 'QL_TT_TKGD', 'QLTT_TVKD', 'DSQLKQ_TKGD', 'DSQLKQ_TVKD',
+      'NR', 'DSTKGD_ACM', 'GTT_CCP', 'HH', 'TYGIA',
+      'HD_CP2CO', 'HD_PL1NY', 'HD_SI5CO',
+    ];
+
     let targets: string[] = [];
     if (isFullRequested) {
-      const aliasKeys = new Set(['GTT', 'DSGD', 'TTM', 'DSL', 'QLTTTKGD']);
-      targets = Object.keys(CORECCP_API_REPORTS).filter((k) => !aliasKeys.has(k));
-      this.logger.log(`[CoreCcpApiAdapter] Kích hoạt FULL BACKUP cho CoreCCP: tải trọn gói ${targets.length} báo cáo Maker.`);
+      targets = CANONICAL_CORECCP_KEYS;
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
-      targets = options.reportCodes;
+      targets = options.reportCodes.flatMap((code) => {
+        if (code === 'HD' || code === 'HD_ALL') {
+          return Object.keys(CORECCP_API_REPORTS).filter((k) => k.startsWith('HD_'));
+        }
+        return [code];
+      });
     } else if (options?.reportType) {
       targets = [options.reportType];
     } else {
@@ -996,13 +1085,18 @@ export class CoreCcpApiAdapter implements IIngressPort {
         let reportDef = CORECCP_API_REPORTS[target];
         if (!reportDef) {
           const upper = target.toUpperCase();
-          reportDef = Object.values(CORECCP_API_REPORTS).find(
-            (r) =>
-              r.key.toUpperCase() === upper ||
-              r.searchCode.toUpperCase() === upper ||
-              r.fileName.toUpperCase().includes(upper) ||
-              (upper === 'CL_MATCH' && r.searchCode === 'ORDERMATCH_DETAIL'),
-          );
+          const cleanTarget = upper.replace(/[\s_-]/g, '');
+          reportDef = Object.values(CORECCP_API_REPORTS).find((r) => {
+            const cleanKey = r.key.toUpperCase().replace(/[\s_-]/g, '');
+            const cleanSearch = r.searchCode.toUpperCase().replace(/[\s_-]/g, '');
+            const cleanFile = r.fileName.toUpperCase().replace(/[\s_-]/g, '');
+            return (
+              cleanKey === cleanTarget ||
+              cleanSearch === cleanTarget ||
+              cleanFile.includes(cleanTarget) ||
+              (cleanTarget === 'CLMATCH' && r.searchCode === 'ORDERMATCH_DETAIL')
+            );
+          });
         }
         if (!reportDef) {
           this.logger.warn(`[CoreCcpApiAdapter] Bỏ qua báo cáo chưa được cấu hình mapping: ${target}`);

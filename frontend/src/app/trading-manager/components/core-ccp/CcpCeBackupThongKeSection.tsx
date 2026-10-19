@@ -30,29 +30,64 @@ export interface CcpCeBackupThongKeSectionProps {
   onSelectDate?: (date: string) => void;
 }
 
-// 25 Báo cáo CoreCCP VNCLEAR Maker
+// 19 Báo cáo chuẩn CoreCCP VNCLEAR Maker + Hợp đồng Hàng hóa (Động)
 export const CORE_CCP_REPORTS_LIST = [
-  { key: 'NR', name: 'Nộp rút tiền', filename: 'NR.xlsx', group: 'CASH', phase: 1 },
-  { key: 'TTTT', name: 'Thông tin thanh toán', filename: 'TTTT.xlsx', group: 'TRADE', phase: 1 },
-  { key: 'DSL', name: 'Danh sách lệnh', filename: 'DSL.xlsx', group: 'TRADE', phase: 1 },
-  { key: 'DSGD', name: 'Danh sách giao dịch', filename: 'DSGD.xlsx', group: 'TRADE', phase: 1 },
-  { key: 'PS', name: 'Vị thế tất toán', filename: 'PS.xlsx', group: 'POSITION', phase: 2 },
-  { key: 'OP', name: 'Trạng thái mở (TTM)', filename: 'OP.xlsx', group: 'POSITION', phase: 2 },
-  { key: 'IMR', name: 'Ký quỹ ban đầu IMR', filename: 'IMR.xlsx', group: 'MARGIN', phase: 2 },
-  { key: 'VM', name: 'Lãi lỗ vị thế VM', filename: 'VM.xlsx', group: 'MARGIN', phase: 2 },
-  { key: 'Phi', name: 'Báo cáo phí giao dịch', filename: 'Phi.xlsx', group: 'FEE', phase: 2 },
-  { key: 'GTT', name: 'Giá thanh toán CCP', filename: 'GTT CCP.xlsx', group: 'PRODUCT', phase: 2 },
-  { key: 'HH', name: 'Hàng hóa & Bước giá', filename: 'HH.xlsx', group: 'PRODUCT', phase: 2 },
-  { key: 'HD', name: 'Hợp đồng hàng hóa', filename: 'HĐ *.xlsx', group: 'PRODUCT', phase: 2 },
+  // 1. Sổ lệnh thường (5 file)
+  { key: 'DSL', name: 'DSL CCP (Sổ lệnh)', filename: 'DSL CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSLDK', name: 'DSLDK CCP (Lệnh đã khớp)', filename: 'DSLDK CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSLCK', name: 'DSLCK CCP (Lệnh chờ khớp)', filename: 'DSLCK CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSLDH', name: 'DSLDH CCP (Lệnh đã hủy)', filename: 'DSLDH CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+  { key: 'DSGD', name: 'DSGD CCP (Khớp lệnh)', filename: 'DSGD CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
+
+  // 2. Sổ lệnh MM (5 file)
+  { key: 'DSL_MM', name: 'DSL MM CCP (Sổ lệnh MM)', filename: 'DSL MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSLDK_MM', name: 'DSLDK MM CCP (Đã khớp MM)', filename: 'DSLDK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSLCK_MM', name: 'DSLCK MM CCP (Chờ khớp MM)', filename: 'DSLCK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSLDH_MM', name: 'DSLDH MM CCP (Đã hủy MM)', filename: 'DSLDH MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  { key: 'DSGD_MM', name: 'DSGD MM CCP (Khớp lệnh MM)', filename: 'DSGD MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+
+  // 3. Vị thế & Lãi lỗ (3 file)
+  { key: 'TTM_PRE1620', name: 'TTM trước 4h20', filename: 'TTM truoc 4h20.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 1 },
+  { key: 'TTM', name: 'TTM CCP (Trạng thái mở)', filename: 'TTM CCP.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
+  { key: 'TTTT', name: 'TTTT (Tất toán & Lãi lỗ)', filename: 'TTTT.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 2 },
+
+  // 4. Rủi ro & Ký quỹ (5 file)
+  { key: 'QLTTTKGD_PRE1620', name: 'QL TT TKGD trước 4h20', filename: 'QL TT TKGD truoc 4h20.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 1 },
+  { key: 'QLTTTKGD', name: 'QL TT TKGD (Ký quỹ TKGD)', filename: 'QL TT TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'QLTTTVKD', name: 'QL TT TVKD (Ký quỹ TVKD)', filename: 'QL TT TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'DSQLKQ_TKGD', name: 'DSQLKQ TKGD (Chi tiết KQ)', filename: 'DSQLKQ TKGD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+  { key: 'DSQLKQ_TVKD', name: 'DSQLKQ TVKD (Chi tiết KQ)', filename: 'DSQLKQ TVKD.xlsx', group: 'RISK', groupLabel: 'Rủi ro & Ký quỹ', phase: 2 },
+
+  // 5. Nộp rút tiền & Tài khoản (2 file)
+  { key: 'NR', name: 'NR (Nộp rút tiền)', filename: 'NR.xlsx', group: 'CASH', groupLabel: 'Nộp rút & TK', phase: 2 },
+  { key: 'DSTKGD', name: 'DSTKGD ACM (Danh sách TK)', filename: 'DSTKGD ACM.xlsx', group: 'CASH', groupLabel: 'Nộp rút & TK', phase: 2 },
+
+  // 6. Hàng hóa, Tham số & Hợp đồng (Động)
+  { key: 'GTT', name: 'GTT CCP (Giá thanh toán)', filename: 'GTT CCP.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
+  { key: 'HH', name: 'HH (Danh mục hàng hóa)', filename: 'HH.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
+  { key: 'TYGIA', name: 'Tỷ giá CCP (Nguyên tệ)', filename: 'Tỷ giá CCP.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
+  { key: 'HD', name: 'Hợp đồng hàng hóa (Động theo sàn)', filename: 'HĐ *.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
 ];
 
-// Báo cáo CoreEX (CE)
+// 12 Báo cáo chuẩn CoreEX (CE) + Hợp đồng Hàng hóa liên thông (Động)
 export const CORE_EX_REPORTS_LIST = [
-  { key: 'GTT', name: 'Giá thanh toán CE (ACM)', filename: 'GTT ACM.xlsx', description: 'Tải từ route /PRODUCT/SETTLEMENT' },
-  { key: 'HH', name: 'Hàng hóa & Bước giá CE', filename: 'HH ACM.xlsx', description: 'Tải từ route /PRODUCT/COMMODITY' },
-  { key: 'HD', name: 'Hợp đồng chi tiết CE', filename: 'HD *.xlsx', description: 'Tải từ route /PRODUCT/CONTRACT' },
-  { key: 'DSGD', name: 'Danh sách giao dịch CE', filename: 'DSGD CE.xlsx', description: 'Dữ liệu khớp lệnh tự doanh CoreEX' },
-  { key: 'TTM', name: 'Trạng thái mở CE', filename: 'TTM CE.xlsx', description: 'Vị thế mở CoreEX' },
+  // 1. Sổ lệnh & Giao dịch CE (5 file)
+  { key: 'DSGD', name: 'Danh sách giao dịch CE', filename: 'DSGD ACM CE.xlsx', description: 'Khớp lệnh liên thông chi tiết CE' },
+  { key: 'DSL', name: 'Sổ lệnh tổng hợp CE', filename: 'DSL ACM CE.xlsx', description: 'Lịch sử toàn bộ sổ lệnh liên thông CE' },
+  { key: 'DSLCK', name: 'Lệnh chờ khớp CE', filename: 'DSLCK ACM CE.xlsx', description: 'Danh sách lệnh đang chờ khớp' },
+  { key: 'DSLDK', name: 'Lệnh điều kiện CE', filename: 'DSLDK ACM CE.xlsx', description: 'Danh sách lệnh điều kiện / đã khớp' },
+  { key: 'DSLH', name: 'Lệnh hủy CE', filename: 'DSLH ACM CE.xlsx', description: 'Danh sách lệnh đã hủy trên sàn CE' },
+
+  // 2. Giá, Hàng hóa & Phiên giao dịch (4 file)
+  { key: 'GTT', name: 'Giá thanh toán ACM (CE)', filename: 'GTT ACM.xlsx', description: 'Bảng giá thanh toán settlement ACM' },
+  { key: 'HH', name: 'Hàng hóa & Bước giá CE', filename: 'HH ACM.xlsx', description: 'Danh mục hàng hóa và thông số hợp đồng' },
+  { key: 'SESSION_INFO', name: 'Thông tin phiên trong ngày', filename: 'SESSION_INFO.xlsx', description: 'Trạng thái phiên giao dịch từng mặt hàng' },
+  { key: 'SESSION_CONFIG', name: 'Danh sách cấu hình phiên', filename: 'SESSION_CONFIG.xlsx', description: 'Danh sách cấu hình các phiên giao dịch' },
+
+  // 3. Vị thế mở, Đối chiếu & Hợp đồng chi tiết (Động)
+  { key: 'TTM', name: 'Trạng thái mở CE', filename: 'TTM CE.xlsx', description: 'Vị thế mở liên thông sàn CoreEX' },
+  { key: 'ACM_RECON', name: 'Đối chiếu lệnh liên thông', filename: 'Doi chieu lenh ACM.xlsx', description: 'Đối chiếu lệnh liên thông sở ACM' },
+  { key: 'HD', name: 'Hợp đồng chi tiết CE (Động theo sàn)', filename: 'HĐ *.xlsx', description: 'Hợp đồng chi tiết quét theo danh mục hàng hóa' },
 ];
 
 // Báo cáo ACM (Straits Financial)
@@ -204,9 +239,17 @@ export default function CcpCeBackupThongKeSection({
       return;
     }
     setDownloadingCcp(true);
-    const toastId = toast.loading(`Đang tải ${selected.length} báo cáo CoreCCP...`);
+    const isAll = selected.length === CORE_CCP_REPORTS_LIST.length;
+    const toastId = toast.loading(
+      isAll
+        ? 'Đang kích hoạt Full Backup CoreCCP (19 file + HĐ hàng hóa)...'
+        : `Đang tải ${selected.length} báo cáo CoreCCP...`
+    );
     try {
-      await api.ingress.triggerCcpDownload({ date: selectedDate, reports: selected }, token);
+      await api.ingress.triggerCcpDownload(
+        { date: selectedDate, reports: isAll ? ['FULL'] : selected },
+        token
+      );
       toast.success('Đã kích hoạt tải báo cáo CoreCCP!', { id: toastId });
       await handleAuditCcpBackup(false);
     } catch (err: any) {
@@ -224,9 +267,17 @@ export default function CcpCeBackupThongKeSection({
       return;
     }
     setDownloadingCe(true);
-    const toastId = toast.loading(`Đang tải ${selected.length} báo cáo CoreEX...`);
+    const isAll = selected.length === CORE_EX_REPORTS_LIST.length;
+    const toastId = toast.loading(
+      isAll
+        ? 'Đang kích hoạt Full Backup CoreEX (12 file + HĐ hàng hóa)...'
+        : `Đang tải ${selected.length} báo cáo CoreEX...`
+    );
     try {
-      await api.ingress.triggerCeDownload({ date: selectedDate, reports: selected }, token);
+      await api.ingress.triggerCeDownload(
+        { date: selectedDate, reports: isAll ? ['FULL'] : selected },
+        token
+      );
       toast.success('Đã kích hoạt tải báo cáo CoreEX!', { id: toastId });
       await handleAuditCeBackup(false);
     } catch (err: any) {
@@ -513,7 +564,7 @@ export default function CcpCeBackupThongKeSection({
                     <span>All</span>
                   </label>
                 </div>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>25 báo cáo VNCLEAR</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>19 báo cáo + HĐ hàng hóa (Động)</span>
               </div>
 
               {/* Grid Checkboxes */}
@@ -591,7 +642,7 @@ export default function CcpCeBackupThongKeSection({
                     <span>All</span>
                   </label>
                 </div>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>5 báo cáo sàn CE</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>12 báo cáo + HĐ hàng hóa (Động)</span>
               </div>
 
               {/* Grid Checkboxes */}

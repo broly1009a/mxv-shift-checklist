@@ -95,22 +95,7 @@ export interface ICoreExchangeReportMapping {
  * Danh mục báo cáo Core Exchange chuẩn hóa
  */
 export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportMapping> = {
-  GTT: {
-    key: 'GTT',
-    name: 'Giá thanh toán ACM',
-    fileName: 'GTT ACM.xlsx',
-    route: '/PRODUCT/SETTLEMENT',
-    searchCode: 'SETTLEMENT_ACM',
-    description: 'Bảng giá thanh toán (Settlement Price) phục vụ EOD tính PnL',
-  },
-  HH: {
-    key: 'HH',
-    name: 'Hàng hóa ACM',
-    fileName: 'HH ACM.xlsx',
-    route: '/PRODUCT/COMMODITY',
-    searchCode: 'COMMODITY_ACM',
-    description: 'Danh mục hàng hóa và thông số hợp đồng giao dịch liên thông',
-  },
+  // 1. Sổ lệnh & Khớp lệnh CE
   DSGD: {
     key: 'DSGD',
     name: 'Danh sách giao dịch CE',
@@ -151,6 +136,56 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     searchCode: 'ORDERBOOK_ACM_CANCELLED',
     description: 'Danh sách các lệnh đã bị hủy (Cancelled)',
   },
+  DSGD_ALL: {
+    key: 'DSGD_ALL',
+    name: 'Danh sách khớp lệnh liên thông',
+    fileName: 'DSGD ALL ACM CE.xlsx',
+    route: '/ORDERS/ORDERMATCH_ALL_ACM',
+    searchCode: 'ORDERMATCH_ALL_ACM',
+    description: 'Danh sách khớp lệnh liên thông ACM',
+  },
+  DSL_SESSION: {
+    key: 'DSL_SESSION',
+    name: 'Danh sách lệnh trong phiên',
+    fileName: 'DSL Trong Phien CE.xlsx',
+    route: '/ORDERS/ORDERBOOK',
+    searchCode: 'ORDERBOOK',
+    description: 'Danh sách lệnh trong phiên',
+  },
+  DSGD_MM: {
+    key: 'DSGD_MM',
+    name: 'Khớp lệnh MM chi tiết',
+    fileName: 'DSGD MM CE.xlsx',
+    route: '/ORDERS/ORDERMATCH_DETAIL_MM',
+    searchCode: 'ORDERMATCH_DETAIL_MM',
+    description: 'Lịch sử khớp lệnh Market Maker chi tiết',
+  },
+  DSL_MM: {
+    key: 'DSL_MM',
+    name: 'Sổ lệnh MM tổng hợp',
+    fileName: 'DSL MM CE.xlsx',
+    route: '/ORDERS/ORDERBOOK_ALL_MM',
+    searchCode: 'ORDERBOOK_ALL_MM',
+    description: 'Lịch sử toàn bộ sổ lệnh Market Maker',
+  },
+
+  // 2. Giá, Hàng hóa & Phiên giao dịch
+  GTT: {
+    key: 'GTT',
+    name: 'Giá thanh toán ACM',
+    fileName: 'GTT ACM.xlsx',
+    route: '/PRODUCT/SETTLEMENT',
+    searchCode: 'SETTLEMENT_ACM',
+    description: 'Bảng giá thanh toán (Settlement Price) phục vụ EOD tính PnL',
+  },
+  HH: {
+    key: 'HH',
+    name: 'Hàng hóa & Bước giá CE',
+    fileName: 'HH ACM.xlsx',
+    route: '/PRODUCT/COMMODITY_ACM',
+    searchCode: 'COMMODITY_ACM',
+    description: 'Danh mục hàng hóa và thông số hợp đồng giao dịch liên thông',
+  },
   SESSION_INFO: {
     key: 'SESSION_INFO',
     name: 'Thông tin phiên trong ngày',
@@ -158,6 +193,32 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     route: '/SESSIONMNG/SESSION_INFO',
     searchCode: 'SESSION_INFO',
     description: 'Trạng thái phiên giao dịch trong ngày của từng mặt hàng',
+  },
+  SESSION_CONFIG: {
+    key: 'SESSION_CONFIG',
+    name: 'Danh sách cấu hình phiên',
+    fileName: 'SESSION_CONFIG.xlsx',
+    route: '/SESSIONMNG/SESSION_CONFIG_ALL',
+    searchCode: 'SESSION_CONFIG_ALL',
+    description: 'Danh sách cấu hình các phiên giao dịch',
+  },
+
+  // 3. Vị thế & Vận hành & Hợp đồng
+  TTM: {
+    key: 'TTM',
+    name: 'Trạng thái mở CE',
+    fileName: 'TTM CE.xlsx',
+    route: '/ORDERS/ORDERBOOK_ACM',
+    searchCode: 'OPEN_POSITION_CE',
+    description: 'Vị thế mở liên thông sàn CoreEX',
+  },
+  ACM_RECON: {
+    key: 'ACM_RECON',
+    name: 'Đối chiếu lệnh liên thông',
+    fileName: 'Doi chieu lenh ACM.xlsx',
+    route: '/EOD/ACM_RECON_ORDERS',
+    searchCode: 'ACM_RECON_ORDERS',
+    description: 'Đối chiếu lệnh liên thông sở ACM',
   },
   HD: {
     key: 'HD',
@@ -250,6 +311,13 @@ export class CoreExApiAdapter implements IIngressPort {
       }
     }
 
+    try {
+      const parsedUrl = new URL(baseUrl);
+      baseUrl = parsedUrl.origin;
+    } catch {
+      baseUrl = this.defaultBaseUrl;
+    }
+
     // 1. Kiểm tra session cache nếu còn hiệu lực
     if (this.cachedSession && this.cachedSession.sessionCookie) {
       const isValid = await this.verifySession(baseUrl, this.cachedSession.sessionCookie);
@@ -267,10 +335,26 @@ export class CoreExApiAdapter implements IIngressPort {
       'Accept-Language': 'vi,en;q=0.9',
     };
 
-    // BƯỚC 1: Truy cập /login và bẫy _csrf token
-    this.logger.log(`[CoreExApiAdapter] Truy cập ${baseUrl}/login để bẫy _csrf token...`);
-    const loginPageRes = await fetch(`${baseUrl}/login`, {
-      headers: { ...commonHeaders, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+    // BƯỚC 1: Khởi tạo phiên OAuth2 Authorize để lấy Session Cookie và URL trang Login
+    const redirectUri = `${baseUrl}/validate_code`;
+    const authUrl = `${baseUrl}/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(
+      redirectUri,
+    )}&scope=openid%20profile`;
+
+    this.logger.log(`[CoreExApiAdapter] Khởi tạo phiên OAuth2: ${authUrl}`);
+    const initRes = await fetch(authUrl, {
+      headers: { ...commonHeaders, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CoreEX-Ingress/1.0' },
+      redirect: 'manual',
+    });
+    jar.setFromHeaders(initRes.headers);
+
+    let loginUrl = initRes.headers.get('location') || `${baseUrl}/login`;
+    if (!loginUrl.startsWith('http')) loginUrl = `${baseUrl}${loginUrl}`;
+
+    // BƯỚC 2: Truy cập trang đăng nhập với Cookie SESSION bẫy từ Authorize để lấy _csrf token
+    this.logger.log(`[CoreExApiAdapter] Truy cập ${loginUrl} để bẫy _csrf token...`);
+    const loginPageRes = await fetch(loginUrl, {
+      headers: { ...commonHeaders, Cookie: jar.getCookieHeader(), Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
       redirect: 'manual',
     });
     jar.setFromHeaders(loginPageRes.headers);
@@ -285,7 +369,7 @@ export class CoreExApiAdapter implements IIngressPort {
     }
     const csrf = csrfMatch[1];
 
-    // BƯỚC 2: Gửi POST /login với _csrf token
+    // BƯỚC 3: Gửi POST /login với _csrf token
     const bodyParams = new URLSearchParams();
     bodyParams.append('_csrf', csrf);
     bodyParams.append('username', username);
@@ -299,37 +383,34 @@ export class CoreExApiAdapter implements IIngressPort {
         'Content-Type': 'application/x-www-form-urlencoded',
         Cookie: jar.getCookieHeader(),
         Origin: baseUrl,
-        Referer: `${baseUrl}/login`,
+        Referer: loginUrl,
       },
       body: bodyParams.toString(),
       redirect: 'manual',
     });
 
     jar.setFromHeaders(postLoginRes.headers);
-    const loc = postLoginRes.headers.get('location');
+    let nextUrl = postLoginRes.headers.get('location');
 
-    if (postLoginRes.status !== 302 || !loc || loc.includes('error')) {
-      throw new Error(`Đăng nhập Core Exchange thất bại! HTTP Status: ${postLoginRes.status}, Location: ${loc || 'none'}`);
+    if (postLoginRes.status !== 302 || !nextUrl || nextUrl.includes('error')) {
+      throw new Error(`Đăng nhập Core Exchange thất bại! HTTP Status: ${postLoginRes.status}, Location: ${nextUrl || 'none'}`);
     }
 
-    const sessionCookie = jar.getSessionCookie();
-
-    // BƯỚC 3: Gọi OAuth2 Authorize để lấy Authorization Code
-    const redirectUri = `${baseUrl}/validate_code`;
-    const authUrl = `${baseUrl}/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20profile`;
-
-    const authRes = await fetch(authUrl, {
+    if (!nextUrl.startsWith('http')) nextUrl = `${baseUrl}${nextUrl}`;
+    const continueRes = await fetch(nextUrl, {
       headers: { ...commonHeaders, Cookie: jar.getCookieHeader() },
       redirect: 'manual',
     });
-    jar.setFromHeaders(authRes.headers);
+    jar.setFromHeaders(continueRes.headers);
 
-    const authLoc = authRes.headers.get('location');
+    let validateUrl = continueRes.headers.get('location');
     let oauthCode: string | undefined;
-    if (authLoc && authLoc.includes('code=')) {
-      const urlObj = new URL(authLoc.startsWith('http') ? authLoc : `${baseUrl}${authLoc}`);
+    if (validateUrl && validateUrl.includes('code=')) {
+      const urlObj = new URL(validateUrl.startsWith('http') ? validateUrl : `${baseUrl}${validateUrl}`);
       oauthCode = urlObj.searchParams.get('code') || undefined;
     }
+
+    const sessionCookie = jar.getSessionCookie();
 
     // BƯỚC 4: Verify lại phiên làm việc
     await this.verifySession(baseUrl, sessionCookie);
@@ -465,7 +546,21 @@ export class CoreExApiAdapter implements IIngressPort {
       const session = await this.getValidSession();
 
       for (const target of targets) {
-        const reportDef = CORE_EXCHANGE_REPORTS_REGISTRY[target];
+        let reportDef = CORE_EXCHANGE_REPORTS_REGISTRY[target];
+        if (!reportDef) {
+          const upper = target.toUpperCase();
+          const cleanTarget = upper.replace(/[\s_-]/g, '');
+          reportDef = Object.values(CORE_EXCHANGE_REPORTS_REGISTRY).find((r) => {
+            const cleanKey = r.key.toUpperCase().replace(/[\s_-]/g, '');
+            const cleanSearch = r.searchCode.toUpperCase().replace(/[\s_-]/g, '');
+            const cleanFile = r.fileName.toUpperCase().replace(/[\s_-]/g, '');
+            return (
+              cleanKey === cleanTarget ||
+              cleanSearch === cleanTarget ||
+              cleanFile.includes(cleanTarget)
+            );
+          });
+        }
         if (!reportDef) {
           this.logger.warn(`[CoreExApiAdapter] Bỏ qua báo cáo chưa cấu hình mapping: ${target}`);
           continue;

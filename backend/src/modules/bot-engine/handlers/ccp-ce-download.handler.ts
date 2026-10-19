@@ -122,12 +122,19 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       }
 
       job.logs.push(`${logPrefix} [${systemLabel}] Hoàn tất tải ${ingressRes.files.length} báo cáo qua Direct REST API (${ingressRes.durationMs}ms)`);
-      job.status = ingressRes.success ? 'COMPLETED' : 'FAILED';
-      if (ingressRes.error) job.error = ingressRes.error;
+      if (!ingressRes.success || ingressRes.files.length === 0) {
+        const errorMsg = ingressRes.error || `Tải thất bại: Không tải được báo cáo nào từ ${systemLabel} qua Direct REST API.`;
+        job.status = 'FAILED';
+        job.error = errorMsg;
+        await job.save();
+        throw new Error(`[${systemLabel}] ${errorMsg}`);
+      }
+
+      job.status = 'COMPLETED';
       await job.save();
 
       return {
-        success: ingressRes.success,
+        success: true,
         downloadedCount: ingressRes.files.length,
         outputDir,
         mode: 'DIRECT_REST_API',
