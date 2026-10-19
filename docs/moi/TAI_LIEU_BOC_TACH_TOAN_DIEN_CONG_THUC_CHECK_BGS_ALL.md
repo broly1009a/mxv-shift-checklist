@@ -170,10 +170,13 @@ Bảng này chứa dữ liệu vị thế mở của **44 mặt hàng phái sinh
   `=IFERROR(Table3[[#This Row],[TTM Bán]] / Table3[[#This Row],[TTM]], "")`
 
 > [!NOTE]
-> **Quy Chuẩn Chuyển Đổi Nghiệp Vụ Vị Thế Mở (Cập nhật 19/10/2026)**:
-> 1. **Logic File Excel Gốc (`INCLUDE_MS_TTM = true`)**: Được thiết kế trong giai đoạn chuyển đổi song song (migration), khi một số tài khoản vẫn mở vị thế trên M-System và một số mở trên CoreCCP $\rightarrow$ Macro Excel buộc phải cộng gộp cả 2 nguồn (`TTM MS` + `TTM CCP`).
-> 2. **Logic Vận Hành Chuẩn Hóa Mới (`INCLUDE_MS_TTM = false`)**: Hiện tại CoreCCP đã chính thức trở thành Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV. Mọi vị thế mở của thị trường đều được chốt trên CoreCCP. Do đó, hệ thống **CHỈ TÍNH VỊ THẾ MỞ & LÃI LỖ DỰ KIẾN TRÊN CORECCP (`TTM CCP`)**, loại bỏ hoàn toàn phần cộng thêm từ `TTM MS` nhằm tránh rủi ro nhân đôi số liệu (double counting). Theo chỉ đạo dứt khoát của USER, **hệ thống tuyệt đối không fallback sang M-System** khi CoreCCP chưa có dữ liệu (nếu thiếu file CCP thì để 0).
-> 3. Mã nguồn logic cũ vẫn được lưu trữ nguyên vẹn tại [qlgd-dashboard.service.ts#L828-L865](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L828-L865) và có thể kích hoạt lại tức thì bằng cách bật cờ `INCLUDE_MS_TTM = true`.
+> **Quy Chuẩn Nghiệp Vụ Chuẩn Hóa Vị Thế Mở (Cập nhật 19/10/2026)**:
+> 1. **Nguyên Tắc Bỏ ACM Trên M-System (`'TTM MS'!H:H, "<>*A"`)**: 
+>    - Đối với M-System (`TTM MS`), **loại bỏ 100% các tài khoản ACM (đuôi `*A`, ví dụ `001C...-A`)** cho cả Khối lượng Mua (Cột N), Khối lượng Bán (Cột O) và Lãi lỗ dự kiến (Cột S). Vị thế mở của nhóm ACM đã được quản lý tập trung và tính toán thông qua CoreCCP.
+>    - Các tài khoản **Futures thông thường** trên M-System (không có đuôi `*A`) **vẫn được tính bình thường 100%** và cộng dồn với dữ liệu vị thế mở từ CoreCCP.
+> 2. **Đối với CoreCCP (`TTM CCP`)**:
+>    - Tích lũy toàn bộ Vị thế mở và Lãi lỗ dự kiến từ file `TTM CCP.xlsx`.
+> 3. Mã nguồn đã được hiện thực chuẩn xác tại [qlgd-dashboard.service.ts#L812-L865](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L812-L865).
 
 ### 3.2. Bảng Báo Cáo Ban Giám Sát (`Table15`: Dải `K2:O21`)
 - Tiêu đề: `="Lãi lỗ dự kiến thời điểm kết phiên "&TEXT($T$1,"dd/mm/yyyy")&""`

@@ -810,85 +810,56 @@ export class QlgdDashboardService {
     }
 
     // =========================================================================
-    // CẤU HÌNH NGUỒN TÍNH VỊ THẾ MỞ (TTM) & LÃI LỖ DỰ KIẾN (PnL UNREALIZED):
+    // TÍCH LŨY VỊ THẾ MỞ (TTM) & LÃI LỖ DỰ KIẾN (PnL UNREALIZED):
     // -------------------------------------------------------------------------
-    // - CHUẨN NGHIỆP VỤ MỚI (Mặc định: INCLUDE_MS_TTM = false):
-    //   CoreCCP hiện là Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV.
-    //   Toàn bộ vị thế mở (Open Interest) được quản lý trên CoreCCP.
-    //   Chỉ lấy dữ liệu từ CoreCCP ('TTM CCP') để phản ánh chính xác và tránh bị
-    //   nhân đôi số liệu (double counting) do cộng thêm M-System.
-    //   (Nếu CoreCCP chưa có dữ liệu, hệ thống tự động fallback sang MS để không bị trống).
-    //
-    // - LOGIC CŨ THEO FILE EXCEL GỐC Check BGS All.xlsm Sheet 2 (INCLUDE_MS_TTM = true):
-    //   Giai đoạn chuyển đổi (migration), Excel cộng cả 2 nguồn:
-    //   =SUMIFS('TTM MS'!N:N...) + SUMIFS('TTM CCP'!I:I...)
-    //   Được lưu trữ nguyên vẹn bên dưới để phục vụ tra cứu hoặc kích hoạt lại khi cần.
+    // - CHUẨN NGHIỆP VỤ FILE EXCEL GỐC Check BGS All.xlsm Sheet 2 & CHỈ ĐẠO QLGD:
+    //   1. Đối với M-System ('TTM MS'):
+    //      - BỎ 100% CÁC TÀI KHOẢN ACM (đuôi '*A', ví dụ 001C...-A).
+    //        Điều kiện Excel gốc: 'TTM MS'!H:H, "<>*A" áp dụng cho cả Mua (cột N), Bán (cột O), PnL (cột S).
+    //        Các tài khoản ACM không tính trên MS vì vị thế mở ACM được lấy từ CoreCCP.
+    //      - TÍNH BÌNH THƯỜNG các tài khoản Futures thông thường trên M-System (không đuôi A).
+    //   2. Đối với CoreCCP ('TTM CCP'):
+    //      - Tích lũy toàn bộ vị thế mở và PnL dự kiến từ CoreCCP.
     // =========================================================================
-    const INCLUDE_MS_TTM = false;
 
-    if (INCLUDE_MS_TTM) {
-      // ── LOGIC CŨ (LƯU TRỮ NGUYÊN BẢN): CỘNG GỘP CẢ M-SYSTEM VÀ CORECCP ──
-      // 1. Tích lũy TTM M-System (loại trừ tài khoản tận cùng A cho PnL theo chuẩn Sheet 2)
-      for (const row of ttmRows) {
-        const baseSym = extractCcpBaseProduct(row.symbol);
-        const curr = productAggregation.get(baseSym) || {
-          longLots: 0,
-          shortLots: 0,
-          expectedPnL: 0,
-          liquidatedLots: 0,
-          realizedPnL: 0,
-        };
-
-        const isAccountAcm = isAcm(row.account);
-        curr.longLots += row.tongMua;
-        curr.shortLots += row.tongBan;
-        if (!isAccountAcm) {
-          curr.expectedPnL += row.expectedPnLVnd;
-        }
-        productAggregation.set(baseSym, curr);
+    // 1. Tích lũy TTM M-System (LOẠI BỎ HOÀN TOÀN TÀI KHOẢN ACM THEO CHUẨN '<>*A')
+    for (const row of ttmRows) {
+      const isAccountAcm = isAcm(row.account) || row.account.toUpperCase().endsWith('A');
+      if (isAccountAcm) {
+        // BỎ QUA HOÀN TOÀN TÀI KHOẢN ACM TRÊN MS (Không cộng Mua, Bán, PnL)
+        continue;
       }
 
-      // 2. Tích lũy TTM CoreCCP
-      for (const row of ccpTtmRows) {
-        const baseSym = extractCcpBaseProduct(row.symbol);
-        const curr = productAggregation.get(baseSym) || {
-          longLots: 0,
-          shortLots: 0,
-          expectedPnL: 0,
-          liquidatedLots: 0,
-          realizedPnL: 0,
-        };
+      const baseSym = extractCcpBaseProduct(row.symbol);
+      const curr = productAggregation.get(baseSym) || {
+        longLots: 0,
+        shortLots: 0,
+        expectedPnL: 0,
+        liquidatedLots: 0,
+        realizedPnL: 0,
+      };
 
-        curr.longLots += row.tongMua;
-        curr.shortLots += row.tongBan;
-        curr.expectedPnL += row.expectedPnLVnd;
-        productAggregation.set(baseSym, curr);
-      }
-    } else {
-      // ── LOGIC MỚI: CHỈ TÍNH TRÊN CORECCP (100% CORECCP, TUYỆT ĐỐI KHÔNG FALLBACK SANG MS) ──
-      // Theo chỉ đạo của USER: Nếu CoreCCP chưa có dữ liệu TTM thì để 0, tuyệt đối không fallback sang MS.
-      for (const row of ccpTtmRows) {
-        const baseSym = extractCcpBaseProduct(row.symbol);
-        const curr = productAggregation.get(baseSym) || {
-          longLots: 0,
-          shortLots: 0,
-          expectedPnL: 0,
-          liquidatedLots: 0,
-          realizedPnL: 0,
-        };
+      curr.longLots += row.tongMua;
+      curr.shortLots += row.tongBan;
+      curr.expectedPnL += row.expectedPnLVnd;
+      productAggregation.set(baseSym, curr);
+    }
 
-        curr.longLots += row.tongMua;
-        curr.shortLots += row.tongBan;
-        curr.expectedPnL += row.expectedPnLVnd;
-        productAggregation.set(baseSym, curr);
-      }
+    // 2. Tích lũy TTM CoreCCP (Cộng gộp vị thế mở và PnL dự kiến từ CoreCCP)
+    for (const row of ccpTtmRows) {
+      const baseSym = extractCcpBaseProduct(row.symbol);
+      const curr = productAggregation.get(baseSym) || {
+        longLots: 0,
+        shortLots: 0,
+        expectedPnL: 0,
+        liquidatedLots: 0,
+        realizedPnL: 0,
+      };
 
-      /*
-      // [ARCHIVED - ĐÃ VÔ HIỆU HÓA THEO CHỈ ĐẠO USER] Tuyệt đối không fallback sang M-System
-      if (ccpTtmRows.length === 0 && ttmRows.length > 0) {
-        this.logger.log(`Fallback M-System đã bị vô hiệu hóa.`);
-      }
-      */
+      curr.longLots += row.tongMua;
+      curr.shortLots += row.tongBan;
+      curr.expectedPnL += row.expectedPnLVnd;
+      productAggregation.set(baseSym, curr);
     }
 
     // Tích lũy TTTT M-System

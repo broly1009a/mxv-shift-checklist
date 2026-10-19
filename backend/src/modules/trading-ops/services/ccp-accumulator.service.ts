@@ -87,12 +87,25 @@ export class CcpAccumulatorService {
       return resolveStoragePathCrossPlatform(customRoot);
     }
     if (this.settingsService) {
-      const settingRoot = await this.settingsService.getSetting(
-        'bot_lot_macro_target_root',
-        'M:\\Quanlygiaodich\\Tai lieu hoat dong',
+      // 1. Ưu tiên đọc cấu hình động bot_ccp_stat_target_root từ CSDL
+      const ccpTargetRoot = await this.settingsService.getSetting(
+        'bot_ccp_stat_target_root',
+        process.env.BOT_CCP_STAT_TARGET_ROOT || '',
       );
-      const resolved = resolveStoragePathCrossPlatform(settingRoot);
-      if (fs.existsSync(resolved)) return resolved;
+      if (ccpTargetRoot) {
+        const resolvedCcp = resolveStoragePathCrossPlatform(ccpTargetRoot);
+        if (fs.existsSync(resolvedCcp)) return resolvedCcp;
+      }
+
+      // 2. Fallback đọc cấu hình cũ bot_lot_macro_target_root từ CSDL (nếu có)
+      const legacyRoot = await this.settingsService.getSetting(
+        'bot_lot_macro_target_root',
+        process.env.BOT_LOT_MACRO_TARGET_ROOT || '',
+      );
+      if (legacyRoot) {
+        const resolvedLegacy = resolveStoragePathCrossPlatform(legacyRoot);
+        if (fs.existsSync(resolvedLegacy)) return resolvedLegacy;
+      }
     }
     // Fallback: thư mục Bao cao - Thong ke trong repo nếu đang dev/test
     const localFallback = path.resolve(process.cwd(), '..', 'Bao cao - Thong ke');

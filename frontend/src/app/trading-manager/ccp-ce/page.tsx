@@ -47,7 +47,7 @@ export default function CcpCeTradingManagerPage() {
   // 4. Cấu hình OMS (Ma trận tỷ giá đa nguyên tệ VNCLEAR USD, EUR, JPY, MYR, VND, đường dẫn CoreCCP & CoreEX)
   // 5. Hàng đợi & Logs Robot
   const [activeTab, setActiveTab] = useState<
-    'CHECK_KLGD' | 'CHECK_EOD_CCP_CE' | 'BACKUP_THONG_KE_CCP_CE' | 'CONFIG_OMS' | 'HANG_DOI_LOGS'
+    'CHECK_KLGD' | 'CHECK_EOD_CCP_CE' | 'BACKUP_THONG_KE_CCP_CE' | 'CONFIG_CCP_CE' | 'CONFIG_OMS' | 'HANG_DOI_LOGS'
   >('CHECK_KLGD');
 
   // Sub-tab cho Tab 3: Thống kê số lot CCP vs Báo cáo sàn CoreEX
@@ -454,10 +454,10 @@ export default function CcpCeTradingManagerPage() {
             </span>
           </button>
 
-          {/* TAB 4: CẤU HÌNH OMS */}
+          {/* TAB 4: CẤU HÌNH CORECCP & COREEX */}
           <button
             type="button"
-            onClick={() => setActiveTab('CONFIG_OMS')}
+            onClick={() => setActiveTab('CONFIG_CCP_CE')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -467,15 +467,15 @@ export default function CcpCeTradingManagerPage() {
               fontWeight: 700,
               borderRadius: '8px 8px 0 0',
               border: 'none',
-              borderBottom: activeTab === 'CONFIG_OMS' ? '2px solid #3b82f6' : '2px solid transparent',
-              color: activeTab === 'CONFIG_OMS' ? '#3b82f6' : 'var(--text-secondary)',
-              backgroundColor: activeTab === 'CONFIG_OMS' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              borderBottom: (activeTab === 'CONFIG_CCP_CE' || activeTab === 'CONFIG_OMS') ? '2px solid #10b981' : '2px solid transparent',
+              color: (activeTab === 'CONFIG_CCP_CE' || activeTab === 'CONFIG_OMS') ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: (activeTab === 'CONFIG_CCP_CE' || activeTab === 'CONFIG_OMS') ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            <Sliders size={16} color={activeTab === 'CONFIG_OMS' ? '#3b82f6' : 'var(--text-muted)'} />
-            <span>Cấu Hình OMS</span>
+            <Sliders size={16} color={(activeTab === 'CONFIG_CCP_CE' || activeTab === 'CONFIG_OMS') ? '#10b981' : 'var(--text-muted)'} />
+            <span>Cấu Hình CoreCCP & CoreEX</span>
           </button>
 
           {/* TAB 5: HÀNG ĐỢI & LOGS */}
@@ -546,11 +546,11 @@ export default function CcpCeTradingManagerPage() {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
           />
-        ) : activeTab === 'CONFIG_OMS' ? (
-          /* TAB 4: CẤU HÌNH OMS (MA TRẬN TỶ GIÁ VNCLEAR, ĐƯỜNG DẪN CORECCP & COREEX) */
+        ) : (activeTab === 'CONFIG_CCP_CE' || activeTab === 'CONFIG_OMS') ? (
+          /* TAB 4: CẤU HÌNH CORECCP & COREEX (MA TRẬN TỶ GIÁ VNCLEAR, ĐƯỜNG DẪN CORECCP & COREEX) */
           <TradingManagerConfigSection
             token={token}
-            filterScope="OMS"
+            filterScope="CCP_CE"
           />
         ) : activeTab === 'HANG_DOI_LOGS' ? (
           /* TAB 5: HÀNG ĐỢI & LOGS ROBOT OMS */
