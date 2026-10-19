@@ -51,6 +51,8 @@ export class MarginCheckerController {
     },
     @Body('sessionDate') sessionDate?: string,
     @Body('date') dateStr?: string,
+    @Body('system') system?: string,
+    @Body('scope') scope?: string,
   ) {
     const fileBuffers = {
       qltkgd: files?.qltkgd?.[0]?.buffer,
@@ -58,9 +60,10 @@ export class MarginCheckerController {
     };
 
     if (!fileBuffers.qltkgd) {
+      const isCcp = system === 'CCP' || scope === 'CCP' || scope === 'CCP_CE';
       return this.reconConsoleSummaryService.triggerConsoleRun(
         sessionDate || dateStr,
-        'SCAN_NEGATIVE_MARGIN',
+        isCcp ? 'CHECK_EOD_CCP' : 'SCAN_NEGATIVE_MARGIN',
       );
     }
 

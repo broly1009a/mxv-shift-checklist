@@ -244,12 +244,13 @@ export const tradingOpsApi = {
   async checkNegativeMargin(
     sessionDate?: string,
     token?: string | null,
+    options?: { system?: string; scope?: string },
   ): Promise<{ success: boolean; message?: string; data?: any }> {
     return requestJson<{ success: boolean; message?: string; data?: any }>(
       API_ENDPOINTS.TRADING_OPS.CHECK_NEGATIVE_MARGIN,
       {
         method: 'POST',
-        body: JSON.stringify({ sessionDate }),
+        body: JSON.stringify({ sessionDate, ...options }),
       },
       token,
     );

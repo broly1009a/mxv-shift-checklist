@@ -373,7 +373,9 @@ export class CoreExApiAdapter implements IIngressPort {
     const startTime = Date.now();
     const targetDate = options?.targetDate || new Date().toISOString().split('T')[0];
     const outputDirectory =
-      options?.targetDirectory || path.join(process.cwd(), 'data', 'backup', 'CoreExchange');
+      options?.outputDir ||
+      options?.targetDirectory ||
+      path.join(process.cwd(), 'data', 'backup', 'CoreExchange');
 
     if (!fs.existsSync(outputDirectory)) {
       fs.mkdirSync(outputDirectory, { recursive: true });
@@ -441,18 +443,16 @@ export class CoreExApiAdapter implements IIngressPort {
         }
       }
 
-      if (errors.length > 0) {
-        throw new Error(`[CoreExApiAdapter] Tải báo cáo CoreExchange thất bại: ${errors.join('; ')}`);
-      }
-
+      const hasSuccess = files.length > 0;
       return {
-        success: true,
+        success: hasSuccess,
         source: 'CORE_EX',
         outputDirectory,
         files,
         downloadedAt: new Date(),
         durationMs: Date.now() - startTime,
-        summary: `Đã tải thành công ${files.length} báo cáo CoreExchange qua Direct API`,
+        summary: `Đã tải thành công ${files.length}/${targets.length} báo cáo CoreExchange qua Direct API.${errors.length > 0 ? ` Lỗi (${errors.length}): ${errors.join('; ')}` : ''}`,
+        error: errors.length > 0 ? errors.join('; ') : undefined,
       };
     } catch (err: any) {
       this.logger.error(`[CoreExApiAdapter] Lỗi gọi Direct API CoreExchange: ${err.message}`);

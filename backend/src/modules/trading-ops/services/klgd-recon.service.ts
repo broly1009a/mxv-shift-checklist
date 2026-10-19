@@ -843,7 +843,7 @@ export class KlgdReconService {
       if (snap1 && snap2) {
         cqgCutoffTime = new Date(Math.max(snap1.getTime(), snap2.getTime()));
       } else {
-        cqgCutoffTime = snap1 || snap2 || extractCqgSnapshotTime(cqgFrPath);
+        cqgCutoffTime = (snap1 || snap2 || extractCqgSnapshotTime(cqgFrPath)) || undefined;
       }
       if (cqgCutoffTime) {
         this.logger.log(
