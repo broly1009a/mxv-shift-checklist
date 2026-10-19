@@ -6,6 +6,9 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect('10.0.0.26', port=22, username='mxvadmin', password='MxV!,#2o26', timeout=15)
 
 files_to_sync = [
+    'backend/src/shared/domain-configs/coreccp-reports.config.ts',
+    'backend/src/shared/domain-configs/coreex-reports.config.ts',
+    'backend/src/shared/index.ts',
     'backend/src/modules/ingress/adapters/acm-sftp.adapter.ts',
     'backend/src/modules/ingress/ingress.service.ts',
     'backend/src/modules/ingress/scrapers/rpa-scraper.service.ts',

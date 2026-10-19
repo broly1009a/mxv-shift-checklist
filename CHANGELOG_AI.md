@@ -1,3 +1,36 @@
+## [2026-10-19T15:40] ARCHITECTURE REFACTOR & FIX: Tách Rời Cấu Hình Báo Cáo CoreCCP & CoreEX Ra Shared Domain Configs, Khắc Phục Lỗi 404/403 Và Tải Thành Công 24 Báo Cáo Ca Trực Qua Direct REST API
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo & câu hỏi của USER: *"báo lỗi gì đây"* (lỗi 404/403 khi tải CoreCCP) và *"sao không đưa riêng ra ngoài để dùng chung dễ maintain"*.
+- Tách rời hoàn toàn định nghĩa danh mục báo cáo (~350 dòng) ra khỏi `CoreCcpApiAdapter` và `CoreExApiAdapter` để trở thành các Domain Config độc lập, dùng chung (Shared SSOT) theo đúng chuẩn Enterprise & Clean Architecture.
+- Khắc phục triệt để lỗi gọi API tới các endpoint không tồn tại (HTTP 404: `ORDERBOOK_FILLED`, `ORDERBOOK_WORKING`...) và lỗi quyền WebSocket export (HTTP 403: `ORDERBOOK_ALL_MM`).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - **Tạo mới Domain Config độc lập cho CoreCCP**: Định nghĩa interface `ICcpReportMapping`, bảng tra cứu `CORECCP_API_REPORTS`, và hàm resolver `resolveCoreCcpReport()`.
+   - **Ground Truth 100%**: Chỉ gọi REST API tới đúng 12 SearchCode gốc thực tế đã audit thành công HTTP 200 trên máy chủ (`ORDERBOOK`, `ORDERMATCH_DETAIL`, `ORDERBOOK_MM`, `OPEN_POSITION`, `PNL_EXECUTED`, `ACCTMARGIN_ALL`, `ACCTMARGIN_POS`, `CASHTRANFER_HIST`, `ACCOUNTS_INFO`, `SETTLEMENT`, `COMMODITY`, `CURRENCYEXCHANGERATE`).
+   - **Cấu hình Quy tắc dẫn xuất (`CORECCP_DERIVED_RULES`)**: Tự động sinh ra các file phái sinh cho ca trực (`DSLDK CCP.xlsx`, `DSLCK CCP.xlsx`, `DSLDH CCP.xlsx`, `DSLDK MM CCP.xlsx`, `DSLCK MM CCP.xlsx`, `DSLDH MM CCP.xlsx`, `DSGD MM CCP.xlsx`, `TTM truoc 4h20.xlsx`, `QL TT TKGD truoc 4h20.xlsx`, `DSGD_<date>.xlsx`, `TTTT_<date>.xlsx`, `TTM_<date>.xlsx`), bảo đảm ca trực có trọn vẹn đủ 19-24 file mà không bị 404.
+2. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - **Tạo mới Domain Config độc lập cho CoreEX**: Chuyển `CORE_EXCHANGE_REPORTS_REGISTRY`, `CANONICAL_COREEX_API_KEYS`, và `resolveCoreExchangeReport()` ra khỏi adapter.
+3. [backend/src/shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts#L6-L10):
+   - Export công khai 2 module cấu hình báo cáo mới để Ingress Adapters, Scrapers, Workers, UI components và test scripts cùng dùng chung.
+4. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L11-L20,L710-L750,L860-L890):
+   - Giảm hơn 300 dòng code thừa; import toàn bộ types, constants và rules từ `src/shared`.
+   - Cơ chế tự động fallback: Nếu Server WebSocket Export bị 403 hoặc timeout, tự động chuyển ngay sang Direct JSON Search + ExcelJS an toàn.
+   - Sửa cơ chế kết quả: Giữ nguyên `files` tải được khi hoàn tất, không nuốt lỗi làm rỗng danh sách.
+5. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L10-L20,L380-L425):
+   - Import registry từ `src/shared`, dọn sạch code duplicate.
+
+### 3. Kiểm thử & Triển khai
+- **Local Build**: `npm run build` Backend thành công 100% (Nest build code 0).
+- **Server Ubuntu (10.0.0.26)**:
+   - Đồng bộ toàn bộ file mới và biên dịch cả Backend lẫn Frontend thành công.
+   - Restart các dịch vụ PM2: `mxv-backend` (PID `2890172`), `mxv-frontend` (PID `2890415`).
+- **Live Verification**:
+   - Chạy lệnh trigger thực tế qua curl: Job `6ad5d73ae0738cfeb7352145` hoàn tất **COMPLETED** trong 3094ms, tải thành công trọn vẹn **24 báo cáo CoreCCP** lưu vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/19.10`, 0 lỗi, 0 retry.
+
+---
+
 ## [2026-10-19T15:20] AUDIT & REFACTOR: Rà Soát Toàn Diện Luồng Tải Báo Cáo M-System (MS), Chuẩn Hóa Tên File Báo Cáo Theo Ground Truth & Tối Ưu Hóa Phối Hợp Direct REST API - Playwright RPA
 
 ### 1. Mục tiêu thay đổi
