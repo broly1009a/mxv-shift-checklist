@@ -273,6 +273,13 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     route: '/RISKMNG/ACCTMARGIN_ALL',
     description: 'Quản lý trạng thái ký quỹ TKGD (Alias)',
   },
+  TTTT_CCP: {
+    key: 'TTTT_CCP',
+    fileName: 'TTTT CCP.xlsx',
+    searchCode: 'PNL_EXECUTED',
+    route: '/ORDERS/PNL_EXECUTED',
+    description: 'Trạng thái tất toán vị thế và lãi lỗ thực hiện (Alias)',
+  },
 };
 
 export class CookieJar {
@@ -593,7 +600,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     session: ICcpSession,
     baseUrl: string,
     fekey: string,
-    timeoutMs = 30000,
+    timeoutMs = 50000,
   ): Promise<string | number> {
     return new Promise(async (resolve, reject) => {
       const parsed = new URL(baseUrl);
@@ -756,7 +763,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     targetPath: string,
   ): Promise<Buffer> {
     const fekey = `${searchCode}_${Date.now()}`;
-    const reportPromise = this.waitForReportIdViaSocket(session, baseUrl, fekey, 35000);
+    const reportPromise = this.waitForReportIdViaSocket(session, baseUrl, fekey, 50000);
 
     await this.createExportJob(session, searchCode, fekey, baseUrl, refererRoute, filterPayload);
     const reportId = await reportPromise;
@@ -962,7 +969,13 @@ export class CoreCcpApiAdapter implements IIngressPort {
             reportDef.searchCode === 'ORDERMATCH_DETAIL' ||
             reportDef.key === 'DSGD_CCP' ||
             reportDef.key === 'DSGD' ||
-            reportDef.searchCode === 'ORDERBOOK_ALL_MM';
+            reportDef.searchCode === 'ORDERBOOK_ALL_MM' ||
+            reportDef.searchCode === 'OPEN_POSITION' ||
+            reportDef.key === 'TTM_CCP' ||
+            reportDef.key === 'TTM' ||
+            reportDef.searchCode === 'PNL_EXECUTED' ||
+            reportDef.key === 'TTTT' ||
+            reportDef.key === 'TTTT_CCP';
 
           if (isServerExport) {
             this.logger.log(
@@ -977,12 +990,23 @@ export class CoreCcpApiAdapter implements IIngressPort {
               targetPath,
             );
 
-            // Đồng bộ thêm định dạng tên chuẩn ngày DSGD_dd.MM.yyyy.xlsx cho KlgdReconService
+            // Đồng bộ thêm định dạng tên chuẩn ngày cho KlgdReconService
+            const cleanDate = targetDate.includes('-')
+              ? targetDate.split('-').reverse().join('.')
+              : targetDate;
+
             if (reportDef.key === 'DSGD_CCP' || reportDef.key === 'DSGD') {
-              const cleanDate = targetDate.includes('-')
-                ? targetDate.split('-').reverse().join('.')
-                : targetDate;
               const aliasPath = path.join(outputDirectory, `DSGD_${cleanDate}.xlsx`);
+              if (aliasPath !== targetPath) {
+                fs.writeFileSync(aliasPath, buffer);
+              }
+            } else if (reportDef.key === 'TTM_CCP' || reportDef.key === 'TTM' || reportDef.searchCode === 'OPEN_POSITION') {
+              const aliasPath = path.join(outputDirectory, `TTM_${cleanDate}.xlsx`);
+              if (aliasPath !== targetPath) {
+                fs.writeFileSync(aliasPath, buffer);
+              }
+            } else if (reportDef.key === 'TTTT' || reportDef.key === 'TTTT_CCP' || reportDef.searchCode === 'PNL_EXECUTED') {
+              const aliasPath = path.join(outputDirectory, `TTTT_${cleanDate}.xlsx`);
               if (aliasPath !== targetPath) {
                 fs.writeFileSync(aliasPath, buffer);
               }

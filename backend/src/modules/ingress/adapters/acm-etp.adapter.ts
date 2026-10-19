@@ -175,93 +175,115 @@ export class AcmEtpAdapter implements IIngressPort {
       this.logger.warn('[AcmEtpAdapter] Session ACM ETP cache đã hết hạn, bắt đầu đăng nhập lại...');
     }
 
-    // 2. Khởi tạo cookie jar và hứng sticky session từ ALB
-    const jar = new CookieJar();
-    const initRes = await fetch(`${baseUrl}/exchange/index.html`, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    jar.setFromHeaders(initRes.headers);
+    // 2. Thử đăng nhập với cơ chế Retry tối đa 3 lần (phòng ngừa AI đọc sai Captcha)
+    const MAX_LOGIN_ATTEMPTS = 3;
+    let lastError: Error | null = null;
 
-    // 3. Tự sinh Client UUID v4 và tải ảnh Captcha
-    const clientUuid = crypto.randomUUID();
-    const captchaUrl = `${baseUrl}/exchange/captcha?uuid=${clientUuid}`;
-    const capRes = await fetch(captchaUrl, {
-      headers: {
-        Cookie: jar.getCookieHeader(),
-        Referer: `${baseUrl}/exchange/index.html`,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    jar.setFromHeaders(capRes.headers);
+    for (let attempt = 1; attempt <= MAX_LOGIN_ATTEMPTS; attempt++) {
+      try {
+        if (attempt > 1) {
+          this.logger.log(`[AcmEtpAdapter] Thử đăng nhập lại lần ${attempt}/${MAX_LOGIN_ATTEMPTS}...`);
+          await new Promise((r) => setTimeout(r, 1000));
+        }
 
-    // Lưu ảnh Captcha ra đĩa nếu cần can thiệp giải mã
-    const capBuffer = Buffer.from(await capRes.arrayBuffer());
-    const capPath = path.join(process.cwd(), 'temp', 'acm_captcha.png');
-    try {
-      const dir = path.dirname(capPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(capPath, capBuffer);
-    } catch {}
+        // Khởi tạo cookie jar và hứng sticky session từ ALB
+        const jar = new CookieJar();
+        const initRes = await fetch(`${baseUrl}/exchange/index.html`, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        jar.setFromHeaders(initRes.headers);
 
-    // Tự động giải Captcha bằng CaptchaSolverHelper đóng gói chung từ Shared
-    let captchaCode = process.env.ACM_CAPTCHA_FIXED || '12345';
-    if (capBuffer.length > 0) {
-      const solved = await CaptchaSolverHelper.solve(capBuffer, {
-        apiKey: geminiApiKey,
-        logCallback: (msg) => this.logger.log(`[AcmEtpAdapter] ${msg}`),
-      });
-      if (solved) {
-        captchaCode = solved;
+        // Tự sinh Client UUID v4 và tải ảnh Captcha
+        const clientUuid = crypto.randomUUID();
+        const captchaUrl = `${baseUrl}/exchange/captcha?uuid=${clientUuid}`;
+        const capRes = await fetch(captchaUrl, {
+          headers: {
+            Cookie: jar.getCookieHeader(),
+            Referer: `${baseUrl}/exchange/index.html`,
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        jar.setFromHeaders(capRes.headers);
+
+        // Lưu ảnh Captcha ra đĩa nếu cần can thiệp giải mã
+        const capBuffer = Buffer.from(await capRes.arrayBuffer());
+        const capPath = path.join(process.cwd(), 'temp', 'acm_captcha.png');
+        try {
+          const dir = path.dirname(capPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(capPath, capBuffer);
+        } catch {}
+
+        // Tự động giải Captcha bằng CaptchaSolverHelper đóng gói chung từ Shared
+        let captchaCode = process.env.ACM_CAPTCHA_FIXED || '12345';
+        if (capBuffer.length > 0) {
+          const solved = await CaptchaSolverHelper.solve(capBuffer, {
+            apiKey: geminiApiKey,
+            logCallback: (msg) => this.logger.log(`[AcmEtpAdapter] ${msg}`),
+          });
+          if (solved) {
+            captchaCode = solved;
+          }
+        }
+
+        // Gửi POST /exchange/login
+        const loginRes = await fetch(`${baseUrl}/exchange/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json;charset=UTF-8',
+            Cookie: jar.getCookieHeader(),
+            Referer: `${baseUrl}/exchange/index.html`,
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          body: JSON.stringify({
+            username,
+            password,
+            uuid: clientUuid,
+            captcha: captchaCode,
+          }),
+        });
+
+        jar.setFromHeaders(loginRes.headers);
+        const loginData: any = await loginRes.json().catch(() => null);
+
+        if (!loginRes.ok || loginData?.code !== 0) {
+          const errMsg = `Đăng nhập ACM ETP thất bại (Code ${loginData?.code}): ${loginData?.msg || loginRes.statusText}`;
+          this.logger.warn(`[AcmEtpAdapter] Lần ${attempt}/${MAX_LOGIN_ATTEMPTS}: ${errMsg}`);
+          throw new Error(errMsg);
+        }
+
+        const token = loginData?.data?.token || loginData?.token;
+        if (!token) {
+          throw new Error(`Không tìm thấy token trong phản hồi ACM ETP: ${JSON.stringify(loginData)}`);
+        }
+
+        jar.set('token', token);
+        jar.set('language', 'en');
+
+        const session: IAcmEtpSession = {
+          token,
+          username,
+          cookies: jar.getCookieHeader(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        this.saveSessionToCache(session);
+        this.logger.log(`[AcmEtpAdapter] Đăng nhập ACM ETP thành công, token: ${session.token.substring(0, 8)}...`);
+        return session;
+      } catch (err: any) {
+        lastError = err;
+        if (attempt === MAX_LOGIN_ATTEMPTS) {
+          throw err;
+        }
       }
     }
 
-    // 4. Gửi POST /exchange/login
-    const loginRes = await fetch(`${baseUrl}/exchange/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json;charset=UTF-8',
-        Cookie: jar.getCookieHeader(),
-        Referer: `${baseUrl}/exchange/index.html`,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      body: JSON.stringify({
-        username,
-        password,
-        uuid: clientUuid,
-        captcha: captchaCode,
-      }),
-    });
-
-    jar.setFromHeaders(loginRes.headers);
-    const loginData: any = await loginRes.json().catch(() => null);
-
-    if (!loginRes.ok || loginData?.code !== 0) {
-      throw new Error(`Đăng nhập ACM ETP thất bại (Code ${loginData?.code}): ${loginData?.msg || loginRes.statusText}`);
-    }
-
-    const token = loginData?.data?.token || loginData?.token;
-    if (!token) {
-      throw new Error(`Không tìm thấy token trong phản hồi ACM ETP: ${JSON.stringify(loginData)}`);
-    }
-
-    jar.set('token', token);
-    jar.set('language', 'en');
-
-    const session: IAcmEtpSession = {
-      token,
-      username,
-      cookies: jar.getCookieHeader(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.saveSessionToCache(session);
-    this.logger.log(`[AcmEtpAdapter] Đăng nhập ACM ETP thành công, token: ${session.token.substring(0, 8)}...`);
-    return session;
+    throw lastError || new Error('Đăng nhập ACM ETP thất bại sau các lần thử');
   }
 
   /**

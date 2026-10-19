@@ -1,3 +1,74 @@
+## [2026-10-19T09:28] FEATURE & INTEGRATION: Mở Rộng Toàn Diện CoreCCP TTM (Vị Thế Mở) và TTTT (Tất Toán) Trong Controller, Adapter & Bot Worker
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: *"hiện tại tôi cần bạn đánh giá thêm klgd-recon.controller.ts để tiến hành tải file tính toán thêm TTM và TTTT cho CCP"*, *"giúp tôi áp dụng chuẩn"*.
+- **Mục đích**:
+  1. Cho phép tải trọn bộ 3 báo cáo CoreCCP (`DSGD_CCP`, `TTM_CCP`, `TTTT`) trực tiếp qua Direct REST/Export API Kiểu 2 (Server Export + WebSocket NotiSocket).
+  2. Bổ sung hỗ trợ file CCP (`dsgdCcp`, `ttmCcp`, `ttttCcp`) trên tất cả các endpoint upload và test của [klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts).
+  3. Kích hoạt tính toán đối chiếu 3 bên (MS vs CQG vs CCP) cho cả Khớp lệnh, Vị thế mở (`differCCP_TTM`) và Tất toán (`differCCP_TTTT`).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts):
+   - Mở rộng `upload-klgd`: Thêm `{ name: 'dsgdCcp' }`, `{ name: 'ttmCcp' }`, `{ name: 'ttttCcp' }` (và các alias `ccpDsgd`, `ccpTtm`, `ccpTttt`) vào `FileFieldsInterceptor`.
+   - Trích xuất buffers và truyền vào `klgdReconService.checkKLGD`.
+   - Cải tiến noteText: Kiểm tra linh hoạt sự xuất hiện của bất kỳ chỉ số CCP nào (`totalCCP_DSGD`, `totalCCP_TTM`, `totalCCP_TTTT`) để in log đầy đủ.
+   - Mở rộng `run-test-local`: Tự động đọc các file `DSGD CCP.xlsx`, `TTM CCP.xlsx`, `TTTT CCP.xlsx` (hoặc `TTTT.xlsx`) từ thư mục test.
+   - Mở rộng `test-upload`: Hỗ trợ upload file CCP cho môi trường kiểm thử.
+2. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Bổ sung alias cấu hình `TTTT_CCP` vào `CORECCP_API_REPORTS`.
+   - Mở rộng `isServerExport` hỗ trợ cả `OPEN_POSITION` (`TTM_CCP`, `TTM`) và `PNL_EXECUTED` (`TTTT`, `TTTT_CCP`) theo chuẩn Kiểu 2 (Server Export + WebSocket).
+   - Tự động sinh đồng thời các file alias chuẩn ngày: `TTM_${cleanDate}.xlsx` và `TTTT_${cleanDate}.xlsx` để `KlgdReconService` tự động nhận diện file tươi nhất.
+3. [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L790-L796):
+   - Cập nhật worker CoreCCP: Tải đồng thời cả 3 báo cáo `['DSGD_CCP', 'TTM_CCP', 'TTTT']` khi rào cản thời gian mở.
+4. [backend/src/modules/trading-ops/workers/klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts#L128-L140):
+   - Bổ sung các chỉ số CCP vào `metrics` (`totalCCP_DSGD`, `totalCCP_TTM`, `totalCCP_TTTT`, `differCCP_KLGD`, `differCCP_TTM`, `differCCP_TTTT`).
+
+### 3. Kiểm thử & Xác nhận Triển khai
+- **Local Build**:
+  - `npm.cmd run build` trong `backend`: Thành công 100% (Exit code 0).
+  - `npm.cmd run build` trong `frontend`: Thành công 100% (Turbopack, 36/36 static pages).
+- **Deploy Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ 4 file sửa đổi lên `/opt/mxv-checklist/backend/` qua SFTP.
+  - Biên dịch NestJS trên Ubuntu (`nest build`) thành công 100% (Exit code 0).
+  - Khởi động lại PM2 `mxv-backend` (PID: 2789219), trạng thái `online`, tài nguyên ổn định (CPU 2.3%, RAM 21.4MB).
+
+---
+
+## [2026-10-19T09:20] FIX & OPTIMIZATION: Chuẩn Hóa Logic Đánh Giá Trạng Thái CheckKLGD Theo Chuẩn C# Tool, Nâng Timeout CoreCCP WebSocket, Bổ Sung Retry AI Captcha ACM ETP và Tải Song Song M-System
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER:
+  - *"Trong code hiện tại tại klgd-recon.service.ts#L615-L622, biến hasDiscrepancy lại gộp cả differTTTT > 0 vào làm điều kiện đánh giá passed của ca Khớp Lệnh, trong khi theo chuẩn C# Tool (TransactionCheckingService.cs#L380-L385), CheckKLGD chỉ kết luận Lệch/Khớp dựa trên Khối lượng khớp lệnh (differ & differACM). code của tôi đánh giá chưa chuẩn theo tool C# sao"*
+  - *"có giúp tôi áp dụng"*
+- **Nguyên nhân gốc rễ**:
+  1. Trong [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L615-L622) và [klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts#L134-L142): Biến `hasDiscrepancy` đã gộp sai điều kiện chênh lệch TTTT (`differTTTT > 0`) và TTM (`mismatchedTTM.length > 0`) vào điều kiện đánh giá `passed` của ca Khớp Lệnh trong phiên. Khi TTTT lệch tạm thời trong phiên do timing chốt sổ M-System vs CQG, hệ thống trả về `passed: false`, kéo theo log nghịch lý: `Phát hiện lệch: Lệch CQG=0, Lệch ACM=0, Lệch khớp lệnh=0` và chuyển trạng thái ca sang `WARNING` / `NEEDS_ATTENTION`.
+  2. Theo chuẩn C# gốc ([TransactionCheckingService.cs#L368-L383](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L368-L383)), `CheckKLGD` chỉ kết luận Khớp/Lệch dựa trên `differ` (Khớp lệnh thường) và `differACM` (Khớp lệnh tự doanh ACM). TTM và TTTT chỉ đóng vai trò ghi chú bổ trợ (`notiData`), không làm fail ca Khớp Lệnh trong phiên.
+  3. Timeout WebSocket NotiSocket Engine.IO v4 của CoreCCP đặt 35s là quá chặt khi server VNCLEAR tải nặng buổi sáng sớm.
+  4. Đăng nhập ACM ETP chưa có cơ chế Retry khi Gemini AI đọc sai Captcha (Code 10007), dẫn đến fail cả chu trình khi gặp lỗi ngoại cảnh.
+  5. M-System tải tuần tự `DSGD` -> `TTM` -> `TTTT` làm tổng thời gian tải kéo dài 14.85s và timestamp giữa các file bị lệch 12-14 giây.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L615-L622):
+   - Chuẩn hóa `hasDiscrepancy`: Chỉ đánh giá dựa trên `checkKlgdFlag && (finalDiffer > 0 || evaluatedDifferACM > 0 || finalMismatchedTrades.length > 0)`.
+   - Vẫn lưu giữ đầy đủ số liệu TTM và TTTT trong payload phục vụ hiển thị chi tiết trên UI.
+2. [backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts#L134-L140):
+   - Đồng bộ `hasDiscrepancy` = `result.totals.differ > 0 || result.totals.differACM > 0 || result.mismatchedTrades.length > 0` để cập nhật trạng thái checklist task thành `PASSED` chính xác khi KLGD khớp 100%.
+3. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L596-L759):
+   - Nâng timeout `waitForReportIdViaSocket` từ 35s lên 50s giúp tiếp nhận thông báo xuất file an toàn khi CoreCCP bận rộn.
+4. [backend/src/modules/ingress/adapters/acm-etp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-etp.adapter.ts#L178-L270):
+   - Bổ sung vòng lặp Retry tối đa 3 lần cho quá trình đăng nhập và giải Captcha ACM ETP.
+5. [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L358-L400):
+   - Chuyển đổi tải các báo cáo M-System (`DSGD`, `TTM`, `TTTT`) sang cơ chế song song bằng `Promise.all(msTasks)`. Rút ngắn thời gian tải từ 14.85s xuống còn ~12.5s và đảm bảo snapshot timestamp đồng nhất.
+
+### 3. Kiểm thử & Xác nhận Triển khai
+- **Local Build**: Chạy `npm.cmd run build` trong `backend` thành công 100% (Exit code 0).
+- **Deploy Server Ubuntu (10.0.0.26)**:
+  - Đồng bộ 5 file sửa đổi lên `/opt/mxv-checklist/backend/` qua SFTP.
+  - Biên dịch NestJS trên Ubuntu (`nest build`) thành công 100% (Exit code 0).
+  - Khởi động lại PM2 `mxv-backend` (PID: 2786166), trạng thái `online`, tài nguyên ổn định (CPU 0%, RAM 24.4MB).
+
+---
+
 ## [2026-10-16T22:05] FIX & INTEGRATION: Nâng Cấp Toàn Diện CoreCcpApiAdapter Sang Cơ Chế Server Export Kiểu 2 (WebSocket NotiSocket + OAuth2), Khắc Phục Lỗi Thiếu File Tươi CCP Tại Thư Mục M:\
 
 ### 1. Mục tiêu thay đổi

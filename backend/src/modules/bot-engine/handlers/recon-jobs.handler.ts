@@ -355,48 +355,60 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
             await barrierTriggerPromise;
             log('MS [Direct REST API] Rào cản đã mở! Kích hoạt tải dữ liệu trực tiếp đồng thời...');
 
+            const msTasks: Promise<void>[] = [];
+
             if (options.checkKlgd !== false) {
-              const dsgdRes = await this.ingressService.download('MS', {
-                targetDate: dateStr,
-                outputDir: msDailyPath,
-                reportType: 'DSGD',
-              });
-              if (!dsgdRes || !dsgdRes.success || !dsgdRes.files || dsgdRes.files.length === 0) {
-                throw new Error(
-                  `Direct API M-System không tải được file DSGD.xlsx (${dsgdRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
-                );
-              }
-              const names = (dsgdRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-              log(`MS Tải DSGD.xlsx qua Direct API hoàn tất: ${names}`);
+              msTasks.push((async () => {
+                const dsgdRes = await this.ingressService.download('MS', {
+                  targetDate: dateStr,
+                  outputDir: msDailyPath,
+                  reportType: 'DSGD',
+                });
+                if (!dsgdRes || !dsgdRes.success || !dsgdRes.files || dsgdRes.files.length === 0) {
+                  throw new Error(
+                    `Direct API M-System không tải được file DSGD.xlsx (${dsgdRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                  );
+                }
+                const names = (dsgdRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                log(`MS Tải DSGD.xlsx qua Direct API hoàn tất: ${names}`);
+              })());
             }
+
             if (options.checkTtm !== false) {
-              const ttmRes = await this.ingressService.download('MS', {
-                targetDate: dateStr,
-                outputDir: msDailyPath,
-                reportType: 'TTM',
-              });
-              if (!ttmRes || !ttmRes.success || !ttmRes.files || ttmRes.files.length === 0) {
-                throw new Error(
-                  `Direct API M-System không tải được file TTM.xlsx (${ttmRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
-                );
-              }
-              const names = (ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-              log(`MS Tải TTM.xlsx qua Direct API hoàn tất: ${names}`);
+              msTasks.push((async () => {
+                const ttmRes = await this.ingressService.download('MS', {
+                  targetDate: dateStr,
+                  outputDir: msDailyPath,
+                  reportType: 'TTM',
+                });
+                if (!ttmRes || !ttmRes.success || !ttmRes.files || ttmRes.files.length === 0) {
+                  throw new Error(
+                    `Direct API M-System không tải được file TTM.xlsx (${ttmRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                  );
+                }
+                const names = (ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                log(`MS Tải TTM.xlsx qua Direct API hoàn tất: ${names}`);
+              })());
             }
+
             if (options.checkTttt !== false) {
-              const ttttRes = await this.ingressService.download('MS', {
-                targetDate: dateStr,
-                outputDir: msDailyPath,
-                reportType: 'TTTT',
-              });
-              if (!ttttRes || !ttttRes.success || !ttttRes.files || ttttRes.files.length === 0) {
-                throw new Error(
-                  `Direct API M-System không tải được file TTTT.xlsx (${ttttRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
-                );
-              }
-              const names = (ttttRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-              log(`MS Tải TTTT.xlsx qua Direct API hoàn tất: ${names}`);
+              msTasks.push((async () => {
+                const ttttRes = await this.ingressService.download('MS', {
+                  targetDate: dateStr,
+                  outputDir: msDailyPath,
+                  reportType: 'TTTT',
+                });
+                if (!ttttRes || !ttttRes.success || !ttttRes.files || ttttRes.files.length === 0) {
+                  throw new Error(
+                    `Direct API M-System không tải được file TTTT.xlsx (${ttttRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                  );
+                }
+                const names = (ttttRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                log(`MS Tải TTTT.xlsx qua Direct API hoàn tất: ${names}`);
+              })());
             }
+
+            await Promise.all(msTasks);
             log('MS Đã sẵn sàng dữ liệu đầy đủ qua Direct API đồng bộ thời gian với CQG.');
             return;
           } catch (apiErr: any) {
@@ -779,7 +791,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
               targetDate: dateStr,
               outputDir: ccpDailyPath,
               reportType: 'CL_MATCH',
-              reportCodes: ['DSGD_CCP'],
+              reportCodes: ['DSGD_CCP', 'TTM_CCP', 'TTTT'],
               mode: 'REST_API',
             });
             if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) {

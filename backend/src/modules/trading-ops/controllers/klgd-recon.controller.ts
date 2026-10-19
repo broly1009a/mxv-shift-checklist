@@ -64,6 +64,12 @@ export class KlgdReconController {
       { name: 'ps', maxCount: 1 },
       { name: 'ps1', maxCount: 1 },
       { name: 'ps2', maxCount: 1 },
+      { name: 'dsgdCcp', maxCount: 1 },
+      { name: 'ttmCcp', maxCount: 1 },
+      { name: 'ttttCcp', maxCount: 1 },
+      { name: 'ccpDsgd', maxCount: 1 },
+      { name: 'ccpTtm', maxCount: 1 },
+      { name: 'ccpTttt', maxCount: 1 },
     ]),
   )
   async uploadAndReconcile(
@@ -82,6 +88,12 @@ export class KlgdReconController {
       ps?: any[];
       ps1?: any[];
       ps2?: any[];
+      dsgdCcp?: any[];
+      ttmCcp?: any[];
+      ttttCcp?: any[];
+      ccpDsgd?: any[];
+      ccpTtm?: any[];
+      ccpTttt?: any[];
     },
     @Body('shiftLogId') shiftLogId: string,
     @Body('taskId') taskId: string,
@@ -108,6 +120,9 @@ export class KlgdReconController {
       ps: files?.ps?.[0]?.buffer,
       ps1: files?.ps1?.[0]?.buffer,
       ps2: files?.ps2?.[0]?.buffer,
+      dsgdCcp: files?.dsgdCcp?.[0]?.buffer || files?.ccpDsgd?.[0]?.buffer,
+      ttmCcp: files?.ttmCcp?.[0]?.buffer || files?.ccpTtm?.[0]?.buffer,
+      ttttCcp: files?.ttttCcp?.[0]?.buffer || files?.ccpTttt?.[0]?.buffer,
     };
 
     if (!fileBuffers.dsgd) {
@@ -131,14 +146,12 @@ export class KlgdReconController {
         role: 'ADMIN',
       };
 
+      // Theo chuẩn C# CheckKLGD (TransactionCheckingService.cs#L368-L383):
+      // Đánh giá trạng thái PASSED / NEEDS_ATTENTION của ca Khớp Lệnh căn cứ vào KLGD thường, ACM và các lệnh lệch.
       const hasDiscrepancy =
         result.totals.differ > 0 ||
         result.totals.differACM > 0 ||
-        result.mismatchedTrades.length > 0 ||
-        result.mismatchedTTM.length > 0 ||
-        (result.totals.differTTTT !== undefined &&
-          result.totals.differTTTT > 0) ||
-        (result.mismatchedTTTT && result.mismatchedTTTT.length > 0);
+        result.mismatchedTrades.length > 0;
 
       const status = hasDiscrepancy ? 'NEEDS_ATTENTION' : 'PASSED';
 
@@ -163,11 +176,21 @@ export class KlgdReconController {
         noteText += `• Vị thế mở (TTM vs OP): ${result.totals.totalTTM} vs ${result.totals.totalOP} lot (Chênh lệch: ${result.totals.differTTM} lot)\n`;
       }
 
-      if (result.totals.totalCCP_DSGD !== undefined) {
+      if (
+        result.totals.totalCCP_DSGD !== undefined ||
+        result.totals.totalCCP_TTM !== undefined ||
+        result.totals.totalCCP_TTTT !== undefined
+      ) {
         noteText += `• Đối chiếu CoreCCP:\n`;
-        noteText += `  - Khớp lệnh (MS vs CCP): ${result.totals.totalDSGD} vs ${result.totals.totalCCP_DSGD} lot (Lệch: ${result.totals.differCCP_KLGD} lot)\n`;
-        noteText += `  - Trạng thái mở (MS vs CCP): ${result.totals.totalTTM || 0} vs ${result.totals.totalCCP_TTM} lot (Lệch: ${result.totals.differCCP_TTM} lot)\n`;
-        noteText += `  - Tất toán (MS vs CCP): ${result.totals.totalTTTT || 0} vs ${result.totals.totalCCP_TTTT} lot (Lệch: ${result.totals.differCCP_TTTT} lot)\n`;
+        if (result.totals.totalCCP_DSGD !== undefined) {
+          noteText += `  - Khớp lệnh (MS vs CCP): ${result.totals.totalDSGD} vs ${result.totals.totalCCP_DSGD} lot (Lệch: ${result.totals.differCCP_KLGD ?? 0} lot)\n`;
+        }
+        if (result.totals.totalCCP_TTM !== undefined) {
+          noteText += `  - Trạng thái mở (MS vs CCP): ${result.totals.totalTTM || 0} vs ${result.totals.totalCCP_TTM} lot (Lệch: ${result.totals.differCCP_TTM ?? 0} lot)\n`;
+        }
+        if (result.totals.totalCCP_TTTT !== undefined) {
+          noteText += `  - Tất toán (MS vs CCP): ${result.totals.totalTTTT || 0} vs ${result.totals.totalCCP_TTTT} lot (Lệch: ${result.totals.differCCP_TTTT ?? 0} lot)\n`;
+        }
       }
 
       const noteJson = JSON.stringify({
@@ -257,6 +280,18 @@ export class KlgdReconController {
         ps: readIfExists('PS', 'xlsx') || undefined,
         ps1: readIfExists('PS1', 'xlsx') || undefined,
         ps2: readIfExists('PS2', 'xlsx') || undefined,
+        dsgdCcp:
+          readIfExists('DSGD CCP', 'xlsx') ||
+          readIfExists('DSGD_CCP', 'xlsx') ||
+          undefined,
+        ttmCcp:
+          readIfExists('TTM CCP', 'xlsx') ||
+          readIfExists('TTM_CCP', 'xlsx') ||
+          undefined,
+        ttttCcp:
+          readIfExists('TTTT CCP', 'xlsx') ||
+          readIfExists('TTTT', 'xlsx') ||
+          undefined,
       };
       results.klgd = await this.klgdReconService.checkKLGD(
         klgdFiles,
@@ -384,6 +419,12 @@ export class KlgdReconController {
       { name: 'eod', maxCount: 1 },
       { name: 'tttt', maxCount: 1 },
       { name: 'accountsBalances', maxCount: 1 },
+      { name: 'dsgdCcp', maxCount: 1 },
+      { name: 'ttmCcp', maxCount: 1 },
+      { name: 'ttttCcp', maxCount: 1 },
+      { name: 'ccpDsgd', maxCount: 1 },
+      { name: 'ccpTtm', maxCount: 1 },
+      { name: 'ccpTttt', maxCount: 1 },
     ]),
   )
   async testUploadAndReconcile(
@@ -400,6 +441,12 @@ export class KlgdReconController {
       eod?: any[];
       tttt?: any[];
       accountsBalances?: any[];
+      dsgdCcp?: any[];
+      ttmCcp?: any[];
+      ttttCcp?: any[];
+      ccpDsgd?: any[];
+      ccpTtm?: any[];
+      ccpTttt?: any[];
     },
     @Body('usdRate') usdRateStr?: string,
     @Body('sessionStart') sessionStartStr?: string,
@@ -424,6 +471,9 @@ export class KlgdReconController {
           op1: files.op1?.[0]?.buffer,
           op2: files.op2?.[0]?.buffer,
           tttt: files.tttt?.[0]?.buffer,
+          dsgdCcp: files.dsgdCcp?.[0]?.buffer || files.ccpDsgd?.[0]?.buffer,
+          ttmCcp: files.ttmCcp?.[0]?.buffer || files.ccpTtm?.[0]?.buffer,
+          ttttCcp: files.ttttCcp?.[0]?.buffer || files.ccpTttt?.[0]?.buffer,
         };
         results.klgd = await this.klgdReconService.checkKLGD(
           klgdFiles,

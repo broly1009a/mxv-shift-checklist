@@ -612,14 +612,13 @@ export class KlgdReconService {
     const differCCP_TTTT =
       totalCCP_TTTT !== undefined && files.tttt ? Math.abs(totalTTTT - totalCCP_TTTT) : undefined;
 
+    // Theo chuẩn C# CheckKLGD (TransactionCheckingService.cs#L368-L383):
+    // Kết luận Khớp/Lệch của ca Khớp Lệnh chỉ căn cứ vào Khối lượng khớp lệnh thường (differ),
+    // tự doanh ACM (differACM) và chi tiết các lệnh không khớp (mismatchedTrades).
+    // TTM (Vị thế mở) và TTTT (Tất toán) chỉ mang tính chất ghi chú bổ trợ (notiData), không làm fail ca Khớp Lệnh trong phiên.
     const hasDiscrepancy =
-      (checkKlgdFlag &&
-        (finalDiffer > 0 || evaluatedDifferACM > 0 || finalMismatchedTrades.length > 0)) ||
-      (checkTtmFlag && finalMismatchedTTM.length > 0) ||
-      (checkTtttFlag &&
-        files.tttt &&
-        (files.ps || files.ps1 || files.ps2) &&
-        ((finalDifferTTTT || 0) > 0 || (finalMismatchedTTTT || []).length > 0));
+      checkKlgdFlag &&
+      (finalDiffer > 0 || evaluatedDifferACM > 0 || finalMismatchedTrades.length > 0);
 
     return {
       totals: {
