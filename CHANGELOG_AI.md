@@ -1,3 +1,78 @@
+## [2026-10-20T08:38] BUG FIX: Khắc Phục Lỗi Tải Báo Cáo CoreExchange (CoreEX) Qua Direct REST API (HTTP 401), Cơ Chế Kiểm Tra Hạn Token JWT, Tự Động Làm Mới Phiên Đăng Nhập & Fallback Dự Phòng Playwright
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Kiểm tra lỗi job `DOWNLOAD_CE_REPORT` (ID: `6ad6c2728f57489ea8539df9`) bị lỗi HTTP 401 khi tải qua Direct REST API (*"sao giờ tải CE qua api lại tèo"* và *"tôi thấy tắt tải api mà tải qua playwright thì ổn định rồi mà tải qua api lỗi nên giúp tôi xem lại"*).
+- Phân tích nguyên nhân gốc rễ và xử lý triệt để:
+  1. **Nguyên nhân lỗi 401**: File cache session `/temp/coreexchange_session.json` lưu token cũ từ ngày hôm trước đã hết hạn (`exp` sau 3 tiếng). Hàm `verifySession` trước đây kiểm tra truy cập `${baseUrl}/dashboard`. Do `/dashboard` là trang giao diện SPA (Single Page Application), máy chủ Web luôn trả về HTTP 200 cho mọi request bất kể có cookie hay không, khiến hệ thống hiểu nhầm session còn hạn và tái sử dụng token đã hết hạn, dẫn đến việc CoreExchange API trả về HTTP 401.
+  2. **Thiếu cơ chế tự làm mới (Self-Healing) trên 401**: Khi gặp HTTP 401, `CoreExApiAdapter` không xóa cache, không thực hiện đăng nhập lại mà throw lỗi làm đứt quãng toàn bộ lượt tải.
+  3. **Thiếu Fallback sang Playwright**: Khi bật chế độ `REST_API`, nếu API gặp lỗi, `CcpCeDownloadJobHandler` báo fail ngay lập tức mà không tự động chuyển sang tải dự phòng qua trình duyệt Playwright.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - **Bổ sung quản lý hạn Token**:
+     - Bổ sung trường `expiresAt?: number` vào interface `ICoreExchangeAuthSession`.
+     - Thêm helper `decodeJwt(token: string)` và `clearSessionCache()`.
+   - **Chuẩn hóa `verifySession`**: Thay vì kiểm tra trang tĩnh `/dashboard`, chuyển sang:
+     - Kiểm tra hạn token JWT thực tế (yêu cầu còn ít nhất 60s).
+     - Probe trực tiếp endpoint REST API `/exchange/inquiry/maintain/COMMODITY_ACM/search/COMMODITY_ACM` với timeout 6s.
+   - **Tối ưu `getValidSession`**:
+     - Kiểm tra `expiresAt` hoặc `jwt.exp` với buffer an toàn 5 phút trước khi quyết định tái sử dụng cache.
+     - Khi lấy token mới qua `/oauth2/token`, đọc `expires_in` (10,800s) và tính toán `expiresAt` chính xác.
+   - **Tự động làm mới khi gặp 401 trong `searchData`**:
+     - Khi bất kỳ lệnh gọi API nào nhận mã HTTP 401: Tự động xóa cache, gọi `getValidSession(true)` đăng nhập lại, cập nhật session token mới và thử lại request ngay lập tức (Zero-Downtime Auto-Recovery).
+2. [backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts#L112-L144):
+   - Bọc khối gọi Direct REST API trong `try/catch`.
+   - Nếu Direct REST API gặp sự cố bất khả kháng, hệ thống không làm sập Job mà tự động ghi log cảnh báo và chuyển mượt mà (seamless fallback) sang tải dự phòng bằng Playwright Browser.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- **Local & Remote Build**:
+  - Backend Build: `nest build` -> **Exit code 0 (Success)**.
+  - Frontend Build: `next build` -> **Exit code 0 (Success - 36 routes)**.
+  - Deploy lên máy chủ Ubuntu `10.0.0.26`: Hoàn tất thành công, khởi động lại `mxv-backend` & `mxv-frontend`.
+- **Kiểm thử Tải Thực Tế (Live Ingress Test)**:
+  - **Lần 1 (Đăng nhập mới hoàn toàn)**: Xác thực OAuth2 thành công, tải và xuất đầy đủ **18/18 báo cáo CoreExchange** (DSGD, DSL, GTT, HH, 3 HĐ chi tiết, TTM, Đối chiếu lệnh,...) chỉ mất **3,700 ms (3.7 giây)**, `Success: true`.
+  - **Lần 2 (Tái sử dụng Token hợp lệ)**: Tự động phát hiện token còn hạn đến 11:37, probe API thành công trong 20ms, tải trọn vẹn 18 báo cáo trong **3,672 ms (3.6 giây)**, `Success: true`.
+  - **Cơ chế Fallback Playwright**: Đã tích hợp sẵn sàng làm phao cứu sinh an toàn trong trường hợp CoreEX API trục trặc.
+
+---
+
+## [2026-10-20T08:20] BUG FIX: Tách Biệt Tuyệt Đối Lịch Sử Đối Chiếu Trong Phiên (CHECK_KLGD) Và Chốt Cuối Ngày (CHECK_PRE_EOD)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"sao lịch sử dính cả của checkeod vào đây thế"* -> *"giúp tôi fix"*.
+- Khắc phục hiện tượng dropdown "Lượt #..." trên giao diện đối chiếu khớp lệnh trong phiên (`LegacyReconSection`) bị trộn lẫn các lượt chạy của `CHECK_PRE_EOD` (ví dụ Lượt #3 đến #7 từ 06:25 đến 06:54 ngày 20/10/2026), dẫn tới việc chọn xem lịch sử bị tải nhầm payload của Pre-EOD vào màn hình Trong phiên.
+- Tuân thủ nghiêm ngặt **AGENTS.md Section 2 Rule 3**: Phân định tuyệt đối giữa tác vụ Trong phiên (`CHECK_KLGD`) và Tác vụ Cuối ngày (`CHECK_PRE_EOD`).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon-console-summary.service.ts#L709-L728):
+   - **Trước khi sửa**: `pastRunsPromise` truy vấn `{ jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] } }`. Ngoài ra `klgdPromise` khi có `jobId` không kiểm tra `jobType === 'CHECK_KLGD'`, dẫn tới khi người dùng chọn 1 job Pre-EOD thì toàn bộ dữ liệu Trong phiên bị gán đè bằng job Pre-EOD.
+   - **Sau khi sửa**:
+     - `pastRunsPromise` chỉ truy vấn duy nhất `{ jobType: 'CHECK_KLGD' }` cho danh sách `runs`.
+     - Tách riêng `pastPreEodRunsPromise` truy vấn `{ jobType: 'CHECK_PRE_EOD' }` cho `preEodRuns`.
+     - Khi nhận `jobId`, kiểm tra chặt chẽ `{ _id: jobId, jobType: 'CHECK_KLGD' }`, nếu không phải `CHECK_KLGD` thì tự động fallback về lượt `CHECK_KLGD` hợp lệ mới nhất.
+     - Đảm bảo mỗi phần tử trong `runs` đều gắn cờ `jobType: 'CHECK_KLGD'`.
+     - Trả về cả `runs` (cho Trong phiên) và `preEodRuns` (cho Pre-EOD).
+2. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L353-L361):
+   - **Trước khi sửa**: `pastJobs` truy vấn `{ jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] } }`.
+   - **Sau khi sửa**: Giới hạn chỉ lấy `{ jobType: 'CHECK_KLGD' }`.
+3. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L232-L237) & [frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyReconSection.tsx#L231-L236):
+   - Bổ sung cơ chế lọc phòng thủ (defense-in-depth): `serverRuns.filter((r: any) => !r.jobType || r.jobType === 'CHECK_KLGD')`, đảm bảo ở phía client dropdown chọn lượt chỉ bao gồm các lượt Trong phiên.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- **Local Build**:
+  - Backend: `npm run build` (`nest build`) -> **Exit code 0 (Success)**.
+  - Frontend: `npm run build` (`next build`) -> **Exit code 0 (Success - 36 static/dynamic routes)**.
+- **Deploy lên Server Ubuntu 10.0.0.26**:
+  - Chạy `node backend/src/scripts/deploy_bundle.js` -> **Exit code 0 (Success)**.
+  - Khởi động lại dịch vụ `mxv-backend` & `mxv-frontend` qua PM2.
+- **Kiểm thử API Live trên Ubuntu**:
+  - Endpoint `/api/v1/trading-ops/console-summary?date=2026-10-19`:
+    - `runs` (CHECK_KLGD): 28 lượt (từ 06:02 đến 06:20), 100% là `CHECK_KLGD`.
+    - `preEodRuns` (CHECK_PRE_EOD): 5 lượt (06:25 đến 06:54), được tách biệt hoàn toàn sang `preEodRuns`.
+  - Dropdown "Lượt #..." trên UI hiển thị chính xác các lượt Trong phiên (Lượt #28 lúc 06:20 là mới nhất, không còn dính các lượt Pre-EOD).
+
+---
+
 ## [2026-10-19T19:06] FEATURE ADDITION: Bổ Sung Component Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) Dưới Khung Pre-EOD Ở Cả 2 Trang ms-cqg và ccp-ce
 
 ### 1. Mục tiêu thay đổi

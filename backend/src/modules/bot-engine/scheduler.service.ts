@@ -117,10 +117,11 @@ export class SchedulerService implements OnModuleInit {
         },
         {
           id: 'RPA_DOWNLOAD_CCP_PHASE1',
-          name: 'Tải báo cáo CoreCCP Phase 1 (NR, TTTT, DSL, DSGD)',
+          name: 'Tự động tải Full báo cáo CoreCCP (VNCLEAR)',
           enabled: true,
-          time: '16:15',
+          time: recommendedCloseTime,
           jobType: 'DOWNLOAD_CCP_REPORT',
+          payload: { reports: ['FULL'] },
         },
         {
           id: 'CHECK_PRE_EOD',
@@ -138,10 +139,11 @@ export class SchedulerService implements OnModuleInit {
         },
         {
           id: 'RPA_DOWNLOAD_CE',
-          name: 'Tải báo cáo CoreEX (VNCLEAR)',
-          enabled: false,
-          time: '19:30',
+          name: 'Tự động tải Full báo cáo CoreEX (Liên thông)',
+          enabled: true,
+          time: recommendedCloseTime,
           jobType: 'DOWNLOAD_CE_REPORT',
+          payload: { reports: ['FULL'] },
         },
       ];
       await this.settingsService.setSetting(
@@ -444,10 +446,12 @@ export class SchedulerService implements OnModuleInit {
     );
     const intervalMinutes = Math.max(5, parseInt(freqSetting, 10) || 60);
 
-    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của FILE_AUDIT_MS hoặc FILE_AUDIT_CQG thì bỏ qua
+    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của FILE_AUDIT_MS, FILE_AUDIT_CQG, CoreCCP hoặc CoreEX thì bỏ qua
     const hasActiveMs = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_MS');
     const hasActiveCqg = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_CQG');
-    if (hasActiveMs || hasActiveCqg) {
+    const hasActiveCcp = await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CCP_REPORT');
+    const hasActiveCe = await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CE_REPORT');
+    if (hasActiveMs || hasActiveCqg || hasActiveCcp || hasActiveCe) {
       return;
     }
 
@@ -493,6 +497,31 @@ export class SchedulerService implements OnModuleInit {
       await this.jobQueueService.enqueue('FILE_AUDIT_CQG', {
         targetDate: sessionDayStr,
         sessionDay: sessionDayStr,
+        maxAttempts: 1,
+        isStandalone: true,
+        shiftLogId: null,
+        taskId: null,
+      });
+
+      // Tự động tải Full CoreCCP & CoreEX định kỳ độc lập tương tự MS & CQG
+      await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
+        startDate: sessionDayStr,
+        endDate: sessionDayStr,
+        sessionDay: sessionDayStr,
+        targetDate: sessionDayStr,
+        reports: ['FULL'],
+        maxAttempts: 1,
+        isStandalone: true,
+        shiftLogId: null,
+        taskId: null,
+      });
+
+      await this.jobQueueService.enqueue('DOWNLOAD_CE_REPORT', {
+        startDate: sessionDayStr,
+        endDate: sessionDayStr,
+        sessionDay: sessionDayStr,
+        targetDate: sessionDayStr,
+        reports: ['FULL'],
         maxAttempts: 1,
         isStandalone: true,
         shiftLogId: null,
@@ -556,7 +585,7 @@ export class SchedulerService implements OnModuleInit {
       this.settingsService.getSetting('bot_stat_time_enabled', 'true'),
     ]);
 
-    // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS và DOWNLOAD_CQG_BACKUP)
+    // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS, DOWNLOAD_CQG_BACKUP, CoreCCP và CoreEX)
     if (backupTime && /^\d{2}:\d{2}$/.test(backupTime)) {
       const rpaTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_MS');
       if (rpaTask) {
@@ -567,6 +596,40 @@ export class SchedulerService implements OnModuleInit {
       if (cqgTask) {
         cqgTask.time = backupTime;
         cqgTask.enabled = backupTimeEnabled !== 'false';
+      }
+
+      // Đồng bộ mốc giờ tải cho CoreCCP
+      let ccpTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_CCP_PHASE1' || t.jobType === 'DOWNLOAD_CCP_REPORT');
+      if (ccpTask) {
+        ccpTask.time = backupTime;
+        ccpTask.enabled = backupTimeEnabled !== 'false';
+        ccpTask.payload = { ...(ccpTask.payload || {}), reports: ['FULL'] };
+      } else {
+        tasks.push({
+          id: 'RPA_DOWNLOAD_CCP_PHASE1',
+          name: 'Tự động tải Full báo cáo CoreCCP (VNCLEAR)',
+          enabled: backupTimeEnabled !== 'false',
+          time: backupTime,
+          jobType: 'DOWNLOAD_CCP_REPORT',
+          payload: { reports: ['FULL'] },
+        });
+      }
+
+      // Đồng bộ mốc giờ tải cho CoreEX
+      let ceTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_CE' || t.jobType === 'DOWNLOAD_CE_REPORT');
+      if (ceTask) {
+        ceTask.time = backupTime;
+        ceTask.enabled = backupTimeEnabled !== 'false';
+        ceTask.payload = { ...(ceTask.payload || {}), reports: ['FULL'] };
+      } else {
+        tasks.push({
+          id: 'RPA_DOWNLOAD_CE',
+          name: 'Tự động tải Full báo cáo CoreEX (Liên thông)',
+          enabled: backupTimeEnabled !== 'false',
+          time: backupTime,
+          jobType: 'DOWNLOAD_CE_REPORT',
+          payload: { reports: ['FULL'] },
+        });
       }
     }
 

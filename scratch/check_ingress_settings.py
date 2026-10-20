@@ -1,4 +1,7 @@
 import paramiko
+import sys
+
+sys.stdout.reconfigure(encoding='utf-8')
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -13,11 +16,18 @@ const env = dotenv.parse(fs.readFileSync("/opt/mxv-checklist/backend/.env"));
 (async () => {
   await mongoose.connect(env.MONGODB_URI);
   const db = mongoose.connection.db;
-  const configs = await db.collection("system_configs").find({
-    key: { $in: ["ingress_mode", "ingress_mode_ccp", "ingress_mode_ce", "ingress_mode_ms"] }
+  const settings = await db.collection("system_settings").find({
+    key: { $regex: "ingress" }
   }).toArray();
-  console.log("=== INGRESS MODES IN DB ===");
+  console.log("=== INGRESS MODES IN SYSTEM_SETTINGS ===");
+  console.log(JSON.stringify(settings, null, 2));
+
+  const configs = await db.collection("system_configs").find({
+    key: { $regex: "ingress" }
+  }).toArray();
+  console.log("=== INGRESS MODES IN SYSTEM_CONFIGS ===");
   console.log(JSON.stringify(configs, null, 2));
+
   await mongoose.disconnect();
 })();
 '"""

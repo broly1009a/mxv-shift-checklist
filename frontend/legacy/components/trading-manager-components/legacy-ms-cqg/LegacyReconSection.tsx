@@ -231,7 +231,9 @@ export default function LegacyReconSection({
   // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
   const serverRuns = summaryData?.runs || [];
   const runs = useMemo(() => {
-    if (serverRuns && serverRuns.length > 0) return serverRuns;
+    // Defense-in-depth: Đảm bảo chỉ lấy các lượt check Trong phiên (CHECK_KLGD), tuyệt đối loại trừ CHECK_PRE_EOD
+    const klgdRuns = (serverRuns || []).filter((r: any) => !r.jobType || r.jobType === 'CHECK_KLGD');
+    if (klgdRuns && klgdRuns.length > 0) return klgdRuns;
     // Fallback: nếu server chưa kịp trả về danh sách runs nhưng đã có lượt check hiển thị
     if (summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt) {
       const execTime = summaryData?.klgd?.executedAt || summaryData?.shiftInfo?.lastCheckedAt || new Date().toISOString();
