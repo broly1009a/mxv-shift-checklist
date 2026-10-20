@@ -5,9 +5,11 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { 
-  Activity, Loader2, RotateCcw, Search, ChevronLeft, ChevronRight, Eye, CornerDownRight 
+  Activity, Loader2, RotateCcw, Search, ChevronLeft, ChevronRight, Eye, CornerDownRight,
+  Code2, Sliders, CheckCircle2, Copy, Check, Globe, Laptop
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { parseActivityLog } from '@/utils/activity-log-mapper';
 
 // Import Reusable UI Components (Quy chuẩn dùng chung)
 import SearchableSelect from '@/components/ui/SearchableSelect';
@@ -47,6 +49,21 @@ export default function ActivityLogsPage() {
   
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [detailTabs, setDetailTabs] = useState<Record<string, 'business' | 'raw'>>({});
+  const [copiedLogId, setCopiedLogId] = useState<string | null>(null);
+
+  const setTabForLog = (logId: string, tab: 'business' | 'raw') => {
+    setDetailTabs(prev => ({ ...prev, [logId]: tab }));
+  };
+
+  const handleCopyJson = (logId: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedLogId(logId);
+    toast.success('Đã sao chép dữ liệu JSON vào bộ nhớ tạm');
+    setTimeout(() => {
+      setCopiedLogId(prev => (prev === logId ? null : prev));
+    }, 2000);
+  };
 
   // Fetch all users for filter dropdown
   const fetchUsers = async () => {
@@ -152,99 +169,6 @@ export default function ActivityLogsPage() {
     setExpandedLogId(expandedLogId === id ? null : id);
   };
 
-  const renderDetails = (detailsStr: string) => {
-    try {
-      const parsed = JSON.parse(detailsStr);
-      return (
-        <pre style={{
-          margin: 0,
-          padding: '12px',
-          borderRadius: '8px',
-          background: 'var(--bg-app)',
-          color: 'var(--text-primary)',
-          fontSize: '0.75rem',
-          fontFamily: 'monospace',
-          overflowX: 'auto',
-          whiteSpace: 'pre-wrap',
-          border: '1px solid var(--border-color)',
-          maxHeight: '300px'
-        }}>
-          {JSON.stringify(parsed, null, 2)}
-        </pre>
-      );
-    } catch (e) {
-      return <span style={{ color: 'var(--text-muted)' }}>{detailsStr || 'Không có chi tiết'}</span>;
-    }
-  };
-
-  // Human-friendly action mapping
-  const getFriendlyAction = (actionStr: string) => {
-    const parts = actionStr.split(' ');
-    const method = parts[0] || '';
-    const path = parts.slice(1).join(' ') || '';
-
-    if (path.includes('/auth/profile')) {
-      return 'Cập nhật thông tin / Cài đặt cá nhân';
-    }
-    if (path.includes('/auth/login')) {
-      return 'Đăng nhập hệ thống';
-    }
-    if (path.includes('/roles') && path.includes('/permissions')) {
-      const match = path.match(/\/roles\/(.*)\/permissions/);
-      const roleName = match ? match[1] : '';
-      return `Thay đổi phân quyền vai trò ${roleName || 'hệ thống'}`;
-    }
-    if (path.includes('/departments')) {
-      if (method === 'POST') return 'Tạo phòng ban mới';
-      if (method === 'PUT') return 'Cập nhật thông tin phòng ban';
-      if (method === 'DELETE') return 'Xóa phòng ban';
-      return 'Thay đổi thông tin phòng ban';
-    }
-    if (path.includes('/users')) {
-      if (method === 'POST') return 'Tạo tài khoản người dùng mới';
-      if (method === 'PUT') return 'Cập nhật thông tin tài khoản';
-      if (method === 'DELETE') return 'Xóa tài khoản người dùng';
-      return 'Thay đổi thông tin tài khoản';
-    }
-    if (path.includes('/shift-slots')) {
-      if (method === 'POST') return 'Tạo cấu hình ca trực mới';
-      if (method === 'PUT') return 'Cập nhật cấu hình ca trực';
-      if (method === 'DELETE') return 'Xóa cấu hình ca trực';
-      return 'Thay đổi cấu hình ca trực';
-    }
-    if (path.includes('/templates')) {
-      if (method === 'POST') return 'Tạo mẫu checklist mới';
-      if (method === 'PUT') return 'Cập nhật mẫu checklist';
-      if (method === 'DELETE') return 'Xóa mẫu checklist';
-      return 'Thay đổi mẫu checklist';
-    }
-    if (path.includes('/bot-config') || path.includes('/bot-engine')) {
-      return 'Cập nhật cấu hình hệ thống Bot/RPA';
-    }
-    if (path.includes('/notifications')) {
-      return 'Cập nhật cài đặt kênh thông báo';
-    }
-    if (path.includes('/calendar')) {
-      return 'Cập nhật lịch trực / lịch làm việc';
-    }
-    if (path.includes('/reconciliation/upload-klgd')) {
-      return 'Tải lên dữ liệu đối chiếu khớp lệnh';
-    }
-    if (path.includes('/reconciliation')) {
-      return 'Thao tác đối chiếu ca trực';
-    }
-    if (path.includes('/incidents')) {
-      if (method === 'POST') return 'Khai báo sự cố mới';
-      if (method === 'PUT') return 'Cập nhật trạng thái sự cố';
-      return 'Quản lý báo cáo sự cố';
-    }
-    if (path.includes('/margin-checker') || path.includes('/margin-change-requests')) {
-      return 'Cập nhật cấu hình / Yêu cầu ký quỹ';
-    }
-
-    return `Thao tác ghi dữ liệu`;
-  };
-
   // Convert users to SearchableSelect options format
   const userOptions = [
     { value: 'ALL', label: '-- Tất cả tài khoản --' },
@@ -303,7 +227,7 @@ export default function ActivityLogsPage() {
                 <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Nhập API, endpoint (vd: users, bot-config...)"
+                  placeholder="Nhập API, thao tác (vd: trigger-ce, console-run, users, system-settings...)"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="form-input"
@@ -383,103 +307,165 @@ export default function ActivityLogsPage() {
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1050px' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '15%' }}>Thời gian</th>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '18%' }}>Người thực hiện</th>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '10%' }}>Phương thức</th>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '27%' }}>Hành động nghiệp vụ</th>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '20%' }}>Đường dẫn API (Kỹ thuật)</th>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '8%' }}>Địa chỉ IP</th>
-                    <th style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', width: '2%', textAlign: 'center' }}>Chi tiết</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '13%' }}>Thời gian</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '16%' }}>Người thực hiện</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '9%' }}>Phương thức</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '30%' }}>Hành động nghiệp vụ</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '20%' }}>Đường dẫn API (Kỹ thuật)</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '9%' }}>Địa chỉ IP</th>
+                    <th style={{ padding: '16px 20px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)', width: '3%', textAlign: 'center' }}>Chi tiết</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((log) => {
                     const isExpanded = expandedLogId === log.id;
                     const date = new Date(log.createdAt);
-                    const formattedDate = date.toLocaleString('vi-VN', {
+                    const formattedDate = date.toLocaleDateString('vi-VN', {
                       year: 'numeric',
                       month: '2-digit',
-                      day: '2-digit',
+                      day: '2-digit'
+                    });
+                    const formattedTime = date.toLocaleTimeString('vi-VN', {
                       hour: '2-digit',
                       minute: '2-digit',
                       second: '2-digit'
                     });
 
-                    // Parse HTTP method and url path
-                    const parts = log.action.split(' ');
-                    const method = parts[0] || '';
-                    const path = parts.slice(1).join(' ') || '';
+                    // Parse using Activity Log Mapper
+                    const parsed = parseActivityLog(log.action, log.details, log.ipAddress, log.userAgent);
+                    const activeTab = detailTabs[log.id] || 'business';
 
                     let methodColor = 'rgba(255,255,255,0.1)';
                     let methodText = '#fff';
-                    if (method === 'POST') {
-                      methodColor = 'rgba(16, 185, 129, 0.08)';
+                    if (parsed.method === 'POST') {
+                      methodColor = 'rgba(16, 185, 129, 0.1)';
                       methodText = '#10b981';
-                    } else if (method === 'PUT') {
-                      methodColor = 'rgba(59, 130, 246, 0.08)';
+                    } else if (parsed.method === 'PUT') {
+                      methodColor = 'rgba(59, 130, 246, 0.1)';
                       methodText = 'var(--color-accent)';
-                    } else if (method === 'DELETE') {
-                      methodColor = 'rgba(239, 68, 68, 0.08)';
+                    } else if (parsed.method === 'DELETE') {
+                      methodColor = 'rgba(239, 68, 68, 0.1)';
                       methodText = '#ef4444';
                     }
-
-                    const friendlyName = getFriendlyAction(log.action);
 
                     return (
                       <React.Fragment key={log.id}>
                         <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s' }} className="table-row-hover">
-                          <td style={{ padding: '16px 24px', fontSize: '0.88rem', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                            {formattedDate}
+                          {/* Thời gian */}
+                          <td style={{ padding: '14px 20px', fontSize: '0.86rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 650 }}>{formattedTime}</span>
+                              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{formattedDate}</span>
+                            </div>
                           </td>
-                          <td style={{ padding: '16px 24px', fontSize: '0.88rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+
+                          {/* Người thực hiện */}
+                          <td style={{ padding: '14px 20px', fontSize: '0.86rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                             {log.userId ? (
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span style={{ fontWeight: 650 }}>{log.userId.fullName}</span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{log.userId.username}</span>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>@{log.userId.username}</span>
                               </div>
                             ) : (
                               <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Hệ thống / Guest</span>
                             )}
                           </td>
-                          <td style={{ padding: '16px 24px' }}>
+
+                          {/* Phương thức HTTP */}
+                          <td style={{ padding: '14px 20px' }}>
                             <span style={{
                               fontSize: '0.68rem',
                               fontWeight: 800,
-                              padding: '4px 8px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
                               background: methodColor,
                               color: methodText,
                               display: 'inline-block',
                               textAlign: 'center',
-                              minWidth: '65px'
+                              minWidth: '60px'
                             }}>
-                              {method}
+                              {parsed.method}
                             </span>
                           </td>
-                          <td style={{ padding: '16px 24px', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {friendlyName}
+
+                          {/* Hành động nghiệp vụ (Module Badge + Tiêu đề chi tiết) */}
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <div>
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  padding: '2px 7px',
+                                  borderRadius: '4px',
+                                  background: parsed.module.bgLight,
+                                  color: parsed.module.color,
+                                  border: `1px solid ${parsed.module.border}`,
+                                  display: 'inline-block',
+                                }}>
+                                  {parsed.module.name}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.88rem', fontWeight: 650, color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                                {parsed.actionTitle}
+                              </div>
+                            </div>
                           </td>
-                          <td style={{ padding: '16px 24px', fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
-                            {path}
+
+                          {/* Đường dẫn API & Technical Tag */}
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span style={{
+                                fontSize: '0.8rem',
+                                fontFamily: 'monospace',
+                                color: 'var(--text-secondary)',
+                                wordBreak: 'break-all',
+                                lineHeight: 1.3
+                              }}>
+                                {parsed.cleanEndpoint}
+                              </span>
+                              {parsed.technicalTag && (
+                                <div>
+                                  <span style={{
+                                    fontSize: '0.66rem',
+                                    fontFamily: 'monospace',
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(59, 130, 246, 0.12)',
+                                    color: 'var(--color-accent)',
+                                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                                    display: 'inline-block'
+                                  }}>
+                                    Tag: {parsed.technicalTag}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </td>
-                          <td style={{ padding: '16px 24px', fontSize: '0.88rem', color: 'var(--text-secondary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                            {log.ipAddress || '---'}
+
+                          {/* Địa chỉ IP */}
+                          <td style={{ padding: '14px 20px', fontSize: '0.82rem', color: 'var(--text-secondary)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                            {parsed.clientInfo.ip}
                           </td>
-                          <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+
+                          {/* Nút Chi tiết */}
+                          <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                             <button
                               onClick={() => toggleExpandLog(log.id)}
+                              title={isExpanded ? 'Đóng chi tiết' : 'Xem chi tiết'}
                               style={{
-                                background: 'transparent',
+                                background: isExpanded ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                                 border: 'none',
+                                borderRadius: '6px',
                                 cursor: 'pointer',
                                 color: isExpanded ? 'var(--color-accent)' : 'var(--text-muted)',
-                                transition: 'color 0.2s',
+                                transition: 'all 0.2s',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                padding: '4px'
+                                padding: '6px'
                               }}
                             >
                               <Eye size={16} />
@@ -489,17 +475,265 @@ export default function ActivityLogsPage() {
                         
                         {/* Expanded details row */}
                         {isExpanded && (
-                          <tr style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
-                            <td colSpan={7} style={{ padding: '16px 24px 24px 24px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                  <CornerDownRight size={14} />
-                                  <span>Metadata & Dữ liệu tải trọng gửi đi (Payload):</span>
+                          <tr style={{ background: 'rgba(13, 20, 38, 0.85)', borderBottom: '1px solid var(--border-color)' }}>
+                            <td colSpan={7} style={{ padding: '20px 24px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                
+                                {/* Header chi tiết: Thông tin tổng quan & Chuyển Tab */}
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'flex-start',
+                                  flexWrap: 'wrap',
+                                  gap: '12px',
+                                  paddingBottom: '14px',
+                                  borderBottom: '1px solid var(--border-color)'
+                                }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '280px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <span style={{
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: parsed.module.bgLight,
+                                        color: parsed.module.color,
+                                        border: `1px solid ${parsed.module.border}`
+                                      }}>
+                                        {parsed.module.name}
+                                      </span>
+                                      <span style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {parsed.actionTitle}
+                                      </span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                                      {parsed.actionDescription}
+                                    </p>
+                                  </div>
+
+                                  {/* Tab Switcher Pills */}
+                                  <div style={{
+                                    display: 'inline-flex',
+                                    background: 'var(--bg-app)',
+                                    padding: '3px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border-color)',
+                                    gap: '4px'
+                                  }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTabForLog(log.id, 'business')}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: activeTab === 'business' ? 'var(--color-accent)' : 'transparent',
+                                        color: activeTab === 'business' ? '#ffffff' : 'var(--text-secondary)',
+                                        fontSize: '0.78rem',
+                                        fontWeight: activeTab === 'business' ? 700 : 500,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <Sliders size={14} />
+                                      <span>Giao diện Nghiệp vụ</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTabForLog(log.id, 'raw')}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: activeTab === 'raw' ? 'var(--color-accent)' : 'transparent',
+                                        color: activeTab === 'raw' ? '#ffffff' : 'var(--text-secondary)',
+                                        fontSize: '0.78rem',
+                                        fontWeight: activeTab === 'raw' ? 700 : 500,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <Code2 size={14} />
+                                      <span>Dữ liệu Kỹ thuật (Payload)</span>
+                                    </button>
+                                  </div>
                                 </div>
-                                {renderDetails(log.details)}
-                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                  <strong>Thiết bị (User Agent):</strong> {log.userAgent || '---'}
-                                </div>
+
+                                {/* TAB 1: Giao diện Nghiệp vụ trực quan */}
+                                {activeTab === 'business' ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    
+                                    {/* Parameters Grid */}
+                                    <div>
+                                      <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        Tham số nghiệp vụ ghi nhận:
+                                      </div>
+                                      
+                                      {parsed.businessParameters.length > 0 ? (
+                                        <div style={{
+                                          display: 'grid',
+                                          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                                          gap: '10px'
+                                        }}>
+                                          {parsed.businessParameters.map((param, idx) => (
+                                            <div
+                                              key={idx}
+                                              style={{
+                                                padding: '10px 14px',
+                                                background: 'var(--bg-app)',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--border-color)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '4px'
+                                              }}
+                                            >
+                                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                {param.label}
+                                              </span>
+                                              <span style={{
+                                                fontSize: '0.85rem',
+                                                fontWeight: param.isHighlight ? 700 : 600,
+                                                color: param.badgeColor || 'var(--text-primary)',
+                                                wordBreak: 'break-word'
+                                              }}>
+                                                {param.value}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div style={{
+                                          padding: '12px 16px',
+                                          background: 'var(--bg-app)',
+                                          borderRadius: '8px',
+                                          border: '1px dashed var(--border-color)',
+                                          fontSize: '0.82rem',
+                                          color: 'var(--text-muted)'
+                                        }}>
+                                          Thao tác kích hoạt trực tiếp theo tham số mặc định của hệ thống (không gửi kèm dữ liệu bổ sung).
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Server Response Card */}
+                                    {parsed.responseSummary && (
+                                      <div style={{
+                                        padding: '10px 14px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(16, 185, 129, 0.08)',
+                                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <CheckCircle2 size={16} color="#10b981" />
+                                        <span style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>
+                                          {parsed.responseSummary.message}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Execution Context Cards */}
+                                    <div style={{
+                                      display: 'grid',
+                                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                      gap: '10px',
+                                      paddingTop: '6px'
+                                    }}>
+                                      <div style={{
+                                        padding: '8px 12px',
+                                        background: 'rgba(255, 255, 255, 0.02)',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <Laptop size={15} style={{ color: 'var(--text-muted)' }} />
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Thiết bị & Trình duyệt</span>
+                                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                            {parsed.clientInfo.browser} trên {parsed.clientInfo.os}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div style={{
+                                        padding: '8px 12px',
+                                        background: 'rgba(255, 255, 255, 0.02)',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}>
+                                        <Globe size={15} style={{ color: 'var(--text-muted)' }} />
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Địa chỉ IP mạng</span>
+                                          <span style={{ fontSize: '0.8rem', fontWeight: 600, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                                            {parsed.clientInfo.ip}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                  </div>
+                                ) : (
+                                  /* TAB 2: Dữ liệu Kỹ thuật nguyên bản (Raw Payload) */
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                        <CornerDownRight size={14} />
+                                        <span>Dữ liệu Payload nguyên bản (JSON):</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyJson(log.id, JSON.stringify(parsed.rawPayload || log.details, null, 2))}
+                                        className="btn btn-secondary"
+                                        style={{
+                                          padding: '4px 10px',
+                                          fontSize: '0.75rem',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          height: '28px'
+                                        }}
+                                      >
+                                        {copiedLogId === log.id ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                                        <span>{copiedLogId === log.id ? 'Đã sao chép' : 'Sao chép JSON'}</span>
+                                      </button>
+                                    </div>
+
+                                    <pre style={{
+                                      margin: 0,
+                                      padding: '14px',
+                                      borderRadius: '8px',
+                                      background: 'var(--bg-app)',
+                                      color: '#38bdf8',
+                                      fontSize: '0.78rem',
+                                      fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                                      overflowX: 'auto',
+                                      whiteSpace: 'pre-wrap',
+                                      border: '1px solid var(--border-color)',
+                                      maxHeight: '320px',
+                                      lineHeight: 1.5
+                                    }}>
+                                      {parsed.hasPayload ? JSON.stringify(parsed.rawPayload, null, 2) : (log.details || 'Không có chi tiết')}
+                                    </pre>
+
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                                      <strong>User-Agent gốc:</strong> {log.userAgent || '---'}
+                                    </div>
+                                  </div>
+                                )}
+
                               </div>
                             </td>
                           </tr>

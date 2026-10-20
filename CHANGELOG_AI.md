@@ -1,3 +1,109 @@
+## [2026-10-20T08:50] BUG FIX: Tôn Trọng Tham Số `reports` Trong `handleFileAuditAcmJob` (Chặn Tự Động Tải Báo Cáo SFTP Khi Chỉ Yêu Cầu Web ORDER/FILL)
+
+### 1. Mục tiêu thay đổi
+- Giải quyết câu hỏi và phản ánh của USER: Khi gửi request kích hoạt tải báo cáo ACM với danh sách cụ thể `--data-raw "{\"targetDate\":\"2026-10-20\",\"reports\":[\"FILL\",\"ORDER\"]}"`, thư mục sao lưu ACM vẫn xuất hiện cả các file SFTP (`Straits_19102026.csv`, `EOD FO trades_PT Straits...csv`, `2026-10-19_10017890000.xls`).
+- Đảm bảo worker `FILE_AUDIT_ACM` tuân thủ 100% tham số `payload.reports`: Chỉ tải file SFTP khi người dùng yêu cầu rõ ràng (hoặc khi không truyền tham số để chạy audit định kỳ toàn diện).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/bot-engine/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/file-audit.handler.ts#L960-L1138):
+   - **Nguyên nhân gốc rễ**: Trước đây trong `handleFileAuditAcmJob`, `this.scanAcmBackupFiles(dailyPath, targetDate)` quét cả 4 loại file (`ORDER`, `FILL`, `SFTP_CSV`, `SFTP_XLS`). Do thư mục ngày mới `20.10` chưa có file SFTP, `sftpMissing` đánh giá `true` mà **hoàn toàn không kiểm tra `payload.reports`**, dẫn tới việc bot tự động kích hoạt kết nối SFTP Server và tải về cả 3 file Straits CSV & XLS.
+   - **Xử lý sau khi sửa**:
+     - Bóc tách `requestedReports` từ `payload.reports` và xác định cờ điều kiện: `isWebRequested` và `isSftpRequested`.
+     - Lọc danh sách `missingOrOutdated` chỉ giữ lại các báo cáo thuộc phạm vi yêu cầu của `requestedReports`.
+     - Phân nhánh 1 & 2 (Web Direct API / Playwright): Chỉ tải các mã báo cáo Web được yêu cầu (`finalWebReportCodes`).
+     - Phân nhánh 3 (SFTP): Chỉ chạy kết nối SFTP Server khi `isSftpRequested === true`.
+     - Phân nhánh 4 (Thẩm định kết quả): Chỉ assert / cảnh báo lỗi cho các báo cáo nằm trong danh sách yêu cầu.
+2. [scratch/sync_and_deploy_path_config.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/scratch/sync_and_deploy_path_config.py#L22-L24):
+   - Thêm `backend/src/modules/bot-engine/handlers/file-audit.handler.ts` vào danh sách file đồng bộ lên máy chủ Ubuntu 10.0.0.26.
+
+### 3. Kết quả Kiểm thử & Build
+- Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success - Clean build)**.
+
+---
+
+## [2026-10-20T08:45] FEATURE UPDATE: Nâng Cấp Bảng Ánh Xạ Hành Động Nghiệp Vụ & Giao Diện Chi Tiết Nhật Ký Thao Tác Hệ Thống (Activity Logs)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"hiện tại phần thao tác log này cột hành động nghiệp vụ Hành động nghiệp vụ và Đường dẫn API (Kỹ thuật) đang bị chung chung chưa thể hiện được rõ hành động và nghiệp gì . bạn có thể tạo bảng mapping ánh xạ hoặc thể hiện rõ hơn và cả detail cũng chưa thể hiện được rõ. nếu là người dùng trực tiếp xem cũng khó biết là làm gì"*.
+- Xóa bỏ tình trạng log hiển thị chung chung ("Cập nhật cấu hình hệ thống Bot/RPA", "Thao tác ghi dữ liệu"), chuyển đổi toàn bộ đường dẫn API kỹ thuật và payload thô thành thông tin nghiệp vụ tiếng Việt chi tiết, dễ hiểu, thân thiện với người dùng cuối và kiểm toán viên.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/utils/activity-log-mapper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/utils/activity-log-mapper.ts):
+   - Xây dựng module phân tích và ánh xạ nghiệp vụ toàn diện:
+     - Khai báo 13 phân hệ nghiệp vụ chính: `INGRESS` (Thu thập RPA), `STORAGE_AUDIT` (Giám sát Tệp tin & RPA), `TRADING_OPS` (Trading Ops & Đối chiếu), `CCP_CLEARING` (Bù trừ & Thống kê CCP), `SHIFTS` (Ca trực & Checklist), `ADMIN_USERS` (Tài khoản & Phân quyền), `ADMIN_SYSTEM` (Quản trị Hệ thống), `INCIDENTS` (Quản lý Sự cố), `NOTIFICATIONS` (Kênh thông báo), `CALENDAR` (Lịch làm việc), `AUTH` (Xác thực & Cá nhân), `MARGIN` (Quản trị Ký quỹ), `REPORT` (Báo cáo định kỳ).
+     - Hàm `parseActivityLog()`: Tự động phân tích phương thức HTTP, đường dẫn URL và bóc tách thông minh các tham số trong `details` (payload JSON).
+     - Định danh chính xác các hành động nghiệp vụ cụ thể:
+       - `POST /api/v1/bot-engine/trigger-ce-download` -> **"Kích hoạt tải báo cáo CoreEX (CE) (RPA)"** [Phân hệ Thu thập RPA].
+       - `POST /api/v1/bot-engine/audit-ccp-backup` -> **"Kiểm tra & Audit tệp sao lưu CoreCCP"** [Phân hệ Giám sát Tệp tin].
+       - `POST /api/v1/bot-engine/trigger-ccp-download` -> **"Kích hoạt tải 25 báo cáo CoreCCP (RPA)"** [Phân hệ Thu thập RPA].
+       - `POST /api/v1/system-settings` -> **"Lưu cấu hình hệ thống chung"** [Phân hệ Quản trị Hệ thống] (tự động nhận diện cấu hình Bot, đường dẫn sao lưu...).
+       - `POST /api/v1/trading-ops/trigger-console-run`: Tự động trích xuất `jobType` / `type` từ payload để hiển thị đúng hành động nghiệp vụ cụ thể:
+         - `SCAN_NEGATIVE_MARGIN` -> **"Kích hoạt quét tài khoản ký quỹ âm (Post-EOD)"**.
+         - `CHECK_KLGD` -> **"Kích hoạt đối chiếu KLGD (MS vs CQG trong phiên)"**.
+         - `CHECK_PRE_EOD` -> **"Kích hoạt đối chiếu Pre-EOD 3 bên"**.
+         - `CHECK_EOD_CCP` -> **"Kích hoạt đối chiếu chốt sổ EOD CoreCCP"**.
+         - `CHECK_CQG_SYNC` -> **"Kích hoạt đồng bộ số dư & trạng thái CQG"**.
+         - `CCP_LOT_STATISTICS` -> **"Chạy thống kê khối lượng (Lot) CCP"**.
+         - `CCP_VALUE_STATISTICS` -> **"Chạy thống kê giá trị giao dịch CCP"**.
+     - Hàm `parseUserAgent()`: Phân giải chuỗi User Agent kỹ thuật thành tên trình duyệt (Microsoft Edge, Google Chrome, Firefox...) và hệ điều hành (Windows 10/11, macOS, Linux...).
+     - Hàm `formatIpAddress()`: Chuẩn hóa hiển thị IP `127.0.0.1 (Localhost / Reverse Proxy)`.
+     - Hàm `extractBusinessParameters()`: Dịch nghĩa toàn bộ tham số gửi lên (tác vụ, ngày phiên, cờ bypass cooldown, nguồn dữ liệu, danh sách báo cáo, người dùng, phòng ban, vai trò, tiêu đề sự cố...).
+
+2. [frontend/src/app/admin/activity-logs/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/activity-logs/page.tsx):
+   - Tích hợp `parseActivityLog` và loại bỏ toàn bộ logic mapping phỏng đoán cũ `getFriendlyAction`.
+   - **Cải tiến cột bảng hiển thị**:
+     - Cột **Hành động nghiệp vụ**: Hiển thị Badge Phân hệ riêng biệt (với màu sắc nhận diện đặc trưng) + Tên hành động tiếng Việt đậm nét, rõ ràng.
+     - Cột **Đường dẫn API (Kỹ thuật)**: Hiển thị endpoint dạng monospace gọn gàng + Badge Tag kỹ thuật nổi bật (ví dụ `Tag: SCAN_NEGATIVE_MARGIN`).
+     - Cột **Thời gian**: Tách hiển thị giờ phút giây và ngày tháng phân tầng trực quan.
+     - Cột **Địa chỉ IP**: Hiển thị IP đã chuẩn hóa sạch sẽ.
+   - **Nâng cấp khung Chi tiết mở rộng (Dual-View Panel)**:
+     - Header tóm tắt: Badge phân hệ + Tên hành động nghiệp vụ + Mô tả diễn giải tự nhiên.
+     - Bộ chuyển tab 2 chế độ:
+       - **Tab "Giao diện Nghiệp vụ" (Mặc định)**:
+         - Lưới thẻ tham số nghiệp vụ (Key-Value Cards Grid) trực quan với nhãn tiếng Việt rõ nghĩa và giá trị nổi bật.
+         - Thẻ kết quả xử lý từ máy chủ (`CheckCircle2`).
+         - Khối thẻ bối cảnh thực thi: Thiết bị & Trình duyệt (ví dụ `Microsoft Edge 155 trên Windows 10/11`) và Địa chỉ IP mạng.
+       - **Tab "Dữ liệu Kỹ thuật (Payload)"**:
+         - Nút **Sao chép JSON** một chạm kèm thông báo toast.
+         - Khối code `<pre>` định dạng JSON syntax highlight có nền tối và thanh cuộn mượt mà.
+         - Chuỗi User-Agent gốc nguyên bản.
+   - Tuân thủ 100% nguyên tắc Zero Unicode Emojis (dùng hoàn toàn SVG icons từ `lucide-react`: `Sliders`, `Code2`, `CheckCircle2`, `Copy`, `Laptop`, `Globe`).
+
+3. [backend/src/modules/activity-log/activity-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/activity-log/activity-log.controller.ts#L42-L61):
+   - Nâng cấp điều kiện truy vấn `actionQuery`: Thay vì chỉ lọc trên trường `action`, cập nhật logic MongoDB `$or` / `$and` để tìm kiếm đồng thời trên cả trường `action` và trường `details` payload.
+   - Cho phép người dùng tìm kiếm trực tiếp theo mã tác vụ kỹ thuật (như `SCAN_NEGATIVE_MARGIN`, `trigger-ce`, `bot_credentials`, tên người dùng, key cấu hình...) ngay trên thanh công cụ tìm kiếm.
+
+### 3. Kết quả Kiểm thử & Build
+- Frontend Build: `cmd.exe /c "npm run build"` (`next build`) -> **Exit code 0 (Success - 36 static/dynamic routes được tối ưu thành công)**.
+- Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success - Clean build)**.
+
+---
+
+## [2026-10-20T08:18] FEATURE UPDATE: Kích Hoạt Luồng Tải Tự Động Toàn Diện Cho CE-CCP Tương Đồng Với MS-CQG
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"giúp tôi check lại luồng tải tự động ở ce-cpp(vì bên ms-cqg đã tự động rồi) để cũng tự động tương tự"* và *"bạn đã cập nhật chưa"*.
+- Nâng cấp bộ điều phối lập lịch [scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/scheduler.service.ts) để phân hệ CoreCCP (VNCLEAR) và CoreEX (Giao dịch liên thông) được tự động tải đồng bộ 100% cùng nhịp với M-System và CQG.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/bot-engine/scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/scheduler.service.ts):
+   - **Cơ chế 1: Tải định kỳ tự động 24/7 (`handleAutonomousPeriodicBackupRun`)**:
+     - Bổ sung kiểm tra tránh xung đột với job `DOWNLOAD_CCP_REPORT` và `DOWNLOAD_CE_REPORT` đang chạy.
+     - Enqueue song song `DOWNLOAD_CCP_REPORT` (payload: `{ reports: ['FULL'] }`) và `DOWNLOAD_CE_REPORT` (payload: `{ reports: ['FULL'] }`) cùng chu kỳ định kỳ (mặc định mỗi 60 phút theo `bot_backup_periodic_minutes`), giúp thư mục backup ngày luôn tự động được nạp đầy đủ các báo cáo mới nhất mà không cần bấm thủ công.
+   - **Cơ chế 2: Tải theo mốc giờ đóng phiên hàng ngày (`checkSchedule`)**:
+     - Đồng bộ mốc giờ `bot_backup_time` (mặc định 04:00 theo DST/giờ đóng phiên) và cờ `bot_backup_time_enabled` cho cả 2 task CoreCCP (`RPA_DOWNLOAD_CCP_PHASE1`) và CoreEX (`RPA_DOWNLOAD_CE`).
+     - Tự động gán payload `reports: ['FULL']` để khi đến giờ chốt phiên, bot tự động kích hoạt Full Backup 19 báo cáo CoreCCP + hợp đồng hàng hóa và 12 báo cáo CoreEX liên thông.
+   - **Cập nhật Seed cấu hình mặc định (`seedDefaultConfig`)**:
+     - Bật `enabled: true` và gán `reports: ['FULL']` cho cả `RPA_DOWNLOAD_CCP_PHASE1` và `RPA_DOWNLOAD_CE`.
+2. [scratch/sync_and_deploy_path_config.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/scratch/sync_and_deploy_path_config.py):
+   - Bổ sung `backend/src/modules/bot-engine/scheduler.service.ts` vào danh sách `files_to_sync` phục vụ đồng bộ triển khai lên Ubuntu server `10.0.0.26`.
+
+### 3. Kết quả Kiểm thử & Build
+- Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success - 0 errors)**.
+- Frontend Build: `cmd.exe /c "npx tsc --noEmit"` -> **Exit code 0 (Success - 0 errors)**.
+
+---
+
 ## [2026-10-19T19:06] FEATURE ADDITION: Bổ Sung Component Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) Dưới Khung Pre-EOD Ở Cả 2 Trang ms-cqg và ccp-ce
 
 ### 1. Mục tiêu thay đổi

@@ -14,11 +14,19 @@ files_to_sync = [
     'frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx',
     'frontend/src/components/admin/SmartPathInput.tsx',
     
-    # Backend - Helpers đường dẫn & Logic cấu hình
+    # Backend - Helpers đường dẫn & Logic cấu hình & Scheduler
     'backend/src/modules/bot-engine/helpers/bot-path.helper.ts',
     'backend/src/shared/helpers/file-path.helper.ts',
     'backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts',
     'backend/src/modules/trading-ops/services/ccp-accumulator.service.ts',
+    'backend/src/modules/bot-engine/scheduler.service.ts',
+    'backend/src/modules/bot-engine/handlers/file-audit.handler.ts',
+    'backend/src/modules/activity-log/activity-log.controller.ts',
+
+    # Activity Logs Presentation & Mapper
+    'frontend/src/utils/activity-log-mapper.ts',
+    'frontend/src/app/admin/activity-logs/page.tsx',
+    
     'CHANGELOG_AI.md',
 ]
 

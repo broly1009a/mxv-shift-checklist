@@ -40,13 +40,25 @@ export class ActivityLogController {
     }
 
     if (methodQuery && methodQuery !== 'ALL') {
+      const methodRegex = new RegExp('^' + methodQuery, 'i');
       if (actionQuery) {
-        query.action = { $regex: new RegExp('^' + methodQuery + '.*' + actionQuery, 'i') };
+        query.$and = [
+          { action: { $regex: methodRegex } },
+          {
+            $or: [
+              { action: { $regex: new RegExp(actionQuery, 'i') } },
+              { details: { $regex: new RegExp(actionQuery, 'i') } },
+            ],
+          },
+        ];
       } else {
-        query.action = { $regex: new RegExp('^' + methodQuery, 'i') };
+        query.action = { $regex: methodRegex };
       }
     } else if (actionQuery) {
-      query.action = { $regex: new RegExp(actionQuery, 'i') };
+      query.$or = [
+        { action: { $regex: new RegExp(actionQuery, 'i') } },
+        { details: { $regex: new RegExp(actionQuery, 'i') } },
+      ];
     }
 
     if (startDateQuery || endDateQuery) {

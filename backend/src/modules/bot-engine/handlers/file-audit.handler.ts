@@ -958,12 +958,67 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       `Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`,
     );
 
+    const requestedReports: string[] | undefined =
+      Array.isArray(payload.reports) && payload.reports.length > 0
+        ? payload.reports.map((r: any) => String(r).toUpperCase().trim())
+        : undefined;
+
+    const isWebRequested =
+      !requestedReports ||
+      requestedReports.some((r) =>
+        ['ORDER', 'FILL', 'TRADE', 'WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(r),
+      );
+
+    const isSftpRequested =
+      !requestedReports ||
+      requestedReports.some((r) =>
+        ['SFTP', 'SFTP_CSV', 'SFTP_XLS', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(r),
+      );
+
     const scanResults = await this.scanAcmBackupFiles(dailyPath, targetDate);
-    const missingOrOutdated = scanResults.filter((r) => r.status !== 'OK');
+
+    // Chỉ lọc các file thiếu/cũ mà người dùng hoặc hệ thống THỰC SỰ YÊU CẦU
+    const missingOrOutdated = scanResults.filter((r) => {
+      if (r.status === 'OK') return false;
+      if (r.key === 'ORDER') {
+        return (
+          isWebRequested &&
+          (!requestedReports ||
+            requestedReports.includes('ORDER') ||
+            requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x)))
+        );
+      }
+      if (r.key === 'FILL') {
+        return (
+          isWebRequested &&
+          (!requestedReports ||
+            requestedReports.includes('FILL') ||
+            requestedReports.includes('TRADE') ||
+            requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x)))
+        );
+      }
+      if (r.key === 'SFTP_CSV') {
+        return (
+          isSftpRequested &&
+          (!requestedReports ||
+            requestedReports.includes('SFTP_CSV') ||
+            requestedReports.some((x) => ['SFTP', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(x)))
+        );
+      }
+      if (r.key === 'SFTP_XLS') {
+        return (
+          isSftpRequested &&
+          (!requestedReports ||
+            requestedReports.includes('SFTP_XLS') ||
+            requestedReports.some((x) => ['SFTP', 'FULL', 'ALL', 'BACKUP'].includes(x)))
+        );
+      }
+      return false;
+    });
 
     if (missingOrOutdated.length === 0) {
       await logAndSave(
-        ` Tất cả báo cáo ACM (Web & SFTP) đã đầy đủ. Không cần tải thêm.`,
+        ` Tất cả báo cáo ACM theo yêu cầu [${requestedReports ? requestedReports.join(', ') : 'Web & SFTP'}] đã đầy đủ. Không cần tải thêm.`,
       );
       return;
     }
@@ -974,39 +1029,48 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       process.env.INGRESS_MODE_ACM || globalMode,
     );
 
-    const webMissing = missingOrOutdated.some(
+    const webMissing = isWebRequested && missingOrOutdated.some(
       (r) => r.key === 'ORDER' || r.key === 'FILL',
     );
     if (webMissing) {
       let apiDownloaded = false;
 
+      const webReportCodes: string[] = [];
+      if (!requestedReports || requestedReports.includes('ORDER') || requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x))) {
+        webReportCodes.push('ORDER');
+      }
+      if (!requestedReports || requestedReports.includes('FILL') || requestedReports.includes('TRADE') || requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x))) {
+        webReportCodes.push('FILL');
+      }
+      const finalWebReportCodes = webReportCodes.length > 0 ? webReportCodes : ['ORDER', 'FILL'];
+
       // ── PHÂN NHÁNH 1: TẢI TRỰC TIẾP QUA REST API (KHÔNG MỞ CHROMIUM) ─────────
       if (ingressModeAcm === 'REST_API' && (this.acmEtpAdapter || this.ingressService)) {
         await logAndSave(
-          `[ACM Direct API] Kích hoạt tải Order & Fill qua Direct REST API (Cờ ingress_mode_acm=REST_API, Không mở Chromium)...`,
+          `[ACM Direct API] Kích hoạt tải ${finalWebReportCodes.join(' & ')} qua Direct REST API (Cờ ingress_mode_acm=REST_API, Không mở Chromium)...`,
         );
         try {
           if (this.acmEtpAdapter) {
             await this.acmEtpAdapter.download('ACM', {
               targetDirectory: dailyPath,
               targetDate: targetDate.toISOString(),
-              reportCodes: ['ORDER', 'FILL'],
+              reportCodes: finalWebReportCodes,
             });
           } else if (this.ingressService) {
             await this.ingressService.download('ACM', {
               targetDirectory: dailyPath,
               targetDate: targetDate.toISOString(),
-              reportCodes: ['ORDER', 'FILL'],
+              reportCodes: finalWebReportCodes,
             });
           }
 
           const intermediateScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
           const webOkAfterApi = intermediateScan
-            .filter((r) => r.key === 'ORDER' || r.key === 'FILL')
+            .filter((r) => finalWebReportCodes.includes(r.key))
             .every((r) => r.status === 'OK');
           if (webOkAfterApi) {
             apiDownloaded = true;
-            await logAndSave(`[ACM Direct API] Hoàn tất tải báo cáo Web (Order/Fill) qua Direct REST API.`);
+            await logAndSave(`[ACM Direct API] Hoàn tất tải báo cáo Web (${finalWebReportCodes.join('/')}) qua Direct REST API.`);
           }
         } catch (apiErr: any) {
           await logAndSave(`[ACM Direct API] Gọi Direct REST API gặp lỗi: ${apiErr.message}. Fallback sang Playwright...`);
@@ -1016,7 +1080,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       // ── PHÂN NHÁNH 2: PLAYWRIGHT CHROMIUM (CHỈ CHẠY KHI KHÔNG DÙNG REST_API HOẶC REST_API LỖI) ──
       if (!apiDownloaded) {
         await logAndSave(
-          ` Thiếu báo cáo Web (Order/Fill). Đang tiến hành đăng nhập Playwright và tải bổ sung...`,
+          ` Thiếu báo cáo Web (${finalWebReportCodes.join('/')}). Đang tiến hành đăng nhập Playwright và tải bổ sung...`,
         );
 
         const getCaptchaFromUI = (base64Img: string): Promise<string> => {
@@ -1068,7 +1132,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     }
 
     // ── PHÂN NHÁNH 3: ĐỒNG BỘ SFTP ĐỘC LẬP ──────────────────────────────────
-    const sftpMissing = missingOrOutdated.some(
+    const sftpMissing = isSftpRequested && missingOrOutdated.some(
       (r) => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS',
     );
     if (sftpMissing) {
@@ -1089,18 +1153,31 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
 
     // ── PHÂN NHÁNH 4: THẨM ĐỊNH KẾT QUẢ & XỬ LÝ ĐỘC LẬP (WEB API VS SFTP) ────
     const finalScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
-    const webReportsOk = finalScan
-      .filter((r) => r.key === 'ORDER' || r.key === 'FILL')
+    const webReportsOk = !isWebRequested || finalScan
+      .filter((r) => {
+        if (r.key !== 'ORDER' && r.key !== 'FILL') return false;
+        if (!requestedReports) return true;
+        if (r.key === 'ORDER') return requestedReports.includes('ORDER') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
+        if (r.key === 'FILL') return requestedReports.includes('FILL') || requestedReports.includes('TRADE') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
+        return false;
+      })
       .every((r) => r.status === 'OK');
-    const sftpOk = finalScan
-      .filter((r) => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS')
+
+    const sftpOk = !isSftpRequested || finalScan
+      .filter((r) => {
+        if (r.key !== 'SFTP_CSV' && r.key !== 'SFTP_XLS') return false;
+        if (!requestedReports) return true;
+        if (r.key === 'SFTP_CSV') return requestedReports.includes('SFTP_CSV') || requestedReports.some(x => ['SFTP', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(x));
+        if (r.key === 'SFTP_XLS') return requestedReports.includes('SFTP_XLS') || requestedReports.some(x => ['SFTP', 'FULL', 'ALL', 'BACKUP'].includes(x));
+        return false;
+      })
       .every((r) => r.status === 'OK');
 
     const currentPayload = parseJobPayload(job);
     job.payload = {
       ...currentPayload,
       result: {
-        isWaitingFiles: !webReportsOk,
+        isWaitingFiles: isWebRequested ? !webReportsOk : false,
         scanResults: finalScan,
         webReportsOk,
         sftpOk,
@@ -1113,9 +1190,14 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     // NGUYÊN TẮC NGHIỆP VỤ: SFTP và Call API ACM ETP là hoàn toàn độc lập.
     // Nếu báo cáo Web (Order.xlsx & Fill.xlsx) đã đầy đủ -> Job BÁO THÀNH CÔNG 100%.
     // Nếu không tải được SFTP -> Chỉ ghi cảnh báo lỗi cho SFTP, không làm thất bại Job ca trực.
-    if (!webReportsOk) {
+    if (isWebRequested && !webReportsOk) {
       const missingWeb = finalScan
-        .filter((r) => (r.key === 'ORDER' || r.key === 'FILL') && r.status !== 'OK')
+        .filter((r) => {
+          if (r.status === 'OK') return false;
+          if (r.key === 'ORDER') return !requestedReports || requestedReports.includes('ORDER') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
+          if (r.key === 'FILL') return !requestedReports || requestedReports.includes('FILL') || requestedReports.includes('TRADE') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
+          return false;
+        })
         .map((r) => `${r.key} (${r.filename})`)
         .join(', ');
       throw new Error(
@@ -1123,16 +1205,21 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       );
     }
 
-    if (!sftpOk) {
+    if (isSftpRequested && !sftpOk) {
       const missingSftp = finalScan
-        .filter((r) => (r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS') && r.status !== 'OK')
+        .filter((r) => {
+          if (r.status === 'OK') return false;
+          if (r.key === 'SFTP_CSV') return !requestedReports || requestedReports.includes('SFTP_CSV') || requestedReports.some(x => ['SFTP', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(x));
+          if (r.key === 'SFTP_XLS') return !requestedReports || requestedReports.includes('SFTP_XLS') || requestedReports.some(x => ['SFTP', 'FULL', 'ALL', 'BACKUP'].includes(x));
+          return false;
+        })
         .map((r) => `${r.key} (${r.filename})`)
         .join(', ');
       await logAndSave(
         `[Cảnh báo SFTP] Báo cáo Web ETP đã đầy đủ (Job Hoàn Tất Thành Công), nhưng chưa có đủ file SFTP [${missingSftp}]. Ca trực có thể đồng bộ bổ sung file SFTP sau khi sàn chốt phiên.`,
       );
     } else {
-      await logAndSave(`Toàn bộ báo cáo ACM (Web & SFTP) đã đồng bộ đầy đủ.`);
+      await logAndSave(`Toàn bộ báo cáo ACM theo yêu cầu [${requestedReports ? requestedReports.join(', ') : 'Web & SFTP'}] đã đồng bộ đầy đủ.`);
     }
   }
 }
