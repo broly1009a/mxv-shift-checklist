@@ -633,7 +633,7 @@ export class ShiftsService {
     if (isChecked && !isInternal) {
       const AUDIT_JOB_TYPES = [
         'CHECK_KLGD',
-        'CHECK_PRE_EOD',
+        'CHECK_DSGD_BEFORE_EOD',
         'CHECK_EOD_MM',
         'FILE_AUDIT_ACM',
         'FILE_AUDIT_CQG',

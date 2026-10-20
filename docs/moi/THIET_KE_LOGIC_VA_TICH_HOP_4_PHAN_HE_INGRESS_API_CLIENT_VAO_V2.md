@@ -165,26 +165,26 @@ sequenceDiagram
 
 ### 2.3. Danh mục 18 Endpoint REST API đã giải mã chính xác 100%
 
-| STT | Mã Nghiệp Vụ         | Tên Báo Cáo Ca Trực       | Endpoint REST API Chính Xác                                                       | Dung Lượng File Thật | Phục Vụ Cho Worker V2  |
-| :-: | :------------------- | :------------------------ | :-------------------------------------------------------------------------------- | :------------------: | :--------------------- |
-|  1  | **`TTM`**            | Trạng thái mở (Vị thế mở) | `GET /position/admin/open/excel`                                                  |     **169.0 KB**     | `PreEodReconWorker`    |
-|  2  | **`TTTT`**           | Trạng thái tất toán       | `GET /position/admin/settle/excel`                                                |     **860.0 KB**     | `PreEodReconWorker`    |
-|  3  | **`TTCDH`**          | Tất toán chờ đáo hạn LME  | `GET /position/admin/settleLME/excel`                                             |      **6.0 KB**      | `PreEodReconWorker`    |
-|  4  | **`DSLDK`**          | Sổ lệnh: Đã khớp          | `GET /order/admin/list/excel?status%5Bin%5D=PARTIALLY_FILLED,FILLED`              |     **10.3 KB**      | `KlgdReconWorker`      |
-|  5  | **`DSLCK`**          | Sổ lệnh: Chờ khớp         | `GET /order/admin/list/excel?status%5Bin%5D=WORKING`                              |     **86.8 KB**      | `KlgdReconWorker`      |
-|  6  | **`DSLH`**           | Sổ lệnh: Đã hủy           | `GET /order/admin/list/excel?status%5Bin%5D=CANCELLED`                            |      **6.0 KB**      | `KlgdReconWorker`      |
-|  7  | **`DSGD`**           | Danh sách giao dịch khớp  | `GET /transaction/admin/list/excel`                                               |      **8.7 KB**      | `KlgdReconWorker`      |
-|  8  | **`QLTKGD`**         | Quản lý trạng thái TKGD   | `GET /margin/admin/status/excel`                                                  |     **2.72 MB**      | `NegativeMarginWorker` |
-|  9  | **`QLTKGD âm`**      | Quản lý TKGD âm ký quỹ    | `GET /margin/admin/status/negative/excel`                                         |      **9.0 KB**      | `NegativeMarginWorker` |
-| 10  | **`DSQLKQ`**         | Quản lý ký quỹ TVKD/NĐT   | `GET /margin/admin/list/excel?limit=20&offset=0`                                  |     **214.6 KB**     | `TradingOpsWorker`     |
-| 11  | **`DSTKGD-Futures`** | Danh sách TKGD Futures    | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=NULL`                      |     **1.75 MB**      | `TkgdSyncWorker`       |
-| 12  | **`DSTKGD-Spread`**  | Danh sách TKGD Spread     | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=S`                         |      **8.5 KB**      | `TkgdSyncWorker`       |
-| 13  | **`DSTKGD-LME`**     | Danh sách TKGD LME        | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=LME`                       |      **3.4 KB**      | `TkgdSyncWorker`       |
-| 14  | **`DSTKGD-ACM`**     | Danh sách TKGD ACM        | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=ACM`                       |      **3.4 KB**      | `TkgdSyncWorker`       |
-| 15  | **`TLQHSKQ`**        | Thiết lập quan hệ số KQ   | `GET /am/admin/margin-ratio-multiplier/investors/excel?sort_by=desc(createdDate)` |     **1.84 MB**      | `MarginRatioWorker`    |
-| 16  | **`NR`**             | Lịch sử nộp rút tiền      | `GET /am/admin/investors/marginTransactionHistory/excel`                          |      **3.5 KB**      | `CashFlowWorker`       |
-| 17  | **`DSTrader`**       | Danh sách Trader          | `GET /am/admin/traders/excel?sort_by=desc(createdDate)`                           |     **12.8 KB**      | `TkgdSyncWorker`       |
-| 18  | **`NKTTHT`**         | Nhật ký thao tác hệ thống | `GET /approval/admin/activities/excel?sort_by=desc(datetime)`                     |      **8.8 KB**      | `AuditLogWorker`       |
+| STT | Mã Nghiệp Vụ         | Tên Báo Cáo Ca Trực       | Endpoint REST API Chính Xác                                                       | Dung Lượng File Thật | Phục Vụ Cho Worker V2      |
+| :-: | :------------------- | :------------------------ | :-------------------------------------------------------------------------------- | :------------------: | :------------------------- |
+|  1  | **`TTM`**            | Trạng thái mở (Vị thế mở) | `GET /position/admin/open/excel`                                                  |     **169.0 KB**     | `DsgdBeforeEodReconWorker` |
+|  2  | **`TTTT`**           | Trạng thái tất toán       | `GET /position/admin/settle/excel`                                                |     **860.0 KB**     | `DsgdBeforeEodReconWorker` |
+|  3  | **`TTCDH`**          | Tất toán chờ đáo hạn LME  | `GET /position/admin/settleLME/excel`                                             |      **6.0 KB**      | `DsgdBeforeEodReconWorker` |
+|  4  | **`DSLDK`**          | Sổ lệnh: Đã khớp          | `GET /order/admin/list/excel?status%5Bin%5D=PARTIALLY_FILLED,FILLED`              |     **10.3 KB**      | `KlgdReconWorker`          |
+|  5  | **`DSLCK`**          | Sổ lệnh: Chờ khớp         | `GET /order/admin/list/excel?status%5Bin%5D=WORKING`                              |     **86.8 KB**      | `KlgdReconWorker`          |
+|  6  | **`DSLH`**           | Sổ lệnh: Đã hủy           | `GET /order/admin/list/excel?status%5Bin%5D=CANCELLED`                            |      **6.0 KB**      | `KlgdReconWorker`          |
+|  7  | **`DSGD`**           | Danh sách giao dịch khớp  | `GET /transaction/admin/list/excel`                                               |      **8.7 KB**      | `KlgdReconWorker`          |
+|  8  | **`QLTKGD`**         | Quản lý trạng thái TKGD   | `GET /margin/admin/status/excel`                                                  |     **2.72 MB**      | `NegativeMarginWorker`     |
+|  9  | **`QLTKGD âm`**      | Quản lý TKGD âm ký quỹ    | `GET /margin/admin/status/negative/excel`                                         |      **9.0 KB**      | `NegativeMarginWorker`     |
+| 10  | **`DSQLKQ`**         | Quản lý ký quỹ TVKD/NĐT   | `GET /margin/admin/list/excel?limit=20&offset=0`                                  |     **214.6 KB**     | `TradingOpsWorker`         |
+| 11  | **`DSTKGD-Futures`** | Danh sách TKGD Futures    | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=NULL`                      |     **1.75 MB**      | `TkgdSyncWorker`           |
+| 12  | **`DSTKGD-Spread`**  | Danh sách TKGD Spread     | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=S`                         |      **8.5 KB**      | `TkgdSyncWorker`           |
+| 13  | **`DSTKGD-LME`**     | Danh sách TKGD LME        | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=LME`                       |      **3.4 KB**      | `TkgdSyncWorker`           |
+| 14  | **`DSTKGD-ACM`**     | Danh sách TKGD ACM        | `GET /am/admin/investors/excel?subInvestorType%5Beq%5D=ACM`                       |      **3.4 KB**      | `TkgdSyncWorker`           |
+| 15  | **`TLQHSKQ`**        | Thiết lập quan hệ số KQ   | `GET /am/admin/margin-ratio-multiplier/investors/excel?sort_by=desc(createdDate)` |     **1.84 MB**      | `MarginRatioWorker`        |
+| 16  | **`NR`**             | Lịch sử nộp rút tiền      | `GET /am/admin/investors/marginTransactionHistory/excel`                          |      **3.5 KB**      | `CashFlowWorker`           |
+| 17  | **`DSTrader`**       | Danh sách Trader          | `GET /am/admin/traders/excel?sort_by=desc(createdDate)`                           |     **12.8 KB**      | `TkgdSyncWorker`           |
+| 18  | **`NKTTHT`**         | Nhật ký thao tác hệ thống | `GET /approval/admin/activities/excel?sort_by=desc(datetime)`                     |      **8.8 KB**      | `AuditLogWorker`           |
 
 ### 2.4. Điểm mấu chốt kỹ thuật (Critical Gotcha)
 
@@ -467,7 +467,7 @@ flowchart LR
 
     subgraph TradingOps [Tầng Nghiệp Vụ trading-ops]
         W_KLGD[KlgdReconWorker<br/>Đối chiếu trong phiên]
-        W_PRE_EOD[PreEodReconWorker<br/>Đối chiếu 3 bên cuối ngày]
+        W_DSGD_BEFORE_EOD[DsgdBeforeEodReconWorker<br/>Đối chiếu 3 bên cuối ngày]
         W_MARGIN[NegativeMarginWorker<br/>Quét ký quỹ âm]
     end
 
@@ -480,9 +480,9 @@ flowchart LR
     MS -->|DSLDK, DSLCK, DSLH, DSGD| W_KLGD
     CQG -->|FR.xlsx, Od.xlsx| W_KLGD
 
-    MS -->|TTM, TTTT, DSLDK| W_PRE_EOD
-    CQG -->|PS.xlsx, OP.xlsx, FR.xlsx| W_PRE_EOD
-    ACM -->|Straits CSV / Orders ETP| W_PRE_EOD
+    MS -->|TTM, TTTT, DSLDK| W_DSGD_BEFORE_EOD
+    CQG -->|PS.xlsx, OP.xlsx, FR.xlsx| W_DSGD_BEFORE_EOD
+    ACM -->|Straits CSV / Orders ETP| W_DSGD_BEFORE_EOD
 
     MS -->|QLTKGD, QLTKGD âm KQ| W_MARGIN
 
@@ -499,7 +499,7 @@ flowchart LR
    - Nhận 4 file từ `MsApiAdapter`: `DSLDK` (Khớp), `DSLCK` (Chờ khớp), `DSLH` (Hủy), `DSGD` (Giao dịch).
    - Nhận 2 file từ `cqg-merger.service`: `FR.xlsx` (Khớp lệnh CQG), `Od.xlsx` (Sổ lệnh CQG).
    - Thực hiện so khớp số lệnh, khối lượng và trạng thái lệnh theo từng tài khoản giao dịch trong phiên.
-2. **`PreEodReconWorker` (`trading-ops`)**:
+2. **`DsgdBeforeEodReconWorker` (`trading-ops`)**:
    - Nhận 3 file từ `MsApiAdapter`: `TTM` (Trạng thái mở), `TTTT` (Tất toán), `DSLDK` (Khớp).
    - Nhận 3 file từ `cqg-merger.service`: `PS.xlsx` (Vị thế ròng), `OP.xlsx` (Trạng thái mở CQG), `FR.xlsx`.
    - Nhận file Straits CSV từ ACM qua `AcmApiAdapter`.
@@ -565,7 +565,7 @@ Kế hoạch tích hợp được chia nhỏ thành 4 Atomic Tasks đảm bảo 
   └── Hoàn thiện CoreExApiAdapter (kết nối CoreExchangeClient)
 
 [TASK 3] Đấu nối Ingress Gateway vào Workers V2
-  ├── Đấu nối KlgdReconWorker & PreEodReconWorker nhận file từ MsApiAdapter
+  ├── Đấu nối KlgdReconWorker & DsgdBeforeEodReconWorker nhận file từ MsApiAdapter
   ├── Đấu nối CcpLotWorker & CcpValueWorker nhận file từ CoreCcpApiAdapter
   └── Đấu nối CeCcpGttWorker nhận file từ CoreExApiAdapter & CoreCcpApiAdapter
 

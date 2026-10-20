@@ -38,7 +38,7 @@ async function testAllEmails() {
     htmlBody: string,
   ) => {
     let key = 'unknown';
-    if (subject.includes('PRE-EOD')) key = 'pre-eod';
+    if (subject.includes('PRE-EOD')) key = 'dsgd-before-eod';
     else if (subject.includes('EOD BALANCE') || subject.includes('SOD'))
       key = 'eod-balance';
     else if (subject.includes('Negative Margin')) key = 'negative-margin';
@@ -75,9 +75,9 @@ async function testAllEmails() {
   };
 
   // ==========================================
-  // 1. Test Pre-EOD Report
+  // 1. Test Dsgd-Before-EOD Report
   // ==========================================
-  console.log('\n--- 1. Testing Pre-EOD Email Report ---');
+  console.log('\n--- 1. Testing Dsgd-Before-EOD Email Report ---');
   try {
     const passed = false;
     const totals = {
@@ -109,7 +109,7 @@ async function testAllEmails() {
       },
     ];
 
-    const html = reconciliationService['buildPreEodEmailHtml'](
+    const html = reconciliationService['buildDsgdBeforeEodEmailHtml'](
       passed,
       totals,
       mismatchedTrades,
@@ -117,12 +117,12 @@ async function testAllEmails() {
     );
     await marginCheckerService.sendEmailNotification(
       await marginCheckerService.loadConfig(),
-      ['test-preeod@mxv.vn'],
+      ['test-dsgdbeforeeod@mxv.vn'],
       '[MXV PRE-EOD CHECK] Báo cáo đối chiếu Khối lượng & Vị thế cuối ngày - LỆCH',
       html,
     );
   } catch (err: any) {
-    console.error('Lỗi test Pre-EOD:', err.message);
+    console.error('Lỗi test Dsgd-Before-EOD:', err.message);
   }
 
   // ==========================================

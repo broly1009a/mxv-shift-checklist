@@ -124,11 +124,11 @@ export class SchedulerService implements OnModuleInit {
           payload: { reports: ['FULL'] },
         },
         {
-          id: 'CHECK_PRE_EOD',
-          name: 'Kiểm tra tiền EOD (Pre-EOD Check)',
+          id: 'CHECK_DSGD_BEFORE_EOD',
+          name: 'Đối chiếu DSGD trước EOD',
           enabled: false,
           time: '16:30',
-          jobType: 'CHECK_PRE_EOD',
+          jobType: 'CHECK_DSGD_BEFORE_EOD',
         },
         {
           id: 'CHECK_EOD_MM',
@@ -272,13 +272,13 @@ export class SchedulerService implements OnModuleInit {
             updated = true;
           }
 
-          if (!tasks.some((t) => t.id === 'CHECK_PRE_EOD')) {
+          if (!tasks.some((t) => t.id === 'CHECK_DSGD_BEFORE_EOD')) {
             tasks.push({
-              id: 'CHECK_PRE_EOD',
-              name: 'Kiểm tra tiền EOD (Pre-EOD Check)',
+              id: 'CHECK_DSGD_BEFORE_EOD',
+              name: 'Kiểm tra tiền EOD (Dsgd-Before-EOD Check)',
               enabled: false,
               time: '16:30',
-              jobType: 'CHECK_PRE_EOD',
+              jobType: 'CHECK_DSGD_BEFORE_EOD',
             });
             updated = true;
           }

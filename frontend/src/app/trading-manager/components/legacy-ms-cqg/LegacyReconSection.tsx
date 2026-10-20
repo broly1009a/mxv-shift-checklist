@@ -32,7 +32,7 @@ import {
 import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { ReconLogSummaryModal } from './ReconLogSummaryModal';
-import LegacyPreEodDiffSection from './LegacyPreEodDiffSection';
+import LegacyDsgdBeforeEodDiffSection from './LegacyDsgdBeforeEodDiffSection';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
 import DsgdBeforeEodSection from '../shared/DsgdBeforeEodSection';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
@@ -88,7 +88,7 @@ export default function LegacyReconSection({
   }, [selectedRunJobId]);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
   const [showLogModal, setShowLogModal] = useState<boolean>(false);
-  const [preEodLogModalOpen, setPreEodLogModalOpen] = useState<boolean>(false);
+  const [dsgdBeforeEodLogModalOpen, setDsgdBeforeEodLogModalOpen] = useState<boolean>(false);
   const [showSummaryLogModal, setShowSummaryLogModal] = useState<boolean>(false);
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
@@ -232,7 +232,7 @@ export default function LegacyReconSection({
   // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
   const serverRuns = summaryData?.runs || [];
   const runs = useMemo(() => {
-    // Defense-in-depth: Đảm bảo chỉ lấy các lượt check Trong phiên (CHECK_KLGD), tuyệt đối loại trừ CHECK_PRE_EOD
+    // Defense-in-depth: Đảm bảo chỉ lấy các lượt check Trong phiên (CHECK_KLGD), tuyệt đối loại trừ CHECK_DSGD_BEFORE_EOD
     const klgdRuns = (serverRuns || []).filter((r: any) => !r.jobType || r.jobType === 'CHECK_KLGD');
     if (klgdRuns && klgdRuns.length > 0) return klgdRuns;
     // Fallback: nếu server chưa kịp trả về danh sách runs nhưng đã có lượt check hiển thị
@@ -393,13 +393,13 @@ export default function LegacyReconSection({
             if (mismatchCQG > 0) parts.push(`${mismatchCQG} TK lệch số dư CQG`);
             toast.error(`Hoàn tất EOD: Phát hiện ${parts.join(', ')}!`, { duration: 6000 });
           }
-        } else if (jobType === 'CHECK_PRE_EOD') {
+        } else if (jobType === 'CHECK_DSGD_BEFORE_EOD') {
           const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
           const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
           if (misTrades === 0 && misPos === 0) {
-            toast.success('Đối chiếu Pre-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
+            toast.success('Đối chiếu Dsgd-Before-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
           } else {
-            toast.error(`Đối chiếu Pre-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
+            toast.error(`Đối chiếu Dsgd-Before-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
           }
         } else if (jobType === 'CHECK_EOD_CCP') {
           const totalMis = payloadResult?.mismatchedEOD?.length || 0;
@@ -601,7 +601,7 @@ export default function LegacyReconSection({
 
     if (!targetJobId) {
       try {
-        const jobs = await api.checklistHub.getJobs({ jobTypes: 'CHECK_KLGD,CHECK_PRE_EOD' }, token);
+        const jobs = await api.checklistHub.getJobs({ jobTypes: 'CHECK_KLGD,CHECK_DSGD_BEFORE_EOD' }, token);
         const activeJob = Array.isArray(jobs)
           ? jobs.find((j: any) => j.status === 'PROCESSING' || j.status === 'PENDING')
           : null;
@@ -782,7 +782,7 @@ export default function LegacyReconSection({
 
   // Trạng thái đã thực thi phiên kiểm tra cho từng khối con (tránh hiển thị kết quả giả định / kết quả cũ)
   const hasExecutedMargin = !!(summaryData?.negativeMargin?.executedAt && summaryData?.negativeMargin?.status !== 'IDLE');
-  const eodData = summaryData?.eod || (summaryData?.preEod?.jobType === 'CHECK_EOD_MM' ? summaryData?.preEod : null);
+  const eodData = summaryData?.eod || (summaryData?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MM' ? summaryData?.dsgdBeforeEod : null);
   const hasExecutedEod = !!(eodData?.executedAt && eodData?.status !== 'IDLE');
   const hasExecutedCqgSync = !!(summaryData?.cqgSync?.executedAt && summaryData?.cqgSync?.status !== 'IDLE');
 
@@ -2317,11 +2317,11 @@ export default function LegacyReconSection({
             </div>
 
             {/* KHUNG CHI TIẾT ĐỐI CHIẾU PRE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM) */}
-            <LegacyPreEodDiffSection
-              preEodData={summaryData?.preEod}
-              onTriggerCheck={() => handleTriggerRun('CHECK_PRE_EOD', 'pre-eod-diff')}
-              triggering={triggering && triggeringSection === 'pre-eod-diff'}
-              onOpenLogs={() => setPreEodLogModalOpen(true)}
+            <LegacyDsgdBeforeEodDiffSection
+              dsgdBeforeEodData={summaryData?.dsgdBeforeEod}
+              onTriggerCheck={() => handleTriggerRun('CHECK_DSGD_BEFORE_EOD', 'dsgd-before-eod-diff')}
+              triggering={triggering && triggeringSection === 'dsgd-before-eod-diff'}
+              onOpenLogs={() => setDsgdBeforeEodLogModalOpen(true)}
             />
 
             {/* KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD: MS GỐC VS SNAPSHOT & ACM STRAITS) */}
@@ -2360,14 +2360,14 @@ export default function LegacyReconSection({
       />
 
       <TradingManagerLogModal
-        isOpen={preEodLogModalOpen}
-        onClose={() => setPreEodLogModalOpen(false)}
-        jobId={summaryData?.preEod?.jobId}
-        status={summaryData?.preEod?.status || 'COMPLETED'}
-        logs={summaryData?.preEod?.logs || []}
+        isOpen={dsgdBeforeEodLogModalOpen}
+        onClose={() => setDsgdBeforeEodLogModalOpen(false)}
+        jobId={summaryData?.dsgdBeforeEod?.jobId}
+        status={summaryData?.dsgdBeforeEod?.status || 'COMPLETED'}
+        logs={summaryData?.dsgdBeforeEod?.logs || []}
         onRetry={() => {
-          setPreEodLogModalOpen(false);
-          handleTriggerRun('CHECK_PRE_EOD', 'pre-eod-diff');
+          setDsgdBeforeEodLogModalOpen(false);
+          handleTriggerRun('CHECK_DSGD_BEFORE_EOD', 'dsgd-before-eod-diff');
         }}
         isRetrying={triggering}
       />

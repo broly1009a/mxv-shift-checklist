@@ -246,7 +246,7 @@ export default function GuidePage() {
                       <FileCheck size={18} color="var(--color-accent)" />
                     </div>
                     <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                      Đối chiếu Pre-EOD (Cuối ngày T-1)
+                      Đối chiếu Dsgd-Before-EOD (Cuối ngày T-1)
                     </h3>
                   </div>
                   <ul style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', paddingLeft: '20px', lineHeight: 1.7, margin: 0 }}>

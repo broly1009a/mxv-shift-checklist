@@ -705,7 +705,7 @@ export class BotEngineService {
             }
           } else if (
             checkType === 'CHECK_KLGD' ||
-            checkType === 'CHECK_PRE_EOD'
+            checkType === 'CHECK_DSGD_BEFORE_EOD'
           ) {
             // Cơ chế Link-to-Latest cho CHECK_KLGD: Kế thừa kết quả chạy độc lập của Trading Manager nếu có job hoàn tất gần đây
             if (checkType === 'CHECK_KLGD') {
@@ -788,7 +788,7 @@ export class BotEngineService {
 
             if (shouldEnqueueNewJob) {
               const targetJobType =
-                checkType === 'CHECK_KLGD' ? 'CHECK_KLGD' : 'CHECK_PRE_EOD';
+                checkType === 'CHECK_KLGD' ? 'CHECK_KLGD' : 'CHECK_DSGD_BEFORE_EOD';
               await this.botJobQueueService.enqueue(targetJobType, {
                 taskId: task.taskId,
                 shiftLogId: log._id.toString(),

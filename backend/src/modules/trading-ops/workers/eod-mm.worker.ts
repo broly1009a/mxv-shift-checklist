@@ -12,7 +12,7 @@ import {
 } from '../../../shared';
 import type { IReconPipelinePort } from '../../../shared';
 import { RECON_PIPELINE_PORT } from '../../../shared';
-import { PreEodReconService } from '../services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
@@ -24,7 +24,7 @@ export class EodMmWorker implements IBotWorker {
   readonly displayName = 'Đối Chiếu Chốt Sổ EOD M-System';
 
   constructor(
-    private readonly preEodReconService: PreEodReconService,
+    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
     private readonly settingsService: SystemSettingsService,
     @Optional()
     @Inject(RECON_PIPELINE_PORT)
@@ -116,7 +116,7 @@ export class EodMmWorker implements IBotWorker {
         files.tttt = fs.readFileSync(ttttPath);
       }
 
-      const checkRes = await this.preEodReconService.checkEOD(files);
+      const checkRes = await this.dsgdBeforeEodReconService.checkEOD(files);
 
       // Lọc tài khoản theo dõi
       const monitoredAccsStr = await this.settingsService.getSetting(

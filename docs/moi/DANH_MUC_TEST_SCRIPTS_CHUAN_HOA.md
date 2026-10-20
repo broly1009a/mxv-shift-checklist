@@ -44,11 +44,11 @@ Tài liệu này tổng hợp toàn bộ các test script chuẩn hóa độc l�
 
 ## 5. Nhóm Đối Chiếu Số Liệu & TKGD (Reconciliation & Pipelines)
 
-| Nghiệp Vụ                                        | Lệnh Chạy (Terminal)                                   | Lệnh Tắt NPM                 | Mục Đích & Ghi Chú                                                    |
-| :----------------------------------------------- | :----------------------------------------------------- | :--------------------------- | :-------------------------------------------------------------------- |
-| **Đối chiếu Pre-EOD 3 bên (MS vs CQG vs ACM)**   | `ts-node src/scripts/run_auto_check_pre_eod_active.ts` | `npm run test:pre-eod`       | Kích hoạt toàn trình quy trình tính toán đối chiếu Pre-EOD cuối ngày. |
-| **Toàn trình Pipeline TKGD (Mail -> MS -> OCR)** | `ts-node src/scripts/run_tkgd_pipeline.ts`             | `npm run test:tkgd-pipeline` | Chạy toàn bộ pipeline thẩm định đối soát mở tài khoản giao dịch.      |
-| **E2E Integration Test TKGD**                    | `ts-node src/scripts/test_tkgd_end_to_end.ts`          | -                            | Kiểm thử tích hợp toàn bộ các module con TKGD.                        |
+| Nghiệp Vụ                                              | Lệnh Chạy (Terminal)                                           | Lệnh Tắt NPM                   | Mục Đích & Ghi Chú                                                            |
+| :----------------------------------------------------- | :------------------------------------------------------------- | :----------------------------- | :---------------------------------------------------------------------------- |
+| **Đối chiếu Dsgd-Before-EOD 3 bên (MS vs CQG vs ACM)** | `ts-node src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts` | `npm run test:dsgd-before-eod` | Kích hoạt toàn trình quy trình tính toán đối chiếu Dsgd-Before-EOD cuối ngày. |
+| **Toàn trình Pipeline TKGD (Mail -> MS -> OCR)**       | `ts-node src/scripts/run_tkgd_pipeline.ts`                     | `npm run test:tkgd-pipeline`   | Chạy toàn bộ pipeline thẩm định đối soát mở tài khoản giao dịch.              |
+| **E2E Integration Test TKGD**                          | `ts-node src/scripts/test_tkgd_end_to_end.ts`                  | -                              | Kiểm thử tích hợp toàn bộ các module con TKGD.                                |
 
 ---
 

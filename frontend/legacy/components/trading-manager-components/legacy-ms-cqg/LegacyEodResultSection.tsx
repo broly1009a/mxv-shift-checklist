@@ -32,7 +32,7 @@ export default function LegacyEodResultSection({
     if (!silent) setLoading(true);
     try {
       const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-      const extractedEod = (data as any)?.eod || ((data as any)?.preEod?.jobType === 'CHECK_EOD_MM' ? (data as any)?.preEod : null);
+      const extractedEod = (data as any)?.eod || ((data as any)?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MM' ? (data as any)?.dsgdBeforeEod : null);
       setEodData(extractedEod);
     } catch {
       // Bỏ qua lỗi kết nối

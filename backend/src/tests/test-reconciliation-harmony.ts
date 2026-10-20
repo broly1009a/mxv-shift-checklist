@@ -60,7 +60,7 @@ async function main() {
   console.log('  M-System TTTT:', ttttSummary['041C0888668-L'] || 0);
   console.log('  CQG PS:', psSummary['041C0888668-L'] || 0);
 
-  // Run Pre-EOD Closed Trades P&L Comparison
+  // Run Dsgd-Before-EOD Closed Trades P&L Comparison
   console.log('\n--- 4. RUNNING PRE-EOD STEP 2 COMPARISON (Realized P&L) ---');
   const ttttGrouped: Record<string, number> = {};
   ttttParsed.forEach((item: any) => {

@@ -173,7 +173,7 @@ export function parsePSForVolume(buffer: Buffer): any[] {
 }
 
 /**
- * Đọc file CQG PS để lấy vị thế phục vụ đối chiếu Pre-EOD.
+ * Đọc file CQG PS để lấy vị thế phục vụ đối chiếu Dsgd-Before-EOD.
  */
 export function parsePSForRecon(
   buffer: Buffer,

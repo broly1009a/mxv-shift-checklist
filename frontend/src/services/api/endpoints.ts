@@ -38,7 +38,7 @@ export const API_ENDPOINTS = {
     READINESS_MATRIX: (date: string) => `/api/v1/bot-engine/files/readiness-matrix?date=${encodeURIComponent(date)}`,
   },
 
-  // ─── TRADING OPS (Đối chiếu giao dịch, Giám sát, KLGD, Pre-EOD, GTT MS vs CQG) ──
+  // ─── TRADING OPS (Đối chiếu giao dịch, Giám sát, KLGD, Dsgd-Before-EOD, GTT MS vs CQG) ──
   TRADING_OPS: {
     CONSOLE_SUMMARY: '/api/v1/trading-ops/console-summary',
     TRIGGER_RUN: '/api/v1/trading-ops/trigger-console-run',
@@ -47,12 +47,12 @@ export const API_ENDPOINTS = {
     DSGD_BEFORE_EOD: '/api/v1/trading-ops/check-dsgd-before-eod',
     CHECK_IMR: '/api/v1/trading-ops/check-imr',
     UPLOAD_KLGD: '/api/v1/trading-ops/upload-klgd',
-    UPLOAD_PRE_EOD: '/api/v1/trading-ops/upload-pre-eod',
+    UPLOAD_DSGD_BEFORE_EOD: '/api/v1/trading-ops/upload-dsgd-before-eod',
     UPLOAD_EOD: '/api/v1/trading-ops/upload-eod',
     MATURITY_MESSAGES: (shiftLogId: string) => `/api/v1/trading-ops/maturity-manual-messages?shiftLogId=${encodeURIComponent(shiftLogId)}`,
     CHECK_NEGATIVE_MARGIN: '/api/v1/trading-ops/negative-margin',
     CHECK_EOD_RUN: '/api/v1/trading-ops/check-eod-run',
-    RUN_CHECK_PRE_EOD: '/api/v1/trading-ops/run-check-pre-eod',
+    RUN_CHECK_DSGD_BEFORE_EOD: '/api/v1/trading-ops/run-check-dsgd-before-eod',
     SAMPLE_DATES: '/api/v1/trading-ops/sample-dates',
     USD_RATE: '/api/v1/trading-ops/usd-rate',
     SYNC_USD_RATE: '/api/v1/trading-ops/sync-usd-rate',

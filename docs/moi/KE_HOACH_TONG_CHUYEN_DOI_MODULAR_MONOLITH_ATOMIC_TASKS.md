@@ -31,36 +31,36 @@ Qua rà soát thực tế toàn bộ hệ thống Monolith V1 (5.382 dòng code 
 
 _(Cập nhật trạng thái thực tế vào ngày 13/10/2026)_
 
-|  Pha   |   Mã Task    | Tên Nhiệm Vụ Nguyên Tử                                      | Phạm Vi & File Tác Động                                          |          Trạng Thái           |
-| :----: | :----------: | :---------------------------------------------------------- | :--------------------------------------------------------------- | :---------------------------: |
-| **P0** | **Task 0.1** | Đóng băng Golden Dataset (08.07 & 13.10)                    | `src/tests/fixtures/golden_dataset/`                             |        **HOÀN THÀNH**         |
-| **P0** | **Task 0.2** | Rào chắn Module Isolation Boundary Test                     | `src/tests/boundary/module-isolation.spec.ts`                    |        **HOÀN THÀNH**         |
-| **P1** | **Task 1.1** | Cổng kéo dữ liệu `IIngressPort` & Contracts                 | `src/shared/ports/ingress.port.ts`                               |        **HOÀN THÀNH**         |
-| **P1** | **Task 1.2** | Cổng Bot Worker `IBotWorker` & Contracts                    | `src/shared/ports/bot-worker.port.ts`                            |        **HOÀN THÀNH**         |
-| **P1** | **Task 1.3** | Domain Configs Namespaces (QLGD, CCP, IT)                   | `src/shared/domain-configs/*.ts`                                 |        **HOÀN THÀNH**         |
-| **P2** | **Task 2.1** | M-System Core Scraper (`ms-scraper.service.ts`)             | `src/modules/ingress/scrapers/ms-scraper.service.ts`             |        **HOÀN THÀNH**         |
-| **P2** | **Task 2.2** | M-System 16 Tab Scraper (`ms-tab-scraper.service.ts`)       | `src/modules/ingress/scrapers/ms-tab-scraper.service.ts`         |        **HOÀN THÀNH**         |
-| **P2** | **Task 2.3** | CQG Parallel 2-Account Scraper (`cqg-scraper.service.ts`)   | `src/modules/ingress/scrapers/cqg-scraper.service.ts`            |        **HOÀN THÀNH**         |
-| **P2** | **Task 2.4** | ACM Straits Scraper (`acm-scraper.service.ts`)              | `src/modules/ingress/scrapers/acm-scraper.service.ts`            |        **HOÀN THÀNH**         |
-| **P2** | **Task 2.5** | CoreCCP Scraper 25 Báo cáo (`ccp-scraper.service.ts`)       | `src/modules/ingress/scrapers/ccp-scraper.service.ts`            |        **HOÀN THÀNH**         |
-| **P2** | **Task 2.6** | Ingress Facade & V1 Backward Adapter (`rpa-downloader`)     | `src/modules/bot-engine/rpa-downloader.service.ts`               |  **TIẾP THEO (Chờ nối V1)**   |
-| **P3** | **Task 3.1** | Bộ Ghép File Thô CQG (`cqg-merger.service.ts`)              | `src/modules/trading-ops/services/cqg-merger.service.ts`         |        **HOÀN THÀNH**         |
-| **P3** | **Task 3.2** | Lõi V2 Đối Soát Khớp Lệnh (`KlgdReconService`)              | `src/modules/trading-ops/services/klgd-recon.service.ts`         |        **HOÀN THÀNH**         |
-| **P3** | **Task 3.3** | Lõi V2 Đối Soát Pre-EOD, SOD & EOD MM                       | `src/modules/trading-ops/services/pre-eod-recon.service.ts`      |        **HOÀN THÀNH**         |
-| **P3** | **Task 3.4** | Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`)              | `src/modules/trading-ops/workers/negative-margin.worker.ts`      |        **HOÀN THÀNH**         |
-| **P3** | **Task 3.5** | Collection Log Riêng Cho Trading Ops (`trading_recon_logs`) | `src/modules/trading-ops/schemas/trading-recon-log.schema.ts`    |        **HOÀN THÀNH**         |
-| **P3** | **Task 3.6** | Di chuyển `DsgdBeforeEodService` vào Trading Ops            | `src/modules/trading-ops/services/dsgd-before-eod.service.ts`    | **TIẾP THEO (Giai đoạn tới)** |
-| **P4** | **Task 4.1** | Di dời Thống kê Lot CCP (`lot-statistics.service.ts`)       | `src/modules/ccp-clearing/services/lot-statistics.service.ts`    |        **HOÀN THÀNH**         |
-| **P4** | **Task 4.2** | Đóng gói `CcpLotWorker` (`IBotWorker`)                      | `src/modules/ccp-clearing/workers/ccp-lot.worker.ts`             |        **HOÀN THÀNH**         |
-| **P4** | **Task 4.3** | Tách Collection Log CCP (`ccp_clearing_logs`)               | `src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts`    |        **HOÀN THÀNH**         |
-| **P4** | **Task 4.4** | Xây dựng `ValueStatisticsService` & `CcpValueWorker`        | `src/modules/ccp-clearing/services/value-statistics.service.ts`  | **TIẾP THEO (Giai đoạn tới)** |
-| **P4** | **Task 4.5** | Di chuyển Đối soát CCP EOD vào `ccp-clearing`               | `src/modules/ccp-clearing/services/ccp-eod.service.ts`           | **TIẾP THEO (Giai đoạn tới)** |
-| **P5** | **Task 5.1** | Xây dựng Lõi `BotDispatcherService` Động                    | `src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts` |      **HOÀN THÀNH LÕI**       |
-| **P5** | **Task 5.2** | Triệt tiêu Phụ thuộc vòng lặp `forwardRef()`                | `src/modules/bot-engine/handlers/recon-jobs.handler.ts`          | **TIẾP THEO (Giai đoạn tới)** |
-| **P5** | **Task 5.3** | Chuẩn hóa Cây Gia Phả Tác Vụ Động (Hierarchy Helper)        | `src/modules/checklist-hub/helpers/task-hierarchy.helper.ts`     | **TIẾP THEO (Giai đoạn tới)** |
-| **P6** | **Task 6.1** | MongoDB Atomic Lock trên `bot_jobs` Queue                   | `src/modules/bot-engine/bot-job-queue.service.ts`                |       **KẾ HOẠCH CUỐI**       |
-| **P6** | **Task 6.2** | Khung CoreEX & CoreCCP REST API Adapters                    | `src/modules/ingress/adapters/*-api.adapter.ts`                  |     **HOÀN THÀNH KHUNG**      |
-| **P6** | **Task 6.3** | Twin-Run E2E Validation & Đóng Gói V1 vào Legacy            | Toàn bộ dự án                                                    |       **KẾ HOẠCH CUỐI**       |
+|  Pha   |   Mã Task    | Tên Nhiệm Vụ Nguyên Tử                                      | Phạm Vi & File Tác Động                                             |          Trạng Thái           |
+| :----: | :----------: | :---------------------------------------------------------- | :------------------------------------------------------------------ | :---------------------------: |
+| **P0** | **Task 0.1** | Đóng băng Golden Dataset (08.07 & 13.10)                    | `src/tests/fixtures/golden_dataset/`                                |        **HOÀN THÀNH**         |
+| **P0** | **Task 0.2** | Rào chắn Module Isolation Boundary Test                     | `src/tests/boundary/module-isolation.spec.ts`                       |        **HOÀN THÀNH**         |
+| **P1** | **Task 1.1** | Cổng kéo dữ liệu `IIngressPort` & Contracts                 | `src/shared/ports/ingress.port.ts`                                  |        **HOÀN THÀNH**         |
+| **P1** | **Task 1.2** | Cổng Bot Worker `IBotWorker` & Contracts                    | `src/shared/ports/bot-worker.port.ts`                               |        **HOÀN THÀNH**         |
+| **P1** | **Task 1.3** | Domain Configs Namespaces (QLGD, CCP, IT)                   | `src/shared/domain-configs/*.ts`                                    |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.1** | M-System Core Scraper (`ms-scraper.service.ts`)             | `src/modules/ingress/scrapers/ms-scraper.service.ts`                |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.2** | M-System 16 Tab Scraper (`ms-tab-scraper.service.ts`)       | `src/modules/ingress/scrapers/ms-tab-scraper.service.ts`            |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.3** | CQG Parallel 2-Account Scraper (`cqg-scraper.service.ts`)   | `src/modules/ingress/scrapers/cqg-scraper.service.ts`               |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.4** | ACM Straits Scraper (`acm-scraper.service.ts`)              | `src/modules/ingress/scrapers/acm-scraper.service.ts`               |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.5** | CoreCCP Scraper 25 Báo cáo (`ccp-scraper.service.ts`)       | `src/modules/ingress/scrapers/ccp-scraper.service.ts`               |        **HOÀN THÀNH**         |
+| **P2** | **Task 2.6** | Ingress Facade & V1 Backward Adapter (`rpa-downloader`)     | `src/modules/bot-engine/rpa-downloader.service.ts`                  |  **TIẾP THEO (Chờ nối V1)**   |
+| **P3** | **Task 3.1** | Bộ Ghép File Thô CQG (`cqg-merger.service.ts`)              | `src/modules/trading-ops/services/cqg-merger.service.ts`            |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.2** | Lõi V2 Đối Soát Khớp Lệnh (`KlgdReconService`)              | `src/modules/trading-ops/services/klgd-recon.service.ts`            |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.3** | Lõi V2 Đối Soát Dsgd-Before-EOD, SOD & EOD MM               | `src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts` |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.4** | Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`)              | `src/modules/trading-ops/workers/negative-margin.worker.ts`         |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.5** | Collection Log Riêng Cho Trading Ops (`trading_recon_logs`) | `src/modules/trading-ops/schemas/trading-recon-log.schema.ts`       |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.6** | Di chuyển `DsgdBeforeEodService` vào Trading Ops            | `src/modules/trading-ops/services/dsgd-before-eod.service.ts`       | **TIẾP THEO (Giai đoạn tới)** |
+| **P4** | **Task 4.1** | Di dời Thống kê Lot CCP (`lot-statistics.service.ts`)       | `src/modules/ccp-clearing/services/lot-statistics.service.ts`       |        **HOÀN THÀNH**         |
+| **P4** | **Task 4.2** | Đóng gói `CcpLotWorker` (`IBotWorker`)                      | `src/modules/ccp-clearing/workers/ccp-lot.worker.ts`                |        **HOÀN THÀNH**         |
+| **P4** | **Task 4.3** | Tách Collection Log CCP (`ccp_clearing_logs`)               | `src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts`       |        **HOÀN THÀNH**         |
+| **P4** | **Task 4.4** | Xây dựng `ValueStatisticsService` & `CcpValueWorker`        | `src/modules/ccp-clearing/services/value-statistics.service.ts`     | **TIẾP THEO (Giai đoạn tới)** |
+| **P4** | **Task 4.5** | Di chuyển Đối soát CCP EOD vào `ccp-clearing`               | `src/modules/ccp-clearing/services/ccp-eod.service.ts`              | **TIẾP THEO (Giai đoạn tới)** |
+| **P5** | **Task 5.1** | Xây dựng Lõi `BotDispatcherService` Động                    | `src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`    |      **HOÀN THÀNH LÕI**       |
+| **P5** | **Task 5.2** | Triệt tiêu Phụ thuộc vòng lặp `forwardRef()`                | `src/modules/bot-engine/handlers/recon-jobs.handler.ts`             | **TIẾP THEO (Giai đoạn tới)** |
+| **P5** | **Task 5.3** | Chuẩn hóa Cây Gia Phả Tác Vụ Động (Hierarchy Helper)        | `src/modules/checklist-hub/helpers/task-hierarchy.helper.ts`        | **TIẾP THEO (Giai đoạn tới)** |
+| **P6** | **Task 6.1** | MongoDB Atomic Lock trên `bot_jobs` Queue                   | `src/modules/bot-engine/bot-job-queue.service.ts`                   |       **KẾ HOẠCH CUỐI**       |
+| **P6** | **Task 6.2** | Khung CoreEX & CoreCCP REST API Adapters                    | `src/modules/ingress/adapters/*-api.adapter.ts`                     |     **HOÀN THÀNH KHUNG**      |
+| **P6** | **Task 6.3** | Twin-Run E2E Validation & Đóng Gói V1 vào Legacy            | Toàn bộ dự án                                                       |       **KẾ HOẠCH CUỐI**       |
 
 ---
 
@@ -81,7 +81,7 @@ flowchart TD
     subgraph TRADING_OPS["📊 TRADING OPS DOMAIN (src/modules/trading-ops)"]
         CQG_MERGE["CqgMergerService (FR, PS, OP, OD)"]
         KLGD_RECON["KlgdReconService (MS vs CQG vs ACM vs CCP)"]
-        PRE_EOD_RECON["PreEodReconService (Pre-EOD, SOD, EOD MM)"]
+        DSGD_BEFORE_EOD_RECON["DsgdBeforeEodReconService (Dsgd-Before-EOD, SOD, EOD MM)"]
         MARGIN_CHECK["MarginCheckerService (Negative Margins)"]
         DSGD_BEF["DsgdBeforeEodService"]
         LOG_TRADING["trading_recon_logs (MongoDB)"]
@@ -267,14 +267,14 @@ _Mục đích: Đưa 100% thuật toán ghép file và đối soát khớp lện
   - Đã kiểm chứng trên ngày `13.10`: Trả về `totalCCP_DSGD = 1721`, `totalCCP_TTM = 4559`, `totalCCP_TTTT = 1101`.
   - `npm run build` Exit code 0, đã deploy thành công lên Ubuntu.
 
-#### Task 3.3: Lõi V2 Đối Soát Pre-EOD, SOD & EOD MM (`PreEodReconService`) — `[HOÀN THÀNH]`
+#### Task 3.3: Lõi V2 Đối Soát Dsgd-Before-EOD, SOD & EOD MM (`DsgdBeforeEodReconService`) — `[HOÀN THÀNH]`
 
-- **Mục tiêu**: Chuyển giao toàn bộ nghiệp vụ chốt 3 bên cuối ngày và đầu ngày vào `PreEodReconService` V2:
+- **Mục tiêu**: Chuyển giao toàn bộ nghiệp vụ chốt 3 bên cuối ngày và đầu ngày vào `DsgdBeforeEodReconService` V2:
   1. Phân giải đường dẫn động ngày T-1 từ `SystemSettingsService`.
   2. Bổ sung `runAutoCheckSOD()` (quét file đầu ngày, kiểm tra vị thế qua đêm).
   3. Bổ sung `runAutoCheckEodMm()` (đối soát chốt sổ Market Maker).
   4. `reconciliation.service.ts` (V1) ủy quyền 100% sang V2.
-- **File tác động**: `backend/src/modules/trading-ops/services/pre-eod-recon.service.ts`
+- **File tác động**: `backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: `npm run build` Exit code 0, đã deploy lên Ubuntu.
 
 #### Task 3.4: Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`) — `[HOÀN THÀNH]`
@@ -369,7 +369,7 @@ _Mục đích: Biến Checklist thành bộ khung điều phối thuần túy, t
 
 - **Mục tiêu**: Xây dựng bộ điều phối động theo mô hình của `report-dev/src/shared/dispatchers/`:
   - Worker tự đăng ký với Dispatcher qua token hoặc OnModuleInit dựa trên `botCheckType`.
-  - Đã hỗ trợ 4 workers: `KlgdReconWorker`, `PreEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`.
+  - Đã hỗ trợ 4 workers: `KlgdReconWorker`, `DsgdBeforeEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`.
 - **File tác động**: `backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: Khởi tạo Dispatcher thành công với 4 workers đăng ký động.
 
@@ -377,7 +377,7 @@ _Mục đích: Biến Checklist thành bộ khung điều phối thuần túy, t
 
 - **Mục tiêu**: Gỡ bỏ vĩnh viễn các lệnh `forwardRef()` nội bộ không cần thiết và phụ thuộc vòng lặp giữa `recon-jobs.handler.ts` và `ReconciliationService`.
 - **Phạm vi cô lập**:
-  - `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`: Gỡ `forwardRef()` nội bộ, inject trực tiếp các service V2 (`TradingOpsKlgdReconService`, `TradingOpsPreEodReconService`, `CcpEodService`), ủy quyền đối soát trực tiếp sang V2.
+  - `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`: Gỡ `forwardRef()` nội bộ, inject trực tiếp các service V2 (`TradingOpsKlgdReconService`, `TradingOpsDsgdBeforeEodReconService`, `CcpEodService`), ủy quyền đối soát trực tiếp sang V2.
   - `backend/src/modules/bot-engine/bot-engine.module.ts`: Import `TradingOpsModule`, `CcpClearingModule`, gỡ bỏ `forwardRef()` thừa trên `MarginChangeRequestsModule` và `ChecklistHubModule`.
   - `backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`: Mở rộng đăng ký 6 Workers (`CcpValueWorker`, `CcpEodWorker`,...), hỗ trợ tra cứu qua `canHandle()`.
   - `backend/src/shared/ports/bot-worker.port.ts`: Bổ sung `canHandle?()` vào interface `IBotWorker`.

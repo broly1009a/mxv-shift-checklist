@@ -186,16 +186,16 @@
       "community_name": "BotLogViewerModal.tsx"
     },
     {
-      "label": "PreEodReconciliationVisualReportProps",
+      "label": "DsgdBeforeEodReconciliationVisualReportProps",
       "file_type": "code",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L7",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "community": 11,
-      "norm_label": "preeodreconciliationvisualreportprops",
-      "id": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreportprops",
+      "norm_label": "dsgdbeforeeodreconciliationvisualreportprops",
+      "id": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreportprops",
       "community_name": "BotLogViewerModal.tsx"
     },
     {
@@ -3774,15 +3774,15 @@
       "community_name": "test-teams-maturity.ts"
     },
     {
-      "label": ".buildPreEodEmailHtml()",
+      "label": ".buildDsgdBeforeEodEmailHtml()",
       "file_type": "code",
       "source_file": "backend/src/modules/reconciliation/reconciliation.service.ts",
       "source_location": "L3021",
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "norm_label": ".buildpreeodemailhtml()",
-      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_buildpreeodemailhtml",
+      "norm_label": ".builddsgdbeforeeodemailhtml()",
+      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_builddsgdbeforeeodemailhtml",
       "community_name": "ReconciliationService"
     },
     {
@@ -3798,15 +3798,15 @@
       "community_name": "ReconciliationService"
     },
     {
-      "label": ".checkPreEOD()",
+      "label": ".checkDSGDBeforeEOD()",
       "file_type": "code",
       "source_file": "backend/src/modules/reconciliation/reconciliation.service.ts",
       "source_location": "L2370",
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "norm_label": ".checkpreeod()",
-      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "norm_label": ".checkdsgdbeforeeod()",
+      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "community_name": "ReconciliationService"
     },
     {
@@ -4062,15 +4062,15 @@
       "community_name": "ReconciliationService"
     },
     {
-      "label": ".runAutoCheckPreEOD()",
+      "label": ".runAutoCheckDSGDBeforeEOD()",
       "file_type": "code",
       "source_file": "backend/src/modules/reconciliation/reconciliation.service.ts",
       "source_location": "L3484",
       "_callable": true,
       "_origin": "ast",
       "community": 0,
-      "norm_label": ".runautocheckpreeod()",
-      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod",
+      "norm_label": ".runautocheckdsgdbeforeeod()",
+      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod",
       "community_name": "ReconciliationService"
     },
     {
@@ -5058,15 +5058,15 @@
       "community_name": "BotLogViewerModal.tsx"
     },
     {
-      "label": "PreEodReconciliationVisualReport()",
+      "label": "DsgdBeforeEodReconciliationVisualReport()",
       "file_type": "code",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L14",
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "norm_label": "preeodreconciliationvisualreport()",
-      "id": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreport",
+      "norm_label": "dsgdbeforeeodreconciliationvisualreport()",
+      "id": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreport",
       "community_name": "BotLogViewerModal.tsx"
     },
     {
@@ -6702,15 +6702,15 @@
       "community_name": "BotJobQueueService"
     },
     {
-      "label": ".handleCheckPreEodJob()",
+      "label": ".handleCheckDsgdBeforeEodJob()",
       "file_type": "code",
       "source_file": "backend/src/modules/bot-engine/bot-job-queue.service.ts",
       "source_location": "L2886",
       "_callable": true,
       "_origin": "ast",
       "community": 16,
-      "norm_label": ".handlecheckpreeodjob()",
-      "id": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckpreeodjob",
+      "norm_label": ".handlecheckdsgdbeforeeodjob()",
+      "id": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckdsgdbeforeeodjob",
       "community_name": "BotJobQueueService"
     },
     {
@@ -14670,15 +14670,15 @@
       "community_name": ".updateTaskStatus"
     },
     {
-      "label": ".uploadAndReconcilePreEOD()",
+      "label": ".uploadAndReconcileDSGDBeforeEOD()",
       "file_type": "code",
       "source_file": "backend/src/modules/reconciliation/reconciliation.controller.ts",
       "source_location": "L817",
       "_callable": true,
       "_origin": "ast",
       "community": 49,
-      "norm_label": ".uploadandreconcilepreeod()",
-      "id": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "norm_label": ".uploadandreconciledsgdbeforeeod()",
+      "id": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "community_name": ".updateTaskStatus"
     },
     {
@@ -14756,13 +14756,13 @@
     {
       "label": "main()",
       "file_type": "code",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L9",
       "_callable": true,
       "_origin": "ast",
       "community": 5,
       "norm_label": "main()",
-      "id": "backend_src_scripts_run_auto_check_pre_eod_active_main",
+      "id": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active_main",
       "community_name": "AppModule"
     },
     {
@@ -14814,15 +14814,15 @@
       "community_name": "AppModule"
     },
     {
-      "label": "testPreEod()",
+      "label": "testDsgdBeforeEod()",
       "file_type": "code",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L7",
       "_callable": true,
       "_origin": "ast",
       "community": 5,
-      "norm_label": "testpreeod()",
-      "id": "backend_src_test_pre_eod_local_testpreeod",
+      "norm_label": "testdsgdbeforeeod()",
+      "id": "backend_src_test_dsgd_before_eod_local_testdsgdbeforeeod",
       "community_name": "AppModule"
     },
     {
@@ -17504,14 +17504,14 @@
     {
       "label": "findLatestFile()",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L4",
       "_callable": true,
       "_origin": "ast",
       "community": 71,
       "norm_label": "findlatestfile()",
-      "id": "backend_src_scripts_test_pre_eod_parse_findlatestfile",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_findlatestfile",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": ".close_toast()",
@@ -21184,14 +21184,14 @@
       "community_name": "BotLogViewerModal.tsx"
     },
     {
-      "label": "PreEodReconciliationVisualReport.tsx",
+      "label": "DsgdBeforeEodReconciliationVisualReport.tsx",
       "file_type": "code",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L1",
       "_origin": "ast",
       "community": 11,
-      "norm_label": "preeodreconciliationvisualreport.tsx",
-      "id": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "norm_label": "dsgdbeforeeodreconciliationvisualreport.tsx",
+      "id": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "community_name": "BotLogViewerModal.tsx"
     },
     {
@@ -31799,14 +31799,14 @@
       "community_name": "AppModule"
     },
     {
-      "label": "run_auto_check_pre_eod_active.ts",
+      "label": "run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "file_type": "code",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L1",
       "_origin": "ast",
       "community": 5,
-      "norm_label": "run_auto_check_pre_eod_active.ts",
-      "id": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "norm_label": "run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
+      "id": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "community_name": "AppModule"
     },
     {
@@ -31854,14 +31854,14 @@
       "community_name": "AppModule"
     },
     {
-      "label": "test-pre-eod-local.ts",
+      "label": "test-dsgd-before-eod-local.ts",
       "file_type": "code",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L1",
       "_origin": "ast",
       "community": 5,
-      "norm_label": "test-pre-eod-local.ts",
-      "id": "backend_src_test_pre_eod_local",
+      "norm_label": "test-dsgd-before-eod-local.ts",
+      "id": "backend_src_test_dsgd_before_eod_local",
       "community_name": "AppModule"
     },
     {
@@ -34538,158 +34538,158 @@
       "community_name": "OmsWatcherService"
     },
     {
-      "label": "test-pre-eod-parse.js",
+      "label": "test-dsgd-before-eod-parse.js",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L1",
       "_origin": "ast",
       "community": 71,
-      "norm_label": "test-pre-eod-parse.js",
-      "id": "backend_src_scripts_test_pre_eod_parse",
-      "community_name": "test-pre-eod-parse.js"
+      "norm_label": "test-dsgd-before-eod-parse.js",
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "acmDailyPath",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L30",
       "_origin": "ast",
       "community": 71,
       "norm_label": "acmdailypath",
-      "id": "backend_src_scripts_test_pre_eod_parse_acmdailypath",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_acmdailypath",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "castDownloadsDir",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L31",
       "_origin": "ast",
       "community": 71,
       "norm_label": "castdownloadsdir",
-      "id": "backend_src_scripts_test_pre_eod_parse_castdownloadsdir",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_castdownloadsdir",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "cqgDailyPath",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L29",
       "_origin": "ast",
       "community": 71,
       "norm_label": "cqgdailypath",
-      "id": "backend_src_scripts_test_pre_eod_parse_cqgdailypath",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_cqgdailypath",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "day",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L25",
       "_origin": "ast",
       "community": 71,
       "norm_label": "day",
-      "id": "backend_src_scripts_test_pre_eod_parse_day",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_day",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "dsgdPath",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L34",
       "_origin": "ast",
       "community": 71,
       "norm_label": "dsgdpath",
-      "id": "backend_src_scripts_test_pre_eod_parse_dsgdpath",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_dsgdpath",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "fs",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L1",
       "_origin": "ast",
       "community": 71,
       "norm_label": "fs",
-      "id": "backend_src_scripts_test_pre_eod_parse_fs",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_fs",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "month",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L24",
       "_origin": "ast",
       "community": 71,
       "norm_label": "month",
-      "id": "backend_src_scripts_test_pre_eod_parse_month",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_month",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "msDailyPath",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L28",
       "_origin": "ast",
       "community": 71,
       "norm_label": "msdailypath",
-      "id": "backend_src_scripts_test_pre_eod_parse_msdailypath",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_msdailypath",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "path",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L2",
       "_origin": "ast",
       "community": 71,
       "norm_label": "path",
-      "id": "backend_src_scripts_test_pre_eod_parse_path",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_path",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "subFolder",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L26",
       "_origin": "ast",
       "community": 71,
       "norm_label": "subfolder",
-      "id": "backend_src_scripts_test_pre_eod_parse_subfolder",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_subfolder",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "targetDate",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L22",
       "_origin": "ast",
       "community": 71,
       "norm_label": "targetdate",
-      "id": "backend_src_scripts_test_pre_eod_parse_targetdate",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_targetdate",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "ttttPath",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L35",
       "_origin": "ast",
       "community": 71,
       "norm_label": "ttttpath",
-      "id": "backend_src_scripts_test_pre_eod_parse_ttttpath",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_ttttpath",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "year",
       "file_type": "code",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L23",
       "_origin": "ast",
       "community": 71,
       "norm_label": "year",
-      "id": "backend_src_scripts_test_pre_eod_parse_year",
-      "community_name": "test-pre-eod-parse.js"
+      "id": "backend_src_scripts_test_dsgd_before_eod_parse_year",
+      "community_name": "test-dsgd-before-eod-parse.js"
     },
     {
       "label": "notifier_widget.py",
@@ -39641,7 +39641,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_executejobdirectly",
-      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckpreeodjob"
+      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckdsgdbeforeeodjob"
     },
     {
       "relation": "calls",
@@ -39917,7 +39917,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_processqueue",
-      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckpreeodjob"
+      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckdsgdbeforeeodjob"
     },
     {
       "relation": "calls",
@@ -44740,7 +44740,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_parsedsgd"
     },
     {
@@ -44752,7 +44752,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_parsestraitscsv"
     },
     {
@@ -44764,7 +44764,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_parsefr"
     },
     {
@@ -44776,7 +44776,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_parsecqgdatetime"
     },
     {
@@ -44788,7 +44788,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_parsettttforrecon"
     },
     {
@@ -44800,7 +44800,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_parsepsforrecon"
     },
     {
@@ -44812,8 +44812,8 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
-      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_buildpreeodemailhtml"
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
+      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_builddsgdbeforeeodemailhtml"
     },
     {
       "relation": "calls",
@@ -45148,7 +45148,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_findlatestfile"
     },
     {
@@ -45160,7 +45160,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_mergecqgrawfiles"
     },
     {
@@ -45172,8 +45172,8 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod",
-      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod"
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod",
+      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod"
     },
     {
       "relation": "calls",
@@ -48348,11 +48348,11 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L56",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_botstatusstatebanner_shouldshowbotstatusbanner"
     },
     {
@@ -55468,7 +55468,7 @@
       "context": "decorator",
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_controller_ts_post"
     },
     {
@@ -55480,7 +55480,7 @@
       "context": "decorator",
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "target": "backend_src_modules_auth_permissions_decorator_permissions"
     },
     {
@@ -55492,7 +55492,7 @@
       "context": "decorator",
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_controller_ts_useinterceptors"
     },
     {
@@ -55504,7 +55504,7 @@
       "context": "decorator",
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_controller_ts_uploadedfiles"
     },
     {
@@ -55516,7 +55516,7 @@
       "context": "decorator",
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "target": "backend_src_modules_reconciliation_reconciliation_controller_ts_body"
     },
     {
@@ -58595,12 +58595,12 @@
       "relation": "references",
       "context": "field",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L8",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreportprops",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreportprops",
       "target": "frontend_src_components_ui_bot_log_viewer_types_parsedbotdata"
     },
     {
@@ -68220,36 +68220,36 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "target": "backend_src_app_module_appmodule"
     },
     {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice"
     },
     {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "target": "backend_src_modules_shifts_shifts_service_shiftsservice"
     },
     {
@@ -69660,24 +69660,24 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_test_pre_eod_local",
+      "source": "backend_src_test_dsgd_before_eod_local",
       "target": "backend_src_app_module_appmodule"
     },
     {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L3",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_test_pre_eod_local",
+      "source": "backend_src_test_dsgd_before_eod_local",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice"
     },
     {
@@ -72660,48 +72660,48 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L3",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_botstatusstatebanner_botstatusstatebanner"
     },
     {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L3",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_botstatusstatebanner_shouldshowbotstatusbanner"
     },
     {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_types_mismatchedtrade"
     },
     {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_types_parsedbotdata"
     },
     {
@@ -72726,7 +72726,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "frontend_src_components_ui_bot_log_viewer_reconciliationvisualreport",
-      "target": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreport"
+      "target": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreport"
     },
     {
       "relation": "imports",
@@ -79608,36 +79608,36 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "target": "backend_src_app_module"
     },
     {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "target": "backend_src_modules_reconciliation_reconciliation_service"
     },
     {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
       "target": "backend_src_modules_shifts_shifts_service"
     },
     {
@@ -80988,24 +80988,24 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_test_pre_eod_local",
+      "source": "backend_src_test_dsgd_before_eod_local",
       "target": "backend_src_app_module"
     },
     {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L3",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_test_pre_eod_local",
+      "source": "backend_src_test_dsgd_before_eod_local",
       "target": "backend_src_modules_reconciliation_reconciliation_service"
     },
     {
@@ -83208,24 +83208,24 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L3",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_botstatusstatebanner"
     },
     {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
       "target": "frontend_src_components_ui_bot_log_viewer_types"
     },
     {
@@ -83250,7 +83250,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "frontend_src_components_ui_bot_log_viewer_reconciliationvisualreport",
-      "target": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport"
+      "target": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport"
     },
     {
       "relation": "imports_from",
@@ -84281,7 +84281,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckpreeodjob",
+      "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckdsgdbeforeeodjob",
       "target": "backend_src_schemas_bot_job_schema_botjob"
     },
     {
@@ -94504,13 +94504,13 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/run_auto_check_pre_eod_active.ts",
+      "source_file": "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
       "source_location": "L9",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_run_auto_check_pre_eod_active",
-      "target": "backend_src_scripts_run_auto_check_pre_eod_active_main"
+      "source": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active",
+      "target": "backend_src_scripts_run_auto_CHECK_DSGD_BEFORE_EOD_active_main"
     },
     {
       "relation": "contains",
@@ -94823,156 +94823,156 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L1",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_fs"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_fs"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L2",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_path"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_path"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_targetdate"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_targetdate"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_year"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_year"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L24",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_month"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_month"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L25",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_day"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_day"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_subfolder"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_subfolder"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L28",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_msdailypath"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_msdailypath"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L29",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_cqgdailypath"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_cqgdailypath"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L30",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_acmdailypath"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_acmdailypath"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L31",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_castdownloadsdir"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_castdownloadsdir"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L34",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_dsgdpath"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_dsgdpath"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L35",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_ttttpath"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_ttttpath"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/scripts/test-pre-eod-parse.js",
+      "source_file": "backend/src/scripts/test-dsgd-before-eod-parse.js",
       "source_location": "L4",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_scripts_test_pre_eod_parse",
-      "target": "backend_src_scripts_test_pre_eod_parse_findlatestfile"
+      "source": "backend_src_scripts_test_dsgd_before_eod_parse",
+      "target": "backend_src_scripts_test_dsgd_before_eod_parse_findlatestfile"
     },
     {
       "relation": "contains",
@@ -96363,13 +96363,13 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "backend/src/test-pre-eod-local.ts",
+      "source_file": "backend/src/test-dsgd-before-eod-local.ts",
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_test_pre_eod_local",
-      "target": "backend_src_test_pre_eod_local_testpreeod"
+      "source": "backend_src_test_dsgd_before_eod_local",
+      "target": "backend_src_test_dsgd_before_eod_local_testdsgdbeforeeod"
     },
     {
       "relation": "contains",
@@ -100004,24 +100004,24 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L14",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
-      "target": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreport"
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
+      "target": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreport"
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx",
+      "source_file": "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx",
       "source_location": "L7",
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport",
-      "target": "frontend_src_components_ui_bot_log_viewer_preeodreconciliationvisualreport_preeodreconciliationvisualreportprops"
+      "source": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport",
+      "target": "frontend_src_components_ui_bot_log_viewer_dsgdbeforeeodreconciliationvisualreport_dsgdbeforeeodreconciliationvisualreportprops"
     },
     {
       "relation": "contains",
@@ -104243,7 +104243,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice",
-      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckpreeodjob"
+      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckdsgdbeforeeodjob"
     },
     {
       "relation": "method",
@@ -107444,7 +107444,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller",
-      "target": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod"
+      "target": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod"
     },
     {
       "relation": "method",
@@ -107598,7 +107598,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice",
-      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod"
+      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod"
     },
     {
       "relation": "method",
@@ -107642,7 +107642,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice",
-      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_buildpreeodemailhtml"
+      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_builddsgdbeforeeodemailhtml"
     },
     {
       "relation": "method",
@@ -107708,7 +107708,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice",
-      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod"
+      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod"
     },
     {
       "relation": "method",
@@ -115130,7 +115130,7 @@
       "source_location": "L924",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconcilepreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_controller_reconciliationcontroller_uploadandreconciledsgdbeforeeod",
       "target": "backend_src_modules_shifts_shifts_service_shiftsservice_updatetaskstatus"
     },
     {
@@ -115274,7 +115274,7 @@
       "source_location": "L2413",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_system_settings_system_settings_service_systemsettingsservice_setsetting"
     },
     {
@@ -115286,7 +115286,7 @@
       "source_location": "L2653",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_margin_checker_margin_checker_service_margincheckerservice_loadconfig"
     },
     {
@@ -115298,7 +115298,7 @@
       "source_location": "L2674",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkdsgdbeforeeod",
       "target": "backend_src_modules_margin_checker_margin_checker_service_margincheckerservice_sendemailnotification"
     },
     {
@@ -115358,7 +115358,7 @@
       "source_location": "L3490",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod",
       "target": "backend_src_modules_system_settings_system_settings_service_systemsettingsservice_getsetting"
     },
     {
@@ -115370,7 +115370,7 @@
       "source_location": "L3625",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckpreeod",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckdsgdbeforeeod",
       "target": "backend_src_modules_telegram_telegram_service_telegramservice_sendmessage"
     },
     {

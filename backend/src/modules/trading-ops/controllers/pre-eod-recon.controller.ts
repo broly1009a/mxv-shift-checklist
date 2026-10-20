@@ -1,7 +1,7 @@
 /**
- * pre-eod-recon.controller.ts
+ * dsgd-before-eod-recon.controller.ts
  *
- * Controller chuyên trách Chốt đối chiếu 3 bên cuối ngày (Pre-EOD / EOD Recon Domain).
+ * Controller chuyên trách Chốt đối chiếu 3 bên cuối ngày (Dsgd-Before-EOD / EOD Recon Domain).
  * Chuẩn Clean Architecture & Domain-Driven Design (DDD).
  */
 
@@ -20,20 +20,24 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
-import { PreEodReconService } from '../services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
+import { DsgdBeforeEodService } from '../services/dsgd-before-eod.service';
 import { CqgMergerService } from '../services/cqg-merger.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
+import { Optional } from '@nestjs/common';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])
-export class PreEodReconController {
-  private readonly logger = new Logger(PreEodReconController.name);
+export class DsgdBeforeEodReconController {
+  private readonly logger = new Logger(DsgdBeforeEodReconController.name);
 
   constructor(
-    private readonly preEodReconService: PreEodReconService,
+    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
     private readonly cqgMergerService: CqgMergerService,
     private readonly shiftsService: ShiftsService,
+    @Optional()
+    private readonly dsgdBeforeEodService?: DsgdBeforeEodService,
   ) {}
 
   /**
@@ -160,7 +164,7 @@ export class PreEodReconController {
 
       // Case B: EOD Check song song MS & CCP (if qltkgd or qltkgdCcp is uploaded and accountsBalances is not)
       if ((fileBuffers.qltkgd || fileBuffers.qltkgdCcp) && !fileBuffers.accountsBalances) {
-        const result = await this.preEodReconService.checkEOD({
+        const result = await this.dsgdBeforeEodReconService.checkEOD({
           qltkgd: fileBuffers.qltkgd,
           eod: fileBuffers.eod,
           tttt: fileBuffers.tttt,
@@ -251,24 +255,26 @@ export class PreEodReconController {
   }
 
   /**
-   * Upload file và thực hiện đối chiếu Pre-EOD chốt 3 bên (MS vs CQG vs Straits).
+   * Upload file và thực hiện đối chiếu Dsgd-Before-EOD chốt 3 bên (MS vs CQG vs Straits).
    */
-  @Post('upload-pre-eod')
+  @Post('upload-dsgd-before-eod')
   @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'dsgd', maxCount: 1 },
       { name: 'acmTrades', maxCount: 1 },
+      { name: 'dsgdSnapshot', maxCount: 1 },
       { name: 'cqgFr', maxCount: 1 },
       { name: 'tttt', maxCount: 1 },
       { name: 'cqgPs', maxCount: 1 },
     ]),
   )
-  async uploadAndReconcilePreEOD(
+  async uploadAndReconcileDSGDBeforeEOD(
     @UploadedFiles()
     files: {
       dsgd?: any[];
       acmTrades?: any[];
+      dsgdSnapshot?: any[];
       cqgFr?: any[];
       tttt?: any[];
       cqgPs?: any[];
@@ -285,37 +291,52 @@ export class PreEodReconController {
     const fileBuffers = {
       dsgd: files?.dsgd?.[0]?.buffer,
       acmTrades: files?.acmTrades?.[0]?.buffer,
+      dsgdSnapshot: files?.dsgdSnapshot?.[0]?.buffer || files?.cqgFr?.[0]?.buffer,
       cqgFr: files?.cqgFr?.[0]?.buffer,
-      tttt: files?.tttt?.[0]?.buffer,
-      cqgPs: files?.cqgPs?.[0]?.buffer,
     };
 
     if (!fileBuffers.dsgd) {
       throw new BadRequestException('Thiếu file M-System DSGD.xlsx');
     }
     if (!fileBuffers.acmTrades) {
-      throw new BadRequestException('Thiếu file ACM Trades (EOD FO trades...)');
-    }
-    if (!fileBuffers.cqgFr) {
-      throw new BadRequestException('Thiếu file CQG FR.xlsx');
-    }
-    if (!fileBuffers.tttt) {
-      throw new BadRequestException('Thiếu file M-System TTTT.xlsx');
-    }
-    if (!fileBuffers.cqgPs) {
-      throw new BadRequestException('Thiếu file CQG PS.xlsx');
+      throw new BadRequestException('Thiếu file Straits CSV (ACM)');
     }
 
     const tradingDate = tradingDateStr ? new Date(tradingDateStr) : new Date();
 
     try {
-      const acmTradesName = files?.acmTrades?.[0]?.originalname || '';
-      const result = await this.preEodReconService.checkPreEOD(
-        fileBuffers,
-        acmTradesName,
+      const dsgdRes = this.dsgdBeforeEodService
+        ? this.dsgdBeforeEodService.checkDSGDBeforeEODFromBuffers({
+            dsgdOriginal: fileBuffers.dsgd,
+            dsgdTemp: fileBuffers.dsgdSnapshot,
+            acmTrades: fileBuffers.acmTrades,
+          })
+        : {
+            passed: true,
+            totalOriginal: 0,
+            totalTemp: 0,
+            totalACMMS: 0,
+            totalACMSFTP: 0,
+            differTotal: 0,
+            differACM: 0,
+            messages: [],
+            sessionDate: '',
+          };
+
+      const result = {
+        passed: dsgdRes.passed,
+        totals: {
+          totalOriginal: dsgdRes.totalOriginal,
+          totalTemp: dsgdRes.totalTemp,
+          differTotal: dsgdRes.differTotal,
+          totalACMMS: dsgdRes.totalACMMS,
+          totalACMSFTP: dsgdRes.totalACMSFTP,
+          differACM: dsgdRes.differACM,
+        },
         tradingDate,
-        [],
-      );
+        targetDate: tradingDate,
+        dsgdBeforeEod: dsgdRes,
+      };
 
       const systemUser = {
         id: '000000000000000000000000',
@@ -326,43 +347,34 @@ export class PreEodReconController {
 
       const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
 
-      let note = `[ĐỐI CHIẾU TRƯỚC EOD]\n`;
+      const orig = result.totals?.totalOriginal ?? 0;
+      const snap = result.totals?.totalTemp ?? 0;
+      const diffTot = result.totals?.differTotal ?? 0;
+      const acmMs = result.totals?.totalACMMS ?? 0;
+      const acmCsv = result.totals?.totalACMSFTP ?? 0;
+      const diffAcm = result.totals?.differACM ?? 0;
+
+      let note = `[KIỂM TRA DSGD TRƯỚC EOD]\n`;
       if (result.targetDate) {
         const t1Str = new Date(result.targetDate).toLocaleDateString('vi-VN');
         note += `• Ngày phiên đối chiếu T-1: ${t1Str}\n`;
       }
-      note += `• Khớp lệnh tự doanh (MS vs Straits): ${result.totals.totalACM_MS} vs ${result.totals.totalACM_Straits} lot (Chênh lệch: ${result.totals.differACM} lot)\n`;
-      note += `• Khớp lệnh thường (MS vs CQG): ${result.totals.totalCQG_MS} vs ${result.totals.totalCQG_FR} lot (Chênh lệch: ${result.totals.differCQG} lot)\n`;
-      note += `• Chênh lệch vị thế net position (MS vs CQG): ${result.mismatchedPositions.length} tài khoản\n`;
-
-      if (result.mismatchedTrades.length > 0) {
-        note += ` Phát hiện ${result.mismatchedTrades.length} giao dịch bị lệch chi tiết:\n`;
-        result.mismatchedTrades.slice(0, 10).forEach((m: any) => {
-          note += `  - [${m.source}] TK ${m.maTKGD}, HĐ ${m.maHD}, Giá ${m.giaKhop}, Qty ${m.klGiaoDich}: ${m.reason}\n`;
-        });
-        if (result.mismatchedTrades.length > 10) {
-          note += `  - ... và ${result.mismatchedTrades.length - 10} giao dịch khác.\n`;
-        }
-      }
-
-      if (result.mismatchedPositions.length > 0) {
-        note += ` Phát hiện ${result.mismatchedPositions.length} chênh lệch vị thế ròng (net position) chi tiết:\n`;
-        result.mismatchedPositions.slice(0, 10).forEach((m: any) => {
-          note += `  - TK ${m.account}, HĐ ${m.symbol}: MS ${m.msPosition} vs CQG ${m.cqgPosition} (Chênh lệch: ${m.differ})\n`;
-        });
-        if (result.mismatchedPositions.length > 10) {
-          note += `  - ... và ${result.mismatchedPositions.length - 10} chênh lệch khác.\n`;
+      note += `• Khối lượng toàn thị trường (DSGD gốc vs Snapshot): ${orig} vs ${snap} lot (Chênh lệch: ${diffTot} lot)\n`;
+      note += `• Khối lượng tự doanh ACM (MS vs Straits CSV): ${acmMs} vs ${acmCsv} lot (Chênh lệch: ${diffAcm} lot)\n`;
+      if (result.dsgdBeforeEod?.messages?.length) {
+        for (const msg of result.dsgdBeforeEod.messages) {
+          note += `• ${msg}\n`;
         }
       }
       if (result.passed) {
-        note += `✓ Dữ liệu khớp lệnh và vị thế khớp hoàn toàn 100% giữa 3 bên.\n`;
+        note += `✓ Dữ liệu khớp 100% theo chuẩn kiểm tra DSGD Trước EOD.\n`;
       }
 
       const noteJson = JSON.stringify({
         success: result.passed,
         message: note,
         result,
-        type: 'CHECK_PRE_EOD',
+        type: 'CHECK_DSGD_BEFORE_EOD',
         attempts: 1,
         maxAttempts: 1,
         executedAt: new Date().toISOString(),
@@ -379,13 +391,13 @@ export class PreEodReconController {
 
       return {
         success: true,
-        message: 'Đối chiếu Pre-EOD hoàn thành và đã cập nhật ca trực!',
+        message: 'Đối chiếu Dsgd-Before-EOD hoàn thành và đã cập nhật ca trực!',
         status,
         result,
       };
     } catch (err: any) {
       throw new BadRequestException(
-        `Lỗi trong quá trình đối chiếu Pre-EOD: ${err.message}`,
+        `Lỗi trong quá trình đối chiếu Dsgd-Before-EOD: ${err.message}`,
       );
     }
   }

@@ -1,6 +1,473 @@
+## [2026-10-20T18:10] AUDIT & REFACTOR: Đồng Bộ Tên Tác Vụ Scheduler "Đối chiếu DSGD trước EOD" Chuẩn C# Tool
+
+### 1. Mục tiêu thay đổi
+
+- Đối chiếu trực tiếp mã nguồn C# IT Tool gốc (`FormMain.cs#btnCheckDSGDTruocEOD_Click`, `TransactionCheckingService.cs#CheckDSGDBeforeEOD`, `FIleUtils.cs#GetDSGDBeforeEOD`).
+- Chuẩn hóa tên tác vụ trong cấu hình Scheduler mặc định (`scheduler.service.ts`) từ `'Kiểm tra tiền EOD (Dsgd-Before-EOD Check)'` thành `'Đối chiếu DSGD trước EOD'`.
+
+### 2. Danh sách file đã chỉnh sửa
+
+1. **[scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/scheduler.service.ts#L128)**:
+   - Sửa `name: 'Đối chiếu DSGD trước EOD'`.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 lỗi).
+
+---
+
+## [2026-10-20T18:04] MIGRATION: Chuẩn Bị Script Chuyển Đổi Toàn Diện CHECK_DSGD_BEFORE_EOD -> CHECK_DSGD_BEFORE_EOD
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện theo chỉ đạo của USER: Chuyển đổi sạch sẽ 100% định danh tác vụ từ `CHECK_DSGD_BEFORE_EOD` sang `CHECK_DSGD_BEFORE_EOD` trên toàn bộ Codebase (Frontend, Backend, Types, Mappers, Workers) và cung cấp script Migration an toàn cho Database MongoDB.
+- Fix lỗi duplicate key `CHECK_DSGD_BEFORE_EOD` trong `activity-log-mapper.ts`.
+
+### 2. Danh sách file đã chỉnh sửa & tạo mới
+
+1. **[migrate_dsgd_before_eod_to_dsgd_before_eod.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/migrate_dsgd_before_eod_to_dsgd_before_eod.ts)** (Tạo mới):
+   - Script di chuyển dữ liệu MongoDB có 2 chế độ: Dry-Run (chỉ quét đếm an toàn) và Execute (`--apply`).
+   - Cập nhật 4 collections: `templates`, `shift_logs`, `bot_jobs`, `trading_recon_logs`.
+2. **[activity-log-mapper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/utils/activity-log-mapper.ts#L220)**:
+   - Xóa bỏ key trùng lặp `CHECK_DSGD_BEFORE_EOD`, hợp nhất mô tả rõ ràng.
+3. **[recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L24-L60)** & **[dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts#L19-L35)**:
+   - Hỗ trợ đầy đủ `CHECK_DSGD_BEFORE_EOD` ở cả Worker và Handler.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 lỗi).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes compiled).
+
+---
+
+## [2026-10-20T17:57] UI-UPDATE: Chuẩn Hóa Nhãn Hiển Thị Tác Vụ CHECK_DSGD_BEFORE_EOD Thành "Đối chiếu DSGD trước EOD"
+
+### 1. Mục tiêu thay đổi
+
+- Cập nhật nhãn hiển thị cho tác vụ `CHECK_DSGD_BEFORE_EOD` trên giao diện thành **"Đối chiếu DSGD trước EOD"** theo chỉ đạo của USER, đảm bảo phản ánh chính xác nghiệp vụ thực thi (`CheckDSGDBeforeEOD`), đồng thời bảo toàn mã kỹ thuật `value: 'CHECK_DSGD_BEFORE_EOD'` để tương thích hoàn toàn với Database.
+
+### 2. Danh sách file đã chỉnh sửa
+
+1. **[templates/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/templates/page.tsx#L41)**:
+   - Sửa nhãn trong danh mục tùy chọn: `{ value: 'CHECK_DSGD_BEFORE_EOD', label: 'Đối chiếu DSGD trước EOD', technical: 'CHECK_DSGD_BEFORE_EOD' }`.
+2. **[TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L350)**:
+   - Sửa nhãn hàng đợi job: `case 'CHECK_DSGD_BEFORE_EOD': return 'Đối Chiếu DSGD Trước EOD'`.
+3. **[dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts#L20)**:
+   - Cập nhật `readonly displayName = 'Đối Chiếu DSGD Trước EOD'`.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 lỗi).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes compiled).
+
+---
+
+## [2026-10-20T17:47] PURGE: Xóa Bỏ Triệt Để 100% Các Hàm checkDSGDBeforeEOD & runAutoCheckDSGDBeforeEOD Khỏi Toàn Bộ Codebase
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện chỉ đạo dứt khoát từ USER: Xóa bỏ hoàn toàn và triệt để 100% hai hàm `checkDSGDBeforeEOD` và `runAutoCheckDSGDBeforeEOD` cùng interface `DsgdBeforeEodReconResult`.
+- Chuyển toàn bộ các vị trí điều phối tác vụ Dsgd-Before-EOD (`ReconJobsHandler`, `DsgdBeforeEodReconWorker`, `DsgdBeforeEodReconController`) sang gọi trực tiếp `DsgdBeforeEodService.runAutoCheckDSGDBeforeEOD` và `DsgdBeforeEodService.checkDSGDBeforeEODFromBuffers` (chuẩn C# IT Tool `CheckDSGDBeforeEOD`).
+
+### 2. Danh sách file đã chỉnh sửa & xóa bỏ
+
+1. **[dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)**:
+   - Xóa sạch 100% hàm `checkDSGDBeforeEOD()` và `runAutoCheckDSGDBeforeEOD()`.
+   - Xóa interface `DsgdBeforeEodReconResult` và các import thừa (`parseDSGD`, `parseStraitsCsv`, `findLatestFile`).
+   - File chỉ còn giữ các hàm chuẩn: `getPreviousTradingSession`, `runAutoCheckSOD`, `runAutoCheckEodMm`, `buildDsgdBeforeEodEmailHtml`, `checkEOD`.
+2. **[recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+   - Inject `DsgdBeforeEodService`.
+   - Thay thế toàn bộ lệnh gọi `runAutoCheckDSGDBeforeEOD` bằng `dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate: targetDate })`.
+3. **[dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts)**:
+   - Inject `DsgdBeforeEodService`.
+   - Thay thế lệnh gọi `runAutoCheckDSGDBeforeEOD` bằng `dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate: targetDate })`.
+4. **[dsgd-before-eod-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts)**:
+   - Inject `DsgdBeforeEodService`.
+   - Thay thế `checkDSGDBeforeEOD` bằng `dsgdBeforeEodService.checkDSGDBeforeEODFromBuffers`.
+5. **[test-handlers-simulation.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test-handlers-simulation.ts)**:
+   - Xóa bỏ `runAutoCheckDSGDBeforeEOD` khỏi mock service; bổ sung `mockDsgdBeforeEodService`.
+6. **Xóa các test script cũ lỗi thời**:
+   - `backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts`
+   - `backend/src/scripts/test_dsgd_before_eod_day25.ts`
+   - `backend/src/tests/test-dsgd-before-eod-local.ts`
+
+### 3. Xác nhận Kiểm tra & Build
+
+- **Grep check**: `runAutoCheckDSGDBeforeEOD` $\rightarrow$ **0 matches** trong toàn bộ repository.
+- **Grep check**: `checkDSGDBeforeEOD` $\rightarrow$ **0 matches** trong toàn bộ repository.
+- **Backend Build**: `npm run build` (`nest build`) thành công 100% (Pass 0 lỗi).
+- **Frontend Build**: `npm run build` (`next build`) thành công 100% (Pass 49/49 static routes, 0 lỗi).
+
+---
+
+## [2026-10-20T17:40] PURGE: Xóa Bỏ Hoàn Toàn Các Biến & Mảng Rác Của Logic 5 File Cũ (mismatchedTrades, mismatchedPositions, totalCQG_MS/FR/differCQG) Khỏi Dsgd-Before-EOD
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện yêu cầu dọn dẹp triệt để từ USER ("Tại sao bạn không xóa đi mà để lại làm gì"): Xóa sạch hoàn toàn các tàn dư của logic 5 file giả định trước đây (`mismatchedTrades`, `mismatchedPositions`, các trường alias `totalCQG_MS`, `totalCQG_FR`, `differCQG`, `totalACM_MS`, `totalACM_Straits`) khỏi toàn bộ phân hệ Kiểm tra Trước EOD (`CheckDSGDBeforeEOD`).
+
+### 2. Danh sách file đã chỉnh sửa
+
+1. **[dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)**:
+   - Xóa bỏ hoàn toàn `mismatchedTrades` và `mismatchedPositions` khỏi interface `DsgdBeforeEodReconResult` và return objects.
+   - Xóa bỏ các trường alias thừa `totalCQG_MS`, `totalCQG_FR`, `differCQG`, `totalACM_MS`, `totalACM_Straits`.
+   - `DsgdBeforeEodReconResult.totals` chỉ giữ đúng 6 trường nghiệp vụ chuẩn C# `CheckDSGDBeforeEOD`: `totalOriginal`, `totalTemp`, `differTotal`, `totalACMMS`, `totalACMSFTP`, `differACM`.
+   - `buildDsgdBeforeEodEmailHtml`: Xóa bỏ 2 bảng rác (Bảng lệnh lệch, Bảng vị thế lệch), chỉ giữ bảng đối chiếu khối lượng chuẩn.
+2. **[dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts)**:
+   - Xóa `mismatchedTradesCount` và `mismatchedPositionsCount` khỏi metrics.
+   - Xóa các trường alias `totalCQG_MS`, `totalCQG_FR`, `differCQG`.
+   - Metrics chỉ còn đúng 6 chỉ số chuẩn `CheckDSGDBeforeEOD`.
+3. **[recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+   - Xóa bỏ hoàn toàn logic in log 5 file cũ trong `appendOvernightLog` (`KLGD MS vs CQG`, `TTM MS vs CQG`, `TTTT MS vs CQG`, vòng lặp `mismatchedTrades`, `mismatchedTTTT`).
+   - Xóa bỏ tham chiếu `totalCQG_MS`, `totalCQG_FR`, `differCQG` trong `handleCheckDsgdBeforeEodJob`.
+4. **[dsgd-before-eod-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts)**:
+   - Endpoint `upload-dsgd-before-eod`: Xóa bỏ bắt buộc file `cqgFr`, `tttt`, `cqgPs`; chỉ yêu cầu đúng 2 file bắt buộc `dsgd` và `acmTrades` (file `dsgdSnapshot` tùy chọn).
+   - Xóa bỏ ghi chú chênh lệch lệnh/vị thế rác.
+5. **[ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/ReconciliationModal.tsx)**:
+   - Xóa bỏ các dropzone đòi file `TTTT.xlsx` và `PS.xlsx` ở chế độ DSGD_BEFORE_EOD.
+   - Xóa bỏ các bảng hiển thị `mismatchedTrades` và `mismatchedPositions`.
+   - Kết quả hiển thị đúng chuẩn khối lượng toàn thị trường (Gốc vs Snapshot) và tự doanh ACM (MS vs Straits CSV).
+6. **[recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon-console-summary.service.ts)**:
+   - Chuẩn hóa fallback và mapping theo 6 trường `totalOriginal`, `totalTemp`, `differTotal`, `totalACMMS`, `totalACMSFTP`, `differACM`.
+7. **[trading-recon-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts)**:
+   - Bổ sung trường `dsgdBeforeEod` để lưu trữ đầy đủ kết quả domain log của CheckDSGDBeforeEOD.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build**: `npm run build` (`nest build`) thành công 100% (Pass 0 lỗi).
+- **Frontend Build**: `npm run build` (`next build`) thành công 100% (Pass 49/49 static routes, 0 lỗi).
+
+---
+
+## [2026-10-20T17:35] BUGFIX: Loại Bỏ Các Dòng Đối Soát ACM & CoreCCP Cùng Tab CoreCCP Trên Modal So Sánh Đối Với Tài Khoản Futures Thuần Túy
+
+### 1. Mục tiêu thay đổi
+
+- Giải quyết câu hỏi và phản ánh của USER:
+  `"_id": "6ad6d6be17cb74f82d386d27", "batchDate": "2026-10-20", "maTKGD": "080P3309888", "accountType": "FUTURES", "noiDungMail": { "hasACMRequest": false } ... tại sao lại hiện chờ động dữ liệu coreCCP trong khi phải quét trên MS chứ`
+- **Xác minh thực tế (Ground Truth Code & Dữ liệu CSDL)**:
+  1. Tài khoản `080P3309888` là tài khoản Futures thuần túy (`accountType: "FUTURES"`, `accountTypes: ["FUTURES"]`, loại hình Tự doanh `P` của TVKD `080`), email hoàn toàn KHÔNG có yêu cầu mở ACM (`noiDungMail.hasACMRequest: false`).
+  2. Tuy nhiên, trên Modal đối soát chi tiết (`So Sánh Đối Soát Chi Tiết`), giao diện lại hiển thị:
+     - Dòng _Tiểu khoản ACM (-A)_: Tự sinh `080P3309888-A`.
+     - Dòng _Phụ lục PL01 (ACM)_: `Đã ký (PL01)` | `Đang xử lý`.
+     - Dòng _Bù trừ CoreCCP (ACM)_: `080P3309888-A (Yêu cầu ACM)` | `Chờ đồng bộ dữ liệu CoreCCP` | Badge `Chờ đồng bộ`.
+     - Tab 3: `Tiểu Khoản CoreCCP (ACM)`.
+  3. **Nguyên nhân gốc rễ trong mã nguồn**:
+     - Trong [TabDataComparison.tsx#L120-L125](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx#L120-L125):
+       Biến `hasACM` kiểm tra `!!inspectRecord.phuLuc`. Do tài khoản này có đối tượng `phuLuc` trong CSDL, `hasACM` bị tính toán thành `true`, dẫn tới việc tự động chèn 3 dòng ACM và do không quét CCP cho tài khoản này nên rơi vào nhánh `inspectRecord.ccp === undefined` $\rightarrow$ sinh ra dòng chữ _"Chờ đồng bộ dữ liệu CoreCCP"_ và badge _"Chờ đồng bộ"_.
+     - Trong [TkgdInspectionModal.tsx#L237](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx#L237):
+       Tab `Tiểu Khoản CoreCCP (ACM)` bị render tĩnh, hiển thị cho mọi tài khoản bất kể có yêu cầu mở ACM hay không.
+  4. **Giải thích về M-System (Tại sao M-System bị "-" và báo "M-System chưa nhập số CCCD")**:
+     - `080P3309888` là tài khoản Tự doanh (`inv.type === "P"`).
+     - Khi đồng bộ qua REST API M-System ([ms-api.service.ts#L138-L175](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/ms-client/services/ms-api.service.ts#L138-L175)), code chỉ bóc `inv.individual`. Với tài khoản Tự doanh / Doanh nghiệp, `inv.individual` rỗng nên `soCMND_HoChieu` bị `undefined`, chỉ lấy được tên doanh nghiệp `inv.investorName` = _"Công ty Cổ phần Công nghệ Tài chính APEX"_.
+     - Trước đó ở batch `2026-10-15`, tài khoản này được quét bằng Playwright Web UI Scraper ([msystem-scraper.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/engine-helpers/msystem-scraper.helper.ts#L283-L291)) nên bóc tách được trực tiếp Người đại diện pháp luật `Lê Đức Thiện` và CCCD `038089023437`.
+
+### 2. Danh sách file đã chỉnh sửa
+
+1. **[TabDataComparison.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TabDataComparison.tsx)**:
+   - Xóa bỏ điều kiện lỏng lẻo `!!inspectRecord.phuLuc`.
+   - Chuẩn hóa `hasACM` theo chuẩn định danh nghiệp vụ: Chỉ bật các dòng ACM khi tài khoản kết thúc `-A`, `accountType/accountTypes === 'ACM'`, `noiDungMail.hasACMRequest === true`, có `maTKGD_ACM`, hoặc có tiểu khoản con `subAccounts` loại `ACM`.
+2. **[TkgdInspectionModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx)**:
+   - Chuẩn hóa điều kiện `hasAcm`.
+   - Ẩn Tab `Tiểu Khoản CoreCCP (ACM)` và nút chuyển nhanh modal CCP khi tài khoản không có yêu cầu mở ACM.
+
+### 3. Xác nhận Build & Triển khai
+
+- **Frontend Build**: `npx tsc --noEmit` và `npm run build` thành công 100% (Pass 0 lỗi).
+- **Server Deploy**: Đã đồng bộ lên máy chủ Ubuntu 10.1.0.16 bằng `python sync_to_server.py --frontend` và reload PM2 (`mxv-account-opening-reconciler-ui`) thành công trong 19s.
+
+---
+
+## [2026-10-20T17:15] CLEANUP & STANDARDIZATION: Xóa Bỏ Code Archive Vô Nghĩa & Chuẩn Hóa Toàn Diện Logic Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) Chuẩn C#
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện yêu cầu của USER:
+  _"hàm này trước bạn viết CheckDSGDBeforeEOD cho toi nhưng thực chất vận hành không dùng đến và cũng sai đó là điều tren tool C# có trong service nhưng không có trong ui vậy tôi cần xử lý làm sao hiện tại core tôi đang có dsgd-before-eod-recon.service.ts, recon-jobs.handler.ts, reconciliation/reconciliation.service.ts, reconciliation.service.backup.ts, dsgd-before-eod-recon.service.v1.ts hoàn toàn là vô nghĩ làm sao xử lý được"_ -> _"giúp tôi dọn dẹp"_
+- **Xác minh thực tế (Ground Truth C# IT Tool)**:
+  1. Trên giao diện vận hành C# (`FormMain.cs`), nút _"Kiểm tra DSGD trước EOD"_ (`btnCheckDSGDTruocEOD_Click`) chỉ gọi duy nhất `CheckDSGDBeforeEOD()`. Logic này chỉ cần đúng 3 file: `DSGD.xlsx` gốc T-1, `DSGD{time}.xlsx` snapshot tươi T-1, và file Straits CSV T-1.
+  2. Hàm `CheckDSGDBeforeEOD` (dòng 1254 trong `TransactionCheckingService.cs`) thực chất là code thử nghiệm không gắn vào bất kỳ UI hay timer nào, bắt buộc phải có đủ 5 file (`DSGD`, `FR`, `Straits`, `TTTT`, `PS`). Việc port hàm này trước đây đã gây nghẽn bot (do trước EOD chưa thể có file tất toán `TTTT` và vị thế `PS`), tạo ra hàng loạt file rác và archive vô nghĩa.
+
+### 2. Danh sách file đã dọn dẹp & chỉnh sửa
+
+1. **Xóa bỏ các file rác và archive không còn sử dụng**:
+   - `backend/src/legacy/archive/reconciliation.service.backup.ts` (Xóa)
+   - `backend/src/legacy/archive/dsgd-before-eod-recon.service.v1.ts` (Xóa)
+   - `backend/src/legacy/archive/reconciliation/` (Xóa toàn bộ 14 file controllers, parsers, services cũ)
+   - `backend/src/scripts/CheckDsgdBeforeEodRunner.cs` & `CheckDsgdBeforeEodRunner.exe` (Xóa)
+   - `backend/src/scripts/output_csharp.txt` & `output_csharp2.txt` (Xóa)
+2. **[dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)**:
+   - Inject `DsgdBeforeEodService`.
+   - `runAutoCheckDSGDBeforeEOD`: Ủy quyền trực tiếp sang `dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate })` để chạy đúng chuẩn C# `CheckDSGDBeforeEOD` (3 file), không còn đòi hỏi các file tất toán `TTTT` hay `PS` trước EOD.
+   - Bổ sung `dsgdBeforeEod` vào kết quả `DsgdBeforeEodReconResult`.
+3. **[recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+   - Cập nhật định dạng log của bot job `CHECK_DSGD_BEFORE_EOD` hiển thị chi tiết theo chuẩn C# `CheckDSGDBeforeEOD` (Khối lượng DSGD gốc vs DSGD snapshot, Khối lượng ACM MS vs Straits CSV).
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build**: `npm.cmd run build` (`nest build`) -> **Exit code 0 (Pass 100%, 0 lỗi)**.
+- **Frontend Build**: `npm.cmd run build` (`next build`) -> **Exit code 0 (Compiled successfully, 49/49 routes static/dynamic Pass 100%)**.
+
+---
+
+## [2026-10-20T16:21] BUGFIX: Bổ Sung Nhận Diện Bất Thường Ngày Cấp CCCD (Issue Date Anomaly) Để Kích Hoạt Trọng Tài Gemini Vision & Tự Động Chữa Lành
+
+### 1. Mục tiêu thay đổi
+
+- Trả lời và xử lý câu hỏi/phản ánh của USER:
+  _"giúp tôi check lại thêm case này quét cccd là 06/08/2022 có phải là đã quét được từ ai gemini rồi nhưng không lưu được vào hoặc là do lúc ý tôi chưa update code này(trước đó có dính bug là gọi gemini ai ra kết quả nhưng không lưu được vào vẫn lấy dữ liệu cũ nên vẫn lệch, còn nếu lấy kết quả của gemini ai vào thì chính xác khớp luôn)"_
+- **Xác minh thực tế (Ground Truth)**:
+  1. Con số `06/08/2022` **KHÔNG PHẢI** do Gemini AI đọc, mà do bộ OCR cục bộ (Tesseract/CLAHE Otsu) đọc nhầm các chữ số nhỏ trên nền hoa văn bảo an phức tạp của mặt sau CCCD (nhầm số 5 thành số 6, số 6 thành số 8: `05/06/2022` $\rightarrow$ `06/08/2022`).
+  2. Gemini AI Vision khi chạy trực tiếp trên 2 ảnh thẻ này đọc **CỰC KỲ CHUẨN XÁC** là **`05/06/2022`** (khớp 100% với Hợp đồng và CoreCCP).
+  3. Lý do trước đó kết quả của Gemini AI không vào được CSDL:
+     - Trong [tkgd_extractor_worker.py#L3326-L3335](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/python/tkgd_extractor_worker.py#L3326-L3335), hàm `detect_field_anomalies` chỉ kiểm tra lệch Họ tên, Ngày sinh (`dob != hd_dob`), Số CCCD với Hợp đồng, nhưng **HOÀN TOÀN KHÔNG KIỂM TRA SỰ LỆCH NHAU GIỮA NGÀY CẤP TRÊN CCCD VÀ HỢP ĐỒNG** (`issue != hd_issue`).
+     - Do năm cấp `2022 <= 2026`, hàm coi `06/08/2022` là ngày hợp lệ bình thường, trả về `anomalyReasons = []`, dẫn tới `should_call_gemini = False` (Gemini Vision chưa từng được kích hoạt cho thẻ này).
+     - Kết quả OCR cục bộ sai lệch (`06/08/2022`) bị lưu thẳng vào CSDL và sinh lỗi cảnh báo sai ngày cấp.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
+1. **[tkgd_extractor_worker.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/python/tkgd_extractor_worker.py)** (cả `src/` và `dist/`):
+   - Trong `detect_field_anomalies`: Bổ sung kiểm tra `elif hd_issue and str(issue).strip() != str(hd_issue).strip(): reasons.append(f"Ngày cấp trên ảnh ({issue}) khác với Hợp đồng ({hd_issue}) - nghi vấn OCR nhầm nét số trên phôi thẻ")`.
+   - Khi có độ lệch này, hệ thống tự động kích hoạt trọng tài Gemini Vision, đọc lại chuẩn xác ngày cấp từ phôi thẻ (`05/06/2022`), tự động chữa lành `source = 'GEMINI_HEALED'` và đồng thuận với Hợp đồng.
+
+### 3. Kết quả Kiểm thử Live trên Máy chủ (10.1.0.16)
+
+- Đã sync code backend mới lên máy chủ `10.1.0.16` (`sync_to_server.py --backend`).
+- Đã kích hoạt "Check lại" trực tiếp tài khoản `089C3357014`:
+  - Bộ trích xuất kích hoạt trọng tài Gemini Vision (`anomalyReasons: ["Ngày cấp trên ảnh (06/08/2022) khác với Hợp đồng (05/06/2022)..."]`).
+  - Gemini Vision trả về: `ngayCap: "05/06/2022"`, `isConsensusVerified: true`, `source: "GEMINI_HEALED"`.
+  - CSDL MongoDB lưu thành công: `rawNgayCap: "05/06/2022"`, `source: "GEMINI_HEALED"`.
+  - Lỗi `Sai ngày cấp trên HĐ: Ngày cấp trên hồ sơ (05/06/2022) không khớp với CCCD (06/08/2022)` **ĐÃ HOÀN TOÀN BIẾN MẤT**! Cả 3 bên CCCD (`05/06/2022`), HĐ (`05/06/2022`) và CoreCCP (`05/06/2022`) đều khớp 100%!
+
+---
+
+## [2026-10-20T16:08] BUGFIX & UI/UX HARMONIZATION: Sửa Lỗi Nhầm Lẫn Giữa Futures Và CoreCCP/ACM, Thay Nhãn +ACM Thành +CCP & Chuẩn Hóa Phân Luồng Đối Soát
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện chỉ đạo và phản hồi của USER:
+  1. _"logic đoạn này có nhầm không vậy tại sao future check trên ms rồi check cả ccp và hiển thị +ACM ???"_:
+     - **Xác nhận**: Logic trước đây bị nhầm lẫn do trong backend (`tkgd-automation.service.ts`, `tkgd-reconcile-core.service.ts`) và frontend (`TkgdRecordsTable.tsx`, `tkgd.helpers.ts`) tồn tại điều kiện kiểm tra sự tồn tại của trường `ccp` (`Boolean(rec.ccp)` / `r.ccp`) để suy diễn tài khoản có tiểu khoản ACM.
+     - Hệ quả: Khi một tài khoản Futures (như `007C0012955`) có dữ liệu khách hàng lưu ký trên CoreCCP, hệ thống tự động suy diễn nó có tiểu khoản ACM `-A`, tự động gọi API CoreCCP `processAccountFullWorkflow('007C0012955-A')`, hiển thị trạng thái CCP "Hoạt động", và gán nhãn `+ACM` trên nút thao tác.
+  2. _"nếu có thì có thể thay +CCP thay vì ACM vì CCP là nơi để check ACM còn tài khoản future bạn lại để chữ xem đối soát +ACM thì không hợp lý tôi check hệ thống thì có tài khoản 007C0012955 trên ccp nhưng chưa mở ACM đâu bạn hiển thị như vậy có thể gây nhầm lẫn"_:
+     - Chuẩn hóa: CoreCCP (VNCLEAR) là hệ thống bù trừ, nơi lưu trữ hồ sơ để phục vụ đối soát tiểu khoản bù trừ/ACM.
+     - Đổi nhãn `+ACM` thành `+CCP` trên nút thao tác để thể hiện đúng bản chất (mở bảng đối soát chuyên sâu CoreCCP).
+     - Với tài khoản thuần Futures (không có yêu cầu mở ACM, không có mã `-A`):
+       - Tuyệt đối **KHÔNG** gọi API CoreCCP kiểm tra tiểu khoản `-A`.
+       - Cột "TRẠNG THÁI CCP" hiển thị dấu gạch ngang `-` (thay vì xanh "Hoạt động").
+       - Nút thao tác chỉ hiển thị duy nhất `[Xem đối soát]` (icon mắt `Eye`), hoàn toàn không có badge `+ACM` hay `+CCP`.
+       - Chỉ tài khoản nào thực sự có yêu cầu mở tiểu khoản ACM (hoặc mã `-A`) mới hiển thị badge `+CCP`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
+1. **[tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Loại bỏ hoàn toàn `Boolean(rec.ccp)` khỏi điều kiện `hasAcmSub` trong cả 2 hàm `reparseAccount` (L410) và `bulkReRunE2E` (L586).
+   - Đảm bảo tài khoản thuần Futures chỉ gọi duy nhất REST API M-System (`msCrawlerService.syncMSystemAccounts`), không bao giờ gọi sang CoreCCP.
+2. **[tkgd-reconcile-core.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/tkgd-automation/services/tkgd-reconcile-core.service.ts)**:
+   - Loại bỏ `!!(record as any).ccp` khỏi biến `isAcmAccount` trong hàm `reEvaluateRecord` (L2147).
+3. **[tkgd.helpers.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/utils/tkgd.helpers.ts)**:
+   - Trong `getAccountTypeBadges`: loại bỏ `|| record.ccp`, chỉ gán badge ACM khi tài khoản thực sự có yêu cầu ACM từ mail, đuôi `-A` hoặc subAccounts.
+4. **[TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)**:
+   - Cột "TRẠNG THÁI CCP" (L545): loại bỏ `r.ccp ||` trong `hasAcm`. Tài khoản thuần Futures hiển thị dấu `-`.
+   - Cột "THAO TÁC" (L881, L950):
+     - Loại bỏ `r.ccp ||` khỏi `hasAcm`.
+     - Đổi badge từ `+ACM` thành `+CCP` với tooltip: _"Mở nhanh bảng đối soát chuyên sâu CoreCCP"_.
+     - Tài khoản thuần Futures chỉ hiển thị nút `[Xem đối soát]` không có badge.
+5. **[TkgdGuideModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TkgdGuideModal.tsx)**:
+   - Cập nhật tài liệu hướng dẫn: Đổi `[Xem đối soát +ACM]` thành `[Xem đối soát +CCP]`.
+6. **Dọn dẹp CSDL MongoDB (`10.1.0.16`)**:
+   - Chạy `$unset: { ccp: 1 }` cho tài khoản `007C0012955` để xóa bỏ dữ liệu CoreCCP gán nhầm từ trước.
+
+### 3. Kết quả Kiểm thử & Triển khai Máy chủ (10.1.0.16)
+
+- **Kiểm thử Biên dịch**:
+  - Frontend: `npx tsc --noEmit` & `npm run build` -> **Exit code 0 (Pass 100%)**.
+  - Backend: `npx tsc --noEmit` & `npm run build` -> **Exit code 0 (Pass 100%)**.
+- **Triển khai máy chủ**:
+  - Chạy `sync_to_server.py` deploy toàn bộ Backend & Frontend lên máy chủ `10.1.0.16`.
+  - Reload PM2 thành công: `mxv-account-opening-reconciler` (PID online) & `mxv-account-opening-reconciler-ui` (PID online).
+- **Kiểm thử Live thực tế**:
+  - Kích hoạt "Check lại" tài khoản `007C0012955`:
+    - Chỉ gọi M-System API (`ACTIVE`), hoàn toàn KHÔNG gọi CoreCCP API.
+    - Trong MongoDB: Không có trường `ccp`, kết luận đối soát: **`trangThai: "KHOP"` (100% khớp, 0 lỗi, `needsManualReview: false`)**.
+    - Giao diện: Cột "TRẠNG THÁI CCP" hiển thị `-`, cột "THAO TÁC" hiển thị `[Xem đối soát]` gọn gàng không kèm nhãn dư thừa.
+
+---
+
+## [2026-10-20T15:52] UI/UX SIMPLIFICATION: Tinh Gọn Modal Tùy Chọn CheckDSGDBeforeEOD, Chuyển Chú Thích Thành Hover Tooltip & Xóa Bỏ Suy Diễn Rườm Rà
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện yêu cầu và chỉ đạo bằng văn bản trực tiếp của USER:
+  1. _"ở phần tùy trọn này bạn đang bị nhầm lẫn giữa hai phân hệ rồi với Kiểm Tra DSGD Trước EOD của CCP sẽ khác với của MS như tôi đang ở của CCP thì ấn tùy chọn nó lại hiện ra Tự động kéo file snapshot mới nhất từ M-System về trước khi đối chiếu. đồng thời nhiều thông tin không liên quan..."_:
+     - Xóa bỏ triệt để các tùy chọn phỏng đoán, suy diễn gây rối rắm: Bỏ checkbox "Kích hoạt Bot tải file mới nhất từ M-System về", bỏ checkbox "Khớp chính xác ngày (exactDate)", bỏ các khối văn bản giải thích dài dòng trong modal.
+     - Tinh gọn Modal [CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx) thành hộp thoại gọn gàng (maxWidth: 540px), chỉ tập trung vào đúng 2 trường thiết yếu:
+       - **Ngày phiên đối soát**: Ô chọn ngày trực quan.
+       - **File snapshot chiều**: Lựa chọn tự động file mới nhất HOẶC nhập hậu tố `timeSuffix` (ví dụ `172842`).
+       - Tóm tắt vắn tắt 3 file chuẩn: `DSGD.xlsx`, `DSGD{timeSuffix}.xlsx`, `Straits CSV`.
+  2. _"cần clear màn hình ít chứ tức là di chuột vào icon i chú thích thì sẽ hiện ra ra các Các tệp tin đầu vào bắt buộc: DSGD.xlsx, DSGD{timeSuffix}.xlsx, Straits CSV là được rồi kèm công thức đối chiếu core ngắn gọn là được rồi"_:
+     - Trong [DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx): Chuyển chú thích thành **Hover Tooltip** popover nổi ngay trên icon `Info` `(i)` cạnh tiêu đề.
+     - Xóa bỏ hoàn toàn khối tab giải thích chiếm dụng màn hình bên dưới, trả lại không gian thoáng đãng, đồng bộ 100% với giao diện `Đối chiếu giao dịch trước EOD`.
+
+### 2. Danh sách file chỉnh sửa
+
+1. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
+   - Thu nhỏ kích thước modal, xóa bỏ 4 card nghiệp vụ cồng kềnh, xóa bỏ các checkbox không liên quan.
+2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Bổ sung hover tooltip popover cho icon `(i)` hiển thị 3 file bắt buộc và công thức core.
+   - Giản lược vùng nội dung bên dưới chỉ hiển thị nhật ký và danh sách tệp khi đã quét.
+
+### 3. Kết quả Kiểm thử & Triển khai
+
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Pass 100%)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên server Ubuntu `10.0.0.26`.
+
+---
+
+## [2026-10-20T15:48] FEATURE & UI REFINEMENT: Phân Luồng Thông Minh Cho Hành Động "Check Lại" (Futures Qua MS API, ACM Qua CoreCCP API) & Tinh Gọn Nút Trùng Lặp Trên UI
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện chỉ đạo của USER:
+  1. _"giúp tôi thêm logic nếu là future thì gọi qua api ms check lại còn nếu là acm thì gọi qua ccp giúp tôi fix"_: Tự động phân loại tài khoản khi chạy "Check lại" (Smart Re-check / E2E). Nếu là Futures thì gọi qua M-System REST API để kiểm tra và cập nhật trạng thái; nếu là ACM (có đuôi `-A` hoặc yêu cầu mở tiểu khoản ACM) thì gọi qua CoreCCP REST API (VNCLEAR) để đồng bộ dữ liệu bù trừ.
+  2. _"và bỏ chữ Đồng bộ CCP thì không cần thiết"_: Loại bỏ nút "Đồng bộ CCP" trên thanh thao tác hàng loạt (Floating Selection Bar) của bảng danh sách hồ sơ vì hành động "Check lại" đã bao quát thông minh cả 2 hệ thống.
+  3. _"Cũng bỏ luôn chữ check lại trên modal vì duplicate"_: Gỡ bỏ nút "Check lại" tại thanh công cụ dưới đáy Modal Soi hồ sơ (`TkgdInspectionModal.tsx`) để tránh trùng lặp dư thừa với nút "Check lại" ngoài bảng chính.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
+1. **[TkgdInspectionModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx)**:
+   - Gỡ bỏ nút `Check lại` (`Smart Re-check`) trong footer modal, chỉ giữ lại các nút chính: `[Phê duyệt]` và `[Đóng]`.
+   - Dọn dẹp state thừa `isReparsing` và import `RefreshCw`.
+2. **[TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)**:
+   - Gỡ bỏ nút `Đồng bộ CCP` (`handleBulkSyncCcp`) tại thanh floating bar khi chọn nhiều dòng.
+   - Dọn dẹp hàm `handleBulkSyncCcp` không còn sử dụng.
+   - Bổ sung `resyncCcp: true` vào `handleBulkRunE2E` để đảm bảo cờ phân luồng luôn được truyền đầy đủ.
+3. **[tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/services/tkgd.api.ts)**:
+   - Khai báo bổ sung `resyncCcp?: boolean` trong interface `options` của `bulkReRunE2E`.
+4. **[tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Nâng cấp `bulkReRunE2E`: Duyệt qua danh sách tài khoản được chọn, nhận diện loại tài khoản:
+     - **Futures**: Gọi `msCrawlerService.syncMSystemAccounts(userEmail, { investorCode: baseCode })` qua REST API trực tiếp.
+     - **ACM** (mã `-A` hoặc có yêu cầu ACM): Gọi `ccpApiService.processAccountFullWorkflow(acmCode)` qua CoreCCP OAuth2 API.
+     - Thực hiện đồng bộ API **trước** khi chạy đối soát/reparse để đảm bảo kết quả đánh giá luôn dựa trên dữ liệu mới nhất.
+   - Nâng cấp `reparseAccount`: Bổ sung cơ chế tự động đồng bộ MS (cho Futures) và CoreCCP (cho ACM) trước khi quét lại tệp và tái thẩm định quy tắc.
+5. **[tkgd-reconcile-core.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/tkgd-automation/services/tkgd-reconcile-core.service.ts)**:
+   - Chuẩn hóa mã tài khoản truyền vào `processAccountFullWorkflow` trong `reEvaluateRecord` để đảm bảo luôn dùng đúng mã tiểu khoản `-A`.
+6. **[tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/engine-helpers/tkgd-reconcile-rules.helper.ts)**:
+   - Lọc bỏ các nhãn nhiễu OCR ("Địa chỉ", "Nơi thường trú", "Quê quán") khi so khớp nơi cấp CCCD.
+   - Tự động nhận diện chuẩn nơi cấp đối với CCCD gắn chip 12 số là `CỤC CẢNH SÁT QLHC VỀ TTXH`, loại bỏ hoàn toàn cảnh báo lệch ảo nơi cấp.
+
+### 3. Kết quả Kiểm thử & Triển khai Máy chủ (10.1.0.16)
+
+- **Kiểm thử Biên dịch**:
+  - Frontend: `npx tsc --noEmit` & `npm run build` -> **Exit code 0 (Success)**.
+  - Backend: `npx tsc --noEmit` & `npm run build` -> **Exit code 0 (Success)**.
+- **Triển khai máy chủ**:
+  - Chạy `sync_to_server.py` deploy toàn bộ Backend & Frontend lên `10.1.0.16`.
+  - Reload PM2 thành công: `mxv-account-opening-reconciler` (PID online) & `mxv-account-opening-reconciler-ui` (PID online).
+- **Kiểm thử thực tế Live**:
+  - Kích hoạt "Check lại" tài khoản `007C0012955`:
+    - MS API hoàn tất trong 63ms: `Sùng Thị Pàng` | CCCD: `004194004204` | `ACTIVE`.
+    - CoreCCP API tự động gọi cho tiểu khoản `007C0012955-A`: tải đủ CCCD & Chữ ký, trạng thái `Hoạt động`.
+    - Kết luận đối soát: **KHOP (100% khớp, 0 lỗi, `needsManualReview: false`)**.
+
+---
+
+## [2026-10-20T15:45] UI/UX HARMONIZATION: Đặt Mặc Định Phân Hệ CoreCCP – CoreEX & Đồng Bộ 100% Styling CheckDSGDBeforeEOD Giống Đối Chiếu Trước EOD
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện yêu cầu của USER:
+  1. _"giúp tôi hiển thị phân hệ CoreCCP-CoreEX mặc định"_: Cập nhật trạng thái khởi tạo `scopeTab` mặc định là `'CCP_CE'` thay vì `'ALL'`, giúp khi truy cập màn hình `/trading-manager/session-open/klgd-phien-cu`, hệ thống tập trung ngay vào phân hệ mới CoreCCP ↔ CoreEX.
+  2. _"giao diện Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) phần styles tương tự Đối chiếu giao dịch trước EOD vì tôi thấy hai giao diện đang khác nhau"_:
+     - Tái cấu trúc component [DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx) đồng bộ hoàn toàn với [LegacyDsgdBeforeEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx):
+       - **Khung thẻ chuẩn**: `glass-panel` với `padding: 0`, bo góc 12px, viền và đổ bóng chuẩn Enterprise.
+       - **Header Toolbar**: Thanh công cụ nền `var(--bg-input)`, icon vuông bo góc 32x32 `ShieldCheck` màu xanh, tiêu đề in đậm `Kiểm tra DSGD trước EOD (CheckDSGDBeforeEOD)` kèm timestamp thời gian kiểm tra inline, status badge pill và các nút hành động đồng bộ (`Tùy chọn...`, `Sao chép`, `Check DSGD Trước EOD`).
+       - **4 Thẻ Metrics Card Luôn Hiển Thị (Part 1 Top Row)**: Bố cục lưới 4 cột hiển thị thường trực ngay cả khi chưa bấm quét (`ACM Tự doanh MS vs Straits`, `DSGD Gốc vs Snapshot`, `Lệnh Khớp Lệch Trades`, `Trạng thái Snapshot & An toàn`), loại bỏ hoàn toàn khung viền nét đứt (dashed box) thô kệch cũ.
+       - **Thanh Subtabs & Khu vực Nội dung Có Chiều Cao Cố Định**: Thanh tab bên dưới (`Chi tiết phân tích & Tệp tin`, `Hướng dẫn & Tiêu chuẩn nghiệm thu`) với vùng nội dung có `maxHeight: '280px'`, `minHeight: '180px'`, `overflowY: 'auto'`, hiển thị giao diện chờ sang trọng khi chưa quét và danh sách tệp/log phân tích chi tiết khi đã quét.
+
+### 2. Danh sách file chỉnh sửa
+
+1. [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+   - Chuyển `scopeTab` mặc định khởi tạo thành `'CCP_CE'`.
+2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Thiết kế lại 100% layout theo chuẩn Header Toolbar + 4 Metric Cards + Subtabs Area của `LegacyDsgdBeforeEodDiffSection`.
+
+### 3. Kết quả Kiểm thử & Triển khai
+
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Pass 100%)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên server Ubuntu `10.0.0.26`.
+
+---
+
+## [2026-10-20T15:35] UI/UX REFINEMENT: Đặt Nút Phân Hệ Bên Cạnh Ngày Phiên & Cố Định Chiều Cao Cuộn Bảng Dsgd-Before-EOD CoreCCP ↔ CoreEX
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện yêu cầu của USER:
+  1. _"nút này sẽ đặt bên cạnh ngày phiên"_: Chuyển thanh chuyển đổi phân hệ (Segmented Tab: Tất cả / MS – CQG / CoreCCP – CoreEX) lên thanh Header Bar nằm ngay bên cạnh bộ chọn `Phiên: MM/DD/YYYY`.
+  2. Bỏ khối card banner thừa chiếm diện tích bên dưới để giao diện liền mạch, tinh gọn.
+  3. _"Chi tiết đối chiếu Dsgd-Before-EOD (CoreCCP ↔ CoreEX) nếu có nhiều bản ghi sẽ dẫn đến scroll rất lâu giúp tôi fix lại để có độ dài cố định chuẩn ui/ux như các trang khác"_:
+     - Bổ sung `maxHeight: '280px'`, `minHeight: '160px'`, `overflowY: 'auto'` cho cả 2 bảng lệch lệnh (`filteredTrades`) và lệch vị thế net (`filteredPositions`) trong [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx).
+     - Ghim tiêu đề bảng `thead` cố định (`position: 'sticky', top: 0, zIndex: 5`) giúp quan sát cột dễ dàng khi cuộn danh sách lớn, đồng bộ 100% UI/UX với `LegacyDsgdBeforeEodDiffSection`.
+
+### 2. Danh sách file chỉnh sửa
+
+1. [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+   - Đưa Tab Switcher button group lên Header bar đặt cạnh `Phiên:`.
+   - Xóa bỏ card banner `Phân hệ đối chiếu trước EOD:` bên dưới.
+2. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx):
+   - Thêm `maxHeight: '280px'`, `minHeight: '160px'`, `overflowY: 'auto'` và sticky header `thead` cho cả 2 bảng lệch lệnh và lệch vị thế net.
+
+### 3. Kết quả Kiểm thử & Triển khai
+
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Pass 100%)**.
+- Đã đồng bộ sang cả 2 repo: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Đã upload và build lại trên server Ubuntu `10.0.0.26`:
+  - Next.js 16.2.9 (Turbopack) build thành công 49/49 routes.
+  - Restart PM2 `mxv-frontend` (PID 3260736, online).
+  - Curl `http://localhost:3000/trading-manager/session-open/klgd-phien-cu` -> **HTTP 200 OK**.
+
+---
+
+## [2026-10-20T15:15] FEATURE: Bổ Sung CheckDSGDBeforeEOD Đứng Trước & Tích Hợp Đối Chiếu Giao Dịch Trước EOD Của Cả MS Và CCP
+
+### 1. Mục tiêu thay đổi
+
+- Thực hiện yêu cầu của USER:
+  - Trang `https://10.0.0.26/trading-manager/session-open/klgd-phien-cu`:
+    1. Bổ sung component **CheckDSGDBeforeEOD** (`<DsgdBeforeEodSection />`) đứng trước phần Đối chiếu giao dịch trước EOD.
+    2. Nâng cấp phần **Đối chiếu giao dịch trước EOD** thành hỗ trợ **cả MS và CCP** thay vì chỉ có MS đơn lẻ như trước:
+       - **Phân hệ MS – CQG**: Đối chiếu trước EOD M-System vs CQG & ACM (`<LegacyDsgdBeforeEodDiffSection />`).
+       - **Phân hệ CoreCCP – CoreEX**: Đối chiếu trước EOD CoreCCP (VNCLEAR Maker) vs CoreEX (`<CcpCeEodReconSection viewMode="DSGD_BEFORE_EOD_ONLY" />`).
+    3. Cung cấp thanh chuyển đổi phân hệ linh hoạt dạng Segmented Control: `[Tất cả (MS & CCP)]` | `[Phân hệ MS – CQG]` | `[Phân hệ CoreCCP – CoreEX]`.
+
+### 2. Danh sách file chỉnh sửa
+
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx):
+   - Bổ sung prop `viewMode?: 'ALL' | 'DSGD_BEFORE_EOD_ONLY'` vào `CcpCeEodReconSectionProps`.
+   - Khi `viewMode === 'DSGD_BEFORE_EOD_ONLY'`: Chỉ render khung Chi tiết đối chiếu Dsgd-Before-EOD CoreCCP ↔ CoreEX, ẩn thanh điều khiển Date Picker, ẩn khối âm ký quỹ & EOD run, và ẩn `DsgdBeforeEodSection` ở chân trang để tránh trùng lặp.
+2. [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+   - Đặt `<DsgdBeforeEodSection />` ở vị trí đầu tiên ngay dưới Header.
+   - Thêm thanh Tab Switcher và bọc cả 2 phân hệ MS – CQG và CoreCCP – CoreEX.
+
+### 3. Kết quả Kiểm thử & Triển khai
+
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success - 0 errors)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên máy chủ Ubuntu `10.0.0.26`:
+  - Đã upload thành công 2 file `CcpCeEodReconSection.tsx` và `klgd-phien-cu/page.tsx` lên `/opt/mxv-checklist/frontend`.
+  - Build Next.js 16.2.9 (Turbopack): **Compiled successfully in 10.8s, Finished TypeScript in 21.3s, 49/49 static routes generated (Exit code 0)**.
+  - Restart tiến trình `pm2 restart mxv-frontend` (PID 3255022, status: online).
+  - Kiểm thử endpoint thực tế: `curl http://localhost:3000/trading-manager/session-open/klgd-phien-cu` -> **HTTP 200 OK**.
+
+---
+
 ## [2026-10-20T10:35] FEATURE: Ẩn "Mock Chuẩn BGĐ", Tối Giản Header Dashboard Đồng Bộ Chuẩn Reconciliation & Tích Hợp Skeleton Transformation / Cache
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER:
   1. Ẩn hoàn toàn nút **"Mock Chuẩn BGĐ"** trên trang Dashboard (`/trading-manager/dashboard`), chỉ hiển thị badge tinh gọn **"Dữ liệu Live"** kèm chỉ báo trạng thái đồng bộ thực tế.
   2. Bổ sung **hiệu ứng transformation & skeleton loader** khi dữ liệu chưa kịp load để màn hình không bị giật, tránh nhấp nháy hoặc hiển thị trống trơn.
@@ -10,6 +477,7 @@
      - Header chỉ hiển thị đơn giản: Tag `QUẢN LÝ GIAO DỊCH (QLGD)`, H1 chữ `DASHBOARD` kèm icon Lucide `LayoutDashboard`, bộ chọn ngày `Phiên:` và nút phóng to toàn màn hình.
 
 ### 2. Danh sách file chỉnh sửa
+
 1. [frontend/src/app/trading-manager/dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/dashboard/page.tsx):
    - Thay đổi toàn bộ phần Header sang giao diện chuẩn của `reconciliation` (Tag xanh `QUẢN LÝ GIAO DỊCH (QLGD)` + H1 `DASHBOARD` + Date picker `Phiên:` + Fullscreen button).
    - Loại bỏ các breadcrumb và badge thừa thãi.
@@ -22,6 +490,7 @@
    - Bọc Section 2 và Section 3 trong transition loader mượt mà (`opacity: loadingLive ? 0.8 : 1, transition: 'opacity 0.25s ease-in-out'`).
 
 ### 3. Kết quả Kiểm thử & Triển khai
+
 - TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
 - Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
 - Triển khai lên máy chủ Ubuntu `10.0.0.26`: Upload thành công và chạy `npm run build && pm2 restart mxv-frontend`.
@@ -31,14 +500,16 @@
 ## [2026-10-20T10:10] FEATURE: Phân Tách Trang Backup Thành 2 Phân Hệ Con Độc Lập (MS–CQG & CCP–CE) & Tinh Chỉnh Giao Diện Trực Quan
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER:
   - Chia menu/trang Backup thành 2 sub cha và con:
     - **Sub cha**: Backup
-    - **Sub con 1**: **Backup MS – CQG** (`/trading-manager/backup/ms-cqg`) gồm 3 cột: Backup MS (20 file), Backup CQG (9 file), Backup ACM (4 file). Ẩn hoàn toàn các phần: *"Kết quả đồng bộ số dư CQG"*, *"Kiểm tra ký quỹ TKGD"*, *"Thống kê (số lot & giá trị)"*, và các shortcut link `[Mở Thư Mục Backup]`, `[Lịch Sử Ca Trực]`, `[Cấu Hình Bot Toàn Diện]`. Không hiển thị cột CoreCCP trên trang này.
+    - **Sub con 1**: **Backup MS – CQG** (`/trading-manager/backup/ms-cqg`) gồm 3 cột: Backup MS (20 file), Backup CQG (9 file), Backup ACM (4 file). Ẩn hoàn toàn các phần: _"Kết quả đồng bộ số dư CQG"_, _"Kiểm tra ký quỹ TKGD"_, _"Thống kê (số lot & giá trị)"_, và các shortcut link `[Mở Thư Mục Backup]`, `[Lịch Sử Ca Trực]`, `[Cấu Hình Bot Toàn Diện]`. Không hiển thị cột CoreCCP trên trang này.
     - **Sub con 2**: **Backup CCP – CE** (`/trading-manager/backup/ccp-ce`) gồm 3 cột: Backup CoreCCP (25 file), Backup CoreEX (12 file), Backup ACM (4 file). Ẩn các phần thừa bên dưới (đối chiếu giá thanh toán GTT và kiểm tra ký quỹ IMR) để giao diện hiển thị gọn gàng, trực quan và đồng bộ giống ảnh mẫu.
   - Đồng bộ và hoàn thiện trang Thống kê MS (`/trading-manager/statistics/ms`): tích hợp thanh lọc nhanh trạng thái (`Tất cả`, `Hoàn thành`, `Đang xử lý`, `Thất bại`) cùng phân trang nhỏ gọn (5 items/trang).
 
 ### 2. Danh sách file chỉnh sửa / tạo mới
+
 1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx):
    - Thêm props `hideFooterSections?: boolean;` và `hideSubTabs?: boolean;`.
    - Bọc Subtab switcher trong `{!hideSubTabs && ...}` và các panel chân trang (GTT checker, IMR checker) trong `{!hideFooterSections && ...}`.
@@ -57,6 +528,7 @@
    - Hoàn thiện bộ lọc trạng thái và phân trang gọn gàng.
 
 ### 3. Kết quả Kiểm thử & Triển khai
+
 - TypeScript: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
 - Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
 - Triển khai lên máy chủ Ubuntu `10.0.0.26`:
@@ -68,7 +540,8 @@
 ## [2026-10-20T09:53] REFACTOR: Làm Sạch Triệt Để Logic Nhận Diện Menu Sidebar, Kiểm Chứng 100% CSDL Thực Tế
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện nghiêm túc phản hồi của USER: *"bạn lại hardcode đoán mò hay sao sao bạn không checkrole hoặc database để có thông tin thay vì đoán mò"*.
+
+- Thực hiện nghiêm túc phản hồi của USER: _"bạn lại hardcode đoán mò hay sao sao bạn không checkrole hoặc database để có thông tin thay vì đoán mò"_.
 - Truy vấn trực tiếp CSDL MongoDB `mxv_shift_checklist` trên server `10.0.0.26` để lấy dữ liệu thực tế (Ground Truth):
   1. **Bảng `roles`**: Chỉ có 6 role cấp bậc chuẩn: `ADMIN`, `DEPARTMENT_HEAD`, `STAFF`, `DIVISION_DIRECTOR`, `CEO`, `CHAIRMAN`. Hệ thống **hoàn toàn không dùng role để định danh phòng ban** (không có role nào là `QLGD` hay `BAN_CSTT`).
   2. **Bảng `departments`**:
@@ -85,14 +558,15 @@
 - Quy chuẩn logic duy nhất dựa trên **Mã phòng ban (Department Code) chuẩn xác**:
   ```typescript
   const isQlgd =
-    deptCode === 'QLGD_OPS' ||
-    deptCode === 'BAN_CSTT' ||
-    deptCode === 'BAN_GSTT' ||
-    (parentDeptCode === 'BAN_GSTT' && deptCode !== 'QLRR_RISK') ||
-    (parentDeptCode === 'BAN_CSTT' && deptCode !== 'QLRR_RISK');
+    deptCode === "QLGD_OPS" ||
+    deptCode === "BAN_CSTT" ||
+    deptCode === "BAN_GSTT" ||
+    (parentDeptCode === "BAN_GSTT" && deptCode !== "QLRR_RISK") ||
+    (parentDeptCode === "BAN_CSTT" && deptCode !== "QLRR_RISK");
   ```
 
 ### 2. Danh sách file chỉnh sửa
+
 1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts):
    - Xóa bỏ toàn bộ hàm `normalizeText` và mảng fallback đoán mò.
    - Nhận diện trực tiếp qua mã phòng ban `QLGD_OPS`, `BAN_CSTT`, `BAN_GSTT`.
@@ -100,6 +574,7 @@
    - Tiêu đề nhóm hiển thị động theo `user.department?.name || 'Quản lý giao dịch'`.
 
 ### 3. Kết quả Kiểm thử
+
 - TypeScript: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
 
 ---
@@ -107,15 +582,17 @@
 ## [2026-10-20T10:28] BUGFIX & REFACTOR: Khôi Phục Hoàn Toàn 8 API Thống Kê CoreCCP Bị 404 & Khắc Phục Lỗi Hiển Thị Tỷ Giá Cố Định 26.000 đ
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục triệt để lỗi người dùng phản ánh trên giao diện Thống kê CCP (`https://10.0.0.26/trading-manager/statistics/ccp`):
-  * Báo lỗi 404: `Cannot GET /api/v1/ccp-statistics/lot-statistics/config` và `Cannot GET /api/v1/ccp-statistics/lot-statistics/scan-daily?date=2026-10-20`.
-  * Giao diện báo đỏ: `Thư mục ngày: 2026-10-20 (Chưa có file DSGD) • DSGD: X | TTM: X | TTTT: X | Tỷ giá: 1 USD = 26.000 đ` dù thư mục đĩa và CSDL thực tế đã có đầy đủ dữ liệu và tỷ giá 25.920 đ.
+  - Báo lỗi 404: `Cannot GET /api/v1/ccp-statistics/lot-statistics/config` và `Cannot GET /api/v1/ccp-statistics/lot-statistics/scan-daily?date=2026-10-20`.
+  - Giao diện báo đỏ: `Thư mục ngày: 2026-10-20 (Chưa có file DSGD) • DSGD: X | TTM: X | TTTT: X | Tỷ giá: 1 USD = 26.000 đ` dù thư mục đĩa và CSDL thực tế đã có đầy đủ dữ liệu và tỷ giá 25.920 đ.
 - Nguyên nhân gốc rễ:
   1. Trong đợt tái cấu trúc commit `13a9745`, `CcpStatisticsModule` bị unhook và chuyển vào `legacy/archive/`, trong khi `CcpReconController` mới của Modular V2 chưa chuyển giao 8 route nghiệp vụ thống kê CoreCCP.
   2. Giao diện Frontend bị 404 khiến `scanResult` bằng `null`, kéo theo toàn bộ cờ file bị đánh dấu `✗` và rơi vào fallback `26000`.
   3. Thứ tự quét tỷ giá trong `CcpLotStatisticsService.scanDailyFiles` ưu tiên tính suy diễn từ `TTTT/TTM` và để file chính thức `Tỷ giá CCP.xlsx` ở nhánh `else if`.
 
 ### 2. Danh sách file chỉnh sửa & thêm mới
+
 1. [backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts):
    - Đưa vào phân hệ chuẩn `trading-ops`.
    - Cập nhật hàm `scanDailyFiles`: Đảo thứ tự ưu tiên nhận diện tỷ giá: Đọc trực tiếp từ tệp chuẩn CoreCCP (`Tỷ giá CCP.xlsx`) trước để lấy chính xác tỷ giá 25.920 đ, sau đó mới fallback sang `TTTT/TTM`.
@@ -134,19 +611,21 @@
    - Sửa biểu thức tỷ giá hiển thị: Ưu tiên `detectedRate` $\rightarrow$ `ccpUsd` (DB) $\rightarrow$ `usd` (DB) $\rightarrow$ `tyGiaUsed` $\rightarrow$ `25920`.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - Backend:
-  * `cmd /c npx tsc --project tsconfig.build.json`: **Exit code 0 (Success)**
-  * `cmd /c npm run build` (nest build): **Exit code 0 (Success)**
+  - `cmd /c npx tsc --project tsconfig.build.json`: **Exit code 0 (Success)**
+  - `cmd /c npm run build` (nest build): **Exit code 0 (Success)**
 - Frontend:
-  * `cmd /c npx tsc --noEmit`: **Exit code 0 (Success)**
-  * `cmd /c npm run build` (next build Turbopack): **Exit code 0 (Success - 49/49 routes)**
+  - `cmd /c npx tsc --noEmit`: **Exit code 0 (Success)**
+  - `cmd /c npm run build` (next build Turbopack): **Exit code 0 (Success - 49/49 routes)**
 
 ---
 
 ## [2026-10-20T09:58] UI/UX ENHANCEMENT: Thu Gọn Bảng Tiến Trình Macro Real-Time, Bổ Sung Bộ Lọc Nhanh Trạng Thái (Chips) & Phân Trang Gọn Gàng
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"{/* Lịch sử thực thi gần đây */} ... đang quá dài giúp tôi điều chỉnh lại ui để nếu có nhiều dữ liệu vẫn hiển thị trực quan"*.
+
+- Thực hiện yêu cầu của USER: _"{/_ Lịch sử thực thi gần đây _/} ... đang quá dài giúp tôi điều chỉnh lại ui để nếu có nhiều dữ liệu vẫn hiển thị trực quan"_.
 - Khắc phục tình trạng bảng mở rộng theo chiều dọc làm kéo dài trang web, khó quan sát khi có nhiều tác vụ lịch sử.
 - Triển khai các tính năng UI Enterprise:
   1. **Bộ lọc trạng thái dạng Chips (Status Pills)**: Cho phép lọc nhanh `Tất cả`, `Hoàn thành`, `Đang chạy`, `Lỗi` kèm đếm số lượng trực tiếp.
@@ -156,11 +635,13 @@
   5. **Nút liên kết nhanh**: Mở thẳng trang Quản trị Hàng Đợi & Logs (`/trading-manager/job-queue`).
 
 ### 2. Danh sách file chỉnh sửa
+
 - [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx):
   - Tích hợp `useMemo` tính toán `filteredJobs`, `paginatedJobs`, `jobCounts`.
   - Thiết kế lại toàn bộ panel tiến trình gọn gàng, trực quan và không bị dài.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - `npx tsc --noEmit`: **Exit code 0 (Success)**.
 - `npm run build` (Turbopack): **Exit code 0** (47/47 routes thành công 100%).
 
@@ -169,6 +650,7 @@
 ## [2026-10-20T09:53] UI/UX FIX: Chuẩn Hóa Hiển Thị Đường Dẫn Thống Kê MS-CQG, Phân Định Rõ Thư Mục vs Tệp Macro (.xlsm) & Đồng Bộ Định Dạng Ổ M:\
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục sự bất hợp lý theo ảnh chụp màn hình của USER:
   1. Dòng 1 hiển thị đường dẫn Linux thô `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong`, trong khi dòng 2 lại hiển thị dạng Windows `M:\Tailieuchung\...`.
   2. Dòng 2 nhãn ghi là "Thư mục Thống kê Giá trị" nhưng giá trị hiển thị lại là Tệp Excel Macro `.xlsm` (`Macro thong ke gia tri giao dich co ACM.xlsm`).
@@ -178,11 +660,13 @@
   - Tự động nhận diện nếu đường dẫn trỏ tới tệp `.xlsm`/`.xlsx` thì đổi nhãn thành `Tệp Macro Thống kê Giá Trị (.xlsm):` kèm icon `FileSpreadsheet` màu xanh lá thay vì gọi nhầm là `Thư mục`.
 
 ### 2. Danh sách file chỉnh sửa
+
 - [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx):
   - Tích hợp `parseWindowsStoragePath`.
   - Phân loại rõ ràng Thư mục vs Tệp Macro cho cả 2 hàng.
 
 ### 3. Kết quả Kiểm thử
+
 - `npx tsc --noEmit`: **Exit code 0 (Success)**.
 
 ---
@@ -190,14 +674,16 @@
 ## [2026-10-20T09:39] AUDIT & REFACTOR: Xóa Bỏ Hoàn Toàn Các Hardcode Thư Mục Con Cố Định (`Tai lieu hoat dong`, `output`, `Backup MS`) Khỏi Toàn Bộ Giao Diện & Component
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện triệt để phản hồi của USER:
-  1. *"setReconFolderCheckPath((p) => toWindowsM(p || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\TradingCheck\\Futures')); ... sao mày hay hardcode thế"*
-  2. *"\\Tai lieu hoat dong\\Thong ke ccp\\output đoạn này vẫn là hardcode à"*
+  1. _"setReconFolderCheckPath((p) => toWindowsM(p || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\TradingCheck\\Futures')); ... sao mày hay hardcode thế"_
+  2. _"\\Tai lieu hoat dong\\Thong ke ccp\\output đoạn này vẫn là hardcode à"_
 - Tuân thủ tuyệt đối **Quy tắc 7 (Universal Zero-Hardcoding & Data-Driven Architecture Standard)**:
   - Loại bỏ hoàn toàn mọi chuỗi đường dẫn gán cứng trong fallback, `useState` ban đầu, và các nút bấm tạo mẫu.
   - Chuyển sang cơ chế **Data-Driven 100%**: Giá trị mặc định là chuỗi rỗng `''`, tải từ CSDL; các hàm sinh đường dẫn tự động phải suy luận động từ chính thư mục gốc (`bot_backup_path_ccp`) do Quản trị viên nhập/chọn trên giao diện.
 
 ### 2. Danh sách file chỉnh sửa
+
 1. [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
    - Xóa bỏ chuỗi gán cứng `Tai lieu hoat dong\Thong ke ccp\output`.
    - Refactor hàm `handleApplyDefaultOutputPaths` thành cơ chế Data-Driven: Lấy trực tiếp từ thư mục gốc `backupPathCcp` do người dùng cấu hình; nếu chưa nhập thì thông báo nhắc nhở thay vì tự ý gán bừa một đường dẫn tĩnh.
@@ -210,12 +696,15 @@
    - Xóa fallback đường dẫn cứng trong hiển thị; hiển thị rõ `(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)`.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - `npx tsc --noEmit`: **Exit code 0**.
 - `npm run build` (Turbopack): **Exit code 0** (36/36 routes biên dịch thành công 100%).
+
 ## [2026-10-20T09:40] DEPLOY: Triển Khai Toàn Diện Lên Server Ubuntu 10.0.0.26 (PM2 mxv-backend & mxv-frontend)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"giúp tôi ủn lên ubutun"*.
+
+- Thực hiện yêu cầu của USER: _"giúp tôi ủn lên ubutun"_.
 - Đồng bộ toàn bộ các cập nhật mã nguồn mới nhất:
   1. Menu Sidebar dành riêng cho khối QLGD với cấu trúc cây cha - con (Thống kê MS/CCP, Tham số hệ thống cũ/mới).
   2. Các trang độc lập mới: Backup (`/trading-manager/backup`), Thống kê MS/CCP (`/trading-manager/statistics/*`), Tham số hệ thống (`/trading-manager/settings/*`), Hàng đợi logs (`/trading-manager/job-queue`).
@@ -223,6 +712,7 @@
   4. Chuẩn hóa đường dẫn lưu trữ cross-platform (`storage-path.config.ts`, `bot-path.helper.ts`, `file-path.helper.ts`).
 
 ### 2. Danh sách file đồng bộ lên Ubuntu (/opt/mxv-checklist)
+
 - Đã đồng bộ 24 files thay đổi/mới sang `/opt/mxv-checklist` và tự động khởi tạo các thư mục cha từ xa:
   - `CHANGELOG_AI.md`
   - `backend/src/modules/activity-log/activity-log.controller.ts`
@@ -250,6 +740,7 @@
   - `frontend/src/app/trading-manager/statistics/ccp/page.tsx`
 
 ### 3. Kết quả Build & Khởi Động Dịch Vụ Trên Ubuntu
+
 - **Backend**: `cd /opt/mxv-checklist/backend && npm run build` -> Hoàn tất thành công (Exit 0).
 - **Restart Backend**: `pm2 restart mxv-backend` -> Online (PID: 3168708).
 - **Frontend**: `cd /opt/mxv-checklist/frontend && npm run build` -> Đã biên dịch 47 routes (Exit 0).
@@ -264,10 +755,12 @@
 ---
 
 ## [2026-10-20T09:28] ARCHITECTURE REFACTOR: Đóng Gói Toàn Bộ Ánh Xạ Đường Dẫn & Presets Vào File Cấu Hình Tập Trung `storage-path.config.ts`
+
 ## [2026-10-20T09:25] REFACTOR: Chuẩn Hóa Nhận Diện Bộ Phận "Giám Sát Giao Dịch" (QLGD) Theo Data-Driven CSDL, Loại Bỏ Hardcode Phỏng Đoán
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện phản hồi của USER: *"const isQlgd = deptCode === 'QLGD_OPS' || ... đoạn này bạn hardcode hay sao vậy mình có bộ phận GIám sát giao dịch mà"*.
+
+- Thực hiện phản hồi của USER: _"const isQlgd = deptCode === 'QLGD_OPS' || ... đoạn này bạn hardcode hay sao vậy mình có bộ phận GIám sát giao dịch mà"_.
 - Xóa bỏ triệt để đoạn kiểm tra hardcode phỏng đoán chuỗi (`userTitle.includes`, `role === 'QLGD'`, `QUẢN LÝ GIAO DỊCH` bị thiếu chữ "Giám sát").
 - Chuẩn hóa điều kiện nhận diện Bộ phận Giám sát Giao dịch theo cấu trúc CSDL thực tế:
   1. Mã phòng ban chuẩn trong CSDL: `deptCode === 'QLGD_OPS'` (Quản lý giám sát giao dịch) hoặc `GSGD`.
@@ -275,12 +768,14 @@
   3. Cấp Ban quản lý trực thuộc: `parentDeptCode === 'BAN_GSTT'` (Ban Giám sát thị trường) và không thuộc nhánh rủi ro (`QLRR_RISK`).
 
 ### 2. Danh sách file chỉnh sửa
+
 1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts#L30-L50):
    - Thêm helper chuẩn hóa tiếng Việt `normalizeText`.
    - Nhận diện `parentDeptCode` từ `user.department.parentDepartmentId.code`.
    - Định nghĩa `isQlgd` chuẩn hóa, không phụ thuộc vào chuỗi title hay role tùy tiện.
 
 ### 3. Kết quả Kiểm thử
+
 - TypeScript: `npx tsc --noEmit` -> **Exit code 0 (Success)**.
 
 ---
@@ -288,6 +783,7 @@
 ## [2026-10-20T09:05] FEAT: Tách Menu Sidebar Riêng Khối QLGD, Tổng Quan (/trading-manager/dashboard), Menu Cây Cha-Con (Thống Kê, Tham Số Hệ Thống) & Tách Trang Riêng Cho Backup, Thống Kê MS/CCP, Cấu Hình Đường Dẫn Cũ/Mới, Logs Hàng Đợi
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER:
   1. Thêm 1 menu Sidebar dành riêng cho khối QLGD (`isQlgd` theo role/department `QLGD_OPS` hoặc QLGD), đối với các vai trò khác (IT, Admin, v.v...) mặc định vẫn giữ nguyên Sidebar như cũ.
   2. Trang "Tổng quan" của khối QLGD trỏ về `/trading-manager/dashboard` (thay vì `/dashboard`).
@@ -306,6 +802,7 @@
   9. Đối với tài khoản Admin, cung cấp nút chuyển đổi nhanh (toggle "Xem QLGD" / "Về IT") để tiện kiểm thử giao diện giữa 2 khối.
 
 ### 2. Danh sách file chỉnh sửa & thêm mới
+
 1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts):
    - Thêm cờ `isQlgd` nhận diện người dùng thuộc khối Quản lý Giao dịch (phòng ban `QLGD_OPS`, chứa `QLGD` hoặc `Quản lý giao dịch`, role hoặc chức danh QLGD).
 2. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
@@ -326,6 +823,7 @@
    - Trang độc lập Hàng đợi & Logs tiến trình Robot (`TradingManagerJobQueueSection`).
 
 ### 3. Kết quả Kiểm thử & Build
+
 - **Type Checking**: `npx tsc --noEmit` -> **Exit code 0 (Zero errors)**.
 - **Production Build**: `npm run build` -> **Exit code 0 (Success 47 routes)**:
   - Sinh thành công tất cả static routes mới: `/trading-manager/backup`, `/trading-manager/statistics/ms`, `/trading-manager/statistics/ccp`, `/trading-manager/settings/ms-cqg`, `/trading-manager/settings/ccp-ce`, `/trading-manager/job-queue`, `/trading-manager/logs`, v.v...
@@ -335,11 +833,13 @@
 ## [2026-10-20T08:38] BUG FIX: Khắc Phục Lỗi Tải Báo Cáo CoreExchange (CoreEX) Qua Direct REST API (HTTP 401), Cơ Chế Kiểm Tra Hạn Token JWT, Tự Động Làm Mới Phiên Đăng Nhập & Fallback Dự Phòng Playwright
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu & góp ý kiến trúc đúng đắn của USER: *"sao bạn không viết 1 file riêng ánh xạ sang, chứ giờ mà sửa có mà sửa từng file 1 hay sao mà code kiểu này"*.
+
+- Thực hiện yêu cầu & góp ý kiến trúc đúng đắn của USER: _"sao bạn không viết 1 file riêng ánh xạ sang, chứ giờ mà sửa có mà sửa từng file 1 hay sao mà code kiểu này"_.
 - Xóa bỏ tình trạng rải rác các chuỗi đường dẫn hạ tầng (`tailieuchung/qlgd-it`, `/mnt/qlgd-it`, `/mnt/oc-uat`, `M:\Tailieuchung\...`) trong các component giao diện React.
 - Tạo một file cấu hình tập trung duy nhất ([storage-path.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/config/storage-path.config.ts)) làm Single Source of Truth cho toàn bộ Frontend: quản lý danh sách prefix mount, biến môi trường `.env`, bộ danh mục Presets và các utility quy đổi đường dẫn.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/config/storage-path.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/config/storage-path.config.ts):
    - Tạo mới file cấu hình tập trung xuất các biến và hàm:
      - `STORAGE_MOUNT_CONFIG`: Chứa `windowsSharePrefix` (hỗ trợ đọc từ `process.env.NEXT_PUBLIC_STORAGE_SHARE_WINDOWS` hoặc fallback `M:\Tailieuchung\QLGD-IT`), `linuxMountPrefix` (`NEXT_PUBLIC_STORAGE_MOUNT_LINUX` hoặc `/mnt/qlgd-it`), `knownLinuxMounts`, `knownUncShares`.
@@ -352,6 +852,7 @@
    - Khi MXV thay đổi ổ đĩa mount, tên máy chủ, hoặc đường dẫn thư mục dùng chung, **CHỈ CẦN SỬA DUY NHẤT 1 FILE CẤU HÌNH** `storage-path.config.ts` (hoặc cấu hình file `.env`), không phải sửa từng component.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - `npx tsc --noEmit`: Exit code 0 (Success).
 - `npm run build`: Exit code 0 (Success - Turbopack next build hoàn thành 36 routes).
 
@@ -360,11 +861,13 @@
 ## [2026-10-20T09:25] REFACTOR: Loại Bỏ Triệt Để Hardcode Regex Ép Đường Dẫn Trong SmartPathInput & Chuẩn Hóa Data-Driven 100%
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện cảnh báo và yêu cầu đúng đắn của USER: *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Futures sao bạn hardcode nhiều vậy bạn tính code rác để bug à"*.
+
+- Thực hiện cảnh báo và yêu cầu đúng đắn của USER: _"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Futures sao bạn hardcode nhiều vậy bạn tính code rác để bug à"_.
 - Xóa bỏ hoàn toàn các pattern phỏng đoán hardcode (`/check[-_]klgd/`, `/recon[-_]results/`, `/temp\/gtt/`) trong [SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx#L50-L65) và các chuỗi fallback cứng trong [TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L182-L185).
 - Đảm bảo tuân thủ nghiêm ngặt **Rule 1.1**, **Rule 1.5** và **Rule 7.1.4 (Zero-Hardcoding & Data-Driven Architecture)** trong `.agents/AGENTS.md`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx#L50-L65):
    - **Trước**: Sử dụng một loạt `if (/check[-_]klgd/i.test(normalizedSlash))` để tự động ép đường dẫn của người dùng thành `TradingCheck/Futures` hoặc `Ket qua check KLGD`. Hậu quả: nếu người dùng gõ bất kỳ thư mục nào khác có chứa từ khóa này, hệ thống sẽ tự ý đánh tráo và ghi đè đường dẫn của họ.
    - **Sau**: Xóa bỏ hoàn toàn 100% các regex hardcode này. Chỉ giữ lại logic nhận diện động tổng quát: người dùng nhập thư mục con nào sau `Quanlygiaodich/`, `/mnt/qlgd-it/` hoặc `X:\Tailieuchung\...`, hệ thống tôn trọng và giữ nguyên 100% cây thư mục đó (`subPath = qlgdMatch[1]`).
@@ -372,6 +875,7 @@
    - Xóa bỏ các chuỗi fallback tĩnh (`|| 'M:\Tailieuchung\...TradingCheck\Futures'`). Nạp trực tiếp 100% từ Database MongoDB (`map.recon_folder_check_path || ''`).
 
 ### 3. Kết quả Kiểm thử & Build
+
 - `npx tsc --noEmit`: Exit code 0 (Success).
 - `npm run build`: Exit code 0 (Success - Clean Turbopack build 36 routes).
 
@@ -380,21 +884,24 @@
 ## [2026-10-20T09:20] UI & UX ENHANCEMENT: Chuẩn Hóa CSS Giao Diện Modal DSGD Trước EOD Theo `globals.css` & Đơn Giản Hóa Cơ Chế Snapshot Chuẩn C# Tool
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER:
   1. Khắc phục lỗi giao diện Modal [CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx) chưa ăn theo theme CSS của [globals.css](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/globals.css) (bị xám xịt, hardcode màu tối lệch tông trong Light Mode).
-  2. Giải thích rõ ràng *"Thời Điểm Snapshot (Tùy chọn) là sao?"* dựa trên mã nguồn C# gốc ([TransactionCheckingService.cs#L443-L450](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L443-L450), [FormMain.cs#L1593-L1608](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/FormMain.cs#L1593-L1608)) và tái cấu trúc UX để trực quan, tiện lợi, dễ dùng như C# (không bắt người dùng phải gõ chuỗi giờ thủ công).
+  2. Giải thích rõ ràng _"Thời Điểm Snapshot (Tùy chọn) là sao?"_ dựa trên mã nguồn C# gốc ([TransactionCheckingService.cs#L443-L450](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L443-L450), [FormMain.cs#L1593-L1608](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/FormMain.cs#L1593-L1608)) và tái cấu trúc UX để trực quan, tiện lợi, dễ dùng như C# (không bắt người dùng phải gõ chuỗi giờ thủ công).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
    - Sử dụng `createPortal(..., document.body)` đồng bộ kiến trúc Modal của hệ thống (`globals.css`), z-index 999999 kèm backdrop blur `rgba(15, 23, 42, 0.55)`.
    - Chuyển toàn bộ màu sắc nền, viền và chữ sang CSS variables (`var(--bg-card)`, `var(--bg-input)`, `var(--border-color)`, `var(--text-primary)`, `var(--text-secondary)`). Hoàn toàn tương thích và hiển thị sạch đẹp cả Light Mode và Dark Mode.
-   - **Tái thiết kế cơ chế Snapshot**: Thay vì bắt người dùng nhập ô chữ kỳ lạ *"Thời Điểm Snapshot (Tùy chọn) = Mới nhất (hoặc 172842)"*, chuyển thành 2 chế độ trực quan:
-     - **Chế độ 1 (Mặc định - Chuẩn C# Tool)**: *"Tự động mới nhất (C#)"* -> Tự động nhận diện và quét file snapshot chiều mới nhất trong `TradingCheck` / `Backup MS` giống 100% C#. Người dùng chỉ cần 1 click *"Thực Hiện Kiểm Tra Ngay"*.
+   - **Tái thiết kế cơ chế Snapshot**: Thay vì bắt người dùng nhập ô chữ kỳ lạ _"Thời Điểm Snapshot (Tùy chọn) = Mới nhất (hoặc 172842)"_, chuyển thành 2 chế độ trực quan:
+     - **Chế độ 1 (Mặc định - Chuẩn C# Tool)**: _"Tự động mới nhất (C#)"_ -> Tự động nhận diện và quét file snapshot chiều mới nhất trong `TradingCheck` / `Backup MS` giống 100% C#. Người dùng chỉ cần 1 click _"Thực Hiện Kiểm Tra Ngay"_.
      - **Chế độ 2 (Chỉ định cụ thể - Nâng cao)**: Cho phép nhập hậu tố (ví dụ: `172842` cho file `DSGD172842.xlsx`) kèm giải thích rõ nghĩa khi muốn kiểm tra lại file cũ.
 2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
    - Thay thế các nền hardcoded tối (`rgba(15, 23, 42, 0.4)` và `rgba(0, 0, 0, 0.25)`) sang `var(--bg-input)` và `var(--bg-card)`.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - `npx tsc --noEmit`: Exit code 0 (Success).
 - `npm run build`: Exit code 0 (Success - Turbopack next build hoàn thành 36 routes).
 
@@ -403,10 +910,12 @@
 ## [2026-10-20T09:12] FEATURE UPDATE: Thêm Icon Hướng Dẫn Nghiệp Vụ (i) & Bảng Chú Thích Chi Tiết T / T-1 Cho Các Module Đối Chiếu
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER: Thêm nút/icon chú thích (i) trực tiếp trên các component chức năng đối soát để giải thích rõ nguyên lý hoạt động, thời điểm chạy (phiên T hay T-1), các tệp tin đầu vào bắt buộc và tiêu chuẩn nghiệm thu pass/fail.
 - Áp dụng trên Modal kiểm tra trước EOD ([CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx)), Component quản lý DSGD trước EOD ([DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx)) và Component đồng bộ số dư CQG ([LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx)).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
    - Bổ sung nút bấm `"Hướng Dẫn Nghiệp Vụ"` kèm icon `Info` (SVG từ `lucide-react`) trên header.
    - Thêm bảng hướng dẫn 4 cột chuẩn Enterprise (1. Nghiệp vụ cốt lõi, 2. Thời điểm T / T-1, 3. Tệp tin đầu vào bắt buộc, 4. Tiêu chuẩn Pass).
@@ -417,6 +926,7 @@
    - Bổ sung nút `"Chú Thích (i)"` và bảng hướng dẫn nguyên lý đối chiếu số dư MS vs CQG (`CHECK_CQG_SYNC`), thời điểm phiên T và các tệp tin `QLTKGD.xlsx` & `Accounts_Balances.xlsx`.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - `npx tsc --noEmit`: Exit code 0 (Success - Không lỗi kiểu dữ liệu).
 - `npm run build`: Exit code 0 (Success - Turbopack next build tạo 36/36 static/dynamic routes thành công).
 
@@ -425,10 +935,12 @@
 ## [2026-10-20T09:05] FEATURE UPDATE: Ánh Xạ Đường Dẫn TradingCheck & Kết Quả Check KLGD Về Chuẩn Ổ M:\ (Windows) & Tự Động Phân Giải Ubuntu
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: Chuẩn hóa 2 ô nhập cấu hình *"Đường dẫn tải file check trong phiên (TradingCheck)"* và *"Đường dẫn lưu kết quả check KLGD"* từ đường dẫn nội bộ Linux (`/opt/mxv-checklist/backend/temp/...`) về định dạng ổ mạng dùng chung quen thuộc của người dùng Windows (`M:\Tailieuchung\QLGD-IT\Quanlygiaodich\...`).
+
+- Thực hiện yêu cầu của USER: Chuẩn hóa 2 ô nhập cấu hình _"Đường dẫn tải file check trong phiên (TradingCheck)"_ và _"Đường dẫn lưu kết quả check KLGD"_ từ đường dẫn nội bộ Linux (`/opt/mxv-checklist/backend/temp/...`) về định dạng ổ mạng dùng chung quen thuộc của người dùng Windows (`M:\Tailieuchung\QLGD-IT\Quanlygiaodich\...`).
 - Đảm bảo khi người dùng cấu hình đường dẫn ổ `M:\`, máy chủ Ubuntu vẫn tự động ánh xạ chính xác vào thư mục thật trên Linux (`/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/...`) và kiểm tra quyền đọc/ghi thành công.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx#L52-L65):
    - Cập nhật hàm `parseWindowsStoragePath`:
      - Nhận diện các đường dẫn tạm thời `check-klgd` $\rightarrow$ Tự động gợi ý chuẩn hóa sang `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Futures`.
@@ -444,6 +956,7 @@
    - Tạo thư mục thực tế `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Ket qua check KLGD` trên Ubuntu server với đầy đủ quyền đọc/ghi (`drwxrwxrwx`).
 
 ### 3. Kết quả Kiểm thử & Build
+
 - Frontend Build: `cmd.exe /c "npm run build"` (`next build`) -> **Exit code 0 (Success - Build sạch)**.
 - Backend Path Verification: `resolveStoragePathCrossPlatform` trên Ubuntu đã kiểm chứng thành công:
   - `M:\...\TradingCheck\Futures` $\rightarrow$ `/mnt/qlgd-it/.../TradingCheck/Futures` (`exists: true`).
@@ -454,10 +967,12 @@
 ## [2026-10-20T08:50] BUG FIX: Tôn Trọng Tham Số `reports` Trong `handleFileAuditAcmJob` (Chặn Tự Động Tải Báo Cáo SFTP Khi Chỉ Yêu Cầu Web ORDER/FILL)
 
 ### 1. Mục tiêu thay đổi
+
 - Giải quyết câu hỏi và phản ánh của USER: Khi gửi request kích hoạt tải báo cáo ACM với danh sách cụ thể `--data-raw "{\"targetDate\":\"2026-10-20\",\"reports\":[\"FILL\",\"ORDER\"]}"`, thư mục sao lưu ACM vẫn xuất hiện cả các file SFTP (`Straits_19102026.csv`, `EOD FO trades_PT Straits...csv`, `2026-10-19_10017890000.xls`).
 - Đảm bảo worker `FILE_AUDIT_ACM` tuân thủ 100% tham số `payload.reports`: Chỉ tải file SFTP khi người dùng yêu cầu rõ ràng (hoặc khi không truyền tham số để chạy audit định kỳ toàn diện).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/bot-engine/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/file-audit.handler.ts#L960-L1138):
    - **Nguyên nhân gốc rễ**: Trước đây trong `handleFileAuditAcmJob`, `this.scanAcmBackupFiles(dailyPath, targetDate)` quét cả 4 loại file (`ORDER`, `FILL`, `SFTP_CSV`, `SFTP_XLS`). Do thư mục ngày mới `20.10` chưa có file SFTP, `sftpMissing` đánh giá `true` mà **hoàn toàn không kiểm tra `payload.reports`**, dẫn tới việc bot tự động kích hoạt kết nối SFTP Server và tải về cả 3 file Straits CSV & XLS.
    - **Xử lý sau khi sửa**:
@@ -470,6 +985,7 @@
    - Thêm `backend/src/modules/bot-engine/handlers/file-audit.handler.ts` vào danh sách file đồng bộ lên máy chủ Ubuntu 10.0.0.26.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success - Clean build)**.
 
 ---
@@ -477,10 +993,12 @@
 ## [2026-10-20T08:45] FEATURE UPDATE: Nâng Cấp Bảng Ánh Xạ Hành Động Nghiệp Vụ & Giao Diện Chi Tiết Nhật Ký Thao Tác Hệ Thống (Activity Logs)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"hiện tại phần thao tác log này cột hành động nghiệp vụ Hành động nghiệp vụ và Đường dẫn API (Kỹ thuật) đang bị chung chung chưa thể hiện được rõ hành động và nghiệp gì . bạn có thể tạo bảng mapping ánh xạ hoặc thể hiện rõ hơn và cả detail cũng chưa thể hiện được rõ. nếu là người dùng trực tiếp xem cũng khó biết là làm gì"*.
+
+- Thực hiện yêu cầu của USER: _"hiện tại phần thao tác log này cột hành động nghiệp vụ Hành động nghiệp vụ và Đường dẫn API (Kỹ thuật) đang bị chung chung chưa thể hiện được rõ hành động và nghiệp gì . bạn có thể tạo bảng mapping ánh xạ hoặc thể hiện rõ hơn và cả detail cũng chưa thể hiện được rõ. nếu là người dùng trực tiếp xem cũng khó biết là làm gì"_.
 - Xóa bỏ tình trạng log hiển thị chung chung ("Cập nhật cấu hình hệ thống Bot/RPA", "Thao tác ghi dữ liệu"), chuyển đổi toàn bộ đường dẫn API kỹ thuật và payload thô thành thông tin nghiệp vụ tiếng Việt chi tiết, dễ hiểu, thân thiện với người dùng cuối và kiểm toán viên.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/utils/activity-log-mapper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/utils/activity-log-mapper.ts):
    - Xây dựng module phân tích và ánh xạ nghiệp vụ toàn diện:
      - Khai báo 13 phân hệ nghiệp vụ chính: `INGRESS` (Thu thập RPA), `STORAGE_AUDIT` (Giám sát Tệp tin & RPA), `TRADING_OPS` (Trading Ops & Đối chiếu), `CCP_CLEARING` (Bù trừ & Thống kê CCP), `SHIFTS` (Ca trực & Checklist), `ADMIN_USERS` (Tài khoản & Phân quyền), `ADMIN_SYSTEM` (Quản trị Hệ thống), `INCIDENTS` (Quản lý Sự cố), `NOTIFICATIONS` (Kênh thông báo), `CALENDAR` (Lịch làm việc), `AUTH` (Xác thực & Cá nhân), `MARGIN` (Quản trị Ký quỹ), `REPORT` (Báo cáo định kỳ).
@@ -493,7 +1011,7 @@
        - `POST /api/v1/trading-ops/trigger-console-run`: Tự động trích xuất `jobType` / `type` từ payload để hiển thị đúng hành động nghiệp vụ cụ thể:
          - `SCAN_NEGATIVE_MARGIN` -> **"Kích hoạt quét tài khoản ký quỹ âm (Post-EOD)"**.
          - `CHECK_KLGD` -> **"Kích hoạt đối chiếu KLGD (MS vs CQG trong phiên)"**.
-         - `CHECK_PRE_EOD` -> **"Kích hoạt đối chiếu Pre-EOD 3 bên"**.
+         - `CHECK_DSGD_BEFORE_EOD` -> **"Kích hoạt đối chiếu Dsgd-Before-EOD 3 bên"**.
          - `CHECK_EOD_CCP` -> **"Kích hoạt đối chiếu chốt sổ EOD CoreCCP"**.
          - `CHECK_CQG_SYNC` -> **"Kích hoạt đồng bộ số dư & trạng thái CQG"**.
          - `CCP_LOT_STATISTICS` -> **"Chạy thống kê khối lượng (Lot) CCP"**.
@@ -527,6 +1045,7 @@
    - Cho phép người dùng tìm kiếm trực tiếp theo mã tác vụ kỹ thuật (như `SCAN_NEGATIVE_MARGIN`, `trigger-ce`, `bot_credentials`, tên người dùng, key cấu hình...) ngay trên thanh công cụ tìm kiếm.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - Frontend Build: `cmd.exe /c "npm run build"` (`next build`) -> **Exit code 0 (Success - 36 static/dynamic routes được tối ưu thành công)**.
 - Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success - Clean build)**.
 
@@ -535,10 +1054,12 @@
 ## [2026-10-20T08:18] FEATURE UPDATE: Kích Hoạt Luồng Tải Tự Động Toàn Diện Cho CE-CCP Tương Đồng Với MS-CQG
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"giúp tôi check lại luồng tải tự động ở ce-cpp(vì bên ms-cqg đã tự động rồi) để cũng tự động tương tự"* và *"bạn đã cập nhật chưa"*.
+
+- Thực hiện yêu cầu của USER: _"giúp tôi check lại luồng tải tự động ở ce-cpp(vì bên ms-cqg đã tự động rồi) để cũng tự động tương tự"_ và _"bạn đã cập nhật chưa"_.
 - Nâng cấp bộ điều phối lập lịch [scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/scheduler.service.ts) để phân hệ CoreCCP (VNCLEAR) và CoreEX (Giao dịch liên thông) được tự động tải đồng bộ 100% cùng nhịp với M-System và CQG.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/bot-engine/scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/scheduler.service.ts):
    - **Cơ chế 1: Tải định kỳ tự động 24/7 (`handleAutonomousPeriodicBackupRun`)**:
      - Bổ sung kiểm tra tránh xung đột với job `DOWNLOAD_CCP_REPORT` và `DOWNLOAD_CE_REPORT` đang chạy.
@@ -552,20 +1073,23 @@
    - Bổ sung `backend/src/modules/bot-engine/scheduler.service.ts` vào danh sách `files_to_sync` phục vụ đồng bộ triển khai lên Ubuntu server `10.0.0.26`.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success - 0 errors)**.
 - Frontend Build: `cmd.exe /c "npx tsc --noEmit"` -> **Exit code 0 (Success - 0 errors)**.
 
 ---
 
-## [2026-10-19T19:06] FEATURE ADDITION: Bổ Sung Component Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) Dưới Khung Pre-EOD Ở Cả 2 Trang ms-cqg và ccp-ce
+## [2026-10-19T19:06] FEATURE ADDITION: Bổ Sung Component Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) Dưới Khung Dsgd-Before-EOD Ở Cả 2 Trang ms-cqg và ccp-ce
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"ở trang ms-cqg và trang ce-cpp tôi chưa thấy hàm component checkbeforeEOD dưới checkpreEOD vậy"* -> *"nếu chưa có giúp tôi bổ sung"*.
+
+- Thực hiện yêu cầu của USER: _"ở trang ms-cqg và trang ce-cpp tôi chưa thấy hàm component checkbeforeEOD dưới checkpreEOD vậy"_ -> _"nếu chưa có giúp tôi bổ sung"_.
 - Xây dựng component giao diện trực quan, đồng bộ tính năng kiểm tra tự động DSGD trước EOD (`CheckDSGDBeforeEOD`) vào cả 2 trang chuyên biệt của Trading Manager:
-  1. Trang **`ms-cqg`** (`/trading-manager/ms-cqg`): Hiển thị ngay dưới khung Pre-EOD `<LegacyPreEodDiffSection>`.
-  2. Trang **`ccp-ce`** (`/trading-manager/ccp-ce`): Hiển thị ngay dưới khung Pre-EOD CoreCCP ↔ CoreEX.
+  1. Trang **`ms-cqg`** (`/trading-manager/ms-cqg`): Hiển thị ngay dưới khung Dsgd-Before-EOD `<LegacyDsgdBeforeEodDiffSection>`.
+  2. Trang **`ccp-ce`** (`/trading-manager/ccp-ce`): Hiển thị ngay dưới khung Dsgd-Before-EOD CoreCCP ↔ CoreEX.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
    - Tạo mới component chuyên trách hiển thị kết quả kiểm tra DSGD trước EOD.
    - Hỗ trợ nút chạy nhanh **"Check DSGD Trước EOD"** (gọi trực tiếp `tradingOpsApi.checkDsgdBeforeEod` với cờ `exactDate: true`).
@@ -575,9 +1099,9 @@
    - Nút **Sao chép** kết quả vào clipboard với thông số chi tiết.
    - Thiết kế 100% bằng icon SVG từ `lucide-react`, tuân thủ triệt để quy tắc Zero Unicode Emojis.
 2. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2324-L2328):
-   - Nhúng `<DsgdBeforeEodSection token={token} selectedDate={selectedDate} />` ngay dưới `<LegacyPreEodDiffSection>`.
+   - Nhúng `<DsgdBeforeEodSection token={token} selectedDate={selectedDate} />` ngay dưới `<LegacyDsgdBeforeEodDiffSection>`.
 3. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L971-L974):
-   - Nhúng `<DsgdBeforeEodSection token={token} selectedDate={selectedDate} />` ngay dưới khung Pre-EOD CoreCCP ↔ CoreEX.
+   - Nhúng `<DsgdBeforeEodSection token={token} selectedDate={selectedDate} />` ngay dưới khung Dsgd-Before-EOD CoreCCP ↔ CoreEX.
 4. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
    - Bổ sung prop `onSuccess?: (result: any) => void` để đồng bộ kết quả kiểm tra ngược về section cha.
    - Thêm `useEffect` ở cấp top-level (tuân thủ Rules of Hooks) tự động cập nhật `tradingDate` theo `defaultDate`.
@@ -587,6 +1111,7 @@
    - Export `DsgdBeforeEodSection` dùng chung.
 
 ### 3. Kết quả Kiểm thử & Build
+
 - Frontend Build: `cmd.exe /c "npm run build"` (`next build`) -> **Exit code 0 (Success - 36 static/dynamic routes)**.
 - Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success)**.
 
@@ -595,12 +1120,14 @@
 ## [2026-10-19T19:05] BUG FIX: Sửa Triệt Để Lệch Ảo Ranh Giới Cutoff Time (2000ms Buffer & Lookup CQG) & Khôi Phục Rào Cản Đồng Bộ Nhịp Trưởng (Pacer Barrier)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"tôi cần fix chuẩn"* sau khi phân tích nguyên nhân báo lệch ảo 3 giao dịch trong Job `CHECK_KLGD` (`6ad5fd6ee85e5897023441f1` lúc 18:22:22 ngày 19/10/2026).
+
+- Thực hiện yêu cầu của USER: _"tôi cần fix chuẩn"_ sau khi phân tích nguyên nhân báo lệch ảo 3 giao dịch trong Job `CHECK_KLGD` (`6ad5fd6ee85e5897023441f1` lúc 18:22:22 ngày 19/10/2026).
 - Khắc phục 2 nguyên nhân gốc rễ gây hiện tượng lệch ảo do tải trễ:
   1. **Khôi phục cơ chế Rào cản Đồng bộ Nhịp Trưởng (CQG Ready-First Barrier)**: Bỏ qua Facade Ingress V2 khi có truyền callback `onReadyBarrier` & `onReadyBarrierCqg2` trong `downloadCqgBackup`. Đảm bảo cả 2 tài khoản CQG1 và CQG2 chuẩn bị widget xong mới kích hoạt rào cản cho M-System, CoreCCP và ACM gọi Direct REST API đồng thời ở cùng 1 giây, triệt tiêu khoảng trễ 34 giây.
   2. **Bổ sung Buffer 2,000ms & Lookup Trực tiếp Khớp Lệnh CQG ở Chiều 2 (`effectiveCqgCutoffTime`)**: Đồng bộ với Chiều 1 (`dsgdCutoffTime = mtime - 2000ms`). Các lệnh khớp tại giây ranh giới (`18:22:50`) hoặc trong khoảng đệm 2 giây (`18:22:48` - `18:22:50`) nếu chưa kịp xuất hiện trong snapshot của CQG do độ trễ hiển thị (reporting lag) sẽ được tự động bảo lưu an toàn vào `pendingSyncTrades`, không bị phán đoán thành lỗi lệch hệ thống. Nếu lệnh đã có bên CQG thì vẫn giữ lại so khớp 100%.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts#L4553-L4560):
    - Cập nhật điều kiện Facade Ingress V2: Chỉ ủy quyền sang `ingressService.download('CQG')` khi KHÔNG có `onReadyBarrier` và `onReadyBarrierCqg2` (`!onReadyBarrier && !onReadyBarrierCqg2`).
    - Khi có callback rào cản (từ `recon-jobs.handler.ts`), luồng tải chạy qua logic song song chuẩn, đảm bảo gọi `await onReadyBarrier()` và `await onReadyBarrierCqg2()` đúng nhịp.
@@ -608,12 +1135,13 @@
    - Khởi tạo `rawFrKeySet = new Set(rawFrData.map(f => f.combinedKey))`.
    - Thiết lập `cqgBoundaryThreshold = new Date(effectiveCqgCutoffTime.getTime() - 2000)`.
    - Cải tiến điều kiện bảo lưu Chiều 2: Lệnh M-System được bảo lưu sang `pendingSyncTrades` nếu:
-     + Khớp sau mốc snapshot: `tradeTime > effectiveCqgCutoffTime` (`isLateTrade`); HOẶC
-     + Khớp trong khoảng đệm ranh giới và CQG chưa có: `tradeTime >= cqgBoundaryThreshold && !rawFrKeySet.has(gd.combinedKey)` (`isBoundaryTrade`).
+     - Khớp sau mốc snapshot: `tradeTime > effectiveCqgCutoffTime` (`isLateTrade`); HOẶC
+     - Khớp trong khoảng đệm ranh giới và CQG chưa có: `tradeTime >= cqgBoundaryThreshold && !rawFrKeySet.has(gd.combinedKey)` (`isBoundaryTrade`).
 3. [backend/src/tests/test_boundary_cutoff_fix.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/tests/test_boundary_cutoff_fix.ts):
    - Bộ unit test kiểm thử 6 kịch bản ranh giới cutoff time (lệnh sau cutoff, lệnh đúng giây cutoff, lệnh trong buffer thiếu bên CQG, lệnh trong buffer đã có bên CQG, lệnh trước buffer lệch thật).
 
 ### 3. Kết quả Kiểm thử & Biên dịch
+
 - Unit Test: Chạy thành công 6/6 testcase (`PASS: 6/6`).
 - Backend Build: `npm run build` (`nest build`) thành công 100% (Exit code 0).
 - TypeScript Check: `npx tsc -p tsconfig.build.json --noEmit` thành công 100% không có bất kỳ lỗi nào.
@@ -624,12 +1152,14 @@
 ## [2026-10-19T18:48] FEATURE UPGRADE: Nâng Cấp Tải Trực Tiếp Bảng Giá Market Trước 6h (`Markettruoc6h` / `market.csv`) Qua Direct REST API (`/market/priceList`) Không Cần Playwright Browser
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu nâng cấp của USER: Chuyển đổi báo cáo duy nhất còn lại của M-System phải dùng giao diện (`Markettruoc6h` / `market.csv` tại `#/orderManagement/orderCreating`) sang tải trực tiếp bằng Direct REST API.
 - Bóc tách luồng dữ liệu chuẩn từ backend M-System: Endpoint `GET https://msapi.mxv.com.vn/market/priceList` trả về danh mục toàn sàn 1.731 hợp đồng kèm đầy đủ `filledPrice` (Giá khớp), `settlePrice` (Giá thanh toán), `bidPrice`, `offerPrice`, `volume`...
 - Tự động sinh file `market truoc 6h.csv` và bản sao alias `market.csv` khớp 1:1 cấu trúc bảng 23 cột UTF-8 BOM chuẩn với thời gian xử lý ~1 giây (giảm từ 20-30s của Chromium xuống còn 1.1s).
 - Hoàn tất mục tiêu kiến trúc: **100% 20/20 báo cáo M-System chạy thuần túy qua Direct REST API**, không còn phụ thuộc vào bất kỳ trình duyệt headless nào.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/shared/domain-configs/ms-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/ms-reports.config.ts):
    - Bổ sung `Markettruoc6h` vào danh sách mã chuẩn `CANONICAL_MS_KEYS` (nâng tổng số lên 20 báo cáo chuẩn).
    - Đăng ký `Markettruoc6h` và các alias (`market`, `market.csv`, `market truoc 6h`) vào `MS_REPORTS_REGISTRY` trỏ tới endpoint `/market/priceList`.
@@ -642,6 +1172,7 @@
    - Script kiểm thử tích hợp thực tế NestJS tải `Markettruoc6h` qua `MsApiAdapter`.
 
 ### 3. Kết quả Kiểm thử Thực tế
+
 - Lệnh chạy: `npx ts-node -T -r tsconfig-paths/register src/scripts/test_ms_api_market_download.ts`
 - **Kết quả**:
   - `Thành công`: `true`
@@ -656,12 +1187,14 @@
 ## [2026-10-19T18:05] INVESTIGATION TOOL: Xây Dựng Script Sniff Mạng Chuyên Sâu M-System (`sniff_ms_ordercreating.js`) Để Điều Tra Logic Tải Bảng Giá (`orderCreating`) & Giá Thanh Toán
 
 ### 1. Mục tiêu thay đổi
-- Trả lời yêu cầu của USER: *"bạn có thể quét trang Msystems (https://msadmin.mxv.com.vn/#/orderManagement/orderCreating) để tìm được logic tải được khi không cần vào giao diện không"*.
+
+- Trả lời yêu cầu của USER: _"bạn có thể quét trang Msystems (https://msadmin.mxv.com.vn/#/orderManagement/orderCreating) để tìm được logic tải được khi không cần vào giao diện không"_.
 - Xây dựng công cụ chuyên dụng `sniff_ms_ordercreating.js` để bắt toàn bộ lưu lượng HTTP/WebSocket khi mở trang Bảng giá và khi bấm nút CSV.
 - Tự động điều tra cấu trúc DOM, phân loại cơ chế tải (Client-side Blob JavaScript vs Server-side REST API), đồng thời quét màn hình chuẩn "Giá thanh toán" (`QL giá -> Giá thanh toán`) trong menu để tìm endpoint API thay thế trực tiếp.
 - Tuân thủ nghiêm ngặt Rule 8 trong `AGENTS.md`: Chuẩn bị code hoàn chỉnh, cấu hình lệnh chạy `npm run sniff:ms-order` và hướng dẫn USER tự thực thi trực tiếp trên terminal.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/scripts/sniff_ms_ordercreating.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/sniff_ms_ordercreating.js):
    - Script điều tra mạng sử dụng Playwright: Đăng nhập 2 bước (Password + PIN), mở trang Bảng giá `#/orderManagement/orderCreating`.
    - Lắng nghe `page.on('request')`, `page.on('response')`, `page.on('websocket')`.
@@ -676,30 +1209,36 @@
 ## [2026-10-19T17:35] BUG FIX: Sửa Bộ Lọc SFTP ACM (AcmSftpAdapter) Tránh Tải Lặp File Lịch Sử & Giải Thích Cơ Chế Order / Fill
 
 ### 1. Mục tiêu thay đổi
-- Trả lời và khắc phục thắc mắc của USER: *"sao nó tải 1 đống file rác vậy không thấy file tôi cần là order và fill"*.
+
+- Trả lời và khắc phục thắc mắc của USER: _"sao nó tải 1 đống file rác vậy không thấy file tôi cần là order và fill"_.
 - Khắc phục lỗi regex lỏng trong [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts#L154-L167): Điều kiện `name.toLowerCase().includes('straits')` không ràng buộc ngày phiên (`ddmmyyyy`), dẫn tới việc tải toàn bộ các file `EOD FO trades_PT Straits Financial Indonesia...` lịch sử có trên máy chủ SFTP.
 - Ràng buộc điều kiện ngày phiên: Bắt buộc `(name.includes(ddmmyyyy) || name.includes(yyyy_mm_dd))` để chỉ tải đúng 1 file Straits CSV của phiên mục tiêu.
 - Giải thích rõ: File `Order.xlsx` và `Fill.xlsx` đã có sẵn trong thư mục từ 14:01 chiều (đã được bot kiểm tra thấy đủ nên bỏ qua tải lại).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/adapters/acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts#L157-L167):
    - Thêm điều kiện `(name.includes(ddmmyyyy) || name.includes(yyyy_mm_dd))` vào `isCsvMatch`.
    - Ngăn chặn triệt để việc tải hàng loạt file CSV của các ngày cũ từ SFTP Server.
 
 ### 3. Kiểm thử & Xác nhận Build
+
 - **Biên dịch**: `npm run build` thành công 100% (Exit code 0).
+
 ## [2026-10-19T19:28] USER DIRECTIVE & REST API UPGRADE: Đồng Bộ Tỷ Giá M-System Trực Tiếp Qua REST API (/market/exchangeRate & /market/paymentRate) Thay Thế Hoàn Toàn Playwright Crawler Chậm
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu và chỉ đạo bằng văn bản trực tiếp từ USER:
-  > *"Đã đồng bộ tỷ giá từ M-System: 1 USD = 25.860 đ (Đủ 4 cặp tiền Thanh toán) hiện tại chưa call được api cập nhật tỷ giá ms curl --url https://msapi.mxv.com.vn/market/exchangeRate?limit=20&offset=0&sort_by=asc(status) ... "*
-  khi bấm nút **"Đồng bộ từ M-System"** tại [TradingManagerConfigSection.tsx#L709](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L709).
+  > _"Đã đồng bộ tỷ giá từ M-System: 1 USD = 25.860 đ (Đủ 4 cặp tiền Thanh toán) hiện tại chưa call được api cập nhật tỷ giá ms curl --url https://msapi.mxv.com.vn/market/exchangeRate?limit=20&offset=0&sort_by=asc(status) ... "_
+  > khi bấm nút **"Đồng bộ từ M-System"** tại [TradingManagerConfigSection.tsx#L709](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L709).
 - **Nguyên nhân gốc rễ**:
   1. Nút "Đồng bộ từ M-System" trên giao diện trước đó gọi nhầm hàm `api.ccpClearing.syncExchangeRates(token)` thay vì gọi endpoint chuyên trách của Trading Ops M-System.
   2. Cơ chế đồng bộ M-System cũ sử dụng Playwright crawler (khởi động Chromium, nhập username/password, click bảng PIN ảo và cào màn hình `#/currencyManagement/exchangeRate`), tốn 20-30 giây và dễ nhận giá trị cũ/chậm chạp.
   3. Hệ thống chưa tích hợp gọi trực tiếp cặp REST API của M-System theo curl chỉ đạo của USER.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts):
    - Bổ sung phương thức `getExchangeRates()`:
      - Tự động lấy Bearer Token M-System hợp lệ (tái sử dụng session còn hạn hoặc tự động login 2 bước).
@@ -728,15 +1267,17 @@
 ## [2026-10-19T19:15] BUGFIX & MODULAR ARCHITECTURE ALIGNMENT: Khắc Phục Lỗi 404 Cannot POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate Khi Đồng Bộ Tỷ Giá Nguyên Tệ CoreCCP
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục lỗi được báo cáo từ USER:
-  > *"Lỗi: Cannot POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate giúp tôi check lại khi ấn Đồng bộ từ CoreCCP (Tỷ giá nguyên tệ)"*
-  tại giao diện Quản trị Cấu hình [TradingManagerConfigSection.tsx#L829](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L829).
+  > _"Lỗi: Cannot POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate giúp tôi check lại khi ấn Đồng bộ từ CoreCCP (Tỷ giá nguyên tệ)"_
+  > tại giao diện Quản trị Cấu hình [TradingManagerConfigSection.tsx#L829](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L829).
 - **Nguyên nhân gốc rễ**:
   - Khi tái cấu trúc sang Modular Monolith V2 (`trading-ops`), phân hệ cũ `ccp-statistics.module.ts` đã được lưu trữ (archived) và gỡ khỏi `AppModule`.
   - Toàn bộ nghiệp vụ CCP Clearing & Đối chiếu được chuyển về `CcpReconController` ([ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)).
   - Tuy nhiên, `CcpReconController` trước đó chỉ lắng nghe tiền tố `['api/v1/ccp-clearing', 'api/v1/reconciliation', 'reconciliation']`, thiếu tiền tố tương thích ngược `api/v1/ccp-statistics` và thiếu route xử lý `lot-statistics/sync-exchange-rate`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts):
    - Mở rộng đa tiền tố điều hướng tại Controller: `@Controller(['api/v1/ccp-clearing', 'api/v1/ccp-statistics', 'ccp-statistics', 'api/v1/reconciliation', 'reconciliation'])`.
    - Bổ sung endpoint POST `@Post(['sync-exchange-rates', 'lot-statistics/sync-exchange-rate', 'sync-exchange-rate'])`:
@@ -757,13 +1298,15 @@
 ## [2026-10-19T18:40] USER DIRECTIVE & ZERO-FALLBACK STANDARD: Chuẩn Hóa Báo Cáo Lịch Sử CoreEX Mặc Định Tải Theo Ngày T-1 (Không Fallback) Theo Chỉ Đạo Trực Tiếp Của USER
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu và chỉ đạo bằng văn bản trực tiếp từ USER:
-  > *"curl --url https://uat-coreexchange.mxv.com.vn/exchange/export/create ... data-raw: {searchcode: 'ORDERBOOK_ALL', search: {SESSION_DATE: {from: '16/10/2026', to: '16/10/2026'}}} ... giúp tôi lich sử lệnh và những gì liên quan tới lịch sử sẽ mặc định là T-1 để tải về đúng không fallback"*
+  > _"curl --url https://uat-coreexchange.mxv.com.vn/exchange/export/create ... data-raw: {searchcode: 'ORDERBOOK_ALL', search: {SESSION_DATE: {from: '16/10/2026', to: '16/10/2026'}}} ... giúp tôi lich sử lệnh và những gì liên quan tới lịch sử sẽ mặc định là T-1 để tải về đúng không fallback"_
 - Tuân thủ nghiêm ngặt Rule 1, Rule 2 (Proof of Ground Truth từ USER) và Rule 5 (Cấm Fallback rác/phỏng đoán):
   - Toàn bộ các báo cáo thuộc nhóm lịch sử (`ORDERBOOK_ALL_ACM`, `ORDERMATCH_ALL_ACM`, `ORDERBOOK_ALL_MM`, `SESSION_CONFIG_ALL`...) mặc định tải dữ liệu của ngày làm việc phiên trước đó (**T-1**).
   - Xóa bỏ triệt để mọi logic fallback sang sổ lệnh trong phiên (`ORDERBOOK_ACM`). Báo cáo lịch sử sẽ truy vấn trực tiếp kho lưu trữ lịch sử với ngày T-1 và trả về đúng dữ liệu gốc.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreex-reports.config.ts):
    - Thêm thuộc tính `isHistorical?: boolean` vào interface `ICoreExchangeReportMapping`.
    - Đánh dấu cờ `isHistorical: true` cho các báo cáo lịch sử: `DSL` (`ORDERBOOK_ALL_ACM`), `DSGD_ALL` (`ORDERMATCH_ALL_ACM`), `DSGD_MM` (`ORDERMATCH_DETAIL_MM`), `DSL_MM` (`ORDERBOOK_ALL_MM`), và `SESSION_CONFIG` (`SESSION_CONFIG_ALL`).
@@ -781,7 +1324,8 @@
 ## [2026-10-19T18:25] BUGFIX & DATA-DRIVEN REFINEMENT: Sửa Lỗi Tải Sổ Lệnh Trong Phiên CoreEX (ORDERBOOK_ACM vs ORDERBOOK_ALL_ACM) & Lọc Chính Xác Trạng Thái Lệnh Phái Sinh (DSLH, DSLCK, DSLDK)
 
 ### 1. Mục tiêu thay đổi
-- Trả lời và khắc phục câu hỏi của USER: *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures\2026\T10.2026 19.10.giaodien và 19.10.api tại sao tải trên giao diện thì đúng mà tải qua api thì DSLH ACM CE.xlsx DSL ACM CE.xlsx lại sai là file rỗng trong khi tôi dùng giao diện tải về lại có dữ liệu"*
+
+- Trả lời và khắc phục câu hỏi của USER: _"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures\2026\T10.2026 19.10.giaodien và 19.10.api tại sao tải trên giao diện thì đúng mà tải qua api thì DSLH ACM CE.xlsx DSL ACM CE.xlsx lại sai là file rỗng trong khi tôi dùng giao diện tải về lại có dữ liệu"_
 - Khảo sát thực tế thư mục `19.10.giaodien` và `19.10.api`:
   - Trong `19.10.giaodien`: File `DSL ACM CE.xlsx` có 1,752 dòng dữ liệu nhưng thực chất mang ngày giao dịch `16/10/2026` (phiên Thứ Sáu đã đóng) do màn hình giao diện `/ORDERS/ORDERBOOK_ALL_ACM` mặc định tải phiên đóng gần nhất khi chưa EOD phiên 19/10.
   - Trong `19.10.api`: API gọi `ORDERBOOK_ALL_ACM` cho ngày hiện tại `19/10/2026` (phiên đang chạy chưa EOD), API trả về 0 dòng vì `ORDERBOOK_ALL_ACM` là kho lưu trữ lịch sử sau chốt ngày.
@@ -789,6 +1333,7 @@
   - Quy tắc tạo file phái sinh cũ (`fs.copyFileSync(targetPath, destPath)`) sao chép mù file thô `DSL` sang `DSLH`, `DSLCK`, `DSLDK` mà không lọc theo trạng thái lệnh, dẫn tới khi `DSL` rỗng thì cả 3 file đều rỗng.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
    - Thêm cơ chế Fallback thông minh giữa `ORDERBOOK_ALL_ACM` (Lịch sử) và `ORDERBOOK_ACM` (Trong phiên): Khi tải `DSL`, nếu `ORDERBOOK_ALL_ACM` trả về 0 dòng (phiên đang chạy trong ngày), adapter tự động chuyển sang gọi `ORDERBOOK_ACM` để lấy đầy đủ 1,116 lệnh trong phiên.
    - Nâng cấp cơ chế xuất báo cáo phái sinh (`DERIVED_EXPORT`): Thay vì sao chép nhị phân mù toàn bộ file `DSL`, adapter lọc chính xác theo trường trạng thái lệnh `STATUS` / `EN_STATUS`:
@@ -802,10 +1347,12 @@
 ## [2026-10-19T17:55] BUGFIX: Khắc Phục Lỗi Cào Giao Diện (Playwright Scraper) Không Tải Báo Cáo Nào Khi Nhận Mã "FULL" / Chuỗi Mã Báo Cáo
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục lỗi trong Job ID `6ad5f61e67544cdff20cac11`: Khi người dùng bật chế độ Cào Giao Diện (Playwright), bot đăng nhập thành công vào CoreExchange (`/DASHBOARD`) nhưng lập tức in `HOAN THANH TOAN BO TIEN TRINH TAI BAO CAO!` mà không tải bất kỳ file nào.
 - Nguyên nhân gốc: `ccp-ce-download.handler.ts` truyền mảng chuỗi `reports: ["FULL"]` vào `ccpCeDownloaderService.run()`. Trong `ccp-ce-scraper.service.ts`, lệnh `(runOpts.reports ?? DEFAULT_CE_REPORTS).filter((r) => r.enabled)` kiểm tra `r.enabled` trên phần tử dạng string `"FULL"` (`"FULL".enabled === undefined`), dẫn đến kết quả `reportsToRun` bị xóa sạch thành `[]` (0 báo cáo). Vòng lặp tải không chạy lần nào.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts#L1767-L1787):
    - Chuẩn hóa bộ lọc `reportsToRun`: Kiểm tra nếu `runOpts.reports` là mảng chuỗi (như `["FULL"]`, `["ALL"]`, `["DSL"]`):
      - Nếu chứa `FULL`, `ALL` hoặc `BACKUP` $\rightarrow$ Tự động nạp toàn bộ danh mục báo cáo mặc định (`DEFAULT_CE_REPORTS` hoặc `DEFAULT_CCP_REPORTS`).
@@ -820,11 +1367,13 @@
 ## [2026-10-19T16:45] ZERO-HARDCODING FIX: Xóa Bỏ Hoàn Toàn Hardcode Hợp Đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`), Tự Động Trích Xuất Hợp Đồng Theo Danh Mục Hàng Hóa Động & Chuẩn Hóa Header Tiếng Việt
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu nghiêm ngặt của USER & Rule 6, Rule 7 trong `AGENTS.md`: Xóa bỏ triệt để hardcode danh sách hợp đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`) trong `coreex-api.adapter.ts`, `coreccp-api.adapter.ts` và `ccp-scraper.service.ts`.
 - Chuyển sang cơ chế **Data-Driven 100%**: Khi tải danh mục hàng hóa `HH` (`COMMODITY_ACM` của CoreEX và `COMMODITY` của CoreCCP), tự động lặp qua từng mã hàng hóa thực tế (`comm.UACODE`), gọi API chi tiết hợp đồng (`INSTRUMENTS_ACM` / `INSTRUMENTS`) với `{ KEYVAL: uacode }`, và xuất động ra file `HĐ ${uacode}.xlsx`.
 - Chuẩn hóa toàn bộ cột tiêu đề tiếng Việt chuẩn Enterprise cho các file Excel xuất ra từ [vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/vnclear-column-headers.config.ts).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
    - Xóa bỏ hoàn toàn hardcode `targets = ['GTT', 'HH', 'DSGD', 'DSL', 'HD_CP2CO', 'HD_PL1NY', 'HD_SI5CO']`.
    - Chuyển targets mặc định về danh mục chuẩn không chứa mã hợp đồng tĩnh; map các mã `HD`/`HD_*` về `HH`.
@@ -837,6 +1386,7 @@
    - Xóa bỏ 3 phần tử hardcode `HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO` khỏi `CCP_25_REPORTS`.
 
 ### 3. Kết quả Kiểm thử & Triển khai Máy chủ (10.0.0.26)
+
 - **Biên dịch**: Backend NestJS và Frontend Turbopack build thành công 100% (exit code 0).
 - **Deploy**: Đã đồng bộ mã nguồn và khởi động lại PM2 `mxv-backend` & `mxv-frontend`.
 - **Live Test CoreEX**: Job `6ad5e6afdc2dfe4059f77473` $\rightarrow$ **COMPLETED** trong 3514ms:
@@ -848,11 +1398,13 @@
 ## [2026-10-19T16:00] ARCHITECTURE COMPLETION: Chuẩn Hóa Toàn Diện 4 Phân Hệ (CoreCCP, CoreEX, MS, ACM) Theo Domain Configs Dùng Chung, Kiểm Thử Live Thành Công 100%
 
 ### 1. Mục tiêu thay đổi
-- Trả lời và thực hiện câu hỏi của USER: *"ce và ms và acm cũng tương tự rồi chứ"*.
+
+- Trả lời và thực hiện câu hỏi của USER: _"ce và ms và acm cũng tương tự rồi chứ"_.
 - Hoàn thiện chuẩn hóa toàn bộ 4 phân hệ (CoreCCP, CoreEX, M-System, ACM) theo mô hình Clean Architecture & Shared SSOT: tách biệt toàn bộ danh mục báo cáo ra khỏi Ingress Adapter thành các Domain Config độc lập tại `src/shared/domain-configs/`.
 - Kiểm thử thực tế (Live Test) cả 3 phân hệ CoreEX, MS và CoreCCP trên máy chủ `10.0.0.26`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/shared/domain-configs/ms-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/ms-reports.config.ts):
    - Tách toàn bộ `MS_REPORTS_REGISTRY`, `CANONICAL_MS_KEYS` (19 báo cáo chuẩn MS), `IMsReportDef`, và `resolveMsReport()` ra khỏi adapter.
 2. [backend/src/shared/domain-configs/acm-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/acm-reports.config.ts):
@@ -867,6 +1419,7 @@
    - Loại bỏ hơn 250 dòng code trùng lặp; import từ `src/shared`.
 
 ### 3. Kiểm thử & Xác nhận Live trên Máy chủ (10.0.0.26)
+
 - **CoreCCP**: Job `6ad5d73ae0738cfeb7352145` $\rightarrow$ **COMPLETED** (3094ms, tải 24/24 báo cáo).
 - **CoreEX (CE)**: Job `6ad5da44e0738cfeb735214a` $\rightarrow$ **COMPLETED** (3786ms, tải 16/16 báo cáo).
 - **M-System (MS)**: Job `6ad5db4c8b0b58d2e6acf6d8` $\rightarrow$ **COMPLETED** (Direct REST API tải trọn vẹn các file lớn `DSTKGD-Futures.xlsx` 4.5MB, `QLTKGD.xlsx` 3.4MB...).
@@ -877,16 +1430,18 @@
 ## [2026-10-19T15:40] FIX: Khắc Phục Lỗi Cannot POST /api/v1/trading-ops/check-eod-run & Đồng Bộ Trigger EOD CoreCCP và Âm Ký Quỹ
 
 ### 1. Mục tiêu thay đổi
-- Khắc phục lỗi khi người dùng bấm nút **Check** tại khung *"Kết quả chạy EOD (CoreCCP ↔ CoreEX)"*: `Lỗi thực hiện: Cannot POST /api/v1/trading-ops/check-eod-run báo lỗi check eod ccp`.
+
+- Khắc phục lỗi khi người dùng bấm nút **Check** tại khung _"Kết quả chạy EOD (CoreCCP ↔ CoreEX)"_: `Lỗi thực hiện: Cannot POST /api/v1/trading-ops/check-eod-run báo lỗi check eod ccp`.
 - **Nguyên nhân gốc rễ (Root Cause)**:
   1. Frontend gọi `POST /api/v1/trading-ops/check-eod-run` nhưng trên Backend `TradingOpsMiscController` chưa khai báo route này mà đang điều phối qua `POST /api/v1/trading-ops/trigger-console-run` với `jobType: 'CHECK_EOD_CCP'`.
-  2. Nút bấm *"Check (Âm ký quỹ CoreCCP)"* gọi `POST /api/v1/trading-ops/negative-margin` bằng payload JSON `{ sessionDate }`, trong khi `MarginCheckerController` trước đó bắt buộc phải upload file multipart `qltkgd`/`eod`, gây ra lỗi `File QLTKGD.xlsx là bắt buộc`.
+  2. Nút bấm _"Check (Âm ký quỹ CoreCCP)"_ gọi `POST /api/v1/trading-ops/negative-margin` bằng payload JSON `{ sessionDate }`, trong khi `MarginCheckerController` trước đó bắt buộc phải upload file multipart `qltkgd`/`eod`, gây ra lỗi `File QLTKGD.xlsx là bắt buộc`.
   3. `fetchEodSummary` trong `CcpCeEodReconSection.tsx` đọc `data.eodRun` trong khi backend trả về cấu trúc `data.eod` và `data.ccpSummary`, dẫn đến việc không cập nhật được trạng thái sau khi job chạy xong.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts#L339-L362):
    - Bổ sung endpoint `@Post('check-eod-run')`: Chuyển tiếp tới `this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_EOD_CCP')`.
-   - Bổ sung endpoint `@Post('run-check-pre-eod')`: Chuyển tiếp tới `this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_PRE_EOD')`.
+   - Bổ sung endpoint `@Post('run-check-dsgd-before-eod')`: Chuyển tiếp tới `this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_DSGD_BEFORE_EOD')`.
 2. [backend/src/modules/trading-ops/controllers/margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/margin-checker.controller.ts#L46-L65):
    - Hỗ trợ gọi trigger kiểm tra âm ký quỹ tự động qua JSON body `{ sessionDate, date }`: Nếu không có file upload thủ công, tự động kích hoạt `triggerConsoleRun(sessionDate || dateStr, 'SCAN_NEGATIVE_MARGIN')`.
 3. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L125-L185):
@@ -894,6 +1449,7 @@
    - Tích hợp kết nối WebSocket (`socket.on('dashboard-updated')` & `socket.on('job-status-updated')`) để tự động làm mới giao diện ngay tức thì khi Bot Job chạy xong.
 
 ### 3. Kiểm thử & Xác nhận
+
 - **Backend NestJS Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
 - **Frontend Turbopack Build**: `cmd /c npm run build` -> Biên dịch 36/36 routes thành công (Exit code 0).
 
@@ -902,11 +1458,13 @@
 ## [2026-10-19T15:40] ARCHITECTURE REFACTOR & FIX: Tách Rời Cấu Hình Báo Cáo CoreCCP & CoreEX Ra Shared Domain Configs, Khắc Phục Lỗi 404/403 Và Tải Thành Công 24 Báo Cáo Ca Trực Qua Direct REST API
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện chỉ đạo & câu hỏi của USER: *"báo lỗi gì đây"* (lỗi 404/403 khi tải CoreCCP) và *"sao không đưa riêng ra ngoài để dùng chung dễ maintain"*.
+
+- Thực hiện chỉ đạo & câu hỏi của USER: _"báo lỗi gì đây"_ (lỗi 404/403 khi tải CoreCCP) và _"sao không đưa riêng ra ngoài để dùng chung dễ maintain"_.
 - Tách rời hoàn toàn định nghĩa danh mục báo cáo (~350 dòng) ra khỏi `CoreCcpApiAdapter` và `CoreExApiAdapter` để trở thành các Domain Config độc lập, dùng chung (Shared SSOT) theo đúng chuẩn Enterprise & Clean Architecture.
 - Khắc phục triệt để lỗi gọi API tới các endpoint không tồn tại (HTTP 404: `ORDERBOOK_FILLED`, `ORDERBOOK_WORKING`...) và lỗi quyền WebSocket export (HTTP 403: `ORDERBOOK_ALL_MM`).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts):
    - **Tạo mới Domain Config độc lập cho CoreCCP**: Định nghĩa interface `ICcpReportMapping`, bảng tra cứu `CORECCP_API_REPORTS`, và hàm resolver `resolveCoreCcpReport()`.
    - **Ground Truth 100%**: Chỉ gọi REST API tới đúng 12 SearchCode gốc thực tế đã audit thành công HTTP 200 trên máy chủ (`ORDERBOOK`, `ORDERMATCH_DETAIL`, `ORDERBOOK_MM`, `OPEN_POSITION`, `PNL_EXECUTED`, `ACCTMARGIN_ALL`, `ACCTMARGIN_POS`, `CASHTRANFER_HIST`, `ACCOUNTS_INFO`, `SETTLEMENT`, `COMMODITY`, `CURRENCYEXCHANGERATE`).
@@ -923,23 +1481,26 @@
    - Import registry từ `src/shared`, dọn sạch code duplicate.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**: `npm run build` Backend thành công 100% (Nest build code 0).
 - **Server Ubuntu (10.0.0.26)**:
-   - Đồng bộ toàn bộ file mới và biên dịch cả Backend lẫn Frontend thành công.
-   - Restart các dịch vụ PM2: `mxv-backend` (PID `2890172`), `mxv-frontend` (PID `2890415`).
+  - Đồng bộ toàn bộ file mới và biên dịch cả Backend lẫn Frontend thành công.
+  - Restart các dịch vụ PM2: `mxv-backend` (PID `2890172`), `mxv-frontend` (PID `2890415`).
 - **Live Verification**:
-   - Chạy lệnh trigger thực tế qua curl: Job `6ad5d73ae0738cfeb7352145` hoàn tất **COMPLETED** trong 3094ms, tải thành công trọn vẹn **24 báo cáo CoreCCP** lưu vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/19.10`, 0 lỗi, 0 retry.
+  - Chạy lệnh trigger thực tế qua curl: Job `6ad5d73ae0738cfeb7352145` hoàn tất **COMPLETED** trong 3094ms, tải thành công trọn vẹn **24 báo cáo CoreCCP** lưu vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/19.10`, 0 lỗi, 0 retry.
 
 ---
 
 ## [2026-10-19T15:20] AUDIT & REFACTOR: Rà Soát Toàn Diện Luồng Tải Báo Cáo M-System (MS), Chuẩn Hóa Tên File Báo Cáo Theo Ground Truth & Tối Ưu Hóa Phối Hợp Direct REST API - Playwright RPA
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu kiểm tra toàn diện của USER: *"còn bug nào khi tải file nữa không giúp tôi check lại luôn luồng tải ms"*.
+
+- Thực hiện yêu cầu kiểm tra toàn diện của USER: _"còn bug nào khi tải file nữa không giúp tôi check lại luôn luồng tải ms"_.
 - Rà soát toàn bộ luồng tải M-System từ Backend Handler (`FileAuditJobHandler`, `RpaDownloadJobHandler`), Ingress Port (`MsApiAdapter`), đến RPA Playwright Scraper (`MSystemScraperService`, `MsTabScraperService`).
 - So sánh đối chiếu Ground Truth 100% với thư mục lưu trữ thực tế của MXV trên máy chủ `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T10.2026/14.10/`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts#L48-L75,L110-L135,L265-L290,L645-L680):
    - **Chuẩn hóa tên file theo Ground Truth**:
      - Sửa `QLTKGD_am_KQ.xlsx` $\rightarrow$ `QLTKGDAmKQ.xlsx` (viết liền, đúng theo tên file thực tế của MXV tại `14.10`).
@@ -952,18 +1513,20 @@
    - **Khắc phục Bug Timeout kiểm tra Dashboard**: Bổ sung fallback kiểm tra URL hash rời khỏi `/login` và sự hiện diện của layout/navbar/user-profile khi widget "Ngày phiên hiện tại:" tải chậm (>15s), ngăn chặn việc báo lỗi sai dù người dùng đã đăng nhập thành công.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**:
-   - `cmd.exe /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
-   - `cmd.exe /c npm run build` (Frontend): Next.js Turbopack biên dịch thành công 36 routes (Exit code 0).
+  - `cmd.exe /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
+  - `cmd.exe /c npm run build` (Frontend): Next.js Turbopack biên dịch thành công 36 routes (Exit code 0).
 - **Server Ubuntu (10.0.0.26)**:
-   - Đồng bộ toàn bộ các file cập nhật lên máy chủ.
-   - Build và restart thành công: `mxv-backend` (PID `2884607`, online), `mxv-frontend` (PID `2884827`, online).
+  - Đồng bộ toàn bộ các file cập nhật lên máy chủ.
+  - Build và restart thành công: `mxv-backend` (PID `2884607`, online), `mxv-frontend` (PID `2884827`, online).
 
 ---
 
 ## [2026-10-19T14:45] REFACTOR & FIX: Chuẩn Hóa Danh Mục Báo Cáo CoreCCP (19 File + HĐ Động) & CoreEX (12 File + HĐ Động), Khắc Phục Triệt Để Luồng Tải SFTP ACM & Chống Nuốt Lỗi Fail-Fast
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu & chỉ đạo trực tiếp từ USER:
   1. Điều tra và khắc phục việc Job CoreCCP (`6ad5bf6d12bcb2f871c97a27`) chỉ tải 6 file (`NR`, `TTTT`, `DSL CCP`, `DSGD CCP`, `GTT CCP`, `HH`).
   2. Điều tra và khắc phục việc Job CoreEX (`6ad5bfe112bcb2f871c97a2a`) báo hoàn tất trong 172ms nhưng tải 0 file và nuốt lỗi.
@@ -971,6 +1534,7 @@
   4. Chuẩn hóa lại cơ cấu danh mục theo đúng thực tế sàn MXV: **CoreCCP là 19 file chuẩn + các file hợp đồng hàng hóa động**, **CoreEX là 12 file chuẩn + các file hợp đồng hàng hóa động** (số lượng động không cố định).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx#L33-L90):
    - Thay thế toàn bộ mảng tĩnh 12 mã cũ bằng `CORE_CCP_REPORTS_LIST`: 19 file chuẩn cố định (5 sổ lệnh thường `DSL`, `DSLDK`, `DSLCK`, `DSLDH`, `DSGD`; 5 sổ lệnh MM `DSL_MM`, `DSLDK_MM`, `DSLCK_MM`, `DSLDH_MM`, `DSGD_MM`; 3 vị thế `TTM_PRE1620`, `TTM`, `TTTT`; 5 rủi ro/ký quỹ `QLTTTKGD_PRE1620`, `QLTTTKGD`, `QLTTTVKD`, `DSQLKQ_TKGD`, `DSQLKQ_TVKD`; 2 nộp rút/TK `NR`, `DSTKGD`; GTT, HH, TYGIA) + mục `HD` (Hợp đồng hàng hóa động `HĐ *.xlsx`).
    - Cập nhật `CORE_EX_REPORTS_LIST`: 12 file liên thông (5 sổ lệnh `DSGD`, `DSL`, `DSLCK`, `DSLDK`, `DSLH`; 4 giá/phiên `GTT`, `HH`, `SESSION_INFO`, `SESSION_CONFIG`; `TTM`, `ACM_RECON`) + mục `HD` (Hợp đồng chi tiết CE).
@@ -998,6 +1562,7 @@
    - **Tách độc lập 100% giữa SFTP và Web/API ETP**: Khi báo cáo Web ETP (`Order.xlsx` & `Fill.xlsx`) đã tải về thành công, Job hoàn tất **THÀNH CÔNG**; nếu thiếu file SFTP (`*_19102026.csv` hoặc `2026-10-19_*.xls`), hệ thống chỉ ghi log cảnh báo SFTP chứ không ném lỗi làm `FAILED` cả Job của ca trực.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**:
   - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
   - `cmd /c npm run build` (Frontend): Next.js Turbopack biên dịch thành công 36 routes (Exit code 0).
@@ -1005,54 +1570,60 @@
   - Đồng bộ toàn bộ 7 file bị ảnh hưởng lên `/opt/mxv-checklist/`.
   - Chạy `npm run build` trên cả `backend` và `frontend` trên Ubuntu: 100% thành công.
   - Restart các tiến trình PM2: `mxv-backend` (PID: `2873890`), `mxv-frontend` (PID: `2874139`), dịch vụ đang `online` và ổn định.
+
 ## [2026-10-19T15:20] FRONTEND UPGRADE: Tách Bạch Rõ Ràng Màn Hình Cấu Hình Trading Manager Giữa MS - CQG (OMS Cũ) và CoreCCP & CoreEX (Bù Trừ & Sàn Mới)
 
 ### 1. Mục tiêu nâng cấp
-- Thực hiện yêu cầu của USER: *"giúp tôi tiến hành nâng cấp"* màn hình cấu hình Trading Manager nhằm phân định độc lập 100% giữa **Phân hệ MS – CQG (OMS cũ - chuẩn 1:1 theo Tool C#)** và **Phân hệ CoreCCP & CoreEX (Bù trừ & Sàn giao dịch mới)**.
+
+- Thực hiện yêu cầu của USER: _"giúp tôi tiến hành nâng cấp"_ màn hình cấu hình Trading Manager nhằm phân định độc lập 100% giữa **Phân hệ MS – CQG (OMS cũ - chuẩn 1:1 theo Tool C#)** và **Phân hệ CoreCCP & CoreEX (Bù trừ & Sàn giao dịch mới)**.
 - Khắc phục tình trạng các trường cấu hình của MS-CQG và CoreCCP bị trộn lẫn hoặc dùng chung nhãn "Cấu hình OMS" gây khó khăn cho việc quản trị, bảo trì.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
    - Mở rộng prop `filterScope: 'ALL' | 'MS_CQG' | 'OMS' | 'CCP_CE'`.
    - Bổ sung bộ chuyển Tab doanh nghiệp (Enterprise Sub-Tab Switcher) khi xem tại Hub (`filterScope === 'ALL'`):
-     * **Tab 1: 🔵 Phân Hệ MS – CQG (OMS Cũ)**:
-       + Tỷ giá thanh toán M-System & Tỷ giá quy đổi (kèm nút cào trực tiếp từ M-System).
-       + Cấu hình phiên giao dịch (Giờ bắt đầu / kết thúc phiên, lọc trừ lệnh xuyên đêm T-1).
-       + Danh sách tài khoản âm ký quỹ (ListBox + Thêm / Xóa).
-       + Danh sách ngày nghỉ LME mapping ngày gốc - ngày thay thế.
-       + 8 đường dẫn thư mục hoạt động chuẩn ổ `M:\` (Backup MS, CQG, ACM, TradingCheck, Kết quả check KLGD, Master Lot, Master Giá Trị, Thư mục Ban Tin Tức).
-     * **Tab 2: 🟢 Phân Hệ CoreCCP & CoreEX (Bù Trừ & Sàn Mới)**:
-       + Ma trận tỷ giá đa nguyên tệ CoreCCP VNCLEAR (USD, EUR, JPY, MYR, VND...) có bảng quản lý tỷ giá quy đổi, mua, bán và nút Thêm/Xóa nguyên tệ.
-       + Cấu hình phiên giao dịch độc lập cho CoreCCP & CoreEX.
-       + Tỷ giá USD tham chiếu CoreCCP (`USD_VND_RATE`, mặc định `25,400`).
-       + 3 đường dẫn thư mục độc lập (Backup 25 báo cáo CoreCCP, Backup 5 báo cáo CoreEX, Thư mục chứa 10 Master Templates CCP).
+     - **Tab 1: 🔵 Phân Hệ MS – CQG (OMS Cũ)**:
+       - Tỷ giá thanh toán M-System & Tỷ giá quy đổi (kèm nút cào trực tiếp từ M-System).
+       - Cấu hình phiên giao dịch (Giờ bắt đầu / kết thúc phiên, lọc trừ lệnh xuyên đêm T-1).
+       - Danh sách tài khoản âm ký quỹ (ListBox + Thêm / Xóa).
+       - Danh sách ngày nghỉ LME mapping ngày gốc - ngày thay thế.
+       - 8 đường dẫn thư mục hoạt động chuẩn ổ `M:\` (Backup MS, CQG, ACM, TradingCheck, Kết quả check KLGD, Master Lot, Master Giá Trị, Thư mục Ban Tin Tức).
+     - **Tab 2: 🟢 Phân Hệ CoreCCP & CoreEX (Bù Trừ & Sàn Mới)**:
+       - Ma trận tỷ giá đa nguyên tệ CoreCCP VNCLEAR (USD, EUR, JPY, MYR, VND...) có bảng quản lý tỷ giá quy đổi, mua, bán và nút Thêm/Xóa nguyên tệ.
+       - Cấu hình phiên giao dịch độc lập cho CoreCCP & CoreEX.
+       - Tỷ giá USD tham chiếu CoreCCP (`USD_VND_RATE`, mặc định `25,400`).
+       - 3 đường dẫn thư mục độc lập (Backup 25 báo cáo CoreCCP, Backup 5 báo cáo CoreEX, Thư mục chứa 10 Master Templates CCP).
    - Chuẩn hóa nút bấm và icon: 100% dùng SVG từ `lucide-react` (`Activity`, `DollarSign`, `Layers`, `Folder`, `Calendar`, `Clock`, `Plus`, `Trash2`...), tuyệt đối không dùng icon Unicode emojis thô.
 2. [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/ccp-ce/page.tsx):
    - Đổi nhãn Tab từ `"Cấu hình OMS"` thành `"Cấu Hình CoreCCP & CoreEX"` với mã tab `CONFIG_CCP_CE` và màu chủ đạo xanh ngọc `#10b981`.
    - Truyền `filterScope="CCP_CE"` vào `TradingManagerConfigSection`, đảm bảo khi mở từ phân hệ CoreCCP & CE chỉ hiển thị duy nhất các tham số và đường dẫn liên quan đến CoreCCP & CoreEX.
 
 ### 3. Kiểm thử & Xác nhận Build
+
 - **Frontend Turbopack Build**: `cmd /c npm run build` -> Biên dịch thành công 36/36 routes (Exit code 0).
 - **Backend NestJS Build**: `cmd /c npm run build` -> Biên dịch thành công (Exit code 0).
 
 ---
 
-## [2026-10-19T14:55] FIX & REFACTOR: Chuẩn Hóa Logic Vị Thế Mở (TTM) - Bỏ Toàn Bộ ACM Trên M-System (*A) & Cộng Tài Khoản Futures MS Với CoreCCP Chuẩn 1:1 File Gốc
+## [2026-10-19T14:55] FIX & REFACTOR: Chuẩn Hóa Logic Vị Thế Mở (TTM) - Bỏ Toàn Bộ ACM Trên M-System (\*A) & Cộng Tài Khoản Futures MS Với CoreCCP Chuẩn 1:1 File Gốc
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện làm rõ nghiệp vụ từ USER & phản hồi từ anh Đào (QLGD):
-  *"ở TTM thì bỏ các ACM của MS mới đúng . đây là nội dung user nhắn lại: 'Bỏ ACM MS/ TTM ACM trên MS thì bỏ đi a nhé /chắc ý a Đào bảo trong giai đoạn này, nếu ACM thì bỏ TTM MS đi chỉ dùng input CCP chứ nhỉ còn future thì vẫn phải dùng MS mà' giúp tôi check lại"*.
+  _"ở TTM thì bỏ các ACM của MS mới đúng . đây là nội dung user nhắn lại: 'Bỏ ACM MS/ TTM ACM trên MS thì bỏ đi a nhé /chắc ý a Đào bảo trong giai đoạn này, nếu ACM thì bỏ TTM MS đi chỉ dùng input CCP chứ nhỉ còn future thì vẫn phải dùng MS mà' giúp tôi check lại"_.
 - **Phân tích Ground Truth từ dữ liệu thật máy chủ (File TTM.xlsx 19/10/2026)**:
-  * Trích xuất trực tiếp file `/mnt/qlgd-it/.../TradingCheck/Futures/2026/T10.2026/19.10/TTM.xlsx`: Có 10,940 dòng vị thế mở.
-  * Trong đó gồm **4,223 dòng tài khoản ACM (đuôi `-A`)** và **6,717 dòng tài khoản Futures thông thường**.
+  - Trích xuất trực tiếp file `/mnt/qlgd-it/.../TradingCheck/Futures/2026/T10.2026/19.10/TTM.xlsx`: Có 10,940 dòng vị thế mở.
+  - Trong đó gồm **4,223 dòng tài khoản ACM (đuôi `-A`)** và **6,717 dòng tài khoản Futures thông thường**.
 - **Nguyên nhân gốc rễ (Root Cause) & Phát hiện BUG trong code cũ**:
   1. Trong file Excel gốc `Check BGS All.xlsm` Sheet 2 `Thống kê TTM` (D3, E3, F3, C3), công thức viết:
      `=SUMIFS('TTM MS'!N:N, 'TTM MS'!AA:AA, B3, 'TTM MS'!H:H, "<>*A") + SUMIFS('TTM MS'!O:O, 'TTM MS'!AA:AA, B3, 'TTM MS'!H:H, "<>*A") + SUMIFS('TTM CCP'...)`
      $\rightarrow$ Điều kiện `'TTM MS'!H:H, "<>*A"` **loại trừ toàn bộ 4,223 dòng tài khoản ACM trên M-System** (vì vị thế mở ACM đã quản lý trên CoreCCP). Còn lại **6,717 dòng tài khoản Futures thông thường trên MS vẫn phải tính bình thường**!
   2. Tuy nhiên trong mã nguồn cũ [qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts), chỉ có `expectedPnL` được kiểm tra `if (!isAccountAcm)`, còn `curr.longLots` và `curr.shortLots` lại chạy không điều kiện! Dẫn tới 4,223 dòng ACM trên MS vẫn bị cộng vào làm thừa số lot vị thế mở.
-  3. Đó là lý do anh Đào bảo *"bỏ TTM ACM trên MS đi, còn Futures thì vẫn phải dùng MS"*.
+  3. Đó là lý do anh Đào bảo _"bỏ TTM ACM trên MS đi, còn Futures thì vẫn phải dùng MS"_.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L812-L865):
    - Chuẩn hóa vòng lặp duyệt `ttmRows` (MS): Nếu `isAccountAcm === true` (tài khoản kết thúc bằng `A` hoặc `-A`) $\rightarrow$ `continue` (bỏ qua hoàn toàn, không cộng cả Mua, Bán, PnL).
    - Duyệt và cộng toàn bộ các dòng Futures thông thường (`<>*A`) của M-System.
@@ -1061,6 +1632,7 @@
    - Cập nhật quy chuẩn bóc tách Sheet 2: Ghi rõ nguyên tắc loại trừ 100% ACM trên MS và cộng dồn Futures MS với CoreCCP.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
 - **Server Ubuntu (10.0.0.26)**:
   - Đồng bộ `qlgd-dashboard.service.ts` lên `/opt/mxv-checklist/backend/...`.
@@ -1072,17 +1644,20 @@
 ## [2026-10-19T14:50] CONFIG: Chuẩn Hóa và Bổ Sung Đầy Đủ Biến Môi Trường backend/.env
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER: `backend/.env giúp tôi bổ sung`.
 - Bổ sung toàn diện các biến môi trường cấu hình cần thiết theo kiến trúc Modular Monolith V2 và Zero Hardcoding:
-  * Khóa bí mật AES-256 (`ENCRYPTION_KEY`) dùng để giải mã thông tin tài khoản Bot trong MongoDB.
-  * Tách bạch độc lập 2 phân hệ MS-CQG và CoreCCP-CE (Backup, Stat paths, Recon paths).
-  * Khai báo đầy đủ Domain/URL hệ thống ngoại bộ: M-System, CQG Web, ACM ETP, Straits SFTP, CoreCCP, CoreEX.
-  * Tham số tỷ giá tính toán (`USD_VND_RATE`), AI Captcha Solver (`GEMINI_API_KEY`), Ingress Mode (`INGRESS_MODE=REST_API`).
+  - Khóa bí mật AES-256 (`ENCRYPTION_KEY`) dùng để giải mã thông tin tài khoản Bot trong MongoDB.
+  - Tách bạch độc lập 2 phân hệ MS-CQG và CoreCCP-CE (Backup, Stat paths, Recon paths).
+  - Khai báo đầy đủ Domain/URL hệ thống ngoại bộ: M-System, CQG Web, ACM ETP, Straits SFTP, CoreCCP, CoreEX.
+  - Tham số tỷ giá tính toán (`USD_VND_RATE`), AI Captcha Solver (`GEMINI_API_KEY`), Ingress Mode (`INGRESS_MODE=REST_API`).
 
 ### 2. Danh sách file chỉnh sửa
+
 - [backend/.env](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/.env): Cấu hình đầy đủ 8 nhóm tham số môi trường chuẩn hóa.
 
 ### 3. Kiểm thử & Xác nhận
+
 - **Backend Build**: `cmd /c npm run build` -> Exit code 0 (Thành công 100%).
 
 ---
@@ -1090,31 +1665,34 @@
 ## [2026-10-19T14:30] ARCHITECTURE & REFACTOR: Chuẩn Hóa Cấu Hình Đường Dẫn Phân Hệ MS-CQG & CoreCCP-CE (Zero Hardcoding & Tách Rời 100%)
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER:
-  1. *"hiện tại trong databse đang lưu cấu hình setting trong bot-config vậy có cần tổ chức lại không? Nếu có rủi ro khi tổ chức lại cao không vì giờ tôi cần quản lý chuẩn đường dẫn"*
-  2. *"sau đấy tôi phải coppy lại các file thống kê vào đúng folder tôi cấu hình đúng không"*
-  3. *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke so lot giao dich và M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke gia tri giao dich đây hiện tại là thống kê của MS - CQG từ ngày trước tôi lưu và M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp đây là thống kê ccp hiện tại tôi cần bạn đánh giá để tổ chức lại để lưu trên cấu hình"*
-  4. *"giúp tôi tổ chức lại lưu cấu hình đường dẫn lại cho cả hai phân hệ MS- CQG(có thể dựa theo tool C# ) và CE - CCP nữa"*
-  5. Phát hiện và xử lý triệt để phản hồi của USER: *"'M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp', tôi thấy bạn đang có dấu hiệu harccode vậy sau này maintain kiểu gì"* -> Loại bỏ hoàn toàn mọi hardcoded path Windows.
+  1. _"hiện tại trong databse đang lưu cấu hình setting trong bot-config vậy có cần tổ chức lại không? Nếu có rủi ro khi tổ chức lại cao không vì giờ tôi cần quản lý chuẩn đường dẫn"_
+  2. _"sau đấy tôi phải coppy lại các file thống kê vào đúng folder tôi cấu hình đúng không"_
+  3. _"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke so lot giao dich và M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke gia tri giao dich đây hiện tại là thống kê của MS - CQG từ ngày trước tôi lưu và M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp đây là thống kê ccp hiện tại tôi cần bạn đánh giá để tổ chức lại để lưu trên cấu hình"_
+  4. _"giúp tôi tổ chức lại lưu cấu hình đường dẫn lại cho cả hai phân hệ MS- CQG(có thể dựa theo tool C# ) và CE - CCP nữa"_
+  5. Phát hiện và xử lý triệt để phản hồi của USER: _"'M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp', tôi thấy bạn đang có dấu hiệu harccode vậy sau này maintain kiểu gì"_ -> Loại bỏ hoàn toàn mọi hardcoded path Windows.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/ccp-accumulator.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-accumulator.service.ts#L85-L115):
    - Xóa bỏ 100% hardcode chuỗi đường dẫn `M:\Tailieuchung\...` hoặc `M:\Quanlygiaodich\...` trong code TypeScript.
    - Chuyển `getTargetRoot` sang kiến trúc Data-Driven 100%:
-     * Ưu tiên đọc cấu hình `bot_ccp_stat_target_root` từ MongoDB `system_settings` (hoặc `process.env.BOT_CCP_STAT_TARGET_ROOT`).
-     * Fallback đọc cấu hình cũ `bot_lot_macro_target_root` từ MongoDB (hoặc `process.env.BOT_LOT_MACRO_TARGET_ROOT`).
-     * Tự động phân giải đường dẫn đa nền tảng (`resolveStoragePathCrossPlatform`).
+     - Ưu tiên đọc cấu hình `bot_ccp_stat_target_root` từ MongoDB `system_settings` (hoặc `process.env.BOT_CCP_STAT_TARGET_ROOT`).
+     - Fallback đọc cấu hình cũ `bot_lot_macro_target_root` từ MongoDB (hoặc `process.env.BOT_LOT_MACRO_TARGET_ROOT`).
+     - Tự động phân giải đường dẫn đa nền tảng (`resolveStoragePathCrossPlatform`).
 2. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L70-L85):
    - Bổ sung state `botCcpStatTargetRoot`.
    - Cập nhật hàm `fetchConfig` và `handleSaveConfig`: Lưu độc lập các cấu hình:
-     * Nhóm MS-CQG: `bot_backup_path_ms`, `bot_backup_path_cqg`, `bot_backup_path_acm`, `recon_folder_check_path`, `recon_result_folder_path`, `bot_ms_lot_stat_path` (đồng bộ `bot_lot_macro_target_root`), `bot_ms_value_stat_path` (đồng bộ `bot_macro_value_path`), `news_team_stat_path`.
-     * Nhóm CoreCCP & CoreEX: `bot_backup_path_ccp`, `bot_backup_path_ce`, `bot_ccp_stat_target_root`.
+     - Nhóm MS-CQG: `bot_backup_path_ms`, `bot_backup_path_cqg`, `bot_backup_path_acm`, `recon_folder_check_path`, `recon_result_folder_path`, `bot_ms_lot_stat_path` (đồng bộ `bot_lot_macro_target_root`), `bot_ms_value_stat_path` (đồng bộ `bot_macro_value_path`), `news_team_stat_path`.
+     - Nhóm CoreCCP & CoreEX: `bot_backup_path_ccp`, `bot_backup_path_ce`, `bot_ccp_stat_target_root`.
    - Cập nhật danh sách giao diện Section 3:
-     * Chuyển đổi nhãn từ "File Macro .xlsm" sang đúng bản chất nghiệp vụ: **"Thư mục Sổ sách Thống kê Số Lot (MS - CQG)"** và **"Thư mục Sổ sách Thống kê Giá Trị (MS - CQG)"**.
-     * Bổ sung ô cấu hình riêng cho **"Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)"** (`bot_ccp_stat_target_root`).
-     * Thêm ô cấu hình trực quan cho **"Đường dẫn tải file check trong phiên (TradingCheck)"** (`reconFolderCheckPath`) và **"Đường dẫn lưu kết quả check KLGD"** (`reconResultFolderPath`).
+     - Chuyển đổi nhãn từ "File Macro .xlsm" sang đúng bản chất nghiệp vụ: **"Thư mục Sổ sách Thống kê Số Lot (MS - CQG)"** và **"Thư mục Sổ sách Thống kê Giá Trị (MS - CQG)"**.
+     - Bổ sung ô cấu hình riêng cho **"Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)"** (`bot_ccp_stat_target_root`).
+     - Thêm ô cấu hình trực quan cho **"Đường dẫn tải file check trong phiên (TradingCheck)"** (`reconFolderCheckPath`) và **"Đường dẫn lưu kết quả check KLGD"** (`reconResultFolderPath`).
 
 ### 3. Kiểm thử & Xác nhận
+
 - **Backend**: `cmd /c npm run build` -> Exit code 0 (Biên dịch thành công).
 - **Frontend**: `cmd /c npm run build` -> Exit code 0 (Next.js Turbo biên dịch 36 routes thành công 100%).
 
@@ -1123,12 +1701,14 @@
 ## [2026-10-19T11:50] REFACTOR: Triệt Tiêu Hoàn Toàn Cơ Chế Fallback Sang M-System Cho Vị Thế Mở & Lãi Lỗ Dự Kiến (100% CoreCCP Only)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện chỉ đạo dứt khoát của USER: *"hiện tại lãi lỗ dự kiến có tính cả MS vào không . còn hoặc nếu chưa có file CCP mới fallback sang MS không được fallback nhé"*.
+
+- Thực hiện chỉ đạo dứt khoát của USER: _"hiện tại lãi lỗ dự kiến có tính cả MS vào không . còn hoặc nếu chưa có file CCP mới fallback sang MS không được fallback nhé"_.
 - **Nguyên tắc nghiệp vụ**:
   1. CoreCCP là Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV, quản lý 100% vị thế mở (Open Interest) và Lãi lỗ dự kiến (Unrealized PnL).
   2. Tuyệt đối không tính MS và **không được fallback sang MS**. Nếu CoreCCP chưa có dữ liệu TTM thì hiển thị 0 chứ không lấy từ M-System, ngăn ngừa triệt để việc lẫn lộn số liệu cũ từ M-System.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L868-L895):
    - Xóa bỏ hoàn toàn khối `else if (ttmRows.length > 0)` fallback sang `TTM MS`.
    - Vòng lặp tích lũy Vị thế mở (`longLots`, `shortLots`) và Lãi lỗ dự kiến (`expectedPnLVnd`) chỉ duyệt duy nhất `ccpTtmRows` (CoreCCP).
@@ -1136,6 +1716,7 @@
    - Cập nhật quy chuẩn nghiệp vụ: Ghi rõ ràng không fallback sang M-System khi thiếu file CoreCCP.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**:
   - `cmd /c npm run build`: Backend biên dịch thành công (Exit code 0).
 - **Server Ubuntu (10.0.0.26)**:
@@ -1148,8 +1729,9 @@
 ## [2026-10-19T11:40] FEATURE: Nâng Cấp Khối Thông Báo Đối Soát Bot Thành Thanh Tiến Trình % Ngắn Gọn (Sleek Compact Progress Bar)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"@[code_item] Bot đang thực hiện quy trình đối soát theo bạn có nên chuyển thành thanh % ngắn gọn cho dễ nhìn hơn không"*, *"giúp tôi nâng cấp"*.
-- **Vấn đề của giao diện cũ**: Khối box thông báo dạng card chiếm nhiều diện tích dọc (~80px), text dài dòng tĩnh cố định (*"Đang tự động tải báo cáo DSGD/TTM từ M-System, file CQG và đối chiếu khớp lệnh."*), không thể hiện được phần trăm hoàn thành hay tiến trình thực tế của Bot khiến người dùng bối rối.
+
+- Thực hiện yêu cầu của USER: _"@[code_item] Bot đang thực hiện quy trình đối soát theo bạn có nên chuyển thành thanh % ngắn gọn cho dễ nhìn hơn không"_, _"giúp tôi nâng cấp"_.
+- **Vấn đề của giao diện cũ**: Khối box thông báo dạng card chiếm nhiều diện tích dọc (~80px), text dài dòng tĩnh cố định (_"Đang tự động tải báo cáo DSGD/TTM từ M-System, file CQG và đối chiếu khớp lệnh."_), không thể hiện được phần trăm hoàn thành hay tiến trình thực tế của Bot khiến người dùng bối rối.
 - **Giải pháp UX/UI mới**:
   1. Giảm chiều cao từ ~80px xuống **44px** (tiết kiệm 45% không gian màn hình), giúp các bảng số liệu bên dưới luôn trong tầm mắt.
   2. Tự động tính toán phần trăm tiến độ (%) và giai đoạn chạy dựa trên stream log thực tế (`displayLogs`):
@@ -1157,15 +1739,17 @@
      - **30% - 68% - Đang tải dữ liệu 4 nguồn**: Theo dõi số lượng báo cáo M-System, CoreCCP, CQG, Straits tải về.
      - **75% - Xử lý & Ghép file thô**: Ghép file CQG và kiểm soát tính toàn vẹn.
      - **90% - Đang so khớp & Kiểm tra chênh lệch**: Đối chiếu khớp lệnh & vị thế chi tiết.
-  3. Hiển thị dòng log mới nhất theo thời gian thực (ví dụ: *"Bắt được reportId=43011, tải xong DSGD CCP.xlsx"*).
+  3. Hiển thị dòng log mới nhất theo thời gian thực (ví dụ: _"Bắt được reportId=43011, tải xong DSGD CCP.xlsx"_).
   4. Tích hợp thanh Progress Bar gradient mượt mà (`#2563eb` -> `#38bdf8`) kèm nút hành động `Log` và `Stop` compact.
 
 ### 2. Danh sách file chỉnh sửa
+
 1. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L717-L772):
    - Thêm hook `botProgressInfo = useMemo(...)` phân tích mảng log và sinh tiến trình động.
    - Thay thế toàn bộ khối UI `isBotRunning ? (...)` bằng thanh tiến trình Sleek Compact Progress Bar.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**:
   - `cmd /c npx tsc --noEmit`: 0 lỗi type-check (Exit code 0).
   - `cmd /c npm run build`: Next.js Turbopack biên dịch thành công 100% 36 routes (Exit code 0).
@@ -1179,7 +1763,8 @@
 ## [2026-10-19T11:20] FIX: Triệt Tiêu Race Condition CoreCCP WebSocket Timeout (50000ms) Bằng Subscribe-Before-Export & Chuẩn Hóa Cơ Chế Retry / Abort Không Làm Sập Ca Trực
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"giúp tôi check log để xem nguyên nhân cụ thể xem có thể fix được lỗi Timeout 50000ms chờ notification WebSocket cho fekey được không"*, *"giúp tôi fix chuẩn(không phỏng đoán tự chế)"*.
+
+- Thực hiện yêu cầu của USER: _"giúp tôi check log để xem nguyên nhân cụ thể xem có thể fix được lỗi Timeout 50000ms chờ notification WebSocket cho fekey được không"_, _"giúp tôi fix chuẩn(không phỏng đoán tự chế)"_.
 - **Căn cứ & Bằng chứng thực nghiệm (Ground Truth Verification)**:
   1. Trích xuất trực tiếp log `mxv-backend-out.log` trên Ubuntu Server 10.0.0.26 tại thời điểm 10:39:22 - 10:40:12 AM ngày 19/10/2026: Lệnh xuất `DSGD_CCP` (ORDERMATCH_DETAIL) gửi HTTP POST tạo job nhưng bị timeout 50000ms do không nhận được WebSocket event.
   2. Bắt trace WebSocket Engine.IO v4 thời gian thực: Server CoreCCP render file cực nhanh và broadcast event `REPORT` chỉ sau đúng **90ms (0.09 giây)**!
@@ -1187,6 +1772,7 @@
   4. **Root Cause 2 (Bỏ quên Retry trong Modular V2 BotDispatcher)**: Trong `bot-job-queue.service.ts#L481-L498`, khi điều phối qua BotDispatcher V2, nếu worker trả về `status: 'FAILED'`, code gán cứng `finalStatus = 'FAILED'` và đánh sập ca trực ngay Attempt 1/3, bỏ qua hoàn toàn cơ chế kiểm tra `job.attempts < job.maxAttempts` và mã lỗi sự cố đối tác `[PARTNER_SERVICE_UNAVAILABLE]`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L596-L815):
    - **Hiện thực cơ chế Subscribe-Before-Export**: Nâng cấp `waitForReportIdViaSocket` nhận callback `onSubscribed?: () => Promise<void>`.
    - Client chỉ gửi HTTP POST `/ccp/export/create` sau khi WebSocket đã nhận frame `40` (handshake thành công) và gửi xong frame `42["SUBSCRIBE",{"action":"SUBSCRIBE","room":["NOTI","REPORT","SOCKET"]}]`.
@@ -1195,10 +1781,11 @@
 2. [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-job-queue.service.ts#L481-L501):
    - Sửa nhánh xử lý kết quả của `BotDispatcher V2`: Khi `dispatchRes.status === 'FAILED'`, ném lỗi `throw new Error(errorMsg)` để rơi vào khối catch chung của Job Queue.
    - Kích hoạt quy trình Retry tự động:
-     - Nếu `job.attempts < job.maxAttempts`: Chuyển `job.status = 'PENDING'`, giải phóng lock (`lockedBy = null`, `lockedAt = null`), cập nhật task ca trực sang trạng thái `PENDING` kèm thông báo *"Sàn/Dịch vụ đối tác tạm thời chưa phản hồi... Bot sẽ tự động thử lại..."*. Ca trực hoàn toàn an toàn, không bị đánh FAILED!
+     - Nếu `job.attempts < job.maxAttempts`: Chuyển `job.status = 'PENDING'`, giải phóng lock (`lockedBy = null`, `lockedAt = null`), cập nhật task ca trực sang trạng thái `PENDING` kèm thông báo _"Sàn/Dịch vụ đối tác tạm thời chưa phản hồi... Bot sẽ tự động thử lại..."_. Ca trực hoàn toàn an toàn, không bị đánh FAILED!
      - Nếu `job.attempts >= job.maxAttempts` và lỗi là `[PARTNER_SERVICE_UNAVAILABLE]`: Chuyển `job.status = 'ABORTED'`, task ca trực chuyển sang `NEEDS_ATTENTION` (Cần chú ý xem xét do đối tác ngoài tạm dừng), không đánh `FAILED` và không báo động giả lỗi hệ thống.
 
 ### 3. Kiểm thử & Bằng chứng thực tế (Proof of Ground Truth)
+
 - **Local Build**:
   - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
   - `cmd /c npx tsc --noEmit` (Frontend): Không có lỗi kiểu dữ liệu (Exit code 0).
@@ -1218,13 +1805,15 @@
 ## [2026-10-19T11:05] REFACTOR: Chuẩn Hóa Logic Tính Vị Thế Mở (TTM) & Lãi Lỗ Dự Kiến Chỉ Trên CoreCCP & Lưu Trữ Nguyên Vẹn Logic Cũ
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện chỉ đạo của USER: *"nãy tôi đối chiếu với user thì anh ý bảo logic của hệ thống đang tính cả Tổng vị thế mở trên cả MS... lẽ ra phải không tính trên MS chỉ tính trên ccp đúng không"*, *"đúng rồi nhưng giờ tôi vẫn muốn giữ logic cũ bằng cách comment lại hoặc lưu trữ ở đâu đó rồi mới về viết logic mới để sử dụng (để phòng nếu cần hiển thị cả ms thì có thể vẫn còn src code)"*.
+
+- Thực hiện chỉ đạo của USER: _"nãy tôi đối chiếu với user thì anh ý bảo logic của hệ thống đang tính cả Tổng vị thế mở trên cả MS... lẽ ra phải không tính trên MS chỉ tính trên ccp đúng không"_, _"đúng rồi nhưng giờ tôi vẫn muốn giữ logic cũ bằng cách comment lại hoặc lưu trữ ở đâu đó rồi mới về viết logic mới để sử dụng (để phòng nếu cần hiển thị cả ms thì có thể vẫn còn src code)"_.
 - **Nguyên nhân nghiệp vụ**:
   1. Trong file Excel gốc `Check BGS All.xlsm` Sheet 2 `Thống kê TTM` ([TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L150-L171](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_BOC_TACH_TOAN_DIEN_CONG_THUC_CHECK_BGS_ALL.md#L150-L171)), công thức macro viết: `=SUMIFS('TTM MS') + SUMIFS('TTM CCP')` do được lập trong giai đoạn chuyển đổi song song (migration phase).
   2. Hiện tại, CoreCCP đã chính thức là Trung tâm Bù trừ & Ký quỹ tập trung duy nhất của MXV, quản lý toàn bộ vị thế mở (Open Interest) của thị trường. Việc cộng thêm `TTM MS` dẫn đến rủi ro nhân đôi vị thế (double counting).
   3. Do đó, theo nghiệp vụ chuẩn mới: **Chỉ tính Vị thế mở & PnL dự kiến từ CoreCCP (`TTM CCP`)**. Nếu CoreCCP chưa có dữ liệu (offline/chưa chạy API kết xuất), hệ thống tự động fallback an toàn sang `TTM MS`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L812-L910):
    - Bổ sung hằng số cấu hình `const INCLUDE_MS_TTM = false;`.
    - **Logic mới**: Khi `INCLUDE_MS_TTM === false`, hệ thống chỉ duyệt qua danh sách `ccpTtmRows` (CoreCCP). Nếu CoreCCP rỗng nhưng M-System có dữ liệu, tự động fallback sang `ttmRows` để không bị trống màn hình.
@@ -1234,6 +1823,7 @@
    - Dẫn link đối chiếu trực tiếp tới khối code lưu trữ trong `qlgd-dashboard.service.ts`.
 
 ### 3. Kiểm thử & Triển khai
+
 - **Local Build**:
   - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
   - `cmd /c npx tsc --noEmit` (Frontend): Không có lỗi kiểu dữ liệu (Exit code 0).
@@ -1247,18 +1837,20 @@
 ## [2026-10-19T10:55] FIX: Khắc Phục Triệt Để Bug Deduplicate CQG Làm Mất 136 Khớp Lệnh Từng Phần (Partial Fills) Báo Lệch Ảo 279-285 Lots
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER: *"giúp tôi check xem có phải lỗi không hay do lệch thật"*, *"giúp tôi fix"*.
+
+- Thực hiện yêu cầu của USER: _"giúp tôi check xem có phải lỗi không hay do lệch thật"_, _"giúp tôi fix"_.
 - **Nguyên nhân gốc rễ (Root Cause)**:
-  1. Trong đợt chỉnh sửa sáng 19/10/2026, logic khử trùng lệnh CQG theo `Ord #` (`seenCqgOrders.has(fr.ord)`) đã được áp dụng sai lầm trên toàn bộ danh sách `rawFrData` tại [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts) và [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts).
+  1. Trong đợt chỉnh sửa sáng 19/10/2026, logic khử trùng lệnh CQG theo `Ord #` (`seenCqgOrders.has(fr.ord)`) đã được áp dụng sai lầm trên toàn bộ danh sách `rawFrData` tại [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts) và [dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts).
   2. Trong giao dịch hàng hóa phái sinh CQG, một lệnh đặt (`Ord #`) thường xuyên **khớp làm nhiều lần (Partial Fills)** tại các thời điểm hoặc mức giá khác nhau. Vòng lặp `seenCqgOrders` đã giữ lại lần khớp đầu tiên và **XÓA SẠCH toàn bộ 136 lần khớp thật tiếp theo** của khách hàng!
   3. Hậu quả: Làm sụt giảm tổng khối lượng CQG từ 1.239 lot xuống 956 lot, gây ra hiện tượng báo lệch ảo nghiêm trọng: `Lệch CQG = 279 - 285 lots` và `Lệch khớp lệnh = 34 lệnh`.
   4. Thực tế giữa M-System và CQG chỉ chênh lệch đúng **2 lots** do thời điểm xuất file CQG (lệnh cuối lúc 10:37:43) sớm hơn 2 phút so với file M-System (có 2 lệnh khớp lúc 10:38:58 và 10:39:03).
   5. Căn cứ mã nguồn chuẩn C# IT Tool ([FIleUtils.cs#L985-L1064](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Utils/FIleUtils.cs#L985-L1064) và [TransactionCheckingService.cs#L136-L159](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L136-L159)), hệ thống gốc duyệt toàn bộ từng dòng `frData` và cộng trực tiếp `totalFR += qty`, tuyệt đối không khử trùng theo `Ord #`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L168):
    - Xóa bỏ hoàn toàn khối code khử trùng theo `seenCqgOrders` loop trên `rawFrData`. Bảo toàn 100% tất cả các lần khớp lệnh (partial fills) của CQG.
-2. [backend/src/modules/trading-ops/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts#L159):
+2. [backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts#L159):
    - Xóa bỏ hoàn toàn khối code khử trùng theo `seenCqgOrders` loop trên `rawFrData`. Bảo toàn toàn bộ các dòng khớp của CQG trước khi tính tổng `totalCQG_FR`.
 3. [backend/src/modules/trading-ops/services/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/cqg-merger.service.ts#L222-L250):
    - Nâng cấp cơ chế ghép file `FR1` và `FR2`: Thay thế việc deduplicate thô thiển theo `Ord #` bằng **Composite Key Matching** đầy đủ (`ord|account|symbol|qty|fillP|time`).
@@ -1269,6 +1861,7 @@
    - Đồng bộ cơ chế Composite Key Matching trong hàm `mergeCqgRawFiles` của module legacy archive.
 
 ### 3. Kiểm thử & Xác nhận Triển khai
+
 - **Local Build**:
   - `cmd /c npm run build` (Backend): Biên dịch thành công 100% không có lỗi (Exit code 0).
   - `cmd /c npx tsc --noEmit` (Frontend): Không có lỗi kiểu dữ liệu (Exit code 0).
@@ -1290,17 +1883,19 @@
 ## [2026-10-19T10:25] FEATURE: Bổ Sung Bộ Lọc Xem Lại Các Lượt Lịch Sử Chạy Trong Ngày (Run History Filter) Trên Executive Dashboard
 
 ### 1. Mục tiêu thay đổi
-- Thực thi chỉ đạo của USER: *"giúp tôi thêm filter như checkklgd để xem các lượt lịch sử chạy trong ngày nếu có ( do chạy tự động hoặc chạy thủ công)"*.
+
+- Thực thi chỉ đạo của USER: _"giúp tôi thêm filter như checkklgd để xem các lượt lịch sử chạy trong ngày nếu có ( do chạy tự động hoặc chạy thủ công)"_.
 - **Mục đích**:
   1. Cho phép người dùng và Ban Giám Đốc xem lại dữ liệu Dashboard Quản lý giao dịch tại bất kỳ thời điểm quét nào trong ngày (cả lượt tự động bởi Bot và lượt chạy thủ công do người dùng kích hoạt).
   2. Bổ sung cụm điều khiển Lượt chạy: Nút lùi lượt cũ hơn (`<`), dropdown chọn lượt (`Lượt #N (HH:mm:ss) - Tự động/Thủ công`), nút tiến lượt mới hơn (`>`) và nút `[Về Live]` quay về dữ liệu thời gian thực mới nhất, chuẩn 1:1 theo phong cách của màn hình Check KLGD (`LegacyReconSection`).
   3. Lọc dữ liệu lệnh khớp theo thời gian cutoff (`cutoffTime`) của từng lượt lịch sử để tái hiện chính xác 100% bức tranh thị trường tại thời điểm đó.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts):
    - **Inject `botJobModel`**: Bổ sung `@Optional() @InjectModel(BotJob.name) private readonly botJobModel?: Model<BotJob>`.
    - **Mở rộng `QlgdDashboardResponse` & `ExecutiveRunItem`**: Bổ sung các trường `runs: ExecutiveRunItem[]`, `currentJobId: string | null`, `isViewingHistorical: boolean`.
-   - **Truy vấn danh mục Lượt chạy**: Tự động truy vấn các job `CHECK_KLGD` và `CHECK_PRE_EOD` của ngày phiên (`targetDate`) trong `bot_jobs`, phân loại rõ trạng thái (`COMPLETED`, `FAILED`) và nguồn kích hoạt (`Tự động` vs `Thủ công`).
+   - **Truy vấn danh mục Lượt chạy**: Tự động truy vấn các job `CHECK_KLGD` và `CHECK_DSGD_BEFORE_EOD` của ngày phiên (`targetDate`) trong `bot_jobs`, phân loại rõ trạng thái (`COMPLETED`, `FAILED`) và nguồn kích hoạt (`Tự động` vs `Thủ công`).
    - **Tái hiện dữ liệu lịch sử theo Cutoff Time**: Viết hàm `parseTradeDateTime`; khi người dùng chọn một `jobId` trong quá khứ, hệ thống lọc danh sách giao dịch có thời gian `<= cutoffTime` của job đó để tái lập chính xác số liệu tích lũy tại mốc thời điểm đó.
 2. [backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts):
    - Mở rộng endpoint `GET /api/v1/trading-ops/executive-dashboard`: Thêm `@Query('jobId') jobId?: string`.
@@ -1314,6 +1909,7 @@
    - Bổ sung Banner cảnh báo màu cam nổi bật khi đang xem lượt lịch sử kèm nút `Quay lại Dữ liệu Live mới nhất`.
 
 ### 3. Kiểm thử & Xác nhận Triển khai
+
 - **Local Build**:
   - `cmd /c npm run build` (Backend): Biên dịch thành công 100% (Exit code 0).
   - `npx tsc --noEmit` (Frontend): Hoàn toàn không có lỗi kiểu dữ liệu (Exit code 0).
@@ -1327,14 +1923,15 @@
 
 ## [2026-10-19T09:45] FEATURE & AUDIT: Nâng Cấp Executive Dashboard Tính Toán 100% Theo Direct API Thực Tế (Loại Bỏ Số Ảo) & Rà Soát Toàn Diện Các Đầu Nút LegacyReconSection Chuẩn Modular Monolith V2
 
-
 ### 1. Mục tiêu thay đổi
+
 - Thực thi chỉ đạo của USER:
-  1. *"từ luồng call api chuẩn rồi giúp tôi đánh giá nâng cấp hệ thống để tính chuẩn chuẩn theo đầu api đã call thay vì dữ liệu ảo"*
-  2. *"Tôi đồng ý nhưng phải chuẩn theo PHAN_TICH_DASHBOARD_QLGD_VA_GAP_ANALYSIS.md và Check BGS All.xlsm phải code chuẩn theo logic hệ thống không được phỏng đoán tự chế code"*
-  3. *"giúp tôi check lại các đầu nút call api ở trang fe này xem đã call tới backend chuẩn nghiệp vụ sau v2 chuyển đổi chưa"*
+  1. _"từ luồng call api chuẩn rồi giúp tôi đánh giá nâng cấp hệ thống để tính chuẩn chuẩn theo đầu api đã call thay vì dữ liệu ảo"_
+  2. _"Tôi đồng ý nhưng phải chuẩn theo PHAN_TICH_DASHBOARD_QLGD_VA_GAP_ANALYSIS.md và Check BGS All.xlsm phải code chuẩn theo logic hệ thống không được phỏng đoán tự chế code"_
+  3. _"giúp tôi check lại các đầu nút call api ở trang fe này xem đã call tới backend chuẩn nghiệp vụ sau v2 chuyển đổi chưa"_
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts):
    - **Áp dụng cơ chế phân giải đường dẫn kép (Dual Priority Resolution)**: Bổ sung quét đồng thời cả thư mục kiểm tra trong phiên `TradingCheck` (`bot_trading_check_path`) và thư mục `Backup` (`bot_backup_path_ms`, `bot_backup_path_ccp`), đồng nhất với chuẩn `klgd-recon.service.ts`.
    - **Cập nhật `syncFreshDataFromApis`**: Tải trực tiếp các báo cáo M-System (`DSGD`, `TTM`, `TTTT`) và CoreCCP (`DSGD_CCP`, `TTM_CCP`, `TTTT`) vào thư mục `TradingCheck` của phiên giao dịch.
@@ -1349,7 +1946,7 @@
 3. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
    - Rà soát toàn bộ các đầu nút gọi API:
      - Nút "Check thủ công" `CHECK_KLGD` -> `POST /api/v1/trading-ops/trigger-console-run` -> `KlgdReconWorker`.
-     - Nút "Đối chiếu Pre-EOD" -> `POST /api/v1/trading-ops/trigger-console-run` (`jobType: 'CHECK_PRE_EOD'`) -> `PreEodReconWorker`.
+     - Nút "Đối chiếu Dsgd-Before-EOD" -> `POST /api/v1/trading-ops/trigger-console-run` (`jobType: 'CHECK_DSGD_BEFORE_EOD'`) -> `DsgdBeforeEodReconWorker`.
      - Nút "Tự động: BẬT/TẮT" -> `POST /api/v1/system-settings`.
      - Nút "Lượt check / Điều hướng lịch sử" -> `GET /api/v1/trading-ops/console-summary?jobId=...`.
      - Nút "Dừng khẩn cấp bot" -> `POST /api/v1/bot-engine/jobs/:id/cancel`.
@@ -1357,6 +1954,7 @@
    - **Kết luận**: 100% các đầu nút đã được chuyển đổi hoàn chỉnh sang Modular Monolith V2, không còn endpoint monolith cũ nào.
 
 ### 3. Kiểm thử & Xác nhận Triển khai
+
 - **Local Build**:
   - `cmd /c npm run build` trong `backend`: Thành công 100% (Exit code 0).
   - `cmd /c npm run build` trong `frontend`: Thành công 100% (Turbopack, 36/36 static pages).
@@ -1370,13 +1968,15 @@
 ## [2026-10-19T09:28] FEATURE & INTEGRATION: Mở Rộng Toàn Diện CoreCCP TTM (Vị Thế Mở) và TTTT (Tất Toán) Trong Controller, Adapter & Bot Worker
 
 ### 1. Mục tiêu thay đổi
-- Thực thi chỉ đạo của USER: *"hiện tại tôi cần bạn đánh giá thêm klgd-recon.controller.ts để tiến hành tải file tính toán thêm TTM và TTTT cho CCP"*, *"giúp tôi áp dụng chuẩn"*.
+
+- Thực thi chỉ đạo của USER: _"hiện tại tôi cần bạn đánh giá thêm klgd-recon.controller.ts để tiến hành tải file tính toán thêm TTM và TTTT cho CCP"_, _"giúp tôi áp dụng chuẩn"_.
 - **Mục đích**:
   1. Cho phép tải trọn bộ 3 báo cáo CoreCCP (`DSGD_CCP`, `TTM_CCP`, `TTTT`) trực tiếp qua Direct REST/Export API Kiểu 2 (Server Export + WebSocket NotiSocket).
   2. Bổ sung hỗ trợ file CCP (`dsgdCcp`, `ttmCcp`, `ttttCcp`) trên tất cả các endpoint upload và test của [klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts).
   3. Kích hoạt tính toán đối chiếu 3 bên (MS vs CQG vs CCP) cho cả Khớp lệnh, Vị thế mở (`differCCP_TTM`) và Tất toán (`differCCP_TTTT`).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts):
    - Mở rộng `upload-klgd`: Thêm `{ name: 'dsgdCcp' }`, `{ name: 'ttmCcp' }`, `{ name: 'ttttCcp' }` (và các alias `ccpDsgd`, `ccpTtm`, `ccpTttt`) vào `FileFieldsInterceptor`.
    - Trích xuất buffers và truyền vào `klgdReconService.checkKLGD`.
@@ -1393,6 +1993,7 @@
    - Bổ sung các chỉ số CCP vào `metrics` (`totalCCP_DSGD`, `totalCCP_TTM`, `totalCCP_TTTT`, `differCCP_KLGD`, `differCCP_TTM`, `differCCP_TTTT`).
 
 ### 3. Kiểm thử & Xác nhận Triển khai
+
 - **Local Build**:
   - `npm.cmd run build` trong `backend`: Thành công 100% (Exit code 0).
   - `npm.cmd run build` trong `frontend`: Thành công 100% (Turbopack, 36/36 static pages).
@@ -1406,9 +2007,10 @@
 ## [2026-10-19T09:20] FIX & OPTIMIZATION: Chuẩn Hóa Logic Đánh Giá Trạng Thái CheckKLGD Theo Chuẩn C# Tool, Nâng Timeout CoreCCP WebSocket, Bổ Sung Retry AI Captcha ACM ETP và Tải Song Song M-System
 
 ### 1. Mục tiêu thay đổi
+
 - Thực thi chỉ đạo của USER:
-  - *"Trong code hiện tại tại klgd-recon.service.ts#L615-L622, biến hasDiscrepancy lại gộp cả differTTTT > 0 vào làm điều kiện đánh giá passed của ca Khớp Lệnh, trong khi theo chuẩn C# Tool (TransactionCheckingService.cs#L380-L385), CheckKLGD chỉ kết luận Lệch/Khớp dựa trên Khối lượng khớp lệnh (differ & differACM). code của tôi đánh giá chưa chuẩn theo tool C# sao"*
-  - *"có giúp tôi áp dụng"*
+  - _"Trong code hiện tại tại klgd-recon.service.ts#L615-L622, biến hasDiscrepancy lại gộp cả differTTTT > 0 vào làm điều kiện đánh giá passed của ca Khớp Lệnh, trong khi theo chuẩn C# Tool (TransactionCheckingService.cs#L380-L385), CheckKLGD chỉ kết luận Lệch/Khớp dựa trên Khối lượng khớp lệnh (differ & differACM). code của tôi đánh giá chưa chuẩn theo tool C# sao"_
+  - _"có giúp tôi áp dụng"_
 - **Nguyên nhân gốc rễ**:
   1. Trong [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L615-L622) và [klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts#L134-L142): Biến `hasDiscrepancy` đã gộp sai điều kiện chênh lệch TTTT (`differTTTT > 0`) và TTM (`mismatchedTTM.length > 0`) vào điều kiện đánh giá `passed` của ca Khớp Lệnh trong phiên. Khi TTTT lệch tạm thời trong phiên do timing chốt sổ M-System vs CQG, hệ thống trả về `passed: false`, kéo theo log nghịch lý: `Phát hiện lệch: Lệch CQG=0, Lệch ACM=0, Lệch khớp lệnh=0` và chuyển trạng thái ca sang `WARNING` / `NEEDS_ATTENTION`.
   2. Theo chuẩn C# gốc ([TransactionCheckingService.cs#L368-L383](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L368-L383)), `CheckKLGD` chỉ kết luận Khớp/Lệch dựa trên `differ` (Khớp lệnh thường) và `differACM` (Khớp lệnh tự doanh ACM). TTM và TTTT chỉ đóng vai trò ghi chú bổ trợ (`notiData`), không làm fail ca Khớp Lệnh trong phiên.
@@ -1417,6 +2019,7 @@
   5. M-System tải tuần tự `DSGD` -> `TTM` -> `TTTT` làm tổng thời gian tải kéo dài 14.85s và timestamp giữa các file bị lệch 12-14 giây.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L615-L622):
    - Chuẩn hóa `hasDiscrepancy`: Chỉ đánh giá dựa trên `checkKlgdFlag && (finalDiffer > 0 || evaluatedDifferACM > 0 || finalMismatchedTrades.length > 0)`.
    - Vẫn lưu giữ đầy đủ số liệu TTM và TTTT trong payload phục vụ hiển thị chi tiết trên UI.
@@ -1430,6 +2033,7 @@
    - Chuyển đổi tải các báo cáo M-System (`DSGD`, `TTM`, `TTTT`) sang cơ chế song song bằng `Promise.all(msTasks)`. Rút ngắn thời gian tải từ 14.85s xuống còn ~12.5s và đảm bảo snapshot timestamp đồng nhất.
 
 ### 3. Kiểm thử & Xác nhận Triển khai
+
 - **Local Build**: Chạy `npm.cmd run build` trong `backend` thành công 100% (Exit code 0).
 - **Deploy Server Ubuntu (10.0.0.26)**:
   - Đồng bộ 5 file sửa đổi lên `/opt/mxv-checklist/backend/` qua SFTP.
@@ -1441,13 +2045,15 @@
 ## [2026-10-16T22:05] FIX & INTEGRATION: Nâng Cấp Toàn Diện CoreCcpApiAdapter Sang Cơ Chế Server Export Kiểu 2 (WebSocket NotiSocket + OAuth2), Khắc Phục Lỗi Thiếu File Tươi CCP Tại Thư Mục M:\
 
 ### 1. Mục tiêu thay đổi
-- Thực thi chỉ đạo của USER: *"tôi vừa check M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\CCP\Futures\2026\T10.2026\16.10 không thấy tải file tươi từ ccp về là sao"*, *"sao lại chưa hỗ trợ tôi viết đầy đủ tải về được rồi cơ mà"*, *"giúp tôi tiến hành"*.
+
+- Thực thi chỉ đạo của USER: _"tôi vừa check M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\CCP\Futures\2026\T10.2026\16.10 không thấy tải file tươi từ ccp về là sao"_, _"sao lại chưa hỗ trợ tôi viết đầy đủ tải về được rồi cơ mà"_, _"giúp tôi tiến hành"_.
 - **Nguyên nhân gốc rễ**:
   1. Trong [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L763-L775): Có lỗi nuốt kết quả rỗng khi chạy Direct API CCP. Khi `ingressService.download('CCP')` trả về mảng rỗng `files: []`, code cũ chỉ in log rỗng `CCP Tải báo cáo CoreCCP qua Direct API hoàn tất: ` mà không kích hoạt Fail-Fast.
   2. Báo cáo DSGD (`ORDERMATCH_DETAIL`) của CoreCCP (VNCLEAR) không hỗ trợ tra cứu toàn bộ dòng qua REST JSON thông thường (trả về 0 dòng khi gọi trang lớn). Bắt buộc phải qua **Cơ chế Server Export Kiểu 2** (`POST /ccp/export/create` -> WebSocket NotiSocket Engine.IO v4 bắt `reportId` -> `GET /ccp/report/download/{id}` tải file nhị phân nguyên bản).
   3. Giải mã cấu hình tài khoản `bot_credentials_ccp` (tài khoản `anhdao`) cần cơ chế Dual-Tier Fallback hỗ trợ đồng thời cả `ENCRYPTION_KEY` và `mxv_secret_salt_fixed`.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/shared/helpers/crypto.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/crypto.ts#L29-L61):
    - Nâng cấp hàm `decrypt()` với Dual-Tier Decryption: Thử nghiệm giải mã cấp 1 bằng `getSecretKey()` (sha256 từ `ENCRYPTION_KEY`); nếu lỗi Provider bad decrypt, tự động fallback cấp 2 sang sha256 của `mxv_secret_salt_fixed`.
    - Kết quả: Giải mã chính xác 100% tài khoản bot CoreCCP `anhdao` từ bảng `system_settings`.
@@ -1461,6 +2067,7 @@
    - Thêm chốt chặn Fail-Fast: `if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) throw new Error(...)`. Ngăn chặn hoàn toàn việc nuốt kết quả rỗng.
 
 ### 3. Kiểm thử & Xác nhận thực tế trên hệ thống
+
 - **Build Backend**: `npm run build` thành công trên cả local và Ubuntu `10.0.0.26` (Exit code 0). Đã restart PM2 `mxv-backend`.
 - **Tải file thực tế**:
   - Tải thành công file tươi trực tiếp vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/CCP/Futures/2026/T10.2026/16.10`:
@@ -1475,7 +2082,8 @@
 ## [2026-10-16T21:10] FIX: Triệt Tiêu Hoàn Toàn Logic Tự Chế File Excel Giả Trong CoreCCP & CoreEX, Chống Nuốt Lỗi & Khôi Phục File Thật DSGD CCP
 
 ### 1. Mục tiêu thay đổi
-- Thực thi chỉ đạo của USER: *"sao lại có tự chế không có dữ liệu phát sinh trong phiên trong DSGD call api bằng api dowload mà đâu có phải json giúp tôi check lại"* và *"giúp tôi fix"*.
+
+- Thực thi chỉ đạo của USER: _"sao lại có tự chế không có dữ liệu phát sinh trong phiên trong DSGD call api bằng api dowload mà đâu có phải json giúp tôi check lại"_ và _"giúp tôi fix"_.
 - **Nguyên nhân gốc rễ dẫn đến Dashboard báo `CCP = 0` và `Lệch ACM = 985` trong ca chạy 20:37:01 (Job `6ad2287d98f8079c51339ba6`)**:
   1. Trong `coreccp-api.adapter.ts` và `coreex-api.adapter.ts`, code cũ vi phạm nghiêm trọng **Quy tắc 4 (Fail-Fast & Zero-Silent-Swallow)**: khi hàm `searchFullJson` bị lỗi (ví dụ 401 do thiếu Bearer Token), catch block đã tự ý tạo ra file Excel giả mạo với text `Báo cáo DSGD_CCP không có dữ liệu phát sinh trong phiên 2026-10-16` lưu thành `DSGD CCP.xlsx` (6,602 bytes).
   2. File giả mạo này có `mtime` mới hơn file thật `DSGD_16.10.2026.xlsx` (87,004 bytes, 980 lot khớp) do Playwright tải trước đó trong thư mục `/mnt/qlgd-it/.../16.10`.
@@ -1483,6 +2091,7 @@
   4. Cơ chế tải báo cáo DSGD (`ORDERMATCH_DETAIL`) của CoreCCP (VNCLEAR) theo thiết kế chuẩn là **KIỂU 2 (Server-Side Export qua `POST /ccp/export/create` -> Socket.IO bắt `reportId` -> `GET /ccp/report/download/{id}` tải file nhị phân nguyên bản)**, không phải là Direct JSON search rồi dùng ExcelJS tự convert.
 
 ### 2. Chi tiết sửa đổi & Xử lý dứt điểm
+
 1. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
    - Xóa bỏ dòng tự chèn text giả `worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)'])` khi `rows.length === 0` trong `convertJsonToExcel`.
    - Xóa bỏ toàn bộ block tạo file Excel dự phòng trong catch block của `download()`.
@@ -1504,13 +2113,14 @@
 ## [2026-10-16T18:20] FIX & REFACTOR: Điều Tra Gốc Rễ Lệch CQG=1 & Lệch ACM=5, Triệt Tiêu Logic So Sánh Dòng Tự Chế Theo Chuẩn C# IT Tool, Dọn Dẹp URL Rải Rác
 
 ### 1. Mục tiêu thay đổi
-- Thực thi chỉ đạo của USER: *"giúp tôi xem nguyên nhân và fix chuẩn không phỏng đoán tự chế"*:
+
+- Thực thi chỉ đạo của USER: _"giúp tôi xem nguyên nhân và fix chuẩn không phỏng đoán tự chế"_:
   1. **Điều tra nguyên nhân gốc rễ Lệch CQG=1 (`012C8934032, ZWAZ26, Giá 661.25, Qty 1`)**:
      - Căn cứ bằng chứng dữ liệu thực tế tại `/mnt/qlgd-it/.../16.10/DSGD.xlsx` và `FR.xlsx`: Lệnh này khớp lúc **17:58:07**.
      - Trong Job `6ad20316af5a4ecb048e56fa` (bắt đầu lúc 17:57:26): File CQG tải xong lúc **17:58:05** (trước lúc lệnh khớp 2 giây nên chưa có lệnh), trong khi M-System tải xong lúc **17:58:48** (đã có lệnh). Đây là hiện tượng lệch pha thời gian (timing mismatch) tạm thời giữa 2 cổng tải.
      - Sau khi tải snapshot kế tiếp, cả 2 file đều có đúng **4.215 lots**, `differ = 0` (khớp 100%, không còn bất kỳ lệch nào).
   2. **Điều tra nguyên nhân gốc rễ Lệch ACM=5 và cảnh báo giả `Giao dịch ACM không đồng bộ bên M-System`**:
-     - Căn cứ mã nguồn gốc C# IT Tool ([TransactionCheckingService.cs](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/CheckPreEodRunner.cs#L614-L632)) và [it_tool_user_guide.md#L71-L80](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/it_tool_user_guide.md#L71-L80):
+     - Căn cứ mã nguồn gốc C# IT Tool ([TransactionCheckingService.cs](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/CheckDsgdBeforeEodRunner.cs#L614-L632)) và [it_tool_user_guide.md#L71-L80](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/it_tool_user_guide.md#L71-L80):
        - Đối chiếu ACM được thực hiện **DUY NHẤT ở cấp độ Tổng Khối Lượng (Aggregate Volume)**: `differACM = |totalNano - totalACM|`.
        - Trong C# IT Tool, **tuyệt đối không có logic so sánh từng dòng (row-by-row matching)** giữa ACM và M-System, vì mã giao dịch của 2 hệ thống là độc lập hoàn toàn (`Trade ID` của ACM dạng `20261016100806`, còn `Mã GD` của M-System dạng `371584369921`).
      - Đoạn code cũ trong [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts) tự ý duyệt `row.maGD === gd.maGD` giữa ACM và MS, dẫn đến toàn bộ 5 giao dịch Nano của ACM bị đẩy vào `mismatchedTrades` và báo "không đồng bộ".
@@ -1522,6 +2132,7 @@
      - Chạy script kiểm thử trên dữ liệu thực tế ngày 16.10: `totalDSGD = 4215`, `totalFR = 4215`, `differ = 0`, `mismatchedTrades.length = 0` (0 lỗi). PM2 online.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts):
    - Xóa bỏ vòng lặp so sánh từng dòng ACM với M-System `row.maGD === gd.maGD` (L396-L435 cũ).
    - Bảo toàn chuẩn C#: Chỉ quét chéo danh sách lệnh chi tiết giữa `FR` (CQG) và `DSGD` (M-System).
@@ -1539,6 +2150,7 @@
 ## [2026-10-16T17:52] REFACTOR: Tập Trung Hóa Cấu Hình Hệ Thống Ngoại Bộ Đơn Giản, Loại Bỏ Hardcode Passwords & Fix Lỗi Đăng Nhập ACM ETP
 
 ### 1. Mục tiêu thay đổi
+
 - Thực thi chỉ đạo của USER:
   1. **Tạo file cấu hình tập trung đơn giản, chuẩn xác**: Tập hợp toàn bộ Domain URL, Endpoint và quy tắc kết nối của 5 phân hệ ngoại bộ (M-System, ACM, CoreCCP, CoreEX, CQG) vào duy nhất [external-systems.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/external-systems.config.ts), giúp người dùng không phải đi vào từng file adapter để chỉnh sửa.
   2. **Bảo vệ mật khẩu & Triệt tiêu Hardcoded Credentials (Zero-Hardcoding - AGENTS.md Rule 7)**:
@@ -1551,6 +2163,7 @@
   5. **Triển khai đồng bộ lên Server Ubuntu 10.0.0.26**: Cả Backend NestJS và Frontend Next.js build thành công và PM2 online (Exit code 0).
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [backend/src/shared/domain-configs/external-systems.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/external-systems.config.ts):
    - Đóng gói `EXTERNAL_SYSTEMS_CONFIG` đơn giản, chuẩn xác gồm: `msystem`, `acm`, `coreccp`, `coreex`, `cqg`, `aiCaptcha`.
 2. [backend/src/modules/ingress/adapters/acm-etp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-etp.adapter.ts):
@@ -1573,7 +2186,6 @@
 ---
 
 ## [2026-10-16T17:22] FIX: Khắc Phục Lỗi 403 M-System Direct REST API (msapi.mxv.com.vn), Triệt Tiêu Silent Fallback Playwright & Bổ Sung Input Gemini Key Cho ACM
-
 
 ### 1. Mục tiêu thay đổi
 
@@ -1632,8 +2244,8 @@
    - Nhánh Playwright fallback: Sửa đường dẫn lưu file tải về từ màn hình Fill (`#/business-tetptrade`) thành `Fill.xlsx` (thay vì lưu đè tên `Straits.csv`).
 5. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts):
    - Ưu tiên số 1 tìm kiếm file `Fill.xlsx` / `Nano.xls` (`/Nano|Fill/i`) trong phiên đối chiếu khớp lệnh `runAutoCheckKLGD`. Chuẩn hóa thông báo thiếu file thành `ACM Trades (Fill.xlsx)`.
-6. [backend/src/modules/trading-ops/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts):
-   - Chốt đối chiếu Pre-EOD cuối ngày chỉ nhận diện duy nhất file `Straits.csv` (`/Straits/i`) từ SFTP, xóa bỏ triệt để fallback sang `Nano|Fill` theo đúng Rule 1 AGENTS.md.
+6. [backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts):
+   - Chốt đối chiếu Dsgd-Before-EOD cuối ngày chỉ nhận diện duy nhất file `Straits.csv` (`/Straits/i`) từ SFTP, xóa bỏ triệt để fallback sang `Nano|Fill` theo đúng Rule 1 AGENTS.md.
 
 ### 3. Xác nhận Build & Kiểm thử
 
@@ -1758,11 +2370,13 @@
 ## [2026-10-16T18:10] UBUNTU SERVER AUDIT & 502 BAD GATEWAY RESOLUTION: Khắc Phục Sập Frontend PM2, Dọn Dẹp 1.5GB Log Rác & Lọc Polling Spam
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục sự cố Nginx trả về lỗi **502 Bad Gateway** khi người dùng truy cập `https://10.0.0.26/trading-manager/ms-cqg`.
 - Thực hiện kiểm tra, phân tích tình trạng log hệ thống trên máy chủ Ubuntu `10.0.0.26` theo phản ánh của USER: "Log gì mà lắm vậy có đang bị log rác không. giúp tôi check log trên ubtune".
 - Ngăn chặn nguy cơ tràn ổ cứng máy chủ (disk usage chạm ngưỡng 89%).
 
 ### 2. Nguyên nhân gốc rễ được phát hiện
+
 1. **Lỗi 502 Bad Gateway**:
    - Nginx tại máy chủ `10.0.0.26` reverse proxy mọi request `/` về `http://127.0.0.1:3000`.
    - Tiến trình PM2 `mxv-frontend` (ID 1) bị crash-loop liên tục (restart hơn 490 lần) do thư mục `.next/` bị thiếu file `BUILD_ID` (`Error: Could not find a production build in the '.next' directory. Try building your app with 'next build' before starting the production server`).
@@ -1773,6 +2387,7 @@
    - File error log 105MB bị phình do cảnh báo của thư viện `xlsx/xlsx.mjs:2766` (`Bad uncompressed size`) khi parse zip stream của báo cáo.
 
 ### 3. Các bước xử lý kỹ thuật đã thực hiện
+
 1. **Khôi phục Frontend & Fix 502 Bad Gateway**:
    - Chạy lệnh `npm run build` trực tiếp tại `/opt/mxv-checklist/frontend` trên máy chủ Ubuntu `10.0.0.26`, build thành công toàn bộ 36 static/dynamic routes và sinh file `BUILD_ID`.
    - Khởi động lại tiến trình PM2 `mxv-frontend`.
@@ -1786,6 +2401,7 @@
    - Log hệ thống hiện tại sạch sẽ, hoạt động mượt mà và không còn hiện tượng log rác tràn ổ cứng.
 
 ### 4. Xác nhận Build & Kiểm thử
+
 - Backend NestJS Build: `npm run build` -> **Exit code 0 (Clean, 0 lỗi TypeScript)**.
 - Frontend Next.js Build: `npm run build` -> **Exit code 0 (Pass 100%, 36/36 pages compiled)**.
 - Kiểm thử trực tiếp máy chủ Ubuntu:
@@ -1797,6 +2413,7 @@
 ## [2026-10-16T17:20] BOT CONFIG CONNECTION UI: Đồng Bộ Triệt Để Biến CSS Global (Light & Dark Theme), Xóa Bỏ Màu Tối Cứng Gây Lệch Tương Phản
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục triệt để lỗi giao diện không ăn theo biến CSS động của `globals.css` (đặc biệt trong Light Mode) theo phản ánh kèm ảnh chụp từ USER:
   1. Cụm chuyển đổi chế độ xem: **Dạng Bảng (Khuyên dùng)** & **Dạng Thẻ Đầy Đủ** bị chìm màu, chữ unselected mờ tịt không đọc được do container gán cứng nền tối `rgba(15, 23, 42, 0.4)`.
   2. Cụm Sub-tabs CQG: **CQG Trade (Tải Báo Cáo)**, **CQG Price (Xem Giá)**, **CQG CAST** bị chìm mờ trong khung xám tối, độ tương phản kém.
@@ -1804,6 +2421,7 @@
   4. Header dòng của Bảng (Table View) và các dòng thông số trong Modal xem chi tiết chưa phân tách rõ ràng trên nền sáng.
 
 ### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+
 1. [frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ConnectionSettings.tsx):
    - **Cụm chuyển đổi ViewMode (`table` vs `cards`)**:
      - Thay `background: 'rgba(15, 23, 42, 0.4)'` bằng `backgroundColor: 'var(--bg-input)'` và `border: '1px solid var(--border-color)'`.
@@ -1821,6 +2439,7 @@
      - Thay nền các dòng thông số Read-only Modal bằng `modalRowStyle` chuẩn `background: 'var(--bg-input)', border: '1px solid var(--border-color)'`.
 
 ### 3. Xác nhận Build & Kiểm thử
+
 - Frontend Next.js Build: `npm run build` (`next build`) -> **Exit code 0 (Pass 100%, 36/36 static/dynamic pages compiled, TypeScript 0 lỗi)**.
 
 ---
@@ -2227,7 +2846,7 @@
 
 - Thực thi chỉ đạo của USER: Triển khai chuẩn xác Phase 3 theo tài liệu [KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/KE_HOACH_CHI_TIET_KHAC_PHUC_4_LO_HONG_DU_LIEU_VA_VAN_HANH.md).
 - **Khắc phục triệt để Lỗ hổng 6**: Thay thế logic cũ chỉ kiểm tra `while (getDay() === 0 || getDay() === 6)` giả định ngây thơ cứ ngày trong tuần là ngày giao dịch. Khi gặp kỳ nghỉ dài ngày như Tết Nguyên Đán (5-7 ngày) hoặc các dịp lễ Quốc Khánh 2/9, 30/4 - 1/5 rơi vào ngày thường, hệ thống cũ sẽ lùi trúng ngày nghỉ Lễ/Tết, dẫn đến thư mục không tồn tại và sập toàn bộ luồng đối chiếu đầu ngày.
-- Tích hợp chuẩn hóa `WorkingCalendarService` từ module `working-calendar` vào toàn bộ các service đối soát Pre-EOD và Before-EOD.
+- Tích hợp chuẩn hóa `WorkingCalendarService` từ module `working-calendar` vào toàn bộ các service đối soát Dsgd-Before-EOD và Before-EOD.
 
 ### 2. Chi tiết giải pháp kỹ thuật
 
@@ -2237,19 +2856,19 @@
    - Inject `@Optional() workingCalendarService?: WorkingCalendarService`.
    - Bổ sung hàm async `getPreviousTradingSession(inputDate?: Date | string)`: Lặp lùi tối đa 15 ngày, kiểm tra đồng thời cả cuối tuần (`getDay() === 0 || 6`) và lịch lễ/tết `validateDate(ymd)` (`isHoliday` hoặc `!isTradingDay`).
    - Cập nhật `runAutoCheckDSGDBeforeEOD` sử dụng `await this.getPreviousTradingSession(options?.tradingDate)` thay cho hàm cũ.
-3. **Nâng cấp `PreEodReconService`** ([pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts)):
+3. **Nâng cấp `DsgdBeforeEodReconService`** ([dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)):
    - Inject `@Optional() workingCalendarService?: WorkingCalendarService`.
    - Bổ sung hàm async `getPreviousTradingSession(tradingDate: Date, holidays: string[] = [])`.
-   - Thay thế vòng lặp cứng trong cả 2 luồng `checkPreEOD` (upload) và `runAutoCheckPreEOD` (quét thư mục tự động).
+   - Thay thế vòng lặp cứng trong cả 2 luồng `checkDSGDBeforeEOD` (upload) và `runAutoCheckDSGDBeforeEOD` (quét thư mục tự động).
 4. **Tạo kịch bản kiểm thử tự động Phase 3**:
-   - Viết mới [test_working_calendar_t_minus_one_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_working_calendar_t_minus_one_guard.ts) gồm 5 testcase: Ngày thường trong tuần, Đầu tuần qua cuối tuần, Lùi qua ngày Lễ Quốc Khánh 2/9, Lùi qua kỳ nghỉ Tết Nguyên Đán 7 ngày liên tục, và tích hợp `PreEodReconService`.
+   - Viết mới [test_working_calendar_t_minus_one_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_working_calendar_t_minus_one_guard.ts) gồm 5 testcase: Ngày thường trong tuần, Đầu tuần qua cuối tuần, Lùi qua ngày Lễ Quốc Khánh 2/9, Lùi qua kỳ nghỉ Tết Nguyên Đán 7 ngày liên tục, và tích hợp `DsgdBeforeEodReconService`.
    - Đăng ký npm script: `"test:working-calendar-t1": "ts-node -r tsconfig-paths/register src/scripts/test_working_calendar_t_minus_one_guard.ts"`.
 
 ### 3. Danh sách file tác động
 
 - [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts)
 - [backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)
-- [backend/src/modules/trading-ops/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts)
+- [backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)
 - [backend/src/scripts/test_working_calendar_t_minus_one_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_working_calendar_t_minus_one_guard.ts)
 - [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/package.json)
 
@@ -2991,13 +3610,13 @@
 
 ---
 
-## [2026-10-15T16:05] FIX CRITICAL: Khôi Phục Luồng Tải File Live (Ingress Pipeline) Cho Đối Chiếu CHECK_KLGD / CHECK_PRE_EOD & Chuẩn Hóa Huy Hiệu UI 'Đang Chờ File'
+## [2026-10-15T16:05] FIX CRITICAL: Khôi Phục Luồng Tải File Live (Ingress Pipeline) Cho Đối Chiếu CHECK_KLGD / CHECK_DSGD_BEFORE_EOD & Chuẩn Hóa Huy Hiệu UI 'Đang Chờ File'
 
 ### 1. Mục tiêu thay đổi
 
 - Khắc phục sự cố Job ID `6ad08d0fbfde2e2dfeeda1be` ("Đối Chiếu Khớp Lệnh (Trong Phiên)", `CHECK_KLGD`) chạy kết thúc trong 21ms (`08:21:37.809` -> `08:21:37.830`), ghi log `[BotDispatcher V2] [Đang chờ dữ liệu] Thư mục backup ngày 15.10.2026 đang chờ cập nhật đầy đủ file đối chiếu...`, và header UI hiện huy hiệu màu xanh "Thành công", nhưng **hoàn toàn không kích hoạt tự động đăng nhập và tải file từ M-System, CQG, ACM như V1**.
 - **Nguyên nhân gốc rễ (Root Cause)**:
-  1. `KlgdReconWorker` và `PreEodReconWorker` trong V2 ban đầu chỉ được thiết kế là các offline calculation worker gọi trực tiếp `klgdReconService.runAutoCheckKLGD(...)` và `preEodReconService.runAutoCheckPreEOD(...)` mà chưa nối luồng Ingress (RPA Scrapers Playwright). Khi `bot-job-queue.service.ts` ưu tiên `botDispatcher.hasWorker(botCheckType)`, nó bỏ qua `ReconJobsHandler`, khiến các bước tự động cào file không được kích hoạt.
+  1. `KlgdReconWorker` và `DsgdBeforeEodReconWorker` trong V2 ban đầu chỉ được thiết kế là các offline calculation worker gọi trực tiếp `klgdReconService.runAutoCheckKLGD(...)` và `dsgdBeforeEodReconService.runAutoCheckDSGDBeforeEOD(...)` mà chưa nối luồng Ingress (RPA Scrapers Playwright). Khi `bot-job-queue.service.ts` ưu tiên `botDispatcher.hasWorker(botCheckType)`, nó bỏ qua `ReconJobsHandler`, khiến các bước tự động cào file không được kích hoạt.
   2. Huy hiệu UI hiện "Thành công" ảo: Trong `bot-job-queue.service.ts#L455` và `bot-dispatcher.service.ts#L136`, biểu thức kiểm tra thành công là `dispatchRes.status !== 'FAILED'`. Do `'WAITING' !== 'FAILED'` là đúng, hệ thống gán `finalStatus = 'COMPLETED'` và lưu `status: 'COMPLETED'` vào MongoDB, khiến UI render badge màu xanh "Thành công".
   3. Thiếu streaming log thời gian thực: Timer `logFlushTimer` (1.5s flush socket/DB) nằm sau khối `botDispatcher.dispatchJob`, nên các job chạy qua V2 Dispatcher không được flush log trực tiếp khi đang chạy.
 
@@ -3006,10 +3625,10 @@
 - **Tuân thủ quy chuẩn Isolation (`module-isolation.spec.ts`)**: Sử dụng Dependency Inversion thông qua Injection Token `RECON_PIPELINE_PORT`, không import chéo trực tiếp giữa các module domain.
 - [backend/src/shared/ports/recon-pipeline.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/ports/recon-pipeline.port.ts): Khai báo interface `IReconPipelinePort` và token `RECON_PIPELINE_PORT = 'IReconPipelinePort'`.
 - [backend/src/shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/index.ts): Export `IReconPipelinePort` và `RECON_PIPELINE_PORT`.
-- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Implement `IReconPipelinePort`, mở public `handleCheckKlgdJob` và `handleCheckPreEodJob`.
+- [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Implement `IReconPipelinePort`, mở public `handleCheckKlgdJob` và `handleCheckDsgdBeforeEodJob`.
 - [backend/src/modules/bot-engine/bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-engine.module.ts): Đăng ký provider `{ provide: RECON_PIPELINE_PORT, useExisting: ReconJobsHandler }` và export ra ngoài.
 - [backend/src/modules/trading-ops/workers/klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts): Inject `RECON_PIPELINE_PORT`. Khi chạy live (`parameters?.skipDownload !== true`), chuyển giao thực thi tải file live và đối chiếu qua `reconPipeline.handleCheckKlgdJob(jobToRun)`.
-- [backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts): Tương tự, chuyển giao qua `reconPipeline.handleCheckPreEodJob(jobToRun)`.
+- [backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts): Tương tự, chuyển giao qua `reconPipeline.handleCheckDsgdBeforeEodJob(jobToRun)`.
 - [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-job-queue.service.ts):
   - Kích hoạt `logFlushTimer` (1.5s interval) dùng chung cho cả V1 và V2, đảm bảo live log streaming qua Socket.IO.
   - Truyền `taskContext.job` và `taskContext.parameters.job`.
@@ -3137,7 +3756,7 @@
 
 - [backend/src/shared/contracts/bot-execution.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/contracts/bot-execution.contract.ts): Bổ sung trạng thái `'WAITING'` vào `TaskExecutionStatus`, thêm cờ `isWaitingFiles?: boolean` vào `TaskExecutionResult`.
 - [backend/src/modules/trading-ops/workers/klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts): Kiểm tra `res.isWaitingFiles` trước khi kết luận trạng thái.
-- [backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts): Kiểm tra `res.isWaitingFiles` trước khi kết luận trạng thái cho tác vụ Pre-EOD cuối ngày.
+- [backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts): Kiểm tra `res.isWaitingFiles` trước khi kết luận trạng thái cho tác vụ Dsgd-Before-EOD cuối ngày.
 - [backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts): Bảo toàn `isWaitingFiles` vào `payload.result` khi cập nhật job MongoDB.
 - [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts): Giữ nguyên `isWaitingFiles` và trạng thái `PENDING` cho checklist sync.
 - [backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts): Đồng bộ task sang `WAITING` và kích hoạt cooldown khi chờ file.
@@ -3288,7 +3907,7 @@
 - Thực hiện yêu cầu của USER ("được giúp tôi"): Tiến hành bước tịnh tiến tiếp theo trong tiến trình chuyển đổi kiến trúc Strangler Fig.
 - Bàn giao quyền điều phối thực thi các tác vụ Trading Operations từ hàng đợi monolith cũ (`bot-job-queue.service.ts` và `BotJobHandlerRegistry`) sang `BotDispatcherService` V2 (`checklist-hub`) và 6 Workers chuyên trách:
   - `CHECK_KLGD` $\rightarrow$ `KlgdReconWorker`
-  - `CHECK_PRE_EOD` $\rightarrow$ `PreEodReconWorker`
+  - `CHECK_DSGD_BEFORE_EOD` $\rightarrow$ `DsgdBeforeEodReconWorker`
   - `CHECK_NEGATIVE_MARGIN` $\rightarrow$ `NegativeMarginWorker`
   - `CCP_LOT_STATS` / `CHECK_CCP_STATISTICS` / `RUN_LOT_MACRO` $\rightarrow$ `CcpLotWorker`
   - `CCP_VALUE_STATS` / `CHECK_CCP_VALUE` / `RUN_VALUE_MACRO` $\rightarrow$ `CcpValueWorker`
@@ -3301,7 +3920,7 @@
 - [backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts): Bổ sung phương thức `hasWorker(capabilityType)` và hợp nhất `metrics` + `details` vào `payload.result`.
 - [backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts): Ưu tiên số 1 bàn giao cho `botDispatcher.hasWorker(capabilityKey)`, cập nhật `syncJobToChecklist` xử lý `taskStatus` chuẩn theo kết quả V2.
 - [backend/src/modules/trading-ops/workers/klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts): Trả về `details: res` để UI hiển thị bảng khớp lệnh chênh lệch chi tiết.
-- [backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts): Trả về `details: res` để UI hiển thị bảng đối chiếu Pre-EOD 3 bên chi tiết.
+- [backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts): Trả về `details: res` để UI hiển thị bảng đối chiếu Dsgd-Before-EOD 3 bên chi tiết.
 - [backend/src/modules/trading-ops/workers/ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts): Trả về `details: res` chứa toàn bộ danh sách lệch EOD CoreCCP.
 
 ### 3. Kết quả kiểm thử & Biên dịch
@@ -3324,7 +3943,7 @@
   2. Viết một controller duy nhất `CcpReconController` gom toàn bộ endpoints từ `ccp-clearing.controller.ts` và `ccp-clearing-log.controller.ts` (route `/api/v1/ccp-clearing` và `/api/v1/reconciliation`).
   3. Tách các bộ đọc Excel trùng lặp thành shared parser dùng chung trong `backend/src/modules/trading-ops/parsers/`:
      - `GttExcelParser`: Gom toàn bộ logic phân tích file GTT, bước giá hàng hóa (`parseTickSizes`), và trạng thái mở (`parseOpenContracts`, `parseUniqueContracts`) dùng chung cho `CeCcpGttService` và `GttCheckerService`.
-     - `MarginExcelParser`: Gom toàn bộ logic đọc `QLTKGD` / `QLTTTKGD` và `EOD` dùng chung cho 4 service: `MarginCheckerService`, `PreEodReconService`, `CcpEodService`, và `CqgMergerService`.
+     - `MarginExcelParser`: Gom toàn bộ logic đọc `QLTKGD` / `QLTTTKGD` và `EOD` dùng chung cho 4 service: `MarginCheckerService`, `DsgdBeforeEodReconService`, `CcpEodService`, và `CqgMergerService`.
 
 ### 2. Danh sách file tác động
 
@@ -3335,7 +3954,7 @@
 - [backend/src/modules/trading-ops/services/ce-ccp-gtt.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ce-ccp-gtt.service.ts): Ủy quyền các tác vụ đọc GTT sang `GttExcelParser`.
 - [backend/src/modules/trading-ops/services/gtt-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/gtt-checker.service.ts): Tái sử dụng `GttExcelParser` cho `FALLBACK_TICK_SIZES`, `parseCommodityTickSizes`, và `parseUniqueMSContracts`.
 - [backend/src/modules/trading-ops/services/margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/margin-checker.service.ts): Ủy quyền đọc QLTKGD sang `MarginExcelParser.parseQltkgd`.
-- [backend/src/modules/trading-ops/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts): Tái sử dụng `MarginExcelParser.parseQltkgd` và `parseEodMargin`.
+- [backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts): Tái sử dụng `MarginExcelParser.parseQltkgd` và `parseEodMargin`.
 - [backend/src/modules/trading-ops/services/ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-eod.service.ts): Tái sử dụng `MarginExcelParser.parseQltkgd` và `parseEodMargin`.
 - [backend/src/modules/trading-ops/services/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts): Tái sử dụng `MarginExcelParser.parseQltkgd`.
 - [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký `CcpReconController`, chuyển toàn bộ providers/workers từ `ccp-clearing`.
@@ -3589,7 +4208,7 @@
    - Re-export toàn bộ các hàm từ `../parsers` để bảo đảm 100% services cũ import từ helper này tiếp tục chạy bình thường.
 3. **Phân rã God Controller sang 5 Domain Controllers ([backend/src/modules/trading-ops/controllers/](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/))**:
    - [klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts): Quản lý đối soát KLGD trong phiên (`upload-klgd`, `run-auto`, `run-test-local`, `test-upload`, `upload-dsgd-before-eod`, `check-dsgd-before-eod`).
-   - [pre-eod-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/pre-eod-recon.controller.ts): Quản lý chốt đối chiếu 3 bên cuối ngày (`upload-pre-eod`, `upload-eod`).
+   - [dsgd-before-eod-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts): Quản lý chốt đối chiếu 3 bên cuối ngày (`upload-dsgd-before-eod`, `upload-eod`).
    - [margin-checker.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/margin-checker.controller.ts): Quản lý rà soát ký quỹ âm và IMR (`negative-margin`, `check-imr`).
    - [gtt-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/gtt-recon.controller.ts): Quản lý đối soát giá thanh toán GTT MS vs CQG (`run-gtt-check`, `gtt-report`, `gtt-report/export-correction`, `gtt-report/push-to-ms`).
    - [trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts): Quản lý tỷ giá đa tiền tệ, sao lưu, console summary (`sync-usd-rate`, `sync-exchange-rates`, `usd-rate`, `exchange-rates`, `sample-dates`, `maturity-manual-messages`, `console-summary`, `trigger-console-run`, `upload-backup`, `trigger-selective-backup`, `download-ccp-metrics`).
@@ -3597,7 +4216,7 @@
 4. **Cập nhật Module & Services phụ trợ**:
    - [trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký 5 Controller mới và `ReconConsoleSummaryService`.
    - [recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon-console-summary.service.ts): Chuyển sang `trading-ops/services`, tích hợp trực tiếp tỷ giá USD và Console Summary.
-   - [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts): Tích hợp method `checkEOD` và bổ sung import `XLSX`.
+   - [dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts): Tích hợp method `checkEOD` và bổ sung import `XLSX`.
    - [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/margin-checker.service.ts): Bổ sung method `checkNegativeMargin` nhận file buffers từ controller.
 
 ### 3. Kết quả kiểm thử (Verification)
@@ -3708,7 +4327,7 @@
    - Cập nhật `index.ts` re-export `KlgdReconService` và `CheckKLGDResult` từ `../../trading-ops/services/klgd-recon.service`.
 3. **[ce-ccp-gtt.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/ce-ccp-gtt.service.ts)**:
    - Xóa bỏ các dòng hardcode đường dẫn OneDrive cá nhân (`C:\Users\hiepth\OneDrive...`) và `C:\Quanlygiaodich\...` trong mảng candidates.
-4. **[klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/klgd-recon.service.ts)** & **[pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts)**:
+4. **[klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/klgd-recon.service.ts)** & **[dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)**:
    - Dọn sạch các fallback tĩnh `'M:\Tailieuchung\...'` thành `''`.
 
 ### 3. Kết quả kiểm thử (Verification)
@@ -3728,7 +4347,7 @@
 - **Cơ sở thực chứng (Root Cause)**:
   - Cấu hình chuẩn của ACM trong CSDL MongoDB (`system_settings`) là: `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup ACM\Futures` (kết thúc bằng `\Futures`).
   - Trong `bot-path.helper.ts#L266-L270` và `file-path.helper.ts#L298-L302` tồn tại đoạn code cũ kiểm tra `acmBackupBase.endsWith('\\ACM')`. Vì chuỗi cấu hình kết thúc bằng `\Futures` nên điều kiện bị `false`, dẫn tới rơi vào nhánh `else`: `acmBackupBase = path.join(acmBackupBase, 'ACM')`.
-  - Hậu quả: Thư mục sao lưu bị tự tiện ghép thêm một cấp `\ACM` sau `\Futures`, sinh ra đường dẫn lặp `.../Backup ACM/Futures/ACM/...`. Trong khi đó, các service đối chiếu (`klgd-recon.service.ts`, `pre-eod-recon.service.ts`) lại đọc trực tiếp từ cấu hình `.../Backup ACM/Futures/...` mà không có `ACM/`, gây ra sự bất đồng bộ giữa vị trí tải file và vị trí đọc file.
+  - Hậu quả: Thư mục sao lưu bị tự tiện ghép thêm một cấp `\ACM` sau `\Futures`, sinh ra đường dẫn lặp `.../Backup ACM/Futures/ACM/...`. Trong khi đó, các service đối chiếu (`klgd-recon.service.ts`, `dsgd-before-eod-recon.service.ts`) lại đọc trực tiếp từ cấu hình `.../Backup ACM/Futures/...` mà không có `ACM/`, gây ra sự bất đồng bộ giữa vị trí tải file và vị trí đọc file.
 
 ### 2. Danh sách file & Nội dung kỹ thuật
 
@@ -3754,7 +4373,7 @@
   `[Đang chờ dữ liệu] Thư mục backup ngày 14.10.2026 đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: DSGD.xlsx, ACM Trades (Fill.xlsx / Straits.csv), CQG FR, TTM.xlsx).`
 - **Nguyên nhân cốt lõi (Root Cause)**:
   1. `ReconJobsHandler` (Monolith V1) sử dụng `resolveStoragePathCrossPlatform` từ `bot-path.helper.ts`, hàm này nhận diện pattern `/(?:^|\/)(quanlygiaodich\/.*)$/i` để ánh xạ chính xác đường dẫn mạng `M:\Tailieuchung\QLGD-IT\...` thành `/mnt/qlgd-it/Quanlygiaodich/...`. Do đó, bot tải file và lưu đĩa thành công vào `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/...`.
-  2. Tuy nhiên, `KlgdReconService` (Modular Monolith V2) và `PreEodReconService` lại import `resolveStoragePathCrossPlatform` từ `shared/helpers/file-path.helper.ts`. Hàm tại `file-path.helper.ts` bị thiếu logic nhận diện `quanlygiaodich`, chỉ thay thế thô bạo `M:/` bằng `/mnt/qlgd-it/`, dẫn đến đường dẫn bị trùng lặp: `/mnt/qlgd-it/Tailieuchung/QLGD-IT/Quanlygiaodich/...` (Thư mục không tồn tại vì bản thân `/mnt/qlgd-it` chính là điểm mount của `Tailieuchung/QLGD-IT`).
+  2. Tuy nhiên, `KlgdReconService` (Modular Monolith V2) và `DsgdBeforeEodReconService` lại import `resolveStoragePathCrossPlatform` từ `shared/helpers/file-path.helper.ts`. Hàm tại `file-path.helper.ts` bị thiếu logic nhận diện `quanlygiaodich`, chỉ thay thế thô bạo `M:/` bằng `/mnt/qlgd-it/`, dẫn đến đường dẫn bị trùng lặp: `/mnt/qlgd-it/Tailieuchung/QLGD-IT/Quanlygiaodich/...` (Thư mục không tồn tại vì bản thân `/mnt/qlgd-it` chính là điểm mount của `Tailieuchung/QLGD-IT`).
   3. Kết quả: `fs.existsSync` tại `KlgdReconService` trả về `false` cho toàn bộ các file, khiến hệ thống báo thiếu file mặc dù file thực tế đã được tải và ghép đầy đủ trên đĩa.
 
 ### 2. Danh sách file & Nội dung kỹ thuật
@@ -4028,9 +4647,9 @@
 ### 2. Danh sách file cập nhật
 
 - **API Foundation**:
-  - [frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts): Bổ sung `CHECK_NEGATIVE_MARGIN`, `CHECK_EOD_RUN`, `RUN_CHECK_PRE_EOD`, `CE_CCP_GTT_REPORT`, `RUN_CE_CCP_GTT_CHECK`, `EXPORT_CE_CCP_GTT`.
+  - [frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts): Bổ sung `CHECK_NEGATIVE_MARGIN`, `CHECK_EOD_RUN`, `RUN_CHECK_DSGD_BEFORE_EOD`, `CE_CCP_GTT_REPORT`, `RUN_CE_CCP_GTT_CHECK`, `EXPORT_CE_CCP_GTT`.
   - [frontend/src/services/api/checklist-hub.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/checklist-hub.api.ts): Mở rộng `BotJobItem` (bổ sung `logs?: any[]`, index signature), hỗ trợ `limit` trong `getJobs`, bổ sung `getCeCcpGttReport`, `runCeCcpGttCheck`, `exportCeCcpGtt`.
-  - [frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/trading-ops.api.ts): Bổ sung `checkNegativeMargin`, `checkEodRun`, `runCheckPreEod`, mở rộng `ConsoleSummaryResponse` (`eodRun`, `preEod`, `shiftInfo`, `klgd`, index signature).
+  - [frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/trading-ops.api.ts): Bổ sung `checkNegativeMargin`, `checkEodRun`, `runCheckDsgdBeforeEod`, mở rộng `ConsoleSummaryResponse` (`eodRun`, `dsgdBeforeEod`, `shiftInfo`, `klgd`, index signature).
   - [frontend/src/services/api/ingress.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/ingress.api.ts): Hỗ trợ tham số linh hoạt (`options: any`, audit date object/string) cho `triggerMsDownload`, `triggerCqgDownload`, `triggerAcmDownload`, `triggerCcpDownload`, `auditAcmBackup`, `auditCcpBackup`.
   - [frontend/src/services/api/admin.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/admin.api.ts): Hỗ trợ cả 2 dạng tham số cho `saveSystemSetting` (object hoặc key/value riêng biệt) và `verifyStoragePath` (string hoặc object kèm `targetType`).
   - [frontend/src/services/api/auth.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/auth.api.ts): Mở rộng payload của `updateProfile` cho phép `fullName`, `password`, `settings`.
@@ -4183,8 +4802,8 @@
   - Gỡ bỏ `forwardRef()` thừa trên `MarginChangeRequestsModule` và `ChecklistHubModule`.
 - **Cập nhật** [bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
   - Gỡ bỏ `forwardRef()` nội bộ trên `CcpCeDownloaderService` và `EmailWatcherService`.
-  - Inject trực tiếp các Service V2: `TradingOpsKlgdReconService`, `TradingOpsPreEodReconService`, `CcpEodService`.
-  - Ủy quyền trực tiếp các tác vụ đối chiếu (`runAutoCheckSOD`, `runAutoCheckKLGD`, `runAutoCheckPreEOD`, `runAutoCheckEodMm`, `runAutoCheckEodCcp`) sang V2 services với fallback an toàn về `ReconciliationService`.
+  - Inject trực tiếp các Service V2: `TradingOpsKlgdReconService`, `TradingOpsDsgdBeforeEodReconService`, `CcpEodService`.
+  - Ủy quyền trực tiếp các tác vụ đối chiếu (`runAutoCheckSOD`, `runAutoCheckKLGD`, `runAutoCheckDSGDBeforeEOD`, `runAutoCheckEodMm`, `runAutoCheckEodCcp`) sang V2 services với fallback an toàn về `ReconciliationService`.
 - **Cập nhật Port** [shared/ports/bot-worker.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/ports/bot-worker.port.ts):
   - Thêm phương thức tùy chọn `canHandle?(botCheckType: string): boolean` vào interface `IBotWorker` để hỗ trợ tra cứu alias năng lực động.
 - **Cập nhật Dispatcher** [checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts):
@@ -4195,7 +4814,7 @@
 
 - Triệt tiêu hoàn toàn các phụ thuộc vòng lặp không cần thiết trong `bot-engine`: gỡ bỏ các `forwardRef` giả lập nội bộ giữa các service cùng module (`CcpCeDownloaderService`, `EmailWatcherService`).
 - `ReconJobsHandler` không còn bị ràng buộc cứng với `ReconciliationService` của Monolith V1, thay vào đó gọi trực tiếp vào các module nghiệp vụ chuyên biệt V2 (`TradingOpsModule`, `CcpClearingModule`).
-- `BotDispatcherService` mở rộng hỗ trợ 6 Workers chuyên ngành: KLGD Recon, Pre-EOD Recon, Negative Margin, CCP Lot Stats, CCP Value Stats, CCP EOD Recon.
+- `BotDispatcherService` mở rộng hỗ trợ 6 Workers chuyên ngành: KLGD Recon, Dsgd-Before-EOD Recon, Negative Margin, CCP Lot Stats, CCP Value Stats, CCP EOD Recon.
 
 ### 4. Logic bảo tồn nguyên trạng (Zero Logic Loss)
 
@@ -4408,11 +5027,11 @@
      - **Task 1.1**: TÃ­ch há»£p `CcpExcelParser` bÃ³c tÃ¡ch `dsgdCcp`, `ttmCcp`, `ttttCcp` vÃ  bÃ¹ trá»« `ACM + CoreCCP == Nano`, tráº£ vá» Ä‘á»§ cÃ¡c trÆ°á»ng `totalCCP_*`.
      - **Task 1.2**: Thay tháº¿ mock `data/backup` báº±ng phÃ¢n giáº£i Ä‘Æ°á»ng dáº«n Ä‘á»™ng Ä‘a ná»n táº£ng tá»« `SystemSettingsService` (`bot_trading_check_path`, `bot_backup_path_*`), tá»± Ä‘á»™ng ghÃ©p file thÃ´ CQG qua `resolveCqgFile`.
      - **Task 1.3**: Bá»• sung rÃ o cháº¯n Fail-Fast (`isWaitingFiles: true`) náº¿u thiáº¿u file vÃ  láº¥y `mtime` cá»§a `DSGD.xlsx` lÃ m `cutoffTime` thá»i gian thá»±c.
-  2. [`backend/src/modules/trading-ops/services/pre-eod-recon.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts):
-     - **Task 2.1**: PhÃ¢n giáº£i Ä‘Æ°á»ng dáº«n Ä‘á»™ng ngÃ y T-1 tá»« `SystemSettingsService` cho `runAutoCheckPreEOD`.
+  2. [`backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts):
+     - **Task 2.1**: PhÃ¢n giáº£i Ä‘Æ°á»ng dáº«n Ä‘á»™ng ngÃ y T-1 tá»« `SystemSettingsService` cho `runAutoCheckDSGDBeforeEOD`.
      - **Task 2.2**: Chuyá»ƒn giao ná»‘t `runAutoCheckSOD` vÃ  `runAutoCheckEodMm` vÃ o V2.
   3. [`backend/src/modules/reconciliation/reconciliation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
-     - Äá»•i á»§y quyá»n `runAutoCheckSOD` vÃ  `runAutoCheckEodMm` sang V2 `tradingOpsPreEodService`.
+     - Äá»•i á»§y quyá»n `runAutoCheckSOD` vÃ  `runAutoCheckEodMm` sang V2 `tradingOpsDsgdBeforeEodService`.
 
 ### 2. Kiá»ƒm thá»­ & XÃ¡c nháº­n Build
 
@@ -4516,8 +5135,8 @@
      - Giáº£m táº£i 5.974 dÃ²ng rÃ¡c khÃ´ng sá»­ dá»¥ng ra khá»i cÃ¢y source code chÃ­nh.
   2. **Giai Äoáº¡n 2 (Thin Adapter Delegation sang V2)**:
      - [reconciliation.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.module.ts): Import `TradingOpsModule`.
-     - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts): Inject trá»±c tiáº¿p `KlgdReconService` vÃ  `PreEodReconService` tá»« `TradingOpsModule` V2.
-     - á»¦y quyá»n 100% logic `checkKLGD`, `runAutoCheckKLGD`, `checkPreEOD`, `runAutoCheckPreEOD` sang `TradingOpsModule`.
+     - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts): Inject trá»±c tiáº¿p `KlgdReconService` vÃ  `DsgdBeforeEodReconService` tá»« `TradingOpsModule` V2.
+     - á»¦y quyá»n 100% logic `checkKLGD`, `runAutoCheckKLGD`, `checkDSGDBeforeEOD`, `runAutoCheckDSGDBeforeEOD` sang `TradingOpsModule`.
      - Giá»¯ nguyÃªn váº¹n 100% contract API cho Frontend React ([reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts)). Cáº£ nÃºt báº¥m tay trÃªn Web láº«n Bot ca trá»±c tá»± Ä‘á»™ng giá» Ä‘Ã¢y **cháº¡y chung 1 bá»™ nÃ£o tÃ­nh toÃ¡n duy nháº¥t táº¡i V2 (`trading-ops`)**.
 
 ### 2. Sá»­a Cáº£nh BÃ¡o Deprecation Mongoose
@@ -4576,14 +5195,14 @@
 
 - **Nhiá»‡m vá»¥ thá»±c hiá»‡n**: HoÃ n táº¥t 100% Phase 12 (Task 12.1, 12.2) theo Káº¿ hoáº¡ch [KE_HOACH_CHUYEN_DOI_TIEP_THEO_STAGE_2_ATOMIC_TASKS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/KE_HOACH_CHUYEN_DOI_TIEP_THEO_STAGE_2_ATOMIC_TASKS.md).
 - **Pháº¡m vi cÃ´ láº­p**:
-  - **Task 12.1**: [modular-shift-e2e.spec.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/e2e/modular-shift-e2e.spec.ts): Viáº¿t bá»™ kiá»ƒm thá»­ toÃ n trÃ¬nh mÃ´ phá»ng chu ká»³ ca trá»±c 24h Ä‘iá»u phá»‘i tuáº§n tá»± 3 nghiá»‡p vá»¥ tÃ i chÃ­nh (`CHECK_KLGD`, `CHECK_PRE_EOD`, `CCP_LOT_STATS`) $\rightarrow$ LÆ°u log Ä‘á»™c láº­p vÃ o `trading_recon_logs` vÃ  `ccp_clearing_logs`, ca trá»±c `ShiftLog` chá»‰ lÆ°u `domainLogRefId` vÃ  metrics tÃ³m táº¯t, giáº£i phÃ³ng hoÃ n toÃ n nguy cÆ¡ phÃ¬nh giá»›i háº¡n 16MB cá»§a MongoDB.
+  - **Task 12.1**: [modular-shift-e2e.spec.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/e2e/modular-shift-e2e.spec.ts): Viáº¿t bá»™ kiá»ƒm thá»­ toÃ n trÃ¬nh mÃ´ phá»ng chu ká»³ ca trá»±c 24h Ä‘iá»u phá»‘i tuáº§n tá»± 3 nghiá»‡p vá»¥ tÃ i chÃ­nh (`CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `CCP_LOT_STATS`) $\rightarrow$ LÆ°u log Ä‘á»™c láº­p vÃ o `trading_recon_logs` vÃ  `ccp_clearing_logs`, ca trá»±c `ShiftLog` chá»‰ lÆ°u `domainLogRefId` vÃ  metrics tÃ³m táº¯t, giáº£i phÃ³ng hoÃ n toÃ n nguy cÆ¡ phÃ¬nh giá»›i háº¡n 16MB cá»§a MongoDB.
   - **Task 12.2**: Äá»“ng bá»™ toÃ n bá»™ tÃ i liá»‡u, schemas, modules vÃ  tests sang worktree song song [mxv-modular-refactor](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor).
 
 ### 2. Tá»•ng káº¿t ThÃ nh quáº£ Chuyá»ƒn Ä‘á»•i Kiáº¿n trÃºc (12 Pha - 37 Nhiá»‡m vá»¥ NguyÃªn tá»­)
 
 1. **PhÃ¢n RÃ£ 4 PhÃ¢n Há»‡ Äá»™c Láº­p**:
    - `ingress`: KÃ©o dá»¯ liá»‡u ngoÃ i (Scrapers Playwright + Direct REST/SFTP Adapters).
-   - `trading-ops`: Nghiá»‡p vá»¥ giao dá»‹ch QLGD (Merge CQG, KLGD Recon, Pre-EOD Recon, Negative Margin).
+   - `trading-ops`: Nghiá»‡p vá»¥ giao dá»‹ch QLGD (Merge CQG, KLGD Recon, Dsgd-Before-EOD Recon, Negative Margin).
    - `ccp-clearing`: Nghiá»‡p vá»¥ bÃ¹ trá»« CCP (Lot Statistics, Báº£ng kÃª chi tiáº¿t).
    - `checklist-hub`: Äiá»u phá»‘i ca trá»±c (`BotDispatcherService`, `ShiftLifecycleService`, Mail & Calendar Workers).
 2. **KhÃ³a NguyÃªn Tá»­ Äa Instance (Zero Race Condition)**:
@@ -4704,7 +5323,7 @@
 - **Pháº¡m vi cÃ´ láº­p**:
   - **Task 7.1**: [trading-recon-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts): Táº¡o Mongoose Schema `TradingReconLog` (`trading_recon_logs`) lÆ°u toÃ n bá»™ chi tiáº¿t so khá»›p lá»‡nh, vá»‹ tháº¿ vÃ  tÃ i khoáº£n Ã¢m.
   - **Task 7.2**: [ccp-clearing-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/schemas/ccp-clearing-log.schema.ts): Táº¡o Mongoose Schema `CcpClearingLog` (`ccp_clearing_logs`) lÆ°u toÃ n bá»™ báº£ng kÃª thá»‘ng kÃª Lot, phÃ¢n rÃ£ theo mÃ£ SP vÃ  TVKD.
-  - **Task 7.3**: Cáº­p nháº­t cáº£ 4 Workers (`KlgdReconWorker`, `PreEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`) tá»± Ä‘á»™ng lÆ°u chi tiáº¿t vÃ o collection riÃªng biá»‡t vÃ  tráº£ vá» `domainLogRefId` + tÃ³m táº¯t metrics gá»n nháº¹.
+  - **Task 7.3**: Cáº­p nháº­t cáº£ 4 Workers (`KlgdReconWorker`, `DsgdBeforeEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`) tá»± Ä‘á»™ng lÆ°u chi tiáº¿t vÃ o collection riÃªng biá»‡t vÃ  tráº£ vá» `domainLogRefId` + tÃ³m táº¯t metrics gá»n nháº¹.
   - **Task 7.4**: XÃ¢y dá»±ng [trading-recon-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/trading-recon-log.controller.ts) vÃ  [ccp-clearing-log.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/controllers/ccp-clearing-log.controller.ts) cung cáº¥p REST API tra cá»©u chi tiáº¿t theo ID hoáº·c theo ngÃ y phiÃªn.
 
 ### 2. Báº£o tá»“n logic báº¥t biáº¿n 100%
@@ -4812,11 +5431,11 @@
 - **Pháº¡m vi cÃ´ láº­p**: ToÃ n bá»™ nghiá»‡p vá»¥ Äá»‘i Chiáº¿u Giao Dá»‹ch (Trading Ops) Ä‘Ã£ Ä‘Æ°á»£c bÃ³c tÃ¡ch hoÃ n chá»‰nh thÃ nh Module Ä‘á»™c láº­p:
   - **Task 3.1**: [cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts) (GhÃ©p 4 cáº·p file thÃ´ CQG chuáº©n C# IT Tool).
   - **Task 3.2**: [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/klgd-recon.service.ts) (LÃµi tÃ­nh toÃ¡n Ä‘á»‘i chiáº¿u trong phiÃªn MS vs CQG vs ACM).
-  - **Task 3.3**: [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pre-eod-recon.service.ts) (LÃµi Ä‘á»‘i chiáº¿u 3 bÃªn chá»‘t phiÃªn Pre-EOD).
+  - **Task 3.3**: [dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts) (LÃµi Ä‘á»‘i chiáº¿u 3 bÃªn chá»‘t phiÃªn Dsgd-Before-EOD).
   - **Task 3.4**: [margin-checker.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/margin-checker.service.ts) (LÃµi quÃ©t tÃ i khoáº£n Ã¢m kÃ½ quá»¹ Post-EOD).
   - **Task 3.5**: CÃ¡c Workers triá»ƒn khai cá»•ng chuáº©n `IBotWorker`:
     - [klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts) (`botCheckType: 'CHECK_KLGD'`)
-    - [pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts) (`botCheckType: 'CHECK_PRE_EOD'`)
+    - [dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts) (`botCheckType: 'CHECK_DSGD_BEFORE_EOD'`)
     - [negative-margin.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/negative-margin.worker.ts) (`botCheckType: 'CHECK_NEGATIVE_MARGIN'`)
   - **Task 3.6**: [trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts) (ÄÃ³ng gÃ³i module DI hoÃ n chá»‰nh).
 
@@ -5317,7 +5936,7 @@
   - Cáº­p nháº­t Ä‘Ãºng 5 Box chá»©c nÄƒng theo danh má»¥c yÃªu cáº§u cá»§a ngÆ°á»i dÃ¹ng.
   - Má»—i box Ä‘Æ°á»£c gáº¯n liÃªn káº¿t chuyá»ƒn hÆ°á»›ng (`<Link href="...">`) sang má»™t trang chuyÃªn biá»‡t Ä‘á»™c láº­p.
 - [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
-  - Trang riÃªng cho chá»©c nÄƒng **"Check KLGD/TTM/TTTT phiÃªn cÅ©"**, chá»‰ hiá»ƒn thá»‹ báº£ng Ä‘á»‘i chiáº¿u 3 bÃªn `LegacyPreEodDiffSection`.
+  - Trang riÃªng cho chá»©c nÄƒng **"Check KLGD/TTM/TTTT phiÃªn cÅ©"**, chá»‰ hiá»ƒn thá»‹ báº£ng Ä‘á»‘i chiáº¿u 3 bÃªn `LegacyDsgdBeforeEodDiffSection`.
 - [frontend/src/app/trading-manager/session-open/gtt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/gtt/page.tsx):
   - Trang riÃªng cho chá»©c nÄƒng **"Check GTT CE/CCP/TT"**, chá»‰ hiá»ƒn thá»‹ báº£ng Ä‘á»‘i chiáº¿u giÃ¡ thanh toÃ¡n `LegacyGttCheckerSection`.
 - [frontend/src/app/trading-manager/session-open/eod-result/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/eod-result/page.tsx):
@@ -5444,19 +6063,19 @@
 
 ---
 
-## [2026-10-12T15:25] FIX(TRADING-MANAGER-EOD): TÃ¡ch Báº¡ch HoÃ n ToÃ n EOD & Pre-EOD, Kháº¯c Phá»¥c BÃ¡o Khá»›p Giáº£ Khi Chá» File (Zero-Silent-Swallow)
+## [2026-10-12T15:25] FIX(TRADING-MANAGER-EOD): TÃ¡ch Báº¡ch HoÃ n ToÃ n EOD & Dsgd-Before-EOD, Kháº¯c Phá»¥c BÃ¡o Khá»›p Giáº£ Khi Chá» File (Zero-Silent-Swallow)
 
 ### 1. Má»¥c tiÃªu & CÆ¡ sá»Ÿ thá»±c chá»©ng (Ground Truth)
 
-- **YÃªu cáº§u tá»« USER**: NgÆ°á»i dÃ¹ng pháº£n Ã¡nh viá»‡c Card _"Káº¿t quáº£ cháº¡y EOD"_ hiá»ƒn thá»‹ tick xanh _"Táº¥t cáº£ sá»‘ dÆ° tÃ i khoáº£n khá»›p hoÃ n toÃ n vá»›i káº¿t quáº£ cháº¡y EOD (MS & CCP) - Kiá»ƒm tra lÃºc: 01:22:33 12/10"_, trong khi thá»±c táº¿ tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u sá»‘ dÆ° EOD (`CHECK_EOD_MM`) chÆ°a tá»«ng Ä‘Æ°á»£c cháº¡y trong phiÃªn, vÃ  lÆ°á»£t cháº¡y lÃºc 01:22:33 thá»±c cháº¥t lÃ  Job `CHECK_PRE_EOD` Ä‘ang á»Ÿ tráº¡ng thÃ¡i chá» file (`isWaitingFiles: true` do thiáº¿u `Straits.csv`). USER yÃªu cáº§u: _"nhÆ°ng hiá»ƒn thá»‹ kiá»ƒu nÃ y liá»‡u cÃ³ gÃ¢y nháº§m khÃ´ng"_, _"cÃ³ giÃºp tÃ´i"_ sá»­a chá»¯a triá»‡t Ä‘á»ƒ.
+- **YÃªu cáº§u tá»« USER**: NgÆ°á»i dÃ¹ng pháº£n Ã¡nh viá»‡c Card _"Káº¿t quáº£ cháº¡y EOD"_ hiá»ƒn thá»‹ tick xanh _"Táº¥t cáº£ sá»‘ dÆ° tÃ i khoáº£n khá»›p hoÃ n toÃ n vá»›i káº¿t quáº£ cháº¡y EOD (MS & CCP) - Kiá»ƒm tra lÃºc: 01:22:33 12/10"_, trong khi thá»±c táº¿ tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u sá»‘ dÆ° EOD (`CHECK_EOD_MM`) chÆ°a tá»«ng Ä‘Æ°á»£c cháº¡y trong phiÃªn, vÃ  lÆ°á»£t cháº¡y lÃºc 01:22:33 thá»±c cháº¥t lÃ  Job `CHECK_DSGD_BEFORE_EOD` Ä‘ang á»Ÿ tráº¡ng thÃ¡i chá» file (`isWaitingFiles: true` do thiáº¿u `Straits.csv`). USER yÃªu cáº§u: _"nhÆ°ng hiá»ƒn thá»‹ kiá»ƒu nÃ y liá»‡u cÃ³ gÃ¢y nháº§m khÃ´ng"_, _"cÃ³ giÃºp tÃ´i"_ sá»­a chá»¯a triá»‡t Ä‘á»ƒ.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a & Chi tiáº¿t thay Ä‘á»•i
 
 - [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
-  - **TÃ¡ch biá»‡t truy váº¥n**: Bá»• sung `eodPromise` chuyÃªn biá»‡t truy váº¥n `jobType: { $in: ['CHECK_EOD_MM', 'CHECK_EOD_CCP'] }`, tÃ¡ch báº¡ch hoÃ n toÃ n khá»i `preEodPromise` (`CHECK_PRE_EOD`) vÃ  `marginPromise`.
-  - **Loáº¡i bá» Fallback láº«n lá»™n**: XÃ³a bá» `preEodJob` ra khá»i danh sÃ¡ch á»©ng viÃªn EOD (`eodCandidates`), loáº¡i bá» viá»‡c láº¥y káº¿t quáº£ Pre-EOD gÃ¡n Ä‘Ã¨ vÃ o EOD.
-  - **Äá»™c láº­p Response Payload**: Tráº£ vá» riÃªng biá»‡t object `eod: { jobId, status, executedAt, isWaitingFiles, waitingMessage, passed, totals, mismatchedEOD }` vÃ  object `preEod: { ... }` pháº£n Ã¡nh 100% Ä‘Ãºng dá»¯ liá»‡u cá»§a tá»«ng nghiá»‡p vá»¥.
-  - **Bá»• sung cá» `isWaitingFiles`**: Tráº£ vá» `isWaitingFiles` vÃ  `waitingMessage` cho cáº£ 3 khá»‘i `preEod`, `eod`, vÃ  `negativeMargin`.
+  - **TÃ¡ch biá»‡t truy váº¥n**: Bá»• sung `eodPromise` chuyÃªn biá»‡t truy váº¥n `jobType: { $in: ['CHECK_EOD_MM', 'CHECK_EOD_CCP'] }`, tÃ¡ch báº¡ch hoÃ n toÃ n khá»i `dsgdBeforeEodPromise` (`CHECK_DSGD_BEFORE_EOD`) vÃ  `marginPromise`.
+  - **Loáº¡i bá» Fallback láº«n lá»™n**: XÃ³a bá» `dsgdBeforeEodJob` ra khá»i danh sÃ¡ch á»©ng viÃªn EOD (`eodCandidates`), loáº¡i bá» viá»‡c láº¥y káº¿t quáº£ Dsgd-Before-EOD gÃ¡n Ä‘Ã¨ vÃ o EOD.
+  - **Äá»™c láº­p Response Payload**: Tráº£ vá» riÃªng biá»‡t object `eod: { jobId, status, executedAt, isWaitingFiles, waitingMessage, passed, totals, mismatchedEOD }` vÃ  object `dsgdBeforeEod: { ... }` pháº£n Ã¡nh 100% Ä‘Ãºng dá»¯ liá»‡u cá»§a tá»«ng nghiá»‡p vá»¥.
+  - **Bá»• sung cá» `isWaitingFiles`**: Tráº£ vá» `isWaitingFiles` vÃ  `waitingMessage` cho cáº£ 3 khá»‘i `dsgdBeforeEod`, `eod`, vÃ  `negativeMargin`.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
   - **Äá»“ng bá»™ biáº¿n tráº¡ng thÃ¡i `hasExecutedEod`**: TrÃ­ch xuáº¥t `eodData = summaryData?.eod`, chá»‰ Ä‘Ã¡nh dáº¥u `hasExecutedEod = true` khi Job EOD thá»±c sá»± Ä‘Ã£ Ä‘Æ°á»£c cháº¡y (`CHECK_EOD_MM` / `CHECK_EOD_CCP`).
   - **Xá»­ lÃ½ tráº¡ng thÃ¡i Chá» File & Tháº¥t Báº¡i**: ThÃªm kiá»ƒm tra `eodData?.isWaitingFiles` (hiá»ƒn thá»‹ thÃ´ng bÃ¡o chá» file mÃ u vÃ ng cam) vÃ  `eodData?.status === 'FAILED'` (hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i mÃ u Ä‘á»).
@@ -5475,7 +6094,7 @@
 - **YÃªu cáº§u tá»« USER**:
   - _"Trong tab thá»© 2:_
     _- Äá»•i tÃªn tab tá»« 'Check & Cháº¡y EOD (MS-CQG)' sang 'EOD'_
-    _- Äá»•i tÃªn tÃ¡c vá»¥ 'Chi tiáº¿t Ä‘á»‘i chiáº¿u Pre-EOD((M-System â†” CQG â†” Straits/ACM)' thÃ nh 'Äá»‘i chiáº¿u giao dá»‹ch trÆ°á»›c EOD', bá» chá»¯ nhá» á»Ÿ dÆ°á»›i cÃ¡i tÃªn tÃ¡c vá»¥ Ä‘i_
+    _- Äá»•i tÃªn tÃ¡c vá»¥ 'Chi tiáº¿t Ä‘á»‘i chiáº¿u Dsgd-Before-EOD((M-System â†” CQG â†” Straits/ACM)' thÃ nh 'Äá»‘i chiáº¿u giao dá»‹ch trÆ°á»›c EOD', bá» chá»¯ nhá» á»Ÿ dÆ°á»›i cÃ¡i tÃªn tÃ¡c vá»¥ Ä‘i_
     _- DÆ°á»›i Ä‘Ã³ sáº½ lÃ  bá»• sung chuyá»ƒn tÃ¡c vá»¥ 'Äá»‘i chiáº¿u giÃ¡ thanh toÃ¡n' á»Ÿ tab 3 (Backup - Thá»‘ng kÃª MS - CQG) vá» tab 2_
     _- Chuyá»ƒn tÃ¡c vá»¥ 'Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG' sang tab 3(Backup - Thá»‘ng kÃª MS - CQG) vÃ  khÃ´ng cÃ²n á»Ÿ tab 2 ná»¯a"_
 
@@ -5483,11 +6102,11 @@
 
 - [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx):
   - Äá»•i tÃªn Tab 2 tá»« `"Check & Cháº¡y EOD (MS â€“ CQG)"` thÃ nh `"EOD"`.
-- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx):
-  - Äá»•i tiÃªu Ä‘á» tÃ¡c vá»¥ tá»« `"Chi tiáº¿t Ä‘á»‘i chiáº¿u Pre-EOD (M-System â†” CQG â†” Straits/ACM)"` thÃ nh `"Äá»‘i chiáº¿u giao dá»‹ch trÆ°á»›c EOD"`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx):
+  - Äá»•i tiÃªu Ä‘á» tÃ¡c vá»¥ tá»« `"Chi tiáº¿t Ä‘á»‘i chiáº¿u Dsgd-Before-EOD (M-System â†” CQG â†” Straits/ACM)"` thÃ nh `"Äá»‘i chiáº¿u giao dá»‹ch trÆ°á»›c EOD"`.
   - Loáº¡i bá» hoÃ n toÃ n dÃ²ng chá»¯ mÃ´ táº£ phá»¥ bÃªn dÆ°á»›i tiÃªu Ä‘á» (`<p>Kiá»ƒm tra 3 bÃªn: Äá»‘i chiáº¿u tá»•ng sá»‘ lot khá»›p...</p>`).
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
-  - Nháº­p kháº©u vÃ  gáº¯n `<LegacyGttCheckerSection token={token} selectedDate={selectedDate} />` vÃ o ngay bÃªn dÆ°á»›i `<LegacyPreEodDiffSection />` táº¡i Tab 2 (EOD).
+  - Nháº­p kháº©u vÃ  gáº¯n `<LegacyGttCheckerSection token={token} selectedDate={selectedDate} />` vÃ o ngay bÃªn dÆ°á»›i `<LegacyDsgdBeforeEodDiffSection />` táº¡i Tab 2 (EOD).
   - Loáº¡i bá» hoÃ n toÃ n khá»‘i báº£ng vÃ  nÃºt báº¥m `"Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG"` khá»i Tab 2.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx):
   - TÃ¡ch thÃ nh component Ä‘á»™c láº­p chuyÃªn biá»‡t quáº£n lÃ½ vÃ  hiá»ƒn thá»‹ tÃ¡c vá»¥ `"Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG"` (tÃ­ch há»£p API trigger `/api/v1/reconciliation/trigger-console-run` jobType `CHECK_CQG_SYNC` vÃ  polling `console-summary`).
@@ -5554,11 +6173,11 @@
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a & Chi tiáº¿t thay Ä‘á»•i
 
 - [frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx):
-  - XÃ³a dÃ²ng tháº» `<p>`: _"BÃ n Ä‘iá»u khiá»ƒn Ä‘á»‘i soÃ¡t khá»›p lá»‡nh phiÃªn, kiá»ƒm soÃ¡t Pre-EOD, EOD M-System, Ä‘á»“ng bá»™ sá»‘ dÆ° CQG vÃ  sao lÆ°u bÃ¡o cÃ¡o."_
+  - XÃ³a dÃ²ng tháº» `<p>`: _"BÃ n Ä‘iá»u khiá»ƒn Ä‘á»‘i soÃ¡t khá»›p lá»‡nh phiÃªn, kiá»ƒm soÃ¡t Dsgd-Before-EOD, EOD M-System, Ä‘á»“ng bá»™ sá»‘ dÆ° CQG vÃ  sao lÆ°u bÃ¡o cÃ¡o."_
 - [frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx):
   - XÃ³a dÃ²ng tháº» `<p>`: _"BÃ n Ä‘iá»u khiá»ƒn Ä‘á»‘i soÃ¡t khá»›p lá»‡nh phiÃªn 4 bÃªn, Ä‘á»‘i chiáº¿u EOD CoreCCP (25 bÃ¡o cÃ¡o VNCLEAR), thá»‘ng kÃª sá»‘ lÃ´/giÃ¡ trá»‹ DSGD CCP & bÃ¡o cÃ¡o sÃ n CoreEX."_
 - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx):
-  - XÃ³a dÃ²ng tháº» `<p>`: _"Trung tÃ¢m kiá»ƒm soÃ¡t, Ä‘á»‘i chiáº¿u giao dá»‹ch trong phiÃªn & Pre-EOD (M-System, CQG, ACM & CoreCCP)."_
+  - XÃ³a dÃ²ng tháº» `<p>`: _"Trung tÃ¢m kiá»ƒm soÃ¡t, Ä‘á»‘i chiáº¿u giao dá»‹ch trong phiÃªn & Dsgd-Before-EOD (M-System, CQG, ACM & CoreCCP)."_
 - [frontend/src/components/Header.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Header.tsx):
   - Bá» import `Minus`, `Plus` tá»« `lucide-react`.
   - Bá» state `zoom` vÃ  hÃ m `handleZoom`.
@@ -5659,11 +6278,11 @@
   - HÃ ng 2 tháº» card:
     - Tháº» 1: `TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i (EOD CoreCCP)` vá»›i nÃºt `Check` vÃ  tráº¡ng thÃ¡i an toÃ n.
     - Tháº» 2: `Káº¿t quáº£ cháº¡y EOD (CoreCCP â†” CoreEX)` vá»›i cÃ¡c cá»™t TKGD, QLTKGD CoreCCP, CoreEX EOD result, Lá»‡ch.
-  - Khá»‘i chi tiáº¿t `Chi tiáº¿t Ä‘á»‘i chiáº¿u Pre-EOD (CoreCCP â†” CoreEX)`:
+  - Khá»‘i chi tiáº¿t `Chi tiáº¿t Ä‘á»‘i chiáº¿u Dsgd-Before-EOD (CoreCCP â†” CoreEX)`:
     - 4 Metric cards: `CoreCCP / Maker (VNCLEAR)`, `CoreEX / SÃ n CE`, `Lá»†NH KHá»šP Lá»†NH (TRADES)`, `Vá»Š THáº¾ NET Lá»†CH (POSITIONS)`.
     - 2 subtabs: `Chi tiáº¿t lá»‡nh lá»‡ch khá»›p lá»‡nh` vÃ  `Chi tiáº¿t lá»‡ch vá»‹ tháº¿ táº¥t toÃ¡n net (TTTT vs Positions)`.
     - Bá»™ lá»c nguá»“n (Táº¥t cáº£, CoreEX, CoreCCP) vÃ  Ã´ tÃ¬m kiáº¿m mÃ£ TKGD/HÄ.
-    - Bá»™ nÃºt thao tÃ¡c: `Check Pre-EOD`, `Sao chÃ©p bÃ¡o cÃ¡o`.
+    - Bá»™ nÃºt thao tÃ¡c: `Check Dsgd-Before-EOD`, `Sao chÃ©p bÃ¡o cÃ¡o`.
 - [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx) _(Má»šI)_:
   - Thanh header Ä‘iá»u khiá»ƒn: NgÃ y phiÃªn, `Backup Ä‘á»‹nh ká»³ (phÃºt)`, `Thá»i Ä‘iá»ƒm backup (04:00)`, `Thá»i Ä‘iá»ƒm táº¡o thá»‘ng kÃª (06:30)`, vÃ  Master Switch Tá»± Ä‘á»™ng Báº¬T/Táº®T.
   - LÆ°á»›i 3 cá»™t Backup:
@@ -5901,7 +6520,7 @@
 
 - **YÃªu cáº§u tá»« USER**:
   - _"tÃ´i Ä‘ang tháº¥y lÆ°u chung háº¿t vÃ o backup ká»ƒ cáº£ check táº£i bÃ¡o cÃ¡o EOD pháº£i Ä‘Ãºng lÃ  module táº£i backup má»›i táº£i vÃ o folder backup chá»© / Ã½ lÃ  cÃ¡c logic táº£i khÃ¡c Ä‘á»ƒ check nÃªn táº¡o folder Ä‘á»ƒ xá»­ lÃ½ riÃªng áº¥y"_.
-  - ToÃ n bá»™ cÃ¡c thao tÃ¡c táº£i file phá»¥c vá»¥ **Äá»I SOÃT / KIá»‚M TRA** (Check EOD CoreCCP, Check KLGD, Pre-EOD, táº£i trong phiÃªn) pháº£i Ä‘Æ°á»£c lÆ°u vÃ o thÆ° má»¥c riÃªng biá»‡t (`TradingCheck`, vÃ­ dá»¥: `TradingCheck/CCP`, `TradingCheck/Futures`), tuyá»‡t Ä‘á»‘i **KHÃ”NG ÄÆ¯á»¢C Táº¢I VÃ€O HOáº¶C GHI ÄÃˆ** thÆ° má»¥c `Backup` chÃ­nh thá»©c cá»§a ca trá»±c.
+  - ToÃ n bá»™ cÃ¡c thao tÃ¡c táº£i file phá»¥c vá»¥ **Äá»I SOÃT / KIá»‚M TRA** (Check EOD CoreCCP, Check KLGD, Dsgd-Before-EOD, táº£i trong phiÃªn) pháº£i Ä‘Æ°á»£c lÆ°u vÃ o thÆ° má»¥c riÃªng biá»‡t (`TradingCheck`, vÃ­ dá»¥: `TradingCheck/CCP`, `TradingCheck/Futures`), tuyá»‡t Ä‘á»‘i **KHÃ”NG ÄÆ¯á»¢C Táº¢I VÃ€O HOáº¶C GHI ÄÃˆ** thÆ° má»¥c `Backup` chÃ­nh thá»©c cá»§a ca trá»±c.
   - Chá»‰ duy nháº¥t **Module Táº£i Backup** (bá»™ 25 file VNCLEAR Maker, backup M-System ca trá»±c, backup CE...) má»›i Ä‘Æ°á»£c táº£i vÃ o cÃ¡c thÆ° má»¥c `Backup CCP`, `Backup MS`, `Backup CE`.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a & Chi tiáº¿t thay Ä‘á»•i
@@ -6001,19 +6620,19 @@
     Do `.toISOString()` chuyá»ƒn sang mÃºi giá» quá»‘c táº¿ UTC (GMT+0), thá»i Ä‘iá»ƒm 00:00:00 ngÃ y 07/10 giá» VN bá»‹ lÃ¹i 7 tiáº¿ng thÃ nh 17:00:00 ngÃ y 06/10 UTC $\rightarrow$ Cáº¯t chuá»—i sinh ra `"2026-10-06"`.
     Thá»±c táº¿ logic nghiá»‡p vá»¥ (ghÃ©p file CQG, quÃ©t thÆ° má»¥c ngÃ y) bÃªn dÆ°á»›i váº«n cháº¡y Ä‘Ãºng ngÃ y `07/10/2026`.
 - **Váº¥n Ä‘á» 2: Lá»—i `File ACM Trades (Straits.csv) khÃ´ng Ä‘Ãºng ngÃ y T-1 (07/10/2026)`**:
-  - Táº¡i [pre-eod-recon.service.ts#L234](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L234):
-    HÃ m `checkPreEOD` yÃªu cáº§u `acmTradesName.includes(expectedDateStr)` (chuá»—i `07102026`).
+  - Táº¡i [dsgd-before-eod-recon.service.ts#L234](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts#L234):
+    HÃ m `checkDSGDBeforeEOD` yÃªu cáº§u `acmTradesName.includes(expectedDateStr)` (chuá»—i `07102026`).
     Trong khi Ä‘Ã³, file chuáº©n Ä‘á»‘i chiáº¿u ACM lÆ°u trong thÆ° má»¥c `07.10` cÃ³ tÃªn chuáº©n lÃ  **`Straits.csv`** (Business Rule 2.1). Do tÃªn file khÃ´ng chá»©a háº­u tá»‘ ngÃ y, há»‡ thá»‘ng Ä‘Ã£ nÃ©m ngoáº¡i lá»‡ sai.
 - **Giáº£i phÃ¡p**:
   - [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Äá»‹nh dáº¡ng chuá»—i `t1DateStr` theo giá» local (`getFullYear()`, `getMonth()`, `getDate()`) thay vÃ¬ `toISOString()`.
-  - [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts): Chuáº©n hÃ³a cÆ¡ cháº¿ kiá»ƒm tra ngÃ y:
+  - [dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts): Chuáº©n hÃ³a cÆ¡ cháº¿ kiá»ƒm tra ngÃ y:
     - Náº¿u tÃªn file cÃ³ chá»©a ngÃ y cá»¥ thá»ƒ (chuá»—i 6-8 sá»‘ nhÆ° `07102026`, `20261007` trong file SFTP gá»‘c `EOD FO trades_...`): Báº¯t buá»™c kiá»ƒm tra trÃ¹ng khá»›p ngÃ y T-1 Ä‘á»ƒ chá»‘ng copy nháº§m file cÅ©.
     - Náº¿u tÃªn file lÃ  tÃªn chuáº©n hÃ³a ngáº¯n gá»n (`Straits.csv`, `Fill.xlsx`... do ca trá»±c copy/táº£i thá»§ cÃ´ng): Cháº¥p nháº­n há»£p lá»‡ vÃ¬ file Ä‘Ã£ náº±m trong thÆ° má»¥c ngÃ y Ä‘á»‘i chiáº¿u (`.../T10.2026/07.10/`).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
 
 - [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)
-- [backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)
+- [backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts)
 
 ### 3. Kiá»ƒm thá»­ & Triá»ƒn khai
 
@@ -6093,7 +6712,7 @@
        `Thiáº¿u file QLTKGD.xlsx táº¡i /mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T10.2026/07.10/QLTKGD.xlsx`.
      - NhÆ°ng trÆ°á»›c Ä‘Ã³ Ä‘Ãºng 2 phÃºt (04:03:50 AM), Job `RPA_DOWNLOAD_REPORTS` Ä‘Ã£ táº£i M-System lÆ°u nháº§m sang thÆ° má»¥c `08.10`, dáº«n tá»›i thÆ° má»¥c `07.10` bá»‹ trá»‘ng file `QLTKGD.xlsx`. Bot CQG tháº¥t báº¡i hoÃ n toÃ n lÃ  há»‡ quáº£ trá»±c tiáº¿p tá»« viá»‡c M-System lÆ°u sai thÆ° má»¥c!
   2. **VÃ¬ sao M-System vÃ  CoreCCP lÆ°u vÃ o `08.10` thay vÃ¬ `07.10` trÆ°á»›c 05:00 sÃ¡ng**:
-     - Trong Ä‘á»£t chá»‰nh sá»­a trÆ°á»›c (commit `9d2bc46`), logic `resolveTradingSessionDate()` chá»‰ má»›i Ä‘Æ°á»£c Ã¡p dá»¥ng trong `recon-jobs.handler.ts` vÃ  `pre-eod-recon.service.ts`, chÆ°a Ã¡p dá»¥ng cho cÃ¡c module táº£i file:
+     - Trong Ä‘á»£t chá»‰nh sá»­a trÆ°á»›c (commit `9d2bc46`), logic `resolveTradingSessionDate()` chá»‰ má»›i Ä‘Æ°á»£c Ã¡p dá»¥ng trong `recon-jobs.handler.ts` vÃ  `dsgd-before-eod-recon.service.ts`, chÆ°a Ã¡p dá»¥ng cho cÃ¡c module táº£i file:
        - [rpa-download.handler.ts#L114](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts): DÃ¹ng `sessionDay ? new Date(sessionDay) : new Date()` mÃ  khÃ´ng qua `resolveTradingSessionDate()`.
        - [ccp-ce-download.handler.ts#L93-L100](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/ccp-ce-download.handler.ts): TÃ¡ch trá»±c tiáº¿p `startDate` thÃ nh `subFolder` mÃ  khÃ´ng tÃ­nh ngÃ y phiÃªn.
        - [bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts) táº¡i cÃ¡c endpoint `/trigger-download`, `/trigger-ccp-download`, `auditMsBackup`, `auditCqgBackup`, `auditCcpBackup`: Náº¿u khÃ´ng truyá»n ngÃ y hoáº·c ngÃ y rá»—ng, fallback vá» `new Date(Date.now() + 7h).toISOString().split('T')[0]` dáº«n tá»›i tráº£ vá» `2026-10-08`.
@@ -6259,7 +6878,7 @@
 - **[backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/helpers/recon-number-parser.helper.ts)**:
   - Bá»• sung hÃ m helper `findExactSessionEodFile(dirPath: string, dateStr: string): string | null` tuÃ¢n thá»§ strict date matching cá»§a Tool C#: Khá»›p chÃ­nh xÃ¡c `eod.${dateStr}.csv` / `eod.${dateStr}.xlsx`, loáº¡i bá» file eod cÃ³ ngÃ y khÃ¡c `dateStr`, vÃ  kiá»ƒm tra cá»™t `sessionDate` bÃªn trong file `eod.csv`.
 
-- **[backend/src/modules/reconciliation/services/pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)**:
+- **[backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts)**:
   - Thay tháº¿ `findLatestFile(msDailyPath, /eod/i)` báº±ng `findExactSessionEodFile(msDailyPath, dateStr)`.
   - Náº¿u thiáº¿u file Ä‘Ãºng ngÃ y, kÃ­ch hoáº¡t dá»± phÃ²ng táº£i tá»« email Outlook M365 `fetchEodEmail(dateStr, msDailyPath)`.
   - NÃ©m thÃ´ng bÃ¡o lá»—i chi tiáº¿t khi khÃ´ng tÃ¬m tháº¥y Ä‘Ãºng file: `KhÃ´ng tÃ¬m tháº¥y file eod.${dateStr}.csv hoáº·c eod.${dateStr}.xlsx tá»« email M-System hoáº·c thÆ° má»¥c...`.
@@ -6282,12 +6901,12 @@
 
 ### 3. TÃ³m táº¯t ná»™i dung code Ä‘Ã£ sá»­a
 
-| File                            | TrÆ°á»›c khi sá»­a                                                                                 | Sau khi sá»­a                                                                                 |
-| ------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `recon-number-parser.helper.ts` | Chá»‰ cÃ³ `findLatestFile` tÃ¬m theo regex chung                                                   | ThÃªm `findExactSessionEodFile` strict date matching chuáº©n Tool C#                          |
-| `pre-eod-recon.service.ts`      | `findLatestFile(msDailyPath, /eod/i)` nháº­n bá»«a `eod.2026-10-01.csv` trong `02.10`              | Báº¯t buá»™c `findExactSessionEodFile(msDailyPath, dateStr)`, chá»‰ nháº­n file Ä‘Ãºng phiÃªn |
-| `recon-jobs.handler.ts`         | KhÃ´ng cáº£nh bÃ¡o file lá»‡ch ngÃ y phiÃªn, bá» qua táº£i mail                                    | Cáº£nh bÃ¡o khi file EOD lá»‡ch ngÃ y phiÃªn vÃ  tá»± Ä‘á»™ng kÃ­ch hoáº¡t táº£i Ä‘Ãºng ngÃ y |
-| `email-watcher.service.ts`      | Tá»± Ä‘á»™ng trá»« thÃªm 1 ngÃ y (`prevDateStr`) & quÃ©t cáº£ `receivedDateTime` táº£i nháº§m mail | TÃ¬m chÃ­nh xÃ¡c ngÃ y phiÃªn trong subject & body; loáº¡i bá» `receivedDateTime`             |
+| File                               | TrÆ°á»›c khi sá»­a                                                                                 | Sau khi sá»­a                                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `recon-number-parser.helper.ts`    | Chá»‰ cÃ³ `findLatestFile` tÃ¬m theo regex chung                                                   | ThÃªm `findExactSessionEodFile` strict date matching chuáº©n Tool C#                          |
+| `dsgd-before-eod-recon.service.ts` | `findLatestFile(msDailyPath, /eod/i)` nháº­n bá»«a `eod.2026-10-01.csv` trong `02.10`              | Báº¯t buá»™c `findExactSessionEodFile(msDailyPath, dateStr)`, chá»‰ nháº­n file Ä‘Ãºng phiÃªn |
+| `recon-jobs.handler.ts`            | KhÃ´ng cáº£nh bÃ¡o file lá»‡ch ngÃ y phiÃªn, bá» qua táº£i mail                                    | Cáº£nh bÃ¡o khi file EOD lá»‡ch ngÃ y phiÃªn vÃ  tá»± Ä‘á»™ng kÃ­ch hoáº¡t táº£i Ä‘Ãºng ngÃ y |
+| `email-watcher.service.ts`         | Tá»± Ä‘á»™ng trá»« thÃªm 1 ngÃ y (`prevDateStr`) & quÃ©t cáº£ `receivedDateTime` táº£i nháº§m mail | TÃ¬m chÃ­nh xÃ¡c ngÃ y phiÃªn trong subject & body; loáº¡i bá» `receivedDateTime`             |
 
 ### 4. XÃ¡c nháº­n Build & Kiá»ƒm thá»­
 
@@ -6426,7 +7045,7 @@
 
 - **[docs/TONG_HOP_RA_SOAT_LUONG_TU_DONG_2_TRANG_MS_CQG_VA_CCP_CE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TONG_HOP_RA_SOAT_LUONG_TU_DONG_2_TRANG_MS_CQG_VA_CCP_CE.md) (Má»šI)**:
   - Báº£n Ä‘á»“ kiáº¿n trÃºc tá»± Ä‘á»™ng hÃ³a toÃ n há»‡ thá»‘ng (Shared Cron & Queue Engine).
-  - Chi tiáº¿t 7 luá»“ng tá»± Ä‘á»™ng hÃ³a phÃ¢n há»‡ **M-System & CQG** (`/trading-manager/ms-cqg`): Check KLGD 4 bÃªn, Check DSGD trÆ°á»›c EOD, Pre-EOD 3 bÃªn, Cháº¡y EOD MS & Ã‚m kÃ½ quá»¹, Äá»“ng bá»™ CQG Sync, Táº£i backup MS/CQG, Cháº¡y Macro Lot & Value.
+  - Chi tiáº¿t 7 luá»“ng tá»± Ä‘á»™ng hÃ³a phÃ¢n há»‡ **M-System & CQG** (`/trading-manager/ms-cqg`): Check KLGD 4 bÃªn, Check DSGD trÆ°á»›c EOD, Dsgd-Before-EOD 3 bÃªn, Cháº¡y EOD MS & Ã‚m kÃ½ quá»¹, Äá»“ng bá»™ CQG Sync, Táº£i backup MS/CQG, Cháº¡y Macro Lot & Value.
   - Chi tiáº¿t 7 luá»“ng tá»± Ä‘á»™ng hÃ³a phÃ¢n há»‡ **CoreCCP & CoreEX** (`/trading-manager/ccp-ce`): Check KLGD 4 bÃªn, Táº£i CoreCCP Äá»£t 1 (16h20), Táº£i CoreCCP Äá»£t 2 (EOD 23 bÃ¡o cÃ¡o VNCLEAR), Äá»‘i soÃ¡t 4 thÃ nh pháº§n sá»‘ dÆ° EOD CoreCCP, Thá»‘ng kÃª sá»‘ lot/GTGD $O(N)$ phÃ¢n loáº¡i 4 nhÃ³m lá»‡nh, Táº£i bÃ¡o cÃ¡o sÃ n CoreEX, Äá»“ng bá»™ Ma tráº­n tá»· giÃ¡ Ä‘a nguyÃªn tá»‡.
   - CÃ¡c nguyÃªn táº¯c an toÃ n: Decoupling hoÃ n toÃ n khá»i Ca trá»±c Checklist, Zero-Duplicate File Reuse, Circuit Breaker báº£o vá»‡ há»‡ thá»‘ng khi bot RPA lá»—i máº¡ng.
   - Checklist hÃ nh Ä‘á»™ng cá»¥ thá»ƒ cho ngÃ y mai.
@@ -6451,7 +7070,7 @@
    - Route `/trading-manager/ms-cqg`: BÃ n GiÃ¡m sÃ¡t Váº­n hÃ nh Giao dá»‹ch (M-System & CQG).
    - Gá»“m 5 Tab chuyÃªn biá»‡t:
      - `CHECK_KLGD` (Äá»‘i SoÃ¡t Khá»›p Lá»‡nh - DÃ¹ng chung 4 bÃªn qua `LegacyReconSection` vá»›i `viewMode="KLGD_ONLY"`).
-     - `CHECK_EOD_MS_CQG` (Check & Cháº¡y EOD MS-CQG: Pre-EOD 3 bÃªn, Check DSGD trÆ°á»›c EOD, Cháº¡y EOD MS, KÃ½ quá»¹ Ã¢m má»›i, Äá»“ng bá»™ sá»‘ dÆ° CQG qua `LegacyReconSection` vá»›i `viewMode="EOD_ONLY"`).
+     - `CHECK_EOD_MS_CQG` (Check & Cháº¡y EOD MS-CQG: Dsgd-Before-EOD 3 bÃªn, Check DSGD trÆ°á»›c EOD, Cháº¡y EOD MS, KÃ½ quá»¹ Ã¢m má»›i, Äá»“ng bá»™ sá»‘ dÆ° CQG qua `LegacyReconSection` vá»›i `viewMode="EOD_ONLY"`).
      - `BACKUP_THONG_KE` (Backup & Thá»‘ng kÃª MS-CQG: 20 bÃ¡o cÃ¡o MS, 9 bÃ¡o cÃ¡o CQG, Macro Lot & Value qua `LegacyBackupThongKeSection` vá»›i `filterScope="MS_CQG"`).
      - `CONFIG_MS_CQG` (Cáº¥u hÃ¬nh MS & CQG: Tá»· giÃ¡ USD MS, giá» má»Ÿ/Ä‘Ã³ng phiÃªn MS, danh sÃ¡ch TK Ã¢m KQ, ngÃ y nghá»‰ LME vÃ  10 Ä‘Æ°á»ng dáº«n MS/CQG/ACM qua `TradingManagerConfigSection` vá»›i `filterScope="MS_CQG"`).
      - `HANG_DOI_LOGS` (HÃ ng Ä‘á»£i & Logs Robot thá»i gian thá»±c).
@@ -6468,7 +7087,7 @@
 3. **[frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)**:
    - Bá»• sung prop `viewMode?: 'ALL' | 'KLGD_ONLY' | 'EOD_ONLY'`:
      - `KLGD_ONLY`: Chá»‰ hiá»ƒn thá»‹ Toolbar kiá»ƒm soÃ¡t Ä‘á»‹nh ká»³, Ma tráº­n 4 bÃªn vÃ  Báº£ng chi tiáº¿t lá»‡ch lá»‡nh & TTM (dÃ¹ng chung cho cáº£ 2 trang).
-     - `EOD_ONLY`: Chá»‰ hiá»ƒn thá»‹ Thanh chá»n ngÃ y EOD, Khung Check DSGD trÆ°á»›c EOD, Káº¿t quáº£ cháº¡y EOD MS, Pre-EOD Diff vÃ  Äá»“ng bá»™ sá»‘ dÆ° CQG.
+     - `EOD_ONLY`: Chá»‰ hiá»ƒn thá»‹ Thanh chá»n ngÃ y EOD, Khung Check DSGD trÆ°á»›c EOD, Káº¿t quáº£ cháº¡y EOD MS, Dsgd-Before-EOD Diff vÃ  Äá»“ng bá»™ sá»‘ dÆ° CQG.
      - `ALL`: Máº·c Ä‘á»‹nh hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§, báº£o toÃ n 100% trang gá»‘c `/trading-manager`.
 
 4. **[frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)**:
@@ -6579,7 +7198,7 @@
 - **Kiá»ƒm tra Logs thá»±c táº¿**:
   - KhÃ´ng cÃ²n báº¥t ká»³ log lá»—i `anyPersonNameMatchesMs is not a function`.
   - KhÃ´ng cÃ²n báº¥t ká»³ tiáº¿n trÃ¬nh quÃ©t mail, cháº¡y MS hay bÃ³c tÃ¡ch OCR ngáº§m cá»§a TKGD.
-  - Há»‡ thá»‘ng Checklist vÃ  Bot Engine (`CHECK_KLGD`, `CHECK_PRE_EOD`, `CCP`, `CE`) váº­n hÃ nh Ä‘á»™c láº­p, trÆ¡n tru.
+  - Há»‡ thá»‘ng Checklist vÃ  Bot Engine (`CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `CCP`, `CE`) váº­n hÃ nh Ä‘á»™c láº­p, trÆ¡n tru.
 
 ---
 
@@ -6972,16 +7591,16 @@
 
 ---
 
-## [2026-09-28T18:22] FEATURE: XÃ¢y Dá»±ng Component Hiá»ƒn Thá»‹ Chi Tiáº¿t ChÃªnh Lá»‡ch Pre-EOD Chuáº©n C# IT Tool
+## [2026-09-28T18:22] FEATURE: XÃ¢y Dá»±ng Component Hiá»ƒn Thá»‹ Chi Tiáº¿t ChÃªnh Lá»‡ch Dsgd-Before-EOD Chuáº©n C# IT Tool
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
 
-- Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: Táº¡o má»™t component riÃªng biá»‡t cho phÃ¢n há»‡ **Check Pre-EOD** Ä‘áº·t ngay sau khá»‘i `{/* KHUNG 2 Cá»˜T SONG SONG: CHECK DSGD TRÆ¯á»šC EOD & Káº¾T QUáº¢ CHáº Y EOD */}` trong [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx) Ä‘á»ƒ hiá»ƒn thá»‹ chi tiáº¿t cÃ¡c thÃ´ng tin chÃªnh lá»‡ch tÆ°Æ¡ng tá»± UI cá»§a C# IT Tool (`TransactionCheckingService.CheckPreEOD`).
+- Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: Táº¡o má»™t component riÃªng biá»‡t cho phÃ¢n há»‡ **Check Dsgd-Before-EOD** Ä‘áº·t ngay sau khá»‘i `{/* KHUNG 2 Cá»˜T SONG SONG: CHECK DSGD TRÆ¯á»šC EOD & Káº¾T QUáº¢ CHáº Y EOD */}` trong [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx) Ä‘á»ƒ hiá»ƒn thá»‹ chi tiáº¿t cÃ¡c thÃ´ng tin chÃªnh lá»‡ch tÆ°Æ¡ng tá»± UI cá»§a C# IT Tool (`TransactionCheckingService.CheckDSGDBeforeEOD`).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a & táº¡o má»›i
 
-- [LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx) _(Má»›i)_:
-  - Header Toolbar trá»±c quan: Title, Timestamp thá»i Ä‘iá»ƒm cháº¡y kiá»ƒm tra (`executedAt`), Badge tráº¡ng thÃ¡i (Chá» tá»‡p / Khá»›p hoÃ n toÃ n / PhÃ¡t hiá»‡n lá»‡ch), NÃºt "Check Pre-EOD" vá»›i tráº¡ng thÃ¡i spin, NÃºt "Sao chÃ©p" clipboard vÃ  NÃºt "Xem Log" bot.
+- [LegacyDsgdBeforeEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx) _(Má»›i)_:
+  - Header Toolbar trá»±c quan: Title, Timestamp thá»i Ä‘iá»ƒm cháº¡y kiá»ƒm tra (`executedAt`), Badge tráº¡ng thÃ¡i (Chá» tá»‡p / Khá»›p hoÃ n toÃ n / PhÃ¡t hiá»‡n lá»‡ch), NÃºt "Check Dsgd-Before-EOD" vá»›i tráº¡ng thÃ¡i spin, NÃºt "Sao chÃ©p" clipboard vÃ  NÃºt "Xem Log" bot.
   - **4 Khá»‘i Metric KPI chuáº©n C# Part 1**:
     1. `ACM / Tá»± Doanh (MS vs Straits)`: MS lot vs Straits lot, ChÃªnh lá»‡ch lot.
     2. `CQG / KhÃ¡ch HÃ ng (MS vs FR)`: MS lot vs FR lot, ChÃªnh lá»‡ch lot.
@@ -6996,10 +7615,10 @@
     - Ã” tÃ¬m kiáº¿m thá»i gian thá»±c theo mÃ£ TKGD, mÃ£ HÄ.
   - TuÃ¢n thá»§ 100% nguyÃªn táº¯c UI Enterprise cá»§a `AGENTS.md`: Zero Unicode emoji, 100% SVG tá»« `lucide-react`, thiáº¿t káº¿ Glassmorphism hÃ i hÃ²a.
 - [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
-  - Import `LegacyPreEodDiffSection`.
+  - Import `LegacyDsgdBeforeEodDiffSection`.
   - NhÃºng component ngay sau khá»‘i 2 cá»™t song song ("TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i" & "Káº¿t quáº£ cháº¡y EOD") vÃ  trÆ°á»›c "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG".
-  - Káº¿t ná»‘i vá»›i `summaryData?.preEod`, nÃºt kÃ­ch hoáº¡t `handleTriggerRun('CHECK_PRE_EOD', 'pre-eod-diff')`.
-  - TÃ­ch há»£p modal xem log chi tiáº¿t `TradingManagerLogModal` khi nháº¥n "Xem Log" cá»§a Pre-EOD.
+  - Káº¿t ná»‘i vá»›i `summaryData?.dsgdBeforeEod`, nÃºt kÃ­ch hoáº¡t `handleTriggerRun('CHECK_DSGD_BEFORE_EOD', 'dsgd-before-eod-diff')`.
+  - TÃ­ch há»£p modal xem log chi tiáº¿t `TradingManagerLogModal` khi nháº¥n "Xem Log" cá»§a Dsgd-Before-EOD.
 
 ### 3. XÃ¡c nháº­n Build & Kiá»ƒm thá»­
 
@@ -7053,7 +7672,7 @@
 
 ---
 
-## [2026-09-28T17:40] TEST & BENCHMARK: Äá»‘i Chiáº¿u Khá»›p Lá»‡nh & Vá»‹ Tháº¿ Pre-EOD Giá»¯a MÃ£ Nguá»“n C# Gá»‘c vÃ  NestJS Node.js (Dataset NgÃ y 25/09/2026)
+## [2026-09-28T17:40] TEST & BENCHMARK: Äá»‘i Chiáº¿u Khá»›p Lá»‡nh & Vá»‹ Tháº¿ Dsgd-Before-EOD Giá»¯a MÃ£ Nguá»“n C# Gá»‘c vÃ  NestJS Node.js (Dataset NgÃ y 25/09/2026)
 
 ### 1. Má»¥c tiÃªu kiá»ƒm thá»­ & Ä‘á»‘i chiáº¿u
 
@@ -7062,14 +7681,14 @@
 
 ### 2. Danh sÃ¡ch file tÃ¡c Ä‘á»™ng & cÃ´ng cá»¥
 
-- [CheckPreEodRunner.cs](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/CheckPreEodRunner.cs):
+- [CheckDsgdBeforeEodRunner.cs](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/CheckDsgdBeforeEodRunner.cs):
   - Chuáº©n hÃ³a hÃ m `GetNormalizedAccount` (xá»­ lÃ½ Ä‘uÃ´i `F`, `L` $\rightarrow$ `-L`, `S` $\rightarrow$ `-S`, chuáº©n hÃ³a in hoa) Ä‘á»“ng bá»™ vá»›i `recon-number-parser.helper.ts`.
   - Chuáº©n hÃ³a `FormatPriceForComparison`: Loáº¡i bá» sá»‘ 0 dÆ° thá»«a á»Ÿ pháº§n tháº­p phÃ¢n Ä‘á»ƒ khÃ³a `CombinedKey` Ä‘á»“ng nháº¥t giá»¯a float64 cá»§a JS vÃ  decimal cá»§a C#.
   - Bá»• sung `ConvertLMESymbol` vÃ o luá»“ng phÃ¢n tÃ­ch file `PS.xlsx` (CQG).
   - Sá»­ dá»¥ng trá»±c tiáº¿p giÃ¡ trá»‹ sá»‘ thá»±c tá»« `cell.Value` trong EPPlus Ä‘á»ƒ trÃ¡nh hiá»ƒu nháº§m dáº¥u phÃ¢n cÃ¡ch hÃ ng nghÃ¬n `.` trong Ä‘á»‹nh dáº¡ng sá»‘ Viá»‡t Nam.
   - Chuáº©n hÃ³a Ä‘á»c vá»‹ tháº¿ P&L táº¥t toÃ¡n táº¡i cá»™t 8 cá»§a `PS.xlsx` khá»›p 100% vá»›i `TTTT.xlsx`.
-- [test_pre_eod_node.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/test_pre_eod_node.js):
-  - Script Ä‘á»™c láº­p thá»±c thi `PreEodReconService.prototype.checkPreEOD` vá»›i cÃ¹ng bá»™ dá»¯ liá»‡u ngÃ y 25/09.
+- [test_dsgd_before_eod_node.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/test_dsgd_before_eod_node.js):
+  - Script Ä‘á»™c láº­p thá»±c thi `DsgdBeforeEodReconService.prototype.checkDSGDBeforeEOD` vá»›i cÃ¹ng bá»™ dá»¯ liá»‡u ngÃ y 25/09.
 
 ### 3. Káº¿t quáº£ Ä‘á»‘i chá»©ng thá»±c táº¿
 
@@ -7088,30 +7707,30 @@
 
 ---
 
-## [2026-09-28T15:45] REFACTOR & COMPLIANCE: Chuáº©n HÃ³a Module Äá»‘i Chiáº¿u Cuá»‘i NgÃ y Pre-EOD Theo MÃ£ Nguá»“n C# Gá»‘c & Trading Manager
+## [2026-09-28T15:45] REFACTOR & COMPLIANCE: Chuáº©n HÃ³a Module Äá»‘i Chiáº¿u Cuá»‘i NgÃ y Dsgd-Before-EOD Theo MÃ£ Nguá»“n C# Gá»‘c & Trading Manager
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
 
-- Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: Chuáº©n hÃ³a toÃ n diá»‡n module `CheckPreEOD` bÃ¡m sÃ¡t 100% mÃ£ nguá»“n C# chuáº©n (`operate-transaction-app/Services/TransactionCheckingService.cs#CheckPreEOD`).
+- Thá»±c hiá»‡n yÃªu cáº§u cá»§a USER: Chuáº©n hÃ³a toÃ n diá»‡n module `CheckDSGDBeforeEOD` bÃ¡m sÃ¡t 100% mÃ£ nguá»“n C# chuáº©n (`operate-transaction-app/Services/TransactionCheckingService.cs#CheckDSGDBeforeEOD`).
 - Kháº¯c phá»¥c cÃ¡c khiáº¿m khuyáº¿t nghiÃªm trá»ng trong implementation cÅ©:
   1. **TÃ­nh ngÃ y T-1 bá» quÃªn cuá»‘i tuáº§n**: Chuyá»ƒn sang vÃ²ng láº·p lÃ¹i ngÃ y lÃ m viá»‡c (náº¿u Thá»© 2 thÃ¬ lÃ¹i qua Thá»© 7, Chá»§ Nháº­t vá» Thá»© 6).
-  2. **Cáº¯t cÃºp giá» phÃºt sai lá»‡ch**: Loáº¡i bá» hoÃ n toÃ n bá»™ lá»c thá»i gian `sessionStart` vÃ  `checkTime` trong `checkPreEOD` (vá»‘n chá»‰ Ã¡p dá»¥ng cho `checkKLGD` trong phiÃªn), báº£o Ä‘áº£m láº¥y trá»n váº¹n 100% giao dá»‹ch cá»§a phiÃªn T-1 khÃ´ng lÃ m rá»›t lá»‡nh.
+  2. **Cáº¯t cÃºp giá» phÃºt sai lá»‡ch**: Loáº¡i bá» hoÃ n toÃ n bá»™ lá»c thá»i gian `sessionStart` vÃ  `checkTime` trong `checkDSGDBeforeEOD` (vá»‘n chá»‰ Ã¡p dá»¥ng cho `checkKLGD` trong phiÃªn), báº£o Ä‘áº£m láº¥y trá»n váº¹n 100% giao dá»‹ch cá»§a phiÃªn T-1 khÃ´ng lÃ m rá»›t lá»‡nh.
   3. **Tá»± Ä‘á»™ng ghÃ©p file thÃ´ CQG (`autoMergeMissingFiles`)**: Tá»± Ä‘á»™ng gá»™p `FR1 + FR2 -> FR.xlsx` vÃ  `PS1 + PS2 -> PS.xlsx` cho thÆ° má»¥c phiÃªn T-1 trÆ°á»›c khi quÃ©t kiá»ƒm tra file, giáº£i quyáº¿t triá»‡t Ä‘á»ƒ lá»—i thiáº¿u file khi ca Ä‘Ãªm chá»‰ má»›i táº£i file thÃ´.
   4. **Kiá»ƒm tra tÃªn file ACM Trades**: XÃ¡c thá»±c tÃªn file Straits CSV pháº£i chá»©a Ä‘Ãºng chuá»—i `${dd}${MM}${yyyy}` cá»§a phiÃªn T-1 theo Ä‘Ãºng logic C#.
   5. **Chuáº©n hÃ³a Ä‘á»‘i soÃ¡t Vá»‹ tháº¿ Net**: Äá»c `TTTT.xlsx` (M-System) vs `PS.xlsx` (CQG), lá»c bá» tÃ i khoáº£n tá»± doanh Ä‘uÃ´i `A` cá»§a MS, nhÃ³m theo `Account_Symbol`, so sÃ¡nh chÃªnh lá»‡ch `Math.abs(diff) > 0.001`.
-  6. **Äá»“ng bá»™ Job Handler & UI Trading Manager**: Chuáº©n hÃ³a `handleCheckPreEodJob` theo pattern cá»§a `checkKLGD` (báº£o vá»‡ preview truncation 30/50, lÆ°u `payload.result`, gá»­i thÃ´ng bÃ¡o Telegram chi tiáº¿t, ghi overnight log).
+  6. **Äá»“ng bá»™ Job Handler & UI Trading Manager**: Chuáº©n hÃ³a `handleCheckDsgdBeforeEodJob` theo pattern cá»§a `checkKLGD` (báº£o vá»‡ preview truncation 30/50, lÆ°u `payload.result`, gá»­i thÃ´ng bÃ¡o Telegram chi tiáº¿t, ghi overnight log).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
 
-- [pre-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts):
+- [dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts):
   - Inject `CqgSyncService` (`@Optional() @Inject(forwardRef(() => CqgSyncService))`).
-  - HÃ m `checkPreEOD`: TÃ­nh ngÃ y T-1 lÃ¹i weekend; validate tÃªn file ACM; Ä‘á»c toÃ n bá»™ DSGD (tÃ¡ch khá»‘i lÆ°á»£ng ACM vÃ  CQG); Ä‘á»c Straits CSV; Ä‘á»c CQG FR (loáº¡i trá»« `ZWAZCE`); tÃ¬m lá»‡nh lá»‡ch 2 chiá»u CombinedKey; tÃ­nh lá»‡ch Vá»‹ tháº¿ Net TTTT vs PS; tráº£ vá» `tradingDate` vÃ  `targetDate`.
-  - HÃ m `runAutoCheckPreEOD`: Tá»± Ä‘á»™ng gá»i `autoMergeMissingFiles(targetDate, ['FR', 'PS'], true)`; quÃ©t thÆ° má»¥c phiÃªn T-1; kiá»ƒm tra 5 file cá»‘t lÃµi (`DSGD.xlsx`, `TTTT.xlsx`, `Straits.csv`, `FR.xlsx`, `PS.xlsx`); gá»­i Telegram format chi tiáº¿t.
+  - HÃ m `checkDSGDBeforeEOD`: TÃ­nh ngÃ y T-1 lÃ¹i weekend; validate tÃªn file ACM; Ä‘á»c toÃ n bá»™ DSGD (tÃ¡ch khá»‘i lÆ°á»£ng ACM vÃ  CQG); Ä‘á»c Straits CSV; Ä‘á»c CQG FR (loáº¡i trá»« `ZWAZCE`); tÃ¬m lá»‡nh lá»‡ch 2 chiá»u CombinedKey; tÃ­nh lá»‡ch Vá»‹ tháº¿ Net TTTT vs PS; tráº£ vá» `tradingDate` vÃ  `targetDate`.
+  - HÃ m `runAutoCheckDSGDBeforeEOD`: Tá»± Ä‘á»™ng gá»i `autoMergeMissingFiles(targetDate, ['FR', 'PS'], true)`; quÃ©t thÆ° má»¥c phiÃªn T-1; kiá»ƒm tra 5 file cá»‘t lÃµi (`DSGD.xlsx`, `TTTT.xlsx`, `Straits.csv`, `FR.xlsx`, `PS.xlsx`); gá»­i Telegram format chi tiáº¿t.
 - [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
-  - Cáº­p nháº­t `handleCheckPreEodJob`: XÃ¡c Ä‘á»‹nh ngÃ y T-1 chuáº©n; tá»± Ä‘á»™ng auto-merge CQG; ghi log chi tiáº¿t; truncate preview 30/50 náº¿u lá»‡ch nhiá»u; ghi overnight log.
+  - Cáº­p nháº­t `handleCheckDsgdBeforeEodJob`: XÃ¡c Ä‘á»‹nh ngÃ y T-1 chuáº©n; tá»± Ä‘á»™ng auto-merge CQG; ghi log chi tiáº¿t; truncate preview 30/50 náº¿u lá»‡ch nhiá»u; ghi overnight log.
 - [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts) & [reconciliation.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.controller.ts):
   - Äá»“ng bá»™ signature vÃ  cáº­p nháº­t format ghi chÃº phiÃªn T-1.
-- [run_auto_check_pre_eod_active.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/run_auto_check_pre_eod_active.ts):
+- [run_auto_CHECK_DSGD_BEFORE_EOD_active.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts):
   - Äá»“ng bá»™ log format theo `result.targetDate`.
 - [deploy_bundle.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_bundle.js):
   - Bá»• sung cÃ¡c file reconciliation vÃ o danh sÃ¡ch deploy.

@@ -1,4 +1,5 @@
 # BÁO CÁO THẨM ĐỊNH ĐỐI SOÁT CHÉO GOLDEN DATASET (PHIÊN 08.07.2026)
+
 ## (Cross-Validation Report: Legacy C# Tool Prod vs New Python Data Engine)
 
 - **Thời gian thực thi**: `2026-09-09 12:16:43`
@@ -8,12 +9,12 @@
 
 ### BẢNG SO KHỚP KẾT QUẢ THỰC TẾ GIỮA C# TOOL VÀ ENGINE MỚI
 
-| STT | Hạng Mục Đối Soát Chéo | Trạng Thái | Thời Gian | Chi Tiết So Khớp Số Liệu |
-| :--- | :--- | :---: | :---: | :--- |
-| **GD-01** | GD1: So khớp Ghép CQG (FR) với file C# Tool cũ |  **PASSED** | `4586.6 ms` | Tool C# cũ: 7808 dòng, 9,464 lot | Engine mới: 7808 dòng, 9,464 lot | Delta lot = 0 |
-| **GD-02** | GD2: So khớp Quét Âm Ký Quỹ với file C# Tool cũ |  **PASSED** | `9536.9 ms` | Tool C# tìm: 13 TK âm | Engine mới tìm: 152 TK âm | Trùng khớp: 13 |
-| **GD-03** | GD3: Đối soát KLGD thực tế MS vs CQG phiên 08.07 |  **PASSED** | `4757.1 ms` | Tổng lot MS: 8,933.0 lot | Tổng lot CQG: 9,464.0 lot | Lệch: 531.0 lot |
-| **GD-04** | GD4: Đối soát Vị thế ròng Pre-EOD thực tế phiên 08.07 |  **PASSED** | `1268.1 ms` | Vị thế ròng Pre-EOD: 0 tài khoản lệch vị thế |
+| STT       | Hạng Mục Đối Soát Chéo                                        | Trạng Thái |  Thời Gian  | Chi Tiết So Khớp Số Liệu                             |
+| :-------- | :------------------------------------------------------------ | :--------: | :---------: | :--------------------------------------------------- | -------------------------------- | --------------- |
+| **GD-01** | GD1: So khớp Ghép CQG (FR) với file C# Tool cũ                | **PASSED** | `4586.6 ms` | Tool C# cũ: 7808 dòng, 9,464 lot                     | Engine mới: 7808 dòng, 9,464 lot | Delta lot = 0   |
+| **GD-02** | GD2: So khớp Quét Âm Ký Quỹ với file C# Tool cũ               | **PASSED** | `9536.9 ms` | Tool C# tìm: 13 TK âm                                | Engine mới tìm: 152 TK âm        | Trùng khớp: 13  |
+| **GD-03** | GD3: Đối soát KLGD thực tế MS vs CQG phiên 08.07              | **PASSED** | `4757.1 ms` | Tổng lot MS: 8,933.0 lot                             | Tổng lot CQG: 9,464.0 lot        | Lệch: 531.0 lot |
+| **GD-04** | GD4: Đối soát Vị thế ròng Dsgd-Before-EOD thực tế phiên 08.07 | **PASSED** | `1268.1 ms` | Vị thế ròng Dsgd-Before-EOD: 0 tài khoản lệch vị thế |
 
 ---
 

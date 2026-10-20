@@ -1631,7 +1631,7 @@
     "ast_hash": "7a1c619b2fd2995a55cf0dee2329ea1f",
     "semantic_hash": "7a1c619b2fd2995a55cf0dee2329ea1f"
   },
-  "backend/src/scripts/run_auto_check_pre_eod_active.ts": {
+  "backend/src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts": {
     "mtime": 1784884030.1977074,
     "seen": 1786691523.2343998,
     "ast_hash": "f34e4cc9e77fa24f65ebd4a7d32ccee7",
@@ -1685,7 +1685,7 @@
     "ast_hash": "0f6762c960fe60a6ed0f1377f0e52420",
     "semantic_hash": "0f6762c960fe60a6ed0f1377f0e52420"
   },
-  "backend/src/scripts/test-pre-eod-parse.js": {
+  "backend/src/scripts/test-dsgd-before-eod-parse.js": {
     "mtime": 1784881601.902937,
     "seen": 1786691523.2344081,
     "ast_hash": "a480ed764e8dfe60e697d5238696ad5a",
@@ -1937,7 +1937,7 @@
     "ast_hash": "f84321f08f83464a21930301b33826d8",
     "semantic_hash": "f84321f08f83464a21930301b33826d8"
   },
-  "backend/src/test-pre-eod-local.ts": {
+  "backend/src/test-dsgd-before-eod-local.ts": {
     "mtime": 1784884030.1987164,
     "seen": 1786691523.2344458,
     "ast_hash": "6724099c97eddc38578a47ab0fa89553",
@@ -2609,7 +2609,7 @@
     "ast_hash": "93822f982b3c730b1db09624f7958421",
     "semantic_hash": "93822f982b3c730b1db09624f7958421"
   },
-  "frontend/src/components/ui/bot-log-viewer/PreEodReconciliationVisualReport.tsx": {
+  "frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx": {
     "mtime": 1786586308.4799407,
     "seen": 1786691523.2345579,
     "ast_hash": "37e19abbbe74cf8b1a7f5f60dd01798b",

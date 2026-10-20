@@ -22,7 +22,7 @@ graph TD
   A --> C["PHÂN HỆ OMS (CoreCCP, CE)"]
 
   B --> B1["Tab 1: Đối soát giao dịch (Intra-day Recon)"]
-  B --> B2["Tab 2: Check – Chạy EOD (Pre-EOD, GTT, Âm KQ, IMR, CQG Sync)"]
+  B --> B2["Tab 2: Check – Chạy EOD (Dsgd-Before-EOD, GTT, Âm KQ, IMR, CQG Sync)"]
   B --> B3["Tab 3: Backup – Thống kê (MS & CQG Backup, Macro Lot/GTGD)"]
   B --> B4["Tab 4: Cấu hình – Đường dẫn MS"]
 
@@ -48,7 +48,7 @@ graph TD
 | **7**  | Màu số liệu bảng đối soát (Trắng vs Đỏ)              | [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)                                                                                                                                                                                                                                                         | `L1465-L1508`, `L1532-L1558`, `L1580-L1605`                                        | Đổi màu mặc định toàn bộ thành màu trắng `#ffffff`. Chỉ bôi đỏ `#ef4444` ô có chênh lệch (`diff > 0`).                                                         |
 | **8**  | Phóng to Box "Chi tiết giao dịch chênh lệch"         | [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)                                                                                                                                                                                                                                                         | `L1810-L1925`                                                                      | Tăng chiều cao từ `height: 220px` lên `min-height: 480px` (chiếm trọn không gian bên dưới khi đứng ở Tab riêng).                                               |
 | **9**  | Dọn dẹp thanh nút dưới & Chuyển Switch Tự động       | [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)                                                                                                                                                                                                                                                         | `L1108-L1156`, `L1627-L1760`                                                       | Xóa `Hôm nay`, xóa `Check`, xóa `Âm báo`. Đưa Switch `Tự động: BẬT / ĐÃ DỪNG` lên cạnh `Check định kỳ`. Thanh dưới chỉ giữ lại Date picker & `Check thủ công`. |
-| **10** | Tách Tab "Check – Chạy EOD" riêng                    | [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx), [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx) | `LegacyReconSection.tsx#L1929-L2178`, `LegacyBackupThongKeSection.tsx#L1295-L1388` | Gom cụm: Âm ký quỹ mới, Kết quả EOD, Đồng bộ CQG, Check GTT, IMR 4 boxes, Pre-EOD Diff, T-1 (Pending) vào 1 Component Tab mới.                                 |
+| **10** | Tách Tab "Check – Chạy EOD" riêng                    | [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx), [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx) | `LegacyReconSection.tsx#L1929-L2178`, `LegacyBackupThongKeSection.tsx#L1295-L1388` | Gom cụm: Âm ký quỹ mới, Kết quả EOD, Đồng bộ CQG, Check GTT, IMR 4 boxes, Dsgd-Before-EOD Diff, T-1 (Pending) vào 1 Component Tab mới.                         |
 | **11** | Tối ưu Tab "Backup – Thống kê" (Chỉ MS & CQG)        | [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)                                                                                                                                                                                                                                         | `L1169-L1293`                                                                      | Gỡ bỏ Cột 3 (Backup CoreCCP 25 file) khỏi Tab này. Đảm bảo thư mục lưu đúng tên phiên làm việc hiện tại.                                                       |
 | **12** | Sửa lỗi ẩn số giờ cài đặt thời gian                  | [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)                                                                                                                                                                                                                                         | `L810-L820`, `L839-L849`                                                           | Tăng chiều rộng ô `input type="time"` từ `90px` lên `125px`, căn giữa padding hiển thị rõ ràng cả giờ, phút và icon.                                           |
 | **13** | Macro ghép file CQG & Thống kê Lot/GTGD có chọn ngày | [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)                                                                                                                                                                                                                                         | `L1390-L1421`                                                                      | Thêm trường chọn `Ngày thống kê` (Session Date Picker) độc lập để người dùng có thể chạy lại Macro theo ngày folder bất kỳ.                                    |
@@ -66,7 +66,7 @@ graph TD
 - **Mã nguồn**: [frontend/src/app/trading-manager/page.tsx:L163-L225](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx#L163-L225)
 - **Yêu cầu**:
   - Tiêu đề chính `<h1>`: **`HỆ THỐNG GIÁM SÁT VẬN HÀNH GIAO DỊCH`**.
-  - Xóa bỏ dòng phụ bên dưới: `<p>Trung tâm kiểm soát, đối chiếu giao dịch trong phiên & Pre-EOD...</p>`.
+  - Xóa bỏ dòng phụ bên dưới: `<p>Trung tâm kiểm soát, đối chiếu giao dịch trong phiên & Dsgd-Before-EOD...</p>`.
   - Bỏ cụm chấm đỏ `animate-ping` / Online badge (L185-L225) gây rối mắt.
   - Tối ưu nút quay về Dashboard: Chuyển vị trí về góc phải header với icon `LayoutDashboard` tinh gọn.
 
@@ -150,13 +150,13 @@ Tập trung 100% vào việc kiểm tra độ khớp lệnh và trạng thái tr
 
 ---
 
-#### 3.2. Tab 2: Check – Chạy EOD (Pre-EOD & Giám Sát Chốt Phiên)
+#### 3.2. Tab 2: Check – Chạy EOD (Dsgd-Before-EOD & Giám Sát Chốt Phiên)
 
 Gom toàn bộ các tác vụ đối chiếu cuối ngày của M-System & CQG vào một màn hình độc lập:
 
 1. **Kiểm tra phiên T-1**: Card tính năng đánh dấu trạng thái `[ Đang phát triển / Pending ]`.
 2. **Kiểm tra Giá Thanh Toán (GTT)**: Tích hợp trực tiếp component [LegacyGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx) (Kiểm tra file GTT, tạo file import GTT vào M-System).
-3. **Check DSGD trước EOD**: Đánh dấu trạng thái `[ Pending / Đang tích hợp ]` kèm component chi tiết chênh lệch Pre-EOD [LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx).
+3. **Check DSGD trước EOD**: Đánh dấu trạng thái `[ Pending / Đang tích hợp ]` kèm component chi tiết chênh lệch Dsgd-Before-EOD [LegacyDsgdBeforeEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx).
 4. **Tài Khoản Âm Ký Quỹ Mới (EOD)** & **Kết Quả Chạy EOD**: Khung 2 cột kiểm tra chênh lệch số liệu EOD và phát hiện tài khoản âm ký quỹ mới phát sinh ([LegacyReconSection.tsx:L1929-L2167](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L1929-L2167)).
 5. **Kết Quả Đồng Bộ Số Dư CQG**: Khung đối chiếu số dư tiền mặt CQG ([LegacyReconSection.tsx:L2168-L2178](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2168-L2178)).
 6. **Kiểm Tra Ký Quỹ TKGD (IMR Checker)**: 4 hộp cảnh báo chuẩn C# FormMain ([LegacyBackupThongKeSection.tsx:L1298-L1388](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx#L1298-L1388)):
@@ -284,7 +284,7 @@ sequenceDiagram
 2. Di chuyển các phần từ `LegacyReconSection.tsx` và `LegacyBackupThongKeSection.tsx` sang:
    - Kiểm tra phiên T-1 (Badge pending)
    - Kiểm tra giá thanh toán (GTT)
-   - Check DSGD trước EOD & Chi tiết lệch Pre-EOD
+   - Check DSGD trước EOD & Chi tiết lệch Dsgd-Before-EOD
    - Tài khoản âm ký quỹ mới (EOD)
    - Kết quả chạy EOD
    - Kết quả đồng bộ số dư CQG
@@ -309,7 +309,7 @@ Dưới đây là bảng tổng hợp chi tiết **100% các Component độc l�
 TỔNG THỂ 14 COMPONENT & MODAL TRADING MANAGER
 ├── 🏢 PHÂN HỆ M-SYSTEM & CQG
 │   ├── [C-01] LegacyReconSection.tsx (Đối Soát Khớp Lệnh & TTM Trong Phiên)
-│   ├── [C-02] LegacyPreEodDiffSection.tsx (Đối Soát Pre-EOD 3 Bên Cuối Ngày)
+│   ├── [C-02] LegacyDsgdBeforeEodDiffSection.tsx (Đối Soát Dsgd-Before-EOD 3 Bên Cuối Ngày)
 │   ├── [C-03] LegacyCheckEodSection.tsx (Tách Mới: EOD, Ký Quỹ Âm, CQG Sync, IMR)
 │   ├── [C-04] LegacyBackupThongKeSection.tsx (Quản Lý Tải File Backup & Macro Thống Kê)
 │   ├── [C-05] LegacyGttCheckerSection.tsx (Kiểm Tra Giá Thanh Toán GTT & Sinh File Sửa)
@@ -358,10 +358,10 @@ TỔNG THỂ 14 COMPONENT & MODAL TRADING MANAGER
   - `POST /api/v1/bot-engine/jobs/{id}/cancel`: Dừng khẩn cấp Job đối soát.
   - `POST /api/v1/system-settings`: Bật/tắt Master Switch tự động.
 
-#### 1.2. `[C-02]` Component Đối Soát Pre-EOD 3 Bên Cuối Ngày
+#### 1.2. `[C-02]` Component Đối Soát Dsgd-Before-EOD 3 Bên Cuối Ngày
 
-- **File mã nguồn**: [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx)
-- **Props**: `preEodData: PreEodData`, `selectedDate: string`, `onTriggerPreEod: () => void`.
+- **File mã nguồn**: [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection.tsx)
+- **Props**: `dsgdBeforeEodData: DsgdBeforeEodData`, `selectedDate: string`, `onTriggerDsgdBeforeEod: () => void`.
 - **Chức năng nghiệp vụ độc lập**:
   - Đối chiếu 3 bên cuối ngày: M-System (`DSGD`, `TTTT`) vs CQG (`FR`, `PS`) vs ACM (`Straits CSV`).
   - Bảng tổng hợp số lot 3 bên: Tổng tự doanh MS vs Straits, Tổng thường MS vs CQG.
@@ -369,8 +369,8 @@ TỔNG THỂ 14 COMPONENT & MODAL TRADING MANAGER
   - Bảng chi tiết **Lệch Vị Thế Ròng Net Position (`MismatchedPositions`)**: Bắt buộc phát hiện chênh lệch vị thế trước khi hệ thống chạy EOD.
   - Tự động gộp cặp file thô CQG (`FR1+FR2 -> FR.xlsx`, `PS1+PS2 -> PS.xlsx`).
 - **API Backend tương ứng**:
-  - `POST /api/v1/reconciliation/upload-pre-eod`: Upload thủ công 5 file đối chiếu.
-  - Bot Job `CHECK_PRE_EOD` (`reconciliationService.runAutoCheckPreEOD`).
+  - `POST /api/v1/reconciliation/upload-dsgd-before-eod`: Upload thủ công 5 file đối chiếu.
+  - Bot Job `CHECK_DSGD_BEFORE_EOD` (`reconciliationService.runAutoCheckDSGDBeforeEOD`).
 
 #### 1.3. `[C-03]` Component Check – Chạy EOD (Tách Mới)
 
@@ -522,7 +522,7 @@ TỔNG THỂ 14 COMPONENT & MODAL TRADING MANAGER
 - **File mã nguồn**: [frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx)
 - **Chức năng nghiệp vụ độc lập**:
   - **Badge cảnh báo thời gian thực**: Đếm số Job đang chạy (`PROCESSING`), nhấp nháy đỏ trên Sidebar.
-  - **Bộ lọc đa chiều**: Lọc theo trạng thái, loại nghiệp vụ (`CHECK_KLGD`, `CHECK_PRE_EOD`, `DOWNLOAD_CCP_REPORT`...), tìm kiếm theo `Job ID`.
+  - **Bộ lọc đa chiều**: Lọc theo trạng thái, loại nghiệp vụ (`CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `DOWNLOAD_CCP_REPORT`...), tìm kiếm theo `Job ID`.
   - **Thao tác can thiệp**: Nút Hủy khẩn cấp (`Cancel Job`), Thử lại (`Retry`), Tải gói kết quả ZIP.
   - **Cửa sổ dòng lệnh Terminal Real-time Logs**: Xem log trực tiếp từng dòng lệnh Playwright.
 - **API Backend tương ứng**:
@@ -541,5 +541,5 @@ TỔNG THỂ 14 COMPONENT & MODAL TRADING MANAGER
 
 - **File mã nguồn**: [frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerGuideModal.tsx)
 - **Chức năng nghiệp vụ độc lập**:
-  - Hướng dẫn các mốc ca trực: Đầu ca SOD, Trong ca kiểm tra khớp lệnh, Cuối ca Pre-EOD và EOD.
+  - Hướng dẫn các mốc ca trực: Đầu ca SOD, Trong ca kiểm tra khớp lệnh, Cuối ca Dsgd-Before-EOD và EOD.
   - Bảng tra cứu mã lỗi và các bước xử lý khi phát hiện số liệu bị lệch.

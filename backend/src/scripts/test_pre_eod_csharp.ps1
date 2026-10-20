@@ -1,7 +1,7 @@
-# test_pre_eod_csharp.ps1
+# test_dsgd_before_eod_csharp.ps1
 $ErrorActionPreference = 'Stop'
 
-Write-Host "=== CHAY TRUC TIEP HAM CheckPreEOD CUA TOOL C# ===" -ForegroundColor Cyan
+Write-Host "=== CHAY TRUC TIEP HAM CheckDSGDBeforeEOD CUA TOOL C# ===" -ForegroundColor Cyan
 
 $toolDir = "C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation\tool-C#\operate-transaction-app\bin\Debug"
 $exePath = Join-Path $toolDir "Operate-Transaction-System.exe"
@@ -34,22 +34,22 @@ $acmPath = Join-Path $baseDir "25.09 ACM\EOD FO trades_PT Straits Financial Indo
 $frPath = Join-Path $baseDir "25.09 CQG\FR.xlsx"
 $psPath = Join-Path $baseDir "25.09 CQG\PS.xlsx"
 
-$preEodFilesType = $asm.GetType("Operate_Transaction_System.Services.TransactionCheckingService+PreEODFiles")
-$preEodFiles = [System.Activator]::CreateInstance([type]$preEodFilesType)
+$dsgdBeforeEodFilesType = $asm.GetType("Operate_Transaction_System.Services.TransactionCheckingService+DSGDBeforeEODFiles")
+$dsgdBeforeEodFiles = [System.Activator]::CreateInstance([type]$dsgdBeforeEodFilesType)
 
-$preEodFiles.Dsgd = [System.IO.File]::ReadAllBytes($dsgdPath)
-$preEodFiles.AcmTrades = [System.IO.File]::ReadAllBytes($acmPath)
-$preEodFiles.CqgFr = [System.IO.File]::ReadAllBytes($frPath)
-$preEodFiles.Tttt = [System.IO.File]::ReadAllBytes($ttttPath)
-$preEodFiles.CqgPs = [System.IO.File]::ReadAllBytes($psPath)
+$dsgdBeforeEodFiles.Dsgd = [System.IO.File]::ReadAllBytes($dsgdPath)
+$dsgdBeforeEodFiles.AcmTrades = [System.IO.File]::ReadAllBytes($acmPath)
+$dsgdBeforeEodFiles.CqgFr = [System.IO.File]::ReadAllBytes($frPath)
+$dsgdBeforeEodFiles.Tttt = [System.IO.File]::ReadAllBytes($ttttPath)
+$dsgdBeforeEodFiles.CqgPs = [System.IO.File]::ReadAllBytes($psPath)
 
 $acmName = [System.IO.Path]::GetFileName($acmPath)
 $tradingDate = [System.DateTime]::Parse("2026-09-28T00:00:00")
 
-Write-Host "Dang thuc thi CheckPreEOD bang C#..." -ForegroundColor Yellow
+Write-Host "Dang thuc thi CheckDSGDBeforeEOD bang C#..." -ForegroundColor Yellow
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-$task = $checkingService.CheckPreEOD($preEodFiles, $acmName, $tradingDate, $null)
+$task = $checkingService.CheckDSGDBeforeEOD($dsgdBeforeEodFiles, $acmName, $tradingDate, $null)
 $res = $task.GetAwaiter().GetResult()
 $sw.Stop()
 

@@ -23,9 +23,9 @@ conn.on('ready', () => {
         }
       });
       const data = await res.json();
-      console.log('PreEod Summary:');
-      console.log('mismatchedEOD count:', data?.preEod?.mismatchedEOD?.length || 0);
-      console.log('mismatchedPositions count:', data?.preEod?.mismatchedPositions?.length || 0);
+      console.log('DsgdBeforeEod Summary:');
+      console.log('mismatchedEOD count:', data?.dsgdBeforeEod?.mismatchedEOD?.length || 0);
+      console.log('mismatchedPositions count:', data?.dsgdBeforeEod?.mismatchedPositions?.length || 0);
       console.log('negativeMargin count:', data?.negativeMargin?.accounts?.length || 0);
       process.exit(0);
     }

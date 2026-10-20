@@ -32,7 +32,7 @@ import { api } from '@/services/api';
 // Danh sách các tác vụ thuộc nghiệp vụ Trading Manager & Hệ thống liên quan
 export const TRADING_JOB_TYPES = [
   'CHECK_KLGD',
-  'CHECK_PRE_EOD',
+  'CHECK_DSGD_BEFORE_EOD',
   'CHECK_EOD_MM',
   'CHECK_EOD',
   'CHECK_CQG_SYNC',
@@ -315,8 +315,8 @@ export default function TradingManagerJobQueueSection({
     switch (jobType) {
       case 'CHECK_KLGD':
         return 'Đối Chiếu Khớp Lệnh (Trong Phiên)';
-      case 'CHECK_PRE_EOD':
-        return 'Đối Chiếu Pre-EOD (Cuối Ngày)';
+      case 'CHECK_DSGD_BEFORE_EOD':
+        return 'Đối Chiếu Dsgd-Before-EOD (Cuối Ngày)';
       case 'CHECK_EOD_MM':
       case 'CHECK_EOD':
         return 'Đối Chiếu EOD M-System';

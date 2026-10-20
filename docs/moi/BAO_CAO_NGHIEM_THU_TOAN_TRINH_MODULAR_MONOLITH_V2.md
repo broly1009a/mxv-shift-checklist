@@ -11,7 +11,7 @@
 
 Toàn bộ hệ thống Backend đã hoàn tất việc bóc tách và tái cấu trúc từ kiến trúc **Monolith V1 (gộp chung trong bot-engine & reconciliation)** sang **Modular Monolith V2 (chia miền độc lập theo Domain-Driven Design)** mà không làm gián đoạn bất kỳ luồng nghiệp vụ thực tế nào:
 
-- **Bảo tồn 100% Logic Nghiệp Vụ Cốt Lõi**: Thuật toán khớp lệnh KLGD, đối soát 3 bên Pre-EOD, lọc tài khoản ACM Straits (`.endsWith('A')`), tính toán số lot & giá trị CCP (ma trận 4 ngoại tệ USD/MYR/JPY/RMB, quy tắc niêm yết JPY/100) được giữ nguyên vẹn từng công thức và ngưỡng làm tròn.
+- **Bảo tồn 100% Logic Nghiệp Vụ Cốt Lõi**: Thuật toán khớp lệnh KLGD, đối soát 3 bên Dsgd-Before-EOD, lọc tài khoản ACM Straits (`.endsWith('A')`), tính toán số lot & giá trị CCP (ma trận 4 ngoại tệ USD/MYR/JPY/RMB, quy tắc niêm yết JPY/100) được giữ nguyên vẹn từng công thức và ngưỡng làm tròn.
 - **Tương Thích Ngược 100% (Zero-Breaking Changes)**: Toàn bộ service V1 cũ (`rpa-downloader.service.ts`, `reconciliation.service.ts`, `cqg-sync.service.ts`, `post-eod-handler.service.ts`, `ccp-recon.service.ts`, `dsgd-before-eod.service.ts`) được chuyển đổi thành các **Facade Adapter mỏng**, ủy quyền cuộc gọi sang V2, bảo đảm các API Endpoint và Controller hiện hữu không bị gãy.
 - **Triệt Tiêu 100% Vòng Phụ Thuộc (Zero Circular Dependency)**: Loại bỏ hoàn toàn các cặp `forwardRef()` nguy hiểm giữa `ReconciliationModule` và `BotEngineModule`.
 - **Multi-Instance Safe (Zero Race Condition)**: Nâng cấp cơ chế khóa nguyên tử `findOneAndUpdate` trên MongoDB kèm cơ chế phục hồi Stale Lock khi worker crash/restart.
@@ -63,7 +63,7 @@ Toàn bộ hệ thống Backend đã hoàn tất việc bóc tách và tái cấ
 | **2** | **Task 2.6** | Ingress Facade & V1 Backward Adapter (`rpa-downloader.service.ts`)                    | Hoàn thành |
 | **3** | **Task 3.1** | Di dời Bộ Ghép File Thô CQG (`cqg-merger.service.ts`)                                 | Hoàn thành |
 | **3** | **Task 3.2** | Di dời Lõi Đối Chiếu Khớp Lệnh KLGD (`klgd-recon.service.ts`)                         | Hoàn thành |
-| **3** | **Task 3.3** | Di dời Lõi Đối Chiếu Cuối Ngày Pre-EOD (`pre-eod-recon.service.ts`)                   | Hoàn thành |
+| **3** | **Task 3.3** | Di dời Lõi Đối Chiếu Cuối Ngày Dsgd-Before-EOD (`dsgd-before-eod-recon.service.ts`)   | Hoàn thành |
 | **3** | **Task 3.4** | Di dời Bộ Quét Ký Quỹ Âm Post-EOD (`margin-checker.service.ts`)                       | Hoàn thành |
 | **3** | **Task 3.5** | Hoàn Thiện Trading Ops Workers & Facade V1 Backward Compatibility                     | Hoàn thành |
 | **3** | **Task 3.6** | Di dời Lõi Báo Cáo DSGD Trước EOD (`dsgd-before-eod.service.ts`)                      | Hoàn thành |
@@ -84,7 +84,7 @@ Toàn bộ hệ thống Backend đã hoàn tất việc bóc tách và tái cấ
 ## 4. KẾT LUẬN & HƯỚNG DẪN BẬT / TẮT TÍNH NĂNG (FEATURE FLAGS)
 
 1. **Chế độ Chạy Mặc Định (Production)**:
-   - Hệ thống tự động ưu tiên điều hướng qua Modular Monolith V2 thông qua `BotDispatcherService` và các Domain Workers (`KlgdReconWorker`, `PreEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`, `CcpValueWorker`, `CcpEodWorker`).
+   - Hệ thống tự động ưu tiên điều hướng qua Modular Monolith V2 thông qua `BotDispatcherService` và các Domain Workers (`KlgdReconWorker`, `DsgdBeforeEodReconWorker`, `NegativeMarginWorker`, `CcpLotWorker`, `CcpValueWorker`, `CcpEodWorker`).
    - Nếu bất kỳ tình huống ngoại lệ nào xảy ra, các Facade V1 sẽ tự động fallback êm dịu, bảo đảm hệ thống vận hành 24/7 không bao giờ sập.
 2. **Kế hoạch Tắt Hẳn Playwright Khi Có REST API Thật**:
    - Khi sàn giao dịch MXV mở API chính thức (CoreEX REST API và CoreCCP REST API), quản trị viên chỉ cần chuyển biến cấu hình môi trường hoặc cấu hình trong bảng `system_configs`:

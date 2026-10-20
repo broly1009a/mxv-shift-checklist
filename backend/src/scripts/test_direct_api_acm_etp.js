@@ -288,7 +288,7 @@ async function runDirectAcmEtpTest() {
   console.log('-----------------------------------------------------------------------------------------------------');
 
   console.log('\n🎯 KẾT LUẬN CHO SÀN ACM:');
-  console.log('   - Đối chiếu Trong phiên & Pre-EOD Nano: Dùng AcmSftpAdapter tải thẳng Straits.csv qua SFTP (npm run test:api-acm)');
+  console.log('   - Đối chiếu Trong phiên & Dsgd-Before-EOD Nano: Dùng AcmSftpAdapter tải thẳng Straits.csv qua SFTP (npm run test:api-acm)');
   console.log('   - Báo cáo ETP Sổ lệnh & Khớp lệnh   : Dùng AcmEtpAdapter gọi REST API tải Orders/Trades (npm run test:api-acm-etp)');
   console.log('    ĐỦ ĐIỀU KIỆN 100% ĐỂ RÚT BỎ PLAYWRIGHT CHO NGUỒN ACM!');
   console.log('========================================================================\n');

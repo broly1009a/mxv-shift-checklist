@@ -27,7 +27,7 @@ import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { resolveStoragePathCrossPlatform } from '../../../shared';
-import { PreEodReconService } from '../services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
 import { QlgdDashboardService } from '../services/qlgd-dashboard.service';
 import { QlgdExcelExportService } from '../services/qlgd-excel-export.service';
@@ -38,7 +38,7 @@ export class TradingOpsMiscController {
   private readonly logger = new Logger(TradingOpsMiscController.name);
 
   constructor(
-    private readonly preEodReconService: PreEodReconService,
+    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
     private readonly shiftsService: ShiftsService,
     private readonly settingsService: SystemSettingsService,
@@ -349,15 +349,15 @@ export class TradingOpsMiscController {
   }
 
   /**
-   * Kích hoạt đối soát Pre-EOD CoreCCP ↔ CoreEX.
+   * Kích hoạt đối soát Dsgd-Before-EOD CoreCCP ↔ CoreEX.
    */
-  @Post('run-check-pre-eod')
+  @Post('run-check-dsgd-before-eod')
   @Permissions('ACCESS_AUTO_SHIFT')
-  async runCheckPreEod(
+  async runCheckDsgdBeforeEod(
     @Body('sessionDate') sessionDate?: string,
     @Body('date') dateStr?: string,
   ) {
-    return this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_PRE_EOD');
+    return this.reconConsoleSummaryService.triggerConsoleRun(sessionDate || dateStr, 'CHECK_DSGD_BEFORE_EOD');
   }
 
   /**

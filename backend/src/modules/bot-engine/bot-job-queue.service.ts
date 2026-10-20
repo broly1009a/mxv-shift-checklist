@@ -300,7 +300,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     const AUDIT_JOB_TYPES = [
       'CHECK_KLGD',
-      'CHECK_PRE_EOD',
+      'CHECK_DSGD_BEFORE_EOD',
       'CHECK_EOD_MM',
       'CHECK_CQG_SYNC',
       'FILE_AUDIT_ACM',
@@ -446,7 +446,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
       try {
         // ── ƯU TIÊN SỐ 1: BÀN GIAO CHO BOT DISPATCHER V2 (STRANGLER FIG CUTOVER) ──
-        // Nếu ChecklistHub BotDispatcherService đã có Worker chuyên biệt xử lý năng lực này (CHECK_KLGD, CHECK_PRE_EOD, CCP_LOT, CCP_VALUE, CCP_EOD, CHECK_NEGATIVE_MARGIN,...)
+        // Nếu ChecklistHub BotDispatcherService đã có Worker chuyên biệt xử lý năng lực này (CHECK_KLGD, CHECK_DSGD_BEFORE_EOD, CCP_LOT, CCP_VALUE, CCP_EOD, CHECK_NEGATIVE_MARGIN,...)
         if (this.botDispatcher && this.botDispatcher.hasWorker(capabilityKey)) {
           this.logger.log(
             `[BotJobQueue] Điều phối ưu tiên sang BotDispatcherService V2 cho năng lực: "${capabilityKey}" (Job: ${job.jobType}, ID: ${job._id})...`,
@@ -815,7 +815,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'FILE_AUDIT_CQG',
               'FILE_AUDIT_MS',
               'AUTO_CHECK_SOD',
-              'CHECK_PRE_EOD',
+              'CHECK_DSGD_BEFORE_EOD',
               'CHECK_EOD_MM',
               'CHECK_CQG_SYNC',
               'CHECK_KLGD',
@@ -843,7 +843,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           if (
             [
               'AUTO_CHECK_SOD',
-              'CHECK_PRE_EOD',
+              'CHECK_DSGD_BEFORE_EOD',
               'CHECK_EOD_MM',
               'CHECK_CQG_SYNC',
               'CHECK_KLGD',
@@ -932,7 +932,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'FILE_AUDIT_CQG',
               'FILE_AUDIT_MS',
               'AUTO_CHECK_SOD',
-              'CHECK_PRE_EOD',
+              'CHECK_DSGD_BEFORE_EOD',
               'CHECK_EOD_MM',
               'CHECK_CQG_SYNC',
               'CHECK_KLGD',
@@ -968,7 +968,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'FILE_AUDIT_CQG',
               'FILE_AUDIT_MS',
               'AUTO_CHECK_SOD',
-              'CHECK_PRE_EOD',
+              'CHECK_DSGD_BEFORE_EOD',
               'CHECK_EOD_MM',
               'CHECK_CQG_SYNC',
               'CHECK_KLGD',

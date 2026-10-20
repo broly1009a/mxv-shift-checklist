@@ -49,7 +49,7 @@
     "test:cqg-parallel": "node src/scripts/test_cqg_parallel_standalone.js",
     "test:ccp-25": "node src/scripts/test_ccp_download_25_files.js",
     "test:tkgd-pipeline": "ts-node src/scripts/run_tkgd_pipeline.ts",
-    "test:pre-eod": "ts-node src/scripts/run_auto_check_pre_eod_active.ts",
+    "test:dsgd-before-eod": "ts-node src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts",
     "test:check-klgd": "node src/scripts/test_check_klgd_playwright.js --headed",
     "test:cqg-fast": "node src/scripts/test_cqg_tab_downloads_fast.js --headed",
     "test:cqg-fast-all": "node src/scripts/test_cqg_tab_downloads_fast.js --headed --all",

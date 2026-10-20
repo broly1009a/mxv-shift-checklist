@@ -12,7 +12,7 @@ interface KlgdReconciliationVisualReportProps {
 const ITEMS_PER_PAGE = 50;
 
 export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualReportProps> = ({ parsedData, activeStatus }) => {
-  const [preEodSubTab, setPreEodSubTab] = useState<'TRADES' | 'POSITIONS' | 'TTTT' | 'PENDING'>('TRADES');
+  const [dsgdBeforeEodSubTab, setDsgdBeforeEodSubTab] = useState<'TRADES' | 'POSITIONS' | 'TTTT' | 'PENDING'>('TRADES');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,10 +119,10 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       content = 'Mã TKGD\tSố dư ký quỹ âm (VND)\n' +
         marginAccounts.map((m: any) => `${m.account}\t${m.value}`).join('\n');
     } else {
-      if (preEodSubTab === 'TRADES') {
+      if (dsgdBeforeEodSubTab === 'TRADES') {
         content = 'Nguồn\tMã TKGD\tHợp đồng\tGiá\tSố lượng\tLý do lệch\n' +
           filteredMismatchedTrades.map(t => `${t.source}\t${t.maTKGD}\t${t.maHD}\t${t.giaKhop}\t${t.klGiaoDich}\t${t.reason}`).join('\n');
-      } else if (preEodSubTab === 'POSITIONS') {
+      } else if (dsgdBeforeEodSubTab === 'POSITIONS') {
         content = 'Tài khoản\tTổng Lot MS\tTổng Lot CQG\tChênh lệch\n' +
           filteredMismatchedPositions.map(p => `${p.account || p.maTKGD}\t${p.ttmValue ?? p.msPosition}\t${p.opValue ?? p.cqgPosition}\t${p.differ}`).join('\n');
       } else {
@@ -274,7 +274,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
           <button
             type="button"
             onClick={() => {
-              setPreEodSubTab('PENDING');
+              setDsgdBeforeEodSubTab('PENDING');
               setCurrentPage(1);
             }}
             style={{
@@ -301,7 +301,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
               <button
                 type="button"
                 onClick={() => {
-                  setPreEodSubTab('TRADES');
+                  setDsgdBeforeEodSubTab('TRADES');
                   setCurrentPage(1);
                 }}
                 style={{
@@ -310,9 +310,9 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: preEodSubTab === 'TRADES' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-                  background: preEodSubTab === 'TRADES' ? 'var(--color-accent)' : 'var(--bg-card)',
-                  color: preEodSubTab === 'TRADES' ? '#ffffff' : 'var(--text-secondary)'
+                  border: dsgdBeforeEodSubTab === 'TRADES' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                  background: dsgdBeforeEodSubTab === 'TRADES' ? 'var(--color-accent)' : 'var(--bg-card)',
+                  color: dsgdBeforeEodSubTab === 'TRADES' ? '#ffffff' : 'var(--text-secondary)'
                 }}
               >
                 Lệch khớp lệnh ({parsedData.jsonResult?.mismatchedTrades?.length || 0})
@@ -320,7 +320,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
               <button
                 type="button"
                 onClick={() => {
-                  setPreEodSubTab('POSITIONS');
+                  setDsgdBeforeEodSubTab('POSITIONS');
                   setCurrentPage(1);
                 }}
                 style={{
@@ -329,9 +329,9 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: preEodSubTab === 'POSITIONS' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-                  background: preEodSubTab === 'POSITIONS' ? 'var(--color-accent)' : 'var(--bg-card)',
-                  color: preEodSubTab === 'POSITIONS' ? '#ffffff' : 'var(--text-secondary)'
+                  border: dsgdBeforeEodSubTab === 'POSITIONS' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                  background: dsgdBeforeEodSubTab === 'POSITIONS' ? 'var(--color-accent)' : 'var(--bg-card)',
+                  color: dsgdBeforeEodSubTab === 'POSITIONS' ? '#ffffff' : 'var(--text-secondary)'
                 }}
               >
                 Lệch trạng thái mở ({parsedData.jsonResult?.mismatchedPositions?.length || 0})
@@ -339,7 +339,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
               <button
                 type="button"
                 onClick={() => {
-                  setPreEodSubTab('TTTT');
+                  setDsgdBeforeEodSubTab('TTTT');
                   setCurrentPage(1);
                 }}
                 style={{
@@ -348,9 +348,9 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: preEodSubTab === 'TTTT' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-                  background: preEodSubTab === 'TTTT' ? 'var(--color-accent)' : 'var(--bg-card)',
-                  color: preEodSubTab === 'TTTT' ? '#ffffff' : 'var(--text-secondary)'
+                  border: dsgdBeforeEodSubTab === 'TTTT' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                  background: dsgdBeforeEodSubTab === 'TTTT' ? 'var(--color-accent)' : 'var(--bg-card)',
+                  color: dsgdBeforeEodSubTab === 'TTTT' ? '#ffffff' : 'var(--text-secondary)'
                 }}
               >
                 Lệch TTTT vs PS ({parsedData.jsonResult?.mismatchedTTTT?.length || 0})
@@ -359,7 +359,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
                 <button
                   type="button"
                   onClick={() => {
-                    setPreEodSubTab('PENDING');
+                    setDsgdBeforeEodSubTab('PENDING');
                     setCurrentPage(1);
                   }}
                   style={{
@@ -368,9 +368,9 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
                     fontSize: '0.75rem',
                     fontWeight: 700,
                     cursor: 'pointer',
-                    border: preEodSubTab === 'PENDING' ? '1px solid #38bdf8' : '1px solid var(--border-color)',
-                    background: preEodSubTab === 'PENDING' ? '#0284c7' : 'var(--bg-card)',
-                    color: preEodSubTab === 'PENDING' ? '#ffffff' : '#38bdf8',
+                    border: dsgdBeforeEodSubTab === 'PENDING' ? '1px solid #38bdf8' : '1px solid var(--border-color)',
+                    background: dsgdBeforeEodSubTab === 'PENDING' ? '#0284c7' : 'var(--bg-card)',
+                    color: dsgdBeforeEodSubTab === 'PENDING' ? '#ffffff' : '#38bdf8',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px'
@@ -419,7 +419,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
             )}
           </div>
 
-          {!isEod && preEodSubTab === 'TRADES' && (
+          {!isEod && dsgdBeforeEodSubTab === 'TRADES' && (
             <select
               value={selectedSource}
               onChange={(e) => {
@@ -567,7 +567,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: TRADES */}
-      {preEodSubTab === 'TRADES' && !isEod && (
+      {dsgdBeforeEodSubTab === 'TRADES' && !isEod && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -660,7 +660,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: POSITIONS / TTM */}
-      {preEodSubTab === 'POSITIONS' && !isEod && (
+      {dsgdBeforeEodSubTab === 'POSITIONS' && !isEod && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -749,7 +749,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: TTTT (KLGD Mode Only) */}
-      {preEodSubTab === 'TTTT' && isKlgd && !isEod && (
+      {dsgdBeforeEodSubTab === 'TTTT' && isKlgd && !isEod && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -838,7 +838,7 @@ export const KlgdReconciliationVisualReport: React.FC<KlgdReconciliationVisualRe
       )}
 
       {/* Table Section: PENDING SYNC TRADES (Cutoff) */}
-      {preEodSubTab === 'PENDING' && !isEod && (
+      {dsgdBeforeEodSubTab === 'PENDING' && !isEod && (
         <div>
           <div style={{
             padding: '10px 14px',

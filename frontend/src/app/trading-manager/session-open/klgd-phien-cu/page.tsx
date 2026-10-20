@@ -7,6 +7,9 @@ import {
   Maximize2,
   Minimize2,
   Layers,
+  ShieldCheck,
+  Activity,
+  Database,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +17,9 @@ import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
-import LegacyPreEodDiffSection from '../../components/legacy-ms-cqg/LegacyPreEodDiffSection';
+import LegacyDsgdBeforeEodDiffSection from '../../components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection';
+import CcpCeEodReconSection from '../../components/core-ccp/CcpCeEodReconSection';
+import DsgdBeforeEodSection from '../../components/shared/DsgdBeforeEodSection';
 import TradingManagerLogModal from '../../components/shared/TradingManagerLogModal';
 
 export default function CheckKlgdPhienCuPage() {
@@ -22,9 +27,10 @@ export default function CheckKlgdPhienCuPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
-  const [preEodData, setPreEodData] = useState<any>(null);
+  const [dsgdBeforeEodData, setDsgdBeforeEodData] = useState<any>(null);
   const [triggering, setTriggering] = useState<boolean>(false);
   const [logModalOpen, setLogModalOpen] = useState<boolean>(false);
+  const [scopeTab, setScopeTab] = useState<'ALL' | 'MS_CQG' | 'CCP_CE'>('CCP_CE');
 
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
@@ -45,27 +51,27 @@ export default function CheckKlgdPhienCuPage() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const fetchPreEodData = async () => {
+  const fetchDsgdBeforeEodData = async () => {
     if (!token) return;
     try {
       const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-      setPreEodData(data?.preEod || null);
+      setDsgdBeforeEodData(data?.dsgdBeforeEod || null);
     } catch {
       // Bỏ qua lỗi kết nối
     }
   };
 
   useEffect(() => {
-    fetchPreEodData();
+    fetchDsgdBeforeEodData();
   }, [token, selectedDate]);
 
   const handleTriggerRun = async () => {
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      await api.tradingOps.triggerRun('CHECK_PRE_EOD', selectedDate, {}, token);
-      toast.success('Đã gửi yêu cầu đối chiếu giao dịch trước EOD!');
-      setTimeout(() => fetchPreEodData(), 1500);
+      await api.tradingOps.triggerRun('CHECK_DSGD_BEFORE_EOD', selectedDate, {}, token);
+      toast.success('Đã gửi yêu cầu đối chiếu giao dịch trước EOD (MS – CQG)!');
+      setTimeout(() => fetchDsgdBeforeEodData(), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     } finally {
@@ -131,7 +137,7 @@ export default function CheckKlgdPhienCuPage() {
             </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {/* Bộ chọn ngày giao dịch */}
             <div
               style={{
@@ -165,12 +171,49 @@ export default function CheckKlgdPhienCuPage() {
               />
             </div>
 
+            {/* Thanh Tab Switcher phân hệ - ĐẶT NGAY BÊN CẠNH NGÀY PHIÊN */}
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '8px',
+                padding: '3px',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              {[
+                { id: 'ALL', label: 'Tất cả (MS & CCP)' },
+                { id: 'MS_CQG', label: 'Phân hệ MS – CQG' },
+                { id: 'CCP_CE', label: 'Phân hệ CoreCCP – CoreEX' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setScopeTab(tab.id as any)}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: scopeTab === tab.id ? '#3b82f6' : 'transparent',
+                    color: scopeTab === tab.id ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             {/* Fullscreen Button */}
             <button
               type="button"
               onClick={toggleFullscreen}
               className="btn btn-secondary"
-              style={{ padding: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -180,7 +223,7 @@ export default function CheckKlgdPhienCuPage() {
             <Link
               href="/trading-manager/session-open"
               className="btn btn-secondary"
-              style={{ fontSize: '0.8rem', padding: '9px 16px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ fontSize: '0.8rem', padding: '8px 14px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <ArrowLeft size={15} />
               <span>Nghiệp vụ đầu phiên</span>
@@ -188,20 +231,83 @@ export default function CheckKlgdPhienCuPage() {
           </div>
         </div>
 
-        {/* CHỈ HIỂN THỊ DUY NHẤT CHỨC NĂNG NÀY */}
-        <LegacyPreEodDiffSection
-          preEodData={preEodData}
-          onTriggerCheck={handleTriggerRun}
-          triggering={triggering}
-          onOpenLogs={() => setLogModalOpen(true)}
+        {/* ========================================================================= */}
+        {/* 1. KHUNG KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - ĐỨNG TRƯỚC)        */}
+        {/* ========================================================================= */}
+        <DsgdBeforeEodSection
+          token={token}
+          selectedDate={selectedDate}
         />
+
+        {/* ========================================================================= */}
+        {/* 2. KHUNG ĐỐI CHIẾU GIAO DỊCH TRƯỚC EOD (CỦA CẢ MS VÀ CCP)                  */}
+        {/* ========================================================================= */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          {/* Phân hệ 1: MS - CQG */}
+          {(scopeTab === 'ALL' || scopeTab === 'MS_CQG') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {scopeTab === 'ALL' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      color: '#10b981',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    PHÂN HỆ 1: M-SYSTEM ↔ CQG & ACM
+                  </span>
+                </div>
+              )}
+              <LegacyDsgdBeforeEodDiffSection
+                dsgdBeforeEodData={dsgdBeforeEodData}
+                onTriggerCheck={handleTriggerRun}
+                triggering={triggering}
+                onOpenLogs={() => setLogModalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* Phân hệ 2: CoreCCP - CoreEX */}
+          {(scopeTab === 'ALL' || scopeTab === 'CCP_CE') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {scopeTab === 'ALL' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      color: '#3b82f6',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    PHÂN HỆ 2: CORECCP ↔ COREEX
+                  </span>
+                </div>
+              )}
+              <CcpCeEodReconSection
+                token={token}
+                selectedDate={selectedDate}
+                viewMode="DSGD_BEFORE_EOD_ONLY"
+              />
+            </div>
+          )}
+        </div>
 
         <TradingManagerLogModal
           isOpen={logModalOpen}
           onClose={() => setLogModalOpen(false)}
-          jobId={preEodData?.jobId}
-          status={preEodData?.status || 'COMPLETED'}
-          logs={preEodData?.logs || []}
+          jobId={dsgdBeforeEodData?.jobId}
+          status={dsgdBeforeEodData?.status || 'COMPLETED'}
+          logs={dsgdBeforeEodData?.logs || []}
           onRetry={() => {
             setLogModalOpen(false);
             handleTriggerRun();

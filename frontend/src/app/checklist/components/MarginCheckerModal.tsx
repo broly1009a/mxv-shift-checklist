@@ -69,7 +69,7 @@ export default function MarginCheckerModal({
       telegramChatId: '',
       differThreshold: 100,
     },
-    preEodCheck: { isSendWarning: true, email: [], telegramChatId: '' },
+    dsgdBeforeEodCheck: { isSendWarning: true, email: [], telegramChatId: '' },
     eodCheck: { isSendWarning: true, email: [], telegramChatId: '' },
     negativeMarginReport: { isSendWarning: true, email: [], telegramChatId: '' },
     opFailureAlert: { isSendWarning: true, email: [], telegramChatId: '' },
@@ -89,7 +89,7 @@ export default function MarginCheckerModal({
     onOrder: '',
     change: '',
     sod: '',
-    preEod: '',
+    dsgdBeforeEod: '',
     eod: '',
     negativeMargin: '',
     opFailure: '',
@@ -299,7 +299,7 @@ export default function MarginCheckerModal({
             differThreshold: 100,
           };
         }
-        const sections = ['preEodCheck', 'eodCheck', 'negativeMarginReport', 'opFailureAlert', 'shiftHandoverReport', 'securityAudit'];
+        const sections = ['dsgdBeforeEodCheck', 'eodCheck', 'negativeMarginReport', 'opFailureAlert', 'shiftHandoverReport', 'securityAudit'];
         sections.forEach(sec => {
           if (!data[sec]) {
             data[sec] = {
@@ -1352,7 +1352,7 @@ export default function MarginCheckerModal({
                   </div>
                 </div>
 
-                {renderConfigSection('Đối chiếu trước EOD (Pre-EOD Check)', 'preEodCheck', 'preEod')}
+                {renderConfigSection('Đối chiếu trước EOD (Dsgd-Before-EOD Check)', 'dsgdBeforeEodCheck', 'dsgdBeforeEod')}
                 {renderConfigSection('Đối chiếu sau EOD (EOD Check)', 'eodCheck', 'eod')}
                 {renderConfigSection('Báo cáo Âm ký quỹ đầu ngày (Negative Margin Report)', 'negativeMarginReport', 'negativeMargin')}
                 {renderConfigSection('Cảnh báo Lỗi vận hành Bot ngầm (Bot Failure Alert)', 'opFailureAlert', 'opFailure')}

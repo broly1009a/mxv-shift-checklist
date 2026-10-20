@@ -7,7 +7,7 @@ import { TradingReconLogController } from './controllers/trading-recon-log.contr
 import { CcpReconController } from './controllers/ccp-recon.controller';
 import { CqgMergerService } from './services/cqg-merger.service';
 import { KlgdReconService } from './services/klgd-recon.service';
-import { PreEodReconService } from './services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService } from './services/dsgd-before-eod-recon.service';
 import { MarginCheckerService } from './services/margin-checker.service';
 import { TradingOpsConfigService } from './services/trading-ops-config.service';
 import { DsgdBeforeEodService } from './services/dsgd-before-eod.service';
@@ -22,7 +22,7 @@ import { CeCcpGttCheckerService } from './services/ce-ccp-gtt.service';
 import { QlgdDashboardService } from './services/qlgd-dashboard.service';
 import { QlgdExcelExportService } from './services/qlgd-excel-export.service';
 import { KlgdReconWorker } from './workers/klgd-recon.worker';
-import { PreEodReconWorker } from './workers/pre-eod-recon.worker';
+import { DsgdBeforeEodReconWorker } from './workers/dsgd-before-eod-recon.worker';
 import { NegativeMarginWorker } from './workers/negative-margin.worker';
 import { CcpLotWorker } from './workers/ccp-lot.worker';
 import { CcpValueWorker } from './workers/ccp-value.worker';
@@ -45,7 +45,7 @@ import { CcpStatisticsService } from './services/ccp-statistics.service';
 
 // Controllers Domain Chuyên Biệt V2
 import { KlgdReconController } from './controllers/klgd-recon.controller';
-import { PreEodReconController } from './controllers/pre-eod-recon.controller';
+import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-recon.controller';
 import { MarginCheckerController } from './controllers/margin-checker.controller';
 import { GttReconController } from './controllers/gtt-recon.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
@@ -69,7 +69,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
   ],
   controllers: [
     KlgdReconController,
-    PreEodReconController,
+    DsgdBeforeEodReconController,
     MarginCheckerController,
     GttReconController,
     TradingOpsMiscController,
@@ -79,7 +79,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
   providers: [
     CqgMergerService,
     KlgdReconService,
-    PreEodReconService,
+    DsgdBeforeEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
     DsgdBeforeEodService,
@@ -94,7 +94,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     QlgdDashboardService,
     QlgdExcelExportService,
     KlgdReconWorker,
-    PreEodReconWorker,
+    DsgdBeforeEodReconWorker,
     NegativeMarginWorker,
     CcpLotWorker,
     CcpValueWorker,
@@ -108,7 +108,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
   exports: [
     CqgMergerService,
     KlgdReconService,
-    PreEodReconService,
+    DsgdBeforeEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
     DsgdBeforeEodService,
@@ -123,7 +123,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     QlgdDashboardService,
     QlgdExcelExportService,
     KlgdReconWorker,
-    PreEodReconWorker,
+    DsgdBeforeEodReconWorker,
     NegativeMarginWorker,
     CcpLotWorker,
     CcpValueWorker,

@@ -67,7 +67,7 @@ export default function TradingManagerPage() {
     if (!token) return;
     const TRADING_JOB_TYPES = [
       'CHECK_KLGD',
-      'CHECK_PRE_EOD',
+      'CHECK_DSGD_BEFORE_EOD',
       'CHECK_CQG_SYNC',
       'SCAN_NEGATIVE_MARGIN',
       'DOWNLOAD_CCP_REPORT',

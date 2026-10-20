@@ -24,7 +24,7 @@ Trước khi chuẩn hóa, hệ thống Frontend gặp vấn đề phân mảnh 
 1. **100% các lệnh gọi API** trên toàn bộ ứng dụng (Checklist, Trading Manager, Bot Config, Dashboard, Admin, Profile, Settings) đã được quy tụ về tầng dịch vụ tập trung tại `frontend/src/services/api/`:
    - `auth.api.ts`: Xác thực, Token, Profile.
    - `ingress.api.ts`: Trigger tải báo cáo sàn, audit file backup, kiểm tra kết nối.
-   - `trading-ops.api.ts`: Đối chiếu KLGD, Pre-EOD, Kiểm tra ký quỹ âm, DSGD, Console summary.
+   - `trading-ops.api.ts`: Đối chiếu KLGD, Dsgd-Before-EOD, Kiểm tra ký quỹ âm, DSGD, Console summary.
    - `ccp-clearing.api.ts`: Bù trừ CCP, Tỷ giá USD/đa tiền tệ, Thống kê Lot/Giá trị Macro.
    - `checklist-hub.api.ts`: Quản lý ca trực, chi tiết task, sự cố, bot jobs, GTT.
    - `dashboard.api.ts`: Trạng thái hệ thống, hoạt động ca trực, tóm tắt.

@@ -32,7 +32,7 @@ export default function MsCqgTradingManagerPage() {
 
   // Tabs của Phân hệ MS & CQG:
   // 1. Đối soát khớp lệnh (KLGD 4 bên dùng chung)
-  // 2. Check & Chạy EOD MS-CQG (Pre-EOD, Check DSGD trước EOD, Chạy EOD MS, Âm KQ mới, Đồng bộ CQG)
+  // 2. Check & Chạy EOD MS-CQG (Dsgd-Before-EOD, Check DSGD trước EOD, Chạy EOD MS, Âm KQ mới, Đồng bộ CQG)
   // 3. Backup & Thống kê MS-CQG (20 báo cáo MS, 9 báo cáo CQG, Macro Lot & Macro Value)
   // 4. Cấu hình MS-CQG (Tỷ giá USD MS, giờ mở/đóng phiên MS, đường dẫn thư mục MS & CQG)
   // 5. Hàng đợi & Logs Robot
@@ -85,7 +85,7 @@ export default function MsCqgTradingManagerPage() {
     if (!token) return;
     const MS_CQG_JOB_TYPES = [
       'CHECK_KLGD',
-      'CHECK_PRE_EOD',
+      'CHECK_DSGD_BEFORE_EOD',
       'CHECK_CQG_SYNC',
       'SCAN_NEGATIVE_MARGIN',
       'CHECK_EOD_MM',

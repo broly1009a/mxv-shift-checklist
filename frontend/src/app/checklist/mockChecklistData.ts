@@ -111,8 +111,8 @@ export const MOCK_ACTIVE_LOGS: ShiftLog[] = [
         actionDescriptionSnapshot: 'Giám sát độ trễ và hàng đợi lệnh OMS CoreEX trong phiên giao dịch.',
       },
       {
-        taskId: 'TASK_PRE_EOD_CHECK',
-        taskNameSnapshot: 'Đối chiếu Pre-EOD 3 bên (CoreCCP vs CoreEX vs CQG)',
+        taskId: 'TASK_DSGD_BEFORE_EOD_CHECK',
+        taskNameSnapshot: 'Đối chiếu Dsgd-Before-EOD 3 bên (CoreCCP vs CoreEX vs CQG)',
         prioritySnapshot: 'CRITICAL',
         status: 'PENDING',
         isChecked: false,

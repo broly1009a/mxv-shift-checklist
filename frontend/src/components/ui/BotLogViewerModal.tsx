@@ -97,7 +97,7 @@ export default function BotLogViewerModal({
     let type = '';
     if (selectedJob.jobType === 'CHECK_KLGD') type = 'KLGD';
     else if (selectedJob.jobType === 'AUTO_CHECK_SOD') type = 'CQG';
-    else if (selectedJob.jobType === 'CHECK_PRE_EOD') type = 'PRE_EOD';
+    else if (selectedJob.jobType === 'CHECK_DSGD_BEFORE_EOD') type = 'DSGD_BEFORE_EOD';
     else if (selectedJob.jobType === 'CHECK_EOD_MM') type = 'EOD';
 
     return JSON.stringify({
@@ -223,21 +223,21 @@ export default function BotLogViewerModal({
     ) {
       jsonType = 'KLGD';
     }
-    // 6. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> PRE_EOD Mode (Ảnh 1)
+    // 6. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> DSGD_BEFORE_EOD Mode (Ảnh 1)
     else if (
       idUpper === 'TASK_CHECK_EOD' ||
-      idUpper.includes('PRE_EOD') ||
+      idUpper.includes('DSGD_BEFORE_EOD') ||
       titleUpper.includes('TASK_CHECK_EOD') ||
       titleUpper.includes('CHECK_EOD') ||
       titleUpper.includes('DỮ LIỆU 3 BÊN') ||
-      titleUpper.includes('PRE_EOD') ||
+      titleUpper.includes('DSGD_BEFORE_EOD') ||
       titleUpper.includes('ĐẦU PHIÊN') ||
       text.includes('[ĐỐI CHIẾU TRƯỚC EOD]')
     ) {
-      jsonType = 'PRE_EOD';
+      jsonType = 'DSGD_BEFORE_EOD';
     } else {
-      if (idUpper.includes('PRE_EOD') || titleUpper.includes('PRE_EOD')) {
-        jsonType = 'PRE_EOD';
+      if (idUpper.includes('DSGD_BEFORE_EOD') || titleUpper.includes('DSGD_BEFORE_EOD')) {
+        jsonType = 'DSGD_BEFORE_EOD';
       } else if ((idUpper.includes('CQG') || titleUpper.includes('CQG')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
         jsonType = 'CQG';
       } else if ((idUpper.includes('EOD') || titleUpper.includes('EOD')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
@@ -349,8 +349,8 @@ export default function BotLogViewerModal({
       };
     }
 
-    // Parsing for PRE_EOD mode (Opening Shift / Pre-EOD)
-    if (jsonType === 'PRE_EOD') {
+    // Parsing for DSGD_BEFORE_EOD mode (Opening Shift / Dsgd-Before-EOD)
+    if (jsonType === 'DSGD_BEFORE_EOD') {
       const totals: any = jsonResult?.totals || {};
       const mismatchedTrades: MismatchedTrade[] = jsonResult?.mismatchedTrades || [];
       const mismatchedPositions: any[] = jsonResult?.mismatchedPositions || jsonResult?.mismatchedTTM || [];
@@ -765,7 +765,7 @@ export default function BotLogViewerModal({
     }
     if (
       parsedData.jsonType === 'KLGD' ||
-      parsedData.jsonType === 'PRE_EOD' ||
+      parsedData.jsonType === 'DSGD_BEFORE_EOD' ||
       parsedData.jsonType === 'CQG' ||
       parsedData.jsonType === 'EOD'
     ) {
@@ -838,7 +838,7 @@ export default function BotLogViewerModal({
 
   const isFailed =
     activeStatus === 'FAILED' ||
-    (parsedData.isJson && !parsedData.jsonResult?.passed && (parsedData.jsonType === 'KLGD' || parsedData.jsonType === 'PRE_EOD')) ||
+    (parsedData.isJson && !parsedData.jsonResult?.passed && (parsedData.jsonType === 'KLGD' || parsedData.jsonType === 'DSGD_BEFORE_EOD')) ||
     (parsedData.jsonType === 'CQG' && parsedData.jsonResult?.length > 0);
 
   return (
@@ -894,7 +894,7 @@ export default function BotLogViewerModal({
                 {category === 'SYSTEM_API' && 'Giám Sát Hệ Thống & Cảnh Báo'}
                 {category === 'FILE_AUDIT' && 'Kiểm Tra Tồn Tại File Báo Cáo'}
                 {category === 'RECONCILIATION' && (
-                  parsedData.jsonType === 'PRE_EOD' ? 'Đối Chiếu Trước EOD Tự Động' :
+                  parsedData.jsonType === 'DSGD_BEFORE_EOD' ? 'Đối Chiếu Trước EOD Tự Động' :
                     parsedData.jsonType === 'CQG' ? 'Đối Chiếu Số Dư CQG Tự Động' :
                       parsedData.jsonType === 'EOD' ? 'Đối Chiếu Số Dư EOD (Lọc TK ÂM KÝ QUỸ)' :
                         'Đối Chiếu Khớp Lệnh & Trạng Thái Mở'

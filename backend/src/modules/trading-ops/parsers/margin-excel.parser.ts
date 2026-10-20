@@ -39,7 +39,7 @@ export interface EodMarginParseResult {
 /**
  * Bộ phân tích dữ liệu chuyên biệt cho báo cáo Quản lý tài khoản (QLTKGD / QLTTTKGD)
  * và Báo cáo Trạng thái Ký quỹ Cuối ngày (EOD / EOD CCP).
- * Dùng chung cho: MarginCheckerService, PreEodReconService, CcpEodService, và CqgMergerService.
+ * Dùng chung cho: MarginCheckerService, DsgdBeforeEodReconService, CcpEodService, và CqgMergerService.
  */
 export class MarginExcelParser {
   public static findHeaderIndex(

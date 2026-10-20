@@ -1,4 +1,5 @@
 # KẾ HOẠCH TÁCH CÁC MÀN HÌNH ĐỘC LẬP TỪ TRADING MANAGER (UX/UI & ARCHITECTURE)
+
 ## Tái Thiết Kế Trải Nghiệm Người Dùng (UX/UI) & Kiến Trúc Điều Hướng Cho Hệ Thống Giám Sát Vận Hành MXV
 
 ---
@@ -6,20 +7,23 @@
 ## 1. BỐI CẢNH & HIỆN TRẠNG (PROBLEM STATEMENT)
 
 ### 1.1. Hiện trạng "Monolithic Page" tại `/trading-manager`
+
 Trang **Trading Manager** (`/trading-manager` hoặc `/admin/trading-manager`) ban đầu được xây dựng để gom 1:1 các chức năng từ ứng dụng Windows Forms C# cũ (`operate-transaction-app`). Hiện tại, trang này đang nhồi nhét **toàn bộ 5 phân hệ nghiệp vụ khổng lồ** vào một giao diện tab đơn lẻ:
-1. **Tab 1: Check GD – EOD – Sync**: Giám sát khớp lệnh trong phiên (`CHECK_KLGD`), đối chiếu Pre-EOD 3 bên (`CHECK_PRE_EOD`), đối chiếu EOD Market Maker (`CHECK_EOD_MM`), và quét ký quỹ âm (`SCAN_NEGATIVE_MARGIN`).
+
+1. **Tab 1: Check GD – EOD – Sync**: Giám sát khớp lệnh trong phiên (`CHECK_KLGD`), đối chiếu Dsgd-Before-EOD 3 bên (`CHECK_DSGD_BEFORE_EOD`), đối chiếu EOD Market Maker (`CHECK_EOD_MM`), và quét ký quỹ âm (`SCAN_NEGATIVE_MARGIN`).
 2. **Tab 2: Backup – Thống kê – GTT**: Quản lý tải 14 báo cáo M-System, 9 báo cáo CQG, chạy Macro số lô (`RUN_LOT_MACRO`), Macro giá trị (`RUN_VALUE_MACRO`), và đối soát chênh lệch giá thanh toán GTT (`CHECK_GTT`).
 3. **Tab 3: Cấu hình – Đường dẫn**: Cấu hình tỷ giá đa tiền tệ M-System & CoreCCP, giờ phiên, cùng 12 đường dẫn thư mục hạ tầng máy chủ.
 4. **Tab 4: Báo Cáo & Đối Chiếu CoreCCP**: Tải 25 báo cáo VNCLEAR, đối soát EOD CoreCCP, thống kê Lot & Giá trị giao dịch CoreCCP theo 2 chế độ User vs Expert.
 5. **Tab 5: Hàng đợi & Logs Robot**: Giám sát hàng đợi Job, can thiệp khẩn cấp (Cancel/Retry), và terminal stream logs Playwright.
 
 ### 1.2. Những điểm nghẽn nghiêm trọng khi "Nhét hết vào một trang"
-| Điểm nghẽn | Hệ quả thực tế |
-| :--- | :--- |
-| **Quá tải nhận thức (Cognitive Overload)** | Nhân viên ca trực chỉ cần làm nhiệm vụ đối soát khớp lệnh trong ca nhưng phải tải trang chứa hàng trăm nút bấm, cấu hình tỷ giá, Macro và hàng đợi robot, rất dễ bấm nhầm nút nguy hiểm. |
-| **Tải trang nặng & Rò rỉ tài nguyên** | Trang phải duy trì đồng thời: Socket.IO realtime, 2 polling intervals (8s cho Job Queue, 30s cho Matrix), hàng chục modal con và hàng ngàn dòng code giao diện. |
-| **Bất cập trong phân quyền (RBAC)** | Không thể phân quyền chi tiết: Nhân viên trực ca vận hành (Operator) chỉ được xem và bấm chạy đối chiếu, trong khi việc sửa đường dẫn máy chủ hay sửa tỷ giá hạch toán bắt buộc phải là quyền của Admin/IT. |
-| **Xung đột lộ trình phát triển VNCLEAR** | Hệ thống VNCLEAR CoreCCP & CoreEX là nền tảng giao dịch tương lai của MXV. Việc đặt VNCLEAR thành một Tab con phụ thuộc trong màn hình cũ của M-System là sai lệch về mặt định vị kiến trúc. |
+
+| Điểm nghẽn                                 | Hệ quả thực tế                                                                                                                                                                                              |
+| :----------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Quá tải nhận thức (Cognitive Overload)** | Nhân viên ca trực chỉ cần làm nhiệm vụ đối soát khớp lệnh trong ca nhưng phải tải trang chứa hàng trăm nút bấm, cấu hình tỷ giá, Macro và hàng đợi robot, rất dễ bấm nhầm nút nguy hiểm.                    |
+| **Tải trang nặng & Rò rỉ tài nguyên**      | Trang phải duy trì đồng thời: Socket.IO realtime, 2 polling intervals (8s cho Job Queue, 30s cho Matrix), hàng chục modal con và hàng ngàn dòng code giao diện.                                             |
+| **Bất cập trong phân quyền (RBAC)**        | Không thể phân quyền chi tiết: Nhân viên trực ca vận hành (Operator) chỉ được xem và bấm chạy đối chiếu, trong khi việc sửa đường dẫn máy chủ hay sửa tỷ giá hạch toán bắt buộc phải là quyền của Admin/IT. |
+| **Xung đột lộ trình phát triển VNCLEAR**   | Hệ thống VNCLEAR CoreCCP & CoreEX là nền tảng giao dịch tương lai của MXV. Việc đặt VNCLEAR thành một Tab con phụ thuộc trong màn hình cũ của M-System là sai lệch về mặt định vị kiến trúc.                |
 
 ---
 
@@ -52,6 +56,7 @@ MXV PORTAL SIDEBAR NAVIGATION
 ## 3. THIẾT KẾ CHI TIẾT 5 MÀN HÌNH CHỨC NĂNG ĐỘC LẬP
 
 ### 3.1. Màn hình 1: Giám Sát & Đối Soát Giao Dịch (`/operations/reconciliation`)
+
 - **Tên hiển thị trên Menu**: `Giám Sát & Đối Soát Giao Dịch`
 - **Đối tượng sử dụng**: Nhân sự Vận hành Ca trực (Shift Operator), Trưởng ca (Shift Leader).
 - **Quyền hạn truy cập (`Permissions`)**: `ACCESS_AUTO_SHIFT` hoặc `MANAGE_SHIFTS`.
@@ -67,14 +72,15 @@ MXV PORTAL SIDEBAR NAVIGATION
      - Thẻ 3: Trạng thái tất toán (TTTT) — Lot thanh toán & đóng lệnh.
   3. **Bảng Báo Động Lệch Lệnh (Live Discrepancy Alert)**:
      - Chỉ xuất hiện nổi bật khi có chênh lệch: Hiển thị danh sách từng lệnh lệch (Mã TK, Hợp đồng, Giá, Khối lượng, Bên thiếu/Bên thừa).
-  4. **Khu Vực Chốt Ca Cuối Ngày (Pre-EOD & EOD Panel)**:
-     - Nút `[Chạy Pre-EOD 3 Bên]` (Khớp lệnh + Vị thế Net Position).
+  4. **Khu Vực Chốt Ca Cuối Ngày (Dsgd-Before-EOD & EOD Panel)**:
+     - Nút `[Chạy Dsgd-Before-EOD 3 Bên]` (Khớp lệnh + Vị thế Net Position).
      - Nút `[Kiểm Tra EOD & Quét Ký Quỹ Âm]`.
      - Nút `[Kiểm Tra Nhanh DSGD Trước EOD]` (API `check-dsgd-before-eod` mới bổ sung).
 
 ---
 
 ### 3.2. Màn hình 2: Báo Cáo Vận Hành, Macro & GTT (`/data/operations-reports`)
+
 - **Tên hiển thị trên Menu**: `Báo Cáo, Macro & GTT`
 - **Đối tượng sử dụng**: Nhân viên tổng hợp số liệu, Chuyên viên Thanh toán & Vận hành.
 - **Quyền hạn truy cập (`Permissions`)**: `ACCESS_AUTO_SHIFT`.
@@ -95,6 +101,7 @@ MXV PORTAL SIDEBAR NAVIGATION
 ---
 
 ### 3.3. Màn hình 3: Phân Hệ VNCLEAR CoreCCP & CoreEX (`/vnclear/clearing-hub`)
+
 - **Tên hiển thị trên Menu**: `Phân Hệ VNCLEAR (CoreCCP & CoreEX)`
 - **Đối tượng sử dụng**: Chuyên viên Bù trừ Thanh toán VNCLEAR, Quản trị viên Kỹ thuật.
 - **Quyền hạn truy cập (`Permissions`)**: `ACCESS_AUTO_SHIFT` hoặc `MANAGE_SYSTEM_SETTINGS`.
@@ -115,6 +122,7 @@ MXV PORTAL SIDEBAR NAVIGATION
 ---
 
 ### 3.4. Màn hình 4: Trung Tâm Giám Sát Robot & Hàng Đợi Job (`/monitoring/bot-jobs`)
+
 - **Tên hiển thị trên Menu**: `Giám Sát Robot & Logs`
 - **Đối tượng sử dụng**: Toàn bộ nhân viên ca trực, Quản trị viên Bot, IT Support.
 - **Quyền hạn truy cập (`Permissions`)**: `ACCESS_AUTO_SHIFT`.
@@ -122,7 +130,7 @@ MXV PORTAL SIDEBAR NAVIGATION
   1. **Bảng Thống Kê Trạng Thái Worker (Queue Health Overview)**:
      - Thống kê thời gian thực: Đang chạy (`PROCESSING`), Đang chờ (`PENDING`), Chờ Captcha (`AWAITING_CAPTCHA`), Thất bại (`FAILED`), Đã dừng (`CANCELLED`).
   2. **Bộ Lọc Đa Chiều Nâng Cao**:
-     - Lọc theo loại nghiệp vụ: `CHECK_KLGD`, `CHECK_PRE_EOD`, `DOWNLOAD_CCP_REPORT`, `RUN_MACRO`...
+     - Lọc theo loại nghiệp vụ: `CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `DOWNLOAD_CCP_REPORT`, `RUN_MACRO`...
      - Lọc theo khoảng ngày, lọc theo trạng thái, tìm kiếm theo `Job ID`.
   3. **Bảng Điều Khiển Tác Vụ**:
      - Hiển thị danh sách Job kèm tiến độ, thời gian bắt đầu, số lần thử (`attempt/maxAttempts`).
@@ -133,9 +141,10 @@ MXV PORTAL SIDEBAR NAVIGATION
 ---
 
 ### 3.5. Màn hình 5: Cấu Hình Tỷ Giá & Hạ Tầng Lưu Trữ (`/admin/trading-settings`)
+
 - **Tên hiển thị trên Menu**: `Cấu Hình Tỷ Giá & Đường Dẫn`
 - **Đối tượng sử dụng**: Quản trị viên Hệ thống (System Admin), IT Lead.
-- **Quyền hạn truy cập (`Permissions`)**: BẮT BUỘC `MANAGE_SYSTEM_SETTINGS`. *(Nhân viên vận hành thông thường bị chặn không cho truy cập)*.
+- **Quyền hạn truy cập (`Permissions`)**: BẮT BUỘC `MANAGE_SYSTEM_SETTINGS`. _(Nhân viên vận hành thông thường bị chặn không cho truy cập)_.
 - **Thành phần giao diện (UI Components)**:
   1. **Khối Quản Lý Tỷ Giá Đa Ngoại Tệ**:
      - **Tỷ giá M-System**: Tỷ giá USD mua/bán, USD hạch toán. Nút `[Đồng Bộ Tự Động Từ M-System]`.
@@ -174,11 +183,11 @@ GIAI ĐOẠN 3 (Chuyển Đổi Hoàn Toàn & Chuyển Trang Cũ Thành Hub)
 
 ## 5. BẢN ĐỒ ĐỐI CHIẾU FILE CODE HIỆN TẠI VÀ TRANG MỚI
 
-| Phân hệ mới | URL Route mới | File Component gốc hiện tại | File Component mới dự kiến |
-| :--- | :--- | :--- | :--- |
-| **1. Đối Soát Giao Dịch** | `/operations/reconciliation` | `LegacyReconSection.tsx` <br> `LegacyPreEodDiffSection.tsx` | `src/app/operations/reconciliation/page.tsx` <br> `src/features/reconciliation/...` |
-| **2. Báo Cáo, Macro & GTT** | `/data/operations-reports` | `LegacyBackupThongKeSection.tsx` <br> `LegacyGttCheckerSection.tsx` <br> `CeAcmBackupSection.tsx` | `src/app/data/operations-reports/page.tsx` <br> `src/features/operations-reports/...` |
-| **3. VNCLEAR CoreCCP & CE** | `/vnclear/clearing-hub` | `CoreCcpBackupSection.tsx` <br> `CcpLotStatisticsSection.tsx` | `src/app/vnclear/clearing-hub/page.tsx` <br> `src/features/vnclear/...` |
-| **4. Hàng Đợi Robot & Logs** | `/monitoring/bot-jobs` | `TradingManagerJobQueueSection.tsx` <br> `TradingManagerLogModal.tsx` | `src/app/monitoring/bot-jobs/page.tsx` <br> `src/features/bot-monitor/...` |
-| **5. Cấu Hình Tỷ Giá & Lưu Trữ** | `/admin/trading-settings` | `TradingManagerConfigSection.tsx` | `src/app/admin/trading-settings/page.tsx` <br> `src/features/trading-settings/...` |
-| **Bàn Điều Hành Trung Tâm** | `/trading-manager` (Giữ nguyên) | `page.tsx` (hiện tại) | Trở thành **Command Hub** (Tổng quan trạng thái + Thẻ điều hướng tắt đến 5 màn hình trên) |
+| Phân hệ mới                      | URL Route mới                   | File Component gốc hiện tại                                                                       | File Component mới dự kiến                                                                |
+| :------------------------------- | :------------------------------ | :------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------- |
+| **1. Đối Soát Giao Dịch**        | `/operations/reconciliation`    | `LegacyReconSection.tsx` <br> `LegacyDsgdBeforeEodDiffSection.tsx`                                | `src/app/operations/reconciliation/page.tsx` <br> `src/features/reconciliation/...`       |
+| **2. Báo Cáo, Macro & GTT**      | `/data/operations-reports`      | `LegacyBackupThongKeSection.tsx` <br> `LegacyGttCheckerSection.tsx` <br> `CeAcmBackupSection.tsx` | `src/app/data/operations-reports/page.tsx` <br> `src/features/operations-reports/...`     |
+| **3. VNCLEAR CoreCCP & CE**      | `/vnclear/clearing-hub`         | `CoreCcpBackupSection.tsx` <br> `CcpLotStatisticsSection.tsx`                                     | `src/app/vnclear/clearing-hub/page.tsx` <br> `src/features/vnclear/...`                   |
+| **4. Hàng Đợi Robot & Logs**     | `/monitoring/bot-jobs`          | `TradingManagerJobQueueSection.tsx` <br> `TradingManagerLogModal.tsx`                             | `src/app/monitoring/bot-jobs/page.tsx` <br> `src/features/bot-monitor/...`                |
+| **5. Cấu Hình Tỷ Giá & Lưu Trữ** | `/admin/trading-settings`       | `TradingManagerConfigSection.tsx`                                                                 | `src/app/admin/trading-settings/page.tsx` <br> `src/features/trading-settings/...`        |
+| **Bàn Điều Hành Trung Tâm**      | `/trading-manager` (Giữ nguyên) | `page.tsx` (hiện tại)                                                                             | Trở thành **Command Hub** (Tổng quan trạng thái + Thẻ điều hướng tắt đến 5 màn hình trên) |
