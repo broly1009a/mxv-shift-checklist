@@ -1,3 +1,122 @@
+## [2026-10-20T09:28] ARCHITECTURE REFACTOR: Đóng Gói Toàn Bộ Ánh Xạ Đường Dẫn & Presets Vào File Cấu Hình Tập Trung `storage-path.config.ts`
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu & góp ý kiến trúc đúng đắn của USER: *"sao bạn không viết 1 file riêng ánh xạ sang, chứ giờ mà sửa có mà sửa từng file 1 hay sao mà code kiểu này"*.
+- Xóa bỏ tình trạng rải rác các chuỗi đường dẫn hạ tầng (`tailieuchung/qlgd-it`, `/mnt/qlgd-it`, `/mnt/oc-uat`, `M:\Tailieuchung\...`) trong các component giao diện React.
+- Tạo một file cấu hình tập trung duy nhất ([storage-path.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/config/storage-path.config.ts)) làm Single Source of Truth cho toàn bộ Frontend: quản lý danh sách prefix mount, biến môi trường `.env`, bộ danh mục Presets và các utility quy đổi đường dẫn.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/config/storage-path.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/config/storage-path.config.ts):
+   - Tạo mới file cấu hình tập trung xuất các biến và hàm:
+     - `STORAGE_MOUNT_CONFIG`: Chứa `windowsSharePrefix` (hỗ trợ đọc từ `process.env.NEXT_PUBLIC_STORAGE_SHARE_WINDOWS` hoặc fallback `M:\Tailieuchung\QLGD-IT`), `linuxMountPrefix` (`NEXT_PUBLIC_STORAGE_MOUNT_LINUX` hoặc `/mnt/qlgd-it`), `knownLinuxMounts`, `knownUncShares`.
+     - `DEFAULT_STORAGE_PRESETS`: Danh mục các preset mẫu sinh động từ cấu hình tiền tố, không hardcode tĩnh.
+     - `extractRelativeSubPath(rawPath)`: Bóc tách đường dẫn tương đối (sau thư mục gốc) 100% động qua regex tổng quát.
+     - `parseWindowsStoragePath(rawPath)`: Chuẩn hóa đường dẫn hiển thị Windows, Live Preview và cờ động.
+2. [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx):
+   - Xóa bỏ toàn bộ các mảng Presets và các khối `if/else` hạ tầng nội bộ.
+   - Chuyển sang import 100% từ `@/config/storage-path.config`.
+   - Khi MXV thay đổi ổ đĩa mount, tên máy chủ, hoặc đường dẫn thư mục dùng chung, **CHỈ CẦN SỬA DUY NHẤT 1 FILE CẤU HÌNH** `storage-path.config.ts` (hoặc cấu hình file `.env`), không phải sửa từng component.
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: Exit code 0 (Success).
+- `npm run build`: Exit code 0 (Success - Turbopack next build hoàn thành 36 routes).
+
+---
+
+## [2026-10-20T09:25] REFACTOR: Loại Bỏ Triệt Để Hardcode Regex Ép Đường Dẫn Trong SmartPathInput & Chuẩn Hóa Data-Driven 100%
+
+### 1. Mục tiêu thay đổi
+- Thực hiện cảnh báo và yêu cầu đúng đắn của USER: *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Futures sao bạn hardcode nhiều vậy bạn tính code rác để bug à"*.
+- Xóa bỏ hoàn toàn các pattern phỏng đoán hardcode (`/check[-_]klgd/`, `/recon[-_]results/`, `/temp\/gtt/`) trong [SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx#L50-L65) và các chuỗi fallback cứng trong [TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L182-L185).
+- Đảm bảo tuân thủ nghiêm ngặt **Rule 1.1**, **Rule 1.5** và **Rule 7.1.4 (Zero-Hardcoding & Data-Driven Architecture)** trong `.agents/AGENTS.md`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx#L50-L65):
+   - **Trước**: Sử dụng một loạt `if (/check[-_]klgd/i.test(normalizedSlash))` để tự động ép đường dẫn của người dùng thành `TradingCheck/Futures` hoặc `Ket qua check KLGD`. Hậu quả: nếu người dùng gõ bất kỳ thư mục nào khác có chứa từ khóa này, hệ thống sẽ tự ý đánh tráo và ghi đè đường dẫn của họ.
+   - **Sau**: Xóa bỏ hoàn toàn 100% các regex hardcode này. Chỉ giữ lại logic nhận diện động tổng quát: người dùng nhập thư mục con nào sau `Quanlygiaodich/`, `/mnt/qlgd-it/` hoặc `X:\Tailieuchung\...`, hệ thống tôn trọng và giữ nguyên 100% cây thư mục đó (`subPath = qlgdMatch[1]`).
+2. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L182-L185):
+   - Xóa bỏ các chuỗi fallback tĩnh (`|| 'M:\Tailieuchung\...TradingCheck\Futures'`). Nạp trực tiếp 100% từ Database MongoDB (`map.recon_folder_check_path || ''`).
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: Exit code 0 (Success).
+- `npm run build`: Exit code 0 (Success - Clean Turbopack build 36 routes).
+
+---
+
+## [2026-10-20T09:20] UI & UX ENHANCEMENT: Chuẩn Hóa CSS Giao Diện Modal DSGD Trước EOD Theo `globals.css` & Đơn Giản Hóa Cơ Chế Snapshot Chuẩn C# Tool
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Khắc phục lỗi giao diện Modal [CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx) chưa ăn theo theme CSS của [globals.css](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/globals.css) (bị xám xịt, hardcode màu tối lệch tông trong Light Mode).
+  2. Giải thích rõ ràng *"Thời Điểm Snapshot (Tùy chọn) là sao?"* dựa trên mã nguồn C# gốc ([TransactionCheckingService.cs#L443-L450](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L443-L450), [FormMain.cs#L1593-L1608](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/tool-C%23/operate-transaction-app/FormMain.cs#L1593-L1608)) và tái cấu trúc UX để trực quan, tiện lợi, dễ dùng như C# (không bắt người dùng phải gõ chuỗi giờ thủ công).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
+   - Sử dụng `createPortal(..., document.body)` đồng bộ kiến trúc Modal của hệ thống (`globals.css`), z-index 999999 kèm backdrop blur `rgba(15, 23, 42, 0.55)`.
+   - Chuyển toàn bộ màu sắc nền, viền và chữ sang CSS variables (`var(--bg-card)`, `var(--bg-input)`, `var(--border-color)`, `var(--text-primary)`, `var(--text-secondary)`). Hoàn toàn tương thích và hiển thị sạch đẹp cả Light Mode và Dark Mode.
+   - **Tái thiết kế cơ chế Snapshot**: Thay vì bắt người dùng nhập ô chữ kỳ lạ *"Thời Điểm Snapshot (Tùy chọn) = Mới nhất (hoặc 172842)"*, chuyển thành 2 chế độ trực quan:
+     - **Chế độ 1 (Mặc định - Chuẩn C# Tool)**: *"Tự động mới nhất (C#)"* -> Tự động nhận diện và quét file snapshot chiều mới nhất trong `TradingCheck` / `Backup MS` giống 100% C#. Người dùng chỉ cần 1 click *"Thực Hiện Kiểm Tra Ngay"*.
+     - **Chế độ 2 (Chỉ định cụ thể - Nâng cao)**: Cho phép nhập hậu tố (ví dụ: `172842` cho file `DSGD172842.xlsx`) kèm giải thích rõ nghĩa khi muốn kiểm tra lại file cũ.
+2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Thay thế các nền hardcoded tối (`rgba(15, 23, 42, 0.4)` và `rgba(0, 0, 0, 0.25)`) sang `var(--bg-input)` và `var(--bg-card)`.
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: Exit code 0 (Success).
+- `npm run build`: Exit code 0 (Success - Turbopack next build hoàn thành 36 routes).
+
+---
+
+## [2026-10-20T09:12] FEATURE UPDATE: Thêm Icon Hướng Dẫn Nghiệp Vụ (i) & Bảng Chú Thích Chi Tiết T / T-1 Cho Các Module Đối Chiếu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Thêm nút/icon chú thích (i) trực tiếp trên các component chức năng đối soát để giải thích rõ nguyên lý hoạt động, thời điểm chạy (phiên T hay T-1), các tệp tin đầu vào bắt buộc và tiêu chuẩn nghiệm thu pass/fail.
+- Áp dụng trên Modal kiểm tra trước EOD ([CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx)), Component quản lý DSGD trước EOD ([DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx)) và Component đồng bộ số dư CQG ([LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx)).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
+   - Bổ sung nút bấm `"Hướng Dẫn Nghiệp Vụ"` kèm icon `Info` (SVG từ `lucide-react`) trên header.
+   - Thêm bảng hướng dẫn 4 cột chuẩn Enterprise (1. Nghiệp vụ cốt lõi, 2. Thời điểm T / T-1, 3. Tệp tin đầu vào bắt buộc, 4. Tiêu chuẩn Pass).
+2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Bổ sung nút `"Chú Thích (i)"` vào thanh công cụ thao tác nhanh.
+   - Hiển thị bảng chú thích có thể thu gọn / mở rộng trực quan ngay trên trang Trading Manager.
+3. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx):
+   - Bổ sung nút `"Chú Thích (i)"` và bảng hướng dẫn nguyên lý đối chiếu số dư MS vs CQG (`CHECK_CQG_SYNC`), thời điểm phiên T và các tệp tin `QLTKGD.xlsx` & `Accounts_Balances.xlsx`.
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: Exit code 0 (Success - Không lỗi kiểu dữ liệu).
+- `npm run build`: Exit code 0 (Success - Turbopack next build tạo 36/36 static/dynamic routes thành công).
+
+---
+
+## [2026-10-20T09:05] FEATURE UPDATE: Ánh Xạ Đường Dẫn TradingCheck & Kết Quả Check KLGD Về Chuẩn Ổ M:\ (Windows) & Tự Động Phân Giải Ubuntu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Chuẩn hóa 2 ô nhập cấu hình *"Đường dẫn tải file check trong phiên (TradingCheck)"* và *"Đường dẫn lưu kết quả check KLGD"* từ đường dẫn nội bộ Linux (`/opt/mxv-checklist/backend/temp/...`) về định dạng ổ mạng dùng chung quen thuộc của người dùng Windows (`M:\Tailieuchung\QLGD-IT\Quanlygiaodich\...`).
+- Đảm bảo khi người dùng cấu hình đường dẫn ổ `M:\`, máy chủ Ubuntu vẫn tự động ánh xạ chính xác vào thư mục thật trên Linux (`/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/...`) và kiểm tra quyền đọc/ghi thành công.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/components/admin/SmartPathInput.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/admin/SmartPathInput.tsx#L52-L65):
+   - Cập nhật hàm `parseWindowsStoragePath`:
+     - Nhận diện các đường dẫn tạm thời `check-klgd` $\rightarrow$ Tự động gợi ý chuẩn hóa sang `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Futures`.
+     - Nhận diện `recon-results` / `ket qua check` $\rightarrow$ Tự động gợi ý chuẩn hóa sang `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Ket qua check KLGD`.
+     - Nhận diện `temp/gtt` $\rightarrow$ Tự động gợi ý chuẩn hóa sang `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\GTT`.
+2. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L182-L185):
+   - Đặt giá trị mặc định chuẩn ổ `M:\` cho các biến `reconFolderCheckPath`, `reconResultFolderPath`, `gttImportPath` khi nạp từ MongoDB.
+   - Nút bấm **"Chuẩn hóa ổ M:\"** tự động quy đổi các đường dẫn tạm sang định dạng ổ `M:\` chuẩn.
+3. **Database CSDL (`system_settings`) trên Ubuntu 10.0.0.26**:
+   - Cập nhật bản ghi `recon_folder_check_path` = `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Futures`.
+   - Cập nhật bản ghi `recon_result_folder_path` = `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\Ket qua check KLGD`.
+   - Cập nhật bản ghi `gtt_import_path` = `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\TradingCheck\GTT`.
+   - Tạo thư mục thực tế `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Ket qua check KLGD` trên Ubuntu server với đầy đủ quyền đọc/ghi (`drwxrwxrwx`).
+
+### 3. Kết quả Kiểm thử & Build
+- Frontend Build: `cmd.exe /c "npm run build"` (`next build`) -> **Exit code 0 (Success - Build sạch)**.
+- Backend Path Verification: `resolveStoragePathCrossPlatform` trên Ubuntu đã kiểm chứng thành công:
+  - `M:\...\TradingCheck\Futures` $\rightarrow$ `/mnt/qlgd-it/.../TradingCheck/Futures` (`exists: true`).
+  - `M:\...\TradingCheck\Ket qua check KLGD` $\rightarrow$ `/mnt/qlgd-it/.../TradingCheck/Ket qua check KLGD` (`exists: true`).
+
+---
+
 ## [2026-10-20T08:50] BUG FIX: Tôn Trọng Tham Số `reports` Trong `handleFileAuditAcmJob` (Chặn Tự Động Tải Báo Cáo SFTP Khi Chỉ Yêu Cầu Web ORDER/FILL)
 
 ### 1. Mục tiêu thay đổi

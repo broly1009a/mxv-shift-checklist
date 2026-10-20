@@ -14,6 +14,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
   Check,
+  Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tradingOpsApi } from '@/features/trading/services/trading-ops.api';
@@ -57,6 +58,7 @@ export default function DsgdBeforeEodSection({
   const [showAdvancedModal, setShowAdvancedModal] = useState<boolean>(false);
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
 
   // Khi selectedDate thay đổi, reset trạng thái đã chạy trừ khi có lượt chạy mới
   useEffect(() => {
@@ -309,6 +311,28 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
             </button>
           )}
 
+          {/* Guide / Info Button */}
+          <button
+            type="button"
+            onClick={() => setShowGuide(!showGuide)}
+            className="btn btn-secondary"
+            title="Xem chú thích nghiệp vụ, thời điểm T / T-1 và các file cần thiết"
+            style={{
+              fontSize: '0.75rem',
+              padding: '6px 12px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              border: showGuide ? '1px solid #38bdf8' : undefined,
+              backgroundColor: showGuide ? 'rgba(56, 189, 248, 0.12)' : undefined,
+              color: showGuide ? '#38bdf8' : undefined,
+            }}
+          >
+            <Info size={13} color={showGuide ? '#38bdf8' : 'currentColor'} />
+            <span>{showGuide ? 'Ẩn Chú Thích' : 'Chú Thích (i)'}</span>
+          </button>
+
           {/* Advanced Modal Settings Button */}
           <button
             type="button"
@@ -359,6 +383,90 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
           </button>
         </div>
       </div>
+
+      {/* GUIDANCE PANEL */}
+      {showGuide && (
+        <div
+          style={{
+            padding: '16px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(56, 189, 248, 0.06)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800, fontSize: '0.85rem' }}>
+            <Info size={16} />
+            <span>CHÚ THÍCH NGUYÊN LÝ HOẠT ĐỘNG & NGHIỆP VỤ (CheckDSGDBeforeEOD)</span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '12px',
+              fontSize: '0.78rem',
+            }}
+          >
+            {/* 1. Nghiệp Vụ */}
+            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#38bdf8', marginBottom: '4px' }}>
+                1. Nghiệp vụ cốt lõi
+              </div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Chạy vào cuối ca chiều (khoảng 16h20 – 17h00) trước khi chốt sổ EOD:
+                <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>
+                  <li>So sánh <b>DSGD gốc</b> đầu ngày vs <b>Snapshot chiều</b> để phát hiện lệch số.</li>
+                  <li>Khớp lệnh tự doanh <b>ACM M-System</b> (tài khoản đuôi <code>A</code>) so với <b>Straits CSV</b> đối tác.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 2. Thời Điểm T hay T-1 */}
+            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#f59e0b', marginBottom: '4px' }}>
+                2. Thời điểm phiên: T hay T-1?
+              </div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li><b>Mặc định (Bỏ chọn exactDate)</b>: Đối soát cho phiên <b>T-1</b> (phiên vừa đóng cửa gần nhất, tự động bỏ qua T7, CN và ngày nghỉ lễ).</li>
+                  <li><b>Khi chọn &ldquo;Khớp chính xác ngày (exactDate)&rdquo;</b>: Đối soát đúng ngày <b>T</b> chỉ định trên ô lịch.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 3. Tệp tin đầu vào */}
+            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#10b981', marginBottom: '4px' }}>
+                3. Các tệp tin đầu vào bắt buộc
+              </div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li><code>DSGD.xlsx</code>: Bản gốc đầu ngày lưu tại <code>Backup MS\Futures</code> hoặc <code>TradingCheck</code>.</li>
+                  <li><code>DSGD&#123;timeSuffix&#125;.xlsx</code>: Bản snapshot chốt phiên chiều (ví dụ <code>DSGD172842.xlsx</code>).</li>
+                  <li><code>Straits CSV</code>: File giao dịch từ SFTP Straits (<code>EOD FO trades_PT Straits...csv</code>).</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 4. Tiêu chuẩn Pass */}
+            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#a855f7', marginBottom: '4px' }}>
+                4. Tiêu chuẩn nghiệm thu (Pass)
+              </div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  <li><b>Tổng KLGD khớp</b>: <code>|TotalOriginal - TotalTemp| &le; 0.0001</code>.</li>
+                  <li><b>Khớp ACM tự doanh</b>: <code>|TotalACM_MS - TotalACM_Straits| &le; 0.0001</code>.</li>
+                  <li>Nếu thiếu file snapshot, hệ thống từ chối so sánh để ngăn chặn báo thành công ảo.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CONTENT BODY */}
       {!hasChecked ? (
@@ -615,7 +723,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               style={{
                 padding: '14px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                backgroundColor: 'var(--bg-input)',
                 border: '1px solid var(--border-color)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -664,7 +772,8 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
                       overflowY: 'auto',
                       padding: '8px 12px',
                       borderRadius: '6px',
-                      backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
                       fontSize: '0.74rem',
                       fontFamily: 'monospace',
                       display: 'flex',

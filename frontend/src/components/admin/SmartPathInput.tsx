@@ -5,10 +5,14 @@ import { Folder, Sparkles, Calendar, Info, CheckCircle2, AlertCircle, Loader2, F
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 
-export interface SmartPathPreset {
-  name: string;
-  path: string;
-}
+import {
+  SmartPathPreset,
+  DEFAULT_STORAGE_PRESETS,
+  parseWindowsStoragePath,
+} from '@/config/storage-path.config';
+
+export type { SmartPathPreset };
+export { parseWindowsStoragePath };
 
 export interface SmartPathInputProps {
   value: string;
@@ -19,114 +23,6 @@ export interface SmartPathInputProps {
   targetType?: 'folder' | 'file' | 'any';
   presets?: SmartPathPreset[];
   verifyButtonText?: string;
-}
-
-const DEFAULT_PRESETS: SmartPathPreset[] = [
-  {
-    name: 'MS Futures',
-    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\\${YYYY}\\T${MM}.${YYYY}\\${DD}.${MM}',
-  },
-  {
-    name: 'MS ACM',
-    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\ACM\\${YYYY}\\T${MM}.${YYYY}\\${DD}.${MM}',
-  },
-  {
-    name: 'CQG Futures',
-    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures\\${YYYY}\\T${MM}.${YYYY}\\${DD}.${MM}',
-  },
-];
-
-/**
- * Chuẩn hóa đường dẫn về dạng ổ mạng dùng chung quen thuộc của người dùng (M:\Tailieuchung\QLGD-IT\...)
- * Hỗ trợ cả Thư mục và File có đuôi mở rộng (.xlsx, .csv...)
- */
-export function parseWindowsStoragePath(rawPath: string) {
-  if (!rawPath || !rawPath.trim()) {
-    return null;
-  }
-
-  const trimmed = rawPath.trim();
-  const normalizedSlash = trimmed.replace(/\\/g, '/');
-
-  // 1. Nhận diện phần đường dẫn từ Quanlygiaodich trở đi
-  let subPath = '';
-  const qlgdMatch = normalizedSlash.match(/(?:^|\/)(quanlygiaodich\/.*)$/i);
-
-  if (qlgdMatch) {
-    subPath = qlgdMatch[1];
-  } else if (/^[a-zA-Z]:\/tailieuchung\/qlgd-it\/(.*)$/i.test(normalizedSlash)) {
-    subPath = `Quanlygiaodich/${normalizedSlash.replace(/^[a-zA-Z]:\/tailieuchung\/qlgd-it\//i, '')}`;
-  } else if (/^\/\/[^/]+\/(?:tailieuchung\/qlgd-it\/|tailieuchung\/)?(.*)$/i.test(normalizedSlash)) {
-    const uncRemainder = normalizedSlash.replace(/^\/\/[^/]+\/(?:tailieuchung\/qlgd-it\/|tailieuchung\/)?/i, '');
-    subPath = uncRemainder.toLowerCase().startsWith('quanlygiaodich/') ? uncRemainder : `Quanlygiaodich/${uncRemainder}`;
-  } else if (/^\/mnt\/qlgd-it\/(.*)$/i.test(normalizedSlash)) {
-    subPath = normalizedSlash.replace(/^\/mnt\/qlgd-it\//i, '');
-  } else if (/^\/mnt\/oc-uat\/(.*)$/i.test(normalizedSlash)) {
-    subPath = normalizedSlash.replace(/^\/mnt\/oc-uat\//i, '');
-  }
-
-  // Nếu không nhận diện được cụm QLGD quen thuộc, giữ nguyên
-  if (!subPath) {
-    const hasDynamic = trimmed.includes('${');
-    return {
-      hasConversionDiff: false,
-      hasDynamicVars: hasDynamic,
-      suggestedPath: trimmed,
-      dynamicPath: trimmed,
-      todayPreview: trimmed,
-      tomorrowPreview: trimmed,
-      isFile: /\.[a-zA-Z0-9]{2,5}$/.test(trimmed),
-    };
-  }
-
-  subPath = subPath.replace(/^quanlygiaodich\/quanlygiaodich\//i, 'Quanlygiaodich/');
-
-  // 2. Chuyển thành đường dẫn ổ M: chuẩn Windows
-  const windowsSubPath = subPath.replace(/\//g, '\\');
-  const standardFixedPath = `M:\\Tailieuchung\\QLGD-IT\\${windowsSubPath}`;
-
-  // 3. Tạo phiên bản đường dẫn động (${YYYY}, T${MM}.${YYYY}, ${DD}.${MM})
-  let dynamicPath = standardFixedPath;
-  dynamicPath = dynamicPath.replace(/T(0?[1-9]|1[0-2])\.(20\d{2})/g, 'T${MM}.${YYYY}');
-  dynamicPath = dynamicPath.replace(/\b(202\d)\b/g, '${YYYY}');
-  dynamicPath = dynamicPath.replace(/\b(0?[1-9]|[12]\d|3[01])\.(0?[1-9]|1[0-2])\b/g, '${DD}.${MM}');
-
-  // 4. Tính toán Live Preview (Hôm nay & Ngày mai)
-  const now = new Date(Date.now() + 7 * 60 * 60 * 1000); // GMT+7
-  const todayYYYY = now.getUTCFullYear().toString();
-  const todayMM = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-  const todayDD = now.getUTCDate().toString().padStart(2, '0');
-
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const tomYYYY = tomorrow.getUTCFullYear().toString();
-  const tomMM = (tomorrow.getUTCMonth() + 1).toString().padStart(2, '0');
-  const tomDD = tomorrow.getUTCDate().toString().padStart(2, '0');
-
-  const evalPath = (p: string, y: string, m: string, d: string) =>
-    p
-      .replace(/\${YYYY}/g, y)
-      .replace(/\${MM}/g, m)
-      .replace(/\${DD}/g, d)
-      .replace(/\${yyyy}/g, y)
-      .replace(/\${mm}/g, m)
-      .replace(/\${dd}/g, d);
-
-  const todayPreview = evalPath(dynamicPath, todayYYYY, todayMM, todayDD);
-  const tomorrowPreview = evalPath(dynamicPath, tomYYYY, tomMM, tomDD);
-
-  const hasConversionDiff = standardFixedPath.toLowerCase() !== trimmed.toLowerCase() || dynamicPath !== trimmed;
-  const hasDynamicVars = dynamicPath.includes('${');
-  const isFile = /\.[a-zA-Z0-9]{2,5}$/.test(trimmed);
-
-  return {
-    hasConversionDiff,
-    hasDynamicVars,
-    suggestedPath: standardFixedPath,
-    dynamicPath,
-    todayPreview,
-    tomorrowPreview,
-    isFile,
-  };
 }
 
 export default function SmartPathInput({
@@ -141,7 +37,7 @@ export default function SmartPathInput({
 }: SmartPathInputProps) {
   const { token } = useAuth();
   const parsed = useMemo(() => parseWindowsStoragePath(value), [value]);
-  const activePresets = presets || DEFAULT_PRESETS;
+  const activePresets = presets || DEFAULT_STORAGE_PRESETS;
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{

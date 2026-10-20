@@ -5,6 +5,7 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -21,6 +22,7 @@ export default function LegacyCqgSyncSection({
   const [loading, setLoading] = useState<boolean>(false);
   const [triggering, setTriggering] = useState<boolean>(false);
   const [cqgSyncData, setCqgSyncData] = useState<any>(null);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
 
   const fetchCqgSyncData = useCallback(
     async (silent: boolean = false) => {
@@ -149,32 +151,111 @@ export default function LegacyCqgSyncSection({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={handleTriggerCheck}
-          disabled={triggering || loading}
-          className="btn btn-secondary"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setShowGuide(!showGuide)}
+            className="btn btn-secondary"
+            title="Xem chú thích nghiệp vụ, thời điểm T / T-1 và các file cần thiết"
+            style={{
+              fontSize: '0.75rem',
+              padding: '6px 12px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              border: showGuide ? '1px solid #38bdf8' : undefined,
+              backgroundColor: showGuide ? 'rgba(56, 189, 248, 0.12)' : undefined,
+              color: showGuide ? '#38bdf8' : undefined,
+            }}
+          >
+            <Info size={13} color={showGuide ? '#38bdf8' : 'currentColor'} />
+            <span>{showGuide ? 'Ẩn Chú Thích' : 'Chú Thích (i)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleTriggerCheck}
+            disabled={triggering || loading}
+            className="btn btn-secondary"
+            style={{
+              fontSize: '0.75rem',
+              padding: '6px 14px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: triggering || loading ? 'not-allowed' : 'pointer',
+              opacity: triggering || loading ? 0.6 : 1,
+            }}
+          >
+            {triggering ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Checking...</span>
+              </>
+            ) : (
+              'Check'
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* GUIDANCE PANEL */}
+      {showGuide && (
+        <div
           style={{
-            fontSize: '0.75rem',
-            padding: '6px 14px',
-            fontWeight: 700,
+            padding: '14px 18px',
+            backgroundColor: 'rgba(56, 189, 248, 0.05)',
+            borderBottom: '1px solid var(--border-color)',
             display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: triggering || loading ? 'not-allowed' : 'pointer',
-            opacity: triggering || loading ? 0.6 : 1,
+            flexDirection: 'column',
+            gap: '10px',
           }}
         >
-          {triggering ? (
-            <>
-              <Loader2 size={13} className="animate-spin" />
-              <span>Checking...</span>
-            </>
-          ) : (
-            'Check'
-          )}
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800, fontSize: '0.82rem' }}>
+            <Info size={15} />
+            <span>CHÚ THÍCH NGUYÊN LÝ HOẠT ĐỘNG & NGHIỆP VỤ (CHECK_CQG_SYNC)</span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '10px',
+              fontSize: '0.76rem',
+            }}
+          >
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#38bdf8', marginBottom: '3px' }}>1. Nghiệp vụ cốt lõi</div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Đối chiếu số dư tài khoản giao dịch giữa M-System (Balance MS) và CQG (Balance CQG) để phát hiện sai lệch số dư.
+              </div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#f59e0b', marginBottom: '3px' }}>2. Thời điểm phiên: T</div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Chạy trong phiên hoặc cuối phiên ngày <b>T</b> sau khi kết xuất dữ liệu quản lý tài khoản và số dư CQG.
+              </div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#10b981', marginBottom: '3px' }}>3. Tệp tin đầu vào</div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                • <code>QLTKGD.xlsx</code> (trong Backup MS)<br />
+                • <code>Accounts_Balances.xlsx</code> (trong Backup CQG)
+              </div>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 800, color: '#a855f7', marginBottom: '3px' }}>4. Tiêu chuẩn Pass</div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Toàn bộ tài khoản có <code>|Balance MS - Balance CQG| = 0</code> (Không có tài khoản nào lệch số dư).
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ height: '160px', minHeight: '140px', overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
