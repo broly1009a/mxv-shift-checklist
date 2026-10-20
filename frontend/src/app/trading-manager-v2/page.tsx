@@ -1874,7 +1874,7 @@ export default function TradingManagerV2Page() {
                 </label>
                 <input
                   type="text"
-                  value={systemConfigs.bot_backup_path_ms || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures'}
+                  value={systemConfigs.bot_backup_path_ms || ''}
                   onChange={(e) => setSystemConfigs({ ...systemConfigs, bot_backup_path_ms: e.target.value })}
                   style={{
                     width: '100%',
@@ -1895,7 +1895,7 @@ export default function TradingManagerV2Page() {
                 </label>
                 <input
                   type="text"
-                  value={systemConfigs.bot_backup_path_cqg || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures'}
+                  value={systemConfigs.bot_backup_path_cqg || ''}
                   onChange={(e) => setSystemConfigs({ ...systemConfigs, bot_backup_path_cqg: e.target.value })}
                   style={{
                     width: '100%',
