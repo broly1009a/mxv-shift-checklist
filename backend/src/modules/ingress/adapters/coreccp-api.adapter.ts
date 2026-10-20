@@ -11,8 +11,6 @@ import {
   IngressFileDetail,
   decrypt,
   EXTERNAL_SYSTEM_CORECCP,
-  ICcpReportMapping,
-  CORECCP_API_REPORTS,
   CANONICAL_CORECCP_API_KEYS,
   CORECCP_DERIVED_RULES,
   resolveCoreCcpReport,

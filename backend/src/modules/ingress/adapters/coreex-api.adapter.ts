@@ -11,7 +11,6 @@ import {
   decrypt,
   EXTERNAL_SYSTEM_COREEX,
   ICoreExchangeReportMapping,
-  CORE_EXCHANGE_REPORTS_REGISTRY,
   CANONICAL_COREEX_API_KEYS,
   COREEX_DERIVED_RULES,
   resolveCoreExchangeReport,
@@ -86,6 +85,25 @@ export interface ICoreExchangeAuthSession {
   oauthCode?: string;
   clientId?: string;
   updatedAt: string;
+}
+
+/**
+ * Tính ngày giao dịch trước đó (T-1), tự động nhảy qua Thứ Bảy và Chủ Nhật
+ * @param inputDate Chuỗi YYYY-MM-DD hoặc Date
+ * @returns Chuỗi YYYY-MM-DD của ngày giao dịch T-1
+ */
+export function getPreviousTradingDate(inputDate?: string | Date): string {
+  const d = inputDate ? new Date(inputDate) : new Date();
+  d.setDate(d.getDate() - 1);
+  for (let i = 0; i < 15; i++) {
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    if (!isWeekend) break;
+    d.setDate(d.getDate() - 1);
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dayStr = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dayStr}`;
 }
 
 @Injectable()
@@ -484,13 +502,22 @@ export class CoreExApiAdapter implements IIngressPort {
         const outFileName = reportDef.fileName;
         const targetPath = path.join(outputDirectory, outFileName);
 
-        this.logger.log(`[CoreExApiAdapter] Đang tải ${reportDef.name} (SearchCode: ${reportDef.searchCode})...`);
+        const isHistorical = Boolean(reportDef.isHistorical || reportDef.searchCode.includes('_ALL'));
+        const effectiveDate = isHistorical ? getPreviousTradingDate(targetDate) : targetDate;
+
+        if (isHistorical) {
+          this.logger.log(
+            `[CoreExApiAdapter] Báo cáo lịch sử [${reportDef.name}] (${reportDef.searchCode}) mặc định tải theo ngày T-1: ${effectiveDate} (ngày ca trực: ${targetDate})`,
+          );
+        }
+
+        this.logger.log(`[CoreExApiAdapter] Đang tải ${reportDef.name} (SearchCode: ${reportDef.searchCode}, Ngày: ${effectiveDate})...`);
         try {
           const searchResult = await this.searchData(
             session,
             reportDef.searchCode,
             {
-              targetDate,
+              targetDate: effectiveDate,
               search: reportDef.filterPayload || {},
               pageSize: 200000,
             },
@@ -578,8 +605,41 @@ export class CoreExApiAdapter implements IIngressPort {
           const derivedRules = COREEX_DERIVED_RULES[reportDef.key] || [];
           for (const rule of derivedRules) {
             const destPath = path.join(outputDirectory, rule.targetFileName);
-            if (fs.existsSync(targetPath) && destPath !== targetPath) {
+            if (destPath === targetPath) continue;
+
+            let derivedRows = searchResult.rows;
+            let isFiltered = false;
+
+            // Nếu là nhóm sổ lệnh DSL, lọc chính xác theo trạng thái lệnh
+            if (reportDef.key === 'DSL' && Array.isArray(searchResult.rows) && searchResult.rows.length > 0) {
+              if (rule.targetFileName.includes('DSLH')) {
+                // Lệnh hủy (Cancelled)
+                derivedRows = searchResult.rows.filter(
+                  (r: any) => r.STATUS === 'DD' || r.EN_STATUS === 'Cancelled' || String(r.STATUS_DESC || '').toLowerCase().includes('hủy'),
+                );
+                isFiltered = true;
+              } else if (rule.targetFileName.includes('DSLCK')) {
+                // Lệnh chờ khớp (New / PendingNew)
+                derivedRows = searchResult.rows.filter(
+                  (r: any) => ['SS', 'BB'].includes(r.STATUS) || ['New', 'PendingNew'].includes(r.EN_STATUS) || String(r.STATUS_DESC || '').toLowerCase().includes('chờ'),
+                );
+                isFiltered = true;
+              } else if (rule.targetFileName.includes('DSLDK')) {
+                // Lệnh đã khớp (Filled)
+                derivedRows = searchResult.rows.filter(
+                  (r: any) => r.STATUS === 'TS' || r.EN_STATUS === 'Filled' || String(r.STATUS_DESC || '').toLowerCase().includes('khớp'),
+                );
+                isFiltered = true;
+              }
+            }
+
+            if (isFiltered) {
+              await this.convertJsonToExcel(derivedRows, { ...reportDef, name: rule.targetFileName.replace('.xlsx', '') }, destPath);
+            } else if (fs.existsSync(targetPath)) {
               fs.copyFileSync(targetPath, destPath);
+            }
+
+            if (fs.existsSync(destPath)) {
               const dStat = fs.statSync(destPath);
               files.push({
                 fileName: rule.targetFileName,
@@ -587,9 +647,9 @@ export class CoreExApiAdapter implements IIngressPort {
                 fileSize: dStat.size,
                 mtime: dStat.mtime,
                 category: 'CORE_EX',
-                metadata: { transport: 'DERIVED_EXPORT', source: outFileName },
+                metadata: { transport: 'DERIVED_EXPORT', source: outFileName, rowCount: derivedRows.length },
               });
-              this.logger.log(`[CoreExApiAdapter] Tự động tạo bản sao phái sinh: ${rule.targetFileName} (${dStat.size} bytes)`);
+              this.logger.log(`[CoreExApiAdapter] Tự động tạo bản sao phái sinh: ${rule.targetFileName} (${derivedRows.length} dòng, ${dStat.size} bytes)`);
             }
           }
         } catch (searchErr: any) {

@@ -313,6 +313,28 @@ export const tradingOpsApi = {
   },
 
   /**
+   * Đồng bộ tỷ giá USD từ M-System
+   */
+  async syncUsdRate(token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.SYNC_USD_RATE,
+      { method: 'POST' },
+      token,
+    );
+  },
+
+  /**
+   * Đồng bộ toàn bộ tỷ giá đa tiền tệ từ M-System (Quy đổi & Thanh toán) qua Direct REST API
+   */
+  async syncMsExchangeRates(token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.SYNC_MS_EXCHANGE_RATES,
+      { method: 'POST' },
+      token,
+    );
+  },
+
+  /**
    * Chạy kiểm thử đối chiếu từ thư mục mẫu nội bộ
    */
   async runTestLocal(
