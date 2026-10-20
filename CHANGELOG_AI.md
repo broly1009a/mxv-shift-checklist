@@ -1,3 +1,54 @@
+## [2026-10-20T09:40] DEPLOY: Triển Khai Toàn Diện Lên Server Ubuntu 10.0.0.26 (PM2 mxv-backend & mxv-frontend)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"giúp tôi ủn lên ubutun"*.
+- Đồng bộ toàn bộ các cập nhật mã nguồn mới nhất:
+  1. Menu Sidebar dành riêng cho khối QLGD với cấu trúc cây cha - con (Thống kê MS/CCP, Tham số hệ thống cũ/mới).
+  2. Các trang độc lập mới: Backup (`/trading-manager/backup`), Thống kê MS/CCP (`/trading-manager/statistics/*`), Tham số hệ thống (`/trading-manager/settings/*`), Hàng đợi logs (`/trading-manager/job-queue`).
+  3. Cơ chế nhận diện bộ phận "Giám sát giao dịch" data-driven từ CSDL (`usePermissions.ts`).
+  4. Chuẩn hóa đường dẫn lưu trữ cross-platform (`storage-path.config.ts`, `bot-path.helper.ts`, `file-path.helper.ts`).
+
+### 2. Danh sách file đồng bộ lên Ubuntu (/opt/mxv-checklist)
+- Đã đồng bộ 24 files thay đổi/mới sang `/opt/mxv-checklist` và tự động khởi tạo các thư mục cha từ xa:
+  - `CHANGELOG_AI.md`
+  - `backend/src/modules/activity-log/activity-log.controller.ts`
+  - `backend/src/modules/bot-engine/handlers/file-audit.handler.ts`
+  - `frontend/src/components/Sidebar.tsx`
+  - `frontend/src/hooks/usePermissions.ts`
+  - `frontend/src/config/storage-path.config.ts`
+  - `frontend/src/components/admin/SmartPathInput.tsx`
+  - `frontend/src/utils/activity-log-mapper.ts`
+  - `frontend/src/app/admin/activity-logs/page.tsx`
+  - `frontend/src/app/trading-manager-v2/page.tsx`
+  - `frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx`
+  - `frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx`
+  - `frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx`
+  - `frontend/src/app/trading-manager/backup/page.tsx`
+  - `frontend/src/app/trading-manager/job-queue/page.tsx`
+  - `frontend/src/app/trading-manager/logs/page.tsx`
+  - `frontend/src/app/trading-manager/settings/page.tsx`
+  - `frontend/src/app/trading-manager/settings/ms-cqg/page.tsx`
+  - `frontend/src/app/trading-manager/settings/legacy-paths/page.tsx`
+  - `frontend/src/app/trading-manager/settings/ccp-ce/page.tsx`
+  - `frontend/src/app/trading-manager/settings/modern-paths/page.tsx`
+  - `frontend/src/app/trading-manager/statistics/page.tsx`
+  - `frontend/src/app/trading-manager/statistics/ms/page.tsx`
+  - `frontend/src/app/trading-manager/statistics/ccp/page.tsx`
+
+### 3. Kết quả Build & Khởi Động Dịch Vụ Trên Ubuntu
+- **Backend**: `cd /opt/mxv-checklist/backend && npm run build` -> Hoàn tất thành công (Exit 0).
+- **Restart Backend**: `pm2 restart mxv-backend` -> Online (PID: 3168708).
+- **Frontend**: `cd /opt/mxv-checklist/frontend && npm run build` -> Đã biên dịch 47 routes (Exit 0).
+- **Restart Frontend**: `pm2 restart mxv-frontend` -> Online (PID: 3168957, Ready in 141ms).
+- **Health Verification**:
+  - `GET http://localhost:3000/trading-manager/dashboard` -> **HTTP 200**
+  - `GET http://localhost:3000/trading-manager/settings/ms-cqg` -> **HTTP 200**
+  - `GET http://localhost:3000/trading-manager/statistics/ms` -> **HTTP 200**
+  - `GET http://localhost:3000/trading-manager/backup` -> **HTTP 200**
+  - `GET http://localhost:3001/api/v1/departments` -> **HTTP 401 (Auth Guard Active)**
+
+---
+
 ## [2026-10-20T09:28] ARCHITECTURE REFACTOR: Đóng Gói Toàn Bộ Ánh Xạ Đường Dẫn & Presets Vào File Cấu Hình Tập Trung `storage-path.config.ts`
 ## [2026-10-20T09:25] REFACTOR: Chuẩn Hóa Nhận Diện Bộ Phận "Giám Sát Giao Dịch" (QLGD) Theo Data-Driven CSDL, Loại Bỏ Hardcode Phỏng Đoán
 
