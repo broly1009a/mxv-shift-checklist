@@ -1343,8 +1343,8 @@ export default function TradingManagerConfigSection({
                   setBotBackupPathMs((p) => toWindowsM(p));
                   setBotBackupPathCqg((p) => toWindowsM(p));
                   setBotBackupPathAcm((p) => toWindowsM(p));
-                  setReconFolderCheckPath((p) => toWindowsM(p || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\TradingCheck\\Futures'));
-                  setReconResultFolderPath((p) => toWindowsM(p || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\TradingCheck\\Ket qua check KLGD'));
+                  setReconFolderCheckPath((p) => toWindowsM(p));
+                  setReconResultFolderPath((p) => toWindowsM(p));
                   setBotLotMacroPath((p) => toWindowsM(p));
                   setBotMacroValuePath((p) => toWindowsM(p));
                   setNewsTeamStatPath((p) => toWindowsM(p));
