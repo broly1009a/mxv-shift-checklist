@@ -11,7 +11,6 @@ import {
   EXTERNAL_SYSTEM_MSYSTEM,
   IMsReportDef,
   CANONICAL_MS_KEYS,
-  MS_REPORTS_REGISTRY,
   resolveMsReport,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
@@ -379,7 +378,7 @@ export class MsApiAdapter implements IIngressPort {
 
     if (reportDef.queryParams) {
       const qStr = Object.entries(reportDef.queryParams)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
         .join('&');
       fullUrl += fullUrl.includes('?') ? `&${qStr}` : `?${qStr}`;
     }
@@ -557,4 +556,107 @@ export class MsApiAdapter implements IIngressPort {
       error: errors.length > 0 ? errors.join('; ') : undefined,
     };
   }
+
+  /**
+   * Đồng bộ trực tiếp tỷ giá M-System qua REST API
+   * Endpoint 1: GET /market/exchangeRate?limit=20&offset=0&sort_by=asc(status) -> Tỷ giá quy đổi (USD, JPY, MYR, RMB)
+   * Endpoint 2: GET /market/paymentRate?limit=20&offset=0 -> Tỷ giá thanh toán Mua & Bán (USD/VND, JPY/VND, MYR/VND, RMB/VND)
+   */
+  public async getExchangeRates(): Promise<{
+    usdRate: number;
+    conversionRates: Record<string, number>;
+    paymentRates: Record<string, { buy: number; sell: number }>;
+    source: string;
+    lastSynced: string;
+  }> {
+    let { token, baseUrl, adminUrl } = await this.getValidToken();
+
+    const fetchJson = async (endpoint: string) => {
+      const fullUrl = `${baseUrl}${endpoint}`;
+      let res = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${token}`,
+          origin: adminUrl,
+          referer: `${adminUrl}/`,
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
+      if (res.status === 401) {
+        this.logger.warn('[MsApiAdapter] Token hết hạn (401), tiến hành đăng nhập lại...');
+        const refreshed = await this.getValidToken(true);
+        token = refreshed.token;
+        baseUrl = refreshed.baseUrl;
+        adminUrl = refreshed.adminUrl;
+        res = await fetch(`${baseUrl}${endpoint}`, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+            authorization: `Bearer ${token}`,
+            origin: adminUrl,
+            referer: `${adminUrl}/`,
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+      }
+
+      if (!res.ok) {
+        throw new Error(`Gọi API ${fullUrl} thất bại: HTTP ${res.status}`);
+      }
+      return await res.json();
+    };
+
+    // 1. Tỷ giá quy đổi (/market/exchangeRate)
+    const exchangeData = await fetchJson('/market/exchangeRate?limit=20&offset=0&sort_by=asc(status)');
+    const conversionRates: Record<string, number> = {};
+    if (exchangeData?.status === 'ok' && Array.isArray(exchangeData?.data)) {
+      for (const row of exchangeData.data) {
+        if (row.counterCurrency === 'VND' && typeof row.exchangeRate === 'number' && row.exchangeRate > 0) {
+          const code = (row.monetaryBase || '').trim().toUpperCase();
+          if (code) conversionRates[code] = row.exchangeRate;
+        }
+      }
+    }
+
+    const usdRate = conversionRates['USD'] || 0;
+
+    // 2. Tỷ giá thanh toán (/market/paymentRate)
+    const paymentRates: Record<string, { buy: number; sell: number }> = {
+      'USD/VND': { buy: usdRate, sell: usdRate },
+      'MYR/VND': { buy: conversionRates['MYR'] || 0, sell: conversionRates['MYR'] || 0 },
+      'JPY/VND': { buy: conversionRates['JPY'] || 0, sell: conversionRates['JPY'] || 0 },
+      'RMB/VND': { buy: conversionRates['RMB'] || 0, sell: conversionRates['RMB'] || 0 },
+    };
+
+    try {
+      const paymentData = await fetchJson('/market/paymentRate?limit=20&offset=0');
+      if (paymentData?.status === 'ok' && Array.isArray(paymentData?.data)) {
+        for (const row of paymentData.data) {
+          if (row.counterCurrency === 'VND') {
+            const code = (row.monetaryBase || '').trim().toUpperCase();
+            const buy = typeof row.buyingRate === 'number' ? row.buyingRate : (conversionRates[code] || 0);
+            const sell = typeof row.sellingRate === 'number' ? row.sellingRate : buy;
+            if (code && buy > 0) {
+              paymentRates[`${code}/VND`] = { buy, sell };
+            }
+          }
+        }
+      }
+    } catch (payErr: any) {
+      this.logger.warn(`[MsApiAdapter] Không thể lấy paymentRate, dùng tỷ giá quy đổi làm mặc định: ${payErr.message}`);
+    }
+
+    return {
+      usdRate,
+      conversionRates,
+      paymentRates,
+      source: 'M-System REST API (/market/exchangeRate & /market/paymentRate)',
+      lastSynced: new Date().toISOString(),
+    };
+  }
 }
+

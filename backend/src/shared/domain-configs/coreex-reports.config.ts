@@ -21,15 +21,16 @@ export interface ICoreExchangeReportMapping {
   subTab?: string;
   isDerived?: boolean;
   derivedFrom?: string;
+  isHistorical?: boolean;
 }
 
 export const CANONICAL_COREEX_API_KEYS = [
   'DSGD',           // ORDERMATCH_DETAIL_ACM -> DSGD ACM CE.xlsx
-  'DSL',            // ORDERBOOK_ALL_ACM -> DSL ACM CE.xlsx
+  'DSL',            // ORDERBOOK_ALL_ACM -> DSL ACM CE.xlsx (Lịch sử T-1)
   'GTT',            // SETTLEMENT -> GTT ACM.xlsx
   'HH',             // COMMODITY_ACM -> HH ACM.xlsx (Hàng hóa & tự động trích xuất HĐ theo từng mã hàng hóa động)
   'SESSION_INFO',   // SESSION_INFO -> SESSION_INFO.xlsx
-  'SESSION_CONFIG', // SESSION_CONFIG_ALL -> SESSION_CONFIG.xlsx
+  'SESSION_CONFIG', // SESSION_CONFIG_ALL -> SESSION_CONFIG.xlsx (Lịch sử T-1)
   'TTM',            // OPEN_POSITION -> TTM CE.xlsx
   'ACM_RECON',      // ACM_RECON_ORDERS -> Doi chieu lenh ACM.xlsx
 ] as const;
@@ -64,7 +65,8 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     fileName: 'DSL ACM CE.xlsx',
     route: '/ORDERS/ORDERBOOK_ALL_ACM',
     searchCode: 'ORDERBOOK_ALL_ACM',
-    description: 'Lịch sử toàn bộ sổ lệnh liên thông ACM trên sàn Core Exchange',
+    description: 'Lịch sử toàn bộ sổ lệnh liên thông ACM trên sàn Core Exchange (Mặc định ngày T-1)',
+    isHistorical: true,
   },
   DSLCK: {
     key: 'DSLCK',
@@ -102,9 +104,10 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     fileName: 'DSGD ALL ACM CE.xlsx',
     route: '/ORDERS/ORDERMATCH_ALL_ACM',
     searchCode: 'ORDERMATCH_DETAIL_ACM',
-    description: 'Danh sách khớp lệnh liên thông ACM',
+    description: 'Danh sách khớp lệnh liên thông ACM (Lịch sử T-1)',
     isDerived: true,
     derivedFrom: 'DSGD',
+    isHistorical: true,
   },
   DSL_SESSION: {
     key: 'DSL_SESSION',
@@ -122,9 +125,10 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     fileName: 'DSGD MM CE.xlsx',
     route: '/ORDERS/ORDERMATCH_DETAIL_MM',
     searchCode: 'ORDERMATCH_DETAIL_ACM',
-    description: 'Lịch sử khớp lệnh Market Maker chi tiết',
+    description: 'Lịch sử khớp lệnh Market Maker chi tiết (Lịch sử T-1)',
     isDerived: true,
     derivedFrom: 'DSGD',
+    isHistorical: true,
   },
   DSL_MM: {
     key: 'DSL_MM',
@@ -132,9 +136,10 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     fileName: 'DSL MM CE.xlsx',
     route: '/ORDERS/ORDERBOOK_ALL_MM',
     searchCode: 'ORDERBOOK_ALL_ACM',
-    description: 'Lịch sử toàn bộ sổ lệnh Market Maker',
+    description: 'Lịch sử toàn bộ sổ lệnh Market Maker (Lịch sử T-1)',
     isDerived: true,
     derivedFrom: 'DSL',
+    isHistorical: true,
   },
 
   // 2. Giá, Hàng hóa & Phiên giao dịch
@@ -177,7 +182,8 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     fileName: 'SESSION_CONFIG.xlsx',
     route: '/SESSIONMNG/SESSION_CONFIG_ALL',
     searchCode: 'SESSION_CONFIG_ALL',
-    description: 'Danh sách cấu hình các phiên giao dịch',
+    description: 'Danh sách cấu hình các phiên giao dịch (Lịch sử T-1)',
+    isHistorical: true,
   },
 
   // 3. Vị thế & Vận hành & Đối chiếu

@@ -9,7 +9,7 @@ import { BotJob } from '../../../schemas/bot-job.schema';
 import { ShiftLog } from '../../../schemas/shift-log.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { ShiftsService } from '../../shifts/shifts.service';
-import { CcpCeScraperService } from '../../ingress';
+import { CcpCeScraperService, MsApiAdapter } from '../../ingress';
 import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
 import { TelegramService } from '../../telegram/telegram.service';
 import { findBotTasksInShift } from '../../bot-engine/constants/bot-task-registry';
@@ -44,6 +44,8 @@ export class ReconConsoleSummaryService {
     private readonly shiftsService?: ShiftsService,
     @Optional() @Inject(forwardRef(() => CcpCeScraperService))
     private readonly ccpCeScraperService?: CcpCeScraperService,
+    @Optional() @Inject(forwardRef(() => MsApiAdapter))
+    private readonly msApiAdapter?: MsApiAdapter,
   ) {}
 
   /**
@@ -76,6 +78,30 @@ export class ReconConsoleSummaryService {
    */
   async syncUsdRateFromMSystem(): Promise<number> {
     this.logger.log('Khởi động bot đồng bộ tỷ giá USD từ M-System...');
+
+    // 1. Ưu tiên gọi trực tiếp qua M-System REST API (/market/exchangeRate)
+    if (this.msApiAdapter) {
+      try {
+        const rates = await this.msApiAdapter.getExchangeRates();
+        if (rates && rates.usdRate > 0) {
+          await this.settingsService.setSetting('usd_exchange_rate', rates.usdRate.toString());
+          if (rates.conversionRates['MYR']) await this.settingsService.setSetting('myr_exchange_rate', rates.conversionRates['MYR'].toString());
+          if (rates.conversionRates['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', rates.conversionRates['JPY'].toString());
+          if (rates.conversionRates['RMB']) await this.settingsService.setSetting('rmb_exchange_rate', rates.conversionRates['RMB'].toString());
+          await this.settingsService.setSetting('ms_payment_rates', JSON.stringify(rates.paymentRates));
+          if (rates.paymentRates['USD/VND']) {
+            await this.settingsService.setSetting('usd_settlement_rate_buy', String(rates.paymentRates['USD/VND'].buy));
+            await this.settingsService.setSetting('usd_settlement_rate_sell', String(rates.paymentRates['USD/VND'].sell));
+          }
+          await this.settingsService.setSetting('exchange_rates_last_synced', rates.lastSynced);
+          await this.settingsService.setSetting('exchange_rate_source', rates.source);
+          this.logger.log(`[M-System API] Tỷ giá USD lấy nhanh từ REST API: ${rates.usdRate}`);
+          return rates.usdRate;
+        }
+      } catch (err: any) {
+        this.logger.warn(`[M-System API] Không thể lấy tỷ giá qua REST API: ${err.message}. Tiếp tục dùng Playwright...`);
+      }
+    }
 
     let msUrl = EXTERNAL_SYSTEM_MSYSTEM.adminUrl;
     let msUser = process.env.MS_USER || '';
@@ -367,7 +393,54 @@ export class ReconConsoleSummaryService {
     paymentRates: Record<string, { buy: number; sell: number }>;
     usdRate: number;
     rates: Record<string, number>;
+    source?: string;
+    lastSynced?: string;
+    message?: string;
   }> {
+    // 1. Ưu tiên gọi trực tiếp qua M-System REST API (/market/exchangeRate & /market/paymentRate)
+    if (this.msApiAdapter) {
+      try {
+        this.logger.log('[M-System] Đang đồng bộ tỷ giá trực tiếp qua REST API (MsApiAdapter)...');
+        const apiRes = await this.msApiAdapter.getExchangeRates();
+        if (apiRes && apiRes.usdRate > 0) {
+          const { usdRate, conversionRates, paymentRates, source, lastSynced } = apiRes;
+
+          await this.settingsService.setSetting('usd_exchange_rate', usdRate.toString());
+          if (conversionRates['MYR']) {
+            await this.settingsService.setSetting('myr_exchange_rate', conversionRates['MYR'].toString());
+          }
+          if (conversionRates['JPY']) {
+            await this.settingsService.setSetting('jpy_exchange_rate', conversionRates['JPY'].toString());
+          }
+          if (conversionRates['RMB']) {
+            await this.settingsService.setSetting('rmb_exchange_rate', conversionRates['RMB'].toString());
+          }
+          await this.settingsService.setSetting('ms_payment_rates', JSON.stringify(paymentRates));
+          if (paymentRates['USD/VND']) {
+            await this.settingsService.setSetting('usd_settlement_rate_buy', String(paymentRates['USD/VND'].buy));
+            await this.settingsService.setSetting('usd_settlement_rate_sell', String(paymentRates['USD/VND'].sell));
+          }
+          await this.settingsService.setSetting('exchange_rates_last_synced', lastSynced);
+          await this.settingsService.setSetting('exchange_rate_source', source);
+
+          this.logger.log(`[M-System API] Đồng bộ tỷ giá thành công: USD=${usdRate}, MYR=${conversionRates['MYR']}, JPY=${conversionRates['JPY']}, RMB=${conversionRates['RMB']}`);
+
+          return {
+            conversionRates,
+            paymentRates,
+            usdRate,
+            rates: conversionRates,
+            source,
+            lastSynced,
+            message: `Đã đồng bộ tỷ giá từ M-System: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ (Đủ 4 cặp tiền Thanh toán)`,
+          };
+        }
+      } catch (apiErr: any) {
+        this.logger.warn(`[M-System API] Gọi REST API đồng bộ tỷ giá thất bại: ${apiErr.message}. Fallback sang Playwright browser...`);
+      }
+    }
+
+    // 2. Fallback sang cào trình duyệt (Playwright)
     const usdRate = await this.syncUsdRateFromMSystem();
     const curr = await this.getCurrentExchangeRates();
     const paymentRatesRaw = await this.settingsService.getSetting('ms_payment_rates', '{}');
@@ -384,6 +457,9 @@ export class ReconConsoleSummaryService {
       paymentRates,
       usdRate,
       rates: conversionRates,
+      source: 'M-System Playwright Crawler',
+      lastSynced: new Date().toISOString(),
+      message: `Đã đồng bộ tỷ giá từ M-System: 1 USD = ${usdRate.toLocaleString('vi-VN')} đ (Đủ 4 cặp tiền Thanh toán)`,
     };
   }
 
@@ -558,6 +634,7 @@ export class ReconConsoleSummaryService {
     let ccpCheckJob: any = null;
 
     let runs: any[] = [];
+    let preEodRuns: any[] = [];
 
     if (this.botJobModel) {
       const dayStartVN = new Date(`${targetDate}T00:00:00.000+07:00`);
@@ -581,16 +658,21 @@ export class ReconConsoleSummaryService {
         ],
       };
 
-      const klgdPromise = jobId
-        ? this.botJobModel.findById(jobId).lean().exec()
-        : this.botJobModel
-            .findOne({
-              jobType: 'CHECK_KLGD',
-              ...dateFilterCondition,
-            })
-            .sort({ createdAt: -1 })
-            .lean()
-            .exec();
+      // Chỉ nạp Job nếu đúng là CHECK_KLGD (Trong phiên)
+      let klgdPromise = jobId
+        ? this.botJobModel.findOne({ _id: jobId, jobType: 'CHECK_KLGD' }).lean().exec()
+        : null;
+
+      if (!klgdPromise) {
+        klgdPromise = this.botJobModel
+          .findOne({
+            jobType: 'CHECK_KLGD',
+            ...dateFilterCondition,
+          })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec();
+      }
 
       const preEodPromise = this.botJobModel
         .findOne({
@@ -623,9 +705,10 @@ export class ReconConsoleSummaryService {
         .lean()
         .exec();
 
+      // Danh sách lượt check Trong phiên CHỈ lấy CHECK_KLGD
       const pastRunsPromise = this.botJobModel
         .find({
-          jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] },
+          jobType: 'CHECK_KLGD',
           ...dateFilterCondition,
         })
         .sort({ createdAt: -1 })
@@ -633,7 +716,18 @@ export class ReconConsoleSummaryService {
         .lean()
         .exec();
 
-      let [loadedKlgd, loadedPreEod, loadedMargin, loadedEod, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns] =
+      // Danh sách lượt chốt Cuối ngày tách riêng CHECK_PRE_EOD
+      const pastPreEodRunsPromise = this.botJobModel
+        .find({
+          jobType: 'CHECK_PRE_EOD',
+          ...dateFilterCondition,
+        })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean()
+        .exec();
+
+      let [loadedKlgd, loadedPreEod, loadedMargin, loadedEod, loadedCqgSync, loadedCcpDl, loadedCcpCheck, loadedPastRuns, loadedPastPreEodRuns] =
         await Promise.all([
           klgdPromise,
           preEodPromise,
@@ -643,7 +737,20 @@ export class ReconConsoleSummaryService {
           this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           pastRunsPromise,
+          pastPreEodRunsPromise,
         ]);
+
+      // Nếu jobId chỉ định không phải CHECK_KLGD, tự động fallback về lượt CHECK_KLGD mới nhất
+      if (jobId && !loadedKlgd) {
+        loadedKlgd = await this.botJobModel
+          .findOne({
+            jobType: 'CHECK_KLGD',
+            ...dateFilterCondition,
+          })
+          .sort({ createdAt: -1 })
+          .lean()
+          .exec();
+      }
 
       klgdJob = loadedKlgd;
       preEodJob = loadedPreEod;
@@ -673,6 +780,7 @@ export class ReconConsoleSummaryService {
           return {
             id: String(j._id || j.jobId),
             jobId: String(j._id || j.jobId),
+            jobType: 'CHECK_KLGD',
             time: timeStr,
             label: `${dateStrFormatted} ${timeStr}`,
             createdAt: j.createdAt,
@@ -685,6 +793,24 @@ export class ReconConsoleSummaryService {
               nano: totals.totalNano || 0,
               ccp: totals.totalCCP_DSGD || 0,
             },
+          };
+        });
+      }
+
+      if (Array.isArray(loadedPastPreEodRuns)) {
+        preEodRuns = loadedPastPreEodRuns.map((j: any) => {
+          const created = new Date(j.createdAt);
+          const vnDate = new Date(created.getTime() + 7 * 3600 * 1000);
+          const timeStr = `${String(vnDate.getUTCHours()).padStart(2, '0')}:${String(vnDate.getUTCMinutes()).padStart(2, '0')}`;
+          const dateStrFormatted = `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')}`;
+          return {
+            id: String(j._id || j.jobId),
+            jobId: String(j._id || j.jobId),
+            jobType: 'CHECK_PRE_EOD',
+            time: timeStr,
+            label: `${dateStrFormatted} ${timeStr}`,
+            createdAt: j.createdAt,
+            status: j.status,
           };
         });
       }

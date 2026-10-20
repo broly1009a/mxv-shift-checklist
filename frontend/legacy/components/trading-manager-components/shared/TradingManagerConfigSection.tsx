@@ -213,9 +213,11 @@ export default function TradingManagerConfigSection({
   const handleSyncMsRate = async () => {
     if (!token) return;
     setSyncingMsRate(true);
-    const toastId = toast.loading('Đang khởi động bot đồng bộ tỷ giá từ M-System...');
+    const toastId = toast.loading('Đang đồng bộ tỷ giá từ M-System API...');
     try {
-      const data: any = await api.ccpClearing.syncExchangeRates(token);
+      const data: any = await (api.tradingOps?.syncMsExchangeRates
+        ? api.tradingOps.syncMsExchangeRates(token)
+        : api.ccpClearing.syncExchangeRates(token));
       if (data && data.success) {
         const usdVal = data.usdRate || data.conversionRates?.USD || data.rates?.USD;
         if (usdVal) setUsdExchangeRate(usdVal);
@@ -228,10 +230,11 @@ export default function TradingManagerConfigSection({
           }
         }
         const nowIso = new Date().toISOString();
-        setExchangeRatesLastSynced(nowIso);
-        setExchangeRateSource('M-System Crawler (Quy đổi & Thanh toán)');
+        setExchangeRatesLastSynced(data.lastSynced || nowIso);
+        setExchangeRateSource(data.source || 'M-System REST API (Quy đổi & Thanh toán)');
         toast.success(
-          `Đã đồng bộ tỷ giá từ M-System: 1 USD = ${Number(usdVal || usdExchangeRate).toLocaleString('vi-VN')} đ (Đủ 4 cặp tiền Thanh toán)`,
+          data.message ||
+            `Đã đồng bộ tỷ giá từ M-System: 1 USD = ${Number(usdVal || usdExchangeRate).toLocaleString('vi-VN')} đ (Đủ 4 cặp tiền Thanh toán)`,
           { id: toastId },
         );
       } else {

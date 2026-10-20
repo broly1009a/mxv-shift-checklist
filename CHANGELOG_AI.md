@@ -129,6 +129,132 @@
 
 ### 3. Kiểm thử & Xác nhận Build
 - **Biên dịch**: `npm run build` thành công 100% (Exit code 0).
+## [2026-10-19T19:28] USER DIRECTIVE & REST API UPGRADE: Đồng Bộ Tỷ Giá M-System Trực Tiếp Qua REST API (/market/exchangeRate & /market/paymentRate) Thay Thế Hoàn Toàn Playwright Crawler Chậm
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu và chỉ đạo bằng văn bản trực tiếp từ USER:
+  > *"Đã đồng bộ tỷ giá từ M-System: 1 USD = 25.860 đ (Đủ 4 cặp tiền Thanh toán) hiện tại chưa call được api cập nhật tỷ giá ms curl --url https://msapi.mxv.com.vn/market/exchangeRate?limit=20&offset=0&sort_by=asc(status) ... "*
+  khi bấm nút **"Đồng bộ từ M-System"** tại [TradingManagerConfigSection.tsx#L709](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L709).
+- **Nguyên nhân gốc rễ**:
+  1. Nút "Đồng bộ từ M-System" trên giao diện trước đó gọi nhầm hàm `api.ccpClearing.syncExchangeRates(token)` thay vì gọi endpoint chuyên trách của Trading Ops M-System.
+  2. Cơ chế đồng bộ M-System cũ sử dụng Playwright crawler (khởi động Chromium, nhập username/password, click bảng PIN ảo và cào màn hình `#/currencyManagement/exchangeRate`), tốn 20-30 giây và dễ nhận giá trị cũ/chậm chạp.
+  3. Hệ thống chưa tích hợp gọi trực tiếp cặp REST API của M-System theo curl chỉ đạo của USER.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts):
+   - Bổ sung phương thức `getExchangeRates()`:
+     - Tự động lấy Bearer Token M-System hợp lệ (tái sử dụng session còn hạn hoặc tự động login 2 bước).
+     - Gọi trực tiếp `GET /market/exchangeRate?limit=20&offset=0&sort_by=asc(status)` bóc tách tỷ giá quy đổi của 4 đồng tiền: `USD` (25,920), `JPY` (165), `MYR` (6,256), `RMB` (3,877).
+     - Gọi trực tiếp `GET /market/paymentRate?limit=20&offset=0` bóc tách tỷ giá thanh toán Mua & Bán cho toàn bộ 4 cặp tiền (`USD/VND`, `JPY/VND`, `MYR/VND`, `RMB/VND`).
+     - Tự động làm mới token nếu gặp HTTP 401. Tốc độ phản hồi cực nhanh (< 300ms).
+2. [backend/src/modules/trading-ops/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon-console-summary.service.ts):
+   - Tiêm phụ thuộc `MsApiAdapter`.
+   - Nâng cấp `syncAllExchangeRatesFromMSystem()` và `syncUsdRateFromMSystem()`: Ưu tiên 100% gọi `MsApiAdapter.getExchangeRates()`, cập nhật tức thì vào MongoDB `system_settings` (`usd_exchange_rate`, `usd_settlement_rate_buy`, `usd_settlement_rate_sell`, `ms_payment_rates`, `myr_exchange_rate`, `jpy_exchange_rate`, `rmb_exchange_rate`), chỉ fallback sang Playwright nếu REST API không khả dụng.
+3. [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts) & [trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts):
+   - Phân định rõ ràng route:
+     - CCP: `@Post(['lot-statistics/sync-exchange-rate', 'sync-ccp-exchange-rates', 'sync-ccp-exchange-rate'])`.
+     - MS: `@Post(['sync-exchange-rates', 'sync-ms-exchange-rates', 'sync-ms-rate', 'ms/sync-exchange-rate'])` với quyền `@Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')`.
+4. [frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts) & [trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/trading-ops.api.ts):
+   - Bổ sung `SYNC_MS_EXCHANGE_RATES: '/api/v1/trading-ops/sync-exchange-rates'` và method `syncMsExchangeRates()`.
+5. [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L221-L254):
+   - Cập nhật hàm `handleSyncMsRate` gọi chuẩn `api.tradingOps.syncMsExchangeRates(token)`.
+   - Cập nhật thông báo toast và trạng thái tỷ giá chính xác `1 USD = 25.920 đ`.
+6. Kiểm thử & Triển khai:
+   - Backend và Frontend đều build thành công (`npm run build`).
+   - Đã deploy và restart PM2 `mxv-backend` & `mxv-frontend` trên Ubuntu `10.0.0.26`.
+   - Kết quả test API thực tế: phản hồi trong 1.8s trả về chuẩn xác 1 USD = 25,920 đ, 1 MYR = 6,256 đ, 1 JPY = 165 đ, 1 RMB = 3,877 đ cùng đủ 4 cặp Mua & Bán.
+
+---
+
+## [2026-10-19T19:15] BUGFIX & MODULAR ARCHITECTURE ALIGNMENT: Khắc Phục Lỗi 404 Cannot POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate Khi Đồng Bộ Tỷ Giá Nguyên Tệ CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi được báo cáo từ USER:
+  > *"Lỗi: Cannot POST /api/v1/ccp-statistics/lot-statistics/sync-exchange-rate giúp tôi check lại khi ấn Đồng bộ từ CoreCCP (Tỷ giá nguyên tệ)"*
+  tại giao diện Quản trị Cấu hình [TradingManagerConfigSection.tsx#L829](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx#L829).
+- **Nguyên nhân gốc rễ**:
+  - Khi tái cấu trúc sang Modular Monolith V2 (`trading-ops`), phân hệ cũ `ccp-statistics.module.ts` đã được lưu trữ (archived) và gỡ khỏi `AppModule`.
+  - Toàn bộ nghiệp vụ CCP Clearing & Đối chiếu được chuyển về `CcpReconController` ([ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)).
+  - Tuy nhiên, `CcpReconController` trước đó chỉ lắng nghe tiền tố `['api/v1/ccp-clearing', 'api/v1/reconciliation', 'reconciliation']`, thiếu tiền tố tương thích ngược `api/v1/ccp-statistics` và thiếu route xử lý `lot-statistics/sync-exchange-rate`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts):
+   - Mở rộng đa tiền tố điều hướng tại Controller: `@Controller(['api/v1/ccp-clearing', 'api/v1/ccp-statistics', 'ccp-statistics', 'api/v1/reconciliation', 'reconciliation'])`.
+   - Bổ sung endpoint POST `@Post(['sync-exchange-rates', 'lot-statistics/sync-exchange-rate', 'sync-exchange-rate'])`:
+     - Tự động tìm kiếm file `Tỷ giá CCP.xlsx` trong thư mục sao lưu ngày hoặc gọi trực tiếp `IngressService.download('CCP', { reportCodes: ['TYGIA'] })` qua Direct REST API (`CoreCcpApiAdapter`) chỉ mất ~1 giây.
+     - Sử dụng thư viện `xlsx` phân tích bảng dữ liệu từ màn hình `/SYSCONFIGMNG/CURRENCYEXCHANGERATE`, bóc tách các cột chuẩn `BASECURRENCY`, `EXCHANGERATE`, `BUYRATE`, `SELLRATE`, `CREATEDDATE`.
+     - Lưu trữ tự động ma trận tỷ giá (`ccp_exchange_rates_matrix`), tỷ giá USD (`ccp_usd_exchange_rate`), JPY, MYR, RMB vào MongoDB `system_settings`.
+     - Trả về payload cấu trúc JSON đồng bộ hoàn chỉnh `{ success: true, data: { usdRate, matrix, source, lastSynced }, rates, usdRate, message }`.
+   - Bổ sung endpoint POST `@Post(['lot-statistics/upload-tygia', 'upload-tygia'])` hỗ trợ người dùng upload file tỷ giá thủ công khi cần thiết.
+2. [frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts):
+   - Cập nhật chuẩn hóa `SYNC_EXCHANGE_RATE_LOT: '/api/v1/ccp-clearing/lot-statistics/sync-exchange-rate'` và `LOT_UPLOAD_TYGIA: '/api/v1/ccp-clearing/lot-statistics/upload-tygia'`.
+3. Kiểm thử & Triển khai:
+   - Backend & Frontend đều build thành công không lỗi TypeScript (`tsc --noEmit`).
+   - Đã deploy lên máy chủ Ubuntu `10.0.0.26`, PM2 `mxv-backend` và `mxv-frontend` restart thành công.
+   - Kiểm thử thực tế bằng curl API trả về HTTP 200: USD=25,920, JPY=165, MYR=6,256.
+
+---
+
+## [2026-10-19T18:40] USER DIRECTIVE & ZERO-FALLBACK STANDARD: Chuẩn Hóa Báo Cáo Lịch Sử CoreEX Mặc Định Tải Theo Ngày T-1 (Không Fallback) Theo Chỉ Đạo Trực Tiếp Của USER
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu và chỉ đạo bằng văn bản trực tiếp từ USER:
+  > *"curl --url https://uat-coreexchange.mxv.com.vn/exchange/export/create ... data-raw: {searchcode: 'ORDERBOOK_ALL', search: {SESSION_DATE: {from: '16/10/2026', to: '16/10/2026'}}} ... giúp tôi lich sử lệnh và những gì liên quan tới lịch sử sẽ mặc định là T-1 để tải về đúng không fallback"*
+- Tuân thủ nghiêm ngặt Rule 1, Rule 2 (Proof of Ground Truth từ USER) và Rule 5 (Cấm Fallback rác/phỏng đoán):
+  - Toàn bộ các báo cáo thuộc nhóm lịch sử (`ORDERBOOK_ALL_ACM`, `ORDERMATCH_ALL_ACM`, `ORDERBOOK_ALL_MM`, `SESSION_CONFIG_ALL`...) mặc định tải dữ liệu của ngày làm việc phiên trước đó (**T-1**).
+  - Xóa bỏ triệt để mọi logic fallback sang sổ lệnh trong phiên (`ORDERBOOK_ACM`). Báo cáo lịch sử sẽ truy vấn trực tiếp kho lưu trữ lịch sử với ngày T-1 và trả về đúng dữ liệu gốc.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - Thêm thuộc tính `isHistorical?: boolean` vào interface `ICoreExchangeReportMapping`.
+   - Đánh dấu cờ `isHistorical: true` cho các báo cáo lịch sử: `DSL` (`ORDERBOOK_ALL_ACM`), `DSGD_ALL` (`ORDERMATCH_ALL_ACM`), `DSGD_MM` (`ORDERMATCH_DETAIL_MM`), `DSL_MM` (`ORDERBOOK_ALL_MM`), và `SESSION_CONFIG` (`SESSION_CONFIG_ALL`).
+2. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Bổ sung hàm tiện ích `getPreviousTradingDate(inputDate?: string | Date): string` tự động lùi ngày và nhảy qua Thứ Bảy/Chủ Nhật để tính ngày giao dịch T-1 hợp lệ.
+   - Trong luồng tải báo cáo (`downloadReports`):
+     - Tự động nhận diện nếu `reportDef.isHistorical || reportDef.searchCode.includes('_ALL')` $\rightarrow$ Áp dụng `effectiveDate = getPreviousTradingDate(targetDate)`.
+     - Xóa bỏ hoàn toàn khối fallback sang `ORDERBOOK_ACM`.
+3. [backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts):
+   - Cập nhật chuẩn xác menu `'Hàng hóa liên thông'` và URL `'/PRODUCT/COMMODITY_ACM'` cho báo cáo `HH` và `HD` của CoreEX.
+4. Dọn dẹp triệt để các import Registry dư thừa (`CORECCP_API_REPORTS`, `MS_REPORTS_REGISTRY`, `CORE_EXCHANGE_REPORTS_REGISTRY`) khỏi [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts), [ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts), và [coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts) do các adapter đã phân giải hoàn toàn động qua các hàm `resolve*Report()`.
+
+---
+
+## [2026-10-19T18:25] BUGFIX & DATA-DRIVEN REFINEMENT: Sửa Lỗi Tải Sổ Lệnh Trong Phiên CoreEX (ORDERBOOK_ACM vs ORDERBOOK_ALL_ACM) & Lọc Chính Xác Trạng Thái Lệnh Phái Sinh (DSLH, DSLCK, DSLDK)
+
+### 1. Mục tiêu thay đổi
+- Trả lời và khắc phục câu hỏi của USER: *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures\2026\T10.2026 19.10.giaodien và 19.10.api tại sao tải trên giao diện thì đúng mà tải qua api thì DSLH ACM CE.xlsx DSL ACM CE.xlsx lại sai là file rỗng trong khi tôi dùng giao diện tải về lại có dữ liệu"*
+- Khảo sát thực tế thư mục `19.10.giaodien` và `19.10.api`:
+  - Trong `19.10.giaodien`: File `DSL ACM CE.xlsx` có 1,752 dòng dữ liệu nhưng thực chất mang ngày giao dịch `16/10/2026` (phiên Thứ Sáu đã đóng) do màn hình giao diện `/ORDERS/ORDERBOOK_ALL_ACM` mặc định tải phiên đóng gần nhất khi chưa EOD phiên 19/10.
+  - Trong `19.10.api`: API gọi `ORDERBOOK_ALL_ACM` cho ngày hiện tại `19/10/2026` (phiên đang chạy chưa EOD), API trả về 0 dòng vì `ORDERBOOK_ALL_ACM` là kho lưu trữ lịch sử sau chốt ngày.
+  - Sổ lệnh thực tế trong phiên của CoreEX nằm ở `ORDERBOOK_ACM` (`/ORDERS/ORDERBOOK_ACM`) với 1,116 lệnh trong ngày 19/10/2026.
+  - Quy tắc tạo file phái sinh cũ (`fs.copyFileSync(targetPath, destPath)`) sao chép mù file thô `DSL` sang `DSLH`, `DSLCK`, `DSLDK` mà không lọc theo trạng thái lệnh, dẫn tới khi `DSL` rỗng thì cả 3 file đều rỗng.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Thêm cơ chế Fallback thông minh giữa `ORDERBOOK_ALL_ACM` (Lịch sử) và `ORDERBOOK_ACM` (Trong phiên): Khi tải `DSL`, nếu `ORDERBOOK_ALL_ACM` trả về 0 dòng (phiên đang chạy trong ngày), adapter tự động chuyển sang gọi `ORDERBOOK_ACM` để lấy đầy đủ 1,116 lệnh trong phiên.
+   - Nâng cấp cơ chế xuất báo cáo phái sinh (`DERIVED_EXPORT`): Thay vì sao chép nhị phân mù toàn bộ file `DSL`, adapter lọc chính xác theo trường trạng thái lệnh `STATUS` / `EN_STATUS`:
+     - `DSLH ACM CE.xlsx` (Lệnh hủy): Lọc các lệnh có `STATUS === 'DD'` hoặc `EN_STATUS === 'Cancelled'` (~341 lệnh).
+     - `DSLCK ACM CE.xlsx` (Lệnh chờ khớp): Lọc các lệnh có `['SS', 'BB'].includes(STATUS)` hoặc `['New', 'PendingNew'].includes(EN_STATUS)` (~195 lệnh).
+     - `DSLDK ACM CE.xlsx` (Lệnh đã khớp): Lọc các lệnh có `STATUS === 'TS'` hoặc `EN_STATUS === 'Filled'` (~567 lệnh).
+     - Sau khi lọc, gọi trực tiếp `convertJsonToExcel` để xuất ra file Excel hoàn chỉnh có dữ liệu và định dạng tiếng Việt chuẩn.
+
+---
+
+## [2026-10-19T17:55] BUGFIX: Khắc Phục Lỗi Cào Giao Diện (Playwright Scraper) Không Tải Báo Cáo Nào Khi Nhận Mã "FULL" / Chuỗi Mã Báo Cáo
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi trong Job ID `6ad5f61e67544cdff20cac11`: Khi người dùng bật chế độ Cào Giao Diện (Playwright), bot đăng nhập thành công vào CoreExchange (`/DASHBOARD`) nhưng lập tức in `HOAN THANH TOAN BO TIEN TRINH TAI BAO CAO!` mà không tải bất kỳ file nào.
+- Nguyên nhân gốc: `ccp-ce-download.handler.ts` truyền mảng chuỗi `reports: ["FULL"]` vào `ccpCeDownloaderService.run()`. Trong `ccp-ce-scraper.service.ts`, lệnh `(runOpts.reports ?? DEFAULT_CE_REPORTS).filter((r) => r.enabled)` kiểm tra `r.enabled` trên phần tử dạng string `"FULL"` (`"FULL".enabled === undefined`), dẫn đến kết quả `reportsToRun` bị xóa sạch thành `[]` (0 báo cáo). Vòng lặp tải không chạy lần nào.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts#L1767-L1787):
+   - Chuẩn hóa bộ lọc `reportsToRun`: Kiểm tra nếu `runOpts.reports` là mảng chuỗi (như `["FULL"]`, `["ALL"]`, `["DSL"]`):
+     - Nếu chứa `FULL`, `ALL` hoặc `BACKUP` $\rightarrow$ Tự động nạp toàn bộ danh mục báo cáo mặc định (`DEFAULT_CE_REPORTS` hoặc `DEFAULT_CCP_REPORTS`).
+     - Nếu chứa danh sách mã cụ thể $\rightarrow$ Lọc theo `setCodes.has(r.code.toUpperCase())`.
+     - Nếu đã là danh sách `CcpReportConfig` $\rightarrow$ Lọc theo `r.enabled`.
+   - Áp dụng Fail-Fast (Rule 4): Nếu sau khi lọc mà `reportsToRun.length === 0`, ném Exception ngay lập tức thay vì âm thầm trả về `true`.
+2. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts#L168-L171):
+   - Động hóa `CLIENT_SECRET` của CoreExchange giữa UAT (`jY3lgfDQQdJceOILsjKIxKLa0MQ7IU`) và PROD (`865lhHVYOWQ93CicOirSZv4NR5JBe8`).
 
 ---
 

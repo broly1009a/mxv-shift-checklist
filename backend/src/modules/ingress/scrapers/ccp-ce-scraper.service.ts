@@ -361,41 +361,6 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     outputFileName: 'Tỷ giá CCP.xlsx',
   },
 
-  // ── Legacy Contract Aliases ───────────────────────────────────────────────
-  {
-    code: 'HD_CP2CO',
-    name: 'Hợp đồng Đồng Nano ACM (CP2CO)',
-    parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    commodityCode: 'CP2CO',
-    cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: false,
-    phase: 'EOD',
-    outputFileName: 'HĐ CP2CO.xlsx',
-  },
-  {
-    code: 'HD_PL1NY',
-    name: 'Hợp đồng Bạch kim Nano ACM (PL1NY)',
-    parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    commodityCode: 'PL1NY',
-    cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: false,
-    phase: 'EOD',
-    outputFileName: 'HĐ PL1NY.xlsx',
-  },
-  {
-    code: 'HD_SI5CO',
-    name: 'Hợp đồng Bạc Nano ACM (SI5CO)',
-    parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    commodityCode: 'SI5CO',
-    cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: false,
-    phase: 'EOD',
-    outputFileName: 'HĐ SI5CO.xlsx',
-  },
-
   // ── Legacy Aliases ────────────────────────────────────────────────────────
   {
     code: 'LSGTT',
@@ -488,8 +453,8 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     code: 'HH',
     name: 'Hàng hóa (CE)',
     parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    cachedUrl: '/PRODUCT/COMMODITY',
+    childMenu: 'Hàng hóa liên thông',
+    cachedUrl: '/PRODUCT/COMMODITY_ACM',
     enabled: true,
     phase: 'EOD',
     outputFileName: 'HH ACM.xlsx',
@@ -498,46 +463,11 @@ export const DEFAULT_CE_REPORTS: CcpReportConfig[] = [
     code: 'HD',
     name: 'Hợp đồng chi tiết (CE)',
     parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    cachedUrl: '/PRODUCT/COMMODITY',
+    childMenu: 'Hàng hóa liên thông',
+    cachedUrl: '/PRODUCT/COMMODITY_ACM',
     enabled: true,
     phase: 'EOD',
     outputFileName: 'HĐ *.xlsx',
-  },
-
-  // ── Legacy Contract Aliases (Tương thích ngược, tắt mặc định giống CCP) ────
-  {
-    code: 'HD_CP2CO',
-    name: 'Hợp đồng CP2CO (Đồng Nano)',
-    parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    commodityCode: 'CP2CO',
-    cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: false,
-    phase: 'EOD',
-    outputFileName: 'HĐ CP2CO.xlsx',
-  },
-  {
-    code: 'HD_PL1NY',
-    name: 'Hợp đồng PL1NY (Bạch kim Nano)',
-    parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    commodityCode: 'PL1NY',
-    cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: false,
-    phase: 'EOD',
-    outputFileName: 'HĐ PL1NY.xlsx',
-  },
-  {
-    code: 'HD_SI5CO',
-    name: 'Hợp đồng SI5CO (Bạc Nano)',
-    parentMenu: 'Quản lý sản phẩm',
-    childMenu: 'Quản lý hàng hóa, hợp đồng',
-    commodityCode: 'SI5CO',
-    cachedUrl: '/PRODUCT/COMMODITY',
-    enabled: false,
-    phase: 'EOD',
-    outputFileName: 'HĐ SI5CO.xlsx',
   },
 ];
 
@@ -1764,8 +1694,26 @@ export class CcpCeScraperService {
       acctNo: runOpts.options?.acctNo ?? '',
     };
 
-    const reportsToRun = (runOpts.reports ?? (this.isCoreExSystem(systemUrl) ? DEFAULT_CE_REPORTS : DEFAULT_CCP_REPORTS))
-      .filter((r) => r.enabled);
+    const defaultReports = this.isCoreExSystem(systemUrl) ? DEFAULT_CE_REPORTS : DEFAULT_CCP_REPORTS;
+    let reportsToRun: CcpReportConfig[] = [];
+
+    if (!runOpts.reports || (Array.isArray(runOpts.reports) && runOpts.reports.length === 0)) {
+      reportsToRun = defaultReports.filter((r) => r.enabled);
+    } else if (Array.isArray(runOpts.reports) && typeof runOpts.reports[0] === 'string') {
+      const stringCodes = (runOpts.reports as unknown as string[]).map((c) => c.toUpperCase());
+      if (stringCodes.some((c) => ['FULL', 'ALL', 'BACKUP'].includes(c))) {
+        reportsToRun = defaultReports.filter((r) => r.enabled);
+      } else {
+        const setCodes = new Set(stringCodes);
+        reportsToRun = defaultReports.filter((r) => setCodes.has(r.code.toUpperCase()));
+      }
+    } else {
+      reportsToRun = (runOpts.reports as CcpReportConfig[]).filter((r) => r.enabled);
+    }
+
+    if (reportsToRun.length === 0) {
+      throw new Error(`[${this.isCoreExSystem(systemUrl) ? 'CoreEX' : 'CoreCCP'}] Không tìm thấy báo cáo hợp lệ nào để tải (danh sách yêu cầu rỗng hoặc không khớp mã báo cáo).`);
+    }
 
     const todayDmy = formatDmY(new Date());
     const effStartDate = startDate || todayDmy;

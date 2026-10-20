@@ -12,19 +12,29 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Optional,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx';
 
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { CcpCeScraperService } from '../../ingress';
+import { CcpCeScraperService, IngressService } from '../../ingress';
 import { decrypt } from '../../../shared';
+import {
+  resolveTradingSessionDate,
+  resolveDailySubfolder,
+  resolveStoragePathCrossPlatform,
+} from '../../bot-engine/helpers/bot-path.helper';
 
 import { ValueStatisticsService } from '../services/value-statistics.service';
 import { CeCcpGttCheckerService } from '../services/ce-ccp-gtt.service';
@@ -34,9 +44,16 @@ import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
 /**
  * Controller chuyên biệt quản lý toàn bộ nghiệp vụ Bù trừ CoreCCP & Thống kê Lot/Value trong Trading Ops
  * Tích hợp toàn bộ API tỷ giá, bóc tách số liệu CoreCCP, đối soát GTT CE-CCP và tra cứu nhật ký bù trừ CCP.
+ * Tương thích ngược toàn diện với các route cũ của ccp-statistics.
  */
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller(['api/v1/ccp-clearing', 'api/v1/reconciliation', 'reconciliation'])
+@Controller([
+  'api/v1/ccp-clearing',
+  'api/v1/ccp-statistics',
+  'ccp-statistics',
+  'api/v1/reconciliation',
+  'reconciliation',
+])
 export class CcpReconController {
   private readonly logger = new Logger(CcpReconController.name);
 
@@ -48,6 +65,8 @@ export class CcpReconController {
     private readonly ccpAccumulatorService: CcpAccumulatorService,
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel: Model<CcpClearingLog>,
+    @Optional()
+    private readonly ingressService?: IngressService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -69,25 +88,265 @@ export class CcpReconController {
   }
 
   /**
-   * Tải lại và làm mới bảng tỷ giá quy đổi Bù trừ CoreCCP từ CSDL cấu hình
+   * Đồng bộ và làm mới bảng tỷ giá quy đổi từ tệp CoreCCP (/SYSCONFIGMNG/CURRENCYEXCHANGERATE - Tỷ giá CCP.xlsx).
+   * Hỗ trợ đồng bộ tức thì qua Direct REST API hoặc đọc từ thư mục backup ngày.
    */
-  @Post('sync-exchange-rates')
-  @Permissions('ACCESS_AUTO_SHIFT')
-  async syncExchangeRates() {
+  @Post(['lot-statistics/sync-exchange-rate', 'sync-ccp-exchange-rates', 'sync-ccp-exchange-rate'])
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
+  async syncExchangeRates(@Body() body?: { date?: string }) {
     try {
-      const rates = await this.valueStatisticsService.getCurrentExchangeRates();
+      const targetDate = body?.date || new Date().toISOString().split('T')[0];
+      const detailsToSave: Record<string, any> = {};
+      let source = '';
+
+      // 1. Xác định thư mục backup ngày của CoreCCP
+      let backupPath = await this.settingsService.getSetting('bot_backup_path_ccp', '');
+      if (!backupPath) {
+        backupPath = path.join(process.cwd(), 'data', 'backup', 'CCP');
+      }
+      const sessionStartStr = await this.settingsService.getSetting('session_start_time', '05:00');
+      const { dateObj } = resolveTradingSessionDate(targetDate, { sessionStartStr });
+      const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, dateObj);
+      const resolvedBackupPath = resolveStoragePathCrossPlatform(backupPath);
+      const scanDir = fs.existsSync(dailyPath) ? dailyPath : resolvedBackupPath;
+
+      let tyGiaFilePath = '';
+      if (fs.existsSync(scanDir)) {
+        const files = fs.readdirSync(scanDir);
+        const match = files.find((f) => /^(?:Tỷ\s*giá.*ccp|TYGIA|Tỷ\s*giá).*\.xlsx$/i.test(f));
+        if (match) {
+          tyGiaFilePath = path.join(scanDir, match);
+        }
+      }
+
+      // 2. Nếu chưa có file tỷ giá và có IngressService: Kích hoạt tải tức thì qua Direct REST API
+      if (!tyGiaFilePath && this.ingressService) {
+        try {
+          this.logger.log(`[CcpReconController] Chưa có file tỷ giá tại ${scanDir}, gọi IngressService tải TYGIA...`);
+          const ingressRes = await this.ingressService.download('CCP', {
+            targetDirectory: scanDir,
+            reportCodes: ['TYGIA'],
+            targetDate,
+          });
+          if (ingressRes.success && ingressRes.files.length > 0) {
+            tyGiaFilePath = ingressRes.files[0].absolutePath;
+          }
+        } catch (ingressErr: any) {
+          this.logger.warn(`[CcpReconController] Lỗi khi gọi IngressService tải TYGIA: ${ingressErr.message}`);
+        }
+      }
+
+      // 3. Đọc và bóc tách ma trận đa nguyên tệ từ file Excel
+      if (tyGiaFilePath && fs.existsSync(tyGiaFilePath)) {
+        try {
+          const buf = fs.readFileSync(tyGiaFilePath);
+          const wb = XLSX.read(buf, { type: 'buffer' });
+          const sheetName = wb.SheetNames[0];
+          if (sheetName) {
+            const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+            for (const row of rows) {
+              const curr = (
+                row.BASECURRENCY ||
+                row['Nguyên tệ'] ||
+                row['Tiền tệ'] ||
+                row['Mã tiền tệ'] ||
+                row.CURRENCY ||
+                row.Currency ||
+                ''
+              )
+                .toString()
+                .trim()
+                .toUpperCase();
+              if (!curr || curr === 'VND') continue;
+              const normalizedCurr = curr === 'CNY' ? 'RMB' : curr;
+              const convRate = parseFloat(
+                String(row.EXCHANGERATE || row['Tỷ giá quy đổi'] || row['Tỷ giá'] || row.RATE || 0).replace(/,/g, ''),
+              );
+              if (isNaN(convRate) || convRate <= 0) continue;
+              const buyRate =
+                parseFloat(String(row.BUYRATE || row['Tỷ giá Mua'] || convRate).replace(/,/g, '')) || convRate;
+              const sellRate =
+                parseFloat(String(row.SELLRATE || row['Tỷ giá Bán'] || convRate).replace(/,/g, '')) || convRate;
+              const effDate = (row.CREATEDDATE || row.LASTCHANGE || targetDate).toString().trim();
+
+              detailsToSave[normalizedCurr] = {
+                currencyCode: normalizedCurr,
+                conversionRate: convRate,
+                buyRate,
+                sellRate,
+                effectiveDate: effDate.split(' ')[0] || targetDate,
+              };
+            }
+            if (Object.keys(detailsToSave).length > 0) {
+              source = `Tệp ${path.basename(tyGiaFilePath)} (CoreCCP /SYSCONFIGMNG/CURRENCYEXCHANGERATE)`;
+            }
+          }
+        } catch (parseErr: any) {
+          this.logger.warn(`[CcpReconController] Không thể parse tệp tỷ giá ${tyGiaFilePath}: ${parseErr.message}`);
+        }
+      }
+
+      // 4. Cập nhật vào MongoDB settings
+      const nowIso = new Date().toISOString();
+      let updatedMatrix: Record<string, any> = {};
+      try {
+        const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+        updatedMatrix = JSON.parse(matrixStr || '{}');
+      } catch {
+        updatedMatrix = {};
+      }
+
+      if (Object.keys(detailsToSave).length > 0) {
+        for (const [code, item] of Object.entries(detailsToSave)) {
+          updatedMatrix[code] = item;
+        }
+        if (detailsToSave['USD']?.conversionRate) {
+          await this.settingsService.setSetting('ccp_usd_exchange_rate', String(detailsToSave['USD'].conversionRate));
+        }
+        if (detailsToSave['JPY']?.conversionRate) {
+          await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(detailsToSave['JPY'].conversionRate));
+        }
+        if (detailsToSave['MYR']?.conversionRate) {
+          await this.settingsService.setSetting('ccp_myr_exchange_rate', String(detailsToSave['MYR'].conversionRate));
+        }
+        const rmbRate = detailsToSave['RMB']?.conversionRate;
+        if (rmbRate) {
+          await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbRate));
+        }
+        await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(updatedMatrix));
+        await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+        await this.settingsService.setSetting('exchange_rate_source', source);
+      }
+
       const usdRateStr =
         (await this.settingsService.getSetting('ccp_usd_exchange_rate', '')) ||
         (await this.settingsService.getSetting('usd_exchange_rate', '25400'));
-      const usdRate = parseFloat(usdRateStr) || 25400;
+      const usdRate = parseFloat(usdRateStr) || (detailsToSave['USD']?.conversionRate ?? 25400);
+      const rates = await this.valueStatisticsService.getCurrentExchangeRates();
+
+      const currenciesSynced =
+        Object.keys(detailsToSave).length > 0
+          ? Object.keys(detailsToSave).join(', ')
+          : Object.keys(updatedMatrix).join(', ') || 'USD';
+
       return {
         success: true,
+        data: {
+          usdRate,
+          matrix: updatedMatrix,
+          source: source || 'CSDL Cấu hình CoreCCP',
+          lastSynced: nowIso,
+        },
         rates,
         usdRate,
-        message: 'Làm mới bảng tỷ giá Bù trừ CoreCCP thành công.',
+        message: `Đã cập nhật bảng ma trận tỷ giá CoreCCP (${currenciesSynced}) thành công.`,
       };
     } catch (err: any) {
-      throw new BadRequestException(`Không thể làm mới tỷ giá Bù trừ: ${err.message}`);
+      throw new BadRequestException(`Không thể đồng bộ tỷ giá CoreCCP: ${err.message}`);
+    }
+  }
+
+  /**
+   * Tải lên riêng file Excel tỷ giá và tự động cập nhật vào CSDL MongoDB
+   */
+  @Post(['lot-statistics/upload-tygia', 'upload-tygia'])
+  @Permissions('ACCESS_AUTO_SHIFT')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadTyGiaFile(@UploadedFile() file: any) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Vui lòng chọn file tỷ giá.');
+    }
+    try {
+      const buf = file.buffer;
+      const wb = XLSX.read(buf, { type: 'buffer' });
+      const sheetName = wb.SheetNames[0];
+      if (!sheetName) throw new BadRequestException('File tỷ giá rỗng hoặc không đúng định dạng Excel.');
+
+      const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+      const detailsToSave: Record<string, any> = {};
+      const nowIso = new Date().toISOString();
+
+      for (const row of rows) {
+        const curr = (
+          row.BASECURRENCY ||
+          row['Nguyên tệ'] ||
+          row['Tiền tệ'] ||
+          row['Mã tiền tệ'] ||
+          row.CURRENCY ||
+          row.Currency ||
+          ''
+        )
+          .toString()
+          .trim()
+          .toUpperCase();
+        if (!curr || curr === 'VND') continue;
+        const normalizedCurr = curr === 'CNY' ? 'RMB' : curr;
+        const convRate = parseFloat(
+          String(row.EXCHANGERATE || row['Tỷ giá quy đổi'] || row['Tỷ giá'] || row.RATE || 0).replace(/,/g, ''),
+        );
+        if (isNaN(convRate) || convRate <= 0) continue;
+        const buyRate =
+          parseFloat(String(row.BUYRATE || row['Tỷ giá Mua'] || convRate).replace(/,/g, '')) || convRate;
+        const sellRate =
+          parseFloat(String(row.SELLRATE || row['Tỷ giá Bán'] || convRate).replace(/,/g, '')) || convRate;
+        const effDate = (row.CREATEDDATE || row.LASTCHANGE || nowIso).toString().trim();
+
+        detailsToSave[normalizedCurr] = {
+          currencyCode: normalizedCurr,
+          conversionRate: convRate,
+          buyRate,
+          sellRate,
+          effectiveDate: effDate.split(' ')[0] || nowIso.split('T')[0],
+        };
+      }
+
+      if (Object.keys(detailsToSave).length === 0) {
+        throw new BadRequestException('Không tìm thấy dòng tỷ giá hợp lệ nào trong file tải lên.');
+      }
+
+      let matrix: Record<string, any> = {};
+      try {
+        const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '{}');
+        matrix = JSON.parse(matrixStr || '{}');
+      } catch {
+        matrix = {};
+      }
+
+      for (const [code, item] of Object.entries(detailsToSave)) {
+        matrix[code] = item;
+      }
+
+      if (detailsToSave['USD']?.conversionRate) {
+        await this.settingsService.setSetting('ccp_usd_exchange_rate', String(detailsToSave['USD'].conversionRate));
+      }
+      if (detailsToSave['JPY']?.conversionRate) {
+        await this.settingsService.setSetting('ccp_jpy_exchange_rate', String(detailsToSave['JPY'].conversionRate));
+      }
+      if (detailsToSave['MYR']?.conversionRate) {
+        await this.settingsService.setSetting('ccp_myr_exchange_rate', String(detailsToSave['MYR'].conversionRate));
+      }
+      const rmbRate = detailsToSave['RMB']?.conversionRate;
+      if (rmbRate) {
+        await this.settingsService.setSetting('ccp_rmb_exchange_rate', String(rmbRate));
+      }
+      await this.settingsService.setSetting('ccp_exchange_rates_matrix', JSON.stringify(matrix));
+      await this.settingsService.setSetting('ccp_rates_last_synced', nowIso);
+      await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
+      await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname || 'tygia.xlsx'}`);
+
+      return {
+        success: true,
+        data: {
+          usdRate: detailsToSave['USD']?.conversionRate || 25400,
+          matrix,
+          source: `Tệp tải lên: ${file.originalname || 'tygia.xlsx'}`,
+          lastSynced: nowIso,
+        },
+        message: `Đã bóc tách và lưu tỷ giá (${Object.keys(detailsToSave).join(', ')}) vào CSDL thành công!`,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(`Lỗi bóc tách file tỷ giá: ${err.message}`);
     }
   }
 

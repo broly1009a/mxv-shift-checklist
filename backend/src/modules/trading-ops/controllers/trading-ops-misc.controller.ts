@@ -49,8 +49,8 @@ export class TradingOpsMiscController {
   /**
    * Đồng bộ tỷ giá USD từ M-System.
    */
-  @Post('sync-usd-rate')
-  @Permissions('ACCESS_AUTO_SHIFT')
+  @Post(['sync-usd-rate', 'sync-ms-usd-rate'])
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async syncUsdRate() {
     try {
       const rate = await this.reconConsoleSummaryService.syncUsdRateFromMSystem();
@@ -61,10 +61,10 @@ export class TradingOpsMiscController {
   }
 
   /**
-   * Đồng bộ toàn bộ tỷ giá đa tiền tệ từ M-System.
+   * Đồng bộ toàn bộ tỷ giá đa tiền tệ từ M-System qua Direct REST API.
    */
-  @Post('sync-exchange-rates')
-  @Permissions('ACCESS_AUTO_SHIFT')
+  @Post(['sync-exchange-rates', 'sync-ms-exchange-rates', 'sync-ms-rate', 'ms/sync-exchange-rate'])
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async syncExchangeRates() {
     try {
       const res = await this.reconConsoleSummaryService.syncAllExchangeRatesFromMSystem();
