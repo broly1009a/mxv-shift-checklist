@@ -1,3 +1,33 @@
+## [2026-10-20T10:35] FEATURE: Ẩn "Mock Chuẩn BGĐ", Tối Giản Header Dashboard Đồng Bộ Chuẩn Reconciliation & Tích Hợp Skeleton Transformation / Cache
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Ẩn hoàn toàn nút **"Mock Chuẩn BGĐ"** trên trang Dashboard (`/trading-manager/dashboard`), chỉ hiển thị badge tinh gọn **"Dữ liệu Live"** kèm chỉ báo trạng thái đồng bộ thực tế.
+  2. Bổ sung **hiệu ứng transformation & skeleton loader** khi dữ liệu chưa kịp load để màn hình không bị giật, tránh nhấp nháy hoặc hiển thị trống trơn.
+  3. Hoàn thiện cơ chế **SessionStorage Cache (Stale-While-Revalidate)**: Khi chuyển ngày hoặc chọn lượt kiểm tra, dữ liệu được tải tức thì (0ms reload) từ cache nếu có, sau đó revalidate ngầm và cập nhật mượt mà với transition.
+  4. Sửa lại giao diện Header của trang Dashboard đồng bộ 100% với phong cách trang `reconciliation`:
+     - Bỏ toàn bộ khối card to cồng kềnh với mô tả dài dòng không quan trọng.
+     - Header chỉ hiển thị đơn giản: Tag `QUẢN LÝ GIAO DỊCH (QLGD)`, H1 chữ `DASHBOARD` kèm icon Lucide `LayoutDashboard`, bộ chọn ngày `Phiên:` và nút phóng to toàn màn hình.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/dashboard/page.tsx):
+   - Thay đổi toàn bộ phần Header sang giao diện chuẩn của `reconciliation` (Tag xanh `QUẢN LÝ GIAO DỊCH (QLGD)` + H1 `DASHBOARD` + Date picker `Phiên:` + Fullscreen button).
+   - Loại bỏ các breadcrumb và badge thừa thãi.
+   - Truyền `hideHeaderCard={true}`, `sessionDateProp={selectedDate}`, `onSelectDate={setSelectedDate}` vào `QlgdExecutiveDashboard`.
+2. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Đã xóa bỏ hoàn toàn nút `Mock Chuẩn BGĐ`, thay bằng badge `Dữ liệu Live` tinh gọn.
+   - Ẩn khối Header card to cồng kềnh khi `hideHeaderCard === true`.
+   - Tích hợp `sessionStorage` cache theo `(date, scope, jobId)` cho trải nghiệm tức thì.
+   - Thêm component `DashboardSkeleton`: Shimmer pulse loader cho 2 cards phân khúc ACM & Còn lại và Bảng 17 mặt hàng khi `loadingLive && !liveData`.
+   - Bọc Section 2 và Section 3 trong transition loader mượt mà (`opacity: loadingLive ? 0.8 : 1, transition: 'opacity 0.25s ease-in-out'`).
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên máy chủ Ubuntu `10.0.0.26`: Upload thành công và chạy `npm run build && pm2 restart mxv-frontend`.
+
+---
+
 ## [2026-10-20T10:10] FEATURE: Phân Tách Trang Backup Thành 2 Phân Hệ Con Độc Lập (MS–CQG & CCP–CE) & Tinh Chỉnh Giao Diện Trực Quan
 
 ### 1. Mục tiêu thay đổi

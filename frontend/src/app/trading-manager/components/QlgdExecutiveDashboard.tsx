@@ -30,6 +30,7 @@ import {
   Info,
   Maximize2,
   Search,
+  Loader2,
 } from 'lucide-react';
 
 import {
@@ -740,20 +741,60 @@ const getTodayVnDate = () => {
 export interface QlgdExecutiveDashboardProps {
   initialDate?: string;
   onRefresh?: () => void;
+  hideHeaderCard?: boolean;
+  sessionDateProp?: string;
+  onSelectDate?: (date: string) => void;
 }
 
 export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   initialDate,
   onRefresh,
+  hideHeaderCard = false,
+  sessionDateProp,
+  onSelectDate,
 }) => {
   const { token } = useAuth();
-  const defaultDate = useMemo(() => initialDate || getTodayVnDate(), [initialDate]);
-  const [sessionDate, setSessionDate] = useState<string>(defaultDate);
+  const defaultDate = useMemo(() => sessionDateProp || initialDate || getTodayVnDate(), [sessionDateProp, initialDate]);
+  const [internalSessionDate, setInternalSessionDate] = useState<string>(defaultDate);
+  const sessionDate = sessionDateProp || internalSessionDate;
+
+  const setSessionDate = useCallback(
+    (newDate: string) => {
+      setInternalSessionDate(newDate);
+      if (onSelectDate) onSelectDate(newDate);
+    },
+    [onSelectDate],
+  );
+
+  useEffect(() => {
+    if (sessionDateProp && sessionDateProp !== internalSessionDate) {
+      setInternalSessionDate(sessionDateProp);
+    }
+  }, [sessionDateProp, internalSessionDate]);
+
   const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('LIVE');
   const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const [liveData, setLiveData] = useState<any | null>(null);
+
+  // Cache Key Helper cho cơ chế Stale-While-Revalidate
+  const getDashboardCacheKey = useCallback(
+    (date: string, scope: string, jobId?: string | null) =>
+      `mxv_qlgd_dashboard_cache_${date}_${scope}_${jobId || 'latest'}`,
+    [],
+  );
+
+  // Khởi tạo LiveData từ cache nếu có để tức thì hiển thị dữ liệu (zero reload / transformation)
+  const [liveData, setLiveData] = useState<any | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`mxv_qlgd_dashboard_cache_${defaultDate}_ALL_latest`);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
   const [loadingLive, setLoadingLive] = useState<boolean>(false);
   const [isSyncingApi, setIsSyncingApi] = useState<boolean>(false);
   const [isBgsModalOpen, setIsBgsModalOpen] = useState<boolean>(false);
@@ -765,6 +806,19 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
 
   const [selectedRunJobId, setSelectedRunJobId] = useState<string | null>(null);
   const selectedRunJobIdRef = useRef<string | null>(null);
+
+  // Tự động nạp cache khi đổi phiên hoặc đổi lượt check
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cacheKey = getDashboardCacheKey(sessionDate, selectedScope, selectedRunJobId);
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          setLiveData(JSON.parse(cached));
+        }
+      } catch {}
+    }
+  }, [sessionDate, selectedScope, selectedRunJobId, getDashboardCacheKey]);
 
   // Danh sách các lượt chạy trong ngày (như checkklgd)
   const runs = useMemo(() => {
@@ -800,7 +854,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const hasPrevRun = currentRunIndex >= 0 && currentRunIndex < runs.length - 1; // Lượt cũ hơn
   const hasNextRun = currentRunIndex > 0; // Lượt mới hơn
 
-  // Tải dữ liệu thực tế từ Backend API
+  // Tải dữ liệu thực tế từ Backend API (kết hợp lưu cache)
   const fetchLiveDashboard = useCallback(
     async (
       date: string,
@@ -817,25 +871,21 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         );
         if (data) {
           setLiveData(data);
+          // Lưu vào SessionStorage Cache
+          if (typeof window !== 'undefined') {
+            try {
+              const cacheKey = getDashboardCacheKey(date, scope, targetJobId);
+              sessionStorage.setItem(cacheKey, JSON.stringify(data));
+            } catch {}
+          }
           if (
             data.hasActualFiles ||
             data.dataSource === 'DIRECT_API' ||
             data.dataSource === 'BACKUP_FILES'
           ) {
-            if (data.isViewingHistorical) {
-              const runItem = data.runs?.find((r: any) => r.id === targetJobId);
-              toast.success(
-                `Đang xem dữ liệu lịch sử lượt ${runItem?.label || targetJobId}!`,
-                { id: 'live-toast' },
-              );
-            } else {
-              toast.success(`Đã tải dữ liệu Live phiên ${date}!`, { id: 'live-toast' });
+            if (refresh) {
+              toast.success(`Đã làm mới dữ liệu Live phiên ${date}!`, { id: 'live-toast' });
             }
-          } else {
-            toast(
-              `Phiên ${date} chưa có file giao dịch. Bạn có thể bấm "Đồng bộ API" để tải dữ liệu tươi!`,
-              { icon: 'ℹ️' },
-            );
           }
         }
       } catch (e: any) {
@@ -844,7 +894,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         setLoadingLive(false);
       }
     },
-    [token],
+    [token, getDashboardCacheKey],
   );
 
   const handleSelectRun = useCallback(
@@ -1192,302 +1242,476 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     }
   };
 
+  /**
+   * Component Skeleton Loader hiển thị hiệu ứng chuyển cảnh mượt mà khi dữ liệu chưa kịp tải
+   */
+  const DashboardSkeleton = () => (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        width: '100%',
+      }}
+    >
+      {/* Skeleton 2 Card Phân khúc */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
+          gap: '20px',
+        }}
+      >
+        {[1, 2].map((idx) => (
+          <div
+            key={idx}
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '14px',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              boxShadow: 'var(--shadow-sm)',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: idx === 1 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #3b82f6, #2563eb)',
+              }}
+            />
+            {/* Card Header Placeholder */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    backgroundColor: idx === 1 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: idx === 1 ? '#10b981' : '#3b82f6',
+                  }}
+                >
+                  {idx === 1 ? <Building2 size={20} /> : <Users size={20} />}
+                </div>
+                <div>
+                  <div style={{ width: '100px', height: '18px', backgroundColor: 'var(--border-color)', borderRadius: '4px', marginBottom: '6px', opacity: 0.7 }} />
+                  <div style={{ width: '160px', height: '12px', backgroundColor: 'var(--border-color)', borderRadius: '4px', opacity: 0.4 }} />
+                </div>
+              </div>
+              <div style={{ width: '130px', height: '36px', borderRadius: '8px', backgroundColor: 'var(--border-color)', opacity: 0.5 }} />
+            </div>
+
+            {/* Chart Area Placeholder */}
+            <div
+              style={{
+                height: '180px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px dashed var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                color: 'var(--text-muted)',
+                fontSize: '0.8rem',
+              }}
+            >
+              <Loader2 size={20} className="animate-spin" color={idx === 1 ? '#10b981' : '#3b82f6'} />
+              <span>Đang tính toán biểu đồ & số liệu khớp lệnh...</span>
+            </div>
+
+            {/* 4 Mốc thời điểm Placeholder */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+              {[1, 2, 3, 4].map((m) => (
+                <div
+                  key={m}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    height: '56px',
+                    opacity: 0.6,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Skeleton Bảng 17 Mặt hàng */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '14px',
+          padding: '20px',
+          boxShadow: 'var(--shadow-sm)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ width: '280px', height: '20px', backgroundColor: 'var(--border-color)', borderRadius: '4px', marginBottom: '6px', opacity: 0.7 }} />
+            <div style={{ width: '200px', height: '12px', backgroundColor: 'var(--border-color)', borderRadius: '4px', opacity: 0.4 }} />
+          </div>
+          <div style={{ width: '180px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--border-color)', opacity: 0.5 }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                height: '42px',
+                borderRadius: '6px',
+                backgroundColor: i % 2 === 0 ? 'var(--bg-input)' : 'transparent',
+                border: '1px solid var(--border-color)',
+                opacity: 0.6,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+      {/* Thanh tiến trình loading mảnh khi đang cập nhật dữ liệu ngầm */}
+      {loadingLive && (
+        <div
+          style={{
+            height: '3px',
+            width: '100%',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            overflow: 'hidden',
+            borderRadius: '2px',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: '100%',
+              background: 'linear-gradient(90deg, transparent, #10b981, transparent)',
+              animation: 'pulse 1.2s infinite',
+            }}
+          />
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* 1. TOP HEADER & METRIC ACTIONS BAR */}
       {/* ========================================================================= */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: hideHeaderCard ? 'flex-end' : 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '12px',
-          padding: '16px 20px',
+          padding: hideHeaderCard ? '12px 18px' : '16px 20px',
           backgroundColor: 'var(--bg-card)',
           border: '1px solid var(--border-color)',
           borderRadius: '12px',
           backdropFilter: 'blur(12px)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(59, 130, 246, 0.15)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#60a5fa',
-            }}
-          >
-            <BarChart3 size={22} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                DASHBOARD TỔNG HỢP VẬN HÀNH & BÁO CÁO BAN GIÁM ĐỐC
-              </h2>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  backgroundColor: dataMode === 'MOCK' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(16, 185, 129, 0.18)',
-                  color: dataMode === 'MOCK' ? '#fbbf24' : '#34d399',
-                  border: dataMode === 'MOCK' ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
-                }}
-              >
-                {dataMode === 'MOCK' ? 'MOCK DATA DEMO' : 'LIVE DATA'}
-              </span>
-            </div>
-            <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Phân tách khối Tự doanh (ACM) vs Thị trường (Còn lại) | Giám sát 4 mốc thời điểm & Ma trận Lãi lỗ mặt hàng
-            </p>
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Date Picker */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: 'var(--bg-input)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-            }}
-          >
-            <Calendar size={15} color="var(--text-muted)" />
-            <input
-              type="date"
-              value={sessionDate}
-              onChange={(e) => setSessionDate(e.target.value)}
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            />
-          </div>
-
-          {/* Bộ lọc xem lại các lượt check trong ngày (chuẩn như checkklgd) */}
-          {dataMode === 'LIVE' && runs && runs.length > 0 && (
+        {/* Khối Header Card cũ chỉ hiện khi không ẩn */}
+        {!hideHeaderCard && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '4px 8px',
-                borderRadius: '8px',
-                backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.12)' : 'var(--bg-input)',
-                border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.45)' : '1px solid var(--border-color)',
-                transition: 'all 0.2s',
+                justifyContent: 'center',
+                color: '#60a5fa',
               }}
             >
-              <span
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: isViewingHistorical ? '#ea580c' : 'var(--text-secondary)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <History size={14} style={{ color: isViewingHistorical ? '#ea580c' : 'var(--text-muted)' }} />
-                <span>Lượt:</span>
-              </span>
-
-              {/* Nút lùi về lượt cũ hơn (<) */}
-              <button
-                type="button"
-                title="Xem lượt chạy trước đó (cũ hơn)"
-                disabled={!hasPrevRun}
-                onClick={goToPrevRun}
-                style={{
-                  padding: '4px 6px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: hasPrevRun ? 'var(--bg-card)' : 'transparent',
-                  color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  opacity: hasPrevRun ? 1 : 0.35,
-                  cursor: hasPrevRun ? 'pointer' : 'not-allowed',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <ChevronLeft size={15} />
-              </button>
-
-              {/* Select chọn lượt chạy */}
-              <select
-                value={selectedRunJobId || (runs[0]?.id || '')}
-                onChange={(e) => handleSelectRun(e.target.value)}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  fontFamily: 'monospace',
-                  backgroundColor: 'transparent',
-                  color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
-                  border: 'none',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  maxWidth: '260px',
-                }}
-              >
-                {runs.map((r, idx) => {
-                  const runNumber = runs.length - idx;
-                  const isLatest = idx === 0;
-                  const trigger = r.triggerLabel || (r.triggerType === 'MANUAL' ? 'Thủ công' : 'Tự động');
-                  const statusNote = r.status === 'FAILED' ? ' [Lỗi]' : '';
-                  const labelText = `Lượt #${runNumber} (${r.time}) - ${trigger}${statusNote}${isLatest ? ' (Mới nhất)' : ''}`;
-                  return (
-                    <option key={r.id} value={r.id}>
-                      {labelText}
-                    </option>
-                  );
-                })}
-              </select>
-
-              {/* Nút tiến tới lượt mới hơn (>) */}
-              <button
-                type="button"
-                title="Xem lượt chạy tiếp theo (mới hơn)"
-                disabled={!hasNextRun}
-                onClick={goToNextRun}
-                style={{
-                  padding: '4px 6px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: hasNextRun ? 'var(--bg-card)' : 'transparent',
-                  color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  opacity: hasNextRun ? 1 : 0.35,
-                  cursor: hasNextRun ? 'pointer' : 'not-allowed',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <ChevronRight size={15} />
-              </button>
-
-              {/* Nút quay về lượt mới nhất khi đang xem quá khứ */}
-              {isViewingHistorical && (
-                <button
-                  type="button"
-                  title="Quay lại dữ liệu Live mới nhất"
-                  onClick={() => handleSelectRun(null, true)}
+              <BarChart3 size={22} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  DASHBOARD TỔNG HỢP VẬN HÀNH & BÁO CÁO
+                </h2>
+                <span
                   style={{
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    fontSize: '0.72rem',
+                    fontSize: '0.7rem',
                     fontWeight: 700,
-                    backgroundColor: '#ea580c',
-                    color: '#ffffff',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+                    color: '#34d399',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  LIVE DATA
+                </span>
+              </div>
+              <p style={{ margin: '3px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Phân tách khối Tự doanh (ACM) vs Thị trường (Còn lại) | Giám sát 4 mốc thời điểm & Ma trận Lãi lỗ mặt hàng
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: hideHeaderCard ? '100%' : 'auto', justifyContent: hideHeaderCard ? 'space-between' : 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Date Picker chỉ hiện khi không có Header riêng bên ngoài */}
+            {!hideHeaderCard && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                }}
+              >
+                <Calendar size={15} color="var(--text-muted)" />
+                <input
+                  type="date"
+                  value={sessionDate}
+                  onChange={(e) => setSessionDate(e.target.value)}
+                  style={{
+                    backgroundColor: 'transparent',
                     border: 'none',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    outline: 'none',
                     cursor: 'pointer',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Bộ lọc xem lại các lượt check trong ngày (chuẩn như checkklgd) */}
+            {runs && runs.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 8px',
+                  borderRadius: '8px',
+                  backgroundColor: isViewingHistorical ? 'rgba(234, 88, 12, 0.12)' : 'var(--bg-input)',
+                  border: isViewingHistorical ? '1px solid rgba(234, 88, 12, 0.45)' : '1px solid var(--border-color)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: isViewingHistorical ? '#ea580c' : 'var(--text-secondary)',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
-                    marginLeft: '4px',
+                  }}
+                >
+                  <History size={14} style={{ color: isViewingHistorical ? '#ea580c' : 'var(--text-muted)' }} />
+                  <span>Lượt:</span>
+                </span>
+
+                {/* Nút lùi về lượt cũ hơn (<) */}
+                <button
+                  type="button"
+                  title="Xem lượt chạy trước đó (cũ hơn)"
+                  disabled={!hasPrevRun}
+                  onClick={goToPrevRun}
+                  style={{
+                    padding: '4px 6px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: hasPrevRun ? 'var(--bg-card)' : 'transparent',
+                    color: hasPrevRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    opacity: hasPrevRun ? 1 : 0.35,
+                    cursor: hasPrevRun ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <RotateCcw size={12} />
-                  <span>Về Live</span>
+                  <ChevronLeft size={15} />
                 </button>
-              )}
+
+                {/* Select chọn lượt chạy */}
+                <select
+                  value={selectedRunJobId || (runs[0]?.id || '')}
+                  onChange={(e) => handleSelectRun(e.target.value)}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    fontFamily: 'monospace',
+                    backgroundColor: 'transparent',
+                    color: isViewingHistorical ? '#ea580c' : 'var(--text-primary)',
+                    border: 'none',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    maxWidth: '260px',
+                  }}
+                >
+                  {runs.map((r, idx) => {
+                    const runNumber = runs.length - idx;
+                    const isLatest = idx === 0;
+                    const trigger = r.triggerLabel || (r.triggerType === 'MANUAL' ? 'Thủ công' : 'Tự động');
+                    const statusNote = r.status === 'FAILED' ? ' [Lỗi]' : '';
+                    const labelText = `Lượt #${runNumber} (${r.time}) - ${trigger}${statusNote}${isLatest ? ' (Mới nhất)' : ''}`;
+                    return (
+                      <option key={r.id} value={r.id}>
+                        {labelText}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* Nút tiến tới lượt mới hơn (>) */}
+                <button
+                  type="button"
+                  title="Xem lượt chạy tiếp theo (mới hơn)"
+                  disabled={!hasNextRun}
+                  onClick={goToNextRun}
+                  style={{
+                    padding: '4px 6px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: hasNextRun ? 'var(--bg-card)' : 'transparent',
+                    color: hasNextRun ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    opacity: hasNextRun ? 1 : 0.35,
+                    cursor: hasNextRun ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <ChevronRight size={15} />
+                </button>
+
+                {/* Nút quay về lượt mới nhất khi đang xem quá khứ */}
+                {isViewingHistorical && (
+                  <button
+                    type="button"
+                    title="Quay lại dữ liệu Live mới nhất"
+                    onClick={() => handleSelectRun(null, true)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      backgroundColor: '#ea580c',
+                      color: '#ffffff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      marginLeft: '4px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <RotateCcw size={12} />
+                    <span>Về Live</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Badge Dữ liệu Live (Đã ẩn hoàn toàn nút Mock Chuẩn BGĐ) */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                color: '#10b981',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+              }}
+            >
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                }}
+              />
+              <span>Dữ liệu Live</span>
             </div>
-          )}
 
-          {/* Mode Switcher */}
-
-          <div
-            style={{
-              display: 'flex',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              overflow: 'hidden',
-              backgroundColor: 'var(--bg-input)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setDataMode('MOCK')}
-              style={{
-                padding: '6px 12px',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: dataMode === 'MOCK' ? '#3b82f6' : 'transparent',
-                color: dataMode === 'MOCK' ? '#ffffff' : 'var(--text-secondary)',
-                transition: 'all 0.2s',
-              }}
-            >
-              Mock Chuẩn BGĐ
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDataMode('LIVE');
-                toast.success('Đang kết nối API nguồn dữ liệu thời gian thực...');
-              }}
-              style={{
-                padding: '6px 12px',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: dataMode === 'LIVE' ? '#10b981' : 'transparent',
-                color: dataMode === 'LIVE' ? '#ffffff' : 'var(--text-secondary)',
-                transition: 'all 0.2s',
-              }}
-            >
-              Dữ liệu Live
-            </button>
+            {/* Loading Indicator */}
+            {loadingLive && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '0.74rem',
+                  color: '#10b981',
+                  fontWeight: 600,
+                }}
+              >
+                <Loader2 size={13} className="animate-spin" />
+                <span>Đang đồng bộ...</span>
+              </div>
+            )}
           </div>
 
-          {/* Sync API Button */}
-          <button
-            type="button"
-            disabled={isSyncingApi}
-            onClick={handleSyncFromApi}
-            style={{
-              padding: '8px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-input)',
-              color: 'var(--text-primary)',
-              cursor: isSyncingApi ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            <RefreshCw size={14} className={isSyncingApi ? 'animate-spin' : ''} />
-            <span>{isSyncingApi ? 'Đang gọi API...' : 'Đồng bộ API'}</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Sync API Button */}
+            <button
+              type="button"
+              disabled={isSyncingApi}
+              onClick={handleSyncFromApi}
+              style={{
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                cursor: isSyncingApi ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <RefreshCw size={14} className={isSyncingApi ? 'animate-spin' : ''} />
+              <span>{isSyncingApi ? 'Đang gọi API...' : 'Đồng bộ API'}</span>
+            </button>
 
           {/* BGS Message Modal Button */}
           <button
@@ -1564,6 +1788,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           </button>
         </div>
       </div>
+    </div>
 
 
       {/* Banner cảnh báo đang xem dữ liệu lịch sử của một lượt cụ thể */}
@@ -1617,17 +1842,32 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* 2. DUAL SEGMENT CARDS (ACM vs CÒN LẠI) WITH TIMELINE CHARTS & 4 MILESTONES */}
-      {/* ========================================================================= */}
+      {/* Hiệu ứng Transformation / Skeleton khi dữ liệu chưa kịp tải */}
+      {loadingLive && !liveData ? (
+        <DashboardSkeleton />
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            width: '100%',
+            transition: 'opacity 0.25s ease-in-out',
+            opacity: loadingLive ? 0.8 : 1,
+            pointerEvents: loadingLive ? 'none' : 'auto',
+          }}
+        >
+          {/* ========================================================================= */}
+          {/* 2. DUAL SEGMENT CARDS (ACM vs CÒN LẠI) WITH TIMELINE CHARTS & 4 MILESTONES */}
+          {/* ========================================================================= */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
-          gap: '20px',
-        }}
-      >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
+              gap: '20px',
+            }}
+          >
         {/* PANEL 1: ACM */}
         <div
           style={{
@@ -2578,6 +2818,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           </div>
         </div>
       </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 4. MODAL SAO CHÉP TIN NHẮN BÁO CÁO BAN GIÁM SÁT & ROOM QLGD NỘI BỘ        */}

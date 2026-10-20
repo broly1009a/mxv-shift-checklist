@@ -1480,7 +1480,7 @@ export default function TradingManagerV2Page() {
         )}
 
         {/* ========================================================================= */}
-        {/* 5. TAB 3: DASHBOARD BAN GIÁM ĐỐC & QLGD (MỚI) */}
+        {/* 5. TAB 3: DASHBOARD & QLGD (MỚI) */}
         {/* ========================================================================= */}
         {activeTab === 'QLGD_DASHBOARD' && (
           <QlgdExecutiveDashboard
