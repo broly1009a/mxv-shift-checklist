@@ -838,6 +838,7 @@ export class ReconConsoleSummaryService {
           runs.unshift({
             id: String(klgdJob._id || klgdJob.jobId),
             jobId: String(klgdJob._id || klgdJob.jobId),
+            jobType: 'CHECK_KLGD',
             time: timeStr,
             label: `${dateStrFormatted} ${timeStr}`,
             createdAt: klgdJob.createdAt || new Date(),
@@ -1073,6 +1074,7 @@ export class ReconConsoleSummaryService {
       date: targetDate,
       serverTime: new Date().toISOString(),
       runs,
+      preEodRuns,
       currentJobId: klgdJob?._id?.toString() || null,
       selectedJobId: jobId || latestRunId,
       isViewingHistorical,

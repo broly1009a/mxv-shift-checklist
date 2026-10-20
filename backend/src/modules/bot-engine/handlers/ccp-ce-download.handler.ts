@@ -110,35 +110,46 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       await job.save();
 
       const reportCodes = reports && reports.length > 0 ? reports : ['FULL'];
-      const ingressRes = await this.ingressService.download(sourceKey, {
-        targetDirectory: outputDir,
-        reportCodes,
-        targetDate: startDate,
-        isFullBackup: reportCodes.includes('FULL') || reportCodes.includes('ALL'),
-      });
+      let apiFailed = false;
+      let apiErrorMsg = '';
 
-      for (const f of ingressRes.files) {
-        job.logs.push(`${logPrefix} [API Downloaded] ${f.fileName} (${(f.fileSize / 1024).toFixed(1)} KB)`);
+      try {
+        const ingressRes = await this.ingressService.download(sourceKey, {
+          targetDirectory: outputDir,
+          reportCodes,
+          targetDate: startDate,
+          isFullBackup: reportCodes.includes('FULL') || reportCodes.includes('ALL'),
+        });
+
+        for (const f of ingressRes.files) {
+          job.logs.push(`${logPrefix} [API Downloaded] ${f.fileName} (${(f.fileSize / 1024).toFixed(1)} KB)`);
+        }
+
+        job.logs.push(`${logPrefix} [${systemLabel}] Hoàn tất tải ${ingressRes.files.length} báo cáo qua Direct REST API (${ingressRes.durationMs}ms)`);
+        if (ingressRes.success && ingressRes.files.length > 0) {
+          job.status = 'COMPLETED';
+          await job.save();
+
+          return {
+            success: true,
+            downloadedCount: ingressRes.files.length,
+            outputDir,
+            mode: 'DIRECT_REST_API',
+          };
+        }
+
+        apiFailed = true;
+        apiErrorMsg = ingressRes.error || `Không tải được báo cáo nào từ ${systemLabel} qua Direct REST API.`;
+      } catch (apiErr: any) {
+        apiFailed = true;
+        apiErrorMsg = apiErr.message;
       }
 
-      job.logs.push(`${logPrefix} [${systemLabel}] Hoàn tất tải ${ingressRes.files.length} báo cáo qua Direct REST API (${ingressRes.durationMs}ms)`);
-      if (!ingressRes.success || ingressRes.files.length === 0) {
-        const errorMsg = ingressRes.error || `Tải thất bại: Không tải được báo cáo nào từ ${systemLabel} qua Direct REST API.`;
-        job.status = 'FAILED';
-        job.error = errorMsg;
+      if (apiFailed) {
+        this.logger.warn(`[CcpCeDownloadJobHandler] Direct REST API cho ${systemLabel} thất bại: ${apiErrorMsg}. Tự động fallback sang Playwright Browser...`);
+        job.logs.push(`${logPrefix} [${systemLabel}] [CẢNH BÁO] Direct REST API gặp sự cố: ${apiErrorMsg}. Tự động chuyển sang tải dự phòng qua Playwright Browser...`);
         await job.save();
-        throw new Error(`[${systemLabel}] ${errorMsg}`);
       }
-
-      job.status = 'COMPLETED';
-      await job.save();
-
-      return {
-        success: true,
-        downloadedCount: ingressRes.files.length,
-        outputDir,
-        mode: 'DIRECT_REST_API',
-      };
     }
 
     // ─── PLAYWRIGHT FALLBACK NẾU CHƯA BẬT REST_API ──────────────────────────

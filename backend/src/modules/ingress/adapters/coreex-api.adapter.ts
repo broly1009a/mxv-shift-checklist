@@ -84,6 +84,7 @@ export interface ICoreExchangeAuthSession {
   accessToken?: string;
   oauthCode?: string;
   clientId?: string;
+  expiresAt?: number;
   updatedAt: string;
 }
 
@@ -143,19 +144,75 @@ export class CoreExApiAdapter implements IIngressPort {
     }
   }
 
-  /**
-   * Kiểm tra tính hợp lệ của session cookie bằng cách truy cập /dashboard
-   */
-  public async verifySession(baseUrl: string, sessionCookie: string): Promise<boolean> {
+  public clearSessionCache(): void {
+    this.cachedSession = null;
     try {
-      const res = await fetch(`${baseUrl}/dashboard`, {
+      if (fs.existsSync(this.sessionCachePath)) {
+        fs.unlinkSync(this.sessionCachePath);
+      }
+    } catch {}
+  }
+
+  private decodeJwt(token: string): any {
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) return null;
+      const payload = Buffer.from(parts[1], 'base64').toString('utf8');
+      return JSON.parse(payload);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Kiểm tra tính hợp lệ của session bằng cách kiểm tra thời hạn JWT và probe API thực tế
+   */
+  public async verifySession(
+    baseUrl: string,
+    sessionOrCookie: ICoreExchangeAuthSession | string,
+  ): Promise<boolean> {
+    try {
+      const session: Partial<ICoreExchangeAuthSession> =
+        typeof sessionOrCookie === 'string'
+          ? { baseUrl, sessionCookie: sessionOrCookie }
+          : sessionOrCookie;
+
+      if (!session.accessToken) return false;
+
+      // 1. Kiểm tra thời hạn JWT (bắt buộc còn ít nhất 60 giây)
+      const jwt = this.decodeJwt(session.accessToken);
+      if (jwt && jwt.exp && jwt.exp * 1000 - Date.now() < 60 * 1000) {
+        return false;
+      }
+      if (session.expiresAt && session.expiresAt - Date.now() < 60 * 1000) {
+        return false;
+      }
+
+      // 2. Probe API thực tế tới CoreExchange (thay vì /dashboard trả HTML 200 tĩnh)
+      const res = await fetch(`${baseUrl}/exchange/inquiry/maintain/COMMODITY_ACM/search/COMMODITY_ACM`, {
+        method: 'POST',
         headers: {
-          Cookie: sessionCookie,
+          Authorization: `Bearer ${session.accessToken}`,
+          connectkey: 'fsscssiam2021',
+          'Content-Type': 'application/json',
+          Cookie: session.sessionCookie || '',
+          Origin: baseUrl,
+          Referer: `${baseUrl}/DASHBOARD`,
+          'x-devicetype': 'WEB',
+          'x-lang': 'vi',
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
-        redirect: 'manual',
+        body: JSON.stringify({
+          searchcode: 'COMMODITY_ACM',
+          search: {},
+          filter: {},
+          orderBy: {},
+          page: { pageIndex: 1, pageSize: 1 },
+        }),
+        signal: AbortSignal.timeout(6000),
       });
+
       return res.status === 200;
     } catch {
       return false;
@@ -165,7 +222,7 @@ export class CoreExApiAdapter implements IIngressPort {
   /**
    * Đăng nhập Core Exchange: Bẫy CSRF -> POST /login -> Bắt SESSION Cookie -> OAuth2 Token Exchange
    */
-  public async getValidSession(): Promise<ICoreExchangeAuthSession> {
+  public async getValidSession(forceRefresh: boolean = false): Promise<ICoreExchangeAuthSession> {
     let baseUrl = process.env.COREEXCHANGE_BASE_URL || this.defaultBaseUrl;
     let username = process.env.COREEXCHANGE_USERNAME || '';
     let password = process.env.COREEXCHANGE_PASSWORD || '';
@@ -198,14 +255,38 @@ export class CoreExApiAdapter implements IIngressPort {
       baseUrl = this.defaultBaseUrl;
     }
 
-    // 1. Kiểm tra session cache nếu còn hiệu lực
-    if (this.cachedSession && this.cachedSession.sessionCookie && this.cachedSession.accessToken) {
-      const isValid = await this.verifySession(baseUrl, this.cachedSession.sessionCookie);
-      if (isValid) {
-        this.logger.log(`[CoreExApiAdapter] Tái sử dụng session CoreExchange hợp lệ cho user: ${this.cachedSession.username}`);
-        return this.cachedSession;
+    // 1. Kiểm tra session cache nếu còn hiệu lực (chưa hết hạn accessToken, buffer 5 phút)
+    if (
+      !forceRefresh &&
+      this.cachedSession &&
+      this.cachedSession.sessionCookie &&
+      this.cachedSession.accessToken
+    ) {
+      let isExpired = false;
+      if (this.cachedSession.expiresAt) {
+        isExpired = this.cachedSession.expiresAt - Date.now() < 5 * 60 * 1000;
+      } else {
+        const jwt = this.decodeJwt(this.cachedSession.accessToken);
+        if (jwt && jwt.exp) {
+          isExpired = jwt.exp * 1000 - Date.now() < 5 * 60 * 1000;
+        } else {
+          isExpired = true;
+        }
       }
-      this.logger.warn('[CoreExApiAdapter] Session CoreExchange cache đã hết hạn, bắt đầu đăng nhập lại...');
+
+      if (!isExpired) {
+        const isValid = await this.verifySession(baseUrl, this.cachedSession);
+        if (isValid) {
+          const expTimeStr = this.cachedSession.expiresAt
+            ? new Date(this.cachedSession.expiresAt).toLocaleTimeString('vi-VN')
+            : 'còn hạn';
+          this.logger.log(
+            `[CoreExApiAdapter] Tái sử dụng session CoreExchange hợp lệ cho user: ${this.cachedSession.username} (Hạn đến: ${expTimeStr})`,
+          );
+          return this.cachedSession;
+        }
+      }
+      this.logger.warn('[CoreExApiAdapter] Session CoreExchange cache đã hết hạn hoặc không hợp lệ, bắt đầu đăng nhập lại...');
     }
 
     const jar = new CookieJar();
@@ -294,6 +375,7 @@ export class CoreExApiAdapter implements IIngressPort {
 
     // BƯỚC 4: Đổi authorization code lấy Access Token OAuth2
     let accessToken = '';
+    let expiresAt = Date.now() + 10800 * 1000;
     if (oauthCode) {
       try {
         const tokenParams = new URLSearchParams();
@@ -314,15 +396,14 @@ export class CoreExApiAdapter implements IIngressPort {
         if (tokenRes.ok) {
           const tokenJson: any = await tokenRes.json().catch(() => ({}));
           accessToken = tokenJson.access_token || '';
-          this.logger.log(`[CoreExApiAdapter] Đổi OAuth2 Token thành công (Bearer length: ${accessToken.length})`);
+          const expiresIn = Number(tokenJson.expires_in) || 10800;
+          expiresAt = Date.now() + expiresIn * 1000;
+          this.logger.log(`[CoreExApiAdapter] Đổi OAuth2 Token thành công (Bearer length: ${accessToken.length}, hiệu lực: ${expiresIn}s)`);
         }
       } catch (tokenErr: any) {
         this.logger.warn(`[CoreExApiAdapter] Lỗi đổi token OAuth2: ${tokenErr.message}`);
       }
     }
-
-    // BƯỚC 5: Verify lại phiên làm việc
-    await this.verifySession(baseUrl, sessionCookie);
 
     const sessionData: ICoreExchangeAuthSession = {
       baseUrl,
@@ -331,8 +412,12 @@ export class CoreExApiAdapter implements IIngressPort {
       accessToken,
       oauthCode,
       clientId,
+      expiresAt,
       updatedAt: new Date().toISOString(),
     };
+
+    // BƯỚC 5: Verify lại phiên làm việc
+    await this.verifySession(baseUrl, sessionData);
 
     this.saveSessionToCache(sessionData);
     this.logger.log(`[CoreExApiAdapter] Đăng nhập CoreExchange thành công cho user: ${username}`);
@@ -385,11 +470,30 @@ export class CoreExApiAdapter implements IIngressPort {
       page: { pageIndex: 1, pageSize: query.pageSize || 200000 },
     };
 
-    const res = await fetch(fullUrl, {
+    let res = await fetch(fullUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+
+    // Tự động hồi phục khi token bị 401: xóa cache, đăng nhập lại và thử lại request
+    if (res.status === 401) {
+      this.logger.warn(`[CoreExApiAdapter] Gọi API Core Exchange [${endpoint}] bị từ chối (HTTP 401). Tự động làm mới session và thử lại...`);
+      this.clearSessionCache();
+      const freshSession = await this.getValidSession(true);
+      session.accessToken = freshSession.accessToken;
+      session.sessionCookie = freshSession.sessionCookie;
+      session.expiresAt = freshSession.expiresAt;
+      headers.Cookie = freshSession.sessionCookie;
+      if (freshSession.accessToken) {
+        headers['Authorization'] = `Bearer ${freshSession.accessToken}`;
+      }
+      res = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!res.ok) {
       throw new Error(`Gọi API Core Exchange [${endpoint}] thất bại! HTTP: ${res.status}`);

@@ -352,7 +352,7 @@ export class QlgdDashboardService {
       try {
         const pastJobs = await this.botJobModel
           .find({
-            jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] },
+            jobType: 'CHECK_KLGD',
             ...dateFilterCondition,
           })
           .sort({ createdAt: -1 })
