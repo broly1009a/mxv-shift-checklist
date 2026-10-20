@@ -43,6 +43,7 @@ export const CANONICAL_MS_KEYS = [
   'DSQLKQ',
   'QLTKGD',
   'QLTKGDAmKQ',
+  'Markettruoc6h',
 ] as const;
 
 export type CanonicalMsKey = typeof CANONICAL_MS_KEYS[number];
@@ -280,6 +281,48 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
     method: 'GET',
     ext: 'xlsx',
     description: 'Danh sách tài khoản giao dịch rơi vào tình trạng âm ký quỹ (Alias)',
+  },
+
+  // 7. BẢNG GIÁ MARKET TRƯỚC 6H
+  'Markettruoc6h': {
+    key: 'Markettruoc6h',
+    name: 'Báo cáo Market trước 6h (Bảng giá)',
+    fileName: 'market truoc 6h.csv',
+    group: 'QL Giao dịch',
+    endpoint: '/market/priceList',
+    method: 'GET',
+    ext: 'csv',
+    description: 'Bảng giá thị trường toàn sàn bao gồm Giá khớp và Giá thanh toán',
+  },
+  'market': {
+    key: 'Markettruoc6h',
+    name: 'Báo cáo Market trước 6h (Alias)',
+    fileName: 'market truoc 6h.csv',
+    group: 'QL Giao dịch',
+    endpoint: '/market/priceList',
+    method: 'GET',
+    ext: 'csv',
+    description: 'Bảng giá thị trường toàn sàn (Alias)',
+  },
+  'market.csv': {
+    key: 'Markettruoc6h',
+    name: 'Báo cáo Market trước 6h (Alias)',
+    fileName: 'market truoc 6h.csv',
+    group: 'QL Giao dịch',
+    endpoint: '/market/priceList',
+    method: 'GET',
+    ext: 'csv',
+    description: 'Bảng giá thị trường toàn sàn (Alias)',
+  },
+  'market truoc 6h': {
+    key: 'Markettruoc6h',
+    name: 'Báo cáo Market trước 6h (Alias)',
+    fileName: 'market truoc 6h.csv',
+    group: 'QL Giao dịch',
+    endpoint: '/market/priceList',
+    method: 'GET',
+    ext: 'csv',
+    description: 'Bảng giá thị trường toàn sàn (Alias)',
   },
 };
 

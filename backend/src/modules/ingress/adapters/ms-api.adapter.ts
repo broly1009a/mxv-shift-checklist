@@ -291,7 +291,81 @@ export class MsApiAdapter implements IIngressPort {
   }
 
   /**
-   * Tải 1 file báo cáo từ Newgen API
+   * Cấu hình tiêu đề cột CSV cho Bảng giá Market
+   */
+  private readonly CSV_MARKET_HEADERS = [
+    'Mã hợp đồng',
+    'Tên hợp đồng',
+    'Mã hàng hoá',
+    'KL chào mua',
+    'Giá chào mua',
+    'KL đang chờ khớp mua',
+    'Giá chào bán',
+    'KL chào bán',
+    'KL chờ khớp bán',
+    'Giá khớp',
+    'KL khớp',
+    'Thay đổi',
+    'Thay đổi (%)',
+    'Giá mở cửa',
+    'Giá cao nhất',
+    'Giá thấp nhất',
+    'Giá đóng cửa',
+    'Giá đóng cửa phiên trước',
+    'Giá thanh toán',
+    'Bước giá tối thiểu',
+    'Giá hợp đồng',
+    'KL giao dịch',
+    'Ngày giờ cập nhật gần nhất',
+  ];
+
+  private escapeCsv(val: any): string {
+    if (val === null || val === undefined) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  }
+
+  /**
+   * Chuyển đổi mảng dữ liệu JSON từ /market/priceList thành file CSV chuẩn 1:1 với giao diện web
+   */
+  private convertPriceListToCsv(items: any[]): Buffer {
+    const lines: string[] = [];
+    lines.push(this.CSV_MARKET_HEADERS.map((h) => this.escapeCsv(h)).join(','));
+
+    for (const item of items) {
+      const row = [
+        item.contractCode || '',
+        item.contractName || '',
+        item.commodityCode || '',
+        item.bidQty != null ? item.bidQty : '',
+        item.bidPrice != null ? item.bidPrice : '',
+        item.pendingBuy != null ? item.pendingBuy : '',
+        item.offerPrice != null ? item.offerPrice : '',
+        item.offerQty != null ? item.offerQty : '',
+        item.pendingSell != null ? item.pendingSell : '',
+        item.filledPrice != null ? item.filledPrice : '',
+        item.filledQty != null ? item.filledQty : '',
+        item.change != null ? item.change : '',
+        item.percentageChange != null ? item.percentageChange : '',
+        item.openPrice != null ? item.openPrice : '',
+        item.highestPrice != null ? item.highestPrice : '',
+        item.lowestPrice != null ? item.lowestPrice : '',
+        item.closePrice != null ? item.closePrice : '',
+        item.prevClosePrice != null ? item.prevClosePrice : '',
+        item.settlePrice != null ? item.settlePrice : '',
+        item.priceUnit != null ? item.priceUnit : '',
+        item.contractVolume != null ? item.contractVolume : '',
+        item.volume != null ? item.volume : '',
+        item.lastUpdateDatetime ? new Date(item.lastUpdateDatetime).toISOString() : '',
+      ];
+      lines.push(row.map((val) => this.escapeCsv(val)).join(','));
+    }
+
+    return Buffer.from('\uFEFF' + lines.join('\r\n'), 'utf8');
+  }
+
+  /**
+   * Tải một báo cáo duy nhất từ M-System qua REST API
    */
   private async downloadSingleReport(
     token: string,
@@ -329,11 +403,29 @@ export class MsApiAdapter implements IIngressPort {
       throw err;
     }
 
-    const arrayBuf = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuf);
+    let buffer: Buffer;
+
+    // Xử lý riêng cho Bảng giá Market (/market/priceList) trả về JSON -> Chuyển đổi sang file CSV chuẩn
+    if (reportDef.endpoint.includes('/market/priceList') || reportDef.ext === 'csv') {
+      const json = (await res.json().catch(() => null)) as any;
+      const items = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+      buffer = this.convertPriceListToCsv(items);
+    } else {
+      const arrayBuf = await res.arrayBuffer();
+      buffer = Buffer.from(arrayBuf);
+    }
+
     const targetPath = path.join(targetDir, reportDef.fileName);
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.writeFileSync(targetPath, buffer);
+
+    // Đồng thời tạo file alias market.csv nếu đang lưu dưới tên market truoc 6h.csv để tương thích 100% với các tool cũ
+    if (reportDef.fileName.toLowerCase().includes('market')) {
+      const altPath = path.join(targetDir, 'market.csv');
+      if (altPath !== targetPath) {
+        try { fs.writeFileSync(altPath, buffer); } catch {}
+      }
+    }
 
     const durationMs = Date.now() - startTime;
     this.logger.log(`[MsApiAdapter] Đã tải [${reportDef.name}]: ${reportDef.fileName} (${buffer.length} bytes, ${durationMs}ms)`);
@@ -398,6 +490,8 @@ export class MsApiAdapter implements IIngressPort {
           targetKeys.push('QLTKGDAmKQ');
         } else if (upper === 'NKTHT') {
           targetKeys.push('NKTTHT');
+        } else if (upper.includes('MARKET')) {
+          targetKeys.push('Markettruoc6h');
         } else {
           targetKeys.push(k);
         }

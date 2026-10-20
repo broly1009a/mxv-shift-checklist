@@ -212,28 +212,43 @@ export class KlgdReconService {
       note: string;
     }> = [];
 
+    const rawFrKeySet = new Set(rawFrData.map((f) => f.combinedKey));
+    const cqgCutoffBufferMs = 2000; // Buffer 2,000ms triệt tiêu độ trễ mạng / clock skew tương tự Chiều 1 dsgdCutoffTime
+    const cqgBoundaryThreshold = effectiveCqgCutoffTime
+      ? new Date(effectiveCqgCutoffTime.getTime() - cqgCutoffBufferMs)
+      : undefined;
+
     const dsgdData = rawDsgdData.filter((gd) => {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      // Chiều 2: Lệnh M-System khớp sau mốc chốt dữ liệu CQG -> Tự động bảo lưu pendingSyncTrades
+      // Chiều 2: Lệnh M-System khớp sau hoặc sát mốc chốt dữ liệu CQG -> Tự động bảo lưu pendingSyncTrades
       if (
         effectiveCqgCutoffTime &&
-        !gd.maTKGD.toUpperCase().endsWith('A') &&
-        tradeTime > effectiveCqgCutoffTime
+        !gd.maTKGD.toUpperCase().endsWith('A')
       ) {
-        pendingSyncTrades.push({
-          source: 'MSystem',
-          maLenh: gd.maLenh,
-          maTKGD: gd.maTKGD,
-          maHD: gd.maHD,
-          giaKhop: gd.giaKhop,
-          klGiaoDich: gd.klGiaoDich,
-          ngayGio: gd.ngayGio,
-          cutoffTime: effectiveCqgCutoffTime.toISOString(),
-          note: `Giao dịch M-System khớp lúc ${gd.ngayGio}, sau mốc chốt dữ liệu CQG (${effectiveCqgCutoffTime.toLocaleTimeString('vi-VN')})`,
-        });
-        return false;
+        const isLateTrade = tradeTime > effectiveCqgCutoffTime;
+        const isBoundaryTrade =
+          cqgBoundaryThreshold &&
+          tradeTime >= cqgBoundaryThreshold &&
+          !rawFrKeySet.has(gd.combinedKey);
+
+        if (isLateTrade || isBoundaryTrade) {
+          pendingSyncTrades.push({
+            source: 'MSystem',
+            maLenh: gd.maLenh,
+            maTKGD: gd.maTKGD,
+            maHD: gd.maHD,
+            giaKhop: gd.giaKhop,
+            klGiaoDich: gd.klGiaoDich,
+            ngayGio: gd.ngayGio,
+            cutoffTime: effectiveCqgCutoffTime.toISOString(),
+            note: isLateTrade
+              ? `Giao dịch M-System khớp lúc ${gd.ngayGio}, sau mốc chốt dữ liệu CQG (${effectiveCqgCutoffTime.toLocaleTimeString('vi-VN')})`
+              : `Giao dịch M-System khớp lúc ${gd.ngayGio}, sát mốc chốt dữ liệu CQG (${effectiveCqgCutoffTime.toLocaleTimeString('vi-VN')}) do độ trễ đồng bộ mạng`,
+          });
+          return false;
+        }
       }
       return tradeTime <= dsgdUpperBound;
     });

@@ -57,6 +57,7 @@
     "test:cqg-fast-chromium": "node src/scripts/test_cqg_tab_downloads_fast.js --headed --chromium",
     "test:cqg-service": "ts-node src/scripts/test_cqg_scraper_service.ts --headed",
     "test:api-ms": "node src/scripts/test_direct_api_msystem.js",
+    "sniff:ms-order": "node src/scripts/sniff_ms_ordercreating.js --headed",
     "test:api-ccp": "node src/scripts/test_direct_api_coreccp.js",
     "test:api-ce": "node src/scripts/test_direct_api_coreex.js",
     "test:ce-full": "node ../coreexchange-api-client/scripts/test_full_download_ce.js",

@@ -149,7 +149,14 @@ export const tradingOpsApi = {
    * Kiểm tra DSGD trước giờ EOD
    */
   async checkDsgdBeforeEod(
-    params: { sessionDate?: string; autoRemind?: boolean },
+    params: {
+      sessionDate?: string;
+      tradingDate?: string;
+      timeSuffix?: string;
+      exactDate?: boolean;
+      triggerDownload?: boolean;
+      autoRemind?: boolean;
+    },
     token?: string | null,
   ): Promise<{ success: boolean; result?: any; message?: string }> {
     return requestJson<{ success: boolean; result?: any; message?: string }>(

@@ -1,3 +1,137 @@
+## [2026-10-19T19:06] FEATURE ADDITION: Bổ Sung Component Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) Dưới Khung Pre-EOD Ở Cả 2 Trang ms-cqg và ccp-ce
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"ở trang ms-cqg và trang ce-cpp tôi chưa thấy hàm component checkbeforeEOD dưới checkpreEOD vậy"* -> *"nếu chưa có giúp tôi bổ sung"*.
+- Xây dựng component giao diện trực quan, đồng bộ tính năng kiểm tra tự động DSGD trước EOD (`CheckDSGDBeforeEOD`) vào cả 2 trang chuyên biệt của Trading Manager:
+  1. Trang **`ms-cqg`** (`/trading-manager/ms-cqg`): Hiển thị ngay dưới khung Pre-EOD `<LegacyPreEodDiffSection>`.
+  2. Trang **`ccp-ce`** (`/trading-manager/ccp-ce`): Hiển thị ngay dưới khung Pre-EOD CoreCCP ↔ CoreEX.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Tạo mới component chuyên trách hiển thị kết quả kiểm tra DSGD trước EOD.
+   - Hỗ trợ nút chạy nhanh **"Check DSGD Trước EOD"** (gọi trực tiếp `tradingOpsApi.checkDsgdBeforeEod` với cờ `exactDate: true`).
+   - Hỗ trợ nút **"Tùy chọn..."** mở modal chi tiết `CheckDsgdBeforeEodModal` (chọn `timeSuffix`, tải lại file).
+   - Hiển thị 4 thẻ KPI metrics: DSGD Gốc (MS), DSGD Snapshot Chiều, Chênh Lệch Tổng và Khớp lệnh tự doanh ACM (MS vs Straits SFTP).
+   - Tự động hiển thị cảnh báo an toàn dữ liệu nếu thiếu file snapshot (`isSnapshotMissing`), danh sách tệp tin đã nạp (`filesFound`) và phân tích nghiệp vụ (`messages`).
+   - Nút **Sao chép** kết quả vào clipboard với thông số chi tiết.
+   - Thiết kế 100% bằng icon SVG từ `lucide-react`, tuân thủ triệt để quy tắc Zero Unicode Emojis.
+2. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2324-L2328):
+   - Nhúng `<DsgdBeforeEodSection token={token} selectedDate={selectedDate} />` ngay dưới `<LegacyPreEodDiffSection>`.
+3. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L971-L974):
+   - Nhúng `<DsgdBeforeEodSection token={token} selectedDate={selectedDate} />` ngay dưới khung Pre-EOD CoreCCP ↔ CoreEX.
+4. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
+   - Bổ sung prop `onSuccess?: (result: any) => void` để đồng bộ kết quả kiểm tra ngược về section cha.
+   - Thêm `useEffect` ở cấp top-level (tuân thủ Rules of Hooks) tự động cập nhật `tradingDate` theo `defaultDate`.
+5. [frontend/src/features/trading/services/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/services/trading-ops.api.ts) & [frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/trading-ops.api.ts):
+   - Khai báo bổ sung `exactDate?: boolean` vào định nghĩa type của `checkDsgdBeforeEod`.
+6. [frontend/src/features/trading/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/index.ts):
+   - Export `DsgdBeforeEodSection` dùng chung.
+
+### 3. Kết quả Kiểm thử & Build
+- Frontend Build: `cmd.exe /c "npm run build"` (`next build`) -> **Exit code 0 (Success - 36 static/dynamic routes)**.
+- Backend Build: `cmd.exe /c "npm run build"` (`nest build`) -> **Exit code 0 (Success)**.
+
+---
+
+## [2026-10-19T19:05] BUG FIX: Sửa Triệt Để Lệch Ảo Ranh Giới Cutoff Time (2000ms Buffer & Lookup CQG) & Khôi Phục Rào Cản Đồng Bộ Nhịp Trưởng (Pacer Barrier)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"tôi cần fix chuẩn"* sau khi phân tích nguyên nhân báo lệch ảo 3 giao dịch trong Job `CHECK_KLGD` (`6ad5fd6ee85e5897023441f1` lúc 18:22:22 ngày 19/10/2026).
+- Khắc phục 2 nguyên nhân gốc rễ gây hiện tượng lệch ảo do tải trễ:
+  1. **Khôi phục cơ chế Rào cản Đồng bộ Nhịp Trưởng (CQG Ready-First Barrier)**: Bỏ qua Facade Ingress V2 khi có truyền callback `onReadyBarrier` & `onReadyBarrierCqg2` trong `downloadCqgBackup`. Đảm bảo cả 2 tài khoản CQG1 và CQG2 chuẩn bị widget xong mới kích hoạt rào cản cho M-System, CoreCCP và ACM gọi Direct REST API đồng thời ở cùng 1 giây, triệt tiêu khoảng trễ 34 giây.
+  2. **Bổ sung Buffer 2,000ms & Lookup Trực tiếp Khớp Lệnh CQG ở Chiều 2 (`effectiveCqgCutoffTime`)**: Đồng bộ với Chiều 1 (`dsgdCutoffTime = mtime - 2000ms`). Các lệnh khớp tại giây ranh giới (`18:22:50`) hoặc trong khoảng đệm 2 giây (`18:22:48` - `18:22:50`) nếu chưa kịp xuất hiện trong snapshot của CQG do độ trễ hiển thị (reporting lag) sẽ được tự động bảo lưu an toàn vào `pendingSyncTrades`, không bị phán đoán thành lỗi lệch hệ thống. Nếu lệnh đã có bên CQG thì vẫn giữ lại so khớp 100%.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts#L4553-L4560):
+   - Cập nhật điều kiện Facade Ingress V2: Chỉ ủy quyền sang `ingressService.download('CQG')` khi KHÔNG có `onReadyBarrier` và `onReadyBarrierCqg2` (`!onReadyBarrier && !onReadyBarrierCqg2`).
+   - Khi có callback rào cản (từ `recon-jobs.handler.ts`), luồng tải chạy qua logic song song chuẩn, đảm bảo gọi `await onReadyBarrier()` và `await onReadyBarrierCqg2()` đúng nhịp.
+2. [backend/src/modules/trading-ops/services/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L215-L245):
+   - Khởi tạo `rawFrKeySet = new Set(rawFrData.map(f => f.combinedKey))`.
+   - Thiết lập `cqgBoundaryThreshold = new Date(effectiveCqgCutoffTime.getTime() - 2000)`.
+   - Cải tiến điều kiện bảo lưu Chiều 2: Lệnh M-System được bảo lưu sang `pendingSyncTrades` nếu:
+     + Khớp sau mốc snapshot: `tradeTime > effectiveCqgCutoffTime` (`isLateTrade`); HOẶC
+     + Khớp trong khoảng đệm ranh giới và CQG chưa có: `tradeTime >= cqgBoundaryThreshold && !rawFrKeySet.has(gd.combinedKey)` (`isBoundaryTrade`).
+3. [backend/src/tests/test_boundary_cutoff_fix.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/tests/test_boundary_cutoff_fix.ts):
+   - Bộ unit test kiểm thử 6 kịch bản ranh giới cutoff time (lệnh sau cutoff, lệnh đúng giây cutoff, lệnh trong buffer thiếu bên CQG, lệnh trong buffer đã có bên CQG, lệnh trước buffer lệch thật).
+
+### 3. Kết quả Kiểm thử & Biên dịch
+- Unit Test: Chạy thành công 6/6 testcase (`PASS: 6/6`).
+- Backend Build: `npm run build` (`nest build`) thành công 100% (Exit code 0).
+- TypeScript Check: `npx tsc -p tsconfig.build.json --noEmit` thành công 100% không có bất kỳ lỗi nào.
+- Frontend Build: `npm run build` (`next build`) biên dịch thành công 36/36 routes (Exit code 0).
+
+---
+
+## [2026-10-19T18:48] FEATURE UPGRADE: Nâng Cấp Tải Trực Tiếp Bảng Giá Market Trước 6h (`Markettruoc6h` / `market.csv`) Qua Direct REST API (`/market/priceList`) Không Cần Playwright Browser
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu nâng cấp của USER: Chuyển đổi báo cáo duy nhất còn lại của M-System phải dùng giao diện (`Markettruoc6h` / `market.csv` tại `#/orderManagement/orderCreating`) sang tải trực tiếp bằng Direct REST API.
+- Bóc tách luồng dữ liệu chuẩn từ backend M-System: Endpoint `GET https://msapi.mxv.com.vn/market/priceList` trả về danh mục toàn sàn 1.731 hợp đồng kèm đầy đủ `filledPrice` (Giá khớp), `settlePrice` (Giá thanh toán), `bidPrice`, `offerPrice`, `volume`...
+- Tự động sinh file `market truoc 6h.csv` và bản sao alias `market.csv` khớp 1:1 cấu trúc bảng 23 cột UTF-8 BOM chuẩn với thời gian xử lý ~1 giây (giảm từ 20-30s của Chromium xuống còn 1.1s).
+- Hoàn tất mục tiêu kiến trúc: **100% 20/20 báo cáo M-System chạy thuần túy qua Direct REST API**, không còn phụ thuộc vào bất kỳ trình duyệt headless nào.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/shared/domain-configs/ms-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/ms-reports.config.ts):
+   - Bổ sung `Markettruoc6h` vào danh sách mã chuẩn `CANONICAL_MS_KEYS` (nâng tổng số lên 20 báo cáo chuẩn).
+   - Đăng ký `Markettruoc6h` và các alias (`market`, `market.csv`, `market truoc 6h`) vào `MS_REPORTS_REGISTRY` trỏ tới endpoint `/market/priceList`.
+2. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/ms-api.adapter.ts):
+   - Thêm bộ tiêu đề cột `CSV_MARKET_HEADERS` (23 cột chuẩn).
+   - Thêm phương thức `convertPriceListToCsv(items)`: chuyển đổi mảng hợp đồng từ API thành chuỗi CSV UTF-8 BOM.
+   - Cập nhật `downloadSingleReport`: tự động phát hiện endpoint `/market/priceList` hoặc `ext === 'csv'`, gọi API và ghi ra `market truoc 6h.csv` cùng bản sao `market.csv`.
+   - Bổ sung alias handling: map các mã chứa `MARKET` sang `Markettruoc6h`.
+3. [backend/src/scripts/test_ms_api_market_download.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_ms_api_market_download.ts):
+   - Script kiểm thử tích hợp thực tế NestJS tải `Markettruoc6h` qua `MsApiAdapter`.
+
+### 3. Kết quả Kiểm thử Thực tế
+- Lệnh chạy: `npx ts-node -T -r tsconfig-paths/register src/scripts/test_ms_api_market_download.ts`
+- **Kết quả**:
+  - `Thành công`: `true`
+  - `Thời gian thực thi`: **1.175ms** (1.1 giây)
+  - `Dung lượng file`: **202.140 bytes**
+  - `Tổng số dòng`: **1.732 dòng** (1 dòng header + 1.731 hợp đồng)
+  - Cả 2 file `market truoc 6h.csv` và `market.csv` được sinh đầy đủ tại thư mục đích.
+- **Biên dịch**: `npm run build` (`nest build`) thành công 100% (Exit code 0).
+
+---
+
+## [2026-10-19T18:05] INVESTIGATION TOOL: Xây Dựng Script Sniff Mạng Chuyên Sâu M-System (`sniff_ms_ordercreating.js`) Để Điều Tra Logic Tải Bảng Giá (`orderCreating`) & Giá Thanh Toán
+
+### 1. Mục tiêu thay đổi
+- Trả lời yêu cầu của USER: *"bạn có thể quét trang Msystems (https://msadmin.mxv.com.vn/#/orderManagement/orderCreating) để tìm được logic tải được khi không cần vào giao diện không"*.
+- Xây dựng công cụ chuyên dụng `sniff_ms_ordercreating.js` để bắt toàn bộ lưu lượng HTTP/WebSocket khi mở trang Bảng giá và khi bấm nút CSV.
+- Tự động điều tra cấu trúc DOM, phân loại cơ chế tải (Client-side Blob JavaScript vs Server-side REST API), đồng thời quét màn hình chuẩn "Giá thanh toán" (`QL giá -> Giá thanh toán`) trong menu để tìm endpoint API thay thế trực tiếp.
+- Tuân thủ nghiêm ngặt Rule 8 trong `AGENTS.md`: Chuẩn bị code hoàn chỉnh, cấu hình lệnh chạy `npm run sniff:ms-order` và hướng dẫn USER tự thực thi trực tiếp trên terminal.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/scripts/sniff_ms_ordercreating.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/sniff_ms_ordercreating.js):
+   - Script điều tra mạng sử dụng Playwright: Đăng nhập 2 bước (Password + PIN), mở trang Bảng giá `#/orderManagement/orderCreating`.
+   - Lắng nghe `page.on('request')`, `page.on('response')`, `page.on('websocket')`.
+   - Bấm nút CSV và kiểm tra `download.url()` (xác định `blob:` hay REST API), lưu trữ dữ liệu tải về.
+   - Điều hướng sang menu `QL giá -> Giá thanh toán`, ghi vết URL hash và danh sách API quản lý giá thanh toán của M-System.
+   - Xuất báo cáo chi tiết ra `data/temp/sniff_ms/sniff_ms_ordercreating_report.json`.
+2. [backend/package.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/package.json#L60):
+   - Bổ sung lệnh: `"sniff:ms-order": "node src/scripts/sniff_ms_ordercreating.js --headed"`.
+
+---
+
+## [2026-10-19T17:35] BUG FIX: Sửa Bộ Lọc SFTP ACM (AcmSftpAdapter) Tránh Tải Lặp File Lịch Sử & Giải Thích Cơ Chế Order / Fill
+
+### 1. Mục tiêu thay đổi
+- Trả lời và khắc phục thắc mắc của USER: *"sao nó tải 1 đống file rác vậy không thấy file tôi cần là order và fill"*.
+- Khắc phục lỗi regex lỏng trong [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts#L154-L167): Điều kiện `name.toLowerCase().includes('straits')` không ràng buộc ngày phiên (`ddmmyyyy`), dẫn tới việc tải toàn bộ các file `EOD FO trades_PT Straits Financial Indonesia...` lịch sử có trên máy chủ SFTP.
+- Ràng buộc điều kiện ngày phiên: Bắt buộc `(name.includes(ddmmyyyy) || name.includes(yyyy_mm_dd))` để chỉ tải đúng 1 file Straits CSV của phiên mục tiêu.
+- Giải thích rõ: File `Order.xlsx` và `Fill.xlsx` đã có sẵn trong thư mục từ 14:01 chiều (đã được bot kiểm tra thấy đủ nên bỏ qua tải lại).
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. [backend/src/modules/ingress/adapters/acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts#L157-L167):
+   - Thêm điều kiện `(name.includes(ddmmyyyy) || name.includes(yyyy_mm_dd))` vào `isCsvMatch`.
+   - Ngăn chặn triệt để việc tải hàng loạt file CSV của các ngày cũ từ SFTP Server.
+
+### 3. Kiểm thử & Xác nhận Build
+- **Biên dịch**: `npm run build` thành công 100% (Exit code 0).
+
+---
+
 ## [2026-10-19T16:45] ZERO-HARDCODING FIX: Xóa Bỏ Hoàn Toàn Hardcode Hợp Đồng (`HD_CP2CO`, `HD_PL1NY`, `HD_SI5CO`), Tự Động Trích Xuất Hợp Đồng Theo Danh Mục Hàng Hóa Động & Chuẩn Hóa Header Tiếng Việt
 
 ### 1. Mục tiêu thay đổi

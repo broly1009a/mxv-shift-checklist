@@ -23,6 +23,7 @@ import { api } from '@/services/api';
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from '@/context/AuthContext';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
+import DsgdBeforeEodSection from '../shared/DsgdBeforeEodSection';
 
 export interface CcpCeEodReconSectionProps {
   token: string | null;
@@ -968,6 +969,9 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
           </div>
         )}
       </div>
+
+      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD) ===== */}
+      <DsgdBeforeEodSection token={token} selectedDate={selectedDate} />
     </div>
   );
 }

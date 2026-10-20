@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   X,
@@ -22,12 +22,14 @@ interface CheckDsgdBeforeEodModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultDate?: string;
+  onSuccess?: (result: any) => void;
 }
 
 export default function CheckDsgdBeforeEodModal({
   isOpen,
   onClose,
   defaultDate,
+  onSuccess,
 }: CheckDsgdBeforeEodModalProps) {
   const { token } = useAuth();
   const [tradingDate, setTradingDate] = useState<string>(defaultDate || new Date().toISOString().split('T')[0]);
@@ -36,6 +38,12 @@ export default function CheckDsgdBeforeEodModal({
   const [triggerDownload, setTriggerDownload] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (defaultDate) {
+      setTradingDate(defaultDate);
+    }
+  }, [defaultDate]);
 
   if (!isOpen) return null;
 
@@ -54,6 +62,9 @@ export default function CheckDsgdBeforeEodModal({
 
       if (res && res.result) {
         setResult(res.result);
+        if (onSuccess) {
+          onSuccess(res.result);
+        }
         if (res.result.passed) {
           toast.success('Đối chiếu DSGD trước EOD: KHỚP 100%!');
         } else if (res.result.isSnapshotMissing) {

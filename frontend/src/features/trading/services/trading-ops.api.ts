@@ -95,6 +95,7 @@ export const tradingOpsApi = {
       tradingDate?: string;
       timeSuffix?: string;
       triggerDownload?: boolean;
+      exactDate?: boolean;
       shiftLogId?: string;
       taskId?: string;
     },

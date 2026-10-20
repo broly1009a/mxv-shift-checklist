@@ -4550,8 +4550,13 @@ export class RpaScraperService {
       fs.mkdirSync(destDir, { recursive: true });
     }
 
-    // Ingress Facade: Thử ủy quyền kéo file thô CQG sang IngressService V2
-    if (this.ingressService && !reports.cleanOnly) {
+    // Ingress Facade: Thử ủy quyền kéo file thô CQG sang IngressService V2 (chỉ khi không yêu cầu callback rào cản đồng bộ)
+    if (
+      this.ingressService &&
+      !reports.cleanOnly &&
+      !onReadyBarrier &&
+      !onReadyBarrierCqg2
+    ) {
       try {
         const targetCodes: string[] = [];
         if (reports.FR1 || reports.FR2) targetCodes.push('FR');

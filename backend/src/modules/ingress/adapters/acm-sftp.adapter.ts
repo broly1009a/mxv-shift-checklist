@@ -157,6 +157,7 @@ export class AcmSftpAdapter implements IIngressPort {
                   const isCsvMatch =
                     name.toLowerCase().endsWith(csvSuffix.toLowerCase()) ||
                     (name.toLowerCase().includes('straits') &&
+                      (name.includes(ddmmyyyy) || name.includes(yyyy_mm_dd)) &&
                       name.toLowerCase().endsWith('.csv') &&
                       !name.toLowerCase().includes('fill') &&
                       !name.toLowerCase().includes('order'));
