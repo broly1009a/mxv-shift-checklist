@@ -26,6 +26,14 @@ import {
   Layers,
   ArrowLeftRight,
   Sunrise,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  BarChart3,
+  Sliders,
+  Folder,
+  FolderTree,
+  Terminal,
 } from 'lucide-react';
 
 
@@ -46,11 +54,41 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
     canViewChecklist,
     isITDept,
     isTradeDept,
+    isQlgd,
     canAccessHealthChecks
   } = usePermissions();
 
   const isTechAdmin = isAdmin || canAccessHealthChecks || (isITDept && user?.role !== 'STAFF');
   const isOperator = canViewChecklist || isTradeDept;
+
+  // Trạng thái override dành riêng cho Admin để kiểm thử nhanh giữa 2 sidebar
+  const [adminOverrideQlgd, setAdminOverrideQlgd] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mxv_sidebar_override') === 'QLGD';
+    }
+    return false;
+  });
+
+  const showQlgdSidebar = isQlgd || (isAdmin && adminOverrideQlgd);
+
+  // Trạng thái đóng/mở submenu cho Thống kê và Tham số hệ thống
+  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
+    stats: true,
+    params: true,
+  });
+
+  useEffect(() => {
+    if (pathname.startsWith('/trading-manager/statistics')) {
+      setOpenSubMenus((prev) => ({ ...prev, stats: true }));
+    }
+    if (pathname.startsWith('/trading-manager/settings')) {
+      setOpenSubMenus((prev) => ({ ...prev, params: true }));
+    }
+  }, [pathname]);
+
+  const toggleSubMenu = (menuKey: string) => {
+    setOpenSubMenus((prev) => ({ ...prev, [menuKey]: !prev[menuKey] }));
+  };
 
   interface SystemMetrics {
     uptime: number;
@@ -271,99 +309,358 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
       {/* Menu links */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden', minHeight: '120px', marginBottom: '16px' }}>
 
-        {/* Section Header */}
-        <div className="sidebar-section-header" style={{
-          fontSize: '0.68rem',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          color: 'var(--text-muted)',
-          margin: '12px 0 6px 12px',
-          display: isCollapsed ? 'none' : 'block'
-        }}>
-          Giám sát
-        </div>
-
-        <Link
-          href="/dashboard"
-          onClick={onClose}
-          className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}
-          title={isCollapsed ? "Tổng quan giám sát" : undefined}
-        >
-          <LayoutDashboard size={18} style={{ flexShrink: 0 }} />
-          <span>Tổng quan</span>
-        </Link>
-        {canViewChecklist && (
+        {showQlgdSidebar ? (
           <>
-            {/* Tạm ẩn 'Ca trực hiện tại' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
-            {/*
+            {/* Section Header QLGD */}
+            <div className="sidebar-section-header" style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--text-muted)',
+              margin: '12px 0 6px 12px',
+              display: isCollapsed ? 'none' : 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingRight: '8px',
+            }}>
+              <span>Quản lý giao dịch</span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !adminOverrideQlgd;
+                    setAdminOverrideQlgd(next);
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('mxv_sidebar_override', next ? 'QLGD' : 'DEFAULT');
+                    }
+                  }}
+                  style={{
+                    border: 'none',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    color: '#60a5fa',
+                    fontSize: '0.64rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                  }}
+                  title="Chuyển đổi giao diện Sidebar về chế độ IT Mặc định"
+                >
+                  Về IT
+                </button>
+              )}
+            </div>
+
+            {/* 1. Tổng quan -> /trading-manager/dashboard */}
             <Link
-              href="/checklist"
+              href="/trading-manager/dashboard"
               onClick={onClose}
-              className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}
-              title={isCollapsed ? "Ca trực hiện tại" : undefined}
+              className={`nav-link ${pathname === '/trading-manager/dashboard' ? 'active' : ''}`}
+              title={isCollapsed ? "Tổng quan QLGD" : undefined}
             >
-              <CheckSquare size={18} style={{ flexShrink: 0 }} />
-              <span>Ca trực hiện tại</span>
+              <LayoutDashboard size={18} style={{ flexShrink: 0 }} />
+              <span>Tổng quan</span>
             </Link>
-            */}
-            {/* Tạm ẩn 'Tra cứu lịch sử' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
-            {/*
-            <Link
-              href="/history"
-              onClick={onClose}
-              className={`nav-link ${pathname === '/history' ? 'active' : ''}`}
-              title={isCollapsed ? "Tra cứu lịch sử" : undefined}
-            >
-              <History size={18} style={{ flexShrink: 0 }} />
-              <span>Tra cứu lịch sử</span>
-            </Link>
-            */}
+
+            {/* 2. Đối chiếu giao dịch -> /trading-manager/reconciliation */}
             <Link
               href="/trading-manager/reconciliation"
               onClick={onClose}
-              className={`nav-link ${pathname === '/trading-manager/reconciliation' ? 'active' : ''}`}
+              className={`nav-link ${pathname.startsWith('/trading-manager/reconciliation') ? 'active' : ''}`}
               title={isCollapsed ? "Đối chiếu giao dịch" : undefined}
             >
               <ArrowLeftRight size={18} style={{ flexShrink: 0 }} />
               <span>Đối chiếu giao dịch</span>
             </Link>
+
+            {/* 3. Nghiệp vụ đầu phiên -> /trading-manager/session-open */}
             <Link
               href="/trading-manager/session-open"
               onClick={onClose}
-              className={`nav-link ${pathname === '/trading-manager/session-open' ? 'active' : ''}`}
+              className={`nav-link ${pathname.startsWith('/trading-manager/session-open') ? 'active' : ''}`}
               title={isCollapsed ? "Nghiệp vụ đầu phiên" : undefined}
             >
               <Sunrise size={18} style={{ flexShrink: 0 }} />
               <span>Nghiệp vụ đầu phiên</span>
             </Link>
+
+            {/* 4. Backup -> /trading-manager/backup */}
             <Link
-              href="/trading-manager/ms-cqg"
+              href="/trading-manager/backup"
               onClick={onClose}
-              className={`nav-link ${pathname === '/trading-manager/ms-cqg' ? 'active' : ''}`}
-              title={isCollapsed ? "Giám sát MS & CQG" : undefined}
+              className={`nav-link ${pathname.startsWith('/trading-manager/backup') ? 'active' : ''}`}
+              title={isCollapsed ? "Sao lưu dữ liệu (Backup)" : undefined}
             >
-              <Activity size={18} style={{ flexShrink: 0 }} />
-              <span>Giám Sát MS & CQG</span>
+              <Database size={18} style={{ flexShrink: 0 }} />
+              <span>Backup</span>
             </Link>
+
+            {/* 5. Thống kê (Sub cha & sub con: Thống kê MS & Thống kê CCP) */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div
+                onClick={() => toggleSubMenu('stats')}
+                className={`nav-link ${pathname.startsWith('/trading-manager/statistics') ? 'active' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  justifyContent: 'space-between',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={isCollapsed ? "Thống kê (MS & CCP)" : undefined}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <BarChart3 size={18} style={{ flexShrink: 0 }} />
+                  <span>Thống kê</span>
+                </div>
+                {!isCollapsed && (
+                  openSubMenus.stats ? <ChevronDown size={14} style={{ opacity: 0.7 }} /> : <ChevronRight size={14} style={{ opacity: 0.7 }} />
+                )}
+              </div>
+
+              {/* Sub items: Thống kê MS & Thống kê CCP */}
+              {openSubMenus.stats && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  marginLeft: isCollapsed ? '0' : '16px',
+                  borderLeft: isCollapsed ? 'none' : '2px solid rgba(255, 255, 255, 0.08)',
+                  paddingLeft: isCollapsed ? '0' : '6px',
+                  marginBottom: '4px',
+                }}>
+                  <Link
+                    href="/trading-manager/statistics/ms"
+                    onClick={onClose}
+                    className={`nav-link ${pathname === '/trading-manager/statistics/ms' ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Thống kê MS (Macro)" : undefined}
+                  >
+                    <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />
+                    <span>Thống kê MS</span>
+                  </Link>
+
+                  <Link
+                    href="/trading-manager/statistics/ccp"
+                    onClick={onClose}
+                    className={`nav-link ${pathname === '/trading-manager/statistics/ccp' ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Thống kê CCP (VNCLEAR)" : undefined}
+                  >
+                    <Layers size={15} style={{ flexShrink: 0 }} />
+                    <span>Thống kê CCP</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 6. Tham số hệ thống (Sub cha & sub con: Cấu hình đường dẫn cũ & Cấu hình đường dẫn mới) */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div
+                onClick={() => toggleSubMenu('params')}
+                className={`nav-link ${pathname.startsWith('/trading-manager/settings') ? 'active' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  justifyContent: 'space-between',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={isCollapsed ? "Tham số hệ thống" : undefined}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Sliders size={18} style={{ flexShrink: 0 }} />
+                  <span>Tham số hệ thống</span>
+                </div>
+                {!isCollapsed && (
+                  openSubMenus.params ? <ChevronDown size={14} style={{ opacity: 0.7 }} /> : <ChevronRight size={14} style={{ opacity: 0.7 }} />
+                )}
+              </div>
+
+              {/* Sub items: Đường dẫn cũ & Đường dẫn mới */}
+              {openSubMenus.params && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  marginLeft: isCollapsed ? '0' : '16px',
+                  borderLeft: isCollapsed ? 'none' : '2px solid rgba(255, 255, 255, 0.08)',
+                  paddingLeft: isCollapsed ? '0' : '6px',
+                  marginBottom: '4px',
+                }}>
+                  <Link
+                    href="/trading-manager/settings/ms-cqg"
+                    onClick={onClose}
+                    className={`nav-link ${pathname.startsWith('/trading-manager/settings/ms-cqg') || pathname.startsWith('/trading-manager/settings/legacy-paths') ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Cấu hình đường dẫn cũ (MS, CQG, ACM)" : "Dành cho MS, CQG, ACM"}
+                  >
+                    <Folder size={15} style={{ flexShrink: 0 }} />
+                    <span>Đường dẫn cũ (MS - CQG)</span>
+                  </Link>
+
+                  <Link
+                    href="/trading-manager/settings/ccp-ce"
+                    onClick={onClose}
+                    className={`nav-link ${pathname.startsWith('/trading-manager/settings/ccp-ce') || pathname.startsWith('/trading-manager/settings/modern-paths') ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Cấu hình đường dẫn mới (CCP, CE, ACM)" : "Dành cho CCP, CE, ACM"}
+                  >
+                    <FolderTree size={15} style={{ flexShrink: 0 }} />
+                    <span>Đường dẫn mới (CCP - CE)</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 7. Logs Hàng Đợi -> /trading-manager/job-queue */}
             <Link
-              href="/trading-manager/ccp-ce"
+              href="/trading-manager/job-queue"
               onClick={onClose}
-              className={`nav-link ${pathname === '/trading-manager/ccp-ce' ? 'active' : ''}`}
-              title={isCollapsed ? "Giám sát CoreCCP & CE" : undefined}
+              className={`nav-link ${pathname.startsWith('/trading-manager/job-queue') || pathname.startsWith('/trading-manager/logs') ? 'active' : ''}`}
+              title={isCollapsed ? "Logs hàng đợi robot" : undefined}
             >
-              <FileSpreadsheet size={18} style={{ flexShrink: 0 }} />
-              <span>Giám Sát CoreCCP & CE</span>
+              <Terminal size={18} style={{ flexShrink: 0 }} />
+              <span>Logs Hàng đợi</span>
             </Link>
+          </>
+        ) : (
+          /* MẶC ĐỊNH CHO CÁC KHỐI KHÁC (IT, ADMIN, V.V...) - GIỮ NGUYÊN HOÀN TOÀN NHƯ CŨ */
+          <>
+            {/* Section Header */}
+            <div className="sidebar-section-header" style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--text-muted)',
+              margin: '12px 0 6px 12px',
+              display: isCollapsed ? 'none' : 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingRight: '8px',
+            }}>
+              <span>Giám sát</span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !adminOverrideQlgd;
+                    setAdminOverrideQlgd(next);
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('mxv_sidebar_override', next ? 'QLGD' : 'DEFAULT');
+                    }
+                  }}
+                  style={{
+                    border: 'none',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: '#10b981',
+                    fontSize: '0.64rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                  }}
+                  title="Chuyển sang giao diện Sidebar dành riêng cho khối QLGD"
+                >
+                  Xem QLGD
+                </button>
+              )}
+            </div>
+
             <Link
-              href="/trading-manager"
+              href="/dashboard"
               onClick={onClose}
-              className={`nav-link ${pathname === '/trading-manager' ? 'active' : ''}`}
-              title={isCollapsed ? "Bàn Giám Sát GD Tổng Hợp" : undefined}
+              className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}
+              title={isCollapsed ? "Tổng quan giám sát" : undefined}
             >
-              <Layers size={18} style={{ flexShrink: 0 }} />
-              <span>Trading Manager (Hub)</span>
+              <LayoutDashboard size={18} style={{ flexShrink: 0 }} />
+              <span>Tổng quan</span>
             </Link>
+            {canViewChecklist && (
+              <>
+                {/* Tạm ẩn 'Ca trực hiện tại' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
+                {/*
+                <Link
+                  href="/checklist"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/checklist' ? 'active' : ''}`}
+                  title={isCollapsed ? "Ca trực hiện tại" : undefined}
+                >
+                  <CheckSquare size={18} style={{ flexShrink: 0 }} />
+                  <span>Ca trực hiện tại</span>
+                </Link>
+                */}
+                {/* Tạm ẩn 'Tra cứu lịch sử' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
+                {/*
+                <Link
+                  href="/history"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/history' ? 'active' : ''}`}
+                  title={isCollapsed ? "Tra cứu lịch sử" : undefined}
+                >
+                  <History size={18} style={{ flexShrink: 0 }} />
+                  <span>Tra cứu lịch sử</span>
+                </Link>
+                */}
+                <Link
+                  href="/trading-manager/reconciliation"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/trading-manager/reconciliation' ? 'active' : ''}`}
+                  title={isCollapsed ? "Đối chiếu giao dịch" : undefined}
+                >
+                  <ArrowLeftRight size={18} style={{ flexShrink: 0 }} />
+                  <span>Đối chiếu giao dịch</span>
+                </Link>
+                <Link
+                  href="/trading-manager/session-open"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/trading-manager/session-open' ? 'active' : ''}`}
+                  title={isCollapsed ? "Nghiệp vụ đầu phiên" : undefined}
+                >
+                  <Sunrise size={18} style={{ flexShrink: 0 }} />
+                  <span>Nghiệp vụ đầu phiên</span>
+                </Link>
+                <Link
+                  href="/trading-manager/ms-cqg"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/trading-manager/ms-cqg' ? 'active' : ''}`}
+                  title={isCollapsed ? "Giám sát MS & CQG" : undefined}
+                >
+                  <Activity size={18} style={{ flexShrink: 0 }} />
+                  <span>Giám Sát MS & CQG</span>
+                </Link>
+                <Link
+                  href="/trading-manager/ccp-ce"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/trading-manager/ccp-ce' ? 'active' : ''}`}
+                  title={isCollapsed ? "Giám sát CoreCCP & CE" : undefined}
+                >
+                  <FileSpreadsheet size={18} style={{ flexShrink: 0 }} />
+                  <span>Giám Sát CoreCCP & CE</span>
+                </Link>
+                <Link
+                  href="/trading-manager"
+                  onClick={onClose}
+                  className={`nav-link ${pathname === '/trading-manager' ? 'active' : ''}`}
+                  title={isCollapsed ? "Bàn Giám Sát GD Tổng Hợp" : undefined}
+                >
+                  <Layers size={18} style={{ flexShrink: 0 }} />
+                  <span>Trading Manager (Hub)</span>
+                </Link>
+              </>
+            )}
           </>
         )}
         {/* Tạm ẩn 'Cấu hình' theo yêu cầu người dùng (giữ nguyên toàn bộ logic chức năng) */}
