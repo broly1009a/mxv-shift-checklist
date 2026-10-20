@@ -1,3 +1,71 @@
+## [2026-10-20T09:25] REFACTOR: Chuẩn Hóa Nhận Diện Bộ Phận "Giám Sát Giao Dịch" (QLGD) Theo Data-Driven CSDL, Loại Bỏ Hardcode Phỏng Đoán
+
+### 1. Mục tiêu thay đổi
+- Thực hiện phản hồi của USER: *"const isQlgd = deptCode === 'QLGD_OPS' || ... đoạn này bạn hardcode hay sao vậy mình có bộ phận GIám sát giao dịch mà"*.
+- Xóa bỏ triệt để đoạn kiểm tra hardcode phỏng đoán chuỗi (`userTitle.includes`, `role === 'QLGD'`, `QUẢN LÝ GIAO DỊCH` bị thiếu chữ "Giám sát").
+- Chuẩn hóa điều kiện nhận diện Bộ phận Giám sát Giao dịch theo cấu trúc CSDL thực tế:
+  1. Mã phòng ban chuẩn trong CSDL: `deptCode === 'QLGD_OPS'` (Quản lý giám sát giao dịch) hoặc `GSGD`.
+  2. Tên bộ phận chuẩn hóa không dấu: `deptNameNorm.includes('giam sat giao dich')` (bao phủ chính xác cả "Quản lý giám sát giao dịch" và "Giám sát giao dịch").
+  3. Cấp Ban quản lý trực thuộc: `parentDeptCode === 'BAN_GSTT'` (Ban Giám sát thị trường) và không thuộc nhánh rủi ro (`QLRR_RISK`).
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts#L30-L50):
+   - Thêm helper chuẩn hóa tiếng Việt `normalizeText`.
+   - Nhận diện `parentDeptCode` từ `user.department.parentDepartmentId.code`.
+   - Định nghĩa `isQlgd` chuẩn hóa, không phụ thuộc vào chuỗi title hay role tùy tiện.
+
+### 3. Kết quả Kiểm thử
+- TypeScript: `npx tsc --noEmit` -> **Exit code 0 (Success)**.
+
+---
+
+## [2026-10-20T09:05] FEAT: Tách Menu Sidebar Riêng Khối QLGD, Tổng Quan (/trading-manager/dashboard), Menu Cây Cha-Con (Thống Kê, Tham Số Hệ Thống) & Tách Trang Riêng Cho Backup, Thống Kê MS/CCP, Cấu Hình Đường Dẫn Cũ/Mới, Logs Hàng Đợi
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Thêm 1 menu Sidebar dành riêng cho khối QLGD (`isQlgd` theo role/department `QLGD_OPS` hoặc QLGD), đối với các vai trò khác (IT, Admin, v.v...) mặc định vẫn giữ nguyên Sidebar như cũ.
+  2. Trang "Tổng quan" của khối QLGD trỏ về `/trading-manager/dashboard` (thay vì `/dashboard`).
+  3. "Đối chiếu giao dịch" giữ nguyên `/trading-manager/reconciliation`.
+  4. "Nghiệp vụ đầu phiên" giữ nguyên `/trading-manager/session-open`.
+  5. Menu "Backup" thành trang riêng: `/trading-manager/backup`.
+  6. Menu "Thống kê" chia thành sub cha và sub con:
+     - Sub cha: Thống kê
+     - Sub con 1: Thống kê MS (`/trading-manager/statistics/ms`)
+     - Sub con 2: Thống kê CCP (`/trading-manager/statistics/ccp`)
+  7. Menu "Cấu hình đường dẫn" đổi tên thành "Tham số hệ thống", chia thành sub cha và sub con:
+     - Sub cha: Tham số hệ thống
+     - Sub con 1: Cấu hình đường dẫn cũ (dành cho MS, CQG, ACM) (`/trading-manager/settings/ms-cqg`)
+     - Sub con 2: Cấu hình đường dẫn mới (dành cho CCP, CE, ACM) (`/trading-manager/settings/ccp-ce`)
+  8. Bê tab "Hàng đợi & Logs" làm trang riêng: `/trading-manager/job-queue` (và alias `/trading-manager/logs`).
+  9. Đối với tài khoản Admin, cung cấp nút chuyển đổi nhanh (toggle "Xem QLGD" / "Về IT") để tiện kiểm thử giao diện giữa 2 khối.
+
+### 2. Danh sách file chỉnh sửa & thêm mới
+1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts):
+   - Thêm cờ `isQlgd` nhận diện người dùng thuộc khối Quản lý Giao dịch (phòng ban `QLGD_OPS`, chứa `QLGD` hoặc `Quản lý giao dịch`, role hoặc chức danh QLGD).
+2. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
+   - Bổ sung luồng hiển thị Sidebar riêng biệt cho QLGD (`showQlgdSidebar`), tích hợp cấu trúc sub-menu cha/con dạng Accordion đóng/mở có Chevron SVG từ `lucide-react`.
+   - Giữ nguyên 100% Sidebar mặc định cho IT/khối khác.
+   - Bổ sung nút chuyển đổi chế độ xem nhanh cho Admin.
+3. [frontend/src/app/trading-manager/backup/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/page.tsx):
+   - Trang độc lập cho phân hệ Sao lưu & Dữ liệu đối chiếu (Backup MS, CQG, ACM, CoreCCP).
+4. [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/statistics/ms/page.tsx) & [frontend/src/app/trading-manager/statistics/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/statistics/page.tsx):
+   - Trang độc lập cho Thống kê MS (Macro Số Lot `RUN_LOT_MACRO`, Macro Giá trị `RUN_VALUE_MACRO`, bảng giám sát tiến trình và đường dẫn output).
+5. [frontend/src/app/trading-manager/statistics/ccp/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/statistics/ccp/page.tsx):
+   - Trang độc lập cho Thống kê CoreCCP (VNCLEAR Lot Statistics Section).
+6. [frontend/src/app/trading-manager/settings/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/settings/ms-cqg/page.tsx), [frontend/src/app/trading-manager/settings/legacy-paths/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/settings/legacy-paths/page.tsx) & [frontend/src/app/trading-manager/settings/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/settings/page.tsx):
+   - Trang độc lập cấu hình tham số hệ thống cũ (đường dẫn MS, CQG, ACM, tỷ giá MS, giờ phiên, quét âm ký quỹ, LME Holidays).
+7. [frontend/src/app/trading-manager/settings/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/settings/ccp-ce/page.tsx) & [frontend/src/app/trading-manager/settings/modern-paths/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/settings/modern-paths/page.tsx):
+   - Trang độc lập cấu hình tham số hệ thống mới (đường dẫn CoreCCP, CoreEX, ACM, ma trận tỷ giá đa nguyên tệ VNCLEAR, giờ phiên VNCLEAR).
+8. [frontend/src/app/trading-manager/job-queue/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/job-queue/page.tsx) & [frontend/src/app/trading-manager/logs/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/logs/page.tsx):
+   - Trang độc lập Hàng đợi & Logs tiến trình Robot (`TradingManagerJobQueueSection`).
+
+### 3. Kết quả Kiểm thử & Build
+- **Type Checking**: `npx tsc --noEmit` -> **Exit code 0 (Zero errors)**.
+- **Production Build**: `npm run build` -> **Exit code 0 (Success 47 routes)**:
+  - Sinh thành công tất cả static routes mới: `/trading-manager/backup`, `/trading-manager/statistics/ms`, `/trading-manager/statistics/ccp`, `/trading-manager/settings/ms-cqg`, `/trading-manager/settings/ccp-ce`, `/trading-manager/job-queue`, `/trading-manager/logs`, v.v...
+
+---
+
 ## [2026-10-20T08:38] BUG FIX: Khắc Phục Lỗi Tải Báo Cáo CoreExchange (CoreEX) Qua Direct REST API (HTTP 401), Cơ Chế Kiểm Tra Hạn Token JWT, Tự Động Làm Mới Phiên Đăng Nhập & Fallback Dự Phòng Playwright
 
 ### 1. Mục tiêu thay đổi
