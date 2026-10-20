@@ -61,7 +61,7 @@ async function main() {
   console.log('  CQG PS:', psSummary['041C0888668-L'] || 0);
 
   // Run Dsgd-Before-EOD Closed Trades P&L Comparison
-  console.log('\n--- 4. RUNNING PRE-EOD STEP 2 COMPARISON (Realized P&L) ---');
+  console.log('\n--- 4. RUNNING DSGD-BEFORE-EOD STEP 2 COMPARISON (Realized P&L) ---');
   const ttttGrouped: Record<string, number> = {};
   ttttParsed.forEach((item: any) => {
     const key = `${item.account}_${item.symbol}`;

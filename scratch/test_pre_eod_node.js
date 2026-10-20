@@ -26,7 +26,7 @@ async function main() {
   const service = new DsgdBeforeEodReconService(null, null, null);
 
   console.log("================================================================================");
-  console.log("CHAY DOI CHIEU CHECK PRE-EOD BANG NODE.JS / NESTJS VOI DU LIEU NGAY 25/09/2026");
+  console.log("CHAY DOI CHIEU CHECK DSGD-BEFORE-EOD BANG NODE.JS / NESTJS VOI DU LIEU NGAY 25/09/2026");
   console.log("================================================================================");
   console.log("Dang thuc thi checkDSGDBeforeEOD bang ma Node.js...");
 

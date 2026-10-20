@@ -251,7 +251,7 @@ export default function CcpCeEodReconSection({
 
   // Copy report
   const handleCopyReport = () => {
-    const reportText = `[ĐỐI SOÁT PRE-EOD CORECCP ↔ COREEX]
+    const reportText = `[ĐỐI SOÁT DSGD-BEFORE-EOD CORECCP ↔ COREEX]
 Phiên: ${selectedDate}
 CoreCCP / Maker: ${dsgdBeforeEodTotals.totalCcpVolume.toLocaleString('en-US')} lot
 CoreEX: ${dsgdBeforeEodTotals.totalCeVolume.toLocaleString('en-US')} lot
@@ -574,7 +574,7 @@ Trạng thái: ${dsgdBeforeEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH 
         </>
       )}
 
-      {/* ===== KHUNG LỚN: CHI TIẾT ĐỐI CHIẾU PRE-EOD (CORECCP ↔ COREEX) ===== */}
+      {/* ===== KHUNG LỚN: CHI TIẾT ĐỐI CHIẾU DSGD-BEFORE-EOD (CORECCP ↔ COREEX) ===== */}
       <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Header Dsgd-Before-EOD */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>

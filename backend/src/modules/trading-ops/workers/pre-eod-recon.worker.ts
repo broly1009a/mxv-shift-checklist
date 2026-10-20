@@ -84,7 +84,7 @@ export class DsgdBeforeEodReconWorker implements IBotWorker {
         };
       }
 
-      // ── BƯỚC 1: XỬ LÝ TRƯỜNG HỢP CHỜ FILE PRE-EOD (FAIL-SAFE / ZERO FALSE-POSITIVE) ──
+      // ── BƯỚC 1: XỬ LÝ TRƯỜNG HỢP CHỜ FILE DSGD-BEFORE-EOD (FAIL-SAFE / ZERO FALSE-POSITIVE) ──
       if (res.isWaitingFiles) {
         this.logger.warn(`[DsgdBeforeEodReconWorker] ${res.message || 'Đang chờ cập nhật file Dsgd-Before-EOD.'}`);
         return {

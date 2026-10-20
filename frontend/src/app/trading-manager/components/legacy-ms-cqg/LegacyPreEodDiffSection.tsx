@@ -175,7 +175,7 @@ export default function LegacyDsgdBeforeEodDiffSection({
   const handleCopyReport = () => {
     const lines: string[] = [
       '================================================================================',
-      'BÁO CÁO ĐỐI CHIẾU PRE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM)',
+      'BÁO CÁO ĐỐI CHIẾU DSGD-BEFORE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM)',
       `Thời gian kiểm tra: ${formatExecTime(dsgdBeforeEodData?.executedAt) || 'Chưa kiểm tra'}`,
       `Trạng thái: ${isWaitingFiles ? 'ĐANG CHỜ TỆP' : isPassed ? 'KHỚP HOÀN TOÀN' : 'PHÁT HIỆN LỆCH'}`,
       '--------------------------------------------------------------------------------',

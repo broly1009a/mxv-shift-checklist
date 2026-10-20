@@ -2316,7 +2316,7 @@ export default function LegacyReconSection({
               </div>
             </div>
 
-            {/* KHUNG CHI TIẾT ĐỐI CHIẾU PRE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM) */}
+            {/* KHUNG CHI TIẾT ĐỐI CHIẾU DSGD-BEFORE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM) */}
             <LegacyDsgdBeforeEodDiffSection
               dsgdBeforeEodData={summaryData?.dsgdBeforeEod}
               onTriggerCheck={() => handleTriggerRun('CHECK_DSGD_BEFORE_EOD', 'dsgd-before-eod-diff')}

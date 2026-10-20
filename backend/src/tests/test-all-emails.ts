@@ -38,7 +38,7 @@ async function testAllEmails() {
     htmlBody: string,
   ) => {
     let key = 'unknown';
-    if (subject.includes('PRE-EOD')) key = 'dsgd-before-eod';
+    if (subject.includes('DSGD-BEFORE-EOD')) key = 'dsgd-before-eod';
     else if (subject.includes('EOD BALANCE') || subject.includes('SOD'))
       key = 'eod-balance';
     else if (subject.includes('Negative Margin')) key = 'negative-margin';
@@ -118,7 +118,7 @@ async function testAllEmails() {
     await marginCheckerService.sendEmailNotification(
       await marginCheckerService.loadConfig(),
       ['test-dsgdbeforeeod@mxv.vn'],
-      '[MXV PRE-EOD CHECK] Báo cáo đối chiếu Khối lượng & Vị thế cuối ngày - LỆCH',
+      '[MXV DSGD-BEFORE-EOD CHECK] Báo cáo đối chiếu Khối lượng & Vị thế cuối ngày - LỆCH',
       html,
     );
   } catch (err: any) {

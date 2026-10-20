@@ -130,7 +130,7 @@ _Mục đích: Nâng cấp `KlgdReconService` thuộc `TradingOpsModule` (V2) đ
 
 ---
 
-### 🛡️ PHA 2: HOÀN THIỆN LÕI V2 PRE-EOD & SOD RECON
+### 🛡️ PHA 2: HOÀN THIỆN LÕI V2 DSGD-BEFORE-EOD & SOD RECON
 
 _Mục đích: Đưa toàn bộ quy trình chốt phiên 3 bên cuối ngày và đầu ngày vào `DsgdBeforeEodReconService` thuộc V2._
 

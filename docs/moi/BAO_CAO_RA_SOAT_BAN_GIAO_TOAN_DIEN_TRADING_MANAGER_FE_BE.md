@@ -63,7 +63,7 @@ Phân hệ **Trading Manager** (`/trading-manager`) là trung tâm điều hành
 
 ---
 
-### 1. TAB 1: CHECK GD – EOD – SYNC (GIÁM SÁT ĐỐI CHIẾU TRONG PHIÊN & PRE-EOD)
+### 1. TAB 1: CHECK GD – EOD – SYNC (GIÁM SÁT ĐỐI CHIẾU TRONG PHIÊN & DSGD-BEFORE-EOD)
 
 _Đây là khu vực thao tác trọng tâm nhất của ca trực để giám sát sai lệch số lot và số dư tài khoản._
 

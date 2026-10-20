@@ -122,7 +122,7 @@ export const MOCK_ACTIVE_LOGS: ShiftLog[] = [
         slaDeadlineSnapshot: '16:30',
         deadlineSnapshot: '16:30',
         actionDescriptionSnapshot: 'Chốt khớp lệnh và vị thế ròng 3 bên trước khi bước vào quy trình đóng sổ.',
-        urdReferenceSnapshot: 'URD-PRE-EOD',
+        urdReferenceSnapshot: 'URD-DSGD-BEFORE-EOD',
       },
       {
         taskId: 'TASK_CCP_STATISTICS',

@@ -30,7 +30,7 @@ Do đó, quá trình chuyển đổi bắt buộc tuân thủ nguyên tắc **St
 
 ```
 BẢN ĐỒ 5 MÀN HÌNH ĐỘC LẬP ĐƯỢC BÓC TÁCH
-├── 1. MÀN HÌNH ĐỐI SOÁT GIAO DỊCH (INTRADAY & PRE-EOD)
+├── 1. MÀN HÌNH ĐỐI SOÁT GIAO DỊCH (INTRADAY & DSGD-BEFORE-EOD)
 │   ├── Route mới: /operations/reconciliation
 │   ├── Component cốt lõi: LegacyReconSection.tsx + LegacyDsgdBeforeEodDiffSection.tsx
 │   └── Đối tượng: Nhân viên ca trực giám sát khớp lệnh, TTM, TTTT và chốt Dsgd-Before-EOD
