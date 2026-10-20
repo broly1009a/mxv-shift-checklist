@@ -35,6 +35,7 @@ export interface CcpCeEodReconSectionProps {
     totalDifferLots: number;
     klgdStatus: string;
   }) => void;
+  viewMode?: 'ALL' | 'PRE_EOD_ONLY';
 }
 
 export interface CcpCeMismatchedTrade {
@@ -62,6 +63,7 @@ export default function CcpCeEodReconSection({
   onSelectDate,
   onOpenGuide,
   onStatusChange,
+  viewMode = 'ALL',
 }: CcpCeEodReconSectionProps) {
   const [mounted, setMounted] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -289,9 +291,11 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* ===== THANH ĐIỀU KHIỂN PHIÊN ĐỐI SOÁT EOD CCP & CE ===== */}
-      <div
-        className="glass-panel"
+      {/* ===== THANH ĐIỀU KHIỂN PHIÊN ĐỐI SOÁT EOD CCP & CE (ẨN KHI PRE_EOD_ONLY) ===== */}
+      {viewMode !== 'PRE_EOD_ONLY' && (
+        <>
+          <div
+            className="glass-panel"
         style={{
           padding: '14px 20px',
           display: 'flex',
@@ -567,6 +571,8 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* ===== KHUNG LỚN: CHI TIẾT ĐỐI CHIẾU PRE-EOD (CORECCP ↔ COREEX) ===== */}
       <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -887,9 +893,17 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
               </span>
             </div>
           ) : (
-            <div style={{ borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+            <div
+              style={{
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                maxHeight: '280px',
+                minHeight: '160px',
+                overflowY: 'auto',
+              }}
+            >
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
-                <thead style={{ backgroundColor: 'var(--bg-input)' }}>
+                <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)', zIndex: 5 }}>
                   <tr style={{ color: 'var(--text-secondary)', fontWeight: 700, borderBottom: '1px solid var(--border-color)' }}>
                     <th style={{ padding: '8px 12px' }}>Nguồn</th>
                     <th style={{ padding: '8px 12px' }}>Mã lệnh</th>
@@ -903,7 +917,13 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 </thead>
                 <tbody>
                   {filteredTrades.map((t, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <tr
+                      key={idx}
+                      style={{
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: idx % 2 === 1 ? 'rgba(255, 255, 255, 0.015)' : 'transparent',
+                      }}
+                    >
                       <td style={{ padding: '8px 12px', fontWeight: 700, color: t.source === 'CoreCCP' ? '#10b981' : '#3b82f6' }}>
                         {t.source}
                       </td>
@@ -941,9 +961,17 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
             </span>
           </div>
         ) : (
-          <div style={{ borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+          <div
+            style={{
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              maxHeight: '280px',
+              minHeight: '160px',
+              overflowY: 'auto',
+            }}
+          >
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
-              <thead style={{ backgroundColor: 'var(--bg-input)' }}>
+              <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)', zIndex: 5 }}>
                 <tr style={{ color: 'var(--text-secondary)', fontWeight: 700, borderBottom: '1px solid var(--border-color)' }}>
                   <th style={{ padding: '8px 12px' }}>Mã TKGD</th>
                   <th style={{ padding: '8px 12px' }}>Mã Hợp Đồng</th>
@@ -954,7 +982,13 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
               </thead>
               <tbody>
                 {filteredPositions.map((p, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <tr
+                    key={idx}
+                    style={{
+                      borderBottom: '1px solid var(--border-color)',
+                      backgroundColor: idx % 2 === 1 ? 'rgba(255, 255, 255, 0.015)' : 'transparent',
+                    }}
+                  >
                     <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>{p.account}</td>
                     <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{p.symbol}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>{p.ccpPosition}</td>
@@ -970,8 +1004,10 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
         )}
       </div>
 
-      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD) ===== */}
-      <DsgdBeforeEodSection token={token} selectedDate={selectedDate} />
+      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - ẨN KHI PRE_EOD_ONLY ĐỂ TRÁNH LẶP) ===== */}
+      {viewMode !== 'PRE_EOD_ONLY' && (
+        <DsgdBeforeEodSection token={token} selectedDate={selectedDate} />
+      )}
     </div>
   );
 }

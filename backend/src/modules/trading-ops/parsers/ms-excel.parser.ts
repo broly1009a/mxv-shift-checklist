@@ -257,7 +257,13 @@ export function parseTTMForExecutive(buffer: Buffer): ExecutiveTtmRow[] {
     const tempSym = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Hợp đồng']);
     const tempMua = findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'KLM', 'Mua']);
     const tempBan = findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'KLB', 'Bán']);
-    const tempPnl = findHeaderIndex(header, 'Lãi lỗ dự kiến(VND)', ['Lãi lỗ dự kiến (VND)', 'Lãi lỗ dự kiến', 'PnL (VND)']);
+    const tempPnl = findHeaderIndex(header, 'Lãi lỗ dự kiến (VND)', [
+      'Lãi lỗ dự kiến(VND)',
+      'Lãi lỗ dự kiến VND',
+      'PnL (VND)',
+      'Lai lo du kien (VND)',
+      'Lai lo du kien(VND)',
+    ]);
 
     if (tempAcc !== -1 && tempSym !== -1) {
       headerRowIdx = r;
@@ -324,7 +330,14 @@ export function parseTTTTForExecutive(buffer: Buffer): ExecutiveTtttRow[] {
     const tempSym = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Hợp đồng']);
     const tempMua = findHeaderIndex(header, 'KL Mua tất toán', ['KL Mua', 'Số lô', 'KL tất toán']);
     const tempBan = findHeaderIndex(header, 'KL Bán tất toán', ['KL Bán', 'KL bán tất toán']);
-    const tempPnl = findHeaderIndex(header, 'Lãi lỗ thực tế', ['Lãi lỗ thực tế(VND)', 'Lãi lỗ thực tế (VND)', 'Realized PnL']);
+    const tempPnl = findHeaderIndex(header, 'Lãi lỗ thực tế (VND)', [
+      'Lãi lỗ thực tế(VND)',
+      'Lãi lỗ thực tế VND',
+      'Realized PnL (VND)',
+      'Realized PnL(VND)',
+      'Lai lo thuc te (VND)',
+      'Lai lo thuc te(VND)',
+    ]);
 
     if (tempAcc !== -1 && tempSym !== -1) {
       headerRowIdx = r;

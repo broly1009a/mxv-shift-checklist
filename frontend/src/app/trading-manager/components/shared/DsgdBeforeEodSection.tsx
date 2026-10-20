@@ -8,10 +8,7 @@ import {
   Clock,
   Sliders,
   RefreshCw,
-  FileText,
   Copy,
-  ChevronDown,
-  ChevronUp,
   FileSpreadsheet,
   Check,
   Info,
@@ -56,18 +53,20 @@ export default function DsgdBeforeEodSection({
   const [hasChecked, setHasChecked] = useState<boolean>(false);
   const [executedAt, setExecutedAt] = useState<string | null>(null);
   const [showAdvancedModal, setShowAdvancedModal] = useState<boolean>(false);
-  const [showDetails, setShowDetails] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [showTooltip, setShowTooltip] = useState<boolean>(false);
 
-  // Khi selectedDate thay đổi, reset trạng thái đã chạy trừ khi có lượt chạy mới
+  // Format helper
+  const fmtNum = (v?: number) => (v !== undefined && v !== null ? v.toLocaleString('en-US') : '0');
+
+  // Reset state on date change
   useEffect(() => {
     setResult(null);
     setHasChecked(false);
     setExecutedAt(null);
   }, [selectedDate]);
 
-  // Hàm chạy nhanh kiểm tra DSGD trước EOD cho phiên đang chọn
+  // Quick check handler
   const handleRunQuickCheck = async () => {
     if (!token || loading) return;
     setLoading(true);
@@ -113,7 +112,7 @@ export default function DsgdBeforeEodSection({
     }
   };
 
-  // Đồng bộ kết quả nếu chạy từ Advanced Modal
+  // Sync result from modal
   const handleModalSuccess = (modalResult: any) => {
     if (modalResult) {
       setResult(modalResult);
@@ -128,7 +127,7 @@ export default function DsgdBeforeEodSection({
     }
   };
 
-  // Sao chép báo cáo kết quả ra clipboard
+  // Copy report to clipboard
   const handleCopyReport = () => {
     if (!result) return;
     const reportText = `[KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD)]
@@ -152,68 +151,129 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
     <div
       className="glass-panel"
       style={{
-        padding: '20px',
+        padding: '0',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
         borderRadius: '12px',
         border: '1px solid var(--border-color)',
         backgroundColor: 'var(--bg-card)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
       }}
     >
-      {/* HEADER SECTION */}
+      {/* 1. Header Toolbar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          padding: '16px 20px',
+          backgroundColor: 'var(--bg-input)',
+          borderBottom: '1px solid var(--border-color)',
           flexWrap: 'wrap',
           gap: '12px',
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '14px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <div
             style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              backgroundColor: hasChecked && result?.passed ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              flexShrink: 0,
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+              color: '#3b82f6',
             }}
           >
-            <ShieldCheck size={22} color={hasChecked && result?.passed ? '#10b981' : '#38bdf8'} />
+            <ShieldCheck size={18} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD)
-              </h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              Kiểm tra DSGD trước EOD (CheckDSGDBeforeEOD)
+            </h4>
+
+            {/* Hover Tooltip Chú thích tệp tin & công thức */}
+            <div
+              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
               <span
                 style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                  color: '#38bdf8',
-                  letterSpacing: '0.04em',
+                  cursor: 'help',
+                  color: showTooltip ? '#3b82f6' : 'var(--text-muted)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  backgroundColor: showTooltip ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                SNAPSHOT VẬN HÀNH
+                <Info size={15} />
               </span>
+
+              {showTooltip && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: '0',
+                    zIndex: 9999,
+                    width: '390px',
+                    padding: '14px 16px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.35)',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.5,
+                    color: 'var(--text-primary)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div style={{ fontWeight: 800, color: '#3b82f6', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <FileSpreadsheet size={14} />
+                    <span>Các tệp tin đầu vào bắt buộc:</span>
+                  </div>
+                  <ul style={{ margin: '0 0 8px 0', paddingLeft: '18px', color: 'var(--text-secondary)' }}>
+                    <li>
+                      <strong>DSGD.xlsx</strong>: Bản gốc đầu ngày lưu tại Backup MS\Futures hoặc TradingCheck.
+                    </li>
+                    <li>
+                      <strong>DSGD&#123;timeSuffix&#125;.xlsx</strong>: Bản snapshot chốt phiên chiều (ví dụ: <code>DSGD172842.xlsx</code>).
+                    </li>
+                    <li>
+                      <strong>Straits CSV</strong>: File giao dịch từ SFTP Straits (<code>EOD FO trades_PT Straits...csv</code>).
+                    </li>
+                  </ul>
+                  <div style={{ paddingTop: '6px', borderTop: '1px dashed var(--border-color)', color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                    <strong>Công thức đối chiếu core:</strong>
+                    <div>• Tổng KLGD: |TotalOriginal - TotalTemp| &le; 0.0001 lot</div>
+                    <div>• Khớp ACM tự doanh: |TotalACM_MS - TotalACM_Straits| &le; 0.0001 lot</div>
+                  </div>
+                </div>
+              )}
             </div>
-            <p style={{ margin: '3px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-              So sánh DSGD gốc vs Snapshot chốt phiên chiều & khớp lệnh tự doanh ACM (MS vs Straits CSV).
-            </p>
+
+            {hasChecked && executedAt && (
+              <span
+                style={{
+                  fontSize: '0.74rem',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                }}
+              >
+                ({executedAt})
+              </span>
+            )}
           </div>
         </div>
 
-        {/* STATUS BADGE & ACTION BUTTONS */}
+        {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {/* Status Badge */}
           {!hasChecked ? (
@@ -221,10 +281,10 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 padding: '5px 12px',
                 borderRadius: '6px',
-                fontSize: '0.75rem',
+                fontSize: '0.74rem',
                 fontWeight: 700,
                 backgroundColor: 'rgba(148, 163, 184, 0.12)',
                 color: 'var(--text-muted)',
@@ -239,10 +299,10 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 padding: '5px 12px',
                 borderRadius: '6px',
-                fontSize: '0.75rem',
+                fontSize: '0.74rem',
                 fontWeight: 700,
                 backgroundColor: 'rgba(16, 185, 129, 0.12)',
                 color: '#10b981',
@@ -250,17 +310,17 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               }}
             >
               <CheckCircle2 size={13} />
-              <span>Khớp hoàn toàn ({executedAt})</span>
+              <span>Khớp hoàn toàn</span>
             </span>
           ) : result?.isSnapshotMissing ? (
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 padding: '5px 12px',
                 borderRadius: '6px',
-                fontSize: '0.75rem',
+                fontSize: '0.74rem',
                 fontWeight: 700,
                 backgroundColor: 'rgba(245, 158, 11, 0.15)',
                 color: '#f59e0b',
@@ -268,17 +328,17 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               }}
             >
               <AlertTriangle size={13} />
-              <span>Thiếu snapshot ({executedAt})</span>
+              <span>Thiếu snapshot</span>
             </span>
           ) : (
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 padding: '5px 12px',
                 borderRadius: '6px',
-                fontSize: '0.75rem',
+                fontSize: '0.74rem',
                 fontWeight: 700,
                 backgroundColor: 'rgba(239, 68, 68, 0.12)',
                 color: '#ef4444',
@@ -286,54 +346,11 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               }}
             >
               <AlertTriangle size={13} />
-              <span>Lệch {result?.differTotal} lot ({executedAt})</span>
+              <span>Phát hiện chênh lệch ({result?.differTotal} lot)</span>
             </span>
           )}
 
-          {/* Copy Report Button */}
-          {hasChecked && (
-            <button
-              type="button"
-              onClick={handleCopyReport}
-              className="btn btn-secondary"
-              title="Sao chép báo cáo kiểm tra DSGD trước EOD"
-              style={{
-                fontSize: '0.75rem',
-                padding: '6px 12px',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
-              <span>{copied ? 'Đã chép' : 'Sao chép'}</span>
-            </button>
-          )}
-
-          {/* Guide / Info Button */}
-          <button
-            type="button"
-            onClick={() => setShowGuide(!showGuide)}
-            className="btn btn-secondary"
-            title="Xem chú thích nghiệp vụ, thời điểm T / T-1 và các file cần thiết"
-            style={{
-              fontSize: '0.75rem',
-              padding: '6px 12px',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              border: showGuide ? '1px solid #38bdf8' : undefined,
-              backgroundColor: showGuide ? 'rgba(56, 189, 248, 0.12)' : undefined,
-              color: showGuide ? '#38bdf8' : undefined,
-            }}
-          >
-            <Info size={13} color={showGuide ? '#38bdf8' : 'currentColor'} />
-            <span>{showGuide ? 'Ẩn Chú Thích' : 'Chú Thích (i)'}</span>
-          </button>
-
-          {/* Advanced Modal Settings Button */}
+          {/* Button Options */}
           <button
             type="button"
             onClick={() => setShowAdvancedModal(true)}
@@ -352,7 +369,28 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
             <span>Tùy chọn...</span>
           </button>
 
-          {/* Quick Check Button */}
+          {/* Button Copy Report */}
+          <button
+            type="button"
+            onClick={handleCopyReport}
+            disabled={!hasChecked}
+            className="btn btn-secondary"
+            title="Sao chép toàn bộ kết quả kiểm tra vào clipboard"
+            style={{
+              fontSize: '0.75rem',
+              padding: '6px 12px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              opacity: !hasChecked ? 0.6 : 1,
+            }}
+          >
+            {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+            <span>{copied ? 'Đã chép' : 'Sao chép'}</span>
+          </button>
+
+          {/* Button Check Quick */}
           <button
             type="button"
             onClick={handleRunQuickCheck}
@@ -376,7 +414,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               </>
             ) : (
               <>
-                <ShieldCheck size={14} />
+                <ShieldCheck size={13} />
                 <span>Check DSGD Trước EOD</span>
               </>
             )}
@@ -384,417 +422,352 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
         </div>
       </div>
 
-      {/* GUIDANCE PANEL */}
-      {showGuide && (
+      {/* 2. Top Row: 4 Metric Cards (Matching LegacyPreEodDiffSection Part 1) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '12px',
+          padding: '16px 20px',
+          backgroundColor: 'rgba(255, 255, 255, 0.01)',
+          borderBottom: '1px solid var(--border-color)',
+        }}
+      >
+        {/* Card 1: ACM / Tự Doanh */}
         <div
           style={{
-            padding: '16px',
-            borderRadius: '10px',
-            backgroundColor: 'rgba(56, 189, 248, 0.06)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-input)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
+            gap: '4px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800, fontSize: '0.85rem' }}>
-            <Info size={16} />
-            <span>CHÚ THÍCH NGUYÊN LÝ HOẠT ĐỘNG & NGHIỆP VỤ (CheckDSGDBeforeEOD)</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              ACM / Tự Doanh (MS vs Straits)
+            </span>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                color: (result?.differACM ?? 0) === 0 ? '#10b981' : '#ef4444',
+                fontFamily: 'monospace',
+              }}
+            >
+              Lệch: {fmtNum(result?.differACM)} lot
+            </span>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: '12px',
-              fontSize: '0.78rem',
-            }}
-          >
-            {/* 1. Nghiệp Vụ */}
-            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontWeight: 800, color: '#38bdf8', marginBottom: '4px' }}>
-                1. Nghiệp vụ cốt lõi
-              </div>
-              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Chạy vào cuối ca chiều (khoảng 16h20 – 17h00) trước khi chốt sổ EOD:
-                <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>
-                  <li>So sánh <b>DSGD gốc</b> đầu ngày vs <b>Snapshot chiều</b> để phát hiện lệch số.</li>
-                  <li>Khớp lệnh tự doanh <b>ACM M-System</b> (tài khoản đuôi <code>A</code>) so với <b>Straits CSV</b> đối tác.</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* 2. Thời Điểm T hay T-1 */}
-            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontWeight: 800, color: '#f59e0b', marginBottom: '4px' }}>
-                2. Thời điểm phiên: T hay T-1?
-              </div>
-              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                <ul style={{ margin: 0, paddingLeft: '18px' }}>
-                  <li><b>Mặc định (Bỏ chọn exactDate)</b>: Đối soát cho phiên <b>T-1</b> (phiên vừa đóng cửa gần nhất, tự động bỏ qua T7, CN và ngày nghỉ lễ).</li>
-                  <li><b>Khi chọn &ldquo;Khớp chính xác ngày (exactDate)&rdquo;</b>: Đối soát đúng ngày <b>T</b> chỉ định trên ô lịch.</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* 3. Tệp tin đầu vào */}
-            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontWeight: 800, color: '#10b981', marginBottom: '4px' }}>
-                3. Các tệp tin đầu vào bắt buộc
-              </div>
-              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                <ul style={{ margin: 0, paddingLeft: '18px' }}>
-                  <li><code>DSGD.xlsx</code>: Bản gốc đầu ngày lưu tại <code>Backup MS\Futures</code> hoặc <code>TradingCheck</code>.</li>
-                  <li><code>DSGD&#123;timeSuffix&#125;.xlsx</code>: Bản snapshot chốt phiên chiều (ví dụ <code>DSGD172842.xlsx</code>).</li>
-                  <li><code>Straits CSV</code>: File giao dịch từ SFTP Straits (<code>EOD FO trades_PT Straits...csv</code>).</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* 4. Tiêu chuẩn Pass */}
-            <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontWeight: 800, color: '#a855f7', marginBottom: '4px' }}>
-                4. Tiêu chuẩn nghiệm thu (Pass)
-              </div>
-              <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                <ul style={{ margin: 0, paddingLeft: '18px' }}>
-                  <li><b>Tổng KLGD khớp</b>: <code>|TotalOriginal - TotalTemp| &le; 0.0001</code>.</li>
-                  <li><b>Khớp ACM tự doanh</b>: <code>|TotalACM_MS - TotalACM_Straits| &le; 0.0001</code>.</li>
-                  <li>Nếu thiếu file snapshot, hệ thống từ chối so sánh để ngăn chặn báo thành công ảo.</li>
-                </ul>
-              </div>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+              {fmtNum(result?.totalACMMS)}
+            </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>vs</span>
+            <span style={{ fontSize: '1.35rem', fontWeight: 800, color: '#3b82f6', fontFamily: 'monospace' }}>
+              {fmtNum(result?.totalACMSFTP)}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>lot</span>
           </div>
+
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            M-System (đuôi A) vs Straits CSV
+          </span>
         </div>
-      )}
 
-      {/* CONTENT BODY */}
-      {!hasChecked ? (
-        /* EMPTY STATE BANNER */
+        {/* Card 2: DSGD Gốc vs Snapshot Chiều */}
         <div
           style={{
-            padding: '24px 20px',
-            borderRadius: '10px',
-            backgroundColor: 'rgba(56, 189, 248, 0.04)',
-            border: '1px dashed rgba(56, 189, 248, 0.25)',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-input)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
+            flexDirection: 'column',
+            gap: '4px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', maxWidth: '680px' }}>
-            <div
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              DSGD Gốc vs Snapshot (MS)
+            </span>
+            <span
               style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                color: (result?.differTotal ?? 0) === 0 && !result?.isSnapshotMissing ? '#10b981' : '#ef4444',
+                fontFamily: 'monospace',
               }}
             >
-              <FileSpreadsheet size={22} color="#38bdf8" />
-            </div>
-            <div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block' }}>
-                Bảo đảm an toàn dữ liệu khớp lệnh trước giờ chốt sổ EOD
-              </span>
-              <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: '1.4', display: 'block', marginTop: '2px' }}>
-                Hệ thống sẽ đối chiếu file <strong>DSGD gốc</strong> với snapshot <strong>DSGD chốt chiều</strong> trong thư mục Backup MS và so sánh khối lượng tự doanh ACM (kết thúc bằng đuôi &ldquo;A&rdquo;) với file Straits CSV. Bấm nút <strong>Check DSGD Trước EOD</strong> để bắt đầu.
-              </span>
-            </div>
+              Lệch: {fmtNum(result?.differTotal)} lot
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={handleRunQuickCheck}
-            disabled={loading}
-            className="btn btn-primary"
-            style={{
-              fontSize: '0.78rem',
-              padding: '8px 18px',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            {loading ? <RefreshCw size={13} className="animate-spin" /> : <ShieldCheck size={14} />}
-            <span>Chạy Kiểm Tra Ngay</span>
-          </button>
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+              {fmtNum(result?.totalOriginal)}
+            </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>vs</span>
+            <span style={{ fontSize: '1.35rem', fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>
+              {result?.isSnapshotMissing ? '0' : fmtNum(result?.totalTemp)}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>lot</span>
+          </div>
+
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            M-System gốc vs Snapshot chốt chiều
+          </span>
         </div>
-      ) : (
-        /* RESULT VIEW */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Missing Snapshot Alert */}
-          {result?.isSnapshotMissing && (
-            <div
+
+        {/* Card 3: LỆNH KHỚP LỆCH (TRADES) */}
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-input)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              Lệnh khớp lệch (Trades)
+            </span>
+            <span
               style={{
-                padding: '12px 16px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                color: (result?.differTotal ?? 0) === 0 && !result?.isSnapshotMissing ? '#10b981' : '#ef4444',
+                fontFamily: 'monospace',
               }}
             >
-              <AlertTriangle size={18} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f59e0b', display: 'block' }}>
-                  CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!
-                </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
-                  Hệ thống không tìm thấy file snapshot <code>DSGD*.xlsx</code> chụp trong khung giờ chiều tại thư mục <code>TradingCheck</code> hoặc <code>Backup MS</code>. Cơ chế an toàn đã tự động chặn việc đối chiếu file gốc với chính nó để ngăn chặn báo thành công ảo. Vui lòng kiểm tra lại thư mục backup hoặc dùng nút <strong>Tùy chọn...</strong> để nhập hậu tố <code>timeSuffix</code>.
-                </span>
-              </div>
-            </div>
-          )}
+              {result?.passed ? 'Khớp 100%' : hasChecked ? 'Chênh lệch' : '0 lệnh'}
+            </span>
+          </div>
 
-          {/* 4 KPI METRICS CARDS */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span
+              style={{
+                fontSize: '1.35rem',
+                fontWeight: 800,
+                color: (result?.differTotal ?? 0) === 0 && !result?.isSnapshotMissing ? '#10b981' : '#ef4444',
+                fontFamily: 'monospace',
+              }}
+            >
+              {fmtNum(result?.differTotal)}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>lệnh chênh lệch</span>
+          </div>
+
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            Lệnh thiếu/lệch giữa gốc và snapshot
+          </span>
+        </div>
+
+        {/* Card 4: TRẠNG THÁI SNAPSHOT & AN TOÀN */}
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-input)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              Trạng thái Snapshot & An toàn
+            </span>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                color: result?.isSnapshotMissing ? '#f59e0b' : hasChecked ? '#10b981' : 'var(--text-muted)',
+                fontFamily: 'monospace',
+              }}
+            >
+              {result?.isSnapshotMissing ? 'Thiếu file' : hasChecked ? 'Đạt chuẩn' : 'Chờ kiểm tra'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span
+              style={{
+                fontSize: '1.35rem',
+                fontWeight: 800,
+                color: result?.isSnapshotMissing ? '#f59e0b' : hasChecked ? '#10b981' : 'var(--text-muted)',
+                fontFamily: 'monospace',
+              }}
+            >
+              {result?.isSnapshotMissing ? 'Thiếu snapshot' : hasChecked ? 'An toàn' : '0 cảnh báo'}
+            </span>
+          </div>
+
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            {result?.filesFound?.dsgdTemp ? `Tệp: ${result.filesFound.dsgdTemp}` : 'Kiểm tra tệp snapshot DSGD chiều'}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Subtabs Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 20px 0 20px',
+          backgroundColor: 'var(--bg-input)',
+          borderBottom: '1px solid var(--border-color)',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '8px' }}>
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-              gap: '12px',
-            }}
-          >
-            {/* Card 1: DSGD Gốc */}
-            <div
-              style={{
-                padding: '14px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block' }}>
-                DSGD GỐC (M-SYSTEM)
-              </span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '6px 0 2px' }}>
-                <span style={{ fontSize: '1.35rem', fontWeight: 900, fontFamily: 'monospace', color: '#38bdf8' }}>
-                  {result?.totalOriginal?.toLocaleString('en-US') ?? 0}
-                </span>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>lot</span>
-              </div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                Tổng khối lượng file DSGD gốc
-              </span>
-            </div>
-
-            {/* Card 2: DSGD Snapshot Chiều */}
-            <div
-              style={{
-                padding: '14px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block' }}>
-                DSGD SNAPSHOT (CHIỀU)
-              </span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '6px 0 2px' }}>
-                <span
-                  style={{
-                    fontSize: '1.35rem',
-                    fontWeight: 900,
-                    fontFamily: 'monospace',
-                    color: result?.isSnapshotMissing ? 'var(--text-muted)' : '#10b981',
-                  }}
-                >
-                  {result?.isSnapshotMissing ? 'N/A' : (result?.totalTemp?.toLocaleString('en-US') ?? 0)}
-                </span>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>lot</span>
-              </div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                Khối lượng file chụp trước EOD
-              </span>
-            </div>
-
-            {/* Card 3: Chênh Lệch Tổng */}
-            <div
-              style={{
-                padding: '14px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  CHÊNH LỆCH TỔNG
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 800,
-                    color: result?.differTotal === 0 && !result?.isSnapshotMissing ? '#10b981' : '#ef4444',
-                  }}
-                >
-                  {result?.differTotal === 0 && !result?.isSnapshotMissing ? 'Khớp 100%' : 'Chênh lệch'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '6px 0 2px' }}>
-                <span
-                  style={{
-                    fontSize: '1.35rem',
-                    fontWeight: 900,
-                    fontFamily: 'monospace',
-                    color: result?.differTotal === 0 && !result?.isSnapshotMissing ? '#10b981' : '#ef4444',
-                  }}
-                >
-                  {result?.differTotal?.toLocaleString('en-US') ?? 0}
-                </span>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>lot</span>
-              </div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                Lệch giữa file gốc và snapshot
-              </span>
-            </div>
-
-            {/* Card 4: Tự Doanh ACM (MS vs Straits) */}
-            <div
-              style={{
-                padding: '14px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  ACM (MS vs STRAITS)
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 800,
-                    color: result?.differACM === 0 ? '#10b981' : '#ef4444',
-                  }}
-                >
-                  Lệch: {result?.differACM ?? 0} lot
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '6px 0 2px' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                  {result?.totalACMMS?.toLocaleString('en-US') ?? 0}
-                </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>MS</span>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>/</span>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'monospace', color: '#10b981' }}>
-                  {result?.totalACMSFTP?.toLocaleString('en-US') ?? 0}
-                </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Straits</span>
-              </div>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                Tài khoản tự doanh ACM (*A)
-              </span>
-            </div>
-          </div>
-
-          {/* TOGGLE DETAILS BUTTON */}
-          <button
-            type="button"
-            onClick={() => setShowDetails(!showDetails)}
-            style={{
+              padding: '10px 18px',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: '2px solid #3b82f6',
+              color: '#3b82f6',
+              backgroundColor: 'var(--bg-card)',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-secondary)',
-              fontSize: '0.76rem',
-              fontWeight: 700,
-              padding: '4px 0',
             }}
           >
-            {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            <span>{showDetails ? 'Thu gọn chi tiết file & log phân tích' : 'Xem chi tiết file đã đọc & phân tích nghiệp vụ'}</span>
-          </button>
-
-          {/* EXPANDABLE DETAILS */}
-          {showDetails && (
-            <div
+            <span>Chi tiết đối soát</span>
+            <span
               style={{
-                padding: '14px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                backgroundColor: (result?.messages?.length ?? 0) > 0 ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                color: (result?.messages?.length ?? 0) > 0 ? '#3b82f6' : 'var(--text-muted)',
               }}
             >
-              {/* Files Found */}
-              <div>
-                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Danh sách tệp tin đã nạp:
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.74rem', fontFamily: 'monospace' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={13} color="#38bdf8" />
-                    <span style={{ color: 'var(--text-muted)' }}>DSGD Gốc:</span>
-                    <span style={{ color: result?.filesFound?.dsgdOriginal ? '#10b981' : '#ef4444' }}>
-                      {result?.filesFound?.dsgdOriginal || 'Chưa tìm thấy'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={13} color="#38bdf8" />
-                    <span style={{ color: 'var(--text-muted)' }}>DSGD Snapshot:</span>
-                    <span style={{ color: result?.filesFound?.dsgdTemp ? '#10b981' : '#f59e0b' }}>
-                      {result?.filesFound?.dsgdTemp || 'Không tìm thấy snapshot'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={13} color="#38bdf8" />
-                    <span style={{ color: 'var(--text-muted)' }}>Straits CSV:</span>
-                    <span style={{ color: result?.filesFound?.acmTrades ? '#10b981' : '#ef4444' }}>
-                      {result?.filesFound?.acmTrades || 'Chưa tìm thấy'}
-                    </span>
-                  </div>
+              {result?.messages?.length ?? 0}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Content Area (Fixed Height with Internal Scroll) */}
+      <div style={{ maxHeight: '240px', minHeight: '160px', overflowY: 'auto', padding: '16px 20px' }}>
+        {!hasChecked ? (
+          <div style={{ padding: '32px 16px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <Clock size={30} color="var(--text-muted)" />
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              Chưa chạy kiểm tra DSGD trước EOD phiên này. Nhấn &ldquo;Check DSGD Trước EOD&rdquo; để quét.
+            </span>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+              Hệ thống sẽ đối chiếu file DSGD gốc với snapshot chốt chiều và khớp lệnh tự doanh ACM (MS vs Straits CSV).
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Missing Snapshot Alert */}
+            {result?.isSnapshotMissing && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                }}
+              >
+                <AlertTriangle size={16} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#f59e0b', display: 'block' }}>
+                    CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!
+                  </span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
+                    Không tìm thấy file snapshot <code>DSGD*.xlsx</code> chụp trong khung giờ chiều. Hệ thống đã chặn so sánh với chính file gốc để chống báo thành công ảo.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Danh sách 3 tệp tin đã nạp */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '10px',
+              }}
+            >
+              <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileSpreadsheet size={16} color="#3b82f6" />
+                <div style={{ overflow: 'hidden' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>DSGD Gốc:</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: result?.filesFound?.dsgdOriginal ? '#10b981' : '#ef4444' }}>
+                    {result?.filesFound?.dsgdOriginal || 'Chưa tìm thấy'}
+                  </span>
                 </div>
               </div>
 
-              {/* Messages from Service */}
-              {result?.messages && result.messages.length > 0 && (
-                <div>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    Thông báo phân tích nghiệp vụ:
+              <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileSpreadsheet size={16} color="#10b981" />
+                <div style={{ overflow: 'hidden' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>DSGD Snapshot:</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: result?.filesFound?.dsgdTemp ? '#10b981' : '#f59e0b' }}>
+                    {result?.filesFound?.dsgdTemp || 'Không tìm thấy snapshot'}
                   </span>
-                  <div
-                    style={{
-                      maxHeight: '140px',
-                      overflowY: 'auto',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '0.74rem',
-                      fontFamily: 'monospace',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                    }}
-                  >
-                    {result.messages.map((msg, idx) => (
-                      <div key={idx} style={{ color: msg.includes('FAIL') || msg.includes('CẢNH BÁO') ? '#ef4444' : 'var(--text-primary)' }}>
-                        {msg}
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
 
-      {/* ADVANCED MODAL SETTINGS */}
+              <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileSpreadsheet size={16} color="#a855f7" />
+                <div style={{ overflow: 'hidden' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Straits CSV:</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: result?.filesFound?.acmTrades ? '#10b981' : '#ef4444' }}>
+                    {result?.filesFound?.acmTrades || 'Chưa tìm thấy'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Thông báo phân tích chi tiết */}
+            {result?.messages && result.messages.length > 0 && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.74rem',
+                }}
+              >
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Nhật ký đối soát chi tiết:
+                </span>
+                {result.messages.map((msg, idx) => (
+                  <div key={idx} style={{ color: msg.includes('FAIL') || msg.includes('CẢNH BÁO') ? '#ef4444' : 'var(--text-primary)' }}>
+                    • {msg}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <CheckDsgdBeforeEodModal
         isOpen={showAdvancedModal}
         onClose={() => setShowAdvancedModal(false)}

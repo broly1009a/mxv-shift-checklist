@@ -1,3 +1,337 @@
+## [2026-10-20T16:28] FEATURE & CONFIG: Đồng Bộ Đường Dẫn Backup ACM (Straits CSV) Sang Màn Hình CCP-CE & Cập Nhật Mặc Định Thư Mục Sổ Sách Thống Kê CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - *"hiện tại ở màn hình https://10.0.0.26/trading-manager/settings/ccp-ce đang để trống và thiếu đường dẫn backupACM tương tự như của https://10.0.0.26/trading-manager/settings/ms-cqg( có thể bốc sang để lấy vì dùng chung)"*.
+  - Khắc phục tình trạng ô *"Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)"* hiển thị trống (`M:\...`) trên màn hình Cấu hình CCP-CE (`/trading-manager/settings/ccp-ce`).
+  - Đưa đường dẫn *"Đường dẫn backup ACM (Straits CSV)"* hiển thị đồng bộ dùng chung trên cả 2 phân hệ `MS - CQG` và `CCP - CE`.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. **[frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)**:
+   - Cung cấp giá trị fallback mặc định chuẩn khi khởi tạo state từ Database nếu chưa có cấu hình:
+     + `bot_backup_path_ccp`: `'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'`
+     + `bot_backup_path_ce`: `'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures'`
+     + `bot_backup_path_acm`: `'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures'`
+     + `bot_ccp_stat_target_root`: `'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output'`
+   - Bố cục danh sách đường dẫn rành mạch theo scope:
+     + Khi ở phân hệ `MS - CQG`: Hiển thị 8 đường dẫn (gồm Backup MS, CQG, ACM, TradingCheck...).
+     + Khi ở phân hệ `CCP - CE`: Hiển thị 4 đường dẫn theo đúng tiêu đề trang (CCP - CE - ACM - Master CCP):
+       1. Đường dẫn backup CoreCCP (VNCLEAR)
+       2. Đường dẫn backup CoreEX (Giao Dịch Liên Thông CE)
+       3. Đường dẫn backup ACM (Straits CSV)
+       4. Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)
+   - Lưu trữ đồng bộ: Khi người dùng bấm *"Lưu Cấu Hình"* ở phân hệ `CCP_CE`, hệ thống lưu đồng thời cả 4 key: `bot_backup_path_ccp`, `bot_backup_path_ce`, `bot_backup_path_acm`, `bot_ccp_stat_target_root` vào cùng bảng `system_settings` trong MongoDB.
+   - Nút *"Chuẩn hóa ổ M:\"* tự động chuẩn hóa cả 4 đường dẫn khi người dùng đang ở tab CCP-CE.
+
+2. **Cơ sở dữ liệu MongoDB `system_settings` trên máy chủ `10.0.0.26`**:
+   - Khởi tạo (upsert) key `bot_ccp_stat_target_root` với giá trị chuẩn: `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp\output`.
+   - Xác nhận sự tồn tại và tính hợp lệ của `bot_backup_path_ccp`, `bot_backup_path_ce`, `bot_backup_path_acm`.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- **Biên dịch Frontend**:
+  - Local: `cmd /c "npm run build"` -> **Exit code 0 (Pass 100%)**.
+  - Server `10.0.0.26`: `npm run build` -> **Exit code 0 (Pass 100%)**, 49/49 pages tối ưu hóa hoàn chỉnh.
+  - Restart PM2 `mxv-frontend` trên server: Dịch vụ `online`, PID `3275723`.
+- **Kiểm thử trực tiếp Live API (`/system-settings/verify-storage-path`)**:
+  - `CoreCCP`: exists: `true`, canWrite: `true` (Thư mục tồn tại và có đầy đủ quyền ghi).
+  - `CoreEX`: exists: `true`, canWrite: `true` (Thư mục tồn tại và có đầy đủ quyền ghi).
+  - `ACM`: exists: `true`, canWrite: `true` (Thư mục tồn tại và có đầy đủ quyền ghi).
+  - `Thong Ke CCP Master`: exists: `true`, canWrite: `true` (Thư mục tồn tại và có đầy đủ quyền ghi).
+
+---
+
+## [2026-10-20T16:05] BUG FIX: Sửa Lỗi Nhặt Nhầm Cột USD Thay Vì VND Trong Bảng Tổng Hợp Table 3 (Executive Dashboard)
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi hiển thị số liệu Lãi lỗ Table 3 trên Executive Dashboard (`/trading-manager/dashboard` và Modal 44 mặt hàng):
+  - Phản ánh từ USER và Trader: *"tại sao tiền ít thế chắc chắn tính sai rồi... bên trader bảo phải lên mấy tỉ"*.
+  - Kiểm tra thực tế: Tiêu đề cột ghi `(VND)` nhưng số liệu hiển thị chỉ là `(10,803,327)` và `(2,551,175)` do parser nhặt nhầm cột nguyên tệ USD (cột 17 MS, cột 13 CCP) thay vì cột quy đổi tiền đồng VND (cột 18 MS, cột 14 CCP).
+  - Kết quả sau khi sửa: Tổng lỗ dự kiến ngày 20.10.2026 hiển thị đúng chuẩn tiền đồng là **-280,971,621,524 VND (-280.9 tỷ đồng)** thay vì -10.8 triệu. Riêng ZWA hiển thị **-61,739,496,000 VND (-61.7 tỷ đồng)** thay vì -2.55 triệu.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. **[backend/src/modules/trading-ops/parsers/ms-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/ms-excel.parser.ts)**:
+   - Trong `parseTTMForExecutive`: Sửa chuỗi target và mảng alias của `findHeaderIndex` sang `'Lãi lỗ dự kiến (VND)'`, loại bỏ hoàn toàn `'Lãi lỗ dự kiến'` thô để tránh bắt nhầm Cột 17 (USD), đảm bảo luôn trỏ chính xác Cột 18 (VND).
+   - Trong `parseTTTTForExecutive`: Sửa chuỗi target và alias sang `'Lãi lỗ thực tế (VND)'`, loại bỏ `'Lãi lỗ thực tế'` thô để tránh bắt nhầm Cột 19 (USD), đảm bảo luôn trỏ chính xác Cột 20 (VND).
+2. **[backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts)**:
+   - Trong `parseCcpTTMForExecutive`: Định danh chính xác `'Lãi lỗ dự kiến(VND)'` / `'Lãi lỗ dự kiến (VND)'` (Cột 14 VND), loại bỏ alias `'Lãi lỗ dự kiến'` (Cột 13 USD).
+   - Trong `parseCcpTTTTForExecutive`: Định danh chính xác `'Lãi lỗ thực tế(VND)'` / `'Lãi lỗ thực tế (VND)'` (Cột 1 VND), loại bỏ alias `'Lãi lỗ thực tế'` (Cột 0 USD).
+
+### 3. Kết quả Kiểm thử & Triển khai
+- **Biên dịch Local**:
+  - Backend: `cmd /c "npm run build"` -> **Exit code 0 (Pass 100%)**.
+  - Frontend: `cmd /c "npm run build"` -> **Exit code 0 (Pass 100%)**.
+- **Triển khai Server 10.0.0.26**:
+  - Đồng bộ parser sang `/opt/mxv-checklist/backend/src/modules/trading-ops/parsers/`.
+  - Biên dịch backend và restart PM2 `mxv-backend`.
+  - Kiểm thử trực tiếp API: `GET /api/v1/trading-ops/executive-dashboard?date=2026-10-20&refresh=true`:
+    + `totals.expectedPnL`: `-280,971,621,524` (-280.9 tỷ VNĐ).
+    + `ZWA ExpectedPnL`: `-61,739,496,000` (-61.7 tỷ VNĐ).
+    + `SI5CO ExpectedPnL`: `-52,710,821,280` (-52.7 tỷ VNĐ).
+    + `totals.realizedPnL`: `-112,305,424` (-112 triệu VNĐ).
+
+---
+
+## [2026-10-20T15:52] UI/UX SIMPLIFICATION: Tinh Gọn Modal Tùy Chọn CheckDSGDBeforeEOD, Chuyển Chú Thích Thành Hover Tooltip & Xóa Bỏ Suy Diễn Rườm Rà
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu và chỉ đạo bằng văn bản trực tiếp của USER:
+  1. *"ở phần tùy trọn này bạn đang bị nhầm lẫn giữa hai phân hệ rồi với Kiểm Tra DSGD Trước EOD của CCP sẽ khác với của MS như tôi đang ở của CCP thì ấn tùy chọn nó lại hiện ra Tự động kéo file snapshot mới nhất từ M-System về trước khi đối chiếu. đồng thời nhiều thông tin không liên quan..."*:
+     - Xóa bỏ triệt để các tùy chọn phỏng đoán, suy diễn gây rối rắm: Bỏ checkbox "Kích hoạt Bot tải file mới nhất từ M-System về", bỏ checkbox "Khớp chính xác ngày (exactDate)", bỏ các khối văn bản giải thích dài dòng trong modal.
+     - Tinh gọn Modal [CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx) thành hộp thoại gọn gàng (maxWidth: 540px), chỉ tập trung vào đúng 2 trường thiết yếu:
+       + **Ngày phiên đối soát**: Ô chọn ngày trực quan.
+       + **File snapshot chiều**: Lựa chọn tự động file mới nhất HOẶC nhập hậu tố `timeSuffix` (ví dụ `172842`).
+       + Tóm tắt vắn tắt 3 file chuẩn: `DSGD.xlsx`, `DSGD{timeSuffix}.xlsx`, `Straits CSV`.
+  2. *"cần clear màn hình ít chứ tức là di chuột vào icon i chú thích thì sẽ hiện ra ra các Các tệp tin đầu vào bắt buộc: DSGD.xlsx, DSGD{timeSuffix}.xlsx, Straits CSV là được rồi kèm công thức đối chiếu core ngắn gọn là được rồi"*:
+     - Trong [DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx): Chuyển chú thích thành **Hover Tooltip** popover nổi ngay trên icon `Info` `(i)` cạnh tiêu đề.
+     - Xóa bỏ hoàn toàn khối tab giải thích chiếm dụng màn hình bên dưới, trả lại không gian thoáng đãng, đồng bộ 100% với giao diện `Đối chiếu giao dịch trước EOD`.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx):
+   - Thu nhỏ kích thước modal, xóa bỏ 4 card nghiệp vụ cồng kềnh, xóa bỏ các checkbox không liên quan.
+2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Bổ sung hover tooltip popover cho icon `(i)` hiển thị 3 file bắt buộc và công thức core.
+   - Giản lược vùng nội dung bên dưới chỉ hiển thị nhật ký và danh sách tệp khi đã quét.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Pass 100%)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên server Ubuntu `10.0.0.26`.
+
+---
+
+## [2026-10-20T15:48] FEATURE & UI REFINEMENT: Phân Luồng Thông Minh Cho Hành Động "Check Lại" (Futures Qua MS API, ACM Qua CoreCCP API) & Tinh Gọn Nút Trùng Lặp Trên UI
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo của USER:
+  1. *"giúp tôi thêm logic nếu là future thì gọi qua api ms check lại còn nếu là acm thì gọi qua ccp giúp tôi fix"*: Tự động phân loại tài khoản khi chạy "Check lại" (Smart Re-check / E2E). Nếu là Futures thì gọi qua M-System REST API để kiểm tra và cập nhật trạng thái; nếu là ACM (có đuôi `-A` hoặc yêu cầu mở tiểu khoản ACM) thì gọi qua CoreCCP REST API (VNCLEAR) để đồng bộ dữ liệu bù trừ.
+  2. *"và bỏ chữ Đồng bộ CCP thì không cần thiết"*: Loại bỏ nút "Đồng bộ CCP" trên thanh thao tác hàng loạt (Floating Selection Bar) của bảng danh sách hồ sơ vì hành động "Check lại" đã bao quát thông minh cả 2 hệ thống.
+  3. *"Cũng bỏ luôn chữ check lại trên modal vì duplicate"*: Gỡ bỏ nút "Check lại" tại thanh công cụ dưới đáy Modal Soi hồ sơ (`TkgdInspectionModal.tsx`) để tránh trùng lặp dư thừa với nút "Check lại" ngoài bảng chính.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. **[TkgdInspectionModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/modal/TkgdInspectionModal.tsx)**:
+   - Gỡ bỏ nút `Check lại` (`Smart Re-check`) trong footer modal, chỉ giữ lại các nút chính: `[Phê duyệt]` và `[Đóng]`.
+   - Dọn dẹp state thừa `isReparsing` và import `RefreshCw`.
+2. **[TkgdRecordsTable.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/components/TkgdRecordsTable.tsx)**:
+   - Gỡ bỏ nút `Đồng bộ CCP` (`handleBulkSyncCcp`) tại thanh floating bar khi chọn nhiều dòng.
+   - Dọn dẹp hàm `handleBulkSyncCcp` không còn sử dụng.
+   - Bổ sung `resyncCcp: true` vào `handleBulkRunE2E` để đảm bảo cờ phân luồng luôn được truyền đầy đủ.
+3. **[tkgd.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/frontend/src/features/tkgd/services/tkgd.api.ts)**:
+   - Khai báo bổ sung `resyncCcp?: boolean` trong interface `options` của `bulkReRunE2E`.
+4. **[tkgd-automation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/tkgd-automation/tkgd-automation.service.ts)**:
+   - Nâng cấp `bulkReRunE2E`: Duyệt qua danh sách tài khoản được chọn, nhận diện loại tài khoản:
+     + **Futures**: Gọi `msCrawlerService.syncMSystemAccounts(userEmail, { investorCode: baseCode })` qua REST API trực tiếp.
+     + **ACM** (mã `-A` hoặc có yêu cầu ACM): Gọi `ccpApiService.processAccountFullWorkflow(acmCode)` qua CoreCCP OAuth2 API.
+     + Thực hiện đồng bộ API **trước** khi chạy đối soát/reparse để đảm bảo kết quả đánh giá luôn dựa trên dữ liệu mới nhất.
+   - Nâng cấp `reparseAccount`: Bổ sung cơ chế tự động đồng bộ MS (cho Futures) và CoreCCP (cho ACM) trước khi quét lại tệp và tái thẩm định quy tắc.
+5. **[tkgd-reconcile-core.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/tkgd-automation/services/tkgd-reconcile-core.service.ts)**:
+   - Chuẩn hóa mã tài khoản truyền vào `processAccountFullWorkflow` trong `reEvaluateRecord` để đảm bảo luôn dùng đúng mã tiểu khoản `-A`.
+6. **[tkgd-reconcile-rules.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-account-opening-reconciler/backend/src/modules/engine-helpers/tkgd-reconcile-rules.helper.ts)**:
+   - Lọc bỏ các nhãn nhiễu OCR ("Địa chỉ", "Nơi thường trú", "Quê quán") khi so khớp nơi cấp CCCD.
+   - Tự động nhận diện chuẩn nơi cấp đối với CCCD gắn chip 12 số là `CỤC CẢNH SÁT QLHC VỀ TTXH`, loại bỏ hoàn toàn cảnh báo lệch ảo nơi cấp.
+
+### 3. Kết quả Kiểm thử & Triển khai Máy chủ (10.1.0.16)
+- **Kiểm thử Biên dịch**:
+  + Frontend: `npx tsc --noEmit` & `npm run build` -> **Exit code 0 (Success)**.
+  + Backend: `npx tsc --noEmit` & `npm run build` -> **Exit code 0 (Success)**.
+- **Triển khai máy chủ**:
+  + Chạy `sync_to_server.py` deploy toàn bộ Backend & Frontend lên `10.1.0.16`.
+  + Reload PM2 thành công: `mxv-account-opening-reconciler` (PID online) & `mxv-account-opening-reconciler-ui` (PID online).
+- **Kiểm thử thực tế Live**:
+  + Kích hoạt "Check lại" tài khoản `007C0012955`:
+    - MS API hoàn tất trong 63ms: `Sùng Thị Pàng` | CCCD: `004194004204` | `ACTIVE`.
+    - CoreCCP API tự động gọi cho tiểu khoản `007C0012955-A`: tải đủ CCCD & Chữ ký, trạng thái `Hoạt động`.
+    - Kết luận đối soát: **KHOP (100% khớp, 0 lỗi, `needsManualReview: false`)**.
+
+---
+
+## [2026-10-20T15:45] UI/UX HARMONIZATION: Đặt Mặc Định Phân Hệ CoreCCP – CoreEX & Đồng Bộ 100% Styling CheckDSGDBeforeEOD Giống Đối Chiếu Trước EOD
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. *"giúp tôi hiển thị phân hệ CoreCCP-CoreEX mặc định"*: Cập nhật trạng thái khởi tạo `scopeTab` mặc định là `'CCP_CE'` thay vì `'ALL'`, giúp khi truy cập màn hình `/trading-manager/session-open/klgd-phien-cu`, hệ thống tập trung ngay vào phân hệ mới CoreCCP ↔ CoreEX.
+  2. *"giao diện Kiểm Tra DSGD Trước EOD (CheckDSGDBeforeEOD) phần styles tương tự Đối chiếu giao dịch trước EOD vì tôi thấy hai giao diện đang khác nhau"*:
+     - Tái cấu trúc component [DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx) đồng bộ hoàn toàn với [LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx):
+       + **Khung thẻ chuẩn**: `glass-panel` với `padding: 0`, bo góc 12px, viền và đổ bóng chuẩn Enterprise.
+       + **Header Toolbar**: Thanh công cụ nền `var(--bg-input)`, icon vuông bo góc 32x32 `ShieldCheck` màu xanh, tiêu đề in đậm `Kiểm tra DSGD trước EOD (CheckDSGDBeforeEOD)` kèm timestamp thời gian kiểm tra inline, status badge pill và các nút hành động đồng bộ (`Tùy chọn...`, `Sao chép`, `Check DSGD Trước EOD`).
+       + **4 Thẻ Metrics Card Luôn Hiển Thị (Part 1 Top Row)**: Bố cục lưới 4 cột hiển thị thường trực ngay cả khi chưa bấm quét (`ACM Tự doanh MS vs Straits`, `DSGD Gốc vs Snapshot`, `Lệnh Khớp Lệch Trades`, `Trạng thái Snapshot & An toàn`), loại bỏ hoàn toàn khung viền nét đứt (dashed box) thô kệch cũ.
+       + **Thanh Subtabs & Khu vực Nội dung Có Chiều Cao Cố Định**: Thanh tab bên dưới (`Chi tiết phân tích & Tệp tin`, `Hướng dẫn & Tiêu chuẩn nghiệm thu`) với vùng nội dung có `maxHeight: '280px'`, `minHeight: '180px'`, `overflowY: 'auto'`, hiển thị giao diện chờ sang trọng khi chưa quét và danh sách tệp/log phân tích chi tiết khi đã quét.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+   - Chuyển `scopeTab` mặc định khởi tạo thành `'CCP_CE'`.
+2. [frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx):
+   - Thiết kế lại 100% layout theo chuẩn Header Toolbar + 4 Metric Cards + Subtabs Area của `LegacyPreEodDiffSection`.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Pass 100%)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên server Ubuntu `10.0.0.26`.
+
+---
+
+## [2026-10-20T15:35] UI/UX REFINEMENT: Đặt Nút Phân Hệ Bên Cạnh Ngày Phiên & Cố Định Chiều Cao Cuộn Bảng Pre-EOD CoreCCP ↔ CoreEX
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. *"nút này sẽ đặt bên cạnh ngày phiên"*: Chuyển thanh chuyển đổi phân hệ (Segmented Tab: Tất cả / MS – CQG / CoreCCP – CoreEX) lên thanh Header Bar nằm ngay bên cạnh bộ chọn `Phiên: MM/DD/YYYY`.
+  2. Bỏ khối card banner thừa chiếm diện tích bên dưới để giao diện liền mạch, tinh gọn.
+  3. *"Chi tiết đối chiếu Pre-EOD (CoreCCP ↔ CoreEX) nếu có nhiều bản ghi sẽ dẫn đến scroll rất lâu giúp tôi fix lại để có độ dài cố định chuẩn ui/ux như các trang khác"*:
+     - Bổ sung `maxHeight: '280px'`, `minHeight: '160px'`, `overflowY: 'auto'` cho cả 2 bảng lệch lệnh (`filteredTrades`) và lệch vị thế net (`filteredPositions`) trong [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx).
+     - Ghim tiêu đề bảng `thead` cố định (`position: 'sticky', top: 0, zIndex: 5`) giúp quan sát cột dễ dàng khi cuộn danh sách lớn, đồng bộ 100% UI/UX với `LegacyPreEodDiffSection`.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+   - Đưa Tab Switcher button group lên Header bar đặt cạnh `Phiên:`.
+   - Xóa bỏ card banner `Phân hệ đối chiếu trước EOD:` bên dưới.
+2. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx):
+   - Thêm `maxHeight: '280px'`, `minHeight: '160px'`, `overflowY: 'auto'` và sticky header `thead` cho cả 2 bảng lệch lệnh và lệch vị thế net.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Pass 100%)**.
+- Đã đồng bộ sang cả 2 repo: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Đã upload và build lại trên server Ubuntu `10.0.0.26`:
+  + Next.js 16.2.9 (Turbopack) build thành công 49/49 routes.
+  + Restart PM2 `mxv-frontend` (PID 3260736, online).
+  + Curl `http://localhost:3000/trading-manager/session-open/klgd-phien-cu` -> **HTTP 200 OK**.
+
+---
+
+## [2026-10-20T15:15] FEATURE: Bổ Sung CheckDSGDBeforeEOD Đứng Trước & Tích Hợp Đối Chiếu Giao Dịch Trước EOD Của Cả MS Và CCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - Trang `https://10.0.0.26/trading-manager/session-open/klgd-phien-cu`:
+    1. Bổ sung component **CheckDSGDBeforeEOD** (`<DsgdBeforeEodSection />`) đứng trước phần Đối chiếu giao dịch trước EOD.
+    2. Nâng cấp phần **Đối chiếu giao dịch trước EOD** thành hỗ trợ **cả MS và CCP** thay vì chỉ có MS đơn lẻ như trước:
+       - **Phân hệ MS – CQG**: Đối chiếu trước EOD M-System vs CQG & ACM (`<LegacyPreEodDiffSection />`).
+       - **Phân hệ CoreCCP – CoreEX**: Đối chiếu trước EOD CoreCCP (VNCLEAR Maker) vs CoreEX (`<CcpCeEodReconSection viewMode="PRE_EOD_ONLY" />`).
+    3. Cung cấp thanh chuyển đổi phân hệ linh hoạt dạng Segmented Control: `[Tất cả (MS & CCP)]` | `[Phân hệ MS – CQG]` | `[Phân hệ CoreCCP – CoreEX]`.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx):
+   - Bổ sung prop `viewMode?: 'ALL' | 'PRE_EOD_ONLY'` vào `CcpCeEodReconSectionProps`.
+   - Khi `viewMode === 'PRE_EOD_ONLY'`: Chỉ render khung Chi tiết đối chiếu Pre-EOD CoreCCP ↔ CoreEX, ẩn thanh điều khiển Date Picker, ẩn khối âm ký quỹ & EOD run, và ẩn `DsgdBeforeEodSection` ở chân trang để tránh trùng lặp.
+2. [frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx):
+   - Đặt `<DsgdBeforeEodSection />` ở vị trí đầu tiên ngay dưới Header.
+   - Thêm thanh Tab Switcher và bọc cả 2 phân hệ MS – CQG và CoreCCP – CoreEX.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success - 0 errors)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên máy chủ Ubuntu `10.0.0.26`:
+  + Đã upload thành công 2 file `CcpCeEodReconSection.tsx` và `klgd-phien-cu/page.tsx` lên `/opt/mxv-checklist/frontend`.
+  + Build Next.js 16.2.9 (Turbopack): **Compiled successfully in 10.8s, Finished TypeScript in 21.3s, 49/49 static routes generated (Exit code 0)**.
+  + Restart tiến trình `pm2 restart mxv-frontend` (PID 3255022, status: online).
+  + Kiểm thử endpoint thực tế: `curl http://localhost:3000/trading-manager/session-open/klgd-phien-cu` -> **HTTP 200 OK**.
+
+---
+
+## [2026-10-20T10:35] FEATURE: Ẩn "Mock Chuẩn BGĐ", Tối Giản Header Dashboard Đồng Bộ Chuẩn Reconciliation & Tích Hợp Skeleton Transformation / Cache
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Ẩn hoàn toàn nút **"Mock Chuẩn BGĐ"** trên trang Dashboard (`/trading-manager/dashboard`), chỉ hiển thị badge tinh gọn **"Dữ liệu Live"** kèm chỉ báo trạng thái đồng bộ thực tế.
+  2. Bổ sung **hiệu ứng transformation & skeleton loader** khi dữ liệu chưa kịp load để màn hình không bị giật, tránh nhấp nháy hoặc hiển thị trống trơn.
+  3. Hoàn thiện cơ chế **SessionStorage Cache (Stale-While-Revalidate)**: Khi chuyển ngày hoặc chọn lượt kiểm tra, dữ liệu được tải tức thì (0ms reload) từ cache nếu có, sau đó revalidate ngầm và cập nhật mượt mà với transition.
+  4. Sửa lại giao diện Header của trang Dashboard đồng bộ 100% với phong cách trang `reconciliation`:
+     - Bỏ toàn bộ khối card to cồng kềnh với mô tả dài dòng không quan trọng.
+     - Header chỉ hiển thị đơn giản: Tag `QUẢN LÝ GIAO DỊCH (QLGD)`, H1 chữ `DASHBOARD` kèm icon Lucide `LayoutDashboard`, bộ chọn ngày `Phiên:` và nút phóng to toàn màn hình.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/dashboard/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/dashboard/page.tsx):
+   - Thay đổi toàn bộ phần Header sang giao diện chuẩn của `reconciliation` (Tag xanh `QUẢN LÝ GIAO DỊCH (QLGD)` + H1 `DASHBOARD` + Date picker `Phiên:` + Fullscreen button).
+   - Loại bỏ các breadcrumb và badge thừa thãi.
+   - Truyền `hideHeaderCard={true}`, `sessionDateProp={selectedDate}`, `onSelectDate={setSelectedDate}` vào `QlgdExecutiveDashboard`.
+2. [frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - Đã xóa bỏ hoàn toàn nút `Mock Chuẩn BGĐ`, thay bằng badge `Dữ liệu Live` tinh gọn.
+   - Ẩn khối Header card to cồng kềnh khi `hideHeaderCard === true`.
+   - Tích hợp `sessionStorage` cache theo `(date, scope, jobId)` cho trải nghiệm tức thì.
+   - Thêm component `DashboardSkeleton`: Shimmer pulse loader cho 2 cards phân khúc ACM & Còn lại và Bảng 17 mặt hàng khi `loadingLive && !liveData`.
+   - Bọc Section 2 và Section 3 trong transition loader mượt mà (`opacity: loadingLive ? 0.8 : 1, transition: 'opacity 0.25s ease-in-out'`).
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript local: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên máy chủ Ubuntu `10.0.0.26`: Upload thành công và chạy `npm run build && pm2 restart mxv-frontend`.
+
+---
+
+## [2026-10-20T10:10] FEATURE: Phân Tách Trang Backup Thành 2 Phân Hệ Con Độc Lập (MS–CQG & CCP–CE) & Tinh Chỉnh Giao Diện Trực Quan
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - Chia menu/trang Backup thành 2 sub cha và con:
+    - **Sub cha**: Backup
+    - **Sub con 1**: **Backup MS – CQG** (`/trading-manager/backup/ms-cqg`) gồm 3 cột: Backup MS (20 file), Backup CQG (9 file), Backup ACM (4 file). Ẩn hoàn toàn các phần: *"Kết quả đồng bộ số dư CQG"*, *"Kiểm tra ký quỹ TKGD"*, *"Thống kê (số lot & giá trị)"*, và các shortcut link `[Mở Thư Mục Backup]`, `[Lịch Sử Ca Trực]`, `[Cấu Hình Bot Toàn Diện]`. Không hiển thị cột CoreCCP trên trang này.
+    - **Sub con 2**: **Backup CCP – CE** (`/trading-manager/backup/ccp-ce`) gồm 3 cột: Backup CoreCCP (25 file), Backup CoreEX (12 file), Backup ACM (4 file). Ẩn các phần thừa bên dưới (đối chiếu giá thanh toán GTT và kiểm tra ký quỹ IMR) để giao diện hiển thị gọn gàng, trực quan và đồng bộ giống ảnh mẫu.
+  - Đồng bộ và hoàn thiện trang Thống kê MS (`/trading-manager/statistics/ms`): tích hợp thanh lọc nhanh trạng thái (`Tất cả`, `Hoàn thành`, `Đang xử lý`, `Thất bại`) cùng phân trang nhỏ gọn (5 items/trang).
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx):
+   - Thêm props `hideFooterSections?: boolean;` và `hideSubTabs?: boolean;`.
+   - Bọc Subtab switcher trong `{!hideSubTabs && ...}` và các panel chân trang (GTT checker, IMR checker) trong `{!hideFooterSections && ...}`.
+2. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+   - Đã có sẵn props `filterScope="MS_CQG"`, `hideFooterSections={true}`, `hideSubTabs={true}` để ẩn hoàn toàn cột CoreCCP, thanh tab switcher và toàn bộ các section chân trang (Sync balance, IMR, Thống kê, shortcut links).
+3. [frontend/src/app/trading-manager/backup/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/ms-cqg/page.tsx):
+   - Trang độc lập cho Backup MS – CQG với thanh chọn phiên, chế độ toàn màn hình, nút quay lại Dashboard và 3 cột file chuẩn trực quan.
+4. [frontend/src/app/trading-manager/backup/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/ccp-ce/page.tsx):
+   - Trang độc lập cho Backup CCP – CE gồm 3 cột: CoreCCP 25 file, CoreEX 12 file, ACM 4 file.
+5. [frontend/src/app/trading-manager/backup/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/page.tsx):
+   - Tự động chuyển hướng (`router.replace`) về `/trading-manager/backup/ms-cqg`.
+6. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
+   - Chuyển đổi mục "Backup" thành menu Accordion cha - con gồm `Backup MS – CQG` và `Backup CCP – CE`.
+   - Bổ sung state `backup: true` trong `openSubMenus` và tự động mở accordion khi điều hướng vào URL `/trading-manager/backup/*`.
+7. [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/statistics/ms/page.tsx):
+   - Hoàn thiện bộ lọc trạng thái và phân trang gọn gàng.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên máy chủ Ubuntu `10.0.0.26`:
+  - `npm run build` thành công, Next.js đã prerender tĩnh 4 route mới: `/trading-manager/backup`, `/trading-manager/backup/ms-cqg`, `/trading-manager/backup/ccp-ce`, `/trading-manager/statistics/ms`.
+  - Restart PM2 service `mxv-frontend` thành công (status: `online`).
+
+---
+
+## [2026-10-20T09:53] REFACTOR: Làm Sạch Triệt Để Logic Nhận Diện Menu Sidebar, Kiểm Chứng 100% CSDL Thực Tế
+
+### 1. Mục tiêu thay đổi
+- Thực hiện nghiêm túc phản hồi của USER: *"bạn lại hardcode đoán mò hay sao sao bạn không checkrole hoặc database để có thông tin thay vì đoán mò"*.
+- Truy vấn trực tiếp CSDL MongoDB `mxv_shift_checklist` trên server `10.0.0.26` để lấy dữ liệu thực tế (Ground Truth):
+  1. **Bảng `roles`**: Chỉ có 6 role cấp bậc chuẩn: `ADMIN`, `DEPARTMENT_HEAD`, `STAFF`, `DIVISION_DIRECTOR`, `CEO`, `CHAIRMAN`. Hệ thống **hoàn toàn không dùng role để định danh phòng ban** (không có role nào là `QLGD` hay `BAN_CSTT`).
+  2. **Bảng `departments`**:
+     - `IT_CORE`: Vận hành Công nghệ Thông tin (parent: null)
+     - `IT_RND`: Nghiên cứu và Phát triển Công nghệ (parent: null)
+     - `BAN_GSTT`: Ban Giám sát thị trường (parent: null)
+     - `QLGD_OPS`: Quản lý giám sát giao dịch (parent: `BAN_GSTT`)
+     - `QLRR_RISK`: Quản lý giám sát rủi ro (parent: `BAN_GSTT`)
+  3. **Bảng `users`**: Mọi nhân sự vận hành giao dịch (`quyetvx`, `tubui`, `sonhh`, `minhle`, `anhdao`, v.v...) đều liên kết qua trường `departmentId` trỏ trực tiếp tới bản ghi `QLGD_OPS`.
+- Xóa bỏ triệt để toàn bộ các chuỗi phỏng đoán rác:
+  - Xóa `role === 'QLGD'`, `role === 'BAN_CSTT'`.
+  - Xóa mã phỏng đoán không tồn tại: `deptCode === 'GSGD'`, `deptCode === 'CSTT'`.
+  - Xóa các phép fuzzy matching: `deptCode.toUpperCase().includes(...)`, `normalizeText()`, `deptNameNorm.includes(...)`.
+- Quy chuẩn logic duy nhất dựa trên **Mã phòng ban (Department Code) chuẩn xác**:
+  ```typescript
+  const isQlgd =
+    deptCode === 'QLGD_OPS' ||
+    deptCode === 'BAN_CSTT' ||
+    deptCode === 'BAN_GSTT' ||
+    (parentDeptCode === 'BAN_GSTT' && deptCode !== 'QLRR_RISK') ||
+    (parentDeptCode === 'BAN_CSTT' && deptCode !== 'QLRR_RISK');
+  ```
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts):
+   - Xóa bỏ toàn bộ hàm `normalizeText` và mảng fallback đoán mò.
+   - Nhận diện trực tiếp qua mã phòng ban `QLGD_OPS`, `BAN_CSTT`, `BAN_GSTT`.
+2. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
+   - Tiêu đề nhóm hiển thị động theo `user.department?.name || 'Quản lý giao dịch'`.
+
+### 3. Kết quả Kiểm thử
+- TypeScript: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
+
+---
+
 ## [2026-10-20T10:28] BUGFIX & REFACTOR: Khôi Phục Hoàn Toàn 8 API Thống Kê CoreCCP Bị 404 & Khắc Phục Lỗi Hiển Thị Tỷ Giá Cố Định 26.000 đ
 
 ### 1. Mục tiêu thay đổi

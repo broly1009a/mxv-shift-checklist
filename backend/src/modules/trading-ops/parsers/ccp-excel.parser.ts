@@ -437,7 +437,11 @@ export class CcpExcelParser {
     const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
     const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Ma TKGD']);
     const pnlVndIdx = this.findHeaderIndex(header, 'Lãi lỗ dự kiến(VND)', [
-      'Lãi lỗ dự kiến (VND)', 'Lãi lỗ dự kiến', 'PnL (VND)', 'Lai lo du kien',
+      'Lãi lỗ dự kiến (VND)',
+      'Lãi lỗ dự kiến VND',
+      'PnL (VND)',
+      'Lai lo du kien(VND)',
+      'Lai lo du kien (VND)',
     ]);
 
     if (maHDIdx === -1) return [];
@@ -499,8 +503,13 @@ export class CcpExcelParser {
     const klMuaIdx = this.findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'Buy Volume']);
     const maHDIdx = this.findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Ma hop dong', 'Hợp đồng', 'Contract', 'Ma HD']);
     const soTKIdx = this.findHeaderIndex(header, 'Mã TKGD', ['Số tài khoản', 'So tai khoan', 'Tài khoản', 'Account', 'Ma TKGD']);
-    const pnlThucTeIdx = this.findHeaderIndex(header, 'Lãi lỗ thực tế', [
-      'Lãi lỗ thực tế(VND)', 'Lãi lỗ thực tế (VND)', 'Realized PnL', 'Lai lo thuc te',
+    const pnlThucTeIdx = this.findHeaderIndex(header, 'Lãi lỗ thực tế(VND)', [
+      'Lãi lỗ thực tế (VND)',
+      'Lãi lỗ thực tế VND',
+      'Realized PnL (VND)',
+      'Realized PnL(VND)',
+      'Lai lo thuc te(VND)',
+      'Lai lo thuc te (VND)',
     ]);
 
     const targetColIdx = klBanIdx !== -1 ? klBanIdx : klMuaIdx;

@@ -185,13 +185,13 @@ export default function TradingManagerConfigSection({
       setGttImportPath(toWindowsM(map.gtt_import_path || ''));
       setBotBackupPathCqg(toWindowsM(map.bot_backup_path_cqg || ''));
       setBotBackupPathMs(toWindowsM(map.bot_backup_path_ms || ''));
-      setBotBackupPathAcm(toWindowsM(map.bot_backup_path_acm || ''));
+      setBotBackupPathAcm(toWindowsM(map.bot_backup_path_acm || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures'));
       setBotLotMacroPath(toWindowsM(map.bot_ms_lot_stat_path || map.bot_lot_macro_target_root || map.bot_macro_lot_path || map.bot_lot_macro_path || ''));
       setBotMacroValuePath(toWindowsM(map.bot_ms_value_stat_path || map.bot_macro_value_path || ''));
       setNewsTeamStatPath(toWindowsM(map.news_team_stat_path || ''));
-      setBotBackupPathCcp(toWindowsM(map.bot_backup_path_ccp || ''));
-      setBotBackupPathCe(toWindowsM(map.bot_backup_path_ce || ''));
-      setBotCcpStatTargetRoot(toWindowsM(map.bot_ccp_stat_target_root || ''));
+      setBotBackupPathCcp(toWindowsM(map.bot_backup_path_ccp || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures'));
+      setBotBackupPathCe(toWindowsM(map.bot_backup_path_ce || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures'));
+      setBotCcpStatTargetRoot(toWindowsM(map.bot_ccp_stat_target_root || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output'));
 
       if (map.negative_margin_monitored_accounts) {
         try {
@@ -399,6 +399,7 @@ export default function TradingManagerConfigSection({
               ...(ccpRatesMatrix['RMB'] ? [{ key: 'ccp_rmb_exchange_rate', value: String(ccpRatesMatrix['RMB'].conversionRate) }] : []),
               { key: 'bot_backup_path_ccp', value: botBackupPathCcp },
               { key: 'bot_backup_path_ce', value: botBackupPathCe },
+              { key: 'bot_backup_path_acm', value: botBackupPathAcm },
               { key: 'bot_ccp_stat_target_root', value: botCcpStatTargetRoot },
             ]
           : []),
@@ -1326,7 +1327,7 @@ export default function TradingManagerConfigSection({
               <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                 {isMsCqgScope
                   ? 'Gồm 8 thư mục chuẩn: Backup MS/CQG/ACM, Thư mục TradingCheck, 2 Sổ Master FOM (Lot & Giá trị) và Ban Tin Tức'
-                  : 'Gồm 3 thư mục độc lập: Backup 25 báo cáo CoreCCP, Backup CoreEX và Thư mục 10 Master Templates CCP'}
+                  : 'Gồm 4 thư mục: Backup 25 báo cáo CoreCCP, Backup CoreEX, Backup ACM (Straits CSV) và Thư mục 10 Master Templates CCP'}
               </p>
             </div>
           </div>
@@ -1351,6 +1352,7 @@ export default function TradingManagerConfigSection({
                 } else {
                   setBotBackupPathCcp((p) => toWindowsM(p));
                   setBotBackupPathCe((p) => toWindowsM(p));
+                  setBotBackupPathAcm((p) => toWindowsM(p));
                   setBotCcpStatTargetRoot((p) => toWindowsM(p));
                 }
                 toast.success('Đã chuẩn hóa toàn bộ đường dẫn về định dạng ổ M:\\ (Windows)!');
@@ -1369,101 +1371,96 @@ export default function TradingManagerConfigSection({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {[
-            {
-              id: 'botBackupPathMs',
-              label: 'Đường dẫn backup M-System (Futures)',
-              val: botBackupPathMs,
-              setVal: setBotBackupPathMs,
-              desc: 'Thư mục gốc lưu trữ 20 báo cáo tải về từ M-System (DSGD, TTM, TTTT, DSQLKQ...)',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'botBackupPathCqg',
-              label: 'Đường dẫn backup CQG (Futures)',
-              val: botBackupPathCqg,
-              setVal: setBotBackupPathCqg,
-              desc: 'Thư mục gốc lưu trữ 9 báo cáo thô tải về từ CQG (FR, PS, OP, OD, AS...)',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'botBackupPathAcm',
-              label: 'Đường dẫn backup ACM (Straits CSV)',
-              val: botBackupPathAcm,
-              setVal: setBotBackupPathAcm,
-              desc: 'Thư mục lưu trữ file Straits CSV giao dịch khớp lệnh ACM Nano',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'reconFolderCheckPath',
-              label: 'Đường dẫn tải file check trong phiên (TradingCheck)',
-              val: reconFolderCheckPath,
-              setVal: setReconFolderCheckPath,
-              desc: 'Thư mục lưu trữ các file tải nhanh giữa phiên phục vụ kiểm tra đối chiếu KLGD',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'reconResultFolderPath',
-              label: 'Đường dẫn lưu kết quả check KLGD',
-              val: reconResultFolderPath,
-              setVal: setReconResultFolderPath,
-              desc: 'Thư mục xuất file báo cáo Kết quả check KLGD_{suffix}.xlsx',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'botLotMacroPath',
-              label: 'Thư mục Sổ sách Thống kê Số Lot (MS - CQG)',
-              val: botLotMacroPath,
-              setVal: setBotLotMacroPath,
-              desc: 'Thư mục lưu trữ sổ Master năm (FOM - Thong ke so lot giao dich...) và file tháng (DSGD T{MM}.{YYYY}.xlsx)',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'botMacroValuePath',
-              label: 'Thư mục Sổ sách Thống kê Giá Trị (MS - CQG)',
-              val: botMacroValuePath,
-              setVal: setBotMacroValuePath,
-              desc: 'Thư mục lưu trữ sổ Master năm (FOM - Thong ke gia tri giao dich - {YYYY}.xlsx...)',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'newsTeamStatPath',
-              label: 'Thư mục Báo cáo Ban Tin Tức',
-              val: newsTeamStatPath,
-              setVal: setNewsTeamStatPath,
-              desc: 'Thư mục lưu file báo cáo Giá trị giao dịch phiên cho Ban Tin Tức',
-              category: 'MS_CQG',
-            },
-            {
-              id: 'botBackupPathCcp',
-              label: 'Đường dẫn backup CoreCCP (VNCLEAR)',
-              val: botBackupPathCcp,
-              setVal: setBotBackupPathCcp,
-              desc: 'Thư mục lưu 25 báo cáo chuẩn hệ thống bù trừ thanh toán CoreCCP (DSL, DSLDK, DSGD CCP, TTM CCP, TTTT, GTT CCP...)',
-              category: 'OMS',
-            },
-            {
-              id: 'botBackupPathCe',
-              label: 'Đường dẫn backup CoreEX (Giao Dịch Liên Thông CE)',
-              val: botBackupPathCe,
-              setVal: setBotBackupPathCe,
-              desc: 'Thư mục lưu trữ báo cáo từ hệ thống giao dịch CoreEX (DSGD ACM CE, DSL ACM CE, GTT ACM...)',
-              category: 'OMS',
-            },
-            {
-              id: 'botCcpStatTargetRoot',
-              label: 'Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)',
-              val: botCcpStatTargetRoot,
-              setVal: setBotCcpStatTargetRoot,
-              desc: 'Thư mục chứa 10 Master Templates CCP (Thống kê số lot & giá trị CCP) và thư mục output bảng tháng',
-              category: 'OMS',
-            },
-          ]
-            .filter((item) => {
-              if (isMsCqgScope) return item.category === 'MS_CQG';
-              if (isCcpCeScope) return item.category === 'OMS';
-              return true;
-            })
+          {(isMsCqgScope
+            ? [
+                {
+                  id: 'botBackupPathMs',
+                  label: 'Đường dẫn backup M-System (Futures)',
+                  val: botBackupPathMs,
+                  setVal: setBotBackupPathMs,
+                  desc: 'Thư mục gốc lưu trữ 20 báo cáo tải về từ M-System (DSGD, TTM, TTTT, DSQLKQ...)',
+                },
+                {
+                  id: 'botBackupPathCqg',
+                  label: 'Đường dẫn backup CQG (Futures)',
+                  val: botBackupPathCqg,
+                  setVal: setBotBackupPathCqg,
+                  desc: 'Thư mục gốc lưu trữ 9 báo cáo thô tải về từ CQG (FR, PS, OP, OD, AS...)',
+                },
+                {
+                  id: 'botBackupPathAcm',
+                  label: 'Đường dẫn backup ACM (Straits CSV)',
+                  val: botBackupPathAcm,
+                  setVal: setBotBackupPathAcm,
+                  desc: 'Thư mục lưu trữ file Straits CSV giao dịch khớp lệnh ACM Nano (Dùng chung phân hệ MS - CQG & CoreCCP - CoreEX)',
+                },
+                {
+                  id: 'reconFolderCheckPath',
+                  label: 'Đường dẫn tải file check trong phiên (TradingCheck)',
+                  val: reconFolderCheckPath,
+                  setVal: setReconFolderCheckPath,
+                  desc: 'Thư mục lưu trữ các file tải nhanh giữa phiên phục vụ kiểm tra đối chiếu KLGD',
+                },
+                {
+                  id: 'reconResultFolderPath',
+                  label: 'Đường dẫn lưu kết quả check KLGD',
+                  val: reconResultFolderPath,
+                  setVal: setReconResultFolderPath,
+                  desc: 'Thư mục xuất file báo cáo Kết quả check KLGD_{suffix}.xlsx',
+                },
+                {
+                  id: 'botLotMacroPath',
+                  label: 'Thư mục Sổ sách Thống kê Số Lot (MS - CQG)',
+                  val: botLotMacroPath,
+                  setVal: setBotLotMacroPath,
+                  desc: 'Thư mục lưu trữ sổ Master năm (FOM - Thong ke so lot giao dich...) và file tháng (DSGD T{MM}.{YYYY}.xlsx)',
+                },
+                {
+                  id: 'botMacroValuePath',
+                  label: 'Thư mục Sổ sách Thống kê Giá Trị (MS - CQG)',
+                  val: botMacroValuePath,
+                  setVal: setBotMacroValuePath,
+                  desc: 'Thư mục lưu trữ sổ Master năm (FOM - Thong ke gia tri giao dich - {YYYY}.xlsx...)',
+                },
+                {
+                  id: 'newsTeamStatPath',
+                  label: 'Thư mục Báo cáo Ban Tin Tức',
+                  val: newsTeamStatPath,
+                  setVal: setNewsTeamStatPath,
+                  desc: 'Thư mục lưu file báo cáo Giá trị giao dịch phiên cho Ban Tin Tức',
+                },
+              ]
+            : [
+                {
+                  id: 'botBackupPathCcp',
+                  label: 'Đường dẫn backup CoreCCP (VNCLEAR)',
+                  val: botBackupPathCcp,
+                  setVal: setBotBackupPathCcp,
+                  desc: 'Thư mục lưu 25 báo cáo chuẩn hệ thống bù trừ thanh toán CoreCCP (DSL, DSLDK, DSGD CCP, TTM CCP, TTTT, GTT CCP...)',
+                },
+                {
+                  id: 'botBackupPathCe',
+                  label: 'Đường dẫn backup CoreEX (Giao Dịch Liên Thông CE)',
+                  val: botBackupPathCe,
+                  setVal: setBotBackupPathCe,
+                  desc: 'Thư mục lưu trữ báo cáo từ hệ thống giao dịch CoreEX (DSGD ACM CE, DSL ACM CE, GTT ACM...)',
+                },
+                {
+                  id: 'botBackupPathAcm',
+                  label: 'Đường dẫn backup ACM (Straits CSV)',
+                  val: botBackupPathAcm,
+                  setVal: setBotBackupPathAcm,
+                  desc: 'Thư mục lưu trữ file Straits CSV giao dịch khớp lệnh ACM Nano (Dùng chung phân hệ MS - CQG & CoreCCP - CoreEX)',
+                },
+                {
+                  id: 'botCcpStatTargetRoot',
+                  label: 'Thư mục Sổ sách Thống kê CoreCCP (Lot & Giá Trị)',
+                  val: botCcpStatTargetRoot,
+                  setVal: setBotCcpStatTargetRoot,
+                  desc: 'Thư mục chứa 10 Master Templates CCP (Thống kê số lot & giá trị CCP) và thư mục output bảng tháng',
+                },
+              ]
+          )
             .map((item) => {
             const status = pathStatus[item.id];
             const isChecking = !!pathChecking[item.id];
