@@ -1,3 +1,31 @@
+## [2026-10-20T09:39] AUDIT & REFACTOR: Xóa Bỏ Hoàn Toàn Các Hardcode Thư Mục Con Cố Định (`Tai lieu hoat dong`, `output`, `Backup MS`) Khỏi Toàn Bộ Giao Diện & Component
+
+### 1. Mục tiêu thay đổi
+- Thực hiện triệt để phản hồi của USER:
+  1. *"setReconFolderCheckPath((p) => toWindowsM(p || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\TradingCheck\\Futures')); ... sao mày hay hardcode thế"*
+  2. *"\\Tai lieu hoat dong\\Thong ke ccp\\output đoạn này vẫn là hardcode à"*
+- Tuân thủ tuyệt đối **Quy tắc 7 (Universal Zero-Hardcoding & Data-Driven Architecture Standard)**:
+  - Loại bỏ hoàn toàn mọi chuỗi đường dẫn gán cứng trong fallback, `useState` ban đầu, và các nút bấm tạo mẫu.
+  - Chuyển sang cơ chế **Data-Driven 100%**: Giá trị mặc định là chuỗi rỗng `''`, tải từ CSDL; các hàm sinh đường dẫn tự động phải suy luận động từ chính thư mục gốc (`bot_backup_path_ccp`) do Quản trị viên nhập/chọn trên giao diện.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+   - Xóa bỏ chuỗi gán cứng `Tai lieu hoat dong\Thong ke ccp\output`.
+   - Refactor hàm `handleApplyDefaultOutputPaths` thành cơ chế Data-Driven: Lấy trực tiếp từ thư mục gốc `backupPathCcp` do người dùng cấu hình; nếu chưa nhập thì thông báo nhắc nhở thay vì tự ý gán bừa một đường dẫn tĩnh.
+   - Xóa bỏ mảng `presets` tùy tiện chứa `Backup MS` bị đặt sai vị trí bên trong ô nhập Backup CCP.
+2. [frontend/src/app/admin/bot-config/components/BackupAuditor.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/BackupAuditor.tsx):
+   - Chuyển toàn bộ `useState` khởi tạo (`backupPathCqg`, `backupPathAcm`, `targetRoot`) về chuỗi rỗng `''`, đảm bảo 100% lấy dữ liệu từ API CSDL.
+3. [frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+   - Chuyển `folderPathMs`, `folderPathCqg`, `basePathMs`, `basePathCqg` từ các chuỗi ngày tháng/thư mục gán cứng về `''`.
+4. [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx):
+   - Xóa fallback đường dẫn cứng trong hiển thị; hiển thị rõ `(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)`.
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: **Exit code 0**.
+- `npm run build` (Turbopack): **Exit code 0** (36/36 routes biên dịch thành công 100%).
+
+---
+
 ## [2026-10-20T09:28] ARCHITECTURE REFACTOR: Đóng Gói Toàn Bộ Ánh Xạ Đường Dẫn & Presets Vào File Cấu Hình Tập Trung `storage-path.config.ts`
 ## [2026-10-20T09:25] REFACTOR: Chuẩn Hóa Nhận Diện Bộ Phận "Giám Sát Giao Dịch" (QLGD) Theo Data-Driven CSDL, Loại Bỏ Hardcode Phỏng Đoán
 

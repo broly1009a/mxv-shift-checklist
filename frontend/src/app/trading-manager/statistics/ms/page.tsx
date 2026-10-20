@@ -450,8 +450,8 @@ export default function MsStatisticsPage() {
               <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', minWidth: '180px' }}>
                 Thư mục Thống kê số Lot:
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-primary)', wordBreak: 'break-all' }}>
-                {lotStatPath || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke so lot giao dich'}
+              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: lotStatPath ? 'var(--text-primary)' : 'var(--text-muted)', wordBreak: 'break-all' }}>
+                {lotStatPath || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
               </span>
             </div>
 
@@ -459,8 +459,8 @@ export default function MsStatisticsPage() {
               <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', minWidth: '180px' }}>
                 Thư mục Thống kê Giá trị:
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-primary)', wordBreak: 'break-all' }}>
-                {valueStatPath || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke gia tri giao dich'}
+              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: valueStatPath ? 'var(--text-primary)' : 'var(--text-muted)', wordBreak: 'break-all' }}>
+                {valueStatPath || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
               </span>
             </div>
           </div>

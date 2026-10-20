@@ -31,6 +31,7 @@ import {
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
 import SmartPathInput from '@/components/admin/SmartPathInput';
+import { STORAGE_MOUNT_CONFIG } from '@/config/storage-path.config';
 
 export interface CcpLotStatisticsSectionProps {
   token: string | null;
@@ -275,22 +276,26 @@ export default function CcpLotStatisticsSection({
     }
   };
 
-  // Nạp nhanh bộ đường dẫn mặc định chuẩn (trỏ vào thư mục con output/)
+  // Tạo nhanh bộ 10 file con dựa trên Thư mục gốc CCP đã cấu hình (Data-Driven, không hardcode thư mục)
   const handleApplyDefaultOutputPaths = () => {
-    const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
-    setBackupPathCcp('');
-    setPathAcmLot(`${defaultOut}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`);
-    setPathAcmGtgd(`${defaultOut}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`);
-    setPathNormalLot(`${defaultOut}\\Thong ke so lot giao dich \${YYYY}.xlsx`);
-    setPathSpreadLot(`${defaultOut}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`);
-    setPathLmeLot(`${defaultOut}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`);
-    setPathOptionsLot(`${defaultOut}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`);
-    setPathGtgdNormal(`${defaultOut}\\Thong ke gia tri giao dich \${YYYY}.xlsx`);
-    setPathGtgdSpread(`${defaultOut}\\Thong ke gia tri giao dich Spread \${YYYY}.xlsx`);
-    setPathGtgdLme(`${defaultOut}\\Thong ke gia tri giao dich LME \${YYYY}.xlsx`);
-    setPathGtgdOptions(`${defaultOut}\\Thong ke gia tri giao dich Options \${YYYY}.xlsx`);
-    setPathDsgdCumulative(`${defaultOut}\\DSGD T\${MM}.\${YYYY} CCP.xlsx`);
-    toast.success('Đã nạp bộ đường dẫn mặc định chuẩn (thư mục output). Vui lòng bấm "Lưu Cấu Hình" để xác nhận.');
+    const baseDir = backupPathCcp.trim().replace(/[/\\]+$/, '');
+    if (!baseDir) {
+      toast.error('Vui lòng cấu hình "Thư mục gốc quét báo cáo CCP" trước để hệ thống tạo nhanh đường dẫn file con!');
+      return;
+    }
+    const outputDir = `${baseDir}\\output`;
+    setPathAcmLot(`${outputDir}\\Thong ke so lot giao dich ACM \${YYYY}.xlsx`);
+    setPathAcmGtgd(`${outputDir}\\Thong ke gia tri giao dich ACM \${YYYY}.xlsx`);
+    setPathNormalLot(`${outputDir}\\Thong ke so lot giao dich \${YYYY}.xlsx`);
+    setPathSpreadLot(`${outputDir}\\Thong ke so lot giao dich Spread \${YYYY}.xlsx`);
+    setPathLmeLot(`${outputDir}\\Thong ke so lot giao dich LME \${YYYY}.xlsx`);
+    setPathOptionsLot(`${outputDir}\\Thong ke so lot giao dich Options \${YYYY}.xlsx`);
+    setPathGtgdNormal(`${outputDir}\\Thong ke gia tri giao dich \${YYYY}.xlsx`);
+    setPathGtgdSpread(`${outputDir}\\Thong ke gia tri giao dich Spread \${YYYY}.xlsx`);
+    setPathGtgdLme(`${outputDir}\\Thong ke gia tri giao dich LME \${YYYY}.xlsx`);
+    setPathGtgdOptions(`${outputDir}\\Thong ke gia tri giao dich Options \${YYYY}.xlsx`);
+    setPathDsgdCumulative(`${outputDir}\\DSGD T\${MM}.\${YYYY} CCP.xlsx`);
+    toast.success(`Đã tạo nhanh bộ đường dẫn 10 file con trỏ vào: ${outputDir}`);
   };
 
   // Đồng bộ tỷ giá mới nhất từ tệp ngày CoreCCP hoặc M-System và lưu vào CSDL
@@ -1610,18 +1615,8 @@ export default function CcpLotStatisticsSection({
                 value={backupPathCcp}
                 onChange={setBackupPathCcp}
                 label="Thư mục gốc quét báo cáo CCP (bot_backup_path_ccp):"
-                placeholder="M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures (hoặc /mnt/...)"
+                placeholder="vd: M:\...\Backup CCP\Futures hoặc /mnt/qlgd-it/..."
                 targetType="folder"
-                presets={[
-                  {
-                    name: 'Backup CCP',
-                    path: '',
-                  },
-                  {
-                    name: 'Backup MS',
-                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-                  },
-                ]}
               />
 
               {/* ── Nhóm 1: File ACM (Phase 1) ── */}

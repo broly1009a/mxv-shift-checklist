@@ -33,8 +33,8 @@ function getPreviousWorkday(d: Date = new Date()): Date {
 export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsPanelProps) {
   // Mode Selection: 'folder' (scan server folder) vs 'upload' (upload local files)
   const [runMode, setRunMode] = useState<'folder' | 'upload'>('folder');
-  const [folderPathMs, setFolderPathMs] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\\2026\\T07.2026\\16.07');
-  const [folderPathCqg, setFolderPathCqg] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures\\2026\\T07.2026\\16.07');
+  const [folderPathMs, setFolderPathMs] = useState('');
+  const [folderPathCqg, setFolderPathCqg] = useState('');
 
   // Config & Parameters States
   const [ngayGD, setNgayGD] = useState(() => {
@@ -72,8 +72,8 @@ export default function LotStatisticsPanel({ token, apiBaseUrl }: LotStatisticsP
   const [result, setResult] = useState<any>(null);
   const [resultTab, setResultTab] = useState<'summary' | 'validations' | 'product' | 'tvkd'>('summary');
   const [savingConfig, setSavingConfig] = useState(false);
-  const [basePathMs, setBasePathMs] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
-  const [basePathCqg, setBasePathCqg] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures');
+  const [basePathMs, setBasePathMs] = useState('');
+  const [basePathCqg, setBasePathCqg] = useState('');
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
