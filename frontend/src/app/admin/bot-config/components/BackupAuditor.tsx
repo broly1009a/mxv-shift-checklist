@@ -36,14 +36,14 @@ export default function BackupAuditor({
   const [triggeringAuditMs, setTriggeringAuditMs] = useState(false);
 
   // Backup CQG states
-  const [backupPathCqg, setBackupPathCqg] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures');
+  const [backupPathCqg, setBackupPathCqg] = useState('');
   const [savingBackupPathCqg, setSavingBackupPathCqg] = useState(false);
   const [auditingCqg, setAuditingCqg] = useState(false);
   const [auditCqgResults, setAuditCqgResults] = useState<any>(null);
   const [triggeringAuditCqg, setTriggeringAuditCqg] = useState(false);
 
   // Backup ACM states
-  const [backupPathAcm, setBackupPathAcm] = useState('C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures');
+  const [backupPathAcm, setBackupPathAcm] = useState('');
   const [auditingAcm, setAuditingAcm] = useState(false);
   const [auditAcmResults, setAuditAcmResults] = useState<any>(null);
   const [triggeringAuditAcm, setTriggeringAuditAcm] = useState(false);
@@ -60,7 +60,7 @@ export default function BackupAuditor({
   const [macroLotPath, setMacroLotPath] = useState('');
   const [macroLotScriptPath, setMacroLotScriptPath] = useState('');
   const [pythonExe, setPythonExe] = useState('python');
-  const [targetRoot, setTargetRoot] = useState('M:\\Quanlygiaodich\\Tai lieu hoat dong');
+  const [targetRoot, setTargetRoot] = useState('');
   const [savingMacroConfig, setSavingMacroConfig] = useState(false);
   const [triggeringMacroLot, setTriggeringMacroLot] = useState(false);
 

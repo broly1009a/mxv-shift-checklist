@@ -104,6 +104,114 @@
 
 ---
 
+## [2026-10-20T10:28] BUGFIX & REFACTOR: Khôi Phục Hoàn Toàn 8 API Thống Kê CoreCCP Bị 404 & Khắc Phục Lỗi Hiển Thị Tỷ Giá Cố Định 26.000 đ
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi người dùng phản ánh trên giao diện Thống kê CCP (`https://10.0.0.26/trading-manager/statistics/ccp`):
+  * Báo lỗi 404: `Cannot GET /api/v1/ccp-statistics/lot-statistics/config` và `Cannot GET /api/v1/ccp-statistics/lot-statistics/scan-daily?date=2026-10-20`.
+  * Giao diện báo đỏ: `Thư mục ngày: 2026-10-20 (Chưa có file DSGD) • DSGD: X | TTM: X | TTTT: X | Tỷ giá: 1 USD = 26.000 đ` dù thư mục đĩa và CSDL thực tế đã có đầy đủ dữ liệu và tỷ giá 25.920 đ.
+- Nguyên nhân gốc rễ:
+  1. Trong đợt tái cấu trúc commit `13a9745`, `CcpStatisticsModule` bị unhook và chuyển vào `legacy/archive/`, trong khi `CcpReconController` mới của Modular V2 chưa chuyển giao 8 route nghiệp vụ thống kê CoreCCP.
+  2. Giao diện Frontend bị 404 khiến `scanResult` bằng `null`, kéo theo toàn bộ cờ file bị đánh dấu `✗` và rơi vào fallback `26000`.
+  3. Thứ tự quét tỷ giá trong `CcpLotStatisticsService.scanDailyFiles` ưu tiên tính suy diễn từ `TTTT/TTM` và để file chính thức `Tỷ giá CCP.xlsx` ở nhánh `else if`.
+
+### 2. Danh sách file chỉnh sửa & thêm mới
+1. [backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts):
+   - Đưa vào phân hệ chuẩn `trading-ops`.
+   - Cập nhật hàm `scanDailyFiles`: Đảo thứ tự ưu tiên nhận diện tỷ giá: Đọc trực tiếp từ tệp chuẩn CoreCCP (`Tỷ giá CCP.xlsx`) trước để lấy chính xác tỷ giá 25.920 đ, sau đó mới fallback sang `TTTT/TTM`.
+   - Chuẩn hóa DI: Inject `CcpCeScraperService` từ `modules/ingress`.
+2. [backend/src/modules/trading-ops/services/ccp-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-statistics.service.ts):
+   - Đưa vào phân hệ chuẩn `trading-ops`.
+3. [backend/src/modules/trading-ops/helpers/ccp-classifier.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-classifier.helper.ts):
+   - Helper bóc tách dòng dữ liệu và trích xuất tỷ giá từ báo cáo CCP.
+4. [backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts):
+   - Helper ghi sổ lũy kế và phân giải đường dẫn thông minh.
+5. [backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts):
+   - Tích hợp toàn diện 8 endpoint bị thiếu: `lot-statistics/config` (GET/POST), `lot-statistics/scan-daily`, `lot-statistics/process-daily`, `lot-statistics/run-lot`, `lot-statistics/run-value`, `lot-statistics/write-accumulator`, `lot-statistics` (upload form), và các route pilot `config`, `process`.
+6. [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts):
+   - Đăng ký `CcpLotStatisticsService`, `CcpStatisticsService` và schema `CcpLotRunHistory`.
+7. [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+   - Sửa biểu thức tỷ giá hiển thị: Ưu tiên `detectedRate` $\rightarrow$ `ccpUsd` (DB) $\rightarrow$ `usd` (DB) $\rightarrow$ `tyGiaUsed` $\rightarrow$ `25920`.
+
+### 3. Kết quả Kiểm thử & Build
+- Backend:
+  * `cmd /c npx tsc --project tsconfig.build.json`: **Exit code 0 (Success)**
+  * `cmd /c npm run build` (nest build): **Exit code 0 (Success)**
+- Frontend:
+  * `cmd /c npx tsc --noEmit`: **Exit code 0 (Success)**
+  * `cmd /c npm run build` (next build Turbopack): **Exit code 0 (Success - 49/49 routes)**
+
+---
+
+## [2026-10-20T09:58] UI/UX ENHANCEMENT: Thu Gọn Bảng Tiến Trình Macro Real-Time, Bổ Sung Bộ Lọc Nhanh Trạng Thái (Chips) & Phân Trang Gọn Gàng
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: *"{/* Lịch sử thực thi gần đây */} ... đang quá dài giúp tôi điều chỉnh lại ui để nếu có nhiều dữ liệu vẫn hiển thị trực quan"*.
+- Khắc phục tình trạng bảng mở rộng theo chiều dọc làm kéo dài trang web, khó quan sát khi có nhiều tác vụ lịch sử.
+- Triển khai các tính năng UI Enterprise:
+  1. **Bộ lọc trạng thái dạng Chips (Status Pills)**: Cho phép lọc nhanh `Tất cả`, `Hoàn thành`, `Đang chạy`, `Lỗi` kèm đếm số lượng trực tiếp.
+  2. **Thanh cuộn bảng có giới hạn chiều cao & Sticky Header**: Bảng có `maxHeight: '230px'`, `overflowY: 'auto'` và tiêu đề dính cố định để cuộn mượt mà không đẩy chân trang xuống dưới.
+  3. **Badge tên tác vụ thân thiện**: Chuyển đổi mã kỹ thuật (`RUN_LOT_MACRO`, `RUN_VALUE_MACRO`...) thành nhãn tiếng Việt rõ nghĩa (`Macro Số Lot`, `Macro Giá Trị`...).
+  4. **Phân trang nhẹ nhàng (5 dòng/trang)**: Có bộ đếm số lượng tác vụ và nút chuyển trang `< Trang X / Y >`.
+  5. **Nút liên kết nhanh**: Mở thẳng trang Quản trị Hàng Đợi & Logs (`/trading-manager/job-queue`).
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx):
+  - Tích hợp `useMemo` tính toán `filteredJobs`, `paginatedJobs`, `jobCounts`.
+  - Thiết kế lại toàn bộ panel tiến trình gọn gàng, trực quan và không bị dài.
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: **Exit code 0 (Success)**.
+- `npm run build` (Turbopack): **Exit code 0** (47/47 routes thành công 100%).
+
+---
+
+## [2026-10-20T09:53] UI/UX FIX: Chuẩn Hóa Hiển Thị Đường Dẫn Thống Kê MS-CQG, Phân Định Rõ Thư Mục vs Tệp Macro (.xlsm) & Đồng Bộ Định Dạng Ổ M:\
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự bất hợp lý theo ảnh chụp màn hình của USER:
+  1. Dòng 1 hiển thị đường dẫn Linux thô `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong`, trong khi dòng 2 lại hiển thị dạng Windows `M:\Tailieuchung\...`.
+  2. Dòng 2 nhãn ghi là "Thư mục Thống kê Giá trị" nhưng giá trị hiển thị lại là Tệp Excel Macro `.xlsm` (`Macro thong ke gia tri giao dich co ACM.xlsm`).
+- Cập nhật chuẩn hóa:
+  - Tự động chuyển đổi toàn bộ đường dẫn về dạng ổ mạng Windows `M:\Tailieuchung\...` thông qua `parseWindowsStoragePath`.
+  - Nếu đường dẫn gốc là Linux Server, hiển thị phụ đề chú thích `Mount máy chủ: /mnt/qlgd-it/...`.
+  - Tự động nhận diện nếu đường dẫn trỏ tới tệp `.xlsm`/`.xlsx` thì đổi nhãn thành `Tệp Macro Thống kê Giá Trị (.xlsm):` kèm icon `FileSpreadsheet` màu xanh lá thay vì gọi nhầm là `Thư mục`.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx):
+  - Tích hợp `parseWindowsStoragePath`.
+  - Phân loại rõ ràng Thư mục vs Tệp Macro cho cả 2 hàng.
+
+### 3. Kết quả Kiểm thử
+- `npx tsc --noEmit`: **Exit code 0 (Success)**.
+
+---
+
+## [2026-10-20T09:39] AUDIT & REFACTOR: Xóa Bỏ Hoàn Toàn Các Hardcode Thư Mục Con Cố Định (`Tai lieu hoat dong`, `output`, `Backup MS`) Khỏi Toàn Bộ Giao Diện & Component
+
+### 1. Mục tiêu thay đổi
+- Thực hiện triệt để phản hồi của USER:
+  1. *"setReconFolderCheckPath((p) => toWindowsM(p || 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\TradingCheck\\Futures')); ... sao mày hay hardcode thế"*
+  2. *"\\Tai lieu hoat dong\\Thong ke ccp\\output đoạn này vẫn là hardcode à"*
+- Tuân thủ tuyệt đối **Quy tắc 7 (Universal Zero-Hardcoding & Data-Driven Architecture Standard)**:
+  - Loại bỏ hoàn toàn mọi chuỗi đường dẫn gán cứng trong fallback, `useState` ban đầu, và các nút bấm tạo mẫu.
+  - Chuyển sang cơ chế **Data-Driven 100%**: Giá trị mặc định là chuỗi rỗng `''`, tải từ CSDL; các hàm sinh đường dẫn tự động phải suy luận động từ chính thư mục gốc (`bot_backup_path_ccp`) do Quản trị viên nhập/chọn trên giao diện.
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
+   - Xóa bỏ chuỗi gán cứng `Tai lieu hoat dong\Thong ke ccp\output`.
+   - Refactor hàm `handleApplyDefaultOutputPaths` thành cơ chế Data-Driven: Lấy trực tiếp từ thư mục gốc `backupPathCcp` do người dùng cấu hình; nếu chưa nhập thì thông báo nhắc nhở thay vì tự ý gán bừa một đường dẫn tĩnh.
+   - Xóa bỏ mảng `presets` tùy tiện chứa `Backup MS` bị đặt sai vị trí bên trong ô nhập Backup CCP.
+2. [frontend/src/app/admin/bot-config/components/BackupAuditor.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/BackupAuditor.tsx):
+   - Chuyển toàn bộ `useState` khởi tạo (`backupPathCqg`, `backupPathAcm`, `targetRoot`) về chuỗi rỗng `''`, đảm bảo 100% lấy dữ liệu từ API CSDL.
+3. [frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx):
+   - Chuyển `folderPathMs`, `folderPathCqg`, `basePathMs`, `basePathCqg` từ các chuỗi ngày tháng/thư mục gán cứng về `''`.
+4. [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx):
+   - Xóa fallback đường dẫn cứng trong hiển thị; hiển thị rõ `(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)`.
+
+### 3. Kết quả Kiểm thử & Build
+- `npx tsc --noEmit`: **Exit code 0**.
+- `npm run build` (Turbopack): **Exit code 0** (36/36 routes biên dịch thành công 100%).
 ## [2026-10-20T09:40] DEPLOY: Triển Khai Toàn Diện Lên Server Ubuntu 10.0.0.26 (PM2 mxv-backend & mxv-frontend)
 
 ### 1. Mục tiêu thay đổi
