@@ -14,15 +14,19 @@ import {
   Logger,
   Optional,
   UploadedFile,
+  UploadedFiles,
   UseInterceptors,
+  Req,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { CcpLotStatisticsService } from '../services/ccp-lot-statistics.service';
+import { CcpStatisticsService } from '../services/ccp-statistics.service';
 
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
@@ -63,6 +67,8 @@ export class CcpReconController {
     private readonly ccpCeDownloaderService: CcpCeScraperService,
     private readonly ceCcpGttService: CeCcpGttCheckerService,
     private readonly ccpAccumulatorService: CcpAccumulatorService,
+    private readonly ccpLotStatisticsService: CcpLotStatisticsService,
+    private readonly ccpStatisticsService: CcpStatisticsService,
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel: Model<CcpClearingLog>,
     @Optional()
@@ -722,6 +728,340 @@ export class CcpReconController {
       };
     } catch (err: any) {
       throw new BadRequestException(`Không thể lấy danh sách template: ${err.message}`);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 6. THỐNG KÊ SỐ LOT & GIÁ TRỊ GIAO DỊCH CORECCP (LOT & VALUE STATISTICS)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * GET lot-statistics/config
+   * Lấy cấu hình đường dẫn file lũy kế + CCP API URL
+   */
+  @Get('lot-statistics/config')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getLotConfig() {
+    return this.ccpLotStatisticsService.getConfig();
+  }
+
+  /**
+   * POST lot-statistics/config
+   * Lưu cấu hình đường dẫn file lũy kế + CCP API URL
+   */
+  @Post('lot-statistics/config')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async saveLotConfig(@Body() config: any) {
+    return this.ccpLotStatisticsService.saveConfig(config);
+  }
+
+  /**
+   * GET lot-statistics/scan-daily?date=YYYY-MM-DD
+   * Tự động quét thư mục backup theo ngày phiên để kiểm tra các file báo cáo CCP có sẵn.
+   */
+  @Get('lot-statistics/scan-daily')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async scanDaily(@Query('date') date?: string) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    try {
+      const scanResult = await this.ccpLotStatisticsService.scanDailyFiles(targetDate);
+      return {
+        success: true,
+        data: scanResult,
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi quét thư mục ngày: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST lot-statistics/process-daily
+   * Tự động đọc các file trong thư mục ngày và tính toán thống kê số lot & GTGD.
+   */
+  @Post('lot-statistics/process-daily')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async processDaily(@Body() body: { date?: string }) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const result = await this.ccpLotStatisticsService.processDailyFiles(targetDate);
+      return {
+        success: true,
+        data: result,
+        message: `Đã tính toán thành công từ thư mục backup ngày ${targetDate}`,
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi xử lý file từ thư mục ngày: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST lot-statistics/run-lot
+   * Tự động đọc file từ thư mục ngày, tính số lot và GHI TRỰC TIẾP vào 5 file Số Lot.
+   */
+  @Post('lot-statistics/run-lot')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runLotDirect(@Body() body: { date?: string }, @Req() req: any) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runLotStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi thống kê và ghi file Số Lot: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST lot-statistics/run-value
+   * Tự động đọc file từ thư mục ngày, quy đổi tỷ giá và GHI TRỰC TIẾP vào 5 file Giá Trị.
+   */
+  @Post('lot-statistics/run-value')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runValueDirect(@Body() body: { date?: string }, @Req() req: any) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runValueStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi thống kê và ghi file Giá Trị: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST lot-statistics/write-accumulator
+   * Ghi kết quả tổng hợp lot CCP vào file lũy kế Excel.
+   */
+  @Post('lot-statistics/write-accumulator')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async writeLotToAccumulator(@Body() body: any) {
+    if (!body?.result) {
+      throw new HttpException('Thiếu dữ liệu result trong body.', HttpStatus.BAD_REQUEST);
+    }
+
+    const config = await this.ccpLotStatisticsService.getConfig();
+    const paths = {
+      pathAcmLot: body.pathAcmLot || config.pathAcmLot || config.pathAcmCumulative || '',
+      pathAcmGtgd: body.pathAcmGtgd || config.pathAcmGtgd || config.pathGtgdAcm || '',
+      pathNormalLot: body.pathNormalLot || config.pathNormalLot || config.pathNormalCumulative || '',
+      pathSpreadLot: body.pathSpreadLot || config.pathSpreadLot || config.pathSpreadCumulative || '',
+      pathLmeLot: body.pathLmeLot || config.pathLmeLot || config.pathLmeCumulative || '',
+      pathOptionsLot: body.pathOptionsLot || config.pathOptionsLot || config.pathOptionsCumulative || '',
+      pathDsgdCumulative: body.pathDsgdCumulative || config.pathDsgdCumulative || '',
+      pathGtgdNormal: body.pathGtgdNormal || config.pathGtgdNormal || '',
+      pathGtgdSpread: body.pathGtgdSpread || config.pathGtgdSpread || '',
+      pathGtgdLme: body.pathGtgdLme || config.pathGtgdLme || '',
+      pathGtgdOptions: body.pathGtgdOptions || config.pathGtgdOptions || '',
+    };
+
+    const hasAnyPath = Object.values(paths).some((p) => p && String(p).trim().length > 0);
+    if (!hasAnyPath) {
+      throw new HttpException(
+        'Chưa cấu hình bất kỳ đường dẫn file lũy kế nào. Vui lòng vào Cấu hình đường dẫn để thiết lập.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const result = {
+      ...body.result,
+      ngayGD: new Date(body.result.ngayGD),
+    };
+
+    const jobLogs: string[] = [];
+    try {
+      const writeResult = await this.ccpLotStatisticsService.writeToAccumulator(
+        result,
+        paths,
+        undefined,
+        jobLogs,
+      );
+
+      return {
+        success: writeResult.errors.length === 0,
+        lotUpdated: writeResult.lotUpdated,
+        gtgdUpdated: writeResult.gtgdUpdated,
+        errors: writeResult.errors,
+        logs: jobLogs,
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi ghi file lũy kế: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST lot-statistics (Upload file thủ công)
+   */
+  @Post('lot-statistics')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'dsgdCcp', maxCount: 1 },
+      { name: 'dsgdMmCcp', maxCount: 1 },
+      { name: 'ttm', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+      { name: 'tyGia', maxCount: 1 },
+    ]),
+  )
+  async processLotStatistics(
+    @UploadedFiles()
+    files: {
+      dsgdCcp?: any[];
+      dsgdMmCcp?: any[];
+      ttm?: any[];
+      tttt?: any[];
+      tyGia?: any[];
+    },
+    @Body('date') dateStr: string,
+    @Body('hhOverrides') hhOverridesJson?: string,
+  ) {
+    if (!files.dsgdCcp?.[0]) {
+      throw new HttpException(
+        'Vui lòng tải lên file DSGD CCP (bắt buộc).',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!dateStr) {
+      throw new HttpException(
+        'Thiếu tham số date (YYYY-MM-DD).',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    let hhOverrides: any[] | undefined;
+    if (hhOverridesJson) {
+      try {
+        hhOverrides = JSON.parse(hhOverridesJson);
+      } catch {
+        throw new HttpException('hhOverrides JSON không hợp lệ.', HttpStatus.BAD_REQUEST);
+      }
+    }
+
+    try {
+      const result = await this.ccpLotStatisticsService.processCcpLotStatistics(
+        {
+          dsgdCcp: files.dsgdCcp[0].buffer,
+          dsgdMmCcp: files.dsgdMmCcp?.[0]?.buffer,
+          ttm: files.ttm?.[0]?.buffer,
+          tttt: files.tttt?.[0]?.buffer,
+          tyGia: files.tyGia?.[0]?.buffer,
+        },
+        {
+          ngayGD: dateStr,
+          hhOverrides,
+        },
+      );
+
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi xử lý thống kê lot CCP: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 7. THỐNG KÊ CCP PILOT (BÁC BẮC)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  @Get('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getPilotConfig() {
+    return this.ccpStatisticsService.getConfig();
+  }
+
+  @Post('config')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async savePilotConfig(@Body() config: any) {
+    return this.ccpStatisticsService.saveConfig(config);
+  }
+
+  @Post('process')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'dsgdCcp', maxCount: 1 },
+      { name: 'dsgdMmCcp', maxCount: 1 },
+      { name: 'dstkgd', maxCount: 1 },
+      { name: 'nr', maxCount: 1 },
+      { name: 'ttm', maxCount: 1 },
+      { name: 'tttt', maxCount: 1 },
+    ]),
+  )
+  async processCcpPilot(
+    @UploadedFiles()
+    files: {
+      dsgdCcp?: any[];
+      dsgdMmCcp?: any[];
+      dstkgd?: any[];
+      nr?: any[];
+      ttm?: any[];
+      tttt?: any[];
+    },
+    @Body('date') dateStr: string,
+    @Res() res: Response,
+  ) {
+    if (
+      !files.dsgdCcp?.[0] ||
+      !files.dsgdMmCcp?.[0] ||
+      !files.dstkgd?.[0] ||
+      !files.nr?.[0] ||
+      !files.ttm?.[0] ||
+      !files.tttt?.[0]
+    ) {
+      throw new HttpException(
+        'Vui lòng tải lên đầy đủ 6 file Excel (DSGD CCP, DSGD MM CCP, DSTKGD, NR, TTM, TTTT).',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const selectedDate = dateStr ? new Date(dateStr) : new Date();
+    if (isNaN(selectedDate.getTime())) {
+      throw new HttpException('Ngày chọn không hợp lệ.', HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      const outputPath = await this.ccpStatisticsService.processCcpData(
+        {
+          dsgdCcp: files.dsgdCcp[0].buffer,
+          dsgdMmCcp: files.dsgdMmCcp[0].buffer,
+          dstkgd: files.dstkgd[0].buffer,
+          nr: files.nr[0].buffer,
+          ttm: files.ttm[0].buffer,
+          tttt: files.tttt[0].buffer,
+        },
+        selectedDate,
+      );
+
+      if (!fs.existsSync(outputPath)) {
+        throw new HttpException('Không tìm thấy file kết quả.', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="Thong_ke_kich_ban_Pilot_Bac_Final.xlsx"',
+      });
+
+      const stream = fs.createReadStream(outputPath);
+      stream.pipe(res);
+    } catch (err: any) {
+      throw new HttpException(err.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -71,13 +71,17 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
 
   const showQlgdSidebar = isQlgd || (isAdmin && adminOverrideQlgd);
 
-  // Trạng thái đóng/mở submenu cho Thống kê và Tham số hệ thống
+  // Trạng thái đóng/mở submenu cho Backup, Thống kê và Tham số hệ thống
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
+    backup: true,
     stats: true,
     params: true,
   });
 
   useEffect(() => {
+    if (pathname.startsWith('/trading-manager/backup')) {
+      setOpenSubMenus((prev) => ({ ...prev, backup: true }));
+    }
     if (pathname.startsWith('/trading-manager/statistics')) {
       setOpenSubMenus((prev) => ({ ...prev, stats: true }));
     }
@@ -324,7 +328,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               justifyContent: 'space-between',
               paddingRight: '8px',
             }}>
-              <span>Quản lý giao dịch</span>
+              <span>{user.department?.name || 'Quản lý giao dịch'}</span>
               {isAdmin && (
                 <button
                   type="button"
@@ -385,16 +389,69 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <span>Nghiệp vụ đầu phiên</span>
             </Link>
 
-            {/* 4. Backup -> /trading-manager/backup */}
-            <Link
-              href="/trading-manager/backup"
-              onClick={onClose}
-              className={`nav-link ${pathname.startsWith('/trading-manager/backup') ? 'active' : ''}`}
-              title={isCollapsed ? "Sao lưu dữ liệu (Backup)" : undefined}
-            >
-              <Database size={18} style={{ flexShrink: 0 }} />
-              <span>Backup</span>
-            </Link>
+            {/* 4. Backup (Sub cha & sub con: Backup MS – CQG & Backup CCP – CE) */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div
+                onClick={() => toggleSubMenu('backup')}
+                className={`nav-link ${pathname.startsWith('/trading-manager/backup') ? 'active' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  justifyContent: 'space-between',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={isCollapsed ? "Sao lưu dữ liệu (Backup)" : undefined}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Database size={18} style={{ flexShrink: 0 }} />
+                  <span>Backup</span>
+                </div>
+                {!isCollapsed && (
+                  openSubMenus.backup ? <ChevronDown size={14} style={{ opacity: 0.7 }} /> : <ChevronRight size={14} style={{ opacity: 0.7 }} />
+                )}
+              </div>
+
+              {/* Sub items: Backup MS – CQG & Backup CCP – CE */}
+              {openSubMenus.backup && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  marginLeft: isCollapsed ? '0' : '16px',
+                  borderLeft: isCollapsed ? 'none' : '2px solid rgba(255, 255, 255, 0.08)',
+                  paddingLeft: isCollapsed ? '0' : '6px',
+                  marginBottom: '4px',
+                }}>
+                  <Link
+                    href="/trading-manager/backup/ms-cqg"
+                    onClick={onClose}
+                    className={`nav-link ${pathname === '/trading-manager/backup/ms-cqg' ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Backup MS – CQG" : undefined}
+                  >
+                    <Folder size={15} style={{ flexShrink: 0 }} />
+                    <span>Backup MS – CQG</span>
+                  </Link>
+
+                  <Link
+                    href="/trading-manager/backup/ccp-ce"
+                    onClick={onClose}
+                    className={`nav-link ${pathname === '/trading-manager/backup/ccp-ce' ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Backup CCP – CE" : undefined}
+                  >
+                    <Layers size={15} style={{ flexShrink: 0 }} />
+                    <span>Backup CCP – CE</span>
+                  </Link>
+                </div>
+              )}
+            </div>
 
             {/* 5. Thống kê (Sub cha & sub con: Thống kê MS & Thống kê CCP) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>

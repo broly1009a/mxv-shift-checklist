@@ -595,7 +595,7 @@ export default function CcpLotStatisticsSection({
                 </span>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>•</span>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                  DSGD: {scanResult?.files.dsgd?.present ? '✓' : '✗'} | TTM: {scanResult?.files.ttm?.present ? '✓' : '✗'} | TTTT: {scanResult?.files.tttt?.present ? '✓' : '✗'} | Tỷ giá: 1 USD = {fmtNum(scanResult?.dbExchangeRates?.detectedRate || result?.tyGiaUsed?.['USD'] || 26000)} đ
+                  DSGD: {scanResult?.files.dsgd?.present ? '✓' : '✗'} | TTM: {scanResult?.files.ttm?.present ? '✓' : '✗'} | TTTT: {scanResult?.files.tttt?.present ? '✓' : '✗'} | Tỷ giá: 1 USD = {fmtNum(scanResult?.dbExchangeRates?.detectedRate || scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || result?.tyGiaUsed?.['USD'] || 25920)} đ
                 </span>
               </div>
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   FileSpreadsheet,
   Maximize2,
@@ -17,6 +17,9 @@ import {
   FileText,
   Sliders,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -25,6 +28,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { api } from '@/services/api';
 import { io } from 'socket.io-client';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
+import { parseWindowsStoragePath } from '@/config/storage-path.config';
 
 export default function MsStatisticsPage() {
   const { token } = useAuth();
@@ -44,6 +48,32 @@ export default function MsStatisticsPage() {
   // Lịch sử / tiến trình các tác vụ Macro gần nhất
   const [macroJobs, setMacroJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'PROCESSING' | 'FAILED'>('ALL');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 5; // Số dòng mỗi trang để giữ giao diện luôn gọn gàng, không bị kéo dài
+
+  const filteredJobs = useMemo(() => {
+    if (statusFilter === 'ALL') return macroJobs;
+    if (statusFilter === 'PROCESSING') {
+      return macroJobs.filter((j) => j.status === 'PROCESSING' || j.status === 'PENDING');
+    }
+    return macroJobs.filter((j) => j.status === statusFilter);
+  }, [macroJobs, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+  const paginatedJobs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredJobs.slice(start, start + pageSize);
+  }, [filteredJobs, currentPage, pageSize]);
+
+  // Bộ đếm theo từng nhóm trạng thái
+  const jobCounts = useMemo(() => {
+    const total = macroJobs.length;
+    const completed = macroJobs.filter((j) => j.status === 'COMPLETED').length;
+    const processing = macroJobs.filter((j) => j.status === 'PROCESSING' || j.status === 'PENDING').length;
+    const failed = macroJobs.filter((j) => j.status === 'FAILED').length;
+    return { total, completed, processing, failed };
+  }, [macroJobs]);
 
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
@@ -160,18 +190,59 @@ export default function MsStatisticsPage() {
     }
   };
 
+  const getJobDisplayName = (jobType: string) => {
+    switch (jobType) {
+      case 'RUN_LOT_MACRO':
+        return { label: 'Macro Số Lot', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)' };
+      case 'RUN_VALUE_MACRO':
+        return { label: 'Macro Giá Trị', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.3)' };
+      case 'RUN_MACRO':
+        return { label: 'Macro Tổng Hợp', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.3)' };
+      case 'RUN_LOT_TVKD_MACRO':
+        return { label: 'Lot theo TVKD', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.3)' };
+      case 'RUN_VALUE_TVKD_MACRO':
+        return { label: 'Giá Trị theo TVKD', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)' };
+      default:
+        return { label: jobType, color: 'var(--text-secondary)', bg: 'var(--bg-input)', border: 'var(--border-color)' };
+    }
+  };
+
   const getJobStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.74rem', fontWeight: 700 }}>Hoàn thành</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.74rem', fontWeight: 700 }}>
+            <CheckCircle2 size={12} />
+            Hoàn thành
+          </span>
+        );
       case 'PROCESSING':
-        return <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', fontSize: '0.74rem', fontWeight: 700 }}>Đang chạy</span>;
+      case 'PENDING':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', fontSize: '0.74rem', fontWeight: 700 }}>
+            <Loader2 size={12} className="animate-spin" />
+            Đang chạy
+          </span>
+        );
       case 'FAILED':
-        return <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontSize: '0.74rem', fontWeight: 700 }}>Thất bại</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontSize: '0.74rem', fontWeight: 700 }}>
+            <AlertTriangle size={12} />
+            Thất bại
+          </span>
+        );
       default:
-        return <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(156, 163, 175, 0.15)', color: 'var(--text-muted)', fontSize: '0.74rem', fontWeight: 700 }}>{status}</span>;
+        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(156, 163, 175, 0.15)', color: 'var(--text-muted)', fontSize: '0.74rem', fontWeight: 700 }}>{status}</span>;
     }
   };
+
+  const parsedLot = lotStatPath ? parseWindowsStoragePath(lotStatPath) : null;
+  const lotDisplay = parsedLot?.suggestedPath || lotStatPath;
+  const isLotFile = lotStatPath.toLowerCase().endsWith('.xlsm') || lotStatPath.toLowerCase().endsWith('.xlsx');
+
+  const parsedVal = valueStatPath ? parseWindowsStoragePath(valueStatPath) : null;
+  const valDisplay = parsedVal?.suggestedPath || valueStatPath;
+  const isValueFile = valueStatPath.toLowerCase().endsWith('.xlsm') || valueStatPath.toLowerCase().endsWith('.xlsx');
 
   return (
     <ProtectedRoute>
@@ -427,13 +498,13 @@ export default function MsStatisticsPage() {
           </div>
         </div>
 
-        {/* Thông tin cấu hình đường dẫn đích */}
+        {/* Thông tin cấu hình đường dẫn đích & Tệp Macro */}
         <div className="glass-panel" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Folder size={17} color="#f59e0b" />
               <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
-                Đường dẫn thư mục lưu trữ file kết quả Macro
+                Đường dẫn Sổ sách & Tệp Macro Thống kê MS - CQG
               </strong>
             </div>
             <Link
@@ -446,85 +517,280 @@ export default function MsStatisticsPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', minWidth: '180px' }}>
-                Thư mục Thống kê số Lot:
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: lotStatPath ? 'var(--text-primary)' : 'var(--text-muted)', wordBreak: 'break-all' }}>
-                {lotStatPath || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
-              </span>
+            {/* Hàng 1: Thống kê số Lot */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
+                {isLotFile ? <FileSpreadsheet size={15} color="#10b981" /> : <Folder size={15} color="#f59e0b" />}
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {isLotFile ? 'Tệp Macro Thống kê Số Lot:' : 'Thư mục Sổ sách Số Lot:'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', wordBreak: 'break-all' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: lotDisplay ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {lotDisplay || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
+                </span>
+                {lotStatPath && lotStatPath !== lotDisplay && (
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    Mount máy chủ: {lotStatPath}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-input)' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', minWidth: '180px' }}>
-                Thư mục Thống kê Giá trị:
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: valueStatPath ? 'var(--text-primary)' : 'var(--text-muted)', wordBreak: 'break-all' }}>
-                {valueStatPath || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
-              </span>
+            {/* Hàng 2: Thống kê Giá trị */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
+                {isValueFile ? <FileSpreadsheet size={15} color="#10b981" /> : <Folder size={15} color="#f59e0b" />}
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {isValueFile ? 'Tệp Macro Thống kê Giá Trị (.xlsm):' : 'Thư mục Thống kê Giá Trị:'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', wordBreak: 'break-all' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: valDisplay ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {valDisplay || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
+                </span>
+                {valueStatPath && valueStatPath !== valDisplay && (
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    Mount máy chủ: {valueStatPath}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Lịch sử thực thi gần đây */}
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={16} color="var(--text-muted)" />
-              <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
-                Tiến trình chạy Macro gần nhất (Real-time)
-              </strong>
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Header & Bộ lọc nhanh trạng thái */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} color="var(--text-muted)" />
+                <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                  Tiến trình chạy Thống kê gần nhất
+                </strong>
+              </div>
+
+              {/* Status Filter Chips */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    border: '1px solid',
+                    borderColor: statusFilter === 'ALL' ? '#3b82f6' : 'var(--border-color)',
+                    backgroundColor: statusFilter === 'ALL' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                    color: statusFilter === 'ALL' ? '#3b82f6' : 'var(--text-secondary)',
+                    fontWeight: statusFilter === 'ALL' ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tất cả ({jobCounts.total})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('COMPLETED')}
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    border: '1px solid',
+                    borderColor: statusFilter === 'COMPLETED' ? '#10b981' : 'var(--border-color)',
+                    backgroundColor: statusFilter === 'COMPLETED' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                    color: statusFilter === 'COMPLETED' ? '#10b981' : 'var(--text-secondary)',
+                    fontWeight: statusFilter === 'COMPLETED' ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Hoàn thành ({jobCounts.completed})
+                </button>
+                {jobCounts.processing > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('PROCESSING')}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid #3b82f6',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      color: '#3b82f6',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                    className="animate-pulse"
+                  >
+                    Đang chạy ({jobCounts.processing})
+                  </button>
+                )}
+                {jobCounts.failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('FAILED')}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid',
+                      borderColor: statusFilter === 'FAILED' ? '#ef4444' : 'var(--border-color)',
+                      backgroundColor: statusFilter === 'FAILED' ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                      color: statusFilter === 'FAILED' ? '#ef4444' : 'var(--text-secondary)',
+                      fontWeight: statusFilter === 'FAILED' ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Lỗi ({jobCounts.failed})
+                  </button>
+                )}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={fetchMacroJobs}
-              disabled={loadingJobs}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <RefreshCw size={12} className={loadingJobs ? 'animate-spin' : ''} />
-              <span>Làm mới</span>
-            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={fetchMacroJobs}
+                disabled={loadingJobs}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.72rem', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '4px', height: '26px' }}
+                title="Làm mới danh sách tiến trình"
+              >
+                <RefreshCw size={11} className={loadingJobs ? 'animate-spin' : ''} />
+                <span>Làm mới</span>
+              </button>
+              <Link
+                href="/trading-manager/job-queue"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.72rem', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '4px', height: '26px', textDecoration: 'none' }}
+                title="Mở toàn bộ trang quản trị Hàng Đợi & Nhật Ký Robot"
+              >
+                <span>Hàng đợi logs</span>
+                <ExternalLink size={11} />
+              </Link>
+            </div>
           </div>
 
-          {macroJobs.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-              Chưa có tác vụ Macro nào được ghi nhận gần đây.
+          {filteredJobs.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+              {statusFilter === 'ALL'
+                ? 'Chưa có tác vụ Macro nào được ghi nhận gần đây.'
+                : 'Không có tác vụ nào khớp với bộ lọc đã chọn.'}
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '8px 12px' }}>Loại tác vụ</th>
-                    <th style={{ padding: '8px 12px' }}>Trạng thái</th>
-                    <th style={{ padding: '8px 12px' }}>Phiên</th>
-                    <th style={{ padding: '8px 12px' }}>Khởi tạo lúc</th>
-                    <th style={{ padding: '8px 12px' }}>Chi tiết kết quả</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {macroJobs.map((job) => (
-                    <tr key={job._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '10px 12px', fontWeight: 700, fontFamily: 'monospace' }}>
-                        {job.jobType}
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {getJobStatusBadge(job.status)}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>
-                        {job.payload?.targetDate || job.payload?.date || '--'}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
-                        {job.createdAt ? new Date(job.createdAt).toLocaleTimeString('vi-VN') : '--'}
-                      </td>
-                      <td style={{ padding: '10px 12px', color: job.status === 'FAILED' ? '#ef4444' : 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                        {job.error || job.payload?.resultSummary || (job.status === 'COMPLETED' ? 'Đã hoàn tất ghi file Excel' : 'Đang xử lý...')}
-                      </td>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Bảng cuộn mượt có giới hạn chiều cao & Sticky Header */}
+              <div
+                style={{
+                  maxHeight: '230px',
+                  overflowY: 'auto',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
+                  <thead>
+                    <tr style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '7px 10px', minWidth: '150px' }}>Loại tác vụ</th>
+                      <th style={{ padding: '7px 10px', minWidth: '105px' }}>Trạng thái</th>
+                      <th style={{ padding: '7px 10px', minWidth: '95px' }}>Phiên</th>
+                      <th style={{ padding: '7px 10px', minWidth: '110px' }}>Thời gian</th>
+                      <th style={{ padding: '7px 10px' }}>Chi tiết kết quả / Lỗi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedJobs.map((job) => {
+                      const display = getJobDisplayName(job.jobType);
+                      return (
+                        <tr
+                          key={job._id}
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          className="hover-row"
+                        >
+                          <td style={{ padding: '7px 10px' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                backgroundColor: display.bg,
+                                color: display.color,
+                                border: `1px solid ${display.border}`,
+                              }}
+                            >
+                              {display.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: '7px 10px' }}>
+                            {getJobStatusBadge(job.status)}
+                          </td>
+                          <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600 }}>
+                            {job.payload?.targetDate || job.payload?.date || '--'}
+                          </td>
+                          <td style={{ padding: '7px 10px', color: 'var(--text-secondary)' }}>
+                            {job.createdAt ? new Date(job.createdAt).toLocaleTimeString('vi-VN') : '--'}
+                          </td>
+                          <td
+                            style={{
+                              padding: '7px 10px',
+                              color: job.status === 'FAILED' ? '#ef4444' : 'var(--text-secondary)',
+                              fontSize: '0.73rem',
+                              maxWidth: '350px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={job.error || job.payload?.resultSummary || (job.status === 'COMPLETED' ? 'Đã hoàn tất ghi file Excel' : 'Đang xử lý...')}
+                          >
+                            {job.error || job.payload?.resultSummary || (job.status === 'COMPLETED' ? 'Đã hoàn tất ghi file Excel' : 'Đang xử lý...')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Thanh phân trang nhỏ gọn & đếm số lượng */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                <span>
+                  Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredJobs.length)} trên tổng số {filteredJobs.length} tác vụ
+                </span>
+
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 6px', height: '22px', fontSize: '0.7rem', display: 'flex', alignItems: 'center' }}
+                      title="Trang trước"
+                    >
+                      <ChevronLeft size={12} />
+                    </button>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 6px', height: '22px', fontSize: '0.7rem', display: 'flex', alignItems: 'center' }}
+                      title="Trang tiếp theo"
+                    >
+                      <ChevronRight size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

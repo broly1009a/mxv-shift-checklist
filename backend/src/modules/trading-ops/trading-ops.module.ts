@@ -39,6 +39,9 @@ import { AuthModule } from '../auth/auth.module';
 import { WorkingCalendarModule } from '../working-calendar/working-calendar.module';
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
+import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-run-history.schema';
+import { CcpLotStatisticsService } from './services/ccp-lot-statistics.service';
+import { CcpStatisticsService } from './services/ccp-statistics.service';
 
 // Controllers Domain Chuyên Biệt V2
 import { KlgdReconController } from './controllers/klgd-recon.controller';
@@ -61,6 +64,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
       { name: CcpClearingLog.name, schema: CcpClearingLogSchema },
       { name: BotJob.name, schema: BotJobSchema },
       { name: ShiftLog.name, schema: ShiftLogSchema },
+      { name: CcpLotRunHistory.name, schema: CcpLotRunHistorySchema },
     ]),
   ],
   controllers: [
@@ -98,6 +102,8 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     SodReconWorker,
     CqgSyncWorker,
     EodMmWorker,
+    CcpLotStatisticsService,
+    CcpStatisticsService,
   ],
   exports: [
     CqgMergerService,
@@ -125,6 +131,8 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     SodReconWorker,
     CqgSyncWorker,
     EodMmWorker,
+    CcpLotStatisticsService,
+    CcpStatisticsService,
     MongooseModule,
   ],
 })

@@ -1,89 +1,151 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { ArrowLeft, LayoutDashboard, ExternalLink, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  LayoutDashboard,
+  Maximize2,
+  Minimize2,
+  Calendar,
+} from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { QlgdExecutiveDashboard } from '../components/QlgdExecutiveDashboard';
+import { getInitialTradingSessionDate } from '../utils/tradingDateUtils';
 
 export default function QlgdDashboardStandalonePage() {
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
+
+  useEffect(() => {
+    setSelectedDate(getInitialTradingSessionDate());
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
   return (
     <ProtectedRoute>
       <div
+        ref={containerRef}
         style={{
-          minHeight: '100vh',
-          backgroundColor: 'var(--bg-app)',
-          color: 'var(--text-primary)',
-          padding: '24px 32px',
+          minHeight: '100%',
+          backgroundColor: 'var(--bg-main)',
+          padding: isFullscreen ? '20px' : '24px 28px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '24px',
+          gap: '20px',
         }}
       >
-        {/* Navigation Breadcrumb & Back Bar */}
+        {/* HEADER SECTION - ĐỒNG BỘ 100% VỚI RECONCILIATION */}
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '12px',
-            borderBottom: '1px solid var(--border-color)',
+            gap: '16px',
             paddingBottom: '16px',
+            borderBottom: '1px solid var(--border-color)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Link
-              href="/trading-manager"
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10b981',
+                }}
+              >
+                QUẢN LÝ GIAO DỊCH (QLGD)
+              </span>
+            </div>
+            <h1
               style={{
+                fontSize: '1.4rem',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                margin: '6px 0 0 0',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.85rem',
-                textDecoration: 'none',
-                transition: 'all 0.2s',
+                gap: '10px',
               }}
             >
-              <ArrowLeft size={16} />
-              <span>Quay lại Trading Manager</span>
-            </Link>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <LayoutDashboard size={20} color="#0284c7" />
-              <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                TRUNG TÂM ĐIỀU HÀNH & BÁO CÁO BGĐ (QLGD)
-              </h1>
-            </div>
+              <LayoutDashboard color="#10b981" size={26} />
+              DASHBOARD
+            </h1>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Bộ chọn ngày giao dịch */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                color: '#10b981',
-                fontSize: '0.8rem',
-                fontWeight: 700,
+                gap: '8px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
               }}
             >
-              <ShieldCheck size={15} />
-              <span>Executive Level Authorized</span>
+              <Calendar size={15} color="var(--text-muted)" />
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Phiên:
+              </span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              />
             </div>
+
+            {/* Fullscreen Button */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="btn btn-secondary"
+              style={{ padding: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
           </div>
         </div>
 
-        {/* The Executive Dashboard Component */}
-        <QlgdExecutiveDashboard />
+        {/* NỘI DUNG DASHBOARD ĐIỀU HÀNH */}
+        <QlgdExecutiveDashboard
+          hideHeaderCard={true}
+          sessionDateProp={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
       </div>
     </ProtectedRoute>
   );
