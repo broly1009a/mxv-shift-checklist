@@ -1,3 +1,79 @@
+## [2026-10-20T10:10] FEATURE: Phân Tách Trang Backup Thành 2 Phân Hệ Con Độc Lập (MS–CQG & CCP–CE) & Tinh Chỉnh Giao Diện Trực Quan
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - Chia menu/trang Backup thành 2 sub cha và con:
+    - **Sub cha**: Backup
+    - **Sub con 1**: **Backup MS – CQG** (`/trading-manager/backup/ms-cqg`) gồm 3 cột: Backup MS (20 file), Backup CQG (9 file), Backup ACM (4 file). Ẩn hoàn toàn các phần: *"Kết quả đồng bộ số dư CQG"*, *"Kiểm tra ký quỹ TKGD"*, *"Thống kê (số lot & giá trị)"*, và các shortcut link `[Mở Thư Mục Backup]`, `[Lịch Sử Ca Trực]`, `[Cấu Hình Bot Toàn Diện]`. Không hiển thị cột CoreCCP trên trang này.
+    - **Sub con 2**: **Backup CCP – CE** (`/trading-manager/backup/ccp-ce`) gồm 3 cột: Backup CoreCCP (25 file), Backup CoreEX (12 file), Backup ACM (4 file). Ẩn các phần thừa bên dưới (đối chiếu giá thanh toán GTT và kiểm tra ký quỹ IMR) để giao diện hiển thị gọn gàng, trực quan và đồng bộ giống ảnh mẫu.
+  - Đồng bộ và hoàn thiện trang Thống kê MS (`/trading-manager/statistics/ms`): tích hợp thanh lọc nhanh trạng thái (`Tất cả`, `Hoàn thành`, `Đang xử lý`, `Thất bại`) cùng phân trang nhỏ gọn (5 items/trang).
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+1. [frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx):
+   - Thêm props `hideFooterSections?: boolean;` và `hideSubTabs?: boolean;`.
+   - Bọc Subtab switcher trong `{!hideSubTabs && ...}` và các panel chân trang (GTT checker, IMR checker) trong `{!hideFooterSections && ...}`.
+2. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+   - Đã có sẵn props `filterScope="MS_CQG"`, `hideFooterSections={true}`, `hideSubTabs={true}` để ẩn hoàn toàn cột CoreCCP, thanh tab switcher và toàn bộ các section chân trang (Sync balance, IMR, Thống kê, shortcut links).
+3. [frontend/src/app/trading-manager/backup/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/ms-cqg/page.tsx):
+   - Trang độc lập cho Backup MS – CQG với thanh chọn phiên, chế độ toàn màn hình, nút quay lại Dashboard và 3 cột file chuẩn trực quan.
+4. [frontend/src/app/trading-manager/backup/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/ccp-ce/page.tsx):
+   - Trang độc lập cho Backup CCP – CE gồm 3 cột: CoreCCP 25 file, CoreEX 12 file, ACM 4 file.
+5. [frontend/src/app/trading-manager/backup/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/backup/page.tsx):
+   - Tự động chuyển hướng (`router.replace`) về `/trading-manager/backup/ms-cqg`.
+6. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
+   - Chuyển đổi mục "Backup" thành menu Accordion cha - con gồm `Backup MS – CQG` và `Backup CCP – CE`.
+   - Bổ sung state `backup: true` trong `openSubMenus` và tự động mở accordion khi điều hướng vào URL `/trading-manager/backup/*`.
+7. [frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/statistics/ms/page.tsx):
+   - Hoàn thiện bộ lọc trạng thái và phân trang gọn gàng.
+
+### 3. Kết quả Kiểm thử & Triển khai
+- TypeScript: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
+- Đã đồng bộ sang cả 2 repo local: `mxv-cqg-download-investigation` và `mxv-modular-refactor`.
+- Triển khai lên máy chủ Ubuntu `10.0.0.26`:
+  - `npm run build` thành công, Next.js đã prerender tĩnh 4 route mới: `/trading-manager/backup`, `/trading-manager/backup/ms-cqg`, `/trading-manager/backup/ccp-ce`, `/trading-manager/statistics/ms`.
+  - Restart PM2 service `mxv-frontend` thành công (status: `online`).
+
+---
+
+## [2026-10-20T09:53] REFACTOR: Làm Sạch Triệt Để Logic Nhận Diện Menu Sidebar, Kiểm Chứng 100% CSDL Thực Tế
+
+### 1. Mục tiêu thay đổi
+- Thực hiện nghiêm túc phản hồi của USER: *"bạn lại hardcode đoán mò hay sao sao bạn không checkrole hoặc database để có thông tin thay vì đoán mò"*.
+- Truy vấn trực tiếp CSDL MongoDB `mxv_shift_checklist` trên server `10.0.0.26` để lấy dữ liệu thực tế (Ground Truth):
+  1. **Bảng `roles`**: Chỉ có 6 role cấp bậc chuẩn: `ADMIN`, `DEPARTMENT_HEAD`, `STAFF`, `DIVISION_DIRECTOR`, `CEO`, `CHAIRMAN`. Hệ thống **hoàn toàn không dùng role để định danh phòng ban** (không có role nào là `QLGD` hay `BAN_CSTT`).
+  2. **Bảng `departments`**:
+     - `IT_CORE`: Vận hành Công nghệ Thông tin (parent: null)
+     - `IT_RND`: Nghiên cứu và Phát triển Công nghệ (parent: null)
+     - `BAN_GSTT`: Ban Giám sát thị trường (parent: null)
+     - `QLGD_OPS`: Quản lý giám sát giao dịch (parent: `BAN_GSTT`)
+     - `QLRR_RISK`: Quản lý giám sát rủi ro (parent: `BAN_GSTT`)
+  3. **Bảng `users`**: Mọi nhân sự vận hành giao dịch (`quyetvx`, `tubui`, `sonhh`, `minhle`, `anhdao`, v.v...) đều liên kết qua trường `departmentId` trỏ trực tiếp tới bản ghi `QLGD_OPS`.
+- Xóa bỏ triệt để toàn bộ các chuỗi phỏng đoán rác:
+  - Xóa `role === 'QLGD'`, `role === 'BAN_CSTT'`.
+  - Xóa mã phỏng đoán không tồn tại: `deptCode === 'GSGD'`, `deptCode === 'CSTT'`.
+  - Xóa các phép fuzzy matching: `deptCode.toUpperCase().includes(...)`, `normalizeText()`, `deptNameNorm.includes(...)`.
+- Quy chuẩn logic duy nhất dựa trên **Mã phòng ban (Department Code) chuẩn xác**:
+  ```typescript
+  const isQlgd =
+    deptCode === 'QLGD_OPS' ||
+    deptCode === 'BAN_CSTT' ||
+    deptCode === 'BAN_GSTT' ||
+    (parentDeptCode === 'BAN_GSTT' && deptCode !== 'QLRR_RISK') ||
+    (parentDeptCode === 'BAN_CSTT' && deptCode !== 'QLRR_RISK');
+  ```
+
+### 2. Danh sách file chỉnh sửa
+1. [frontend/src/hooks/usePermissions.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/hooks/usePermissions.ts):
+   - Xóa bỏ toàn bộ hàm `normalizeText` và mảng fallback đoán mò.
+   - Nhận diện trực tiếp qua mã phòng ban `QLGD_OPS`, `BAN_CSTT`, `BAN_GSTT`.
+2. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx):
+   - Tiêu đề nhóm hiển thị động theo `user.department?.name || 'Quản lý giao dịch'`.
+
+### 3. Kết quả Kiểm thử
+- TypeScript: `npx.cmd tsc --noEmit` -> **Exit code 0 (Success)**.
+
+---
+
 ## [2026-10-20T09:40] DEPLOY: Triển Khai Toàn Diện Lên Server Ubuntu 10.0.0.26 (PM2 mxv-backend & mxv-frontend)
 
 ### 1. Mục tiêu thay đổi

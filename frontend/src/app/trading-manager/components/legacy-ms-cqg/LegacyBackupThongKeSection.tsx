@@ -116,6 +116,8 @@ export interface LegacyBackupThongKeSectionProps {
   selectedDate: string;
   onSelectDate?: (date: string) => void;
   filterScope?: 'ALL' | 'MS_CQG' | 'OMS';
+  hideFooterSections?: boolean;
+  hideSubTabs?: boolean;
 }
 
 export default function LegacyBackupThongKeSection({
@@ -123,6 +125,8 @@ export default function LegacyBackupThongKeSection({
   selectedDate,
   onSelectDate,
   filterScope = 'ALL',
+  hideFooterSections = false,
+  hideSubTabs = false,
 }: LegacyBackupThongKeSectionProps) {
   // Subtab điều hướng phân hệ backup: MS-CQG-CCP vs CE-ACM
   const [backupSubTab, setBackupSubTab] = useState<'MS_CQG_CCP' | 'CE_ACM'>('MS_CQG_CCP');
@@ -1115,6 +1119,7 @@ export default function LegacyBackupThongKeSection({
       </div>
 
       {/* ===== SUBTAB SWITCHER: MS-CQG-CCP vs CE-ACM ===== */}
+      {!hideSubTabs && (
       <div
         style={{
           display: 'flex',
@@ -1184,6 +1189,7 @@ export default function LegacyBackupThongKeSection({
         </button>
         )}
       </div>
+      )}
 
       {backupSubTab === 'MS_CQG_CCP' ? (
         <>
@@ -1676,6 +1682,8 @@ export default function LegacyBackupThongKeSection({
       </div>
 
       {/* ===== SECTION 2: KẾT QUẢ ĐỒNG BỘ SỐ DƯ CQG (CHUYỂN TỪ TAB 2 SANG TAB 3) ===== */}
+      {!hideFooterSections && (
+        <>
       <LegacyCqgSyncSection token={token} selectedDate={selectedDate} />
 
       {/* ===== SECTION 3: KIỂM TRA KÝ QUỸ TKGD (4 BOXES C#) ===== */}
@@ -1830,6 +1838,8 @@ export default function LegacyBackupThongKeSection({
           Cấu Hình Bot Toàn Diện
         </Link>
       </div>
+        </>
+      )}
         </>
       ) : (
         <CeAcmBackupSection

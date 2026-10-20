@@ -28,6 +28,8 @@ export interface CcpCeBackupThongKeSectionProps {
   token: string | null;
   selectedDate: string;
   onSelectDate?: (date: string) => void;
+  hideFooterSections?: boolean;
+  hideSubTabs?: boolean;
 }
 
 // 19 Báo cáo chuẩn CoreCCP VNCLEAR Maker + Hợp đồng Hàng hóa (Động)
@@ -102,6 +104,8 @@ export default function CcpCeBackupThongKeSection({
   token,
   selectedDate,
   onSelectDate,
+  hideFooterSections = false,
+  hideSubTabs = false,
 }: CcpCeBackupThongKeSectionProps) {
   const [mounted, setMounted] = useState<boolean>(false);
 
@@ -519,28 +523,30 @@ export default function CcpCeBackupThongKeSection({
       </div>
 
       {/* ===== BAR 2: SUBTAB SWITCHER ===== */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px' }}>
-        <button
-          type="button"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 18px',
-            fontSize: '0.84rem',
-            fontWeight: 800,
-            borderRadius: '8px 8px 0 0',
-            border: 'none',
-            borderBottom: '2px solid #10b981',
-            color: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            cursor: 'default',
-          }}
-        >
-          <Database size={15} color="#10b981" />
-          <span>Backup CCP – CE (Hiện tại)</span>
-        </button>
-      </div>
+      {!hideSubTabs && (
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px' }}>
+          <button
+            type="button"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: '2px solid #10b981',
+              color: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              cursor: 'default',
+            }}
+          >
+            <Database size={15} color="#10b981" />
+            <span>Backup CCP – CE (Hiện tại)</span>
+          </button>
+        </div>
+      )}
 
       {/* ===== BAR 3: 3 CỘT BACKUP (CORECCP, COREEX, ACM) ===== */}
       <div className="glass-panel" style={{ padding: '16px 20px' }}>
@@ -789,143 +795,148 @@ export default function CcpCeBackupThongKeSection({
         </div>
       </div>
 
-      {/* ===== BAR 4: ĐỐI CHIẾU GIÁ THANH TOÁN (GTT CCP VS CE) ===== */}
-      <CeCcpGttCheckerSection token={token} selectedDate={selectedDate} />
+      {/* ===== BAR 4 & BAR 5: FOOTER SECTIONS (GTT & IMR) ===== */}
+      {!hideFooterSections && (
+        <>
+          {/* ===== BAR 4: ĐỐI CHIẾU GIÁ THANH TOÁN (GTT CCP VS CE) ===== */}
+          <CeCcpGttCheckerSection token={token} selectedDate={selectedDate} />
 
-      {/* ===== BAR 5: KIỂM TRA KÝ QUỸ TKGD (IMR CORECCP VS CE) - GIAO DIỆN CHỜ ===== */}
-      <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Kiểm Tra Ký Quỹ TKGD (IMR CoreCCP vs CE)
-              </h4>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                  color: '#3b82f6',
-                }}
-              >
-                Giao Diện Chờ Module Mới
-              </span>
+          {/* ===== BAR 5: KIỂM TRA KÝ QUỸ TKGD (IMR CORECCP VS CE) - GIAO DIỆN CHỜ ===== */}
+          <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Kiểm Tra Ký Quỹ TKGD (IMR CoreCCP vs CE)
+                  </h4>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                      color: '#3b82f6',
+                    }}
+                  >
+                    Giao Diện Chờ Module Mới
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Hệ thống giám sát vi phạm tỷ lệ ký quỹ ban đầu (IMR) và ký quỹ biến đổi (MM) trên phân hệ VNCLEAR CoreCCP.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleCheckIMR}
+                  disabled={imrLoading}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {imrLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                  <span>{imrLoading ? 'Đang phân tích...' : 'Phân Tích Ký Quỹ IMR'}</span>
+                </button>
+              </div>
             </div>
-            <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Hệ thống giám sát vi phạm tỷ lệ ký quỹ ban đầu (IMR) và ký quỹ biến đổi (MM) trên phân hệ VNCLEAR CoreCCP.
-            </p>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={handleCheckIMR}
-              disabled={imrLoading}
-              className="btn btn-primary"
-              style={{ fontSize: '0.82rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            {/* 4 Thẻ Phân Nhóm Nguy Cơ Ký Quỹ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {/* G1 */}
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                    Nhóm 1 (G1 - An toàn &gt; 120%)
+                  </span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#10b981' }}>An toàn</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#10b981' }}>
+                    {imrResult?.g1?.length || 0}
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tỷ lệ Margin &ge; 120%</span>
+              </div>
+
+              {/* G2 */}
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                    Nhóm 2 (G2 - Cảnh báo 100% - 120%)
+                  </span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#eab308' }}>Cảnh báo</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#eab308' }}>
+                    {imrResult?.g2?.length || 0}
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>100% &le; Margin &lt; 120%</span>
+              </div>
+
+              {/* G3 */}
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                    Nhóm 3 (G3 - Call Margin 80% - 100%)
+                  </span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f97316' }}>Call Margin</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#f97316' }}>
+                    {imrResult?.g3?.length || 0}
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>80% &le; Margin &lt; 100%</span>
+              </div>
+
+              {/* G4 */}
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                    Nhóm 4 (G4 - Force Close &lt; 80%)
+                  </span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#ef4444' }}>Nguy cơ cao</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#ef4444' }}>
+                    {imrResult?.g4?.length || 0}
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Margin &lt; 80% hoặc âm KQ</span>
+              </div>
+            </div>
+
+            {/* Bảng kết quả IMR Placeholder */}
+            <div
+              style={{
+                padding: '30px 20px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(16, 185, 129, 0.03)',
+                border: '1px solid rgba(16, 185, 129, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                textAlign: 'center',
+              }}
             >
-              {imrLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-              <span>{imrLoading ? 'Đang phân tích...' : 'Phân Tích Ký Quỹ IMR'}</span>
-            </button>
+              <CheckCircle2 size={32} color="#10b981" />
+              <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.88rem' }}>
+                Trạng Thái An Toàn: Chưa phát hiện tài khoản vi phạm ngưỡng ký quỹ IMR trên CoreCCP
+              </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                Module sẽ tự động tích hợp bảng chi tiết khi phân hệ quản lý ký quỹ VNCLEAR cung cấp đủ nguồn dữ liệu sao kê.
+              </span>
+            </div>
           </div>
-        </div>
-
-        {/* 4 Thẻ Phân Nhóm Nguy Cơ Ký Quỹ */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-          {/* G1 */}
-          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                Nhóm 1 (G1 - An toàn &gt; 120%)
-              </span>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#10b981' }}>An toàn</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#10b981' }}>
-                {imrResult?.g1?.length || 0}
-              </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
-            </div>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tỷ lệ Margin &ge; 120%</span>
-          </div>
-
-          {/* G2 */}
-          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                Nhóm 2 (G2 - Cảnh báo 100% - 120%)
-              </span>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#eab308' }}>Cảnh báo</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#eab308' }}>
-                {imrResult?.g2?.length || 0}
-              </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
-            </div>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>100% &le; Margin &lt; 120%</span>
-          </div>
-
-          {/* G3 */}
-          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                Nhóm 3 (G3 - Call Margin 80% - 100%)
-              </span>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f97316' }}>Call Margin</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#f97316' }}>
-                {imrResult?.g3?.length || 0}
-              </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
-            </div>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>80% &le; Margin &lt; 100%</span>
-          </div>
-
-          {/* G4 */}
-          <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                Nhóm 4 (G4 - Force Close &lt; 80%)
-              </span>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#ef4444' }}>Nguy cơ cao</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#ef4444' }}>
-                {imrResult?.g4?.length || 0}
-              </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>tài khoản</span>
-            </div>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Margin &lt; 80% hoặc âm KQ</span>
-          </div>
-        </div>
-
-        {/* Bảng kết quả IMR Placeholder */}
-        <div
-          style={{
-            padding: '30px 20px',
-            borderRadius: '8px',
-            backgroundColor: 'rgba(16, 185, 129, 0.03)',
-            border: '1px solid rgba(16, 185, 129, 0.15)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            textAlign: 'center',
-          }}
-        >
-          <CheckCircle2 size={32} color="#10b981" />
-          <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.88rem' }}>
-            Trạng Thái An Toàn: Chưa phát hiện tài khoản vi phạm ngưỡng ký quỹ IMR trên CoreCCP
-          </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-            Module sẽ tự động tích hợp bảng chi tiết khi phân hệ quản lý ký quỹ VNCLEAR cung cấp đủ nguồn dữ liệu sao kê.
-          </span>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
