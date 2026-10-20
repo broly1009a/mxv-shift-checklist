@@ -92,7 +92,7 @@ flowchart TD
   @Schema({ timestamps: true, collection: "trading_recon_logs" })
   export class TradingReconLog extends Document {
     @Prop({ required: true, index: true })
-    reconType: "KLGD" | "PRE_EOD" | "NEGATIVE_MARGIN";
+    reconType: "KLGD" | "DSGD_BEFORE_EOD" | "NEGATIVE_MARGIN";
 
     @Prop({ required: true, index: true })
     tradingDate: string; // YYYY-MM-DD
@@ -183,7 +183,7 @@ flowchart TD
 
 - **File tác động**:
   - `backend/src/modules/trading-ops/workers/klgd-recon.worker.ts`
-  - `backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts`
+  - `backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts`
   - `backend/src/modules/trading-ops/workers/negative-margin.worker.ts`
   - `backend/src/modules/ccp-clearing/workers/ccp-lot.worker.ts`
 - **Quy tắc chuyển đổi**:
@@ -286,7 +286,7 @@ flowchart TD
 - **File tác động**: `backend/src/modules/bot-engine/bot-job-queue.service.ts`
 - **Nội dung thay đổi**:
   - Inject `BotDispatcherService` vào `BotJobQueueService`.
-  - Khi `processQueue()` quét thấy Job thuộc các năng lực V2 (`CHECK_KLGD`, `CHECK_PRE_EOD`, `CHECK_NEGATIVE_MARGIN`, `CCP_LOT_STATS`):
+  - Khi `processQueue()` quét thấy Job thuộc các năng lực V2 (`CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `CHECK_NEGATIVE_MARGIN`, `CCP_LOT_STATS`):
     - Chuyển tiếp việc xử lý sang `botDispatcherService.acquireAndProcessNextJob()`.
     - Sử dụng cơ chế khóa nguyên tử MongoDB Atomic Lock thay vì cờ RAM `this.isProcessing = true`.
 - **Tiêu chuẩn nghiệm thu (DoD)**:
@@ -335,6 +335,7 @@ flowchart TD
 
 - **File tác động**: `backend/src/modules/ingress/ingress.service.ts`
 - **Logic chuyển đổi**:
+
   ```typescript
   async downloadReport(params: IngressDownloadParams): Promise<IngressDownloadResult> {
     const useApi = await this.settingsService.getSetting('INGRESS_MODE', 'PLAYWRIGHT');
@@ -348,6 +349,7 @@ flowchart TD
     return this.playwrightScraper.downloadReport(params);
   }
   ```
+
 - **Tiêu chuẩn nghiệm thu (DoD)**:
   - Khi Admin đổi giá trị setting `INGRESS_MODE` từ `PLAYWRIGHT` sang `REST_API`, hệ thống chuyển đổi ngay lập tức lúc runtime mà không cần build lại code hay khởi động lại server.
 
@@ -383,7 +385,7 @@ flowchart TD
 - **Chuỗi quy trình kiểm chứng**:
   1. Mở ca trực mới (`ShiftLifecycleService.startShift()`).
   2. Dispatcher tiếp nhận Job `CHECK_KLGD` $\rightarrow$ `KlgdReconWorker` tính toán $\rightarrow$ Ghi log chi tiết vào `TradingReconLog` $\rightarrow$ Trả về metrics tóm tắt cho ca trực.
-  3. Dispatcher tiếp nhận Job `CHECK_PRE_EOD` $\rightarrow$ `PreEodReconWorker` đối soát 3 bên.
+  3. Dispatcher tiếp nhận Job `CHECK_DSGD_BEFORE_EOD` $\rightarrow$ `DsgdBeforeEodReconWorker` đối soát 3 bên.
   4. Dispatcher tiếp nhận Job `CCP_LOT_STATS` $\rightarrow$ `CcpLotWorker` thống kê bù trừ $\rightarrow$ Ghi log vào `CcpClearingLog`.
   5. Dispatcher tiếp nhận Job `CHECK_NEGATIVE_MARGIN` $\rightarrow$ `NegativeMarginWorker` quét tài khoản âm.
   6. Bàn giao ca & đóng ca trực (`ShiftLifecycleService.completeShift()`).

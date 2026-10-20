@@ -1,4 +1,5 @@
 # BẢN TỔNG HỢP RÀ SOÁT KIẾN TRÚC & LUỒNG TỰ ĐỘNG HÓA CHO 2 TRANG ĐỘC LẬP
+
 ## (PHÂN HỆ M-SYSTEM & CQG ↔ PHÂN HỆ CORECCP & COREEX)
 
 > **Mã tài liệu**: `MXV-ARCH-AUTOMATION-TM-2026-V1.0`  
@@ -10,9 +11,11 @@
 ## I. TỔNG QUAN KIẾN TRÚC TỰ ĐỘNG HÓA TOÀN HỆ THỐNG
 
 ### 1. Hiện Trạng & Sự Phân Tách Nhiệm Vụ (Separation of Concerns)
+
 Trước đây, toàn bộ logic tự động bị nhồi nhét chung trong một vòng lặp `@Cron('* * * * *')` của `bot-engine.service.ts` và bị "trói chân" bởi điều kiện tiên quyết: **Phải có ca trực mở (`activeLogs.length > 0`)**. Điều này khiến Trading Manager không thể hoạt động tự động nếu không có người mở ca trực.
 
 Sau khi tái cấu trúc bóc tách thành 2 trang độc lập:
+
 1. **Trang 1: MS & CQG (`/trading-manager/ms-cqg`)**: Phụ trách toàn bộ thị trường hàng hóa phái sinh truyền thống (M-System, CQG Gateway, Straits Financial ACM).
 2. **Trang 2: CoreCCP & CoreEX (`/trading-manager/ccp-ce`)**: Phụ trách toàn bộ hệ thống giao dịch & bù trừ thanh toán thế hệ mới (VNCLEAR Maker, CoreEX OMS).
 3. **Màn hình dùng chung (Common Shared Component)**: Màn hình **Check KLGD (Đối Soát Khớp Lệnh 4 Bên)** được mount chung ở Tab 1 của cả 2 trang, đảm bảo bức tranh toàn cảnh độ lệch không bao giờ bị chia cắt.
@@ -31,7 +34,7 @@ flowchart TB
 
     subgraph SYSTEM_MS_CQG["PHÂN HỆ 1: M-SYSTEM & CQG (/trading-manager/ms-cqg)"]
         BotRecon["Bot CHECK_KLGD (4 Bên)<br/>MS ↔ CQG ↔ ACM ↔ CoreCCP"]
-        BotPreEod["Bot CHECK_PRE_EOD & DSGDBeforeEOD<br/>Quét DSGD snapshot vs Straits CSV"]
+        BotDsgdBeforeEod["Bot CHECK_DSGD_BEFORE_EOD & DSGDBeforeEOD<br/>Quét DSGD snapshot vs Straits CSV"]
         BotEodMS["Bot CHECK_EOD_MM<br/>Đối chiếu QLTKGD vs eod.csv & Quét âm KQ"]
         BotCqgSync["Bot CHECK_CQG_SYNC<br/>Ghép 4 cặp file thô CQG & Check balance"]
         BotBackupMS["RPA M-System (20 báo cáo)<br/>Tải qua Chrome headless / Playwright"]
@@ -51,12 +54,12 @@ flowchart TB
 
     CronKLGD -->|Kích hoạt khi bot_auto_recon_enabled=true| BotRecon
     CronKLGD -->|Đồng bộ trạng thái 4 bên| BotReconCCP
-    
+
     CronScheduler -->|04:30 - 06:00| BotBackupMS
     CronScheduler -->|06:00| BotBackupCQG
     CronScheduler -->|06:15| BotCqgSync
     CronScheduler -->|06:30| MacroEngine
-    CronScheduler -->|Cuối phiên MS| BotPreEod
+    CronScheduler -->|Cuối phiên MS| BotDsgdBeforeEod
     CronScheduler -->|Sau chốt EOD MS| BotEodMS
 
     CronScheduler -->|16:15| BotDownCCP1
@@ -67,7 +70,7 @@ flowchart TB
     CronScheduler -->|Định kỳ đầu ngày| BotFxMatrix
 
     BotRecon --> JobQueue
-    BotPreEod --> JobQueue
+    BotDsgdBeforeEod --> JobQueue
     BotEodMS --> JobQueue
     BotCqgSync --> JobQueue
     BotDownCCP1 --> JobQueue
@@ -82,29 +85,29 @@ flowchart TB
 
 ### 🏢 1. Phân Hệ M-System & CQG (`/trading-manager/ms-cqg`)
 
-| Tác Vụ Tự Động | Cờ Cấu Hình / Lịch Chạy | File Đầu Vào / Nguồn | Logic Xử Lý & Kết Quả |
-| :--- | :--- | :--- | :--- |
-| **1.1. Check KLGD Trong Phiên** | `bot_auto_recon_enabled = true`<br>Chu kỳ: 60 phút/lần | • M-System: `DSGD.xlsx`, `TTM.xlsx`<br>• CQG: `FR.xlsx`, `PS.xlsx`<br>• ACM: `Straits.csv`<br>• CCP: `DSGD CCP.xlsx` | So khớp ma trận 3 dòng x 4 cột: Khớp lệnh (KLGD), Vị thế mở (TTM), Tất toán (TTTT). Nếu lệch: Bật chuông âm thanh & sinh `dgvOrderInfo`. |
-| **1.2. Check DSGD Trước EOD** | Kích hoạt tự động lúc ~22:00 hoặc trước giờ chạy EOD | • `DSGD.xlsx` (Gốc)<br>• `DSGD[timestamp].xlsx` (Snapshot)<br>• Straits CSV ACM (T-1) | So sánh tổng khối lượng khớp MS vs Snapshot vs Straits ACM để cảnh báo giao dịch muộn trước khi khóa sổ EOD. |
-| **1.3. Đối Chiếu Pre-EOD 3 Bên** | Chạy tự động trước khi đóng phiên giao dịch | • `FR.xlsx` (CQG gộp)<br>• `DSGD.xlsx` (MS)<br>• `Straits.csv` (ACM) | Đối chiếu 3 bên khớp lệnh và vị thế ròng Net Position giữa M-System, CQG và Straits Financial. |
-| **1.4. Đối Chiếu & Chạy EOD MS** | Sau khi nhận mail `it.support` hoặc tải file EOD | • `QLTKGD.xlsx`<br>• `eod.csv` (Email M365) | So sánh chi tiết từng tài khoản giữa số dư QLTKGD và file EOD. Phát hiện tài khoản âm ký quỹ mới (`SCAN_NEGATIVE_MARGIN`). |
-| **1.5. Đồng Bộ Số Dư CQG Sync** | Chạy sau khi có đủ file thô CQG sáng sớm (06:00 - 06:15) | • `FR1` + `FR2` $\rightarrow$ `FR.xlsx`<br>• `PS1` + `PS2` $\rightarrow$ `PS.xlsx`<br>• `OP1` + `OP2` $\rightarrow$ `OP.xlsx`<br>• `OD1` + `OD2` $\rightarrow$ `Od.xlsx` | Tự động ghép nối các file thô của 2 tài khoản CQG Trading Desk, kiểm tra số dư chênh lệch MS vs CQG. |
-| **1.6. Tải Backup MS & CQG** | `bot_auto_backup_enabled = true`<br>Giờ chạy: 04:30 - 06:00 | • M-System Web RPA<br>• CQG Portal RPA | Tải tự động 20 báo cáo MS và 9 file CQG vào thư mục `dd.mm MS` và `dd.mm CQG`. |
-| **1.7. Chạy Macro Lot & Value** | Sau khi tải xong file MS (06:30) | • `DSGD.xlsx`<br>• Macro Excel template | Kích hoạt headless Excel runner chạy macro thống kê số lot thị trường và giá trị giao dịch. |
+| Tác Vụ Tự Động                           | Cờ Cấu Hình / Lịch Chạy                                     | File Đầu Vào / Nguồn                                                                                                                                                     | Logic Xử Lý & Kết Quả                                                                                                                    |
+| :--------------------------------------- | :---------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| **1.1. Check KLGD Trong Phiên**          | `bot_auto_recon_enabled = true`<br>Chu kỳ: 60 phút/lần      | • M-System: `DSGD.xlsx`, `TTM.xlsx`<br>• CQG: `FR.xlsx`, `PS.xlsx`<br>• ACM: `Straits.csv`<br>• CCP: `DSGD CCP.xlsx`                                                     | So khớp ma trận 3 dòng x 4 cột: Khớp lệnh (KLGD), Vị thế mở (TTM), Tất toán (TTTT). Nếu lệch: Bật chuông âm thanh & sinh `dgvOrderInfo`. |
+| **1.2. Check DSGD Trước EOD**            | Kích hoạt tự động lúc ~22:00 hoặc trước giờ chạy EOD        | • `DSGD.xlsx` (Gốc)<br>• `DSGD[timestamp].xlsx` (Snapshot)<br>• Straits CSV ACM (T-1)                                                                                    | So sánh tổng khối lượng khớp MS vs Snapshot vs Straits ACM để cảnh báo giao dịch muộn trước khi khóa sổ EOD.                             |
+| **1.3. Đối Chiếu Dsgd-Before-EOD 3 Bên** | Chạy tự động trước khi đóng phiên giao dịch                 | • `FR.xlsx` (CQG gộp)<br>• `DSGD.xlsx` (MS)<br>• `Straits.csv` (ACM)                                                                                                     | Đối chiếu 3 bên khớp lệnh và vị thế ròng Net Position giữa M-System, CQG và Straits Financial.                                           |
+| **1.4. Đối Chiếu & Chạy EOD MS**         | Sau khi nhận mail `it.support` hoặc tải file EOD            | • `QLTKGD.xlsx`<br>• `eod.csv` (Email M365)                                                                                                                              | So sánh chi tiết từng tài khoản giữa số dư QLTKGD và file EOD. Phát hiện tài khoản âm ký quỹ mới (`SCAN_NEGATIVE_MARGIN`).               |
+| **1.5. Đồng Bộ Số Dư CQG Sync**          | Chạy sau khi có đủ file thô CQG sáng sớm (06:00 - 06:15)    | • `FR1` + `FR2` $\rightarrow$ `FR.xlsx`<br>• `PS1` + `PS2` $\rightarrow$ `PS.xlsx`<br>• `OP1` + `OP2` $\rightarrow$ `OP.xlsx`<br>• `OD1` + `OD2` $\rightarrow$ `Od.xlsx` | Tự động ghép nối các file thô của 2 tài khoản CQG Trading Desk, kiểm tra số dư chênh lệch MS vs CQG.                                     |
+| **1.6. Tải Backup MS & CQG**             | `bot_auto_backup_enabled = true`<br>Giờ chạy: 04:30 - 06:00 | • M-System Web RPA<br>• CQG Portal RPA                                                                                                                                   | Tải tự động 20 báo cáo MS và 9 file CQG vào thư mục `dd.mm MS` và `dd.mm CQG`.                                                           |
+| **1.7. Chạy Macro Lot & Value**          | Sau khi tải xong file MS (06:30)                            | • `DSGD.xlsx`<br>• Macro Excel template                                                                                                                                  | Kích hoạt headless Excel runner chạy macro thống kê số lot thị trường và giá trị giao dịch.                                              |
 
 ---
 
 ### 🏛️ 2. Phân Hệ CoreCCP & CoreEX (`/trading-manager/ccp-ce`)
 
-| Tác Vụ Tự Động | Cờ Cấu Hình / Lịch Chạy | File Đầu Vào / Nguồn | Logic Xử Lý & Kết Quả |
-| :--- | :--- | :--- | :--- |
-| **2.1. Check KLGD 4 Bên** | Dùng chung nhịp với MS-CQG (60p) | Ma trận 4 bên toàn hệ thống | Đảm bảo trực ban CoreCCP nắm bắt được trạng thái khớp lệnh toàn sàn. |
-| **2.2. Tải CoreCCP Đợt 1 (16h20)** | 16h15 - 16h20 hàng ngày | Web VNCLEAR RPA | Tải 2 file chốt trước 16h20: `QL TT TKGD truoc 4h20.xlsx` và `TTM truoc 4h20.xlsx`. |
-| **2.3. Tải CoreCCP Đợt 2 (EOD)** | Sau khi VNCLEAR hoàn tất chạy EOD cuối ngày | Web VNCLEAR RPA | Tải trọn bộ 23 báo cáo VNCLEAR Maker (6 nhóm: Sổ lệnh thường, Sổ lệnh MM, Vị thế PnL, Rủi ro ký quỹ, Tiền gửi, Hàng hóa giá). |
-| **2.4. Đối Soát EOD CoreCCP** | Kích hoạt ngay sau khi Đợt 2 tải xong | • `QLTTTKGD.xlsx`<br>• `EOD.csv`<br>• `NR.xlsx`<br>• `TTTT.xlsx` | Đối chiếu 4 thành phần số dư chuẩn VNCLEAR: Số dư tiền gửi bù trừ, Ký quỹ ban đầu (IMR), Quỹ bù trừ thành viên, Lãi lỗ vị thế. Báo cáo trạng thái User/Expert. |
-| **2.5. Thống Kê Số Lot & GTGD CoreCCP** | Tự động sau khi có `DSGD CCP.xlsx` | `DSGD CCP.xlsx` (Hàng chục nghìn dòng) | Single-pass $O(N)$ phân loại 4 nhóm lệnh (Thường, MM, Khớp chéo, Tự doanh) theo từng TVKD, ghi file lũy kế năm `Thong ke so lot giao dich [year].xlsx`. |
-| **2.6. Báo Cáo Sàn CoreEX (CE)** | 19h00 - 20h00 hàng ngày | Web CoreEX RPA | Tải tự động 10 báo cáo sàn CoreEX (`DSGD ACM CE`, `DSL ACM CE`, `NR ACM CE`...) vào thư mục `dd.mm CE`. |
-| **2.7. Đồng Bộ Ma Trận Tỷ Giá CoreCCP** | Hàng ngày hoặc định kỳ đầu ca | Web VNCLEAR / API CoreCCP | Cập nhật ma trận tỷ giá đa nguyên tệ (`USD`, `EUR`, `JPY`, `MYR`, `VND`...), lưu vào CSDL phục vụ quy đổi GTGD. |
+| Tác Vụ Tự Động                          | Cờ Cấu Hình / Lịch Chạy                     | File Đầu Vào / Nguồn                                             | Logic Xử Lý & Kết Quả                                                                                                                                          |
+| :-------------------------------------- | :------------------------------------------ | :--------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **2.1. Check KLGD 4 Bên**               | Dùng chung nhịp với MS-CQG (60p)            | Ma trận 4 bên toàn hệ thống                                      | Đảm bảo trực ban CoreCCP nắm bắt được trạng thái khớp lệnh toàn sàn.                                                                                           |
+| **2.2. Tải CoreCCP Đợt 1 (16h20)**      | 16h15 - 16h20 hàng ngày                     | Web VNCLEAR RPA                                                  | Tải 2 file chốt trước 16h20: `QL TT TKGD truoc 4h20.xlsx` và `TTM truoc 4h20.xlsx`.                                                                            |
+| **2.3. Tải CoreCCP Đợt 2 (EOD)**        | Sau khi VNCLEAR hoàn tất chạy EOD cuối ngày | Web VNCLEAR RPA                                                  | Tải trọn bộ 23 báo cáo VNCLEAR Maker (6 nhóm: Sổ lệnh thường, Sổ lệnh MM, Vị thế PnL, Rủi ro ký quỹ, Tiền gửi, Hàng hóa giá).                                  |
+| **2.4. Đối Soát EOD CoreCCP**           | Kích hoạt ngay sau khi Đợt 2 tải xong       | • `QLTTTKGD.xlsx`<br>• `EOD.csv`<br>• `NR.xlsx`<br>• `TTTT.xlsx` | Đối chiếu 4 thành phần số dư chuẩn VNCLEAR: Số dư tiền gửi bù trừ, Ký quỹ ban đầu (IMR), Quỹ bù trừ thành viên, Lãi lỗ vị thế. Báo cáo trạng thái User/Expert. |
+| **2.5. Thống Kê Số Lot & GTGD CoreCCP** | Tự động sau khi có `DSGD CCP.xlsx`          | `DSGD CCP.xlsx` (Hàng chục nghìn dòng)                           | Single-pass $O(N)$ phân loại 4 nhóm lệnh (Thường, MM, Khớp chéo, Tự doanh) theo từng TVKD, ghi file lũy kế năm `Thong ke so lot giao dich [year].xlsx`.        |
+| **2.6. Báo Cáo Sàn CoreEX (CE)**        | 19h00 - 20h00 hàng ngày                     | Web CoreEX RPA                                                   | Tải tự động 10 báo cáo sàn CoreEX (`DSGD ACM CE`, `DSL ACM CE`, `NR ACM CE`...) vào thư mục `dd.mm CE`.                                                        |
+| **2.7. Đồng Bộ Ma Trận Tỷ Giá CoreCCP** | Hàng ngày hoặc định kỳ đầu ca               | Web VNCLEAR / API CoreCCP                                        | Cập nhật ma trận tỷ giá đa nguyên tệ (`USD`, `EUR`, `JPY`, `MYR`, `VND`...), lưu vào CSDL phục vụ quy đổi GTGD.                                                |
 
 ---
 

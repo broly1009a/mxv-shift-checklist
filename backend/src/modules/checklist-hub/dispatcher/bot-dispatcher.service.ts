@@ -8,7 +8,7 @@ import {
 } from '../../../shared';
 import { BotJob } from '../../../schemas/bot-job.schema';
 import { KlgdReconWorker } from '../../trading-ops/workers/klgd-recon.worker';
-import { PreEodReconWorker } from '../../trading-ops/workers/pre-eod-recon.worker';
+import { DsgdBeforeEodReconWorker } from '../../trading-ops/workers/dsgd-before-eod-recon.worker';
 import { NegativeMarginWorker } from '../../trading-ops/workers/negative-margin.worker';
 import { CcpLotWorker } from '../../trading-ops/workers/ccp-lot.worker';
 import { CcpValueWorker } from '../../trading-ops/workers/ccp-value.worker';
@@ -27,7 +27,7 @@ export class BotDispatcherService implements OnModuleInit {
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     @Optional() private readonly klgdWorker?: KlgdReconWorker,
-    @Optional() private readonly preEodWorker?: PreEodReconWorker,
+    @Optional() private readonly dsgdBeforeEodWorker?: DsgdBeforeEodReconWorker,
     @Optional() private readonly negativeMarginWorker?: NegativeMarginWorker,
     @Optional() private readonly ccpLotWorker?: CcpLotWorker,
     @Optional() private readonly ccpValueWorker?: CcpValueWorker,
@@ -39,7 +39,7 @@ export class BotDispatcherService implements OnModuleInit {
 
   onModuleInit() {
     if (this.klgdWorker) this.registerWorker(this.klgdWorker);
-    if (this.preEodWorker) this.registerWorker(this.preEodWorker);
+    if (this.dsgdBeforeEodWorker) this.registerWorker(this.dsgdBeforeEodWorker);
     if (this.negativeMarginWorker) this.registerWorker(this.negativeMarginWorker);
     if (this.ccpLotWorker) this.registerWorker(this.ccpLotWorker);
     if (this.ccpValueWorker) this.registerWorker(this.ccpValueWorker);

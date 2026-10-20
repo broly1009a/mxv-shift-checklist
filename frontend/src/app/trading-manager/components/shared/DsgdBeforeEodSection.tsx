@@ -422,7 +422,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
         </div>
       </div>
 
-      {/* 2. Top Row: 4 Metric Cards (Matching LegacyPreEodDiffSection Part 1) */}
+      {/* 2. Top Row: 4 Metric Cards (Matching LegacyDsgdBeforeEodDiffSection Part 1) */}
       <div
         style={{
           display: 'grid',

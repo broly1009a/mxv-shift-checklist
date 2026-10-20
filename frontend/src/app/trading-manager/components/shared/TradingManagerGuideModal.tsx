@@ -110,7 +110,7 @@ export default function TradingManagerGuideModal({
                 Tài Liệu Hướng Dẫn Vận Hành & Thiết Kế Bàn Giám Sát Trading Manager
               </h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Cẩm nang trực quan dành cho nhân sự ca trực: Đối soát trong phiên, Pre-EOD, và Thống kê CoreCCP.
+                Cẩm nang trực quan dành cho nhân sự ca trực: Đối soát trong phiên, Dsgd-Before-EOD, và Thống kê CoreCCP.
               </p>
             </div>
           </div>
@@ -550,7 +550,7 @@ export default function TradingManagerGuideModal({
                   <Activity size={15} /> 1. Check GD – EOD – Sync
                 </strong>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '6px', marginBottom: 0 }}>
-                  Đối chiếu khớp lệnh trong phiên định kỳ 1h/lần (Check KLGD), kiểm tra Pre-EOD 3 bên, đối chiếu số dư EOD M-System, và đồng bộ số dư CQG Sync (ngưỡng lệch &gt; $100).
+                  Đối chiếu khớp lệnh trong phiên định kỳ 1h/lần (Check KLGD), kiểm tra Dsgd-Before-EOD 3 bên, đối chiếu số dư EOD M-System, và đồng bộ số dư CQG Sync (ngưỡng lệch &gt; $100).
                 </p>
               </div>
 

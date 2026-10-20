@@ -13,7 +13,7 @@ export interface ConsoleSummaryResponse {
   acmBackup: any;
   ccpBackup: any;
   eodRun?: any;
-  preEod?: any;
+  dsgdBeforeEod?: any;
   shiftInfo?: any;
   klgd?: any;
   [key: string]: any;
@@ -25,7 +25,7 @@ export interface ReconLogSummary {
   _id: string;
   runId: string;
   sessionDate: string;
-  reconType: 'KLGD' | 'PRE_EOD' | 'EOD' | 'NEGATIVE_MARGIN';
+  reconType: 'KLGD' | 'DSGD_BEFORE_EOD' | 'EOD' | 'NEGATIVE_MARGIN';
   source: 'MANUAL_UI' | 'AUTO_BOT' | 'API';
   status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'MATCHED' | 'DISCREPANCY';
   totalTransactionsMs: number;
@@ -202,14 +202,14 @@ export const tradingOpsApi = {
   },
 
   /**
-   * Tải tệp đối soát Pre-EOD lên hệ thống (FormData)
+   * Tải tệp đối soát Dsgd-Before-EOD lên hệ thống (FormData)
    */
-  async uploadPreEod(
+  async uploadDsgdBeforeEod(
     formData: FormData,
     token?: string | null,
   ): Promise<any> {
     return requestFormData<any>(
-      API_ENDPOINTS.TRADING_OPS.UPLOAD_PRE_EOD,
+      API_ENDPOINTS.TRADING_OPS.UPLOAD_DSGD_BEFORE_EOD,
       formData,
       { method: 'POST' },
       token,
@@ -281,14 +281,14 @@ export const tradingOpsApi = {
   },
 
   /**
-   * Kích hoạt đối soát Pre-EOD CoreCCP ↔ CoreEX
+   * Kích hoạt đối soát Dsgd-Before-EOD CoreCCP ↔ CoreEX
    */
-  async runCheckPreEod(
+  async runCheckDsgdBeforeEod(
     sessionDate?: string,
     token?: string | null,
   ): Promise<{ success: boolean; message?: string; data?: any }> {
     return requestJson<{ success: boolean; message?: string; data?: any }>(
-      API_ENDPOINTS.TRADING_OPS.RUN_CHECK_PRE_EOD,
+      API_ENDPOINTS.TRADING_OPS.RUN_CHECK_DSGD_BEFORE_EOD,
       {
         method: 'POST',
         body: JSON.stringify({ sessionDate }),

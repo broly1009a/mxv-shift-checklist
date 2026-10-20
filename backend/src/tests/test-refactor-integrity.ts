@@ -85,7 +85,7 @@ async function runIntegrityTests() {
     'DOWNLOAD_CAST',
     'AUTO_CHECK_SOD',
     'CHECK_KLGD',
-    'CHECK_PRE_EOD',
+    'CHECK_DSGD_BEFORE_EOD',
     'CHECK_EOD_MM',
     'FILE_AUDIT_MS',
     'FILE_AUDIT_CQG',

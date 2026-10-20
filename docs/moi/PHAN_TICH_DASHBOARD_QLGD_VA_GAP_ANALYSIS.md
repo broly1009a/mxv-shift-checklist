@@ -10,10 +10,13 @@
 ## 1. Bối Cảnh & Mục Tiêu Nghiệp Vụ
 
 ### 1.1. Yêu cầu nghiệp vụ từ Ban Lãnh Đạo
+
 Theo định hướng vận hành mới của Khối Quản lý Giao dịch (QLGD), hệ thống giám sát cần cung cấp một màn hình Dashboard tổng hợp điều hành độc lập và trực quan cao (Executive Dashboard) nhằm phục vụ công tác giám sát rủi ro trong phiên và báo cáo tức thời cho Ban Tổng Giám Đốc (BGĐ).
 
 ### 1.2. Các thành phần bắt buộc trên giao diện Dashboard
-Dựa theo bản mẫu thiết kế chuẩn (*Hình ảnh đính kèm Mục 8 Dashboard*):
+
+Dựa theo bản mẫu thiết kế chuẩn (_Hình ảnh đính kèm Mục 8 Dashboard_):
+
 1. **Phân chia 2 phân vùng độc lập**:
    - **Khối ACM (Tự doanh & Tạo lập thị trường)**.
    - **Khối Còn lại (Khách hàng thành viên & CQG Brokerage)**.
@@ -47,6 +50,7 @@ Dựa theo bản mẫu thiết kế chuẩn (*Hình ảnh đính kèm Mục 8 Da
 Để đảm bảo tuân thủ nghiêm ngặt **Quy tắc Kiểm chứng Mã Nguồn (Rule 1 & Rule 3 trong AGENTS.md)**, dưới đây là bằng chứng đối chiếu chi tiết từ các file code và file dữ liệu thực tế đang vận hành trong dự án:
 
 ### 2.1. Nguồn dữ liệu báo cáo M-System & CQG sẵn có
+
 - **File `DSGD.xlsx` (Danh sách giao dịch khớp lệnh M-System)**:
   - Vị trí Parser: [ms-excel.parser.ts#L15-L64](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/ms-excel.parser.ts#L15-L64).
   - Các cột hiện có: `Mã lệnh`, `Mã TKGD`, `Mã HĐ`, `KL giao dịch`, `Giá khớp`, `Ngày giờ thực hiện`, `Mã giao dịch`.
@@ -70,16 +74,16 @@ Dựa theo bản mẫu thiết kế chuẩn (*Hình ảnh đính kèm Mục 8 Da
 
 Bảng ma trận dưới đây phân tích chi tiết từng chỉ số trên Dashboard, đối chiếu giữa yêu cầu và mã nguồn hiện có, xác định rõ thông tin còn thiếu và giải pháp bổ sung:
 
-| STT | Thành Phần Trên Dashboard | Nguồn Dữ Liệu Hiện Có | Hiện Trạng & Thông Tin Còn Thiếu (Gaps) | Mức Độ Ưu Tiên | Giải Pháp Kỹ Thuật Bổ Sung |
-| :---: | :--- | :--- | :--- | :---: | :--- |
-| **1** | **KLGD Lần Check Gần Nhất (ACM vs Còn lại)** | `DSGD.xlsx` (MS), `Straits.csv` (ACM), `FR.xlsx` (CQG) | - **Đã có:** `totalACM` và `totalDSGD` trong `CheckKLGDResult` ([klgd-recon.service.ts#L25-L57](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L25-L57)).<br/>- **Còn thiếu:** Logic tự động trừ `totalOthers = totalDSGD - totalACM` để trả về riêng cho giao diện Dashboard. | Thấp | Bổ sung trường `totalOthers` vào DTO trả về của API console. |
-| **2** | **GTGD Lần Check Gần Nhất (ACM vs Còn lại)** | Cột `Giá khớp`, `KL giao dịch` trong `DSGD.xlsx` + Tỷ giá USD | - **Đã có:** Logic nhân hệ số hợp đồng và tỷ giá trong `ValueStatisticsService`.<br/>- **Còn thiếu:** Chưa tích hợp bước tính GTGD vào trong vòng lặp của hàm `checkKLGD()`. Hiện tại `totals` chỉ có khối lượng (lot), chưa có GTGD (VND) cho ACM và Còn lại tại từng thời điểm check. | **Cao** | Tích hợp helper tính GTGD vào `klgd-recon.service.ts`, phân tách `gtgdACM` và `gtgdOthers`. |
-| **3** | **Biểu đồ từng lần check trong ngày (Timeline Chart)** | Collection `bot_jobs` (`jobType: 'CHECK_KLGD'`) | - **Đã có:** Lưu các lần chạy bot trong ngày.<br/>- **Còn thiếu:** Chưa có cấu trúc dữ liệu Timeseries chuẩn hóa (`timestamp`, `acmVolume`, `acmValue`, `othersVolume`, `othersValue`) được tích lũy sẵn. Frontend hiện phải map thủ công 50 job và thiếu trường giá trị. | **Trung bình** | Thêm trường `timeline` dạng mảng đối tượng vào `ConsoleSummaryData` hoặc tạo API `/api/v1/trading-ops/qlgd-dashboard/timeline`. |
-| **4** | **4 Mốc Thời Điểm Phục Vụ Báo Cáo BGĐ** (Đầu phiên, Hết Á, Hết Âu, Hết Mỹ) | Chưa có cơ chế chốt điểm cố định | - **Còn thiếu:** Hệ thống hiện chỉ quét khi ca trực kích hoạt hoặc cron 15 phút. **Chưa có cơ chế đóng băng số liệu (Freeze Snapshot)** tại 4 mốc thời gian: `08:00`, `16:00`, `23:00`, và `05:00` sáng hôm sau. Khi xem lại báo cáo cũ, hệ thống không có dữ liệu chốt của 4 mốc này. | **Rất Cao** | Xây dựng Scheduler `QlgdMilestoneWorker` chuyên trách chốt số liệu đúng 4 mốc giờ và ghi vào collection `qlgd_milestone_snapshots`. |
-| **5** | **Tổng Lãi Lỗ Dự Kiến (VND)** | Cột `Lãi lỗ dự kiến(VND)` trong `TTM.xlsx` | - **Đã có:** Cột dữ liệu gốc trong Excel thô.<br/>- **Còn thiếu:** Parser `parseTTM()` hiện tại bỏ qua cột này. Backend chưa có hàm gom nhóm (aggregate sum) theo mã hàng hóa cơ sở (`maSP`). | **Cao** | Cập nhật `parseTTM()` đọc cột `Lãi lỗ dự kiến(VND)` và gom nhóm theo `extractCcpBaseProduct(rawSymbol)`. |
-| **6** | **Tổng Vị Thế Mở & % Mở Mua / Bán** | Cột `Khối lượng mua`, `Khối lượng bán` trong `TTM.xlsx` | - **Đã có:** Parser đã đọc được `tongMua` và `tongBan`.<br/>- **Cách tính:** `Tổng vị thế = tongMua + tongBan`; `% Mở Mua = (tongMua / Tổng) * 100%`; `% Mở Bán = (tongBan / Tổng) * 100%`.<br/>- **Còn thiếu:** Logic gom nhóm theo mã hàng hóa cơ sở cấp cao thay vì mã hợp đồng cụ thể. | **Trung bình** | Viết service `aggregateOpenPositionsByProduct(rows)`. |
-| **7** | **Lãi Lỗ Thực Tế (VND) & Trạng Thái Tất Toán** | Cột `Lãi lỗ thực tế(VND)`, `KL Mua tất toán`, `KL Bán tất toán` trong `TTTT.xlsx` | - **Đã có:** File Excel thô có đủ cột.<br/>- **Còn thiếu:** `parseTTTTForVolume()` hiện chỉ đọc số lot để đối chiếu Pre-EOD, chưa đọc giá trị Lãi lỗ thực tế và chưa gom nhóm theo mã hàng. | **Cao** | Mở rộng `parseTTTT()` đọc cột `Lãi lỗ thực tế` và `KL tất toán`. |
-| **8** | **Từ Điển Danh Mục Hàng Hóa (Commodity Master Catalog)** | Phân tán trong `clearing-excel.helper.ts` | - **Còn thiếu:** Chưa có bảng ánh xạ tập trung giữa: `Mã hàng cơ sở` (ZWA, SI5CO, KCE...) $\leftrightarrow$ `Tên hàng tiếng Việt` (Lúa mỳ, Bạc Nano...) $\leftrightarrow$ `Nhóm hàng hóa` (Nông sản, Nguyên liệu công nghiệp, Kim loại). | **Cao** | Tạo file từ điển chuẩn hóa `commodity-catalog.constant.ts`. |
+|  STT  | Thành Phần Trên Dashboard                                                  | Nguồn Dữ Liệu Hiện Có                                                             | Hiện Trạng & Thông Tin Còn Thiếu (Gaps)                                                                                                                                                                                                                                                                                                                                                                          | Mức Độ Ưu Tiên | Giải Pháp Kỹ Thuật Bổ Sung                                                                                                          |
+| :---: | :------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------: | :---------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **KLGD Lần Check Gần Nhất (ACM vs Còn lại)**                               | `DSGD.xlsx` (MS), `Straits.csv` (ACM), `FR.xlsx` (CQG)                            | - **Đã có:** `totalACM` và `totalDSGD` trong `CheckKLGDResult` ([klgd-recon.service.ts#L25-L57](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/klgd-recon.service.ts#L25-L57)).<br/>- **Còn thiếu:** Logic tự động trừ `totalOthers = totalDSGD - totalACM` để trả về riêng cho giao diện Dashboard. |      Thấp      | Bổ sung trường `totalOthers` vào DTO trả về của API console.                                                                        |
+| **2** | **GTGD Lần Check Gần Nhất (ACM vs Còn lại)**                               | Cột `Giá khớp`, `KL giao dịch` trong `DSGD.xlsx` + Tỷ giá USD                     | - **Đã có:** Logic nhân hệ số hợp đồng và tỷ giá trong `ValueStatisticsService`.<br/>- **Còn thiếu:** Chưa tích hợp bước tính GTGD vào trong vòng lặp của hàm `checkKLGD()`. Hiện tại `totals` chỉ có khối lượng (lot), chưa có GTGD (VND) cho ACM và Còn lại tại từng thời điểm check.                                                                                                                          |    **Cao**     | Tích hợp helper tính GTGD vào `klgd-recon.service.ts`, phân tách `gtgdACM` và `gtgdOthers`.                                         |
+| **3** | **Biểu đồ từng lần check trong ngày (Timeline Chart)**                     | Collection `bot_jobs` (`jobType: 'CHECK_KLGD'`)                                   | - **Đã có:** Lưu các lần chạy bot trong ngày.<br/>- **Còn thiếu:** Chưa có cấu trúc dữ liệu Timeseries chuẩn hóa (`timestamp`, `acmVolume`, `acmValue`, `othersVolume`, `othersValue`) được tích lũy sẵn. Frontend hiện phải map thủ công 50 job và thiếu trường giá trị.                                                                                                                                        | **Trung bình** | Thêm trường `timeline` dạng mảng đối tượng vào `ConsoleSummaryData` hoặc tạo API `/api/v1/trading-ops/qlgd-dashboard/timeline`.     |
+| **4** | **4 Mốc Thời Điểm Phục Vụ Báo Cáo BGĐ** (Đầu phiên, Hết Á, Hết Âu, Hết Mỹ) | Chưa có cơ chế chốt điểm cố định                                                  | - **Còn thiếu:** Hệ thống hiện chỉ quét khi ca trực kích hoạt hoặc cron 15 phút. **Chưa có cơ chế đóng băng số liệu (Freeze Snapshot)** tại 4 mốc thời gian: `08:00`, `16:00`, `23:00`, và `05:00` sáng hôm sau. Khi xem lại báo cáo cũ, hệ thống không có dữ liệu chốt của 4 mốc này.                                                                                                                           |  **Rất Cao**   | Xây dựng Scheduler `QlgdMilestoneWorker` chuyên trách chốt số liệu đúng 4 mốc giờ và ghi vào collection `qlgd_milestone_snapshots`. |
+| **5** | **Tổng Lãi Lỗ Dự Kiến (VND)**                                              | Cột `Lãi lỗ dự kiến(VND)` trong `TTM.xlsx`                                        | - **Đã có:** Cột dữ liệu gốc trong Excel thô.<br/>- **Còn thiếu:** Parser `parseTTM()` hiện tại bỏ qua cột này. Backend chưa có hàm gom nhóm (aggregate sum) theo mã hàng hóa cơ sở (`maSP`).                                                                                                                                                                                                                    |    **Cao**     | Cập nhật `parseTTM()` đọc cột `Lãi lỗ dự kiến(VND)` và gom nhóm theo `extractCcpBaseProduct(rawSymbol)`.                            |
+| **6** | **Tổng Vị Thế Mở & % Mở Mua / Bán**                                        | Cột `Khối lượng mua`, `Khối lượng bán` trong `TTM.xlsx`                           | - **Đã có:** Parser đã đọc được `tongMua` và `tongBan`.<br/>- **Cách tính:** `Tổng vị thế = tongMua + tongBan`; `% Mở Mua = (tongMua / Tổng) * 100%`; `% Mở Bán = (tongBan / Tổng) * 100%`.<br/>- **Còn thiếu:** Logic gom nhóm theo mã hàng hóa cơ sở cấp cao thay vì mã hợp đồng cụ thể.                                                                                                                       | **Trung bình** | Viết service `aggregateOpenPositionsByProduct(rows)`.                                                                               |
+| **7** | **Lãi Lỗ Thực Tế (VND) & Trạng Thái Tất Toán**                             | Cột `Lãi lỗ thực tế(VND)`, `KL Mua tất toán`, `KL Bán tất toán` trong `TTTT.xlsx` | - **Đã có:** File Excel thô có đủ cột.<br/>- **Còn thiếu:** `parseTTTTForVolume()` hiện chỉ đọc số lot để đối chiếu Dsgd-Before-EOD, chưa đọc giá trị Lãi lỗ thực tế và chưa gom nhóm theo mã hàng.                                                                                                                                                                                                              |    **Cao**     | Mở rộng `parseTTTT()` đọc cột `Lãi lỗ thực tế` và `KL tất toán`.                                                                    |
+| **8** | **Từ Điển Danh Mục Hàng Hóa (Commodity Master Catalog)**                   | Phân tán trong `clearing-excel.helper.ts`                                         | - **Còn thiếu:** Chưa có bảng ánh xạ tập trung giữa: `Mã hàng cơ sở` (ZWA, SI5CO, KCE...) $\leftrightarrow$ `Tên hàng tiếng Việt` (Lúa mỳ, Bạc Nano...) $\leftrightarrow$ `Nhóm hàng hóa` (Nông sản, Nguyên liệu công nghiệp, Kim loại).                                                                                                                                                                         |    **Cao**     | Tạo file từ điển chuẩn hóa `commodity-catalog.constant.ts`.                                                                         |
 
 ---
 
@@ -103,6 +107,7 @@ graph TD
 ```
 
 ### Danh mục chi tiết 17 mã hàng hóa:
+
 1. **Nhóm Nông sản (Agricultural)**:
    - `ZWA`: Lúa mỳ (Chicago SRW Wheat)
    - `ZLE`: Dầu đậu tương (Soybean Oil)
@@ -129,12 +134,13 @@ graph TD
 ## 5. Thiết Kế Kiến Trúc Giải Pháp Kỹ Thuật (Architecture Blueprint)
 
 ### 5.1. Thiết kế Schema CSDL Chốt 4 Mốc Thời Điểm (`qlgd_milestone_snapshots`)
+
 Để lưu vết đóng băng số liệu phục vụ báo cáo BGĐ mà không phụ thuộc vào việc chạy bot thủ công:
 
 ```typescript
 export interface QlgdMilestoneSnapshot {
   sessionDate: string; // YYYY-MM-DD
-  milestoneType: 'EARLY' | 'ASIAN' | 'EUROPEAN' | 'AMERICAN'; // 08:00 | 16:00 | 23:00 | 05:00
+  milestoneType: "EARLY" | "ASIAN" | "EUROPEAN" | "AMERICAN"; // 08:00 | 16:00 | 23:00 | 05:00
   capturedAt: Date;
   acm: {
     klgd: number; // lots
@@ -155,6 +161,7 @@ export interface QlgdMilestoneSnapshot {
 ```
 
 ### 5.2. Mở rộng `ms-excel.parser.ts`
+
 Bổ sung hàm bóc tách chuyên dụng `parseTtmForExecutiveDashboard` và `parseTtttForExecutiveDashboard`:
 
 ```typescript
@@ -175,7 +182,9 @@ export interface ExecutiveTtttRow {
 ```
 
 ### 5.3. Service Tổng Hợp `QlgdDashboardService`
+
 Nằm trong phân hệ `backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts`:
+
 - **Đầu vào**: Ngày phiên giao dịch (`sessionDate`).
 - **Nguồn xử lý**:
   - Đọc `DSGD.xlsx` mới nhất $\rightarrow$ Tính KLGD & GTGD chia theo ACM và Còn lại.
@@ -189,6 +198,7 @@ Nằm trong phân hệ `backend/src/modules/trading-ops/services/qlgd-dashboard.
 ## 6. Trạng Thái Triển Khai Hiện Tại & Các Bước Tiếp Theo
 
 ### 6.1. Đã hoàn thành (Delivered)
+
 - [x] **Xây dựng Giao diện Dashboard QLGD Mới**:
   - File Component: [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx).
   - File Trang Standalone: [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/dashboard/page.tsx).
@@ -199,6 +209,7 @@ Nằm trong phân hệ `backend/src/modules/trading-ops/services/qlgd-dashboard.
   - Hỗ trợ tính năng Xuất báo cáo dạng file CSV chuẩn kế toán.
 
 ### 6.2. Kế hoạch triển khai kết nối dữ liệu thực tế (Live Data Pipeline)
+
 1. **Bước 1 (Backend Parsers)**: Bổ sung logic đọc cột `Lãi lỗ dự kiến(VND)` trong `ms-excel.parser.ts` và đọc cột `Lãi lỗ thực tế` trong parser TTTT.
 2. **Bước 2 (Commodity Catalog Constant)**: Tạo từ điển ánh xạ 17 mặt hàng chuẩn hóa và hệ số quy đổi tiền tệ.
 3. **Bước 3 (Milestone Scheduler)**: Thêm cron job vào NestJS Schedule để tự động snapshot số liệu vào các mốc: 08:00, 16:00, 23:00, và 05:00 sáng.

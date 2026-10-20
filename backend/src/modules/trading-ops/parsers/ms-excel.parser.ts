@@ -144,7 +144,7 @@ export function parseTTTTForVolume(buffer: Buffer): any[] {
 }
 
 /**
- * Đọc file TTTT để lấy vị thế ròng phục vụ đối chiếu Pre-EOD chốt 3 bên.
+ * Đọc file TTTT để lấy vị thế ròng phục vụ đối chiếu Dsgd-Before-EOD chốt 3 bên.
  */
 export function parseTTTTForRecon(buffer: Buffer): { account: string; symbol: string; position: number }[] {
   const workbook = XLSX.read(buffer, { type: 'buffer' });

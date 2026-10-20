@@ -4,7 +4,7 @@ import sys
 
 files_to_sync = [
     'backend/src/modules/trading-ops/services/klgd-recon.service.ts',
-    'backend/src/modules/trading-ops/services/pre-eod-recon.service.ts',
+    'backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts',
     'backend/src/modules/trading-ops/services/cqg-merger.service.ts',
     'backend/src/shared/helpers/file-path.helper.ts',
     'backend/src/legacy/archive/reconciliation/helpers/recon-number-parser.helper.ts',

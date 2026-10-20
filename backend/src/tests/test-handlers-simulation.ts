@@ -74,10 +74,22 @@ async function runHandlerSimulation() {
   const mockReconService: any = {
     runAutoCheckSOD: jestFn(() => Promise.resolve({ success: true, discrepancies: [] })),
     runAutoCheckKLGD: jestFn(() => Promise.resolve({ passed: true, mismatchedTrades: [] })),
-    runAutoCheckPreEOD: jestFn(() => Promise.resolve({ passed: true, mismatchedTrades: [], mismatchedPositions: [] })),
     runAutoCheckEodMm: jestFn(() => Promise.resolve({
       cqgResult: [],
       eodResult: { negativeBalanceAccs: [], negativeIMRAcc: [] },
+    })),
+  };
+  const mockDsgdBeforeEodService: any = {
+    runAutoCheckDSGDBeforeEOD: jestFn(() => Promise.resolve({
+      passed: true,
+      totalOriginal: 100,
+      totalTemp: 100,
+      differTotal: 0,
+      totalACMMS: 10,
+      totalACMSFTP: 10,
+      differACM: 0,
+      messages: ['Khớp 100%'],
+      sessionDate: '2026-10-20',
     })),
   };
   const mockBotJobModel: any = {
@@ -99,7 +111,15 @@ async function runHandlerSimulation() {
     new CcpStatsJobHandler(registry, mockCcpStatsService, mockSettingsService, mockRpaDownloaderService),
     new RpaDownloadJobHandler(registry, mockRpaDownloaderService, mockSettingsService),
     new CastDownloadJobHandler(registry, mockRpaDownloaderService, mockSettingsService),
-    new ReconJobsHandler(registry, mockReconService, mockSettingsService, mockRpaDownloaderService, mockCqgSyncService),
+    new ReconJobsHandler(
+      registry,
+      mockSettingsService,
+      mockRpaDownloaderService,
+      mockCqgSyncService,
+      undefined,
+      mockReconService,
+      mockDsgdBeforeEodService,
+    ),
     new FileAuditJobHandler(registry, mockBotJobModel, mockRpaDownloaderService, mockCqgSyncService, mockSettingsService),
     new VerifyEmailJobHandler(registry, mockRpaDownloaderService, mockTelegramService),
   ];
@@ -118,7 +138,8 @@ async function runHandlerSimulation() {
     'DOWNLOAD_CAST',
     'AUTO_CHECK_SOD',
     'CHECK_KLGD',
-    'CHECK_PRE_EOD',
+    'CHECK_DSGD_BEFORE_EOD',
+    'CHECK_DSGD_BEFORE_EOD',
     'CHECK_EOD_MM',
     'FILE_AUDIT_MS',
     'FILE_AUDIT_CQG',

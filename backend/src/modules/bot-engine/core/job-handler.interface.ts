@@ -15,7 +15,7 @@ export interface IJobExecutionContext {
 export interface IBotJobHandler {
   /**
    * Danh sách các mã jobType mà Handler này phụ trách xử lý.
-   * Ví dụ: ['RUN_LOT_MACRO'] hoặc ['CHECK_KLGD', 'CHECK_PRE_EOD', 'AUTO_CHECK_SOD', 'CHECK_EOD_MM']
+   * Ví dụ: ['RUN_LOT_MACRO'] hoặc ['CHECK_KLGD', 'CHECK_DSGD_BEFORE_EOD', 'AUTO_CHECK_SOD', 'CHECK_EOD_MM']
    */
   readonly jobTypes: string[];
 

@@ -17,7 +17,7 @@ import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
-import LegacyPreEodDiffSection from '../../components/legacy-ms-cqg/LegacyPreEodDiffSection';
+import LegacyDsgdBeforeEodDiffSection from '../../components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection';
 import CcpCeEodReconSection from '../../components/core-ccp/CcpCeEodReconSection';
 import DsgdBeforeEodSection from '../../components/shared/DsgdBeforeEodSection';
 import TradingManagerLogModal from '../../components/shared/TradingManagerLogModal';
@@ -27,7 +27,7 @@ export default function CheckKlgdPhienCuPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
-  const [preEodData, setPreEodData] = useState<any>(null);
+  const [dsgdBeforeEodData, setDsgdBeforeEodData] = useState<any>(null);
   const [triggering, setTriggering] = useState<boolean>(false);
   const [logModalOpen, setLogModalOpen] = useState<boolean>(false);
   const [scopeTab, setScopeTab] = useState<'ALL' | 'MS_CQG' | 'CCP_CE'>('CCP_CE');
@@ -51,27 +51,27 @@ export default function CheckKlgdPhienCuPage() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const fetchPreEodData = async () => {
+  const fetchDsgdBeforeEodData = async () => {
     if (!token) return;
     try {
       const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-      setPreEodData(data?.preEod || null);
+      setDsgdBeforeEodData(data?.dsgdBeforeEod || null);
     } catch {
       // Bỏ qua lỗi kết nối
     }
   };
 
   useEffect(() => {
-    fetchPreEodData();
+    fetchDsgdBeforeEodData();
   }, [token, selectedDate]);
 
   const handleTriggerRun = async () => {
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      await api.tradingOps.triggerRun('CHECK_PRE_EOD', selectedDate, {}, token);
+      await api.tradingOps.triggerRun('CHECK_DSGD_BEFORE_EOD', selectedDate, {}, token);
       toast.success('Đã gửi yêu cầu đối chiếu giao dịch trước EOD (MS – CQG)!');
-      setTimeout(() => fetchPreEodData(), 1500);
+      setTimeout(() => fetchDsgdBeforeEodData(), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
     } finally {
@@ -264,8 +264,8 @@ export default function CheckKlgdPhienCuPage() {
                   </span>
                 </div>
               )}
-              <LegacyPreEodDiffSection
-                preEodData={preEodData}
+              <LegacyDsgdBeforeEodDiffSection
+                dsgdBeforeEodData={dsgdBeforeEodData}
                 onTriggerCheck={handleTriggerRun}
                 triggering={triggering}
                 onOpenLogs={() => setLogModalOpen(true)}
@@ -296,7 +296,7 @@ export default function CheckKlgdPhienCuPage() {
               <CcpCeEodReconSection
                 token={token}
                 selectedDate={selectedDate}
-                viewMode="PRE_EOD_ONLY"
+                viewMode="DSGD_BEFORE_EOD_ONLY"
               />
             </div>
           )}
@@ -305,9 +305,9 @@ export default function CheckKlgdPhienCuPage() {
         <TradingManagerLogModal
           isOpen={logModalOpen}
           onClose={() => setLogModalOpen(false)}
-          jobId={preEodData?.jobId}
-          status={preEodData?.status || 'COMPLETED'}
-          logs={preEodData?.logs || []}
+          jobId={dsgdBeforeEodData?.jobId}
+          status={dsgdBeforeEodData?.status || 'COMPLETED'}
+          logs={dsgdBeforeEodData?.logs || []}
           onRetry={() => {
             setLogModalOpen(false);
             handleTriggerRun();

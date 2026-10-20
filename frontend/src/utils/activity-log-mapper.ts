@@ -217,9 +217,9 @@ export const TRADING_JOB_TYPE_TITLES: Record<string, { title: string; desc: stri
     title: 'Kích hoạt đối chiếu KLGD (MS vs CQG trong phiên)',
     desc: 'Kích hoạt so khớp khối lượng khớp lệnh giữa hệ thống M-System và tài khoản CQG trong phiên.',
   },
-  CHECK_PRE_EOD: {
-    title: 'Kích hoạt đối chiếu Pre-EOD 3 bên (MS - CQG - ACM)',
-    desc: 'Chốt đối chiếu số liệu 3 bên cuối ngày trước giờ EOD chuẩn bị bàn giao ca.',
+  CHECK_DSGD_BEFORE_EOD: {
+    title: 'Kích hoạt đối chiếu DSGD trước EOD',
+    desc: 'Chốt đối chiếu số liệu DSGD gốc vs snapshot và Straits ACM trước giờ EOD chuẩn bị bàn giao ca.',
   },
   CHECK_EOD_CCP: {
     title: 'Kích hoạt đối chiếu chốt sổ EOD CoreCCP',
@@ -232,10 +232,6 @@ export const TRADING_JOB_TYPE_TITLES: Record<string, { title: string; desc: stri
   CHECK_GTT: {
     title: 'Kích hoạt kiểm tra đối chiếu giá thanh toán (GTT)',
     desc: 'So khớp giá thanh toán thực tế giữa hệ thống CoreEX và CoreCCP.',
-  },
-  CHECK_DSGD_BEFORE_EOD: {
-    title: 'Kích hoạt kiểm tra danh sách giao dịch trước EOD',
-    desc: 'Rà soát danh sách khớp lệnh và dòng tiền giao dịch trước giờ chốt sổ EOD.',
   },
   CHECK_IMR: {
     title: 'Kích hoạt kiểm tra mức ký quỹ yêu cầu ban đầu (IMR)',
@@ -535,21 +531,21 @@ export function parseActivityLog(actionStr: string, detailsStr: string, ipStr: s
     actionTitle = 'Kích hoạt đối chiếu chốt sổ EOD CoreCCP';
     actionDescription = 'Đối soát chốt sổ dữ liệu thanh toán bù trừ cuối ngày với CoreCCP.';
     technicalTag = 'CHECK_EOD_CCP';
-  } else if (path.includes('/trading-ops/run-check-pre-eod')) {
+  } else if (path.includes('/trading-ops/run-check-dsgd-before-eod')) {
     module = LOG_MODULES.TRADING_OPS;
-    actionTitle = 'Kích hoạt đối soát Pre-EOD CoreCCP ↔ CoreEX';
+    actionTitle = 'Kích hoạt đối soát Dsgd-Before-EOD CoreCCP ↔ CoreEX';
     actionDescription = 'Kiểm tra so khớp dữ liệu cuối ngày trước khi đóng phiên giữa CoreCCP và CoreEX.';
-    technicalTag = 'CHECK_PRE_EOD';
+    technicalTag = 'CHECK_DSGD_BEFORE_EOD';
   } else if (path.includes('/trading-ops/upload-klgd') || path.includes('/reconciliation/upload-klgd')) {
     module = LOG_MODULES.TRADING_OPS;
     actionTitle = 'Tải lên tệp đối chiếu KLGD thủ công';
     actionDescription = 'Tải tệp Excel giao dịch khớp lệnh M-System hoặc CQG để thực hiện đối chiếu thủ công.';
     technicalTag = 'UPLOAD_KLGD';
-  } else if (path.includes('/trading-ops/upload-pre-eod')) {
+  } else if (path.includes('/trading-ops/upload-dsgd-before-eod')) {
     module = LOG_MODULES.TRADING_OPS;
-    actionTitle = 'Tải lên tệp đối chiếu Pre-EOD thủ công';
-    actionDescription = 'Tải tệp dữ liệu vị thế ròng và tất toán để thực hiện chốt đối soát Pre-EOD.';
-    technicalTag = 'UPLOAD_PRE_EOD';
+    actionTitle = 'Tải lên tệp đối chiếu Dsgd-Before-EOD thủ công';
+    actionDescription = 'Tải tệp dữ liệu vị thế ròng và tất toán để thực hiện chốt đối soát Dsgd-Before-EOD.';
+    technicalTag = 'UPLOAD_DSGD_BEFORE_EOD';
   } else if (path.includes('/trading-ops/upload-eod')) {
     module = LOG_MODULES.TRADING_OPS;
     actionTitle = 'Tải lên tệp đối chiếu EOD thủ công';

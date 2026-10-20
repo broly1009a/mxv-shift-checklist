@@ -1,4 +1,5 @@
 # TÀI LIỆU THIẾT KẾ KIẾN TRÚC & GIẢI PHÁP KỸ THUẬT
+
 ## ĐỒNG BỘ TỶ GIÁ M-SYSTEM & HOÀN THIỆN ĐỐI CHIẾU SỐ DƯ EOD / CQG ĐA TIỀN TỆ
 
 ---
@@ -35,11 +36,13 @@
 
 ## 1. TỔNG QUAN & BỐI CẢNH NGHIỆP VỤ
 
-Trong quy trình trực chốt ca cuối ngày (Pre-EOD & Post-EOD) tại Sở Giao dịch Hàng hóa Việt Nam (MXV), chuyên viên vận hành phải thực hiện 2 tác vụ đối chiếu số dư sống còn:
+Trong quy trình trực chốt ca cuối ngày (Dsgd-Before-EOD & Post-EOD) tại Sở Giao dịch Hàng hóa Việt Nam (MXV), chuyên viên vận hành phải thực hiện 2 tác vụ đối chiếu số dư sống còn:
+
 1. **Đối chiếu số dư EOD nội bộ M-System (`checkEOD`)**: Kiểm tra công thức cân đối dòng tiền giữa Số dư đầu ngày, Nộp/rút, Phí giao dịch, Phí dịch vụ, Lãi/lỗ thực tế trong phiên (Futures/Options) so với file kết quả `eod.YYYY-MM-DD.csv`.
 2. **Đối chiếu số dư tài khoản giao dịch CQG vs M-System (`checkEODCQG`)**: So sánh số dư khả dụng/ký quỹ trên CQG (tính bằng USD) quy đổi sang VND so với số dư TKKQ trên M-System (tính bằng VND) để phát hiện chênh lệch tài sản (> 100 USD).
 
 **Thách thức thực tế:**
+
 - Khi chạy kiểm thử hoặc chạy ca đêm ngày 09/09/2026 - 10/09/2026, hệ thống tự động cảnh báo sai lệch hàng loạt tài khoản (như `001C0120311`, `001C0123980`... lệch từ vài triệu tới gần 70 triệu VND ở EOD; và hơn 30 tài khoản lệch CQG).
 - Phân tích kỹ thuật chuyên sâu chỉ ra rằng **100% các lỗi này là Lệch Giả (False Positive)** xuất phát từ 2 điểm nghẽn:
   1. Header cột file `QLTKGD.xlsx` của M-System đặt tên là `"Lãi lỗ thực tế Futures (VND)"` và `"Lãi lỗ thực tế Futures (USD)"`, nhưng hệ thống chỉ tìm `"Lãi lỗ USD"`, dẫn đến bỏ sót toàn bộ lãi lỗ trong phiên.
@@ -58,6 +61,7 @@ Tài liệu này thiết kế giải pháp hoàn chỉnh, tự động hóa từ
 - **Công nghệ Frontend của M-System**: ag-Grid (Angular/React wrapper) với cấu trúc DOM gồm các row `role="row"` và các cell có attribute `col-id="..."`.
 
 Đoạn trích xuất HTML thực tế từ hệ thống M-System:
+
 ```html
 <div class="ag-center-cols-container" role="rowgroup">
   <!-- Dòng 1: JPY -->
@@ -65,11 +69,17 @@ Tài liệu này thiết kế giải pháp hoàn chỉnh, tự động hóa từ
     <div col-id="STT" class="ag-cell">1</div>
     <div col-id="monetaryBase" class="ag-cell">JPY</div>
     <div col-id="counterCurrency" class="ag-cell">VND</div>
-    <div col-id="exchangeRate" class="ag-cell" style="text-align: right;"><span>170.00</span></div>
+    <div col-id="exchangeRate" class="ag-cell" style="text-align: right;">
+      <span>170.00</span>
+    </div>
     <div col-id="effectiveDate" class="ag-cell"><span>10/09/2026</span></div>
     <div col-id="status" class="ag-cell"><span>Hoạt động</span></div>
-    <div col-id="approvalDate" class="ag-cell"><span>09/09/2026 17:57:53</span></div>
-    <div col-id="createDate" class="ag-cell"><span>09/09/2026 17:06:12</span></div>
+    <div col-id="approvalDate" class="ag-cell">
+      <span>09/09/2026 17:57:53</span>
+    </div>
+    <div col-id="createDate" class="ag-cell">
+      <span>09/09/2026 17:06:12</span>
+    </div>
   </div>
   <!-- Dòng 2: MYR -->
   <div role="row" row-index="1" class="ag-row">
@@ -99,16 +109,17 @@ Tài liệu này thiết kế giải pháp hoàn chỉnh, tự động hóa từ
 
 Dựa trên hình ảnh chụp thực tế từ hệ thống M-System và mã nguồn DOM:
 
-| Đặc điểm | Tab 1: "Tỷ giá quy đổi" (Mặc định) | Tab 2: "Tỉ giá thanh toán" |
-| :--- | :--- | :--- |
-| **Mục đích nghiệp vụ** | Dùng để quy đổi toàn bộ số dư, hạn mức ký quỹ tài khoản giữa các đồng tiền về VND | Dùng để thực hiện thanh toán bù trừ tiền phát sinh từ giao dịch |
-| **Các cột dữ liệu** | `STT`, `Đồng tiền yết giá`, `Đồng tiền định giá`, `Tỷ giá quy đổi`, `Ngày hiệu lực`, `Trạng thái` | `STT`, `Đồng tiền yết giá`, `Đồng tiền định giá`, `Tỷ giá mua`, `Tỷ giá bán`, `Ngày tạo`, `Ngày phê duyệt` |
-| **Số lượng cột giá** | Duy nhất **1 cột** `exchangeRate` | **2 cột** `Tỷ giá mua` và `Tỷ giá bán` (Thực tế: Mua = Bán = `25,920.00`) |
-| **Áp dụng trong hệ thống** | **Ưu tiên số 1** cho module đối chiếu `checkEODCQG` và chuyển đổi tài sản | Dùng khi cần tính tách biệt chiều Mua/Bán trong các nghiệp vụ thanh toán chi tiết |
+| Đặc điểm                   | Tab 1: "Tỷ giá quy đổi" (Mặc định)                                                                | Tab 2: "Tỉ giá thanh toán"                                                                                 |
+| :------------------------- | :------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| **Mục đích nghiệp vụ**     | Dùng để quy đổi toàn bộ số dư, hạn mức ký quỹ tài khoản giữa các đồng tiền về VND                 | Dùng để thực hiện thanh toán bù trừ tiền phát sinh từ giao dịch                                            |
+| **Các cột dữ liệu**        | `STT`, `Đồng tiền yết giá`, `Đồng tiền định giá`, `Tỷ giá quy đổi`, `Ngày hiệu lực`, `Trạng thái` | `STT`, `Đồng tiền yết giá`, `Đồng tiền định giá`, `Tỷ giá mua`, `Tỷ giá bán`, `Ngày tạo`, `Ngày phê duyệt` |
+| **Số lượng cột giá**       | Duy nhất **1 cột** `exchangeRate`                                                                 | **2 cột** `Tỷ giá mua` và `Tỷ giá bán` (Thực tế: Mua = Bán = `25,920.00`)                                  |
+| **Áp dụng trong hệ thống** | **Ưu tiên số 1** cho module đối chiếu `checkEODCQG` và chuyển đổi tài sản                         | Dùng khi cần tính tách biệt chiều Mua/Bán trong các nghiệp vụ thanh toán chi tiết                          |
 
 ### 2.3. Bằng chứng toán học về lỗi chênh lệch số dư (False Positive)
 
 Xét tài khoản điển hình **`001C0120311`** từ dữ liệu ngày 09/09/2026:
+
 - **Dữ liệu thực tế bóc tách từ `QLTKGD.xlsx`**:
   - Số dư TKKQ đầu ngày: `869,541 VND`
   - Nộp rút trong phiên: `99,567,000 VND`
@@ -149,17 +160,17 @@ flowchart TD
     B -->|Bóc tách 4 cặp tiền| C{Bảng Tỷ Giá<br/>USD, JPY, MYR, RMB}
     C -->|Lưu cấu hình hệ thống| D[(system_settings<br/>usd_exchange_rate)]
     C -->|Lưu lịch sử tỷ giá| E[(exchange_rates Collection)]
-    
+
     F[File QLTKGD.xlsx] --> G[Core Reconciliation Service]
     H[File eod.csv] --> G
     I[File Accounts_Balances.xlsx] --> G
-    
+
     D -.->|Đọc tỷ giá mới nhất| G
     E -.->|Đọc tỷ giá đa tiền tệ| G
-    
+
     G --> J{Đối chiếu EOD<br/>checkEOD}
     G --> K{Đối chiếu CQG<br/>checkEODCQG}
-    
+
     J --> L[Báo cáo EOD: Khớp 100%<br/>0 VND chênh lệch]
     K --> M[Báo cáo CQG: Khớp 100%<br/>Loại bỏ lệch giả]
 ```
@@ -167,6 +178,7 @@ flowchart TD
 ### 4.2. Thiết kế Database Schema & Data Models
 
 #### A. Cập nhật `system_settings` (KeyValue Settings):
+
 - Key: `usd_exchange_rate` $\rightarrow$ Value: `"25920"`
 - Key: `myr_exchange_rate` $\rightarrow$ Value: `"6383"`
 - Key: `jpy_exchange_rate` $\rightarrow$ Value: `"170"`
@@ -174,13 +186,14 @@ flowchart TD
 - Key: `exchange_rate_last_synced` $\rightarrow$ Value: ISO Date String (`"2026-09-10T09:26:00Z"`)
 
 #### B. Nâng cấp Model `ExchangeRate` (`exchange-rate.schema.ts`):
+
 ```typescript
-@Schema({ timestamps: true, collection: 'exchange_rates' })
+@Schema({ timestamps: true, collection: "exchange_rates" })
 export class ExchangeRate extends Document {
   @Prop({ required: true, index: true })
   currency: string; // 'USD' | 'MYR' | 'JPY' | 'RMB'
 
-  @Prop({ required: true, default: 'VND' })
+  @Prop({ required: true, default: "VND" })
   counterCurrency: string; // 'VND'
 
   @Prop({ required: true })
@@ -195,10 +208,10 @@ export class ExchangeRate extends Document {
   @Prop({ required: true, index: true })
   effectiveDate: string; // DD/MM/YYYY hoặc YYYY-MM-DD
 
-  @Prop({ default: 'Hoạt động' })
+  @Prop({ default: "Hoạt động" })
   status: string;
 
-  @Prop({ default: 'SYSTEM_RPA' })
+  @Prop({ default: "SYSTEM_RPA" })
   source: string;
 }
 ```
@@ -213,6 +226,7 @@ export class ExchangeRate extends Document {
 - **Tên phương thức**: `syncAllExchangeRatesFromMSystem()` (Mở rộng từ `syncUsdRateFromMSystem`).
 
 **Logic trích xuất DOM ag-Grid**:
+
 ```javascript
 const rates = await page.evaluate(() => {
   const result = {};
@@ -223,12 +237,12 @@ const rates = await page.evaluate(() => {
     const rateCell = row.querySelector('[col-id="exchangeRate"]');
 
     if (baseCell && counterCell && rateCell) {
-      const base = (baseCell.textContent || '').trim().toUpperCase();
-      const counter = (counterCell.textContent || '').trim().toUpperCase();
-      const rateText = (rateCell.textContent || '').trim().replace(/,/g, '');
+      const base = (baseCell.textContent || "").trim().toUpperCase();
+      const counter = (counterCell.textContent || "").trim().toUpperCase();
+      const rateText = (rateCell.textContent || "").trim().replace(/,/g, "");
       const rateVal = parseFloat(rateText);
 
-      if (counter === 'VND' && !isNaN(rateVal) && rateVal > 0) {
+      if (counter === "VND" && !isNaN(rateVal) && rateVal > 0) {
         result[base] = rateVal;
       }
     }
@@ -247,11 +261,15 @@ const rates = await page.evaluate(() => {
      - `laiLoUSDIdx`: Tìm `'Lãi lỗ thực tế Futures (USD)'`, fallback: `['Lãi lỗ USD', 'Lãi/lỗ USD', 'Lãi lỗ thực tế (USD)', 'Lãi lỗ Futures (USD)']`.
      - `phiDVIdx`: Tìm `'Phí dịch vụ thanh toán (VND)'`, fallback: `['Phí DV thanh toán', 'Phí thanh toán']`.
   2. Công thức đối chiếu ưu tiên:
+
      ```typescript
      // Nếu báo cáo QLTKGD đã chốt sẵn cột VND, dùng trực tiếp để triệt tiêu sai số làm tròn:
-     const totalTradeProfit = (laiLoVND !== 0)
-       ? (laiLoVND + phiQC * tyGiaUSD)
-       : ((phiQC + laiLoUSD) * tyGiaUSD + laiLoJPY * tyGiaJPY + laiLoMYR * tyGiaMYR);
+     const totalTradeProfit =
+       laiLoVND !== 0
+         ? laiLoVND + phiQC * tyGiaUSD
+         : (phiQC + laiLoUSD) * tyGiaUSD +
+           laiLoJPY * tyGiaJPY +
+           laiLoMYR * tyGiaMYR;
 
      const calculated = soDuDauNgay + nopRut - phiGD - phiDV + totalTradeProfit;
      const differ = Math.abs(eodVal - calculated);
@@ -296,30 +314,34 @@ const rates = await page.evaluate(() => {
 
 ## 6. MA TRẬN KIỂM THỬ & TIÊU CHÍ NGHIỆM THU
 
-| STT | Kịch bản kiểm thử | Dữ liệu đầu vào | Kết quả kỳ vọng | Trạng thái |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC-01** | Bóc tách Playwright trên ag-Grid | URL `currencyManagement/exchangeRate` | Trích xuất đủ 4 đồng tiền: USD=25,920, MYR=6,383, RMB=3,871, JPY=170 | Đạt |
-| **TC-02** | Lưu Settings động | Kết quả TC-01 | Key `usd_exchange_rate` trong DB mang giá trị `"25920"` | Đạt |
-| **TC-03** | Tính EOD tài khoản có Lãi Lỗ | Tài khoản `001C0120311` (Lãi 6,495,000 VND) | `calculated` = `105,946,067`, độ lệch = 0 VND (KHỚP 100%) | Đạt |
-| **TC-04** | Tính EOD tài khoản khối lượng lớn | Tài khoản `001C0123980` (Lãi 67,288,200 VND) | `calculated` = `1,582,310,849`, độ lệch = 0 VND (KHỚP 100%) | Đạt |
-| **TC-05** | Đối chiếu CQG Balance | File `Accounts_Balances.xlsx` & `QLTKGD.xlsx` | Không phát sinh cảnh báo lệch tỷ giá giả do dùng 25,920 | Đạt |
-| **TC-06** | Gọi API không truyền `usdRate` | Request POST không kèm tham số `usdRate` | Controller tự query DB lấy 25,920, không dùng 25,220 | Đạt |
+| STT       | Kịch bản kiểm thử                 | Dữ liệu đầu vào                               | Kết quả kỳ vọng                                                      | Trạng thái |
+| :-------- | :-------------------------------- | :-------------------------------------------- | :------------------------------------------------------------------- | :--------- |
+| **TC-01** | Bóc tách Playwright trên ag-Grid  | URL `currencyManagement/exchangeRate`         | Trích xuất đủ 4 đồng tiền: USD=25,920, MYR=6,383, RMB=3,871, JPY=170 | Đạt        |
+| **TC-02** | Lưu Settings động                 | Kết quả TC-01                                 | Key `usd_exchange_rate` trong DB mang giá trị `"25920"`              | Đạt        |
+| **TC-03** | Tính EOD tài khoản có Lãi Lỗ      | Tài khoản `001C0120311` (Lãi 6,495,000 VND)   | `calculated` = `105,946,067`, độ lệch = 0 VND (KHỚP 100%)            | Đạt        |
+| **TC-04** | Tính EOD tài khoản khối lượng lớn | Tài khoản `001C0123980` (Lãi 67,288,200 VND)  | `calculated` = `1,582,310,849`, độ lệch = 0 VND (KHỚP 100%)          | Đạt        |
+| **TC-05** | Đối chiếu CQG Balance             | File `Accounts_Balances.xlsx` & `QLTKGD.xlsx` | Không phát sinh cảnh báo lệch tỷ giá giả do dùng 25,920              | Đạt        |
+| **TC-06** | Gọi API không truyền `usdRate`    | Request POST không kèm tham số `usdRate`      | Controller tự query DB lấy 25,920, không dùng 25,220                 | Đạt        |
 
 ---
 
 ## 7. KẾ HOẠCH TRIỂN KHAI & BẢO TOÀN DỮ LIỆU
 
 ### Giai đoạn 1: Chuẩn hóa Core Engine (Đã hoàn thành xác minh)
+
 - Đã hoàn tất đối chiếu công thức cột `QLTKGD.xlsx` và giải quyết dứt điểm lỗi lệch giả tại [reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts).
 
 ### Giai đoạn 2: Nâng cấp RPA Crawler Đa Tiền Tệ
+
 - Mở rộng phương thức `syncUsdRateFromMSystem()` thành `syncAllExchangeRatesFromMSystem()`.
 - Lưu trữ đồng thời cả USD, MYR, JPY, RMB.
 
 ### Giai đoạn 3: Triệt tiêu Fallback cứng tại Controller & UI
+
 - Thay thế toàn bộ các điểm gán `usdRate || 25220` bằng `await this.reconciliationService.getCurrentUsdRate()`.
 - Build kiểm thử cả Backend (`npm run build`) và Frontend (`npm run build`).
 - Cập nhật chi tiết vào [CHANGELOG_AI.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/CHANGELOG_AI.md) theo đúng quy tắc kiểm soát hệ thống.
 
 ---
-*Tài liệu được lưu trữ trực tiếp tại [docs/THIET_KE_DONG_BO_TY_GIA_VA_DOI_CHIEU_EOD_DA_TIEN_TE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/docs/THIET_KE_DONG_BO_TY_GIA_VA_DOI_CHIEU_EOD_DA_TIEN_TE.md).*
+
+_Tài liệu được lưu trữ trực tiếp tại [docs/THIET_KE_DONG_BO_TY_GIA_VA_DOI_CHIEU_EOD_DA_TIEN_TE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/docs/THIET_KE_DONG_BO_TY_GIA_VA_DOI_CHIEU_EOD_DA_TIEN_TE.md)._

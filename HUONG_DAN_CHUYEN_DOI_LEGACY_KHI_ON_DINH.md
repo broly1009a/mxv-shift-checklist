@@ -1,4 +1,5 @@
 # QUY TRÌNH & HƯỚNG DẪN DI CHUYỂN MÃ NGUỒN CŨ VÀO LEGACY KHI HỆ THỐNG V2 ỔN ĐỊNH
+
 > **Tài liệu chuyển giao kỹ thuật (Migration & Retirement Playbook)**  
 > **Dự án**: MXV Shift Checklist & Trading Operation System  
 > **Kiến trúc áp dụng**: Strangler Fig Pattern (Giai đoạn 3: Deprecation & Archiving)  
@@ -13,7 +14,7 @@
 
 1. **Điều kiện 1 (Thời gian chạy song song - Parallel Run)**:
    - Giao diện mới [`/trading-manager-v2`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager-v2/page.tsx) đã được đội ngũ Trực ca / Vận hành sử dụng thực tế trong ít nhất **01 - 02 tuần giao dịch liên tục** (tối thiểu 5 - 10 phiên).
-   - Kết quả đối soát KLGD, TTM, TTTT và Pre-EOD trên V2 khớp **100%** với kết quả thực tế của công cụ C# gốc và phiên trực.
+   - Kết quả đối soát KLGD, TTM, TTTT và Dsgd-Before-EOD trên V2 khớp **100%** với kết quả thực tế của công cụ C# gốc và phiên trực.
 
 2. **Điều kiện 2 (Zero Critical Bugs trên V2 API)**:
    - Lớp API tập trung tại [`frontend/src/features/trading/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/) hoạt động ổn định, không có lỗi Unhandled Promise Rejection, không có lỗi mất kết nối Token hoặc sai lệch định dạng dữ liệu DTO.
@@ -27,28 +28,28 @@
 
 ### 2.1. Phân Hệ Backend (NestJS)
 
-| Phân hệ / Nghiệp vụ | Vị trí Cũ Cần Đóng Gói Sang `legacy/` | Vị trí Mới Thay Thế Vĩnh Viễn (Modular V2) |
-| :--- | :--- | :--- |
-| **Thống kê Khối lượng Lot CCP** | [`backend/src/modules/lot-statistics/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/lot-statistics/) | [`backend/src/modules/ccp-clearing/services/lot-statistics.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/services/lot-statistics.service.ts) (`CcpLotWorker`) |
-| **Báo cáo CCP Thống kê** | [`backend/src/modules/ccp-statistics/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/) | [`backend/src/modules/ccp-clearing/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/) |
-| **Ghép nối File Thô CQG** | [`backend/src/modules/cqg-sync/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/cqg-sync/) | [`backend/src/modules/trading-ops/services/cqg-merger.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts) (`CqgMergerService`) |
-| **Quét Ký Quỹ Âm / IMR** | [`backend/src/modules/margin-checker/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/margin-checker/) | [`backend/src/modules/trading-ops/services/margin-checker.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/margin-checker.service.ts) (`NegativeMarginWorker`) |
-| **Thin Adapter Đối Soát** | [`backend/src/modules/reconciliation/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/) | [`backend/src/modules/trading-ops/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/) |
+| Phân hệ / Nghiệp vụ             | Vị trí Cũ Cần Đóng Gói Sang `legacy/`                                                                                                                                                                    | Vị trí Mới Thay Thế Vĩnh Viễn (Modular V2)                                                                                                                                                                                                                                                      |
+| :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thống kê Khối lượng Lot CCP** | [`backend/src/modules/lot-statistics/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/lot-statistics/) | [`backend/src/modules/ccp-clearing/services/lot-statistics.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/services/lot-statistics.service.ts) (`CcpLotWorker`)       |
+| **Báo cáo CCP Thống kê**        | [`backend/src/modules/ccp-statistics/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-statistics/) | [`backend/src/modules/ccp-clearing/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ccp-clearing/)                                                                                            |
+| **Ghép nối File Thô CQG**       | [`backend/src/modules/cqg-sync/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/cqg-sync/)             | [`backend/src/modules/trading-ops/services/cqg-merger.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/cqg-merger.service.ts) (`CqgMergerService`)             |
+| **Quét Ký Quỹ Âm / IMR**        | [`backend/src/modules/margin-checker/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/margin-checker/) | [`backend/src/modules/trading-ops/services/margin-checker.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/margin-checker.service.ts) (`NegativeMarginWorker`) |
+| **Thin Adapter Đối Soát**       | [`backend/src/modules/reconciliation/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/) | [`backend/src/modules/trading-ops/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/)                                                                                              |
 
-*(Ghi chú: Tệp backup 6.000 dòng `reconciliation.service.backup.ts` đã được dọn sang [`backend/src/legacy/archive/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/legacy/archive/) từ Giai đoạn 1).*
+_(Ghi chú: Tệp backup 6.000 dòng `reconciliation.service.backup.ts` đã được dọn sang [`backend/src/legacy/archive/`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/legacy/archive/) từ Giai đoạn 1)._
 
 ---
 
 ### 2.2. Phân Hệ Frontend (Next.js React)
 
-| Tệp tin Cũ Cần Đóng Gói | Dung lượng | Vị trí Mới Thay Thế Vĩnh Viễn |
-| :--- | :--- | :--- |
-| [`frontend/src/app/trading-manager/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx) | 505 dòng | Thay thế bằng [`frontend/src/app/trading-manager-v2/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager-v2/page.tsx) |
-| [`LegacyReconSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx) | 112 KB (2.329 dòng) | [`tradingOpsApi.getConsoleSummary()`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-ops.api.ts) & UI V2 Tab 1 |
-| [`LegacyBackupThongKeSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx) | 87 KB (2.000 dòng) | [`tradingBotApi`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-bot.api.ts) & UI V2 Tab 3 |
-| [`CcpLotStatisticsSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx) | 100 KB (2.248 dòng) | [`ccpClearingApi`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/ccp-clearing.api.ts) & UI V2 Tab 2 |
-| Toàn bộ thư mục con `legacy-ms-cqg/` | 9 files | Lưu trữ vào `frontend/src/legacy/components/legacy-ms-cqg/` |
-| Toàn bộ thư mục con `core-ccp/` | 4 files | Lưu trữ vào `frontend/src/legacy/components/core-ccp/` |
+| Tệp tin Cũ Cần Đóng Gói                                                                                                                                                                                                                                  | Dung lượng          | Vị trí Mới Thay Thế Vĩnh Viễn                                                                                                                                                                                                              |
+| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`frontend/src/app/trading-manager/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)                                     | 505 dòng            | Thay thế bằng [`frontend/src/app/trading-manager-v2/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager-v2/page.tsx)   |
+| [`LegacyReconSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)                 | 112 KB (2.329 dòng) | [`tradingOpsApi.getConsoleSummary()`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-ops.api.ts) & UI V2 Tab 1 |
+| [`LegacyBackupThongKeSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx) | 87 KB (2.000 dòng)  | [`tradingBotApi`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-bot.api.ts) & UI V2 Tab 3                     |
+| [`CcpLotStatisticsSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)            | 100 KB (2.248 dòng) | [`ccpClearingApi`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/ccp-clearing.api.ts) & UI V2 Tab 2                   |
+| Toàn bộ thư mục con `legacy-ms-cqg/`                                                                                                                                                                                                                     | 9 files             | Lưu trữ vào `frontend/src/legacy/components/legacy-ms-cqg/`                                                                                                                                                                                |
+| Toàn bộ thư mục con `core-ccp/`                                                                                                                                                                                                                          | 4 files             | Lưu trữ vào `frontend/src/legacy/components/core-ccp/`                                                                                                                                                                                     |
 
 ---
 
@@ -59,12 +60,14 @@
 Khi đội vận hành muốn chuyển URL chính `/trading-manager` sang giao diện V2:
 
 1. **Tạo thư mục lưu trữ legacy**:
+
    ```powershell
    New-Item -ItemType Directory -Force "frontend\src\legacy\app\trading-manager-v1"
    New-Item -ItemType Directory -Force "frontend\src\legacy\components"
    ```
 
 2. **Sao lưu trang V1 cũ sang thư mục legacy**:
+
    ```powershell
    # Di chuyển trang chính V1 cũ
    Move-Item -Force "frontend\src\app\trading-manager\page.tsx" "frontend\src\legacy\app\trading-manager-v1\page.old.tsx"
@@ -76,7 +79,7 @@ Khi đội vận hành muốn chuyển URL chính `/trading-manager` sang giao d
 
 3. **Gán nội dung của V2 thành trang `/trading-manager` chính thức**:
    - Copy toàn bộ nội dung của [`frontend/src/app/trading-manager-v2/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager-v2/page.tsx) đè vào [`frontend/src/app/trading-manager/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx).
-   - Xóa bỏ nút chuyển đổi *"Xem Bản V1 Cũ"* trên header.
+   - Xóa bỏ nút chuyển đổi _"Xem Bản V1 Cũ"_ trên header.
    - Xóa thư mục tạm `frontend/src/app/trading-manager-v2/` (hoặc giữ lại redirect vĩnh viễn về `/trading-manager`).
 
 4. **Kiểm tra biên dịch Frontend**:
@@ -93,6 +96,7 @@ Khi đội vận hành muốn chuyển URL chính `/trading-manager` sang giao d
 Sau khi Frontend đã 100% không còn tham chiếu tới các API cũ:
 
 1. **Di chuyển các module cũ vào `backend/src/legacy/archive/`**:
+
    ```powershell
    # 1. Module lot-statistics
    Move-Item -Force "backend\src\modules\lot-statistics" "backend\src\legacy\archive\"
@@ -124,6 +128,7 @@ Sau khi Frontend đã 100% không còn tham chiếu tới các API cũ:
      ```
 
 3. **Kiểm tra biên dịch và test Backend**:
+
    ```powershell
    cd backend
    npm.cmd run build

@@ -35,18 +35,18 @@ describe('Modular Monolith V2 End-to-End Shift Lifecycle Simulation (Toàn Trìn
     },
   };
 
-  // 2. Tạo Dummy Pre-EOD Worker
-  const preEodWorker: IBotWorker = {
-    capabilityType: 'CHECK_PRE_EOD',
-    displayName: 'Pre-EOD Worker V2',
-    canHandle: (c) => c === 'CHECK_PRE_EOD',
+  // 2. Tạo Dummy Dsgd-Before-EOD Worker
+  const dsgdBeforeEodWorker: IBotWorker = {
+    capabilityType: 'CHECK_DSGD_BEFORE_EOD',
+    displayName: 'Dsgd-Before-EOD Worker V2',
+    canHandle: (c) => c === 'CHECK_DSGD_BEFORE_EOD',
     execute: async (ctx: TaskExecutionContext): Promise<TaskExecutionResult> => {
       const logId = `TRADING_LOG_${logIdCounter++}`;
       mockDomainLogs.push({
         id: logId,
         domain: 'trading_recon_logs',
         data: {
-          reconType: 'PRE_EOD',
+          reconType: 'DSGD_BEFORE_EOD',
           taskId: ctx.taskId,
           shiftId: ctx.shiftId,
           totals: { differCQG: 0, differACM: 0 },
@@ -55,7 +55,7 @@ describe('Modular Monolith V2 End-to-End Shift Lifecycle Simulation (Toàn Trìn
 
       return {
         status: 'SUCCESS',
-        summary: 'Chốt đối chiếu 3 bên Pre-EOD khớp 100%',
+        summary: 'Chốt đối chiếu 3 bên Dsgd-Before-EOD khớp 100%',
         metrics: { differCQG: 0, differACM: 0 },
         domainLogRefId: logId,
         durationMs: 250,
@@ -113,7 +113,7 @@ describe('Modular Monolith V2 End-to-End Shift Lifecycle Simulation (Toàn Trìn
 
     const dispatcher = new BotDispatcherService(mockJobCollection as any);
     dispatcher.registerWorker(klgdWorker);
-    dispatcher.registerWorker(preEodWorker);
+    dispatcher.registerWorker(dsgdBeforeEodWorker);
     dispatcher.registerWorker(ccpWorker);
 
     const shiftLogId = 'SHIFT_20261013_CA_NGAY';
@@ -128,9 +128,9 @@ describe('Modular Monolith V2 End-to-End Shift Lifecycle Simulation (Toàn Trìn
       },
       {
         _id: 'JOB_02',
-        jobType: 'CHECK_PRE_EOD',
+        jobType: 'CHECK_DSGD_BEFORE_EOD',
         status: 'PENDING',
-        payload: { shiftLogId, taskId: 'TASK_PREEOD_01', botCheckType: 'CHECK_PRE_EOD' },
+        payload: { shiftLogId, taskId: 'TASK_DSGDBEFOREEOD_01', botCheckType: 'CHECK_DSGD_BEFORE_EOD' },
       },
       {
         _id: 'JOB_03',
@@ -145,7 +145,7 @@ describe('Modular Monolith V2 End-to-End Shift Lifecycle Simulation (Toàn Trìn
     expect(res1).not.toBeNull();
     expect(res1?.status).toBe('COMPLETED');
 
-    // Xử lý Job 2: Pre-EOD
+    // Xử lý Job 2: Dsgd-Before-EOD
     const res2 = await dispatcher.acquireAndProcessNextJob();
     expect(res2).not.toBeNull();
     expect(res2?.status).toBe('COMPLETED');

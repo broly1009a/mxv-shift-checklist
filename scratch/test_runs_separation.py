@@ -20,17 +20,17 @@ _, stdout_s, _ = ssh.exec_command(summary_cmd)
 s_data = json.loads(stdout_s.read().decode('utf-8'))
 
 runs = s_data.get('runs', [])
-pre_eod_runs = s_data.get('preEodRuns', [])
+dsgd_before_eod_runs = s_data.get('dsgdBeforeEodRuns', [])
 
 print(f"Tổng số lượt trong runs (CHECK_KLGD): {len(runs)}")
 for idx, r in enumerate(runs):
     run_num = len(runs) - idx
     print(f"  [KLGD Lượt #{run_num}] ID: {r.get('id')} | Time: {r.get('time')} | JobType: {r.get('jobType')} | Status: {r.get('status')}")
 
-print(f"\nTổng số lượt trong preEodRuns (CHECK_PRE_EOD): {len(pre_eod_runs)}")
-for idx, r in enumerate(pre_eod_runs):
-    run_num = len(pre_eod_runs) - idx
-    print(f"  [Pre-EOD Lượt #{run_num}] ID: {r.get('id')} | Time: {r.get('time')} | JobType: {r.get('jobType')} | Status: {r.get('status')}")
+print(f"\nTổng số lượt trong dsgdBeforeEodRuns (CHECK_DSGD_BEFORE_EOD): {len(dsgd_before_eod_runs)}")
+for idx, r in enumerate(dsgd_before_eod_runs):
+    run_num = len(dsgd_before_eod_runs) - idx
+    print(f"  [Dsgd-Before-EOD Lượt #{run_num}] ID: {r.get('id')} | Time: {r.get('time')} | JobType: {r.get('jobType')} | Status: {r.get('status')}")
 
 print('\n=== 2. TEST EXECUTIVE DASHBOARD ===')
 dash_cmd = f'curl -s "http://127.0.0.1:3001/api/v1/trading-ops/executive-dashboard?date=2026-10-19&scope=ALL" -H "Authorization: Bearer {token}"'

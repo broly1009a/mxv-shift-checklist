@@ -1,4 +1,5 @@
 ﻿# TÀI LIỆU THIẾT KẾ CHI TIẾT: NHÓM TASK NGUYÊN TỬ KẾ TIẾP
+
 ## Task 3.6 + Task 4.4 + Task 4.5 — Di Dời Logic V1 Sang Domain V2 (Strangler Fig)
 
 ---
@@ -15,11 +16,11 @@
 
 Sau khi hoan thanh Phase 3.1-3.5 (Trading-Ops core) va Phase 4.1-4.3 (CCP Clearing Lot), ba task tiep theo theo dung thu tu lo trinh la:
 
-| Thu tu | Task | Mo ta ngan | V1 Source | V2 Target |
-| :---: | :--- | :--- | :--- | :--- |
-| **1** | **Task 3.6** | Di doi `DsgdBeforeEodService` | `reconciliation/services/dsgd-before-eod.service.ts` (314 dong) | `trading-ops/services/dsgd-before-eod.service.ts` |
-| **2** | **Task 4.4** | Xay dung `ValueStatisticsService` | `reconciliation/services/ccp-recon.service.ts` (logic ty gia) | `ccp-clearing/services/value-statistics.service.ts` |
-| **3** | **Task 4.5** | Di doi `CcpEodService` | `reconciliation/services/ccp-recon.service.ts` (1189 dong) | `ccp-clearing/services/ccp-eod.service.ts` |
+| Thu tu | Task         | Mo ta ngan                        | V1 Source                                                       | V2 Target                                           |
+| :----: | :----------- | :-------------------------------- | :-------------------------------------------------------------- | :-------------------------------------------------- |
+| **1**  | **Task 3.6** | Di doi `DsgdBeforeEodService`     | `reconciliation/services/dsgd-before-eod.service.ts` (314 dong) | `trading-ops/services/dsgd-before-eod.service.ts`   |
+| **2**  | **Task 4.4** | Xay dung `ValueStatisticsService` | `reconciliation/services/ccp-recon.service.ts` (logic ty gia)   | `ccp-clearing/services/value-statistics.service.ts` |
+| **3**  | **Task 4.5** | Di doi `CcpEodService`            | `reconciliation/services/ccp-recon.service.ts` (1189 dong)      | `ccp-clearing/services/ccp-eod.service.ts`          |
 
 ---
 
@@ -29,43 +30,57 @@ Sau khi hoan thanh Phase 3.1-3.5 (Trading-Ops core) va Phase 4.1-4.3 (CCP Cleari
 
 Doc truc tiep tu [`reconciliation/services/dsgd-before-eod.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod.service.ts) (314 dong):
 
-| Thanh phan | Mo ta | Logic Bat Buoc Bao Ton |
-| :--- | :--- | :--- |
-| **Interface `CheckDSGDBeforeEODResult`** | Kieu tra ve chuan | `{ passed, totalOriginal, totalTemp, totalACMMS, totalACMSFTP, differTotal, differACM, messages, sessionDate, timeSuffix, filesFound }` |
-| **`calculatePreviousSessionDate()`** | Tinh ngay T-1, bo qua T7+CN | Logic `while (d.getDay() === 0 || d.getDay() === 6)` — bat buoc giu nguyen |
-| **`checkDSGDBeforeEODFromBuffers()`** | Doi chieu tu Buffer (API Upload) | `parseDSGD()`, `parseStraitsCsv()`, thuat toan loc tai khoan `.endsWith('A')` cho ACM, lam tron 4 chu so thap phan |
-| **`runAutoCheckDSGDBeforeEOD()`** | Tu dong quet tu thu muc Backup | `getMsBackupBase()`, `getAcmBackupBase()`, nhan dien file DSGD snapshot `DSGD{timeSuffix}.xlsx` |
-| **Nguong chenh lech** | `differTotal <= 0.0001` && `differACM <= 0.0001` | Nguong nay la chuan C# — KHONG duoc tu y thay doi |
+| Thanh phan                               | Mo ta                                            | Logic Bat Buoc Bao Ton                                                                                                                  |
+| :--------------------------------------- | :----------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------- |
+| **Interface `CheckDSGDBeforeEODResult`** | Kieu tra ve chuan                                | `{ passed, totalOriginal, totalTemp, totalACMMS, totalACMSFTP, differTotal, differACM, messages, sessionDate, timeSuffix, filesFound }` |
+| **`calculatePreviousSessionDate()`**     | Tinh ngay T-1, bo qua T7+CN                      | Logic `while (d.getDay() === 0                                                                                                          |     | d.getDay() === 6)` — bat buoc giu nguyen |
+| **`checkDSGDBeforeEODFromBuffers()`**    | Doi chieu tu Buffer (API Upload)                 | `parseDSGD()`, `parseStraitsCsv()`, thuat toan loc tai khoan `.endsWith('A')` cho ACM, lam tron 4 chu so thap phan                      |
+| **`runAutoCheckDSGDBeforeEOD()`**        | Tu dong quet tu thu muc Backup                   | `getMsBackupBase()`, `getAcmBackupBase()`, nhan dien file DSGD snapshot `DSGD{timeSuffix}.xlsx`                                         |
+| **Nguong chenh lech**                    | `differTotal <= 0.0001` && `differACM <= 0.0001` | Nguong nay la chuan C# — KHONG duoc tu y thay doi                                                                                       |
 
 ### 2.2. Kho Logic Nguy Hiem Can Dac Biet Chu Y
 
 ```typescript
 // LOGIC 1: Loc tai khoan ACM theo hau to 'A' (Dac thu nghiep vu MXV)
-const acc = String(gd.maTKGD || '').trim().toUpperCase();
-if (acc.endsWith('A')) {
+const acc = String(gd.maTKGD || "")
+  .trim()
+  .toUpperCase();
+if (acc.endsWith("A")) {
   totalACMMS += kl;
 }
 
 // LOGIC 2: Lam tron 4 chu so thap phan de tranh loi floating point
 totalOriginal = Math.round(totalOriginal * 10000) / 10000;
 totalACMMS = Math.round(totalACMMS * 10000) / 10000;
-const differTotal = Math.round(Math.abs(totalOriginal - totalTemp) * 10000) / 10000;
-const differACM = Math.round(Math.abs(totalACMMS - totalACMSFTP) * 10000) / 10000;
+const differTotal =
+  Math.round(Math.abs(totalOriginal - totalTemp) * 10000) / 10000;
+const differACM =
+  Math.round(Math.abs(totalACMMS - totalACMSFTP) * 10000) / 10000;
 
 // LOGIC 3: Nhan dien file ACM Straits — Pattern chuan, khong duoc mo rong
 const matched =
-  acmFiles.find((f) => /straits/i.test(f) && f.includes(`${day}${month}${year}`) && f.endsWith('.csv'))
-  || acmFiles.find((f) => /straits/i.test(f) && f.endsWith('.csv')); // Fallback 1 cap
+  acmFiles.find(
+    (f) =>
+      /straits/i.test(f) &&
+      f.includes(`${day}${month}${year}`) &&
+      f.endsWith(".csv"),
+  ) || acmFiles.find((f) => /straits/i.test(f) && f.endsWith(".csv")); // Fallback 1 cap
 
 // LOGIC 4: Tim file DSGD snapshot linh hoat -> DSGD*.xlsx moi nhat
 const candidates = files
-  .filter((f) => /^DSGD.+\.xlsx$/i.test(f) && !f.startsWith('~$') && f.toLowerCase() !== 'dsgd.xlsx')
+  .filter(
+    (f) =>
+      /^DSGD.+\.xlsx$/i.test(f) &&
+      !f.startsWith("~$") &&
+      f.toLowerCase() !== "dsgd.xlsx",
+  )
   .sort((a, b) => b.mtime - a.mtime);
 ```
 
 ### 2.3. Ke Hoach Trien Khai (3 Buoc)
 
 **Buoc 1**: Tao file V2 moi tai `backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts`
+
 - Di chuyen NGUYEN TRANG toan bo code tu V1
 - KHONG import `RpaDownloaderService` vao V2 (De Dispatcher xu ly o Pha 5)
 - Them prefix logger: `[V2-DsgdBeforeEod]`
@@ -74,7 +89,7 @@ const candidates = files
 
 ```typescript
 providers: [
-  CqgMergerService, KlgdReconService, PreEodReconService,
+  CqgMergerService, KlgdReconService, DsgdBeforeEodReconService,
   MarginCheckerService, TradingOpsConfigService,
   DsgdBeforeEodService,   // THEM MOI
 ],
@@ -134,10 +149,14 @@ export class DsgdBeforeEodService {
 
 ```typescript
 export interface CcpExchangeRates {
-  usdLoss: number;  usdGain: number;
-  myrLoss: number;  myrGain: number;
-  jpyLoss: number;  jpyGain: number;
-  rmbLoss: number;  rmbGain: number;
+  usdLoss: number;
+  usdGain: number;
+  myrLoss: number;
+  myrGain: number;
+  jpyLoss: number;
+  jpyGain: number;
+  rmbLoss: number;
+  rmbGain: number;
 }
 
 export interface CcpTransactionValueResult {
@@ -145,10 +164,10 @@ export interface CcpTransactionValueResult {
   totalLots: number;
   totalValueVnd: number;
   breakdownByProduct: Array<{
-    product: string;   // Ma hang hoa (DCE_A, SHFE_CU, ...)
+    product: string; // Ma hang hoa (DCE_A, SHFE_CU, ...)
     lots: number;
     valueVnd: number;
-    currency: 'USD' | 'MYR' | 'JPY' | 'RMB';
+    currency: "USD" | "MYR" | "JPY" | "RMB";
     exchangeRate: number;
   }>;
   rates: CcpExchangeRates;
@@ -172,7 +191,7 @@ backend/src/modules/ccp-clearing/
 ```typescript
 @Injectable()
 export class CcpValueWorker implements IBotWorker {
-  readonly botCheckType = 'CHECK_CCP_VALUE';  // Data-driven, khong hardcode Task ID
+  readonly botCheckType = "CHECK_CCP_VALUE"; // Data-driven, khong hardcode Task ID
 
   async execute(context: TaskExecutionContext): Promise<TaskExecutionResult> {
     // 1. Lay ty gia (ValueStatisticsService)
@@ -200,6 +219,7 @@ export class CcpValueWorker implements IBotWorker {
 **Nguon**: [`reconciliation/services/ccp-recon.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/ccp-recon.service.ts) (1189 dong, 48.75KB)
 
 Day la service phuc tap nhat vi:
+
 - Dung `forwardRef()` voi 3 service: `CcpCeDownloaderService`, `EmailWatcherService`, `MarginCheckerService`
 - Co `getCurrentExchangeRates()` (se tach sang `ValueStatisticsService` o Task 4.4)
 - Co logic doi soat EOD CCP thuc su
@@ -248,6 +268,7 @@ backend/src/modules/ccp-clearing/
 ### 4.4. Facade V1 Sau Khi Di Doi
 
 Sau khi Task 4.5 hoan thanh, `reconciliation/services/ccp-recon.service.ts` se tro thanh Facade mong:
+
 - Toan bo signature public giu nguyen
 - Ben trong chi goi `this.ccpEodServiceV2.method()`
 - V1 van la source of truth cho controllers/handlers cu
@@ -288,26 +309,29 @@ Sau khi Task 4.5 hoan thanh, `reconciliation/services/ccp-recon.service.ts` se t
 Theo Quy tac "Bai Test Tu Kiem Tra Bat Buoc" (AGENTS.md Section 7.2.5):
 
 **Cau hoi 1**: "Neu Admin tao Template moi voi ID ngau nhien, module nay co tu nhan dien khong?"
+
 - Task 3.6: Khong dung bat ky Task ID cung nao [PASS]
 - Task 4.4: Worker dang ky qua `botCheckType = 'CHECK_CCP_VALUE'` (data-driven) [PASS]
 - Task 4.5: Worker dang ky qua `botCheckType = 'CHECK_EOD_CCP'` (data-driven) [PASS]
 
 **Cau hoi 2**: "Toan bo logic tai chinh co duoc chuyen nguyen trang khong?"
+
 - Moi thuat toan deu trich dan file nguon V1 lam Ground Truth [PASS]
 
 ---
 
 ## 7. KET QUA KY VONG SAU KHI HOAN THANH 3 TASKS NAY
 
-| Task | Truoc | Sau |
-| :--- | :--- | :--- |
-| Task 3.6 | TIEP THEO | HOAN THANH |
-| Task 4.4 | TIEP THEO | HOAN THANH |
-| Task 4.5 | TIEP THEO | HOAN THANH |
-| **Tong Task Hoan Thanh** | **17/27** | **20/27** |
-| **Tong Task Con Lai** | **10** | **7** |
+| Task                     | Truoc     | Sau        |
+| :----------------------- | :-------- | :--------- |
+| Task 3.6                 | TIEP THEO | HOAN THANH |
+| Task 4.4                 | TIEP THEO | HOAN THANH |
+| Task 4.5                 | TIEP THEO | HOAN THANH |
+| **Tong Task Hoan Thanh** | **17/27** | **20/27**  |
+| **Tong Task Con Lai**    | **10**    | **7**      |
 
 **Trang thai kien truc sau 3 tasks nay**:
+
 - `trading-ops` domain: HOAN CHINH (6/6 tasks xong)
 - `ccp-clearing` domain: HOAN CHINH (5/5 tasks xong)
 - `ingress` domain: 80% (Task 2.6 con cho)

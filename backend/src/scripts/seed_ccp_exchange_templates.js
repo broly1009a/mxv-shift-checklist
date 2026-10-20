@@ -88,7 +88,7 @@ async function seedCcpExchangeTemplates() {
         functionUrl: '/trading-manager/reconciliation',
         urdReference: 'STT-04',
         isBotCheck: true,
-        botCheckType: 'CHECK_PRE_EOD',
+        botCheckType: 'CHECK_DSGD_BEFORE_EOD',
         slaType: 'FIXED_TIME',
         slaDeadline: '04:30',
         actionDescription: 'Điểm kiểm tra/xác nhận: Có thông báo chạy reconcile thành công giữa CoreEX và CoreCCP.'
@@ -102,7 +102,7 @@ async function seedCcpExchangeTemplates() {
         functionUrl: '/trading-manager/session-open/klgd-phien-cu',
         urdReference: 'STT-05',
         isBotCheck: true,
-        botCheckType: 'CHECK_PRE_EOD',
+        botCheckType: 'CHECK_DSGD_BEFORE_EOD',
         slaType: 'FIXED_TIME',
         slaDeadline: '04:35',
         actionDescription: 'Điểm kiểm tra/xác nhận: Kiểm tra màn hình tra cứu đối chiếu lệnh.'

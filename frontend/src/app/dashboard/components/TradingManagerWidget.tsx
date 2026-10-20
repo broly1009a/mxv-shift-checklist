@@ -61,8 +61,8 @@ export const TradingManagerWidget: React.FC<TradingManagerWidgetProps> = ({ date
 
   const klgdDiffer = (data?.klgd?.totals?.differ ?? 0) + (data?.klgd?.totals?.differACM ?? 0);
   const isKlgdWaiting = data?.klgd?.isWaitingFiles;
-  const isPreEodWaiting = data?.preEod?.isWaitingFiles;
-  const preEodDiffer = (data?.preEod?.mismatchedPositionsCount ?? 0);
+  const isDsgdBeforeEodWaiting = data?.dsgdBeforeEod?.isWaitingFiles;
+  const dsgdBeforeEodDiffer = (data?.dsgdBeforeEod?.mismatchedPositionsCount ?? 0);
   const negativeIMR = data?.negativeMargin?.negativeIMRAccCount ?? 0;
 
   return (
@@ -104,21 +104,21 @@ export const TradingManagerWidget: React.FC<TradingManagerWidgetProps> = ({ date
           </div>
         </div>
 
-        {/* Chốt Pre-EOD */}
+        {/* Chốt Dsgd-Before-EOD */}
         <div style={{ backgroundColor: 'var(--bg-input, rgba(255,255,255,0.03))', borderRadius: '8px', padding: '10px 12px', border: '1px solid var(--border-color, rgba(255,255,255,0.08))' }}>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #94a3b8)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <ShieldCheck size={11} /> Chốt Pre-EOD 3 bên
+            <ShieldCheck size={11} /> Chốt Dsgd-Before-EOD 3 bên
           </div>
-          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: isPreEodWaiting ? '#fbbf24' : preEodDiffer === 0 ? '#34d399' : '#fb7185', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {isPreEodWaiting ? (
+          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: isDsgdBeforeEodWaiting ? '#fbbf24' : dsgdBeforeEodDiffer === 0 ? '#34d399' : '#fb7185', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isDsgdBeforeEodWaiting ? (
               'Chờ file...'
-            ) : preEodDiffer === 0 ? (
+            ) : dsgdBeforeEodDiffer === 0 ? (
               <>
                 <CheckCircle2 size={13} /> Vị thế net khớp
               </>
             ) : (
               <>
-                <AlertTriangle size={13} /> Lệch {preEodDiffer} TK
+                <AlertTriangle size={13} /> Lệch {dsgdBeforeEodDiffer} TK
               </>
             )}
           </div>

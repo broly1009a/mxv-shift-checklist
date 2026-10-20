@@ -46,7 +46,7 @@ Màn hình này quản lý toàn bộ các thông số vận hành mà trước 
 
 ---
 
-## 2. MÀN HÌNH ĐỐI SOÁT KHỚP LỆNH TRONG PHIÊN & PRE-EOD (TAB 1)
+## 2. MÀN HÌNH ĐỐI SOÁT KHỚP LỆNH TRONG PHIÊN & DSGD-BEFORE-EOD (TAB 1)
 
 Màn hình thay thế hoàn toàn công cụ C# cũ, trực ca sử dụng liên tục trong phiên giao dịch.
 
@@ -120,9 +120,9 @@ Màn hình trung tâm quản trị kỹ thuật dành cho quản trị viên và
 
 ## 6. HƯỚNG DẪN XỬ LÝ NHANH MỘT SỐ TÌNH HUỐNG THƯỜNG GẶP
 
-| Tình huống | Cách xử lý trên giao diện |
-| :--- | :--- |
+| Tình huống                                     | Cách xử lý trên giao diện                                                                                                                                                                                |
+| :--------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Sàn VNCLEAR thêm đồng tiền mới (ví dụ EUR)** | Vào **Tab Cấu hình** $\rightarrow$ Thẻ **Ma trận Tỷ giá CoreCCP** $\rightarrow$ Nhập mã `EUR`, Tỷ giá quy đổi, Tỷ giá Mua/Bán $\rightarrow$ Bấm **+ Thêm nguyên tệ** $\rightarrow$ Bấm **Lưu Cấu Hình**. |
-| **Tỷ giá CoreCCP hôm nay đổi khác hôm qua** | Vào **Tab Cấu hình** $\rightarrow$ Bấm nút **Đồng bộ từ CoreCCP** (hoặc gõ sửa trực tiếp vào ô số trên bảng) $\rightarrow$ Bấm **Lưu Cấu Hình**. |
-| **Bot đang chạy bị kẹt hoặc quay spinner lâu** | Tại **Tab 1**, bấm ngay nút **Dừng bot** (viền đỏ) $\rightarrow$ Xác nhận dừng $\rightarrow$ Hệ thống sẽ ngắt job ngay lập tức. |
-| **Cần chạy lại đối soát sau khi bổ sung file** | Đặt file vào đúng thư mục $\rightarrow$ Bấm **Chạy đối soát ngay** tại Tab 1. |
+| **Tỷ giá CoreCCP hôm nay đổi khác hôm qua**    | Vào **Tab Cấu hình** $\rightarrow$ Bấm nút **Đồng bộ từ CoreCCP** (hoặc gõ sửa trực tiếp vào ô số trên bảng) $\rightarrow$ Bấm **Lưu Cấu Hình**.                                                         |
+| **Bot đang chạy bị kẹt hoặc quay spinner lâu** | Tại **Tab 1**, bấm ngay nút **Dừng bot** (viền đỏ) $\rightarrow$ Xác nhận dừng $\rightarrow$ Hệ thống sẽ ngắt job ngay lập tức.                                                                          |
+| **Cần chạy lại đối soát sau khi bổ sung file** | Đặt file vào đúng thư mục $\rightarrow$ Bấm **Chạy đối soát ngay** tại Tab 1.                                                                                                                            |

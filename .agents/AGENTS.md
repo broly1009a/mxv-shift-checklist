@@ -60,32 +60,32 @@ Mỗi khi AI Assistant thực hiện bất kỳ thay đổi, chỉnh sửa code 
      - `OP1` + `OP2` $\rightarrow$ `OP.xlsx` (Trạng thái mở)
      - `OD1` + `OD2` $\rightarrow$ `Od.xlsx` (Sổ lệnh)
 
-3. **Phân định Tác vụ Đối chiếu trong phiên vs Pre-EOD**:
+3. **Phân định Tác vụ Đối chiếu trong phiên vs Dsgd-Before-EOD**:
    - **Tác vụ Trong phiên (CHECK_KLGD)** (_Giám sát & Đối chiếu MS vs CQG trong phiên_):
      - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_KLGD'`.
      - Monolith V1: Thực thi qua `runAutoCheckKLGD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
      - Modular Monolith V2: Thực thi qua `KlgdReconWorker` ([klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts)) thuộc phân hệ `trading-ops`.
-   - **Tác vụ Cuối ngày (CHECK_PRE_EOD)** (_Chốt đối chiếu 3 bên cuối ngày_):
-     - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_PRE_EOD'`.
-     - Monolith V1: Thực thi qua `runAutoCheckPreEOD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
-     - Modular Monolith V2: Thực thi qua `PreEodReconWorker` ([pre-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts)) thuộc phân hệ `trading-ops`.
+   - **Tác vụ Cuối ngày (CHECK_DSGD_BEFORE_EOD)** (_Chốt đối chiếu 3 bên cuối ngày_):
+     - Định danh nghiệp vụ duy nhất: `botCheckType: 'CHECK_DSGD_BEFORE_EOD'`.
+     - Monolith V1: Thực thi qua `runAutoCheckDSGDBeforeEOD()` ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)).
+     - Modular Monolith V2: Thực thi qua `DsgdBeforeEodReconWorker` ([dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts)) thuộc phân hệ `trading-ops`.
 
 ---
 
 ## 3. Reference Mapping: C# IT Tool vs Monolith V1 vs Modular Monolith V2
 
-| Chức năng Nghiệp vụ                      | C# Source File & Method                                     | Monolith V1 (Cũ - Đang Chạy)                                               | Modular Monolith V2 (Mới - Chuẩn Kiến Trúc)                                       |
-| :--------------------------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
-| **Tải Báo cáo M-System (RPA / API)**     | `ChromeBot.cs`                                              | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/ms-scraper.service.ts` & `ms-api.adapter.ts`            |
-| **Tải Báo cáo CQG (Song song 2 TK)**     | `ChromeBot.cs`                                              | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/cqg-scraper.service.ts` & `cqg-api.adapter.ts`          |
-| **Tải Báo cáo ACM (Straits CSV)**        | SFTP / Web                                                  | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/acm-scraper.service.ts`                                 |
-| **Tải Báo cáo CCP (25 file)**            | Browser                                                     | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/ccp-scraper.service.ts` & `coreccp-api.adapter.ts`      |
-| **Ghép file thô CQG (`FR, PS, OP, Od`)** | `FileUtils.cs`                                              | `cqg-sync.service.ts`                                                      | `modules/trading-ops/services/cqg-merger.service.ts`                              |
-| **Đối chiếu KLGD Trong Phiên**           | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` | `reconciliation.service.ts` $\rightarrow$ `checkKLGD()`                    | `modules/trading-ops/services/klgd-recon.service.ts` (`KlgdReconWorker`)          |
-| **Đối chiếu Pre-EOD 3 Bên**              | `TransactionCheckingService.cs` $\rightarrow$ `CheckEOD()`  | `reconciliation.service.ts` $\rightarrow$ `checkPreEOD()`                  | `modules/trading-ops/services/pre-eod-recon.service.ts` (`PreEodReconWorker`)     |
-| **Quét Ký Quỹ Âm (Post-EOD)**            | `margin-checker` $\rightarrow$ `MarginChecking.cs`          | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` | `modules/trading-ops/services/margin-checker.service.ts` (`NegativeMarginWorker`) |
-| **Thống kê Lot & Giá trị CCP (Macro)**   | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs`   | `bot-job-queue.service.ts` $\rightarrow$ `handleRun*MacroJob()`            | `modules/ccp-clearing/services/lot-statistics.service.ts` (`CcpLotWorker`)        |
-| **Điều phối Job Bot & Cập nhật Ca**      | Windows Task Scheduler                                      | `bot-engine.service.ts` & `bot-job-queue.service.ts`                       | `modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`                      |
+| Chức năng Nghiệp vụ                      | C# Source File & Method                                     | Monolith V1 (Cũ - Đang Chạy)                                               | Modular Monolith V2 (Mới - Chuẩn Kiến Trúc)                                                  |
+| :--------------------------------------- | :---------------------------------------------------------- | :------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| **Tải Báo cáo M-System (RPA / API)**     | `ChromeBot.cs`                                              | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/ms-scraper.service.ts` & `ms-api.adapter.ts`                       |
+| **Tải Báo cáo CQG (Song song 2 TK)**     | `ChromeBot.cs`                                              | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/cqg-scraper.service.ts` & `cqg-api.adapter.ts`                     |
+| **Tải Báo cáo ACM (Straits CSV)**        | SFTP / Web                                                  | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/acm-scraper.service.ts`                                            |
+| **Tải Báo cáo CCP (25 file)**            | Browser                                                     | `rpa-downloader.service.ts`                                                | `modules/ingress/scrapers/ccp-scraper.service.ts` & `coreccp-api.adapter.ts`                 |
+| **Ghép file thô CQG (`FR, PS, OP, Od`)** | `FileUtils.cs`                                              | `cqg-sync.service.ts`                                                      | `modules/trading-ops/services/cqg-merger.service.ts`                                         |
+| **Đối chiếu KLGD Trong Phiên**           | `TransactionCheckingService.cs` $\rightarrow$ `CheckKLGD()` | `reconciliation.service.ts` $\rightarrow$ `checkKLGD()`                    | `modules/trading-ops/services/klgd-recon.service.ts` (`KlgdReconWorker`)                     |
+| **Đối chiếu Dsgd-Before-EOD 3 Bên**      | `TransactionCheckingService.cs` $\rightarrow$ `CheckEOD()`  | `reconciliation.service.ts` $\rightarrow$ `checkDSGDBeforeEOD()`           | `modules/trading-ops/services/dsgd-before-eod-recon.service.ts` (`DsgdBeforeEodReconWorker`) |
+| **Quét Ký Quỹ Âm (Post-EOD)**            | `margin-checker` $\rightarrow$ `MarginChecking.cs`          | `post-eod-handler.service.ts` $\rightarrow$ `scanNegativeMarginAccounts()` | `modules/trading-ops/services/margin-checker.service.ts` (`NegativeMarginWorker`)            |
+| **Thống kê Lot & Giá trị CCP (Macro)**   | `CCP-Statistics-Tool` $\rightarrow$ `ExcelDataService.cs`   | `bot-job-queue.service.ts` $\rightarrow$ `handleRun*MacroJob()`            | `modules/ccp-clearing/services/lot-statistics.service.ts` (`CcpLotWorker`)                   |
+| **Điều phối Job Bot & Cập nhật Ca**      | Windows Task Scheduler                                      | `bot-engine.service.ts` & `bot-job-queue.service.ts`                       | `modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`                                 |
 
 ---
 
@@ -220,11 +220,11 @@ Quy chuẩn này là kim chỉ nam **bắt buộc áp dụng cho toàn bộ các
 | **`test_ccp_download_25_files.js`** | `node src/scripts/test_ccp_download_25_files.js --headed`<br/>_hoặc_ `npm run test:ccp-25` | Tải toàn bộ 25 báo cáo từ CoreCCP (`https://coreccp.mxv.com.vn`), tự động xử lý phân trang và chọn rổ báo cáo. |
 | **`test_ccp_statistics_suite.ts`**  | `ts-node src/scripts/test_ccp_statistics_suite.ts`                                         | Bộ kiểm thử nghiệp vụ tính toán Thống kê Lot và Giá trị giao dịch CCP theo logic C# Macro sang TypeScript.     |
 
-### 5. Nhóm Đối Chiếu Số Liệu Pre-EOD 3 Bên
+### 5. Nhóm Đối Chiếu Số Liệu Dsgd-Before-EOD 3 Bên
 
-| Tên File Test                          | Lệnh Chạy (Terminal / NPM)                                                               | Mục Đích & Phạm Vi Kiểm Thử                                                                    |
-| :------------------------------------- | :--------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
-| **`run_auto_check_pre_eod_active.ts`** | `ts-node src/scripts/run_auto_check_pre_eod_active.ts`<br/>_hoặc_ `npm run test:pre-eod` | Kích hoạt và kiểm thử toàn trình quy trình Đối chiếu Pre-EOD 3 bên (MS vs CQG vs Straits/ACM). |
+| Tên File Test                                  | Lệnh Chạy (Terminal / NPM)                                                                               | Mục Đích & Phạm Vi Kiểm Thử                                                                            |
+| :--------------------------------------------- | :------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **`run_auto_CHECK_DSGD_BEFORE_EOD_active.ts`** | `ts-node src/scripts/run_auto_CHECK_DSGD_BEFORE_EOD_active.ts`<br/>_hoặc_ `npm run test:dsgd-before-eod` | Kích hoạt và kiểm thử toàn trình quy trình Đối chiếu Dsgd-Before-EOD 3 bên (MS vs CQG vs Straits/ACM). |
 
 ---
 
@@ -264,18 +264,18 @@ Hệ thống được chia làm 3 tầng độc lập, nghiêm cấm xâm lấn 
 
 Khi gặp bất kỳ yêu cầu/lỗi nào, AI BẮT BUỘC tra cứu đúng file mục tiêu, tuyệt đối không tìm lan man:
 
-| Vấn Đề / Chức Năng Cần Sửa                      | Thư Mục / File Mục Tiêu Duy Nhất                             | Tuyệt Đối CẤM Làm                                 |
-| :---------------------------------------------- | :----------------------------------------------------------- | :------------------------------------------------ |
-| **Lỗi cào web M-System** (đổi nút, rớt session) | `src/modules/ingress/scrapers/ms-scraper.service.ts`         | CẤM sửa vào file của QLGD hay Checklist.          |
-| **Lỗi tải song song CQG1 & CQG2**               | `src/modules/ingress/scrapers/cqg-scraper.service.ts`        | CẤM sửa vào file tính toán khớp lệnh.             |
-| **Lỗi đăng nhập ACM / Giải Captcha Gemini**     | `src/modules/ingress/scrapers/acm-scraper.service.ts`        | CẤM hardcode cookie hay đoán session.             |
-| **Lỗi ghép file thô CQG** (`FR, OP, PS, Od`)    | `src/modules/trading-ops/services/cqg-merger.service.ts`     | CẤM đoán mò thư mục; dùng `outputDir` từ Ingress. |
-| **Lỗi công thức so khớp lệnh trong phiên**      | `src/modules/trading-ops/services/klgd-recon.service.ts`     | CẤM nhồi code Playwright vào hàm này.             |
-| **Lỗi chốt đối chiếu cuối ngày Pre-EOD**        | `src/modules/trading-ops/services/pre-eod-recon.service.ts`  | CẤM hardcode ngày T-1; dùng `working-calendar`.   |
-| **Lỗi quét ký quỹ âm sau EOD**                  | `src/modules/trading-ops/services/margin-checker.service.ts` | CẤM thay đổi ngưỡng cảnh báo khi chưa có lệnh.    |
-| **Lỗi đo CPU/RAM/Disk, Backup DB (IT)**         | `src/modules/it-ops/`                                        | CẤM đụng chạm vào thư mục `trading-ops`.          |
-| **Lỗi Reconcile 04:15, SFTP CSV (Bù trừ)**      | `src/modules/ccp-clearing/`                                  | CẤM đụng chạm vào thư mục `trading-ops`.          |
-| **Lỗi ca trực không mở/đóng được, giao ca**     | `src/modules/checklist-hub/shifts/`                          | CẤM sửa vào logic nghiệp vụ của các Bot.          |
+| Vấn Đề / Chức Năng Cần Sửa                       | Thư Mục / File Mục Tiêu Duy Nhất                                    | Tuyệt Đối CẤM Làm                                 |
+| :----------------------------------------------- | :------------------------------------------------------------------ | :------------------------------------------------ |
+| **Lỗi cào web M-System** (đổi nút, rớt session)  | `src/modules/ingress/scrapers/ms-scraper.service.ts`                | CẤM sửa vào file của QLGD hay Checklist.          |
+| **Lỗi tải song song CQG1 & CQG2**                | `src/modules/ingress/scrapers/cqg-scraper.service.ts`               | CẤM sửa vào file tính toán khớp lệnh.             |
+| **Lỗi đăng nhập ACM / Giải Captcha Gemini**      | `src/modules/ingress/scrapers/acm-scraper.service.ts`               | CẤM hardcode cookie hay đoán session.             |
+| **Lỗi ghép file thô CQG** (`FR, OP, PS, Od`)     | `src/modules/trading-ops/services/cqg-merger.service.ts`            | CẤM đoán mò thư mục; dùng `outputDir` từ Ingress. |
+| **Lỗi công thức so khớp lệnh trong phiên**       | `src/modules/trading-ops/services/klgd-recon.service.ts`            | CẤM nhồi code Playwright vào hàm này.             |
+| **Lỗi chốt đối chiếu cuối ngày Dsgd-Before-EOD** | `src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts` | CẤM hardcode ngày T-1; dùng `working-calendar`.   |
+| **Lỗi quét ký quỹ âm sau EOD**                   | `src/modules/trading-ops/services/margin-checker.service.ts`        | CẤM thay đổi ngưỡng cảnh báo khi chưa có lệnh.    |
+| **Lỗi đo CPU/RAM/Disk, Backup DB (IT)**          | `src/modules/it-ops/`                                               | CẤM đụng chạm vào thư mục `trading-ops`.          |
+| **Lỗi Reconcile 04:15, SFTP CSV (Bù trừ)**       | `src/modules/ccp-clearing/`                                         | CẤM đụng chạm vào thư mục `trading-ops`.          |
+| **Lỗi ca trực không mở/đóng được, giao ca**      | `src/modules/checklist-hub/shifts/`                                 | CẤM sửa vào logic nghiệp vụ của các Bot.          |
 
 ### 3. Năm "Tối Kỵ" AI Tuyệt Đối Không Được Vi Phạm (Strict Prohibitions)
 
@@ -330,6 +330,6 @@ Khi di dời code từ `reconciliation.service.ts` sang `trading-ops/`:
 
 ### 4. Chiến Lược Tắt Hẳn Playwright & Chuyển Dịch Toàn Diện Sang API (Playwright Sunsetting)
 
-- **Bảo tồn vĩnh viễn Pure Logic**: Các thuật toán tính toán so khớp lệnh (`klgd-recon.service.ts`, `pre-eod-recon.service.ts`) được thiết kế hoàn toàn độc lập với phương thức lấy dữ liệu.
+- **Bảo tồn vĩnh viễn Pure Logic**: Các thuật toán tính toán so khớp lệnh (`klgd-recon.service.ts`, `dsgd-before-eod-recon.service.ts`) được thiết kế hoàn toàn độc lập với phương thức lấy dữ liệu.
 - **Hoán đổi Adapter không xâm lấn**: Khi tắt Playwright, chỉ việc thay thế hoặc bổ sung Ingress Adapter mới (`CoreExApiAdapter`, `CoreCcpApiAdapter`) nạp vào Cổng `IIngressPort`. Toàn bộ mã nguồn nghiệp vụ của các Domain Worker được giữ nguyên vẹn 100%.
 - **Giải phóng tài nguyên**: Việc loại bỏ Playwright sẽ triệt tiêu 100% rủi ro ngốn RAM (giảm từ 1.5GB Chromium xuống vài chục MB HTTP Client) và tăng tốc thời gian lấy dữ liệu từ hàng chục giây xuống dưới 500ms.

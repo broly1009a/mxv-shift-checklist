@@ -8,14 +8,14 @@
  * 2. Cuối tuần (Monday -> Friday): Bỏ qua Thứ Bảy (10) và Chủ Nhật (11).
  * 3. Ngày Lễ Quốc Khánh (Thursday 03/09/2026): Bỏ qua ngày nghỉ 02/09 và 01/09, lùi về 31/08/2026.
  * 4. Kỳ nghỉ Tết Nguyên Đán kéo dài: Thứ Hai sau Tết lùi qua toàn bộ 5 ngày nghỉ Tết + cuối tuần về phiên giao dịch cuối cùng trước Tết.
- * 5. PreEodReconService: Tích hợp chuẩn xác cùng logic getPreviousTradingSession.
+ * 5. DsgdBeforeEodReconService: Tích hợp chuẩn xác cùng logic getPreviousTradingSession.
  *
  * Lệnh chạy:
  * cmd.exe /c "npx ts-node -r tsconfig-paths/register src/scripts/test_working_calendar_t_minus_one_guard.ts"
  */
 
 import { DsgdBeforeEodService } from '../modules/trading-ops/services/dsgd-before-eod.service';
-import { PreEodReconService } from '../modules/trading-ops/services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService } from '../modules/trading-ops/services/dsgd-before-eod-recon.service';
 
 // Mock WorkingCalendarService có khả năng nhận diện ngày lễ/tết
 class MockWorkingCalendarService {
@@ -65,7 +65,7 @@ async function runTests() {
   const mockSettings: any = { getSetting: async (k: string, def: string) => def };
 
   const dsgdService = new DsgdBeforeEodService(mockSettings, mockCalendar);
-  const preEodService = new PreEodReconService(mockSettings, mockCalendar);
+  const dsgdBeforeEodService = new DsgdBeforeEodReconService(mockSettings, mockCalendar);
 
   let passedCount = 0;
   let failedCount = 0;
@@ -117,19 +117,19 @@ async function runTests() {
     failedCount++;
   }
 
-  // --- TEST CASE 5: PreEodReconService cũng áp dụng chuẩn Working Calendar ---
-  console.log('\nTest Case 5: PreEodReconService vượt kỳ nghỉ Tết tương tự...');
-  const res5 = await preEodService.getPreviousTradingSession(new Date('2026-02-23'));
+  // --- TEST CASE 5: DsgdBeforeEodReconService cũng áp dụng chuẩn Working Calendar ---
+  console.log('\nTest Case 5: DsgdBeforeEodReconService vượt kỳ nghỉ Tết tương tự...');
+  const res5 = await dsgdBeforeEodService.getPreviousTradingSession(new Date('2026-02-23'));
   const day5 = String(res5.getDate()).padStart(2, '0');
   const m5 = String(res5.getMonth() + 1).padStart(2, '0');
   const y5 = res5.getFullYear();
   const dateFormatted5 = `${day5}/${m5}/${y5}`;
 
   if (dateFormatted5 === '13/02/2026') {
-    console.log(`   PASSED: PreEodReconService trả về đúng ngày phiên trước Tết: ${dateFormatted5}`);
+    console.log(`   PASSED: DsgdBeforeEodReconService trả về đúng ngày phiên trước Tết: ${dateFormatted5}`);
     passedCount++;
   } else {
-    console.error(`   FAILED: PreEodReconService kỳ vọng 13/02/2026 nhưng nhận ${dateFormatted5}`);
+    console.error(`   FAILED: DsgdBeforeEodReconService kỳ vọng 13/02/2026 nhưng nhận ${dateFormatted5}`);
     failedCount++;
   }
 

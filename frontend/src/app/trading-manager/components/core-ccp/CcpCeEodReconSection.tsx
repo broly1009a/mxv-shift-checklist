@@ -35,7 +35,7 @@ export interface CcpCeEodReconSectionProps {
     totalDifferLots: number;
     klgdStatus: string;
   }) => void;
-  viewMode?: 'ALL' | 'PRE_EOD_ONLY';
+  viewMode?: 'ALL' | 'DSGD_BEFORE_EOD_ONLY';
 }
 
 export interface CcpCeMismatchedTrade {
@@ -68,7 +68,7 @@ export default function CcpCeEodReconSection({
   const [mounted, setMounted] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [triggering, setTriggering] = useState<boolean>(false);
-  const [triggeringSection, setTriggeringSection] = useState<'all' | 'margin' | 'eod_run' | 'pre_eod' | null>(null);
+  const [triggeringSection, setTriggeringSection] = useState<'all' | 'margin' | 'eod_run' | 'dsgd_before_eod' | null>(null);
 
   // Negative Margin state
   const [negativeMarginAccounts, setNegativeMarginAccounts] = useState<Array<{
@@ -91,10 +91,10 @@ export default function CcpCeEodReconSection({
   const [hasExecutedEod, setHasExecutedEod] = useState<boolean>(false);
   const [eodExecutedAt, setEodExecutedAt] = useState<string | null>(null);
 
-  // Pre-EOD Diff state (CoreCCP ↔ CoreEX)
-  const [hasExecutedPreEod, setHasExecutedPreEod] = useState<boolean>(false);
-  const [preEodExecutedAt, setPreEodExecutedAt] = useState<string | null>(null);
-  const [preEodTotals, setPreEodTotals] = useState<{
+  // Dsgd-Before-EOD Diff state (CoreCCP ↔ CoreEX)
+  const [hasExecutedDsgdBeforeEod, setHasExecutedDsgdBeforeEod] = useState<boolean>(false);
+  const [dsgdBeforeEodExecutedAt, setDsgdBeforeEodExecutedAt] = useState<string | null>(null);
+  const [dsgdBeforeEodTotals, setDsgdBeforeEodTotals] = useState<{
     totalCcpVolume: number;
     totalCeVolume: number;
     differLots: number;
@@ -166,19 +166,19 @@ export default function CcpCeEodReconSection({
           setEodResults([]);
         }
 
-        // 3. Đối soát Pre-EOD (CoreCCP ↔ CoreEX)
-        if (data?.preEod) {
-          setHasExecutedPreEod(!!data.preEod.executedAt);
-          setPreEodExecutedAt(data.preEod.executedAt || null);
-          setPreEodTotals({
-            totalCcpVolume: data.preEod.ccpVolume || data.preEod.totals?.totalACM_MS || 0,
-            totalCeVolume: data.preEod.ceVolume || data.preEod.totals?.totalACM_Straits || 0,
-            differLots: data.preEod.differLots || data.preEod.totals?.differACM || 0,
-            mismatchedTradesCount: data.preEod.mismatchedTradesCount || (data.preEod.mismatchedTrades || []).length,
-            mismatchedPositionsCount: data.preEod.mismatchedPositionsCount || (data.preEod.mismatchedPositions || []).length,
+        // 3. Đối soát Dsgd-Before-EOD (CoreCCP ↔ CoreEX)
+        if (data?.dsgdBeforeEod) {
+          setHasExecutedDsgdBeforeEod(!!data.dsgdBeforeEod.executedAt);
+          setDsgdBeforeEodExecutedAt(data.dsgdBeforeEod.executedAt || null);
+          setDsgdBeforeEodTotals({
+            totalCcpVolume: data.dsgdBeforeEod.ccpVolume || data.dsgdBeforeEod.totals?.totalACM_MS || 0,
+            totalCeVolume: data.dsgdBeforeEod.ceVolume || data.dsgdBeforeEod.totals?.totalACM_Straits || 0,
+            differLots: data.dsgdBeforeEod.differLots || data.dsgdBeforeEod.totals?.differACM || 0,
+            mismatchedTradesCount: data.dsgdBeforeEod.mismatchedTradesCount || (data.dsgdBeforeEod.mismatchedTrades || []).length,
+            mismatchedPositionsCount: data.dsgdBeforeEod.mismatchedPositionsCount || (data.dsgdBeforeEod.mismatchedPositions || []).length,
           });
-          setMismatchedTrades(data.preEod.mismatchedTrades || []);
-          setMismatchedPositions(data.preEod.mismatchedPositions || []);
+          setMismatchedTrades(data.dsgdBeforeEod.mismatchedTrades || []);
+          setMismatchedPositions(data.dsgdBeforeEod.mismatchedPositions || []);
         }
       }
     } catch {
@@ -194,7 +194,7 @@ export default function CcpCeEodReconSection({
     }
   }, [token, selectedDate]);
 
-  // Lắng nghe WebSocket để tự động refresh giao diện ngay khi có lượt chạy EOD / Pre-EOD mới
+  // Lắng nghe WebSocket để tự động refresh giao diện ngay khi có lượt chạy EOD / Dsgd-Before-EOD mới
   useEffect(() => {
     if (!token || !selectedDate) return;
     const socket = io(API_BASE_URL, {
@@ -215,7 +215,7 @@ export default function CcpCeEodReconSection({
   }, [token, selectedDate]);
 
   // Trigger Action Handlers
-  const handleTriggerCheck = async (type: 'margin' | 'eod_run' | 'pre_eod') => {
+  const handleTriggerCheck = async (type: 'margin' | 'eod_run' | 'dsgd_before_eod') => {
     if (!token || triggering) return;
     setTriggering(true);
     setTriggeringSection(type);
@@ -225,7 +225,7 @@ export default function CcpCeEodReconSection({
         ? 'kiểm tra âm ký quỹ CoreCCP'
         : type === 'eod_run'
         ? 'kiểm tra số dư EOD CoreCCP vs CoreEX'
-        : 'đối soát Pre-EOD CoreCCP ↔ CoreEX';
+        : 'đối soát Dsgd-Before-EOD CoreCCP ↔ CoreEX';
 
     const toastId = toast.loading(`Đang thực hiện ${actionLabel}...`);
 
@@ -236,7 +236,7 @@ export default function CcpCeEodReconSection({
       } else if (type === 'eod_run') {
         data = await api.tradingOps.checkEodRun(selectedDate, token);
       } else {
-        data = await api.tradingOps.runCheckPreEod(selectedDate, token);
+        data = await api.tradingOps.runCheckDsgdBeforeEod(selectedDate, token);
       }
 
       toast.success(data?.message || `Hoàn tất ${actionLabel}!`, { id: toastId });
@@ -251,17 +251,17 @@ export default function CcpCeEodReconSection({
 
   // Copy report
   const handleCopyReport = () => {
-    const reportText = `[ĐỐI SOÁT PRE-EOD CORECCP ↔ COREEX]
+    const reportText = `[ĐỐI SOÁT DSGD-BEFORE-EOD CORECCP ↔ COREEX]
 Phiên: ${selectedDate}
-CoreCCP / Maker: ${preEodTotals.totalCcpVolume.toLocaleString('en-US')} lot
-CoreEX: ${preEodTotals.totalCeVolume.toLocaleString('en-US')} lot
-Lệch khối lượng: ${preEodTotals.differLots} lot
-Lệnh khớp lệch: ${preEodTotals.mismatchedTradesCount}
-Vị thế ròng lệch: ${preEodTotals.mismatchedPositionsCount}
-Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'}`;
+CoreCCP / Maker: ${dsgdBeforeEodTotals.totalCcpVolume.toLocaleString('en-US')} lot
+CoreEX: ${dsgdBeforeEodTotals.totalCeVolume.toLocaleString('en-US')} lot
+Lệch khối lượng: ${dsgdBeforeEodTotals.differLots} lot
+Lệnh khớp lệch: ${dsgdBeforeEodTotals.mismatchedTradesCount}
+Vị thế ròng lệch: ${dsgdBeforeEodTotals.mismatchedPositionsCount}
+Trạng thái: ${dsgdBeforeEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'}`;
 
     navigator.clipboard.writeText(reportText);
-    toast.success('Đã sao chép báo cáo Pre-EOD CoreCCP ↔ CoreEX vào clipboard!');
+    toast.success('Đã sao chép báo cáo Dsgd-Before-EOD CoreCCP ↔ CoreEX vào clipboard!');
   };
 
   // Filtered lists
@@ -291,8 +291,8 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* ===== THANH ĐIỀU KHIỂN PHIÊN ĐỐI SOÁT EOD CCP & CE (ẨN KHI PRE_EOD_ONLY) ===== */}
-      {viewMode !== 'PRE_EOD_ONLY' && (
+      {/* ===== THANH ĐIỀU KHIỂN PHIÊN ĐỐI SOÁT EOD CCP & CE (ẨN KHI DSGD_BEFORE_EOD_ONLY) ===== */}
+      {viewMode !== 'DSGD_BEFORE_EOD_ONLY' && (
         <>
           <div
             className="glass-panel"
@@ -574,18 +574,18 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
         </>
       )}
 
-      {/* ===== KHUNG LỚN: CHI TIẾT ĐỐI CHIẾU PRE-EOD (CORECCP ↔ COREEX) ===== */}
+      {/* ===== KHUNG LỚN: CHI TIẾT ĐỐI CHIẾU DSGD-BEFORE-EOD (CORECCP ↔ COREEX) ===== */}
       <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* Header Pre-EOD */}
+        {/* Header Dsgd-Before-EOD */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Chi tiết đối chiếu Pre-EOD (CoreCCP ↔ CoreEX)
+                Chi tiết đối chiếu Dsgd-Before-EOD (CoreCCP ↔ CoreEX)
               </h4>
-              {preEodExecutedAt && (
+              {dsgdBeforeEodExecutedAt && (
                 <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                  ({new Date(preEodExecutedAt).toLocaleString('vi-VN')})
+                  ({new Date(dsgdBeforeEodExecutedAt).toLocaleString('vi-VN')})
                 </span>
               )}
             </div>
@@ -595,7 +595,7 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {hasExecutedPreEod && (
+            {hasExecutedDsgdBeforeEod && (
               <span
                 style={{
                   display: 'inline-flex',
@@ -605,12 +605,12 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                   borderRadius: '20px',
                   fontSize: '0.76rem',
                   fontWeight: 800,
-                  backgroundColor: preEodTotals.differLots === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                  color: preEodTotals.differLots === 0 ? '#10b981' : '#ef4444',
+                  backgroundColor: dsgdBeforeEodTotals.differLots === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: dsgdBeforeEodTotals.differLots === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                {preEodTotals.differLots === 0 ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-                <span>{preEodTotals.differLots === 0 ? 'Khớp hoàn toàn' : 'Có chênh lệch'}</span>
+                {dsgdBeforeEodTotals.differLots === 0 ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                <span>{dsgdBeforeEodTotals.differLots === 0 ? 'Khớp hoàn toàn' : 'Có chênh lệch'}</span>
               </span>
             )}
             <button
@@ -618,27 +618,27 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
               onClick={handleCopyReport}
               className="btn btn-secondary"
               style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              title="Sao chép báo cáo Pre-EOD"
+              title="Sao chép báo cáo Dsgd-Before-EOD"
             >
               <Copy size={13} />
               <span>Sao chép</span>
             </button>
             <button
               type="button"
-              onClick={() => handleTriggerCheck('pre_eod')}
+              onClick={() => handleTriggerCheck('dsgd_before_eod')}
               disabled={triggering}
               className="btn btn-primary"
               style={{ fontSize: '0.82rem', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              {triggering && triggeringSection === 'pre_eod' ? (
+              {triggering && triggeringSection === 'dsgd_before_eod' ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
-                  <span>Checking Pre-EOD...</span>
+                  <span>Checking Dsgd-Before-EOD...</span>
                 </>
               ) : (
                 <>
                   <ShieldCheck size={14} />
-                  <span>Check Pre-EOD</span>
+                  <span>Check Dsgd-Before-EOD</span>
                 </>
               )}
             </button>
@@ -664,15 +664,15 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: 800,
-                  color: preEodTotals.differLots === 0 ? '#10b981' : '#ef4444',
+                  color: dsgdBeforeEodTotals.differLots === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                Lệch: {preEodTotals.differLots} lot
+                Lệch: {dsgdBeforeEodTotals.differLots} lot
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
               <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#10b981' }}>
-                {preEodTotals.totalCcpVolume.toLocaleString('en-US')}
+                {dsgdBeforeEodTotals.totalCcpVolume.toLocaleString('en-US')}
               </span>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>lot</span>
             </div>
@@ -696,15 +696,15 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: 800,
-                  color: preEodTotals.differLots === 0 ? '#10b981' : '#ef4444',
+                  color: dsgdBeforeEodTotals.differLots === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                Lệch: {preEodTotals.differLots} lot
+                Lệch: {dsgdBeforeEodTotals.differLots} lot
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
               <span style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#3b82f6' }}>
-                {preEodTotals.totalCeVolume.toLocaleString('en-US')}
+                {dsgdBeforeEodTotals.totalCeVolume.toLocaleString('en-US')}
               </span>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>lot</span>
             </div>
@@ -728,10 +728,10 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: 800,
-                  color: preEodTotals.mismatchedTradesCount === 0 ? '#10b981' : '#ef4444',
+                  color: dsgdBeforeEodTotals.mismatchedTradesCount === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                {preEodTotals.mismatchedTradesCount === 0 ? 'Khớp 100%' : 'Chênh lệch'}
+                {dsgdBeforeEodTotals.mismatchedTradesCount === 0 ? 'Khớp 100%' : 'Chênh lệch'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -740,10 +740,10 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                   fontSize: '1.4rem',
                   fontWeight: 900,
                   fontFamily: 'monospace',
-                  color: preEodTotals.mismatchedTradesCount === 0 ? '#10b981' : '#ef4444',
+                  color: dsgdBeforeEodTotals.mismatchedTradesCount === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                {preEodTotals.mismatchedTradesCount}
+                {dsgdBeforeEodTotals.mismatchedTradesCount}
               </span>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>lệnh chênh lệch</span>
             </div>
@@ -767,10 +767,10 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: 800,
-                  color: preEodTotals.mismatchedPositionsCount === 0 ? '#10b981' : '#ef4444',
+                  color: dsgdBeforeEodTotals.mismatchedPositionsCount === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                {preEodTotals.mismatchedPositionsCount === 0 ? 'Khớp 100%' : 'Chênh lệch'}
+                {dsgdBeforeEodTotals.mismatchedPositionsCount === 0 ? 'Khớp 100%' : 'Chênh lệch'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
@@ -779,10 +779,10 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                   fontSize: '1.4rem',
                   fontWeight: 900,
                   fontFamily: 'monospace',
-                  color: preEodTotals.mismatchedPositionsCount === 0 ? '#10b981' : '#ef4444',
+                  color: dsgdBeforeEodTotals.mismatchedPositionsCount === 0 ? '#10b981' : '#ef4444',
                 }}
               >
-                {preEodTotals.mismatchedPositionsCount}
+                {dsgdBeforeEodTotals.mismatchedPositionsCount}
               </span>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>vị thế ròng lệch</span>
             </div>
@@ -807,7 +807,7 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 borderRadius: '6px',
               }}
             >
-              Chi tiết lệnh lệch khớp lệnh ({preEodTotals.mismatchedTradesCount})
+              Chi tiết lệnh lệch khớp lệnh ({dsgdBeforeEodTotals.mismatchedTradesCount})
             </button>
             <button
               type="button"
@@ -823,7 +823,7 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
                 borderRadius: '6px',
               }}
             >
-              Chi tiết lệch vị thế tất toán net ({preEodTotals.mismatchedPositionsCount})
+              Chi tiết lệch vị thế tất toán net ({dsgdBeforeEodTotals.mismatchedPositionsCount})
             </button>
           </div>
 
@@ -1004,8 +1004,8 @@ Trạng thái: ${preEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH LỆCH'
         )}
       </div>
 
-      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - ẨN KHI PRE_EOD_ONLY ĐỂ TRÁNH LẶP) ===== */}
-      {viewMode !== 'PRE_EOD_ONLY' && (
+      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - ẨN KHI DSGD_BEFORE_EOD_ONLY ĐỂ TRÁNH LẶP) ===== */}
+      {viewMode !== 'DSGD_BEFORE_EOD_ONLY' && (
         <DsgdBeforeEodSection token={token} selectedDate={selectedDate} />
       )}
     </div>

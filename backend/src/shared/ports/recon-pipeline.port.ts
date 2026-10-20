@@ -5,7 +5,7 @@
  */
 export interface IReconPipelinePort {
   handleCheckKlgdJob(job: any): Promise<any>;
-  handleCheckPreEodJob(job: any): Promise<any>;
+  handleCheckDsgdBeforeEodJob(job: any): Promise<any>;
   fetchEodEmail?(dateStr: string, destDir: string): Promise<any>;
 }
 

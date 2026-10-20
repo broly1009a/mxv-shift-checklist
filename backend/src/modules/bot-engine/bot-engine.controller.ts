@@ -1890,7 +1890,7 @@ export class BotEngineController {
     const msDsldk = findMsFile(/^DSLDK.*\.xlsx$/i);
 
     const isReadyForLotStatistics = ccpDsgd.exists;
-    const isReadyForPreEod = (ccpDsgd.exists || msQltkgd.exists) && (cqgFr.exists || (cqgFr1.exists && cqgFr2.exists));
+    const isReadyForDsgdBeforeEod = (ccpDsgd.exists || msQltkgd.exists) && (cqgFr.exists || (cqgFr1.exists && cqgFr2.exists));
 
     return {
       success: true,
@@ -1927,7 +1927,7 @@ export class BotEngineController {
       },
       readiness: {
         lotStatistics: isReadyForLotStatistics,
-        preEod: isReadyForPreEod,
+        dsgdBeforeEod: isReadyForDsgdBeforeEod,
       },
     };
   }

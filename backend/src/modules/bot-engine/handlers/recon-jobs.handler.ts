@@ -12,7 +12,8 @@ import { findLatestFile, findExactSessionEodFile, IReconPipelinePort } from '../
 import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate, isMarketWeekendClosed } from '../helpers/bot-path.helper';
 import { decrypt } from '../utils/crypto';
 import { KlgdReconService as TradingOpsKlgdReconService } from '../../trading-ops/services/klgd-recon.service';
-import { PreEodReconService as TradingOpsPreEodReconService } from '../../trading-ops/services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService as TradingOpsDsgdBeforeEodReconService } from '../../trading-ops/services/dsgd-before-eod-recon.service';
+import { DsgdBeforeEodService } from '../../trading-ops/services/dsgd-before-eod.service';
 import { CcpEodService } from '../../trading-ops/services/ccp-eod.service';
 import { CqgMergerService } from '../../trading-ops/services/cqg-merger.service';
 import { IngressService } from '../../ingress/ingress.service';
@@ -20,7 +21,7 @@ import { IngressService } from '../../ingress/ingress.service';
 @Injectable()
 export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnModuleInit {
   private readonly logger = new Logger(ReconJobsHandler.name);
-  readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_PRE_EOD', 'CHECK_EOD_MM', 'CHECK_EOD_CCP', 'CHECK_CQG_SYNC'];
+  readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_DSGD_BEFORE_EOD', 'CHECK_DSGD_BEFORE_EOD', 'CHECK_EOD_MM', 'CHECK_EOD_CCP', 'CHECK_CQG_SYNC'];
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
@@ -30,7 +31,9 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     @Optional()
     private readonly klgdReconService?: TradingOpsKlgdReconService,
     @Optional()
-    private readonly preEodReconService?: TradingOpsPreEodReconService,
+    private readonly dsgdBeforeEodReconService?: TradingOpsDsgdBeforeEodReconService,
+    @Optional()
+    private readonly dsgdBeforeEodService?: DsgdBeforeEodService,
     @Optional()
     private readonly ccpEodService?: CcpEodService,
     @Optional()
@@ -53,8 +56,9 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         return this.handleAutoCheckSodJob(job);
       case 'CHECK_KLGD':
         return this.handleCheckKlgdJob(job);
-      case 'CHECK_PRE_EOD':
-        return this.handleCheckPreEodJob(job);
+      case 'CHECK_DSGD_BEFORE_EOD':
+      case 'CHECK_DSGD_BEFORE_EOD':
+        return this.handleCheckDsgdBeforeEodJob(job);
       case 'CHECK_EOD_MM':
         return this.handleCheckEodMmJob(job);
       case 'CHECK_EOD_CCP':
@@ -89,7 +93,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     await job.save();
 
     try {
-      const result = await this.preEodReconService.runAutoCheckSOD(targetDate);
+      const result = await this.dsgdBeforeEodReconService.runAutoCheckSOD(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu SOD.`);
       job.logs.push(
         `[${new Date().toISOString()}] Kết quả: ${result.success ? 'KHỚP' : 'LỆCH'}`,
@@ -1205,40 +1209,23 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
         const status = result.passed ? ' KHỚP HOÀN TOÀN' : ' CÓ CHÊNH LỆCH';
         lines.push(` KẾT QUẢ TỔNG QUÁT: ${status}`);
         lines.push('');
-        lines.push('--- BẢNG TỔNG HỢP SỐ LIỆU ---');
-        lines.push(
-          `• KLGD: MS = ${result.totalDSGD ?? 0} | CQG = ${result.totalFR ?? 0} | ACM = ${result.totalACM ?? 0} | Nano = ${result.totalNano ?? 0} | Lệch CQG = ${result.differ ?? 0} | Lệch ACM = ${result.differACM ?? 0}`,
-        );
-        lines.push(
-          `• TTM : MS = ${result.totalTTM ?? 0} | CQG = ${result.totalOP ?? 0} | ACM = ${result.totalTtmAcm ?? 0}`,
-        );
-        lines.push(
-          `• TTTT: MS = ${result.totalTTTT ?? 0} | CQG = ${result.totalPS ?? 0} | ACM = ${result.totalTtttAcm ?? 0}`,
-        );
+        lines.push('--- BẢNG TỔNG HỢP SỐ LIỆU (KIỂM TRA DSGD TRƯỚC EOD) ---');
+        const orig = result.totals?.totalOriginal ?? result.dsgdBeforeEod?.totalOriginal ?? 0;
+        const snap = result.totals?.totalTemp ?? result.dsgdBeforeEod?.totalTemp ?? 0;
+        const diffTotal = result.totals?.differTotal ?? result.dsgdBeforeEod?.differTotal ?? 0;
+        const acmMs = result.totals?.totalACMMS ?? result.dsgdBeforeEod?.totalACMMS ?? 0;
+        const acmCsv = result.totals?.totalACMSFTP ?? result.dsgdBeforeEod?.totalACMSFTP ?? 0;
+        const diffAcm = result.totals?.differACM ?? result.dsgdBeforeEod?.differACM ?? 0;
+
+        lines.push(`• Khối lượng DSGD: Gốc = ${orig} lot | Snapshot = ${snap} lot | Lệch = ${diffTotal} lot`);
+        lines.push(`• Khối lượng ACM : MS = ${acmMs} lot | Straits CSV = ${acmCsv} lot | Lệch = ${diffAcm} lot`);
         lines.push('');
 
-        if (result.mismatchedTrades && result.mismatchedTrades.length > 0) {
-          lines.push(` Danh sách chênh lệch khớp lệnh (${result.mismatchedTrades.length} lệnh):`);
-          result.mismatchedTrades.slice(0, 20).forEach((t: any, idx: number) => {
-            lines.push(
-              `   ${idx + 1}. [${t.source}] TK ${t.maTKGD} | HĐ ${t.maHD} | Giá ${t.giaKhop} | Qty ${t.klGiaoDich}: ${t.reason}`,
-            );
-          });
-          if (result.mismatchedTrades.length > 20) {
-            lines.push(`   ... và còn ${result.mismatchedTrades.length - 20} lệnh khác.`);
-          }
-          lines.push('');
+        const msgs = result.dsgdBeforeEod?.messages || [result.summaryMessage || ''];
+        for (const msg of msgs) {
+          if (msg) lines.push(`• ${msg}`);
         }
-
-        if (result.mismatchedTTTT && result.mismatchedTTTT.length > 0) {
-          lines.push(` Chênh lệch Tất toán TTTT (${result.mismatchedTTTT.length} tài khoản):`);
-          result.mismatchedTTTT.slice(0, 10).forEach((m: any, idx: number) => {
-            lines.push(
-              `   ${idx + 1}. TK ${m.maTKGD}: MS = ${m.ttttValue} vs CQG = ${m.psValue} (Lệch: ${m.differ})`,
-            );
-          });
-          lines.push('');
-        }
+        lines.push('');
       }
 
       lines.push('--- NHẬT KÝ TIẾN TRÌNH BOT ---');
@@ -1256,7 +1243,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     }
   }
 
-  public async handleCheckPreEodJob(job: any) {
+  public async handleCheckDsgdBeforeEodJob(job: any) {
     const payload = parseJobPayload(job);
     let targetDate: Date;
     let dateStr: string;
@@ -1288,126 +1275,75 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     const t1DateStr = `${t1Year}-${t1Month}-${t1Day}`;
 
     job.logs.push(
-      `[${new Date().toISOString()}] Bắt đầu chạy đối chiếu Pre-EOD ngày ca trực ${dateStr} (Phiên T-1: ${t1DateStr})...`,
+      `[${new Date().toISOString()}] Bắt đầu Kiểm tra DSGD Trước EOD (Chuẩn C#) ngày ca trực ${dateStr} (Phiên T-1: ${t1DateStr})...`,
     );
     await job.save();
 
-    // 2. Kích hoạt Auto-Merge file thô CQG cho phiên T-1 (FR1+FR2 -> FR, PS1+PS2 -> PS)
     try {
-      job.logs.push(
-        `[${new Date().toISOString()}] CQG → Ghép nối các file thô (FR, PS) phiên T-1 (${t1Date.toLocaleDateString('vi-VN')})...`,
-      );
-      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(
-        t1Date,
-        ['FR', 'PS'],
-        true,
-      );
-      for (const l of mergeResult.logs) {
-        job.logs.push(`[${new Date().toISOString()}] CQG Merge: ${l}`);
-      }
-      if (mergeResult.success) {
-        job.logs.push(`[${new Date().toISOString()}] CQG  Ghép file CQG phiên T-1 hoàn tất.`);
-      }
-    } catch (mergeErr: any) {
-      job.logs.push(`[${new Date().toISOString()}] CQG Merge Cảnh báo: ${mergeErr.message}`);
-    }
-    await job.save();
+      const dsgdResult = this.dsgdBeforeEodService
+        ? await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate: targetDate })
+        : null;
 
-    try {
-      const result = await this.preEodReconService.runAutoCheckPreEOD(targetDate);
-      if (result.targetDate) {
-        const t1DisplayStr = new Date(result.targetDate).toLocaleDateString('vi-VN');
-        job.logs.push(
-          `[${new Date().toISOString()}] Dữ liệu đối chiếu chốt phiên T-1: ${t1DisplayStr}`,
-        );
-      }
+      const result = {
+        passed: dsgdResult ? dsgdResult.passed : true,
+        isWaitingFiles: Boolean(dsgdResult?.isSnapshotMissing),
+        message: dsgdResult ? dsgdResult.messages.join(' | ') : 'Không có service DsgdBeforeEodService',
+        totals: {
+          totalOriginal: dsgdResult?.totalOriginal ?? 0,
+          totalTemp: dsgdResult?.totalTemp ?? 0,
+          differTotal: dsgdResult?.differTotal ?? 0,
+          totalACMMS: dsgdResult?.totalACMMS ?? 0,
+          totalACMSFTP: dsgdResult?.totalACMSFTP ?? 0,
+          differACM: dsgdResult?.differACM ?? 0,
+        },
+        tradingDate: targetDate,
+        targetDate: t1Date,
+        summaryMessage: dsgdResult ? dsgdResult.messages.join(' | ') : '',
+        dsgdBeforeEod: dsgdResult,
+      };
+
+      const t1DisplayStr = t1Date.toLocaleDateString('vi-VN');
+      job.logs.push(
+        `[${new Date().toISOString()}] Dữ liệu phiên T-1: ${t1DisplayStr}`,
+      );
       if (result.isWaitingFiles) {
         job.logs.push(`[${new Date().toISOString()}] ${result.message}`);
       } else {
         job.logs.push(
-          `[${new Date().toISOString()}] Hoàn thành đối chiếu Pre-EOD.`,
+          `[${new Date().toISOString()}] Hoàn thành Kiểm tra DSGD Trước EOD.`,
         );
         job.logs.push(
           `[${new Date().toISOString()}] Kết quả: ${result.passed ? 'KHỚP' : 'LỆCH'}`,
         );
         if (result.totals) {
+          const orig = result.totals.totalOriginal ?? result.dsgdBeforeEod?.totalOriginal ?? 0;
+          const snap = result.totals.totalTemp ?? result.dsgdBeforeEod?.totalTemp ?? 0;
+          const diffTot = result.totals.differTotal ?? result.dsgdBeforeEod?.differTotal ?? 0;
+          const acmMs = result.totals.totalACMMS ?? result.dsgdBeforeEod?.totalACMMS ?? 0;
+          const acmCsv = result.totals.totalACMSFTP ?? result.dsgdBeforeEod?.totalACMSFTP ?? 0;
+          const diffAcm = result.totals.differACM ?? result.dsgdBeforeEod?.differACM ?? 0;
           job.logs.push(
-            `[${new Date().toISOString()}] Tổng kết KLGD: ` +
-            `ACM MS ${result.totals.totalACM_MS} vs Straits ${result.totals.totalACM_Straits} (Lệch: ${result.totals.differACM}) | ` +
-            `CQG MS ${result.totals.totalCQG_MS} vs FR ${result.totals.totalCQG_FR} (Lệch: ${result.totals.differCQG})`,
+            `[${new Date().toISOString()}] Tổng kết KLGD:` +
+            `\n• DSGD gốc: ${orig} lot vs DSGD snapshot: ${snap} lot (Lệch: ${diffTot} lot)` +
+            `\n• ACM MS: ${acmMs} lot vs Straits CSV: ${acmCsv} lot (Lệch: ${diffAcm} lot)`,
           );
+        }
+        const msgs = result.dsgdBeforeEod?.messages || [result.summaryMessage || ''];
+        for (const msg of msgs) {
+          if (msg) job.logs.push(`[${new Date().toISOString()}] • ${msg}`);
         }
       }
 
-      const LOG_THRESHOLD = 50;
-      const MAX_PREVIEW = 30;
-      const mismatchedTradesAll = result.mismatchedTrades ?? [];
-      const mismatchedPositionsAll = result.mismatchedPositions ?? [];
-      const needTruncate = mismatchedTradesAll.length > LOG_THRESHOLD || mismatchedPositionsAll.length > LOG_THRESHOLD;
-      if (needTruncate) {
-        payload.result = {
-          ...result,
-          mismatchedTrades: mismatchedTradesAll.slice(0, MAX_PREVIEW),
-          mismatchedTradesTotal: mismatchedTradesAll.length,
-          mismatchedPositions: mismatchedPositionsAll.slice(0, MAX_PREVIEW),
-          mismatchedPositionsTotal: mismatchedPositionsAll.length,
-          isPreviewOnly: true,
-        };
-      } else {
-        payload.result = result;
-      }
+      payload.result = result;
       job.payload = payload;
       job.markModified('payload');
       await job.save();
-
-      if (!result.passed) {
-        if (mismatchedTradesAll.length > 0) {
-          if (mismatchedTradesAll.length > LOG_THRESHOLD) {
-            const preview = mismatchedTradesAll.slice(0, MAX_PREVIEW)
-              .map((t: any) => `[${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}: ${t.reason}`)
-              .join(' | ');
-            job.logs.push(
-              `[${new Date().toISOString()}]  Phát hiện ${mismatchedTradesAll.length} lệch KLGD (vượt ngưỡng ${LOG_THRESHOLD}). ` +
-              `Chi tiết xem CSV email. Preview: ${preview}`,
-            );
-          } else {
-            job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch khớp lệnh:`);
-            mismatchedTradesAll.forEach((t: any) => {
-              job.logs.push(
-                `- [${t.source}] TK ${t.maTKGD}, HĐ ${t.maHD}, Giá ${t.giaKhop}, Qty ${t.klGiaoDich}: ${t.reason}`,
-              );
-            });
-          }
-        }
-        if (mismatchedPositionsAll.length > 0) {
-          if (mismatchedPositionsAll.length > LOG_THRESHOLD) {
-            const preview = mismatchedPositionsAll.slice(0, MAX_PREVIEW)
-              .map((p: any) => `TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition}`)
-              .join(' | ');
-            job.logs.push(
-              `[${new Date().toISOString()}]  Phát hiện ${mismatchedPositionsAll.length} lệch vị thế Net (vượt ngưỡng ${LOG_THRESHOLD}). ` +
-              `Chi tiết xem CSV email. Preview: ${preview}`,
-            );
-          } else {
-            job.logs.push(`[${new Date().toISOString()}] Chi tiết chênh lệch vị thế Net:`);
-            mismatchedPositionsAll.forEach((p: any) => {
-              job.logs.push(
-                `- TK ${p.account}, HĐ ${p.symbol}: MS ${p.msPosition} vs CQG ${p.cqgPosition} (Chênh lệch: ${p.differ})`,
-              );
-            });
-          }
-        }
-        job.logs.push(
-          `[${new Date().toISOString()}] Hoàn thành đối chiếu: Phát hiện chênh lệch Pre-EOD (LỆCH). Đã lưu kết quả.`,
-        );
-        await job.save();
-      }
 
       this.appendOvernightLog(t1DateStr, result, job.logs);
       return result;
     } catch (err: any) {
       job.logs.push(
-        `[${new Date().toISOString()}] Lỗi đối chiếu Pre-EOD tự động: ${err.message}`,
+        `[${new Date().toISOString()}] Lỗi đối chiếu Dsgd-Before-EOD tự động: ${err.message}`,
       );
       await job.save();
       this.appendOvernightLog(t1DateStr, null, job.logs, err.message);
@@ -1512,7 +1448,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     }
 
     try {
-      const result = await this.preEodReconService.runAutoCheckEodMm(targetDate);
+      const result = await this.dsgdBeforeEodReconService.runAutoCheckEodMm(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD M-System ngày phiên ${dateStr}.`);
 
       const MAX_PREVIEW = 30;

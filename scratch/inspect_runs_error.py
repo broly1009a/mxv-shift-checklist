@@ -14,7 +14,7 @@ async function main() {
   const db = mongoose.connection.db;
 
   const jobs = await db.collection('bot_jobs').find({
-    jobType: { $in: ['CHECK_KLGD', 'CHECK_PRE_EOD'] }
+    jobType: { $in: ['CHECK_KLGD', 'CHECK_DSGD_BEFORE_EOD'] }
   }).sort({ createdAt: -1 }).limit(20).toArray();
 
   console.log(`Tìm thấy ${jobs.length} jobs mới nhất:`);

@@ -7,6 +7,7 @@
 ## 1. TỔNG QUAN NGUYÊN NHÂN GỐC RỄ BUG "KLGD = 0 LÚC 01:42 SÁNG"
 
 Từ log chạy thực tế của hệ thống:
+
 ```text
 [2026-09-23T18:42:49.095Z] Job enqueued.
 [2026-09-23T18:42:53.203Z] Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày 2026-09-24...
@@ -15,6 +16,7 @@ Từ log chạy thực tế của hệ thống:
 ```
 
 ### Chuỗi sự kiện gây lỗi:
+
 1. **Thời điểm thực tế (Giờ VN GMT+7)**: `01:42:49` sáng ngày `24/09/2026`.
 2. **Sai lầm ở Frontend**: Trong [`page.tsx#L58-L63`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx#L58-L63), giao diện lấy `new Date()` thuần JavaScript để gán mặc định cho ô DatePicker $\rightarrow$ sinh ra chuỗi `"2026-09-24"`.
 3. Khi bấm **Check thủ công** hoặc **Check**, Frontend gửi payload: `{ date: "2026-09-24", jobType: "CHECK_KLGD" }` lên backend.
@@ -32,7 +34,9 @@ Từ log chạy thực tế của hệ thống:
 ### 2.1. Module Xác Định Ngày Phiên & Quản Lý Thư Mục Lưu Trữ
 
 #### Mã nguồn Tool C#:
+
 - File [`BackupService.cs#L103-L120`](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/BackupService.cs#L103-L120):
+
 ```csharp
 DateTime now = DateTime.Now;
 DateTime today = DateTime.Today;
@@ -47,11 +51,14 @@ while (today.DayOfWeek == DayOfWeek.Saturday || today.DayOfWeek == DayOfWeek.Sun
 }
 string todayStr = today.ToString("dd/MM/yyyy"); // -> "23/09/2026"
 ```
+
 - Giá trị này được gán vào `_config.BackupStatisticsGTT.SessionDate` và **chỉ được phép thay đổi khi đồng hồ điểm đúng giờ mở phiên sáng** ([`FormMain.cs#L122`](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/FormMain.cs#L122)).
 - Cả hàm tạo thư mục [`FileUtils.cs#L186-L201`](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Utils/FIleUtils.cs#L186-L201) và hàm đọc file đều dùng chung biến này $\rightarrow$ **Luôn luôn trỏ vào thư mục `2026\T09.2026\23.09`**.
 
 #### Mã nguồn Node.js hiện tại:
+
 - Frontend [`page.tsx#L58-L63`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx#L58-L63):
+
 ```typescript
 useEffect(() => {
   const today = new Date();
@@ -60,7 +67,9 @@ useEffect(() => {
   setSelectedDate(dateStr); // -> "2026-09-24" (SAI vào lúc nửa đêm)
 }, []);
 ```
+
 - Backend [`recon-jobs.handler.ts#L108-L114`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L108-L114):
+
 ```typescript
 if (payload.sessionDay || payload.targetDate) {
   const resolved = resolveBotTargetDate(payload);
@@ -75,14 +84,16 @@ if (payload.sessionDay || payload.targetDate) {
 ### 2.2. Module Đối Chiếu Khớp Lệnh (CheckKLGD)
 
 #### Mã nguồn Tool C#:
+
 Tại [`TransactionCheckingService.cs#L120-L165`](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L120-L165):
+
 ```csharp
 // 1. Với file DSGD (M-System):
 foreach (var gd in dsgdData)
 {
     DateTime timeMatched = DateTime.ParseExact(gd[5], "dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture);
     if (timeMatched > time) continue; // CHỈ CHẶN TRÊN (KHÔNG CHẶN DƯỚI)
-    
+
     if (gd[1].EndsWith("A")) totalACM += klgdACM;
     else totalDSGD += klgd;
 }
@@ -107,7 +118,9 @@ foreach (var gd in nanoData)
 ```
 
 #### Mã nguồn Node.js hiện tại:
+
 Tại [`klgd-recon.service.ts#L200-L241`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/klgd-recon.service.ts#L200-L241):
+
 ```typescript
 // Node.js áp cả 2 chặn trên và dưới cho DSGD và Nano:
 const dsgdData = rawDsgdData.filter((gd) => {
@@ -123,6 +136,7 @@ const nanoData = rawNanoData.filter((gd) => {
   ...
 });
 ```
+
 👉 **Đánh giá rủi ro**: Trong Tool C#, file `DSGD.xlsx` và `Straits.csv/Nano` bản thân nó đã là danh sách các giao dịch được tạo ra trong ngày làm việc hôm đó. Việc Node.js áp thêm điều kiện `tradeTime >= sessionStart` cho DSGD và Nano dẫn đến rủi ro: Nếu giờ mở phiên của sàn sớm hơn (ví dụ LME hoặc một số hợp đồng khớp từ 06:45 mà cấu hình là 07:00), Node.js sẽ loại bỏ mất giao dịch hợp lệ này.
 
 ---
@@ -183,14 +197,14 @@ const nanoData = rawNanoData.filter((gd) => {
 
 ---
 
-### 2.8. Module Đối Chiếu Pre-EOD (T-1)
+### 2.8. Module Đối Chiếu Dsgd-Before-EOD (T-1)
 
 - **C#**: [`TransactionCheckingService.cs#L1250-L1350`](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L1250-L1350)
   - Đối chiếu ngày **T-1**.
   - Kiểm tra file Straits CSV bắt buộc phải có chuỗi ngày `ddMMyyyy` của ngày T-1.
   - So sánh `totalACM_MS` vs `totalACM_Straits`.
   - Khớp lệnh 1-1 giữa DSGD và FR (`CombinedKey = $"{accountRaw}{symbolRaw}{fillP}"`).
-- **Node.js**: [`pre-eod-recon.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts)
+- **Node.js**: [`dsgd-before-eod-recon.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts)
   - Đã chuyển đổi chuẩn xác.
 
 ---
@@ -207,6 +221,7 @@ const nanoData = rawNanoData.filter((gd) => {
 ## 3. DANH SÁCH 3 BUG CẦN SỬA ĐỔI TOÀN DIỆN
 
 ### Bug 1: Thống nhất logic giải quyết Ngày Phiên (`resolveTradingSessionDate`)
+
 - **Vị trí**:
   1. Frontend: [`page.tsx#L58-L63`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx#L58-L63) và [`LegacyReconSection.tsx#L1605-L1608`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L1605-L1608)
   2. Backend: [`recon-jobs.handler.ts#L108-L126`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L108-L126) và [`recon-console-summary.service.ts#L1015-L1019`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L1015-L1019).
@@ -216,6 +231,7 @@ const nanoData = rawNanoData.filter((gd) => {
   - Khi Bot chạy ngầm định kỳ hoặc nhận lệnh từ Console, mọi đường dẫn thư mục sao lưu (`msDailyPath`, `cqgDailyPath`, `acmDailyPath`, `ccpDailyPath`) đều được tính từ ngày phiên này.
 
 ### Bug 2: Điều kiện lọc thời gian file DSGD trong `CheckKLGD`
+
 - **Vị trí**: [`klgd-recon.service.ts#L200-L205`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/klgd-recon.service.ts#L200-L205)
 - **Hành vi chuẩn theo C#**:
   - Đối với file DSGD (M-System): **Chỉ chặn trên** (`tradeTime <= dsgdUpperBound / cutoffTime`), không loại bỏ các giao dịch có `tradeTime < sessionStart` vì file DSGD tải về đã thuộc phiên làm việc đó.
@@ -223,6 +239,7 @@ const nanoData = rawNanoData.filter((gd) => {
   - Đối với CQG FR: Vẫn duy trì chặn dưới `tradeTime >= sessionStart` như Tool C#.
 
 ### Bug 3: DatePicker trên sàn CoreCCP khi chạy phiên đêm
+
 - **Vị trí**: [`recon-jobs.handler.ts#L440-L460`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L440-L460)
 - **Hành vi chuẩn**:
   - Điền DatePicker tìm kiếm trên CoreCCP bằng chuỗi ngày của **Ngày phiên giao dịch** (`dateStr` đã chuẩn hóa qua `resolveTradingSessionDate`), đảm bảo phiên đêm điền ngày 23/09/2026 để CoreCCP trả về đầy đủ dữ liệu.
@@ -241,5 +258,6 @@ npx ts-node -r tsconfig-paths/register src/tests/test_verify_overnight_recon_log
 ```
 
 Script sẽ in ra bằng chứng toán học chứng minh:
+
 - Tại sao logic cũ của Node.js trả về `KLGD = 0` (do lọc ở khoảng thời gian tương lai).
 - Logic Tool C# khóa ngày phiên thành `23/09/2026` và nhận đầy đủ 100% các lệnh khớp trong đêm.

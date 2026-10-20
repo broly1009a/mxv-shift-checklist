@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Require PreEodReconService from dist
-const { PreEodReconService } = require('../backend/dist/modules/reconciliation/services/pre-eod-recon.service');
+// Require DsgdBeforeEodReconService from dist
+const { DsgdBeforeEodReconService } = require('../backend/dist/modules/reconciliation/services/dsgd-before-eod-recon.service');
 
 async function main() {
   const baseDir = "C:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Pictures\\Dữ liệu chuẩn ngày 25";
@@ -23,15 +23,15 @@ async function main() {
   const acmTradesName = path.basename(acmPath);
   const tradingDate = new Date('2026-09-28T00:00:00Z');
 
-  const service = new PreEodReconService(null, null, null);
+  const service = new DsgdBeforeEodReconService(null, null, null);
 
   console.log("================================================================================");
-  console.log("CHAY DOI CHIEU CHECK PRE-EOD BANG NODE.JS / NESTJS VOI DU LIEU NGAY 25/09/2026");
+  console.log("CHAY DOI CHIEU CHECK DSGD-BEFORE-EOD BANG NODE.JS / NESTJS VOI DU LIEU NGAY 25/09/2026");
   console.log("================================================================================");
-  console.log("Dang thuc thi checkPreEOD bang ma Node.js...");
+  console.log("Dang thuc thi checkDSGDBeforeEOD bang ma Node.js...");
 
   const startTime = Date.now();
-  const res = await service.checkPreEOD(files, acmTradesName, tradingDate, []);
+  const res = await service.checkDSGDBeforeEOD(files, acmTradesName, tradingDate, []);
   const duration = Date.now() - startTime;
 
   console.log();

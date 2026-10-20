@@ -5,6 +5,7 @@
 ## 1. MỤC TIÊU & BỐI CẢNH DỰ ÁN
 
 ### 1.1. Mục tiêu
+
 1. **Rút ngắn thời gian tải báo cáo CQG**: Giảm tổng thời gian tải các báo cáo CQG (`FR1, PS1, OP1, OD1, AS` và `FR2, PS2, OP2, OD2, AS`) từ **~2 phút 28 giây (148s)** xuống còn **~60 – 70 giây** (giảm hơn 50% thời gian chờ đợi).
 2. **Triệt tiêu độ lệch pha thời gian (Time-skew Elimination)**: Đảm bảo cả hai tài khoản CQG1 và CQG2 xuất file báo cáo tại **cùng một giây** với M-System, CoreCCP và ACM, ngăn ngừa hoàn toàn các trường hợp lệch giả khớp lệnh (False Positive Mismatch) do lệnh mới phát sinh trong thời gian chờ giữa 2 tài khoản CQG.
 3. **Tuân thủ kiến trúc chuẩn C# gốc**: Đưa kiến trúc NestJS/Playwright về đúng thiết kế gốc của Tool C# IT Tool ([TransactionCheckingService.cs#L78-L87](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L78-L87)).
@@ -14,8 +15,10 @@
 ## 2. ĐỐI CHIẾU HIỆN TRẠNG MÃ NGUỒN (AS-IS CODE AUDIT)
 
 ### 2.1. Tool C# gốc (`operate-transaction-app`)
-* **Chức năng Đối Chiếu (`CheckKLGD`)**:
+
+- **Chức năng Đối Chiếu (`CheckKLGD`)**:
   - Mã nguồn: [TransactionCheckingService.cs#L78-L87](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L78-L87)
+
   ```csharp
   _fileUtils.DeleteAllFilesInDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports"));
   _fileUtils.DeleteAllFilesInDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports_cqg1"));
@@ -29,13 +32,14 @@
   ```
   - **Đặc điểm**: C# khởi chạy 2 instance Selenium WebDriver độc lập (`ChromeBot.cs#L1223` cho CQG1 và `#L1343` cho CQG2), tải vào 2 thư mục riêng biệt (`reports_cqg1`, `reports_cqg2`) và chạy **song song 100%** qua `Task.WhenAll`.
 
-* **Chức năng Sao Lưu Riêng Lẻ (`RunBackup`)**:
+- **Chức năng Sao Lưu Riêng Lẻ (`RunBackup`)**:
   - Mã nguồn: [ChromeBot.cs#L516-L650](file:///C:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/ChromeBot.cs#L516-L650)
   - C# viết tuần tự: `if (isBackupCQG1)` đóng trình duyệt rồi mới sang `if (isBackupCQG2)`.
 
 ---
 
 ### 2.2. Hệ thống NestJS Hiện Tại
+
 Hệ thống NestJS hiện đang bị phân tách bất đối xứng giữa Job Handler và Service:
 
 1. **Tầng Job Handler** ([recon-jobs.handler.ts#L633-L639](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts#L633-L639)):
@@ -53,6 +57,7 @@ Hệ thống NestJS hiện đang bị phân tách bất đối xứng giữa Job
 ## 3. ĐÁNH GIÁ SÂU CÁC YẾU TỐ KỸ THUẬT (TECHNICAL FEASIBILITY)
 
 ### 3.1. Cô Lập Thư Mục Hồ Sơ & File Lock (Profile Isolation & SingletonLock)
+
 - Hệ thống đã phân tách độc lập 2 thư mục profile tại [rpa-downloader.service.ts#L4382-L4386](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/rpa-downloader.service.ts#L4382-L4386):
   - CQG1: `temp/cqg_profile_1`
   - CQG2: `temp/cqg_profile_2`
@@ -67,15 +72,17 @@ Hệ thống NestJS hiện đang bị phân tách bất đối xứng giữa Job
 - **Kết luận**: Đảm bảo an toàn 100%, không xảy ra xung đột `SingletonLock` khi mở đồng thời 2 trình duyệt Playwright.
 
 ### 3.2. Tiêu Thụ Tài Nguyên Hệ Thống (RAM & CPU)
+
 - Khi chạy đồng thời 5 trình duyệt Chromium Headless:
   - 1 Chromium cho M-System: ~180MB RAM
   - 1 Chromium cho ACM: ~200MB RAM
   - 1 Chromium cho CoreCCP: ~190MB RAM
-  - 2 Chromium cho CQG (CQG1 & CQG2): ~220MB * 2 = ~440MB RAM
+  - 2 Chromium cho CQG (CQG1 & CQG2): ~220MB \* 2 = ~440MB RAM
   - **Tổng RAM tiêu thụ**: ~1.01GB RAM.
 - Cấu hình server Ubuntu Production đã nâng trần PM2 `max_memory_restart: '2500M'` ([CHANGELOG_AI.md#L3573](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md#L3573)) $\implies$ Dư thừa an toàn > 1.4GB RAM.
 
 ### 3.3. Tên Tệp Xuất Ra & Không Gian Đĩa
+
 - Bộ file tải của CQG1 và CQG2 là các tập hợp rời rạc hoàn toàn (Disjoint sets):
   - CQG1: `FR1.xlsx`, `PS1.xlsx`, `OP1.xlsx`, `OD1.xlsx`, `AS1.xlsx`
   - CQG2: `FR2.xlsx`, `PS2.xlsx`, `OP2.xlsx`, `OD2.xlsx`, `AS2.xlsx`
@@ -128,7 +135,7 @@ sequenceDiagram
     CQG1-->>Job: Hoàn tất tải file CQG1, đóng browser1
     CQG2-->>Job: Hoàn tất tải file CQG2, đóng browser2
     Job->>Sync: autoMergeMissingFiles(['FR', 'OP', 'PS']) -> Tạo FR.xlsx, PS.xlsx, OP.xlsx
-    Job->>Job: Bắt đầu đối chiếu khớp lệnh KLGD & Pre-EOD
+    Job->>Job: Bắt đầu đối chiếu khớp lệnh KLGD & Dsgd-Before-EOD
     end
 ```
 
@@ -290,10 +297,18 @@ const readyState = {
 
 const checkAllReadyAndTrigger = () => {
   if (barrierAborted) return;
-  if (readyState.ms && readyState.acm && readyState.ccp && readyState.cqg1 && readyState.cqg2) {
+  if (
+    readyState.ms &&
+    readyState.acm &&
+    readyState.ccp &&
+    readyState.cqg1 &&
+    readyState.cqg2
+  ) {
     if (!barrierAnnounced) {
       barrierAnnounced = true;
-      log('🎯 Tất cả 5 kênh (MS, ACM, CoreCCP, CQG1, CQG2) đều đã sẵn sàng! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.');
+      log(
+        '🎯 Tất cả 5 kênh (MS, ACM, CoreCCP, CQG1, CQG2) đều đã sẵn sàng! KÍCH HOẠT XUẤT FILE ĐỒNG THỜI.',
+      );
     }
     triggerBarrierResolve();
   }
@@ -329,6 +344,7 @@ const result = await this.rpaDownloaderService.downloadCqgBackup(
 ## 6. KẾ HOẠCH KIỂM THỬ & TIÊU CHÍ NGHIỆM THU (TEST PLAN)
 
 ### 6.1. Script Kiểm Thử Song Song Độc Lập (USER Tự Chạy theo Rule 8)
+
 - Tạo file script: `backend/src/scripts/test_cqg_parallel_live.ts`
 - Lệnh chạy:
   ```bash
@@ -337,14 +353,14 @@ const result = await this.rpaDownloaderService.downloadCqgBackup(
 
 ### 6.2. Tiêu Chí Nghiệm Thu (Acceptance Criteria)
 
-| STT | Hạng mục kiểm thử | Tiêu chí đạt (Pass Criteria) |
-| :--- | :--- | :--- |
-| **AC-1** | **Thời gian hoàn tất tải** | Tổng thời gian tải cả 2 tài khoản CQG1 và CQG2 **dưới 70 giây** (trước đây 148 giây). |
-| **AC-2** | **Đồng bộ thời điểm xuất** | `FR1.xlsx` và `FR2.xlsx` có `mtime` (modified timestamp) chênh lệch **không quá 2 giây**. |
-| **AC-3** | **Tính toàn vẹn tệp tin** | Cả `FR1.xlsx` và `FR2.xlsx` tải về có dung lượng > 0 bytes, mở được bằng Excel, không lỗi file format. |
-| **AC-4** | **Tự động ghép nối** | Hàm `cqgSyncService.autoMergeMissingFiles` ghép thành công `FR.xlsx` có số dòng bằng tổng dòng của `FR1` và `FR2`. |
-| **AC-5** | **Khả năng cách ly lỗi** | Nếu CQG2 cố tình cấu hình sai pass, CQG1 vẫn tải xong `FR1.xlsx` và thông báo lỗi rõ ràng của CQG2 mà không làm sập tiến trình chung. |
+| STT      | Hạng mục kiểm thử          | Tiêu chí đạt (Pass Criteria)                                                                                                          |
+| :------- | :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| **AC-1** | **Thời gian hoàn tất tải** | Tổng thời gian tải cả 2 tài khoản CQG1 và CQG2 **dưới 70 giây** (trước đây 148 giây).                                                 |
+| **AC-2** | **Đồng bộ thời điểm xuất** | `FR1.xlsx` và `FR2.xlsx` có `mtime` (modified timestamp) chênh lệch **không quá 2 giây**.                                             |
+| **AC-3** | **Tính toàn vẹn tệp tin**  | Cả `FR1.xlsx` và `FR2.xlsx` tải về có dung lượng > 0 bytes, mở được bằng Excel, không lỗi file format.                                |
+| **AC-4** | **Tự động ghép nối**       | Hàm `cqgSyncService.autoMergeMissingFiles` ghép thành công `FR.xlsx` có số dòng bằng tổng dòng của `FR1` và `FR2`.                    |
+| **AC-5** | **Khả năng cách ly lỗi**   | Nếu CQG2 cố tình cấu hình sai pass, CQG1 vẫn tải xong `FR1.xlsx` và thông báo lỗi rõ ràng của CQG2 mà không làm sập tiến trình chung. |
 
 ---
 
-*Tài liệu được khởi tạo và lưu trữ chính thức tại*: [backend/docs/THIET_KE_TRIEN_KHAI_TAI_SONG_SONG_CQG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/docs/THIET_KE_TRIEN_KHAI_TAI_SONG_SONG_CQG.md)
+_Tài liệu được khởi tạo và lưu trữ chính thức tại_: [backend/docs/THIET_KE_TRIEN_KHAI_TAI_SONG_SONG_CQG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/docs/THIET_KE_TRIEN_KHAI_TAI_SONG_SONG_CQG.md)

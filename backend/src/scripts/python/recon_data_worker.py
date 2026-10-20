@@ -306,11 +306,11 @@ def reconcile_klgd(payload: dict) -> dict:
 
 
 # ==============================================================================
-# 4. ACTION: RECON_PRE_EOD (Chốt Đối Chiếu 3 Bên & Vị Thế Ròng Pre-EOD)
+# 4. ACTION: RECON_DSGD_BEFORE_EOD (Chốt Đối Chiếu 3 Bên & Vị Thế Ròng Dsgd-Before-EOD)
 # ==============================================================================
-def reconcile_pre_eod(payload: dict) -> dict:
+def reconcile_dsgd_before_eod(payload: dict) -> dict:
     """
-    Reconciles Pre-EOD trades and Net Positions between MS, CQG, and Straits.
+    Reconciles Dsgd-Before-EOD trades and Net Positions between MS, CQG, and Straits.
     """
     dsgd_path = payload.get("dsgdPath")
     fr_path = payload.get("frPath")
@@ -318,7 +318,7 @@ def reconcile_pre_eod(payload: dict) -> dict:
     tttt_path = payload.get("ttttPath")
     ps_path = payload.get("psPath")
 
-    log_debug("Bắt đầu chốt đối chiếu Pre-EOD 3 bên...")
+    log_debug("Bắt đầu chốt đối chiếu Dsgd-Before-EOD 3 bên...")
 
     totals = {
         "totalACM_MS": 0,
@@ -373,12 +373,12 @@ def reconcile_pre_eod(payload: dict) -> dict:
                             "differ": int(diff),
                         })
         except Exception as e:
-            log_debug(f"Lỗi tính vị thế Pre-EOD: {e}")
+            log_debug(f"Lỗi tính vị thế Dsgd-Before-EOD: {e}")
 
     passed = (len(mismatched_positions) == 0 and len(mismatched_trades) == 0)
     return {
         "success": True,
-        "action": "RECON_PRE_EOD",
+        "action": "RECON_DSGD_BEFORE_EOD",
         "passed": passed,
         "totals": totals,
         "mismatchedTrades": mismatched_trades,
@@ -462,7 +462,7 @@ def scan_negative_margin(payload: dict) -> dict:
 # ==============================================================================
 def main():
     parser = argparse.ArgumentParser(description="MXV Trading Reconciliation Python Worker")
-    parser.add_argument("--action", required=True, choices=["MERGE_CQG", "PARSE_STRAITS", "RECON_KLGD", "RECON_PRE_EOD", "SCAN_MARGIN"], help="Action to perform")
+    parser.add_argument("--action", required=True, choices=["MERGE_CQG", "PARSE_STRAITS", "RECON_KLGD", "RECON_DSGD_BEFORE_EOD", "SCAN_MARGIN"], help="Action to perform")
     parser.add_argument("--payload", help="JSON string of action payload")
     parser.add_argument("--payload-file", help="Path to JSON file containing payload")
 
@@ -489,8 +489,8 @@ def main():
             result = parse_straits_csv(payload.get("filePath"))
         elif args.action == "RECON_KLGD":
             result = reconcile_klgd(payload)
-        elif args.action == "RECON_PRE_EOD":
-            result = reconcile_pre_eod(payload)
+        elif args.action == "RECON_DSGD_BEFORE_EOD":
+            result = reconcile_dsgd_before_eod(payload)
         elif args.action == "SCAN_MARGIN":
             result = scan_negative_margin(payload)
         else:

@@ -1,11 +1,12 @@
 # TÀI LIỆU THIẾT KẾ KỸ THUẬT & CẬP NHẬT CHI TIẾT
+
 # KHẮC PHỤC TRIỆT ĐỂ LỆCH SỐ DƯ ĐỐI CHIẾU EOD VÀ ĐỒNG BỘ LƯU TRỮ THEO PHIÊN CHUẨN TOOL C#
 
 ---
 
 - **Mã tài liệu**: `MXV-DES-RECON-EOD-UPDATE-20260925`
 - **Hệ thống**: MXV Shift Checklist & Trading Manager System
-- **Phân hệ**: Bot Engine (`email-watcher.service.ts`, `recon-jobs.handler.ts`) & Reconciliation Engine (`pre-eod-recon.service.ts`, `ccp-reconciliation.service.ts`)
+- **Phân hệ**: Bot Engine (`email-watcher.service.ts`, `recon-jobs.handler.ts`) & Reconciliation Engine (`dsgd-before-eod-recon.service.ts`, `ccp-reconciliation.service.ts`)
 - **Ngày lập**: 25/09/2026
 - **Cơ sở đối chiếu**: Mã nguồn Tool C# gốc (`it-tool-src/operate-transaction-app`) & Dữ liệu thực tế tại `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures`
 - **Nguyên tắc**: Proof of Ground Truth & Zero Speculation (Tuân thủ nghiêm ngặt Quy tắc 2 & 3 của [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/.agents/AGENTS.md))
@@ -15,7 +16,9 @@
 ## 1. TỔNG QUAN HIỆN TRẠNG & NGUYÊN NHÂN GỐC RỄ
 
 ### 1.1. Hiện tượng phát sinh thực tế
+
 Vào ca trực sáng ngày **25/09/2026**, khi kích hoạt tác vụ đối chiếu EOD trên Web Console:
+
 1. **Khối 1: "Tài khoản âm ký quỹ mới (EOD)"**: Nhận diện chính xác **14 tài khoản** âm ký quỹ (Ví dụ: `003C1577943-A`, `007C0013134`, `046C0002363-A`, `068C2600030-A`...). Kết quả này khớp 100% với dữ liệu EOD.
 2. **Khối 2: "Kết quả chạy EOD"**: Báo lệch số dư nghiêm trọng trên **13 tài khoản** với độ chênh lệch từ vài trăm nghìn đến hơn 118 triệu đồng:
    - `[MS]001C0120311`: QLTKGD = `559,600` | EOD = `118,559,600` $\rightarrow$ **Lệch: 118,000,000 đ**
@@ -34,6 +37,7 @@ Vào ca trực sáng ngày **25/09/2026**, khi kích hoạt tác vụ đối chi
 ---
 
 ### 1.2. Bằng chứng thực nghiệm (Proof of Ground Truth)
+
 Qua kiểm tra trực tiếp các file Excel trong ổ đĩa `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T09.2026`:
 
 ```text
@@ -49,17 +53,18 @@ Thư mục 25.09 (Phiên T - Ca sáng hiện tại):
 
 **Bảng đối soát dữ liệu thực tế chứng minh toán học:**
 
-| TKGD | EOD Chốt Đêm 24/09 | Số Dư Đầu Ngày 25/09 | Nộp Rút Sáng 25/09 | Phí GD Sáng 25/09 | QLTKGD Sáng 25/09 | Chênh Lệch Bị Báo Ảo | Bản Chất Chênh Lệch |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **001C0120311** | **118,559,600** | 118,559,600 | **-118,000,000** | 0 | 559,600 | **118,000,000** | Rút tiền sáng 25/09 |
-| **001C1889088** | **8,281,658,948** | 8,281,658,948 | 0 | **9,450,000** | 8,272,208,948 | **9,450,000** | Phí GD phát sinh sáng 25/09 |
-| **001C0666669** | **1,776,955,600** | 1,776,955,600 | 0 | **3,600,000** | 1,773,355,600 | **3,600,000** | Phí GD phát sinh sáng 25/09 |
-| **001C0128789** | **10,237,900,959** | 10,237,900,959 | 0 | **280,000** | 10,237,620,959 | **280,000** | Phí GD phát sinh sáng 25/09 |
-| **001C0662828** | **524,509,210** | 524,509,210 | 0 | **280,000** | 524,229,210 | **280,000** | Phí GD phát sinh sáng 25/09 |
-| **001C0665689** | **66,784,704** | 66,784,704 | 0 | **200,000** | 66,584,704 | **200,000** | Phí GD phát sinh sáng 25/09 |
+| TKGD            | EOD Chốt Đêm 24/09 | Số Dư Đầu Ngày 25/09 | Nộp Rút Sáng 25/09 | Phí GD Sáng 25/09 | QLTKGD Sáng 25/09 | Chênh Lệch Bị Báo Ảo | Bản Chất Chênh Lệch         |
+| :-------------- | :----------------- | :------------------- | :----------------- | :---------------- | :---------------- | :------------------- | :-------------------------- |
+| **001C0120311** | **118,559,600**    | 118,559,600          | **-118,000,000**   | 0                 | 559,600           | **118,000,000**      | Rút tiền sáng 25/09         |
+| **001C1889088** | **8,281,658,948**  | 8,281,658,948        | 0                  | **9,450,000**     | 8,272,208,948     | **9,450,000**        | Phí GD phát sinh sáng 25/09 |
+| **001C0666669** | **1,776,955,600**  | 1,776,955,600        | 0                  | **3,600,000**     | 1,773,355,600     | **3,600,000**        | Phí GD phát sinh sáng 25/09 |
+| **001C0128789** | **10,237,900,959** | 10,237,900,959       | 0                  | **280,000**       | 10,237,620,959    | **280,000**          | Phí GD phát sinh sáng 25/09 |
+| **001C0662828** | **524,509,210**    | 524,509,210          | 0                  | **280,000**       | 524,229,210       | **280,000**          | Phí GD phát sinh sáng 25/09 |
+| **001C0665689** | **66,784,704**     | 66,784,704           | 0                  | **200,000**       | 66,584,704        | **200,000**          | Phí GD phát sinh sáng 25/09 |
 
 > [!IMPORTANT]
 > **KẾT LUẬN TOÁN HỌC TUYỆT ĐỐI**:
+>
 > - Số dư đầu ngày phiên **25/09** của tất cả các tài khoản trùng khớp **100%** với số dư chốt trong file `eod.2026-09-24.csv` (`118,559,600 == 118,559,600`).
 > - Số tiền "lệch" mà hệ thống báo thực chất chính là **các dòng tiền nộp rút và phí giao dịch mới phát sinh trong sáng ngày 25/09**.
 > - Nguyên nhân do hệ thống đang lấy **`QLTKGD.xlsx` của ngày 25/09** đem so với **`eod` chốt đêm 24/09**.
@@ -69,6 +74,7 @@ Thư mục 25.09 (Phiên T - Ca sáng hiện tại):
 ### 1.3. Hai lỗi kỹ thuật cốt lõi trong mã nguồn NestJS hiện tại
 
 #### Lỗi 1: Tải file EOD bị hardcode ngày lưu theo thời điểm tải (`email-watcher.service.ts`)
+
 - **Dòng code gây lỗi**: [email-watcher.service.ts#L851-L861](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/email-watcher.service.ts#L851-L861):
   ```typescript
   const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
@@ -83,17 +89,18 @@ Thư mục 25.09 (Phiên T - Ca sáng hiện tại):
   - **Tên tệp đính kèm**: `eod.2026-09-24.csv`
   - $\rightarrow$ Ngày phiên của file là **`2026-09-24`**, thư mục lưu đúng phải là **`.../24.09/`**, bất kể người dùng tải về lúc 07:00 sáng ngày 25/09, hay 10:00 tối ngày 26/09.
 
-#### Lỗi 2: Hàm chạy đối chiếu EOD đọc nhầm thư mục ngày hôm nay (`pre-eod-recon.service.ts`)
-- **Dòng code gây lỗi**: [pre-eod-recon.service.ts#L628-L636](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/pre-eod-recon.service.ts#L628-L636):
+#### Lỗi 2: Hàm chạy đối chiếu EOD đọc nhầm thư mục ngày hôm nay (`dsgd-before-eod-recon.service.ts`)
+
+- **Dòng code gây lỗi**: [dsgd-before-eod-recon.service.ts#L628-L636](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts#L628-L636):
   ```typescript
   const year = tradingDate.getFullYear().toString();
-  const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
-  const day = String(tradingDate.getDate()).padStart(2, '0');
+  const month = String(tradingDate.getMonth() + 1).padStart(2, "0");
+  const day = String(tradingDate.getDate()).padStart(2, "0");
   const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
   const msDailyPath = path.join(msBackupBase, subFolder);
-  const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
+  const qltkgdPath = path.join(msDailyPath, "QLTKGD.xlsx");
   let eodPath = findLatestFile(msDailyPath, /eod/i);
-  const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
+  const ttttPath = path.join(msDailyPath, "TTTT.xlsx");
   ```
 - **Hành vi sai**: Khi ca sáng chạy đối chiếu, `tradingDate` truyền vào là ngày ca trực hiện tại (`25/09/2026`). Bot tìm `QLTKGD.xlsx` và `TTTT.xlsx` trong thư mục `25.09`. Tình cờ lúc này file `eod.2026-09-24.csv` cũng vừa bị tải nhầm vào `25.09` nên bot đem 2 dữ liệu lệch pha này đối chiếu với nhau.
 
@@ -104,14 +111,16 @@ Thư mục 25.09 (Phiên T - Ca sáng hiện tại):
 Trong Tool C# gốc (`it-tool-src/operate-transaction-app`), cơ chế đối chiếu EOD và sao lưu dữ liệu được tổ chức như sau:
 
 ### 2.1. Xác định ngày phiên EOD trong C#
+
 - **File**: `it-tool-src/operate-transaction-app/Utils/FileUtils.cs` (Dòng 1649–1680)
 - **File**: `it-tool-src/operate-transaction-app/Services/BackupService.cs` (Dòng 96–126)
 - **Logic C#**:
+
   ```csharp
   // C# Tool luôn xác định rõ phiên EOD cần kiểm tra là ngày phiên trước (PreviousSessionDate - T-1)
   string sessionDateStr = config.BackupStatisticsGTT.PreviousSessionDate; // Ví dụ: "24/09/2026"
   string previousDate = DateTime.ParseExact(sessionDateStr, "dd/MM/yyyy", CultureInfo.InvariantCulture).ToString("dd.MM");
-  
+
   // Đường dẫn đọc toàn bộ dữ liệu đối chiếu EOD đều trỏ vào thư mục phiên T-1:
   string qltkgdPath = Path.Combine(folderBackup, previousDate, "QLTKGD.xlsx");
   string ttttPath = Path.Combine(folderBackup, previousDate, "TTTT.xlsx");
@@ -119,6 +128,7 @@ Trong Tool C# gốc (`it-tool-src/operate-transaction-app`), cơ chế đối ch
   ```
 
 ### 2.2. Logic kiểm tra âm ký quỹ & đối chiếu số dư EOD trong C#
+
 - **File**: `it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs` (Dòng 484–555)
   1. **Quét tài khoản âm ký quỹ mới (Dòng 490–505)**:
      - Đọc file `eod.yyyy-MM-dd.csv`.
@@ -151,7 +161,7 @@ flowchart TD
     I --> J{"Thời điểm chạy ca sáng?"}
     J -->|"Chưa chạy EOD ngày T"| K["TargetSession = T-1 (Phiên 24.09)"]
     J -->|"Chỉ định cụ thể sessionDay"| L["TargetSession = sessionDay"]
-    K --> M["PreEodReconService.runAutoCheckEodMm(targetSession)"]
+    K --> M["DsgdBeforeEodReconService.runAutoCheckEodMm(targetSession)"]
     L --> M
     M --> N["Đọc đồng bộ: 24.09/QLTKGD.xlsx + 24.09/TTTT.xlsx + 24.09/eod.csv"]
     N --> O["Kết quả: KHỚP TUYỆT ĐỐI (0 lệch dòng tiền)"]
@@ -162,7 +172,9 @@ flowchart TD
 ### 3.1. Cập nhật `email-watcher.service.ts` (Lưu file EOD động theo ngày phiên)
 
 #### A. Hàm Helper Bóc Tách Ngày Phiên từ Email (`extractSessionDateFromEodEmail`)
+
 Thêm hàm tiện ích nhận diện ngày phiên từ 2 nguồn chứng cứ rõ ràng nhất:
+
 1. **Tiêu đề email**: Chuỗi dạng `ngày phiên (\d{4}-\d{2}-\d{2})` hoặc `ngày phiên (\d{2}[./-]\d{2}[./-]\d{4})`.
 2. **Tên file đính kèm**: File dạng `eod\.(\d{4}-\d{2}-\d{2})\.csv` hoặc `eod\.(\d{2}[./-]\d{2}[./-]\d{4})\.csv`.
 
@@ -188,6 +200,7 @@ private extractSessionDateFromEodEmail(subject: string, attachments: any[]): Dat
 ```
 
 #### B. Nâng cấp hàm `fetchEodEmail`
+
 - Khi nhận được email EOD, trích xuất `extractedSessionDate`.
 - Nếu tìm thấy `extractedSessionDate`:
   - Thư mục lưu mặc định chuyển sang: `resolveDailySubfolder(msBackupBase, extractedSessionDate).fullPath` (ví dụ `.../24.09/`).
@@ -200,6 +213,7 @@ private extractSessionDateFromEodEmail(subject: string, attachments: any[]): Dat
 ### 3.2. Cập nhật `recon-jobs.handler.ts` (Xác định đúng phiên EOD cần đối chiếu)
 
 Trong `handleCheckEodMmJob(job: any)`:
+
 1. **Nguyên tắc xác định ngày phiên**:
    - Nếu `payload.sessionDay` được truyền từ người dùng $\rightarrow$ Sử dụng ngày đó.
    - Nếu không truyền:
@@ -212,19 +226,22 @@ Trong `handleCheckEodMmJob(job: any)`:
 
 ---
 
-### 3.3. Cập nhật `pre-eod-recon.service.ts` (Đọc đúng bộ file của phiên EOD)
+### 3.3. Cập nhật `dsgd-before-eod-recon.service.ts` (Đọc đúng bộ file của phiên EOD)
 
 Trong `runAutoCheckEodMm(tradingDate: Date)`:
+
 - `tradingDate` ở đây chính là **ngày của phiên EOD** (ví dụ `2026-09-24`).
 - Bộ đường dẫn file được trích xuất hoàn toàn nhất quán từ thư mục phiên này:
+
   ```typescript
   const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
   const msDailyPath = path.join(msBackupBase, subFolder); // Trỏ vào 24.09
-  
-  const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx'); // QLTKGD 24.09
-  const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');     // TTTT 24.09
-  let eodPath = findLatestFile(msDailyPath, /eod/i);        // eod.2026-09-24.csv tại 24.09
+
+  const qltkgdPath = path.join(msDailyPath, "QLTKGD.xlsx"); // QLTKGD 24.09
+  const ttttPath = path.join(msDailyPath, "TTTT.xlsx"); // TTTT 24.09
+  let eodPath = findLatestFile(msDailyPath, /eod/i); // eod.2026-09-24.csv tại 24.09
   ```
+
 - **Kết quả**: Cả `QLTKGD.xlsx`, `TTTT.xlsx` và `eod` đều là dữ liệu chốt cuối ngày của ngày 24/09. Toàn bộ 13 tài khoản phát sinh giao dịch sáng 25/09 sẽ không bị báo lệch ảo.
 
 ---
@@ -233,20 +250,20 @@ Trong `runAutoCheckEodMm(tradingDate: Date)`:
 
 ### 4.1. Danh sách file thay đổi
 
-| STT | File Chỉnh Sửa | Phạm Vi Thay Đổi | Mục Đích |
-| :---: | :--- | :--- | :--- |
-| 1 | `backend/src/modules/bot-engine/email-watcher.service.ts` | Hàm `fetchEodEmail()` | Tự động bóc tách ngày phiên từ email/tên file để lưu đúng thư mục phiên (dù tải ở bất kỳ thời điểm nào). Tạo thêm bản sao `eod.csv`. |
-| 2 | `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts` | Hàm `handleCheckEodMmJob()` | Xác định đúng ngày phiên EOD (T-1 cho ca sáng) trước khi kích hoạt quy trình đối chiếu. |
-| 3 | `backend/src/modules/reconciliation/services/pre-eod-recon.service.ts` | Hàm `runAutoCheckEodMm()` | Đảm bảo đọc đồng bộ `QLTKGD`, `TTTT` và `EOD` từ cùng một thư mục phiên EOD mục tiêu. |
+| STT | File Chỉnh Sửa                                                                 | Phạm Vi Thay Đổi            | Mục Đích                                                                                                                             |
+| :-: | :----------------------------------------------------------------------------- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+|  1  | `backend/src/modules/bot-engine/email-watcher.service.ts`                      | Hàm `fetchEodEmail()`       | Tự động bóc tách ngày phiên từ email/tên file để lưu đúng thư mục phiên (dù tải ở bất kỳ thời điểm nào). Tạo thêm bản sao `eod.csv`. |
+|  2  | `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`                | Hàm `handleCheckEodMmJob()` | Xác định đúng ngày phiên EOD (T-1 cho ca sáng) trước khi kích hoạt quy trình đối chiếu.                                              |
+|  3  | `backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts` | Hàm `runAutoCheckEodMm()`   | Đảm bảo đọc đồng bộ `QLTKGD`, `TTTT` và `EOD` từ cùng một thư mục phiên EOD mục tiêu.                                                |
 
 ### 4.2. Kế hoạch kiểm thử (Test Matrix)
 
-| Test Case | Kịch Bản Kiểm Thử | Kết Quả Kỳ Vọng |
-| :--- | :--- | :--- |
-| **TC-01** | Bấm nút "Tải EOD từ Email" vào lúc 10:00 sáng ngày 25/09 với email phiên `2026-09-24`. | File `eod.2026-09-24.csv` và `eod.csv` được lưu chính xác vào thư mục `.../T09.2026/24.09/`, không bị lưu vào `25.09`. |
-| **TC-02** | Bấm "Check EOD" trong ca sáng ngày 25/09. | Bot đọc `QLTKGD.xlsx` và `eod` trong thư mục `24.09`. Danh sách 13 tài khoản phát sinh sáng 25/09 không còn bị báo lệch (Lệch = 0). |
-| **TC-03** | Khối "Tài khoản âm ký quỹ mới (EOD)" khi chạy ca sáng 25/09. | Vẫn hiển thị đầy đủ và chính xác 14 tài khoản âm ký quỹ của phiên 24/09. |
-| **TC-04** | Kiểm tra tương thích với CoreCCP EOD. | Bộ file CoreCCP (nếu có) cũng được đọc tương ứng theo phiên EOD đồng bộ. |
+| Test Case | Kịch Bản Kiểm Thử                                                                      | Kết Quả Kỳ Vọng                                                                                                                     |
+| :-------- | :------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| **TC-01** | Bấm nút "Tải EOD từ Email" vào lúc 10:00 sáng ngày 25/09 với email phiên `2026-09-24`. | File `eod.2026-09-24.csv` và `eod.csv` được lưu chính xác vào thư mục `.../T09.2026/24.09/`, không bị lưu vào `25.09`.              |
+| **TC-02** | Bấm "Check EOD" trong ca sáng ngày 25/09.                                              | Bot đọc `QLTKGD.xlsx` và `eod` trong thư mục `24.09`. Danh sách 13 tài khoản phát sinh sáng 25/09 không còn bị báo lệch (Lệch = 0). |
+| **TC-03** | Khối "Tài khoản âm ký quỹ mới (EOD)" khi chạy ca sáng 25/09.                           | Vẫn hiển thị đầy đủ và chính xác 14 tài khoản âm ký quỹ của phiên 24/09.                                                            |
+| **TC-04** | Kiểm tra tương thích với CoreCCP EOD.                                                  | Bộ file CoreCCP (nếu có) cũng được đọc tương ứng theo phiên EOD đồng bộ.                                                            |
 
 ---
 

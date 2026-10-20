@@ -30,7 +30,7 @@ export default function LegacyCqgSyncSection({
       if (!silent) setLoading(true);
       try {
         const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-        setCqgSyncData(data?.cqgSync || (data as any)?.preEod || null);
+        setCqgSyncData(data?.cqgSync || (data as any)?.dsgdBeforeEod || null);
       } catch (err: any) {
         console.error('Lỗi nạp dữ liệu đồng bộ CQG:', err);
       } finally {

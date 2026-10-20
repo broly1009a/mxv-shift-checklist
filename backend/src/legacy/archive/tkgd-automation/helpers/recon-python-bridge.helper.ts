@@ -37,7 +37,7 @@ export interface ReconPythonResult {
  * Tự động parse JSON từ stdout, bắt log debug từ stderr.
  */
 export function executeReconWorker(
-  action: 'MERGE_CQG' | 'PARSE_STRAITS' | 'RECON_KLGD' | 'RECON_PRE_EOD' | 'SCAN_MARGIN',
+  action: 'MERGE_CQG' | 'PARSE_STRAITS' | 'RECON_KLGD' | 'RECON_DSGD_BEFORE_EOD' | 'SCAN_MARGIN',
   payload: Record<string, any>,
   timeoutMs: number = 60000,
 ): ReconPythonResult {

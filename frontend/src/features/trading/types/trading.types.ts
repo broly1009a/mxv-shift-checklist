@@ -71,7 +71,7 @@ export interface ConsoleSummaryData {
     mismatchedTTM?: MismatchedTTM[];
     mismatchedTTTT?: MismatchedTTTT[];
   };
-  preEod?: {
+  dsgdBeforeEod?: {
     status?: string;
     executedAt?: string;
     jobId?: string;
@@ -85,7 +85,7 @@ export interface ConsoleSummaryData {
 
 export interface TriggerConsoleRunParams {
   date?: string;
-  jobType?: 'CHECK_KLGD' | 'CHECK_PRE_EOD' | 'CHECK_CQG_SYNC' | string;
+  jobType?: 'CHECK_KLGD' | 'CHECK_DSGD_BEFORE_EOD' | 'CHECK_CQG_SYNC' | string;
   bypassCooldown?: boolean;
   options?: {
     checkKlgd?: boolean;
@@ -104,7 +104,7 @@ export interface TriggerRunResponse {
 export interface TradingReconLogItem {
   _id: string;
   tradingDate: string;
-  reconType: 'CHECK_KLGD' | 'CHECK_PRE_EOD' | 'CHECK_CQG_SYNC' | 'SCAN_NEGATIVE_MARGIN' | string;
+  reconType: 'CHECK_KLGD' | 'CHECK_DSGD_BEFORE_EOD' | 'CHECK_CQG_SYNC' | 'SCAN_NEGATIVE_MARGIN' | string;
   status: 'PASSED' | 'FAILED' | 'NEEDS_ATTENTION' | 'ERROR';
   sourceFiles?: Array<{ name: string; size?: number; path?: string }>;
   metrics?: Record<string, any>;

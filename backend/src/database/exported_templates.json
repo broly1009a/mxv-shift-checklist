@@ -518,7 +518,7 @@
         "priority": "HIGH",
         "sortOrder": 11,
         "isBotCheck": true,
-        "botCheckType": "CHECK_PRE_EOD",
+        "botCheckType": "CHECK_DSGD_BEFORE_EOD",
         "botTriggerTime": "",
         "botCheckTarget": "",
         "botSuccessCondition": "",

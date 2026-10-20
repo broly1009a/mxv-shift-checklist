@@ -3,14 +3,14 @@ import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { CqgMergerService } from '../../modules/trading-ops/services/cqg-merger.service';
 import { KlgdReconService } from '../../modules/trading-ops/services/klgd-recon.service';
-import { PreEodReconService } from '../../modules/trading-ops/services/pre-eod-recon.service';
+import { DsgdBeforeEodReconService } from '../../modules/trading-ops/services/dsgd-before-eod-recon.service';
 import { LotStatisticsService } from '../../modules/trading-ops/services/lot-statistics.service';
 import { ValueStatisticsService } from '../../modules/trading-ops/services/value-statistics.service';
 import { CcpLotWorker } from '../../modules/trading-ops/workers/ccp-lot.worker';
 import { CcpValueWorker } from '../../modules/trading-ops/workers/ccp-value.worker';
 import { BotDispatcherService } from '../../modules/checklist-hub/dispatcher/bot-dispatcher.service';
 import { KlgdReconWorker } from '../../modules/trading-ops/workers/klgd-recon.worker';
-import { PreEodReconWorker } from '../../modules/trading-ops/workers/pre-eod-recon.worker';
+import { DsgdBeforeEodReconWorker } from '../../modules/trading-ops/workers/dsgd-before-eod-recon.worker';
 
 describe('Twin-Run Verification - So Sánh Song Hành V1 vs Modular Monolith V2', () => {
   const scratchDir = path.join(process.cwd(), 'scratch', 'twin-run-test');
@@ -208,21 +208,21 @@ describe('Twin-Run Verification - So Sánh Song Hành V1 vs Modular Monolith V2'
   });
 
   describe('3. Dynamic Bot Capability Dispatcher (Zero Hardcoded Task ID)', () => {
-    it('Worker nhận diện đúng capabilityType: CHECK_KLGD và CHECK_PRE_EOD', async () => {
+    it('Worker nhận diện đúng capabilityType: CHECK_KLGD và CHECK_DSGD_BEFORE_EOD', async () => {
       const mockSettings: any = {
         getSetting: jest.fn().mockResolvedValue('05:00'),
         setSetting: jest.fn().mockResolvedValue(true),
       };
       const klgdService = new KlgdReconService(mockSettings);
       const klgdWorker = new KlgdReconWorker(klgdService);
-      const preEodWorker = new PreEodReconWorker(new PreEodReconService());
+      const dsgdBeforeEodWorker = new DsgdBeforeEodReconWorker(new DsgdBeforeEodReconService());
 
       expect(klgdWorker.capabilityType).toBe('CHECK_KLGD');
       expect(klgdWorker.canHandle('CHECK_KLGD')).toBe(true);
       expect(klgdWorker.canHandle('UNKNOWN_TASK')).toBe(false);
 
-      expect(preEodWorker.capabilityType).toBe('CHECK_PRE_EOD');
-      expect(preEodWorker.canHandle('CHECK_PRE_EOD')).toBe(true);
+      expect(dsgdBeforeEodWorker.capabilityType).toBe('CHECK_DSGD_BEFORE_EOD');
+      expect(dsgdBeforeEodWorker.canHandle('CHECK_DSGD_BEFORE_EOD')).toBe(true);
 
       const mockBotJobModel: any = {
         findOneAndUpdate: jest.fn(),
@@ -232,7 +232,7 @@ describe('Twin-Run Verification - So Sánh Song Hành V1 vs Modular Monolith V2'
       const dispatcher = new BotDispatcherService(
         mockBotJobModel,
         klgdWorker,
-        preEodWorker,
+        dsgdBeforeEodWorker,
       );
       dispatcher.onModuleInit();
 

@@ -14,7 +14,7 @@ export type TaskExecutionStatus = 'SUCCESS' | 'FAILED' | 'WARNING' | 'WAITING';
 export interface TaskExecutionContext {
   taskId: string;
   shiftId?: string;
-  botCheckType: string; // Khả năng nghiệp vụ chuẩn hóa (CHECK_KLGD, CHECK_PRE_EOD, CHECK_MARGIN, CCP_LOT_STATS,...)
+  botCheckType: string; // Khả năng nghiệp vụ chuẩn hóa (CHECK_KLGD, CHECK_DSGD_BEFORE_EOD, CHECK_MARGIN, CCP_LOT_STATS,...)
   targetDate?: string;  // YYYY-MM-DD hoặc DD/MM/YYYY
   parameters?: Record<string, any>;
   triggeredBy?: string; // Tên người bấm nút hoặc 'SYSTEM_SCHEDULER'

@@ -4,21 +4,21 @@ import { BotStatusStateBanner, shouldShowBotStatusBanner } from './BotStatusStat
 import { toast } from 'react-hot-toast';
 import { MismatchedTrade, ParsedBotData } from './types';
 
-interface PreEodReconciliationVisualReportProps {
+interface DsgdBeforeEodReconciliationVisualReportProps {
   parsedData: ParsedBotData;
   activeStatus: string;
 }
 
 const ITEMS_PER_PAGE = 50;
 
-export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisualReportProps> = ({ parsedData, activeStatus }) => {
-  const [preEodSubTab, setPreEodSubTab] = useState<'TRADES' | 'POSITIONS'>('TRADES');
+export const DsgdBeforeEodReconciliationVisualReport: React.FC<DsgdBeforeEodReconciliationVisualReportProps> = ({ parsedData, activeStatus }) => {
+  const [dsgdBeforeEodSubTab, setDsgdBeforeEodSubTab] = useState<'TRADES' | 'POSITIONS'>('TRADES');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSource, setSelectedSource] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const preEodMismatchedTradesCount = parsedData.jsonResult?.mismatchedTrades?.length ?? 0;
-  const preEodMismatchedPositionsCount = (parsedData.jsonResult?.mismatchedPositions || parsedData.jsonResult?.mismatchedTTM)?.length ?? 0;
+  const dsgdBeforeEodMismatchedTradesCount = parsedData.jsonResult?.mismatchedTrades?.length ?? 0;
+  const dsgdBeforeEodMismatchedPositionsCount = (parsedData.jsonResult?.mismatchedPositions || parsedData.jsonResult?.mismatchedTTM)?.length ?? 0;
 
   const filteredMismatchedTrades = useMemo(() => {
     const trades: MismatchedTrade[] = parsedData.jsonResult?.mismatchedTrades || [];
@@ -64,7 +64,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
 
   const handleExportFiltered = () => {
     let content = '';
-    if (preEodSubTab === 'TRADES') {
+    if (dsgdBeforeEodSubTab === 'TRADES') {
       content = 'Nguồn\tMã TKGD\tHợp đồng\tGiá\tSố lượng\tLý do lệch\n' +
         filteredMismatchedTrades.map(t => `${t.source}\t${t.maTKGD}\t${t.maHD}\t${t.giaKhop}\t${t.klGiaoDich}\t${t.reason}`).join('\n');
     } else {
@@ -119,7 +119,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
         </div>
       )}
 
-      {/* PRE_EOD Dashboard View (Đầu phiên / Pre-EOD 3-way check) */}
+      {/* DSGD_BEFORE_EOD Dashboard View (Đầu phiên / Dsgd-Before-EOD 3-way check) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
         <div style={{ padding: '14px 16px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
           <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>TỰ DOANH (MS vs Straits)</div>
@@ -143,13 +143,13 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
 
         <div style={{ 
           padding: '14px 16px', 
-          background: preEodMismatchedTradesCount > 0 ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)', 
+          background: dsgdBeforeEodMismatchedTradesCount > 0 ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)', 
           borderRadius: '10px', 
-          border: preEodMismatchedTradesCount > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)' 
+          border: dsgdBeforeEodMismatchedTradesCount > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)' 
         }}>
-          <div style={{ fontSize: '0.68rem', color: preEodMismatchedTradesCount > 0 ? '#f87171' : '#34d399', marginBottom: '4px', fontWeight: 600 }}>CHÊNH LỆCH CHI TIẾT</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: preEodMismatchedTradesCount > 0 ? '#f87171' : '#34d399' }}>
-            {preEodMismatchedTradesCount} giao dịch
+          <div style={{ fontSize: '0.68rem', color: dsgdBeforeEodMismatchedTradesCount > 0 ? '#f87171' : '#34d399', marginBottom: '4px', fontWeight: 600 }}>CHÊNH LỆCH CHI TIẾT</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: dsgdBeforeEodMismatchedTradesCount > 0 ? '#f87171' : '#34d399' }}>
+            {dsgdBeforeEodMismatchedTradesCount} giao dịch
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
             Lệch khớp lệnh chi tiết
@@ -158,13 +158,13 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
 
         <div style={{ 
           padding: '14px 16px', 
-          background: preEodMismatchedPositionsCount > 0 ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)', 
+          background: dsgdBeforeEodMismatchedPositionsCount > 0 ? 'rgba(239, 68, 68, 0.05)' : 'rgba(16, 185, 129, 0.05)', 
           borderRadius: '10px', 
-          border: preEodMismatchedPositionsCount > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)' 
+          border: dsgdBeforeEodMismatchedPositionsCount > 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)' 
         }}>
-          <div style={{ fontSize: '0.68rem', color: preEodMismatchedPositionsCount > 0 ? '#f87171' : '#34d399', marginBottom: '4px', fontWeight: 600 }}>LỆCH NET POSITION</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: preEodMismatchedPositionsCount > 0 ? '#f87171' : '#34d399' }}>
-            {preEodMismatchedPositionsCount} tài khoản
+          <div style={{ fontSize: '0.68rem', color: dsgdBeforeEodMismatchedPositionsCount > 0 ? '#f87171' : '#34d399', marginBottom: '4px', fontWeight: 600 }}>LỆCH NET POSITION</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: dsgdBeforeEodMismatchedPositionsCount > 0 ? '#f87171' : '#34d399' }}>
+            {dsgdBeforeEodMismatchedPositionsCount} tài khoản
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
             Vị thế ròng CQG vs M-System
@@ -178,7 +178,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
           <button
             type="button"
             onClick={() => {
-              setPreEodSubTab('TRADES');
+              setDsgdBeforeEodSubTab('TRADES');
               setCurrentPage(1);
             }}
             style={{
@@ -187,9 +187,9 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
               fontSize: '0.75rem',
               fontWeight: 700,
               cursor: 'pointer',
-              border: preEodSubTab === 'TRADES' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-              background: preEodSubTab === 'TRADES' ? 'var(--color-accent)' : 'var(--bg-card)',
-              color: preEodSubTab === 'TRADES' ? '#ffffff' : 'var(--text-secondary)'
+              border: dsgdBeforeEodSubTab === 'TRADES' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+              background: dsgdBeforeEodSubTab === 'TRADES' ? 'var(--color-accent)' : 'var(--bg-card)',
+              color: dsgdBeforeEodSubTab === 'TRADES' ? '#ffffff' : 'var(--text-secondary)'
             }}
           >
             Lệch khớp lệnh ({parsedData.jsonResult?.mismatchedTrades?.length || 0})
@@ -197,7 +197,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
           <button
             type="button"
             onClick={() => {
-              setPreEodSubTab('POSITIONS');
+              setDsgdBeforeEodSubTab('POSITIONS');
               setCurrentPage(1);
             }}
             style={{
@@ -206,9 +206,9 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
               fontSize: '0.75rem',
               fontWeight: 700,
               cursor: 'pointer',
-              border: preEodSubTab === 'POSITIONS' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
-              background: preEodSubTab === 'POSITIONS' ? 'var(--color-accent)' : 'var(--bg-card)',
-              color: preEodSubTab === 'POSITIONS' ? '#ffffff' : 'var(--text-secondary)'
+              border: dsgdBeforeEodSubTab === 'POSITIONS' ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+              background: dsgdBeforeEodSubTab === 'POSITIONS' ? 'var(--color-accent)' : 'var(--bg-card)',
+              color: dsgdBeforeEodSubTab === 'POSITIONS' ? '#ffffff' : 'var(--text-secondary)'
             }}
           >
             Lệch vị thế ròng ({parsedData.jsonResult?.mismatchedTTM?.length || parsedData.jsonResult?.mismatchedPositions?.length || 0})
@@ -250,7 +250,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
             )}
           </div>
 
-          {preEodSubTab === 'TRADES' && (
+          {dsgdBeforeEodSubTab === 'TRADES' && (
             <select
               value={selectedSource}
               onChange={(e) => {
@@ -299,7 +299,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
       </div>
 
       {/* Table Section: TRADES */}
-      {preEodSubTab === 'TRADES' && (
+      {dsgdBeforeEodSubTab === 'TRADES' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -392,7 +392,7 @@ export const PreEodReconciliationVisualReport: React.FC<PreEodReconciliationVisu
       )}
 
       {/* Table Section: POSITIONS */}
-      {preEodSubTab === 'POSITIONS' && (
+      {dsgdBeforeEodSubTab === 'POSITIONS' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>

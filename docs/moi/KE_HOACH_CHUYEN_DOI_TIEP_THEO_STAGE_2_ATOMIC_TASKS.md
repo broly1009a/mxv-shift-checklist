@@ -87,7 +87,7 @@ flowchart TD
 - **Vị trí file**: `backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts`
 - **Mục tiêu**: Lưu trữ toàn bộ dữ liệu đối soát chi tiết của QLGD.
 - **Cấu trúc trường dữ liệu (Schema Definition)**:
-  - `reconType`: `'KLGD' | 'PRE_EOD' | 'NEGATIVE_MARGIN'`
+  - `reconType`: `'KLGD' | 'DSGD_BEFORE_EOD' | 'NEGATIVE_MARGIN'`
   - `tradingDate`: `string` (YYYY-MM-DD)
   - `shiftLogId?: string`
   - `taskId?: string`
@@ -109,7 +109,7 @@ flowchart TD
 
 - **File tác động**:
   - `backend/src/modules/trading-ops/workers/klgd-recon.worker.ts`
-  - `backend/src/modules/trading-ops/workers/pre-eod-recon.worker.ts`
+  - `backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts`
   - `backend/src/modules/trading-ops/workers/negative-margin.worker.ts`
   - `backend/src/modules/ccp-clearing/workers/ccp-lot.worker.ts`
 - **Quy tắc chuyển đổi**:

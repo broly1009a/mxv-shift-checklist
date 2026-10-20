@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export interface PreEodTotals {
+export interface DsgdBeforeEodTotals {
   totalACM_MS?: number;
   totalACM_Straits?: number;
   differACM?: number;
@@ -27,7 +27,7 @@ export interface PreEodTotals {
   differCQG?: number;
 }
 
-export interface PreEodMismatchedTrade {
+export interface DsgdBeforeEodMismatchedTrade {
   source?: 'CQG' | 'MSystem' | 'MS' | string;
   maLenh?: string;
   maTKGD?: string;
@@ -38,7 +38,7 @@ export interface PreEodMismatchedTrade {
   reason?: string;
 }
 
-export interface PreEodMismatchedPosition {
+export interface DsgdBeforeEodMismatchedPosition {
   account?: string;
   symbol?: string;
   msPosition?: number;
@@ -46,7 +46,7 @@ export interface PreEodMismatchedPosition {
   differ?: number;
 }
 
-export interface PreEodData {
+export interface DsgdBeforeEodData {
   jobId?: string | null;
   status?: string;
   executedAt?: string | null;
@@ -54,7 +54,7 @@ export interface PreEodData {
   logs?: string[];
   isWaitingFiles?: boolean;
   passed?: boolean;
-  totals?: PreEodTotals;
+  totals?: DsgdBeforeEodTotals;
   acm?: {
     msVolume?: number;
     straitsVolume?: number;
@@ -67,14 +67,14 @@ export interface PreEodData {
   };
   mismatchedTradesCount?: number;
   mismatchedTradesTotal?: number;
-  mismatchedTrades?: PreEodMismatchedTrade[];
+  mismatchedTrades?: DsgdBeforeEodMismatchedTrade[];
   mismatchedPositionsCount?: number;
   mismatchedPositionsTotal?: number;
-  mismatchedPositions?: PreEodMismatchedPosition[];
+  mismatchedPositions?: DsgdBeforeEodMismatchedPosition[];
 }
 
-export interface LegacyPreEodDiffSectionProps {
-  preEodData?: PreEodData | null;
+export interface LegacyDsgdBeforeEodDiffSectionProps {
+  dsgdBeforeEodData?: DsgdBeforeEodData | null;
   onTriggerCheck: () => void;
   triggering: boolean;
   onOpenLogs?: (jobId?: string, logs?: string[]) => void;
@@ -101,41 +101,41 @@ function formatExecTime(dateStr?: string | null): string {
   return `${dd}/${mm}/${yyyy} ${HH}:${ii}:${ss}`;
 }
 
-export default function LegacyPreEodDiffSection({
-  preEodData,
+export default function LegacyDsgdBeforeEodDiffSection({
+  dsgdBeforeEodData,
   onTriggerCheck,
   triggering,
   onOpenLogs,
-}: LegacyPreEodDiffSectionProps) {
+}: LegacyDsgdBeforeEodDiffSectionProps) {
   const [activeTab, setActiveTab] = useState<'TRADES' | 'POSITIONS'>('TRADES');
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'CQG' | 'MS'>('ALL');
 
-  const totals = preEodData?.totals || {
-    totalACM_MS: preEodData?.acm?.msVolume ?? 0,
-    totalACM_Straits: preEodData?.acm?.straitsVolume ?? 0,
-    differACM: preEodData?.acm?.differ ?? 0,
-    totalCQG_MS: preEodData?.cqg?.msVolume ?? 0,
-    totalCQG_FR: preEodData?.cqg?.cqgVolume ?? 0,
-    differCQG: preEodData?.cqg?.differ ?? 0,
+  const totals = dsgdBeforeEodData?.totals || {
+    totalACM_MS: dsgdBeforeEodData?.acm?.msVolume ?? 0,
+    totalACM_Straits: dsgdBeforeEodData?.acm?.straitsVolume ?? 0,
+    differACM: dsgdBeforeEodData?.acm?.differ ?? 0,
+    totalCQG_MS: dsgdBeforeEodData?.cqg?.msVolume ?? 0,
+    totalCQG_FR: dsgdBeforeEodData?.cqg?.cqgVolume ?? 0,
+    differCQG: dsgdBeforeEodData?.cqg?.differ ?? 0,
   };
 
-  const hasExecuted = !!preEodData?.executedAt;
-  const isWaitingFiles = !!preEodData?.isWaitingFiles;
+  const hasExecuted = !!dsgdBeforeEodData?.executedAt;
+  const isWaitingFiles = !!dsgdBeforeEodData?.isWaitingFiles;
 
   const rawTrades = useMemo(() => {
-    return Array.isArray(preEodData?.mismatchedTrades) ? preEodData.mismatchedTrades : [];
-  }, [preEodData?.mismatchedTrades]);
+    return Array.isArray(dsgdBeforeEodData?.mismatchedTrades) ? dsgdBeforeEodData.mismatchedTrades : [];
+  }, [dsgdBeforeEodData?.mismatchedTrades]);
 
   const rawPositions = useMemo(() => {
-    return Array.isArray(preEodData?.mismatchedPositions) ? preEodData.mismatchedPositions : [];
-  }, [preEodData?.mismatchedPositions]);
+    return Array.isArray(dsgdBeforeEodData?.mismatchedPositions) ? dsgdBeforeEodData.mismatchedPositions : [];
+  }, [dsgdBeforeEodData?.mismatchedPositions]);
 
-  const tradesCount = preEodData?.mismatchedTradesTotal ?? preEodData?.mismatchedTradesCount ?? rawTrades.length;
-  const positionsCount = preEodData?.mismatchedPositionsTotal ?? preEodData?.mismatchedPositionsCount ?? rawPositions.length;
+  const tradesCount = dsgdBeforeEodData?.mismatchedTradesTotal ?? dsgdBeforeEodData?.mismatchedTradesCount ?? rawTrades.length;
+  const positionsCount = dsgdBeforeEodData?.mismatchedPositionsTotal ?? dsgdBeforeEodData?.mismatchedPositionsCount ?? rawPositions.length;
 
   const isPassed = hasExecuted && !isWaitingFiles && (
-    preEodData?.passed === true || (
+    dsgdBeforeEodData?.passed === true || (
       (totals.differACM ?? 0) === 0 &&
       (totals.differCQG ?? 0) === 0 &&
       tradesCount === 0 &&
@@ -175,8 +175,8 @@ export default function LegacyPreEodDiffSection({
   const handleCopyReport = () => {
     const lines: string[] = [
       '================================================================================',
-      'BÁO CÁO ĐỐI CHIẾU PRE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM)',
-      `Thời gian kiểm tra: ${formatExecTime(preEodData?.executedAt) || 'Chưa kiểm tra'}`,
+      'BÁO CÁO ĐỐI CHIẾU DSGD-BEFORE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM)',
+      `Thời gian kiểm tra: ${formatExecTime(dsgdBeforeEodData?.executedAt) || 'Chưa kiểm tra'}`,
       `Trạng thái: ${isWaitingFiles ? 'ĐANG CHỜ TỆP' : isPassed ? 'KHỚP HOÀN TOÀN' : 'PHÁT HIỆN LỆCH'}`,
       '--------------------------------------------------------------------------------',
       '1. TỔNG HỢP KHỐI LƯỢNG GIAO DỊCH:',
@@ -209,7 +209,7 @@ export default function LegacyPreEodDiffSection({
     lines.push('================================================================================');
 
     navigator.clipboard.writeText(lines.join('\n'));
-    toast.success('Đã sao chép báo cáo chi tiết Pre-EOD vào clipboard!');
+    toast.success('Đã sao chép báo cáo chi tiết Dsgd-Before-EOD vào clipboard!');
   };
 
   return (
@@ -259,7 +259,7 @@ export default function LegacyPreEodDiffSection({
               <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                 Đối chiếu giao dịch trước EOD
               </h4>
-              {hasExecuted && preEodData?.executedAt && (
+              {hasExecuted && dsgdBeforeEodData?.executedAt && (
                 <span
                   style={{
                     fontSize: '0.74rem',
@@ -268,7 +268,7 @@ export default function LegacyPreEodDiffSection({
                     fontWeight: 600,
                   }}
                 >
-                  ({formatExecTime(preEodData.executedAt)})
+                  ({formatExecTime(dsgdBeforeEodData.executedAt)})
                 </span>
               )}
             </div>
@@ -353,10 +353,10 @@ export default function LegacyPreEodDiffSection({
           )}
 
           {/* Button Xem Log */}
-          {onOpenLogs && preEodData?.logs && preEodData.logs.length > 0 && (
+          {onOpenLogs && dsgdBeforeEodData?.logs && dsgdBeforeEodData.logs.length > 0 && (
             <button
               type="button"
-              onClick={() => onOpenLogs(preEodData.jobId || undefined, preEodData.logs)}
+              onClick={() => onOpenLogs(dsgdBeforeEodData.jobId || undefined, dsgdBeforeEodData.logs)}
               className="btn btn-secondary"
               title="Xem log thực thi chi tiết của bot"
               style={{
@@ -378,7 +378,7 @@ export default function LegacyPreEodDiffSection({
             type="button"
             onClick={handleCopyReport}
             className="btn btn-secondary"
-            title="Sao chép toàn bộ kết quả đối chiếu Pre-EOD vào clipboard"
+            title="Sao chép toàn bộ kết quả đối chiếu Dsgd-Before-EOD vào clipboard"
             style={{
               fontSize: '0.75rem',
               padding: '6px 12px',
@@ -392,7 +392,7 @@ export default function LegacyPreEodDiffSection({
             <span>Sao chép</span>
           </button>
 
-          {/* Button Check Pre-EOD */}
+          {/* Button Check Dsgd-Before-EOD */}
           <button
             type="button"
             onClick={onTriggerCheck}
@@ -412,12 +412,12 @@ export default function LegacyPreEodDiffSection({
             {triggering ? (
               <>
                 <Loader2 size={13} className="animate-spin" />
-                <span>Đang quét Pre-EOD...</span>
+                <span>Đang quét Dsgd-Before-EOD...</span>
               </>
             ) : (
               <>
                 <RefreshCw size={13} />
-                <span>Check Pre-EOD</span>
+                <span>Check Dsgd-Before-EOD</span>
               </>
             )}
           </button>
@@ -820,7 +820,7 @@ export default function LegacyPreEodDiffSection({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <Clock size={24} color="var(--text-muted)" />
                       <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        Chưa chạy kiểm tra Pre-EOD phiên này. Nhấn “Check Pre-EOD” để quét.
+                        Chưa chạy kiểm tra Dsgd-Before-EOD phiên này. Nhấn “Check Dsgd-Before-EOD” để quét.
                       </span>
                     </div>
                   </td>
@@ -831,7 +831,7 @@ export default function LegacyPreEodDiffSection({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={24} color="#f59e0b" />
                       <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#f59e0b' }}>
-                        Đang chờ đầy đủ tệp đối chiếu Pre-EOD từ CQG/Straits trong thư mục Backup.
+                        Đang chờ đầy đủ tệp đối chiếu Dsgd-Before-EOD từ CQG/Straits trong thư mục Backup.
                       </span>
                     </div>
                   </td>
@@ -935,7 +935,7 @@ export default function LegacyPreEodDiffSection({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <Clock size={24} color="var(--text-muted)" />
                       <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        Chưa chạy kiểm tra Pre-EOD phiên này. Nhấn “Check Pre-EOD” để quét.
+                        Chưa chạy kiểm tra Dsgd-Before-EOD phiên này. Nhấn “Check Dsgd-Before-EOD” để quét.
                       </span>
                     </div>
                   </td>
@@ -946,7 +946,7 @@ export default function LegacyPreEodDiffSection({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={24} color="#f59e0b" />
                       <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#f59e0b' }}>
-                        Đang chờ đầy đủ tệp đối chiếu Pre-EOD từ CQG/Straits trong thư mục Backup.
+                        Đang chờ đầy đủ tệp đối chiếu Dsgd-Before-EOD từ CQG/Straits trong thư mục Backup.
                       </span>
                     </div>
                   </td>

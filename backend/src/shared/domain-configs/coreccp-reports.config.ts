@@ -21,7 +21,7 @@ export interface ICcpReportMapping {
   isDerived?: boolean;
   derivedFrom?: string;
   group?: 'ORDERS' | 'MM' | 'POSITION' | 'RISK' | 'CASH' | 'PRODUCT';
-  phase?: 'PRE_1620' | 'EOD' | 'BOTH';
+  phase?: 'BEFORE_1620' | 'EOD' | 'BOTH';
 }
 
 /**
@@ -409,7 +409,7 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     isDerived: true,
     derivedFrom: 'TTM_CCP',
     group: 'POSITION',
-    phase: 'PRE_1620',
+    phase: 'BEFORE_1620',
   },
   QLTTTKGD_PRE1620: {
     key: 'QLTTTKGD_PRE1620',
@@ -420,7 +420,7 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     isDerived: true,
     derivedFrom: 'QL_TT_TKGD',
     group: 'RISK',
-    phase: 'PRE_1620',
+    phase: 'BEFORE_1620',
   },
   QLTT_TKGD_PRE1620: {
     key: 'QLTT_TKGD_PRE1620',
@@ -431,7 +431,7 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     isDerived: true,
     derivedFrom: 'QL_TT_TKGD',
     group: 'RISK',
-    phase: 'PRE_1620',
+    phase: 'BEFORE_1620',
   },
   QLTTTKGD: {
     key: 'QLTTTKGD',

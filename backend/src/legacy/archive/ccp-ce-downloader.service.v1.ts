@@ -35,8 +35,8 @@ export interface CcpReportConfig {
   cachedUrl?: string;
   /** Bật/tắt báo cáo này trong lần chạy */
   enabled: boolean;
-  /** Giai đoạn chạy: PRE_1620 (trước 16h20) | EOD (cuối ngày) | BOTH */
-  phase?: 'PRE_1620' | 'EOD' | 'BOTH';
+  /** Giai đoạn chạy: BEFORE_1620 (trước 16h20) | EOD (cuối ngày) | BOTH */
+  phase?: 'BEFORE_1620' | 'EOD' | 'BOTH';
   /** Tên file xuất ra khớp chuẩn 100% với tên Maker lưu trữ */
   outputFileName?: string;
   /** Mã hàng hóa (dành riêng cho các file Hợp đồng) */
@@ -212,7 +212,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     childMenu: 'Trạng thái mở',
     cachedUrl: '/ORDERS/OPEN_POSITION',
     enabled: true,
-    phase: 'PRE_1620',
+    phase: 'BEFORE_1620',
     outputFileName: 'TTM truoc 4h20.xlsx',
   },
   {
@@ -248,7 +248,7 @@ export const DEFAULT_CCP_REPORTS: CcpReportConfig[] = [
     tabName: 'Danh sách trạng thái TKGD',
     cachedUrl: '/RISKMNG/ACCTMARGIN_ALL',
     enabled: true,
-    phase: 'PRE_1620',
+    phase: 'BEFORE_1620',
     outputFileName: 'QL TT TKGD truoc 4h20.xlsx',
   },
   {
@@ -2755,7 +2755,7 @@ export class CcpCeDownloaderService {
     username: string;
     password: string;
     outputDir: string;
-    phase?: 'PRE_1620' | 'EOD' | 'ALL';
+    phase?: 'BEFORE_1620' | 'EOD' | 'ALL';
     tradingDate?: string;
     headless?: boolean;
     reports?: string[];
@@ -2870,7 +2870,7 @@ export class CcpCeDownloaderService {
       // Đăng nhập
       await this.loginVnclear(page, systemUrl, username, password, logCb);
 
-      if (phase === 'PRE_1620') {
+      if (phase === 'BEFORE_1620') {
         // ── ĐỢT 1: TRƯỚC 16H20 (2 FILE) ──
         this.log('\n>>> ĐỢT 1: GIÁM SÁT TRƯỚC 16H20 (2 FILE) <<<', logCb);
         await helperDownloadDirect(page, '/RISKMNG/ACCTMARGIN_ALL', 'QL TT TKGD truoc 4h20.xlsx', 'trạng thái TKGD');

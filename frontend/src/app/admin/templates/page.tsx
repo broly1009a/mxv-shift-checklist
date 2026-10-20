@@ -38,7 +38,7 @@ const BOT_CHECK_TYPE_OPTIONS: { value: string; label: string; technical: string 
   { value: 'FILE_EXISTS', label: 'Kiểm tra File tồn tại', technical: 'FILE_EXISTS' },
   { value: 'API_STATUS', label: 'Kiểm tra trạng thái API', technical: 'API_STATUS' },
   { value: 'CHECK_KLGD', label: 'Đối chiếu khớp lệnh trong phiên', technical: 'CHECK_KLGD' },
-  { value: 'CHECK_PRE_EOD', label: 'Đối chiếu Pre-EOD', technical: 'CHECK_PRE_EOD' },
+  { value: 'CHECK_DSGD_BEFORE_EOD', label: 'Đối chiếu DSGD trước EOD', technical: 'CHECK_DSGD_BEFORE_EOD' },
   { value: 'AUTO_CHECK_SOD', label: 'Đối chiếu số dư CQG SOD', technical: 'AUTO_CHECK_SOD' },
   { value: 'CHECK_EOD_MM', label: 'Đối chiếu số dư EOD MM', technical: 'CHECK_EOD_MM' },
   { value: 'FILE_AUDIT_ACM', label: 'Kiểm tra file backup ACM', technical: 'FILE_AUDIT_ACM' },

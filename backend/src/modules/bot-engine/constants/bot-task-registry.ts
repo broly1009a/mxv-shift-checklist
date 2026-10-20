@@ -16,10 +16,10 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
     displayName: 'Đối Chiếu Khớp Lệnh Trong Phiên',
     description: 'Đối chiếu khớp lệnh trong phiên (M-System vs CQG vs ACM)',
   },
-  CHECK_PRE_EOD: {
-    jobType: 'CHECK_PRE_EOD',
-    botCheckType: 'CHECK_PRE_EOD',
-    displayName: 'Đối Chiếu Pre-EOD',
+  CHECK_DSGD_BEFORE_EOD: {
+    jobType: 'CHECK_DSGD_BEFORE_EOD',
+    botCheckType: 'CHECK_DSGD_BEFORE_EOD',
+    displayName: 'Đối Chiếu Dsgd-Before-EOD',
     description: 'Đối chiếu 3 bên trước EOD',
   },
   AUTO_CHECK_SOD: {
