@@ -9,7 +9,13 @@
  * - CQG (Gateway giao dịch quốc tế)
  * - CE (CoreExchange sàn hàng hóa tập trung nội bộ)
  * - CCP (CoreCCP / VNCLEAR trung tâm bù trừ)
+ * - TT (Trading Technologies sàn quốc tế mới)
  */
+
+import {
+  TT_TO_MXV_COMMODITY_MAP,
+  TT_MONTH_TO_CODE,
+} from './tt-symbol-mapping.config';
 
 // Mappings for LME symbols (from statics.json)
 export const LME_CODE_MAP: Record<string, string> = {
@@ -37,7 +43,7 @@ export const REVERSE_MONTH_CODE: Record<string, string> = {
 };
 
 /**
- * Chuẩn hóa số tài khoản giao dịch (Account Normalizer)
+ * Chuẩn hóa số tài khoản giao dịch theo M-System cũ (Account Normalizer)
  * Ví dụ: 001C123456F -> 001C123456, 001C123456L -> 001C123456-L
  */
 export function getNormalizedAccount(account: string): string {
@@ -48,6 +54,64 @@ export function getNormalizedAccount(account: string): string {
   acc = acc.replace(/S$/i, '-S');
   acc = acc.replace(/--/g, '-');
   return acc.toUpperCase();
+}
+
+/**
+ * Giải mã 2 ký tự đại diện TVKD trên sàn TT (theo quy định ICE US giới hạn 12 ký tự)
+ * Bảng quy chuẩn tại tài liệu: Rule về mã tài khoản tạo trên TT (14/10/2026)
+ * - 01..99 -> 001..099
+ * - A0..A9 -> 100..109
+ * - B0..B9 -> 110..119
+ * - ...
+ * - Z0..Z9 -> 350..359
+ */
+export function decodeTvkd2Chars(shortCode: string): string {
+  if (!shortCode) return '';
+  const sc = shortCode.trim().toUpperCase();
+  if (/^\d{2}$/.test(sc)) {
+    return '0' + sc;
+  }
+  const firstChar = sc.charCodeAt(0);
+  if (firstChar >= 65 && firstChar <= 90) {
+    const base = 100 + (firstChar - 65) * 10;
+    const secondDigit = parseInt(sc[1], 10);
+    if (!isNaN(secondDigit)) {
+      return String(base + secondDigit).padStart(3, '0');
+    }
+  }
+  return sc;
+}
+
+/**
+ * Chuẩn hóa số tài khoản từ TT sang định dạng chuẩn 13 ký tự của CoreCCP (ví dụ: 004C0011778-F)
+ * Hỗ trợ đồng thời 2 cấu trúc:
+ * 1. Cấu trúc hiện tại có tiền tố route: "MXV 1-004C0011778-F" hoặc "IT-601C9999990-F" -> "004C0011778-F"
+ * 2. Cấu trúc 12 ký tự ICE US: "P104C0011778" -> "004C0011778-F"
+ */
+export function normalizeTtToCcpAccount(rawAccount: string): string {
+  if (!rawAccount) return '';
+  const s = rawAccount.trim().toUpperCase();
+
+  // Dạng 1: Chứa đầy đủ mã tiểu khoản 13 ký tự kèm hậu tố -F (ví dụ MXV 1-004C0011778-F, IT-601C9999990-F)
+  const matchFull = s.match(/([0-9]{3}[A-Z][0-9]{7}-F)/i);
+  if (matchFull) {
+    return matchFull[1].toUpperCase();
+  }
+
+  // Dạng 2: Cấu trúc 12 ký tự co gọn ICE US (2 ký tự MXV + 2 ký tự TVKD + 8 ký tự Cxxxxxxx)
+  const match12Char = s.match(/^[A-Z0-9]{2}([A-Z0-9]{2})(C[0-9]{7})$/i);
+  if (match12Char) {
+    const tvkd = decodeTvkd2Chars(match12Char[1]);
+    return `${tvkd}${match12Char[2]}-F`.toUpperCase();
+  }
+
+  // Dạng 3: Tiểu khoản 11 ký tự nhưng thiếu hậu tố (ví dụ 004C0011778)
+  const match11Char = s.match(/([0-9]{3}[A-Z][0-9]{7})/i);
+  if (match11Char) {
+    return `${match11Char[1]}-F`.toUpperCase();
+  }
+
+  return s;
 }
 
 /**
@@ -111,18 +175,72 @@ export function convertLMESymbol(symbol: string, date: Date, holidays: string[] 
 }
 
 /**
+ * Chuẩn hóa mã hợp đồng từ Trading Technologies (TT) sang CoreCCP / MXV
+ * Hỗ trợ:
+ * - Futures chuẩn: "CL Jan27" -> "CLEF27", "KE Dec26" -> "KWEZ26"
+ * - Options: "C.CL Dec26 10000" -> "C.CLEZ26 10000"
+ * - LME: "AH 21Jul26" -> "AHDD21N26"
+ */
+export function normalizeTTContractCode(ttContract: string): string {
+  if (!ttContract) return '';
+  const s = ttContract.trim();
+
+  // 1. Phân loại Option: e.g. C.CL Dec26 10000 hoặc P.CL Jan27 9500
+  const optMatch = s.match(/^(C\.|P\.)([A-Z0-9]+)\s+([A-Za-z]{3})(\d{2})\s*(.*)$/i);
+  if (optMatch) {
+    const optType = optMatch[1].toUpperCase();
+    const ttFam = optMatch[2].toUpperCase();
+    const month = optMatch[3].toUpperCase();
+    const year = optMatch[4];
+    const strike = optMatch[5].trim();
+    const mxvFam = TT_TO_MXV_COMMODITY_MAP[ttFam] || ttFam;
+    const mCode = TT_MONTH_TO_CODE[month] || month;
+    const strikePart = strike ? ` ${strike}` : '';
+    return `${optType}${mxvFam}${mCode}${year}${strikePart}`;
+  }
+
+  // 2. Phân loại LME: e.g. AH 21Jul26 -> AHDD21N26
+  const lmeMatch = s.match(/^([A-Z0-9]+)\s+(\d{1,2})([A-Za-z]{3})(\d{2})$/i);
+  if (lmeMatch) {
+    const ttFam = lmeMatch[1].toUpperCase();
+    const day = lmeMatch[2].padStart(2, '0');
+    const month = lmeMatch[3].toUpperCase();
+    const year = lmeMatch[4];
+    const mxvFam = TT_TO_MXV_COMMODITY_MAP[ttFam] || ttFam;
+    const mCode = TT_MONTH_TO_CODE[month] || month;
+    return `${mxvFam}D${day}${mCode}${year}`;
+  }
+
+  // 3. Phân loại Futures tiêu chuẩn: e.g. CL Jan27 -> CLEF27, KE Dec26 -> KWEZ26
+  const futMatch = s.match(/^([A-Z0-9]+)\s+([A-Za-z]{3})(\d{2})$/i);
+  if (futMatch) {
+    const ttFam = futMatch[1].toUpperCase();
+    const month = futMatch[2].toUpperCase();
+    const year = futMatch[3];
+    const mxvFam = TT_TO_MXV_COMMODITY_MAP[ttFam] || ttFam;
+    const mCode = TT_MONTH_TO_CODE[month] || month;
+    return `${mxvFam}${mCode}${year}`;
+  }
+
+  return s;
+}
+
+/**
  * Điểm chặn duy nhất (Single Point of Truth) để chuẩn hóa mã hợp đồng trên toàn hệ thống.
- * Sẵn sàng đón nhận dữ liệu từ CoreExchange (CE), CoreCCP (CCP) và Ingress API mới.
+ * Sẵn sàng đón nhận dữ liệu từ CoreExchange (CE), CoreCCP (CCP), TT và Ingress API mới.
  */
 export function normalizeContractCode(
   rawSymbol: string,
-  source: 'MS' | 'CQG' | 'CE' | 'CCP',
+  source: 'MS' | 'CQG' | 'CE' | 'CCP' | 'TT',
   context?: { date?: Date; holidays?: string[] },
 ): string {
   if (!rawSymbol) return '';
   let sym = rawSymbol.trim().toUpperCase();
 
   switch (source) {
+    case 'TT': {
+      return normalizeTTContractCode(rawSymbol);
+    }
     case 'CQG': {
       // Bỏ tiền tố Option nếu có
       if (sym.startsWith('C.') || sym.startsWith('P.')) {

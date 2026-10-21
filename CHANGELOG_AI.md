@@ -1,3 +1,29 @@
+## [2026-10-21T16:35] REFACTOR: Xóa Bỏ Toàn Bộ Dữ Liệu Mock - Chuyển Đổi 100% Sang Dữ Liệu Thật Trên Executive Dashboard
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "giúp tôi fix hết dữ liệu mock dữ liệu thật".
+- Rà soát toàn bộ component [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+  1. Loại bỏ hoàn toàn hơn 600 dòng khai báo dữ liệu mẫu: `MOCK_ACM_SEGMENT`, `MOCK_OTHERS_SEGMENT` và `MOCK_COMMODITY_ITEMS`.
+  2. Bỏ state `dataMode` tĩnh ('MOCK' | 'LIVE'); thiết lập Dashboard hoạt động 100% dựa trên dữ liệu thực (`liveData`) từ Backend API (`DIRECT_API` / `BACKUP_FILES`).
+  3. Chuyển đổi Biểu đồ Timeline 2 Khối (ACM & Còn lại) từ các mốc tĩnh mẫu (`timelineVolumes: [35, 68, ...]`, `[210, 480, ...]`) sang dòng thời gian thực (`liveData.runs`):
+     - Tự động lấy tọa độ thời gian `runs.time` (sắp xếp tăng dần theo `createdAt`).
+     - Tự động vẽ `totalNano` (ACM) và `totalDSGD` (Còn lại) cùng giá trị ước tính GTGD theo tỷ lệ thực.
+     - Fallback theo 4 mốc thời điểm nếu chưa có runs, hoặc đường baseline 0 nếu phiên mới chưa có giao dịch (tuyệt đối không hiển thị số ảo 1,111 lot hay 8,950 lot).
+  4. Sửa đổi subtitle biểu đồ: Thay thế chuỗi cứng `Chu kỳ quét: 15-30 phút/lần` gây hiểu nhầm thành số lượt quét thực tế: `{runs.length > 0 ? \`Theo \${runs.length} lượt kiểm tra trong phiên\` : 'Theo các mốc thời điểm phiên'}`.
+  5. Cập nhật tin nhắn báo cáo BGĐ (`getActiveMessageText`): Tự động tổng hợp từ số liệu thực tế của phiên thay vì chèn các con số giả định cố định (1,956 lot, 10,061 lot...).
+  6. Chú thích chân trang bảng mặt hàng: Chuyển ví dụ tĩnh `(SI5CO: (67.6 tỷ))` và `(SI5CO: 5,770 lots; ZME: 1,312 lots)` thành tính toán động theo mã có lỗ dự kiến lớn nhất và mã có vị thế mở / tất toán cao nhất trong phiên.
+  7. Thêm hàng thông báo Empty State chuẩn UX khi phiên chưa có dữ liệu mặt hàng.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Xóa bỏ hơn 700 dòng mock data, tinh giản mã nguồn, chuyển sang cấu trúc động `SEGMENT_METADATA` và biểu đồ Timeline dựa trên `chronologicalRuns`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type Check**: `cmd /c "npx tsc --noEmit"` $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
 ## [2026-10-21T15:45] REFACTOR: Loại Bỏ Nhân Bản Thừa DSGD Khỏi LSGD_CCP Chuẩn Hóa Theo Tool C# & Báo Cáo Kiểm Thử Toàn Diện Các Phiên
 
 ### 1. Mục tiêu thay đổi
@@ -126,6 +152,30 @@
 
 ### 3. Xác nhận Build & Kiểm thử
 - **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T16:21] REFACTOR: Tối Ưu Bảng 17 Mặt Hàng Chủ Lực (Không Cần Scroll) & Dọn Dẹp Câu Chữ Chuẩn Clean UX
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. **Hiển thị vừa vặn 17 mặt hàng không cần cuộn dọc (Zero Inner Scroll)**:
+     - Gỡ bỏ giới hạn `maxHeight: '680px'` và `overflowY: 'auto'` ở thẻ bọc bảng; chuyển sang hiển thị tự nhiên với `overflowX: 'auto'` để đảm bảo responsive trên mọi màn hình.
+     - Tinh chỉnh padding của các ô header (`padding: 8px 6px - 10px`), ô dữ liệu `td` (`padding: 6px 6px - 10px`), thanh progress bar tỷ lệ Mua/Bán (`height: 12px`), hàng tổng kết `tfoot` (`padding: 8px 10px`).
+     - Toàn bộ 17 mã hàng hóa cùng hàng Tổng cộng hiển thị trọn vẹn, rõ nét và thoáng mắt ngay trong một khung hình mà không cần cuộn chuột bên trong card.
+  2. **Dọn dẹp triệt để các câu chữ mang tính máy móc / tàn dư AI / script kỹ thuật**:
+     - Tiêu đề bảng: Chuyển `BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC (BAN GIÁM ĐỐC)` $\rightarrow$ `BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC`.
+     - Phụ đề bảng: Gỡ bỏ đoạn `| Tự động bóc tách từ TTM & TTTT (Check BGS All.xlsm)` $\rightarrow$ chỉ giữ lại thông tin cần thiết `Dữ liệu phiên chốt: {sessionDate}`.
+     - Header Modal 44 mặt hàng: Chuyển `Bóc tách 100% từ Table 3 (Check BGS All.xlsm) | Dữ liệu phiên chốt:` $\rightarrow$ `Danh mục toàn bộ hợp đồng giao dịch • Dữ liệu phiên: {sessionDate}`.
+     - Nút xuất Excel: Chuyển tooltip `...chuẩn template 1:1` $\rightarrow$ `Xuất báo cáo tổng hợp dạng Excel`.
+     - Chú thích chân Modal: Chuyển `Badge 'Chủ lực': Thuộc 17 mã cốt lõi Ban Giám Đốc theo dõi` $\rightarrow$ `Nhãn 'Chủ lực': 17 mặt hàng trọng yếu theo dõi thường xuyên`.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Cập nhật cấu trúc styling cho Bảng 17 mặt hàng chủ lực và dọn dẹp các cụm từ kỹ thuật.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type Check**: `cmd /c "npx tsc --noEmit"` $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
 
 ---
 
