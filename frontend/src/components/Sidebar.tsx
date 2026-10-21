@@ -513,6 +513,20 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     <Layers size={15} style={{ flexShrink: 0 }} />
                     <span>Thống kê CCP</span>
                   </Link>
+
+                  <Link
+                    href="/trading-manager/statistics/ce"
+                    onClick={onClose}
+                    className={`nav-link ${pathname === '/trading-manager/statistics/ce' ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      fontSize: '0.82rem',
+                    }}
+                    title={isCollapsed ? "Thống kê CE (ACM Nano)" : undefined}
+                  >
+                    <Activity size={15} style={{ flexShrink: 0 }} />
+                    <span>Thống kê CE</span>
+                  </Link>
                 </div>
               )}
             </div>

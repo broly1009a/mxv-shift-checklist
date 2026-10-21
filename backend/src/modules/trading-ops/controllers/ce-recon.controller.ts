@@ -1,0 +1,265 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Query,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+  Logger,
+  Req,
+  Res,
+} from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../../auth/permissions.guard';
+import { Permissions } from '../../auth/permissions.decorator';
+import { CeLotStatisticsService } from '../services/ce-lot-statistics.service';
+
+/**
+ * Controller chuyên biệt quản lý nghiệp vụ Thống kê Số Lot & Giá trị Giao dịch Core Exchange (CE)
+ */
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Controller([
+  'api/v1/ce-clearing',
+  'api/v1/ce-statistics',
+])
+export class CeReconController {
+  private readonly logger = new Logger(CeReconController.name);
+
+  constructor(
+    private readonly ceLotStatisticsService: CeLotStatisticsService,
+  ) {}
+
+  /**
+   * GET /api/v1/ce-clearing/lot-statistics/scan-daily?date=YYYY-MM-DD
+   * Tự động quét thư mục backup CE theo ngày phiên để kiểm tra các file báo cáo sẵn sàng.
+   */
+  @Get('lot-statistics/scan-daily')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async scanDaily(@Query('date') date?: string) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    try {
+      const scanResult = await this.ceLotStatisticsService.scanDailyFiles(targetDate);
+      return {
+        success: true,
+        data: scanResult,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi quét thư mục CE ngày ${targetDate}: ${err.message}`);
+      throw new HttpException(
+        `Lỗi quét thư mục CE: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ce-clearing/lot-statistics/process-daily
+   * Tự động đọc file trong thư mục ngày của CE và tính toán thống kê Số Lot & GTGD.
+   */
+  @Post('lot-statistics/process-daily')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async processDaily(@Body() body: { date?: string }) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const result = await this.ceLotStatisticsService.processDailyFiles(targetDate);
+      return {
+        success: true,
+        data: result,
+        message: `Đã tính toán thành công thống kê CE từ thư mục backup ngày ${targetDate}`,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi xử lý file CE từ thư mục ngày ${targetDate}: ${err.message}`);
+      throw new HttpException(
+        `Lỗi xử lý file CE: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ce-clearing/lot-statistics/run-lot
+   * Tính toán và GHI TRỰC TIẾP vào file lũy kế Số Lot ACM.
+   */
+  /**
+   * POST /api/v1/ce-clearing/lot-statistics/run-lot
+   * Tính toán và GHI TRỰC TIẾP vào file lũy kế Số Lot ACM (hỗ trợ cờ forceOverwrite và exportDraft).
+   */
+  @Post('lot-statistics/run-lot')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runLotDirect(
+    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean },
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ceLotStatisticsService.runLotStatisticsDirect(
+        targetDate,
+        { forceOverwrite: body?.forceOverwrite, exportDraft: body?.exportDraft },
+        user,
+      );
+
+      // Nếu cần xác nhận ghi đè từ người dùng
+      if (result.requiresConfirmation) {
+        return {
+          success: false,
+          requiresConfirmation: true,
+          hasExistingData: true,
+          existingTotal: result.existingTotal,
+          existingRow: result.existingRow,
+          message: result.message,
+          type: 'LOT',
+          date: targetDate,
+          logs: result.logs,
+        };
+      }
+
+      // Nếu là xuất file Draft
+      if (result.isDraft) {
+        return {
+          success: true,
+          isDraft: true,
+          draftFile: result.draftFile,
+          draftPath: result.draftPath,
+          message: result.message,
+          logs: result.logs,
+        };
+      }
+
+      return {
+        success: true,
+        message: result.message || `Đã hoàn tất thống kê và ghi file lũy kế Số Lot CE cho ngày ${targetDate}`,
+        logs: result.logs,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi ghi file Số Lot CE: ${err.message}`);
+      throw new HttpException(
+        `Lỗi ghi file Số Lot CE: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST /api/v1/ce-clearing/lot-statistics/run-value
+   * Tính toán và GHI TRỰC TIẾP vào file lũy kế Giá Trị Giao Dịch ACM (hỗ trợ cờ forceOverwrite và exportDraft).
+   */
+  @Post('lot-statistics/run-value')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runValueDirect(
+    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean },
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ceLotStatisticsService.runValueStatisticsDirect(
+        targetDate,
+        { forceOverwrite: body?.forceOverwrite, exportDraft: body?.exportDraft },
+        user,
+      );
+
+      // Nếu cần xác nhận ghi đè từ người dùng
+      if (result.requiresConfirmation) {
+        return {
+          success: false,
+          requiresConfirmation: true,
+          hasExistingData: true,
+          existingTotal: result.existingTotal,
+          existingRow: result.existingRow,
+          message: result.message,
+          type: 'GTGD',
+          date: targetDate,
+          logs: result.logs,
+        };
+      }
+
+      // Nếu là xuất file Draft
+      if (result.isDraft) {
+        return {
+          success: true,
+          isDraft: true,
+          draftFile: result.draftFile,
+          draftPath: result.draftPath,
+          message: result.message,
+          logs: result.logs,
+        };
+      }
+
+      return {
+        success: true,
+        message: result.message || `Đã hoàn tất thống kê và ghi file lũy kế GTGD CE cho ngày ${targetDate}`,
+        logs: result.logs,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi ghi file GTGD CE: ${err.message}`);
+      throw new HttpException(
+        `Lỗi ghi file GTGD CE: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /api/v1/ce-clearing/lot-statistics/download-draft?filename=...
+   * Tải trực tiếp file bản nháp Draft về máy
+   */
+  @Get('lot-statistics/download-draft')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async downloadDraft(@Query('filename') filename: string, @Res() res: any) {
+    if (!filename) {
+      throw new HttpException('Thiếu tham số tên file bản nháp', HttpStatus.BAD_REQUEST);
+    }
+    const safeName = path.basename(filename);
+    const draftPath = await this.ceLotStatisticsService.getDraftFilePath(safeName);
+    if (!fs.existsSync(draftPath)) {
+      throw new HttpException(`Không tìm thấy file bản nháp: ${safeName}`, HttpStatus.NOT_FOUND);
+    }
+    return res.download(draftPath, safeName);
+  }
+
+  /**
+   * GET /api/v1/ce-clearing/lot-statistics/config
+   */
+  @Get('lot-statistics/config')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getConfig() {
+    try {
+      const config = await this.ceLotStatisticsService.getConfig();
+      return {
+        success: true,
+        data: config,
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi đọc cấu hình thống kê CE: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * PUT /api/v1/ce-clearing/lot-statistics/config
+   */
+  @Put('lot-statistics/config')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async saveConfig(@Body() body: Record<string, any>) {
+    try {
+      const result = await this.ceLotStatisticsService.saveConfig(body);
+      return {
+        success: true,
+        message: 'Đã lưu cấu hình thống kê CE thành công',
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi lưu cấu hình thống kê CE: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+}

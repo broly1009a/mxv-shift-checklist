@@ -103,6 +103,17 @@ export const API_ENDPOINTS = {
     LOT_STATS_PROCESS_LOCAL_DOWNLOAD: '/api/v1/lot-statistics/process-local/download',
   },
 
+  // ─── CE CLEARING (Thống kê Số Lot & Giá trị Giao dịch CoreEX) ─────────────
+  CE_CLEARING: {
+    LOT_SCAN: (date: string) => `/api/v1/ce-clearing/lot-statistics/scan-daily?date=${encodeURIComponent(date)}`,
+    LOT_PROCESS: '/api/v1/ce-clearing/lot-statistics/process-daily',
+    LOT_RUN: '/api/v1/ce-clearing/lot-statistics/run-lot',
+    VALUE_RUN: '/api/v1/ce-clearing/lot-statistics/run-value',
+    DRAFT_DOWNLOAD: (filename: string) =>
+      `/api/v1/ce-clearing/lot-statistics/download-draft?filename=${encodeURIComponent(filename)}`,
+    CONFIG: '/api/v1/ce-clearing/lot-statistics/config',
+  },
+
   // ─── CHECKLIST HUB (Quản lý ca trực, Sự cố, Bot Dispatcher) ───────────────
   CHECKLIST_HUB: {
     ACTIVE_SHIFTS: '/api/v1/shifts/active',

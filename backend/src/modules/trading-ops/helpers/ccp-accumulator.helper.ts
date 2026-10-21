@@ -5,6 +5,7 @@ import {
   findOrCreateTargetRow,
   getSheetName,
   findOrCreateValueTargetRow,
+  isSameDate,
 } from './accumulator-date.helper';
 import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
 import * as XLSX from 'xlsx';
@@ -801,3 +802,226 @@ export async function appendCcpRawDsgd(
   await safeWriteExcel(targetWb, targetFilePath);
   log(`Đã ghi lũy kế ${dataRows.length} dòng DSGD vào file: ${path.basename(targetFilePath)} (Sheet ${sheetName})`);
 }
+
+// ─── Overwrite Pre-Check & Draft Export Helpers ──────────────────────────────
+
+/**
+ * Kiểm tra xem ngày phiên giao dịch đã có số liệu trong file lũy kế hay chưa.
+ * Trả về thông tin: hasExistingData, existingTotal, existingRow, sheetName
+ */
+export async function checkDateExistsInAccumulator(
+  filePath: string,
+  targetDate: string | Date,
+  type: 'LOT' | 'GTGD',
+  jobLogs?: string[],
+): Promise<{
+  hasExistingData: boolean;
+  existingTotal?: number;
+  existingRow?: number;
+  sheetName?: string;
+  filePath: string;
+}> {
+  filePath = resolveCcpAccumulatorFilePath(filePath, jobLogs);
+  if (!fs.existsSync(filePath)) {
+    return { hasExistingData: false, filePath };
+  }
+
+  const ngayGD = targetDate instanceof Date ? targetDate : new Date(targetDate);
+  if (isNaN(ngayGD.getTime())) {
+    return { hasExistingData: false, filePath };
+  }
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(filePath);
+
+    const sheetName = getSheetName(path.basename(filePath), ngayGD);
+    const ws = wb.getWorksheet(sheetName);
+    if (!ws) {
+      return { hasExistingData: false, filePath, sheetName };
+    }
+
+    let existingRow = -1;
+    let existingTotal = 0;
+
+    if (type === 'LOT') {
+      // Trong file Số Lot ACM, quét các dòng từ row 5 trở đi
+      for (let r = 5; r <= ws.rowCount; r++) {
+        const c2 = ws.getCell(r, 2).value;
+        if (isSameDate(c2, ngayGD)) {
+          existingRow = r;
+          const valCol6 = Number(ws.getCell(r, 6).value) || 0;
+          const valCol3 = Number(ws.getCell(r, 3).value) || 0;
+          let tvkdSum = 0;
+          for (let c = 11; c <= Math.min(ws.columnCount || 80, 100); c++) {
+            const v = Number(ws.getCell(r, c).value) || 0;
+            if (v > 0) tvkdSum += v;
+          }
+          existingTotal = valCol6 || valCol3 || tvkdSum;
+          break;
+        }
+      }
+    } else {
+      // Trong file GTGD ACM, Cột A là ngày (Row 6+)
+      for (let r = 6; r <= ws.rowCount; r++) {
+        const c1 = ws.getCell(r, 1).value;
+        if (isSameDate(c1, ngayGD)) {
+          existingRow = r;
+          let sumVal = 0;
+          for (let c = 2; c <= 5; c++) {
+            const v = Number(ws.getCell(r, c).value) || 0;
+            if (v > sumVal) sumVal = v;
+          }
+          existingTotal = sumVal;
+          break;
+        }
+      }
+    }
+
+    if (existingRow !== -1 && existingTotal > 0) {
+      return {
+        hasExistingData: true,
+        existingTotal,
+        existingRow,
+        sheetName,
+        filePath,
+      };
+    }
+
+    return { hasExistingData: false, existingRow, sheetName, filePath };
+  } catch (err: any) {
+    jobLogs?.push(`[CCP-ACC] Lỗi kiểm tra ngày trong file lũy kế: ${err.message}`);
+    return { hasExistingData: false, filePath };
+  }
+}
+
+/**
+ * Xuất file bản nháp (Draft) riêng biệt vào thư mục con _Drafts/
+ * Tuyệt đối không làm thay đổi file lũy kế Master chính thức.
+ */
+export async function exportDraftAcmStatistics(
+  result: any,
+  originalFilePath: string,
+  type: 'LOT' | 'GTGD',
+  jobLogs?: string[],
+): Promise<{ draftPath: string; filename: string }> {
+  originalFilePath = resolveCcpAccumulatorFilePath(originalFilePath, jobLogs);
+  const baseDir = path.dirname(originalFilePath);
+  const draftsDir = path.join(baseDir, '_Drafts');
+  if (!fs.existsSync(draftsDir)) {
+    fs.mkdirSync(draftsDir, { recursive: true });
+  }
+
+  const ngayGD = new Date(result.ngayGD || new Date());
+  const dateStr = !isNaN(ngayGD.getTime())
+    ? `${String(ngayGD.getDate()).padStart(2, '0')}.${String(ngayGD.getMonth() + 1).padStart(2, '0')}.${ngayGD.getFullYear()}`
+    : 'UnknownDate';
+
+  const timeStr = new Date().toTimeString().slice(0, 5).replace(':', '');
+  const typeTag = type === 'LOT' ? 'So_Lot' : 'Gia_Tri';
+  const filename = `Thong_Ke_ACM_${typeTag}_Draft_${dateStr}_${timeStr}.xlsx`;
+  const draftPath = path.join(draftsDir, filename);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'MXV Trading Operations System';
+  wb.created = new Date();
+
+  // Sheet 1: Tổng hợp chi tiết theo TVKD
+  const ws1 = wb.addWorksheet('TONG_HOP_TVKD', {
+    properties: { defaultRowHeight: 22 },
+  });
+
+  ws1.columns = [
+    { header: 'STT', key: 'stt', width: 8 },
+    { header: 'Mã TVKD', key: 'tvkd', width: 12 },
+    { header: 'Tên Thành Viên', key: 'tenThanhVien', width: 35 },
+    { header: 'Số Lot GD', key: 'soLot', width: 15 },
+    { header: 'GTGD (VND)', key: 'giaTri', width: 22 },
+    { header: 'Đủ 4 Loại Lệnh (MKT, LMT, STP, STL)', key: 'fullTypes', width: 35 },
+    { header: 'TTM Mua', key: 'ttmMua', width: 14 },
+    { header: 'TTM Bán', key: 'ttmBan', width: 14 },
+    { header: 'Lãi/Lỗ Dự Kiến (VND)', key: 'ttmLaiLo', width: 22 },
+  ];
+
+  const headerRow = ws1.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: type === 'LOT' ? 'FF1E40AF' : 'FF065F46' },
+  };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  let idx = 1;
+  for (const t of result.byTvkd || []) {
+    const row = ws1.addRow({
+      stt: idx++,
+      tvkd: t.tvkd,
+      tenThanhVien: t.tenThanhVien || t.tvkd,
+      soLot: t.soLot,
+      giaTri: t.giaTri,
+      fullTypes: t.isFull4Types ? 'ĐẠT (Đủ 4 lệnh)' : `THIẾU: ${(t.missingTypes || []).join(', ')}`,
+      ttmMua: t.ttmMua || 0,
+      ttmBan: t.ttmBan || 0,
+      ttmLaiLo: t.ttmLaiLoDuKienVnd || 0,
+    });
+    row.getCell('soLot').numFmt = '#,##0';
+    row.getCell('giaTri').numFmt = '#,##0';
+    row.getCell('ttmMua').numFmt = '#,##0';
+    row.getCell('ttmBan').numFmt = '#,##0';
+    row.getCell('ttmLaiLo').numFmt = '#,##0';
+  }
+
+  // Row Tổng Cộng
+  const totalRow = ws1.addRow({
+    stt: '',
+    tvkd: 'TỔNG',
+    tenThanhVien: 'TỔNG CỘNG TOÀN THỊ TRƯỜNG',
+    soLot: result.totalSoLot || 0,
+    giaTri: result.totalGiaTri || 0,
+    fullTypes: '',
+    ttmMua: result.totalTtmMua || 0,
+    ttmBan: result.totalTtmBan || 0,
+    ttmLaiLo: '',
+  });
+  totalRow.font = { bold: true };
+  totalRow.getCell('soLot').numFmt = '#,##0';
+  totalRow.getCell('giaTri').numFmt = '#,##0';
+
+  // Sheet 2: Phân Rã Theo Hàng Hóa (SI5CO, PL1NY, CP2CO)
+  const ws2 = wb.addWorksheet('THEO_HANG_HOA', {
+    properties: { defaultRowHeight: 20 },
+  });
+  ws2.columns = [
+    { header: 'Mã TVKD', key: 'tvkd', width: 12 },
+    { header: 'Mã Hàng Hóa', key: 'maHH', width: 15 },
+    { header: 'Số Lot', key: 'soLot', width: 15 },
+    { header: 'GTGD (VND)', key: 'giaTri', width: 22 },
+  ];
+  const h2 = ws2.getRow(1);
+  h2.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  h2.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF374151' },
+  };
+
+  for (const t of result.byTvkd || []) {
+    for (const h of t.byHH || []) {
+      const r = ws2.addRow({
+        tvkd: t.tvkd,
+        maHH: h.maHH,
+        soLot: h.soLot,
+        giaTri: h.giaTri,
+      });
+      r.getCell('soLot').numFmt = '#,##0';
+      r.getCell('giaTri').numFmt = '#,##0';
+    }
+  }
+
+  await safeWriteExcel(wb, draftPath);
+  jobLogs?.push(`[CCP-ACC] Đã xuất bản nháp Draft thành công: ${draftPath}`);
+
+  return { draftPath, filename };
+}
+

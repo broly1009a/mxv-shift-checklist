@@ -10,11 +10,13 @@ export * from './admin.api';
 export * from './trading-report.api';
 export * from './margin-checker.api';
 export * from './ccp-statistics-legacy.api';
+export * from './ce-clearing.api';
 
 import { authApi } from './auth.api';
 import { ingressApi } from './ingress.api';
 import { tradingOpsApi } from './trading-ops.api';
 import { ccpClearingApi } from './ccp-clearing.api';
+import { ceClearingApi } from './ce-clearing.api';
 import { checklistHubApi } from './checklist-hub.api';
 import { dashboardApi } from './dashboard.api';
 import { adminApi } from './admin.api';
@@ -33,6 +35,7 @@ export const api = {
   ingress: ingressApi,
   tradingOps: tradingOpsApi,
   ccpClearing: ccpClearingApi,
+  ceClearing: ceClearingApi,
   checklistHub: checklistHubApi,
   dashboard: dashboardApi,
   admin: adminApi,

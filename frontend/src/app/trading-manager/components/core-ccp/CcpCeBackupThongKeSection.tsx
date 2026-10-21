@@ -18,11 +18,13 @@ import {
   ShieldCheck,
   Activity,
   ArrowRight,
+  BarChart3,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import CeCcpGttCheckerSection from '../ce-acm/CeCcpGttCheckerSection';
+import CeLotStatisticsSection from '../ce-acm/CeLotStatisticsSection';
 
 export interface CcpCeBackupThongKeSectionProps {
   token: string | null;
@@ -108,6 +110,7 @@ export default function CcpCeBackupThongKeSection({
   hideSubTabs = false,
 }: CcpCeBackupThongKeSectionProps) {
   const [mounted, setMounted] = useState<boolean>(false);
+  const [activeSubTab, setActiveSubTab] = useState<'BACKUP_ALL' | 'CE_LOT_STATS'>('BACKUP_ALL');
 
   // Auto Backup Settings State
   const [autoBackupActive, setAutoBackupActive] = useState<boolean>(true);
@@ -527,6 +530,7 @@ export default function CcpCeBackupThongKeSection({
         <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '2px' }}>
           <button
             type="button"
+            onClick={() => setActiveSubTab('BACKUP_ALL')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -536,19 +540,59 @@ export default function CcpCeBackupThongKeSection({
               fontWeight: 800,
               borderRadius: '8px 8px 0 0',
               border: 'none',
-              borderBottom: '2px solid #10b981',
-              color: '#10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              cursor: 'default',
+              borderBottom: activeSubTab === 'BACKUP_ALL' ? '2px solid #10b981' : '2px solid transparent',
+              color: activeSubTab === 'BACKUP_ALL' ? '#10b981' : 'var(--text-secondary)',
+              backgroundColor: activeSubTab === 'BACKUP_ALL' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
             }}
           >
-            <Database size={15} color="#10b981" />
-            <span>Backup CCP – CE (Hiện tại)</span>
+            <Database size={15} color={activeSubTab === 'BACKUP_ALL' ? '#10b981' : 'var(--text-muted)'} />
+            <span>Sao Lưu Báo Cáo CCP – CE – Straits</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('CE_LOT_STATS')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: activeSubTab === 'CE_LOT_STATS' ? '2px solid #3b82f6' : '2px solid transparent',
+              color: activeSubTab === 'CE_LOT_STATS' ? '#3b82f6' : 'var(--text-secondary)',
+              backgroundColor: activeSubTab === 'CE_LOT_STATS' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <BarChart3 size={15} color={activeSubTab === 'CE_LOT_STATS' ? '#3b82f6' : 'var(--text-muted)'} />
+            <span>Thống Kê Khớp Lệnh CE (ACM Nano)</span>
+            <span
+              style={{
+                fontSize: '0.66rem',
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                color: '#3b82f6',
+              }}
+            >
+              MỚI
+            </span>
           </button>
         </div>
       )}
 
-      {/* ===== BAR 3: 3 CỘT BACKUP (CORECCP, COREEX, ACM) ===== */}
+      {activeSubTab === 'CE_LOT_STATS' ? (
+        <CeLotStatisticsSection token={token} selectedDate={selectedDate} />
+      ) : (
+        <>
+          {/* ===== BAR 3: 3 CỘT BACKUP (CORECCP, COREEX, ACM) ===== */}
       <div className="glass-panel" style={{ padding: '16px 20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '16px' }}>
           {/* CỘT 1: BACKUP CORECCP (25 BÁO CÁO) */}
@@ -935,6 +979,8 @@ export default function CcpCeBackupThongKeSection({
               </span>
             </div>
           </div>
+        </>
+      )}
         </>
       )}
     </div>

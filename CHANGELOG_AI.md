@@ -1,3 +1,85 @@
+## [2026-10-21T11:00] FEATURE: Triển Khai Cơ Chế Xác Nhận Ghi Đè (Overwrite Confirmation Guard) & Xuất Bản Nháp (Draft Export) Thống Kê
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Thiết kế chuẩn doanh nghiệp cơ chế xác nhận trước khi lưu đè file thống kê lũy kế.
+- Khi người trực ca chạy lại thống kê cho một ngày phiên đã có số liệu trong file Master lũy kế:
+  1. **Không ghi đè âm thầm**: Hệ thống kiểm tra trước và dừng lại, hiển thị Modal xác nhận kèm thông tin số liệu cũ vs số liệu mới.
+  2. **Tùy chọn 1 (Ghi đè chính thức)**: Tiếp tục ghi đè vào file Master (tự động kích hoạt cơ chế an toàn `backupFile` sao lưu bản cũ vào `Backup_Snapshots/` trước khi sửa).
+  3. **Tùy chọn 2 (Xuất file bản nháp Draft)**: KHÔNG đụng vào file Master, xuất file Excel riêng vào thư mục con `${fileDir}/_Drafts/` và tự động kích hoạt tải file về máy người dùng để mở Excel đối soát độc lập.
+  4. **Tùy chọn 3 (Hủy bỏ / Chỉ xem UI)**: Đóng modal, giữ nguyên bảng số liệu hiển thị trên Web.
+
+### 2. Danh sách file đã chỉnh sửa & tạo mới
+1. **[ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts)**:
+   - Thêm hàm `checkDateExistsInAccumulator`: Quét file lũy kế xác định xem ngày phiên đó đã có dữ liệu Số Lot hoặc GTGD hay chưa mà không làm thay đổi file.
+   - Thêm hàm `exportDraftAcmStatistics`: Tạo file bản nháp Excel riêng biệt với 2 sheet (`TONG_HOP_TVKD` và `THEO_HANG_HOA`), lưu vào `${baseDir}/_Drafts/Thong_Ke_ACM_[Type]_Draft_[Date]_[Time].xlsx` bằng `safeWriteExcel`.
+2. **[ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts)**:
+   - Cập nhật `runLotStatisticsDirect` và `runValueStatisticsDirect` hỗ trợ tham số `options?: { forceOverwrite?: boolean; exportDraft?: boolean }`.
+   - Bổ sung `getDraftFilePath` để tìm file nháp phục vụ API download.
+3. **[ce-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ce-recon.controller.ts)**:
+   - Cập nhật 2 endpoint `POST lot-statistics/run-lot` và `POST lot-statistics/run-value` tiếp nhận body `{ date, forceOverwrite, exportDraft }`.
+   - Trả về payload `{ requiresConfirmation: true, hasExistingData: true, existingTotal, ... }` khi phát hiện trùng ngày mà chưa có cờ ghi đè.
+   - Thêm endpoint `GET lot-statistics/download-draft?filename=...` cho phép client tải file draft trực tiếp.
+4. **[endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)** & **[ce-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ce-clearing.api.ts)**:
+   - Bổ sung hàm `downloadDraftFile(filename, token)` dùng fetch blob và trigger download tự động.
+   - Cập nhật `runLotStatistics` và `runValueStatistics` truyền các cờ options.
+5. **[CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**:
+   - Thêm state `confirmModal` và tích hợp Modal Xác Nhận Ghi Đè chuẩn Enterprise (cảnh báo trùng dữ liệu, so sánh số liệu cũ vs mới, 3 nút hành động, 100% icon SVG từ `lucide-react`, không emoji thô).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
+- **Frontend Build**: `next build` $\rightarrow$ Thành công 100% (50/50 static routes biên dịch hoàn chỉnh, Exit Code: 0).
+
+---
+
+## [2026-10-21T09:45] FEATURE: Tích Hợp Module Thống Kê Số Lot & Giá Trị Giao Dịch CoreEX (ACM Nano) Chuẩn C# IT Tool
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "từ logic thống kê value và lot của ccp giúp tôi viết logic thong ke cho ce" và "giúp tôi tích hợp chuẩn vào không phỏng đoán tự chế".
+- Đối soát 100% Ground Truth từ C# IT Tool:
+  - `BackupService.cs#L390-L418` & `L1455-L1514`: Nhận diện tài khoản ACM (`item[1].EndsWith("A")`), tách mã thành viên `MEMBERCODE` hoặc `item[1].Substring(0, 3)`.
+  - `statics.json#L188-L213`: Thông số hợp đồng ACM Nano:
+    - `CP2CO`: `DoLonHopDong = 1000`, `DonViYetGia = 1`, `LoaiTyGia = USD/VND`, `TenHangHoa = 'Đồng Nano ACM'`
+    - `PL1NY`: `DoLonHopDong = 5`, `DonViYetGia = 1`, `LoaiTyGia = USD/VND`, `TenHangHoa = 'Bạch kim Nano ACM'`
+    - `SI5CO`: `DoLonHopDong = 100`, `DonViYetGia = 1`, `LoaiTyGia = USD/VND`, `TenHangHoa = 'Bạc Nano ACM'`
+  - Công thức chuẩn: $\text{GTGD} = \text{klgd} \times \text{giakhop} \times \text{DoLonHopDong} \times \text{DonViYetGia} \times \text{convertEx}$ (VND).
+  - Kiểm tra điều kiện đủ 4 loại lệnh: `['MKT', 'LMT', 'STP', 'STL']`.
+  - Ghi trực tiếp vào 2 file Excel lũy kế năm:
+    - `Thong ke so lot giao dich ACM ${YYYY}.xlsx` (Sheets `TONGHOP` & `T${MM}.${YYYY}`).
+    - `Thong ke gia tri giao dich ACM ${YYYY}.xlsx` (Sheets `TONGHOP` & `T${MM}.${YYYY}`).
+
+### 2. Danh sách file đã tạo mới & chỉnh sửa
+1. **[ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts)** (Mới):
+   - Logic quét thư mục backup CE ngày (`DSGD ACM CE.xlsx`, `TTM CE.xlsx`, `GTT ACM.xlsx`, `HH ACM.xlsx`, `HĐ *.xlsx`).
+   - Parse và tổng hợp số lot, GTGD, kiểm tra 4 loại lệnh theo TVKD và theo Hàng hóa.
+   - Hàm `runLotStatisticsDirect` và `runValueStatisticsDirect` ghi file Excel lũy kế năm bằng thư viện `exceljs`.
+2. **[ce-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ce-recon.controller.ts)** (Mới):
+   - Các API endpoints `@Controller(['api/v1/ce-clearing', 'api/v1/ce-statistics'])`:
+     - `GET /lot-statistics/scan-daily`: Quét kiểm tra sự tồn tại của các file CE ngày.
+     - `POST /lot-statistics/process-daily`: Tính toán số lot, GTGD và kiểm tra 4 loại lệnh.
+     - `POST /lot-statistics/run-lot`: Ghi số lot vào file Excel lũy kế.
+     - `POST /lot-statistics/run-value`: Ghi giá trị vào file Excel lũy kế.
+     - `GET /lot-statistics/config` & `PUT /lot-statistics/config`: Cấu hình đường dẫn CE & lũy kế.
+3. **[trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts)**:
+   - Đăng ký `CeLotStatisticsService` vào `providers` & `exports`.
+   - Đăng ký `CeReconController` vào `controllers`.
+4. **[endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)** & **[ce-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ce-clearing.api.ts)** & **[index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/index.ts)**:
+   - Tích hợp API client `api.ceClearing.scanDailyFiles`, `processDaily`, `runLotStatistics`, `runValueStatistics`, `getConfig`, `saveConfig`.
+5. **[CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)** (Mới):
+   - Giao diện thống kê đầy đủ chuẩn enterprise: 4 KPI cards, thanh trạng thái 5 file ngày, bộ lọc tìm kiếm & điều kiện lệnh, bảng thống kê chi tiết theo TVKD và theo Hàng hóa, drawer cấu hình đường dẫn động, lịch sử thực thi ghi file.
+   - Tuân thủ 100% Rule 5: Tuyệt đối không dùng Unicode Emoji thô, chỉ dùng `lucide-react`.
+6. **[CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx)**:
+   - Tích hợp sub-tab "Thống Kê Khớp Lệnh CE (ACM Nano)" tại Tab 3 (Backup – Thống Kê CCP – CE) của Hub.
+7. **[page.tsx (Statistics CE)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ce/page.tsx)** (Mới):
+   - Trang độc lập `/trading-manager/statistics/ce` đồng bộ cấu trúc với `/trading-manager/statistics/ccp`.
+8. **[Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/Sidebar.tsx)**:
+   - Bổ sung link điều hướng "Thống kê CE" trong menu "Thống kê" bên cạnh "Thống kê MS" và "Thống kê CCP".
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
+- **Frontend Build**: `next build` $\rightarrow$ Thành công 100% (50/50 static routes, bao gồm `/trading-manager/statistics/ce`, Exit Code: 0).
+
+---
+
 ## [2026-10-21T08:06] ARCHIVE: Di Chuyển LegacyPreEodDiffSection Sang frontend/legacy & Làm Sạch Mã Nguồn frontend/src
 
 ### 1. Mục tiêu thay đổi

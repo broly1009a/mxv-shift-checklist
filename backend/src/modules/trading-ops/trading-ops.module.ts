@@ -42,6 +42,7 @@ import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-run-history.schema';
 import { CcpLotStatisticsService } from './services/ccp-lot-statistics.service';
 import { CcpStatisticsService } from './services/ccp-statistics.service';
+import { CeLotStatisticsService } from './services/ce-lot-statistics.service';
 
 // Controllers Domain Chuyên Biệt V2
 import { KlgdReconController } from './controllers/klgd-recon.controller';
@@ -49,6 +50,7 @@ import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-reco
 import { MarginCheckerController } from './controllers/margin-checker.controller';
 import { GttReconController } from './controllers/gtt-recon.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
+import { CeReconController } from './controllers/ce-recon.controller';
 
 @Module({
   imports: [
@@ -75,6 +77,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     TradingOpsMiscController,
     TradingReconLogController,
     CcpReconController,
+    CeReconController,
   ],
   providers: [
     CqgMergerService,
@@ -104,6 +107,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     EodMmWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
+    CeLotStatisticsService,
   ],
   exports: [
     CqgMergerService,
@@ -113,6 +117,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     TradingOpsConfigService,
     DsgdBeforeEodService,
     GttCheckerService,
+    CeLotStatisticsService,
     ReconConsoleSummaryService,
     LotStatisticsService,
     ValueStatisticsService,
