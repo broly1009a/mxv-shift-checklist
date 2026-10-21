@@ -180,12 +180,16 @@ export default function CcpCeBackupThongKeSection({
     fetchSettings();
   }, [token]);
 
-  // Save setting debounce helper
+  // Save setting helper with proper error handling
   const saveSetting = async (key: string, value: string) => {
     if (!token) return;
     try {
-      await api.admin.saveSystemSetting({ key, value }, token);
-    } catch {}
+      await api.admin.saveSystemSetting(key, value, token);
+    } catch (err: any) {
+      console.error(`[CcpCeBackup] Lỗi lưu cấu hình ${key}:`, err);
+      toast.error(`Không thể lưu cấu hình ${key}: ${err.message || 'Lỗi quyền truy cập'}`);
+      throw err;
+    }
   };
 
   // Audit Handlers
@@ -492,11 +496,15 @@ export default function CcpCeBackupThongKeSection({
           {/* Master Switch */}
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               const next = !autoBackupActive;
               setAutoBackupActive(next);
-              saveSetting('bot_auto_backup_enabled', String(next));
-              toast.success(`Đã ${next ? 'BẬT' : 'TẮT'} cơ chế tự động backup CCP-CE!`);
+              try {
+                await saveSetting('bot_auto_backup_enabled', String(next));
+                toast.success(`Đã ${next ? 'BẬT' : 'TẮT'} cơ chế tự động backup CCP-CE!`);
+              } catch (err) {
+                setAutoBackupActive(!next);
+              }
             }}
             style={{
               padding: '6px 14px',

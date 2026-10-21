@@ -26,7 +26,7 @@ export class SystemSettingsController {
   }
 
   @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STAFF', 'DEPARTMENT_HEAD', 'CEO', 'CHAIRMAN')
   @Post()
   async setSetting(@Body() body: { key: string; value: string }) {
     return this.settingsService.setSetting(body.key, body.value);
