@@ -1281,7 +1281,11 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
     try {
       const dsgdResult = this.dsgdBeforeEodService
-        ? await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate: targetDate })
+        ? await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({
+            system: payload.system || 'MS',
+            tradingDate: targetDate,
+            triggerDownload: true,
+          })
         : null;
 
       const result = {

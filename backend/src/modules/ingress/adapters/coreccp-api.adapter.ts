@@ -806,10 +806,11 @@ export class CoreCcpApiAdapter implements IIngressPort {
           continue;
         }
 
-        // Tự động chuyển hướng thư mục lưu trữ về thư mục phiên T-1 nếu là ACCTMARGIN_HIST (EOD CoreCCP)
+        // Tự động chuyển hướng thư mục lưu trữ về thư mục phiên T-1 nếu là báo cáo EOD (ACCTMARGIN_HIST, ORDERMATCH_ALL)
         let fileOutputDir = outputDirectory;
         let txDateForHist = '';
-        if (reportDef.searchCode === 'ACCTMARGIN_HIST' && formattedDateForSearch) {
+        const isEodReport = reportDef.searchCode === 'ACCTMARGIN_HIST' || reportDef.searchCode === 'ORDERMATCH_ALL';
+        if (isEodReport && formattedDateForSearch) {
           txDateForHist = options?.exactDate
             ? formattedDateForSearch
             : this.calculatePreviousWorkdayDmy(formattedDateForSearch);
@@ -876,12 +877,16 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
               );
             } else if (formattedDateForSearch) {
+              const sessionDateToUse =
+                reportDef.searchCode === 'ORDERMATCH_ALL' && txDateForHist
+                  ? txDateForHist
+                  : formattedDateForSearch;
               effectiveFilterPayload.search.SESSION_DATE = {
-                from: formattedDateForSearch,
-                to: formattedDateForSearch,
+                from: sessionDateToUse,
+                to: sessionDateToUse,
               };
               this.logger.log(
-                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
               );
             }
           }

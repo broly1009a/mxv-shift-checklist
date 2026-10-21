@@ -1,3 +1,35 @@
+## [2026-10-21T18:15] FIX: Đồng Bộ Chuẩn Xác Nghiệp Vụ Phiên T-1 & Đối Chiếu Cuối Ngày CoreCCP (CheckDSGDBeforeEOD & EOD CoreCCP Chuẩn Tool C#)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - **Frontend**: Bỏ cờ `exactDate: true` khi chạy mặc định (hoặc chỉ bật khi người dùng cố tình chỉ định kiểm tra đích danh 1 ngày lịch sử trong modal Tùy chọn). Khi chọn ngày 21.10 trong ca trực, hệ thống tự động hiểu ngày cần đối soát EOD là $T-1$ (20.10).
+  - **Backend**: Tự động lùi về ngày phiên làm việc gần nhất $T-1$ (20.10), tìm trong folder `20.10`, tải Lịch sử giao dịch CoreCCP (`ORDERMATCH_ALL`) của ngày 20.10 và đối chiếu với file Straits CSV 20.10.
+  - **Sửa triệt để lỗi "Không tìm thấy file QLTTTKGD trong thư mục TradingCheck"**: Tách biệt luồng tìm kiếm file, quét đa thư mục (cả `Backup CCP` và `TradingCheck/CCP`) thay vì ép toàn bộ phải nằm chung một thư mục.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx)**:
+   - Trong `handleRunQuickCheck`: Đổi `exactDate: true` thành `exactDate: false` và bổ sung cờ `triggerDownload: true`. Khi Header DatePicker là ngày hiện tại của ca trực (21.10), hệ thống tự động lùi về phiên $T-1$ (20.10) theo chuẩn `getPreviousTradingSession`.
+   - Truyền `system={system}` xuống modal `CheckDsgdBeforeEodModal` để đồng bộ đúng phân hệ (CoreCCP vs M-System).
+2. **[frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/components/CheckDsgdBeforeEodModal.tsx)**:
+   - Bổ sung prop `system?: 'MS' | 'CCP'` và truyền xuống API `checkDsgdBeforeEod`. Giữ `exactDate: true` trong modal khi người dùng chủ động chọn ngày cụ thể.
+3. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Mở rộng logic nhận diện báo cáo EOD (`isEodReport`): Bao gồm cả `ACCTMARGIN_HIST` và `ORDERMATCH_ALL`.
+   - Khi không có cờ `exactDate`, tự động chuyển hướng thư mục lưu trữ và bộ lọc `SESSION_DATE` về ngày phiên làm việc $T-1$ (`txDateForHist`) chuẩn xác.
+4. **[backend/src/modules/trading-ops/services/ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-eod.service.ts)**:
+   - Loại bỏ cơ chế gán cứng `ccpDailyPath` đơn lẻ.
+   - Thêm helper `findFileAcrossDirs`: Tìm kiếm song song qua cả 2 thư mục `backupDailyPath` (`Backup CCP/Futures/...`) và `checkDailyPath` (`TradingCheck/CCP/...`).
+   - Ưu tiên tìm file chính thức `QL TT TKGD.xlsx` và `EOD.xlsx` trong thư mục Backup ca trực, không bị chặn khi thư mục `TradingCheck` chỉ chứa các file giao dịch trong phiên.
+5. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**:
+   - Inject `CoreCcpApiAdapter`.
+   - Trong `runAutoCheckDSGDBeforeEOD` (phân hệ `CCP`): Ưu tiên nhận diện `DSGD CCP.xlsx` làm file gốc (`dsgdOriginalPath`).
+   - Tự động gọi API CoreCCP tải báo cáo Lịch sử giao dịch (`ORDERMATCH_ALL`) của ngày phiên $T-1$ khi có cờ `triggerDownload` hoặc khi chưa có file snapshot. Đọc file `LSGD CCP.xlsx` tải về làm file đối chiếu (`dsgdTempPath`), so sánh với Straits CSV.
+6. **[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)** & **[backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts)**:
+   - Đồng bộ truyền `system: payload.system || 'MS'` và `triggerDownload: true` vào `runAutoCheckDSGDBeforeEOD` để Bot Job tự động kích hoạt tải tươi.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeScript Build**: `node ./node_modules/@nestjs/cli/bin/nest.js build` $\rightarrow$ Pass 100%, 0 lỗi, Exit Code 0.
+- **Frontend TypeScript Build**: `node ./node_modules/typescript/bin/tsc --noEmit` $\rightarrow$ Pass 100%, 0 lỗi, Exit Code 0.
+
 ## [2026-10-21T16:10] FEATURE: Hoàn Thiện Triển Khai Module Thống Kê CoreCCP Theo Khoảng Thời Gian (Báo Cáo Đột Xuất / Ad-Hoc Range Statistics)
 
 ### 1. Mục tiêu thay đổi

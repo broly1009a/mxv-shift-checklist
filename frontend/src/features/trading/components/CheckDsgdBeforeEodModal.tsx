@@ -21,6 +21,7 @@ interface CheckDsgdBeforeEodModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultDate?: string;
+  system?: 'MS' | 'CCP';
   onSuccess?: (result: any) => void;
 }
 
@@ -28,6 +29,7 @@ export default function CheckDsgdBeforeEodModal({
   isOpen,
   onClose,
   defaultDate,
+  system,
   onSuccess,
 }: CheckDsgdBeforeEodModalProps) {
   const { token } = useAuth();
@@ -59,9 +61,11 @@ export default function CheckDsgdBeforeEodModal({
 
       const res = await tradingOpsApi.checkDsgdBeforeEod(
         {
+          system,
           tradingDate,
           timeSuffix: effectiveTimeSuffix,
           exactDate: true,
+          triggerDownload: true,
         },
         token,
       );

@@ -80,7 +80,8 @@ export default function DsgdBeforeEodSection({
         {
           system,
           tradingDate: selectedDate,
-          exactDate: true,
+          exactDate: false,
+          triggerDownload: true,
         },
         token,
       );
@@ -795,6 +796,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
         isOpen={showAdvancedModal}
         onClose={() => setShowAdvancedModal(false)}
         defaultDate={selectedDate}
+        system={system}
         onSuccess={handleModalSuccess}
       />
     </div>

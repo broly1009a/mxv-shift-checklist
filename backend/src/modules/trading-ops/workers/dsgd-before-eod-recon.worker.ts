@@ -65,7 +65,11 @@ export class DsgdBeforeEodReconWorker implements IBotWorker {
         res = await this.reconPipeline.handleCheckDsgdBeforeEodJob(jobToRun);
       } else {
         const dsgdResult = this.dsgdBeforeEodService
-          ? await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate: targetDate })
+          ? await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({
+              system: (context.parameters?.system as any) || 'MS',
+              tradingDate: targetDate,
+              triggerDownload: true,
+            })
           : null;
         res = {
           passed: dsgdResult ? dsgdResult.passed : true,
