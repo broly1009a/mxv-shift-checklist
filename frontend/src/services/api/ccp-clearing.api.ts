@@ -250,6 +250,40 @@ export const ccpClearingApi = {
   },
 
   /**
+   * Kích hoạt Thống kê CoreCCP theo Khoảng Thời Gian (Ad-hoc Range)
+   */
+  async runAdHocRange(
+    payload: {
+      fromDate: string;
+      toDate: string;
+      scope?: 'ACM_ONLY' | 'ALL_PHASE2' | 'ALL';
+      downloadFresh?: boolean;
+      localDsgdFilePath?: string;
+    },
+    token?: string | null,
+  ): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CCP_CLEARING.LOT_RUN_ADHOC_RANGE,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token,
+    );
+  },
+
+  /**
+   * Lấy danh sách các tệp báo cáo đột xuất đã sinh
+   */
+  async getAdHocReports(token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CCP_CLEARING.LOT_ADHOC_REPORTS,
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
    * Kích hoạt Macro Thống kê Khối lượng (Lot Macro)
    */
   async triggerLotMacro(

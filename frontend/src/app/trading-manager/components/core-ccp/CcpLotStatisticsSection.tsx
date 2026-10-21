@@ -27,6 +27,9 @@ import {
   BookOpen,
   Folder,
   RotateCcw,
+  Download,
+  Calendar,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -177,10 +180,30 @@ export default function CcpLotStatisticsSection({
   const [filterMissingTypesOnly, setFilterMissingTypesOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'TVKD' | 'COMMODITY'>('TVKD');
 
+  // ── Tab Switcher state: DAILY vs ADHOC_RANGE ──
+  const [mainTab, setMainTab] = useState<'DAILY' | 'ADHOC_RANGE'>('DAILY');
+
+  // ── Ad-hoc Range states (Báo cáo đột xuất theo kỳ) ──
+  const [adhocFromDate, setAdhocFromDate] = useState<string>(() => {
+    if (selectedDate && selectedDate.includes('-')) {
+      const parts = selectedDate.split('-');
+      return `${parts[0]}-${parts[1]}-01`;
+    }
+    return new Date().toISOString().slice(0, 7) + '-01';
+  });
+  const [adhocToDate, setAdhocToDate] = useState<string>(selectedDate || new Date().toISOString().slice(0, 10));
+  const [adhocScope, setAdhocScope] = useState<'ACM_ONLY' | 'ALL_PHASE2'>('ALL_PHASE2');
+  const [runningAdHoc, setRunningAdHoc] = useState<boolean>(false);
+  const [adhocResult, setAdhocResult] = useState<any | null>(null);
+  const [adhocLogs, setAdhocLogs] = useState<string[]>([]);
+  const [adhocReports, setAdhocReports] = useState<any[]>([]);
+  const [loadingAdHocReports, setLoadingAdHocReports] = useState<boolean>(false);
+
   // Sync date when parent selectedDate changes
   useEffect(() => {
     if (selectedDate) {
       setNgayGD(selectedDate);
+      setAdhocToDate(selectedDate);
     }
   }, [selectedDate]);
 
@@ -547,9 +570,185 @@ export default function CcpLotStatisticsSection({
     };
   }, [result?.byTvkd]);
 
+  // ── Callbacks cho Thống kê Khoảng Thời Gian (Ad-hoc Range) ──
+  const fetchAdHocReports = useCallback(async () => {
+    if (!token) return;
+    setLoadingAdHocReports(true);
+    try {
+      const res = await api.ccpClearing.getAdHocReports(token);
+      const data = res?.data || res;
+      if (Array.isArray(data)) {
+        setAdhocReports(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingAdHocReports(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (mainTab === 'ADHOC_RANGE') {
+      fetchAdHocReports();
+    }
+  }, [mainTab, fetchAdHocReports]);
+
+  const handleRunAdHocRange = async () => {
+    if (!token) {
+      toast.error('Vui lòng đăng nhập để thực hiện');
+      return;
+    }
+    if (!adhocFromDate || !adhocToDate) {
+      toast.error('Vui lòng chọn đầy đủ Từ ngày và Đến ngày');
+      return;
+    }
+    if (new Date(adhocFromDate) > new Date(adhocToDate)) {
+      toast.error('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+      return;
+    }
+
+    setRunningAdHoc(true);
+    setAdhocLogs([]);
+    try {
+      const res = await api.ccpClearing.runAdHocRange(
+        {
+          fromDate: adhocFromDate,
+          toDate: adhocToDate,
+          scope: adhocScope,
+          downloadFresh: true,
+        },
+        token,
+      );
+
+      const data = res?.data || res;
+      if (data?.success) {
+        setAdhocResult(data);
+        setAdhocLogs(data.logs || []);
+        toast.success(`Đã xuất thành công ${data.files?.length || 0} file báo cáo Template chuẩn MXV!`);
+        fetchAdHocReports();
+      } else {
+        toast.error(data?.message || 'Không thể tạo báo cáo đột xuất');
+        if (data?.logs) setAdhocLogs(data.logs);
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi khi tạo báo cáo đột xuất: ${err.message}`);
+    } finally {
+      setRunningAdHoc(false);
+    }
+  };
+
+  const handleDownloadAdHocFile = async (fileName: string) => {
+    try {
+      const url = `/api/v1/ccp-statistics/lot-statistics/download-adhoc?filename=${encodeURIComponent(fileName)}`;
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Không thể tải tệp');
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`Đã tải xuống: ${fileName}`);
+    } catch (err: any) {
+      toast.error(`Lỗi tải file: ${err.message}`);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {currentViewMode === 'USER' ? (
+      {/* ── THANH CHUYỂN TAB CHÍNH: CA TRỰC HÀNG NGÀY vs BÁO CÁO ĐỘT XUẤT ── */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setMainTab('DAILY')}
+            className="btn"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              border: mainTab === 'DAILY' ? '1px solid #10b981' : '1px solid var(--border-color)',
+              backgroundColor: mainTab === 'DAILY' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+              color: mainTab === 'DAILY' ? '#10b981' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Calendar size={16} />
+            <span>Thống Kê Phiên Hàng Ngày (Ca Trực)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMainTab('ADHOC_RANGE')}
+            className="btn"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              border: mainTab === 'ADHOC_RANGE' ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+              backgroundColor: mainTab === 'ADHOC_RANGE' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: mainTab === 'ADHOC_RANGE' ? '#3b82f6' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Sparkles size={16} />
+            <span>Thống Kê Theo Khoảng Thời Gian (Báo Cáo Đột Xuất)</span>
+            <span
+              style={{
+                fontSize: '0.68rem',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                fontWeight: 800,
+              }}
+            >
+              1-PASS
+            </span>
+          </button>
+        </div>
+
+        {mainTab === 'DAILY' && onToggleViewMode && (
+          <button
+            type="button"
+            onClick={() => onToggleViewMode(currentViewMode === 'USER' ? 'EXPERT' : 'USER')}
+            className="btn btn-outline"
+            style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Sliders size={14} />
+            <span>{currentViewMode === 'USER' ? 'Chế độ Chuyên gia (Expert)' : 'Chế độ Vận hành (User)'}</span>
+          </button>
+        )}
+      </div>
+
+      {mainTab === 'DAILY' ? (
+        <>
+          {currentViewMode === 'USER' ? (
         /* ── GIAO DIỆN VẬN HÀNH (USER MODE): TINH GỌN, 2 BƯỚC RÕ RÀNG, CHUẨN DOANH NGHIỆP ── */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Header & 2-Step Action Bar */}
@@ -2159,6 +2358,472 @@ export default function CcpLotStatisticsSection({
               </table>
             )}
           </div>
+        </div>
+      )}
+    </>
+  ) : (
+        /* ── GIAO DIỆN THỐNG KÊ THEO KHOẢNG THỜI GIAN (BÁO CÁO ĐỘT XUẤT 1-PASS) ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header Panel */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              borderLeft: '4px solid #3b82f6',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    color: '#3b82f6',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  CoreCCP VNCLEAR
+                </span>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  Báo Cáo Đột Xuất (Ad-Hoc Range)
+                </span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Thống Kê CoreCCP Theo Khoảng Thời Gian (Template Chuẩn MXV)
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '850px' }}>
+                Cơ chế 1-Pass Aggregation: Tự động tải tươi 1 file DSGD CCP toàn kỳ từ CoreCCP API, tính toán tổng hợp toàn bộ số lot &amp; GTGD của 38+ TVKD và các mặt hàng, sau đó nhân bản Master Template chuẩn MXV và kéo dòng TỔNG CỘNG lên sát dòng dữ liệu kỳ (Row 6/7) với công thức =SUM(...) tự động.
+              </p>
+            </div>
+          </div>
+
+          {/* Form Chọn Kỳ & Kích Hoạt */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+              {/* Từ ngày */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Từ Ngày (Bắt đầu kỳ):
+                </label>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <Calendar size={15} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
+                  <input
+                    type="date"
+                    value={adhocFromDate}
+                    onChange={(e) => setAdhocFromDate(e.target.value)}
+                    style={{
+                      padding: '8px 12px 8px 32px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Đến ngày */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Đến Ngày (Kết thúc kỳ):
+                </label>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <Calendar size={15} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
+                  <input
+                    type="date"
+                    value={adhocToDate}
+                    onChange={(e) => setAdhocToDate(e.target.value)}
+                    style={{
+                      padding: '8px 12px 8px 32px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Phạm vi báo cáo */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Phạm Vi Báo Cáo:
+                </label>
+                <select
+                  value={adhocScope}
+                  onChange={(e: any) => setAdhocScope(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL_PHASE2">Toàn Bộ 10 File Chuẩn MXV (ACM, Thường, Spread, LME, Options)</option>
+                  <option value="ACM_ONLY">Chỉ ACM (2 File: Số lot &amp; Giá trị giao dịch ACM)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Nút Run */}
+            <div>
+              <button
+                type="button"
+                onClick={handleRunAdHocRange}
+                disabled={runningAdHoc || !adhocFromDate || !adhocToDate}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  padding: '12px 28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 16px rgba(59, 130, 246, 0.35)',
+                  backgroundColor: '#3b82f6',
+                  cursor: runningAdHoc || !adhocFromDate || !adhocToDate ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {runningAdHoc ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Đang Tải Tươi &amp; Xuất Báo Cáo Template...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    <span>Tải Dữ Liệu &amp; Xuất Báo Cáo Template Chuẩn</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* KPI Summary Cards (Khi có kết quả) */}
+          {adhocResult && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px',
+              }}
+            >
+              <div className="glass-panel" style={{ padding: '16px 20px', borderLeft: '4px solid #10b981' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TỔNG SỐ LOT KỲ GD</span>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#10b981', marginTop: '4px' }}>
+                  {fmtNum(adhocResult.summary?.totalLot)} <span style={{ fontSize: '0.85rem' }}>Lot</span>
+                </div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '16px 20px', borderLeft: '4px solid #3b82f6' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TỔNG GIÁ TRỊ GIAO DỊCH (VND)</span>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#3b82f6', marginTop: '4px' }}>
+                  {((adhocResult.summary?.totalGiaTri || 0) / 1e9).toFixed(2)} <span style={{ fontSize: '0.85rem' }}>Tỷ VNĐ</span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{fmtNum(adhocResult.summary?.totalGiaTri)} đ</span>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '16px 20px', borderLeft: '4px solid #f59e0b' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SỐ LOT ACM TRONG KỲ</span>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
+                  {fmtNum(adhocResult.summary?.acmLot)} <span style={{ fontSize: '0.85rem' }}>Lot</span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>GTGD: {((adhocResult.summary?.acmGiaTri || 0) / 1e9).toFixed(2)} Tỷ VNĐ</span>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '16px 20px', borderLeft: '4px solid #8b5cf6' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>KỲ BÁO CÁO ĐỘT XUẤT</span>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
+                  {adhocResult.period}
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{adhocResult.files?.length || 0} file Template đã sinh</span>
+              </div>
+            </div>
+          )}
+
+          {/* Danh sách File Template vừa sinh */}
+          {adhocResult?.files && adhocResult.files.length > 0 && (
+            <div className="glass-panel" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileSpreadsheet size={18} style={{ color: '#10b981' }} />
+                  <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Các Tệp Báo Cáo Template Chuẩn MXV Vừa Tạo (Sẵn Sàng Tải Xuống)
+                  </h4>
+                </div>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  Lưu tại thư mục: <code>_AdHoc_Reports/</code> (Không ghi đè Master)
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '12px' }}>
+                {adhocResult.files.map((file: any, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 800,
+                            backgroundColor: file.reportType === 'LOT' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                            color: file.reportType === 'LOT' ? '#10b981' : '#3b82f6',
+                          }}
+                        >
+                          {file.reportType === 'LOT' ? 'SỐ LOT' : 'GIÁ TRỊ'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                          {file.category}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: '240px',
+                        }}
+                        title={file.fileName}
+                      >
+                        {file.fileName}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {(file.fileSizeBytes / 1024).toFixed(1)} KB • Row {file.targetRow} | Tổng Row {file.tongRow}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAdHocFile(file.fileName)}
+                      className="btn btn-outline"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Download size={14} />
+                      <span>Tải Về</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bảng Preview TVKD Trong Kỳ */}
+          {adhocResult?.summary?.byTvSummary && adhocResult.summary.byTvSummary.length > 0 && (
+            <div className="glass-panel" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={18} style={{ color: '#3b82f6' }} />
+                  <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Bảng Tóm Tắt Khối Lượng Khớp Của Các TVKD Trong Kỳ ({adhocResult.summary.byTvSummary.length} Thành Viên Phát Sinh)
+                  </h4>
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto', maxHeight: '350px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', width: '50px' }}>STT</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Mã TVKD</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Tổng Số Lot GD</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Tổng GTGD (VND)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adhocResult.summary.byTvSummary.map((tv: any, i: number) => (
+                      <tr key={tv.tvkd} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>{i + 1}</td>
+                        <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--text-primary)' }}>{tv.tvkd}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>
+                          {fmtNum(tv.lot)}
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#3b82f6' }}>
+                          {fmtCur(tv.giaTri)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Lịch sử Báo Cáo Đã Sinh (Historical reports in _AdHoc_Reports) */}
+          <div className="glass-panel" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={18} style={{ color: 'var(--text-secondary)' }} />
+                <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Kho Báo Cáo Đột Xuất Đã Xuất Bản (_AdHoc_Reports)
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={fetchAdHocReports}
+                disabled={loadingAdHocReports}
+                className="btn btn-outline"
+                style={{ padding: '4px 10px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={13} className={loadingAdHocReports ? 'animate-spin' : ''} />
+                <span>Làm Mới</span>
+              </button>
+            </div>
+
+            {loadingAdHocReports ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Loader2 size={20} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                <span>Đang quét danh mục báo cáo...</span>
+              </div>
+            ) : adhocReports.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                Chưa có file báo cáo đột xuất nào được tạo. Hãy chọn khoảng thời gian bên trên và bấm &quot;Tải Dữ Liệu &amp; Xuất Báo Cáo Template Chuẩn&quot;.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '10px' }}>
+                {adhocReports.map((rpt, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: '220px',
+                        }}
+                        title={rpt.fileName}
+                      >
+                        {rpt.fileName}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {(rpt.sizeBytes / 1024).toFixed(1)} KB • {new Date(rpt.mtime).toLocaleString('vi-VN')}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAdHocFile(rpt.fileName)}
+                      className="btn btn-outline"
+                      style={{ padding: '5px 10px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Download size={13} />
+                      <span>Tải</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Nhật ký thực thi (Ad-hoc Execution Logs) */}
+          {adhocLogs.length > 0 && (
+            <div className="glass-panel" style={{ padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Activity size={16} style={{ color: '#3b82f6' }} />
+                <h5 style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Nhật Ký Xử Lý &amp; Ghi Template (Python Instant Row Pull Logs)
+                </h5>
+              </div>
+              <div
+                style={{
+                  maxHeight: '180px',
+                  overflowY: 'auto',
+                  backgroundColor: '#0f172a',
+                  color: '#94a3b8',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.74rem',
+                  lineHeight: '1.4',
+                }}
+              >
+                {adhocLogs.map((log, i) => (
+                  <div key={i}>{log}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

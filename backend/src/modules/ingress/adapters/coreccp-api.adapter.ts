@@ -137,10 +137,6 @@ export class CoreCcpApiAdapter implements IIngressPort {
    * Đăng nhập CoreCCP qua OAuth2 Authorization Code Grant 4 bước và lấy Bearer Token
    */
   public async getValidSession(): Promise<ICcpSession> {
-    if (this.cachedSession && this.cachedSession.expiresAt - Date.now() > 5 * 60 * 1000) {
-      return this.cachedSession;
-    }
-
     let baseUrl = process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
     let username = process.env.CORECCP_USERNAME || '';
     let password = process.env.CORECCP_PASSWORD || '';
@@ -163,6 +159,14 @@ export class CoreCcpApiAdapter implements IIngressPort {
       baseUrl = parsedUrl.origin;
     } catch {
       baseUrl = this.defaultBaseUrl;
+    }
+
+    if (
+      this.cachedSession &&
+      this.cachedSession.username === username &&
+      this.cachedSession.expiresAt - Date.now() > 5 * 60 * 1000
+    ) {
+      return this.cachedSession;
     }
 
     this.logger.log(`[CoreCcpApiAdapter] Thực hiện xác thực OAuth2 CoreCCP (${baseUrl}) cho user: ${username}`);
@@ -849,16 +853,37 @@ export class CoreCcpApiAdapter implements IIngressPort {
           // Tự động inject bộ lọc SESSION_DATE nếu là ORDERMATCH_DETAIL hoặc ORDERMATCH_ALL
           if (
             (reportDef.searchCode === 'ORDERMATCH_DETAIL' || reportDef.searchCode === 'ORDERMATCH_ALL') &&
-            formattedDateForSearch &&
             !effectiveFilterPayload.search.SESSION_DATE
           ) {
-            effectiveFilterPayload.search.SESSION_DATE = {
-              from: formattedDateForSearch,
-              to: formattedDateForSearch,
-            };
-            this.logger.log(
-              `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
-            );
+            if (options?.targetDateRange?.fromDate && options?.targetDateRange?.toDate) {
+              const formatDmy = (dStr: string) => {
+                if (dStr.includes('-')) {
+                  const [y, m, d] = dStr.split('-');
+                  return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+                } else if (dStr.includes('.')) {
+                  const [d, m, y] = dStr.split('.');
+                  return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+                }
+                return dStr;
+              };
+              const fromDmy = formatDmy(options.targetDateRange.fromDate);
+              const toDmy = formatDmy(options.targetDateRange.toDate);
+              effectiveFilterPayload.search.SESSION_DATE = {
+                from: fromDmy,
+                to: toDmy,
+              };
+              this.logger.log(
+                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
+              );
+            } else if (formattedDateForSearch) {
+              effectiveFilterPayload.search.SESSION_DATE = {
+                from: formattedDateForSearch,
+                to: formattedDateForSearch,
+              };
+              this.logger.log(
+                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+              );
+            }
           }
 
           // Tự động inject bộ lọc TXDATE nếu là ACCTMARGIN_HIST (EOD CoreCCP)

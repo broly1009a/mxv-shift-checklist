@@ -43,6 +43,7 @@ import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-
 import { CcpLotStatisticsService } from './services/ccp-lot-statistics.service';
 import { CcpStatisticsService } from './services/ccp-statistics.service';
 import { CeLotStatisticsService } from './services/ce-lot-statistics.service';
+import { CcpAdHocStatisticsService } from './services/ccp-adhoc-statistics.service';
 
 // Controllers Domain Chuyên Biệt V2
 import { KlgdReconController } from './controllers/klgd-recon.controller';
@@ -108,6 +109,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CcpLotStatisticsService,
     CcpStatisticsService,
     CeLotStatisticsService,
+    CcpAdHocStatisticsService,
   ],
   exports: [
     CqgMergerService,
@@ -138,6 +140,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     EodMsWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
+    CcpAdHocStatisticsService,
     MongooseModule,
   ],
 })

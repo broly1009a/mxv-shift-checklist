@@ -1,4 +1,6 @@
 export * from './symbol-normalizer.helper';
+export * from './tt-symbol-mapping.config';
+export * from './tt-trades-csv.parser';
 export * from './ms-excel.parser';
 export * from './cqg-excel.parser';
 export * from './straits-csv.parser';

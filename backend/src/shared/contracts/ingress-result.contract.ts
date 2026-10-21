@@ -27,6 +27,7 @@ export interface IngressDownloadOptions {
   isFullBackup?: boolean;       // Kích hoạt chế độ tải toàn bộ file backup của hệ thống
   mode?: 'REST_API' | 'SFTP' | 'PLAYWRIGHT' | string; // Chỉ định chế độ ingress tường minh (REST_API / SFTP / PLAYWRIGHT)
   exactDate?: boolean;          // Nếu true: giữ nguyên ngày targetDate, không tự động lùi ngày phiên T-1 (cho EOD)
+  targetDateRange?: { fromDate: string; toDate: string }; // Dải ngày cho báo cáo đột xuất (Ad-hoc Range)
 }
 
 export interface IngressDownloadResult {

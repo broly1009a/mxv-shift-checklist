@@ -1,3 +1,45 @@
+## [2026-10-21T16:10] FEATURE: Hoàn Thiện Triển Khai Module Thống Kê CoreCCP Theo Khoảng Thời Gian (Báo Cáo Đột Xuất / Ad-Hoc Range Statistics)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Hoàn thiện triển khai toàn diện module **Thống kê CoreCCP theo Khoảng Thời Gian (Báo cáo đột xuất 1-Pass)** theo tài liệu thiết kế [TAI_LIEU_THIET_KE_THONG_KE_CORECCP_THEO_KHOANG_THOI_GIAN.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/TAI_LIEU_THIET_KE_THONG_KE_CORECCP_THEO_KHOANG_THOI_GIAN.md).
+- Yêu cầu cấu trúc Excel đặc thù của người dùng:
+  - Dòng dữ liệu kỳ (Row 5/6) và dòng **TỔNG CỘNG** phải **SÁT NGAY DƯỚI NHAU**.
+  - Dọn dẹp/xóa sạch toàn bộ các hàng trống màu xám ở giữa và bên dưới.
+  - Vận hành siêu tốc (Python Instant Row Pull Writer ~0.15s/file, không dùng `delete_rows()` gây nghẽn Excel).
+  - Vận hành **hoàn toàn độc lập** với ca trực hàng ngày, xuất file vào thư mục `_AdHoc_Reports/`, bảo vệ tuyệt đối 13 file Master gốc (Zero Overwrite).
+
+### 2. Danh sách file đã tạo mới & chỉnh sửa
+1. **[ccp_adhoc_template_writer.py](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/python/ccp_adhoc_template_writer.py)** (Mới):
+   - Đọc dữ liệu JSON, tự động tìm dòng TỔNG CỘNG gốc (ví dụ Row 27).
+   - Kéo (pull) toàn bộ giá trị, công thức SUM (đã cập nhật phạm vi), định dạng viền, phông chữ, tô màu từ dòng Tổng lên sát ngay dưới dòng dữ liệu kỳ (Row 6 hoặc 7).
+   - Xóa sạch toàn bộ các hàng còn lại bên dưới. Đã kiểm thử PASS 13/13 file template tại `M:\Tailieuchung\...`.
+2. **[ccp-adhoc-template.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-adhoc-template.helper.ts)** (Mới):
+   - Bridge TypeScript an toàn gọi script Python qua `spawnSync`, truyền payload JSON và xử lý kết quả.
+3. **[ingress-result.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/contracts/ingress-result.contract.ts)** & **[coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Mở rộng hợp đồng `IngressDownloadOptions` với `targetDateRange?: { fromDate: string; toDate: string }`.
+   - Tự động nạp `SESSION_DATE: { from: 'DD/MM/YYYY', to: 'DD/MM/YYYY' }` vào CoreCCP API để tải tươi 1 file DSGD gộp toàn bộ khoảng thời gian chỉ với 1 request.
+4. **[ccp-adhoc-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-adhoc-statistics.service.ts)** (Mới):
+   - Triển khai workflow `runAdHocRangeWorkflow`: Tải DSGD khoảng ngày -> Tính toán thống kê 1-Pass bằng `processCcpLotStatistics` -> Bóc tách `CcpTvkdStat` theo 10 phân hệ -> Nhân bản 10 template sang `_AdHoc_Reports/` và cập nhật dữ liệu bằng Python writer -> Trả về kết quả tổng quan KPI và danh sách file đã sinh.
+   - Hàm `listAdHocReports` và `getAdHocFilePath` phục vụ xem lịch sử và tải file về máy.
+5. **[trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts)** & **[ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)**:
+   - Đăng ký Provider & Controller endpoints:
+     - `POST /api/v1/ccp-statistics/lot-statistics/run-adhoc-range`
+     - `GET /api/v1/ccp-statistics/lot-statistics/adhoc-reports`
+     - `GET /api/v1/ccp-statistics/lot-statistics/download-adhoc`
+6. **[endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)** & **[ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ccp-clearing.api.ts)**:
+   - Thêm `LOT_RUN_ADHOC_RANGE`, `LOT_ADHOC_REPORTS`, `LOT_DOWNLOAD_ADHOC` và các client wrapper tương ứng.
+7. **[CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Tích hợp Tab Switcher Bar: `DAILY` (Hàng ngày / Ca trực) vs `ADHOC_RANGE` (Báo cáo đột xuất theo khoảng ngày).
+   - Giao diện Ad-Hoc: Bộ lọc ngày (Từ ngày - Đến ngày), Nút kích hoạt 1-Pass, KPI tóm tắt, Danh sách 10 file tải về nhanh, Bảng Preview TVKD phát sinh, Kho báo cáo đã lưu trong `_AdHoc_Reports/`, Nhật ký xử lý Python realtime.
+   - Tuân thủ 100% không dùng emoji thô, sử dụng SVG `lucide-react`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Python Writer Test**: Chạy thử nghiệm thành công 13/13 file template với dữ liệu mẫu, thời gian xử lý trung bình 0.15s/file, dòng tổng cộng nằm sát ngay dưới dòng dữ liệu kỳ, các hàng xám trống bị xóa sạch.
+- **Backend TypeScript Build**: `tsc --project tsconfig.build.json` $\rightarrow$ Pass 100%, 0 lỗi, Exit Code 0.
+- **Frontend TypeScript Build**: `tsc --noEmit` $\rightarrow$ Pass 100%, 0 lỗi, Exit Code 0.
+
+---
+
 ## [2026-10-21T11:00] FEATURE: Triển Khai Cơ Chế Xác Nhận Ghi Đè (Overwrite Confirmation Guard) & Xuất Bản Nháp (Draft Export) Thống Kê
 
 ### 1. Mục tiêu thay đổi

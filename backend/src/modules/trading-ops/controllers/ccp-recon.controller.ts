@@ -27,6 +27,7 @@ import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { CcpLotStatisticsService } from '../services/ccp-lot-statistics.service';
 import { CcpStatisticsService } from '../services/ccp-statistics.service';
+import { CcpAdHocStatisticsService } from '../services/ccp-adhoc-statistics.service';
 
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
@@ -69,6 +70,7 @@ export class CcpReconController {
     private readonly ccpAccumulatorService: CcpAccumulatorService,
     private readonly ccpLotStatisticsService: CcpLotStatisticsService,
     private readonly ccpStatisticsService: CcpStatisticsService,
+    private readonly ccpAdHocStatisticsService: CcpAdHocStatisticsService,
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel: Model<CcpClearingLog>,
     @Optional()
@@ -974,6 +976,69 @@ export class CcpReconController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 6B. THỐNG KÊ CORECCP THEO KHOẢNG THỜI GIAN (BÁO CÁO ĐỘT XUẤT / AD-HOC RANGE)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * POST lot-statistics/run-adhoc-range
+   * Kích hoạt toàn trình Thống kê CoreCCP theo Khoảng Thời Gian:
+   * 1-Pass Aggregation từ 1 file DSGD CCP, nhân bản Master Template và ghi 1 dòng rõ nghĩa.
+   */
+  @Post('lot-statistics/run-adhoc-range')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runAdHocRange(
+    @Body()
+    body: {
+      fromDate: string;
+      toDate: string;
+      scope?: 'ACM_ONLY' | 'ALL_PHASE2' | 'ALL';
+      downloadFresh?: boolean;
+      localDsgdFilePath?: string;
+    },
+    @Req() req: any,
+  ) {
+    if (!body?.fromDate || !body?.toDate) {
+      throw new BadRequestException('Bắt buộc phải cung cấp đầy đủ fromDate và toDate');
+    }
+    const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+    return this.ccpAdHocStatisticsService.runAdHocRangeWorkflow(body, user);
+  }
+
+  /**
+   * GET lot-statistics/adhoc-reports
+   * Liệt kê danh sách các báo cáo đột xuất đã được sinh ra trong thư mục _AdHoc_Reports
+   */
+  @Get('lot-statistics/adhoc-reports')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async listAdHocReports() {
+    return this.ccpAdHocStatisticsService.listAdHocReports();
+  }
+
+  /**
+   * GET lot-statistics/download-adhoc
+   * Tải tệp báo cáo Excel Template clone đã sinh
+   */
+  @Get('lot-statistics/download-adhoc')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async downloadAdHocReport(@Query('filename') filename: string, @Res() res: Response) {
+    if (!filename) {
+      throw new BadRequestException('Thiếu tham số filename');
+    }
+    const filePath = await this.ccpAdHocStatisticsService.getAdHocFilePath(filename);
+    const safeName = path.basename(filePath);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(safeName)}"`,
+    );
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
