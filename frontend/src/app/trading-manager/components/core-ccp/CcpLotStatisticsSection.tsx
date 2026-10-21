@@ -717,7 +717,7 @@ export default function CcpLotStatisticsSection({
             }}
           >
             <Sparkles size={16} />
-            <span>Thống Kê Theo Khoảng Thời Gian (Báo Cáo Đột Xuất)</span>
+            <span>Báo Cáo Tổng Hợp Theo Kỳ</span>
             <span
               style={{
                 fontSize: '0.68rem',
@@ -728,7 +728,7 @@ export default function CcpLotStatisticsSection({
                 fontWeight: 800,
               }}
             >
-              1-PASS
+              Tùy chọn ngày
             </span>
           </button>
         </div>
@@ -2392,29 +2392,14 @@ export default function CcpLotStatisticsSection({
                     letterSpacing: '0.05em',
                   }}
                 >
-                  CoreCCP VNCLEAR
-                </span>
-                <span
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    color: '#10b981',
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  Báo Cáo Đột Xuất (Ad-Hoc Range)
+                  Báo Cáo Theo Kỳ
                 </span>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  Thống Kê CoreCCP Theo Khoảng Thời Gian (Template Chuẩn MXV)
+                  Thống Kê Khối Lượng &amp; Giá Trị Giao Dịch CoreCCP
                 </h3>
               </div>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '850px' }}>
-                Cơ chế 1-Pass Aggregation: Tự động tải tươi 1 file DSGD CCP toàn kỳ từ CoreCCP API, tính toán tổng hợp toàn bộ số lot &amp; GTGD của 38+ TVKD và các mặt hàng, sau đó nhân bản Master Template chuẩn MXV và kéo dòng TỔNG CỘNG lên sát dòng dữ liệu kỳ (Row 6/7) với công thức =SUM(...) tự động.
+                Tổng hợp toàn bộ khối lượng khớp lệnh và giá trị giao dịch trong khoảng thời gian được chọn, tự động kết xuất bộ sổ sách Excel theo đúng biểu mẫu chuẩn của MXV.
               </p>
             </div>
           </div>
@@ -2435,7 +2420,7 @@ export default function CcpLotStatisticsSection({
               {/* Từ ngày */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Từ Ngày (Bắt đầu kỳ):
+                  Từ ngày:
                 </label>
                 <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                   <Calendar size={15} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
@@ -2459,7 +2444,7 @@ export default function CcpLotStatisticsSection({
               {/* Đến ngày */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Đến Ngày (Kết thúc kỳ):
+                  Đến ngày:
                 </label>
                 <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                   <Calendar size={15} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
@@ -2483,7 +2468,7 @@ export default function CcpLotStatisticsSection({
               {/* Phạm vi báo cáo */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Phạm Vi Báo Cáo:
+                  Phạm vi xuất:
                 </label>
                 <select
                   value={adhocScope}
@@ -2499,8 +2484,8 @@ export default function CcpLotStatisticsSection({
                     cursor: 'pointer',
                   }}
                 >
-                  <option value="ALL_PHASE2">Toàn Bộ 10 File Chuẩn MXV (ACM, Thường, Spread, LME, Options)</option>
-                  <option value="ACM_ONLY">Chỉ ACM (2 File: Số lot &amp; Giá trị giao dịch ACM)</option>
+                  <option value="ALL_PHASE2">Toàn bộ 10 sổ sách chuẩn MXV (Thường, ACM, Spread, LME, Options)</option>
+                  <option value="ACM_ONLY">Chỉ phân hệ ACM (2 sổ: Khối lượng lot &amp; Giá trị giao dịch)</option>
                 </select>
               </div>
             </div>
@@ -2528,12 +2513,12 @@ export default function CcpLotStatisticsSection({
                 {runningAdHoc ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    <span>Đang Tải Tươi &amp; Xuất Báo Cáo Template...</span>
+                    <span>Đang tổng hợp dữ liệu...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    <span>Tải Dữ Liệu &amp; Xuất Báo Cáo Template Chuẩn</span>
+                    <span>Xuất Báo Cáo Tổng Hợp</span>
                   </>
                 )}
               </button>
@@ -2573,11 +2558,11 @@ export default function CcpLotStatisticsSection({
               </div>
 
               <div className="glass-panel" style={{ padding: '16px 20px', borderLeft: '4px solid #8b5cf6' }}>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>KỲ BÁO CÁO ĐỘT XUẤT</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>KỲ BÁO CÁO</span>
                 <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '6px' }}>
                   {adhocResult.period}
                 </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{adhocResult.files?.length || 0} file Template đã sinh</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{adhocResult.files?.length || 0} file báo cáo đã tạo</span>
               </div>
             </div>
           )}
@@ -2589,11 +2574,11 @@ export default function CcpLotStatisticsSection({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FileSpreadsheet size={18} style={{ color: '#10b981' }} />
                   <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    Các Tệp Báo Cáo Template Chuẩn MXV Vừa Tạo (Sẵn Sàng Tải Xuống)
+                    Danh Sách Báo Cáo Đã Khởi Tạo
                   </h4>
                 </div>
                 <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                  Lưu tại thư mục: <code>_AdHoc_Reports/</code> (Không ghi đè Master)
+                  Đã lưu vào kho báo cáo tổng hợp
                 </span>
               </div>
 
@@ -2681,7 +2666,7 @@ export default function CcpLotStatisticsSection({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <TrendingUp size={18} style={{ color: '#3b82f6' }} />
                   <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    Bảng Tóm Tắt Khối Lượng Khớp Của Các TVKD Trong Kỳ ({adhocResult.summary.byTvSummary.length} Thành Viên Phát Sinh)
+                    Khối Lượng Khớp Lệnh Theo Thành Viên Kinh Doanh ({adhocResult.summary.byTvSummary.length} TVKD)
                   </h4>
                 </div>
               </div>
@@ -2721,7 +2706,7 @@ export default function CcpLotStatisticsSection({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Clock size={18} style={{ color: 'var(--text-secondary)' }} />
                 <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  Kho Báo Cáo Đột Xuất Đã Xuất Bản (_AdHoc_Reports)
+                  Danh Mục Báo Cáo Đã Xuất Bản
                 </h4>
               </div>
               <button
@@ -2743,7 +2728,7 @@ export default function CcpLotStatisticsSection({
               </div>
             ) : adhocReports.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
-                Chưa có file báo cáo đột xuất nào được tạo. Hãy chọn khoảng thời gian bên trên và bấm &quot;Tải Dữ Liệu &amp; Xuất Báo Cáo Template Chuẩn&quot;.
+                Chưa có file báo cáo nào được tạo. Vui lòng chọn khoảng thời gian bên trên và bấm &quot;Xuất Báo Cáo Tổng Hợp&quot;.
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '10px' }}>
@@ -2796,13 +2781,13 @@ export default function CcpLotStatisticsSection({
             )}
           </div>
 
-          {/* Nhật ký thực thi (Ad-hoc Execution Logs) */}
+          {/* Nhật ký thực thi */}
           {adhocLogs.length > 0 && (
             <div className="glass-panel" style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <Activity size={16} style={{ color: '#3b82f6' }} />
                 <h5 style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  Nhật Ký Xử Lý &amp; Ghi Template (Python Instant Row Pull Logs)
+                  Nhật Ký Thực Thi &amp; Xuất File
                 </h5>
               </div>
               <div

@@ -1,3 +1,62 @@
+## [2026-10-21T17:27] BUGFIX: Khắc Phục Lỗi Vòng Lặp Vô Tận (Infinite Loop Spam API `scan-daily`) Trên Trang Thống Kê CE
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Khắc phục lỗi tại `https://10.0.0.26/trading-manager/statistics/ce đang bị lỗi call api liên tục`.
+- Phát hiện nguyên nhân gốc rễ: Trong component [CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx#L172-L203), hàm `handleScan` được bọc bởi `useCallback` với dependency array chứa chính state `scanning` (`[token, selectedDate, scanning]`).
+  - Khi `handleScan` chạy $\rightarrow$ gọi `setScanning(true)` $\rightarrow$ `scanning` thay đổi làm `handleScan` bị khởi tạo lại reference mới.
+  - `useEffect` phụ thuộc vào `handleScan` lại bị kích hoạt $\rightarrow$ tiếp tục gọi `handleScan(false)` $\rightarrow$ `finally` gọi `setScanning(false)` lại kích hoạt `useEffect`.
+  - Tạo ra vòng lặp vô hạn (Infinite Loop) spam hàng trăm request `GET /api/v1/ce-clearing/lot-statistics/scan-daily?date=...`.
+
+### 2. Danh sách file chỉnh sửa
+1. **[CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**:
+   - Thêm `scanningRef = useRef<boolean>(false)` để quản lý cờ trạng thái đang quét độc lập với render cycle.
+   - Loại bỏ hoàn toàn `scanning` khỏi dependency array của `useCallback`, chỉ giữ `[token, selectedDate]`.
+   - Gate an toàn: `if (!token || !selectedDate || scanningRef.current) return;` giúp ngăn chặn triệt để tình trạng gọi API đồng thời hoặc lặp vô tận.
+2. **Triển khai Production trên Server Ubuntu 10.0.0.26**:
+   - Đồng bộ file đã sửa lên `/opt/mxv-checklist/frontend/...`.
+   - Chạy `npm run build` Next.js 16 thành công 100% trong 10.1s.
+   - `pm2 reload mxv-frontend` thành công.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend TypeScript Check**: `node node_modules/typescript/bin/tsc --noEmit` $\rightarrow$ Pass 100%, 0 lỗi.
+- **Production Server Build**: Next.js Build pass 50/50 static routes, PM2 reload hoàn tất.
+
+---
+
+## [2026-10-21T17:15] REFACTOR: Chuẩn Hóa Văn Bản Giao Diện (Clean Text UX/UI) Module Thống Kê CoreCCP Theo Khoảng Thời Gian
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "giúp tôi viết lại nội dung cho clean text ux/ui".
+- Loại bỏ toàn bộ các từ ngữ mang tính kỹ thuật nội bộ, thuật toán backend hoặc tên thư mục thô (như `1-PASS`, `Cơ chế 1-Pass Aggregation...`, `kéo dòng TỔNG CỘNG lên sát dòng dữ liệu kỳ (Row 6/7) với công thức =SUM(...) tự động`, `_AdHoc_Reports/`, `Python Instant Row Pull Logs`).
+- Chuẩn hóa toàn bộ nhãn, tiêu đề, mô tả và bảng dữ liệu theo chuẩn giao diện doanh nghiệp (Enterprise Grade) ngắn gọn, hiện đại và chuyên nghiệp.
+
+### 2. Danh sách file chỉnh sửa
+1. **[CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - **Tab Switcher**: Đổi tab từ `Thống Kê Theo Khoảng Thời Gian (Báo Cáo Đột Xuất) [1-PASS]` thành `Báo Cáo Tổng Hợp Theo Kỳ` kèm badge `Tùy chọn ngày`.
+   - **Banner Header**:
+     - Badge đổi từ `BÁO CÁO ĐỘT XUẤT (AD-HOC RANGE)` thành `Báo Cáo Theo Kỳ`.
+     - Tiêu đề đổi từ `Thống Kê CoreCCP Theo Khoảng Thời Gian (Template Chuẩn MXV)` thành `Thống Kê Khối Lượng & Giá Trị Giao Dịch CoreCCP`.
+     - Mô tả kỹ thuật dài dòng được cô đọng: `"Tổng hợp toàn bộ khối lượng khớp lệnh và giá trị giao dịch trong khoảng thời gian được chọn, tự động kết xuất bộ sổ sách Excel theo đúng biểu mẫu chuẩn của MXV."`
+   - **Bộ lọc & Nút hành động**:
+     - `Từ Ngày (Bắt đầu kỳ):` $\rightarrow$ `Từ ngày:`
+     - `Đến Ngày (Kết thúc kỳ):` $\rightarrow$ `Đến ngày:`
+     - `Phạm Vi Báo Cáo:` $\rightarrow$ `Phạm vi xuất:`
+     - `Tải Dữ Liệu & Xuất Báo Cáo Template Chuẩn` $\rightarrow$ `Xuất Báo Cáo Tổng Hợp` (loading: `Đang tổng hợp dữ liệu...`).
+   - **Thẻ KPI & Danh sách báo cáo**:
+     - `KỲ BÁO CÁO ĐỘT XUẤT` $\rightarrow$ `KỲ BÁO CÁO`.
+     - `Các Tệp Báo Cáo Template Chuẩn MXV Vừa Tạo (Sẵn Sàng Tải Xuống)` $\rightarrow$ `Danh Sách Báo Cáo Đã Khởi Tạo`.
+     - Ẩn đường dẫn thư mục thô `_AdHoc_Reports/ (Không ghi đè Master)` $\rightarrow$ `Đã lưu vào kho báo cáo tổng hợp`.
+   - **Bảng TVKD & Lịch sử & Logs**:
+     - `Bảng Tóm Tắt Khối Lượng Khớp Của Các TVKD Trong Kỳ...` $\rightarrow$ `Khối Lượng Khớp Lệnh Theo Thành Viên Kinh Doanh ({N} TVKD)`.
+     - `Kho Báo Cáo Đột Xuất Đã Xuất Bản (_AdHoc_Reports)` $\rightarrow$ `Danh Mục Báo Cáo Đã Xuất Bản`.
+     - `Nhật Ký Xử Lý & Ghi Template (Python Instant Row Pull Logs)` $\rightarrow$ `Nhật Ký Thực Thi & Xuất File`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend TypeScript Check**: `node node_modules/typescript/bin/tsc --noEmit` $\rightarrow$ Pass 100%, 0 lỗi.
+- **Backend NestJS Build**: `node ./node_modules/@nestjs/cli/bin/nest.js build` $\rightarrow$ Pass 100%, Exit Code 0.
+
+---
+
 ## [2026-10-21T16:10] FEATURE: Hoàn Thiện Triển Khai Module Thống Kê CoreCCP Theo Khoảng Thời Gian (Báo Cáo Đột Xuất / Ad-Hoc Range Statistics)
 
 ### 1. Mục tiêu thay đổi

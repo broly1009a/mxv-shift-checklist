@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Play,
   FileSpreadsheet,
@@ -95,6 +95,7 @@ export default function CeLotStatisticsSection({
 }: CeLotStatisticsSectionProps) {
   const [scanResult, setScanResult] = useState<CeDailyScanResult | null>(null);
   const [scanning, setScanning] = useState<boolean>(false);
+  const scanningRef = useRef<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [writingLot, setWritingLot] = useState<boolean>(false);
   const [writingValue, setWritingValue] = useState<boolean>(false);
@@ -171,7 +172,8 @@ export default function CeLotStatisticsSection({
   // Quét thư mục
   const handleScan = useCallback(
     async (showToast: boolean = true) => {
-      if (!token || scanning) return;
+      if (!token || !selectedDate || scanningRef.current) return;
+      scanningRef.current = true;
       setScanning(true);
       let toastId: string | undefined;
       if (showToast) toastId = toast.loading(`Đang quét thư mục backup CE ngày ${selectedDate}...`);
@@ -190,10 +192,11 @@ export default function CeLotStatisticsSection({
           toast.error(`Lỗi quét thư mục CE: ${err.message}`, { id: toastId });
         }
       } finally {
+        scanningRef.current = false;
         setScanning(false);
       }
     },
-    [token, selectedDate, scanning],
+    [token, selectedDate],
   );
 
   useEffect(() => {
