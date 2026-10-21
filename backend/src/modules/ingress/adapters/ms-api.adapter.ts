@@ -372,12 +372,51 @@ export class MsApiAdapter implements IIngressPort {
     adminUrl: string,
     reportDef: IMsReportDef,
     targetDir: string,
+    targetDate?: string,
   ): Promise<IngressFileDetail> {
     const startTime = Date.now();
     let fullUrl = `${baseUrl}${reportDef.endpoint}`;
 
-    if (reportDef.queryParams) {
-      const qStr = Object.entries(reportDef.queryParams)
+    const queryParams: Record<string, any> = { ...(reportDef.queryParams || {}) };
+
+    // Tự động inject bộ lọc ngày phiên Epoch Timestamp Milliseconds cho DSGD nếu có targetDate
+    if (targetDate && (reportDef.key === 'DSGD' || reportDef.endpoint.includes('/transaction/admin/list'))) {
+      let y: number = NaN;
+      let m: number = NaN;
+      let d: number = NaN;
+
+      if (typeof targetDate === 'string') {
+        if (targetDate.includes('-')) {
+          const parts = targetDate.split('-').map(Number);
+          y = parts[0];
+          m = parts[1];
+          d = parts[2];
+        } else if (targetDate.includes('/')) {
+          const parts = targetDate.split('/').map(Number);
+          d = parts[0];
+          m = parts[1];
+          y = parts[2];
+        } else if (targetDate.includes('.')) {
+          const parts = targetDate.split('.').map(Number);
+          d = parts[0];
+          m = parts[1];
+          y = parts[2];
+        }
+      }
+
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        // Epoch Timestamp Milliseconds chuẩn múi giờ Việt Nam (UTC+7)
+        // 00:00:00.000 VN (UTC+7) tương đương UTC - 7 giờ
+        const startMs = Date.UTC(y, m - 1, d, 0, 0, 0, 0) - 7 * 60 * 60 * 1000;
+        const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+        queryParams['transactions.sessionDate[gte]'] = startMs;
+        queryParams['transactions.sessionDate[lte]'] = endMs;
+        this.logger.log(`[MsApiAdapter] 📅 Áp dụng bộ lọc phiên MS cho DSGD (${d}/${m}/${y}): gte=${startMs}, lte=${endMs}`);
+      }
+    }
+
+    if (Object.keys(queryParams).length > 0) {
+      const qStr = Object.entries(queryParams)
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
         .join('&');
       fullUrl += fullUrl.includes('?') ? `&${qStr}` : `?${qStr}`;
@@ -505,6 +544,7 @@ export class MsApiAdapter implements IIngressPort {
 
     const files: IngressFileDetail[] = [];
     const errors: string[] = [];
+    const targetDate = options?.targetDate;
 
     for (const key of targetKeys) {
       const reportDef = resolveMsReport(key);
@@ -514,7 +554,7 @@ export class MsApiAdapter implements IIngressPort {
       }
 
       try {
-        const fileDetail = await this.downloadSingleReport(token, baseUrl, adminUrl, reportDef, outputDirectory);
+        const fileDetail = await this.downloadSingleReport(token, baseUrl, adminUrl, reportDef, outputDirectory, targetDate);
         files.push(fileDetail);
       } catch (err: any) {
         const is401 =
@@ -529,7 +569,7 @@ export class MsApiAdapter implements IIngressPort {
             token = fresh.token;
             baseUrl = fresh.baseUrl;
             adminUrl = fresh.adminUrl;
-            const fileDetail = await this.downloadSingleReport(token, baseUrl, adminUrl, reportDef, outputDirectory);
+            const fileDetail = await this.downloadSingleReport(token, baseUrl, adminUrl, reportDef, outputDirectory, targetDate);
             files.push(fileDetail);
             continue;
           } catch (retryErr: any) {

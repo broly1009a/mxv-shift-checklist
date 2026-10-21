@@ -7,7 +7,7 @@ import { TradingReconLogController } from './controllers/trading-recon-log.contr
 import { CcpReconController } from './controllers/ccp-recon.controller';
 import { CqgMergerService } from './services/cqg-merger.service';
 import { KlgdReconService } from './services/klgd-recon.service';
-import { DsgdBeforeEodReconService } from './services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from './services/ms-eod-recon.service';
 import { MarginCheckerService } from './services/margin-checker.service';
 import { TradingOpsConfigService } from './services/trading-ops-config.service';
 import { DsgdBeforeEodService } from './services/dsgd-before-eod.service';
@@ -79,7 +79,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
   providers: [
     CqgMergerService,
     KlgdReconService,
-    DsgdBeforeEodReconService,
+    MsEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
     DsgdBeforeEodService,
@@ -108,7 +108,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
   exports: [
     CqgMergerService,
     KlgdReconService,
-    DsgdBeforeEodReconService,
+    MsEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
     DsgdBeforeEodService,

@@ -8,7 +8,7 @@ import {
   RECON_PIPELINE_PORT,
 } from '../../../shared';
 import type { IReconPipelinePort } from '../../../shared';
-import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from '../services/ms-eod-recon.service';
 import { DsgdBeforeEodService } from '../services/dsgd-before-eod.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
@@ -20,7 +20,8 @@ export class DsgdBeforeEodReconWorker implements IBotWorker {
   readonly displayName = 'Đối Chiếu DSGD Trước EOD';
 
   constructor(
-    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
+    @Optional()
+    private readonly msEodReconService?: MsEodReconService,
     @Optional()
     private readonly dsgdBeforeEodService?: DsgdBeforeEodService,
     @Optional()

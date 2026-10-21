@@ -31,6 +31,7 @@ export interface ICcpReportMapping {
 export const CANONICAL_CORECCP_API_KEYS = [
   'DSL_CCP',      // ORDERBOOK -> DSL CCP.xlsx
   'DSGD_CCP',     // ORDERMATCH_DETAIL -> DSGD CCP.xlsx
+  'LSGD_CCP',     // ORDERMATCH_ALL -> LSGD CCP.xlsx
   'DSL_MM_CCP',   // ORDERBOOK_MM -> DSL MM CCP.xlsx
   'TTM_CCP',      // OPEN_POSITION -> TTM CCP.xlsx
   'TTTT',         // PNL_EXECUTED -> TTTT.xlsx
@@ -71,6 +72,10 @@ export const CORECCP_DERIVED_RULES: Record<string, Array<{ targetFileName: strin
   DSGD_CCP: [
     { targetFileName: 'DSGD_{date}.xlsx', isDated: true },
   ],
+  LSGD_CCP: [
+    { targetFileName: 'LSGD_{date}.xlsx', isDated: true },
+    { targetFileName: 'Lịch sử giao dịch CCP.xlsx' },
+  ],
   TTTT: [
     { targetFileName: 'TTTT_{date}.xlsx', isDated: true },
   ],
@@ -96,6 +101,15 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     searchCode: 'ORDERMATCH_DETAIL',
     route: '/ORDERS/ORDERMATCH_DETAIL',
     description: 'Khớp lệnh chi tiết toàn sàn (DSGD)',
+    group: 'ORDERS',
+    phase: 'EOD',
+  },
+  LSGD_CCP: {
+    key: 'LSGD_CCP',
+    fileName: 'LSGD CCP.xlsx',
+    searchCode: 'ORDERMATCH_ALL',
+    route: '/ORDERS/ORDERMATCH_ALL',
+    description: 'Lịch sử giao dịch CoreCCP (Tra cứu theo khoảng ngày phiên)',
     group: 'ORDERS',
     phase: 'EOD',
   },
@@ -291,6 +305,24 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     searchCode: 'ORDERMATCH_DETAIL',
     route: '/ORDERS/ORDERMATCH_DETAIL',
     description: 'Khớp lệnh chi tiết (Alias DSGD_CCP)',
+    group: 'ORDERS',
+    phase: 'EOD',
+  },
+  ORDERMATCH_ALL: {
+    key: 'ORDERMATCH_ALL',
+    fileName: 'LSGD CCP.xlsx',
+    searchCode: 'ORDERMATCH_ALL',
+    route: '/ORDERS/ORDERMATCH_ALL',
+    description: 'Lịch sử giao dịch (Alias LSGD_CCP)',
+    group: 'ORDERS',
+    phase: 'EOD',
+  },
+  LSGD: {
+    key: 'LSGD',
+    fileName: 'LSGD CCP.xlsx',
+    searchCode: 'ORDERMATCH_ALL',
+    route: '/ORDERS/ORDERMATCH_ALL',
+    description: 'Lịch sử giao dịch (Alias LSGD_CCP)',
     group: 'ORDERS',
     phase: 'EOD',
   },
@@ -522,7 +554,8 @@ export function resolveCoreCcpReport(target: string): ICcpReportMapping | undefi
       cleanKey === cleanTarget ||
       cleanSearch === cleanTarget ||
       cleanFile.includes(cleanTarget) ||
-      (cleanTarget === 'CLMATCH' && r.searchCode === 'ORDERMATCH_DETAIL')
+      (cleanTarget === 'CLMATCH' && r.searchCode === 'ORDERMATCH_DETAIL') ||
+      (cleanTarget === 'LSGD' && r.searchCode === 'ORDERMATCH_ALL')
     );
   });
 }

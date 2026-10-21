@@ -27,7 +27,7 @@ import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { resolveStoragePathCrossPlatform } from '../../../shared';
-import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from '../services/ms-eod-recon.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
 import { QlgdDashboardService } from '../services/qlgd-dashboard.service';
 import { QlgdExcelExportService } from '../services/qlgd-excel-export.service';
@@ -38,7 +38,7 @@ export class TradingOpsMiscController {
   private readonly logger = new Logger(TradingOpsMiscController.name);
 
   constructor(
-    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
+    private readonly msEodReconService: MsEodReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
     private readonly shiftsService: ShiftsService,
     private readonly settingsService: SystemSettingsService,

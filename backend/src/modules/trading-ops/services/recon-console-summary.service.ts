@@ -1241,6 +1241,7 @@ export class ReconConsoleSummaryService {
         waitingMessage: marginResult.waitingMessage || marginResult.message || null,
         negativeIMRAccCount: newNegativeIMR.length,
         negativeIMRAcc: newNegativeIMR,
+        accounts: newNegativeIMR,
         totalRawNegativeIMRCount: rawNegativeIMR.length,
         allNegativeIMRAcc: rawNegativeIMR,
         negativeBalanceCount: newNegativeBalance.length,

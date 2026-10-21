@@ -8,6 +8,7 @@ export interface TabNavigationOptions {
   expectedHashPattern?: RegExp | string;
   customTimeoutMs?: number;
   snapshotPath?: string;
+  beforeDownload?: (page: Page) => Promise<void>;
   logger?: {
     log: (msg: string) => void;
     warn: (msg: string) => void;
@@ -348,6 +349,10 @@ export class MSystemTabNavigatorHelper {
         await page.screenshot({ path: options.snapshotPath, fullPage: false }).catch(() => { });
         log.log(`[TabNavigator] Đã chụp snapshot: ${options.snapshotPath}`);
       }
+    }
+
+    if (options?.beforeDownload) {
+      await options.beforeDownload(page);
     }
 
     const suggestedName = await this.clickExportAndDownload(

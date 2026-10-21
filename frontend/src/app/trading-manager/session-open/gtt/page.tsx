@@ -7,8 +7,6 @@ import {
   Maximize2,
   Minimize2,
   FileSpreadsheet,
-  Layers,
-  ArrowLeftRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -22,7 +20,7 @@ export default function CheckGttCeCcpTtPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => getInitialTradingSessionDate());
-  const [activeTab, setActiveTab] = useState<'ALL' | 'GTT_CE_CCP_TT' | 'GTT_CCP_CE'>('ALL');
+  const [scopeTab, setScopeTab] = useState<'CCP_CE' | 'MS_CQG'>('CCP_CE');
 
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
@@ -135,6 +133,42 @@ export default function CheckGttCeCcpTtPage() {
               />
             </div>
 
+            {/* Thanh Tab Switcher phân hệ - ĐẶT NGAY BÊN CẠNH NGÀY PHIÊN */}
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '8px',
+                padding: '3px',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              {[
+                { id: 'CCP_CE', label: 'Phân hệ CoreCCP – CoreEX' },
+                { id: 'MS_CQG', label: 'Phân hệ MS – CQG' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setScopeTab(tab.id as 'CCP_CE' | 'MS_CQG')}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: scopeTab === tab.id ? '#3b82f6' : 'transparent',
+                    color: scopeTab === tab.id ? '#ffffff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             {/* Fullscreen Button */}
             <button
               type="button"
@@ -158,58 +192,18 @@ export default function CheckGttCeCcpTtPage() {
           </div>
         </div>
 
-        {/* Thanh Tabs chọn hiển thị chức năng */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            borderBottom: '1px solid var(--border-color)',
-            paddingBottom: '2px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab('ALL')}
-            className={`btn ${activeTab === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.82rem', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Layers size={15} />
-            <span>Tất cả (2)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('GTT_CE_CCP_TT')}
-            className={`btn ${activeTab === 'GTT_CE_CCP_TT' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.82rem', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <FileSpreadsheet size={15} />
-            <span>Kiểm tra Giá thanh toán CE/CCP/TT</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('GTT_CCP_CE')}
-            className={`btn ${activeTab === 'GTT_CCP_CE' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.82rem', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <ArrowLeftRight size={15} />
-            <span>Đối chiếu giá thanh toán CCP/ CE</span>
-          </button>
-        </div>
-
-        {/* 1. KHỐI KIỂM TRA GIÁ THANH TOÁN CE/CCP/TT */}
-        {(activeTab === 'ALL' || activeTab === 'GTT_CE_CCP_TT') && (
-          <LegacyGttCheckerSection token={token} selectedDate={selectedDate} />
-        )}
-
-        {/* 2. KHỐI ĐỐI CHIẾU GIÁ THANH TOÁN CCP/ CE */}
-        {(activeTab === 'ALL' || activeTab === 'GTT_CCP_CE') && (
+        {/* 1. KHỐI ĐỐI CHIẾU GIÁ THANH TOÁN CORECCP - COREEX (MẶC ĐỊNH) */}
+        {scopeTab === 'CCP_CE' && (
           <CeCcpGttCheckerSection
             token={token}
             selectedDate={selectedDate}
-            titleOverride="Đối chiếu giá thanh toán CCP/ CE"
+            titleOverride="Đối chiếu giá thanh toán CoreCCP ↔ CoreEX"
           />
+        )}
+
+        {/* 2. KHỐI KIỂM TRA GIÁ THANH TOÁN M-SYSTEM - CQG */}
+        {scopeTab === 'MS_CQG' && (
+          <LegacyGttCheckerSection token={token} selectedDate={selectedDate} />
         )}
       </div>
     </ProtectedRoute>

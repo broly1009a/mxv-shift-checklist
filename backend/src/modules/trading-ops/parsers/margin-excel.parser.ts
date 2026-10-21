@@ -7,6 +7,11 @@ export interface QltkgdRecord {
   soDuTKKQHienTai: number;
   choDaoHan: number;
   laiLoVND: number;
+  soDuTKKQDauNgay?: number;
+  nopRutTrongPhien?: number;
+  phiGiaoDich?: number;
+  phiQuyenChon?: number;
+  phiDVThanhToan?: number;
   rawRow?: any[];
 }
 
@@ -25,6 +30,8 @@ export interface EodMarginRecord {
   additionalMargin: number;
   initialRequiredMargin: number;
   netMargin: number;
+  estimatedProfitVND: number;
+  optionsEstimatedProfitVND: number;
   eodBalance: number;
   isNegativeIMR: boolean;
 }
@@ -39,7 +46,7 @@ export interface EodMarginParseResult {
 /**
  * Bộ phân tích dữ liệu chuyên biệt cho báo cáo Quản lý tài khoản (QLTKGD / QLTTTKGD)
  * và Báo cáo Trạng thái Ký quỹ Cuối ngày (EOD / EOD CCP).
- * Dùng chung cho: MarginCheckerService, DsgdBeforeEodReconService, CcpEodService, và CqgMergerService.
+ * Dùng chung cho: MarginCheckerService, MsEodReconService, CcpEodService, và CqgMergerService.
  */
 export class MarginExcelParser {
   public static findHeaderIndex(
@@ -154,6 +161,44 @@ export class MarginExcelParser {
       'lai lo futures',
     ]);
 
+    const soDuTKKQDauNgayIdx = this.findHeaderIndex(header, 'Số dư TKKQ đầu ngày', [
+      'số dư đầu ngày',
+      'so du dau ngay',
+      'beginning balance',
+      'start balance',
+    ]);
+
+    const nopRutTrongPhienIdx = this.findHeaderIndex(header, 'Nộp rút trong phiên', [
+      'nộp rút trong phiên',
+      'nop rut trong phien',
+      'nộp rút',
+      'nop rut',
+      'deposit withdrawal',
+    ]);
+
+    const phiGiaoDichIdx = this.findHeaderIndex(header, 'Phí giao dịch', [
+      'phí gd',
+      'phi giao dich',
+      'trading fee',
+      'transaction fee',
+    ]);
+
+    const phiQuyenChonIdx = this.findHeaderIndex(header, 'Phí quyền chọn', [
+      'phí qc',
+      'phi quyen chon',
+      'option fee',
+      'options fee',
+    ]);
+
+    const phiDVThanhToanIdx = this.findHeaderIndex(header, 'Phí dịch vụ thanh toán (VND)', [
+      'phí dv thanh toán',
+      'phí dvtt',
+      'phi dvtt',
+      'phi dich vu thanh toan',
+      'phí dịch vụ thanh toán',
+      'payment service fee',
+    ]);
+
     const fileName = options?.fileName || (typeof input === 'string' ? path.basename(input) : 'QLTKGD.xlsx');
     if (maTKGDIdx === -1) {
       throw new Error(`${fileName} không hợp lệ vì thiếu cột: Mã TKGD / Mã tiểu khoản.`);
@@ -173,6 +218,11 @@ export class MarginExcelParser {
       const balanceVal = soDuTKKQHienTaiIdx !== -1 ? parseFloat(row[soDuTKKQHienTaiIdx]) || 0 : 0;
       const choDaoHan = choDaoHanIdx !== -1 ? parseFloat(row[choDaoHanIdx]) || 0 : 0;
       const laiLoVND = laiLoVNDIdx !== -1 ? parseFloat(row[laiLoVNDIdx]) || 0 : 0;
+      const soDuTKKQDauNgay = soDuTKKQDauNgayIdx !== -1 ? parseFloat(row[soDuTKKQDauNgayIdx]) || 0 : 0;
+      const nopRutTrongPhien = nopRutTrongPhienIdx !== -1 ? parseFloat(row[nopRutTrongPhienIdx]) || 0 : 0;
+      const phiGiaoDich = phiGiaoDichIdx !== -1 ? parseFloat(row[phiGiaoDichIdx]) || 0 : 0;
+      const phiQuyenChon = phiQuyenChonIdx !== -1 ? parseFloat(row[phiQuyenChonIdx]) || 0 : 0;
+      const phiDVThanhToan = phiDVThanhToanIdx !== -1 ? parseFloat(row[phiDVThanhToanIdx]) || 0 : 0;
 
       if (soDuTKKQHienTaiIdx !== -1 && !isNaN(balanceVal) && balanceVal < 0) {
         negativeBalanceAccs.push(maTKGD);
@@ -184,6 +234,11 @@ export class MarginExcelParser {
         soDuTKKQHienTai: balanceVal,
         choDaoHan,
         laiLoVND,
+        soDuTKKQDauNgay,
+        nopRutTrongPhien,
+        phiGiaoDich,
+        phiQuyenChon,
+        phiDVThanhToan,
         rawRow: row,
       };
 
@@ -269,6 +324,20 @@ export class MarginExcelParser {
       'ký quỹ ban đầu yêu cầu',
     ]);
 
+    const estimatedProfitVNDIdx = this.findHeaderIndex(header, 'estimatedProfitVND', [
+      'estimated profit vnd',
+      'estimatedprofitvnd',
+      'lãi lỗ dự kiến',
+      'lãi lỗ dự kiến vnd',
+    ]);
+
+    const optionsEstimatedProfitVNDIdx = this.findHeaderIndex(header, 'optionsEstimatedProfitVND', [
+      'options estimated profit vnd',
+      'optionsestimatedprofitvnd',
+      'lãi lỗ quyền chọn dự kiến',
+      'lãi lỗ quyền chọn dự kiến vnd',
+    ]);
+
     const netMarginIdx = this.findHeaderIndex(header, 'NetMargin', [
       'net margin',
       'net_margin',
@@ -304,6 +373,8 @@ export class MarginExcelParser {
       const avail = availableMarginIdx !== -1 ? parseFloat(row[availableMarginIdx]) || 0 : 0;
       const add = additionalMarginIdx !== -1 ? parseFloat(row[additionalMarginIdx]) || 0 : 0;
       const init = initialRequiredMarginIdx !== -1 ? parseFloat(row[initialRequiredMarginIdx]) || 0 : 0;
+      const estProfit = estimatedProfitVNDIdx !== -1 ? parseFloat(row[estimatedProfitVNDIdx]) || 0 : 0;
+      const optEstProfit = optionsEstimatedProfitVNDIdx !== -1 ? parseFloat(row[optionsEstimatedProfitVNDIdx]) || 0 : 0;
       const net = netMarginIdx !== -1 ? parseFloat(row[netMarginIdx]) || 0 : 0;
       const eodBal = eodBalanceIdx !== -1 ? parseFloat(row[eodBalanceIdx]) || 0 : 0;
 
@@ -311,12 +382,16 @@ export class MarginExcelParser {
         eodBalanceMap.set(investorCode, eodBal);
       }
 
-      // Tiêu chuẩn nhận diện tài khoản âm ký quỹ IMR (Initial Margin Requirement):
-      // Hoặc theo công thức CoreCCP: (init === 0 && net === avail && avail < 0 && add > 0)
-      // Hoặc theo quy tắc M-System: (avail < 0 && add > 0)
+      // Tiêu chuẩn nhận diện tài khoản âm ký quỹ mới (NegativeIMRAcc) chuẩn 100% C# Tool
+      // (TransactionCheckingService.cs#L491):
+      // initialRequiredMargin == 0 && estimatedProfitVND == 0 && optionsEstimatedProfitVND == 0 && netMargin == availableMargin && availableMargin < 0 && additionalMargin > 0
       const isNegativeIMR =
-        (init === 0 && net === avail && avail < 0 && add > 0) ||
-        (avail < 0 && add > 0);
+        init === 0 &&
+        estProfit === 0 &&
+        optEstProfit === 0 &&
+        net === avail &&
+        avail < 0 &&
+        add > 0;
 
       if (isNegativeIMR) {
         negativeIMRAcc.push(investorCode);
@@ -328,6 +403,8 @@ export class MarginExcelParser {
         additionalMargin: add,
         initialRequiredMargin: init,
         netMargin: net,
+        estimatedProfitVND: estProfit,
+        optionsEstimatedProfitVND: optEstProfit,
         eodBalance: eodBal,
         isNegativeIMR,
       });
@@ -339,6 +416,85 @@ export class MarginExcelParser {
       eodBalanceMap,
       negativeIMRAcc,
     };
+  }
+
+  /**
+   * Phân tích file TTTT.xlsx (Thông tin thanh toán) để bóc tách lãi lỗ theo nguyên tệ (USD, JPY, MYR).
+   * Chuẩn 100% theo Tool C# (FileUtils.cs#L1831-L1926).
+   */
+  public static parseTttt(
+    input: Buffer | string,
+  ): Map<string, { usd: number; jpy: number; myr: number }> {
+    const pnlMap = new Map<string, { usd: number; jpy: number; myr: number }>();
+    let workbook: XLSX.WorkBook;
+    if (typeof input === 'string') {
+      if (!fs.existsSync(input)) return pnlMap;
+      workbook = XLSX.readFile(input);
+    } else {
+      if (!input || input.length === 0) return pnlMap;
+      workbook = XLSX.read(input, { type: 'buffer' });
+    }
+
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) return pnlMap;
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+    if (!rows || rows.length < 2) return pnlMap;
+
+    const header = rows[0].map((h) => String(h || '').trim());
+    const maTKGDIdx = this.findHeaderIndex(header, 'Mã TKGD', [
+      'mã tài khoản',
+      'tkgd',
+      'account',
+      'investor code',
+    ]);
+    const maHDIdx = this.findHeaderIndex(header, 'Mã HĐ', [
+      'mã hợp đồng',
+      'hợp đồng',
+      'contract',
+      'symbol',
+      'ma hd',
+    ]);
+    const tongLaiLoIdx = this.findHeaderIndex(header, 'Lãi lỗ thực tế', [
+      'lãi lỗ',
+      'lai lo thuc te',
+      'realized pnl',
+      'pnl',
+    ]);
+
+    if (maTKGDIdx === -1 || maHDIdx === -1 || tongLaiLoIdx === -1) {
+      return pnlMap;
+    }
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      const maTKGD = String(row[maTKGDIdx] || '').trim();
+      const maHD = String(row[maHDIdx] || '').trim();
+      const tongLaiLo = parseFloat(row[tongLaiLoIdx]) || 0;
+      if (!maTKGD || !maHD) continue;
+
+      let entry = pnlMap.get(maTKGD);
+      if (!entry) {
+        entry = { usd: 0, jpy: 0, myr: 0 };
+        pnlMap.set(maTKGD, entry);
+      }
+
+      const upperHD = maHD.toUpperCase();
+      // Phân loại nguyên tệ theo mã hàng hóa chuẩn C# statics.json:
+      // TRU (Cao su RSS3) -> JPY/VND
+      // MPO (Dầu cọ thô) -> MYR/VND
+      // Các mã còn lại -> USD/VND
+      if (upperHD.startsWith('TRU')) {
+        entry.jpy += tongLaiLo;
+      } else if (upperHD.startsWith('MPO')) {
+        entry.myr += tongLaiLo;
+      } else {
+        entry.usd += tongLaiLo;
+      }
+    }
+
+    return pnlMap;
   }
 
   /**

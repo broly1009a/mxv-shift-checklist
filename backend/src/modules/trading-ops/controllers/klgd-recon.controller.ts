@@ -24,7 +24,7 @@ import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { RpaScraperService } from '../../ingress';
 import { KlgdReconService } from '../services/klgd-recon.service';
-import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from '../services/ms-eod-recon.service';
 import { CqgMergerService } from '../services/cqg-merger.service';
 import { DsgdBeforeEodService } from '../services/dsgd-before-eod.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
@@ -36,7 +36,7 @@ export class KlgdReconController {
 
   constructor(
     private readonly klgdReconService: KlgdReconService,
-    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
+    private readonly msEodReconService: MsEodReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
     private readonly cqgMergerService: CqgMergerService,
     private readonly dsgdBeforeEodService: DsgdBeforeEodService,
@@ -308,7 +308,7 @@ export class KlgdReconController {
       const qltkgd = readIfExists('QLTKGD', 'xlsx');
       const eod = readIfExists('eod', 'csv');
       if (!qltkgd) throw new Error('Thiếu file QLTKGD.xlsx');
-      results.eod = await this.dsgdBeforeEodReconService.checkEOD({
+      results.eod = await this.msEodReconService.checkEOD({
         qltkgd,
         eod: eod || undefined,
       });
@@ -382,7 +382,7 @@ export class KlgdReconController {
         downloadedFiles.eodPath && fs.existsSync(downloadedFiles.eodPath)
           ? fs.readFileSync(downloadedFiles.eodPath)
           : undefined;
-      results.eod = await this.dsgdBeforeEodReconService.checkEOD({
+      results.eod = await this.msEodReconService.checkEOD({
         qltkgd,
         tttt,
         eod,
@@ -489,7 +489,7 @@ export class KlgdReconController {
     // 2. EOD Check
     if (files?.qltkgd?.[0]) {
       try {
-        results.eod = await this.dsgdBeforeEodReconService.checkEOD({
+        results.eod = await this.msEodReconService.checkEOD({
           qltkgd: files.qltkgd[0].buffer,
           eod: files.eod?.[0]?.buffer,
           tttt: files.tttt?.[0]?.buffer,

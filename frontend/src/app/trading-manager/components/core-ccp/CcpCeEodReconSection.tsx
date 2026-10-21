@@ -1019,6 +1019,7 @@ Trạng thái: ${dsgdBeforeEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH 
           </div>
         )}
       </div>
+      )}
 
       {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - CHỈ HIỂN THỊ KHI viewMode === 'ALL') ===== */}
       {viewMode === 'ALL' && (

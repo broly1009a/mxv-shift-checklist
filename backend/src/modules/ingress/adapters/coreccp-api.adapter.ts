@@ -759,6 +759,20 @@ export class CoreCcpApiAdapter implements IIngressPort {
         ? targetDate.split('-').reverse().join('.')
         : targetDate;
 
+      // Chuẩn hóa ngày dd/MM/yyyy để truyền vào search.SESSION_DATE cho CoreCCP
+      let formattedDateForSearch = '';
+      if (targetDate) {
+        if (targetDate.includes('-')) {
+          const [y, m, d] = targetDate.split('-');
+          formattedDateForSearch = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        } else if (targetDate.includes('.')) {
+          const [d, m, y] = targetDate.split('.');
+          formattedDateForSearch = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        } else if (targetDate.includes('/')) {
+          formattedDateForSearch = targetDate;
+        }
+      }
+
       const addDerivedFile = (sourceFilePath: string, destFileName: string, category = 'CCP') => {
         const destPath = path.join(outputDirectory, destFileName);
         if (fs.existsSync(sourceFilePath) && destPath !== sourceFilePath) {
@@ -793,50 +807,78 @@ export class CoreCcpApiAdapter implements IIngressPort {
           let downloadSuccess = false;
           let searchResult: { rows: any[]; totalCount: number } | null = null;
 
-          // Thử xuất Server Export nếu searchCode hỗ trợ và không bị cấm
-          const isServerExportEligible =
-            reportDef.searchCode === 'ORDERMATCH_DETAIL' ||
-            reportDef.key === 'DSGD_CCP' ||
-            reportDef.key === 'DSGD' ||
-            reportDef.searchCode === 'OPEN_POSITION' ||
-            reportDef.key === 'TTM_CCP' ||
-            reportDef.searchCode === 'PNL_EXECUTED' ||
-            reportDef.key === 'TTTT';
+        // Xây dựng effectiveFilterPayload động theo ngày giao dịch
+        const effectiveFilterPayload: Record<string, any> = {
+          ...(reportDef.filterPayload || {}),
+          search: {
+            ...(reportDef.filterPayload?.search || {}),
+          },
+          filter: {
+            ...(reportDef.filterPayload?.filter || {}),
+          },
+        };
 
-          if (isServerExportEligible) {
-            try {
-              this.logger.log(
-                `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
-              );
-              const buffer = await this.downloadServerExport(
-                session,
-                reportDef.searchCode,
-                baseUrl,
-                reportDef.route,
-                reportDef.filterPayload || {},
-                targetPath,
-              );
-              downloadSuccess = true;
-            } catch (wsErr: any) {
-              this.logger.warn(
-                `[CoreCcpApiAdapter] Server Export WebSocket gặp sự cố (${wsErr.message}), tự động fallback sang Direct JSON Search...`,
-              );
-            }
-          }
+        // Tự động inject bộ lọc SESSION_DATE nếu là ORDERMATCH_DETAIL hoặc ORDERMATCH_ALL
+        if (
+          (reportDef.searchCode === 'ORDERMATCH_DETAIL' || reportDef.searchCode === 'ORDERMATCH_ALL') &&
+          formattedDateForSearch &&
+          !effectiveFilterPayload.search.SESSION_DATE
+        ) {
+          effectiveFilterPayload.search.SESSION_DATE = {
+            from: formattedDateForSearch,
+            to: formattedDateForSearch,
+          };
+          this.logger.log(
+            `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+          );
+        }
 
-          // Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không dùng
-          if (!downloadSuccess) {
-            searchResult = await this.searchFullJson(
+        // Thử xuất Server Export nếu searchCode hỗ trợ và không bị cấm
+        const isServerExportEligible =
+          reportDef.searchCode === 'ORDERMATCH_DETAIL' ||
+          reportDef.searchCode === 'ORDERMATCH_ALL' ||
+          reportDef.key === 'DSGD_CCP' ||
+          reportDef.key === 'LSGD_CCP' ||
+          reportDef.key === 'DSGD' ||
+          reportDef.searchCode === 'OPEN_POSITION' ||
+          reportDef.key === 'TTM_CCP' ||
+          reportDef.searchCode === 'PNL_EXECUTED' ||
+          reportDef.key === 'TTTT';
+
+        if (isServerExportEligible) {
+          try {
+            this.logger.log(
+              `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
+            );
+            const buffer = await this.downloadServerExport(
               session,
               reportDef.searchCode,
               baseUrl,
               reportDef.route,
-              reportDef.filterPayload || {},
+              effectiveFilterPayload,
+              targetPath,
             );
-
-            await this.convertJsonToExcel(searchResult.rows, reportDef.searchCode, targetPath);
             downloadSuccess = true;
+          } catch (wsErr: any) {
+            this.logger.warn(
+              `[CoreCcpApiAdapter] Server Export WebSocket gặp sự cố (${wsErr.message}), tự động fallback sang Direct JSON Search...`,
+            );
           }
+        }
+
+        // Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không dùng
+        if (!downloadSuccess) {
+          searchResult = await this.searchFullJson(
+            session,
+            reportDef.searchCode,
+            baseUrl,
+            reportDef.route,
+            effectiveFilterPayload,
+          );
+
+          await this.convertJsonToExcel(searchResult.rows, reportDef.searchCode, targetPath);
+          downloadSuccess = true;
+        }
 
           if (fs.existsSync(targetPath)) {
             const stat = fs.statSync(targetPath);
