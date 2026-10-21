@@ -21,10 +21,12 @@ export interface DsgdBeforeEodSectionProps {
   token?: string | null;
   selectedDate: string;
   onStatusChange?: (status: { passed: boolean; differTotal: number }) => void;
+  system?: 'MS' | 'CCP';
 }
 
 export interface CheckDsgdResult {
   passed: boolean;
+  system?: 'MS' | 'CCP';
   totalOriginal: number;
   totalTemp: number;
   totalACMMS: number;
@@ -47,6 +49,7 @@ export default function DsgdBeforeEodSection({
   token,
   selectedDate,
   onStatusChange,
+  system = 'MS',
 }: DsgdBeforeEodSectionProps) {
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<CheckDsgdResult | null>(null);
@@ -64,17 +67,18 @@ export default function DsgdBeforeEodSection({
     setResult(null);
     setHasChecked(false);
     setExecutedAt(null);
-  }, [selectedDate]);
+  }, [selectedDate, system]);
 
   // Quick check handler
   const handleRunQuickCheck = async () => {
     if (!token || loading) return;
     setLoading(true);
-    const toastId = toast.loading('Đang quét và đối chiếu DSGD trước EOD...');
+    const toastId = toast.loading(`Đang quét và đối chiếu DSGD trước EOD (${system})...`);
 
     try {
       const res = await tradingOpsApi.checkDsgdBeforeEod(
         {
+          system,
           tradingDate: selectedDate,
           exactDate: true,
         },
@@ -130,16 +134,17 @@ export default function DsgdBeforeEodSection({
   // Copy report to clipboard
   const handleCopyReport = () => {
     if (!result) return;
-    const reportText = `[KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD)]
+    const reportText = `[KIỂM TRA DSGD TRƯỚC EOD (${system}) (CheckDSGDBeforeEOD)]
 Phiên đối chiếu: ${result.sessionDate || selectedDate}
+Phân hệ: ${system === 'CCP' ? 'CoreCCP' : 'M-System'}
 Thời gian kiểm tra: ${executedAt || 'N/A'}
-- DSGD gốc (MS): ${result.totalOriginal?.toLocaleString('en-US')} lot
-- DSGD snapshot chiều: ${result.totalTemp?.toLocaleString('en-US')} lot
+- DSGD gốc / backup T-1 (${system}): ${result.totalOriginal?.toLocaleString('en-US')} lot
+- DSGD snapshot / tươi API T-1 (${system}): ${result.totalTemp?.toLocaleString('en-US')} lot
 - Chênh lệch tổng: ${result.differTotal} lot
-- ACM MS: ${result.totalACMMS?.toLocaleString('en-US')} lot
+- ACM ${system}: ${result.totalACMMS?.toLocaleString('en-US')} lot
 - ACM Straits SFTP: ${result.totalACMSFTP?.toLocaleString('en-US')} lot
 - Chênh lệch tự doanh ACM: ${result.differACM} lot
-Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THIẾU FILE SNAPSHOT' : 'CHÊNH LỆCH'}`;
+Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THIẾU FILE SNAPSHOT / TƯƠI API' : 'CHÊNH LỆCH'}`;
 
     navigator.clipboard.writeText(reportText);
     setCopied(true);
@@ -191,7 +196,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Kiểm tra DSGD trước EOD (CheckDSGDBeforeEOD)
+              Kiểm tra DSGD trước EOD - Phân hệ {system === 'CCP' ? 'CoreCCP' : 'M-System'} (CheckDSGDBeforeEOD)
             </h4>
 
             {/* Hover Tooltip Chú thích tệp tin & công thức */}
@@ -236,23 +241,39 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
                 >
                   <div style={{ fontWeight: 800, color: '#3b82f6', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <FileSpreadsheet size={14} />
-                    <span>Các tệp tin đầu vào bắt buộc:</span>
+                    <span>Các tệp tin đầu vào bắt buộc ({system}):</span>
                   </div>
                   <ul style={{ margin: '0 0 8px 0', paddingLeft: '18px', color: 'var(--text-secondary)' }}>
-                    <li>
-                      <strong>DSGD.xlsx</strong>: Bản gốc đầu ngày lưu tại Backup MS\Futures hoặc TradingCheck.
-                    </li>
-                    <li>
-                      <strong>DSGD&#123;timeSuffix&#125;.xlsx</strong>: Bản snapshot chốt phiên chiều (ví dụ: <code>DSGD172842.xlsx</code>).
-                    </li>
-                    <li>
-                      <strong>Straits CSV</strong>: File giao dịch từ SFTP Straits (<code>EOD FO trades_PT Straits...csv</code>).
-                    </li>
+                    {system === 'CCP' ? (
+                      <>
+                        <li>
+                          <strong>DSGD CCP / DSGD_&#123;date&#125;.xlsx</strong>: File backup T-1 lưu tại Backup CCP\Futures.
+                        </li>
+                        <li>
+                          <strong>Báo cáo tươi gọi API</strong>: ORDERMATCH_DETAIL gọi qua API CoreCCP với ngày T-1.
+                        </li>
+                        <li>
+                          <strong>Straits CSV</strong>: File giao dịch từ SFTP Straits (<code>EOD FO trades_PT Straits...csv</code>).
+                        </li>
+                      </>
+                    ) : (
+                      <>
+                        <li>
+                          <strong>DSGD.xlsx</strong>: Bản gốc đầu ngày lưu tại Backup MS\Futures hoặc TradingCheck.
+                        </li>
+                        <li>
+                          <strong>DSGD&#123;timeSuffix&#125;.xlsx</strong>: Bản snapshot chốt phiên chiều (ví dụ: <code>DSGD172842.xlsx</code>).
+                        </li>
+                        <li>
+                          <strong>Straits CSV</strong>: File giao dịch từ SFTP Straits (<code>EOD FO trades_PT Straits...csv</code>).
+                        </li>
+                      </>
+                    )}
                   </ul>
                   <div style={{ paddingTop: '6px', borderTop: '1px dashed var(--border-color)', color: 'var(--text-muted)', fontSize: '0.72rem' }}>
                     <strong>Công thức đối chiếu core:</strong>
                     <div>• Tổng KLGD: |TotalOriginal - TotalTemp| &le; 0.0001 lot</div>
-                    <div>• Khớp ACM tự doanh: |TotalACM_MS - TotalACM_Straits| &le; 0.0001 lot</div>
+                    <div>• Khớp ACM tự doanh: |TotalACM_{system} - TotalACM_Straits| &le; 0.0001 lot</div>
                   </div>
                 </div>
               )}
@@ -447,7 +468,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              ACM / Tự Doanh (MS vs Straits)
+              ACM / Tự Doanh ({system === 'CCP' ? 'CCP' : 'MS'} vs Straits)
             </span>
             <span
               style={{
@@ -473,7 +494,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
           </div>
 
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            M-System (đuôi A) vs Straits CSV
+            {system === 'CCP' ? 'CoreCCP (đuôi A) vs Straits CSV' : 'M-System (đuôi A) vs Straits CSV'}
           </span>
         </div>
 
@@ -491,7 +512,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              DSGD Gốc vs Snapshot (MS)
+              {system === 'CCP' ? 'DSGD Backup T-1 vs Gọi API T-1 (CCP)' : 'DSGD Gốc vs Snapshot (MS)'}
             </span>
             <span
               style={{
@@ -517,7 +538,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
           </div>
 
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            M-System gốc vs Snapshot chốt chiều
+            {system === 'CCP' ? 'File Backup T-1 vs Gọi API CoreCCP T-1' : 'M-System gốc vs Snapshot chốt chiều'}
           </span>
         </div>
 
@@ -670,7 +691,9 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               Chưa chạy kiểm tra DSGD trước EOD phiên này. Nhấn &ldquo;Check DSGD Trước EOD&rdquo; để quét.
             </span>
             <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              Hệ thống sẽ đối chiếu file DSGD gốc với snapshot chốt chiều và khớp lệnh tự doanh ACM (MS vs Straits CSV).
+              {system === 'CCP'
+                ? 'Hệ thống sẽ đối chiếu file DSGD backup T-1 với file tươi gọi qua API CoreCCP T-1 và khớp lệnh tự doanh ACM (CCP vs Straits CSV).'
+                : 'Hệ thống sẽ đối chiếu file DSGD gốc với snapshot chốt chiều và khớp lệnh tự doanh ACM (MS vs Straits CSV).'}
             </span>
           </div>
         ) : (

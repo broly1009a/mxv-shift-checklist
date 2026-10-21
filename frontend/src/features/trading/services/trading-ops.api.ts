@@ -92,6 +92,7 @@ export const tradingOpsApi = {
    */
   async checkDsgdBeforeEod(
     params: {
+      system?: 'MS' | 'CCP';
       tradingDate?: string;
       timeSuffix?: string;
       triggerDownload?: boolean;

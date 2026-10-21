@@ -630,6 +630,7 @@ export class KlgdReconController {
   @Post('check-dsgd-before-eod')
   @Permissions('ACCESS_AUTO_SHIFT')
   async runAutoCheckDSGDBeforeEOD(
+    @Body('system') system?: 'MS' | 'CCP',
     @Body('tradingDate') tradingDateStr?: string,
     @Body('timeSuffix') timeSuffix?: string,
     @Body('triggerDownload') triggerDownload?: boolean,
@@ -639,6 +640,7 @@ export class KlgdReconController {
   ) {
     try {
       const result = await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({
+        system,
         tradingDate: tradingDateStr ? new Date(tradingDateStr) : new Date(),
         timeSuffix,
         triggerDownload: Boolean(triggerDownload),
@@ -654,7 +656,7 @@ export class KlgdReconController {
         };
         const status = result.passed ? 'PASSED' : 'NEEDS_ATTENTION';
 
-        let note = `[KIỂM TRA DSGD TRƯỚC EOD - TỰ ĐỘNG]\n`;
+        let note = `[KIỂM TRA DSGD TRƯỚC EOD (${result.system || 'MS'}) - TỰ ĐỘNG]\n`;
         if (result.sessionDate) {
           note += `• Ngày phiên đối chiếu: ${result.sessionDate}\n`;
         }
@@ -663,8 +665,8 @@ export class KlgdReconController {
           note += `• Hệ thống đã chặn so sánh file gốc với chính nó để ngăn chặn báo thành công ảo.\n`;
         }
         note += `• Khối lượng DSGD gốc: ${result.totalOriginal} lot\n`;
-        note += `• Khối lượng DSGD snapshot (${result.timeSuffix || 'mới nhất'}): ${result.isSnapshotMissing ? 'Không tìm thấy file snapshot' : `${result.totalTemp} lot (Chênh lệch: ${result.differTotal} lot)`}\n`;
-        note += `• Khối lượng ACM MS vs Straits: ${result.totalACMMS} vs ${result.totalACMSFTP} lot (Chênh lệch: ${result.differACM} lot)\n`;
+        note += `• Khối lượng DSGD snapshot/tươi (${result.timeSuffix || 'mới nhất'}): ${result.isSnapshotMissing ? 'Không tìm thấy file snapshot' : `${result.totalTemp} lot (Chênh lệch: ${result.differTotal} lot)`}\n`;
+        note += `• Khối lượng ACM ${result.system === 'CCP' ? 'CCP' : 'MS'} vs Straits: ${result.totalACMMS} vs ${result.totalACMSFTP} lot (Chênh lệch: ${result.differACM} lot)\n`;
         note += `• Kết luận: ${result.messages.join(' | ')}\n`;
 
         const noteJson = JSON.stringify({
@@ -672,6 +674,7 @@ export class KlgdReconController {
           message: note,
           result,
           type: 'CHECK_DSGD_BEFORE_EOD',
+          system: result.system || 'MS',
           attempts: 1,
           maxAttempts: 1,
           executedAt: new Date().toISOString(),

@@ -22,14 +22,18 @@ import { WorkingCalendarService } from '../../working-calendar/working-calendar.
 import {
   getMsBackupBase,
   getAcmBackupBase,
+  getCcpBackupBasePath,
+  resolveStoragePathCrossPlatform,
 } from '../../../shared';
 import {
   parseDSGD,
   parseStraitsCsv,
 } from '../helpers/trading-math.helper';
+import { CcpExcelParser } from '../parsers/ccp-excel.parser';
 
 export interface CheckDSGDBeforeEODResult {
   passed: boolean;
+  system?: 'MS' | 'CCP';
   totalOriginal: number;
   totalTemp: number;
   totalACMMS: number;
@@ -149,32 +153,43 @@ export class DsgdBeforeEodService {
       acmTrades?: Buffer;
     },
     options?: {
+      system?: 'MS' | 'CCP';
       timeSuffix?: string;
       sessionDate?: string;
     },
   ): CheckDSGDBeforeEODResult {
+    const system = options?.system || 'MS';
     if (!files.dsgdOriginal) {
-      throw new Error('Thiếu file M-System DSGD.xlsx gốc');
+      throw new Error(`Thiếu file DSGD ${system === 'CCP' ? 'CoreCCP' : 'M-System'} gốc`);
     }
 
     // 1. Parse DSGD gốc
-    const dsgdOriginalData = parseDSGD(files.dsgdOriginal);
     let totalOriginal = 0;
-    for (const gd of dsgdOriginalData) {
-      totalOriginal += Number(gd.klGiaoDich) || 0;
-    }
+    let totalACMMS = 0;
 
-    // 2. Kiểm tra bắt buộc có file DSGD snapshot trước EOD (Ngăn chặn so sánh file gốc với chính nó)
-    if (!files.dsgdTemp || files.dsgdTemp.length === 0) {
-      let totalACMMS = 0;
+    if (system === 'CCP') {
+      const origRes = CcpExcelParser.parseDSGD(files.dsgdOriginal);
+      totalOriginal = origRes.totalKhop;
+      for (const r of origRes.records) {
+        const acc = String(r.soTK || '').trim().toUpperCase();
+        if (acc.endsWith('A')) {
+          totalACMMS += r.klKhop;
+        }
+      }
+    } else {
+      const dsgdOriginalData = parseDSGD(files.dsgdOriginal);
       for (const gd of dsgdOriginalData) {
         const kl = Number(gd.klGiaoDich) || 0;
+        totalOriginal += kl;
         const acc = String(gd.maTKGD || '').trim().toUpperCase();
         if (acc.endsWith('A')) {
           totalACMMS += kl;
         }
       }
+    }
 
+    // 2. Kiểm tra bắt buộc có file DSGD snapshot trước EOD (Ngăn chặn so sánh file gốc với chính nó)
+    if (!files.dsgdTemp || files.dsgdTemp.length === 0) {
       let totalACMSFTP = totalACMMS;
       if (files.acmTrades && files.acmTrades.length > 0) {
         const straitsResult = parseStraitsCsv(files.acmTrades);
@@ -188,6 +203,7 @@ export class DsgdBeforeEodService {
 
       return {
         passed: false,
+        system,
         isSnapshotMissing: true,
         totalOriginal,
         totalTemp: 0,
@@ -196,30 +212,28 @@ export class DsgdBeforeEodService {
         differTotal: totalOriginal,
         differACM,
         messages: [
-          'LỖI: Không có file snapshot DSGD (dsgdTemp/dsgdSnapshot).',
+          `LỖI: Không có file ${system === 'CCP' ? 'DSGD tươi tải qua API CoreCCP T-1' : 'snapshot DSGD (dsgdTemp)'}.`,
           'Hệ thống bảo vệ dữ liệu đã chặn hành vi so sánh file gốc với chính nó để giả mạo chênh lệch 0 lot!',
         ],
-        warning: 'Thiếu file snapshot DSGD trước EOD.',
+        warning: `Thiếu file ${system === 'CCP' ? 'DSGD tươi CoreCCP' : 'snapshot DSGD'} trước EOD.`,
         sessionDate: options?.sessionDate || '',
         timeSuffix: options?.timeSuffix || '',
       };
     }
 
-    // 3. Parse DSGD snapshot
+    // 3. Parse DSGD snapshot / file tươi API
     let totalTemp = 0;
-    let totalACMMS = 0;
-    const dsgdTempData = parseDSGD(files.dsgdTemp);
-    for (const gd of dsgdTempData) {
-      const kl = Number(gd.klGiaoDich) || 0;
-      totalTemp += kl;
-      const acc = String(gd.maTKGD || '').trim().toUpperCase();
-      //  LOGIC BẮT BUỘC: Lọc tài khoản ACM theo hậu tố 'A' — Đặc thù MXV
-      if (acc.endsWith('A')) {
-        totalACMMS += kl;
+    if (system === 'CCP') {
+      const tempRes = CcpExcelParser.parseDSGD(files.dsgdTemp);
+      totalTemp = tempRes.totalKhop;
+    } else {
+      const dsgdTempData = parseDSGD(files.dsgdTemp);
+      for (const gd of dsgdTempData) {
+        totalTemp += Number(gd.klGiaoDich) || 0;
       }
     }
 
-    // 3. Parse ACM Straits CSV (nếu có)
+    // 4. Parse ACM Straits CSV (nếu có)
     let totalACMSFTP = totalACMMS;
     if (files.acmTrades && files.acmTrades.length > 0) {
       const straitsResult = parseStraitsCsv(files.acmTrades);
@@ -235,7 +249,7 @@ export class DsgdBeforeEodService {
     const differTotal = Math.round(Math.abs(totalOriginal - totalTemp) * 10000) / 10000;
     const differACM = Math.round(Math.abs(totalACMMS - totalACMSFTP) * 10000) / 10000;
 
-    // 4. Sinh danh sách thông báo chuẩn theo C# TransactionCheckingService.cs#L452-L466
+    // 5. Sinh danh sách thông báo chuẩn theo C# TransactionCheckingService.cs#L452-L466
     const messages: string[] = [];
     if (differTotal > 0.0001) {
       messages.push(`Khối lượng giao dịch chênh lệch ${differTotal} lot`);
@@ -252,6 +266,7 @@ export class DsgdBeforeEodService {
 
     return {
       passed,
+      system,
       totalOriginal,
       totalTemp,
       totalACMMS,
@@ -275,7 +290,9 @@ export class DsgdBeforeEodService {
     exactDate?: boolean;
     customMsDir?: string;
     customAcmDir?: string;
+    system?: 'MS' | 'CCP';
   }): Promise<CheckDSGDBeforeEODResult> {
+    const system = options?.system || 'MS';
     let day: string;
     let month: string;
     let year: string;
@@ -301,18 +318,31 @@ export class DsgdBeforeEodService {
     const timeSuffix = options?.timeSuffix || `${hours}h${minutes}`;
 
     this.logger.log(
-      `Bắt đầu kiểm tra trước EOD cho phiên: ${dateFormatted}, timeSuffix: ${timeSuffix}`,
+      `Bắt đầu kiểm tra trước EOD [Phân hệ: ${system}] cho phiên: ${dateFormatted}, timeSuffix: ${timeSuffix}`,
     );
 
-    // 1. Xác định đường dẫn thư mục Backup MS và ACM
-    const msBackupBase = options?.customMsDir || (await getMsBackupBase(this.settingsService));
-    let dailyMsDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
+    // 1. Xác định đường dẫn thư mục Backup (MS hoặc CCP) và ACM
+    let dailyDir: string;
+    if (system === 'CCP') {
+      const rawCcpBase = options?.customMsDir || (await getCcpBackupBasePath(this.settingsService));
+      dailyDir = path.join(rawCcpBase, year, `T${month}.${year}`, `${day}.${month}`);
+      if (!fs.existsSync(dailyDir) || !fs.readdirSync(dailyDir).some(f => /^DSGD/i.test(f) && !/DSGD\s+MM/i.test(f))) {
+        const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures';
+        const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
+        if (fs.existsSync(mShareDir)) {
+          dailyDir = mShareDir;
+        }
+      }
+    } else {
+      const msBackupBase = options?.customMsDir || (await getMsBackupBase(this.settingsService));
+      dailyDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
 
-    if (!fs.existsSync(path.join(dailyMsDir, 'DSGD.xlsx'))) {
-      const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures';
-      const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
-      if (fs.existsSync(path.join(mShareDir, 'DSGD.xlsx'))) {
-        dailyMsDir = mShareDir;
+      if (!fs.existsSync(path.join(dailyDir, 'DSGD.xlsx'))) {
+        const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures';
+        const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
+        if (fs.existsSync(path.join(mShareDir, 'DSGD.xlsx'))) {
+          dailyDir = mShareDir;
+        }
       }
     }
 
@@ -327,46 +357,64 @@ export class DsgdBeforeEodService {
       }
     }
 
-    // NOTE: triggerDownload sẽ được xử lý bởi BotDispatcherService trong Pha 5.
-    // V2 chỉ đọc file đã có sẵn trên thư mục Backup.
-    if (options?.triggerDownload) {
-      this.logger.warn(
-        `triggerDownload=true nhưng V2 DsgdBeforeEodService không tự kích hoạt Bot RPA. ` +
-        `Hãy dùng BotDispatcherService để kích hoạt job tải file trước khi gọi hàm này.`,
+    // 2. Tìm file DSGD gốc trong thư mục backup
+    let dsgdOriginalPath: string = '';
+    if (system === 'CCP') {
+      if (!fs.existsSync(dailyDir)) {
+        throw new Error(
+          `Không tìm thấy thư mục Backup CoreCCP ngày ${day}.${month}: ${dailyDir}. Vui lòng kiểm tra lại ổ đĩa mạng M:\\.`,
+        );
+      }
+      const ccpFiles = fs.readdirSync(dailyDir);
+      const matched = ccpFiles.find(
+        (f) =>
+          /^DSGD/i.test(f) &&
+          !/DSGD\s+MM/i.test(f) &&
+          !f.startsWith('~$') &&
+          f.endsWith('.xlsx'),
       );
+      if (!matched) {
+        throw new Error(
+          `Không tìm thấy file DSGD CCP trong thư mục: ${dailyDir}. Vui lòng kiểm tra lại.`,
+        );
+      }
+      dsgdOriginalPath = path.join(dailyDir, matched);
+    } else {
+      dsgdOriginalPath = path.join(dailyDir, 'DSGD.xlsx');
+      if (!fs.existsSync(dsgdOriginalPath)) {
+        throw new Error(
+          `Không tìm thấy file DSGD.xlsx gốc tại: ${dsgdOriginalPath}. Vui lòng kiểm tra lại thư mục backup.`,
+        );
+      }
     }
 
-    // 2. Tìm file DSGD.xlsx gốc
-    const dsgdOriginalPath = path.join(dailyMsDir, 'DSGD.xlsx');
-    if (!fs.existsSync(dsgdOriginalPath)) {
-      throw new Error(
-        `Không tìm thấy file DSGD.xlsx gốc tại: ${dsgdOriginalPath}. Vui lòng kiểm tra lại thư mục backup.`,
-      );
-    }
     const dsgdOriginalBuffer = fs.readFileSync(dsgdOriginalPath);
 
-    // 3. Tìm file DSGD snapshot (DSGD{timeSuffix}.xlsx hoặc file DSGD*.xlsx mới nhất ngoài DSGD.xlsx)
-    let dsgdTempPath = path.join(dailyMsDir, `DSGD${timeSuffix}.xlsx`);
+    // 3. Tìm file DSGD snapshot / file tươi API
+    const defaultSnapshotName = system === 'CCP' ? `DSGD CCP_${timeSuffix}.xlsx` : `DSGD${timeSuffix}.xlsx`;
+    let dsgdTempPath = path.join(dailyDir, defaultSnapshotName);
     let dsgdTempBuffer: Buffer | undefined;
 
     if (fs.existsSync(dsgdTempPath)) {
       dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
     } else {
-      //  LOGIC BẮT BUỘC: Tìm file DSGD snapshot
-      // Quét trong dailyMsDir và thư mục TradingCheck tương ứng (chuẩn cấu trúc lưu file của C# IT Tool)
+      // Quét trong dailyDir và thư mục TradingCheck tương ứng
       const searchDirs: string[] = [];
-      if (fs.existsSync(dailyMsDir)) searchDirs.push(dailyMsDir);
-      const tradingCheckDir = dailyMsDir.replace(/[\\/]Backup MS[\\/]/i, path.sep + 'TradingCheck' + path.sep);
+      if (fs.existsSync(dailyDir)) searchDirs.push(dailyDir);
+      const tradingCheckDir = system === 'CCP'
+        ? dailyDir.replace(/[\\/]Backup CCP[\\/]/i, path.sep + 'TradingCheck' + path.sep + 'CCP' + path.sep)
+        : dailyDir.replace(/[\\/]Backup MS[\\/]/i, path.sep + 'TradingCheck' + path.sep);
       if (fs.existsSync(tradingCheckDir) && !searchDirs.includes(tradingCheckDir)) {
         searchDirs.push(tradingCheckDir);
       }
 
+      const origBaseName = path.basename(dsgdOriginalPath).toLowerCase();
       const candidates: Array<{ name: string; path: string; mtime: number }> = [];
       for (const dir of searchDirs) {
         try {
           const filesInDir = fs.readdirSync(dir);
           for (const f of filesInDir) {
-            if (/^DSGD.+\.xlsx$/i.test(f) && !f.startsWith('~$') && f.toLowerCase() !== 'dsgd.xlsx') {
+            if (/^DSGD.+\.xlsx$/i.test(f) && !f.startsWith('~$') && !/DSGD\s+MM/i.test(f) && f.toLowerCase() !== origBaseName) {
               const full = path.join(dir, f);
               candidates.push({ name: f, path: full, mtime: fs.statSync(full).mtimeMs });
             }
@@ -391,22 +439,33 @@ export class DsgdBeforeEodService {
       if (matchedCandidate) {
         dsgdTempPath = matchedCandidate.path;
         dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
-        this.logger.log(`Sử dụng file DSGD snapshot: ${matchedCandidate.name} (${matchedCandidate.path})`);
+        this.logger.log(`Sử dụng file DSGD snapshot (${system}): ${matchedCandidate.name} (${matchedCandidate.path})`);
       } else {
         this.logger.error(
-          `[BẢO VỆ DỮ LIỆU] Không tìm thấy bất kỳ file snapshot DSGD nào (hậu tố: "${timeSuffix || 'mới nhất'}") trong các thư mục đối soát: ${searchDirs.join(', ')}. Từ chối so sánh với file gốc!`,
+          `[BẢO VỆ DỮ LIỆU] Không tìm thấy bất kỳ file snapshot DSGD nào (${system}, hậu tố: "${timeSuffix || 'mới nhất'}") trong các thư mục đối soát: ${searchDirs.join(', ')}. Từ chối so sánh với file gốc!`,
         );
 
         // Tính toán số liệu file gốc để người dùng nắm được khối lượng đã ghi nhận
-        const dsgdOriginalData = parseDSGD(dsgdOriginalBuffer);
         let totalOriginal = 0;
         let totalACMMS = 0;
-        for (const gd of dsgdOriginalData) {
-          const kl = Number(gd.klGiaoDich) || 0;
-          totalOriginal += kl;
-          const acc = String(gd.maTKGD || '').trim().toUpperCase();
-          if (acc.endsWith('A')) {
-            totalACMMS += kl;
+        if (system === 'CCP') {
+          const origRes = CcpExcelParser.parseDSGD(dsgdOriginalBuffer);
+          totalOriginal = origRes.totalKhop;
+          for (const r of origRes.records) {
+            const acc = String(r.soTK || '').trim().toUpperCase();
+            if (acc.endsWith('A')) {
+              totalACMMS += r.klKhop;
+            }
+          }
+        } else {
+          const dsgdOriginalData = parseDSGD(dsgdOriginalBuffer);
+          for (const gd of dsgdOriginalData) {
+            const kl = Number(gd.klGiaoDich) || 0;
+            totalOriginal += kl;
+            const acc = String(gd.maTKGD || '').trim().toUpperCase();
+            if (acc.endsWith('A')) {
+              totalACMMS += kl;
+            }
           }
         }
 
@@ -451,6 +510,7 @@ export class DsgdBeforeEodService {
 
         return {
           passed: false,
+          system,
           isSnapshotMissing: true,
           totalOriginal,
           totalTemp: 0,
@@ -459,10 +519,10 @@ export class DsgdBeforeEodService {
           differTotal: totalOriginal,
           differACM,
           messages: [
-            `LỖI: Không tìm thấy file snapshot DSGD${options?.timeSuffix ? ' ' + options.timeSuffix : ''}.xlsx trong thư mục đối soát.`,
-            'Hệ thống bảo vệ dữ liệu đã chặn hành vi so sánh file gốc với chính nó để giả mạo chênh lệch 0 lot. Vui lòng tải snapshot phiên chiều trước EOD!',
+            `LỖI: Không tìm thấy file snapshot DSGD (${system})${options?.timeSuffix ? ' ' + options.timeSuffix : ''}.xlsx trong thư mục đối soát.`,
+            'Hệ thống bảo vệ dữ liệu đã chặn hành vi so sánh file gốc với chính nó để giả mạo chênh lệch 0 lot. Vui lòng tải snapshot phiên chiều hoặc gọi API tươi T-1 trước EOD!',
           ],
-          warning: `Không tìm thấy file snapshot DSGD${options?.timeSuffix ? ' ' + options.timeSuffix : ''}.xlsx.`,
+          warning: `Không tìm thấy file snapshot DSGD (${system})${options?.timeSuffix ? ' ' + options.timeSuffix : ''}.xlsx.`,
           sessionDate: dateFormatted,
           timeSuffix,
           filesFound: {
@@ -480,7 +540,6 @@ export class DsgdBeforeEodService {
 
     if (fs.existsSync(dailyAcmDir)) {
       const acmFiles = fs.readdirSync(dailyAcmDir);
-      //  LOGIC BẮT BUỘC: Nhận diện file ACM Straits — pattern /straits/i KHÔNG mở rộng
       const expectedAcmFile = `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${day}${month}${year}.csv`;
       const directAcmPath = path.join(dailyAcmDir, expectedAcmFile);
 
@@ -494,7 +553,7 @@ export class DsgdBeforeEodService {
               /straits/i.test(f) &&
               f.includes(`${day}${month}${year}`) &&
               f.endsWith('.csv'),
-          ) || acmFiles.find((f) => /straits/i.test(f) && f.endsWith('.csv')); // Fallback 1 cấp
+          ) || acmFiles.find((f) => /straits/i.test(f) && f.endsWith('.csv'));
 
         if (matched) {
           foundAcmPath = path.join(dailyAcmDir, matched);
@@ -517,6 +576,7 @@ export class DsgdBeforeEodService {
         acmTrades: acmTradesBuffer,
       },
       {
+        system,
         sessionDate: dateFormatted,
         timeSuffix,
       },
