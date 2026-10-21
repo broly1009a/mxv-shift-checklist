@@ -11,9 +11,9 @@ conn.on('ready', () => {
       const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
       const reconService = app.get(ReconciliationService);
 
-      console.log('Testing runAutoCheckEodMm for session 2026-09-24...');
+      console.log('Testing runAutoCheckEodMs for session 2026-09-24...');
       const targetDate = new Date('2026-09-24T00:00:00Z');
-      const result = await reconService.runAutoCheckEodMm(targetDate);
+      const result = await reconService.runAutoCheckEodMs(targetDate);
 
       console.log('Total negative accounts:', (result.eodResult?.negativeBalanceAccs?.length || 0) + (result.eodResult?.negativeIMRAcc?.length || 0));
       console.log('Total mismatched EOD:', result.eodResult?.mismatchedEOD?.length || 0);

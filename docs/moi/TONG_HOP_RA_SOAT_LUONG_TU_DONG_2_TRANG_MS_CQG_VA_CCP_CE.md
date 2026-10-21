@@ -35,7 +35,7 @@ flowchart TB
     subgraph SYSTEM_MS_CQG["PHÂN HỆ 1: M-SYSTEM & CQG (/trading-manager/ms-cqg)"]
         BotRecon["Bot CHECK_KLGD (4 Bên)<br/>MS ↔ CQG ↔ ACM ↔ CoreCCP"]
         BotDsgdBeforeEod["Bot CHECK_DSGD_BEFORE_EOD & DSGDBeforeEOD<br/>Quét DSGD snapshot vs Straits CSV"]
-        BotEodMS["Bot CHECK_EOD_MM<br/>Đối chiếu QLTKGD vs eod.csv & Quét âm KQ"]
+        BotEodMS["Bot CHECK_EOD_MS<br/>Đối chiếu QLTKGD vs eod.csv & Quét âm KQ"]
         BotCqgSync["Bot CHECK_CQG_SYNC<br/>Ghép 4 cặp file thô CQG & Check balance"]
         BotBackupMS["RPA M-System (20 báo cáo)<br/>Tải qua Chrome headless / Playwright"]
         BotBackupCQG["RPA CQG (9 file thô)<br/>Tải qua CQG Web API / Portal"]

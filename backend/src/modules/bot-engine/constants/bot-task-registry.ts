@@ -34,9 +34,9 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
     displayName: 'Quét Tài Khoản Âm Ký Quỹ',
     description: 'Quét và phân tích tài khoản âm ký quỹ',
   },
-  CHECK_EOD_MM: {
-    jobType: 'CHECK_EOD_MM',
-    botCheckType: 'CHECK_EOD_MM',
+  CHECK_EOD_MS: {
+    jobType: 'CHECK_EOD_MS',
+    botCheckType: 'CHECK_EOD_MS',
     displayName: 'Đối Chiếu Kết Quả EOD (M-System)',
     description: 'Đối chiếu kết quả chạy EOD & Ký quỹ âm M-System',
   },

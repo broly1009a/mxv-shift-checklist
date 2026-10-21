@@ -379,7 +379,7 @@ export default function LegacyReconSection({
           } else {
             toast.error(`Đối chiếu Khớp lệnh: Lệch ${mismatchTrades} lệnh (Lệch CQG: ${diffKLGD}, ACM: ${diffACM})`, { duration: 6000 });
           }
-        } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM') {
+        } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MS') {
           const negAccs = payloadResult?.eodResult?.negativeIMRAcc?.length || payloadResult?.negativeIMRAcc?.length || 0;
           const mismatchEOD = payloadResult?.eodResult?.mismatchedEOD?.length || payloadResult?.mismatchedEOD?.length || 0;
           const mismatchCQG = payloadResult?.cqgResult?.length || 0;
@@ -781,7 +781,7 @@ export default function LegacyReconSection({
 
   // Trạng thái đã thực thi phiên kiểm tra cho từng khối con (tránh hiển thị kết quả giả định / kết quả cũ)
   const hasExecutedMargin = !!(summaryData?.negativeMargin?.executedAt && summaryData?.negativeMargin?.status !== 'IDLE');
-  const eodData = summaryData?.eod || (summaryData?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MM' ? summaryData?.dsgdBeforeEod : null);
+  const eodData = summaryData?.eod || (summaryData?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MS' ? summaryData?.dsgdBeforeEod : null);
   const hasExecutedEod = !!(eodData?.executedAt && eodData?.status !== 'IDLE');
   const hasExecutedCqgSync = !!(summaryData?.cqgSync?.executedAt && summaryData?.cqgSync?.status !== 'IDLE');
 
@@ -2041,7 +2041,7 @@ export default function LegacyReconSection({
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleTriggerRun('CHECK_EOD_MM', 'dsgd')}
+                    onClick={() => handleTriggerRun('CHECK_EOD_MS', 'dsgd')}
                     disabled={triggering}
                     className="btn btn-secondary"
                     style={{
@@ -2177,7 +2177,7 @@ export default function LegacyReconSection({
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleTriggerRun('CHECK_EOD_MM', 'eod')}
+                    onClick={() => handleTriggerRun('CHECK_EOD_MS', 'eod')}
                     disabled={triggering}
                     className="btn btn-secondary"
                     title="Chạy đối chiếu EOD (Tự động tải file EOD từ mail Outlook nếu chưa có trong thư mục Backup MS)"

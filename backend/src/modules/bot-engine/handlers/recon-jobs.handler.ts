@@ -21,7 +21,7 @@ import { IngressService } from '../../ingress/ingress.service';
 @Injectable()
 export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnModuleInit {
   private readonly logger = new Logger(ReconJobsHandler.name);
-  readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_DSGD_BEFORE_EOD', 'CHECK_DSGD_BEFORE_EOD', 'CHECK_EOD_MM', 'CHECK_EOD_CCP', 'CHECK_CQG_SYNC'];
+  readonly jobTypes = ['AUTO_CHECK_SOD', 'CHECK_KLGD', 'CHECK_DSGD_BEFORE_EOD', 'CHECK_DSGD_BEFORE_EOD', 'CHECK_EOD_MS', 'CHECK_EOD_CCP', 'CHECK_CQG_SYNC'];
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
@@ -59,8 +59,8 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
       case 'CHECK_DSGD_BEFORE_EOD':
       case 'CHECK_DSGD_BEFORE_EOD':
         return this.handleCheckDsgdBeforeEodJob(job);
-      case 'CHECK_EOD_MM':
-        return this.handleCheckEodMmJob(job);
+      case 'CHECK_EOD_MS':
+        return this.handleCheckEodMsJob(job);
       case 'CHECK_EOD_CCP':
         return this.handleCheckEodCcpJob(job);
       case 'CHECK_CQG_SYNC':
@@ -1351,7 +1351,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     }
   }
 
-  private async handleCheckEodMmJob(job: any) {
+  private async handleCheckEodMsJob(job: any) {
     const payload = parseJobPayload(job);
     
     // NGHIỆP VỤ EOD: EOD là đối chiếu chốt số liệu phiên hôm trước (T-1).
@@ -1448,7 +1448,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     }
 
     try {
-      const result = await this.dsgdBeforeEodReconService.runAutoCheckEodMm(targetDate);
+      const result = await this.dsgdBeforeEodReconService.runAutoCheckEodMs(targetDate);
       job.logs.push(`[${new Date().toISOString()}] Hoàn thành đối chiếu EOD M-System ngày phiên ${dateStr}.`);
 
       const MAX_PREVIEW = 30;

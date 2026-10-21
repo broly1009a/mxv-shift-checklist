@@ -82,7 +82,7 @@ export class DsgdBeforeEodReconService {
     };
   }
 
-  async runAutoCheckEodMm(tradingDate: Date): Promise<any> {
+  async runAutoCheckEodMs(tradingDate: Date): Promise<any> {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_ms',

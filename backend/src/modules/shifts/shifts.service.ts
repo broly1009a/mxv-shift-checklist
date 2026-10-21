@@ -634,7 +634,7 @@ export class ShiftsService {
       const AUDIT_JOB_TYPES = [
         'CHECK_KLGD',
         'CHECK_DSGD_BEFORE_EOD',
-        'CHECK_EOD_MM',
+        'CHECK_EOD_MS',
         'FILE_AUDIT_ACM',
         'FILE_AUDIT_CQG',
         'FILE_AUDIT_MS',

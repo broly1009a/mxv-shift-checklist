@@ -287,19 +287,19 @@
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
 
 1. **Tool C# gá»‘c**: 3 khá»‘i kiá»ƒm tra EOD tÆ°Æ¡ng á»©ng vá»›i 3 nÃºt Ä‘á»™c láº­p:
-   - Khá»‘i 1: `btnCheckDSGDTruocEOD_Click` $\rightarrow$ `SCAN_NEGATIVE_MARGIN` / `CHECK_EOD_MM`.
-   - Khá»‘i 2: `btnEODResult_Click` $\rightarrow$ `CHECK_EOD_MM` / `CHECK_EOD`.
+   - Khá»‘i 1: `btnCheckDSGDTruocEOD_Click` $\rightarrow$ `SCAN_NEGATIVE_MARGIN` / `CHECK_EOD_MS`.
+   - Khá»‘i 2: `btnEODResult_Click` $\rightarrow$ `CHECK_EOD_MS` / `CHECK_EOD`.
    - Khá»‘i 3: `btnCheckCQGSync_Click` $\rightarrow$ `CHECK_CQG_SYNC`.
    - Khi ca trá»±c má»›i báº¯t Ä‘áº§u hoáº·c chÆ°a báº¥m nÃºt nÃ o $\rightarrow$ Báº£ng tÆ°Æ¡ng á»©ng hoÃ n toÃ n trá»‘ng, khÃ´ng hiá»ƒn thá»‹ giá» cháº¡y giáº£ Ä‘á»‹nh.
 2. **Lá»—i trong code cÅ©**:
    - Trong `recon-console-summary.service.ts`: Khá»‘i 2 (`dsgdBeforeEod`) vÃ  Khá»‘i 3 (`cqgSync`) tá»± Ã½ fallback láº¥y thá»i gian tá»« `dsgdBeforeEodJob.createdAt` (Job `CHECK_DSGD_BEFORE_EOD` cháº¡y lÃºc **09:47:06 sÃ¡ng**).
-   - Dáº«n Ä‘áº¿n viá»‡c dÃ¹ ngÆ°á»i dÃ¹ng ca chiá»u chÆ°a báº¥m Check CQG Sync hay vá»«a báº¥m Check EOD MM lÃºc 16:34:13, giao diá»‡n váº«n bá»‹ káº¹t á»Ÿ thá»i gian cÅ© `(09:47:06 25/09)` vÃ  hiá»ƒn thá»‹ thÃ´ng bÃ¡o "khá»›p hoÃ n toÃ n" tá»« sÃ¡ng.
+   - Dáº«n Ä‘áº¿n viá»‡c dÃ¹ ngÆ°á»i dÃ¹ng ca chiá»u chÆ°a báº¥m Check CQG Sync hay vá»«a báº¥m Check EOD MS lÃºc 16:34:13, giao diá»‡n váº«n bá»‹ káº¹t á»Ÿ thá»i gian cÅ© `(09:47:06 25/09)` vÃ  hiá»ƒn thá»‹ thÃ´ng bÃ¡o "khá»›p hoÃ n toÃ n" tá»« sÃ¡ng.
 
 ### 3. Chi tiáº¿t cÃ¡c sá»­a Ä‘á»•i bÃ¡m sÃ¡t nghiá»‡p vá»¥
 
 1. **Backend** ([recon-console-summary.service.ts#L880-L1070](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts#L880-L1070)):
-   - **Khá»‘i 1 (`negativeMargin`)**: Chá»‰ Ä‘á»c tá»« `marginJob` (`CHECK_EOD_MM` / `SCAN_NEGATIVE_MARGIN`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
-   - **Khá»‘i 2 (`dsgdBeforeEod` - Káº¿t quáº£ cháº¡y EOD)**: Láº¥y Job EOD má»›i nháº¥t cá»§a ngÃ y hÃ´m nay (`latestEodJob` giá»¯a `CHECK_EOD_MM` vÃ  `CHECK_DSGD_BEFORE_EOD`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
+   - **Khá»‘i 1 (`negativeMargin`)**: Chá»‰ Ä‘á»c tá»« `marginJob` (`CHECK_EOD_MS` / `SCAN_NEGATIVE_MARGIN`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
+   - **Khá»‘i 2 (`dsgdBeforeEod` - Káº¿t quáº£ cháº¡y EOD)**: Láº¥y Job EOD má»›i nháº¥t cá»§a ngÃ y hÃ´m nay (`latestEodJob` giá»¯a `CHECK_EOD_MS` vÃ  `CHECK_DSGD_BEFORE_EOD`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`.
    - **Khá»‘i 3 (`cqgSync` - Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG)**: **Chá»‰ Ä‘á»c duy nháº¥t** tá»« `cqgSyncJob` (`CHECK_CQG_SYNC`). Náº¿u hÃ´m nay chÆ°a cháº¡y $\rightarrow$ `executedAt: null`, `status: 'IDLE'`. Bá» 100% fallback sang `dsgdBeforeEodJob`.
 2. **Frontend** ([LegacyReconSection.tsx#L768-L774](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L768-L774)):
    - `hasExecutedCqgSync`: Chá»‰ báº­t `true` khi `summaryData?.cqgSync?.executedAt` tá»“n táº¡i vÃ  status khÃ¡c `IDLE`. Bá» hoÃ n toÃ n fallback sang `dsgdBeforeEod`.
@@ -311,23 +311,23 @@
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
 
-- ÄÃ¡p á»©ng yÃªu cáº§u cá»§a USER: Hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§ táº¥t cáº£ cÃ¡c tÃ¡c vá»¥ trong HÃ ng Äá»£i (Job Queue) cá»§a mÃ n hÃ¬nh Trading Manager (nhÆ° `CHECK_EOD_MM`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...), cho phÃ©p kiá»ƒm soÃ¡t viÃªn xem trá»±c tiáº¿p tiáº¿n trÃ¬nh vÃ  nháº­t kÃ½ log thá»±c thi ngay táº¡i chá»— mÃ  khÃ´ng cáº§n pháº£i chuyá»ƒn sang trang `/admin/bot-config`.
+- ÄÃ¡p á»©ng yÃªu cáº§u cá»§a USER: Hiá»ƒn thá»‹ Ä‘áº§y Ä‘á»§ táº¥t cáº£ cÃ¡c tÃ¡c vá»¥ trong HÃ ng Äá»£i (Job Queue) cá»§a mÃ n hÃ¬nh Trading Manager (nhÆ° `CHECK_EOD_MS`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...), cho phÃ©p kiá»ƒm soÃ¡t viÃªn xem trá»±c tiáº¿p tiáº¿n trÃ¬nh vÃ  nháº­t kÃ½ log thá»±c thi ngay táº¡i chá»— mÃ  khÃ´ng cáº§n pháº£i chuyá»ƒn sang trang `/admin/bot-config`.
 
 ### 2. NguyÃªn nhÃ¢n ká»¹ thuáº­t phÃ¡t hiá»‡n (Code-First Grounding)
 
-- Trong [TradingManagerJobQueueSection.tsx#L32-L51](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L32-L51), máº£ng `TRADING_JOB_TYPES` chá»‰ chá»©a 18 tÃ¡c vá»¥ tÄ©nh vÃ  thiáº¿u cÃ¡c tÃ¡c vá»¥ cá»‘t lÃµi: `CHECK_EOD_MM`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...
+- Trong [TradingManagerJobQueueSection.tsx#L32-L51](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L32-L51), máº£ng `TRADING_JOB_TYPES` chá»‰ chá»©a 18 tÃ¡c vá»¥ tÄ©nh vÃ  thiáº¿u cÃ¡c tÃ¡c vá»¥ cá»‘t lÃµi: `CHECK_EOD_MS`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `EMAIL_PARSER`, `TKGD`...
 - HÃ m `fetchJobs` vÃ  `filteredJobs` thá»±c hiá»‡n lá»c kÃ©p theo `TRADING_JOB_TYPES`, khiáº¿n cÃ¡c tÃ¡c vá»¥ ngoÃ i danh sÃ¡ch nÃ y hoÃ n toÃ n biáº¿n máº¥t khá»i HÃ ng Äá»£i cá»§a Trading Manager, buá»™c ngÆ°á»i dÃ¹ng pháº£i má»Ÿ sang trang Quáº£n trá»‹ Bot (`/admin/bot-config`) má»›i tháº¥y Ä‘Æ°á»£c Job.
 
 ### 3. CÃ¡c thay Ä‘á»•i ká»¹ thuáº­t chi tiáº¿t
 
 1. **Má»Ÿ rá»™ng danh má»¥c tÃ¡c vá»¥ & Chuáº©n hÃ³a nhÃ£n tiáº¿ng Viá»‡t** ([TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx)):
-   - Bá»• sung vÃ o `TRADING_JOB_TYPES`: `CHECK_EOD_MM`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `RUN_VALUE_TVKD_MACRO`, `VERIFY_EMAIL`, `EMAIL_PARSER`, `EMAIL_PARSE`, `TKGD_EXTRACT`, `TKGD_RECONCILE`.
+   - Bá»• sung vÃ o `TRADING_JOB_TYPES`: `CHECK_EOD_MS`, `CHECK_EOD`, `AUTO_CHECK_SOD`, `DOWNLOAD_CAST`, `RUN_LOT_TVKD_MACRO`, `RUN_VALUE_TVKD_MACRO`, `VERIFY_EMAIL`, `EMAIL_PARSER`, `EMAIL_PARSE`, `TKGD_EXTRACT`, `TKGD_RECONCILE`.
    - Cáº­p nháº­t hÃ m `getJobLabel` hiá»ƒn thá»‹ tÃªn tiáº¿ng Viá»‡t rÃµ nghÄ©a vÃ  chuyÃªn nghiá»‡p cho táº¥t cáº£ cÃ¡c loáº¡i Job.
 2. **Bá»• sung bá»™ chá»n Pháº¡m Vi TÃ¡c Vá»¥ (Scope Selector)**:
    - ThÃªm bá»™ chuyá»ƒn Ä‘á»•i: **"ToÃ n bá»™ há»‡ thá»‘ng"** (`jobScope === 'ALL'`) vs **"Chá»‰ Trading"** (`jobScope === 'TRADING'`).
    - Máº·c Ä‘á»‹nh lÃ  **"ToÃ n bá»™ há»‡ thá»‘ng"**: Gá»i API `${API_BASE_URL}/api/v1/bot-engine/jobs` (láº¥y 100% táº¥t cáº£ cÃ¡c Job trong CSDL MongoDB giá»‘ng há»‡t `/admin/bot-config`), cho phÃ©p ngÆ°á»i dÃ¹ng theo dÃµi vÃ  xem log cá»§a má»i tÃ¡c vá»¥.
 3. **Bá»• sung Dropdown Lá»c Theo Loáº¡i TÃ¡c Vá»¥ Cá»¥ Thá»ƒ**:
-   - Tá»± Ä‘á»™ng gom danh sÃ¡ch loáº¡i tÃ¡c vá»¥ thá»±c táº¿ tá»« CSDL (`availableJobTypes`), cho phÃ©p lá»c nhanh xem riÃªng tá»«ng loáº¡i Job (nhÆ° chá»‰ xem EOD MM, chá»‰ xem KLGD, chá»‰ xem RPA...).
+   - Tá»± Ä‘á»™ng gom danh sÃ¡ch loáº¡i tÃ¡c vá»¥ thá»±c táº¿ tá»« CSDL (`availableJobTypes`), cho phÃ©p lá»c nhanh xem riÃªng tá»«ng loáº¡i Job (nhÆ° chá»‰ xem EOD MS, chá»‰ xem KLGD, chá»‰ xem RPA...).
 4. **XÃ¡c nháº­n Build & Deploy**:
    - Frontend Next.js build thÃ nh cÃ´ng 100% (`next build` - Exit code 0).
    - ÄÃ£ Ä‘á»“ng bá»™ vÃ  deploy lÃªn mÃ¡y chá»§ `10.0.0.26`, PM2 reload `mxv-frontend`.
@@ -684,16 +684,16 @@
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i
 
 - **YÃªu cáº§u tá»« USER**:
-  - Táº¡i khá»‘i **"Káº¿t quáº£ cháº¡y EOD"** trÃªn giao diá»‡n [LegacyReconSection.tsx#L2007](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2007): Khi báº¥m nÃºt "Check" cháº¡y Ä‘á»‘i chiáº¿u sá»‘ liá»‡u EOD (`CHECK_EOD_MM`), náº¿u há»‡ thá»‘ng kiá»ƒm tra trong thÆ° má»¥c Backup MS cá»¥c bá»™ mÃ  chÆ°a cÃ³ file EOD (`eod.YYYY-MM-DD.csv`, `EOD.csv`), há»‡ thá»‘ng sáº½ **tá»± Ä‘á»™ng quÃ©t vÃ  láº¥y file EOD tá»« mail Outlook M365 (`it.support@mxv.vn`) vá» thÆ° má»¥c luÃ´n**.
+  - Táº¡i khá»‘i **"Káº¿t quáº£ cháº¡y EOD"** trÃªn giao diá»‡n [LegacyReconSection.tsx#L2007](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L2007): Khi báº¥m nÃºt "Check" cháº¡y Ä‘á»‘i chiáº¿u sá»‘ liá»‡u EOD (`CHECK_EOD_MS`), náº¿u há»‡ thá»‘ng kiá»ƒm tra trong thÆ° má»¥c Backup MS cá»¥c bá»™ mÃ  chÆ°a cÃ³ file EOD (`eod.YYYY-MM-DD.csv`, `EOD.csv`), há»‡ thá»‘ng sáº½ **tá»± Ä‘á»™ng quÃ©t vÃ  láº¥y file EOD tá»« mail Outlook M365 (`it.support@mxv.vn`) vá» thÆ° má»¥c luÃ´n**.
   - ÄÃ¢y lÃ  luá»“ng ngoáº¡i lá»‡ dá»± phÃ²ng (vÃ¬ tÃ­nh nÄƒng quÃ©t mail Ä‘á»‹nh ká»³ cá»§a bot hiá»‡n Ä‘ang táº¡m táº¯t). YÃªu cáº§u bá»• sung cÆ¡ cháº¿ nÃ y thÃ´ng minh, liá»n máº¡ch, **khÃ´ng phÃ¡ vá»¡ cáº¥u trÃºc luá»“ng chÃ­nh á»•n Ä‘á»‹nh** cá»§a há»‡ thá»‘ng.
 - **Giáº£i phÃ¡p ká»¹ thuáº­t (Zero-Breaking Architecture)**:
   1. **Táº§ng Bot Job Queue / Worker Handler** ([recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)):
-     - Khi `handleCheckEodMmJob` khá»Ÿi cháº¡y, bot tá»± Ä‘á»™ng resolve Ä‘Æ°á»ng dáº«n thÆ° má»¥c `msDailyPath` cá»§a ngÃ y phiÃªn (`year/Tmonth.year/day.month`).
+     - Khi `handleCheckEodMsJob` khá»Ÿi cháº¡y, bot tá»± Ä‘á»™ng resolve Ä‘Æ°á»ng dáº«n thÆ° má»¥c `msDailyPath` cá»§a ngÃ y phiÃªn (`year/Tmonth.year/day.month`).
      - DÃ¹ng `findLatestFile(msDailyPath, /eod/i)` kiá»ƒm tra xem file EOD Ä‘Ã£ cÃ³ trÃªn Ä‘Ä©a chÆ°a.
      - **Náº¿u ÄÃƒ CÃ“**: Ghi log `ðŸ“ ÄÃ£ tÃ¬m tháº¥y file EOD sáºµn cÃ³ trong thÆ° má»¥c Backup MS` vÃ  tiáº¿p tá»¥c Ä‘á»‘i soÃ¡t tá»©c thÃ¬ (khÃ´ng tá»‘n thá»i gian gá»i API M365).
      - **Náº¿u CHÆ¯A CÃ“**: Ghi log thÃ´ng bÃ¡o kÃ­ch hoáº¡t luá»“ng ngoáº¡i lá»‡ vÃ  gá»i `emailWatcherService.fetchEodEmail(dateStr, msDailyPath)`. File EOD Ä‘Ã­nh kÃ¨m Ä‘Æ°á»£c táº£i trá»±c tiáº¿p vá» `msDailyPath`. ToÃ n bá»™ log nÃ y Ä‘Æ°á»£c stream real-time qua WebSocket lÃªn giao diá»‡n cho USER quan sÃ¡t.
   2. **Táº§ng Core Service Reconciliation** ([dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts)):
-     - Trong `runAutoCheckEodMm(tradingDate)`: Kiá»ƒm tra `eodPath = findLatestFile(msDailyPath, /eod/i)`. Náº¿u chÆ°a cÃ³, kÃ­ch hoáº¡t fallback gá»i `this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath)`.
+     - Trong `runAutoCheckEodMs(tradingDate)`: Kiá»ƒm tra `eodPath = findLatestFile(msDailyPath, /eod/i)`. Náº¿u chÆ°a cÃ³, kÃ­ch hoáº¡t fallback gá»i `this.emailWatcherService.fetchEodEmail(dateStr, msDailyPath)`.
      - Phá»¥c há»“i láº¡i lá»‡nh gá»i tÃ­nh toÃ¡n Ä‘á»‘i soÃ¡t `this.ccpReconService.checkEOD(...)` Ä‘á»‘i chiáº¿u chi tiáº¿t 4 thÃ nh pháº§n sá»‘ liá»‡u (`QLTKGD.xlsx` vs `EOD.csv` vÃ  CoreCCP náº¿u cÃ³), tráº£ vá» Ä‘áº§y Ä‘á»§ `eodResult` (danh sÃ¡ch tÃ i khoáº£n lá»‡ch, Ã¢m margin, Ã¢m sá»‘ dÆ°) Ä‘á»ƒ hiá»ƒn thá»‹ chi tiáº¿t lÃªn báº£ng UI Frontend thay vÃ¬ chá»‰ tráº£ vá» Ä‘á»‘i tÆ°á»£ng rá»—ng.
   3. **Táº§ng Frontend UI** ([LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)):
      - Bá»• sung `title` tooltip mÃ´ táº£ trá»±c quan cÆ¡ cháº¿ dá»± phÃ²ng tá»± Ä‘á»™ng táº£i file EOD cho nÃºt "Check" táº¡i khá»‘i "Káº¿t quáº£ cháº¡y EOD".
@@ -705,7 +705,7 @@
   - L998-L1052: Bá»• sung logic kiá»ƒm tra file EOD trong thÆ° má»¥c Backup MS; tá»± Ä‘á»™ng gá»i `emailWatcherService.fetchEodEmail` khi chÆ°a cÃ³ file, kÃ¨m log real-time rÃµ rÃ ng.
 - [backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts):
   - L1-L36: Inject `@Optional() @Inject(forwardRef(() => CcpReconService)) private readonly ccpReconService?: CcpReconService` vÃ  `@Optional() @Inject(forwardRef(() => EmailWatcherService)) private readonly emailWatcherService?: EmailWatcherService`.
-  - L632-L700: Cáº­p nháº­t `runAutoCheckEodMm`: Bá»• sung fallback tá»± Ä‘á»™ng táº£i EOD tá»« email náº¿u thiáº¿u file, vÃ  gá»i `this.ccpReconService.checkEOD(...)` tráº£ vá» Ä‘áº§y Ä‘á»§ `eodResult`.
+  - L632-L700: Cáº­p nháº­t `runAutoCheckEodMs`: Bá»• sung fallback tá»± Ä‘á»™ng táº£i EOD tá»« email náº¿u thiáº¿u file, vÃ  gá»i `this.ccpReconService.checkEOD(...)` tráº£ vá» Ä‘áº§y Ä‘á»§ `eodResult`.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
   - L2014: ThÃªm tooltip `title` trá»±c quan trÃªn nÃºt "Check" cá»§a khá»‘i "Káº¿t quáº£ cháº¡y EOD".
 
@@ -2993,7 +2993,7 @@
 - TÃ¡ch biá»‡t rÃµ rÃ ng cÃ¡c trÃ¡ch nhiá»‡m nghiá»‡p vá»¥:
   1. `helpers/recon-number-parser.helper.ts`: Táº­p trung cÃ¡c pure parsing functions (DSGD, FR, Straits CSV, Nano, OP, TTM, TTTT, PS), LME mapping, vÃ  file path resolvers.
   2. `services/klgd-recon.service.ts` (`KlgdReconService`): ÄÃ³ng gÃ³i nghiá»‡p vá»¥ Ä‘á»‘i chiáº¿u khá»›p lá»‡nh trong phiÃªn (`checkKLGD`, `runAutoCheckKLGD`).
-  3. `services/dsgd-before-eod-recon.service.ts` (`DsgdBeforeEodReconService`): ÄÃ³ng gÃ³i nghiá»‡p vá»¥ Ä‘á»‘i chiáº¿u Dsgd-Before-EOD, SOD, EOD MM (`checkDSGDBeforeEOD`, `runAutoCheckDSGDBeforeEOD`, `runAutoCheckSOD`, `runAutoCheckEodMm`, email builder).
+  3. `services/dsgd-before-eod-recon.service.ts` (`DsgdBeforeEodReconService`): ÄÃ³ng gÃ³i nghiá»‡p vá»¥ Ä‘á»‘i chiáº¿u Dsgd-Before-EOD, SOD, EOD MS (`checkDSGDBeforeEOD`, `runAutoCheckDSGDBeforeEOD`, `runAutoCheckSOD`, `runAutoCheckEodMs`, email builder).
   4. `services/ccp-recon.service.ts` (`CcpReconService`): ÄÃ³ng gÃ³i nghiá»‡p vá»¥ Ä‘á»‘i chiáº¿u EOD CoreCCP vÃ  M-System (`checkEOD`, `checkEODCCP`, `runAutoCheckEodCcp`, `downloadAndExtractCcpMetrics`, `getCurrentExchangeRates`).
   5. `services/cqg-sync-recon.service.ts` (`CqgSyncReconService`): ÄÃ³ng gÃ³i nghiá»‡p vá»¥ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG & quÃ©t kÃ½ quá»¹ Ã¢m (`checkEODCQG`, `checkNegativeMargin`, `runAutoCheckCQGSync`, email builders).
   6. `services/recon-console-summary.service.ts` (`ReconConsoleSummaryService`): ÄÃ³ng gÃ³i nghiá»‡p vá»¥ Trading Operation Console (`getConsoleSummary`, `triggerConsoleRun`, `checkImr`, Ä‘á»“ng bá»™ tá»· giÃ¡ M-System Playwright bot).
@@ -4733,7 +4733,7 @@ Kháº¯c phá»¥c viá»‡c FR, PS, OD bá»‹ ghi Ä‘Ã¨ thÃ nh Positi
   - Äá»‹nh nghÄ©a interface `EODMismatchedItem` xuáº¥t kháº©u: `{ system?: 'MS' | 'CCP', maTKGD, calculatedBalance, eodBalance, differ }`.
   - Má»Ÿ rá»™ng hÃ m `checkEOD()`: Nháº­n thÃªm cÃ¡c file cá»§a CoreCCP (`qltkgdCcp`, `eodCcp`, `ttttCcp`). Cháº¡y song song vÃ  tá»•ng há»£p káº¿t quáº£ cá»§a cáº£ hai phÃ¢n há»‡.
   - Bá»• sung hÃ m `checkEODCCP()`: Triá»ƒn khai bÃ³c tÃ¡ch file QLTTTKGD CCP, TTTT CCP, EOD CCP, tÃ­nh toÃ¡n sá»‘ dÆ° EOD theo cÃ´ng thá»©c 4 thÃ nh pháº§n vÃ  kiá»ƒm tra Ã¢m kÃ½ quá»¹ IMR CCP.
-  - NÃ¢ng cáº¥p `runAutoCheckEodMm()`: Tá»± Ä‘á»™ng quÃ©t thÃªm thÆ° má»¥c sao lÆ°u CoreCCP (`bot_backup_path_ccp`), Ä‘á»‘i chiáº¿u song song vÃ  gá»­i thÃ´ng bÃ¡o Telegram phÃ¢n Ä‘á»‹nh rÃµ káº¿t quáº£ lá»‡ch MS vs CCP.
+  - NÃ¢ng cáº¥p `runAutoCheckEodMs()`: Tá»± Ä‘á»™ng quÃ©t thÃªm thÆ° má»¥c sao lÆ°u CoreCCP (`bot_backup_path_ccp`), Ä‘á»‘i chiáº¿u song song vÃ  gá»­i thÃ´ng bÃ¡o Telegram phÃ¢n Ä‘á»‹nh rÃµ káº¿t quáº£ lá»‡ch MS vs CCP.
 
 - [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
   - Cáº­p nháº­t log chi tiáº¿t lá»‡ch EOD: Hiá»ƒn thá»‹ tag Ä‘á»™ng `[${d.system || 'MS'}]` thay cho chuá»—i tÄ©nh.
@@ -9726,7 +9726,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
   - [ccp-stats.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/ccp-stats.handler.ts) (Xá»­ lÃ½ `RUN_MACRO` CCP Pilot Báº¡c Thá»i).
   - [rpa-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/rpa-download.handler.ts) (Xá»­ lÃ½ `RPA_DOWNLOAD_REPORTS`).
   - [cast-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/cast-download.handler.ts) (Xá»­ lÃ½ `DOWNLOAD_CAST`).
-  - [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts) (Xá»­ lÃ½ `AUTO_CHECK_SOD`, `CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `CHECK_EOD_MM`).
+  - [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts) (Xá»­ lÃ½ `AUTO_CHECK_SOD`, `CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `CHECK_EOD_MS`).
   - [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/file-audit.handler.ts) (Xá»­ lÃ½ `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `FILE_AUDIT_ACM`, `DOWNLOAD_CQG_BACKUP`).
   - [verify-email.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/bot-engine/handlers/verify-email.handler.ts) (Xá»­ lÃ½ `VERIFY_EMAIL_STATUS`).
 - **Bot Engine Services & Controllers (Chá»‰nh sá»­a / TÃ¡ch má»›i)**:
@@ -11161,7 +11161,7 @@ cd /opt/mxv-checklist/backend && git pull && npm run build && pm2 restart mxv-ba
 
 Cáº£i tiáº¿n hiá»‡u nÄƒng vÃ  Ä‘á»™ á»•n Ä‘á»‹nh cá»§a há»‡ thá»‘ng trÆ°á»›c giá» cháº¡y thá»±c táº¿ (Go-Live):
 
-1. **RÃºt gá»n log cÃ³ Ä‘iá»u kiá»‡n**: Chá»‰ cáº¯t bá»›t logs vÃ  payload cá»§a cÃ¡c tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u (Check KLGD, Dsgd-Before-EOD, EOD MM) khi sá»‘ lÆ°á»£ng chÃªnh lá»‡ch thá»±c táº¿ lá»›n hÆ¡n **50 dÃ²ng**. DÆ°á»›i ngÆ°á»¡ng nÃ y, há»‡ thá»‘ng lÆ°u Ä‘áº§y Ä‘á»§ chi tiáº¿t tá»«ng dÃ²ng nhÆ° cÅ© Ä‘á»ƒ Maker dá»… tra cá»©u trá»±c tiáº¿p mÃ  khÃ´ng cáº§n má»Ÿ file CSV.
+1. **RÃºt gá»n log cÃ³ Ä‘iá»u kiá»‡n**: Chá»‰ cáº¯t bá»›t logs vÃ  payload cá»§a cÃ¡c tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u (Check KLGD, Dsgd-Before-EOD, EOD MS) khi sá»‘ lÆ°á»£ng chÃªnh lá»‡ch thá»±c táº¿ lá»›n hÆ¡n **50 dÃ²ng**. DÆ°á»›i ngÆ°á»¡ng nÃ y, há»‡ thá»‘ng lÆ°u Ä‘áº§y Ä‘á»§ chi tiáº¿t tá»«ng dÃ²ng nhÆ° cÅ© Ä‘á»ƒ Maker dá»… tra cá»©u trá»±c tiáº¿p mÃ  khÃ´ng cáº§n má»Ÿ file CSV.
 2. **Fresh-download cho CHECK_KLGD**: Chuyá»ƒn Ä‘á»•i `CHECK_KLGD` tá»« viá»‡c sá»­ dá»¥ng cÃ¡c file backup cÅ© sang tá»± Ä‘á»™ng Ä‘Äƒng nháº­p vÃ  táº£i dá»¯ liá»‡u tÆ°Æ¡i má»›i tá»« cáº£ 3 nguá»“n (M-System, CQG, ACM) tuáº§n tá»± trÆ°á»›c má»—i chu ká»³ Ä‘á»‘i chiáº¿u Ä‘á»‹nh ká»³. HÃ nh vi nÃ y tÆ°Æ¡ng thÃ­ch 100% vá»›i C# IT Tool táº¡i phÃ²ng trá»±c vÃ  cÃ³ thá»ƒ tá»± thá»±c thi trá»±c tiáº¿p trÃªn mÃ¡y chá»§ Ubuntu mÃ  khÃ´ng phá»¥ thuá»™c tÃ¡c vá»¥ file audit khÃ¡c.
 3. **Dá»n dáº¹p Remote-mode Filter**: Comment láº¡i pháº§n lá»c remote-mode `WINDOWS_ONLY_JOB_TYPES` Ä‘á»ƒ há»‡ thá»‘ng cháº¡y 100% cÃ¡c job trá»±c tiáº¿p trÃªn Ubuntu local.
 
@@ -11171,7 +11171,7 @@ Cáº£i tiáº¿n hiá»‡u nÄƒng vÃ  Ä‘á»™ á»•n Ä‘á»‹nh
 
 ### TÃ³m táº¯t ná»™i dung code Ä‘Ã£ sá»­a
 
-- Sá»­a logic ghi logs trong `handleCheckKlgdJob`, `handleCheckDsgdBeforeEodJob`, `handleCheckEodMmJob` vá»›i Ä‘iá»u kiá»‡n `mismatchedTrades.length > 50` Ä‘á»ƒ chuyá»ƒn sang cháº¿ Ä‘á»™ nÃ©n + preview thay vÃ¬ nÃ©n cá»©ng 30 dÃ²ng.
+- Sá»­a logic ghi logs trong `handleCheckKlgdJob`, `handleCheckDsgdBeforeEodJob`, `handleCheckEodMsJob` vá»›i Ä‘iá»u kiá»‡n `mismatchedTrades.length > 50` Ä‘á»ƒ chuyá»ƒn sang cháº¿ Ä‘á»™ nÃ©n + preview thay vÃ¬ nÃ©n cá»©ng 30 dÃ²ng.
 - ThÃªm cÃ¡c tÃ¡c vá»¥ download `downloadDSGD`, `downloadTTM`, `downloadCqgBackup` vÃ  `downloadAcmBackup` vÃ o trong luá»“ng thá»±c thi cá»§a `handleCheckKlgdJob`.
 - Äá»•i `jobFilter` tá»« `isRemoteMode` sang `{ status: 'PENDING' }` cá»‘ Ä‘á»‹nh Ä‘á»ƒ cháº¡y toÃ n bá»™ job trá»±c tiáº¿p trÃªn Ubuntu.
 
@@ -13037,7 +13037,7 @@ UI: "Chá»‰ cáº­p nháº­t LÅ©y káº¿ TVKD"
     - **TÃ¡c vá»¥ `runAutoCheckKLGD`**: Comment cÃ¡c dÃ²ng fallback Ä‘áº¿n `Downloads` vÃ  `temp/cast-downloads`.
     - **TÃ¡c vá»¥ `runAutoCheckDSGDBeforeEOD`**: Comment cÃ¡c dÃ²ng fallback Straits vÃ  CQG Ä‘áº¿n `Downloads` vÃ  `temp/cast-downloads`.
     - **TÃ¡c vá»¥ `runAutoCheckSOD`**: Comment dÃ²ng fallback `Accounts_Balances` Ä‘áº¿n thÆ° má»¥c táº¡m `temp/cast-downloads`.
-    - **TÃ¡c vá»¥ `runAutoCheckEodMm`**: Comment cÃ¡c dÃ²ng fallback `eod.xlsx`/`Accounts_Balances` Ä‘áº¿n `temp/cast-downloads`.
+    - **TÃ¡c vá»¥ `runAutoCheckEodMs`**: Comment cÃ¡c dÃ²ng fallback `eod.xlsx`/`Accounts_Balances` Ä‘áº¿n `temp/cast-downloads`.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a/táº¡o má»›i
 
@@ -15025,7 +15025,7 @@ UI: "Chá»‰ cáº­p nháº­t LÅ©y káº¿ TVKD"
   - Tháº» `<select>` trong `templates/page.tsx` trÆ°á»›c Ä‘Ã¢y chá»‰ chá»©a 3 option cÆ¡ báº£n (`EMAIL_PARSE`, `FILE_EXISTS`, `API_STATUS`). Khi chá»‰nh sá»­a cÃ¡c task cÃ³ `botCheckType` lÃ  `CHECK_KLGD` hoáº·c cÃ¡c loáº¡i Ä‘á»‘i chiáº¿u khÃ¡c, React select khÃ´ng tÃ¬m tháº¥y option tÆ°Æ¡ng á»©ng nÃªn bá»‹ fallback hiá»ƒn thá»‹ sai.
   - NhÃ£n (label) vÃ  Placeholder hiá»ƒn thá»‹ bÃªn dÆ°á»›i sá»­ dá»¥ng biá»ƒu thá»©c ternary Ä‘Æ¡n giáº£n, khÃ´ng cover cÃ¡c trÆ°á»ng há»£p custom job types dáº«n Ä‘áº¿n rÆ¡i vÃ o nhÃ¡nh `else` hiá»ƒn thá»‹ "Äá»‹a chá»‰ API Endpoint".
 - **Giáº£i phÃ¡p**:
-  1. ThÃªm Ä‘áº§y Ä‘á»§ 8 loáº¡i Bot Check nghiá»‡p vá»¥ khÃ¡c (`CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `AUTO_CHECK_SOD`, `CHECK_EOD_MM`, `FILE_AUDIT_ACM`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `RUN_MACRO`) vÃ o danh sÃ¡ch option cá»§a tháº» `<select>`.
+  1. ThÃªm Ä‘áº§y Ä‘á»§ 8 loáº¡i Bot Check nghiá»‡p vá»¥ khÃ¡c (`CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `AUTO_CHECK_SOD`, `CHECK_EOD_MS`, `FILE_AUDIT_ACM`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `RUN_MACRO`) vÃ o danh sÃ¡ch option cá»§a tháº» `<select>`.
   2. Cáº­p nháº­t logic render nhÃ£n mÃ´ táº£ vÃ  placeholder cá»§a cÃ¡c trÆ°á»ng nháº­p liá»‡u tÆ°Æ¡ng á»©ng dá»±a trÃªn nhÃ³m loáº¡i Bot Check Ä‘Æ°á»£c chá»n Ä‘á»ƒ hiá»ƒn thá»‹ Ä‘Ãºng thá»±c táº¿ (vd: Ä‘á»•i tá»« "Äá»‹a chá»‰ API Endpoint" thÃ nh "Tham sá»‘ / Cáº¥u hÃ¬nh bá»• sung" cho cÃ¡c tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u).
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a
@@ -15734,7 +15734,7 @@ export interface CheckKLGDResult {
 
 ---
 
-## [2026-07-24 09:27:00] - Bá»• Sung ThÃ´ng Tin LÆ°á»£t QuÃ©t & Thá»i Gian Thá»±c Hiá»‡n VÃ o Log TÃ¡c Vá»¥ (`AUTO_CHECK_SOD`, `CHECK_DSGD_BEFORE_EOD`, `CHECK_EOD_MM`)
+## [2026-07-24 09:27:00] - Bá»• Sung ThÃ´ng Tin LÆ°á»£t QuÃ©t & Thá»i Gian Thá»±c Hiá»‡n VÃ o Log TÃ¡c Vá»¥ (`AUTO_CHECK_SOD`, `CHECK_DSGD_BEFORE_EOD`, `CHECK_EOD_MS`)
 
 ### 1. Má»¥c tiÃªu Thay Ä‘á»•i
 
@@ -16553,8 +16553,8 @@ export interface CheckKLGDResult {
     6. `additionalMargin > 0` (Má»©c bá»• sung kÃ½ quá»¹ > 0)
   - Há»‡ thá»‘ng NestJS Backend (`reconciliation.service.ts` line 1576 & 2116) Ä‘Ã£ cÃ i Ä‘áº·t **chÃ­nh xÃ¡c 100%** bá»™ 6 Ä‘iá»u kiá»‡n nÃ y.
 - **KhÃ¡c biá»‡t Ä‘Æ°á»£c phÃ¡t hiá»‡n & sá»­a Ä‘á»•i**:
-  - Trong `getConsoleSummary` (Backend): `negativeMargin` trÆ°á»›c Ä‘Ã¢y chá»‰ Ä‘á»c tá»« `marginResult.negativeIMRAcc`. Náº¿u káº¿t quáº£ EOD cháº¡y tá»« `CHECK_DSGD_BEFORE_EOD` hoáº·c `CHECK_EOD_MM`, trÆ°á»ng dá»¯ liá»‡u náº±m á»Ÿ `eodResult.negativeIMRAcc` dáº«n tá»›i viá»‡c dá»¯ liá»‡u Ã¢m kÃ½ quá»¹ cÃ³ thá»ƒ bá»‹ rá»—ng.
-  - Trong `triggerConsoleRun` (Backend): NÃºt "Check" trÃªn card "Check DSGD trÆ°á»›c EOD" gá»­i `jobType: 'SCAN_NEGATIVE_MARGIN'`. Backend trÆ°á»›c Ä‘Ã³ chÆ°a phÃ¢n luá»“ng dáº«n Ä‘áº¿n bá»‹ fallback sang `CHECK_KLGD`. ÄÃ£ cáº­p nháº­t phÃ¢n luá»“ng chÃ­nh xÃ¡c sang `CHECK_EOD_MM` / `TASK_CHECK_EOD_sb2`.
+  - Trong `getConsoleSummary` (Backend): `negativeMargin` trÆ°á»›c Ä‘Ã¢y chá»‰ Ä‘á»c tá»« `marginResult.negativeIMRAcc`. Náº¿u káº¿t quáº£ EOD cháº¡y tá»« `CHECK_DSGD_BEFORE_EOD` hoáº·c `CHECK_EOD_MS`, trÆ°á»ng dá»¯ liá»‡u náº±m á»Ÿ `eodResult.negativeIMRAcc` dáº«n tá»›i viá»‡c dá»¯ liá»‡u Ã¢m kÃ½ quá»¹ cÃ³ thá»ƒ bá»‹ rá»—ng.
+  - Trong `triggerConsoleRun` (Backend): NÃºt "Check" trÃªn card "Check DSGD trÆ°á»›c EOD" gá»­i `jobType: 'SCAN_NEGATIVE_MARGIN'`. Backend trÆ°á»›c Ä‘Ã³ chÆ°a phÃ¢n luá»“ng dáº«n Ä‘áº¿n bá»‹ fallback sang `CHECK_KLGD`. ÄÃ£ cáº­p nháº­t phÃ¢n luá»“ng chÃ­nh xÃ¡c sang `CHECK_EOD_MS` / `TASK_CHECK_EOD_sb2`.
   - Trong "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG" (Frontend): Cáº­p nháº­t báº£ng nháº­n diá»‡n máº£ng `cqgResult` (cÃ¡c cá»™t `TKGD`, `Balance MS`, `Balance CQG`) tÆ°Æ¡ng á»©ng vá»›i `dgvCQGSyncResult` trong C#.
 
 ### 3. Danh sÃ¡ch File Ä‘Ã£ sao lÆ°u & Chá»‰nh sá»­a
@@ -16565,7 +16565,7 @@ export interface CheckKLGDResult {
 - **File chá»‰nh sá»­a**:
   - [backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts):
     - Cáº­p nháº­t `getConsoleSummary`: Bá»• sung fallback trÃ­ch xuáº¥t dá»¯ liá»‡u `negativeIMRAcc` vÃ  `negativeBalanceAccs` tá»« cáº£ 3 nguá»“n (`marginResult`, `marginResult.eodResult`, `dsgdBeforeEodResult.eodResult`) vÃ  xuáº¥t kÃ¨m `cqgResult`.
-    - Cáº­p nháº­t `triggerConsoleRun`: Xá»­ lÃ½ phÃ¢n luá»“ng cho `SCAN_NEGATIVE_MARGIN` / `CHECK_EOD_MM`.
+    - Cáº­p nháº­t `triggerConsoleRun`: Xá»­ lÃ½ phÃ¢n luá»“ng cho `SCAN_NEGATIVE_MARGIN` / `CHECK_EOD_MS`.
   - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx):
     - Äá»“ng bá»™ báº£ng "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG" nháº­n diá»‡n dá»¯ liá»‡u chuáº©n C# (`cqgResult`: `maTKGD`, `calculatedBalance`, `cqgBalance`).
     - NÃºt báº¥m Check Ä‘á»“ng bá»™ sá»‘ dÆ° CQG Ä‘iá»u phá»‘i chuáº©n tÃ¡c vá»¥ `CHECK_DSGD_BEFORE_EOD`.
@@ -16612,9 +16612,9 @@ export interface CheckKLGDResult {
     ```
 - **KhÃ¡c biá»‡t Ä‘Æ°á»£c kháº¯c phá»¥c & HoÃ n thiá»‡n**:
   1. Trong `reconciliation.service.ts` (`checkEOD`): ÄÃ£ triá»ƒn khai thuáº­t toÃ¡n tÃ­nh toÃ¡n chÃªnh lá»‡ch chuáº©n C# Ä‘á»‘i chiáº¿u `calculatedBalance` (tá»« QLTKGD) vá»›i `eodBalance` (tá»« file eod) theo ngÆ°á»¡ng lá»‡ch `differ >= 1000` VND.
-  2. Trong `getConsoleSummary` (`reconciliation.service.ts`): Bá»• sung trÃ­ch xuáº¥t `mismatchedEOD` vÃ  `cqgResult` tá»« cáº£ `marginResult` (káº¿t quáº£ cháº¡y `CHECK_EOD_MM`) vÃ  `dsgdBeforeEodResult` Ä‘á»ƒ dá»¯ liá»‡u luÃ´n sáºµn sÃ ng trÃªn Console.
+  2. Trong `getConsoleSummary` (`reconciliation.service.ts`): Bá»• sung trÃ­ch xuáº¥t `mismatchedEOD` vÃ  `cqgResult` tá»« cáº£ `marginResult` (káº¿t quáº£ cháº¡y `CHECK_EOD_MS`) vÃ  `dsgdBeforeEodResult` Ä‘á»ƒ dá»¯ liá»‡u luÃ´n sáºµn sÃ ng trÃªn Console.
   3. Trong `page.tsx` (Frontend):
-     - Gáº¯n káº¿t ná»‘i nÃºt "Check" cá»§a "Káº¿t quáº£ cháº¡y EOD" vÃ  "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG" Ä‘iá»u hÆ°á»›ng Ä‘Ãºng tÃ¡c vá»¥ `CHECK_EOD_MM` (tÆ°Æ¡ng á»©ng vá»›i `btnEODResult_Click` vÃ  `btnCheckCQGSync_Click` trong C#).
+     - Gáº¯n káº¿t ná»‘i nÃºt "Check" cá»§a "Káº¿t quáº£ cháº¡y EOD" vÃ  "Káº¿t quáº£ Ä‘á»“ng bá»™ sá»‘ dÆ° CQG" Ä‘iá»u hÆ°á»›ng Ä‘Ãºng tÃ¡c vá»¥ `CHECK_EOD_MS` (tÆ°Æ¡ng á»©ng vá»›i `btnEODResult_Click` vÃ  `btnCheckCQGSync_Click` trong C#).
      - Báº£ng 3 cá»™t `TKGD | QLTKGD | EOD result` hiá»ƒn thá»‹ chÃ­nh xÃ¡c cÃ¡c trÆ°á»ng tÃ i chÃ­nh `maTKGD`, `calculatedBalance`, `eodBalance` (kÃ¨m chÃªnh lá»‡ch).
      - Khi khÃ´ng cÃ³ chÃªnh lá»‡ch, hiá»ƒn thá»‹ icon tÃ­ch xanh cÃ¹ng dÃ²ng chá»¯: **"Táº¥t cáº£ vá»‹ tháº¿ vÃ  káº¿t quáº£ EOD khá»›p hoÃ n toÃ n"**.
 
@@ -16630,7 +16630,7 @@ export interface CheckKLGDResult {
   - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/frontend/src/app/trading-manager/page.tsx):
     - Cáº­p nháº­t báº£ng "Káº¿t quáº£ cháº¡y EOD" chuáº©n 3 cá»™t `TKGD | QLTKGD | EOD result`.
     - Hiá»ƒn thá»‹ tráº¡ng thÃ¡i an toÃ n: "Táº¥t cáº£ vá»‹ tháº¿ vÃ  káº¿t quáº£ EOD khá»›p hoÃ n toÃ n".
-    - NÃºt báº¥m Check kÃ­ch hoáº¡t Ä‘Ãºng `CHECK_EOD_MM`.
+    - NÃºt báº¥m Check kÃ­ch hoáº¡t Ä‘Ãºng `CHECK_EOD_MS`.
 
 ### 4. XÃ¡c nháº­n Build
 
@@ -16683,7 +16683,7 @@ export interface CheckKLGDResult {
   - ÄÃ£ loáº¡i bá» hoÃ n toÃ n fallback nÃ y, tráº£ báº£ng vá» Ä‘Ãºng nguyÃªn báº£n C# (`dgvCQGSyncResult`):
     - Khi cÃ³ chÃªnh lá»‡ch: Hiá»ƒn thá»‹ cÃ¡c dÃ²ng lá»‡ch vá»›i Ä‘á»‹nh dáº¡ng tiá»n USD (`$`), lÃ m ná»•i báº­t mÃ u Ä‘á» cáº£nh bÃ¡o (`#ef4444`).
     - Khi khá»›p hoÃ n toÃ n (0 lá»‡ch): Hiá»ƒn thá»‹ icon tÃ­ch xanh cÃ¹ng thÃ´ng bÃ¡o an toÃ n: **"Sá»‘ dÆ° tÃ i khoáº£n Ä‘á»“ng bá»™ khá»›p hoÃ n toÃ n giá»¯a MS vÃ  CQG"**.
-  - NÃºt báº¥m "Check" liÃªn káº¿t chuáº©n xÃ¡c vá»›i tÃ¡c vá»¥ `CHECK_EOD_MM` (tÆ°Æ¡ng á»©ng `btnCheckCQGSync_Click` trong C#).
+  - NÃºt báº¥m "Check" liÃªn káº¿t chuáº©n xÃ¡c vá»›i tÃ¡c vá»¥ `CHECK_EOD_MS` (tÆ°Æ¡ng á»©ng `btnCheckCQGSync_Click` trong C#).
 
 ### 3. Danh sÃ¡ch File Ä‘Ã£ sao lÆ°u & Chá»‰nh sá»­a
 
@@ -16724,20 +16724,20 @@ export interface CheckKLGDResult {
   - Tab header: Hiá»ƒn thá»‹ `Chi tiáº¿t giao dá»‹ch chÃªnh lá»‡ch ({mismatchedTrades.length}/{summaryData.klgd.mismatchedTradesTotal})` khi cÃ³ lá»‡nh lá»‡ch vÆ°á»£t ngÆ°á»¡ng preview.
 - **[backend/src/modules/reconciliation/reconciliation.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/backend/src/modules/reconciliation/reconciliation.service.ts)**:
   - `getConsoleSummary`: Bá»• sung tráº£ vá» `mismatchedTradesTotal` cho cáº£ `klgd` vÃ  `dsgdBeforeEod`.
-  - `triggerConsoleRun`: PhÃ¢n Ä‘á»‹nh `targetTaskId`, Æ°u tiÃªn gÃ¡n `ops_open_04_s4` khi cháº¡y `SCAN_NEGATIVE_MARGIN` hoáº·c `CHECK_EOD_MM`.
+  - `triggerConsoleRun`: PhÃ¢n Ä‘á»‹nh `targetTaskId`, Æ°u tiÃªn gÃ¡n `ops_open_04_s4` khi cháº¡y `SCAN_NEGATIVE_MARGIN` hoáº·c `CHECK_EOD_MS`.
 
 ### 3. XÃ¡c nháº­n Build & Kiá»ƒm thá»­
 
 - **Backend Build**: `node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.build.json` thÃ nh cÃ´ng 100% (exit code 0, 0 errors).
 - **Frontend TypeScript Check**: `node ./node_modules/typescript/bin/tsc --noEmit` thÃ nh cÃ´ng 100% (exit code 0, 0 errors).
 
-## [2026-09-10T09:12] - Sá»­a Lá»—i ReferenceError 'mismatchedEOD is not defined' Trong TÃ¡c Vá»¥ CHECK_EOD_MM
+## [2026-09-10T09:12] - Sá»­a Lá»—i ReferenceError 'mismatchedEOD is not defined' Trong TÃ¡c Vá»¥ CHECK_EOD_MS
 
 ### 1. Má»¥c tiÃªu thay Ä‘á»•i & YÃªu cáº§u tá»« USER
 
 - NgÆ°á»i dÃ¹ng báº¥m nÃºt **"Check"** trÃªn khung **"TÃ i khoáº£n Ã¢m kÃ½ quá»¹ má»›i (EOD)"** trÃªn mÃ n hÃ¬nh Quáº£n lÃ½ Giao dá»‹ch (Trading Manager Console).
-- Bot Telegram phÃ¡t cáº£nh bÃ¡o: `[Bot Äá»‘i SoÃ¡t] Tháº¥t báº¡i tÃ¡c vá»¥ CHECK_EOD_MM: mismatchedEOD is not defined`.
-- TÃ¬m nguyÃªn nhÃ¢n gá»‘c rá»… vÃ  xá»­ lÃ½ dá»©t Ä‘iá»ƒm lá»—i ReferenceError trÃªn Backend Ä‘á»ƒ tÃ¡c vá»¥ EOD MM cháº¡y trÆ¡n tru, an toÃ n.
+- Bot Telegram phÃ¡t cáº£nh bÃ¡o: `[Bot Äá»‘i SoÃ¡t] Tháº¥t báº¡i tÃ¡c vá»¥ CHECK_EOD_MS: mismatchedEOD is not defined`.
+- TÃ¬m nguyÃªn nhÃ¢n gá»‘c rá»… vÃ  xá»­ lÃ½ dá»©t Ä‘iá»ƒm lá»—i ReferenceError trÃªn Backend Ä‘á»ƒ tÃ¡c vá»¥ EOD MS cháº¡y trÆ¡n tru, an toÃ n.
 
 ### 2. NguyÃªn nhÃ¢n gá»‘c rá»… (Root Cause)
 
@@ -17086,15 +17086,15 @@ export interface CheckKLGDResult {
 ### 3. TÃ³m táº¯t ná»™i dung code Ä‘Ã£ sá»­a
 
 - **TÃ¡ch hÃ m thá»±c thi Backend**:
-  - `runAutoCheckEodMm`: Chá»‰ kiá»ƒm tra `QLTTTKGD.xlsx` vÃ  `eod.csv` (M-System). HoÃ n toÃ n khÃ´ng Ä‘Ã²i há»i file `Accounts_Balances.xlsx` cá»§a CQG.
+  - `runAutoCheckEodMs`: Chá»‰ kiá»ƒm tra `QLTTTKGD.xlsx` vÃ  `eod.csv` (M-System). HoÃ n toÃ n khÃ´ng Ä‘Ã²i há»i file `Accounts_Balances.xlsx` cá»§a CQG.
   - `runAutoCheckCQGSync`: Chá»‰ kiá»ƒm tra `QLTTTKGD.xlsx` vÃ  `Accounts_Balances.xlsx` (CQG). HoÃ n toÃ n khÃ´ng Ä‘Ã²i há»i file `eod.csv` tá»« mail M-System.
 - **ÄÄƒng kÃ½ JobType má»›i `CHECK_CQG_SYNC`**:
   - ThÃªm `CHECK_CQG_SYNC` vÃ o `BOT_TASK_REGISTRY`, `ReconJobsHandler`, vÃ  `bot-job-queue.service.ts`.
-  - TÃ¡ch 2 handler Ä‘á»™c láº­p: `handleCheckEodMmJob` (chá»‰ xá»­ lÃ½ EOD MS) vÃ  `handleCheckCqgSyncJob` (chá»‰ xá»­ lÃ½ CQG Sync).
+  - TÃ¡ch 2 handler Ä‘á»™c láº­p: `handleCheckEodMsJob` (chá»‰ xá»­ lÃ½ EOD MS) vÃ  `handleCheckCqgSyncJob` (chá»‰ xá»­ lÃ½ CQG Sync).
 - **TÃ¡ch biá»‡t truy váº¥n Console Summary**:
-  - `getConsoleSummary` truy váº¥n Ä‘á»™c láº­p `cqgSyncJob` cho Khá»‘i 3, vÃ  `marginJob` / `CHECK_EOD_MM` cho Khá»‘i 1 & 2. Báº¥m Check EOD sáº½ khÃ´ng ghi Ä‘Ã¨ káº¿t quáº£ Khá»‘i 3, vÃ  báº¥m Check CQG sáº½ khÃ´ng ghi Ä‘Ã¨ káº¿t quáº£ Khá»‘i 1 & 2.
+  - `getConsoleSummary` truy váº¥n Ä‘á»™c láº­p `cqgSyncJob` cho Khá»‘i 3, vÃ  `marginJob` / `CHECK_EOD_MS` cho Khá»‘i 1 & 2. Báº¥m Check EOD sáº½ khÃ´ng ghi Ä‘Ã¨ káº¿t quáº£ Khá»‘i 3, vÃ  báº¥m Check CQG sáº½ khÃ´ng ghi Ä‘Ã¨ káº¿t quáº£ Khá»‘i 1 & 2.
 - **TÃ¡ch biá»‡t nÃºt báº¥m trÃªn giao diá»‡n Trading Manager**:
-  - NÃºt Check Khá»‘i 1 & Khá»‘i 2: KÃ­ch hoáº¡t `CHECK_EOD_MM`.
+  - NÃºt Check Khá»‘i 1 & Khá»‘i 2: KÃ­ch hoáº¡t `CHECK_EOD_MS`.
   - NÃºt Check Khá»‘i 3: KÃ­ch hoáº¡t riÃªng biá»‡t `CHECK_CQG_SYNC`.
   - Tráº¡ng thÃ¡i quay vÃ²ng `triggeringSection` cháº¡y Ä‘á»™c láº­p tá»«ng khá»‘i.
 

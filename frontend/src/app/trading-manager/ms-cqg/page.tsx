@@ -88,7 +88,7 @@ export default function MsCqgTradingManagerPage() {
       'CHECK_DSGD_BEFORE_EOD',
       'CHECK_CQG_SYNC',
       'SCAN_NEGATIVE_MARGIN',
-      'CHECK_EOD_MM',
+      'CHECK_EOD_MS',
       'RUN_LOT_MACRO',
       'RUN_VALUE_MACRO',
       'RUN_MACRO',

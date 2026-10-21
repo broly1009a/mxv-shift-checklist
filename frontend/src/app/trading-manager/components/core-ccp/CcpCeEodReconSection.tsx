@@ -35,7 +35,8 @@ export interface CcpCeEodReconSectionProps {
     totalDifferLots: number;
     klgdStatus: string;
   }) => void;
-  viewMode?: 'ALL' | 'DSGD_BEFORE_EOD_ONLY';
+  viewMode?: 'ALL' | 'DSGD_BEFORE_EOD_ONLY' | 'EOD_ONLY';
+  activeTab?: 'ALL' | 'EOD_RESULT' | 'NEGATIVE_MARGIN';
 }
 
 export interface CcpCeMismatchedTrade {
@@ -64,6 +65,7 @@ export default function CcpCeEodReconSection({
   onOpenGuide,
   onStatusChange,
   viewMode = 'ALL',
+  activeTab = 'ALL',
 }: CcpCeEodReconSectionProps) {
   const [mounted, setMounted] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -291,291 +293,305 @@ Trạng thái: ${dsgdBeforeEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* ===== THANH ĐIỀU KHIỂN PHIÊN ĐỐI SOÁT EOD CCP & CE (ẨN KHI DSGD_BEFORE_EOD_ONLY) ===== */}
-      {viewMode !== 'DSGD_BEFORE_EOD_ONLY' && (
-        <>
-          <div
-            className="glass-panel"
-        style={{
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Calendar size={18} color="#3b82f6" />
-          <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            Phiên đối soát EOD CCP & CE:
-          </span>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => onSelectDate?.(e.target.value)}
-            className="form-input"
-            style={{
-              width: '150px',
-              height: '36px',
-              fontSize: '0.84rem',
-              fontFamily: 'monospace',
-              fontWeight: 700,
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => onSelectDate?.(getInitialTradingSessionDate())}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.78rem', padding: '6px 12px' }}
-          >
-            Hôm nay
-          </button>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => fetchEodSummary(selectedDate)}
-            disabled={loading}
-            className="btn btn-primary"
-            style={{
-              fontSize: '0.82rem',
-              padding: '8px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>Làm mới dữ liệu EOD</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ===== KHUNG 2 CỘT SONG SONG: ÂM KÝ QUỸ & KẾT QUẢ CHẠY EOD ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
-        {/* CỘT TRÁI: Tài khoản âm ký quỹ mới (EOD CoreCCP) */}
-        <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 20px',
-              backgroundColor: 'var(--bg-input)',
-              borderBottom: '1px solid var(--border-color)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Tài khoản âm ký quỹ mới (EOD CoreCCP)
-              </h5>
-              {hasExecutedMargin && marginExecutedAt && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                  ({new Date(marginExecutedAt).toLocaleTimeString('vi-VN')})
-                </span>
-              )}
-            </div>
+      {/* ===== THANH ĐIỀU KHIỂN PHIÊN ĐỐI SOÁT EOD CCP & CE (ẨN KHI DSGD_BEFORE_EOD_ONLY HOẶC EOD_ONLY) ===== */}
+      {viewMode !== 'DSGD_BEFORE_EOD_ONLY' && viewMode !== 'EOD_ONLY' && (
+        <div
+          className="glass-panel"
+          style={{
+            padding: '14px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Calendar size={18} color="#3b82f6" />
+            <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              Phiên đối soát EOD CCP & CE:
+            </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => onSelectDate?.(e.target.value)}
+              className="form-input"
+              style={{
+                width: '150px',
+                height: '36px',
+                fontSize: '0.84rem',
+                fontFamily: 'monospace',
+                fontWeight: 700,
+              }}
+            />
             <button
               type="button"
-              onClick={() => handleTriggerCheck('margin')}
-              disabled={triggering}
+              onClick={() => onSelectDate?.(getInitialTradingSessionDate())}
               className="btn btn-secondary"
+              style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+            >
+              Hôm nay
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => fetchEodSummary(selectedDate)}
+              disabled={loading}
+              className="btn btn-primary"
               style={{
-                fontSize: '0.75rem',
-                padding: '6px 14px',
-                fontWeight: 700,
+                fontSize: '0.82rem',
+                padding: '8px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
               }}
             >
-              {triggering && triggeringSection === 'margin' ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Checking...</span>
-                </>
-              ) : (
-                'Check'
-              )}
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Làm mới dữ liệu EOD</span>
             </button>
           </div>
+        </div>
+      )}
 
-          <div style={{ height: '180px', minHeight: '160px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
-                <tr
+      {/* ===== KHUNG 2 CỘT SONG SONG: ÂM KÝ QUỸ & KẾT QUẢ CHẠY EOD (ẨN KHI DSGD_BEFORE_EOD_ONLY) ===== */}
+      {viewMode !== 'DSGD_BEFORE_EOD_ONLY' && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              activeTab === 'EOD_RESULT' || activeTab === 'NEGATIVE_MARGIN'
+                ? '1fr'
+                : 'repeat(auto-fit, minmax(340px, 1fr))',
+            gap: '20px',
+          }}
+        >
+          {/* CỘT TRÁI: Tài khoản âm ký quỹ mới (EOD CoreCCP) */}
+          {(!activeTab || activeTab === 'ALL' || activeTab === 'NEGATIVE_MARGIN') && (
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  backgroundColor: 'var(--bg-input)',
+                  borderBottom: '1px solid var(--border-color)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Tài khoản âm ký quỹ mới (EOD CoreCCP)
+                  </h5>
+                  {hasExecutedMargin && marginExecutedAt && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      ({new Date(marginExecutedAt).toLocaleTimeString('vi-VN')})
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTriggerCheck('margin')}
+                  disabled={triggering}
+                  className="btn btn-secondary"
                   style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.8rem',
+                    fontSize: '0.75rem',
+                    padding: '6px 14px',
                     fontWeight: 700,
-                    borderBottom: '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  <th style={{ padding: '10px 16px' }}>
-                    TKGD âm KQ mới ({hasExecutedMargin ? negativeMarginAccounts.length : 0})
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {!hasExecutedMargin ? (
-                  <tr>
-                    <td style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      Chưa chạy kiểm tra tài khoản âm ký quỹ CoreCCP. Bấm <b>Check</b> để thực hiện.
-                    </td>
-                  </tr>
-                ) : negativeMarginAccounts.length === 0 ? (
-                  <tr>
-                    <td style={{ padding: '36px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle2 size={36} color="#10b981" />
-                        <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.88rem' }}>
-                          An Toàn: Không có tài khoản âm ký quỹ mới (CoreCCP)
-                        </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-                          Kiểm tra lúc: {marginExecutedAt ? new Date(marginExecutedAt).toLocaleTimeString('vi-VN') : '--:--'}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  negativeMarginAccounts.map((acc, idx) => (
+                  {triggering && triggeringSection === 'margin' ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Checking...</span>
+                    </>
+                  ) : (
+                    'Check'
+                  )}
+                </button>
+              </div>
+
+              <div style={{ height: '180px', minHeight: '160px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
                     <tr
-                      key={idx}
                       style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
                         borderBottom: '1px solid var(--border-color)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
                       }}
                     >
-                      <td style={{ padding: '10px 16px', fontSize: '0.84rem', fontFamily: 'monospace', color: '#ef4444', fontWeight: 700 }}>
-                        {acc.accountNumber} {acc.accountName ? `- ${acc.accountName}` : ''} {acc.difference !== undefined ? `(Âm: ${acc.difference.toLocaleString('en-US')} VND)` : ''}
-                      </td>
+                      <th style={{ padding: '10px 16px' }}>
+                        TKGD âm KQ mới ({hasExecutedMargin ? negativeMarginAccounts.length : 0})
+                      </th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* CỘT PHẢI: Kết quả chạy EOD (CoreCCP ↔ CoreEX) */}
-        <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 20px',
-              backgroundColor: 'var(--bg-input)',
-              borderBottom: '1px solid var(--border-color)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Kết quả chạy EOD (CoreCCP ↔ CoreEX)
-              </h5>
-              {hasExecutedEod && eodExecutedAt && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                  ({new Date(eodExecutedAt).toLocaleTimeString('vi-VN')})
-                </span>
-              )}
+                  </thead>
+                  <tbody>
+                    {!hasExecutedMargin ? (
+                      <tr>
+                        <td style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                          Chưa chạy kiểm tra tài khoản âm ký quỹ CoreCCP. Bấm <b>Check</b> để thực hiện.
+                        </td>
+                      </tr>
+                    ) : negativeMarginAccounts.length === 0 ? (
+                      <tr>
+                        <td style={{ padding: '36px 16px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <CheckCircle2 size={36} color="#10b981" />
+                            <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.88rem' }}>
+                              An Toàn: Không có tài khoản âm ký quỹ mới (CoreCCP)
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                              Kiểm tra lúc: {marginExecutedAt ? new Date(marginExecutedAt).toLocaleTimeString('vi-VN') : '--:--'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      negativeMarginAccounts.map((acc, idx) => (
+                        <tr
+                          key={idx}
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          }}
+                        >
+                          <td style={{ padding: '10px 16px', fontSize: '0.84rem', fontFamily: 'monospace', color: '#ef4444', fontWeight: 700 }}>
+                            {acc.accountNumber} {acc.accountName ? `- ${acc.accountName}` : ''} {acc.difference !== undefined ? `(Âm: ${acc.difference.toLocaleString('en-US')} VND)` : ''}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => handleTriggerCheck('eod_run')}
-              disabled={triggering}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.75rem',
-                padding: '6px 14px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              {triggering && triggeringSection === 'eod_run' ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Checking...</span>
-                </>
-              ) : (
-                'Check'
-              )}
-            </button>
-          </div>
+          )}
 
-          <div style={{ height: '180px', minHeight: '160px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
-              <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
-                <tr
+          {/* CỘT PHẢI: Kết quả chạy EOD (CoreCCP ↔ CoreEX) */}
+          {(!activeTab || activeTab === 'ALL' || activeTab === 'EOD_RESULT') && (
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  backgroundColor: 'var(--bg-input)',
+                  borderBottom: '1px solid var(--border-color)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h5 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    Kết quả chạy EOD (CoreCCP ↔ CoreEX)
+                  </h5>
+                  {hasExecutedEod && eodExecutedAt && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      ({new Date(eodExecutedAt).toLocaleTimeString('vi-VN')})
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTriggerCheck('eod_run')}
+                  disabled={triggering}
+                  className="btn btn-secondary"
                   style={{
-                    color: 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    padding: '6px 14px',
                     fontWeight: 700,
-                    borderBottom: '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  <th style={{ padding: '8px 12px' }}>TKGD</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>CoreCCP</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>CoreEX (EOD result)</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center' }}>Lệch</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!hasExecutedEod ? (
-                  <tr>
-                    <td colSpan={4} style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Chưa chạy kiểm tra số liệu EOD CoreCCP vs CoreEX. Bấm <b>Check</b> để thực hiện.
-                    </td>
-                  </tr>
-                ) : eodResults.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ padding: '36px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <CheckCircle2 size={36} color="#10b981" />
-                        <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.88rem' }}>
-                          Khớp 100%: Số dư tài khoản giữa CoreCCP và CoreEX hoàn toàn trùng khớp
-                        </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-                          Kiểm tra lúc: {eodExecutedAt ? new Date(eodExecutedAt).toLocaleTimeString('vi-VN') : '--:--'}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  eodResults.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>{row.account}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>
-                        {row.qltkgd?.toLocaleString('en-US')}
-                      </td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>
-                        {row.eodResult?.toLocaleString('en-US')}
-                      </td>
-                      <td
-                        style={{
-                          padding: '8px 12px',
-                          textAlign: 'center',
-                          fontFamily: 'monospace',
-                          fontWeight: 700,
-                          color: row.diff === 0 ? '#10b981' : '#ef4444',
-                        }}
-                      >
-                        {row.diff === 0 ? 'Khớp' : row.diff?.toLocaleString('en-US')}
-                      </td>
+                  {triggering && triggeringSection === 'eod_run' ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Checking...</span>
+                    </>
+                  ) : (
+                    'Check'
+                  )}
+                </button>
+              </div>
+
+              <div style={{ height: '180px', minHeight: '160px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
+                    <tr
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontWeight: 700,
+                        borderBottom: '1px solid var(--border-color)',
+                      }}
+                    >
+                      <th style={{ padding: '8px 12px' }}>TKGD</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>CoreCCP</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>CoreEX (EOD result)</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Lệch</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {!hasExecutedEod ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Chưa chạy kiểm tra số liệu EOD CoreCCP vs CoreEX. Bấm <b>Check</b> để thực hiện.
+                        </td>
+                      </tr>
+                    ) : eodResults.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <CheckCircle2 size={36} color="#10b981" />
+                            <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.88rem' }}>
+                              Khớp 100%: Số dư tài khoản giữa CoreCCP và CoreEX hoàn toàn trùng khớp
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                              Kiểm tra lúc: {eodExecutedAt ? new Date(eodExecutedAt).toLocaleTimeString('vi-VN') : '--:--'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      eodResults.map((row, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700 }}>{row.account}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>
+                            {row.qltkgd?.toLocaleString('en-US')}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'monospace' }}>
+                            {row.eodResult?.toLocaleString('en-US')}
+                          </td>
+                          <td
+                            style={{
+                              padding: '8px 12px',
+                              textAlign: 'center',
+                              fontFamily: 'monospace',
+                              fontWeight: 700,
+                              color: row.diff === 0 ? '#10b981' : '#ef4444',
+                            }}
+                          >
+                            {row.diff === 0 ? 'Khớp' : row.diff?.toLocaleString('en-US')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-        </>
       )}
 
       {/* ===== KHUNG LỚN: CHI TIẾT ĐỐI CHIẾU DSGD-BEFORE-EOD (CORECCP ↔ COREEX) ===== */}
-      <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {viewMode !== 'EOD_ONLY' && (
+        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Header Dsgd-Before-EOD */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <div>
@@ -1004,8 +1020,8 @@ Trạng thái: ${dsgdBeforeEodTotals.differLots === 0 ? 'KHỚP 100%' : 'CHÊNH 
         )}
       </div>
 
-      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - ẨN KHI DSGD_BEFORE_EOD_ONLY ĐỂ TRÁNH LẶP) ===== */}
-      {viewMode !== 'DSGD_BEFORE_EOD_ONLY' && (
+      {/* ===== KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - CHỈ HIỂN THỊ KHI viewMode === 'ALL') ===== */}
+      {viewMode === 'ALL' && (
         <DsgdBeforeEodSection token={token} selectedDate={selectedDate} />
       )}
     </div>

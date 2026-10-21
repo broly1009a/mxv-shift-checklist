@@ -40,7 +40,7 @@ const BOT_CHECK_TYPE_OPTIONS: { value: string; label: string; technical: string 
   { value: 'CHECK_KLGD', label: 'Đối chiếu khớp lệnh trong phiên', technical: 'CHECK_KLGD' },
   { value: 'CHECK_DSGD_BEFORE_EOD', label: 'Đối chiếu DSGD trước EOD', technical: 'CHECK_DSGD_BEFORE_EOD' },
   { value: 'AUTO_CHECK_SOD', label: 'Đối chiếu số dư CQG SOD', technical: 'AUTO_CHECK_SOD' },
-  { value: 'CHECK_EOD_MM', label: 'Đối chiếu số dư EOD MM', technical: 'CHECK_EOD_MM' },
+  { value: 'CHECK_EOD_MS', label: 'Đối chiếu số dư EOD MS', technical: 'CHECK_EOD_MS' },
   { value: 'FILE_AUDIT_ACM', label: 'Kiểm tra file backup ACM', technical: 'FILE_AUDIT_ACM' },
   { value: 'FILE_AUDIT_MS', label: 'Kiểm tra file backup MS', technical: 'FILE_AUDIT_MS' },
   { value: 'FILE_AUDIT_CQG', label: 'Kiểm tra file backup CQG', technical: 'FILE_AUDIT_CQG' },

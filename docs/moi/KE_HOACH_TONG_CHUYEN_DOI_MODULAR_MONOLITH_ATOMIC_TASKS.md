@@ -46,7 +46,7 @@ _(Cập nhật trạng thái thực tế vào ngày 13/10/2026)_
 | **P2** | **Task 2.6** | Ingress Facade & V1 Backward Adapter (`rpa-downloader`)     | `src/modules/bot-engine/rpa-downloader.service.ts`                  |  **TIẾP THEO (Chờ nối V1)**   |
 | **P3** | **Task 3.1** | Bộ Ghép File Thô CQG (`cqg-merger.service.ts`)              | `src/modules/trading-ops/services/cqg-merger.service.ts`            |        **HOÀN THÀNH**         |
 | **P3** | **Task 3.2** | Lõi V2 Đối Soát Khớp Lệnh (`KlgdReconService`)              | `src/modules/trading-ops/services/klgd-recon.service.ts`            |        **HOÀN THÀNH**         |
-| **P3** | **Task 3.3** | Lõi V2 Đối Soát Dsgd-Before-EOD, SOD & EOD MM               | `src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts` |        **HOÀN THÀNH**         |
+| **P3** | **Task 3.3** | Lõi V2 Đối Soát Dsgd-Before-EOD, SOD & EOD MS               | `src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts` |        **HOÀN THÀNH**         |
 | **P3** | **Task 3.4** | Worker Quét Ký Quỹ Âm (`NegativeMarginWorker`)              | `src/modules/trading-ops/workers/negative-margin.worker.ts`         |        **HOÀN THÀNH**         |
 | **P3** | **Task 3.5** | Collection Log Riêng Cho Trading Ops (`trading_recon_logs`) | `src/modules/trading-ops/schemas/trading-recon-log.schema.ts`       |        **HOÀN THÀNH**         |
 | **P3** | **Task 3.6** | Di chuyển `DsgdBeforeEodService` vào Trading Ops            | `src/modules/trading-ops/services/dsgd-before-eod.service.ts`       | **TIẾP THEO (Giai đoạn tới)** |
@@ -81,7 +81,7 @@ flowchart TD
     subgraph TRADING_OPS["📊 TRADING OPS DOMAIN (src/modules/trading-ops)"]
         CQG_MERGE["CqgMergerService (FR, PS, OP, OD)"]
         KLGD_RECON["KlgdReconService (MS vs CQG vs ACM vs CCP)"]
-        DSGD_BEFORE_EOD_RECON["DsgdBeforeEodReconService (Dsgd-Before-EOD, SOD, EOD MM)"]
+        DSGD_BEFORE_EOD_RECON["DsgdBeforeEodReconService (Dsgd-Before-EOD, SOD, EOD MS)"]
         MARGIN_CHECK["MarginCheckerService (Negative Margins)"]
         DSGD_BEF["DsgdBeforeEodService"]
         LOG_TRADING["trading_recon_logs (MongoDB)"]
@@ -267,12 +267,12 @@ _Mục đích: Đưa 100% thuật toán ghép file và đối soát khớp lện
   - Đã kiểm chứng trên ngày `13.10`: Trả về `totalCCP_DSGD = 1721`, `totalCCP_TTM = 4559`, `totalCCP_TTTT = 1101`.
   - `npm run build` Exit code 0, đã deploy thành công lên Ubuntu.
 
-#### Task 3.3: Lõi V2 Đối Soát Dsgd-Before-EOD, SOD & EOD MM (`DsgdBeforeEodReconService`) — `[HOÀN THÀNH]`
+#### Task 3.3: Lõi V2 Đối Soát Dsgd-Before-EOD, SOD & EOD MS (`DsgdBeforeEodReconService`) — `[HOÀN THÀNH]`
 
 - **Mục tiêu**: Chuyển giao toàn bộ nghiệp vụ chốt 3 bên cuối ngày và đầu ngày vào `DsgdBeforeEodReconService` V2:
   1. Phân giải đường dẫn động ngày T-1 từ `SystemSettingsService`.
   2. Bổ sung `runAutoCheckSOD()` (quét file đầu ngày, kiểm tra vị thế qua đêm).
-  3. Bổ sung `runAutoCheckEodMm()` (đối soát chốt sổ Market Maker).
+  3. Bổ sung `runAutoCheckEodMs()` (đối soát chốt sổ Market Maker).
   4. `reconciliation.service.ts` (V1) ủy quyền 100% sang V2.
 - **File tác động**: `backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts`
 - **Tiêu chuẩn nghiệm thu (DoD)**: `npm run build` Exit code 0, đã deploy lên Ubuntu.

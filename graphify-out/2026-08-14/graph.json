@@ -6678,15 +6678,15 @@
       "community_name": "BotJobQueueService"
     },
     {
-      "label": ".handleCheckEodMmJob()",
+      "label": ".handleCheckEodMsJob()",
       "file_type": "code",
       "source_file": "backend/src/modules/bot-engine/bot-job-queue.service.ts",
       "source_location": "L3007",
       "_callable": true,
       "_origin": "ast",
       "community": 16,
-      "norm_label": ".handlecheckeodmmjob()",
-      "id": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmmjob",
+      "norm_label": ".handlecheckeodmsjob()",
+      "id": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmsjob",
       "community_name": "BotJobQueueService"
     },
     {
@@ -19758,15 +19758,15 @@
       "community_name": ".loadConfig"
     },
     {
-      "label": ".runAutoCheckEodMm()",
+      "label": ".runAutoCheckEodMs()",
       "file_type": "code",
       "source_file": "backend/src/modules/reconciliation/reconciliation.service.ts",
       "source_location": "L3630",
       "_callable": true,
       "_origin": "ast",
       "community": 96,
-      "norm_label": ".runautocheckeodmm()",
-      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "norm_label": ".runautocheckeodms()",
+      "id": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "community_name": ".loadConfig"
     },
     {
@@ -39653,7 +39653,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_executejobdirectly",
-      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmmjob"
+      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmsjob"
     },
     {
       "relation": "calls",
@@ -39929,7 +39929,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_processqueue",
-      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmmjob"
+      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmsjob"
     },
     {
       "relation": "calls",
@@ -45064,7 +45064,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_findlatestfile"
     },
     {
@@ -45076,7 +45076,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_syncusdratefrommsystem"
     },
     {
@@ -45088,7 +45088,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkeod"
     },
     {
@@ -45100,7 +45100,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkeodcqg"
     },
     {
@@ -84257,7 +84257,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "confidence_score": 1.0,
-      "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmmjob",
+      "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmsjob",
       "target": "backend_src_schemas_bot_job_schema_botjob"
     },
     {
@@ -104254,7 +104254,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice",
-      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmmjob"
+      "target": "backend_src_modules_bot_engine_bot_job_queue_service_botjobqueueservice_handlecheckeodmsjob"
     },
     {
       "relation": "method",
@@ -107719,7 +107719,7 @@
       "_origin": "ast",
       "confidence_score": 1.0,
       "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice",
-      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm"
+      "target": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms"
     },
     {
       "relation": "method",
@@ -115322,7 +115322,7 @@
       "source_location": "L3634",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "target": "backend_src_modules_system_settings_system_settings_service_systemsettingsservice_getsetting"
     },
     {
@@ -115334,7 +115334,7 @@
       "source_location": "L3712",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "source": "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "target": "backend_src_modules_telegram_telegram_service_telegramservice_sendmessage"
     },
     {

@@ -98,7 +98,7 @@ export default function BotLogViewerModal({
     if (selectedJob.jobType === 'CHECK_KLGD') type = 'KLGD';
     else if (selectedJob.jobType === 'AUTO_CHECK_SOD') type = 'CQG';
     else if (selectedJob.jobType === 'CHECK_DSGD_BEFORE_EOD') type = 'DSGD_BEFORE_EOD';
-    else if (selectedJob.jobType === 'CHECK_EOD_MM') type = 'EOD';
+    else if (selectedJob.jobType === 'CHECK_EOD_MS') type = 'EOD';
 
     return JSON.stringify({
       type,

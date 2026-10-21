@@ -10,7 +10,7 @@
 
 Trang **Trading Manager** (`/trading-manager` hoặc `/admin/trading-manager`) ban đầu được xây dựng để gom 1:1 các chức năng từ ứng dụng Windows Forms C# cũ (`operate-transaction-app`). Hiện tại, trang này đang nhồi nhét **toàn bộ 5 phân hệ nghiệp vụ khổng lồ** vào một giao diện tab đơn lẻ:
 
-1. **Tab 1: Check GD – EOD – Sync**: Giám sát khớp lệnh trong phiên (`CHECK_KLGD`), đối chiếu Dsgd-Before-EOD 3 bên (`CHECK_DSGD_BEFORE_EOD`), đối chiếu EOD Market Maker (`CHECK_EOD_MM`), và quét ký quỹ âm (`SCAN_NEGATIVE_MARGIN`).
+1. **Tab 1: Check GD – EOD – Sync**: Giám sát khớp lệnh trong phiên (`CHECK_KLGD`), đối chiếu Dsgd-Before-EOD 3 bên (`CHECK_DSGD_BEFORE_EOD`), đối chiếu EOD Market Maker (`CHECK_EOD_MS`), và quét ký quỹ âm (`SCAN_NEGATIVE_MARGIN`).
 2. **Tab 2: Backup – Thống kê – GTT**: Quản lý tải 14 báo cáo M-System, 9 báo cáo CQG, chạy Macro số lô (`RUN_LOT_MACRO`), Macro giá trị (`RUN_VALUE_MACRO`), và đối soát chênh lệch giá thanh toán GTT (`CHECK_GTT`).
 3. **Tab 3: Cấu hình – Đường dẫn**: Cấu hình tỷ giá đa tiền tệ M-System & CoreCCP, giờ phiên, cùng 12 đường dẫn thư mục hạ tầng máy chủ.
 4. **Tab 4: Báo Cáo & Đối Chiếu CoreCCP**: Tải 25 báo cáo VNCLEAR, đối soát EOD CoreCCP, thống kê Lot & Giá trị giao dịch CoreCCP theo 2 chế độ User vs Expert.

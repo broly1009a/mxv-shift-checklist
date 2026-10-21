@@ -29,7 +29,7 @@ import { CcpValueWorker } from './workers/ccp-value.worker';
 import { CcpEodWorker } from './workers/ccp-eod.worker';
 import { SodReconWorker } from './workers/sod-recon.worker';
 import { CqgSyncWorker } from './workers/cqg-sync.worker';
-import { EodMmWorker } from './workers/eod-mm.worker';
+import { EodMsWorker } from './workers/eod-ms.worker';
 
 import { IngressModule } from '../ingress/ingress.module';
 import { BotEngineModule } from '../bot-engine/bot-engine.module';
@@ -101,7 +101,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     CcpEodWorker,
     SodReconWorker,
     CqgSyncWorker,
-    EodMmWorker,
+    EodMsWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
   ],
@@ -130,7 +130,7 @@ import { TradingOpsMiscController } from './controllers/trading-ops-misc.control
     CcpEodWorker,
     SodReconWorker,
     CqgSyncWorker,
-    EodMmWorker,
+    EodMsWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
     MongooseModule,
