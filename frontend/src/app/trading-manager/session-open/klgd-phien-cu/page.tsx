@@ -17,7 +17,6 @@ import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
-import LegacyDsgdBeforeEodDiffSection from '../../components/legacy-ms-cqg/LegacyDsgdBeforeEodDiffSection';
 import CcpCeEodReconSection from '../../components/core-ccp/CcpCeEodReconSection';
 import DsgdBeforeEodSection from '../../components/shared/DsgdBeforeEodSection';
 import TradingManagerLogModal from '../../components/shared/TradingManagerLogModal';
@@ -232,15 +231,7 @@ export default function CheckKlgdPhienCuPage() {
         </div>
 
         {/* ========================================================================= */}
-        {/* 1. KHUNG KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD - ĐỨNG TRƯỚC)        */}
-        {/* ========================================================================= */}
-        <DsgdBeforeEodSection
-          token={token}
-          selectedDate={selectedDate}
-        />
-
-        {/* ========================================================================= */}
-        {/* 2. KHUNG ĐỐI CHIẾU GIAO DỊCH TRƯỚC EOD (CỦA CẢ MS VÀ CCP)                  */}
+        {/* KHUNG ĐỐI CHIẾU GIAO DỊCH TRƯỚC EOD (CỦA CẢ MS VÀ CCP)                    */}
         {/* ========================================================================= */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -260,15 +251,13 @@ export default function CheckKlgdPhienCuPage() {
                       letterSpacing: '0.04em',
                     }}
                   >
-                    PHÂN HỆ 1: M-SYSTEM ↔ CQG & ACM
+                    PHÂN HỆ 1: M-SYSTEM ↔ CQG & ACM (DSGD TRƯỚC EOD)
                   </span>
                 </div>
               )}
-              <LegacyDsgdBeforeEodDiffSection
-                dsgdBeforeEodData={dsgdBeforeEodData}
-                onTriggerCheck={handleTriggerRun}
-                triggering={triggering}
-                onOpenLogs={() => setLogModalOpen(true)}
+              <DsgdBeforeEodSection
+                token={token}
+                selectedDate={selectedDate}
               />
             </div>
           )}

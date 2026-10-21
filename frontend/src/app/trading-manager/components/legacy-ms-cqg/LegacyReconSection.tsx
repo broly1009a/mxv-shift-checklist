@@ -32,7 +32,6 @@ import {
 import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { ReconLogSummaryModal } from './ReconLogSummaryModal';
-import LegacyDsgdBeforeEodDiffSection from './LegacyDsgdBeforeEodDiffSection';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
 import DsgdBeforeEodSection from '../shared/DsgdBeforeEodSection';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
@@ -2315,14 +2314,6 @@ export default function LegacyReconSection({
                 </div>
               </div>
             </div>
-
-            {/* KHUNG CHI TIẾT ĐỐI CHIẾU DSGD-BEFORE-EOD (M-SYSTEM ↔ CQG ↔ STRAITS/ACM) */}
-            <LegacyDsgdBeforeEodDiffSection
-              dsgdBeforeEodData={summaryData?.dsgdBeforeEod}
-              onTriggerCheck={() => handleTriggerRun('CHECK_DSGD_BEFORE_EOD', 'dsgd-before-eod-diff')}
-              triggering={triggering && triggeringSection === 'dsgd-before-eod-diff'}
-              onOpenLogs={() => setDsgdBeforeEodLogModalOpen(true)}
-            />
 
             {/* KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD: MS GỐC VS SNAPSHOT & ACM STRAITS) */}
             <div style={{ marginTop: '16px' }}>

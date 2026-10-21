@@ -1,3 +1,45 @@
+## [2026-10-21T08:06] ARCHIVE: Di Chuyển LegacyPreEodDiffSection Sang frontend/legacy & Làm Sạch Mã Nguồn frontend/src
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Di chuyển an toàn file giao diện cũ [LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx) sang thư mục lưu trữ `frontend/legacy/components/trading-manager-components/legacy-ms-cqg/`.
+- Xóa bỏ hoàn toàn file mồ côi này khỏi cây mã nguồn hoạt động `frontend/src/app/trading-manager/components/legacy-ms-cqg/` để tránh nhầm lẫn và dọn sạch 100% dự án.
+
+### 2. Danh sách file đã chỉnh sửa & di chuyển
+1. **[LegacyPreEodDiffSection.tsx (Legacy)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx)**:
+   - Lưu trữ bản snapshot đầy đủ làm tài liệu tham khảo lịch sử.
+2. **`frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx`**:
+   - Xóa bỏ khỏi Git (`git rm -f`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
+
+---
+
+## [2026-10-20T19:35] CLEANUP: Gỡ Bỏ Hoàn Toàn Khung Màn Hình Pre-EOD Cũ & Chuẩn Hóa Tên File DsgdBeforeEod
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Gỡ bỏ hoàn toàn khung màn hình Pre-EOD cũ (`LegacyDsgdBeforeEodDiffSection` - M-SYSTEM ↔ CQG ↔ STRAITS/ACM) khỏi giao diện Trading Manager và trang Phiên Cũ, loại bỏ sự trùng lặp và sai lệch với logic C# tool gốc.
+- Giữ lại duy nhất component chuẩn C# `CheckDSGDBeforeEOD`: [DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx) (Đối chiếu DSGD Gốc vs Tạm & ACM Straits).
+- Đồng bộ tên file vật lý của Backend (`dsgd-before-eod-recon.service.ts`, `dsgd-before-eod-recon.worker.ts`, `dsgd-before-eod-recon.controller.ts`) và Frontend (`DsgdBeforeEodReconciliationVisualReport.tsx`) để xóa sạch các tàn dư tên cũ `pre-eod`.
+
+### 2. Danh sách file đã chỉnh sửa & đổi tên
+1. **[LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)**:
+   - Xóa bỏ import và khối giao diện render `LegacyDsgdBeforeEodDiffSection`.
+2. **[page.tsx (Phiên Cũ)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx)**:
+   - Xóa bỏ import và render của `LegacyDsgdBeforeEodDiffSection`, đưa trực tiếp `DsgdBeforeEodSection` chuẩn vào Phân hệ 1 (MS - CQG).
+3. **[DsgdBeforeEodReconciliationVisualReport.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/ui/bot-log-viewer/DsgdBeforeEodReconciliationVisualReport.tsx)**:
+   - Đổi tên từ `PreEodReconciliationVisualReport.tsx` qua `git mv` để đồng nhất với class export và import trong `ReconciliationVisualReport.tsx`.
+4. **Backend Files Renamed via `git mv`**:
+   - `backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts`
+   - `backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts`
+   - `backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts`
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes compiled, Exit Code: 0).
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
+
+---
+
 ## [2026-10-20T18:10] AUDIT & REFACTOR: Đồng Bộ Tên Tác Vụ Scheduler "Đối chiếu DSGD trước EOD" Chuẩn C# Tool
 
 ### 1. Mục tiêu thay đổi
