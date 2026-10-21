@@ -42,6 +42,7 @@ export const CANONICAL_CORECCP_API_KEYS = [
   'GTT_CCP',      // SETTLEMENT -> GTT CCP.xlsx
   'HH',           // COMMODITY -> HH.xlsx (Hàng hóa & tự động trích xuất HĐ theo từng mã hàng hóa động)
   'TYGIA',        // CURRENCYEXCHANGERATE -> Tỷ giá CCP.xlsx
+  'EOD_CCP',      // ACCTMARGIN_HIST -> EOD.xlsx (Kết quả chốt sổ EOD CoreCCP)
 ] as const;
 
 export type CanonicalCoreCcpKey = typeof CANONICAL_CORECCP_API_KEYS[number];
@@ -75,9 +76,14 @@ export const CORECCP_DERIVED_RULES: Record<string, Array<{ targetFileName: strin
   LSGD_CCP: [
     { targetFileName: 'LSGD_{date}.xlsx', isDated: true },
     { targetFileName: 'Lịch sử giao dịch CCP.xlsx' },
+    { targetFileName: 'DSGD_{date}.xlsx', isDated: true },
+    { targetFileName: 'DSGD CCP.xlsx' },
   ],
   TTTT: [
     { targetFileName: 'TTTT_{date}.xlsx', isDated: true },
+  ],
+  EOD_CCP: [
+    { targetFileName: 'EOD_{date}.xlsx', isDated: true },
   ],
 };
 
@@ -161,6 +167,24 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     searchCode: 'ACCTMARGIN_POS',
     route: '/RISKMNG/ACCTMARGIN_POS',
     description: 'Danh sách quản lý ký quỹ tài khoản giao dịch',
+    group: 'RISK',
+    phase: 'EOD',
+  },
+  EOD_CCP: {
+    key: 'EOD_CCP',
+    fileName: 'EOD.xlsx',
+    searchCode: 'ACCTMARGIN_HIST',
+    route: '/EOD/ACCTMARGIN_HIST',
+    description: 'Kết quả chốt sổ EOD CoreCCP (Số dư & Ký quỹ)',
+    group: 'RISK',
+    phase: 'EOD',
+  },
+  EOD: {
+    key: 'EOD',
+    fileName: 'EOD.xlsx',
+    searchCode: 'ACCTMARGIN_HIST',
+    route: '/EOD/ACCTMARGIN_HIST',
+    description: 'Kết quả chốt sổ EOD CoreCCP (Alias EOD_CCP)',
     group: 'RISK',
     phase: 'EOD',
   },

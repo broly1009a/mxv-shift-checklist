@@ -33,7 +33,6 @@ import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
 import { ReconLogSummaryModal } from './ReconLogSummaryModal';
 import LegacyGttCheckerSection from './LegacyGttCheckerSection';
-import DsgdBeforeEodSection from '../shared/DsgdBeforeEodSection';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
 export interface LegacyReconSectionProps {
@@ -2313,11 +2312,6 @@ export default function LegacyReconSection({
                   </table>
                 </div>
               </div>
-            </div>
-
-            {/* KIỂM TRA DSGD TRƯỚC EOD (CheckDSGDBeforeEOD: MS GỐC VS SNAPSHOT & ACM STRAITS) */}
-            <div style={{ marginTop: '16px' }}>
-              <DsgdBeforeEodSection token={token} selectedDate={selectedDate} />
             </div>
 
             {/* ĐỐI CHIẾU GIÁ THANH TOÁN (GTT M-SYSTEM VS CQG) - CHUYỂN TỪ TAB 3 VỀ TAB 2 */}

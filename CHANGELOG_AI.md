@@ -77,6 +77,178 @@
 ### 3. Xác nhận Build & Kiểm thử
 - **Backend Build**: `nest build` $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
 - **Frontend Build**: `next build` $\rightarrow$ Thành công 100% (50/50 static routes, bao gồm `/trading-manager/statistics/ce`, Exit Code: 0).
+## [2026-10-21T15:10] FEATURE: Bổ Sung Flyout Popover Menu Hiển Thị Menu Con Khi Hover Lúc Sidebar Thu Gọn
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Khi Sidebar đang ở chế độ thu nhỏ (`isCollapsed = true`), người dùng di chuột (hover) vào icon của menu cha (Backup, Thống kê, Tham số hệ thống) thì hiển thị một cửa sổ popup flyout bên cạnh phải (giống mẫu giao diện người dùng cung cấp).
+- Cửa sổ flyout bao gồm:
+  - Header tiêu đề nhóm (ví dụ: `Tham số hệ thống`, `Sao lưu dữ liệu (Backup)`, `Thống kê (MS & CCP)`).
+  - Danh sách các đường link con với icon và nhãn tương ứng.
+  - Hover mượt mà, hỗ trợ cả 2 chế độ Light mode và Dark mode.
+  - Tự động đóng khi rê chuột ra ngoài hoặc click chuyển trang.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/globals.css](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/globals.css)**:
+   - Thêm styling cho `.sidebar-flyout-menu`, `.sidebar-flyout-header`, `.sidebar-flyout-body`, `.sidebar-flyout-item`.
+   - Cấu hình box-shadow, background và border sắc nét tương thích với cả `[data-theme="light"]` và `[data-theme="dark"]`.
+   - Hiệu ứng trượt nhẹ `flyoutSlideIn`.
+2. **[frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx)**:
+   - Sử dụng `createPortal` để render popup nổi trên `document.body`, thoát hoàn toàn khỏi vùng giới hạn `overflow: hidden` của Sidebar.
+   - Thêm cơ chế tính toán tọa độ thông minh (`getBoundingClientRect`) và bộ đếm thời gian debounce (180ms) giúp rê chuột mượt mà từ icon sang menu popup mà không bị giật/tắt đột ngột.
+   - Gắn sự kiện `handleItemMouseEnter` cho 3 mục cha: `Backup`, `Thống kê`, `Tham số hệ thống`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type Check**: `cmd /c "npx tsc --noEmit"` $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T15:05] FIX: Chuẩn Hóa Hiển Thị Sub-Menus Sidebar QLGD Khi Thu Nhỏ (Phương Án 1 - Chuẩn UX)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER theo **Phương án 1 (Chuẩn Enterprise UX)**:
+  - Khi Sidebar bị thu nhỏ (`isCollapsed = true`), ẩn danh sách các sub-items trải dọc trong thanh rail 72px để tránh hiện tượng vỡ bố cục, lệch tâm, thụt lề so le giữa icon cha và icon con.
+  - Căn giữa hoàn toàn các icon cha (Backup, Thống kê, Tham số hệ thống) thẳng hàng 100% với các menu đơn khác (Tổng quan, Đối chiếu, Nghiệp vụ đầu phiên, Logs Hàng đợi).
+  - Khi người dùng bấm vào icon cha ở chế độ thu nhỏ, tự động điều hướng sang trang con đầu tiên của nhóm (`/trading-manager/backup/ms-cqg`, `/trading-manager/statistics/ms`, `/trading-manager/settings/ms-cqg`).
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx)**:
+   - Thêm import `useRouter` từ `next/navigation` và khởi tạo `const router = useRouter()`.
+   - Cập nhật các menu cha (`Backup`, `Thống kê`, `Tham số hệ thống`):
+     - `justifyContent: isCollapsed ? 'center' : 'space-between'`.
+     - `gap: isCollapsed ? '0' : '10px'`.
+     - Sự kiện `onClick`: Nếu `isCollapsed` thì điều hướng trực tiếp bằng `router.push(...)` sang trang con mặc định; nếu đang mở rộng thì toggle đóng/mở submenu.
+   - Cập nhật điều kiện hiển thị danh sách sub-items: `!isCollapsed && openSubMenus[key] && (...)`.
+   - Chuẩn hóa padding của các link con khi mở rộng: cố định `paddingLeft: '10px'`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type Check**: `cmd /c "npx tsc --noEmit"` $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T14:30] FEATURE: Chuẩn Hóa T-1 Tự Động Toàn Diện Cho Đối Chiếu EOD CoreCCP (API Ingress, Service, UI)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo của USER về **Giải pháp triển khai chuẩn hóa T-1 tự động**:
+  1. **Thuật toán tính ngày phiên làm việc $T-1$ (Working Day)**:
+     - Tự động lấy ngày phiên $T$ đang chọn trên giao diện lùi về ngày phiên hợp lệ gần nhất $T-1$:
+       - Nếu $T$ là Thứ Hai $\rightarrow$ Tự động lùi về Thứ Sáu tuần trước.
+       - Nếu $T$ là Thứ Ba - Thứ Bảy $\rightarrow$ Tự động lùi về ngày hôm trước.
+       - Tự động bỏ qua các ngày nghỉ Lễ/Tết theo Lịch giao dịch của MXV (`WorkingCalendarService`).
+  2. **Khi kích hoạt tải file EOD qua Direct API CoreCCP (ACCTMARGIN_HIST)**:
+     - Gán `search.TXDATE: { from: T-1, to: T-1 }` (ví dụ chọn $21/10/2026$ trên Web $\rightarrow$ API tự động gọi $20/10/2026$).
+     - Tự động chuyển hướng lưu trữ file vào đúng thư mục phiên $T-1$ (`Backup CCP/Futures/2026/T10.2026/20.10/EOD.xlsx`) và sinh các bản sao phái sinh (`EOD_20.10.2026.xlsx`) trong đúng thư mục $T-1$.
+  3. **Khi thực thi đối chiếu số dư EOD CoreCCP Backend ([ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-eod.service.ts))**:
+     - Quét thư mục phiên $T-1$ (`20.10`) để lấy đúng bộ file chốt sổ cùng phiên: `QL TT TKGD.xlsx` $T-1 \leftrightarrow$ `EOD.xlsx` $T-1$.
+     - Xác thực nghiêm ngặt ngày trong file `EOD.xlsx` phải khớp với ngày phiên $T-1$.
+  4. **Hiển thị minh bạch trên giao diện Frontend ([CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx))**:
+     - Thêm nhãn phụ trực quan ngay dưới thanh ngày phiên:
+       `Đối chiếu kết quả chốt sổ EOD phiên T-1: 20/10/2026 (Phiên ca trực: 21/10/2026)` với icon `Info` từ `lucide-react`.
+     - Cập nhật tiêu đề bảng đối chiếu rõ ràng: `Kết quả chạy EOD (Số dư QLTKGD ↔ Số dư EOD CoreCCP)`.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Thêm helper `calculatePreviousWorkdayDmy(dmy)`.
+   - Cập nhật `downloadReportsViaApi`: Tự động chuyển hướng thư mục đích sang thư mục phiên $T-1$ (thay thế `${tD}.${tM}` thành `${pD}.${pM}`) khi tải `ACCTMARGIN_HIST`.
+   - Tự động gán `search.TXDATE: { from: txDate, to: txDate }` theo ngày phiên $T-1$.
+   - Đồng bộ hóa bản sao phái sinh (`EOD_{date}.xlsx`) theo ngày và thư mục $T-1$.
+2. **[backend/src/shared/contracts/ingress-result.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/contracts/ingress-result.contract.ts)**:
+   - Thêm cờ `exactDate?: boolean;` vào `IngressDownloadOptions`.
+3. **[backend/src/modules/trading-ops/services/ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-eod.service.ts)**:
+   - Tích hợp `WorkingCalendarService` để tính ngày phiên làm việc liền trước $T-1$.
+   - Tự động trỏ `subFolder` tới ngày $T-1$ và assert tính toàn vẹn ngày trong file `EOD.xlsx`.
+4. **[frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx)**:
+   - Thêm `previousTradingDayFormatted` và `selectedDateFormatted` qua `useMemo`.
+   - Bổ sung thanh nhãn phụ thông báo rõ ràng phiên $T-1$ và phiên ca trực hiện tại.
+   - Chuẩn hóa tiêu đề cột và bảng đối chiếu nội bộ: `Số dư QLTKGD` $\leftrightarrow$ `Số dư EOD CoreCCP`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Pass 100% (49/49 pages compiled thành công, 0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T14:00] FEATURE: Bổ Sung Luồng Tải File Kết Quả EOD CoreCCP (ACCTMARGIN_HIST) Qua Direct REST API & WebSocket NotiSocket
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Tích hợp lệnh curl xuất và tải file EOD của phân hệ CoreCCP:
+     - Endpoint Export: `POST /ccp/export/create` với `searchcode: 'ACCTMARGIN_HIST'` và bộ lọc `search: { TXDATE: { from, to } }`.
+     - Lắng nghe sự kiện hoàn tất báo cáo qua WebSocket NotiSocket: `wss://.../notisocket/socket.io/?ticket=...`.
+     - Tải file nhị phân nguyên bản tại: `GET /ccp/report/download/{id}` $\rightarrow$ lưu thành `EOD.xlsx`.
+  2. Bổ sung `EOD_CCP` và alias `EOD` vào danh mục báo cáo CoreCCP chuẩn [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts) và `CANONICAL_CORECCP_API_KEYS`.
+  3. Thêm `'ACCTMARGIN_HIST'` vào `SERVER_EXPORT_CODES` và bổ sung logic tự động inject bộ lọc `TXDATE` theo ngày giao dịch phiên trong [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts).
+  4. Xác nhận và đồng bộ cơ chế đối chiếu EOD CoreCCP: sử dụng cột **"Số dư cuối ngày"** (hoặc `eodBalance`) trong file `EOD.xlsx` để đối chiếu với số dư lý thuyết tính từ file `QL TT TKGD.xlsx` (`ACCTMARGIN_ALL`).
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)**:
+   - Thêm `'EOD_CCP'` vào `CANONICAL_CORECCP_API_KEYS`.
+   - Thêm quy tắc nhân bản file phái sinh `EOD_{date}.xlsx` vào `CORECCP_DERIVED_RULES`.
+   - Cấu hình mapping cho `EOD_CCP` và alias `EOD` với `searchCode: 'ACCTMARGIN_HIST'`, `route: '/EOD/ACCTMARGIN_HIST'`, `fileName: 'EOD.xlsx'`.
+2. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Thêm `'ACCTMARGIN_HIST'` vào `SERVER_EXPORT_CODES`.
+   - Tự động inject bộ lọc `TXDATE: { from: dmy, to: dmy }` khi tải báo cáo `ACCTMARGIN_HIST`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Pass 100% (49/49 pages compiled thành công, 0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T12:00] FEATURE & REFACTOR: Chuẩn Hóa Đối Chiếu CheckDSGDBeforeEOD Cho CoreCCP & Quy Hoạch Duy Nhất Tại Trang klgd-phien-cu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Hoàn thiện và chuẩn hóa luồng đối chiếu `CheckDSGDBeforeEOD` cho phân hệ **CoreCCP** (so sánh file DSGD backup T-1 với file tươi tải qua API CoreCCP T-1 và file `*straits*.csv` từ Backup ACM):
+     - Lọc tài khoản ACM dựa trên cấu trúc chuẩn CoreCCP: mã tài khoản kết thúc bằng ký tự `'A'` (ví dụ `046C0002977-A`), được kiểm chứng 100% từ file thực tế `Backup CCP\Futures\2026\T10.2026\20.10\DSGD_20.10.2026.xlsx`.
+     - Sử dụng parser `CcpExcelParser.parseDSGD` để bóc tách cột `Mã TKGD` (index 5) và `KL khớp` (index 10).
+     - Quét thư mục Backup CCP tự động theo định dạng ngày `Backup CCP\Futures\{YYYY}\T{MM}.{YYYY}\{DD}.{MM}\` tìm file `DSGD*.xlsx` (bỏ qua `DSGD MM CCP.xlsx`).
+  2. Quy hoạch giao diện theo chỉ đạo nghiêm ngặt:
+     - Chức năng `CheckDSGDBeforeEOD` **CHỈ NẰM DUY NHẤT Ở TRANG `https://10.0.0.26/trading-manager/session-open/klgd-phien-cu` cho cả 2 hệ thống MS và CCP**.
+     - Xóa bỏ và ẩn hoàn toàn `DsgdBeforeEodSection` khỏi các trang khác (`CcpCeEodReconSection.tsx`, `LegacyReconSection.tsx`).
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**:
+   - Thêm thuộc tính `system?: 'MS' | 'CCP'` vào `CheckDSGDBeforeEODResult`.
+   - Cập nhật hàm `checkDSGDBeforeEODFromBuffers`: Hỗ trợ parser CoreCCP với điều kiện lọc tài khoản đuôi `'A'`, tích hợp `*straits*.csv`.
+   - Cập nhật hàm `runAutoCheckDSGDBeforeEOD`: Quét đường dẫn `Backup CCP` khi `system === 'CCP'`, tự động nhận diện file tươi API / snapshot và file straits T-1.
+2. **[backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts)**:
+   - Nhận `@Body('system') system?: 'MS' | 'CCP'` từ frontend và truyền xuống service.
+3. **[frontend/src/features/trading/services/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-ops.api.ts)**:
+   - Thêm tham số `system?: 'MS' | 'CCP'` vào API call `checkDsgdBeforeEod()`.
+4. **[frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx)**:
+   - Thêm prop `system?: 'MS' | 'CCP'`.
+   - Động hóa toàn bộ nhãn hiển thị, tiêu đề, card metrics và nội dung sao chép báo cáo tương ứng cho CoreCCP hoặc M-System.
+5. **[frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx)**:
+   - Nhúng `<DsgdBeforeEodSection system="MS" ... />` cho tab MS và `<DsgdBeforeEodSection system="CCP" ... />` cho tab CCP.
+6. **[frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx)**:
+   - Xóa bỏ toàn bộ phần render JSX của `DsgdBeforeEodSection` và các bảng trades/positions chắp vá cũ.
+7. **[frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)**:
+   - Xóa bỏ import và khối render `<DsgdBeforeEodSection />`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Kiểm thử hoàn tất, không có lỗi type/compile.
+
+---
+
+## [2026-10-21T11:15] REFACTOR: Clean Code & Tối Ưu Hóa Luồng Tải Báo Cáo Trong CoreCcpApiAdapter
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu review và dọn sạch mã nguồn của USER trong [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+  1. Loại bỏ toán tử ba ngôi dư thừa `reportDef.fileName.includes(...) ? reportDef.fileName : reportDef.fileName` tại dòng 800 $\rightarrow$ gán trực tiếp `const outFileName = reportDef.fileName;`.
+  2. Gom nhóm điều kiện kiểm tra báo cáo đủ điều kiện Server Export (`isServerExportEligible`) bằng `SERVER_EXPORT_CODES: Set<string>` thay vì nối chuỗi `||` dài dòng và lặp lại giữa key và searchCode.
+  3. Căn chỉnh thụt đầu dòng (indentation) đồng bộ 100% bên trong vòng lặp `targets`.
+  4. Phân định chính xác `metadata.transport`: Ghi nhận `'SERVER_EXPORT_WS'` khi xuất thành công qua WebSocket NotiSocket, hoặc `'DIRECT_REST_API'` khi fallback sang Direct JSON Search + ExcelJS.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Dọn sạch logic nhánh tại dòng 800-896.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
 ## [2026-10-21T11:05] FEATURE: Bổ Sung Bộ Lọc Epoch Timestamp Milliseconds (transactions.sessionDate[gte] / [lte]) Cho M-System Direct REST API
 
 ### 1. Mục tiêu thay đổi

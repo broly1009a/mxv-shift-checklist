@@ -17,7 +17,6 @@ import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import toast from 'react-hot-toast';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
-import CcpCeEodReconSection from '../../components/core-ccp/CcpCeEodReconSection';
 import DsgdBeforeEodSection from '../../components/shared/DsgdBeforeEodSection';
 import TradingManagerLogModal from '../../components/shared/TradingManagerLogModal';
 
@@ -256,6 +255,7 @@ export default function CheckKlgdPhienCuPage() {
                 </div>
               )}
               <DsgdBeforeEodSection
+                system="MS"
                 token={token}
                 selectedDate={selectedDate}
               />
@@ -278,14 +278,14 @@ export default function CheckKlgdPhienCuPage() {
                       letterSpacing: '0.04em',
                     }}
                   >
-                    PHÂN HỆ 2: CORECCP ↔ COREEX
+                    PHÂN HỆ 2: CORECCP (DSGD TRƯỚC EOD)
                   </span>
                 </div>
               )}
-              <CcpCeEodReconSection
+              <DsgdBeforeEodSection
+                system="CCP"
                 token={token}
                 selectedDate={selectedDate}
-                viewMode="DSGD_BEFORE_EOD_ONLY"
               />
             </div>
           )}

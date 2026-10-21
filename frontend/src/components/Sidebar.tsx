@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import {
@@ -47,6 +48,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, token, logout } = useAuth();
   const {
     canManageTemplates,
@@ -93,6 +95,76 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
   const toggleSubMenu = (menuKey: string) => {
     setOpenSubMenus((prev) => ({ ...prev, [menuKey]: !prev[menuKey] }));
   };
+
+  // Flyout menu state for Collapsed Sidebar hover
+  const [mounted, setMounted] = useState<boolean>(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  interface FlyoutItem {
+    href: string;
+    label: string;
+    icon: React.ReactNode;
+    active: boolean;
+  }
+
+  interface FlyoutData {
+    title: string;
+    top: number;
+    left: number;
+    items: FlyoutItem[];
+  }
+
+  const [flyoutData, setFlyoutData] = useState<FlyoutData | null>(null);
+  const flyoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleItemMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    title: string,
+    items: FlyoutItem[]
+  ) => {
+    if (!isCollapsed) return;
+    if (flyoutTimerRef.current) {
+      clearTimeout(flyoutTimerRef.current);
+      flyoutTimerRef.current = null;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const approxHeight = 44 + items.length * 38;
+    const maxTop = (typeof window !== 'undefined' ? window.innerHeight : 800) - approxHeight - 16;
+    const top = Math.max(12, Math.min(rect.top, maxTop));
+    setFlyoutData({
+      title,
+      top,
+      left: Math.round(rect.right) + 6,
+      items,
+    });
+  };
+
+  const handleItemMouseLeave = () => {
+    if (!isCollapsed) return;
+    if (flyoutTimerRef.current) {
+      clearTimeout(flyoutTimerRef.current);
+    }
+    flyoutTimerRef.current = setTimeout(() => {
+      setFlyoutData(null);
+    }, 180);
+  };
+
+  const handleFlyoutMouseEnter = () => {
+    if (flyoutTimerRef.current) {
+      clearTimeout(flyoutTimerRef.current);
+      flyoutTimerRef.current = null;
+    }
+  };
+
+  const handleFlyoutMouseLeave = () => {
+    setFlyoutData(null);
+  };
+
+  useEffect(() => {
+    setFlyoutData(null);
+  }, [pathname, isCollapsed]);
 
   interface SystemMetrics {
     uptime: number;
@@ -360,6 +432,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             <Link
               href="/trading-manager/dashboard"
               onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
               className={`nav-link ${pathname === '/trading-manager/dashboard' ? 'active' : ''}`}
               title={isCollapsed ? "Tổng quan QLGD" : undefined}
             >
@@ -371,6 +444,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             <Link
               href="/trading-manager/reconciliation"
               onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
               className={`nav-link ${pathname.startsWith('/trading-manager/reconciliation') ? 'active' : ''}`}
               title={isCollapsed ? "Đối chiếu giao dịch" : undefined}
             >
@@ -382,6 +456,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             <Link
               href="/trading-manager/session-open"
               onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
               className={`nav-link ${pathname.startsWith('/trading-manager/session-open') ? 'active' : ''}`}
               title={isCollapsed ? "Nghiệp vụ đầu phiên" : undefined}
             >
@@ -390,19 +465,41 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             </Link>
 
             {/* 4. Backup (Sub cha & sub con: Backup MS – CQG & Backup CCP – CE) */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column' }}
+              onMouseEnter={(e) => handleItemMouseEnter(e, 'Sao lưu dữ liệu (Backup)', [
+                {
+                  href: '/trading-manager/backup/ms-cqg',
+                  label: 'Backup MS – CQG',
+                  icon: <Folder size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname === '/trading-manager/backup/ms-cqg'
+                },
+                {
+                  href: '/trading-manager/backup/ccp-ce',
+                  label: 'Backup CCP – CE',
+                  icon: <Layers size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname === '/trading-manager/backup/ccp-ce'
+                }
+              ])}
+              onMouseLeave={handleItemMouseLeave}
+            >
               <div
-                onClick={() => toggleSubMenu('backup')}
+                onClick={() => {
+                  if (isCollapsed) {
+                    router.push('/trading-manager/backup/ms-cqg');
+                  } else {
+                    toggleSubMenu('backup');
+                  }
+                }}
                 className={`nav-link ${pathname.startsWith('/trading-manager/backup') ? 'active' : ''}`}
                 style={{
                   cursor: 'pointer',
-                  justifyContent: 'space-between',
+                  justifyContent: isCollapsed ? 'center' : 'space-between',
                   display: 'flex',
                   alignItems: 'center',
                 }}
-                title={isCollapsed ? "Sao lưu dữ liệu (Backup)" : undefined}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isCollapsed ? '0' : '10px' }}>
                   <Database size={18} style={{ flexShrink: 0 }} />
                   <span>Backup</span>
                 </div>
@@ -412,14 +509,14 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               </div>
 
               {/* Sub items: Backup MS – CQG & Backup CCP – CE */}
-              {openSubMenus.backup && (
+              {!isCollapsed && openSubMenus.backup && (
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '2px',
-                  marginLeft: isCollapsed ? '0' : '16px',
-                  borderLeft: isCollapsed ? 'none' : '2px solid rgba(255, 255, 255, 0.08)',
-                  paddingLeft: isCollapsed ? '0' : '6px',
+                  marginLeft: '16px',
+                  borderLeft: '2px solid rgba(255, 255, 255, 0.08)',
+                  paddingLeft: '6px',
                   marginBottom: '4px',
                 }}>
                   <Link
@@ -427,10 +524,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     onClick={onClose}
                     className={`nav-link ${pathname === '/trading-manager/backup/ms-cqg' ? 'active' : ''}`}
                     style={{
-                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      paddingLeft: '10px',
                       fontSize: '0.82rem',
                     }}
-                    title={isCollapsed ? "Backup MS – CQG" : undefined}
                   >
                     <Folder size={15} style={{ flexShrink: 0 }} />
                     <span>Backup MS – CQG</span>
@@ -441,10 +537,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     onClick={onClose}
                     className={`nav-link ${pathname === '/trading-manager/backup/ccp-ce' ? 'active' : ''}`}
                     style={{
-                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      paddingLeft: '10px',
                       fontSize: '0.82rem',
                     }}
-                    title={isCollapsed ? "Backup CCP – CE" : undefined}
                   >
                     <Layers size={15} style={{ flexShrink: 0 }} />
                     <span>Backup CCP – CE</span>
@@ -454,19 +549,41 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             </div>
 
             {/* 5. Thống kê (Sub cha & sub con: Thống kê MS & Thống kê CCP) */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column' }}
+              onMouseEnter={(e) => handleItemMouseEnter(e, 'Thống kê (MS & CCP)', [
+                {
+                  href: '/trading-manager/statistics/ms',
+                  label: 'Thống kê MS',
+                  icon: <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname === '/trading-manager/statistics/ms'
+                },
+                {
+                  href: '/trading-manager/statistics/ccp',
+                  label: 'Thống kê CCP',
+                  icon: <Layers size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname === '/trading-manager/statistics/ccp'
+                }
+              ])}
+              onMouseLeave={handleItemMouseLeave}
+            >
               <div
-                onClick={() => toggleSubMenu('stats')}
+                onClick={() => {
+                  if (isCollapsed) {
+                    router.push('/trading-manager/statistics/ms');
+                  } else {
+                    toggleSubMenu('stats');
+                  }
+                }}
                 className={`nav-link ${pathname.startsWith('/trading-manager/statistics') ? 'active' : ''}`}
                 style={{
                   cursor: 'pointer',
-                  justifyContent: 'space-between',
+                  justifyContent: isCollapsed ? 'center' : 'space-between',
                   display: 'flex',
                   alignItems: 'center',
                 }}
-                title={isCollapsed ? "Thống kê (MS & CCP)" : undefined}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isCollapsed ? '0' : '10px' }}>
                   <BarChart3 size={18} style={{ flexShrink: 0 }} />
                   <span>Thống kê</span>
                 </div>
@@ -476,14 +593,14 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               </div>
 
               {/* Sub items: Thống kê MS & Thống kê CCP */}
-              {openSubMenus.stats && (
+              {!isCollapsed && openSubMenus.stats && (
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '2px',
-                  marginLeft: isCollapsed ? '0' : '16px',
-                  borderLeft: isCollapsed ? 'none' : '2px solid rgba(255, 255, 255, 0.08)',
-                  paddingLeft: isCollapsed ? '0' : '6px',
+                  marginLeft: '16px',
+                  borderLeft: '2px solid rgba(255, 255, 255, 0.08)',
+                  paddingLeft: '6px',
                   marginBottom: '4px',
                 }}>
                   <Link
@@ -491,10 +608,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     onClick={onClose}
                     className={`nav-link ${pathname === '/trading-manager/statistics/ms' ? 'active' : ''}`}
                     style={{
-                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      paddingLeft: '10px',
                       fontSize: '0.82rem',
                     }}
-                    title={isCollapsed ? "Thống kê MS (Macro)" : undefined}
                   >
                     <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />
                     <span>Thống kê MS</span>
@@ -505,10 +621,9 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     onClick={onClose}
                     className={`nav-link ${pathname === '/trading-manager/statistics/ccp' ? 'active' : ''}`}
                     style={{
-                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      paddingLeft: '10px',
                       fontSize: '0.82rem',
                     }}
-                    title={isCollapsed ? "Thống kê CCP (VNCLEAR)" : undefined}
                   >
                     <Layers size={15} style={{ flexShrink: 0 }} />
                     <span>Thống kê CCP</span>
@@ -532,19 +647,41 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             </div>
 
             {/* 6. Tham số hệ thống (Sub cha & sub con: Cấu hình đường dẫn cũ & Cấu hình đường dẫn mới) */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column' }}
+              onMouseEnter={(e) => handleItemMouseEnter(e, 'Tham số hệ thống', [
+                {
+                  href: '/trading-manager/settings/ms-cqg',
+                  label: 'Đường dẫn cũ (MS - CQG)',
+                  icon: <Folder size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname.startsWith('/trading-manager/settings/ms-cqg') || pathname.startsWith('/trading-manager/settings/legacy-paths')
+                },
+                {
+                  href: '/trading-manager/settings/ccp-ce',
+                  label: 'Đường dẫn mới (CCP - CE)',
+                  icon: <FolderTree size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname.startsWith('/trading-manager/settings/ccp-ce') || pathname.startsWith('/trading-manager/settings/modern-paths')
+                }
+              ])}
+              onMouseLeave={handleItemMouseLeave}
+            >
               <div
-                onClick={() => toggleSubMenu('params')}
+                onClick={() => {
+                  if (isCollapsed) {
+                    router.push('/trading-manager/settings/ms-cqg');
+                  } else {
+                    toggleSubMenu('params');
+                  }
+                }}
                 className={`nav-link ${pathname.startsWith('/trading-manager/settings') ? 'active' : ''}`}
                 style={{
                   cursor: 'pointer',
-                  justifyContent: 'space-between',
+                  justifyContent: isCollapsed ? 'center' : 'space-between',
                   display: 'flex',
                   alignItems: 'center',
                 }}
-                title={isCollapsed ? "Tham số hệ thống" : undefined}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isCollapsed ? '0' : '10px' }}>
                   <Sliders size={18} style={{ flexShrink: 0 }} />
                   <span>Tham số hệ thống</span>
                 </div>
@@ -554,14 +691,14 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               </div>
 
               {/* Sub items: Đường dẫn cũ & Đường dẫn mới */}
-              {openSubMenus.params && (
+              {!isCollapsed && openSubMenus.params && (
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '2px',
-                  marginLeft: isCollapsed ? '0' : '16px',
-                  borderLeft: isCollapsed ? 'none' : '2px solid rgba(255, 255, 255, 0.08)',
-                  paddingLeft: isCollapsed ? '0' : '6px',
+                  marginLeft: '16px',
+                  borderLeft: '2px solid rgba(255, 255, 255, 0.08)',
+                  paddingLeft: '6px',
                   marginBottom: '4px',
                 }}>
                   <Link
@@ -569,10 +706,10 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     onClick={onClose}
                     className={`nav-link ${pathname.startsWith('/trading-manager/settings/ms-cqg') || pathname.startsWith('/trading-manager/settings/legacy-paths') ? 'active' : ''}`}
                     style={{
-                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      paddingLeft: '10px',
                       fontSize: '0.82rem',
                     }}
-                    title={isCollapsed ? "Cấu hình đường dẫn cũ (MS, CQG, ACM)" : "Dành cho MS, CQG, ACM"}
+                    title="Dành cho MS, CQG, ACM"
                   >
                     <Folder size={15} style={{ flexShrink: 0 }} />
                     <span>Đường dẫn cũ (MS - CQG)</span>
@@ -583,10 +720,10 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                     onClick={onClose}
                     className={`nav-link ${pathname.startsWith('/trading-manager/settings/ccp-ce') || pathname.startsWith('/trading-manager/settings/modern-paths') ? 'active' : ''}`}
                     style={{
-                      paddingLeft: isCollapsed ? '12px' : '10px',
+                      paddingLeft: '10px',
                       fontSize: '0.82rem',
                     }}
-                    title={isCollapsed ? "Cấu hình đường dẫn mới (CCP, CE, ACM)" : "Dành cho CCP, CE, ACM"}
+                    title="Dành cho CCP, CE, ACM"
                   >
                     <FolderTree size={15} style={{ flexShrink: 0 }} />
                     <span>Đường dẫn mới (CCP - CE)</span>
@@ -599,6 +736,7 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
             <Link
               href="/trading-manager/job-queue"
               onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
               className={`nav-link ${pathname.startsWith('/trading-manager/job-queue') || pathname.startsWith('/trading-manager/logs') ? 'active' : ''}`}
               title={isCollapsed ? "Logs hàng đợi robot" : undefined}
             >
@@ -1029,6 +1167,43 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
           }
         }
       `}} />
+
+      {/* Flyout Popup Menu when Sidebar is Collapsed */}
+      {mounted && isCollapsed && flyoutData && typeof document !== 'undefined' && createPortal(
+        <div
+          className="sidebar-flyout-menu"
+          onMouseEnter={handleFlyoutMouseEnter}
+          onMouseLeave={handleFlyoutMouseLeave}
+          style={{
+            top: `${flyoutData.top}px`,
+            left: `${flyoutData.left}px`,
+          }}
+        >
+          {/* Header */}
+          <div className="sidebar-flyout-header">
+            <span>{flyoutData.title}</span>
+          </div>
+
+          {/* Items */}
+          <div className="sidebar-flyout-body">
+            {flyoutData.items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => {
+                  setFlyoutData(null);
+                  if (onClose) onClose();
+                }}
+                className={`sidebar-flyout-item ${item.active ? 'active' : ''}`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

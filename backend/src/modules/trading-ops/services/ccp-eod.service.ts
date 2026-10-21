@@ -6,6 +6,7 @@ import { MarginExcelParser } from '../parsers';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { ValueStatisticsService } from './value-statistics.service';
 import { TelegramService } from '../../telegram/telegram.service';
+import { WorkingCalendarService } from '../../working-calendar/working-calendar.service';
 import {
   findHeaderIndex,
   findLatestFile,
@@ -33,6 +34,10 @@ export interface CcpAutoEodResult {
   mismatchedEOD: EODMismatchedItem[];
   negativeBalanceAccs: string[];
   negativeIMRAcc: string[];
+  sessionInfo?: {
+    shiftSessionDate: string;
+    eodSessionDate: string;
+  };
   filesUsed: {
     qltkgd: string;
     eod: string;
@@ -50,7 +55,61 @@ export class CcpEodService {
     private readonly valueStatisticsService: ValueStatisticsService,
     @Optional()
     private readonly telegramService?: TelegramService,
+    @Optional()
+    private readonly workingCalendarService?: WorkingCalendarService,
   ) {}
+
+  /**
+   * Tính ngày phiên giao dịch T-1 có kiểm tra Lịch Giao Dịch & Nghỉ Lễ/Tết (Working Calendar).
+   */
+  public async getPreviousTradingSession(inputDate?: Date | string): Promise<{
+    dateObj: Date;
+    day: string;
+    month: string;
+    year: string;
+    dateFormatted: string;
+    ymd: string;
+  }> {
+    const d = inputDate ? new Date(inputDate) : new Date();
+    d.setDate(d.getDate() - 1);
+
+    // Lặp lùi tối đa 15 ngày để tìm ngày giao dịch hợp lệ gần nhất (bao quát các kỳ nghỉ lễ/Tết dài ngày)
+    for (let i = 0; i < 15; i++) {
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      if (!isWeekend) {
+        let isHolidayOrNonTrading = false;
+        if (this.workingCalendarService) {
+          try {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(d.getDate()).padStart(2, '0');
+            const ymd = `${y}-${m}-${dayStr}`;
+            const cal = await this.workingCalendarService.validateDate(ymd);
+            isHolidayOrNonTrading = Boolean(cal?.isHoliday || cal?.isTradingDay === false);
+          } catch (err: any) {
+            this.logger.warn(`Không thể tra cứu working calendar cho ngày ${d.toISOString()}: ${err.message}.`);
+          }
+        }
+        if (!isHolidayOrNonTrading) {
+          break; // Tìm thấy ngày phiên giao dịch hợp lệ gần nhất
+        }
+      }
+      d.setDate(d.getDate() - 1);
+    }
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear().toString();
+    const ymd = `${year}-${month}-${day}`;
+    return {
+      dateObj: d,
+      day,
+      month,
+      year,
+      dateFormatted: `${day}/${month}/${year}`,
+      ymd,
+    };
+  }
 
   /**
    * Đối chiếu công thức EOD CoreCCP từ buffers
@@ -260,12 +319,44 @@ export class CcpEodService {
 
   /**
    * Tự động quét file và chạy đối chiếu EOD CoreCCP
+   * Mặc định tự động đối chiếu cho phiên T-1 (Working Day) nếu không có cờ isExplicitDate
    */
-  async runAutoCheckEodCcp(tradingDate: Date): Promise<CcpAutoEodResult> {
-    const year = tradingDate.getFullYear().toString();
-    const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
-    const day = String(tradingDate.getDate()).padStart(2, '0');
+  async runAutoCheckEodCcp(
+    tradingDate: Date,
+    options?: { isExplicitDate?: boolean },
+  ): Promise<CcpAutoEodResult> {
+    let evalSession: {
+      dateObj: Date;
+      day: string;
+      month: string;
+      year: string;
+      dateFormatted: string;
+      ymd: string;
+    };
+
+    if (options?.isExplicitDate) {
+      const d = tradingDate;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear().toString();
+      evalSession = {
+        dateObj: d,
+        day,
+        month,
+        year,
+        dateFormatted: `${day}/${month}/${year}`,
+        ymd: `${year}-${month}-${day}`,
+      };
+    } else {
+      evalSession = await this.getPreviousTradingSession(tradingDate);
+    }
+
+    const { day, month, year, dateFormatted, ymd } = evalSession;
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
+
+    this.logger.log(
+      `[CcpEodService] 🚀 Thực thi đối chiếu EOD CoreCCP cho phiên chốt sổ T-1: ${dateFormatted} (Ngày ca trực: ${tradingDate.toISOString().split('T')[0]})`,
+    );
 
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const checkDailyPath = resolveTradingCheckCcpDailyPath(subFolder, rawCcpBase);
@@ -279,7 +370,7 @@ export class CcpEodService {
 
     if (!fs.existsSync(ccpDailyPath)) {
       throw new Error(
-        `Thư mục dữ liệu CoreCCP không tồn tại: ${checkDailyPath} (hoặc ${backupDailyPath}). Vui lòng tải báo cáo trước.`,
+        `Thư mục dữ liệu phiên T-1 (${dateFormatted}) của CoreCCP không tồn tại: ${checkDailyPath} (hoặc ${backupDailyPath}). Vui lòng tải báo cáo trước.`,
       );
     }
 
@@ -297,17 +388,17 @@ export class CcpEodService {
     const nrCcpFile = findLatestFile(ccpDailyPath, /nr/i);
 
     if (!qltkgdCcpFile || !fs.existsSync(qltkgdCcpFile)) {
-      throw new Error(`Không tìm thấy file QLTTTKGD trong thư mục ${ccpDailyPath}`);
+      throw new Error(`Không tìm thấy file QLTTTKGD trong thư mục ${ccpDailyPath} (Phiên T-1: ${dateFormatted})`);
     }
     if (!eodCcpFile || !fs.existsSync(eodCcpFile)) {
-      throw new Error(`Không tìm thấy file EOD trong thư mục ${ccpDailyPath}`);
+      throw new Error(`Không tìm thấy file EOD trong thư mục ${ccpDailyPath} (Phiên T-1: ${dateFormatted})`);
     }
 
     const qltkgdCcpBuffer = fs.readFileSync(qltkgdCcpFile);
     const eodCcpBuffer = fs.readFileSync(eodCcpFile);
     const ttttCcpBuffer = ttttCcpFile && fs.existsSync(ttttCcpFile) ? fs.readFileSync(ttttCcpFile) : undefined;
 
-    // Strict Date Assertion: Xác thực ngày phiên trong file EOD.xlsx
+    // Strict Date Assertion: Xác thực ngày phiên trong file EOD.xlsx khớp với ngày T-1
     try {
       const eodWb = XLSX.read(eodCcpBuffer, { type: 'buffer' });
       const eodSheet = eodWb.Sheets[eodWb.SheetNames[0]];
@@ -317,17 +408,17 @@ export class CcpEodService {
         const dateIdx = header.findIndex((h: string) => /ngày|date/i.test(h));
         if (dateIdx !== -1 && eodRows[1] && eodRows[1][dateIdx]) {
           const fileDateStr = String(eodRows[1][dateIdx]).trim();
-          const expectedDmy = `${day}/${month}/${year}`;
-          const expectedYmd = `${year}-${month}-${day}`;
+          const expectedDmy = dateFormatted;
+          const expectedYmd = ymd;
           if (!fileDateStr.includes(expectedDmy) && !fileDateStr.includes(expectedYmd)) {
             throw new Error(
-              `File EOD.xlsx hiện tại là dữ liệu của ngày cũ (${fileDateStr}), CoreCCP chưa xuất kết quả chốt sổ EOD của ngày ${expectedDmy}. Vui lòng chạy đối chiếu sau khi kết thúc phiên giao dịch.`,
+              `File EOD.xlsx hiện tại là dữ liệu của ngày (${fileDateStr}), không khớp với phiên chốt sổ T-1 (${expectedDmy}). Vui lòng tải báo cáo EOD của ngày ${expectedDmy}.`,
             );
           }
         }
       }
     } catch (e: any) {
-      if (e.message && e.message.includes('chưa xuất kết quả chốt sổ EOD')) {
+      if (e.message && e.message.includes('không khớp với phiên chốt sổ T-1')) {
         throw e;
       }
     }
@@ -354,7 +445,7 @@ export class CcpEodService {
     } catch {}
 
     if (this.telegramService) {
-      let telegramMsg = ` <b>[ĐỐI CHIẾU EOD CORECCP - ${day}/${month}/${year}]</b>\n`;
+      let telegramMsg = ` <b>[ĐỐI CHIẾU EOD CORECCP - PHIÊN T-1: ${dateFormatted}]</b>\n`;
       telegramMsg += `• Trạng thái: ${mismatchedCcp.length === 0 ? '✓ Khớp hoàn toàn công thức EOD CCP' : '<b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
       telegramMsg += `• Tổng số TK CoreCCP: <b>${totalAccounts}</b>\n`;
       telegramMsg += `• Tài khoản lệch công thức: <b>${mismatchedCcp.length}</b>\n`;
@@ -368,6 +459,10 @@ export class CcpEodService {
       mismatchedEOD: mismatchedCcp,
       negativeBalanceAccs,
       negativeIMRAcc,
+      sessionInfo: {
+        shiftSessionDate: tradingDate.toISOString().split('T')[0],
+        eodSessionDate: dateFormatted,
+      },
       filesUsed: {
         qltkgd: path.basename(qltkgdCcpFile),
         eod: path.basename(eodCcpFile),
