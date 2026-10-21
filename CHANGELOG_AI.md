@@ -1,3 +1,29 @@
+## [2026-10-21T19:50] BUGFIX: Khắc Phục Lỗi Bật/Tắt Công Tắc Tự Động Backup Không Lưu Vào Cơ Sở Dữ Liệu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "sao tôi bật backup nó không lưu vậy" trên màn hình `SAO LƯU DỮ LIỆU ĐỐI CHIẾU (CCP – CE)`.
+- **Nguyên nhân gốc rễ**:
+  1. **Lỗi phân quyền Controller**: Endpoint `POST /api/v1/system-settings` ([system-settings.controller.ts#L29](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/system-settings/system-settings.controller.ts#L29)) bị cấu hình cứng `@Roles('ADMIN')`. Khi tài khoản trực ca Quản lý giao dịch (`username: "qlgd"`, role: `"STAFF"`) click bật/tắt công tắc hoặc đổi thời gian backup, backend trả về **403 Forbidden** (chặn truy cập).
+  2. **Lỗi nuốt lỗi Frontend (Silent Swallow)**: Trong [CcpCeBackupThongKeSection.tsx#L183-L189](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx#L183-L189), hàm `saveSetting` dùng khối `try { ... } catch {}` rỗng nuốt chửng lỗi 403, trong khi nút bấm lại bắn `toast.success` thông báo ảo. Kết quả là trong CSDL MongoDB `system_settings.bot_auto_backup_enabled` vẫn giữ nguyên giá trị `'false'`, khi người dùng F5 hoặc bot chạy thì cài đặt không hề được lưu.
+
+### 2. Danh sách file chỉnh sửa
+1. **[system-settings.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/system-settings/system-settings.controller.ts)**:
+   - Mở rộng phân quyền endpoint `POST /api/v1/system-settings` cho phép các vai trò vận hành ca trực: `@Roles('ADMIN', 'STAFF', 'DEPARTMENT_HEAD', 'CEO', 'CHAIRMAN')`.
+2. **[CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx)**:
+   - Cập nhật hàm `saveSetting`: Chuẩn hóa tham số gọi API, loại bỏ catch rỗng, ném lỗi và hiển thị toast cảnh báo nếu lưu thất bại.
+   - Nút Master Switch: `await saveSetting(...)`, tự động rollback trạng thái trên UI nếu lưu vào DB thất bại (Quy tắc Fail-Fast & Zero-Silent-Swallow).
+3. **Triển khai Server Ubuntu 10.0.0.26**:
+   - Đồng bộ Backend & Frontend lên `/opt/mxv-checklist/`.
+   - Biên dịch NestJS backend (`nest build`) và Next.js 16 frontend (`next build`) pass 100%.
+   - Đã reload PM2 `mxv-backend` & `mxv-frontend`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend TypeScript Check**: `node node_modules/typescript/bin/tsc --noEmit` $\rightarrow$ Pass 100%, 0 lỗi.
+- **Backend NestJS Build**: `node ./node_modules/@nestjs/cli/bin/nest.js build` $\rightarrow$ Pass 100%, Exit Code 0.
+- **Server Deployment**: Next.js production build pass 50/50 routes, PM2 reloaded.
+
+---
+
 ## [2026-10-21T17:27] BUGFIX: Khắc Phục Lỗi Vòng Lặp Vô Tận (Infinite Loop Spam API `scan-daily`) Trên Trang Thống Kê CE
 
 ### 1. Mục tiêu thay đổi
