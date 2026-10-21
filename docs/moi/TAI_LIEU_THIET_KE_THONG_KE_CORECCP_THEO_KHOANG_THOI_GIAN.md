@@ -1,18 +1,21 @@
 # BẢN THIẾT KẾ KỸ THUẬT: TÍNH NĂNG THỐNG KÊ CORECCP THEO KHOẢNG THỜI GIAN
+
 ## (CORECCP AD-HOC RANGE STATISTICS - 1-PASS CALCULATION & TEMPLATE CLONING)
 
 > **Dự án**: MXV Modular Refactor - Trading Operations Monolith V2  
 > **Phân hệ**: Trading Manager / Bù trừ & Thống kê CoreCCP (`https://10.0.0.26/trading-manager/statistics/ccp`)  
-> **Mã Modules liên quan**:  
-> - Backend Ingress: [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts) & [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts)  
-> - Backend Trading Ops: [ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts), [ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts), [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)  
+> **Mã Modules liên quan**:
+>
+> - Backend Ingress: [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts) & [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts)
+> - Backend Trading Ops: [ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts), [ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts), [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)
 > - Frontend UI: [CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx), [ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ccp-clearing.api.ts)  
-> **Phiên bản thiết kế**: v2.2 - Simplified 1-Pass Range Aggregation  
-> **Trạng thái**: Ready for Implementation (Chuẩn bị triển khai)
+>   **Phiên bản thiết kế**: v2.2 - Simplified 1-Pass Range Aggregation  
+>   **Trạng thái**: Ready for Implementation (Chuẩn bị triển khai)
 
 ---
 
 ## MỤC LỤC CHI TIẾT
+
 1. [BỐI CẢNH NGHIỆP VỤ & NGUYÊN TẮC THIẾT KẾ ĐƠN GIẢN](#1-bối-cảnh-nghiệp-vụ--nguyên-tắc-thiết-kế-đơn-giản)
 2. [CƠ CHẾ 1-PASS AGGREGATION: 1 LẦN TẢI - 1 LẦN TÍNH - 1 DÒNG GHI TEMPLATE](#2-cơ-chế-1-pass-aggregation-1-lần-tải---1-lần-tính---1-dòng-ghi-template)
 3. [BẰNG CHỨNG GROUND TRUTH TỪ MÃ NGUỒN HIỆN CÓ](#3-bằng-chứng-ground-truth-từ-mã-nguồn-hiện-có)
@@ -28,14 +31,18 @@
 ## 1. BỐI CẢNH NGHIỆP VỤ & NGUYÊN TẮC THIẾT KẾ ĐƠN GIẢN
 
 ### 1.1. Hiện trạng: Thống kê Hàng ngày (Daily Accumulator)
+
 Trang Thống kê Bù trừ CoreCCP ([CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)) vận hành theo ca trực hàng ngày:
-* Chọn **1 ngày phiên duy nhất** (`selectedDate`).
-* Đọc dữ liệu của ngày đó và ghi vào dòng của ngày đó trên 11 file Excel Lũy kế Master của năm.
+
+- Chọn **1 ngày phiên duy nhất** (`selectedDate`).
+- Đọc dữ liệu của ngày đó và ghi vào dòng của ngày đó trên 11 file Excel Lũy kế Master của năm.
 
 ### 1.2. Bản Chất Nghiệp Vụ Của Báo Cáo Đột Xuất (Ad-hoc Period)
-Khi Ban Lãnh đạo hoặc Khối Nghiệp vụ cần báo cáo đột xuất: *"Thống kê số lot và giá trị giao dịch từ ngày 01/10/2026 đến ngày 21/10/2026"*:
-* Người xem báo cáo cần nhìn thấy **TỔNG SỐ LOT VÀ GIÁ TRỊ CỦA CẢ KỲ ĐỘT XUẤT ĐÓ** theo từng Thành viên kinh doanh và mặt hàng.
-* **YÊU CẦU CHỈ ĐẠO CỐT LÕI TỪ NGƯỜI DÙNG**:
+
+Khi Ban Lãnh đạo hoặc Khối Nghiệp vụ cần báo cáo đột xuất: _"Thống kê số lot và giá trị giao dịch từ ngày 01/10/2026 đến ngày 21/10/2026"_:
+
+- Người xem báo cáo cần nhìn thấy **TỔNG SỐ LOT VÀ GIÁ TRỊ CỦA CẢ KỲ ĐỘT XUẤT ĐÓ** theo từng Thành viên kinh doanh và mặt hàng.
+- **YÊU CẦU CHỈ ĐẠO CỐT LÕI TỪ NGƯỜI DÙNG**:
   > **"Sau khi tải tươi về từ bộ lọc dải ngày thì chỉ có 1 file duy nhất (DSGD CCP), cứ thế mà thống kê ra thôi. Thay vì ghi từng ngày phức tạp như template hàng ngày, ta chỉ cần nhân bản Template chuẩn của MXV và ghi 1 dòng đại diện có nhãn: '01/10/2026 - 21/10/2026'. Logic tính toán vẫn giữ nguyên 100% như cũ, đơn giản và trực diện hơn rất nhiều."**
 
 ---
@@ -71,13 +78,14 @@ Khi Ban Lãnh đạo hoặc Khối Nghiệp vụ cần báo cáo đột xuất: 
 ```
 
 ### So sánh Hiệu quả Kỹ thuật:
-| Tiêu chí | ❌ Cách cũ (Chia nhỏ & Lặp 20 ngày) | ✅ Cách mới (1-Pass Aggregation theo chỉ đạo) |
-| :--- | :--- | :--- |
-| **Số lần gọi hàm tính** | 20 lần lặp (dễ phát sinh lỗi ngày nghỉ T7/CN) | **Đúng 1 lần duy nhất** cho toàn bộ dữ liệu kỳ |
-| **Thời gian xử lý** | 15 - 30 giây (mở/đóng ExcelJS 20 lần) | **< 2 giây** (chỉ mở và ghi 1 lần) |
-| **Cách thể hiện trên Template** | Rải rác 20 dòng ngày trong tháng | **1 dòng súc tích, rõ nghĩa**: `"01/10/2026 - 21/10/2026"` |
-| **Độ rủi ro sai lệch** | Dễ lệch nếu ngày nào đó thiếu file backup | **Không thể lệch** vì API trả về tổng thể cả kỳ |
-| **Sự chuẩn hóa Template** | Dễ đè vào các ngày khác trong tháng | Giữ nguyên form mẫu chuẩn của MXV, các cột TVKD chuẩn 100% |
+
+| Tiêu chí                        | Cách cũ (Chia nhỏ & Lặp 20 ngày)              | Cách mới (1-Pass Aggregation theo chỉ đạo)                 |
+| :------------------------------ | :-------------------------------------------- | :--------------------------------------------------------- |
+| **Số lần gọi hàm tính**         | 20 lần lặp (dễ phát sinh lỗi ngày nghỉ T7/CN) | **Đúng 1 lần duy nhất** cho toàn bộ dữ liệu kỳ             |
+| **Thời gian xử lý**             | 15 - 30 giây (mở/đóng ExcelJS 20 lần)         | **< 2 giây** (chỉ mở và ghi 1 lần)                         |
+| **Cách thể hiện trên Template** | Rải rác 20 dòng ngày trong tháng              | **1 dòng súc tích, rõ nghĩa**: `"01/10/2026 - 21/10/2026"` |
+| **Độ rủi ro sai lệch**          | Dễ lệch nếu ngày nào đó thiếu file backup     | **Không thể lệch** vì API trả về tổng thể cả kỳ            |
+| **Sự chuẩn hóa Template**       | Dễ đè vào các ngày khác trong tháng           | Giữ nguyên form mẫu chuẩn của MXV, các cột TVKD chuẩn 100% |
 
 ---
 
@@ -149,9 +157,11 @@ sequenceDiagram
 ## 5. ĐẶC TẢ CHI TIẾT DÒNG GHI KỲ TRÊN FILE TEMPLATE CLONE
 
 ### 5.1. File Số Lot ACM Clone (`Thong_Ke_So_Lot_ACM_Tu_01.10.2026_Den_21.10.2026_[ts].xlsx`)
+
 Trên Sheet tháng tương ứng (ví dụ: `T10.2026`):
-* **Hàng tiêu đề (Row 4)**: Giữ nguyên 100% cột gốc của MXV (`STT`, `Ngày`, `Số Lot GD`, `Số lot tất toán`, `Vị thế mở`, Cột 38+ TVKD, Cột Hàng hóa).
-* **Dòng dữ liệu đại diện (Row 5)**:
+
+- **Hàng tiêu đề (Row 4)**: Giữ nguyên 100% cột gốc của MXV (`STT`, `Ngày`, `Số Lot GD`, `Số lot tất toán`, `Vị thế mở`, Cột 38+ TVKD, Cột Hàng hóa).
+- **Dòng dữ liệu đại diện (Row 5)**:
   - **Cột A (STT)**: Ghi `1`
   - **Cột B (Ngày)**: Ghi chuỗi văn bản rõ nghĩa: `"01/10/2026 - 21/10/2026"` (hoặc `"01/10 - 21/10/2026"`).
   - **Cột F (Số Lot GD)**: Điền tổng số lot khớp toàn sàn trong kỳ (`rangeResult.acmLot` hoặc `totalSoLot`).
@@ -159,23 +169,26 @@ Trên Sheet tháng tương ứng (ví dụ: `T10.2026`):
   - **Cột H (Vị thế mở)**: Điền vị thế mở chốt ngày kết thúc (`rangeResult.totalTtmLot`).
   - **Các cột TVKD (từ Cột 11 trở đi: HN 001, SF 002...)**: Tự động dò đúng tên TVKD và điền số lot của TVKD đó trong kỳ.
   - **Các cột Hàng hóa (SI5CO, CP2CO...)**: Tự động dò đúng mã hàng và điền số lot của hàng hóa đó trong kỳ.
-* **Dòng Tổng cộng (Row cuối)**: Công thức `=SUM(...)` có sẵn trên template sẽ cộng đúng số liệu của dòng này, đảm bảo tính toàn vẹn 100% của Excel.
+- **Dòng Tổng cộng (Row cuối)**: Công thức `=SUM(...)` có sẵn trên template sẽ cộng đúng số liệu của dòng này, đảm bảo tính toàn vẹn 100% của Excel.
 
 ### 5.2. File GTGD ACM Clone (`Thong_Ke_Gia_Tri_ACM_Tu_01.10.2026_Den_21.10.2026_[ts].xlsx`)
+
 Tương tự:
-* **Cột A (Ngày)**: Ghi `"01/10/2026 - 21/10/2026"`.
-* **Cột B (Tổng GTGD VND)**: Điền tổng GTGD toàn kỳ (`rangeResult.totalGiaTri`).
-* **Các cột TVKD**: Điền GTGD của từng TVKD tương ứng.
+
+- **Cột A (Ngày)**: Ghi `"01/10/2026 - 21/10/2026"`.
+- **Cột B (Tổng GTGD VND)**: Điền tổng GTGD toàn kỳ (`rangeResult.totalGiaTri`).
+- **Các cột TVKD**: Điền GTGD của từng TVKD tương ứng.
 
 ---
 
 ## 6. ĐẶC TẢ API ENDPOINTS & BACKEND CONTROLLER
 
 ### 6.1. Endpoint Kích hoạt Thống Kê & Ghi Báo Cáo Đột Xuất
-* **Method**: `POST`
-* **Route**: `/api/v1/ccp-statistics/lot-statistics/run-adhoc-range`
-* **Quyền truy cập**: `@Permissions('ACCESS_AUTO_SHIFT')`
-* **Body Request**:
+
+- **Method**: `POST`
+- **Route**: `/api/v1/ccp-statistics/lot-statistics/run-adhoc-range`
+- **Quyền truy cập**: `@Permissions('ACCESS_AUTO_SHIFT')`
+- **Body Request**:
   ```json
   {
     "fromDate": "2026-10-01",
@@ -184,7 +197,8 @@ Tương tự:
     "downloadFresh": true
   }
   ```
-* **Triển khai tại `ccp-recon.controller.ts`**:
+- **Triển khai tại `ccp-recon.controller.ts`**:
+
   ```typescript
   @Post('lot-statistics/run-adhoc-range')
   @Permissions('ACCESS_AUTO_SHIFT')
@@ -205,9 +219,10 @@ Tương tự:
   ```
 
 ### 6.2. Endpoint Tải File Báo Cáo Template Clone
-* **Method**: `GET`
-* **Route**: `/api/v1/ccp-statistics/lot-statistics/download-adhoc?filename=...`
-* **Triển khai tại `ccp-recon.controller.ts`**:
+
+- **Method**: `GET`
+- **Route**: `/api/v1/ccp-statistics/lot-statistics/download-adhoc?filename=...`
+- **Triển khai tại `ccp-recon.controller.ts`**:
   - Bảo mật bằng `path.basename(filename)`.
   - Stream buffer trực tiếp về trình duyệt người dùng với header `Content-Disposition: attachment`.
 
@@ -218,21 +233,24 @@ Tương tự:
 Tại file [CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx):
 
 ### 7.1. Chuyển đổi Tab Trực Quan
-* **Tab 1: `[Calendar] Thống Kê Phiên Hàng Ngày`**: Giữ nguyên luồng ca trực thường quy (ghi đè 11 file Master).
-* **Tab 2: `[Layers] Thống Kê Khoảng Thời Gian (Template Chuẩn MXV)`** $\leftarrow$ **Tab Mới**:
+
+- **Tab 1: `[Calendar] Thống Kê Phiên Hàng Ngày`**: Giữ nguyên luồng ca trực thường quy (ghi đè 11 file Master).
+- **Tab 2: `[Layers] Thống Kê Khoảng Thời Gian (Template Chuẩn MXV)`** $\leftarrow$ **Tab Mới**:
   - Chọn Từ ngày (`fromDate`) $\rightarrow$ Đến ngày (`toDate`).
   - Nút bấm: `[Sparkles] Tải Dữ Liệu & Xuất Báo Cáo Template Chuẩn`.
 
 ### 7.2. Kết Quả Trực Quan & Tải Bộ File Chuẩn
+
 Sau khi chạy hoàn tất (< 2 giây):
-* **Card Tổng quan KPI**:
+
+- **Card Tổng quan KPI**:
   - `Tổng Số Lot Khớp Trong Kỳ`: ví dụ `34,520 Lot`.
   - `Tổng GTGD (VND)`: ví dụ `8,450.2 Tỷ Đồng`.
   - `Kỳ Thống Kê`: `01/10/2026 - 21/10/2026`.
-* **Khu vực Tải File Template Chuẩn**:
+- **Khu vực Tải File Template Chuẩn**:
   - Nút 1: `[Download] Tải File Số Lot ACM Chuẩn MXV (Thong_Ke_So_Lot_ACM_Tu_01.10_Den_21.10.xlsx)`.
   - Nút 2: `[Download] Tải File GTGD ACM Chuẩn MXV (Thong_Ke_Gia_Tri_ACM_Tu_01.10_Den_21.10.xlsx)`.
-* **Bảng Preview Số Liệu**: Hiển thị bảng tóm tắt số lot và GTGD của 38+ TVKD trong kỳ để kiểm tra tức thì trước khi mở Excel.
+- **Bảng Preview Số Liệu**: Hiển thị bảng tóm tắt số lot và GTGD của 38+ TVKD trong kỳ để kiểm tra tức thì trước khi mở Excel.
 
 ---
 
@@ -262,6 +280,7 @@ Sau khi chạy hoàn tất (< 2 giây):
 - [ ] **Task 7 (Build Verification)**: Kiểm thử build TypeScript toàn dự án (`npx tsc --noEmit`) và nghiệm thu trên file thực tế.
 
 ### 9.2. Tiêu Chí Nghiệm Thu (Acceptance Criteria)
+
 1. **Chuẩn 100% Template Gốc MXV**: File báo cáo sinh ra mở bằng Excel có đầy đủ sheet tháng (`T10.2026`), Header Row 4 nguyên vẹn, các cột TVKD và hàng hóa chuẩn xác 100%.
 2. **Dòng Ghi Rõ Nghĩa**: Tại dòng dữ liệu, Cột Ngày hiển thị chuỗi rõ nghĩa `"01/10/2026 - 21/10/2026"`, các cột TVKD được điền số liệu tổng hợp của cả kỳ.
 3. **Bảo Vệ Master Tuyệt Đối**: File Master gốc của hệ thống có thời gian sửa đổi (`mtime`) hoàn toàn không thay đổi trước và sau khi chạy báo cáo đột xuất.

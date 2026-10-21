@@ -31,7 +31,7 @@ const isApply = process.argv.includes('--apply') || process.argv.includes('--exe
 
 async function runMigration() {
   console.log('================================================================================');
-  console.log(`🚀 BẮT ĐẦU MIGRATION: CHECK_DSGD_BEFORE_EOD -> CHECK_DSGD_BEFORE_EOD`);
+  console.log(` BẮT ĐẦU MIGRATION: CHECK_DSGD_BEFORE_EOD -> CHECK_DSGD_BEFORE_EOD`);
   console.log(`📡 MongoDB URI: ${MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`);
   console.log(`🛡️  Chế độ: ${isApply ? '⚠️  EXECUTE (ÁP DỤNG THẬT VÀO DATABASE)' : '🔍 DRY-RUN (CHỈ XEM THỬ, KHÔNG GHI DỮ LIỆU)'}`);
   console.log('================================================================================\n');
@@ -140,6 +140,6 @@ async function runMigration() {
 }
 
 runMigration().catch((err) => {
-  console.error('❌ Lỗi khi thực thi Migration:', err);
+  console.error(' Lỗi khi thực thi Migration:', err);
   process.exit(1);
 });

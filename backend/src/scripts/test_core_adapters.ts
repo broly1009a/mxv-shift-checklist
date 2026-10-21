@@ -430,7 +430,7 @@ async function main() {
     console.log('🎉 TẤT CẢ CÁC BỘ TẢI DỮ LIỆU ĐÃ VƯỢT QUA KIỂM THỬ!');
     process.exit(0);
   } else {
-    console.error('❌ CÓ BỘ TẢI DỮ LIỆU BỊ LỖI. VUI LÒNG KIỂM TRA LẠI LOG TRÊN.');
+    console.error(' CÓ BỘ TẢI DỮ LIỆU BỊ LỖI. VUI LÒNG KIỂM TRA LẠI LOG TRÊN.');
     process.exit(1);
   }
 }

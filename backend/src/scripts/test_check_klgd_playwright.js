@@ -287,7 +287,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
     await page.waitForTimeout(1500);
 
     // 2. Tải DSGD (Lịch sử giao dịch / ORDERMATCH_DETAIL)
-    console.log(`\n[CCP] 📥 [BƯỚC 1/3] ĐIỀU HƯỚNG VÀ TẢI BÁO CÁO DSGD...`);
+    console.log(`\n[CCP]  [BƯỚC 1/3] ĐIỀU HƯỚNG VÀ TẢI BÁO CÁO DSGD...`);
     const origin = new URL(page.url()).origin;
     const dsgdUrl = `${origin}/ORDERS/ORDERMATCH_DETAIL`;
 
@@ -374,7 +374,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
     results.dsgd = inspectExcelFile(dsgdDest, 'CORECCP DSGD');
 
     // 3. Tải TTM (Trạng thái mở / OPEN_POSITION)
-    console.log(`\n[CCP] 📥 [BƯỚC 2/3] ĐIỀU HƯỚNG VÀ TẢI BÁO CÁO TTM...`);
+    console.log(`\n[CCP]  [BƯỚC 2/3] ĐIỀU HƯỚNG VÀ TẢI BÁO CÁO TTM...`);
     const ttmUrl = `${origin}/ORDERS/OPEN_POSITION`;
     await page.goto(ttmUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForTimeout(2000);
@@ -391,7 +391,7 @@ async function testCoreCcp(creds, cliConfig, browser) {
     }
 
     // 4. Tải TTTT (Trạng thái tất toán / PNL_EXECUTED - Tab Lịch sử tất toán)
-    console.log(`\n[CCP] 📥 [BƯỚC 3/3] ĐIỀU HƯỚNG VÀ TẢI BÁO CÁO TTTT...`);
+    console.log(`\n[CCP]  [BƯỚC 3/3] ĐIỀU HƯỚNG VÀ TẢI BÁO CÁO TTTT...`);
     const ttttUrl = `${origin}/ORDERS/PNL_EXECUTED`;
     await page.goto(ttttUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => { });
     await page.waitForTimeout(1500);
@@ -635,7 +635,7 @@ async function main() {
   const cliConfig = parseCliArgs();
 
   console.log(`\n*************************************************************`);
-  console.log(`🚀 TOOL KIỂM THỬ PLAYWRIGHT CHECK_KLGD (ĐỐI SOÁT KHỚP LỆNH)`);
+  console.log(` TOOL KIỂM THỬ PLAYWRIGHT CHECK_KLGD (ĐỐI SOÁT KHỚP LỆNH)`);
   console.log(`*************************************************************`);
   console.log(`📅 Ngày kiểm tra : ${cliConfig.date}`);
   console.log(`🎯 Nguồn kiểm thử: ${cliConfig.source.toUpperCase()}`);

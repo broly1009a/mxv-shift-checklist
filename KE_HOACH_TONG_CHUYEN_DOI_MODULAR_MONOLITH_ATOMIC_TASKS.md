@@ -143,7 +143,7 @@ _Mục đích: Thiết lập bộ khung interface chuẩn (Ports) độc lập, 
 
 ---
 
-### 📥 PHA 2: PHÂN RÃ TẦNG KÉO DỮ LIỆU (INGRESS LAYER & SCRAPERS)
+### PHA 2: PHÂN RÃ TẦNG KÉO DỮ LIỆU (INGRESS LAYER & SCRAPERS)
 
 _Mục đích: Bóc tách file 5.382 dòng `rpa-downloader.service.ts` thành các service nhỏ gọn, mỗi service chỉ phục vụ 1 nguồn dữ liệu, đồng thời giữ nguyên Facade cũ để V1 không bị gãy._
 
@@ -359,7 +359,7 @@ _Mục đích: Làm sạch hoàn toàn module ca trực (`shifts`, `shift-jobs`,
 
 ---
 
-### 🚀 PHA 6: ATOMIC QUEUE MULTI-INSTANCE & SẴN SÀNG OFF PLAYWRIGHT
+### PHA 6: ATOMIC QUEUE MULTI-INSTANCE & SẴN SÀNG OFF PLAYWRIGHT
 
 _Mục đích: Sẵn sàng mở rộng hệ thống thành nhiều Instance chạy song song không tranh chấp và chuẩn bị hạ tầng đón nhận CoreEX / CoreCCP API thật._
 

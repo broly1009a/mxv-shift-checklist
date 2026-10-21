@@ -44,7 +44,7 @@ def run_test_all_10_masters():
     print("=" * 90)
 
     if not os.path.exists(MASTER_DIR):
-        print(f"❌ [LỖI] Không tìm thấy thư mục Master gốc: {MASTER_DIR}")
+        print(f" [LỖI] Không tìm thấy thư mục Master gốc: {MASTER_DIR}")
         sys.exit(1)
 
     master_files = [
@@ -120,7 +120,7 @@ def run_test_all_10_masters():
 
         run_res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
         if run_res.returncode != 0:
-            print(f"      ❌ THẤT BẠI khi chạy python writer:")
+            print(f"       THẤT BẠI khi chạy python writer:")
             print(run_res.stderr or run_res.stdout)
             results.append({
                 "file": fname,
@@ -161,7 +161,7 @@ def run_test_all_10_masters():
             wb_out.close()
 
             assert bool(sum_formula) or 'TỔNG' in c1_tong.upper(), f"Row {found_tong_row} phải là dòng TỔNG"
-            print(f"      ✅ THÀNH CÔNG: Dòng Kỳ Row {date_row}='{date_label}', Dòng TỔNG Row {found_tong_row} (Sát Ngay Dưới, CT: {sum_formula})")
+            print(f"       THÀNH CÔNG: Dòng Kỳ Row {date_row}='{date_label}', Dòng TỔNG Row {found_tong_row} (Sát Ngay Dưới, CT: {sum_formula})")
             results.append({
                 "file": fname,
                 "status": "PASS",
@@ -171,7 +171,7 @@ def run_test_all_10_masters():
             })
 
         except Exception as ex:
-            print(f"      ❌ LỖI XÁC THỰC: {ex}")
+            print(f"       LỖI XÁC THỰC: {ex}")
             results.append({
                 "file": fname,
                 "status": "FAIL",
@@ -186,7 +186,7 @@ def run_test_all_10_masters():
 
     pass_count = 0
     for i, r in enumerate(results, 1):
-        status_icon = "✅ PASS" if r["status"] == "PASS" else "❌ FAIL"
+        status_icon = " PASS" if r["status"] == "PASS" else " FAIL"
         if r["status"] == "PASS":
             pass_count += 1
             print(f"{i:<4} | {r['file']:<42} | {status_icon:<10} | Row {r['targetRow']:<6} | Row {r['tongRow']}")

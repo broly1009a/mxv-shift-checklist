@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, forwardRef, Inject } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -7,6 +7,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { ValueStatisticsService } from './value-statistics.service';
 import { TelegramService } from '../../telegram/telegram.service';
 import { WorkingCalendarService } from '../../working-calendar/working-calendar.service';
+import { CoreCcpApiAdapter } from '../../ingress/adapters/coreccp-api.adapter';
 import {
   findHeaderIndex,
   findLatestFile,
@@ -57,6 +58,9 @@ export class CcpEodService {
     private readonly telegramService?: TelegramService,
     @Optional()
     private readonly workingCalendarService?: WorkingCalendarService,
+    @Optional()
+    @Inject(forwardRef(() => CoreCcpApiAdapter))
+    private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
   ) {}
 
   /**
@@ -355,43 +359,106 @@ export class CcpEodService {
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     this.logger.log(
-      `[CcpEodService] 🚀 Thực thi đối chiếu EOD CoreCCP cho phiên chốt sổ T-1: ${dateFormatted} (Ngày ca trực: ${tradingDate.toISOString().split('T')[0]})`,
+      `[CcpEodService]  Thực thi đối chiếu EOD CoreCCP cho phiên chốt sổ T-1: ${dateFormatted} (Ngày ca trực: ${tradingDate.toISOString().split('T')[0]})`,
     );
 
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
     const checkDailyPath = resolveTradingCheckCcpDailyPath(subFolder, rawCcpBase);
     const backupDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
 
-    // Ưu tiên đọc từ thư mục kiểm tra riêng (TradingCheck/CCP), nếu chưa có mới fallback sang Backup ca trực
-    const ccpDailyPath =
-      fs.existsSync(checkDailyPath) && fs.readdirSync(checkDailyPath).length > 0
-        ? checkDailyPath
-        : backupDailyPath;
-
-    if (!fs.existsSync(ccpDailyPath)) {
-      throw new Error(
-        `Thư mục dữ liệu phiên T-1 (${dateFormatted}) của CoreCCP không tồn tại: ${checkDailyPath} (hoặc ${backupDailyPath}). Vui lòng tải báo cáo trước.`,
-      );
+    // Đảm bảo thư mục lưu trữ phiên T-1 tồn tại
+    if (!fs.existsSync(backupDailyPath)) {
+      try {
+        fs.mkdirSync(backupDailyPath, { recursive: true });
+      } catch (err: any) {
+        this.logger.warn(`Không thể tạo thư mục backup phiên T-1 ${backupDailyPath}: ${err.message}`);
+      }
     }
 
-    // 1. Tìm file QLTTTKGD cuối ngày (ưu tiên file chính thức, loại trừ các file tạm giữa ngày như 'truoc 4h20', 'truoc 16h20')
-    let qltkgdCcpFile = findLatestFile(
-      ccpDailyPath,
+    const candidateDirs = [checkDailyPath, backupDailyPath].filter(
+      (d) => fs.existsSync(d) && fs.statSync(d).isDirectory(),
+    );
+
+    const findFileAcrossDirs = (regex: RegExp, preferBackup = false): string | null => {
+      const dirs = preferBackup ? [backupDailyPath, checkDailyPath] : [checkDailyPath, backupDailyPath];
+      for (const d of dirs) {
+        if (fs.existsSync(d)) {
+          const found = findLatestFile(d, regex);
+          if (found && fs.existsSync(found)) return found;
+        }
+      }
+      return null;
+    };
+
+    // 1. Tìm file QLTTTKGD cuối ngày (ưu tiên thư mục Backup ca trực chính thức)
+    let qltkgdCcpFile = findFileAcrossDirs(
       /^(?!.*truoc.*4h20|.*truoc.*16h20).*ql[\s_]*t+[\s_]*t*k?gd/i,
+      true,
     );
     if (!qltkgdCcpFile) {
-      qltkgdCcpFile = findLatestFile(ccpDailyPath, /ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i);
+      qltkgdCcpFile = findFileAcrossDirs(/ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i, true);
     }
 
-    const eodCcpFile = findLatestFile(ccpDailyPath, /eod/i);
-    const ttttCcpFile = findLatestFile(ccpDailyPath, /tttt/i);
-    const nrCcpFile = findLatestFile(ccpDailyPath, /nr/i);
+    let eodCcpFile = findFileAcrossDirs(/eod/i, true);
+    let ttttCcpFile = findFileAcrossDirs(/tttt/i);
+    let nrCcpFile = findFileAcrossDirs(/nr/i);
+
+    // 2. NẾU THIẾU FILE EOD HOẶC QLTTTKGD -> TỰ ĐỘNG GỌI INGRESS ADAPTER ĐỂ TẢI TỪ CORECCP
+    if ((!eodCcpFile || !qltkgdCcpFile) && this.coreCcpApiAdapter) {
+      const missingReports: string[] = [];
+      if (!eodCcpFile) missingReports.push('EOD_CCP');
+      if (!qltkgdCcpFile) missingReports.push('QL_TT_TKGD');
+      if (!ttttCcpFile) missingReports.push('TTTT');
+      if (!nrCcpFile) missingReports.push('NR');
+
+      this.logger.log(
+        `[CcpEodService]  Chưa có đủ file EOD CoreCCP cho phiên T-1 (${dateFormatted}) trong thư mục lưu trữ. Đang tự động kết nối API CoreCCP tải: ${missingReports.join(', ')}...`,
+      );
+
+      try {
+        const dlRes = await this.coreCcpApiAdapter.download('CORE_CCP', {
+          outputDir: backupDailyPath,
+          targetDate: dateFormatted,
+          reportCodes: missingReports,
+          exactDate: true,
+        });
+        this.logger.log(
+          `[CcpEodService]  Hoàn tất tự động tải ${dlRes.files?.length || 0} file CoreCCP cho phiên T-1 (${dateFormatted})`,
+        );
+
+        // Quét lại các file sau khi tải về thành công
+        if (!qltkgdCcpFile) {
+          qltkgdCcpFile =
+            findFileAcrossDirs(
+              /^(?!.*truoc.*4h20|.*truoc.*16h20).*ql[\s_]*t+[\s_]*t*k?gd/i,
+              true,
+            ) || findFileAcrossDirs(/ql[\s_]*t+[\s_]*t*k?gd|ql.*tt.*tkgd/i, true);
+        }
+        if (!eodCcpFile) {
+          eodCcpFile = findFileAcrossDirs(/eod/i, true);
+        }
+        if (!ttttCcpFile) {
+          ttttCcpFile = findFileAcrossDirs(/tttt/i);
+        }
+        if (!nrCcpFile) {
+          nrCcpFile = findFileAcrossDirs(/nr/i);
+        }
+      } catch (dlErr: any) {
+        this.logger.error(
+          `[CcpEodService]  Lỗi khi tự động tải file EOD CoreCCP qua Ingress API: ${dlErr.message}`,
+        );
+      }
+    }
 
     if (!qltkgdCcpFile || !fs.existsSync(qltkgdCcpFile)) {
-      throw new Error(`Không tìm thấy file QLTTTKGD trong thư mục ${ccpDailyPath} (Phiên T-1: ${dateFormatted})`);
+      throw new Error(
+        `Không tìm thấy file QLTTTKGD trong thư mục ${backupDailyPath} (hoặc ${checkDailyPath}) (Phiên T-1: ${dateFormatted})`,
+      );
     }
     if (!eodCcpFile || !fs.existsSync(eodCcpFile)) {
-      throw new Error(`Không tìm thấy file EOD trong thư mục ${ccpDailyPath} (Phiên T-1: ${dateFormatted})`);
+      throw new Error(
+        `Không tìm thấy file EOD trong thư mục ${backupDailyPath} (hoặc ${checkDailyPath}) (Phiên T-1: ${dateFormatted})`,
+      );
     }
 
     const qltkgdCcpBuffer = fs.readFileSync(qltkgdCcpFile);

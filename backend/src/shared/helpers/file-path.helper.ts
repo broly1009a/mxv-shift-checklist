@@ -58,6 +58,48 @@ export function resolveStoragePathCrossPlatform(rawPath: string): string {
 }
 
 /**
+ * Chuyển đổi ngược từ đường dẫn nội bộ máy chủ (Linux mount /mnt/qlgd-it/...) sang đường dẫn Windows mount dùng chung (M:\Tailieuchung\QLGD-IT\...)
+ * để hiển thị chuẩn xác trên giao diện người dùng Windows và payload kết quả API.
+ */
+export function toWindowsDisplayPath(rawPath?: string): string {
+  if (!rawPath) return '';
+
+  const linuxMountBase = (process.env.STORAGE_MOUNT_LINUX || '/mnt/qlgd-it')
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
+  const windowsShareBase = (process.env.STORAGE_SHARE_WINDOWS || 'M:\\Tailieuchung\\QLGD-IT')
+    .replace(/[/\\]+$/, '');
+
+  const normalized = rawPath.replace(/\\/g, '/');
+
+  // Nhận diện qua tiền tố mount Linux /mnt/qlgd-it
+  const linuxBaseSlash = linuxMountBase.toLowerCase();
+  if (normalized.toLowerCase().startsWith(linuxBaseSlash)) {
+    const remainder = normalized.slice(linuxBaseSlash.length).replace(/^\/+/, '');
+    return `${windowsShareBase}\\${remainder.replace(/\//g, '\\')}`;
+  }
+
+  // Nhận diện qua tiền tố /mnt/oc-uat
+  if (normalized.toLowerCase().startsWith('/mnt/oc-uat')) {
+    const remainder = normalized.slice('/mnt/oc-uat'.length).replace(/^\/+/, '');
+    return `${windowsShareBase}\\${remainder.replace(/\//g, '\\')}`;
+  }
+
+  // Nhận diện trực tiếp qua thư mục gốc Quanlygiaodich
+  const qlgdMatch = normalized.match(/(?:^|\/)(quanlygiaodich\/.*)$/i);
+  if (qlgdMatch) {
+    return `${windowsShareBase}\\${qlgdMatch[1].replace(/\//g, '\\')}`;
+  }
+
+  // Nếu đã là đường dẫn Windows, chuẩn hóa dấu gạch chéo ngược
+  if (/^[a-zA-Z]:/.test(rawPath) || rawPath.startsWith('\\\\')) {
+    return rawPath.replace(/\//g, '\\');
+  }
+
+  return rawPath;
+}
+
+/**
  * Helper to strictly extract and parse targetDate / sessionDay from job payload.
  * Throws an error if targetDate is missing or invalid, preventing implicit fallback to real-time Date.
  */

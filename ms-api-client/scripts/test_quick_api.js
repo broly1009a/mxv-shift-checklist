@@ -111,7 +111,7 @@ async function downloadReport(token, rep, outDir) {
 
 (async () => {
   console.log('========================================================================');
-  console.log('   🚀 KIỂM THỬ NHANH TẢI BÁO CÁO M-SYSTEM QUA REST API TRỰC TIẾP      ');
+  console.log('    KIỂM THỬ NHANH TẢI BÁO CÁO M-SYSTEM QUA REST API TRỰC TIẾP      ');
   console.log('========================================================================\n');
 
   try {
@@ -119,7 +119,7 @@ async function downloadReport(token, rep, outDir) {
     const outDir = path.resolve(__dirname, '../output');
     fs.mkdirSync(outDir, { recursive: true });
 
-    console.log(`\n📥 [2/2] Bắt đầu tải ${TEST_REPORTS.length} báo cáo mẫu qua REST API:`);
+    console.log(`\n [2/2] Bắt đầu tải ${TEST_REPORTS.length} báo cáo mẫu qua REST API:`);
     console.log(`   Thư mục lưu: ${outDir}\n`);
 
     for (const rep of TEST_REPORTS) {

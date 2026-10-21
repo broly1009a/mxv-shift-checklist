@@ -50,6 +50,6 @@ async function testMsApiMarketDownload() {
 }
 
 testMsApiMarketDownload().catch((err) => {
-  console.error('❌ Test thất bại:', err);
+  console.error(' Test thất bại:', err);
   process.exit(1);
 });

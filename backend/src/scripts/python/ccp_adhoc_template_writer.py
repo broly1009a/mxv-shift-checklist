@@ -357,7 +357,7 @@ def clone_and_populate_template(
     # 7. Lưu file kết quả
     wb.save(output_path)
     file_size = os.path.getsize(output_path)
-    print(f"[PYTHON-WRITER] ✅ Lưu thành công file báo cáo: {output_path} ({file_size} bytes)")
+    print(f"[PYTHON-WRITER]  Lưu thành công file báo cáo: {output_path} ({file_size} bytes)")
 
     return {
         "success": True,

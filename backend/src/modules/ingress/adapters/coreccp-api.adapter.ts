@@ -184,7 +184,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     this.saveSessionToCache(session);
     this.logger.log(
-      `[CoreCcpApiAdapter] ✅ Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
+      `[CoreCcpApiAdapter]  Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
     );
     return session;
   }
@@ -806,10 +806,11 @@ export class CoreCcpApiAdapter implements IIngressPort {
           continue;
         }
 
-        // Tự động chuyển hướng thư mục lưu trữ về thư mục phiên T-1 nếu là ACCTMARGIN_HIST (EOD CoreCCP)
+        // Tự động chuyển hướng thư mục lưu trữ về thư mục phiên T-1 nếu là báo cáo EOD (ACCTMARGIN_HIST, ORDERMATCH_ALL)
         let fileOutputDir = outputDirectory;
         let txDateForHist = '';
-        if (reportDef.searchCode === 'ACCTMARGIN_HIST' && formattedDateForSearch) {
+        const isEodReport = reportDef.searchCode === 'ACCTMARGIN_HIST' || reportDef.searchCode === 'ORDERMATCH_ALL';
+        if (isEodReport && formattedDateForSearch) {
           txDateForHist = options?.exactDate
             ? formattedDateForSearch
             : this.calculatePreviousWorkdayDmy(formattedDateForSearch);
@@ -876,12 +877,16 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
               );
             } else if (formattedDateForSearch) {
+              const sessionDateToUse =
+                reportDef.searchCode === 'ORDERMATCH_ALL' && txDateForHist
+                  ? txDateForHist
+                  : formattedDateForSearch;
               effectiveFilterPayload.search.SESSION_DATE = {
-                from: formattedDateForSearch,
-                to: formattedDateForSearch,
+                from: sessionDateToUse,
+                to: sessionDateToUse,
               };
               this.logger.log(
-                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
               );
             }
           }
@@ -919,7 +924,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           if (isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
+                `[CoreCcpApiAdapter]  [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
               );
               await this.downloadServerExport(
                 session,
@@ -966,7 +971,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 fileSize: stat.size,
               },
             });
-            this.logger.log(`[CoreCcpApiAdapter] ✅ Tải thành công ${outFileName} (${stat.size} bytes)`);
+            this.logger.log(`[CoreCcpApiAdapter]  Tải thành công ${outFileName} (${stat.size} bytes)`);
 
             // ── TỰ ĐỘNG TRÍCH XUẤT TOÀN BỘ HỢP ĐỒNG (INSTRUMENTS) THEO TỪNG MÃ HÀNG HÓA THỰC TẾ ──
             if (reportDef.key === 'HH' && searchResult && Array.isArray(searchResult.rows)) {
@@ -1004,7 +1009,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                       rowCount: contractResult.totalCount,
                     },
                   });
-                  this.logger.log(`[CoreCcpApiAdapter] ✅ Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
+                  this.logger.log(`[CoreCcpApiAdapter]  Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
                 } catch (hdErr: any) {
                   this.logger.error(`[CoreCcpApiAdapter] Lỗi tải hợp đồng cho hàng hóa ${uacode}: ${hdErr.message}`);
                   errors.push(`HĐ ${uacode}: ${hdErr.message}`);

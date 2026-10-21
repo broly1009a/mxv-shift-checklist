@@ -249,7 +249,7 @@ async function run() {
         { file: 'OP1.xlsx', type: 'OP' },
         { file: 'OD1.xlsx', type: 'OD' },
       );
-      console.log(`🚀 Chế độ mặc định: Tải trọn gói 4 file FR1, PS1, OP1, OD1 (kèm auto dọn sạch tab thừa)`);
+      console.log(` Chế độ mặc định: Tải trọn gói 4 file FR1, PS1, OP1, OD1 (kèm auto dọn sạch tab thừa)`);
     }
   }
 

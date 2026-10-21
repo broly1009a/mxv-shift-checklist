@@ -14,6 +14,7 @@ import {
   Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { parseWindowsStoragePath } from '@/config/storage-path.config';
 import { tradingOpsApi } from '@/features/trading/services/trading-ops.api';
 import CheckDsgdBeforeEodModal from '@/features/trading/components/CheckDsgdBeforeEodModal';
 
@@ -62,6 +63,20 @@ export default function DsgdBeforeEodSection({
   // Format helper
   const fmtNum = (v?: number) => (v !== undefined && v !== null ? v.toLocaleString('en-US') : '0');
 
+  // Chuyển đổi đường dẫn Linux mount sang đường dẫn Windows ổ M:\Tailieuchung\QLGD-IT
+  const toWindowsDisplayPath = (rawPath?: string) => {
+    if (!rawPath) return '';
+    const parsed = parseWindowsStoragePath(rawPath);
+    return parsed?.suggestedPath || rawPath.replace(/\//g, '\\');
+  };
+
+  const handleCopyPath = (pathText?: string, label = 'đường dẫn') => {
+    if (!pathText) return;
+    const winPath = toWindowsDisplayPath(pathText);
+    navigator.clipboard.writeText(winPath);
+    toast.success(`Đã sao chép ${label} Windows!`);
+  };
+
   // Reset state on date change
   useEffect(() => {
     setResult(null);
@@ -80,7 +95,8 @@ export default function DsgdBeforeEodSection({
         {
           system,
           tradingDate: selectedDate,
-          exactDate: true,
+          exactDate: false,
+          triggerDownload: true,
         },
         token,
       );
@@ -630,8 +646,16 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
             </span>
           </div>
 
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            {result?.filesFound?.dsgdTemp ? `Tệp: ${result.filesFound.dsgdTemp}` : 'Kiểm tra tệp snapshot DSGD chiều'}
+          <span
+            style={{
+              fontSize: '0.7rem',
+              color: 'var(--text-muted)',
+              cursor: result?.filesFound?.dsgdTemp ? 'pointer' : 'default',
+            }}
+            title={result?.filesFound?.dsgdTemp ? `Bấm để sao chép đường dẫn Windows:\n${toWindowsDisplayPath(result.filesFound.dsgdTemp)}` : undefined}
+            onClick={() => result?.filesFound?.dsgdTemp && handleCopyPath(result.filesFound.dsgdTemp, 'DSGD Snapshot')}
+          >
+            {result?.filesFound?.dsgdTemp ? `Tệp: ${toWindowsDisplayPath(result.filesFound.dsgdTemp)}` : 'Kiểm tra tệp snapshot DSGD chiều'}
           </span>
         </div>
       </div>
@@ -731,32 +755,107 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
                 gap: '10px',
               }}
             >
-              <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: result?.filesFound?.dsgdOriginal ? 'pointer' : 'default',
+                  transition: 'background-color 0.15s ease',
+                }}
+                title={result?.filesFound?.dsgdOriginal ? `Bấm để sao chép đường dẫn Windows:\n${toWindowsDisplayPath(result.filesFound.dsgdOriginal)}` : undefined}
+                onClick={() => result?.filesFound?.dsgdOriginal && handleCopyPath(result.filesFound.dsgdOriginal, 'DSGD Gốc')}
+              >
                 <FileSpreadsheet size={16} color="#3b82f6" />
-                <div style={{ overflow: 'hidden' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>DSGD Gốc:</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: result?.filesFound?.dsgdOriginal ? '#10b981' : '#ef4444' }}>
-                    {result?.filesFound?.dsgdOriginal || 'Chưa tìm thấy'}
+                <div style={{ overflow: 'hidden', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DSGD Gốc:</span>
+                    {result?.filesFound?.dsgdOriginal && <Copy size={11} color="var(--text-muted)" />}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      color: result?.filesFound?.dsgdOriginal ? '#10b981' : '#ef4444',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {result?.filesFound?.dsgdOriginal ? toWindowsDisplayPath(result.filesFound.dsgdOriginal) : 'Chưa tìm thấy'}
                   </span>
                 </div>
               </div>
 
-              <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: result?.filesFound?.dsgdTemp ? 'pointer' : 'default',
+                  transition: 'background-color 0.15s ease',
+                }}
+                title={result?.filesFound?.dsgdTemp ? `Bấm để sao chép đường dẫn Windows:\n${toWindowsDisplayPath(result.filesFound.dsgdTemp)}` : undefined}
+                onClick={() => result?.filesFound?.dsgdTemp && handleCopyPath(result.filesFound.dsgdTemp, 'DSGD Snapshot')}
+              >
                 <FileSpreadsheet size={16} color="#10b981" />
-                <div style={{ overflow: 'hidden' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>DSGD Snapshot:</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: result?.filesFound?.dsgdTemp ? '#10b981' : '#f59e0b' }}>
-                    {result?.filesFound?.dsgdTemp || 'Không tìm thấy snapshot'}
+                <div style={{ overflow: 'hidden', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DSGD Snapshot:</span>
+                    {result?.filesFound?.dsgdTemp && <Copy size={11} color="var(--text-muted)" />}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      color: result?.filesFound?.dsgdTemp ? '#10b981' : '#f59e0b',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {result?.filesFound?.dsgdTemp ? toWindowsDisplayPath(result.filesFound.dsgdTemp) : 'Không tìm thấy snapshot'}
                   </span>
                 </div>
               </div>
 
-              <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: result?.filesFound?.acmTrades ? 'pointer' : 'default',
+                  transition: 'background-color 0.15s ease',
+                }}
+                title={result?.filesFound?.acmTrades ? `Bấm để sao chép đường dẫn Windows:\n${toWindowsDisplayPath(result.filesFound.acmTrades)}` : undefined}
+                onClick={() => result?.filesFound?.acmTrades && handleCopyPath(result.filesFound.acmTrades, 'Straits CSV')}
+              >
                 <FileSpreadsheet size={16} color="#a855f7" />
-                <div style={{ overflow: 'hidden' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Straits CSV:</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: result?.filesFound?.acmTrades ? '#10b981' : '#ef4444' }}>
-                    {result?.filesFound?.acmTrades || 'Chưa tìm thấy'}
+                <div style={{ overflow: 'hidden', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Straits CSV:</span>
+                    {result?.filesFound?.acmTrades && <Copy size={11} color="var(--text-muted)" />}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      color: result?.filesFound?.acmTrades ? '#10b981' : '#ef4444',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {result?.filesFound?.acmTrades ? toWindowsDisplayPath(result.filesFound.acmTrades) : 'Chưa tìm thấy'}
                   </span>
                 </div>
               </div>
@@ -795,6 +894,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
         isOpen={showAdvancedModal}
         onClose={() => setShowAdvancedModal(false)}
         defaultDate={selectedDate}
+        system={system}
         onSuccess={handleModalSuccess}
       />
     </div>

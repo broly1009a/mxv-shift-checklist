@@ -201,7 +201,7 @@ async function fetchAndSaveReport(session, reportDef, targetFilePath, sessionDat
 // ── 4. THỰC THI CHÍNH ────────────────────────────────────────────────────────
 (async () => {
   console.log('================================================================================');
-  console.log('   🚀 BẮT ĐẦU TẢI FULL BÁO CÁO CORE EXCHANGE (CE) QUA CLIENT API THỰC TẾ        ');
+  console.log('    BẮT ĐẦU TẢI FULL BÁO CÁO CORE EXCHANGE (CE) QUA CLIENT API THỰC TẾ        ');
   console.log(`   Phiên: ${targetDate} | Thư mục: ${OUTPUT_DIR}`);
   console.log('================================================================================\n');
 
@@ -283,7 +283,7 @@ async function fetchAndSaveReport(session, reportDef, targetFilePath, sessionDat
       process.exit(1);
     }
   } catch (err) {
-    console.error('❌ Lỗi:', err.message);
+    console.error(' Lỗi:', err.message);
     process.exit(1);
   }
 })();

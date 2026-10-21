@@ -125,7 +125,7 @@ export function executePythonTemplateWriter(params: {
       }
 
       if (parsedJson && parsedJson.success) {
-        const succMsg = `[Python-Writer] ✅ Đã hoàn tất nhân bản và ghi vào template: ${path.basename(outputPath)} (Row ${parsedJson.targetRow}, bảo toàn dòng TỔNG Row ${parsedJson.tongRow}, ${durationMs}ms)`;
+        const succMsg = `[Python-Writer]  Đã hoàn tất nhân bản và ghi vào template: ${path.basename(outputPath)} (Row ${parsedJson.targetRow}, bảo toàn dòng TỔNG Row ${parsedJson.tongRow}, ${durationMs}ms)`;
         logger.log(succMsg);
         jobLogs?.push(succMsg);
         return {

@@ -68,7 +68,7 @@ _(Cập nhật trạng thái thực tế vào ngày 13/10/2026)_
 
 ```mermaid
 flowchart TD
-    subgraph INGRESS["📥 INGRESS LAYER (src/modules/ingress)"]
+    subgraph INGRESS[" INGRESS LAYER (src/modules/ingress)"]
         IPORT["IIngressPort (Interface)"]
         MSS["MSystemScraper (TTM, TTTT, DSGD)"]
         MSTAB["MSystemTabScraper (16 Tabs)"]
@@ -183,7 +183,7 @@ _Mục đích: Định nghĩa các interface chuẩn (Ports), giải phóng các
 
 ---
 
-### 📥 PHA 2: PHÂN RÃ TẦNG KÉO DỮ LIỆU (INGRESS LAYER & SCRAPERS)
+### PHA 2: PHÂN RÃ TẦNG KÉO DỮ LIỆU (INGRESS LAYER & SCRAPERS)
 
 _Mục đích: Bóc tách file 5.382 dòng `rpa-downloader.service.ts` thành các Scraper nhỏ gọn độc lập, mỗi service chỉ phục vụ 1 nguồn._
 
@@ -398,7 +398,7 @@ _Mục đích: Biến Checklist thành bộ khung điều phối thuần túy, t
 
 ---
 
-### 🚀 PHA 6: ATOMIC QUEUE MULTI-INSTANCE & SẴN SÀNG OFF PLAYWRIGHT
+### PHA 6: ATOMIC QUEUE MULTI-INSTANCE & SẴN SÀNG OFF PLAYWRIGHT
 
 _Mục đích: Mở rộng khả năng xử lý song song trên nhiều Instance không bị race condition, chuẩn bị hạ tầng đón nhận CoreEX/CoreCCP REST API thật._
 

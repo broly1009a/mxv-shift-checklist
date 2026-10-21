@@ -34,7 +34,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://broly1009a_db_user
 
 async function seedCcpExchangeTemplates() {
   console.log('=======================================================================');
-  console.log('🚀 BẮT ĐẦU NẠP MẪU CHECKLIST CHUẨN 100% NGUYÊN VĂN TỪ DOCX GỐC');
+  console.log(' BẮT ĐẦU NẠP MẪU CHECKLIST CHUẨN 100% NGUYÊN VĂN TỪ DOCX GỐC');
   console.log('   Tài liệu: "Checklist trực vận hành.docx"');
   console.log('=======================================================================');
   console.log(`📡 Kết nối MongoDB: ${MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);

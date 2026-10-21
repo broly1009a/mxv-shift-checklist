@@ -55,7 +55,7 @@ async function main() {
   }
   console.log(`- Thư mục lưu file: ${outDir}\n`);
 
-  console.log('🚀 Đang khởi tạo NestJS Context...');
+  console.log(' Đang khởi tạo NestJS Context...');
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
   });

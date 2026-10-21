@@ -2669,7 +2669,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      BẢNG TỔNG HỢP TOÀN BỘ 44 MẶT HÀNG PHÁI SINH (TABLE 3)
+                      BẢNG TỔNG HỢP TOÀN BỘ 44 MẶT HÀNG PHÁI SINH
                     </h3>
                     <span
                       style={{

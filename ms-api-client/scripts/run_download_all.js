@@ -68,7 +68,7 @@ async function login() {
 
 (async () => {
   console.log('========================================================================');
-  console.log('   🚀 BẮT ĐẦU TẢI TRỌN GÓI BÁO CÁO M-SYSTEM QUA REST API TRỰC TIẾP     ');
+  console.log('    BẮT ĐẦU TẢI TRỌN GÓI BÁO CÁO M-SYSTEM QUA REST API TRỰC TIẾP     ');
   console.log(`   Host API:   ${CONFIG.baseUrl}`);
   console.log(`   Admin Host: ${CONFIG.adminUrl}`);
   console.log('========================================================================\n');

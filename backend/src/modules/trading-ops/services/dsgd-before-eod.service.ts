@@ -14,16 +14,18 @@
  *  5. Tìm file DSGD snapshot: DSGD{timeSuffix}.xlsx → DSGD*.xlsx mới nhất
  *  6. Tính ngày T-1: while (getDay() === 0 || getDay() === 6) — bỏ qua T7+CN
  */
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { WorkingCalendarService } from '../../working-calendar/working-calendar.service';
+import { CoreCcpApiAdapter } from '../../ingress/adapters/coreccp-api.adapter';
 import {
   getMsBackupBase,
   getAcmBackupBase,
   getCcpBackupBasePath,
   resolveStoragePathCrossPlatform,
+  toWindowsDisplayPath,
 } from '../../../shared';
 import {
   parseDSGD,
@@ -60,6 +62,9 @@ export class DsgdBeforeEodService {
     private readonly settingsService: SystemSettingsService,
     @Optional()
     private readonly workingCalendarService?: WorkingCalendarService,
+    @Optional()
+    @Inject(forwardRef(() => CoreCcpApiAdapter))
+    private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
   ) {}
 
   /**
@@ -366,13 +371,21 @@ export class DsgdBeforeEodService {
         );
       }
       const ccpFiles = fs.readdirSync(dailyDir);
-      const matched = ccpFiles.find(
-        (f) =>
-          /^(?:DSGD|LSGD)/i.test(f) &&
-          !/DSGD\s+MM/i.test(f) &&
-          !f.startsWith('~$') &&
-          f.endsWith('.xlsx'),
-      );
+      const matched =
+        ccpFiles.find(
+          (f) =>
+            /^DSGD/i.test(f) &&
+            !/DSGD\s+MM/i.test(f) &&
+            !f.startsWith('~$') &&
+            f.endsWith('.xlsx'),
+        ) ||
+        ccpFiles.find(
+          (f) =>
+            /^(?:DSGD|LSGD)/i.test(f) &&
+            !/DSGD\s+MM/i.test(f) &&
+            !f.startsWith('~$') &&
+            f.endsWith('.xlsx'),
+        );
       if (!matched) {
         throw new Error(
           `Không tìm thấy file DSGD CCP trong thư mục: ${dailyDir}. Vui lòng kiểm tra lại.`,
@@ -406,6 +419,24 @@ export class DsgdBeforeEodService {
         : dailyDir.replace(/[\\/]Backup MS[\\/]/i, path.sep + 'TradingCheck' + path.sep);
       if (fs.existsSync(tradingCheckDir) && !searchDirs.includes(tradingCheckDir)) {
         searchDirs.push(tradingCheckDir);
+      }
+
+      // Đối với CoreCCP: Tự động tải ORDERMATCH_ALL (Lịch sử giao dịch T-1) qua API nếu có cờ triggerDownload hoặc chưa có file snapshot
+      if (system === 'CCP' && this.coreCcpApiAdapter && options?.triggerDownload !== false) {
+        try {
+          this.logger.log(`[CoreCCP Pre-EOD] Đang gọi API CoreCCP tải Lịch sử giao dịch (ORDERMATCH_ALL) cho phiên T-1 ${dateFormatted}...`);
+          const dlRes = await this.coreCcpApiAdapter.download('CORE_CCP', {
+            outputDir: dailyDir,
+            targetDate: dateFormatted,
+            reportCodes: ['ORDERMATCH_ALL'],
+            exactDate: true,
+          });
+          if (dlRes?.files && dlRes.files.length > 0) {
+            this.logger.log(`[CoreCCP Pre-EOD] Đã tải thành công ${dlRes.files.length} file đối chiếu từ API CoreCCP`);
+          }
+        } catch (dlErr: any) {
+          this.logger.warn(`[CoreCCP Pre-EOD] Không thể tự động tải ORDERMATCH_ALL qua API: ${dlErr.message}`);
+        }
       }
 
       const origBaseName = path.basename(dsgdOriginalPath).toLowerCase();
@@ -526,9 +557,9 @@ export class DsgdBeforeEodService {
           sessionDate: dateFormatted,
           timeSuffix,
           filesFound: {
-            dsgdOriginal: dsgdOriginalPath,
+            dsgdOriginal: dsgdOriginalPath ? toWindowsDisplayPath(dsgdOriginalPath) : undefined,
             dsgdTemp: undefined,
-            acmTrades: foundAcmPath,
+            acmTrades: foundAcmPath ? toWindowsDisplayPath(foundAcmPath) : undefined,
           },
         };
       }
@@ -583,9 +614,9 @@ export class DsgdBeforeEodService {
     );
 
     result.filesFound = {
-      dsgdOriginal: dsgdOriginalPath,
-      dsgdTemp: dsgdTempPath,
-      acmTrades: foundAcmPath,
+      dsgdOriginal: dsgdOriginalPath ? toWindowsDisplayPath(dsgdOriginalPath) : undefined,
+      dsgdTemp: dsgdTempPath ? toWindowsDisplayPath(dsgdTempPath) : undefined,
+      acmTrades: foundAcmPath ? toWindowsDisplayPath(foundAcmPath) : undefined,
     };
 
     return result;

@@ -172,7 +172,7 @@ async function getApiRowCount(fileName) {
     console.log('-'.repeat(90));
     for (const r of results) {
       const statusText = r.isEmpty ? '0 RECORD (RỖNG)' : 'CÓ DỮ LIỆU';
-      const verifyText = r.match ? ' CHÍNH XÁC 100%' : '❌ SAI LỆCH';
+      const verifyText = r.match ? ' CHÍNH XÁC 100%' : ' SAI LỆCH';
       console.log(
         r.target.padEnd(35) +
         `${r.domCount} dòng`.padEnd(15) +
