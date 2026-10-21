@@ -76,6 +76,8 @@ export const CORECCP_DERIVED_RULES: Record<string, Array<{ targetFileName: strin
   LSGD_CCP: [
     { targetFileName: 'LSGD_{date}.xlsx', isDated: true },
     { targetFileName: 'Lịch sử giao dịch CCP.xlsx' },
+    { targetFileName: 'DSGD_{date}.xlsx', isDated: true },
+    { targetFileName: 'DSGD CCP.xlsx' },
   ],
   TTTT: [
     { targetFileName: 'TTTT_{date}.xlsx', isDated: true },

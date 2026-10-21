@@ -368,7 +368,7 @@ export class DsgdBeforeEodService {
       const ccpFiles = fs.readdirSync(dailyDir);
       const matched = ccpFiles.find(
         (f) =>
-          /^DSGD/i.test(f) &&
+          /^(?:DSGD|LSGD)/i.test(f) &&
           !/DSGD\s+MM/i.test(f) &&
           !f.startsWith('~$') &&
           f.endsWith('.xlsx'),
