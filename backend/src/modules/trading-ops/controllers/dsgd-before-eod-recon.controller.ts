@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
-import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from '../services/ms-eod-recon.service';
 import { DsgdBeforeEodService } from '../services/dsgd-before-eod.service';
 import { CqgMergerService } from '../services/cqg-merger.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
@@ -32,7 +32,7 @@ export class DsgdBeforeEodReconController {
   private readonly logger = new Logger(DsgdBeforeEodReconController.name);
 
   constructor(
-    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
+    private readonly msEodReconService: MsEodReconService,
     private readonly reconConsoleSummaryService: ReconConsoleSummaryService,
     private readonly cqgMergerService: CqgMergerService,
     private readonly shiftsService: ShiftsService,
@@ -164,7 +164,7 @@ export class DsgdBeforeEodReconController {
 
       // Case B: EOD Check song song MS & CCP (if qltkgd or qltkgdCcp is uploaded and accountsBalances is not)
       if ((fileBuffers.qltkgd || fileBuffers.qltkgdCcp) && !fileBuffers.accountsBalances) {
-        const result = await this.dsgdBeforeEodReconService.checkEOD({
+        const result = await this.msEodReconService.checkEOD({
           qltkgd: fileBuffers.qltkgd,
           eod: fileBuffers.eod,
           tttt: fileBuffers.tttt,

@@ -7,7 +7,7 @@ import { TradingReconLogController } from './controllers/trading-recon-log.contr
 import { CcpReconController } from './controllers/ccp-recon.controller';
 import { CqgMergerService } from './services/cqg-merger.service';
 import { KlgdReconService } from './services/klgd-recon.service';
-import { DsgdBeforeEodReconService } from './services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from './services/ms-eod-recon.service';
 import { MarginCheckerService } from './services/margin-checker.service';
 import { TradingOpsConfigService } from './services/trading-ops-config.service';
 import { DsgdBeforeEodService } from './services/dsgd-before-eod.service';
@@ -29,7 +29,7 @@ import { CcpValueWorker } from './workers/ccp-value.worker';
 import { CcpEodWorker } from './workers/ccp-eod.worker';
 import { SodReconWorker } from './workers/sod-recon.worker';
 import { CqgSyncWorker } from './workers/cqg-sync.worker';
-import { EodMmWorker } from './workers/eod-mm.worker';
+import { EodMsWorker } from './workers/eod-ms.worker';
 
 import { IngressModule } from '../ingress/ingress.module';
 import { BotEngineModule } from '../bot-engine/bot-engine.module';
@@ -82,7 +82,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
   providers: [
     CqgMergerService,
     KlgdReconService,
-    DsgdBeforeEodReconService,
+    MsEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
     DsgdBeforeEodService,
@@ -104,7 +104,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CcpEodWorker,
     SodReconWorker,
     CqgSyncWorker,
-    EodMmWorker,
+    EodMsWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
     CeLotStatisticsService,
@@ -112,7 +112,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
   exports: [
     CqgMergerService,
     KlgdReconService,
-    DsgdBeforeEodReconService,
+    MsEodReconService,
     MarginCheckerService,
     TradingOpsConfigService,
     DsgdBeforeEodService,
@@ -135,7 +135,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CcpEodWorker,
     SodReconWorker,
     CqgSyncWorker,
-    EodMmWorker,
+    EodMsWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
     MongooseModule,

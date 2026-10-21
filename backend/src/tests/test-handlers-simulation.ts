@@ -74,7 +74,7 @@ async function runHandlerSimulation() {
   const mockReconService: any = {
     runAutoCheckSOD: jestFn(() => Promise.resolve({ success: true, discrepancies: [] })),
     runAutoCheckKLGD: jestFn(() => Promise.resolve({ passed: true, mismatchedTrades: [] })),
-    runAutoCheckEodMm: jestFn(() => Promise.resolve({
+    runAutoCheckEodMs: jestFn(() => Promise.resolve({
       cqgResult: [],
       eodResult: { negativeBalanceAccs: [], negativeIMRAcc: [] },
     })),
@@ -140,7 +140,7 @@ async function runHandlerSimulation() {
     'CHECK_KLGD',
     'CHECK_DSGD_BEFORE_EOD',
     'CHECK_DSGD_BEFORE_EOD',
-    'CHECK_EOD_MM',
+    'CHECK_EOD_MS',
     'FILE_AUDIT_MS',
     'FILE_AUDIT_CQG',
     'FILE_AUDIT_ACM',

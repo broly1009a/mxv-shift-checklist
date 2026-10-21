@@ -199,6 +199,7 @@ export class MSystemScraperService {
     downloadPath: string,
     expectedTargetKey?: string,
     customTimeoutMs: number = 90000,
+    beforeDownload?: (page: Page) => Promise<void>,
   ): Promise<void> {
     const baseUrl = page.url().split('#')[0];
     const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -215,6 +216,11 @@ export class MSystemScraperService {
       )
       .catch(() => {});
     await page.waitForTimeout(2500);
+
+    // Thực thi hook tiền xử lý (ví dụ lọc ngày T-1) trước khi tìm kiếm và kết xuất
+    if (beforeDownload) {
+      await beforeDownload(page);
+    }
 
     // Kích hoạt click Tìm kiếm nếu cần
     const searchSelector =
@@ -309,8 +315,26 @@ export class MSystemScraperService {
 
   /**
    * Tải báo cáo DSGD (Danh sách giao dịch)
+   * Chuẩn C# ChromeBot.cs#L2356-L2373 và rpa-scraper.service.ts#L1205-L1222
    */
   async downloadDSGD(page: Page, destFile: string, sessionDay?: string): Promise<void> {
+    const applyDateFilter = async (p: Page) => {
+      if (!sessionDay) return;
+      this.logger.log(`[MsScraper] Thiết lập bộ lọc ngày phiên cho DSGD: ${sessionDay}`);
+      await p.waitForSelector("input[placeholder='Ngày bắt đầu']", { state: 'visible', timeout: 10000 }).catch(() => {});
+      await p.evaluate(() => {
+        const startInput = document.querySelector("input[placeholder='Ngày bắt đầu']");
+        const endInput = document.querySelector("input[placeholder='Ngày kết thúc']");
+        if (startInput) startInput.removeAttribute('readonly');
+        if (endInput) endInput.removeAttribute('readonly');
+      });
+
+      await p.fill("input[placeholder='Ngày bắt đầu']", sessionDay);
+      await p.fill("input[placeholder='Ngày kết thúc']", sessionDay);
+      await p.press("input[placeholder='Ngày kết thúc']", 'Enter');
+      await p.waitForTimeout(3000);
+    };
+
     try {
       await this.gotoAndDownload(
         page,
@@ -318,6 +342,7 @@ export class MSystemScraperService {
         destFile,
         'DSGD',
         90000,
+        applyDateFilter,
       );
       this.logger.log(`DSGD tải thành công trực tiếp: ${destFile}`);
     } catch (err: any) {
@@ -329,6 +354,7 @@ export class MSystemScraperService {
         {
           expectedTargetKey: 'DSGD',
           expectedHashPattern: /tradeList/,
+          beforeDownload: applyDateFilter,
           logger: this.logger,
         },
       );

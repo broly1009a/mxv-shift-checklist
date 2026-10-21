@@ -686,7 +686,7 @@ export class ReconConsoleSummaryService {
       const marginPromise = this.botJobModel
         .findOne({
           jobType: {
-            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MM'],
+            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS'],
           },
           ...dateFilterCondition,
         })
@@ -697,7 +697,7 @@ export class ReconConsoleSummaryService {
       const eodPromise = this.botJobModel
         .findOne({
           jobType: {
-            $in: ['CHECK_EOD_MM', 'CHECK_EOD_CCP'],
+            $in: ['CHECK_EOD_MS', 'CHECK_EOD_CCP'],
           },
           ...dateFilterCondition,
         })
@@ -1051,7 +1051,7 @@ export class ReconConsoleSummaryService {
     const latestRunId = runs.length > 0 ? runs[0].id : null;
     const isViewingHistorical = !!(jobId && latestRunId && jobId !== latestRunId);
 
-    // 8. Xác định Job EOD mới nhất của ngày hôm nay (chỉ giữa CHECK_EOD_MM và CHECK_EOD_CCP)
+    // 8. Xác định Job EOD mới nhất của ngày hôm nay (chỉ giữa CHECK_EOD_MS và CHECK_EOD_CCP)
     // TUYỆT ĐỐI không đưa dsgdBeforeEodJob vào đây để tránh nhầm lẫn giữa Dsgd-Before-EOD và EOD!
     const latestEodJob = eodJob;
 
@@ -1241,6 +1241,7 @@ export class ReconConsoleSummaryService {
         waitingMessage: marginResult.waitingMessage || marginResult.message || null,
         negativeIMRAccCount: newNegativeIMR.length,
         negativeIMRAcc: newNegativeIMR,
+        accounts: newNegativeIMR,
         totalRawNegativeIMRCount: rawNegativeIMR.length,
         allNegativeIMRAcc: rawNegativeIMR,
         negativeBalanceCount: newNegativeBalance.length,
@@ -1321,8 +1322,8 @@ export class ReconConsoleSummaryService {
       ? 'CHECK_CQG_SYNC'
       : (jobType === 'CHECK_EOD_CCP')
         ? 'CHECK_EOD_CCP'
-        : (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MM')
-          ? 'CHECK_EOD_MM'
+        : (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MS')
+          ? 'CHECK_EOD_MS'
           : (jobType || 'CHECK_KLGD');
 
     // 1. Quét tất cả các ca trực của ngày targetDate / slashDate

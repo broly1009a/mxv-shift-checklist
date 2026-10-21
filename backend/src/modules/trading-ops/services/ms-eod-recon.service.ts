@@ -10,8 +10,8 @@ import {
 } from '../../../shared';
 
 @Injectable()
-export class DsgdBeforeEodReconService {
-  private readonly logger = new Logger(DsgdBeforeEodReconService.name);
+export class MsEodReconService {
+  private readonly logger = new Logger(MsEodReconService.name);
 
   constructor(
     private readonly settingsService: SystemSettingsService,
@@ -82,7 +82,7 @@ export class DsgdBeforeEodReconService {
     };
   }
 
-  async runAutoCheckEodMm(tradingDate: Date): Promise<any> {
+  async runAutoCheckEodMs(tradingDate: Date): Promise<any> {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_ms',
@@ -93,6 +93,7 @@ export class DsgdBeforeEodReconService {
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
     const day = String(tradingDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
     const msDailyPath = path.join(msBackupBase, subFolder);
@@ -102,11 +103,54 @@ export class DsgdBeforeEodReconService {
       throw new Error(`Thiếu file QLTKGD.xlsx tại ${qltkgdPath}`);
     }
 
+    let eodPath = path.join(msDailyPath, `eod.${dateStr}.csv`);
+    if (!fs.existsSync(eodPath)) {
+      if (fs.existsSync(msDailyPath)) {
+        const files = fs.readdirSync(msDailyPath);
+        const matched = files.find((f) => /^eod.*\.csv$/i.test(f));
+        if (matched) {
+          eodPath = path.join(msDailyPath, matched);
+        }
+      }
+    }
+
+    if (!fs.existsSync(eodPath)) {
+      throw new Error(`Thiếu file EOD CSV (eod.${dateStr}.csv) tại ${msDailyPath}`);
+    }
+
+    const ttttPath = path.join(msDailyPath, 'TTTT.xlsx');
+    const files: {
+      qltkgd: Buffer;
+      eod: Buffer;
+      tttt?: Buffer;
+      qltkgdName: string;
+      eodName: string;
+      ttttName?: string;
+    } = {
+      qltkgd: fs.readFileSync(qltkgdPath),
+      eod: fs.readFileSync(eodPath),
+      qltkgdName: 'QLTKGD.xlsx',
+      eodName: path.basename(eodPath),
+    };
+
+    if (fs.existsSync(ttttPath)) {
+      files.tttt = fs.readFileSync(ttttPath);
+      files.ttttName = 'TTTT.xlsx';
+    }
+
+    const eodResult = await this.checkEOD(files);
+
     return {
       success: true,
       tradingDate,
       msDailyPath,
       qltkgdPath,
+      eodPath,
+      ttttPath: fs.existsSync(ttttPath) ? ttttPath : null,
+      eodResult,
+      negativeIMRAcc: eodResult.negativeIMRAcc,
+      negativeBalanceAccs: eodResult.negativeBalanceAccs,
+      mismatchedEOD: eodResult.mismatchedEOD,
     };
   }
 
@@ -171,6 +215,7 @@ export class DsgdBeforeEodReconService {
 
   /**
    * Đối chiếu công thức số dư EOD cuối ngày (hỗ trợ song song cả MS và CCP)
+   * Chuẩn 100% C# Tool (TransactionCheckingService.cs#CheckEOD & FileUtils.cs#GetEODResult).
    */
   async checkEOD(files: {
     qltkgd?: Buffer;
@@ -206,21 +251,128 @@ export class DsgdBeforeEodReconService {
       differ: number;
     }> = [];
 
-    const processQltkgd = (buf: Buffer) => {
-      const qltkgdRes = MarginExcelParser.parseQltkgd(buf);
+    // 1. Thu thập tỷ giá Mua / Bán từ cấu hình hệ thống (hoặc REST API M-System)
+    let rateBuyUSD = 25400;
+    let rateSellUSD = 25400;
+    let rateBuyJPY = 165;
+    let rateSellJPY = 165;
+    let rateBuyMYR = 5700;
+    let rateSellMYR = 5700;
+
+    if (this.settingsService) {
+      try {
+        const paymentRatesRaw = await this.settingsService.getSetting('ms_payment_rates', '');
+        if (paymentRatesRaw) {
+          const pr = JSON.parse(paymentRatesRaw);
+          if (pr['USD/VND']) {
+            rateBuyUSD = Number(pr['USD/VND'].buy) || rateBuyUSD;
+            rateSellUSD = Number(pr['USD/VND'].sell) || rateSellUSD;
+          }
+          if (pr['JPY/VND']) {
+            rateBuyJPY = Number(pr['JPY/VND'].buy) || rateBuyJPY;
+            rateSellJPY = Number(pr['JPY/VND'].sell) || rateSellJPY;
+          }
+          if (pr['MYR/VND']) {
+            rateBuyMYR = Number(pr['MYR/VND'].buy) || rateBuyMYR;
+            rateSellMYR = Number(pr['MYR/VND'].sell) || rateSellMYR;
+          }
+        } else {
+          const usdBuyStr = await this.settingsService.getSetting('usd_settlement_rate_buy', '');
+          const usdSellStr = await this.settingsService.getSetting('usd_settlement_rate_sell', '');
+          const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25400');
+          const jpyRateStr = await this.settingsService.getSetting('jpy_exchange_rate', '165');
+          const myrRateStr = await this.settingsService.getSetting('myr_exchange_rate', '5700');
+
+          const baseUsd = parseFloat(usdRateStr) || 25400;
+          rateBuyUSD = parseFloat(usdBuyStr) || baseUsd;
+          rateSellUSD = parseFloat(usdSellStr) || baseUsd;
+          rateBuyJPY = parseFloat(jpyRateStr) || 165;
+          rateSellJPY = parseFloat(jpyRateStr) || 165;
+          rateBuyMYR = parseFloat(myrRateStr) || 5700;
+          rateSellMYR = parseFloat(myrRateStr) || 5700;
+        }
+      } catch (e: any) {
+        this.logger.warn(`Lỗi đọc tỷ giá thanh toán cho CheckEOD: ${e?.message}`);
+      }
+    }
+
+    // 2. Xử lý M-System EOD (chuẩn C# Tool)
+    if (files.qltkgd && files.eod) {
+      const qltkgdRes = MarginExcelParser.parseQltkgd(files.qltkgd, { fileName: files.qltkgdName });
       negativeBalanceAccs.push(...qltkgdRes.negativeBalanceAccs);
-    };
 
-    if (files.qltkgd) processQltkgd(files.qltkgd);
-    if (files.qltkgdCcp) processQltkgd(files.qltkgdCcp);
-
-    const processEod = (buf: Buffer) => {
-      const eodRes = MarginExcelParser.parseEodMargin(buf);
+      const eodRes = MarginExcelParser.parseEodMargin(files.eod, { fileName: files.eodName });
       negativeIMRAcc.push(...eodRes.negativeIMRAcc);
-    };
 
-    if (files.eod) processEod(files.eod);
-    if (files.eodCcp) processEod(files.eodCcp);
+      const ttttPnlMap = files.tttt ? MarginExcelParser.parseTttt(files.tttt) : new Map();
+
+      for (const record of qltkgdRes.records) {
+        const maTKGD = record.maTKGD;
+        const soDuDauNgay = record.soDuTKKQDauNgay || 0;
+        const nopRut = record.nopRutTrongPhien || 0;
+        const phiGD = record.phiGiaoDich || 0;
+        const phiQC = record.phiQuyenChon || 0;
+        const phiDVTT = record.phiDVThanhToan || 0;
+
+        const pnl = ttttPnlMap.get(maTKGD) || { usd: 0, jpy: 0, myr: 0 };
+        const laiLoUSD = pnl.usd || 0;
+        const laiLoJPY = pnl.jpy || 0;
+        const laiLoMYR = pnl.myr || 0;
+
+        // Quy tắc áp tỷ giá Mua / Bán chuẩn C# (TransactionCheckingService.cs#L509-L526):
+        // Nếu Lãi lỗ + Phí < 0 -> áp tỷ giá Mua (PaymentExchangeRate1)
+        // Nếu >= 0 -> áp tỷ giá Bán (PaymentExchangeRate2)
+        const tyGiaUSD = phiQC + laiLoUSD < 0 ? rateBuyUSD : rateSellUSD;
+        const tyGiaJPY = laiLoJPY < 0 ? rateBuyJPY : rateSellJPY;
+        const tyGiaMYR = laiLoMYR < 0 ? rateBuyMYR : rateSellMYR;
+
+        // Công thức số dư dự kiến chuẩn 100% C# (TransactionCheckingService.cs#L528-L534):
+        // result = soDuTKKQDauNgay + nopRutTrongPhien - phiGiaoDich - phiDVThanhToan
+        //        + (phiQuyenChon + laiLoUSD) * tyGiaUSD + laiLoJPY * tyGiaJPY + laiLoMYR * tyGiaMYR
+        const result =
+          soDuDauNgay +
+          nopRut -
+          phiGD -
+          phiDVTT +
+          (phiQC + laiLoUSD) * tyGiaUSD +
+          laiLoJPY * tyGiaJPY +
+          laiLoMYR * tyGiaMYR;
+
+        const eodBalance = eodRes.eodBalanceMap.get(maTKGD);
+        if (eodBalance !== undefined) {
+          const differ = Math.abs(eodBalance - result);
+          // Ngưỡng so lệch C# là 1.000 VNĐ (TransactionCheckingService.cs#L544):
+          if (differ >= 1000) {
+            mismatchedEOD.push({
+              system: 'MS',
+              maTKGD,
+              calculatedBalance: Math.round(result * 100) / 100,
+              eodBalance: Math.round(eodBalance * 100) / 100,
+              differ: Math.round(differ * 100) / 100,
+            });
+          }
+        }
+      }
+    } else {
+      if (files.qltkgd) {
+        const qltkgdRes = MarginExcelParser.parseQltkgd(files.qltkgd, { fileName: files.qltkgdName });
+        negativeBalanceAccs.push(...qltkgdRes.negativeBalanceAccs);
+      }
+      if (files.eod) {
+        const eodRes = MarginExcelParser.parseEodMargin(files.eod, { fileName: files.eodName });
+        negativeIMRAcc.push(...eodRes.negativeIMRAcc);
+      }
+    }
+
+    // 3. Xử lý CCP EOD (nếu có file CCP truyền vào)
+    if (files.qltkgdCcp) {
+      const qltkgdRes = MarginExcelParser.parseQltkgd(files.qltkgdCcp, { fileName: files.qltkgdCcpName });
+      negativeBalanceAccs.push(...qltkgdRes.negativeBalanceAccs);
+    }
+    if (files.eodCcp) {
+      const eodRes = MarginExcelParser.parseEodMargin(files.eodCcp, { fileName: files.eodCcpName });
+      negativeIMRAcc.push(...eodRes.negativeIMRAcc);
+    }
 
     return {
       negativeIMRAcc: Array.from(new Set(negativeIMRAcc)),
@@ -229,4 +381,3 @@ export class DsgdBeforeEodReconService {
     };
   }
 }
-

@@ -36,7 +36,7 @@ flowchart TD
     end
 
     subgraph P2["PHA 2: Hoàn Thiện Lõi V2 Dsgd-Before-EOD & SOD Recon"]
-        T21["Task 2.1: Dynamic Path Resolution trong V2 runAutoCheckDSGDBeforeEOD"] --> T22["Task 2.2: Di chuyển SOD & EOD MM Recon vào V2 DsgdBeforeEodReconService"]
+        T21["Task 2.1: Dynamic Path Resolution trong V2 runAutoCheckDSGDBeforeEOD"] --> T22["Task 2.2: Di chuyển SOD & EOD MS Recon vào V2 DsgdBeforeEodReconService"]
     end
 
     subgraph P3["PHA 3: Quy Hoạch CCP Clearing & DSGD Before EOD"]
@@ -148,14 +148,14 @@ _Mục đích: Đưa toàn bộ quy trình chốt phiên 3 bên cuối ngày và
 
 ---
 
-#### 📌 Task 2.2: Chuyển Giao `runAutoCheckSOD()` & `runAutoCheckEodMm()` Vào V2
+#### 📌 Task 2.2: Chuyển Giao `runAutoCheckSOD()` & `runAutoCheckEodMs()` Vào V2
 
 - **Mục tiêu**: Chuyển 2 phương thức còn nằm ở [reconciliation/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts) sang `trading-ops/services/dsgd-before-eod-recon.service.ts`.
 - **Kho Logic Bắt Buộc Bảo Tồn (Ground Truth)**:
   - SOD: Quét file đầu ngày, kiểm tra vị thế mở qua đêm.
-  - EOD MM: Đối soát chốt sổ tài khoản Market Maker.
+  - EOD MS: Đối soát chốt sổ tài khoản Market Maker.
 - **Tiêu chuẩn nghiệm thu (DoD)**:
-  - [reconciliation.service.ts#L197-L203](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts#L197-L203) ủy quyền trực tiếp sang `this.tradingOpsDsgdBeforeEodService.runAutoCheckSOD()` và `runAutoCheckEodMm()`.
+  - [reconciliation.service.ts#L197-L203](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts#L197-L203) ủy quyền trực tiếp sang `this.tradingOpsDsgdBeforeEodService.runAutoCheckSOD()` và `runAutoCheckEodMs()`.
 
 ---
 

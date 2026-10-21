@@ -32,7 +32,7 @@ export default function LegacyEodResultSection({
     if (!silent) setLoading(true);
     try {
       const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-      const extractedEod = (data as any)?.eod || ((data as any)?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MM' ? (data as any)?.dsgdBeforeEod : null);
+      const extractedEod = (data as any)?.eod || ((data as any)?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MS' ? (data as any)?.dsgdBeforeEod : null);
       setEodData(extractedEod);
     } catch {
       // Bỏ qua lỗi kết nối
@@ -49,7 +49,7 @@ export default function LegacyEodResultSection({
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      await api.tradingOps.triggerRun('CHECK_EOD_MM', selectedDate, {}, token);
+      await api.tradingOps.triggerRun('CHECK_EOD_MS', selectedDate, {}, token);
       toast.success('Đã gửi yêu cầu đối chiếu kết quả chạy EOD!');
       setTimeout(() => fetchEodData(true), 1500);
     } catch (err: any) {

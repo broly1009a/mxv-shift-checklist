@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { CqgMergerService } from '../../modules/trading-ops/services/cqg-merger.service';
 import { KlgdReconService } from '../../modules/trading-ops/services/klgd-recon.service';
-import { DsgdBeforeEodReconService } from '../../modules/trading-ops/services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from '../../modules/trading-ops/services/ms-eod-recon.service';
 import { LotStatisticsService } from '../../modules/trading-ops/services/lot-statistics.service';
 import { ValueStatisticsService } from '../../modules/trading-ops/services/value-statistics.service';
 import { CcpLotWorker } from '../../modules/trading-ops/workers/ccp-lot.worker';
@@ -215,7 +215,7 @@ describe('Twin-Run Verification - So Sánh Song Hành V1 vs Modular Monolith V2'
       };
       const klgdService = new KlgdReconService(mockSettings);
       const klgdWorker = new KlgdReconWorker(klgdService);
-      const dsgdBeforeEodWorker = new DsgdBeforeEodReconWorker(new DsgdBeforeEodReconService());
+      const dsgdBeforeEodWorker = new DsgdBeforeEodReconWorker(new MsEodReconService({} as any));
 
       expect(klgdWorker.capabilityType).toBe('CHECK_KLGD');
       expect(klgdWorker.canHandle('CHECK_KLGD')).toBe(true);

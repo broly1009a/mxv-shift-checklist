@@ -77,22 +77,209 @@
 ### 3. Xác nhận Build & Kiểm thử
 - **Backend Build**: `nest build` $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
 - **Frontend Build**: `next build` $\rightarrow$ Thành công 100% (50/50 static routes, bao gồm `/trading-manager/statistics/ce`, Exit Code: 0).
+## [2026-10-21T11:05] FEATURE: Bổ Sung Bộ Lọc Epoch Timestamp Milliseconds (transactions.sessionDate[gte] / [lte]) Cho M-System Direct REST API
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Áp dụng chuẩn Ground Truth từ lệnh curl thực tế của M-System: `transactions.sessionDate[gte]=...&transactions.sessionDate[lte]=...` sử dụng Epoch Timestamp tính bằng Milliseconds theo múi giờ Việt Nam (UTC+7) cho endpoint `/transaction/admin/list/excel`.
+  2. Phân định rõ cơ chế lọc ngày giữa 2 hệ thống:
+     - **M-System (MS)**: Truyền query parameters `transactions.sessionDate[gte]` (bắt đầu ngày 00:00:00 VN) và `transactions.sessionDate[lte]` (kết thúc ngày 23:59:59.999 VN) dạng Epoch Milliseconds qua GET request.
+     - **CoreCCP (CCP)**: Truyền chuỗi text `dd/MM/yyyy` (ví dụ `20/10/2026`) qua JSON body payload `search.SESSION_DATE: { from, to }` của POST request `/ccp/export/create` hoặc `/ccp/search/query` kèm WebSocket NotiSocket.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)**:
+   - Thêm tham số `targetDate?: string` vào hàm `downloadSingleReport`.
+   - Viết logic chuyển đổi chuỗi ngày `targetDate` sang Epoch Milliseconds `startMs` và `endMs` (chuẩn UTC+7, khớp 100% với giá trị curl mẫu `1792429200000` và `1792515599999` cho ngày 20/10/2026).
+   - Truyền query parameters `transactions.sessionDate[gte]` và `transactions.sessionDate[lte]` vào URL tải file `/transaction/admin/list/excel` khi tải `DSGD`.
+   - Cập nhật hàm `download` để truyền `options?.targetDate` vào `downloadSingleReport`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T10:55] FIX: Bổ Sung Hook Bộ Lọc Ngày T-1 (sessionDay) Cho Hàm downloadDSGD Trong MsScraperService & MSystemTabNavigatorHelper
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu kiểm tra và hoàn thiện của USER:
+  1. Kiểm tra cơ chế dò thư mục Backup T-1 và đọc các file đối chiếu cuối ngày trong `DsgdBeforeEodService`.
+  2. Bổ sung hook `beforeDownload` vào `MSystemTabNavigatorHelper` và `gotoAndDownload` của `MsScraperService`.
+  3. Hoàn thiện hàm `downloadDSGD` trong `MsScraperService` để tự động tháo thuộc tính `readonly` và điền `sessionDay` (ngày T-1) vào 2 ô input `input[placeholder='Ngày bắt đầu']` và `input[placeholder='Ngày kết thúc']` trước khi nhấn xuất file CSV/Excel, đảm bảo chuẩn 100% theo logic C# gốc (`ChromeBot.cs#L2356-L2373`) và Monolith V1 (`rpa-scraper.service.ts#L1205-L1222`).
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/ingress/helpers/msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/helpers/msystem-tab-navigator.helper.ts)**:
+   - Thêm `beforeDownload?: (page: Page) => Promise<void>` vào interface `TabNavigationOptions`.
+   - Kích hoạt gọi `beforeDownload` trước khi gọi `clickExportAndDownload` trong `navigateMenuAndDownload`.
+2. **[backend/src/modules/ingress/scrapers/ms-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/ms-scraper.service.ts)**:
+   - Thêm tham số `beforeDownload?: (page: Page) => Promise<void>` vào hàm `gotoAndDownload`.
+   - Viết closure `applyDateFilter` trong `downloadDSGD` gỡ `readonly` và điền `sessionDay` vào 2 ô ngày bắt đầu/kết thúc trước khi xuất báo cáo.
+3. **[scratch/test_t1_backup_and_dsgd.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/test_t1_backup_and_dsgd.ts)**:
+   - Tạo file test script độc lập để USER tự chạy kiểm tra dò thư mục backup T-1 và chạy đối chiếu thực tế.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T09:55] REFACTOR: Chuẩn Hóa Tên File ms-eod-recon.service.ts & Xóa File Trùng Lặp pre-eod-recon.service.ts
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Đổi tên file service từ `dsgd-before-eod-recon.service.ts` sang [ms-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ms-eod-recon.service.ts) và class từ `DsgdBeforeEodReconService` sang `MsEodReconService` nhằm phản ánh đúng 100% bản chất nghiệp vụ bên trong (đối chiếu công thức số dư EOD cuối ngày & SOD M-System), phân biệt rõ với [dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts) (đối chiếu file DSGD.xlsx vs Straits CSV).
+  2. Xóa bỏ file trùng lặp cũ không sử dụng `pre-eod-recon.service.ts` trong thư mục `services/`.
+  3. Cập nhật đồng bộ các vị trí import và DI trong toàn bộ Backend (Module, Worker, Controller, Parser, Test scripts).
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/ms-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ms-eod-recon.service.ts)**:
+   - Đổi tên file từ `dsgd-before-eod-recon.service.ts`.
+   - Đổi tên export class sang `MsEodReconService`.
+2. **`backend/src/modules/trading-ops/services/pre-eod-recon.service.ts`**:
+   - Đã xóa bỏ hoàn toàn (file trùng lặp).
+3. **[backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts)**:
+   - Cập nhật import `MsEodReconService` từ `./services/ms-eod-recon.service` trong providers và exports.
+4. **[backend/src/modules/trading-ops/workers/eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/eod-ms.worker.ts)**:
+   - Cập nhật inject `private readonly msEodReconService: MsEodReconService` và gọi `this.msEodReconService.checkEOD(files)`.
+5. **[backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/dsgd-before-eod-recon.worker.ts)**:
+   - Cập nhật import và optional injection sang `MsEodReconService`.
+6. **[backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts)**:
+   - Cập nhật inject `private readonly msEodReconService: MsEodReconService` và gọi `this.msEodReconService.checkEOD(...)`.
+7. **[backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts)**:
+   - Cập nhật import và gọi `this.msEodReconService.checkEOD(...)`.
+8. **[backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts)**:
+   - Cập nhật inject `private readonly msEodReconService: MsEodReconService`.
+9. **[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+   - Cập nhật import alias `TradingOpsMsEodReconService` và gọi `runAutoCheckSOD`, `runAutoCheckEodMs`.
+10. **[backend/src/modules/trading-ops/parsers/margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts)**, **[twin-run-comparator.spec.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/twin-run/twin-run-comparator.spec.ts)**, **[test_working_calendar_t_minus_one_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_working_calendar_t_minus_one_guard.ts)**:
+    - Đồng bộ tên service và import.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 errors, Exit Code: 0).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
+
+---
+
+## [2026-10-21T09:35] FEATURE: Bổ Sung Báo Cáo "Lịch Sử Giao Dịch" (ORDERMATCH_ALL) & Tự Động Inject Bộ Lọc SESSION_DATE Động Cho Ingress CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Bổ sung báo cáo **"Lịch sử giao dịch"** (`ORDERMATCH_ALL` / `LSGD_CCP`) vào Danh mục báo cáo CoreCCP Registry ([coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)).
+  2. Bổ sung cấu hình tiêu đề 26 cột chuẩn VNCLEAR cho màn hình `ORDERMATCH_ALL` trong [vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/vnclear-column-headers.config.ts).
+  3. Tự động chuẩn hóa và inject bộ lọc ngày phiên `search.SESSION_DATE: { from: dd/MM/yyyy, to: dd/MM/yyyy }` theo ngày mục tiêu `targetDate` (hoặc T-1) trong [CoreCcpApiAdapter](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts) cho các báo cáo `ORDERMATCH_DETAIL` và `ORDERMATCH_ALL`.
+  4. Hỗ trợ cơ chế Xuất Server Export Kiểu 2 (WebSocket NotiSocket + `/ccp/export/create` + `/ccp/report/download/{id}`) trọn vẹn cho `ORDERMATCH_ALL`.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)**:
+   - Thêm `'LSGD_CCP'` vào `CANONICAL_CORECCP_API_KEYS`.
+   - Bổ sung định nghĩa `LSGD_CCP` (searchCode: `'ORDERMATCH_ALL'`, route: `'/ORDERS/ORDERMATCH_ALL'`, fileName: `'LSGD CCP.xlsx'`) vào `CORECCP_API_REPORTS`.
+   - Bổ sung alias tra cứu `ORDERMATCH_ALL` và `LSGD`.
+   - Thêm quy tắc nhân bản file phái sinh `CORECCP_DERIVED_RULES` cho `LSGD_CCP`.
+   - Mở rộng hàm `resolveCoreCcpReport` để tự động nhận diện từ khóa `'LSGD'`.
+2. **[backend/src/shared/domain-configs/vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/vnclear-column-headers.config.ts)**:
+   - Khai báo trọn vẹn 26 mã cột ánh xạ tiếng Việt chuẩn cho `ORDERMATCH_ALL`.
+3. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Chuẩn hóa chuỗi ngày `targetDate` sang định dạng `dd/MM/yyyy` (`formattedDateForSearch`).
+   - Tự động tạo `effectiveFilterPayload` và inject `search.SESSION_DATE: { from: formattedDateForSearch, to: formattedDateForSearch }` khi tải `ORDERMATCH_DETAIL` và `ORDERMATCH_ALL`.
+   - Bổ sung `ORDERMATCH_ALL` và `LSGD_CCP` vào danh sách `isServerExportEligible` để kích hoạt xuất file nhị phân nguyên bản qua WebSocket NotiSocket.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 errors, Exit Code: 0).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
+
+---
+
+## [2026-10-21T09:05] FEATURE: Thêm 2 Tab Chuyển Phân Hệ (CoreCCP - CoreEX & MS - CQG) Trực Quan Mặc Định CoreCCP Trên Trang GTT
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Trên trang "Kiểm tra Giá thanh toán CE/CCP/TT" (`/trading-manager/session-open/gtt`), chia làm 2 tab chuyển đổi giữa 2 phân hệ MS và CCP, với giá trị mặc định là CCP:
+  - Tab 1: **Phân hệ CoreCCP – CoreEX** (`CCP_CE`) $\rightarrow$ Mặc định khi tải trang, hiển thị component [CeCcpGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeCcpGttCheckerSection.tsx) (Đối chiếu giá thanh toán CoreCCP ↔ CoreEX).
+  - Tab 2: **Phân hệ MS – CQG** (`MS_CQG`) $\rightarrow$ Hiển thị component [LegacyGttCheckerSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyGttCheckerSection.tsx) (Kiểm tra Giá thanh toán M-System ↔ CQG).
+- Đồng bộ vị trí thanh chuyển Tab Scope ngay bên cạnh bộ chọn ngày giao dịch trên Header bar, thống nhất 100% phong cách thiết kế với các trang EOD Result và Phiên Cũ.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/trading-manager/session-open/gtt/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/gtt/page.tsx)**:
+   - Thêm state `scopeTab` ('CCP_CE' | 'MS_CQG') với default `'CCP_CE'`.
+   - Bổ sung bộ chuyển tab phân hệ chuyên nghiệp trên Header Bar.
+   - Định tuyến hiển thị độc lập: `scopeTab === 'CCP_CE'` $\rightarrow$ `CeCcpGttCheckerSection`; `scopeTab === 'MS_CQG'` $\rightarrow$ `LegacyGttCheckerSection`.
+   - Dọn sạch thanh nút tab hỗn hợp cũ `activeTab` để giao diện gọn gàng, không bị chồng chéo.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
+
+---
+
+## [2026-10-21T09:00] FEATURE & FIX: Hoàn Thiện Ruột Tính Toán CheckEOD M-System, Cố Định Tiêu Chuẩn Âm Ký Quỹ Mới (NegativeIMR) & Đồng Bộ Frontend - Backend
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Hoàn thiện toàn bộ logic ruột tính toán cho hàm `checkEOD()` và `runAutoCheckEodMs()` theo đúng 100% C# Ground Truth ([TransactionCheckingService.cs#L473-L606](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/tool-C%23/operate-transaction-app/Services/TransactionCheckingService.cs#L473-L606) & [FileUtils.cs#L1644-L1929](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/tool-C%23/operate-transaction-app/Utils/FIleUtils.cs#L1644-L1929)).
+  2. Bổ sung bóc tách chi tiết lãi lỗ theo mã hàng hóa trong `TTTT.xlsx` ra các nguyên tệ: `TRU` $\rightarrow$ JPY, `MPO` $\rightarrow$ MYR, các mã còn lại $\rightarrow$ USD (chuẩn C# `statics.json`).
+  3. Lấy tỷ giá Mua / Bán động từ cấu hình hệ thống: nếu Lãi lỗ + Phí $< 0 \rightarrow$ áp tỷ giá Mua (PaymentExchangeRate1); nếu $\ge 0 \rightarrow$ áp tỷ giá Bán (PaymentExchangeRate2).
+  4. Tính số dư dự kiến $\text{result} = \text{soDuDauNgay} + \text{nopRut} - \text{phiGD} - \text{phiDVTT} + (\text{phiQC} + \text{laiLoUSD}) \times \text{tyGiaUSD} + \text{laiLoJPY} \times \text{tyGiaJPY} + \text{laiLoMYR} \times \text{tyGiaMYR}$, so sánh với `eodBalance` từ `eod.{date}.csv` với ngưỡng lệch $\ge 1.000$ VNĐ.
+  5. Cố định điều kiện lọc tài khoản âm ký quỹ mới (NegativeIMRAcc) trong [MarginExcelParser](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts): `init === 0 && estProfit === 0 && optEstProfit === 0 && net === avail && avail < 0 && add > 0`, loại bỏ nhánh fallback lỏng lẻo.
+  6. Khắc phục lệch thuộc tính giữa Backend (`negativeIMRAcc`) và Frontend [LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx) (`accounts`), đồng thời hiển thị đầy đủ bảng kết quả lệch số dư EOD trên [LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx) (Mã TKGD, QLTKGD dự kiến, EOD thực tế, Chênh lệch).
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/modules/trading-ops/parsers/margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts)**:
+   - Trong `parseQltkgd`: Bổ sung trích xuất các cột Số dư TKKQ đầu ngày, Nộp rút trong phiên, Phí giao dịch, Phí quyền chọn, Phí DV thanh toán (VND).
+   - Trong `parseEodMargin`: Trích xuất `estimatedProfitVND`, `optionsEstimatedProfitVND`, áp dụng chuẩn 100% điều kiện `isNegativeIMR` theo C#.
+   - Bổ sung static method `parseTttt(input: Buffer | string)`: Bóc tách lãi lỗ theo nguyên tệ USD, JPY, MYR.
+2. **[backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)** (và file backup `pre-eod-recon.service.ts`):
+   - Cài đặt đầy đủ thuật toán so khớp số dư EOD trong `checkEOD()`.
+   - Cài đặt quét đọc tự động 3 file `QLTKGD.xlsx`, `eod.{date}.csv`, `TTTT.xlsx` trong `runAutoCheckEodMs(tradingDate)`.
+3. **[backend/src/modules/trading-ops/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon-console-summary.service.ts)**:
+   - Trả về đồng thời `accounts: newNegativeIMR` và `negativeIMRAcc: newNegativeIMR` trong `negativeMargin` để đảm bảo tương thích ngược và tiến.
+4. **[frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx)**:
+   - Đọc danh sách tài khoản vi phạm từ `marginData?.negativeIMRAcc || marginData?.accounts`.
+5. **[frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx)**:
+   - Hiển thị bảng đối chiếu chuẩn C#: Mã TKGD, QLTKGD (Dự kiến), EOD (Thực tế), Chênh lệch. Hỗ trợ tìm kiếm theo cả mã tài khoản và các giá trị số dư.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 errors, Exit Code: 0).
+
+---
+
+## [2026-10-21T08:40] FEATURE: Thêm 2 Tab Chuyển Phân Hệ Check EOD (CoreCCP - CoreEX & MS - CQG) Trực Quan Mặc Định CoreCCP - CoreEX
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Thêm 2 tab chuyển đổi phân hệ trực quan trên màn hình "Đối chiếu kết quả EOD" (`/trading-manager/session-open/eod-result`), mặc định lựa chọn phân hệ CoreCCP – CoreEX (`CCP_CE`).
+- Cấu hình phân tách hiển thị rõ ràng:
+  - Phân hệ mặc định `Phân hệ CoreCCP – CoreEX`: Render [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx) với `viewMode="EOD_ONLY"` kết nối linh hoạt với bộ lọc `activeTab` (Tất cả, Đối chiếu kết quả EOD, Check TKGD âm KQ mới).
+  - Phân hệ `Phân hệ MS – CQG`: Render [LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx) và [LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx).
+- Đồng bộ tên file worker [eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/eod-ms.worker.ts) để Backend compile sạch sẽ 100%.
+
+### 2. Danh sách file đã chỉnh sửa & tạo mới
+1. **[frontend/src/app/trading-manager/session-open/eod-result/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/eod-result/page.tsx)**:
+   - Bổ sung state `scopeTab` ('CCP_CE' | 'MS_CQG') với giá trị mặc định là `'CCP_CE'`.
+   - Bổ sung thanh tab switcher phân hệ chuẩn enterprise ngay bên cạnh bộ chọn ngày giao dịch trên Header bar.
+   - Định tuyến hiển thị linh hoạt giữa `CcpCeEodReconSection` (`viewMode="EOD_ONLY"`) và bộ đôi `LegacyEodResultSection` + `LegacyNegativeMarginSection`.
+2. **[frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx)**:
+   - Bổ sung hỗ trợ `viewMode="EOD_ONLY"` và `activeTab` props. Khi ở chế độ EOD_ONLY, ẩn thanh date toolbar lặp lại và ẩn khối Dsgd-Before-EOD không thuộc phạm vi màn hình EOD.
+3. **[backend/src/modules/trading-ops/workers/eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/eod-ms.worker.ts)**:
+   - Đồng bộ tên file theo class `EodMsWorker` và các import trong module.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 errors, Exit Code: 0).
 
 ---
 
 ## [2026-10-21T08:06] ARCHIVE: Di Chuyển LegacyPreEodDiffSection Sang frontend/legacy & Làm Sạch Mã Nguồn frontend/src
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER: Di chuyển an toàn file giao diện cũ [LegacyPreEodDiffSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx) sang thư mục lưu trữ `frontend/legacy/components/trading-manager-components/legacy-ms-cqg/`.
 - Xóa bỏ hoàn toàn file mồ côi này khỏi cây mã nguồn hoạt động `frontend/src/app/trading-manager/components/legacy-ms-cqg/` để tránh nhầm lẫn và dọn sạch 100% dự án.
 
 ### 2. Danh sách file đã chỉnh sửa & di chuyển
+
 1. **[LegacyPreEodDiffSection.tsx (Legacy)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx)**:
    - Lưu trữ bản snapshot đầy đủ làm tài liệu tham khảo lịch sử.
 2. **`frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyPreEodDiffSection.tsx`**:
    - Xóa bỏ khỏi Git (`git rm -f`).
 
 ### 3. Xác nhận Build & Kiểm thử
+
 - **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes, Exit Code: 0).
 
 ---
@@ -100,11 +287,13 @@
 ## [2026-10-20T19:35] CLEANUP: Gỡ Bỏ Hoàn Toàn Khung Màn Hình Pre-EOD Cũ & Chuẩn Hóa Tên File DsgdBeforeEod
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER: Gỡ bỏ hoàn toàn khung màn hình Pre-EOD cũ (`LegacyDsgdBeforeEodDiffSection` - M-SYSTEM ↔ CQG ↔ STRAITS/ACM) khỏi giao diện Trading Manager và trang Phiên Cũ, loại bỏ sự trùng lặp và sai lệch với logic C# tool gốc.
 - Giữ lại duy nhất component chuẩn C# `CheckDSGDBeforeEOD`: [DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx) (Đối chiếu DSGD Gốc vs Tạm & ACM Straits).
 - Đồng bộ tên file vật lý của Backend (`dsgd-before-eod-recon.service.ts`, `dsgd-before-eod-recon.worker.ts`, `dsgd-before-eod-recon.controller.ts`) và Frontend (`DsgdBeforeEodReconciliationVisualReport.tsx`) để xóa sạch các tàn dư tên cũ `pre-eod`.
 
 ### 2. Danh sách file đã chỉnh sửa & đổi tên
+
 1. **[LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)**:
    - Xóa bỏ import và khối giao diện render `LegacyDsgdBeforeEodDiffSection`.
 2. **[page.tsx (Phiên Cũ)](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/klgd-phien-cu/page.tsx)**:
@@ -117,6 +306,7 @@
    - `backend/src/modules/trading-ops/controllers/dsgd-before-eod-recon.controller.ts`
 
 ### 3. Xác nhận Build & Kiểm thử
+
 - **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Thành công 100% (49/49 static routes compiled, Exit Code: 0).
 - **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
 
@@ -198,7 +388,7 @@
 1. **[dsgd-before-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts)**:
    - Xóa sạch 100% hàm `checkDSGDBeforeEOD()` và `runAutoCheckDSGDBeforeEOD()`.
    - Xóa interface `DsgdBeforeEodReconResult` và các import thừa (`parseDSGD`, `parseStraitsCsv`, `findLatestFile`).
-   - File chỉ còn giữ các hàm chuẩn: `getPreviousTradingSession`, `runAutoCheckSOD`, `runAutoCheckEodMm`, `buildDsgdBeforeEodEmailHtml`, `checkEOD`.
+   - File chỉ còn giữ các hàm chuẩn: `getPreviousTradingSession`, `runAutoCheckSOD`, `runAutoCheckEodMs`, `buildDsgdBeforeEodEmailHtml`, `checkEOD`.
 2. **[recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
    - Inject `DsgdBeforeEodService`.
    - Thay thế toàn bộ lệnh gọi `runAutoCheckDSGDBeforeEOD` bằng `dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({ tradingDate: targetDate })`.
@@ -3701,12 +3891,12 @@
 
 ---
 
-## [2026-10-15T16:30] FEATURE MIGRATION: Hoàn Tất Chuyển Đổi 100% Mảng Đối Chiếu Sang Modular Monolith V2 Với 3 Workers Mới (SodReconWorker, CqgSyncWorker, EodMmWorker)
+## [2026-10-15T16:30] FEATURE MIGRATION: Hoàn Tất Chuyển Đổi 100% Mảng Đối Chiếu Sang Modular Monolith V2 Với 3 Workers Mới (SodReconWorker, CqgSyncWorker, EodMsWorker)
 
 ### 1. Mục tiêu thay đổi
 
 - Thực hiện yêu cầu chuyển đổi dứt điểm của USER ("có giúp tôi chuyển đổi chuẩn"):
-  - Đưa toàn bộ 3 tác vụ đối chiếu còn lại đang phải fallback về V1 (`AUTO_CHECK_SOD`, `CHECK_CQG_SYNC`, `CHECK_EOD_MM`) lên kiến trúc chuẩn **Modular Monolith V2**.
+  - Đưa toàn bộ 3 tác vụ đối chiếu còn lại đang phải fallback về V1 (`AUTO_CHECK_SOD`, `CHECK_CQG_SYNC`, `CHECK_EOD_MS`) lên kiến trúc chuẩn **Modular Monolith V2**.
   - Đảm bảo 100% tác vụ đối chiếu trong hệ thống đều được quản lý tập trung qua `BotDispatcherService`, áp dụng cơ chế khóa nguyên tử MongoDB chống race condition, tích hợp trạng thái an toàn `WAITING` (Đang chờ file), lưu log chuẩn vào `TradingReconLog`, và triệt tiêu hoàn toàn sự phụ thuộc vào V1 Fallback.
 
 ### 2. Danh sách file tác động & Giải pháp kiến trúc
@@ -3716,8 +3906,8 @@
 - [backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts): Implement `fetchEodEmail` kết nối tới `EmailWatcherService`.
 - [backend/src/modules/trading-ops/workers/sod-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/sod-recon.worker.ts): Tạo mới `SodReconWorker` xử lý `AUTO_CHECK_SOD`, đối chiếu số dư đầu ngày M-System vs CQG CAST, fail-safe chờ file.
 - [backend/src/modules/trading-ops/workers/cqg-sync.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/cqg-sync.worker.ts): Tạo mới `CqgSyncWorker` xử lý `CHECK_CQG_SYNC`, đồng bộ số dư CQG qua `CqgMergerService`, fail-safe chờ file.
-- [backend/src/modules/trading-ops/workers/eod-mm.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-mm.worker.ts): Tạo mới `EodMmWorker` xử lý `CHECK_EOD_MM`, đối chiếu chốt sổ EOD M-System, tự động kéo email Outlook M365 khi thiếu file EOD.
-- [backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts): Mở rộng enum `reconType` hỗ trợ `'SOD_RECON' | 'CQG_SYNC' | 'EOD_MM' | string`.
+- [backend/src/modules/trading-ops/workers/eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-ms.worker.ts): Tạo mới `EodMsWorker` xử lý `CHECK_EOD_MS`, đối chiếu chốt sổ EOD M-System, tự động kéo email Outlook M365 khi thiếu file EOD.
+- [backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/schemas/trading-recon-log.schema.ts): Mở rộng enum `reconType` hỗ trợ `'SOD_RECON' | 'CQG_SYNC' | 'EOD_MS' | string`.
 - [backend/src/shared/contracts/bot-execution.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/contracts/bot-execution.contract.ts): Bổ sung `passed?: boolean` vào `TaskExecutionResult`.
 - [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký 3 Worker mới vào `providers` và `exports`.
 - [backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts): Inject và tự động đăng ký cả 3 Worker vào capability registry lúc khởi tạo (nâng tổng số Workers V2 từ 6 lên 9).
@@ -4927,7 +5117,7 @@
 - **Cập nhật** [bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts):
   - Gỡ bỏ `forwardRef()` nội bộ trên `CcpCeDownloaderService` và `EmailWatcherService`.
   - Inject trực tiếp các Service V2: `TradingOpsKlgdReconService`, `TradingOpsDsgdBeforeEodReconService`, `CcpEodService`.
-  - Ủy quyền trực tiếp các tác vụ đối chiếu (`runAutoCheckSOD`, `runAutoCheckKLGD`, `runAutoCheckDSGDBeforeEOD`, `runAutoCheckEodMm`, `runAutoCheckEodCcp`) sang V2 services với fallback an toàn về `ReconciliationService`.
+  - Ủy quyền trực tiếp các tác vụ đối chiếu (`runAutoCheckSOD`, `runAutoCheckKLGD`, `runAutoCheckDSGDBeforeEOD`, `runAutoCheckEodMs`, `runAutoCheckEodCcp`) sang V2 services với fallback an toàn về `ReconciliationService`.
 - **Cập nhật Port** [shared/ports/bot-worker.port.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/ports/bot-worker.port.ts):
   - Thêm phương thức tùy chọn `canHandle?(botCheckType: string): boolean` vào interface `IBotWorker` để hỗ trợ tra cứu alias năng lực động.
 - **Cập nhật Dispatcher** [checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts):
@@ -5153,9 +5343,9 @@
      - **Task 1.3**: Bá»• sung rÃ o cháº¯n Fail-Fast (`isWaitingFiles: true`) náº¿u thiáº¿u file vÃ  láº¥y `mtime` cá»§a `DSGD.xlsx` lÃ m `cutoffTime` thá»i gian thá»±c.
   2. [`backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod-recon.service.ts):
      - **Task 2.1**: PhÃ¢n giáº£i Ä‘Æ°á»ng dáº«n Ä‘á»™ng ngÃ y T-1 tá»« `SystemSettingsService` cho `runAutoCheckDSGDBeforeEOD`.
-     - **Task 2.2**: Chuyá»ƒn giao ná»‘t `runAutoCheckSOD` vÃ  `runAutoCheckEodMm` vÃ o V2.
+     - **Task 2.2**: Chuyá»ƒn giao ná»‘t `runAutoCheckSOD` vÃ  `runAutoCheckEodMs` vÃ o V2.
   3. [`backend/src/modules/reconciliation/reconciliation.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/reconciliation.service.ts):
-     - Äá»•i á»§y quyá»n `runAutoCheckSOD` vÃ  `runAutoCheckEodMm` sang V2 `tradingOpsDsgdBeforeEodService`.
+     - Äá»•i á»§y quyá»n `runAutoCheckSOD` vÃ  `runAutoCheckEodMs` sang V2 `tradingOpsDsgdBeforeEodService`.
 
 ### 2. Kiá»ƒm thá»­ & XÃ¡c nháº­n Build
 
@@ -6191,17 +6381,17 @@
 
 ### 1. Má»¥c tiÃªu & CÆ¡ sá»Ÿ thá»±c chá»©ng (Ground Truth)
 
-- **YÃªu cáº§u tá»« USER**: NgÆ°á»i dÃ¹ng pháº£n Ã¡nh viá»‡c Card _"Káº¿t quáº£ cháº¡y EOD"_ hiá»ƒn thá»‹ tick xanh _"Táº¥t cáº£ sá»‘ dÆ° tÃ i khoáº£n khá»›p hoÃ n toÃ n vá»›i káº¿t quáº£ cháº¡y EOD (MS & CCP) - Kiá»ƒm tra lÃºc: 01:22:33 12/10"_, trong khi thá»±c táº¿ tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u sá»‘ dÆ° EOD (`CHECK_EOD_MM`) chÆ°a tá»«ng Ä‘Æ°á»£c cháº¡y trong phiÃªn, vÃ  lÆ°á»£t cháº¡y lÃºc 01:22:33 thá»±c cháº¥t lÃ  Job `CHECK_DSGD_BEFORE_EOD` Ä‘ang á»Ÿ tráº¡ng thÃ¡i chá» file (`isWaitingFiles: true` do thiáº¿u `Straits.csv`). USER yÃªu cáº§u: _"nhÆ°ng hiá»ƒn thá»‹ kiá»ƒu nÃ y liá»‡u cÃ³ gÃ¢y nháº§m khÃ´ng"_, _"cÃ³ giÃºp tÃ´i"_ sá»­a chá»¯a triá»‡t Ä‘á»ƒ.
+- **YÃªu cáº§u tá»« USER**: NgÆ°á»i dÃ¹ng pháº£n Ã¡nh viá»‡c Card _"Káº¿t quáº£ cháº¡y EOD"_ hiá»ƒn thá»‹ tick xanh _"Táº¥t cáº£ sá»‘ dÆ° tÃ i khoáº£n khá»›p hoÃ n toÃ n vá»›i káº¿t quáº£ cháº¡y EOD (MS & CCP) - Kiá»ƒm tra lÃºc: 01:22:33 12/10"_, trong khi thá»±c táº¿ tÃ¡c vá»¥ Ä‘á»‘i chiáº¿u sá»‘ dÆ° EOD (`CHECK_EOD_MS`) chÆ°a tá»«ng Ä‘Æ°á»£c cháº¡y trong phiÃªn, vÃ  lÆ°á»£t cháº¡y lÃºc 01:22:33 thá»±c cháº¥t lÃ  Job `CHECK_DSGD_BEFORE_EOD` Ä‘ang á»Ÿ tráº¡ng thÃ¡i chá» file (`isWaitingFiles: true` do thiáº¿u `Straits.csv`). USER yÃªu cáº§u: _"nhÆ°ng hiá»ƒn thá»‹ kiá»ƒu nÃ y liá»‡u cÃ³ gÃ¢y nháº§m khÃ´ng"_, _"cÃ³ giÃºp tÃ´i"_ sá»­a chá»¯a triá»‡t Ä‘á»ƒ.
 
 ### 2. Danh sÃ¡ch file chá»‰nh sá»­a & Chi tiáº¿t thay Ä‘á»•i
 
 - [backend/src/modules/reconciliation/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/reconciliation/services/recon-console-summary.service.ts):
-  - **TÃ¡ch biá»‡t truy váº¥n**: Bá»• sung `eodPromise` chuyÃªn biá»‡t truy váº¥n `jobType: { $in: ['CHECK_EOD_MM', 'CHECK_EOD_CCP'] }`, tÃ¡ch báº¡ch hoÃ n toÃ n khá»i `dsgdBeforeEodPromise` (`CHECK_DSGD_BEFORE_EOD`) vÃ  `marginPromise`.
+  - **TÃ¡ch biá»‡t truy váº¥n**: Bá»• sung `eodPromise` chuyÃªn biá»‡t truy váº¥n `jobType: { $in: ['CHECK_EOD_MS', 'CHECK_EOD_CCP'] }`, tÃ¡ch báº¡ch hoÃ n toÃ n khá»i `dsgdBeforeEodPromise` (`CHECK_DSGD_BEFORE_EOD`) vÃ  `marginPromise`.
   - **Loáº¡i bá» Fallback láº«n lá»™n**: XÃ³a bá» `dsgdBeforeEodJob` ra khá»i danh sÃ¡ch á»©ng viÃªn EOD (`eodCandidates`), loáº¡i bá» viá»‡c láº¥y káº¿t quáº£ Dsgd-Before-EOD gÃ¡n Ä‘Ã¨ vÃ o EOD.
   - **Äá»™c láº­p Response Payload**: Tráº£ vá» riÃªng biá»‡t object `eod: { jobId, status, executedAt, isWaitingFiles, waitingMessage, passed, totals, mismatchedEOD }` vÃ  object `dsgdBeforeEod: { ... }` pháº£n Ã¡nh 100% Ä‘Ãºng dá»¯ liá»‡u cá»§a tá»«ng nghiá»‡p vá»¥.
   - **Bá»• sung cá» `isWaitingFiles`**: Tráº£ vá» `isWaitingFiles` vÃ  `waitingMessage` cho cáº£ 3 khá»‘i `dsgdBeforeEod`, `eod`, vÃ  `negativeMargin`.
 - [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
-  - **Äá»“ng bá»™ biáº¿n tráº¡ng thÃ¡i `hasExecutedEod`**: TrÃ­ch xuáº¥t `eodData = summaryData?.eod`, chá»‰ Ä‘Ã¡nh dáº¥u `hasExecutedEod = true` khi Job EOD thá»±c sá»± Ä‘Ã£ Ä‘Æ°á»£c cháº¡y (`CHECK_EOD_MM` / `CHECK_EOD_CCP`).
+  - **Äá»“ng bá»™ biáº¿n tráº¡ng thÃ¡i `hasExecutedEod`**: TrÃ­ch xuáº¥t `eodData = summaryData?.eod`, chá»‰ Ä‘Ã¡nh dáº¥u `hasExecutedEod = true` khi Job EOD thá»±c sá»± Ä‘Ã£ Ä‘Æ°á»£c cháº¡y (`CHECK_EOD_MS` / `CHECK_EOD_CCP`).
   - **Xá»­ lÃ½ tráº¡ng thÃ¡i Chá» File & Tháº¥t Báº¡i**: ThÃªm kiá»ƒm tra `eodData?.isWaitingFiles` (hiá»ƒn thá»‹ thÃ´ng bÃ¡o chá» file mÃ u vÃ ng cam) vÃ  `eodData?.status === 'FAILED'` (hiá»ƒn thá»‹ thÃ´ng bÃ¡o lá»—i mÃ u Ä‘á»).
   - **Cháº¥m dá»©t BÃ¡o ThÃ nh CÃ´ng áº¢o**: Chá»‰ hiá»ƒn thá»‹ tick xanh _"Táº¥t cáº£ sá»‘ dÆ° tÃ i khoáº£n khá»›p hoÃ n toÃ n"_ khi `hasExecutedEod === true`, `status === 'COMPLETED'`, `!isWaitingFiles`, vÃ  `mismatchedEOD.length === 0`.
   - **Cáº­p nháº­t tÆ°Æ¡ng tá»± cho Card TÃ i khoáº£n Ã¢m kÃ½ quá»¹**: ThÃªm nhÃ¡nh xá»­ lÃ½ `summaryData?.negativeMargin?.isWaitingFiles` vÃ  `FAILED`.

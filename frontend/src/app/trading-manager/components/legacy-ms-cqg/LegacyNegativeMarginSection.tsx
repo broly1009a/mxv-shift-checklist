@@ -59,7 +59,11 @@ export default function LegacyNegativeMarginSection({
   };
 
   const hasExecuted = !!(marginData?.executedAt && marginData?.status !== 'IDLE');
-  const accounts: string[] = Array.isArray(marginData?.accounts) ? marginData.accounts : [];
+  const accounts: string[] = Array.isArray(marginData?.negativeIMRAcc)
+    ? marginData.negativeIMRAcc
+    : Array.isArray(marginData?.accounts)
+    ? marginData.accounts
+    : [];
 
   const filteredAccounts = accounts.filter(acc =>
     acc.toLowerCase().includes(searchQuery.trim().toLowerCase())

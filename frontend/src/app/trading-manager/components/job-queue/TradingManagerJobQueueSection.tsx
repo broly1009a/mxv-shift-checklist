@@ -34,7 +34,7 @@ import { api } from '@/services/api';
 export const TRADING_JOB_TYPES = [
   'CHECK_KLGD',
   'CHECK_DSGD_BEFORE_EOD',
-  'CHECK_EOD_MM',
+  'CHECK_EOD_MS',
   'CHECK_EOD',
   'CHECK_CQG_SYNC',
   'SCAN_NEGATIVE_MARGIN',
@@ -348,7 +348,7 @@ export default function TradingManagerJobQueueSection({
         return 'Đối Chiếu Khớp Lệnh (Trong Phiên)';
       case 'CHECK_DSGD_BEFORE_EOD':
         return 'Đối Chiếu DSGD Trước EOD';
-      case 'CHECK_EOD_MM':
+      case 'CHECK_EOD_MS':
       case 'CHECK_EOD':
         return 'Đối Chiếu EOD M-System';
       case 'CHECK_CQG_SYNC':
@@ -545,7 +545,7 @@ export default function TradingManagerJobQueueSection({
                 cursor: 'pointer',
                 transition: 'all 0.15s',
               }}
-              title="Hiển thị tất cả tác vụ hệ thống (Checklist ca trực, RPA, EOD MM, CoreCCP, SOD, Macro...)"
+              title="Hiển thị tất cả tác vụ hệ thống (Checklist ca trực, RPA, EOD MS, CoreCCP, SOD, Macro...)"
             >
               Toàn bộ hệ thống
             </button>

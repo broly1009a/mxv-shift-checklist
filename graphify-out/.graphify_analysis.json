@@ -396,7 +396,7 @@
       "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler",
       "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_execute",
       "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_handleautochecksodjob",
-      "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_handlecheckeodmmjob",
+      "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_handlecheckeodmsjob",
       "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_handlecheckklgdjob",
       "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_handlecheckdsgdbeforeeodjob",
       "backend_src_modules_bot_engine_handlers_recon_jobs_handler_reconjobshandler_onmoduleinit",
@@ -3394,7 +3394,7 @@
       "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checkeodcqg",
       "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_checknegativemargin",
       "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_getchromeexecutablepath",
-      "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodmm",
+      "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautocheckeodms",
       "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_runautochecksod",
       "backend_src_modules_reconciliation_reconciliation_service_reconciliationservice_syncusdratefrommsystem",
       "backend_src_modules_shifts_shifts_service_shiftsservice_sendshifthandoveremail"

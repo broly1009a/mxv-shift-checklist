@@ -131,11 +131,11 @@ export class SchedulerService implements OnModuleInit {
           jobType: 'CHECK_DSGD_BEFORE_EOD',
         },
         {
-          id: 'CHECK_EOD_MM',
+          id: 'CHECK_EOD_MS',
           name: 'Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)',
           enabled: false,
           time: '18:00',
-          jobType: 'CHECK_EOD_MM',
+          jobType: 'CHECK_EOD_MS',
         },
         {
           id: 'RPA_DOWNLOAD_CE',
@@ -283,13 +283,13 @@ export class SchedulerService implements OnModuleInit {
             updated = true;
           }
 
-          if (!tasks.some((t) => t.id === 'CHECK_EOD_MM')) {
+          if (!tasks.some((t) => t.id === 'CHECK_EOD_MS')) {
             tasks.push({
-              id: 'CHECK_EOD_MM',
+              id: 'CHECK_EOD_MS',
               name: 'Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)',
               enabled: false,
               time: '18:00',
-              jobType: 'CHECK_EOD_MM',
+              jobType: 'CHECK_EOD_MS',
             });
             updated = true;
           }

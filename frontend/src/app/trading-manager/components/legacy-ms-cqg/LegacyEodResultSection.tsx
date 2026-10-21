@@ -32,7 +32,7 @@ export default function LegacyEodResultSection({
     if (!silent) setLoading(true);
     try {
       const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-      const extractedEod = (data as any)?.eod || ((data as any)?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MM' ? (data as any)?.dsgdBeforeEod : null);
+      const extractedEod = (data as any)?.eod || ((data as any)?.dsgdBeforeEod?.jobType === 'CHECK_EOD_MS' ? (data as any)?.dsgdBeforeEod : null);
       setEodData(extractedEod);
     } catch {
       // Bỏ qua lỗi kết nối
@@ -49,7 +49,7 @@ export default function LegacyEodResultSection({
     if (!token || triggering) return;
     setTriggering(true);
     try {
-      await api.tradingOps.triggerRun('CHECK_EOD_MM', selectedDate, {}, token);
+      await api.tradingOps.triggerRun('CHECK_EOD_MS', selectedDate, {}, token);
       toast.success('Đã gửi yêu cầu đối chiếu kết quả chạy EOD!');
       setTimeout(() => fetchEodData(true), 1500);
     } catch (err: any) {
@@ -64,11 +64,11 @@ export default function LegacyEodResultSection({
 
   const filteredMismatches = mismatchedEOD.filter(p => {
     const q = searchQuery.trim().toLowerCase();
-    return (
-      (p?.tkgd || '').toLowerCase().includes(q) ||
-      (p?.qltkgd || '').toLowerCase().includes(q) ||
-      (p?.reason || '').toLowerCase().includes(q)
-    );
+    const maTKGD = String(p?.maTKGD || p?.tkgd || '').toLowerCase();
+    const calcBal = String(p?.calculatedBalance ?? p?.qltkgd ?? '').toLowerCase();
+    const eodBal = String(p?.eodBalance ?? '').toLowerCase();
+    const reason = String(p?.reason || p?.differ || '').toLowerCase();
+    return maTKGD.includes(q) || calcBal.includes(q) || eodBal.includes(q) || reason.includes(q);
   });
 
   const formatSubCheckTime = (iso?: string | null) => {
@@ -224,9 +224,10 @@ export default function LegacyEodResultSection({
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)' }}>
                   <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 700 }}>
-                    <th style={{ padding: '10px 16px', width: '150px' }}>TKGD</th>
-                    <th style={{ padding: '10px 16px', width: '180px' }}>QLTKGD</th>
-                    <th style={{ padding: '10px 16px' }}>Kết quả / Chênh lệch</th>
+                    <th style={{ padding: '10px 16px', width: '140px' }}>Mã TKGD</th>
+                    <th style={{ padding: '10px 16px', width: '180px', textAlign: 'right' }}>QLTKGD (Dự kiến)</th>
+                    <th style={{ padding: '10px 16px', width: '180px', textAlign: 'right' }}>EOD (Thực tế)</th>
+                    <th style={{ padding: '10px 16px', textAlign: 'right' }}>Chênh lệch</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -239,9 +240,24 @@ export default function LegacyEodResultSection({
                         color: '#ef4444',
                       }}
                     >
-                      <td style={{ padding: '10px 16px', fontWeight: 800, fontFamily: 'monospace' }}>{p?.tkgd || '--'}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '0.82rem', fontFamily: 'monospace' }}>{p?.qltkgd || '--'}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '0.82rem', fontWeight: 700 }}>{p?.reason || 'Lệch số dư'}</td>
+                      <td style={{ padding: '10px 16px', fontWeight: 800, fontFamily: 'monospace' }}>
+                        {p?.maTKGD || p?.tkgd || '--'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.85rem', fontFamily: 'monospace', textAlign: 'right' }}>
+                        {p?.calculatedBalance != null
+                          ? p.calculatedBalance.toLocaleString('vi-VN')
+                          : (p?.qltkgd || '--')}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.85rem', fontFamily: 'monospace', textAlign: 'right' }}>
+                        {p?.eodBalance != null
+                          ? p.eodBalance.toLocaleString('vi-VN')
+                          : '--'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.85rem', fontWeight: 700, textAlign: 'right' }}>
+                        {p?.differ != null
+                          ? `${p.differ.toLocaleString('vi-VN')} đ`
+                          : (p?.reason || 'Lệch số dư')}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

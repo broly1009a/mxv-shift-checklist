@@ -12,19 +12,19 @@ import {
 } from '../../../shared';
 import type { IReconPipelinePort } from '../../../shared';
 import { RECON_PIPELINE_PORT } from '../../../shared';
-import { DsgdBeforeEodReconService } from '../services/dsgd-before-eod-recon.service';
+import { MsEodReconService } from '../services/ms-eod-recon.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
 @Injectable()
-export class EodMmWorker implements IBotWorker {
-  private readonly logger = new Logger(EodMmWorker.name);
+export class EodMsWorker implements IBotWorker {
+  private readonly logger = new Logger(EodMsWorker.name);
 
-  readonly capabilityType = 'CHECK_EOD_MM';
+  readonly capabilityType = 'CHECK_EOD_MS';
   readonly displayName = 'Đối Chiếu Chốt Sổ EOD M-System';
 
   constructor(
-    private readonly dsgdBeforeEodReconService: DsgdBeforeEodReconService,
+    private readonly msEodReconService: MsEodReconService,
     private readonly settingsService: SystemSettingsService,
     @Optional()
     @Inject(RECON_PIPELINE_PORT)
@@ -37,15 +37,15 @@ export class EodMmWorker implements IBotWorker {
   canHandle(capabilityType: string): boolean {
     return (
       capabilityType === this.capabilityType ||
-      capabilityType === 'EOD_MM' ||
-      capabilityType === 'CHECK_EOD_MM'
+      capabilityType === 'EOD_MS' ||
+      capabilityType === 'CHECK_EOD_MS'
     );
   }
 
   async execute(context: TaskExecutionContext): Promise<TaskExecutionResult> {
     const startTime = Date.now();
     this.logger.log(
-      `[EodMmWorker] Tiếp nhận thực thi ${this.capabilityType} cho Task: ${context.taskId}, Ca: ${context.shiftId || 'N/A'}`,
+      `[EodMsWorker] Tiếp nhận thực thi ${this.capabilityType} cho Task: ${context.taskId}, Ca: ${context.shiftId || 'N/A'}`,
     );
 
     try {
@@ -76,16 +76,16 @@ export class EodMmWorker implements IBotWorker {
       // Nếu thiếu file EOD: Gọi fallback tải từ Outlook email qua ReconPipelinePort
       if (!eodFile && this.reconPipeline?.fetchEodEmail) {
         this.logger.log(
-          `[EodMmWorker] Chưa tìm thấy file EOD phiên ${dateStr}. Kích hoạt kéo file EOD từ hòm thư Outlook M365...`,
+          `[EodMsWorker] Chưa tìm thấy file EOD phiên ${dateStr}. Kích hoạt kéo file EOD từ hòm thư Outlook M365...`,
         );
         try {
           const mailRes = await this.reconPipeline.fetchEodEmail(dateStr, msDailyPath);
           if (mailRes?.success) {
             eodFile = findLatestFile(msDailyPath, /eod/i);
-            this.logger.log(`[EodMmWorker] Đã tải thành công file EOD từ email.`);
+            this.logger.log(`[EodMsWorker] Đã tải thành công file EOD từ email.`);
           }
         } catch (mailErr: any) {
-          this.logger.warn(`[EodMmWorker] Lỗi tải file EOD từ mail: ${mailErr.message}`);
+          this.logger.warn(`[EodMsWorker] Lỗi tải file EOD từ mail: ${mailErr.message}`);
         }
       }
 
@@ -95,7 +95,7 @@ export class EodMmWorker implements IBotWorker {
         if (!eodFile) missing.push('eod.csv / EOD.xlsx');
 
         this.logger.warn(
-          `[EodMmWorker] Đang chờ file EOD MS ngày ${dateStr}. Thiếu: ${missing.join(', ')}`,
+          `[EodMsWorker] Đang chờ file EOD MS ngày ${dateStr}. Thiếu: ${missing.join(', ')}`,
         );
         return {
           status: 'WAITING',
@@ -116,7 +116,7 @@ export class EodMmWorker implements IBotWorker {
         files.tttt = fs.readFileSync(ttttPath);
       }
 
-      const checkRes = await this.dsgdBeforeEodReconService.checkEOD(files);
+      const checkRes = await this.msEodReconService.checkEOD(files);
 
       // Lọc tài khoản theo dõi
       const monitoredAccsStr = await this.settingsService.getSetting(
@@ -153,7 +153,7 @@ export class EodMmWorker implements IBotWorker {
       if (this.reconLogModel) {
         try {
           await this.reconLogModel.create({
-            reconType: 'EOD_MM',
+            reconType: 'EOD_MS',
             tradingDate: dateStr,
             shiftLogId: context.shiftId,
             taskId: context.taskId,
@@ -166,7 +166,7 @@ export class EodMmWorker implements IBotWorker {
             negativeMarginAccounts: [...newNegIMR, ...newNegBal].map(acc => ({ account: acc })),
           });
         } catch (dbErr: any) {
-          this.logger.warn(`[EodMmWorker] Lỗi lưu TradingReconLog: ${dbErr.message}`);
+          this.logger.warn(`[EodMsWorker] Lỗi lưu TradingReconLog: ${dbErr.message}`);
         }
       }
 
@@ -189,7 +189,7 @@ export class EodMmWorker implements IBotWorker {
         executedAt: new Date(),
       };
     } catch (err: any) {
-      this.logger.error(`[EodMmWorker] Lỗi đối chiếu EOD MS: ${err.message}`, err.stack);
+      this.logger.error(`[EodMsWorker] Lỗi đối chiếu EOD MS: ${err.message}`, err.stack);
       return {
         status: 'FAILED',
         summary: `Lỗi đối chiếu EOD MS: ${err.message}`,

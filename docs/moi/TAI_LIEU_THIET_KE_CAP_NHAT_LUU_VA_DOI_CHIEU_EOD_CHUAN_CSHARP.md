@@ -156,12 +156,12 @@ flowchart TD
     D --> E["Tự động lưu vào: .../Backup MS/Futures/2026/T09.2026/24.09/"]
     E --> F["Lưu 2 file: eod.2026-09-24.csv & eod.csv"]
 
-    G["Kích hoạt Job: CHECK_EOD_MM"] --> H["recon-jobs.handler.ts"]
+    G["Kích hoạt Job: CHECK_EOD_MS"] --> H["recon-jobs.handler.ts"]
     H --> I["Xác định Thư mục Phiên EOD Mục Tiêu"]
     I --> J{"Thời điểm chạy ca sáng?"}
     J -->|"Chưa chạy EOD ngày T"| K["TargetSession = T-1 (Phiên 24.09)"]
     J -->|"Chỉ định cụ thể sessionDay"| L["TargetSession = sessionDay"]
-    K --> M["DsgdBeforeEodReconService.runAutoCheckEodMm(targetSession)"]
+    K --> M["DsgdBeforeEodReconService.runAutoCheckEodMs(targetSession)"]
     L --> M
     M --> N["Đọc đồng bộ: 24.09/QLTKGD.xlsx + 24.09/TTTT.xlsx + 24.09/eod.csv"]
     N --> O["Kết quả: KHỚP TUYỆT ĐỐI (0 lệch dòng tiền)"]
@@ -212,7 +212,7 @@ private extractSessionDateFromEodEmail(subject: string, attachments: any[]): Dat
 
 ### 3.2. Cập nhật `recon-jobs.handler.ts` (Xác định đúng phiên EOD cần đối chiếu)
 
-Trong `handleCheckEodMmJob(job: any)`:
+Trong `handleCheckEodMsJob(job: any)`:
 
 1. **Nguyên tắc xác định ngày phiên**:
    - Nếu `payload.sessionDay` được truyền từ người dùng $\rightarrow$ Sử dụng ngày đó.
@@ -222,13 +222,13 @@ Trong `handleCheckEodMmJob(job: any)`:
 2. **Kiểm tra và nạp file EOD**:
    - Kiểm tra thư mục của phiên mục tiêu `msDailyPath` (ví dụ `.../24.09/`).
    - Nếu chưa có file EOD $\rightarrow$ Tự động kích hoạt `emailWatcherService.fetchEodEmail(eodDateStr, msDailyPath)`.
-   - Gọi `reconciliationService.runAutoCheckEodMm(eodSessionDate)`.
+   - Gọi `reconciliationService.runAutoCheckEodMs(eodSessionDate)`.
 
 ---
 
 ### 3.3. Cập nhật `dsgd-before-eod-recon.service.ts` (Đọc đúng bộ file của phiên EOD)
 
-Trong `runAutoCheckEodMm(tradingDate: Date)`:
+Trong `runAutoCheckEodMs(tradingDate: Date)`:
 
 - `tradingDate` ở đây chính là **ngày của phiên EOD** (ví dụ `2026-09-24`).
 - Bộ đường dẫn file được trích xuất hoàn toàn nhất quán từ thư mục phiên này:
@@ -253,8 +253,8 @@ Trong `runAutoCheckEodMm(tradingDate: Date)`:
 | STT | File Chỉnh Sửa                                                                 | Phạm Vi Thay Đổi            | Mục Đích                                                                                                                             |
 | :-: | :----------------------------------------------------------------------------- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
 |  1  | `backend/src/modules/bot-engine/email-watcher.service.ts`                      | Hàm `fetchEodEmail()`       | Tự động bóc tách ngày phiên từ email/tên file để lưu đúng thư mục phiên (dù tải ở bất kỳ thời điểm nào). Tạo thêm bản sao `eod.csv`. |
-|  2  | `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`                | Hàm `handleCheckEodMmJob()` | Xác định đúng ngày phiên EOD (T-1 cho ca sáng) trước khi kích hoạt quy trình đối chiếu.                                              |
-|  3  | `backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts` | Hàm `runAutoCheckEodMm()`   | Đảm bảo đọc đồng bộ `QLTKGD`, `TTTT` và `EOD` từ cùng một thư mục phiên EOD mục tiêu.                                                |
+|  2  | `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`                | Hàm `handleCheckEodMsJob()` | Xác định đúng ngày phiên EOD (T-1 cho ca sáng) trước khi kích hoạt quy trình đối chiếu.                                              |
+|  3  | `backend/src/modules/reconciliation/services/dsgd-before-eod-recon.service.ts` | Hàm `runAutoCheckEodMs()`   | Đảm bảo đọc đồng bộ `QLTKGD`, `TTTT` và `EOD` từ cùng một thư mục phiên EOD mục tiêu.                                                |
 
 ### 4.2. Kế hoạch kiểm thử (Test Matrix)
 

@@ -211,7 +211,7 @@ Dữ liệu được trích xuất trực tiếp (chế độ Read-only) từ CS
 | `DOWNLOAD_CAST`         | Tải báo cáo CQG CAST Balances             | **07:00**     | **BẬT (true)**   | Tải tự động số dư CAST phục vụ đối chiếu đầu ngày.                                                                                   |
 | `AUTO_CHECK_SOD`        | Đối chiếu số dư đầu ngày (SOD)            | **07:05**     | **BẬT (true)**   | Tự động chạy ngay sau khi có file CAST lúc 07:00.                                                                                    |
 | `CHECK_DSGD_BEFORE_EOD` | Kiểm tra tiền EOD (Dsgd-Before-EOD Check) | **16:30**     | Tạm dừng (false) | Tác vụ chốt đối chiếu 3 bên cuối ngày phiên chiều.                                                                                   |
-| `CHECK_EOD_MM`          | Đối chiếu số liệu EOD & Market Maker      | **18:00**     | Tạm dừng (false) | Kiểm tra đối soát sau khi đóng phiên.                                                                                                |
+| `CHECK_EOD_MS`          | Đối chiếu số liệu EOD & Market Maker      | **18:00**     | Tạm dừng (false) | Kiểm tra đối soát sau khi đóng phiên.                                                                                                |
 
 ### 3. Tập hợp các loại Job thực tế trong MongoDB (`bot_jobs.jobType`)
 
