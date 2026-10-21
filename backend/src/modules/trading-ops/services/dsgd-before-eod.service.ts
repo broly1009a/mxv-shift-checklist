@@ -414,7 +414,7 @@ export class DsgdBeforeEodService {
         try {
           const filesInDir = fs.readdirSync(dir);
           for (const f of filesInDir) {
-            if (/^DSGD.+\.xlsx$/i.test(f) && !f.startsWith('~$') && !/DSGD\s+MM/i.test(f) && f.toLowerCase() !== origBaseName) {
+            if (/^(?:DSGD|LSGD).+\.xlsx$/i.test(f) && !f.startsWith('~$') && !/DSGD\s+MM/i.test(f) && f.toLowerCase() !== origBaseName) {
               const full = path.join(dir, f);
               candidates.push({ name: f, path: full, mtime: fs.statSync(full).mtimeMs });
             }

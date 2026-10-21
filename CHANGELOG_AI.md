@@ -1,3 +1,29 @@
+## [2026-10-21T15:45] REFACTOR: Loại Bỏ Nhân Bản Thừa DSGD Khỏi LSGD_CCP Chuẩn Hóa Theo Tool C# & Báo Cáo Kiểm Thử Toàn Diện Các Phiên
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Loại bỏ 2 dòng nhân bản tự động thừa (`DSGD_{date}.xlsx` và `DSGD CCP.xlsx`) khỏi quy tắc `CORECCP_DERIVED_RULES` của `LSGD_CCP` trong [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts) để chuẩn hóa 100% tinh gọn theo Tool C# (không nhân bản sinh file rác).
+  2. Báo cáo kết quả kiểm thử thực tế toàn diện cho tất cả các ngày trong thư mục `test-ccp`:
+     - **CheckDSGDBeforeCCP**: Khớp 100% tuyệt đối (Chênh lệch: 0 lots) trên toàn bộ các phiên:
+       - **Phiên 20.10**: CoreCCP = **2,545 lots** $\leftrightarrow$ Straits ACM = **2,545 lots** (Lệch: 0).
+       - **Phiên 14.10**: CoreCCP = **4,326 lots** $\leftrightarrow$ Straits ACM = **4,326 lots** (Lệch: 0).
+       - **Phiên 06.10**: CoreCCP = **2,985 lots** $\leftrightarrow$ Straits ACM = **2,985 lots** (Lệch: 0).
+       - **Phiên 16.10**: CoreCCP tải được **1,716 lots** (thư mục `test-ccp/ACM` không có thư mục 16.10).
+     - **CheckEODCCP**: Khớp 100% công thức (Zero Lệch) trên toàn bộ các phiên:
+       - **Phiên 20.10**: 9,895 / 9,895 tài khoản khớp (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+       - **Phiên 16.10**: 9,712 / 9,712 tài khoản khớp (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)**:
+   - Xóa bỏ 2 dòng nhân bản thừa `DSGD_{date}.xlsx` và `DSGD CCP.xlsx` trong `CORECCP_DERIVED_RULES` của `LSGD_CCP`.
+2. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**:
+   - Đồng bộ regex quét file candidate snapshot: `/^(?:DSGD|LSGD).+\.xlsx$/i` để nhận diện linh hoạt file gốc và snapshot CoreCCP.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
 ## [2026-10-21T11:00] FEATURE: Triển Khai Cơ Chế Xác Nhận Ghi Đè (Overwrite Confirmation Guard) & Xuất Bản Nháp (Draft Export) Thống Kê
 
 ### 1. Mục tiêu thay đổi
@@ -77,6 +103,32 @@
 ### 3. Xác nhận Build & Kiểm thử
 - **Backend Build**: `nest build` $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
 - **Frontend Build**: `next build` $\rightarrow$ Thành công 100% (50/50 static routes, bao gồm `/trading-manager/statistics/ce`, Exit Code: 0).
+## [2026-10-21T15:35] TEST & VERIFY: Kiểm Thử Thực Tế Toàn Diện 100% Khớp Lệnh & Số Dư EOD CoreCCP + Hoàn Thiện Tự Động Nhân Bản DSGD từ LSGD
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. **Kiểm thử thực tế CheckEODCCP trên các file input thực tế** (`QL TT TKGD.xlsx` & `KQ EOD.xlsx`) trong thư mục `test-ccp/EOD/20.10` và `test-ccp/EOD/16.10`:
+     - Phiên 20.10: 9,895 / 9,895 tài khoản khớp 100% (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+     - Phiên 16.10: 9,712 / 9,712 tài khoản khớp 100% (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+  2. **Kiểm thử thực tế CheckDSGDBeforeCCP (CoreCCP $\leftrightarrow$ Straits ACM)**:
+     - Kết nối CSDL Ubuntu (`10.0.0.26`) lấy tài khoản CoreCCP (`anhdao`).
+     - Tải báo cáo lịch sử giao dịch CoreCCP (`ORDERMATCH_ALL`) cho phiên 20.10 qua Direct REST API: Khối lượng khớp tài khoản đuôi `'A'` = **2,545 lots**.
+     - So khớp với file Straits ACM (`EOD FO trades_..._20102026.csv`): **2,545 lots** $\rightarrow$ **Khớp 100% tuyệt đối (Chênh lệch: 0 lots)**.
+  3. **Tối ưu hóa luồng tải file và nhận diện file**:
+     - Bổ sung quy tắc nhân bản `DSGD_{date}.xlsx` và `DSGD CCP.xlsx` từ `LSGD_CCP` trong `CORECCP_DERIVED_RULES`.
+     - Cập nhật regex tìm kiếm file trong `dsgd-before-eod.service.ts` nhận diện cả `/^(?:DSGD|LSGD)/i`.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)**:
+   - Bổ sung nhân bản `DSGD_{date}.xlsx` và `DSGD CCP.xlsx` cho `LSGD_CCP` (`ORDERMATCH_ALL`).
+2. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**:
+   - Mở rộng regex quét file giao dịch CoreCCP: `/^(?:DSGD|LSGD)/i`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
 ## [2026-10-21T15:10] FEATURE: Bổ Sung Flyout Popover Menu Hiển Thị Menu Con Khi Hover Lúc Sidebar Thu Gọn
 
 ### 1. Mục tiêu thay đổi
