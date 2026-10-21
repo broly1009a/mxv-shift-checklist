@@ -184,7 +184,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     this.saveSessionToCache(session);
     this.logger.log(
-      `[CoreCcpApiAdapter] ✅ Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
+      `[CoreCcpApiAdapter]  Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
     );
     return session;
   }
@@ -924,7 +924,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           if (isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreCcpApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
+                `[CoreCcpApiAdapter]  [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
               );
               await this.downloadServerExport(
                 session,
@@ -971,7 +971,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 fileSize: stat.size,
               },
             });
-            this.logger.log(`[CoreCcpApiAdapter] ✅ Tải thành công ${outFileName} (${stat.size} bytes)`);
+            this.logger.log(`[CoreCcpApiAdapter]  Tải thành công ${outFileName} (${stat.size} bytes)`);
 
             // ── TỰ ĐỘNG TRÍCH XUẤT TOÀN BỘ HỢP ĐỒNG (INSTRUMENTS) THEO TỪNG MÃ HÀNG HÓA THỰC TẾ ──
             if (reportDef.key === 'HH' && searchResult && Array.isArray(searchResult.rows)) {
@@ -1009,7 +1009,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                       rowCount: contractResult.totalCount,
                     },
                   });
-                  this.logger.log(`[CoreCcpApiAdapter] ✅ Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
+                  this.logger.log(`[CoreCcpApiAdapter]  Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
                 } catch (hdErr: any) {
                   this.logger.error(`[CoreCcpApiAdapter] Lỗi tải hợp đồng cho hàng hóa ${uacode}: ${hdErr.message}`);
                   errors.push(`HĐ ${uacode}: ${hdErr.message}`);

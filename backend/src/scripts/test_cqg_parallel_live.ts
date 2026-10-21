@@ -92,7 +92,7 @@ async function run() {
     mergeTypes = ['FR', 'PS', 'OP'];
   }
 
-  console.log(`🚀 Bắt đầu kích hoạt tải song song ${testDesc}...`);
+  console.log(` Bắt đầu kích hoạt tải song song ${testDesc}...`);
   const startTime = Date.now();
 
   try {

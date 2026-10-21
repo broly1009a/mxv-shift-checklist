@@ -234,7 +234,7 @@ export class CcpAdHocStatisticsService {
         const dsgdFile = dlResult.files.find((f) => f.fileName.includes('DSGD') || f.fileName.includes('ORDERMATCH'));
         if (dsgdFile && fs.existsSync(dsgdFile.absolutePath)) {
           dsgdBuffer = fs.readFileSync(dsgdFile.absolutePath);
-          jobLogs.push(`[Ad-Hoc Ingress] ✅ Tải tươi thành công tệp DSGD CCP (${(dsgdBuffer.length / 1024).toFixed(1)} KB)`);
+          jobLogs.push(`[Ad-Hoc Ingress]  Tải tươi thành công tệp DSGD CCP (${(dsgdBuffer.length / 1024).toFixed(1)} KB)`);
         }
       } catch (dlErr: any) {
         jobLogs.push(`[Ad-Hoc Ingress WARN] Tải fresh qua API CoreCCP thất bại: ${dlErr.message}`);
@@ -281,7 +281,7 @@ export class CcpAdHocStatisticsService {
       jobLogs,
     );
     jobLogs.push(
-      `[Ad-Hoc Engine] ✅ Tính toán hoàn tất: Tổng ${lotResult.totalSoLot?.toLocaleString('vi-VN')} lot, Tổng GTGD ${lotResult.totalGiaTri?.toLocaleString('vi-VN')} VND`,
+      `[Ad-Hoc Engine]  Tính toán hoàn tất: Tổng ${lotResult.totalSoLot?.toLocaleString('vi-VN')} lot, Tổng GTGD ${lotResult.totalGiaTri?.toLocaleString('vi-VN')} VND`,
     );
 
     // ── 4. Chuẩn bị danh mục Master Templates & thư mục đích _AdHoc_Reports ────
@@ -602,7 +602,7 @@ export class CcpAdHocStatisticsService {
 
     byTvSummary.sort((a, b) => b.lot - a.lot);
 
-    jobLogs.push(`[Ad-Hoc Range] ✅ Đã hoàn thành tạo ${generatedFiles.length} tệp báo cáo Template chuẩn MXV.`);
+    jobLogs.push(`[Ad-Hoc Range]  Đã hoàn thành tạo ${generatedFiles.length} tệp báo cáo Template chuẩn MXV.`);
 
     return {
       success: true,

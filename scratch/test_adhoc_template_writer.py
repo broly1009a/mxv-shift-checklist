@@ -242,7 +242,7 @@ def run_test():
     formula_f28 = str(ws_lot.cell(28, 6).value).upper()
     print(f"[XÁC THỰC 1] Dòng TỔNG Row 28 Cột F: công thức={formula_f28}")
     assert "SUM" in formula_f28, "Dòng TỔNG Row 28 phải giữ nguyên công thức =SUM!"
-    print("✅ TEST 1 SỐ LOT: HOÀN TOÀN THÀNH CÔNG VÀ CHÍNH XÁC 100%!")
+    print(" TEST 1 SỐ LOT: HOÀN TOÀN THÀNH CÔNG VÀ CHÍNH XÁC 100%!")
 
     # 2. Kiểm thử Template Giá Trị (GTGD) - KHỚP 100% VỚI ẢNH USER XÁC NHẬN
     mock_val_template = os.path.join(TEST_OUTPUT_DIR, "Mock_Template_Gia_Tri_2026.xlsx")
@@ -302,7 +302,7 @@ def run_test():
     formula_b28 = str(ws_val.cell(28, 2).value).upper()
     print(f"[XÁC THỰC 2] Dòng TỔNG Row 28 Cột B (ZLE): công thức={formula_b28}")
     assert "SUM" in formula_b28, "Dòng TỔNG Row 28 phải giữ nguyên công thức =SUM!"
-    print("✅ TEST 2 GIÁ TRỊ (GTGD): HOÀN TOÀN KHỚP 100% VỚI HÌNH ẢNH USER XÁC NHẬN!")
+    print(" TEST 2 GIÁ TRỊ (GTGD): HOÀN TOÀN KHỚP 100% VỚI HÌNH ẢNH USER XÁC NHẬN!")
 
     print("\n" + "=" * 80)
     print("KẾT LUẬN: FILE EXCEL KẾT QUẢ ĐÃ ĐƯỢC TẠO THÀNH CÔNG VÀ LƯU TẠI:")

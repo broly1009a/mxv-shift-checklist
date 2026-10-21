@@ -85,7 +85,7 @@ async function runAdHocLiveTest() {
     console.log('  KẾT QUẢ: TOÀN BỘ LUỒNG BÁO CÁO ĐỘT XUẤT ĐÃ HOẠT ĐỘNG HOÀN HẢO 100%!  ');
     console.log('========================================================================');
   } catch (err: any) {
-    console.error('\n❌ Lỗi khi chạy test workflow adhoc:', err.message);
+    console.error('\n Lỗi khi chạy test workflow adhoc:', err.message);
     if (err.stack) console.error(err.stack);
   } finally {
     await app.close();

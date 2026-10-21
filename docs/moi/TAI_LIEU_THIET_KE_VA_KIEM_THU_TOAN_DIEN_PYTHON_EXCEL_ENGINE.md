@@ -296,10 +296,10 @@ Bộ logic trong Python **BẮT BUỘC** ánh xạ chính xác 100% theo mã ngu
 
 | Tiêu Chí                     | Node.js SheetJS Cũ | Python Engine Mới                 | Đạt Nghiệm Thu |
 | :--------------------------- | :----------------- | :-------------------------------- | :------------- |
-| **RAM đỉnh khi chạy Job**    | 3.8 GB – 4.1 GB    | **< 250 MB** (Tiến trình Node.js) | ✅ ĐẠT         |
-| **Dung lượng Swap dùng**     | 1.46 GB            | **0 MB**                          | ✅ ĐẠT         |
-| **Thu hồi RAM sau khi chạy** | Neo RAM (chờ GC)   | **Thu hồi 100% sau 10ms**         | ✅ ĐẠT         |
-| **PM2 Restarts sau 24h**     | Hàng chục lần      | **0 lần**                         | ✅ ĐẠT         |
+| **RAM đỉnh khi chạy Job**    | 3.8 GB – 4.1 GB    | **< 250 MB** (Tiến trình Node.js) | ĐẠT            |
+| **Dung lượng Swap dùng**     | 1.46 GB            | **0 MB**                          | ĐẠT            |
+| **Thu hồi RAM sau khi chạy** | Neo RAM (chờ GC)   | **Thu hồi 100% sau 10ms**         | ĐẠT            |
+| **PM2 Restarts sau 24h**     | Hàng chục lần      | **0 lần**                         | ĐẠT            |
 
 ---
 

@@ -208,7 +208,7 @@ async function getSession() {
 (async () => {
   try {
     console.log('========================================================================');
-    console.log('   🚀 BẮT ĐẦU TẢI BÁO CÁO ACM ETP QUA REST API TRỰC TIẾP                ');
+    console.log('    BẮT ĐẦU TẢI BÁO CÁO ACM ETP QUA REST API TRỰC TIẾP                ');
     console.log(`   Host: ${CONFIG.baseUrl}`);
     console.log('========================================================================\n');
 

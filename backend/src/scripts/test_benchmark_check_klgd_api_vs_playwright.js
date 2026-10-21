@@ -58,7 +58,7 @@ function formatNumber(num) {
 
 async function runCheckKlgdBenchmark() {
   console.log('================================================================================');
-  console.log(' 🚀 KHỞI ĐỘNG BENCHMARK: ĐO LƯỜNG HIỆU SUẤT LUỒNG CHECK_KLGD KHI DÙNG ĐẦU API ');
+  console.log('  KHỞI ĐỘNG BENCHMARK: ĐO LƯỜNG HIỆU SUẤT LUỒNG CHECK_KLGD KHI DÙNG ĐẦU API ');
   console.log('================================================================================\n');
 
   const benchmarkResults = {
@@ -431,7 +431,7 @@ async function runCheckKlgdBenchmark() {
       'Thành phần / Nguồn': '🏁 TỔNG TOÀN BỘ LUỒNG CHECK_KLGD',
       'Playwright Chromium (Cũ)': `~${benchmarkResults.playwrightTotalEstimatedMs} ms (~78s)`,
       'Direct REST/SFTP API (Mới)': `~${benchmarkResults.parallelTotalMs} ms (~${(benchmarkResults.parallelTotalMs / 1000).toFixed(2)}s)`,
-      'Cải thiện Tốc độ': `🚀 NHANH HƠN ${speedupOverall} LẦN`,
+      'Cải thiện Tốc độ': ` NHANH HƠN ${speedupOverall} LẦN`,
       'Trạng thái': 'XUẤT SẮC',
     },
   ]);
@@ -441,7 +441,7 @@ async function runCheckKlgdBenchmark() {
   console.log(`• RAM tiêu thụ sau benchmark   : ${benchmarkResults.memoryAfterMB} MB (Chênh lệch: +${benchmarkResults.memoryAfterMB - benchmarkResults.memoryBeforeMB} MB)`);
   console.log(`• Tiêu thụ RAM Playwright cũ   : ~1.200 MB - 1.800 MB (4 Chromium instances)`);
   console.log(`• Mức tiết kiệm bộ nhớ RAM     : 💾 Tiết kiệm ~95% RAM máy chủ`);
-  console.log(`• Tải CPU (CPU Spike)           : 🚀 Giảm từ 85% xuống < 5% CPU`);
+  console.log(`• Tải CPU (CPU Spike)           :  Giảm từ 85% xuống < 5% CPU`);
   console.log(`• Phụ thuộc giao diện (DOM)    : 🛡️ 0% (Triệt tiêu hoàn toàn rủi ro click hụt hay vỡ layout)`);
 
   console.log('\n================================================================================');

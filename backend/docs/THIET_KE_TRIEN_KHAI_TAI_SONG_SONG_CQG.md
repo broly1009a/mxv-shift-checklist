@@ -320,7 +320,7 @@ const onReadyBarrierCqg1 = async () => {
   log('CQG1 🟢 CQG1 đã đăng nhập và sẵn sàng xuất FR1. Chờ rào cản đồng bộ...');
   checkAllReadyAndTrigger();
   await barrierTriggerPromise;
-  log('CQG1 🚀 [Pha 2] Kích hoạt xuất FR1.xlsx...');
+  log('CQG1  [Pha 2] Kích hoạt xuất FR1.xlsx...');
 };
 
 const onReadyBarrierCqg2 = async () => {
@@ -328,7 +328,7 @@ const onReadyBarrierCqg2 = async () => {
   log('CQG2 🟢 CQG2 đã đăng nhập và sẵn sàng xuất FR2. Chờ rào cản đồng bộ...');
   checkAllReadyAndTrigger();
   await barrierTriggerPromise;
-  log('CQG2 🚀 [Pha 2] Kích hoạt xuất FR2.xlsx...');
+  log('CQG2  [Pha 2] Kích hoạt xuất FR2.xlsx...');
 };
 
 const result = await this.rpaDownloaderService.downloadCqgBackup(

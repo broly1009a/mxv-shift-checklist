@@ -209,7 +209,7 @@ async function downloadSingleCqgWidget(page, searchTerm, tabLabel, downloadText,
   await dismissCqgNotifications(page);
   await page.keyboard.press('Escape').catch(() => {});
 
-  console.log(`[CQG-FAST] 🚀 Mở widget "${searchTerm}" và chọn : All...`);
+  console.log(`[CQG-FAST]  Mở widget "${searchTerm}" và chọn : All...`);
 
   // Bước 1: Bấm menu Ho
   const homeMenu = page.locator("//div[text()='Ho']").first();
@@ -554,11 +554,11 @@ async function run() {
     console.log(`\n🎯 Chế độ: Chỉ test DUY NHẤT 1 tab: ${WIDGET_MAP[targetKey].name} (${WIDGET_MAP[targetKey].fileName})`);
   } else if (isAll) {
     reportsToRun = [WIDGET_MAP.FR, WIDGET_MAP.PS, WIDGET_MAP.OP, WIDGET_MAP.OD];
-    console.log('\n🚀 Chế độ --all: Tải toàn bộ 4 tab (FR1, PS1, OP1, OD1)');
+    console.log('\n Chế độ --all: Tải toàn bộ 4 tab (FR1, PS1, OP1, OD1)');
   } else {
     // MẶC ĐỊNH DUY NHẤT 1 TAB ĐỂ TRÁNH MỞ TRÀN 4 TAB
     reportsToRun.push(WIDGET_MAP.FR);
-    console.log('\n🚀 Chế độ MẶC ĐỊNH: Chỉ test DUY NHẤT 1 tab: Khớp lệnh FR1 (Fills)');
+    console.log('\n Chế độ MẶC ĐỊNH: Chỉ test DUY NHẤT 1 tab: Khớp lệnh FR1 (Fills)');
     console.log('   (Để test tab khác, dùng: --key=PS | --key=OP | --key=OD | --all)\n');
   }
 

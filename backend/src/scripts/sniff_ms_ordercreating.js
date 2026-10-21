@@ -339,7 +339,7 @@ async function runSniffer() {
       firstLines.forEach((l, idx) => console.log(`     [${idx + 1}] ${l.trim()}`));
 
     } catch (clickErr) {
-      console.error('❌ Lỗi khi bấm nút tải CSV:', clickErr.message);
+      console.error(' Lỗi khi bấm nút tải CSV:', clickErr.message);
       downloadResult = { success: false, error: clickErr.message };
     } finally {
       isRecordingClickTraffic = false;
@@ -447,7 +447,7 @@ async function runSniffer() {
     console.log(`================================================================================\n`);
 
   } catch (err) {
-    console.error('❌ Lỗi trong quá trình điều tra:', err);
+    console.error(' Lỗi trong quá trình điều tra:', err);
   } finally {
     if (!keepOpen) {
       await browser.close();

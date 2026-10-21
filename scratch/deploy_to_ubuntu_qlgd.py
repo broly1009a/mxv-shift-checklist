@@ -18,6 +18,7 @@ files_to_sync = [
     'backend/src/modules/trading-ops/parsers/tt-trades-csv.parser.ts',
     'backend/src/modules/trading-ops/services/ccp-adhoc-statistics.service.ts',
     'backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts',
+    'backend/src/modules/trading-ops/services/ccp-eod.service.ts',
     'backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts',
     'backend/src/modules/trading-ops/services/klgd-recon.service.ts',
     'backend/src/modules/trading-ops/services/recon-console-summary.service.ts',
@@ -29,6 +30,7 @@ files_to_sync = [
     'backend/src/shared/domain-configs/coreccp-reports.config.ts',
     'backend/src/shared/domain-configs/coreex-reports.config.ts',
     'backend/src/shared/domain-configs/ms-reports.config.ts',
+    'backend/src/shared/helpers/file-path.helper.ts',
     'backend/src/modules/ingress/adapters/coreccp-api.adapter.ts',
 
     # Frontend

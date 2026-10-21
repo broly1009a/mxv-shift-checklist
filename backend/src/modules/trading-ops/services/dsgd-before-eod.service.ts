@@ -25,6 +25,7 @@ import {
   getAcmBackupBase,
   getCcpBackupBasePath,
   resolveStoragePathCrossPlatform,
+  toWindowsDisplayPath,
 } from '../../../shared';
 import {
   parseDSGD,
@@ -556,9 +557,9 @@ export class DsgdBeforeEodService {
           sessionDate: dateFormatted,
           timeSuffix,
           filesFound: {
-            dsgdOriginal: dsgdOriginalPath,
+            dsgdOriginal: dsgdOriginalPath ? toWindowsDisplayPath(dsgdOriginalPath) : undefined,
             dsgdTemp: undefined,
-            acmTrades: foundAcmPath,
+            acmTrades: foundAcmPath ? toWindowsDisplayPath(foundAcmPath) : undefined,
           },
         };
       }
@@ -613,9 +614,9 @@ export class DsgdBeforeEodService {
     );
 
     result.filesFound = {
-      dsgdOriginal: dsgdOriginalPath,
-      dsgdTemp: dsgdTempPath,
-      acmTrades: foundAcmPath,
+      dsgdOriginal: dsgdOriginalPath ? toWindowsDisplayPath(dsgdOriginalPath) : undefined,
+      dsgdTemp: dsgdTempPath ? toWindowsDisplayPath(dsgdTempPath) : undefined,
+      acmTrades: foundAcmPath ? toWindowsDisplayPath(foundAcmPath) : undefined,
     };
 
     return result;

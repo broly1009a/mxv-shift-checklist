@@ -259,7 +259,7 @@ const runWorkerCqg = async () => {
 1. 🎯 **Triệt tiêu 100% độ lệch thời gian (Zero Temporal Gap)**: Dữ liệu giữa M-System, CQG và CoreCCP chốt cùng 1 mốc giây, không còn hiện tượng lệch 45-60s gây lệnh pending ảo.
 2. **Thời gian chạy tổng thể tối ưu tối đa**: Không làm tốn thêm bất kỳ 1 giây nào. Thời gian chạy tổng vẫn bằng đúng thời gian mở trình duyệt của CQG (khoảng 45s).
 3. 🛡️ **Tương thích ngược 100%**: Nếu cấu hình đặt `ingress_mode_ms = 'PLAYWRIGHT'`, hệ thống tự động quay lại cơ chế rào cản 4-browser cũ mà không bị lỗi.
-4. 🚀 **Sẵn sàng cho tương lai**: Khi CQG sau này có API thật, chỉ cần gỡ bỏ phần Playwright pre-flight là toàn bộ 4 hệ thống chuyển thành 100% Parallel HTTP calls trong 1.5 giây!
+4. **Sẵn sàng cho tương lai**: Khi CQG sau này có API thật, chỉ cần gỡ bỏ phần Playwright pre-flight là toàn bộ 4 hệ thống chuyển thành 100% Parallel HTTP calls trong 1.5 giây!
 
 ---
 

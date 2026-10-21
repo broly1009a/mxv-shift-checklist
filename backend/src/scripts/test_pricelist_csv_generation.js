@@ -94,7 +94,7 @@ async function test() {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, csvStr, 'utf8');
 
-  console.log('✅ Đã tạo thành công file market.csv qua Direct REST API!');
+  console.log(' Đã tạo thành công file market.csv qua Direct REST API!');
   console.log('⏱ Thời gian thực thi API & Sinh CSV:', Date.now() - t0, 'ms');
   console.log('📦 Dung lượng file:', fs.statSync(outPath).size, 'bytes');
   console.log('📊 Tổng số dòng:', csvStr.split('\r\n').length);

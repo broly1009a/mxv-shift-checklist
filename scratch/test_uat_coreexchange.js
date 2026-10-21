@@ -319,7 +319,7 @@ async function exportToExcel(rows, sheetName, filePath) {
           }
         }
       } catch (err) {
-        console.error(`   ❌ Lỗi tải ${rep.code}: ${err.message}`);
+        console.error(`    Lỗi tải ${rep.code}: ${err.message}`);
       }
     }
 
@@ -328,6 +328,6 @@ async function exportToExcel(rows, sheetName, filePath) {
     console.log(` Kiểm tra các file tại: ${OUTPUT_DIR}`);
     console.log('========================================================================');
   } catch (err) {
-    console.error('\n❌ LỖI TRONG QUÁ TRÌNH KIỂM THỬ UAT:', err.message);
+    console.error('\n LỖI TRONG QUÁ TRÌNH KIỂM THỬ UAT:', err.message);
   }
 })();

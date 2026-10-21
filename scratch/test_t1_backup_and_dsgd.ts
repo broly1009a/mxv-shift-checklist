@@ -58,8 +58,8 @@ async function testT1BackupAndDsgd() {
 
     const hasOriginal = fs.existsSync(path.join(foundDailyMsDir, 'DSGD.xlsx'));
     const snapshotCandidates = files.filter((f) => /^DSGD.+\.xlsx$/i.test(f) && f.toLowerCase() !== 'dsgd.xlsx');
-    console.log(`\n   -> File DSGD gốc (DSGD.xlsx): ${hasOriginal ? ' CÓ' : '❌ THIẾU'}`);
-    console.log(`   -> File DSGD snapshot: ${snapshotCandidates.length > 0 ? ` CÓ (${snapshotCandidates.join(', ')})` : '❌ THIẾU'}`);
+    console.log(`\n   -> File DSGD gốc (DSGD.xlsx): ${hasOriginal ? ' CÓ' : ' THIẾU'}`);
+    console.log(`   -> File DSGD snapshot: ${snapshotCandidates.length > 0 ? ` CÓ (${snapshotCandidates.join(', ')})` : ' THIẾU'}`);
   } else {
     console.log('\n3. Không tìm thấy thư mục backup MS ngày T-1 trên các ổ đĩa cục bộ / mạng.');
   }

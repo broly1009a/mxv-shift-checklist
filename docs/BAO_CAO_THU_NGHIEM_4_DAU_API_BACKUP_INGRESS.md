@@ -32,13 +32,13 @@ Trước đây, các tác vụ tải dữ liệu backup định kỳ trong ca tr
 
 ## II. BẢNG SO SÁNH HIỆU NĂNG: PLAYWRIGHT VS DIRECT API ADAPTER
 
-| Tiêu chí                            |   Cào dữ liệu Trình duyệt (Playwright cũ)   |           Cắm Direct API Adapters (Mới)           |           Mức độ tối ưu           |
-| :---------------------------------- | :-----------------------------------------: | :-----------------------------------------------: | :-------------------------------: |
-| **Thời gian tải trọn bộ 56 files**  |               `12 - 18 phút`                |                **`35 - 55 giây`**                 |       **Nhanh gấp ~20 lần**       |
-| **Tiêu thụ RAM máy chủ**            | `1.2 GB - 2.5 GB` (Nhiều Chromium Instance) |        **`< 45 MB`** (Direct HTTP Buffer)         |     💾 **Tiết kiệm 97% RAM**      |
-| **Tiêu thụ CPU**                    | `70% - 95%` (Spike liên tục khi render DOM) |        **`< 5%`** (Network I/O nhẹ nhàng)         | 🚀 **Gần như triệt tiêu tải CPU** |
-| **Rủi ro vỡ giao diện (DOM Break)** |   Thường xuyên khi đổi CSS class/nút bấm    |    **0%** (Giao tiếp tầng Backend Data Engine)    |    🛡️ **Độ tin cậy tuyệt đối**    |
-| **Xử lý báo cáo không có dữ liệu**  |    Timeout 30s hoặc treo modal chờ bảng     | **200ms** (Trả về 204 hoặc File Excel rỗng chuẩn) |    ⏱️ **Fail-safe & Tức thì**     |
+| Tiêu chí                            |   Cào dữ liệu Trình duyệt (Playwright cũ)   |           Cắm Direct API Adapters (Mới)           |         Mức độ tối ưu          |
+| :---------------------------------- | :-----------------------------------------: | :-----------------------------------------------: | :----------------------------: |
+| **Thời gian tải trọn bộ 56 files**  |               `12 - 18 phút`                |                **`35 - 55 giây`**                 |     **Nhanh gấp ~20 lần**      |
+| **Tiêu thụ RAM máy chủ**            | `1.2 GB - 2.5 GB` (Nhiều Chromium Instance) |        **`< 45 MB`** (Direct HTTP Buffer)         |    💾 **Tiết kiệm 97% RAM**    |
+| **Tiêu thụ CPU**                    | `70% - 95%` (Spike liên tục khi render DOM) |        **`< 5%`** (Network I/O nhẹ nhàng)         | **Gần như triệt tiêu tải CPU** |
+| **Rủi ro vỡ giao diện (DOM Break)** |   Thường xuyên khi đổi CSS class/nút bấm    |    **0%** (Giao tiếp tầng Backend Data Engine)    |  🛡️ **Độ tin cậy tuyệt đối**   |
+| **Xử lý báo cáo không có dữ liệu**  |    Timeout 30s hoặc treo modal chờ bảng     | **200ms** (Trả về 204 hoặc File Excel rỗng chuẩn) |   ⏱️ **Fail-safe & Tức thì**   |
 
 ---
 
@@ -259,7 +259,7 @@ Trong luồng đối soát khớp lệnh trong phiên (`handleCheckKlgdJob`), h�
 | **CoreCCP (Khớp lệnh Maker)**       |        `28.000 ms - 45.000 ms`        |            **`450 ms - 950 ms`**            |  **Nhanh gấp ~35 lần**   | **CHUẨN XÁC 100%**  |
 | **Thời gian Chờ Barrier Đồng Bộ**   |        `70.000 ms - 90.000 ms`        | **`< 200 ms`** (Giải phóng barrier tức thì) |  ⏱️ **Gần như 0 giây**   | **CHUẨN XÁC 100%**  |
 | **Thuật toán So Khớp Khớp Lệnh**    |           `120 ms - 250 ms`           |  **`120 ms - 250 ms`** (Cùng logic Engine)  | 🎯 **Độ chính xác 100%** | **CHUẨN XÁC 100%**  |
-| **TỔNG THỜI GIAN LUỒNG CHECK_KLGD** |     **`~75.000 ms - 95.000 ms`**      |         **`~1.800 ms - 2.800 ms`**          | 🚀 **NHANH GẤP ~35 LẦN** |   🏆 **XUẤT SẮC**   |
+| **TỔNG THỜI GIAN LUỒNG CHECK_KLGD** |     **`~75.000 ms - 95.000 ms`**      |         **`~1.800 ms - 2.800 ms`**          |  **NHANH GẤP ~35 LẦN**   |   🏆 **XUẤT SẮC**   |
 
 ### 3. Đánh Giá Độ Tiêu Thụ Tài Nguyên & Tính Toàn Vẹn
 
