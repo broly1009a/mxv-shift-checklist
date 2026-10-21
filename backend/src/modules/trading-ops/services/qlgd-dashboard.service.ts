@@ -111,7 +111,7 @@ export interface QlgdDashboardResponse {
   scope: 'ALL' | 'ACM' | 'OTHERS';
   catalogScope?: 'TOP17' | 'ALL';
   hasActualFiles: boolean;
-  dataSource: 'DIRECT_API' | 'BACKUP_FILES' | 'MOCK';
+  dataSource: 'DIRECT_API' | 'BACKUP_FILES' | 'NO_DATA';
   latestMetrics: {
     acm: {
       klgd: number;
@@ -979,7 +979,7 @@ export class QlgdDashboardService {
       scope,
       catalogScope,
       hasActualFiles,
-      dataSource: hasActualFiles ? 'DIRECT_API' : 'MOCK',
+      dataSource: hasActualFiles ? 'DIRECT_API' : 'NO_DATA',
       latestMetrics: {
         acm: {
           klgd: acmKlgd,

@@ -109,611 +109,20 @@ export interface MarketSegmentData {
 }
 
 /**
- * DỮ LIỆU MOCK CHUẨN 100% THEO THIẾT KẾ CỦA USER (MỤC 8 DASHBOARD)
+ * Metadata thông tin các phân khúc thị trường trên Dashboard
  */
-const MOCK_ACM_SEGMENT: MarketSegmentData = {
-  title: 'ACM',
-  subTitle: 'Khối Tự Doanh & Tạo Lập Thị Trường',
-  iconType: 'acm',
-  latestKlgd: 150,
-  latestGtgdStr: '1 tỷ',
-  latestGtgdVnd: 1000000000,
-  milestones: {
-    earlySession: 123,
-    asianSession: 456,
-    europeanSession: 789,
-    americanSession: 1111,
+export const SEGMENT_METADATA = {
+  acm: {
+    title: 'ACM',
+    subTitle: 'Khối Tự Doanh & Tạo Lập Thị Trường',
+    iconType: 'acm' as const,
   },
-  timelineLabels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '00:00', '02:00', '05:00'],
-  timelineVolumes: [35, 68, 92, 115, 150, 190, 240, 310, 456, 789, 1111],
-  timelineValues: [0.2, 0.45, 0.6, 0.8, 1.0, 1.3, 1.6, 2.1, 3.2, 5.5, 7.8],
+  others: {
+    title: 'Còn lại',
+    subTitle: 'Khách Hàng Thành Viên & CQG Brokerage',
+    iconType: 'others' as const,
+  },
 };
-
-const MOCK_OTHERS_SEGMENT: MarketSegmentData = {
-  title: 'Còn lại',
-  subTitle: 'Khách Hàng Thành Viên & CQG Brokerage',
-  iconType: 'others',
-  latestKlgd: 1500,
-  latestGtgdStr: '10 tỷ',
-  latestGtgdVnd: 10000000000,
-  milestones: {
-    earlySession: 123,
-    asianSession: 456,
-    europeanSession: 789,
-    americanSession: 1111,
-  },
-  timelineLabels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '00:00', '02:00', '05:00'],
-  timelineVolumes: [210, 480, 750, 1120, 1500, 2100, 2900, 3800, 4900, 6800, 8950],
-  timelineValues: [1.8, 3.5, 5.2, 7.8, 10.0, 14.2, 19.5, 25.8, 33.4, 46.2, 62.5],
-};
-
-const MOCK_COMMODITY_ITEMS: CommodityPositionPnLItem[] = [
-  // 1. Nhóm Nông sản (STT 1-6)
-  {
-    stt: 1,
-    category: 'Nông sản',
-    symbol: 'ZWA',
-    name: 'Lúa mỳ',
-    expectedPnL: -43532775000,
-    openPositions: 1437,
-    longRatio: 68,
-    shortRatio: 32,
-    realizedPnL: -260650000,
-    liquidatedLots: 359,
-  },
-  {
-    stt: 2,
-    category: 'Nông sản',
-    symbol: 'ZLE',
-    name: 'Dầu đậu tương',
-    expectedPnL: -10012548000,
-    openPositions: 471,
-    longRatio: 77,
-    shortRatio: 23,
-    realizedPnL: 738816000,
-    liquidatedLots: 330,
-  },
-  {
-    stt: 3,
-    category: 'Nông sản',
-    symbol: 'ZCE',
-    name: 'Ngô',
-    expectedPnL: -23257975000,
-    openPositions: 1551,
-    longRatio: 38,
-    shortRatio: 62,
-    realizedPnL: -317200000,
-    liquidatedLots: 562,
-  },
-  {
-    stt: 4,
-    category: 'Nông sản',
-    symbol: 'ZSE',
-    name: 'Đậu tương',
-    expectedPnL: -13013975000,
-    openPositions: 515,
-    longRatio: 55,
-    shortRatio: 45,
-    realizedPnL: 288275000,
-    liquidatedLots: 271,
-  },
-  {
-    stt: 5,
-    category: 'Nông sản',
-    symbol: 'ZME',
-    name: 'Khô đậu tương',
-    expectedPnL: -11014120000,
-    openPositions: 519,
-    longRatio: 40,
-    shortRatio: 60,
-    realizedPnL: 1005420000,
-    liquidatedLots: 1312,
-    highlightLiquidated: true,
-  },
-  {
-    stt: 6,
-    category: 'Nông sản',
-    symbol: 'KWE',
-    name: 'Lúa mỳ Kansas',
-    expectedPnL: -2670850000,
-    openPositions: 106,
-    longRatio: 99,
-    shortRatio: 1,
-    realizedPnL: 11050000,
-    liquidatedLots: 3,
-  },
-
-  // 2. Nhóm Nguyên liệu công nghiệp (STT 7-10)
-  {
-    stt: 7,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'KCE',
-    name: 'Cà phê Arabica',
-    expectedPnL: -9576450000,
-    openPositions: 129,
-    longRatio: 92,
-    shortRatio: 8,
-    realizedPnL: -501637500,
-    liquidatedLots: 15,
-  },
-  {
-    stt: 8,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'SBE',
-    name: 'Đường',
-    expectedPnL: -8253481600,
-    openPositions: 617,
-    longRatio: 43,
-    shortRatio: 57,
-    realizedPnL: -24460800,
-    liquidatedLots: 157,
-  },
-  {
-    stt: 9,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'LRC',
-    name: 'Cà phê Robusta',
-    expectedPnL: -24372140000,
-    openPositions: 552,
-    longRatio: 94,
-    shortRatio: 6,
-    realizedPnL: 501540000,
-    liquidatedLots: 173,
-  },
-  {
-    stt: 10,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'CTE',
-    name: 'Bông',
-    expectedPnL: -2516020000,
-    openPositions: 73,
-    longRatio: 88,
-    shortRatio: 12,
-    realizedPnL: -127010000,
-    liquidatedLots: 17,
-  },
-
-  // 3. Nhóm Kim loại (STT 11-17)
-  {
-    stt: 11,
-    category: 'Kim loại',
-    symbol: 'SIE',
-    name: 'Bạc',
-    expectedPnL: -13521300000,
-    openPositions: 28,
-    longRatio: 100,
-    shortRatio: 0,
-    realizedPnL: 819650000,
-    liquidatedLots: 7,
-  },
-  {
-    stt: 12,
-    category: 'Kim loại',
-    symbol: 'SIL',
-    name: 'Bạc Micro',
-    expectedPnL: -25752090000,
-    openPositions: 273,
-    longRatio: 96,
-    shortRatio: 4,
-    realizedPnL: -15730000,
-    liquidatedLots: 249,
-  },
-  {
-    stt: 13,
-    category: 'Kim loại',
-    symbol: 'CPE',
-    name: 'Đồng',
-    expectedPnL: -651950000,
-    openPositions: 14,
-    longRatio: 93,
-    shortRatio: 7,
-    realizedPnL: -26650000,
-    liquidatedLots: 45,
-  },
-  {
-    stt: 14,
-    category: 'Kim loại',
-    symbol: 'MHG',
-    name: 'Đồng Micro',
-    expectedPnL: -1198340000,
-    openPositions: 178,
-    longRatio: 78,
-    shortRatio: 22,
-    realizedPnL: 198997500,
-    liquidatedLots: 207,
-  },
-  {
-    stt: 15,
-    category: 'Kim loại',
-    symbol: 'PLE',
-    name: 'Bạch kim',
-    expectedPnL: -6101550000,
-    openPositions: 65,
-    longRatio: 97,
-    shortRatio: 3,
-    realizedPnL: 242970000,
-    liquidatedLots: 25,
-  },
-  {
-    stt: 16,
-    category: 'Kim loại',
-    symbol: 'SI5CO',
-    name: 'Bạc Nano',
-    expectedPnL: -67620215000,
-    openPositions: 5770,
-    longRatio: 95,
-    shortRatio: 5,
-    realizedPnL: -1248533000,
-    liquidatedLots: 1111,
-    highlightExpectedLoss: true,
-    highlightOpenPosition: true,
-    highlightLiquidated: true,
-  },
-  {
-    stt: 17,
-    category: 'Kim loại',
-    symbol: 'PL1NY',
-    name: 'Bạch kim Nano',
-    expectedPnL: -9275604000,
-    openPositions: 685,
-    longRatio: 83,
-    shortRatio: 17,
-    realizedPnL: -105339000,
-    liquidatedLots: 71,
-    isTop17: true,
-  },
-  {
-    stt: 18,
-    category: 'Kim loại',
-    symbol: 'CP2CO',
-    name: 'Đồng Nano',
-    expectedPnL: 452000000,
-    openPositions: 181,
-    longRatio: 64,
-    shortRatio: 36,
-    realizedPnL: 12500000,
-    liquidatedLots: 42,
-    isTop17: false,
-  },
-  {
-    stt: 19,
-    category: 'Nông sản',
-    symbol: 'XW',
-    name: 'Lúa Mỳ Mini',
-    expectedPnL: -156000000,
-    openPositions: 92,
-    longRatio: 48,
-    shortRatio: 52,
-    realizedPnL: -8200000,
-    liquidatedLots: 15,
-    isTop17: false,
-  },
-  {
-    stt: 20,
-    category: 'Nông sản',
-    symbol: 'XC',
-    name: 'Ngô Mini',
-    expectedPnL: -320000000,
-    openPositions: 145,
-    longRatio: 40,
-    shortRatio: 60,
-    realizedPnL: 18500000,
-    liquidatedLots: 38,
-    isTop17: false,
-  },
-  {
-    stt: 21,
-    category: 'Nông sản',
-    symbol: 'XB',
-    name: 'Đậu Tương Mini',
-    expectedPnL: 180000000,
-    openPositions: 74,
-    longRatio: 72,
-    shortRatio: 28,
-    realizedPnL: 9400000,
-    liquidatedLots: 20,
-    isTop17: false,
-  },
-  {
-    stt: 22,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'FEF',
-    name: 'Quặng sắt',
-    expectedPnL: -890000000,
-    openPositions: 210,
-    longRatio: 50,
-    shortRatio: 50,
-    realizedPnL: -45000000,
-    liquidatedLots: 60,
-    isTop17: false,
-  },
-  {
-    stt: 23,
-    category: 'Nông sản',
-    symbol: 'MZM',
-    name: 'Khô Đậu tương Micro',
-    expectedPnL: -42000000,
-    openPositions: 55,
-    longRatio: 58,
-    shortRatio: 42,
-    realizedPnL: 4100000,
-    liquidatedLots: 12,
-    isTop17: false,
-  },
-  {
-    stt: 24,
-    category: 'Nông sản',
-    symbol: 'MZC',
-    name: 'Ngô Micro',
-    expectedPnL: -78000000,
-    openPositions: 68,
-    longRatio: 35,
-    shortRatio: 65,
-    realizedPnL: -2500000,
-    liquidatedLots: 18,
-    isTop17: false,
-  },
-  {
-    stt: 25,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'CCE',
-    name: 'Ca cao',
-    expectedPnL: 650000000,
-    openPositions: 85,
-    longRatio: 80,
-    shortRatio: 20,
-    realizedPnL: 75000000,
-    liquidatedLots: 24,
-    isTop17: false,
-  },
-  {
-    stt: 26,
-    category: 'Nông sản',
-    symbol: 'ZFT',
-    name: 'Cao su TSR20',
-    expectedPnL: -110000000,
-    openPositions: 40,
-    longRatio: 60,
-    shortRatio: 40,
-    realizedPnL: 5200000,
-    liquidatedLots: 8,
-    isTop17: false,
-  },
-  {
-    stt: 27,
-    category: 'Nông sản',
-    symbol: 'MZL',
-    name: 'Dầu đậu tương Micro',
-    expectedPnL: 85000000,
-    openPositions: 62,
-    longRatio: 65,
-    shortRatio: 35,
-    realizedPnL: 6400000,
-    liquidatedLots: 14,
-    isTop17: false,
-  },
-  {
-    stt: 28,
-    category: 'Nông sản',
-    symbol: 'MZW',
-    name: 'Lúa Mỳ Micro',
-    expectedPnL: -64000000,
-    openPositions: 48,
-    longRatio: 52,
-    shortRatio: 48,
-    realizedPnL: -3100000,
-    liquidatedLots: 10,
-    isTop17: false,
-  },
-  {
-    stt: 29,
-    category: 'Kim loại',
-    symbol: 'ALI',
-    name: 'Nhôm',
-    expectedPnL: 340000000,
-    openPositions: 115,
-    longRatio: 70,
-    shortRatio: 30,
-    realizedPnL: 28000000,
-    liquidatedLots: 35,
-    isTop17: false,
-  },
-  {
-    stt: 30,
-    category: 'Nông sản',
-    symbol: 'MZS',
-    name: 'Đậu tương Micro',
-    expectedPnL: -52000000,
-    openPositions: 50,
-    longRatio: 45,
-    shortRatio: 55,
-    realizedPnL: 1800000,
-    liquidatedLots: 11,
-    isTop17: false,
-  },
-  {
-    stt: 31,
-    category: 'Nông sản',
-    symbol: 'MPO',
-    name: 'Dầu cọ thô',
-    expectedPnL: 210000000,
-    openPositions: 78,
-    longRatio: 62,
-    shortRatio: 38,
-    realizedPnL: 14000000,
-    liquidatedLots: 19,
-    isTop17: false,
-  },
-  {
-    stt: 32,
-    category: 'Kim loại',
-    symbol: 'AHD',
-    name: 'Nhôm LME',
-    expectedPnL: -280000000,
-    openPositions: 95,
-    longRatio: 40,
-    shortRatio: 60,
-    realizedPnL: -19000000,
-    liquidatedLots: 22,
-    isTop17: false,
-  },
-  {
-    stt: 33,
-    category: 'Kim loại',
-    symbol: 'MQC',
-    name: 'Đồng mini',
-    expectedPnL: 195000000,
-    openPositions: 88,
-    longRatio: 68,
-    shortRatio: 32,
-    realizedPnL: 16500000,
-    liquidatedLots: 25,
-    isTop17: false,
-  },
-  {
-    stt: 34,
-    category: 'Nông sản',
-    symbol: 'TRU',
-    name: 'Cao su RSS3 TOCOM',
-    expectedPnL: -95000000,
-    openPositions: 35,
-    longRatio: 55,
-    shortRatio: 45,
-    realizedPnL: 3200000,
-    liquidatedLots: 7,
-    isTop17: false,
-  },
-  {
-    stt: 35,
-    category: 'Kim loại',
-    symbol: 'MQI',
-    name: 'Bạc mini',
-    expectedPnL: 420000000,
-    openPositions: 130,
-    longRatio: 75,
-    shortRatio: 25,
-    realizedPnL: 38000000,
-    liquidatedLots: 30,
-    isTop17: false,
-  },
-  {
-    stt: 36,
-    category: 'Kim loại',
-    symbol: 'SND',
-    name: 'Thiếc LME',
-    expectedPnL: -180000000,
-    openPositions: 45,
-    longRatio: 50,
-    shortRatio: 50,
-    realizedPnL: -8500000,
-    liquidatedLots: 9,
-    isTop17: false,
-  },
-  {
-    stt: 37,
-    category: 'Nguyên liệu công nghiệp',
-    symbol: 'QW',
-    name: 'Đường trắng',
-    expectedPnL: 260000000,
-    openPositions: 72,
-    longRatio: 65,
-    shortRatio: 35,
-    realizedPnL: 21000000,
-    liquidatedLots: 16,
-    isTop17: false,
-  },
-  {
-    stt: 38,
-    category: 'Kim loại',
-    symbol: 'ZDS',
-    name: 'Kẽm LME',
-    expectedPnL: -210000000,
-    openPositions: 65,
-    longRatio: 42,
-    shortRatio: 58,
-    realizedPnL: -12000000,
-    liquidatedLots: 14,
-    isTop17: false,
-  },
-  {
-    stt: 39,
-    category: 'Kim loại',
-    symbol: 'CAD',
-    name: 'Đồng LME',
-    expectedPnL: 310000000,
-    openPositions: 80,
-    longRatio: 70,
-    shortRatio: 30,
-    realizedPnL: 25000000,
-    liquidatedLots: 20,
-    isTop17: false,
-  },
-  {
-    stt: 40,
-    category: 'Kim loại',
-    symbol: 'SSR',
-    name: 'Thép thanh vằn FOB Thổ Nhĩ Kỳ',
-    expectedPnL: -140000000,
-    openPositions: 52,
-    longRatio: 45,
-    shortRatio: 55,
-    realizedPnL: -9000000,
-    liquidatedLots: 12,
-    isTop17: false,
-  },
-  {
-    stt: 41,
-    category: 'Kim loại',
-    symbol: 'SSC',
-    name: 'Thép phế liệu CFR Thổ Nhĩ Kỳ',
-    expectedPnL: -98000000,
-    openPositions: 44,
-    longRatio: 48,
-    shortRatio: 52,
-    realizedPnL: -6200000,
-    liquidatedLots: 10,
-    isTop17: false,
-  },
-  {
-    stt: 42,
-    category: 'Kim loại',
-    symbol: 'LHC',
-    name: 'Thép cuộn cán nóng FOB Trung Quốc',
-    expectedPnL: 175000000,
-    openPositions: 60,
-    longRatio: 60,
-    shortRatio: 40,
-    realizedPnL: 14500000,
-    liquidatedLots: 15,
-    isTop17: false,
-  },
-  {
-    stt: 43,
-    category: 'Kim loại',
-    symbol: 'NID',
-    name: 'Niken LME',
-    expectedPnL: -350000000,
-    openPositions: 58,
-    longRatio: 38,
-    shortRatio: 62,
-    realizedPnL: -28000000,
-    liquidatedLots: 13,
-    isTop17: false,
-  },
-  {
-    stt: 44,
-    category: 'Kim loại',
-    symbol: 'PBD',
-    name: 'Chì LME',
-    expectedPnL: 85000000,
-    openPositions: 38,
-    longRatio: 68,
-    shortRatio: 32,
-    realizedPnL: 7800000,
-    liquidatedLots: 8,
-    isTop17: false,
-  },
-];
 
 /**
  * Định dạng tiền tệ VND kế toán: số âm đặt trong ngoặc đơn (xxx,xxx,xxx)
@@ -772,8 +181,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     }
   }, [sessionDateProp, internalSessionDate]);
 
-  const [dataMode, setDataMode] = useState<'MOCK' | 'LIVE'>('LIVE');
-  const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
+    const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
@@ -954,17 +362,27 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         return `${liveData.qlgdMessages?.sessionTitle || ''}\n${liveData.qlgdMessages?.cqgSummary || ''}\n${liveData.qlgdMessages?.acmSummary || ''}`;
       }
     }
-    // Fallback mock text
+    // Fallback tự động tổng hợp từ số liệu thực tế của phiên
+    const formatLot = (n: number) => `${formatInteger(n)} lot`;
+    const total16h = (othersMilestones.asianSession || 0) + (acmMilestones.asianSession || 0);
+    const acc16h = liveData?.milestones?.uniqueAccounts?.at16h || 0;
+
+    const total23h = (othersMilestones.europeanSession || 0) + (acmMilestones.europeanSession || 0);
+    const acc23h = liveData?.milestones?.uniqueAccounts?.at23h || 0;
+
+    const totalEod = (othersMilestones.americanSession ?? othersMilestones.europeanSession ?? 0) + (acmMilestones.americanSession ?? acmMilestones.europeanSession ?? 0);
+    const accEod = liveData?.milestones?.uniqueAccounts?.atEod || 0;
+
     if (activeBgsTab === '16H') {
-      return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 16:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt 1,956 lot, với Futures là 1,500 lot và ACM là 456 lot.\nTới thời điểm này có 88 tài khoản phát sinh giao dịch ạ.`;
+      return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 16:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt ${formatLot(total16h)}, với Futures là ${formatLot(othersMilestones.asianSession || 0)} và ACM là ${formatLot(acmMilestones.asianSession || 0)}.\nTới thời điểm này có ${acc16h} tài khoản phát sinh giao dịch ạ.`;
     }
     if (activeBgsTab === '23H') {
-      return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 23:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt 3,689 lot, với Futures là 2,900 lot và ACM là 789 lot.\nTới thời điểm này có 142 tài khoản phát sinh giao dịch ạ.`;
+      return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 23:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt ${formatLot(total23h)}, với Futures là ${formatLot(othersMilestones.europeanSession || 0)} và ACM là ${formatLot(acmMilestones.europeanSession || 0)}.\nTới thời điểm này có ${acc23h} tài khoản phát sinh giao dịch ạ.`;
     }
     if (activeBgsTab === 'EOD') {
-      return `Em xin phép báo cáo các anh khối lượng giao dịch phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt 10,061 lot, với Futures là 8,950 lot và ACM là 1,111 lot.\nTrong phiên có 215 tài khoản phát sinh giao dịch ạ.`;
+      return `Em xin phép báo cáo các anh khối lượng giao dịch phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt ${formatLot(totalEod)}, với Futures là ${formatLot(othersMilestones.americanSession ?? othersMilestones.europeanSession ?? 0)} và ACM là ${formatLot(acmMilestones.americanSession ?? acmMilestones.europeanSession ?? 0)}.\nTrong phiên có ${accEod} tài khoản phát sinh giao dịch ạ.`;
     }
-    return `Phiên ${sessionDate.slice(5)}:\nCQG: 8,950 lot - 120 lot Bạch kim - 310 lot Bạc - 240 lot Đồng - 190 lot LRC - 45 lot Spreads - 60 lot LME - 85 lot Options\nACM: 1,111 lot - 620 lot Bạc Nano - 310 lot Bạch kim Nano - 181 lot Đồng Nano`;
+    return `Phiên ${sessionDate.slice(5)}:\nCQG: ${formatLot(othersLatestMetrics.klgd)}\nACM: ${formatLot(acmLatestMetrics.klgd)}`;
   };
 
   const handleCopyBgsMessage = () => {
@@ -976,21 +394,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   };
 
   useEffect(() => {
-    if (dataMode === 'LIVE') {
-      fetchLiveDashboard(sessionDate, selectedScope);
-    }
-  }, [dataMode, sessionDate, selectedScope, fetchLiveDashboard]);
+    fetchLiveDashboard(sessionDate, selectedScope);
+  }, [sessionDate, selectedScope, fetchLiveDashboard]);
 
-  // Nguồn dữ liệu hiển thị (hỗ trợ lọc 17 chủ lực vs 44 toàn bộ)
+  // Nguồn dữ liệu hiển thị (100% dữ liệu thực tế từ Backend API)
   const rawDisplayItems = useMemo(() => {
-    if (dataMode === 'LIVE') {
-      if (liveData && liveData.items && liveData.items.length > 0) {
-        return liveData.items as CommodityPositionPnLItem[];
-      }
-      return [];
+    if (liveData?.items && Array.isArray(liveData.items) && liveData.items.length > 0) {
+      return liveData.items as CommodityPositionPnLItem[];
     }
-    return MOCK_COMMODITY_ITEMS;
-  }, [dataMode, liveData]);
+    return [];
+  }, [liveData?.items]);
 
   // 17 mặt hàng chủ lực cho Bảng chính trên Dashboard
   const top17Items = useMemo(() => {
@@ -1064,52 +477,141 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     );
   }, [modalFilteredItems]);
 
-  // Dữ liệu 4 mốc thời điểm động (ưu tiên liveData nếu ở chế độ LIVE)
+  // Dữ liệu 4 mốc thời điểm động từ liveData (mặc định 0 nếu phiên mới chưa có dữ liệu)
   const acmMilestones: MilestoneReportData = useMemo(() => {
-    if (dataMode === 'LIVE' && liveData?.milestones?.acm) {
+    if (liveData?.milestones?.acm) {
       return liveData.milestones.acm;
     }
-    return MOCK_ACM_SEGMENT.milestones;
-  }, [dataMode, liveData]);
+    return {
+      earlySession: 0,
+      asianSession: 0,
+      europeanSession: 0,
+      americanSession: 0,
+      isAmericanSessionPending: true,
+    };
+  }, [liveData?.milestones?.acm]);
 
   const othersMilestones: MilestoneReportData = useMemo(() => {
-    if (dataMode === 'LIVE' && liveData?.milestones?.others) {
+    if (liveData?.milestones?.others) {
       return liveData.milestones.others;
     }
-    return MOCK_OTHERS_SEGMENT.milestones;
-  }, [dataMode, liveData]);
+    return {
+      earlySession: 0,
+      asianSession: 0,
+      europeanSession: 0,
+      americanSession: 0,
+      isAmericanSessionPending: true,
+    };
+  }, [liveData?.milestones?.others]);
 
-  // Số liệu KLGD & GTGD lần check gần nhất
+  // Số liệu KLGD & GTGD lần check gần nhất từ liveData
   const acmLatestMetrics = useMemo(() => {
-    if (dataMode === 'LIVE' && liveData?.latestMetrics?.acm) {
+    if (liveData?.latestMetrics?.acm) {
       return liveData.latestMetrics.acm;
     }
     return {
-      klgd: MOCK_ACM_SEGMENT.latestKlgd,
-      gtgdStr: MOCK_ACM_SEGMENT.latestGtgdStr,
-      gtgdVnd: MOCK_ACM_SEGMENT.latestGtgdVnd,
+      klgd: 0,
+      gtgdStr: '0 đ',
+      gtgdVnd: 0,
     };
-  }, [dataMode, liveData]);
+  }, [liveData?.latestMetrics?.acm]);
 
   const othersLatestMetrics = useMemo(() => {
-    if (dataMode === 'LIVE' && liveData?.latestMetrics?.others) {
+    if (liveData?.latestMetrics?.others) {
       return liveData.latestMetrics.others;
     }
     return {
-      klgd: MOCK_OTHERS_SEGMENT.latestKlgd,
-      gtgdStr: MOCK_OTHERS_SEGMENT.latestGtgdStr,
-      gtgdVnd: MOCK_OTHERS_SEGMENT.latestGtgdVnd,
+      klgd: 0,
+      gtgdStr: '0 đ',
+      gtgdVnd: 0,
     };
-  }, [dataMode, liveData]);
+  }, [liveData?.latestMetrics?.others]);
 
-  // Cấu hình Biểu đồ Check Timeline cho Khối ACM
+  // Dòng thời gian các lần kiểm tra trong phiên (sắp xếp tăng dần theo thời gian tạo)
+  const chronologicalRuns = useMemo(() => {
+    if (!runs || runs.length === 0) return [];
+    return [...runs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [runs]);
+
+  // Cấu hình Biểu đồ Check Timeline cho Khối ACM (100% dữ liệu thực)
   const acmChartData = useMemo(() => {
+    if (chronologicalRuns.length > 0) {
+      const labels = chronologicalRuns.map((r) => r.time ? r.time.slice(0, 5) : '—');
+      const volumes = chronologicalRuns.map((r) => r.totalNano ?? 0);
+      const values = chronologicalRuns.map((r) => {
+        if (acmLatestMetrics.klgd > 0 && acmLatestMetrics.gtgdVnd > 0) {
+          const ratio = acmLatestMetrics.gtgdVnd / acmLatestMetrics.klgd;
+          return Number((((r.totalNano ?? 0) * ratio) / 1_000_000_000).toFixed(2));
+        }
+        return 0;
+      });
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'KLGD Tích lũy (Lots)',
+            data: volumes,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: true,
+            tension: 0.35,
+            yAxisID: 'yVolume',
+          },
+          {
+            label: 'GTGD (Tỷ VND)',
+            data: values,
+            borderColor: '#38bdf8',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.35,
+            yAxisID: 'yValue',
+          },
+        ],
+      };
+    }
+
+    const hasMilestoneData =
+      (acmMilestones.earlySession || 0) > 0 ||
+      (acmMilestones.asianSession || 0) > 0 ||
+      (acmMilestones.europeanSession || 0) > 0 ||
+      (acmMilestones.americanSession || 0) > 0;
+
+    const labels = hasMilestoneData
+      ? ['Đầu phiên (8h)', 'Hết Á (16h)', 'Hết Âu (23h)', 'Hết Mỹ (5h)']
+      : ['08:00', '12:00', '16:00', '20:00', '00:00', '05:00'];
+
+    const volumes = hasMilestoneData
+      ? [
+          acmMilestones.earlySession || 0,
+          acmMilestones.asianSession || 0,
+          acmMilestones.europeanSession || 0,
+          acmMilestones.americanSession ?? acmMilestones.europeanSession ?? 0,
+        ]
+      : [0, 0, 0, 0, 0, 0];
+
+    const values = hasMilestoneData
+      ? volumes.map((v) => {
+          if (acmLatestMetrics.klgd > 0 && acmLatestMetrics.gtgdVnd > 0) {
+            const ratio = acmLatestMetrics.gtgdVnd / acmLatestMetrics.klgd;
+            return Number(((v * ratio) / 1_000_000_000).toFixed(2));
+          }
+          return 0;
+        })
+      : [0, 0, 0, 0, 0, 0];
+
     return {
-      labels: MOCK_ACM_SEGMENT.timelineLabels,
+      labels,
       datasets: [
         {
           label: 'KLGD Tích lũy (Lots)',
-          data: MOCK_ACM_SEGMENT.timelineVolumes,
+          data: volumes,
           borderColor: '#10b981',
           backgroundColor: 'rgba(16, 185, 129, 0.15)',
           borderWidth: 2,
@@ -1121,7 +623,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         },
         {
           label: 'GTGD (Tỷ VND)',
-          data: MOCK_ACM_SEGMENT.timelineValues,
+          data: values,
           borderColor: '#38bdf8',
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -1133,16 +635,87 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         },
       ],
     };
-  }, []);
+  }, [chronologicalRuns, acmLatestMetrics, acmMilestones]);
 
-  // Cấu hình Biểu đồ Check Timeline cho Khối Còn lại
+  // Cấu hình Biểu đồ Check Timeline cho Khối Còn lại (100% dữ liệu thực)
   const othersChartData = useMemo(() => {
+    if (chronologicalRuns.length > 0) {
+      const labels = chronologicalRuns.map((r) => r.time ? r.time.slice(0, 5) : '—');
+      const volumes = chronologicalRuns.map((r) => r.totalDSGD ?? 0);
+      const values = chronologicalRuns.map((r) => {
+        if (othersLatestMetrics.klgd > 0 && othersLatestMetrics.gtgdVnd > 0) {
+          const ratio = othersLatestMetrics.gtgdVnd / othersLatestMetrics.klgd;
+          return Number((((r.totalDSGD ?? 0) * ratio) / 1_000_000_000).toFixed(2));
+        }
+        return 0;
+      });
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'KLGD Tích lũy (Lots)',
+            data: volumes,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: true,
+            tension: 0.35,
+            yAxisID: 'yVolume',
+          },
+          {
+            label: 'GTGD (Tỷ VND)',
+            data: values,
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [4, 4],
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.35,
+            yAxisID: 'yValue',
+          },
+        ],
+      };
+    }
+
+    const hasMilestoneData =
+      (othersMilestones.earlySession || 0) > 0 ||
+      (othersMilestones.asianSession || 0) > 0 ||
+      (othersMilestones.europeanSession || 0) > 0 ||
+      (othersMilestones.americanSession || 0) > 0;
+
+    const labels = hasMilestoneData
+      ? ['Đầu phiên (8h)', 'Hết Á (16h)', 'Hết Âu (23h)', 'Hết Mỹ (5h)']
+      : ['08:00', '12:00', '16:00', '20:00', '00:00', '05:00'];
+
+    const volumes = hasMilestoneData
+      ? [
+          othersMilestones.earlySession || 0,
+          othersMilestones.asianSession || 0,
+          othersMilestones.europeanSession || 0,
+          othersMilestones.americanSession ?? othersMilestones.europeanSession ?? 0,
+        ]
+      : [0, 0, 0, 0, 0, 0];
+
+    const values = hasMilestoneData
+      ? volumes.map((v) => {
+          if (othersLatestMetrics.klgd > 0 && othersLatestMetrics.gtgdVnd > 0) {
+            const ratio = othersLatestMetrics.gtgdVnd / othersLatestMetrics.klgd;
+            return Number(((v * ratio) / 1_000_000_000).toFixed(2));
+          }
+          return 0;
+        })
+      : [0, 0, 0, 0, 0, 0];
+
     return {
-      labels: MOCK_OTHERS_SEGMENT.timelineLabels,
+      labels,
       datasets: [
         {
           label: 'KLGD Tích lũy (Lots)',
-          data: MOCK_OTHERS_SEGMENT.timelineVolumes,
+          data: volumes,
           borderColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.15)',
           borderWidth: 2,
@@ -1154,7 +727,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         },
         {
           label: 'GTGD (Tỷ VND)',
-          data: MOCK_OTHERS_SEGMENT.timelineValues,
+          data: values,
           borderColor: '#f59e0b',
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -1166,7 +739,26 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         },
       ],
     };
-  }, []);
+  }, [chronologicalRuns, othersLatestMetrics, othersMilestones]);
+
+  // Tính toán động các mã nổi bật phục vụ chú thích bảng chân trang
+  const topLossItem = useMemo(() => {
+    if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
+    const sorted = [...rawDisplayItems].filter((i) => i.expectedPnL < 0).sort((a, b) => a.expectedPnL - b.expectedPnL);
+    return sorted[0] || null;
+  }, [rawDisplayItems]);
+
+  const topOpenPositionItem = useMemo(() => {
+    if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
+    const sorted = [...rawDisplayItems].sort((a, b) => b.openPositions - a.openPositions);
+    return sorted[0] || null;
+  }, [rawDisplayItems]);
+
+  const topLiquidatedItem = useMemo(() => {
+    if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
+    const sorted = [...rawDisplayItems].sort((a, b) => b.liquidatedLots - a.liquidatedLots);
+    return sorted[0] || null;
+  }, [rawDisplayItems]);
 
   const chartOptionsCommon = {
     responsive: true,
@@ -1781,10 +1373,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               cursor: isExporting ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
             }}
-            title="Xuất file Excel báo cáo Ban Giám Đốc chuẩn template 1:1"
+            title="Xuất báo cáo tổng hợp dạng Excel"
           >
             <FileSpreadsheet size={15} />
-            <span>{isExporting ? 'Đang xuất Excel...' : 'Xuất File Excel'}</span>
+            <span>{isExporting ? 'Đang xuất...' : 'Xuất File Excel'}</span>
           </button>
         </div>
       </div>
@@ -1915,9 +1507,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#10b981', letterSpacing: '0.03em' }}>
-                  {MOCK_ACM_SEGMENT.title}
+                  {SEGMENT_METADATA.acm.title}
                 </h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{MOCK_ACM_SEGMENT.subTitle}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{SEGMENT_METADATA.acm.subTitle}</span>
               </div>
             </div>
 
@@ -1954,7 +1546,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               Biểu đồ từng lần check trong ngày
             </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Chu kỳ quét: 15-30 phút/lần</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{runs.length > 0 ? `Theo ${runs.length} lượt kiểm tra trong phiên` : 'Theo các mốc thời điểm phiên'}</span>
           </div>
 
           {/* Chart Canvas */}
@@ -2115,9 +1707,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#2563eb', letterSpacing: '0.03em' }}>
-                  {MOCK_OTHERS_SEGMENT.title}
+                  {SEGMENT_METADATA.others.title}
                 </h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{MOCK_OTHERS_SEGMENT.subTitle}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{SEGMENT_METADATA.others.subTitle}</span>
               </div>
             </div>
 
@@ -2154,7 +1746,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               Biểu đồ từng lần check trong ngày
             </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Chu kỳ quét: 15-30 phút/lần</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{runs.length > 0 ? `Theo ${runs.length} lượt kiểm tra trong phiên` : 'Theo các mốc thời điểm phiên'}</span>
           </div>
 
           {/* Chart Canvas */}
@@ -2288,10 +1880,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC (BAN GIÁM ĐỐC)
+              BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC
             </h3>
             <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong> | Tự động bóc tách từ TTM & TTTT (Check BGS All.xlsm)
+              Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong>
             </p>
           </div>
 
@@ -2369,11 +1961,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           </div>
         </div>
 
-        {/* The Master Data Table */}
+        {/* The Master Data Table - Vừa vặn 17 mặt hàng, không bị cuộn dọc */}
         <div
           style={{
-            maxHeight: '680px',
-            overflowY: 'auto',
             overflowX: 'auto',
             borderRadius: '10px',
             border: '1px solid var(--border-color)',
@@ -2384,58 +1974,56 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             style={{
               width: '100%',
               borderCollapse: 'collapse',
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               color: 'var(--text-primary)',
             }}
           >
-            {/* Table Header with Sticky */}
-            <thead
-              style={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 10,
-                backgroundColor: 'var(--bg-input)',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
-              }}
-            >
+            <thead>
               <tr
                 style={{
                   backgroundColor: 'var(--bg-input)',
                   borderBottom: '2px solid var(--border-color)',
                   color: 'var(--text-secondary)',
                   textAlign: 'center',
-                  fontSize: '0.78rem',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                 }}
               >
-                <th style={{ padding: '10px 8px', borderRight: '1px solid var(--border-color)', width: '45px' }}>STT</th>
-                <th style={{ padding: '10px 10px', borderRight: '1px solid var(--border-color)', width: '130px' }}>Nhóm HH</th>
-                <th style={{ padding: '10px 8px', borderRight: '1px solid var(--border-color)', width: '70px' }}>Mã HH</th>
-                <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'left', minWidth: '140px' }}>
+                <th style={{ padding: '8px 6px', borderRight: '1px solid var(--border-color)', width: '40px' }}>STT</th>
+                <th style={{ padding: '8px 8px', borderRight: '1px solid var(--border-color)', width: '120px' }}>Nhóm HH</th>
+                <th style={{ padding: '8px 6px', borderRight: '1px solid var(--border-color)', width: '65px' }}>Mã HH</th>
+                <th style={{ padding: '8px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'left', minWidth: '130px' }}>
                   Tên HH
                 </th>
-                <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'right', minWidth: '160px' }}>
+                <th style={{ padding: '8px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'right', minWidth: '150px' }}>
                   Tổng lãi lỗ dự kiến (VND)
                 </th>
-                <th style={{ padding: '10px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'right', width: '110px' }}>
+                <th style={{ padding: '8px 8px', borderRight: '1px solid var(--border-color)', textAlign: 'right', width: '105px' }}>
                   Tổng vị thế mở
                 </th>
-                <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'center', width: '130px' }}>
+                <th style={{ padding: '8px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'center', width: '120px' }}>
                   % mở Mua
                 </th>
-                <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'center', width: '130px' }}>
+                <th style={{ padding: '8px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'center', width: '120px' }}>
                   % mở Bán
                 </th>
-                <th style={{ padding: '10px 12px', borderRight: '1px solid var(--border-color)', textAlign: 'right', minWidth: '140px' }}>
+                <th style={{ padding: '8px 10px', borderRight: '1px solid var(--border-color)', textAlign: 'right', minWidth: '135px' }}>
                   Lãi lỗ thực tế (VND)
                 </th>
-                <th style={{ padding: '10px 10px', textAlign: 'right', width: '120px' }}>Trạng thái tất toán</th>
+                <th style={{ padding: '8px 8px', textAlign: 'right', width: '110px' }}>Trạng thái tất toán</th>
               </tr>
             </thead>
 
             {/* Table Body */}
             <tbody>
-              {categoryGroups.map(([catName, items]) => {
+              {displayItems.length === 0 ? (
+                <tr>
+                  <td colSpan={10} style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Chưa có dữ liệu vị thế &amp; lãi lỗ thực tế cho phiên {sessionDate}. Vui lòng nhấn &ldquo;Đồng bộ API tươi&rdquo; hoặc chờ bot quét dữ liệu.
+                  </td>
+                </tr>
+              ) : (
+                categoryGroups.map(([catName, items]) => {
                 return items.map((item, idx) => {
                   const isFirstOfGroup = idx === 0;
                   const isLastOfGroup = idx === items.length - 1;
@@ -2461,8 +2049,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       }}
                     >
                       {/* 1. STT */}
-                      <td style={{ padding: '9px 8px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{item.stt}</span>
+                      <td style={{ padding: '6px 6px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{item.stt}</span>
                       </td>
 
                       {/* 2. Nhóm HH (Gộp ô) */}
@@ -2470,7 +2058,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         <td
                           rowSpan={items.length}
                           style={{
-                            padding: '10px',
+                            padding: '6px 8px',
                             textAlign: 'center',
                             verticalAlign: 'middle',
                             fontWeight: 700,
@@ -2482,7 +2070,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 : catName === 'Kim loại'
                                 ? '#0284c7'
                                 : '#d97706',
-                            fontSize: '0.8rem',
+                            fontSize: '0.78rem',
                           }}
                         >
                           {catName}
@@ -2492,12 +2080,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 3. Mã HH */}
                       <td
                         style={{
-                          padding: '9px 8px',
+                          padding: '6px 6px',
                           textAlign: 'center',
                           fontWeight: 700,
                           borderRight: '1px solid var(--border-color)',
                           color: 'var(--text-primary)',
                           fontFamily: 'monospace',
+                          fontSize: '0.78rem',
                         }}
                       >
                         {item.symbol}
@@ -2506,10 +2095,11 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 4. Tên HH */}
                       <td
                         style={{
-                          padding: '9px 12px',
+                          padding: '6px 10px',
                           borderRight: '1px solid var(--border-color)',
                           color: 'var(--text-primary)',
                           fontWeight: 500,
+                          fontSize: '0.78rem',
                         }}
                       >
                         {item.name}
@@ -2518,11 +2108,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 5. Tổng lãi lỗ dự kiến (VND) */}
                       <td
                         style={{
-                          padding: '9px 12px',
+                          padding: '6px 10px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
                           fontWeight: 700,
                           fontFamily: 'monospace',
+                          fontSize: '0.78rem',
                           color: isExpectedLoss ? '#ef4444' : '#10b981',
                           backgroundColor: item.highlightExpectedLoss
                             ? 'rgba(239, 68, 68, 0.12)'
@@ -2535,12 +2126,13 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 6. Tổng vị thế mở */}
                       <td
                         style={{
-                          padding: '9px 10px',
+                          padding: '6px 8px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
                           fontWeight: 700,
                           color: 'var(--text-primary)',
                           fontFamily: 'monospace',
+                          fontSize: '0.78rem',
                           backgroundColor: item.highlightOpenPosition
                             ? 'rgba(16, 185, 129, 0.12)'
                             : 'transparent',
@@ -2552,18 +2144,18 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 7. % mở Mua (Progress bar xanh) */}
                       <td
                         style={{
-                          padding: '6px 10px',
+                          padding: '5px 8px',
                           borderRight: '1px solid var(--border-color)',
                           verticalAlign: 'middle',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <div
                             style={{
                               flex: 1,
-                              height: '16px',
-                              backgroundColor: 'rgba(148, 163, 184, 0.18)',
-                              borderRadius: '4px',
+                              height: '12px',
+                              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                              borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative',
                             }}
@@ -2573,16 +2165,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 width: `${item.longRatio}%`,
                                 height: '100%',
                                 backgroundColor: '#3b82f6',
-                                borderRadius: '4px',
+                                borderRadius: '3px',
                                 transition: 'width 0.4s ease',
                               }}
                             />
                           </div>
                           <span
                             style={{
-                              width: '32px',
+                              width: '28px',
                               textAlign: 'right',
-                              fontSize: '0.75rem',
+                              fontSize: '0.72rem',
                               fontWeight: 700,
                               color: '#2563eb',
                             }}
@@ -2595,18 +2187,18 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 8. % mở Bán (Progress bar xám) */}
                       <td
                         style={{
-                          padding: '6px 10px',
+                          padding: '5px 8px',
                           borderRight: '1px solid var(--border-color)',
                           verticalAlign: 'middle',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <div
                             style={{
                               flex: 1,
-                              height: '16px',
+                              height: '12px',
                               backgroundColor: 'rgba(148, 163, 184, 0.18)',
-                              borderRadius: '4px',
+                              borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative',
                             }}
@@ -2616,16 +2208,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 width: `${item.shortRatio}%`,
                                 height: '100%',
                                 backgroundColor: '#94a3b8',
-                                borderRadius: '4px',
+                                borderRadius: '3px',
                                 transition: 'width 0.4s ease',
                               }}
                             />
                           </div>
                           <span
                             style={{
-                              width: '32px',
+                              width: '28px',
                               textAlign: 'right',
-                              fontSize: '0.75rem',
+                              fontSize: '0.72rem',
                               fontWeight: 600,
                               color: 'var(--text-muted)',
                             }}
@@ -2638,11 +2230,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 9. Lãi lỗ thực tế (VND) */}
                       <td
                         style={{
-                          padding: '9px 12px',
+                          padding: '6px 10px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
                           fontWeight: 700,
                           fontFamily: 'monospace',
+                          fontSize: '0.78rem',
                           color: isRealizedLoss ? '#ef4444' : '#10b981',
                           backgroundColor: isRealizedLoss
                             ? 'rgba(239, 68, 68, 0.08)'
@@ -2655,10 +2248,11 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {/* 10. Trạng thái tất toán */}
                       <td
                         style={{
-                          padding: '9px 10px',
+                          padding: '6px 8px',
                           textAlign: 'right',
                           fontWeight: 700,
                           fontFamily: 'monospace',
+                          fontSize: '0.78rem',
                           color: 'var(--text-primary)',
                           backgroundColor: item.highlightLiquidated
                             ? 'rgba(16, 185, 129, 0.12)'
@@ -2670,31 +2264,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     </tr>
                   );
                 });
-              })}
+              })
+              )}
             </tbody>
 
-            {/* Table Footer (Tổng cộng) with Sticky */}
-            <tfoot
-              style={{
-                position: 'sticky',
-                bottom: 0,
-                zIndex: 8,
-                backgroundColor: 'var(--bg-input)',
-                boxShadow: '0 -1px 2px rgba(0, 0, 0, 0.08)',
-              }}
-            >
+            {/* Table Footer (Tổng cộng) */}
+            <tfoot>
               <tr
                 style={{
                   backgroundColor: 'var(--bg-input)',
                   borderTop: '2px solid var(--border-color)',
                   fontWeight: 800,
-                  fontSize: '0.85rem',
+                  fontSize: '0.8rem',
                 }}
               >
                 <td
                   colSpan={4}
                   style={{
-                    padding: '12px 14px',
+                    padding: '8px 10px',
                     textAlign: 'center',
                     borderRight: '1px solid var(--border-color)',
                     color: 'var(--text-primary)',
@@ -2708,7 +2295,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 {/* Tổng lãi lỗ dự kiến */}
                 <td
                   style={{
-                    padding: '12px',
+                    padding: '8px 10px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
                     color: '#ef4444',
@@ -2721,7 +2308,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 {/* Tổng vị thế mở */}
                 <td
                   style={{
-                    padding: '12px 10px',
+                    padding: '8px 8px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
                     color: 'var(--text-primary)',
@@ -2735,11 +2322,11 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 <td
                   colSpan={2}
                   style={{
-                    padding: '12px 10px',
+                    padding: '8px 8px',
                     textAlign: 'center',
                     borderRight: '1px solid var(--border-color)',
                     color: 'var(--text-secondary)',
-                    fontSize: '0.75rem',
+                    fontSize: '0.72rem',
                   }}
                 >
                   Toàn sàn: <strong style={{ color: '#2563eb' }}>78% Mua</strong> / <strong style={{ color: 'var(--text-muted)' }}>22% Bán</strong>
@@ -2748,7 +2335,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 {/* Lãi lỗ thực tế */}
                 <td
                   style={{
-                    padding: '12px',
+                    padding: '8px 10px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
                     color: '#10b981',
@@ -2761,7 +2348,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 {/* Trạng thái tất toán */}
                 <td
                   style={{
-                    padding: '12px 10px',
+                    padding: '8px 8px',
                     textAlign: 'right',
                     color: 'var(--text-primary)',
                     fontFamily: 'monospace',
@@ -2797,7 +2384,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 borderRadius: '3px',
               }}
             />
-            <span>Đỏ đậm: Lỗ dự kiến lớn nhất (SI5CO: (67.6 tỷ))</span>
+            <span>Đỏ đậm: Lỗ dự kiến lớn nhất {topLossItem ? `(${topLossItem.symbol}: ${formatAccountingCurrency(topLossItem.expectedPnL)})` : ''}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
@@ -2810,7 +2397,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 borderRadius: '3px',
               }}
             />
-            <span>Xanh lá: Vị thế mở & tất toán tập trung cao nhất (SI5CO: 5,770 lots; ZME: 1,312 lots)</span>
+            <span>Xanh lá: Vị thế mở & tất toán tập trung cao nhất {topOpenPositionItem ? `(${topOpenPositionItem.symbol}: ${formatInteger(topOpenPositionItem.openPositions)} lots${topLiquidatedItem && topLiquidatedItem.symbol !== topOpenPositionItem.symbol ? `; ${topLiquidatedItem.symbol}: ${formatInteger(topLiquidatedItem.liquidatedLots)} lots` : ''})` : ''}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Info size={12} color="#38bdf8" />
@@ -3099,7 +2686,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     </span>
                   </div>
                   <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Bóc tách 100% từ Table 3 (Check BGS All.xlsm) | Dữ liệu phiên chốt: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong>
+                    Danh mục toàn bộ hợp đồng giao dịch • Dữ liệu phiên: <strong style={{ color: '#0284c7' }}>{sessionDate}</strong>
                   </p>
                 </div>
               </div>
@@ -3620,7 +3207,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ display: 'inline-block', width: '10px', height: '10px', backgroundColor: 'rgba(2, 132, 199, 0.3)', border: '1px solid #0284c7', borderRadius: '2px' }} />
-                  <span>Badge 'Chủ lực': Thuộc 17 mã cốt lõi Ban Giám Đốc theo dõi</span>
+                  <span>Nhãn 'Chủ lực': 17 mặt hàng trọng yếu theo dõi thường xuyên</span>
                 </div>
               </div>
 

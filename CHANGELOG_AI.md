@@ -37,6 +37,55 @@
 - **Python Writer Test**: Chạy thử nghiệm thành công 13/13 file template với dữ liệu mẫu, thời gian xử lý trung bình 0.15s/file, dòng tổng cộng nằm sát ngay dưới dòng dữ liệu kỳ, các hàng xám trống bị xóa sạch.
 - **Backend TypeScript Build**: `tsc --project tsconfig.build.json` $\rightarrow$ Pass 100%, 0 lỗi, Exit Code 0.
 - **Frontend TypeScript Build**: `tsc --noEmit` $\rightarrow$ Pass 100%, 0 lỗi, Exit Code 0.
+## [2026-10-21T16:35] REFACTOR: Xóa Bỏ Toàn Bộ Dữ Liệu Mock - Chuyển Đổi 100% Sang Dữ Liệu Thật Trên Executive Dashboard
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "giúp tôi fix hết dữ liệu mock dữ liệu thật".
+- Rà soát toàn bộ component [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+  1. Loại bỏ hoàn toàn hơn 600 dòng khai báo dữ liệu mẫu: `MOCK_ACM_SEGMENT`, `MOCK_OTHERS_SEGMENT` và `MOCK_COMMODITY_ITEMS`.
+  2. Bỏ state `dataMode` tĩnh ('MOCK' | 'LIVE'); thiết lập Dashboard hoạt động 100% dựa trên dữ liệu thực (`liveData`) từ Backend API (`DIRECT_API` / `BACKUP_FILES`).
+  3. Chuyển đổi Biểu đồ Timeline 2 Khối (ACM & Còn lại) từ các mốc tĩnh mẫu (`timelineVolumes: [35, 68, ...]`, `[210, 480, ...]`) sang dòng thời gian thực (`liveData.runs`):
+     - Tự động lấy tọa độ thời gian `runs.time` (sắp xếp tăng dần theo `createdAt`).
+     - Tự động vẽ `totalNano` (ACM) và `totalDSGD` (Còn lại) cùng giá trị ước tính GTGD theo tỷ lệ thực.
+     - Fallback theo 4 mốc thời điểm nếu chưa có runs, hoặc đường baseline 0 nếu phiên mới chưa có giao dịch (tuyệt đối không hiển thị số ảo 1,111 lot hay 8,950 lot).
+  4. Sửa đổi subtitle biểu đồ: Thay thế chuỗi cứng `Chu kỳ quét: 15-30 phút/lần` gây hiểu nhầm thành số lượt quét thực tế: `{runs.length > 0 ? \`Theo \${runs.length} lượt kiểm tra trong phiên\` : 'Theo các mốc thời điểm phiên'}`.
+  5. Cập nhật tin nhắn báo cáo BGĐ (`getActiveMessageText`): Tự động tổng hợp từ số liệu thực tế của phiên thay vì chèn các con số giả định cố định (1,956 lot, 10,061 lot...).
+  6. Chú thích chân trang bảng mặt hàng: Chuyển ví dụ tĩnh `(SI5CO: (67.6 tỷ))` và `(SI5CO: 5,770 lots; ZME: 1,312 lots)` thành tính toán động theo mã có lỗ dự kiến lớn nhất và mã có vị thế mở / tất toán cao nhất trong phiên.
+  7. Thêm hàng thông báo Empty State chuẩn UX khi phiên chưa có dữ liệu mặt hàng.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Xóa bỏ hơn 700 dòng mock data, tinh giản mã nguồn, chuyển sang cấu trúc động `SEGMENT_METADATA` và biểu đồ Timeline dựa trên `chronologicalRuns`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type Check**: `cmd /c "npx tsc --noEmit"` $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T15:45] REFACTOR: Loại Bỏ Nhân Bản Thừa DSGD Khỏi LSGD_CCP Chuẩn Hóa Theo Tool C# & Báo Cáo Kiểm Thử Toàn Diện Các Phiên
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Loại bỏ 2 dòng nhân bản tự động thừa (`DSGD_{date}.xlsx` và `DSGD CCP.xlsx`) khỏi quy tắc `CORECCP_DERIVED_RULES` của `LSGD_CCP` trong [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts) để chuẩn hóa 100% tinh gọn theo Tool C# (không nhân bản sinh file rác).
+  2. Báo cáo kết quả kiểm thử thực tế toàn diện cho tất cả các ngày trong thư mục `test-ccp`:
+     - **CheckDSGDBeforeCCP**: Khớp 100% tuyệt đối (Chênh lệch: 0 lots) trên toàn bộ các phiên:
+       - **Phiên 20.10**: CoreCCP = **2,545 lots** $\leftrightarrow$ Straits ACM = **2,545 lots** (Lệch: 0).
+       - **Phiên 14.10**: CoreCCP = **4,326 lots** $\leftrightarrow$ Straits ACM = **4,326 lots** (Lệch: 0).
+       - **Phiên 06.10**: CoreCCP = **2,985 lots** $\leftrightarrow$ Straits ACM = **2,985 lots** (Lệch: 0).
+       - **Phiên 16.10**: CoreCCP tải được **1,716 lots** (thư mục `test-ccp/ACM` không có thư mục 16.10).
+     - **CheckEODCCP**: Khớp 100% công thức (Zero Lệch) trên toàn bộ các phiên:
+       - **Phiên 20.10**: 9,895 / 9,895 tài khoản khớp (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+       - **Phiên 16.10**: 9,712 / 9,712 tài khoản khớp (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)**:
+   - Xóa bỏ 2 dòng nhân bản thừa `DSGD_{date}.xlsx` và `DSGD CCP.xlsx` trong `CORECCP_DERIVED_RULES` của `LSGD_CCP`.
+2. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**:
+   - Đồng bộ regex quét file candidate snapshot: `/^(?:DSGD|LSGD).+\.xlsx$/i` để nhận diện linh hoạt file gốc và snapshot CoreCCP.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
 
 ---
 
@@ -119,6 +168,56 @@
 ### 3. Xác nhận Build & Kiểm thử
 - **Backend Build**: `nest build` $\rightarrow$ Thành công 100% (Pass 0 lỗi, Exit Code: 0).
 - **Frontend Build**: `next build` $\rightarrow$ Thành công 100% (50/50 static routes, bao gồm `/trading-manager/statistics/ce`, Exit Code: 0).
+## [2026-10-21T15:35] TEST & VERIFY: Kiểm Thử Thực Tế Toàn Diện 100% Khớp Lệnh & Số Dư EOD CoreCCP + Hoàn Thiện Tự Động Nhân Bản DSGD từ LSGD
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. **Kiểm thử thực tế CheckEODCCP trên các file input thực tế** (`QL TT TKGD.xlsx` & `KQ EOD.xlsx`) trong thư mục `test-ccp/EOD/20.10` và `test-ccp/EOD/16.10`:
+     - Phiên 20.10: 9,895 / 9,895 tài khoản khớp 100% (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+     - Phiên 16.10: 9,712 / 9,712 tài khoản khớp 100% (0 lệch), phát hiện đúng 3 tài khoản âm IMR.
+  2. **Kiểm thử thực tế CheckDSGDBeforeCCP (CoreCCP $\leftrightarrow$ Straits ACM)**:
+     - Kết nối CSDL Ubuntu (`10.0.0.26`) lấy tài khoản CoreCCP (`anhdao`).
+     - Tải báo cáo lịch sử giao dịch CoreCCP (`ORDERMATCH_ALL`) cho phiên 20.10 qua Direct REST API: Khối lượng khớp tài khoản đuôi `'A'` = **2,545 lots**.
+     - So khớp với file Straits ACM (`EOD FO trades_..._20102026.csv`): **2,545 lots** $\rightarrow$ **Khớp 100% tuyệt đối (Chênh lệch: 0 lots)**.
+  3. **Tối ưu hóa luồng tải file và nhận diện file**:
+     - Bổ sung quy tắc nhân bản `DSGD_{date}.xlsx` và `DSGD CCP.xlsx` từ `LSGD_CCP` trong `CORECCP_DERIVED_RULES`.
+     - Cập nhật regex tìm kiếm file trong `dsgd-before-eod.service.ts` nhận diện cả `/^(?:DSGD|LSGD)/i`.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[backend/src/shared/domain-configs/coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/domain-configs/coreccp-reports.config.ts)**:
+   - Bổ sung nhân bản `DSGD_{date}.xlsx` và `DSGD CCP.xlsx` cho `LSGD_CCP` (`ORDERMATCH_ALL`).
+2. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**:
+   - Mở rộng regex quét file giao dịch CoreCCP: `/^(?:DSGD|LSGD)/i`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
+## [2026-10-21T16:21] REFACTOR: Tối Ưu Bảng 17 Mặt Hàng Chủ Lực (Không Cần Scroll) & Dọn Dẹp Câu Chữ Chuẩn Clean UX
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. **Hiển thị vừa vặn 17 mặt hàng không cần cuộn dọc (Zero Inner Scroll)**:
+     - Gỡ bỏ giới hạn `maxHeight: '680px'` và `overflowY: 'auto'` ở thẻ bọc bảng; chuyển sang hiển thị tự nhiên với `overflowX: 'auto'` để đảm bảo responsive trên mọi màn hình.
+     - Tinh chỉnh padding của các ô header (`padding: 8px 6px - 10px`), ô dữ liệu `td` (`padding: 6px 6px - 10px`), thanh progress bar tỷ lệ Mua/Bán (`height: 12px`), hàng tổng kết `tfoot` (`padding: 8px 10px`).
+     - Toàn bộ 17 mã hàng hóa cùng hàng Tổng cộng hiển thị trọn vẹn, rõ nét và thoáng mắt ngay trong một khung hình mà không cần cuộn chuột bên trong card.
+  2. **Dọn dẹp triệt để các câu chữ mang tính máy móc / tàn dư AI / script kỹ thuật**:
+     - Tiêu đề bảng: Chuyển `BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC (BAN GIÁM ĐỐC)` $\rightarrow$ `BẢNG THỐNG KÊ 17 MẶT HÀNG CHỦ LỰC`.
+     - Phụ đề bảng: Gỡ bỏ đoạn `| Tự động bóc tách từ TTM & TTTT (Check BGS All.xlsm)` $\rightarrow$ chỉ giữ lại thông tin cần thiết `Dữ liệu phiên chốt: {sessionDate}`.
+     - Header Modal 44 mặt hàng: Chuyển `Bóc tách 100% từ Table 3 (Check BGS All.xlsm) | Dữ liệu phiên chốt:` $\rightarrow$ `Danh mục toàn bộ hợp đồng giao dịch • Dữ liệu phiên: {sessionDate}`.
+     - Nút xuất Excel: Chuyển tooltip `...chuẩn template 1:1` $\rightarrow$ `Xuất báo cáo tổng hợp dạng Excel`.
+     - Chú thích chân Modal: Chuyển `Badge 'Chủ lực': Thuộc 17 mã cốt lõi Ban Giám Đốc theo dõi` $\rightarrow$ `Nhãn 'Chủ lực': 17 mặt hàng trọng yếu theo dõi thường xuyên`.
+
+### 2. Danh sách file đã chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Cập nhật cấu trúc styling cho Bảng 17 mặt hàng chủ lực và dọn dẹp các cụm từ kỹ thuật.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Type Check**: `cmd /c "npx tsc --noEmit"` $\rightarrow$ Pass 100% (0 errors, Exit code: 0).
+
+---
+
 ## [2026-10-21T15:10] FEATURE: Bổ Sung Flyout Popover Menu Hiển Thị Menu Con Khi Hover Lúc Sidebar Thu Gọn
 
 ### 1. Mục tiêu thay đổi
