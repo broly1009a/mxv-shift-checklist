@@ -59,7 +59,7 @@ async function seedCcpExchangeTemplates() {
     const slotMorning = await db.collection('shift_slots').findOne({ code: 'SHIFT_3' });
     const defaultSlot = slotNight || slotMorning || (await db.collection('shift_slots').findOne({}));
 
-    console.log(`⏰ Ca làm việc mặc định: ${defaultSlot ? defaultSlot.name : 'Không gán ca cụ thể'}`);
+    console.log(` Ca làm việc mặc định: ${defaultSlot ? defaultSlot.name : 'Không gán ca cụ thể'}`);
 
     // =========================================================================
     // TEMPLATE 1: CCP - CHECKLIST VẬN HÀNH CHI TIẾT (15 MỤC THEO MỐC GIỜ WORD)

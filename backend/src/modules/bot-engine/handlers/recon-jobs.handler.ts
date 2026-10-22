@@ -1205,7 +1205,7 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
 
       const lines: string[] = [];
       lines.push('================================================================================');
-      lines.push(`⏰ THỜI ĐIỂM CHẠY: ${nowStr} (Ngày phiên: ${targetDateStr})`);
+      lines.push(` THỜI ĐIỂM CHẠY: ${nowStr} (Ngày phiên: ${targetDateStr})`);
       lines.push('================================================================================');
 
       if (error) {
