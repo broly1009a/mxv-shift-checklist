@@ -189,12 +189,29 @@ function parseCliArgs() {
 }
 
 function isTodayDate(dateStr) {
+  if (!dateStr || !dateStr.trim()) return true;
   const now = new Date();
   const d = String(now.getDate()).padStart(2, '0');
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const y = now.getFullYear();
   const todayStr = `${d}/${m}/${y}`;
-  return dateStr.trim() === todayStr || dateStr.trim() === `${d}.${m}.${y}`;
+  const todayDotStr = `${d}.${m}.${y}`;
+  const trimmed = dateStr.trim();
+  if (trimmed === todayStr || trimmed === todayDotStr) return true;
+
+  // Nếu đang trong khung giờ đêm / rạng sáng (00:00 - 07:00 VN),
+  // phiên T-1 vẫn là phiên giao dịch realtime hoạt động trên sàn và CoreCCP
+  const vnHour = (now.getUTCHours() + 7) % 24;
+  if (vnHour < 7) {
+    const yesterday = new Date(now.getTime() - 24 * 3600 * 1000);
+    const yd = String(yesterday.getDate()).padStart(2, '0');
+    const ym = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const yy = yesterday.getFullYear();
+    if (trimmed === `${yd}/${ym}/${yy}` || trimmed === `${yd}.${ym}.${yy}`) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function inspectExcelFile(filePath, label) {

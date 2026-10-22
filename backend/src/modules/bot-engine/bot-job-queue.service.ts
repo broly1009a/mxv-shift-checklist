@@ -1158,14 +1158,32 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       job.lockedBy = undefined;
       job.lockedAt = undefined;
 
+      // Hủy bỏ tiến trình active trong RAM và dọn dẹp tài nguyên nếu job chạy trên instance này
+      const jobId = job._id.toString();
+      const activeContext = this.activeJobs.get(jobId);
+      if (activeContext) {
+        try {
+          activeContext.abortController.abort();
+          for (const cleanup of activeContext.cleanups) {
+            try {
+              await cleanup();
+            } catch (cleanupErr: any) {
+              this.logger.warn(`Lỗi khi dọn dẹp tài nguyên job ${jobId}: ${cleanupErr.message}`);
+            }
+          }
+        } catch {}
+        this.activeJobs.delete(jobId);
+      }
+
       if (job.attempts < job.maxAttempts) {
         await this.syncJobToChecklist(job, 'PENDING', reason);
       } else {
         await this.syncJobToChecklist(job, 'FAILED', reason);
       }
-      if (this.activeJobs.size === 0) {
-        this.isProcessing = false;
-      }
+    }
+
+    if (this.activeJobs.size === 0) {
+      this.isProcessing = false;
     }
   }
 

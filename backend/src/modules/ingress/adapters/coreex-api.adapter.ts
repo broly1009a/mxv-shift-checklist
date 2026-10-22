@@ -306,6 +306,7 @@ export class CoreExApiAdapter implements IIngressPort {
     const initRes = await fetch(authUrl, {
       headers: { ...commonHeaders, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CoreEX-Ingress/1.0' },
       redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
     });
     jar.setFromHeaders(initRes.headers);
 
@@ -317,6 +318,7 @@ export class CoreExApiAdapter implements IIngressPort {
     const loginPageRes = await fetch(loginUrl, {
       headers: { ...commonHeaders, Cookie: jar.getCookieHeader(), Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
       redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
     });
     jar.setFromHeaders(loginPageRes.headers);
     const html = await loginPageRes.text();
@@ -348,6 +350,7 @@ export class CoreExApiAdapter implements IIngressPort {
       },
       body: bodyParams.toString(),
       redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
     });
 
     jar.setFromHeaders(postLoginRes.headers);
@@ -361,6 +364,7 @@ export class CoreExApiAdapter implements IIngressPort {
     const continueRes = await fetch(nextUrl, {
       headers: { ...commonHeaders, Cookie: jar.getCookieHeader() },
       redirect: 'manual',
+      signal: AbortSignal.timeout(15000),
     });
     jar.setFromHeaders(continueRes.headers);
 
@@ -392,6 +396,7 @@ export class CoreExApiAdapter implements IIngressPort {
             Cookie: sessionCookie,
           },
           body: tokenParams.toString(),
+          signal: AbortSignal.timeout(15000),
         });
         if (tokenRes.ok) {
           const tokenJson: any = await tokenRes.json().catch(() => ({}));
@@ -474,6 +479,7 @@ export class CoreExApiAdapter implements IIngressPort {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
     });
 
     // Tự động hồi phục khi token bị 401: xóa cache, đăng nhập lại và thử lại request
@@ -492,6 +498,7 @@ export class CoreExApiAdapter implements IIngressPort {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000),
       });
     }
 
@@ -796,7 +803,10 @@ export class CoreExApiAdapter implements IIngressPort {
       if (this.settingsService) {
         baseUrl = await this.settingsService.getSetting('coreex_base_url', baseUrl);
       }
-      const res = await fetch(`${baseUrl}/login`, { method: 'HEAD' });
+      const res = await fetch(`${baseUrl}/login`, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(5000),
+      });
       return res.ok;
     } catch {
       return false;

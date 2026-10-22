@@ -563,14 +563,12 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       }
 
       const stat = fs.statSync(filePath);
-      const fileDay = new Date(stat.mtime);
-      fileDay.setHours(0, 0, 0, 0);
-      const isToday = fileDay.getTime() === today.getTime();
+      const isOk = stat.size > 0;
 
       results.push({
         key: fileItem.key,
         filename: chosenFile,
-        status: isToday ? ('OK' as const) : ('OUTDATED' as const),
+        status: isOk ? ('OK' as const) : ('MISSING' as const),
         lastModified: stat.mtime,
       });
     }

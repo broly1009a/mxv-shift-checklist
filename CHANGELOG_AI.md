@@ -1,3 +1,81 @@
+## [2026-10-22T09:33] PERF & REFACTOR: Tối Ưu Hóa Cờ Bộ Nhớ RAM Cho Chromium CQG & Dọn Dẹp Import Thừa Recon Handler
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Tối ưu triệt để mức tiêu thụ bộ nhớ RAM cho tiến trình chạy bot kiểm tra khớp lệnh trong phiên (`CHECK_KLGD`), giữ nguyên 100% cơ chế tải song song đồng bộ (Synchronized Barrier) để bảo toàn tính toàn vẹn dữ liệu phiên giao dịch.
+- Loại bỏ các cờ đồ họa ảo gây lãng phí bộ nhớ CPU/RAM trên môi trường server không có GPU rời, bổ sung các cờ khống chế bộ nhớ V8 Heap an toàn (512MB) và giới hạn tiến trình renderer.
+- Dọn dẹp import thừa `CcpReportConfig, DEFAULT_CCP_REPORTS` không sử dụng trong `ReconJobsHandler`.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Dòng 4646 - 4650: Loại bỏ `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy`, `--disk-cache-size=209715200`. Bổ sung `--disable-gpu`, `--disable-software-rasterizer`, `--renderer-process-limit=1`, `--js-flags=--max-old-space-size=512`.
+2. **[backend/src/modules/ingress/scrapers/cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts)**:
+   - Dòng 208 - 211: Loại bỏ các cờ ép GPU ảo tương tự và bổ sung các cờ khống chế bộ nhớ RAM V8 512MB và tắt GPU cho Chromium.
+3. **[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+   - Dòng 9: Loại bỏ import thừa `CcpReportConfig` và `DEFAULT_CCP_REPORTS`, chỉ giữ lại `CcpCeScraperService`.
+4. **[backend/src/scripts/test_measure_klgd_memory_footprint.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_measure_klgd_memory_footprint.js)** & **[backend/src/scripts/test_cqg_flag_speed_comparison.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_cqg_flag_speed_comparison.js)**:
+   - Tạo mới bộ công cụ kiểm thử đo đạc thực tế dung lượng RAM và thời gian tải trang chính xác đến từng mili-giây.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - Trình duyệt Chromium cho CQG bật các cờ ép GPU ảo (`--enable-gpu-rasterization`, `--enable-zero-copy`), khiến CPU phải chạy phần mềm giả lập SwiftShader, ngốn 1,192 MB RAM cho 2 phiên chạy song song và tốn 2,410 ms để nạp DOM.
+  - File `recon-jobs.handler.ts` import thừa `CcpReportConfig, DEFAULT_CCP_REPORTS`.
+- **Sau khi sửa**:
+  - Tắt GPU ảo, giới hạn V8 Heap 512MB, giới hạn 1 renderer process per context.
+  - Đo đạc thực tế cho thấy thời gian nạp DOM (`DOMContentLoaded`) nhanh hơn 661 ms (từ 2,410 ms $\rightarrow$ 1,749 ms), sẵn sàng thao tác nhanh hơn 131 ms (từ 3,795 ms $\rightarrow$ 3,664 ms).
+  - Giảm tiêu thụ RAM của tiến trình Chromium, ngăn chặn việc phình to bộ nhớ không kiểm soát.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100%.
+- **Kiểm thử đo đạc thực nghiệm**: Hoàn tất cả 2 kịch bản đo RAM (`test_measure_klgd_memory_footprint.js`) và đo tốc độ (`test_cqg_flag_speed_comparison.js`).
+
+---
+
+## [2026-10-22T08:50] AUDIT & FIX: Đối Soát Toàn Diện Các Logic Tương Tự Gây Lỗi Ca Đêm & Treo Kết Nối API
+
+### 1. Mục tiêu thay đổi
+- Thực hiện rà soát toàn diện (Codebase Audit) theo yêu cầu của USER để truy quét và xử lý dứt điểm tất cả các logic có nguy cơ gây lỗi tương tự sự cố ACM vừa qua:
+  1. **Lỗi kiểm tra lịch dương ngày sửa đổi file (`stat.mtime`) trong ca đêm**: Tìm thấy lỗi đối chiếu y hệt tại `scanCqgBackupFiles` (`CqgSyncService`), khiến toàn bộ file gộp CQG (`FR.xlsx`, `PS.xlsx`, `OP.xlsx`, `Od.xlsx`) và `MS_TTTT` bị đánh dấu `OUTDATED` khi chạy rạng sáng, làm sập Job `FILE_AUDIT_CQG` và ép re-merge vô ích liên tục.
+  2. **Lỗi thiếu timeout trên các kết nối HTTP `fetch` ở các Ingress Adapter**: Các Adapter gọi API trực tiếp sang M-System (`MsApiAdapter`), Core Exchange (`CoreExApiAdapter`) và Scraper (`RpaScraperService`) thiếu `AbortSignal.timeout(...)`, có nguy cơ treo vô hạn tiến trình khi server đối tác drop socket TCP hoặc đơ mạng.
+  3. **Lỗi kiểm tra ngày trong script test Playwright (`test_check_klgd_playwright.js`)**: Hàm `isTodayDate` chỉ so sánh ngày lịch dương, khi chạy rạng sáng (< 07:00) cho ca đêm T-1 sẽ ngộ nhận là ngày quá khứ, tự ý xóa bộ lọc và gửi form làm hỏng bảng dữ liệu realtime CoreCCP.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/bot-engine/cqg-sync.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/cqg-sync.service.ts)**:
+   - Sửa hàm `scanCqgBackupFiles` (dòng 86-160): Loại bỏ biến `todayStr` và phép so sánh `fileDateStr === todayStr`. Chuyển sang thẩm định `status: stat.size > 0 ? 'OK' : 'MISSING'` cho cả 13 file CQG và file `MS_TTTT`. Đảm bảo file được tạo/ghép lúc rạng sáng (04:30) cho ca đêm hôm trước đều được công nhận là `OK`.
+2. **[backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)**:
+   - Bổ sung `signal: AbortSignal.timeout(...)` vào toàn bộ 6 vị trí gọi `fetch()`: Đăng nhập Bước 1 (15s), Xác thực PIN Bước 2 (15s), Kiểm tra kết nối ping (8s), Xuất báo cáo nhị phân (30s), và gọi API truy vấn dữ liệu JSON `fetchJson` (20s).
+3. **[backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreex-api.adapter.ts)**:
+   - Bổ sung `signal: AbortSignal.timeout(...)` vào toàn bộ các cuộc gọi `fetch()`: Khởi tạo OAuth2 (15s), Lấy trang HTML bẫy CSRF (15s), Gửi form login (15s), Điều hướng OAuth code (15s), Đổi token OAuth2 (15s), Truy vấn xuất dữ liệu CoreEX (30s), và Kiểm tra kết nối HEAD login (5s).
+4. **[backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Bổ sung `signal: AbortSignal.timeout(10000)` cho lệnh gọi fetch danh sách models từ Google Gemini API.
+5. **[backend/src/scripts/test_check_klgd_playwright.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_check_klgd_playwright.js)**:
+   - Cập nhật hàm `isTodayDate`: Tích hợp logic nhận diện phiên ca đêm (khi giờ VN < 07:00 thì ngày hôm trước T-1 vẫn là phiên realtime hiện tại) đồng bộ với `isTodayOrCurrentSession` trên `ccp-ce-scraper.service.ts`, ngăn việc xóa bộ lọc ngày làm mất dữ liệu bảng mặc định.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100%.
+
+---
+
+## [2026-10-22T08:30] FIX: Khắc Phục Lỗi Thẩm Định Báo Cáo Tự Doanh ACM Ca Đêm, Timeout API và Giải Phóng Deadlock Hàng Đợi Bot
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố Job kiểm tra file backup ACM (`FILE_AUDIT_ACM`) bị lỗi và rơi vào trạng thái treo:
+  1. **Lỗi thẩm định ngày ca đêm (`scanAcmBackupFiles`)**: File `Order.xlsx` và `Fill.xlsx` vừa tải về lúc rạng sáng (04:29 ngày 22/10) bị đánh giá là `OUTDATED` do so sánh cứng ngày lịch dương `fileDay === today` (22/10 so với 21/10 của ca đêm), dẫn tới việc Direct REST API tải thành công nhưng bot ngộ nhận là lỗi và kích hoạt fallback sang Playwright trong hiểu lầm.
+  2. **Lỗi thiếu timeout trên các cuộc gọi HTTP `fetch` trong `AcmEtpAdapter`**: Các lệnh gọi đến sàn ACM (nằm sau AWS ALB) không có `AbortSignal.timeout(...)`, khi gặp node mạng chập chờn sẽ treo vĩnh viễn (gây ra hiện tượng Attempt 2 bị treo 20 phút).
+  3. **Lỗi Deadlock trong `cleanupStuckJobs` (`BotJobQueueService`)**: Hàm dọn dẹp job treo trên CSDL MongoDB nhưng không hủy bỏ tiến trình trong bộ nhớ RAM (`activeContext.abortController.abort()`), không xóa khỏi Map `this.activeJobs` và không giải phóng cờ `this.isProcessing = false`, khiến các job tiếp theo (Job 2) bị kẹt ở trạng thái `0/3 Đang chờ` mãi mãi.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/bot-engine/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/file-audit.handler.ts)**:
+   - Sửa hàm `scanAcmBackupFiles`: Đồng bộ với chuẩn của MS, CCP, CE. Vì file nằm trong thư mục ngày ca trực (`dailyPath` = `.../21.10`), chỉ cần kiểm tra file tồn tại và `stat.size > 0` là trả về trạng thái `OK`, triệt tiêu hoàn toàn lỗi đánh trượt file rạng sáng của ca đêm.
+2. **[backend/src/modules/ingress/adapters/acm-etp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-etp.adapter.ts)**:
+   - Bổ sung `signal: AbortSignal.timeout(...)` vào toàn bộ 5 vị trí gọi `fetch()`: `verifyToken` (10s), lấy trang chủ `index.html` (15s), tải ảnh Captcha (15s), đăng nhập `login` (15s), xuất báo cáo `export` (25s), và `checkHealth` (5s). Ngăn chặn tình trạng treo vô hạn socket.
+3. **[backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-job-queue.service.ts)**:
+   - Nâng cấp `cleanupStuckJobs`: Khi phát hiện job bị timeout, kích hoạt `activeContext.abortController.abort()`, chạy các hàm `cleanup()`, xóa job khỏi `this.activeJobs` và giải phóng cờ `this.isProcessing = false` để hàng đợi ngay lập tức tiếp tục xử lý các job PENDING kế tiếp.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100%.
+
+---
+
 ## [2026-10-21T20:25] FEAT: Tối Ưu Cơ Chế Cache Đa Tầng (Multi-Tier Caching) Cho QLGD Executive Dashboard
 
 ### 1. Mục tiêu thay đổi

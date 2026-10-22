@@ -2267,6 +2267,7 @@ export class RpaScraperService {
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+        { signal: AbortSignal.timeout(10000) },
       );
       if (!res.ok) return [];
       const data: any = await res.json();
@@ -4642,10 +4643,10 @@ export class RpaScraperService {
           '--disable-infobars',
           '--disable-extensions',
           '--start-maximized',
-          '--ignore-gpu-blocklist',
-          '--enable-gpu-rasterization',
-          '--enable-zero-copy',
-          '--disk-cache-size=209715200',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--renderer-process-limit=1',
+          '--js-flags=--max-old-space-size=512',
           '--enable-features=V8CodeCache,WebAssembly',
           '--disable-background-timer-throttling',
           '--disable-backgrounding-occluded-windows',

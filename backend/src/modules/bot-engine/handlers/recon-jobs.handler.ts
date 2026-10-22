@@ -6,7 +6,7 @@ import { BotJobHandlerRegistry } from '../core/job-handler.registry';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { CqgSyncService } from '../cqg-sync.service';
-import { CcpCeScraperService, CcpReportConfig, DEFAULT_CCP_REPORTS } from '../../ingress/scrapers/ccp-ce-scraper.service';
+import { CcpCeScraperService } from '../../ingress/scrapers/ccp-ce-scraper.service';
 import { EmailWatcherService } from '../email-watcher.service';
 import { findLatestFile, findExactSessionEodFile, IReconPipelinePort } from '../../../shared';
 import { parseJobPayload, resolveStoragePathCrossPlatform, resolveBotTargetDate, resolveTradingSessionDate, isMarketWeekendClosed } from '../helpers/bot-path.helper';

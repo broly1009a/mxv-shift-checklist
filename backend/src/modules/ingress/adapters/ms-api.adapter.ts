@@ -199,6 +199,7 @@ export class MsApiAdapter implements IIngressPort {
       method: 'POST',
       headers: { ...commonHeaders, 'content-type': 'application/json' },
       body: JSON.stringify({ username: creds.username, password: creds.password }),
+      signal: AbortSignal.timeout(15000),
     });
 
     const loginData = (await loginRes.json().catch(() => null)) as any;
@@ -225,6 +226,7 @@ export class MsApiAdapter implements IIngressPort {
         authorization: `Bearer ${tempToken}`,
       },
       body: JSON.stringify({ pin: String(creds.pin) }),
+      signal: AbortSignal.timeout(15000),
     });
 
     const pinData = (await pinRes.json().catch(() => null)) as any;
@@ -276,6 +278,7 @@ export class MsApiAdapter implements IIngressPort {
           origin: adminUrl,
           referer: `${adminUrl}/`,
         },
+        signal: AbortSignal.timeout(8000),
       });
       if (res.status === 401) {
         this.logger.warn('[MsApiAdapter] Token cached nhận HTTP 401 khi test. Tự động làm mới phiên...');
@@ -432,6 +435,7 @@ export class MsApiAdapter implements IIngressPort {
         'user-agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!res.ok) {
@@ -623,6 +627,7 @@ export class MsApiAdapter implements IIngressPort {
           'user-agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
+        signal: AbortSignal.timeout(20000),
       });
 
       if (res.status === 401) {
@@ -641,6 +646,7 @@ export class MsApiAdapter implements IIngressPort {
             'user-agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
+          signal: AbortSignal.timeout(20000),
         });
       }
 

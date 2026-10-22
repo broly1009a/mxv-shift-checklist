@@ -120,6 +120,7 @@ export class AcmEtpAdapter implements IIngressPort {
   public async verifyToken(baseUrl: string, token: string, cookies: string): Promise<boolean> {
     try {
       const res = await fetch(`${baseUrl}/exchange/sys/menu/nav`, {
+        signal: AbortSignal.timeout(10000),
         headers: {
           Accept: 'application/json, text/plain, */*',
           token,
@@ -189,6 +190,7 @@ export class AcmEtpAdapter implements IIngressPort {
         // Khởi tạo cookie jar và hứng sticky session từ ALB
         const jar = new CookieJar();
         const initRes = await fetch(`${baseUrl}/exchange/index.html`, {
+          signal: AbortSignal.timeout(15000),
           headers: {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -200,6 +202,7 @@ export class AcmEtpAdapter implements IIngressPort {
         const clientUuid = crypto.randomUUID();
         const captchaUrl = `${baseUrl}/exchange/captcha?uuid=${clientUuid}`;
         const capRes = await fetch(captchaUrl, {
+          signal: AbortSignal.timeout(15000),
           headers: {
             Cookie: jar.getCookieHeader(),
             Referer: `${baseUrl}/exchange/index.html`,
@@ -233,6 +236,7 @@ export class AcmEtpAdapter implements IIngressPort {
         // Gửi POST /exchange/login
         const loginRes = await fetch(`${baseUrl}/exchange/login`, {
           method: 'POST',
+          signal: AbortSignal.timeout(15000),
           headers: {
             'Content-Type': 'application/json;charset=UTF-8',
             Cookie: jar.getCookieHeader(),
@@ -341,6 +345,7 @@ export class AcmEtpAdapter implements IIngressPort {
 
         const res = await fetch(fullUrl, {
           method: 'GET',
+          signal: AbortSignal.timeout(25000),
           headers: {
             Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*',
             Cookie: session.cookies,
@@ -391,7 +396,10 @@ export class AcmEtpAdapter implements IIngressPort {
   async checkHealth(): Promise<boolean> {
     try {
       const baseUrl = process.env.ACM_BASE_URL || this.defaultBaseUrl;
-      const res = await fetch(`${baseUrl}/exchange/index.html`, { method: 'HEAD' });
+      const res = await fetch(`${baseUrl}/exchange/index.html`, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(5000),
+      });
       return res.ok;
     } catch {
       return false;

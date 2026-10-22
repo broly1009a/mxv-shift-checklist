@@ -83,7 +83,6 @@ export class CqgSyncService {
         }
       }
     }
-    const todayStr = targetDate.toDateString();
     const results: CqgAuditResult[] = [];
 
     // Scan CQG files
@@ -98,13 +97,11 @@ export class CqgSyncService {
         });
       } else {
         const stat = fs.statSync(filePath);
-        const fileDateStr = new Date(stat.mtime).toDateString();
-        const isToday = fileDateStr === todayStr;
         results.push({
           key: f.key,
           filename: f.filename,
           type: f.type,
-          status: isToday ? 'OK' : 'OUTDATED',
+          status: stat.size > 0 ? 'OK' : 'MISSING',
           lastModified: stat.mtime,
         });
       }
@@ -141,13 +138,11 @@ export class CqgSyncService {
 
     if (msFilePath) {
       const stat = fs.statSync(msFilePath);
-      const fileDateStr = new Date(stat.mtime).toDateString();
-      const isToday = fileDateStr === todayStr;
       results.push({
         key: 'MS_TTTT',
         filename: `TTTT.xlsx (M-System - ${path.basename(msFilePath)})`,
         type: 'RAW',
-        status: isToday ? 'OK' : 'OUTDATED',
+        status: stat.size > 0 ? 'OK' : 'MISSING',
         lastModified: stat.mtime,
       });
     } else {
