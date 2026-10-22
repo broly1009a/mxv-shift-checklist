@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useTutorial } from '@/context/TutorialContext';
 import { dashboardTutorialSteps } from '@/tutorials/dashboardTutorial';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import toast from 'react-hot-toast';
 import { Template, ShiftLog } from './types';
 import { InitShiftWidget } from './components/InitShiftWidget';
@@ -318,27 +318,21 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // WebSockets Real-time Synchronization for Dashboard
+  const fetchDashboardDataRef = useRef(fetchDashboardData);
   useEffect(() => {
-    if (!token) return;
+    fetchDashboardDataRef.current = fetchDashboardData;
+  }, [fetchDashboardData]);
 
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
-
-    socket.on('connect', () => {
-      console.log('Connected to socket gateway from Dashboard');
-    });
-
-    socket.on('dashboard-updated', (payload: any) => {
-      console.log('Dashboard update event received via WS:', payload);
-      fetchDashboardData();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, fetchDashboardData]);
+  // WebSockets Real-time Synchronization for Dashboard (AppSocket Singleton)
+  useAppSocket(
+    {
+      'dashboard-updated': (payload: any) => {
+        console.log('Dashboard update event received via WS:', payload);
+        fetchDashboardDataRef.current?.();
+      },
+    },
+    Boolean(token),
+  );
 
   const handleInitializeShift = async (e: React.FormEvent) => {
     e.preventDefault();

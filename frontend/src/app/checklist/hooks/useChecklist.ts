@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { api, TaskDetail, ShiftLog, AuditLog, Incident } from '@/services/api';
-import { io } from 'socket.io-client';
+import { getAppSocket } from '@/services/appSocket';
 import toast from 'react-hot-toast';
 import { MOCK_ACTIVE_LOGS, MOCK_AUDIT_LOGS } from '../mockChecklistData';
 import { resolveShiftStatus } from '@/utils/shift-status.helper';
@@ -254,18 +254,14 @@ export function useChecklist() {
   useEffect(() => {
     if (!shiftLogId || !token) return;
 
-    // Establish WebSocket Connection
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
+    // Establish WebSocket Connection via AppSocket Singleton
+    const socket = getAppSocket();
+    if (!socket) return;
 
-    socket.on('connect', () => {
-      console.log('Connected to socket gateway');
-      socket.emit('joinRoom', { shiftLogId });
-    });
+    socket.emit('joinRoom', { shiftLogId });
 
     // Listen for shift update events
-    socket.on('shift-updated', (data: { shiftLog: ShiftLog; auditLog?: AuditLog }) => {
+    const handleShiftUpdated = (data: { shiftLog: ShiftLog; auditLog?: AuditLog }) => {
       console.log('Real-time sync update received:', data);
       if (data?.shiftLog) {
         setLog(prevLog => {
@@ -312,10 +308,10 @@ export function useChecklist() {
           return [data.auditLog!, ...prev].slice(0, 100);
         });
       }
-    });
+    };
 
     // Listen for incident update events
-    socket.on('incident-updated', (data: { incident: any; auditLog?: any }) => {
+    const handleIncidentUpdated = (data: { incident: any; auditLog?: any }) => {
       console.log('Real-time incident update received:', data);
       if (data?.incident) {
         setIncidents(prev => {
@@ -336,11 +332,15 @@ export function useChecklist() {
           return [data.auditLog!, ...prev].slice(0, 100);
         });
       }
-    });
+    };
+
+    socket.on('shift-updated', handleShiftUpdated);
+    socket.on('incident-updated', handleIncidentUpdated);
 
     return () => {
       socket.emit('leaveRoom', { shiftLogId });
-      socket.disconnect();
+      socket.off('shift-updated', handleShiftUpdated);
+      socket.off('incident-updated', handleIncidentUpdated);
     };
   }, [shiftLogId, token]);
 

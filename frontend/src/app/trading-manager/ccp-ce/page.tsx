@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Activity,
   FileSpreadsheet,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TradingManagerGuideModal from '../components/shared/TradingManagerGuideModal';
@@ -93,52 +93,47 @@ export default function CcpCeTradingManagerPage() {
     fetchSessionStart();
   }, [token]);
 
-  // Đồng bộ số lượng tác vụ CoreCCP & CE đang chạy 100% qua WebSocket Real-time (Zero Polling)
-  useEffect(() => {
+  const CCP_CE_JOB_TYPES = useMemo(() => [
+    'CHECK_KLGD',
+    'CHECK_EOD_CCP',
+    'DOWNLOAD_CCP_REPORT',
+    'DOWNLOAD_CE_REPORT',
+    'FILE_AUDIT_CCP',
+    'CALCULATE_CCP_LOT_STATS',
+    'EXPORT_CCP_REPORT',
+    'SYNC_CCP_EXCHANGE_RATE',
+  ].join(','), []);
+
+  const fetchActiveJobs = useCallback(async () => {
     if (!token) return;
-    const CCP_CE_JOB_TYPES = [
-      'CHECK_KLGD',
-      'CHECK_EOD_CCP',
-      'DOWNLOAD_CCP_REPORT',
-      'DOWNLOAD_CE_REPORT',
-      'FILE_AUDIT_CCP',
-      'CALCULATE_CCP_LOT_STATS',
-      'EXPORT_CCP_REPORT',
-      'SYNC_CCP_EXCHANGE_RATE',
-    ].join(',');
+    try {
+      const data = await api.checklistHub.getJobs({ jobTypes: CCP_CE_JOB_TYPES }, token);
+      if (Array.isArray(data)) {
+        const active = data.filter(
+          (j: any) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
+        ).length;
+        setActiveJobsCount(active);
+      }
+    } catch {}
+  }, [token, CCP_CE_JOB_TYPES]);
 
-    const fetchActiveJobs = async () => {
-      try {
-        const data = await api.checklistHub.getJobs({ jobTypes: CCP_CE_JOB_TYPES }, token);
-        if (Array.isArray(data)) {
-          const active = data.filter(
-            (j: any) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA' || j.status === 'PENDING',
-          ).length;
-          setActiveJobsCount(active);
-        }
-      } catch {}
-    };
-
-    // Tải 1 lần duy nhất khi vào trang
+  // Tải 1 lần khi có token
+  useEffect(() => {
     fetchActiveJobs();
+  }, [fetchActiveJobs]);
 
-    // Kết nối WebSocket nhận cập nhật tức thời từ Gateway
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
-
-    socket.on('job-status-updated', () => {
-      fetchActiveJobs();
-    });
-
-    socket.on('dashboard-updated', () => {
-      fetchActiveJobs();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token]);
+  // Đồng bộ số lượng tác vụ CoreCCP & CE đang chạy 100% qua WebSocket Real-time (AppSocket Singleton)
+  useAppSocket(
+    {
+      'job-status-updated': () => {
+        fetchActiveJobs();
+      },
+      'dashboard-updated': () => {
+        fetchActiveJobs();
+      },
+    },
+    Boolean(token),
+  );
 
   // Fullscreen toggle handler
   const toggleFullscreen = () => {

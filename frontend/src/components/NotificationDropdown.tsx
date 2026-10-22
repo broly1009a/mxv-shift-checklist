@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { api } from '@/services/api';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import { toast } from 'react-hot-toast';
 
 import { useRouter } from 'next/navigation';
@@ -274,48 +274,34 @@ export default function NotificationDropdown() {
     }
   }, [token]);
 
-  // WebSockets Real-time Synchronization for Notifications
-  useEffect(() => {
-    if (!token) return;
+  const handleUpdateEvent = useCallback((payload: any) => {
+    console.log('Notification update event received via WS:', payload);
+    // Always update the badge count
+    fetchCountRef.current();
 
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
-
-    socket.on('connect', () => {
-      console.log('Connected to socket gateway from NotificationDropdown (Notifications)');
-    });
-
-    const handleUpdateEvent = (payload: any) => {
-      console.log('Notification update event received via WS:', payload);
-      // Always update the badge count
-      fetchCountRef.current();
-
-      // Debounce checking and toasting for new activity
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+    // Debounce checking and toasting for new activity
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      checkForNewActivityRef.current(true);
+      // Only update the list of activities if the notification tray is currently open
+      if (showNotificationsRef.current) {
+        fetchRef.current(true);
       }
-      debounceTimerRef.current = setTimeout(() => {
-        checkForNewActivityRef.current(true);
-        // Only update the list of activities if the notification tray is currently open
-        if (showNotificationsRef.current) {
-          fetchRef.current(true);
-        }
-      }, 300);
-    };
+    }, 300);
+  }, []);
 
-    socket.on('dashboard-updated', handleUpdateEvent);
-    socket.on('task-updated', handleUpdateEvent);
-    socket.on('shift-job-generated', handleUpdateEvent);
-    socket.on('shift-job-closed', handleUpdateEvent);
-
-    return () => {
-      socket.disconnect();
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [token]);
+  // WebSockets Real-time Synchronization for Notifications (AppSocket Singleton)
+  useAppSocket(
+    {
+      'dashboard-updated': handleUpdateEvent,
+      'task-updated': handleUpdateEvent,
+      'shift-job-generated': handleUpdateEvent,
+      'shift-job-closed': handleUpdateEvent,
+    },
+    Boolean(token),
+  );
 
   const formatTimeElapsed = (dateStr: string) => {
     const now = new Date();

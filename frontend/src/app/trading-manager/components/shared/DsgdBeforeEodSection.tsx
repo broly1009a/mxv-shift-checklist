@@ -320,7 +320,7 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Kiểm tra DSGD trước EOD - Phân hệ {system === 'CCP' ? 'CoreCCP' : 'M-System'} (CheckDSGDBeforeEOD)
+              Kiểm tra DSGD trước EOD - Phân hệ {system === 'CCP' ? 'CoreCCP' : 'M-System'}
             </h4>
 
             {/* Hover Tooltip Chú thích tệp tin & công thức */}

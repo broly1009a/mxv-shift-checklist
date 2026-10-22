@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import { API_BASE_URL } from '@/context/AuthContext';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 
@@ -226,25 +226,32 @@ export default function CcpCeEodReconSection({
     }
   }, [token, selectedDate]);
 
-  // Lắng nghe WebSocket để tự động refresh giao diện ngay khi có lượt chạy EOD / Dsgd-Before-EOD mới
+  const fetchEodSummaryRef = useRef(fetchEodSummary);
   useEffect(() => {
-    if (!token || !selectedDate) return;
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
+    fetchEodSummaryRef.current = fetchEodSummary;
+  }, [fetchEodSummary]);
 
-    socket.on('dashboard-updated', () => {
-      fetchEodSummary(selectedDate);
-    });
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
-    socket.on('job-status-updated', () => {
-      fetchEodSummary(selectedDate);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, selectedDate]);
+  // Lắng nghe WebSocket để tự động refresh giao diện ngay khi có lượt chạy EOD / Dsgd-Before-EOD mới (AppSocket Singleton)
+  useAppSocket(
+    {
+      'dashboard-updated': () => {
+        if (selectedDateRef.current) {
+          fetchEodSummaryRef.current?.(selectedDateRef.current);
+        }
+      },
+      'job-status-updated': () => {
+        if (selectedDateRef.current) {
+          fetchEodSummaryRef.current?.(selectedDateRef.current);
+        }
+      },
+    },
+    Boolean(token && selectedDate),
+  );
 
   // Formatter định dạng thời gian và thời lượng chuẩn tương tự GTT
   const formatRunTime = (isoString?: string | null) => {

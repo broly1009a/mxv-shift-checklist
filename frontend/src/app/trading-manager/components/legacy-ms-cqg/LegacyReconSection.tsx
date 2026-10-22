@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { API_BASE_URL } from '@/context/AuthContext';
 import { api } from '@/services/api';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import {
   RefreshCw,
   Play,
@@ -489,48 +489,53 @@ export default function LegacyReconSection({
     [token, selectedDate, fetchConsoleSummary, handleJobFinished],
   );
 
-  // Hybrid WebSocket Real-time Synchronization for Trading Manager
+  const fetchConsoleSummaryRef = useRef(fetchConsoleSummary);
   useEffect(() => {
-    if (!token) return;
+    fetchConsoleSummaryRef.current = fetchConsoleSummary;
+  }, [fetchConsoleSummary]);
 
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
+  const handleJobFinishedRef = useRef(handleJobFinished);
+  useEffect(() => {
+    handleJobFinishedRef.current = handleJobFinished;
+  }, [handleJobFinished]);
 
-    socket.on('connect', () => {
-      console.log('[WS] Trading Manager connected to socket gateway');
-    });
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
-    // 1. Nhận sự kiện cập nhật Dashboard từ hệ thống
-    socket.on('dashboard-updated', (payload: any) => {
-      console.log('[WS] dashboard-updated received:', payload);
-      // Khi đang xem lượt quá khứ, không tự động refresh đè dữ liệu live
-      if (!selectedRunJobIdRef.current) {
-        fetchConsoleSummary(selectedDate, true);
-      }
-    });
-
-    // 2. Stream log thời gian thực định kỳ 1.5s
-    socket.on('job-log-updated', (payload: { jobId: string; logs: string[]; status?: string }) => {
-      if (activeJobIdRef.current && payload?.jobId === activeJobIdRef.current) {
-        if (Array.isArray(payload.logs) && payload.logs.length > 0) {
-          setActiveJobLogs(payload.logs);
+  // Hybrid WebSocket Real-time Synchronization for Trading Manager (AppSocket Singleton)
+  useAppSocket(
+    {
+      'connect': () => {
+        console.log('[WS] Trading Manager connected to socket gateway');
+      },
+      // 1. Nhận sự kiện cập nhật Dashboard từ hệ thống
+      'dashboard-updated': (payload: any) => {
+        console.log('[WS] dashboard-updated received:', payload);
+        // Khi đang xem lượt quá khứ, không tự động refresh đè dữ liệu live
+        if (!selectedRunJobIdRef.current) {
+          fetchConsoleSummaryRef.current?.(selectedDateRef.current, true);
         }
-      }
-    });
-
-    // 3. Phản hồi hoàn tất / thất bại ngay tức thì (<100ms)
-    socket.on('job-status-updated', (payload: any) => {
-      if (activeJobIdRef.current && payload?.jobId === activeJobIdRef.current) {
-        console.log('[WS] job-status-updated received for active job:', payload);
-        handleJobFinished(payload, activeJobTypeRef.current);
-      }
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, selectedDate, fetchConsoleSummary, handleJobFinished]);
+      },
+      // 2. Stream log thời gian thực định kỳ 1.5s
+      'job-log-updated': (payload: { jobId: string; logs: string[]; status?: string }) => {
+        if (activeJobIdRef.current && payload?.jobId === activeJobIdRef.current) {
+          if (Array.isArray(payload.logs) && payload.logs.length > 0) {
+            setActiveJobLogs(payload.logs);
+          }
+        }
+      },
+      // 3. Phản hồi hoàn tất / thất bại ngay tức thì (<100ms)
+      'job-status-updated': (payload: any) => {
+        if (activeJobIdRef.current && payload?.jobId === activeJobIdRef.current) {
+          console.log('[WS] job-status-updated received for active job:', payload);
+          handleJobFinishedRef.current?.(payload, activeJobTypeRef.current);
+        }
+      },
+    },
+    Boolean(token),
+  );
 
   // Khôi phục tiến trình khi F5 / Reload trang
   useEffect(() => {

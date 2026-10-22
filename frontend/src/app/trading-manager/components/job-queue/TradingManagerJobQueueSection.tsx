@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import { api } from '@/services/api';
 
 // Danh sách các tác vụ thuộc nghiệp vụ Trading Manager & Hệ thống liên quan
@@ -192,47 +192,48 @@ export default function TradingManagerJobQueueSection({
     fetchJobDetail(selectedJobId);
   }, [selectedJobId, fetchJobDetail]);
 
-  // Đồng bộ trạng thái và logs 100% qua WebSocket Real-time (Zero Polling)
+  const fetchJobsRef = useRef(fetchJobs);
   useEffect(() => {
-    if (!token) return;
+    fetchJobsRef.current = fetchJobs;
+  }, [fetchJobs]);
 
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
+  const fetchJobDetailRef = useRef(fetchJobDetail);
+  useEffect(() => {
+    fetchJobDetailRef.current = fetchJobDetail;
+  }, [fetchJobDetail]);
 
-    // 1. Nhận cập nhật trạng thái tác vụ từ WebSocket Gateway
-    socket.on('job-status-updated', (payload: any) => {
-      fetchJobs(true);
-      if (payload?.jobId && selectedJobIdRef.current === payload.jobId) {
-        fetchJobDetail(payload.jobId, true);
-      }
-    });
-
-    // 2. Nhận stream logs thời gian thực cho tác vụ đang chọn
-    socket.on('job-log-updated', (payload: { jobId: string; logs: string[]; status?: string }) => {
-      if (payload?.jobId && selectedJobIdRef.current === payload.jobId) {
-        if (Array.isArray(payload.logs) && payload.logs.length > 0) {
-          setSelectedJobDetail((prev: any) => {
-            if (!prev || prev._id !== payload.jobId) return prev;
-            return {
-              ...prev,
-              logs: payload.logs,
-              status: payload.status || prev.status,
-            };
-          });
+  // Đồng bộ trạng thái và logs 100% qua WebSocket Real-time (AppSocket Singleton)
+  useAppSocket(
+    {
+      // 1. Nhận cập nhật trạng thái tác vụ từ WebSocket Gateway
+      'job-status-updated': (payload: any) => {
+        fetchJobsRef.current?.(true);
+        if (payload?.jobId && selectedJobIdRef.current === payload.jobId) {
+          fetchJobDetailRef.current?.(payload.jobId, true);
         }
-      }
-    });
-
-    // 3. Nhận sự kiện cập nhật tổng quan từ Dashboard
-    socket.on('dashboard-updated', () => {
-      fetchJobs(true);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [token, fetchJobs, fetchJobDetail]);
+      },
+      // 2. Nhận stream logs thời gian thực cho tác vụ đang chọn
+      'job-log-updated': (payload: { jobId: string; logs: string[]; status?: string }) => {
+        if (payload?.jobId && selectedJobIdRef.current === payload.jobId) {
+          if (Array.isArray(payload.logs) && payload.logs.length > 0) {
+            setSelectedJobDetail((prev: any) => {
+              if (!prev || prev._id !== payload.jobId) return prev;
+              return {
+                ...prev,
+                logs: payload.logs,
+                status: payload.status || prev.status,
+              };
+            });
+          }
+        }
+      },
+      // 3. Nhận sự kiện cập nhật tổng quan từ Dashboard
+      'dashboard-updated': () => {
+        fetchJobsRef.current?.(true);
+      },
+    },
+    Boolean(token),
+  );
 
   // Auto scroll terminal to bottom when new logs arrive
   useEffect(() => {

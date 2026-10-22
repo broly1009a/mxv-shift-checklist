@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import { tradingOpsApi } from '@/features/trading';
 import {
   TrendingUp,
@@ -269,14 +269,20 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     }>;
   }, [liveData?.runs]);
 
+  const runsRef = useRef(runs);
+  useEffect(() => {
+    runsRef.current = runs;
+  }, [runs]);
+
   const isCacheFresh = useCallback(
     (cachedAt: number, date: string, jobId?: string | null) => {
       const isToday = date === getTodayVnDate();
-      const isHistoricalRun = Boolean(jobId && runs.length > 0 && jobId !== runs[0].id);
+      const currentRuns = runsRef.current;
+      const isHistoricalRun = Boolean(jobId && currentRuns.length > 0 && jobId !== currentRuns[0].id);
       const ttl = (!isToday || isHistoricalRun) ? HISTORICAL_CACHE_TTL_MS : LIVE_CACHE_TTL_MS;
       return Date.now() - cachedAt < ttl;
     },
-    [runs],
+    [],
   );
 
   const isViewingHistorical = useMemo(() => {
@@ -461,31 +467,40 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const fetchLiveDashboardRef = useRef(fetchLiveDashboard);
+  useEffect(() => {
+    fetchLiveDashboardRef.current = fetchLiveDashboard;
+  }, [fetchLiveDashboard]);
+
+  const sessionDateRef = useRef(sessionDate);
+  useEffect(() => {
+    sessionDateRef.current = sessionDate;
+  }, [sessionDate]);
+
+  const selectedScopeRef = useRef(selectedScope);
+  useEffect(() => {
+    selectedScopeRef.current = selectedScope;
+  }, [selectedScope]);
+
   useEffect(() => {
     fetchLiveDashboard(sessionDate, selectedScope);
   }, [sessionDate, selectedScope, fetchLiveDashboard]);
 
-  // Lắng nghe WebSocket để tự động đồng bộ và làm mới dữ liệu khi có kết quả mới hoặc dữ liệu thay đổi
-  useEffect(() => {
-    const socket = io(API_BASE_URL, {
-      transports: ['websocket'],
-    });
-
-    const handleUpdate = () => {
-      // Tự động làm mới nếu đang ở phiên hôm nay và không ghim xem lượt quá khứ
-      const isToday = sessionDate === getTodayVnDate();
+  // Lắng nghe WebSocket qua AppSocket dùng chung an toàn (không ngắt kết nối WebSocket khi unmount hay đổi tab)
+  useAppSocket({
+    'job-status-updated': () => {
+      const isToday = sessionDateRef.current === getTodayVnDate();
       if (isToday && !selectedRunJobIdRef.current) {
-        fetchLiveDashboard(sessionDate, selectedScope, true, null);
+        fetchLiveDashboardRef.current?.(sessionDateRef.current, selectedScopeRef.current, true, null);
       }
-    };
-
-    socket.on('job-status-updated', handleUpdate);
-    socket.on('dashboard-updated', handleUpdate);
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [sessionDate, selectedScope, fetchLiveDashboard]);
+    },
+    'dashboard-updated': () => {
+      const isToday = sessionDateRef.current === getTodayVnDate();
+      if (isToday && !selectedRunJobIdRef.current) {
+        fetchLiveDashboardRef.current?.(sessionDateRef.current, selectedScopeRef.current, true, null);
+      }
+    },
+  });
 
   // Nguồn dữ liệu hiển thị (100% dữ liệu thực tế từ Backend API)
   const rawDisplayItems = useMemo(() => {

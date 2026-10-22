@@ -26,7 +26,7 @@ import toast from 'react-hot-toast';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { api } from '@/services/api';
-import { io } from 'socket.io-client';
+import { useAppSocket } from '@/services/appSocket';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import { parseWindowsStoragePath } from '@/config/storage-path.config';
 
@@ -130,16 +130,25 @@ export default function MsStatisticsPage() {
     }
   }, [token]);
 
+  const fetchMacroJobsRef = useRef(fetchMacroJobs);
+  useEffect(() => {
+    fetchMacroJobsRef.current = fetchMacroJobs;
+  }, [fetchMacroJobs]);
+
   useEffect(() => {
     fetchSettings();
     fetchMacroJobs();
-
-    const socket = io(API_BASE_URL, { transports: ['websocket'] });
-    socket.on('job-status-updated', () => fetchMacroJobs());
-    return () => {
-      socket.disconnect();
-    };
   }, [fetchSettings, fetchMacroJobs]);
+
+  // Đồng bộ hoàn tất Macro Job tức thời (AppSocket Singleton)
+  useAppSocket(
+    {
+      'job-status-updated': () => {
+        fetchMacroJobsRef.current?.();
+      },
+    },
+    Boolean(token),
+  );
 
   // Kích hoạt Macro Thống kê Số Lot
   const handleLotMacro = async () => {

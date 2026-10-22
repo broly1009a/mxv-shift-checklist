@@ -628,7 +628,7 @@ export default function TradingManagerConfigSection({
             }}
           >
             <Layers size={16} />
-            <span>Phân Hệ CoreCCP & CoreEX (Bù Trừ & Sàn Mới)</span>
+            <span>Phân Hệ CoreCCP & CoreEX</span>
           </button>
         </div>
       )}
@@ -637,13 +637,13 @@ export default function TradingManagerConfigSection({
       {isMsCqgScope && (
         <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #3b82f6' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) - Hiển thị đủ 4 cặp tiền Thanh toán & Quy đổi */}
+            {/* Cụm 1: Cấu hình tỷ giá M-System (MXV) - Hiển thị  */}
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <DollarSign size={16} color="#3b82f6" />
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    Bảng Tỷ Giá M-System (MXV) – Đủ 4 Cặp Tiền Thanh Toán & Quy Đổi
+                    Bảng Tỷ Giá M-System 
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -761,7 +761,7 @@ export default function TradingManagerConfigSection({
                   title="Tự động đồng bộ toàn bộ 4 cặp tiền thanh toán và quy đổi từ M-System REST API"
                 >
                   <RefreshCw size={12} className={syncingMsRate ? 'animate-spin' : ''} />
-                  <span>{syncingMsRate ? 'Đang đồng bộ M-System...' : 'Đồng bộ từ M-System (Đủ 4 cặp tiền)'}</span>
+                  <span>{syncingMsRate ? 'Đang đồng bộ M-System...' : 'Đồng bộ từ M-System'}</span>
                 </button>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                   Áp dụng trực tiếp cho giám sát KLGD, đối chiếu EOD MS-CQG và quy đổi giá trị trong ca trực.
@@ -854,7 +854,7 @@ export default function TradingManagerConfigSection({
                 </span>
               </div>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                Cấu hình tỷ giá đa nguyên tệ độc lập phục vụ Thống kê Lot/Giá trị VNCLEAR và Đối soát EOD QLTKGD.
+                Cấu hình tỷ giá đa nguyên tệ đồng bộ CCP PROD.
               </p>
             </div>
           </div>

@@ -1119,7 +1119,7 @@ export default function TradingManagerConfigSection({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Folder size={18} color="#10b981" />
             <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Đường Dẫn Thư Mục Backup & Thống Kê Hoạt Động (Chuẩn Ổ M:\)
+              Đường Dẫn Thư Mục Backup & Thống Kê Hoạt Động
             </h4>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
