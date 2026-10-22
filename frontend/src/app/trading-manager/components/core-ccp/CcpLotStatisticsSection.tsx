@@ -847,6 +847,7 @@ export default function CcpLotStatisticsSection({
           >
             <Sparkles size={16} />
             <span>Báo Cáo Tổng Hợp Theo Kỳ</span>
+            {/*
             <span
               style={{
                 fontSize: '0.68rem',
@@ -859,6 +860,7 @@ export default function CcpLotStatisticsSection({
             >
               Tùy chọn ngày
             </span>
+            */}
           </button>
         </div>
 
@@ -893,6 +895,196 @@ export default function CcpLotStatisticsSection({
               borderLeft: '4px solid #10b981',
             }}
           >
+            {/* ── BỐ CỤC TINH GỌN MỚI (CHUẨN OPERATOR UX: SẠCH CHỮ, TRỰC QUAN, TINH TẾ) ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#10b981',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                CoreCCP VNCLEAR
+              </span>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Thống Kê Khối Lượng & Giá Trị Giao Dịch
+              </h3>
+            </div>
+
+            {/* Thanh công cụ hành động trực quan */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Nút 1: Tổng Hợp Toàn Bộ (Lot & Giá Trị) */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!scanResult?.canProcess) {
+                    toast.error(`Chưa có tệp DSGD của phiên ${ngayGD}. Vui lòng kiểm tra dữ liệu trước khi tổng hợp!`);
+                    return;
+                  }
+                  handleRunMacroDirect();
+                }}
+                disabled={runningMacro || runningLot || runningValue}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  padding: '9px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                  backgroundColor: '#8b5cf6',
+                  cursor: runningMacro || runningLot || runningValue ? 'not-allowed' : 'pointer',
+                }}
+                title="Tổng hợp tự động cả Số Lot và Giá Trị Giao Dịch cho toàn bộ thị trường"
+              >
+                {runningMacro ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Tổng Hợp...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>Tổng Hợp Toàn Bộ</span>
+                  </>
+                )}
+              </button>
+
+              {/* Nút 2: Thống Kê Số Lot */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!scanResult?.canProcess) {
+                    toast.error(`Chưa có tệp DSGD của phiên ${ngayGD}. Vui lòng kiểm tra dữ liệu trước khi tổng hợp!`);
+                    return;
+                  }
+                  handleRunLotDirect();
+                }}
+                disabled={runningMacro || runningLot || runningValue}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  padding: '9px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                  backgroundColor: '#10b981',
+                  cursor: runningLot || runningValue ? 'not-allowed' : 'pointer',
+                }}
+                title="Chỉ cập nhật sổ sách Thống Kê Số Lot"
+              >
+                {runningLot ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Ghi File...</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers size={16} />
+                    <span>Số Lot</span>
+                  </>
+                )}
+              </button>
+
+              {/* Nút 3: Thống Kê Giá Trị */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!scanResult?.canProcess) {
+                    toast.error(`Chưa có tệp DSGD của phiên ${ngayGD}. Vui lòng kiểm tra dữ liệu trước khi tổng hợp!`);
+                    return;
+                  }
+                  handleRunValueDirect();
+                }}
+                disabled={runningMacro || runningLot || runningValue}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  padding: '9px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderColor: 'rgba(245, 158, 11, 0.4)',
+                  color: '#f59e0b',
+                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+                  cursor: runningLot || runningValue ? 'not-allowed' : 'pointer',
+                }}
+                title="Chỉ cập nhật sổ sách Thống Kê Giá Trị Giao Dịch"
+              >
+                {runningValue ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang Ghi File...</span>
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={16} />
+                    <span>Giá Trị</span>
+                  </>
+                )}
+              </button>
+
+              {/* Nút 4: Kiểm Tra Luồng File (Pre-Flight File Inspector) */}
+              <button
+                type="button"
+                onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  padding: '9px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '8px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+                title="Soi chi tiết trạng thái các file nguồn và đường dẫn lưu trữ"
+              >
+                <FileSearch size={15} />
+                <span style={{ fontSize: '0.78rem' }}>Kiểm tra file</span>
+              </button>
+
+              {/* Nút 5: Làm mới quét thư mục */}
+              <button
+                type="button"
+                onClick={() => fetchDailyScan(ngayGD)}
+                disabled={scanning}
+                className="btn btn-secondary"
+                style={{
+                  padding: '9px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  color: 'var(--text-muted)',
+                  cursor: scanning ? 'not-allowed' : 'pointer',
+                }}
+                title="Quét lại thư mục dữ liệu"
+              >
+                <RefreshCw size={15} className={scanning ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            {/* ══════════════════════════════════════════════════════════════════════
+                GIAO DIỆN CŨ (ẨN BẰNG COMMENT THEO YÊU CẦU OPERATOR - BẢO LƯU LOGIC CŨ):
+            ══════════════════════════════════════════════════════════════════════ */}
+            {/*
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                 <span
@@ -928,9 +1120,7 @@ export default function CcpLotStatisticsSection({
               </div>
             </div>
 
-            {/* 1-Click Action Buttons: Tách Độc Lập Số Lot & Giá Trị Giao Dịch */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Nút 0: Chạy Macro Toàn Diện (11 File) + Icon Kiểm Tra PreFlight */}
               <div style={{ display: 'inline-flex', alignItems: 'center' }}>
                 <button
                   type="button"
@@ -992,7 +1182,6 @@ export default function CcpLotStatisticsSection({
                 </button>
               </div>
 
-              {/* Nút 1: Thống Kê Số Lot (1-Chạm Ghi Trực Tiếp) + Icon Kiểm Tra File */}
               <div style={{ display: 'inline-flex', alignItems: 'center' }}>
                 <button
                   type="button"
@@ -1054,7 +1243,6 @@ export default function CcpLotStatisticsSection({
                 </button>
               </div>
 
-              {/* Nút 2: Thống Kê Giá Trị (1-Chạm Ghi Trực Tiếp) + Icon Kiểm Tra File */}
               <div style={{ display: 'inline-flex', alignItems: 'center' }}>
                 <button
                   type="button"
@@ -1118,7 +1306,6 @@ export default function CcpLotStatisticsSection({
                 </button>
               </div>
 
-              {/* Nút 3: Kiểm Tra Toàn Bộ Luồng File (Pre-Flight File Inspector) */}
               <button
                 type="button"
                 onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
@@ -1142,6 +1329,7 @@ export default function CcpLotStatisticsSection({
                 <span>Kiểm Tra Luồng File</span>
               </button>
             </div>
+            */}
 
             {/* LUỒNG CŨ 2 BƯỚC (DỰ PHÒNG ROLLBACK - TẠM ẨN) */}
             {/*
@@ -3061,7 +3249,172 @@ export default function CcpLotStatisticsSection({
   ) : (
         /* ── GIAO DIỆN THỐNG KÊ THEO KHOẢNG THỜI GIAN (BÁO CÁO ĐỘT XUẤT 1-PASS) ── */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Header Panel */}
+          {/* ── BỐ CỤC TINH GỌN MỚI (CHUẨN OPERATOR UX: SẠCH CHỮ, TRỰC QUAN, TINH TẾ) ── */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '18px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              borderLeft: '4px solid #3b82f6',
+            }}
+          >
+            {/* Tiêu đề & Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  color: '#3b82f6',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                Báo Cáo Theo Kỳ
+              </span>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Tổng Hợp Khối Lượng &amp; Giá Trị Giao Dịch
+              </h3>
+            </div>
+
+            {/* Thanh công cụ lọc & kích hoạt */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Khoảng ngày (Từ ngày - Đến ngày) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <Calendar size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
+                  <input
+                    type="date"
+                    value={adhocFromDate}
+                    onChange={(e) => setAdhocFromDate(e.target.value)}
+                    style={{
+                      padding: '7px 10px 7px 30px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                    }}
+                    title="Từ ngày"
+                  />
+                </div>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 700 }}>–</span>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <Calendar size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
+                  <input
+                    type="date"
+                    value={adhocToDate}
+                    onChange={(e) => setAdhocToDate(e.target.value)}
+                    style={{
+                      padding: '7px 10px 7px 30px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                    }}
+                    title="Đến ngày"
+                  />
+                </div>
+              </div>
+
+              {/* Phạm vi xuất: Nút bấm phân đoạn (Segmented Pills) thay thế dropdown máy móc */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--bg-secondary)',
+                  padding: '3px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  gap: '2px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setAdhocScope('ALL_PHASE2')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: adhocScope === 'ALL_PHASE2' ? '#3b82f6' : 'transparent',
+                    color: adhocScope === 'ALL_PHASE2' ? '#fff' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Tổng hợp toàn bộ các phân hệ thị trường"
+                >
+                  Toàn thị trường
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdhocScope('ACM_ONLY')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: adhocScope === 'ACM_ONLY' ? '#3b82f6' : 'transparent',
+                    color: adhocScope === 'ACM_ONLY' ? '#fff' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Chỉ tổng hợp riêng phân hệ ACM (Nano)"
+                >
+                  Chỉ ACM
+                </button>
+              </div>
+
+              {/* Nút Kích hoạt Xuất Báo Cáo */}
+              <button
+                type="button"
+                onClick={handleRunAdHocRange}
+                disabled={runningAdHoc || !adhocFromDate || !adhocToDate}
+                className="btn btn-primary"
+                style={{
+                  fontSize: '0.84rem',
+                  fontWeight: 800,
+                  padding: '9px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  backgroundColor: '#3b82f6',
+                  cursor: runningAdHoc || !adhocFromDate || !adhocToDate ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {runningAdHoc ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Đang tổng hợp...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>Xuất Báo Cáo</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════════════════
+              GIAO DIỆN CŨ (ẨN BẰNG COMMENT THEO YÊU CẦU OPERATOR - BẢO LƯU LOGIC CŨ):
+          ══════════════════════════════════════════════════════════════════════ */}
+          {/*
           <div
             className="glass-panel"
             style={{
@@ -3101,7 +3454,6 @@ export default function CcpLotStatisticsSection({
             </div>
           </div>
 
-          {/* Form Chọn Kỳ & Kích Hoạt */}
           <div
             className="glass-panel"
             style={{
@@ -3114,7 +3466,6 @@ export default function CcpLotStatisticsSection({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-              {/* Từ ngày */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Từ ngày:
@@ -3138,7 +3489,6 @@ export default function CcpLotStatisticsSection({
                 </div>
               </div>
 
-              {/* Đến ngày */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Đến ngày:
@@ -3162,7 +3512,6 @@ export default function CcpLotStatisticsSection({
                 </div>
               </div>
 
-              {/* Phạm vi báo cáo */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Phạm vi xuất:
@@ -3187,7 +3536,6 @@ export default function CcpLotStatisticsSection({
               </div>
             </div>
 
-            {/* Nút Run */}
             <div>
               <button
                 type="button"
@@ -3221,6 +3569,7 @@ export default function CcpLotStatisticsSection({
               </button>
             </div>
           </div>
+          */}
 
           {/* KPI Summary Cards (Khi có kết quả) */}
           {adhocResult && (

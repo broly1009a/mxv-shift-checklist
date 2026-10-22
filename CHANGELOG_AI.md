@@ -1,3 +1,78 @@
+## [2026-10-22T15:25] FEAT: Bổ Sung Mục "Đối Chiếu OMS ACM" Vào Sidebar Khối QLGD & Tạo Trang Độc Lập
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: *"hiện tại giúp tôi thêm vào sidebar của QLGD để vào trang check OMS ACM này"*.
+- Thêm liên kết điều hướng trực tiếp vào Sidebar dành cho khối QLGD (`/trading-manager/oms-recon`) với nhãn "Đối chiếu OMS ACM" và icon `ShieldCheck` chuẩn SVG từ `lucide-react`.
+- Tạo trang độc lập chuẩn Enterprise `/trading-manager/oms-recon` (kèm alias `/trading-manager/oms`), hỗ trợ xem toàn màn hình (fullscreen), chuyển ngày phiên, liên kết nhanh sang Trading Hub và Dashboard.
+- Đồng thời bổ sung liên kết vào Sidebar chế độ IT/Admin để nhân sự kỹ thuật cũng có thể truy cập nhanh 1-chạm mà không cần chuyển đổi giao diện.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. **[frontend/src/app/trading-manager/oms-recon/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/oms-recon/page.tsx)** (Tạo mới):
+   - Trang độc lập nhúng component `OmsReconSection`, đầy đủ header, badge hệ thống, nút toàn màn hình và điều hướng nhanh.
+2. **[frontend/src/app/trading-manager/oms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/oms/page.tsx)** (Tạo mới):
+   - Route alias re-export từ `oms-recon/page.tsx`.
+3. **[frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/Sidebar.tsx)**:
+   - Import `ShieldCheck` từ `lucide-react`.
+   - Bổ sung menu item **Đối chiếu OMS ACM** vào danh mục khối QLGD (`showQlgdSidebar = true`).
+   - Bổ sung menu item **Đối chiếu OMS ACM** vào danh mục khối IT/Giám sát (`showQlgdSidebar = false`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build (`next build`)**: Exit Code 0, biên dịch thành công 52/52 static routes bao gồm `/trading-manager/oms` và `/trading-manager/oms-recon`.
+
+---
+
+## [2026-10-22T15:20] REFACTOR: Tinh Giản Tab Báo Cáo Tổng Hợp Theo Kỳ (Phạm Vi Xuất & Thanh Điều Khiển)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: *"Báo Cáo Tổng Hợp Theo Kỳ @[code_item] cũng vậy tôi thấy đang bị kỹ thuật máy móc quá"*, giải quyết sự cồng kềnh, phân tách 2 khung Header/Form riêng biệt và cách đặt tên mang tính kỹ thuật lập trình của dropdown `Phạm vi xuất`.
+- Thay thế dropdown native `<select>` thô cứng chứa các nhãn kỹ thuật nội bộ (`Toàn bộ 10 sổ sách chuẩn MXV (Thường, ACM, Spread, LME, Options)` và `Chỉ phân hệ ACM (2 sổ: Khối lượng lot & Giá trị giao dịch)`) bằng:
+  - **Bộ nút bấm phân đoạn (Segmented Pills)**: `[ Toàn thị trường ]` và `[ Chỉ ACM ]` 1-click trực quan, tinh gọn, hiện đại.
+- Hợp nhất Header giải thích dài dòng và Form lọc thành **Một thanh điều khiển duy nhất (Unified Enterprise Action Bar)**:
+  - Header: Badge `Báo Cáo Theo Kỳ` + Tiêu đề `Tổng Hợp Khối Lượng & Giá Trị Giao Dịch`.
+  - Bộ chọn khoảng ngày: `Từ ngày – Đến ngày` gọn gàng, có icon `Calendar`.
+  - Nút kích hoạt: `Xuất Báo Cáo` kèm icon `Sparkles`.
+- Tinh giản Tab Button: Ẩn tag `Tùy chọn ngày` rườm rà.
+- Bảo lưu 100% logic mã nguồn cũ trong khối comment JSX (`/* ... */`).
+
+### 2. Danh sách file chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Comment out badge `Tùy chọn ngày` trên tab button (L848-L862).
+   - Tinh giản thanh công cụ Ad-Hoc Range (L3251-L3425) và chuyển dropdown sang nút phân đoạn (Segmented Pills).
+   - Bảo lưu toàn bộ JSX cũ vào khối comment (L3427-L3580).
+
+### 3. Xác nhận Build & Triển khai
+- **TypeScript Check (`tsc --noEmit`)**: Exit code 0, không có lỗi biên dịch.
+- **Triển khai lên Ubuntu (10.0.0.26)**: Đẩy code mới, build frontend Next.js và reload `mxv-frontend` PM2.
+
+---
+
+## [2026-10-22T15:15] REFACTOR: Tinh Giản Giao Diện Thống Kê CoreCCP & Bảo Lưu Mã Nguồn Cũ Bằng Comment
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: *"giúp tôi tỉnh giản lại và ẩn không xóa các logic cũ bằng cách comment lại code"*, giải quyết tình trạng giao diện bị nhiều chữ kỹ thuật, dàn trải và chưa trực quan bằng các phân hệ Đối chiếu / Dashboard.
+- Triệt tiêu các dòng văn bản giải thích dài dòng và chi tiết kiểm tra file đầu vào (`DSGD: ✓ Có | TTM: ✓ Có | TTTT: ✓ Có | Tỷ giá: ...`) khỏi giao diện chính của ca trực, chuyển sang hiển thị có điều kiện khi có lỗi hoặc khi người dùng bấm "Kiểm tra file" (Pre-Flight File Inspector).
+- Giữ nguyên 100% logic mã nguồn cũ bằng cách đóng gói trong khối comment JSX (`/* ... */`), tuyệt đối không xóa code.
+- Thiết kế lại thanh công cụ hành động (Action Toolbar) chuẩn Enterprise đồng bộ với phong cách chung của hệ thống:
+  - Header tinh gọn: Badge `CoreCCP VNCLEAR` + Tiêu đề `Thống Kê Khối Lượng & Giá Trị Giao Dịch`.
+  - Nút bấm trực quan, chuẩn nhận diện:
+    - `Tổng Hợp Toàn Bộ`: Màu tím `#8b5cf6`, icon `Sparkles`, thay thế cho nút dài dòng "Chạy Macro (11 File)".
+    - `Số Lot`: Màu xanh `#10b981`, icon `Layers`.
+    - `Giá Trị`: Màu cam `#f59e0b`, icon `DollarSign`.
+    - `Kiểm tra file`: Nút phụ kèm icon `FileSearch` để soi chi tiết luồng file khi cần.
+    - `Refresh`: Icon `RefreshCw` quét lại thư mục.
+  - Fail-Fast UX: Thêm thông báo toast (`toast.error(...)`) hướng dẫn ngay lập tức nếu người dùng bấm nút khi chưa có file `DSGD` của ngày trực.
+
+### 2. Danh sách file chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Tinh gọn khối Toolbar hành động (L896-L1080).
+   - Bảo lưu và ẩn toàn bộ mã giao diện cũ vào khối comment (L1082-L1214).
+
+### 3. Xác nhận Build & Triển khai
+- **TypeScript Check (`tsc --noEmit`)**: Exit code 0, không có lỗi biên dịch.
+- **Triển khai lên Ubuntu (10.0.0.26)**: Đẩy code mới, build frontend Next.js và reload `mxv-frontend` PM2.
+
+---
+
 ## [2026-10-22T14:25] FEAT: Chuyển Toàn Bộ Phân Hệ Đối Chiếu TTTT (Tất Toán & Lãi Lỗ) Sang Đơn Vị Tiền Tệ VND
 
 ### 1. Mục tiêu thay đổi
