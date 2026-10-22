@@ -50,13 +50,14 @@ import { CeLotStatisticsService } from './services/ce-lot-statistics.service';
 import { CcpAdHocStatisticsService } from './services/ccp-adhoc-statistics.service';
 import { TradingOpsPreflightService } from './services/trading-ops-preflight.service';
 
-// Controllers Domain Chuyên Biệt V2
 import { KlgdReconController } from './controllers/klgd-recon.controller';
 import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-recon.controller';
 import { MarginCheckerController } from './controllers/margin-checker.controller';
 import { GttReconController } from './controllers/gtt-recon.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
 import { CeReconController } from './controllers/ce-recon.controller';
+import { OmsReconController } from './controllers/oms-recon.controller';
+import { OmsReconService } from './services/oms-recon.service';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     TradingReconLogController,
     CcpReconController,
     CeReconController,
+    OmsReconController,
   ],
   providers: [
     CqgMergerService,
@@ -120,6 +122,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CeLotStatisticsService,
     CcpAdHocStatisticsService,
     TradingOpsPreflightService,
+    OmsReconService,
   ],
   exports: [
     CqgMergerService,
@@ -155,6 +158,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CcpStatisticsService,
     CcpAdHocStatisticsService,
     TradingOpsPreflightService,
+    OmsReconService,
     MongooseModule,
   ],
 })

@@ -13,6 +13,7 @@ import {
   Terminal,
   Sparkles,
   LayoutDashboard,
+  ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
@@ -26,6 +27,7 @@ import LegacyBackupThongKeSection from './components/legacy-ms-cqg/LegacyBackupT
 import LegacyReconSection from './components/legacy-ms-cqg/LegacyReconSection';
 import TradingManagerJobQueueSection from './components/job-queue/TradingManagerJobQueueSection';
 import { QlgdExecutiveDashboard } from './components/QlgdExecutiveDashboard';
+import OmsReconSection from './components/oms-recon/OmsReconSection';
 import { getInitialTradingSessionDate } from './utils/tradingDateUtils';
 
 export default function TradingManagerPage() {
@@ -35,9 +37,9 @@ export default function TradingManagerPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Top Tabs: Màn hình đối chiếu Khớp lệnh, Backup MS/CQG, Cấu hình, Hệ thống mới CoreCCP (VNCLEAR), Dashboard QLGD (Báo Cáo BGĐ), và Hàng đợi & Logs
+  // Top Tabs: Màn hình đối chiếu Khớp lệnh, Backup MS/CQG, Cấu hình, Hệ thống mới CoreCCP (VNCLEAR), Đối Chiếu OMS, Dashboard QLGD (Báo Cáo BGĐ), và Hàng đợi & Logs
   const [topTab, setTopTab] = useState<
-    'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR' | 'QLGD_DASHBOARD' | 'HANG_DOI_LOGS'
+    'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR' | 'OMS_RECON' | 'QLGD_DASHBOARD' | 'HANG_DOI_LOGS'
   >('CHECK_GD_EOD_SYNC');
 
   // Số lượng background job đang chạy
@@ -70,6 +72,8 @@ export default function TradingManagerPage() {
         setTopTab('QLGD_DASHBOARD');
       } else if (tabParam === 'CCP_CLEARING' || tabParam === 'CORE_CCP_VNCLEAR') {
         setTopTab('CORE_CCP_VNCLEAR');
+      } else if (tabParam === 'OMS' || tabParam === 'OMS_RECON' || tabParam === 'DOI_CHIEU_OMS') {
+        setTopTab('OMS_RECON');
       } else if (tabParam === 'BACKUP' || tabParam === 'BACKUP_THONG_KE_GTT') {
         setTopTab('BACKUP_THONG_KE_GTT');
       } else if (tabParam === 'CONFIG' || tabParam === 'CAU_HINH_DUONG_DAN') {
@@ -432,6 +436,30 @@ export default function TradingManagerPage() {
             <span>Báo Cáo & Đối Chiếu CoreCCP</span>
           </button>
 
+          {/* TAB: ĐỐI CHIẾU OMS (MỚI) */}
+          <button
+            type="button"
+            onClick={() => setTopTab('OMS_RECON')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'OMS_RECON' ? '2px solid #0284c7' : '2px solid transparent',
+              color: topTab === 'OMS_RECON' ? '#0284c7' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'OMS_RECON' ? 'rgba(2, 132, 199, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <ShieldCheck size={16} color={topTab === 'OMS_RECON' ? '#0284c7' : 'var(--text-muted)'} />
+            <span>Đối Chiếu OMS</span>
+          </button>
+
           {/* TAB 5: DASHBOARD QLGD (BÁO CÁO BGĐ) */}
           <button
             type="button"
@@ -523,6 +551,13 @@ export default function TradingManagerPage() {
             token={token}
             selectedDate={selectedDate}
             onOpenGuide={() => setShowGuideModal(true)}
+          />
+        ) : topTab === 'OMS_RECON' ? (
+          /* TAB: ĐỐI CHIẾU OMS (CHECK KÝ QUỸ TKGD, TTM, TTTT) */
+          <OmsReconSection
+            token={token}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
           />
         ) : topTab === 'QLGD_DASHBOARD' ? (
           /* TAB 5: BÁO CÁO BGĐ (QLGD DASHBOARD) */

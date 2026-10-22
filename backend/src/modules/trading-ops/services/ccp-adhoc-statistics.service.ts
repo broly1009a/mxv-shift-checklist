@@ -100,8 +100,12 @@ export class CcpAdHocStatisticsService {
     let configuredOut = '';
     try {
       const parsed = JSON.parse(rawConfig);
-      if (parsed.pathAcmLot) {
-        configuredOut = path.dirname(parsed.pathAcmLot);
+      const refPath = parsed.pathAcmLot || parsed.pathNormalLot || parsed.pathDsgdCumulative;
+      if (refPath) {
+        // Bắt buộc chuyển đổi cross-platform TRƯỚC để chuẩn hóa dấu phân tách thư mục sang / trên Linux,
+        // tránh lỗi path.dirname() trên Linux trả về "." khi chuỗi đường dẫn chứa dấu gạch chéo ngược Windows "\"!
+        const resolvedRef = resolveStoragePathCrossPlatform(refPath);
+        configuredOut = path.dirname(resolvedRef);
       }
     } catch {}
 
@@ -111,12 +115,12 @@ export class CcpAdHocStatisticsService {
       defaultOut,
       path.join(process.cwd(), 'data', 'backup', 'CCP', 'output'),
       path.join(process.cwd(), 'scratch', 'adhoc_test_output', 'all_10_masters'),
-    ].filter(Boolean);
+    ].filter((dir) => Boolean(dir) && dir !== '.' && dir !== './');
 
     let masterDir = '';
     for (const cDir of candidateDirs) {
       const resolved = resolveStoragePathCrossPlatform(cDir);
-      if (fs.existsSync(resolved)) {
+      if (fs.existsSync(resolved) && path.resolve(resolved) !== process.cwd()) {
         masterDir = resolved;
         break;
       }
@@ -317,6 +321,7 @@ export class CcpAdHocStatisticsService {
         category: 'ACM',
         reportType: 'LOT',
         patterns: [
+          new RegExp(`^Thong\\s*ke\\s*so\\s*lot\\s*giao\\s*dich\\s*ACM\\s*${targetYear}\\.xlsx$`, 'i'),
           new RegExp(`Thong\\s*ke\\s*so\\s*lot\\s*giao\\s*dich\\s*ACM.*${targetYear}`, 'i'),
           /Thong\s*ke\s*so\s*lot\s*giao\s*dich\s*ACM.*\.xlsx$/i,
         ],
@@ -340,6 +345,7 @@ export class CcpAdHocStatisticsService {
         category: 'ACM',
         reportType: 'GTGD',
         patterns: [
+          new RegExp(`^Thong\\s*ke\\s*gia\\s*tri\\s*giao\\s*dich\\s*ACM\\s*${targetYear}\\.xlsx$`, 'i'),
           new RegExp(`Thong\\s*ke\\s*gia\\s*tri\\s*giao\\s*dich\\s*ACM.*${targetYear}`, 'i'),
           /Thong\s*ke\\s*gia\\s*tri\\s*giao\\s*dich\\s*ACM.*\.xlsx$/i,
         ],

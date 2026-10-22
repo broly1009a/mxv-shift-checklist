@@ -416,4 +416,79 @@ export const tradingOpsApi = {
       token,
     );
   },
+
+  /**
+   * Chạy đối chiếu ký quỹ OMS vs CoreCCP (QLTTTKGD)
+   */
+  async checkOmsMargin(sessionDate?: string, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.OMS_RECON_CHECK_MARGIN,
+      {
+        method: 'POST',
+        body: JSON.stringify({ sessionDate }),
+      },
+      token,
+    );
+  },
+
+  /**
+   * Lấy kết quả đối chiếu ký quỹ OMS gần nhất
+   */
+  async getOmsMarginSummary(sessionDate?: string, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.OMS_RECON_MARGIN_SUMMARY(sessionDate),
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
+   * Chạy đối chiếu TTM (Trạng thái mở) OMS vs File TTM tải trực tiếp
+   */
+  async checkOmsTtm(sessionDate?: string, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.OMS_RECON_CHECK_TTM,
+      {
+        method: 'POST',
+        body: JSON.stringify({ sessionDate }),
+      },
+      token,
+    );
+  },
+
+  /**
+   * Lấy kết quả đối chiếu TTM OMS gần nhất
+   */
+  async getOmsTtmSummary(sessionDate?: string, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.OMS_RECON_TTM_SUMMARY(sessionDate),
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
+   * Chạy đối chiếu TTTT (Tất toán & Lãi lỗ) OMS vs File TTTT tải trực tiếp
+   */
+  async checkOmsTttt(sessionDate?: string, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.OMS_RECON_CHECK_TTTT,
+      {
+        method: 'POST',
+        body: JSON.stringify({ sessionDate }),
+      },
+      token,
+    );
+  },
+
+  /**
+   * Lấy kết quả đối chiếu TTTT OMS gần nhất
+   */
+  async getOmsTtttSummary(sessionDate?: string, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.OMS_RECON_TTTT_SUMMARY(sessionDate),
+      { method: 'GET' },
+      token,
+    );
+  },
 };

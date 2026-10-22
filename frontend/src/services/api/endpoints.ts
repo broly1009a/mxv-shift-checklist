@@ -68,6 +68,15 @@ export const API_ENDPOINTS = {
     PREFLIGHT: (taskKey: string, date: string, scope: string = 'ALL') =>
       `/api/v1/trading-ops/preflight?taskKey=${encodeURIComponent(taskKey)}&date=${encodeURIComponent(date)}&scope=${encodeURIComponent(scope)}`,
     PREFLIGHT_TASKS: '/api/v1/trading-ops/preflight/tasks',
+    OMS_RECON_CHECK_MARGIN: '/api/v1/trading-ops/oms-recon/check-margin',
+    OMS_RECON_MARGIN_SUMMARY: (date?: string) =>
+      date ? `/api/v1/trading-ops/oms-recon/margin-summary?date=${encodeURIComponent(date)}` : '/api/v1/trading-ops/oms-recon/margin-summary',
+    OMS_RECON_CHECK_TTM: '/api/v1/trading-ops/oms-recon/check-ttm',
+    OMS_RECON_TTM_SUMMARY: (date?: string) =>
+      date ? `/api/v1/trading-ops/oms-recon/ttm-summary?date=${encodeURIComponent(date)}` : '/api/v1/trading-ops/oms-recon/ttm-summary',
+    OMS_RECON_CHECK_TTTT: '/api/v1/trading-ops/oms-recon/check-tttt',
+    OMS_RECON_TTTT_SUMMARY: (date?: string) =>
+      date ? `/api/v1/trading-ops/oms-recon/tttt-summary?date=${encodeURIComponent(date)}` : '/api/v1/trading-ops/oms-recon/tttt-summary',
   },
 
   // ─── CCP CLEARING (Bù trừ, Thống kê Lot/Value, GTT CE vs CCP) ─────────────

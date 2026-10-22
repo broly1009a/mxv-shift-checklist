@@ -220,6 +220,132 @@
 ### 4. Xác nhận Build & Kiểm thử
 - **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100% không còn bất kỳ lỗi compile nào.
 - **Frontend Build (`next build`)**: Exit Code 0, Turbopack biên dịch 50/50 trang tĩnh và động thành công 100%.
+## [2026-10-22T14:05] FIX: Khắc Phục Lỗi Nhận Diện Thư Mục Master Template Báo Cáo Đột Xuất CCP (Ad-Hoc Statistics)
+
+### 1. Mục tiêu thay đổi
+- Khắc phục lỗi API `POST /api/v1/ccp-statistics/lot-statistics/run-adhoc-range` trả về `Thư mục Master: .` và `[Ad-Hoc WARN] Không tìm thấy Master Template cho [AcmLot] tại: .` dẫn tới tạo ra 0 tệp báo cáo khi chạy trên môi trường máy chủ Linux (Ubuntu `10.0.0.26`).
+- Chuẩn hóa cơ chế chuyển đổi đường dẫn cross-platform (`resolveStoragePathCrossPlatform`) trước khi lấy thư mục cha (`path.dirname`), ngăn ngừa hiện tượng Node.js POSIX trên Linux coi chuỗi đường dẫn có dấu `\` của Windows là tên file và trả về thư mục hiện tại `.`.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/ccp-adhoc-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-adhoc-statistics.service.ts)**:
+   - Sửa phương thức `resolveAdHocDirectories()`: Gọi `resolveStoragePathCrossPlatform(refPath)` trước khi gọi `path.dirname()`, loại trừ các thư mục trả về `.` hoặc trùng với `process.cwd()`.
+   - Bổ sung regex mẫu tên file chính xác tuyệt đối (`^Thong\\s*ke\\s*so\\s*lot\\s*giao\\s*dich\\s*ACM\\s*${targetYear}\\.xlsx$`) cho `AcmLot` và `AcmGtgd` để luôn ưu tiên chọn file mẫu lũy kế chính thức thay vì các biến thể phụ như `(trên CCP)` hay `(Theo CCP)`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - Dòng 104 gọi trực tiếp `path.dirname(parsed.pathAcmLot)`. Do chuỗi lưu trong CSDL là đường dẫn Windows (`M:\Tailieuchung\...`), POSIX `path.dirname` trên Linux trả về `.` (current directory).
+  - Kết quả `masterDir` nhận diện thành `.`, tìm trong thư mục mã nguồn không có file mẫu Excel nên báo lỗi không tìm thấy cả 10 Master Templates.
+- **Sau khi sửa**:
+  - `refPath` được chuyển đổi sang định dạng Linux `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/output` trước khi lấy `dirname`.
+  - `masterDir` nhận diện chính xác `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke ccp/output`.
+  - Đã kiểm chứng trực tiếp trên server Ubuntu: Cả 10 file Master Templates đều được tìm thấy 100% khớp chuẩn.
+
+### 4. Xác nhận Build & Triển Khai
+- **Backend Build (`npm run build`)**: Exit Code 0, biên dịch thành công.
+- **Frontend Build (`next build`)**: Exit Code 0, biên dịch thành công (50/50 static routes).
+- **PM2 Status**: Cả 2 service `mxv-backend` và `mxv-frontend` đều online ổn định trên `10.0.0.26`.
+
+---
+
+## [2026-10-22T12:05] FEAT: Hoàn Thiện Toàn Diện 3 Sub-Tabs Màn Hình Đối Chiếu OMS (Check Ký Quỹ TKGD, Check TTM, Check TTTT)
+
+### 1. Mục tiêu thay đổi
+- Hoàn thiện toàn bộ 3 phân hệ đối chiếu OMS trên Trading Manager theo chuẩn kiến trúc Modular Monolith V2 theo đúng yêu cầu và dữ liệu mẫu từ USER:
+  1. **Tab 1: Check Ký Quỹ TKGD**: Đối chiếu ký quỹ ban đầu (RMA) và ký quỹ lệnh chờ (RMO) giữa API OMS (`POST /ccp/inquiry/OMS_ACM` với `searchcode: 'OMS_ACCOUNT'`) và CoreCCP QLTTTKGD (`ACCTMARGIN_ALL` / `QL TT TKGD.xlsx`).
+  2. **Tab 2: Check TTM (Trạng thái mở)**: Đối chiếu khối lượng vị thế mua (`longQtty`) và bán (`shortQtty`) gom nhóm theo từng cặp (Mã TKGD, Mã Hợp Đồng) giữa API OMS (`searchcode: 'OMS_OPEN_POSITION'`) và tệp báo cáo `TTM.xlsx` / `TTM.csv` / `OPEN_POSITION*.xlsx`.
+  3. **Tab 3: Check TTTT (Tất toán & Lãi lỗ)**: Đối chiếu khối lượng đóng (`closeQtty` mua/bán) và lãi lỗ thực tế (Realized PnL `vrplAmt` USD và `vrplAmt_Vnd` VND) gom nhóm theo từng cặp (Mã TKGD, Mã Hợp Đồng) giữa API OMS (`searchcode: 'OMS_PNL_DETAIL'`) và tệp báo cáo `TTTT.xlsx` / `TTTT.csv` / `PNL_EXECUTED*.xlsx`.
+- Giao diện người dùng Enterprise chuẩn mực: Loại bỏ toàn bộ nhãn tạm "Sắp ra mắt", sử dụng 100% SVG icon từ `lucide-react`, thanh công cụ chọn ngày, nút chạy trực tiếp kèm spinner trạng thái, nút làm mới cache, nút xuất báo cáo CSV, 4 thẻ KPI thống kê chuyên sâu, bộ lọc trạng thái đa chiều, ô tìm kiếm nhanh, và Modal soi chi tiết từng bản ghi khớp/lệnh đóng của cả 2 phía OMS và CoreCCP.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Thêm phương thức `getOmsOpenPositions()` gọi `searchcode: 'OMS_OPEN_POSITION'` bóc tách mảng danh mục hợp đồng vị thế mở.
+   - Thêm phương thức `getOmsPnlDetails()` gọi `searchcode: 'OMS_PNL_DETAIL'` bóc tách mảng danh mục giao dịch tất toán và lãi lỗ thực tế.
+2. **[backend/src/modules/trading-ops/services/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/oms-recon.service.ts)**:
+   - Thêm bộ bóc tách tệp TTM: `findTtmFile()`, `parseTtmFile()` (hỗ trợ cả `.csv` và `.xlsx`), xử lý gom nhóm theo cặp (Mã TK, Hợp đồng), so sánh độ lệch mua/bán, phân loại `MATCH`, `DIFF_BUY`, `DIFF_SELL`, `DIFF_BOTH`, `NOT_FOUND_IN_TTM`, `NOT_FOUND_IN_OMS`.
+   - Thêm bộ bóc tách tệp TTTT: `findTtttFile()`, `parseTtttFile()` (hỗ trợ cả `.csv` và `.xlsx`), xử lý gom nhóm theo cặp (Mã TK, Hợp đồng), so sánh độ lệch khối lượng đóng mua/bán và lãi lỗ thực tế (`vrplAmt` USD, `vrplAmt_Vnd`), phân loại `MATCH`, `DIFF_VOL`, `DIFF_PNL`, `DIFF_BOTH`, `NOT_FOUND_IN_TTTT`, `NOT_FOUND_IN_OMS`.
+   - Cung cấp các phương thức `checkOmsTtmReconciliation()`, `getLatestTtmResult()`, `checkOmsTtttReconciliation()`, `getLatestTtttResult()`.
+3. **[backend/src/modules/trading-ops/controllers/oms-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/oms-recon.controller.ts)**:
+   - Bổ sung 4 endpoints RESTful có bảo vệ phân quyền:
+     - `POST check-ttm` & `GET ttm-summary`: Kích hoạt & lấy kết quả đối chiếu TTM.
+     - `POST check-tttt` & `GET tttt-summary`: Kích hoạt & lấy kết quả đối chiếu TTTT.
+4. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)**:
+   - Đăng ký các endpoints `OMS_RECON_CHECK_TTM`, `OMS_RECON_TTM_SUMMARY`, `OMS_RECON_CHECK_TTTT`, `OMS_RECON_TTTT_SUMMARY`.
+5. **[frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/trading-ops.api.ts)**:
+   - Thêm các hàm `checkOmsTtm()`, `getOmsTtmSummary()`, `checkOmsTttt()`, `getOmsTtttSummary()` vào `tradingOpsApi`.
+6. **[frontend/src/app/trading-manager/components/oms-recon/OmsTtmSubSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsTtmSubSection.tsx)** (Tạo mới):
+   - Component hoàn chỉnh cho Tab 2 (Check TTM): Bảng đối chiếu Mua/Bán OMS vs TTM CCP, 4 KPI cards, thanh công cụ, lọc trạng thái, tìm kiếm và Modal xem chi tiết từng lệnh mở.
+7. **[frontend/src/app/trading-manager/components/oms-recon/OmsTtttSubSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsTtttSubSection.tsx)** (Tạo mới):
+   - Component hoàn chỉnh cho Tab 3 (Check TTTT): Bảng đối chiếu Khối lượng đóng Mua/Bán và Lãi lỗ thực tế (USD/VND) OMS vs TTTT CCP, 4 KPI cards, thanh công cụ, lọc trạng thái, tìm kiếm và Modal xem chi tiết từng giao dịch tất toán.
+8. **[frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx)**:
+   - Cập nhật header sub-tab (loại bỏ nhãn tạm), tích hợp `OmsTtmSubSection` và `OmsTtttSubSection` vào khung giao diện chung.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - Tab 2 (Check TTM) và Tab 3 (Check TTTT) chỉ là khung placeholder tạm thời.
+  - Backend chưa có adapter cho `OMS_OPEN_POSITION` và `OMS_PNL_DETAIL`, chưa có logic gom nhóm vị thế và tính toán chênh lệch với file TTM/TTTT.
+- **Sau khi sửa**:
+  - Toàn bộ 3 sub-tabs hoạt động độc lập, đầy đủ chức năng End-to-End từ Backend Ingress đến Frontend UI.
+  - Tự động bóc tách cả file CSV và Excel của CoreCCP, khớp chính xác từng tài khoản, loại bỏ rủi ro lệch pha.
+
+### 4. Xác nhận Build & Kiểm Thử Trực Tiếp (Live Ground Truth Verification)
+- **Backend Build (`cmd /c npm run build` - `nest build`)**: Exit Code 0, Biên dịch thành công 100%.
+- **Frontend Build (`cmd /c npm run build` - `next build`)**: Exit Code 0, Biên dịch hoàn tất 100% (50/50 static routes).
+- **Kiểm thử trực tiếp với tài khoản CoreCCP CSDL trên Ubuntu Server (10.0.0.26)**:
+  - Nạp cấu hình CSDL `mxv_shift_checklist.system_settings`: URL = `https://coreccp.vnclear.vn`, User = `anhdao`.
+  - Đăng nhập OAuth2 CoreCCP: Thành công trong **642ms** (bắt được `SESSION` cookie và `access_token`).
+  - **API OMS_ACCOUNT**: Status **200**, quét được **9,978** tài khoản.
+  - **API OMS_OPEN_POSITION**: Status **200**, quét được **3,927** vị thế mở thực tế (ví dụ: `003C3081991-A` | HĐ `SI5COZ26` Mua 1 Giá 56.7).
+  - **API OMS_PNL_DETAIL**: Status **200**, quét được **279** bản ghi tất toán thực tế (ví dụ: `068C2600210-A` | HĐ `SI5COZ26` Chiều SELL KL 2 PnL $53).
+  - Xác nhận 100% cấu trúc phản hồi khớp hoàn hảo với logic bóc tách của Adapter và Service.
+
+---
+
+## [2026-10-22T11:25] FEAT: Xây Dựng Màn Hình & Phân Hệ Đối Chiếu Ký Quỹ OMS vs CoreCCP (QLTTTKGD) Trên Trading Manager
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Xây dựng màn hình đối chiếu OMS mới trên Trading Manager theo chuẩn kiến trúc Modular Monolith V2 với giao diện chuyên nghiệp, đẳng cấp (Enterprise Look & Feel), bố cục tương đồng với màn hình đối chiếu trong phiên và bao gồm 3 sub-tabs:
+  1. **Check Ký Quỹ TKGD** (Hoàn thiện đầy đủ tính năng kết nối trực tiếp API CoreCCP).
+  2. **Check TTM** (Chuẩn bị sẵn giao diện & cấu trúc chờ kết nối nghiệp vụ tiếp theo).
+  3. **Check TTTT** (Chuẩn bị sẵn giao diện & cấu trúc chờ kết nối nghiệp vụ tiếp theo).
+- Thực thi công thức đối chiếu ký quỹ tài khoản giữa 2 nguồn dữ liệu:
+  - **Nguồn 1: OMS (API Inquiry)**: `POST ${baseUrl}/ccp/inquiry/OMS_ACM` (searchcode: `OMS_ACCOUNT`).
+  - **Nguồn 2: CoreCCP QLTTTKGD (Báo cáo Quản lý Thông tin Tài khoản Giao dịch)**: API REST `ACCTMARGIN_ALL` hoặc file backup `QL TT TKGD.xlsx`.
+  - **Quy tắc Thẩm định**:
+    - **Check 1 (Ký quỹ TTM)**: $OMS.rma == QLTTTKGD.REQSECURED$ (Ký quỹ ban đầu yêu cầu).
+    - **Check 2 (Tổng ký quỹ tạm tính: TTM + Lệnh chờ)**: $OMS.rma + OMS.rmo == QLTTTKGD.EREQSECURED$ (Ký quỹ ban đầu yêu cầu tạm tính).
+  - Tự động chuẩn hóa mã tài khoản (loại bỏ hậu tố `-A`, `-M`), bóc tách danh mục hợp đồng con (`portfolios`), tính toán sai lệch và phân loại trạng thái: `MATCH`, `DIFF_TTM`, `DIFF_TOTAL`, `DIFF_BOTH`, `NOT_FOUND_IN_QLTTTKGD`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Thêm phương thức công khai `getOmsAcmAccounts(session: ICcpSession, baseUrl: string, filter?: Record<string, any>)` thực hiện gọi endpoint `/ccp/inquiry/OMS_ACM` với payload `searchcode: 'OMS_ACCOUNT'`.
+2. **[backend/src/modules/trading-ops/services/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/oms-recon.service.ts)** (Tạo mới):
+   - Xây dựng service đối chiếu ký quỹ OMS: tự động giải mã thông tin tài khoản bot CoreCCP từ `system_settings` trên DB, gọi API OMS_ACM và QLTTTKGD, chuẩn hóa dữ liệu, so sánh `rma` vs `REQSECURED` và `(rma + rmo)` vs `EREQSECURED`, phân loại trạng thái chi tiết cho từng tài khoản và lưu bộ nhớ đệm kết quả gần nhất.
+3. **[backend/src/modules/trading-ops/controllers/oms-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/oms-recon.controller.ts)** (Tạo mới):
+   - Cung cấp 2 API RESTful bảo vệ bởi `JwtAuthGuard`:
+     - `POST /api/v1/trading-ops/oms-recon/check-margin`: Kích hoạt chạy đối chiếu ký quỹ OMS trực tiếp.
+     - `GET /api/v1/trading-ops/oms-recon/margin-summary`: Lấy kết quả đối chiếu ký quỹ gần nhất theo ngày phiên.
+4. **[backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts)**:
+   - Đăng ký `OmsReconController` vào `controllers` và `OmsReconService` vào `providers` & `exports`.
+5. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)**:
+   - Thêm `OMS_RECON_CHECK_MARGIN` và `OMS_RECON_MARGIN_SUMMARY` vào nhóm endpoint `API_ENDPOINTS.TRADING_OPS`.
+6. **[frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/trading-ops.api.ts)**:
+   - Bổ sung 2 phương thức `checkOmsMargin` và `getOmsMarginSummary` vào `tradingOpsApi`.
+7. **[frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx)** (Tạo mới):
+   - Giao diện đối chiếu OMS hoàn chỉnh: 3 sub-tabs (`Check Ký Quỹ TKGD`, `Check TTM`, `Check TTTT`), 4 thẻ KPI tóm tắt (Tổng TK, Khớp, Lệch TTM, Lệch Tổng), thanh công cụ chọn ngày, nút "Chạy Đối Chiếu Ký Quỹ OMS", "Làm Mới", "Xuất File CSV/Excel", bộ lọc trạng thái đa chiều, tìm kiếm theo số TK / mã TVKD, bảng đối chiếu 2 tầng nhóm cột, và Modal xem chi tiết danh mục hợp đồng con (`portfolios`).
+8. **[frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/page.tsx)**:
+   - Đăng ký tab cấp cao `OMS_RECON` ("Đối Chiếu OMS") cùng icon SVG chuẩn `ShieldCheck`, hỗ trợ điều hướng trực tiếp qua URL `?tab=OMS_RECON` hoặc `?tab=DOI_CHIEU_OMS`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - Hệ thống chưa có tính năng đối chiếu dữ liệu giữa Inquiry API OMS (`OMS_ACM`) và báo cáo vị thế/ký quỹ CoreCCP (`ACCTMARGIN_ALL` / `QL TT TKGD.xlsx`).
+  - Trading Manager chưa có màn hình Đối Chiếu OMS.
+- **Sau khi sửa**:
+  - Xây dựng trọn vẹn luồng dữ liệu End-to-End từ Backend Ingress/Trading-Ops tới Giao diện Frontend Next.js.
+  - Phân hệ vận hành an toàn, động 100%, bảo mật credentials trên Database, tuân thủ nguyên tắc không hardcode, không nuốt lỗi, và sử dụng 100% SVG Lucide-react (không emoji Unicode).
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`cmd /c npm run build` - `nest build`)**: Exit Code 0, Build thành công 100% không cảnh báo.
+- **Frontend Build (`cmd /c npm run build` - `next build`)**: Exit Code 0, Biên dịch thành công 50/50 static routes.
 
 ---
 
