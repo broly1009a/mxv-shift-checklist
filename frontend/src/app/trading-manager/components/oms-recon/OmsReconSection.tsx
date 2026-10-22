@@ -21,6 +21,8 @@ import {
   AlertCircle,
   ArrowUpDown,
   FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -108,15 +110,24 @@ export default function OmsReconSection({
   const [triggering, setTriggering] = useState<boolean>(false);
   const [reconResult, setReconResult] = useState<IOmsMarginReconResult | null>(null);
 
-  // ── 3. Filter & Search States
+  // ── 3. Filter & Search States (Mặc định: DIFF_ANY - Discrepancy-First)
   const [filterStatus, setFilterStatus] = useState<
     'ALL' | 'DIFF_ANY' | 'DIFF_TTM' | 'DIFF_TOTAL' | 'DIFF_BOTH' | 'MATCH' | 'NOT_FOUND_IN_QL'
-  >('ALL');
+  >('DIFF_ANY');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortField, setSortField] = useState<string>('diffTotal');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
 
-  // ── 4. Portfolio Modal State
+  // ── 4. Pagination States (Khắc phục triệt để treo lag DOM)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  // Reset trang về 1 khi đổi bộ lọc hoặc tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, searchQuery, sortField, sortAsc]);
+
+  // ── 5. Portfolio Modal State
   const [selectedAccountForModal, setSelectedAccountForModal] = useState<IOmsMarginReconRow | null>(null);
 
   // Helper format tiền tệ VND
@@ -124,6 +135,7 @@ export default function OmsReconSection({
     if (n === undefined || n === null) return '0';
     return Number(n).toLocaleString('en-US');
   };
+
 
   // ── Fetch dữ liệu đã lưu gần nhất
   const fetchLatestSummary = useCallback(async () => {
@@ -234,6 +246,13 @@ export default function OmsReconSection({
 
     return list;
   }, [reconResult, searchQuery, filterStatus, sortField, sortAsc]);
+
+  // ── Phân trang (Pagination) - Triệt tiêu 100% lag giật trình duyệt
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, currentPage, pageSize]);
 
   // ── Xuất file Excel / CSV
   const handleExportCsv = () => {
@@ -940,23 +959,46 @@ export default function OmsReconSection({
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={13} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                          <FileSpreadsheet size={32} strokeWidth={1.5} color="var(--text-muted)" />
-                          <span>
-                            {loading
-                              ? 'Đang tải dữ liệu đối chiếu...'
-                              : reconResult
-                              ? 'Không tìm thấy tài khoản phù hợp với bộ lọc hiện tại'
-                              : 'Chưa có dữ liệu đối chiếu. Vui lòng bấm "Chạy Đối Chiếu Ký Quỹ OMS".'}
-                          </span>
-                        </div>
+                      <td colSpan={13} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        {filterStatus === 'DIFF_ANY' && summary && summary.totalDiff === 0 && summary.totalOmsAccounts > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <CheckCircle2 size={30} color="#10b981" />
+                            </div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>
+                              KHỚP HOÀN TOÀN 100%
+                            </div>
+                            <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: '460px' }}>
+                              Toàn bộ <strong>{summary.totalMatched?.toLocaleString()}</strong> tài khoản đều khớp số liệu ký quỹ giữa OMS và QLTTTKGD. Không phát hiện tài khoản nào lệch!
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setFilterStatus('ALL')}
+                              className="btn btn-secondary"
+                              style={{ marginTop: '6px', fontSize: '0.8rem', padding: '6px 14px' }}
+                            >
+                              Xem tất cả {summary.totalOmsAccounts?.toLocaleString()} tài khoản
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <FileSpreadsheet size={32} strokeWidth={1.5} color="var(--text-muted)" />
+                            <span>
+                              {loading
+                                ? 'Đang tải dữ liệu đối chiếu...'
+                                : reconResult
+                                ? 'Không tìm thấy tài khoản phù hợp với bộ lọc hiện tại'
+                                : 'Chưa có dữ liệu đối chiếu. Vui lòng bấm "Chạy Đối Chiếu Ký Quỹ OMS".'}
+                            </span>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row, idx) => {
+                    paginatedRows.map((row, idx) => {
                       const portfolioKeys = Object.keys(row.portfolios || {});
                       const portfolioCount = portfolioKeys.length;
+                      const stt = (currentPage - 1) * pageSize + idx + 1;
 
                       return (
                         <tr
@@ -973,7 +1015,7 @@ export default function OmsReconSection({
                         >
                           {/* STT */}
                           <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                            {idx + 1}
+                            {stt}
                           </td>
 
                           {/* Mã TK */}
@@ -1207,25 +1249,93 @@ export default function OmsReconSection({
               </table>
             </div>
 
-            {/* TABLE FOOTER SUMMARY */}
+            {/* TABLE FOOTER & PAGINATION */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '10px 16px',
+                flexWrap: 'wrap',
+                gap: '12px',
+                padding: '12px 16px',
                 borderTop: '1px solid var(--border-color)',
                 backgroundColor: 'var(--bg-input)',
                 fontSize: '0.78rem',
                 color: 'var(--text-secondary)',
               }}
             >
-              <span>
-                Hiển thị <strong>{filteredRows.length}</strong> / <strong>{reconResult?.rows?.length || 0}</strong> tài khoản
-              </span>
-              <span>
-                Nguồn đối chiếu: <strong>CoreCCP OMS_ACM</strong> (OMS_ACCOUNT) vs <strong>QLTTTKGD</strong> (ACCTMARGIN_ALL)
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <span>
+                  Hiển thị <strong>{filteredRows.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(currentPage * pageSize, filteredRows.length)}</strong> / Tổng số <strong>{filteredRows.length.toLocaleString()}</strong> tài khoản
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Số dòng/trang:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.78rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                      opacity: currentPage <= 1 ? 0.4 : 1,
+                    }}
+                  >
+                    <ChevronLeft size={14} /> Trước
+                  </button>
+                  <span style={{ padding: '0 8px', fontWeight: 700 }}>
+                    Trang {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                      opacity: currentPage >= totalPages ? 0.4 : 1,
+                    }}
+                  >
+                    Sau <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

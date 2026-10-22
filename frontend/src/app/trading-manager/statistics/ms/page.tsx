@@ -20,6 +20,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  Sparkles,
+  Layers,
+  DollarSign,
+  Info,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -44,6 +49,7 @@ export default function MsStatisticsPage() {
   const [lotStatPath, setLotStatPath] = useState<string>('');
   const [valueStatPath, setValueStatPath] = useState<string>('');
   const [loadingSettings, setLoadingSettings] = useState<boolean>(false);
+  const [showPaths, setShowPaths] = useState<boolean>(false);
 
   // Lịch sử / tiến trình các tác vụ Macro gần nhất
   const [macroJobs, setMacroJobs] = useState<any[]>([]);
@@ -74,6 +80,18 @@ export default function MsStatisticsPage() {
     const failed = macroJobs.filter((j) => j.status === 'FAILED').length;
     return { total, completed, processing, failed };
   }, [macroJobs]);
+
+  // Kiểm tra phiên đang chọn đã có lượt hoàn tất nào chưa
+  const latestJobForSelectedDate = useMemo(() => {
+    if (!selectedDate) return null;
+    return (
+      macroJobs.find(
+        (j) =>
+          (j.payload?.targetDate === selectedDate || j.payload?.date === selectedDate) &&
+          j.status === 'COMPLETED',
+      ) || null
+    );
+  }, [macroJobs, selectedDate]);
 
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
@@ -375,18 +393,43 @@ export default function MsStatisticsPage() {
           </div>
         </div>
 
-        {/* Action Panel: Thao tác chạy Macro */}
-        <div className="glass-panel" style={{ padding: '20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Thực Thi Excel Macro Thống Kê
-              </h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Khởi chạy tiến trình robot tự động trích xuất dữ liệu MS & CQG, nạp vào file Macro Excel mẫu và xuất báo cáo lũy kế.
-              </p>
-            </div>
+        {/* ── BỐ CỤC TINH GỌN MỚI (CHUẨN OPERATOR UX: SẠCH CHỮ, TRỰC QUAN, TINH TẾ) ── */}
+        <div
+          className="glass-panel"
+          style={{
+            padding: '20px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            borderLeft: '4px solid #3b82f6',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                padding: '3px 8px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                color: '#3b82f6',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              M-System & CQG
+            </span>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              Thống Kê
+            </h3>
+          </div>
 
+          {/* Thanh công cụ hành động trực quan */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Nút 1: Tổng Hợp Toàn Bộ (Lot & Giá Trị) */}
             <button
               type="button"
               onClick={handleAllMacro}
@@ -394,179 +437,239 @@ export default function MsStatisticsPage() {
               className="btn btn-primary"
               style={{
                 fontSize: '0.84rem',
-                padding: '10px 20px',
+                fontWeight: 800,
+                padding: '9px 18px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                fontWeight: 700,
-                backgroundColor: '#3b82f6',
-                borderColor: '#3b82f6',
+                borderRadius: '8px',
+                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                backgroundColor: '#8b5cf6',
+                cursor: allMacroLoading || lotMacroLoading || valueMacroLoading ? 'not-allowed' : 'pointer',
               }}
+              title="Tổng hợp tự động cả Số Lot và Giá Trị Giao Dịch MS & CQG"
             >
-              {allMacroLoading ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-              <span>Chạy Toàn Bộ Macro (Lot + Giá Trị)</span>
+              {allMacroLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Đang Chạy Macro...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  <span>Tổng Hợp Toàn Bộ</span>
+                </>
+              )}
+            </button>
+
+            {/* Nút 2: Thống Kê Số Lot */}
+            <button
+              type="button"
+              onClick={handleLotMacro}
+              disabled={allMacroLoading || lotMacroLoading || valueMacroLoading}
+              className="btn btn-primary"
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                padding: '9px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.3)',
+                backgroundColor: '#3b82f6',
+                cursor: allMacroLoading || lotMacroLoading || valueMacroLoading ? 'not-allowed' : 'pointer',
+              }}
+              title="Khởi chạy Excel Macro Thống kê Số Lot"
+            >
+              {lotMacroLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Đang Chạy...</span>
+                </>
+              ) : (
+                <>
+                  <Layers size={16} />
+                  <span>Thống kê Số Lot</span>
+                </>
+              )}
+            </button>
+
+            {/* Nút 3: Thống Kê Giá Trị */}
+            <button
+              type="button"
+              onClick={handleValueMacro}
+              disabled={allMacroLoading || lotMacroLoading || valueMacroLoading}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                padding: '9px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                borderColor: 'rgba(245, 158, 11, 0.4)',
+                color: '#f59e0b',
+                boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+                cursor: allMacroLoading || lotMacroLoading || valueMacroLoading ? 'not-allowed' : 'pointer',
+              }}
+              title="Khởi chạy Excel Macro Thống kê Giá Trị"
+            >
+              {valueMacroLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Đang Chạy...</span>
+                </>
+              ) : (
+                <>
+                  <DollarSign size={16} />
+                  <span>Thống kê Giá Trị</span>
+                </>
+              )}
+            </button>
+
+            {/* Nút 4: Đường dẫn tệp (Drawer) */}
+            <button
+              type="button"
+              onClick={() => setShowPaths(!showPaths)}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                padding: '9px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderRadius: '8px',
+                color: showPaths ? '#3b82f6' : 'var(--text-secondary)',
+                borderColor: showPaths ? '#3b82f6' : 'var(--border-color)',
+                backgroundColor: showPaths ? 'rgba(59, 130, 246, 0.1)' : undefined,
+                cursor: 'pointer',
+              }}
+              title="Xem thông tin đường dẫn sổ sách và tệp Excel Macro"
+            >
+              <Folder size={15} color={showPaths ? '#3b82f6' : '#f59e0b'} />
+              <span style={{ fontSize: '0.78rem' }}>Đường dẫn tệp</span>
+            </button>
+
+            {/* Nút 5: Làm mới */}
+            <button
+              type="button"
+              onClick={fetchMacroJobs}
+              disabled={loadingJobs}
+              className="btn btn-secondary"
+              style={{
+                padding: '9px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                color: 'var(--text-muted)',
+                cursor: loadingJobs ? 'not-allowed' : 'pointer',
+              }}
+              title="Làm mới tiến trình"
+            >
+              <RefreshCw size={15} className={loadingJobs ? 'animate-spin' : ''} />
             </button>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-            {/* Box 1: Macro Số Lot */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(59, 130, 246, 0.04)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '14px',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#3b82f6' }}>
-                    1. Thống Kê Số Lot Giao Dịch
-                  </span>
-                  <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', fontWeight: 700 }}>
-                    RUN_LOT_MACRO
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                  Tổng hợp số lot giao dịch theo từng tài khoản, mặt hàng và thành viên kinh doanh từ file khớp lệnh M-System & CQG.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleLotMacro}
-                disabled={lotMacroLoading}
-                className="btn btn-primary"
-                style={{
-                  width: '100%',
-                  fontSize: '0.82rem',
-                  padding: '9px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-              >
-                {lotMacroLoading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                <span>{lotMacroLoading ? 'Đang chạy Macro...' : 'Chạy Macro Số Lot'}</span>
-              </button>
-            </div>
-
-            {/* Box 2: Macro Giá Trị */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(16, 185, 129, 0.04)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '14px',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981' }}>
-                    2. Thống Kê Giá Trị Giao Dịch
-                  </span>
-                  <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 700 }}>
-                    RUN_VALUE_MACRO
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                  Tính toán tổng giá trị hợp đồng giao dịch, quy đổi theo ma trận tỷ giá USD/VND tương ứng cho từng nhóm mặt hàng.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleValueMacro}
-                disabled={valueMacroLoading}
-                className="btn btn-secondary"
-                style={{
-                  width: '100%',
-                  fontSize: '0.82rem',
-                  padding: '9px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  borderColor: 'rgba(16, 185, 129, 0.4)',
-                  color: '#10b981',
-                }}
-              >
-                {valueMacroLoading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                <span>{valueMacroLoading ? 'Đang chạy Macro...' : 'Chạy Macro Giá Trị'}</span>
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* Thông tin cấu hình đường dẫn đích & Tệp Macro */}
-        <div className="glass-panel" style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Folder size={17} color="#f59e0b" />
-              <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
-                Đường dẫn Sổ sách & Tệp Macro Thống kê MS - CQG
-              </strong>
+        {/* Thông báo nếu phiên đang chọn đã có kết quả hoàn tất */}
+        {latestJobForSelectedDate && (
+          <div
+            style={{
+              padding: '12px 18px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Info size={18} color="#3b82f6" />
+              <div>
+                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Phiên {selectedDate} đã có kết quả Macro hoàn tất
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                  ({getJobDisplayName(latestJobForSelectedDate.jobType).label} — {latestJobForSelectedDate.createdAt ? new Date(latestJobForSelectedDate.createdAt).toLocaleTimeString('vi-VN') : '--'})
+                </span>
+              </div>
             </div>
-            <Link
-              href="/trading-manager/settings/ms-cqg"
-              style={{ fontSize: '0.78rem', color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <Sliders size={13} />
-              <span>Chỉnh sửa cấu hình tham số</span>
-            </Link>
+            <span style={{ fontSize: '0.76rem', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle2 size={14} /> Đã ghi tệp Excel thành công
+            </span>
           </div>
+        )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Hàng 1: Thống kê số Lot */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
-                {isLotFile ? <FileSpreadsheet size={15} color="#10b981" /> : <Folder size={15} color="#f59e0b" />}
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  {isLotFile ? 'Tệp Macro Thống kê Số Lot:' : 'Thư mục Sổ sách Số Lot:'}
-                </span>
+        {/* Thông tin cấu hình đường dẫn đích & Tệp Macro (Drawer thu gọn) */}
+        {showPaths && (
+          <div className="glass-panel" style={{ padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Folder size={17} color="#f59e0b" />
+                <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                  Đường dẫn Sổ sách & Tệp Macro Thống kê MS - CQG
+                </strong>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', wordBreak: 'break-all' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: lotDisplay ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {lotDisplay || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
-                </span>
-                {lotStatPath && lotStatPath !== lotDisplay && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                    Mount máy chủ: {lotStatPath}
-                  </span>
-                )}
-              </div>
+              <Link
+                href="/trading-manager/settings/ms-cqg"
+                style={{ fontSize: '0.78rem', color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Sliders size={13} />
+                <span>Chỉnh sửa cấu hình tham số</span>
+              </Link>
             </div>
 
-            {/* Hàng 2: Thống kê Giá trị */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
-                {isValueFile ? <FileSpreadsheet size={15} color="#10b981" /> : <Folder size={15} color="#f59e0b" />}
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  {isValueFile ? 'Tệp Macro Thống kê Giá Trị (.xlsm):' : 'Thư mục Thống kê Giá Trị:'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', wordBreak: 'break-all' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: valDisplay ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {valDisplay || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
-                </span>
-                {valueStatPath && valueStatPath !== valDisplay && (
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                    Mount máy chủ: {valueStatPath}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Hàng 1: Thống kê số Lot */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
+                  {isLotFile ? <FileSpreadsheet size={15} color="#10b981" /> : <Folder size={15} color="#f59e0b" />}
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    {isLotFile ? 'Tệp Macro Thống kê Số Lot:' : 'Thư mục Sổ sách Số Lot:'}
                   </span>
-                )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', wordBreak: 'break-all' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: lotDisplay ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {lotDisplay || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
+                  </span>
+                  {lotStatPath && lotStatPath !== lotDisplay && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      Mount máy chủ: {lotStatPath}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Hàng 2: Thống kê Giá trị */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-input)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
+                  {isValueFile ? <FileSpreadsheet size={15} color="#10b981" /> : <Folder size={15} color="#f59e0b" />}
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    {isValueFile ? 'Tệp Macro Thống kê Giá Trị (.xlsm):' : 'Thư mục Thống kê Giá Trị:'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', wordBreak: 'break-all' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: valDisplay ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {valDisplay || '(Chưa thiết lập - Vui lòng vào Cấu hình tham số để cài đặt)'}
+                  </span>
+                  {valueStatPath && valueStatPath !== valDisplay && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      Mount máy chủ: {valueStatPath}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Lịch sử thực thi gần đây */}
         <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
