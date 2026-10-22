@@ -239,11 +239,14 @@ export class QlgdDashboardService {
     @Optional() @InjectModel(BotJob.name) private readonly botJobModel?: Model<BotJob>,
   ) {}
 
+  private readonly memoryCache = new Map<string, { data: QlgdDashboardResponse; expiresAt: number }>();
+
 
   /**
    * Kích hoạt tải dữ liệu tươi từ API Ingress của MS và CoreCCP
    */
   async syncFreshDataFromApis(targetDateStr?: string): Promise<{ success: boolean; message: string }> {
+    this.memoryCache.clear();
     const today = new Date();
     let targetDate = targetDateStr;
     if (!targetDate) {
@@ -322,6 +325,14 @@ export class QlgdDashboardService {
     if (!targetDate) {
       const vnTime = new Date(today.getTime() + 7 * 3600 * 1000);
       targetDate = vnTime.toISOString().split('T')[0];
+    }
+
+    const cacheKey = `${targetDate}_${scope}_${catalogScope}_${jobId || 'latest'}`;
+    if (!refreshFromApi) {
+      const cached = this.memoryCache.get(cacheKey);
+      if (cached && Date.now() < cached.expiresAt) {
+        return cached.data;
+      }
     }
 
     let runs: ExecutiveRunItem[] = [];
@@ -974,7 +985,7 @@ export class QlgdDashboardService {
       return `${ty.toFixed(1)} tỷ`;
     };
 
-    return {
+    const response: QlgdDashboardResponse = {
       sessionDate: targetDate,
       scope,
       catalogScope,
@@ -1013,6 +1024,11 @@ export class QlgdDashboardService {
       currentJobId: jobId || (runs.length > 0 ? runs[0].id : null),
       isViewingHistorical,
     };
+
+    const ttlMs = isToday ? 60 * 1000 : 24 * 3600 * 1000;
+    this.memoryCache.set(cacheKey, { data: response, expiresAt: Date.now() + ttlMs });
+
+    return response;
   }
 }
 

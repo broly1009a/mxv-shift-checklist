@@ -88,6 +88,10 @@ export const API_ENDPOINTS = {
     LOT_STATISTICS: '/api/v1/ccp-statistics/lot-statistics',
     LOT_RUN: '/api/v1/ccp-statistics/lot-statistics/run-lot',
     VALUE_RUN: '/api/v1/ccp-statistics/lot-statistics/run-value',
+    LOT_RUN_HISTORY: (date?: string) =>
+      date ? `/api/v1/ccp-statistics/lot-statistics/run-history?date=${encodeURIComponent(date)}` : '/api/v1/ccp-statistics/lot-statistics/run-history',
+    LOT_LATEST_RUN: (date?: string) =>
+      date ? `/api/v1/ccp-statistics/lot-statistics/latest-run?date=${encodeURIComponent(date)}` : '/api/v1/ccp-statistics/lot-statistics/latest-run',
     LOT_RUN_ADHOC_RANGE: '/api/v1/ccp-statistics/lot-statistics/run-adhoc-range',
     LOT_ADHOC_REPORTS: '/api/v1/ccp-statistics/lot-statistics/adhoc-reports',
     LOT_DOWNLOAD_ADHOC: (filename: string) => `/api/v1/ccp-statistics/lot-statistics/download-adhoc?filename=${encodeURIComponent(filename)}`,

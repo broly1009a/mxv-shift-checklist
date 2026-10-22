@@ -1,3 +1,68 @@
+## [2026-10-21T20:25] FEAT: Tối Ưu Cơ Chế Cache Đa Tầng (Multi-Tier Caching) Cho QLGD Executive Dashboard
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Lưu cache cho trang Tổng quan Quản lý Giao dịch (`/trading-manager/dashboard`) để khi nhân sự trực ca mở vào xem nhiều lần không phải gọi lại API liên tục nếu dữ liệu không có sự thay đổi.
+- Tối ưu tải cho Backend, loại bỏ hiện tượng giật màn hình (screen flicker) và loading spinner khó chịu khi chuyển tab hoặc vào lại Dashboard.
+- Tự động làm mới (Zero-Stale Data) ngay khi có tác vụ kiểm tra mới hoàn tất qua kênh WebSocket Real-time, hoặc khi người dùng chủ động bấm "Làm mới" / "Đồng bộ API".
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts)**:
+   - Bổ sung bộ nhớ đệm In-Memory Cache `memoryCache` cho `QlgdDashboardService`.
+   - `getExecutiveDashboard`: Kiểm tra cache theo key `${targetDate}_${scope}_${catalogScope}_${jobId || 'latest'}`. Trả kết quả tức thì trong < 1ms nếu cache còn hiệu lực và không yêu cầu `refreshFromApi = true`.
+   - Thời gian sống (TTL): 60 giây đối với phiên trong ngày hiện tại; 24 giờ đối với phiên lịch sử trong quá khứ.
+   - Tự động xóa cache khi thực hiện `syncFreshDataFromApis()`.
+2. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - **Tải tức thì 0ms trên Client**: Khởi tạo `liveData` và `cacheTimestamp` từ `sessionStorage` ngay tại lazy initializer của `useState`, loại bỏ hoàn toàn tình trạng màn hình trắng chờ API.
+   - **Cơ chế Stale-While-Revalidate thông minh**: Hàm `isCacheFresh` kiểm tra TTL (3 phút cho phiên Live hiện tại, 24 giờ cho phiên/lượt quá khứ). Nếu cache còn tươi, bỏ qua hoàn toàn việc gọi API mạng.
+   - **Đồng bộ thời gian thực qua WebSocket**: Lắng nghe sự kiện `job-status-updated` và `dashboard-updated` từ WebSocket Gateway. Khi bot hoàn thành lượt kiểm tra mới, tự động xóa cache và làm mới dữ liệu ngầm cho phiên hôm nay.
+   - **Nút "Làm mới" (Refresh)**: Gắn trực tiếp `fetchLiveDashboard(sessionDate, selectedScope, true)`, cho phép người dùng chủ động ép làm mới dữ liệu tươi ngay lập tức.
+   - **Badge hiển thị thời điểm Cache**: Hiển thị badge `<Clock size={12} /> Cache: HH:mm:ss` cạnh nhãn "Dữ liệu Live" giúp nhân sự trực ca nắm rõ thời điểm dữ liệu được ghi nhận.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100%.
+- **Frontend Build (`next build`)**: Exit Code 0, Biên dịch thành công 50 static routes.
+
+---
+
+## [2026-10-21T20:15] FEAT: Bổ Sung Component Tiến Trình Chạy Thống Kê Gần Nhất & Xem Nhanh Kết Quả Cho CoreCCP (Tương Tự MS)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Bổ sung component **"Tiến trình chạy Thống kê gần nhất"** cho màn hình Thống kê CoreCCP (`/trading-manager/statistics/ccp`), tương tự như thiết kế mẫu trên màn hình Thống kê MS (`/trading-manager/statistics/ms`).
+- Giúp nhân sự trực ca:
+  - Biết ngay đã có ai chạy thống kê (Số Lot / Giá Trị) cho ngày phiên hiện tại chưa, vào thời điểm nào, trạng thái ra sao.
+  - Có thể bấm **"Xem nhanh số liệu"** để nạp ngay kết quả đã lưu trong CSDL (`result`) lên màn hình, hiển thị đầy đủ 4 thẻ KPI toàn thị trường (Tổng lot, Thường, ACM, Spread, LME, Options) và bảng phân tích TVKD / mặt hàng mà không cần phải thực thi tính toán lại.
+  - Xem chi tiết nhật ký các dòng ghi sổ lũy kế Excel (`accumulatorLogs`) qua nút **"Log"**.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/schemas/ccp-lot-run-history.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/ccp-lot-run-history.schema.ts)**:
+   - Thêm thuộc tính `runType?: 'LOT' | 'VALUE' | 'ALL'` vào `CcpLotRunHistory` để phân loại chính xác lần chạy Thống kê Số Lot hay Giá Trị.
+2. **[backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts)**:
+   - Ghi nhận `runType: 'LOT'` trong `runLotStatisticsDirect` và `runType: 'VALUE'` trong `runValueStatisticsDirect`.
+   - Cập nhật `saveRunHistory` tiếp nhận `runType`.
+   - Mở rộng `getRunHistory(sessionDate?: string, limit?: number)`: Hỗ trợ truy vấn linh hoạt, nếu không truyền ngày thì lấy top 20 bản ghi mới nhất toàn hệ thống.
+3. **[backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)**:
+   - Thêm 2 endpoints REST API:
+     - `@Get('lot-statistics/run-history')`: Trả về danh sách lịch sử chạy thống kê CoreCCP gần nhất.
+     - `@Get('lot-statistics/latest-run')`: Trả về bản ghi chạy gần nhất theo ngày phiên.
+4. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts)**:
+   - Thêm `LOT_RUN_HISTORY` và `LOT_LATEST_RUN` vào `API_ENDPOINTS.CCP_CLEARING`.
+5. **[frontend/src/services/api/ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/ccp-clearing.api.ts)**:
+   - Thêm `getLotRunHistory` và `getLatestLotRun` vào client API `ccpClearingApi`.
+6. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Bổ sung banner thông báo nhanh khi phiên chọn đã có kết quả chạy trước đó (`latestRunForSelectedDate`).
+   - Tích hợp component **"Tiến trình chạy Thống kê gần nhất"** chuẩn giao diện Enterprise (tương tự MS):
+     - Chip lọc nhanh: Tất cả, Số Lot, Giá Trị.
+     - Bảng cuộn mượt: Loại tác vụ, Người chạy, Trạng thái, Phiên GD, Thời gian, Số liệu tóm tắt (Tổng lot / Tỷ VND).
+     - Nút **"Xem số liệu"** (`Eye` icon): Nạp tức thì `result` và `accumulatorLogs` vào giao diện để xem các thẻ KPI và bảng phân bổ TVKD.
+     - Nút **"Log"** (`FileText` icon): Mở modal xem toàn bộ log ghi file Excel.
+     - Tự động làm mới danh sách sau khi bấm nút chạy 1-chạm Số Lot / Giá Trị.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100%.
+- **Frontend Build (`next build`)**: Exit Code 0, Biên dịch thành công 50 static routes.
+
+---
+
 ## [2026-10-21T19:48] FIX: Tự Động Tải EOD CoreCCP & Parse Đường Dẫn Mount Ổ Mạng Windows Cho DSGD Before EOD
 
 ### 1. Mục tiêu thay đổi

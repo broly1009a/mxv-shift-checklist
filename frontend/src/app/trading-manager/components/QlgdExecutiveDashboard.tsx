@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, API_BASE_URL } from '@/context/AuthContext';
+import { io } from 'socket.io-client';
 import { tradingOpsApi } from '@/features/trading';
 import {
   TrendingUp,
@@ -192,12 +193,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     [],
   );
 
-  // Khởi tạo LiveData từ cache nếu có để tức thì hiển thị dữ liệu (zero reload / transformation)
+  // Khởi tạo LiveData & CacheTimestamp từ sessionStorage nếu có (tức thì 0ms, zero flicker)
+  const [cacheTimestamp, setCacheTimestamp] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`mxv_qlgd_dashboard_cache_${defaultDate}_ALL_latest`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return parsed?.cachedAt || null;
+        }
+      } catch {}
+    }
+    return null;
+  });
+
   const [liveData, setLiveData] = useState<any | null>(() => {
     if (typeof window !== 'undefined') {
       try {
         const cached = sessionStorage.getItem(`mxv_qlgd_dashboard_cache_${defaultDate}_ALL_latest`);
-        if (cached) return JSON.parse(cached);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return parsed?.data || parsed;
+        }
       } catch {}
     }
     return null;
@@ -215,6 +232,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const [selectedRunJobId, setSelectedRunJobId] = useState<string | null>(null);
   const selectedRunJobIdRef = useRef<string | null>(null);
 
+  // Cấu hình TTL (Time-To-Live) cho Cache
+  const LIVE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 phút cho phiên Live hôm nay
+  const HISTORICAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 giờ cho phiên cũ hoặc lượt xem quá khứ
+
   // Tự động nạp cache khi đổi phiên hoặc đổi lượt check
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -222,7 +243,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         const cacheKey = getDashboardCacheKey(sessionDate, selectedScope, selectedRunJobId);
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
-          setLiveData(JSON.parse(cached));
+          const parsed = JSON.parse(cached);
+          setLiveData(parsed?.data || parsed);
+          setCacheTimestamp(parsed?.cachedAt || null);
         }
       } catch {}
     }
@@ -246,6 +269,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     }>;
   }, [liveData?.runs]);
 
+  const isCacheFresh = useCallback(
+    (cachedAt: number, date: string, jobId?: string | null) => {
+      const isToday = date === getTodayVnDate();
+      const isHistoricalRun = Boolean(jobId && runs.length > 0 && jobId !== runs[0].id);
+      const ttl = (!isToday || isHistoricalRun) ? HISTORICAL_CACHE_TTL_MS : LIVE_CACHE_TTL_MS;
+      return Date.now() - cachedAt < ttl;
+    },
+    [runs],
+  );
+
   const isViewingHistorical = useMemo(() => {
     return Boolean(
       liveData?.isViewingHistorical ||
@@ -262,7 +295,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const hasPrevRun = currentRunIndex >= 0 && currentRunIndex < runs.length - 1; // Lượt cũ hơn
   const hasNextRun = currentRunIndex > 0; // Lượt mới hơn
 
-  // Tải dữ liệu thực tế từ Backend API (kết hợp lưu cache)
+  // Tải dữ liệu thực tế từ Backend API (kết hợp lưu cache thông minh)
   const fetchLiveDashboard = useCallback(
     async (
       date: string,
@@ -270,20 +303,55 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       refresh = false,
       jobId?: string | null,
     ) => {
+      const targetJobId = jobId !== undefined ? jobId : selectedRunJobIdRef.current;
+      const cacheKey = getDashboardCacheKey(date, scope, targetJobId);
+
+      // 1. Kiểm tra Cache trong sessionStorage nếu không phải lệnh bắt buộc làm mới (refresh)
+      if (!refresh && typeof window !== 'undefined') {
+        try {
+          const cachedRaw = sessionStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            const cachedData = parsed?.data || parsed;
+            const cachedAt = parsed?.cachedAt || 0;
+
+            if (cachedData) {
+              setLiveData(cachedData);
+              if (cachedAt) setCacheTimestamp(cachedAt);
+
+              // Nếu cache còn mới (Fresh trong TTL) -> Không gọi lại API
+              if (cachedAt && isCacheFresh(cachedAt, date, targetJobId)) {
+                return;
+              }
+            }
+          }
+        } catch {}
+      }
+
       setLoadingLive(true);
       try {
-        const targetJobId = jobId !== undefined ? jobId : selectedRunJobIdRef.current;
         const data = await tradingOpsApi.getExecutiveDashboard(
           { date, scope, refresh, jobId: targetJobId || undefined },
           token,
         );
         if (data) {
           setLiveData(data);
-          // Lưu vào SessionStorage Cache
+          const now = Date.now();
+          setCacheTimestamp(now);
+
+          // Lưu vào SessionStorage Cache có kèm metadata timestamp
           if (typeof window !== 'undefined') {
             try {
-              const cacheKey = getDashboardCacheKey(date, scope, targetJobId);
-              sessionStorage.setItem(cacheKey, JSON.stringify(data));
+              sessionStorage.setItem(
+                cacheKey,
+                JSON.stringify({
+                  data,
+                  cachedAt: now,
+                  date,
+                  scope,
+                  jobId: targetJobId || null,
+                }),
+              );
             } catch {}
           }
           if (
@@ -292,7 +360,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
             data.dataSource === 'BACKUP_FILES'
           ) {
             if (refresh) {
-              toast.success(`Đã làm mới dữ liệu Live phiên ${date}!`, { id: 'live-toast' });
+              toast.success(`Đã làm mới dữ liệu phiên ${date}!`, { id: 'live-toast' });
             }
           }
         }
@@ -302,7 +370,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
         setLoadingLive(false);
       }
     },
-    [token, getDashboardCacheKey],
+    [token, getDashboardCacheKey, isCacheFresh],
   );
 
   const handleSelectRun = useCallback(
@@ -395,6 +463,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
 
   useEffect(() => {
     fetchLiveDashboard(sessionDate, selectedScope);
+  }, [sessionDate, selectedScope, fetchLiveDashboard]);
+
+  // Lắng nghe WebSocket để tự động đồng bộ và làm mới dữ liệu khi có kết quả mới hoặc dữ liệu thay đổi
+  useEffect(() => {
+    const socket = io(API_BASE_URL, {
+      transports: ['websocket'],
+    });
+
+    const handleUpdate = () => {
+      // Tự động làm mới nếu đang ở phiên hôm nay và không ghim xem lượt quá khứ
+      const isToday = sessionDate === getTodayVnDate();
+      if (isToday && !selectedRunJobIdRef.current) {
+        fetchLiveDashboard(sessionDate, selectedScope, true, null);
+      }
+    };
+
+    socket.on('job-status-updated', handleUpdate);
+    socket.on('dashboard-updated', handleUpdate);
+
+    return () => {
+      socket.disconnect();
+    };
   }, [sessionDate, selectedScope, fetchLiveDashboard]);
 
   // Nguồn dữ liệu hiển thị (100% dữ liệu thực tế từ Backend API)
@@ -1262,6 +1352,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               <span>Dữ liệu Live</span>
             </div>
 
+            {/* Cache Timestamp Indicator */}
+            {cacheTimestamp && (
+              <div
+                title={`Dữ liệu lưu tạm (cache) lúc ${new Date(cacheTimestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 8px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  fontSize: '0.72rem',
+                  color: '#2563eb',
+                  fontWeight: 600,
+                }}
+              >
+                <Clock size={12} />
+                <span>Cache: {new Date(cacheTimestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              </div>
+            )}
+
             {/* Loading Indicator */}
             {loadingLive && (
               <div
@@ -1331,9 +1443,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           {/* Refresh Button */}
           <button
             type="button"
-            onClick={() => {
+            disabled={loadingLive}
+            onClick={async () => {
+              await fetchLiveDashboard(sessionDate, selectedScope, true, selectedRunJobIdRef.current);
               if (onRefresh) onRefresh();
-              toast.success('Đã làm mới dữ liệu Dashboard!');
             }}
             className="btn btn-secondary"
             style={{
@@ -1346,10 +1459,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
               border: '1px solid var(--border-color)',
               backgroundColor: 'var(--bg-input)',
               color: 'var(--text-primary)',
-              cursor: 'pointer',
+              cursor: loadingLive ? 'not-allowed' : 'pointer',
             }}
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} className={loadingLive ? 'animate-spin' : ''} />
             <span>Làm mới</span>
           </button>
 
