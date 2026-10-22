@@ -364,6 +364,7 @@ export class QlgdDashboardService {
         const pastJobs = await this.botJobModel
           .find({
             jobType: 'CHECK_KLGD',
+            status: 'COMPLETED',
             ...dateFilterCondition,
           })
           .sort({ createdAt: -1 })

@@ -632,10 +632,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     };
   }, [liveData?.latestMetrics?.others]);
 
-  // Dòng thời gian các lần kiểm tra trong phiên (sắp xếp tăng dần theo thời gian tạo)
+  // Dòng thời gian các lần kiểm tra trong phiên (sắp xếp tăng dần theo thời gian tạo, chỉ lấy các lượt đã hoàn thành COMPLETED)
   const chronologicalRuns = useMemo(() => {
     if (!runs || runs.length === 0) return [];
-    return [...runs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return runs
+      .filter((r) => !r.status || r.status === 'COMPLETED')
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [runs]);
 
   // Cấu hình Biểu đồ Check Timeline cho Khối ACM (100% dữ liệu thực)

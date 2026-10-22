@@ -30,6 +30,15 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
   const isPublicPage = pathname === '/login' || pathname === '/' || pathname === '/test-shadcn';
   const isStandalonePage = pathname?.startsWith('/admin/tkgd-dashboard') || pathname?.startsWith('/admin/tkgd-config');
 
+  // TUÂN THỦ NGHIÊM NGẶT RULES OF HOOKS: Khai báo Hook ở cấp cao nhất (Top-Level), trước mọi câu lệnh return sớm
+  useEffect(() => {
+    if (!loading && !user && !isPublicPage) {
+      if (typeof window !== 'undefined') {
+        window.location.replace('/login');
+      }
+    }
+  }, [loading, user, isPublicPage]);
+
   if (isPublicPage) {
     return <>{children}</>;
   }
@@ -43,7 +52,7 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div style={{
         display: 'flex',
@@ -65,7 +74,7 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
             animation: 'spin 1s linear infinite',
             margin: '0 auto 16px auto'
           }}></div>
-          <span>Đang tải phiên làm việc...</span>
+          <span>{loading ? 'Đang tải phiên làm việc...' : 'Đang chuyển hướng về trang đăng nhập...'}</span>
           <style>{`
             @keyframes spin {
               0% { transform: rotate(0deg); }
@@ -75,10 +84,6 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // ProtectedRoute inside each page will handle redirects
   }
 
   return (

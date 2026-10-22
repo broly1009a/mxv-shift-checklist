@@ -74,8 +74,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setThemeState('dark');
     document.documentElement.setAttribute('data-theme', 'dark');
-    router.push('/login');
-  }, [router]);
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login');
+    }
+  }, []);
 
   const changeTheme = useCallback(async (newTheme: 'light' | 'dark') => {
     setThemeState(newTheme);
@@ -174,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           !url.includes('/api/v1/system-settings/verify-storage-path')
         ) {
           logout();
-          throw new Error('Unauthorized');
+          return response;
         }
       }
       return response;

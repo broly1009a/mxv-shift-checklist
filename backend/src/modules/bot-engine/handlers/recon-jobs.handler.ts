@@ -946,12 +946,17 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
           log('CQG2  [Bước 2: Xuất dữ liệu] Đang tải file khớp lệnh FR2.xlsx...');
         };
 
-        const result = await this.rpaDownloaderService.downloadCqgBackup(
+        const cqgTimeoutMs = 240000; // Hard timeout 4 phút tối đa cho toàn bộ luồng mở trình duyệt và tải file CQG
+        const cqgPromise = this.rpaDownloaderService.downloadCqgBackup(
           filesToDownload,
           cqgDailyPath,
           onReadyBarrierCqg1,
           onReadyBarrierCqg2,
         );
+        const timeoutPromise = new Promise<{ errors: string[]; downloaded: string[] }>((_, reject) =>
+          setTimeout(() => reject(new Error('Hết thời gian chờ tối đa (4 phút) khi mở trình duyệt và tải file từ CQG.')), cqgTimeoutMs),
+        );
+        const result = await Promise.race([cqgPromise, timeoutPromise]);
 
         if (result.downloaded.length > 0) {
           log(`CQG  Đã tải: ${result.downloaded.join(', ')}.`);

@@ -29,7 +29,8 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
   // Generate events covering 60 days back and 90 days forward
   const events = useMemo(() => {
     const generatedEvents = [];
-    const entryMap = new Map<string, CalendarEntry>(entries.map((e) => [e.date, e]));
+    const safeEntries = Array.isArray(entries) ? entries : [];
+    const entryMap = new Map<string, CalendarEntry>(safeEntries.map((e) => [e.date, e]));
 
     // Start 60 days ago at mid-day (12:00) to remain timezone-resilient
     const start = new Date();
@@ -44,7 +45,7 @@ export default function CalendarView({ entries, onSelectDate }: CalendarViewProp
       const dateStr = `${yyyy}-${mm}-${dd}`;
 
       const monthDay = `${mm}-${dd}`;
-      const recurringEntry = entries.find(e => e.date === `*-${monthDay}`);
+      const recurringEntry = safeEntries.find(e => e.date === `*-${monthDay}`);
       const customEntry = entryMap.get(dateStr) || recurringEntry;
 
       if (customEntry) {

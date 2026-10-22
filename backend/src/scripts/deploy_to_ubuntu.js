@@ -219,8 +219,10 @@ conn.on('ready', () => {
 
   function runBuildAndRestart() {
     console.log('\n=== DANG BUILD BACKEND VA FRONTEND TREN UBUNTU ===');
-    // Build backend, restart backend, build frontend, restart frontend
     const cmd = `
+      echo "=== 0. CLEANUP ZOMBIE PROCESSES & PROFILE LOCKS ==="
+      killall -9 chrome-headless-shell 2>/dev/null || true
+      rm -f /opt/mxv-checklist/backend/temp/cqg_profile_*/Singleton* 2>/dev/null || true
       echo "=== 1. BUILD BACKEND ==="
       cd /opt/mxv-checklist/backend && rm -f tsconfig*.tsbuildinfo && rm -rf dist && npm run build
       mkdir -p /opt/mxv-checklist/backend/dist/scripts/python && cp -rf /opt/mxv-checklist/backend/src/scripts/python/* /opt/mxv-checklist/backend/dist/scripts/python/ 2>/dev/null || true

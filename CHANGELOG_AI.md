@@ -1,3 +1,103 @@
+## [2026-10-22T17:10] REFACTOR & CLEAN UI/UX: Tinh Giản Toàn Diện Thông Báo Alert, Triệt Tiêu Toast Rác & Hộp Thoại Gián Đoạn Thông Minh
+
+### 1. Mục tiêu thay đổi
+
+- **Giải quyết triệt để sự ức chế thị giác (Toast & Alert Spam)** trên màn hình đối chiếu MS - CQG ([LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)):
+  - Người dùng bấm "Stop" thì nổ liên tiếp các popup (loading, success, rồi nổ thêm toast lỗi đỏ `Tác vụ đã bị hủy: Tác vụ đối chiếu đã bị hủy bỏ` trong 5 giây).
+  - Khối banner cảnh báo màu đỏ/cam/xám to đùng chiếm 110 dòng code ([L836-L943](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L836-L943)) nằm chết dí trên đầu bảng, đẩy toàn bộ bảng số liệu xuống dưới.
+  - Toast loading nổi lơ lửng ở góc màn hình dù đã có thanh Progress Bar hiển thị % và công đoạn real-time.
+  - Toast thông báo kết quả đối chiếu văng cả đoạn văn bản dài lê thê 6 giây.
+- **Áp dụng chuẩn Clean UI/UX thực tế theo chỉ đạo của USER**:
+  - Xóa bỏ hoàn toàn khối banner lỗi cồng kềnh trên đầu bảng.
+  - Dọn sạch toàn bộ các toast loading, toast đỏ khi chủ động dừng/hủy tác vụ.
+  - Khi tác vụ gặp sự cố (FAILED / ABORTED): Hiển thị hộp thoại nhỏ gọn (Clean Modal) với 2 tùy chọn rõ ràng:
+    - `[Chạy lại]`: Kích hoạt chạy lại ngay.
+    - `[Đóng & Về lần gần nhất]`: Tự động lùi bảng số liệu về kết quả của lần chạy thành công gần nhất (`status === 'COMPLETED'`), giúp màn hình lập tức trở về trạng thái sạch sẽ tinh tươm.
+  - Nâng cấp khối chờ dữ liệu (`isWaitingFiles`) thành thẻ `glass-panel` viền trái 4px thanh mảnh chuẩn phân hệ `statistics/ccp`.
+
+### 2. Danh sách file chỉnh sửa
+
+1. **[frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx)**:
+   - Import icon `X` từ `lucide-react`.
+   - Bổ sung state `failedJobPrompt` và `hasDismissedPromptRef`.
+   - Sửa `handleToggleAutoRecon`: Thay `toast.error` khi tắt định kỳ bằng toast trung tính nhẹ nhàng.
+   - Sửa `handleJobFinished`:
+     - Khi `COMPLETED`: Rút ngắn toast xuống 2.5s, không văng text dump dài lê thê.
+     - Khi `CANCELLED`: Không bắn `toast.error`, tự động giữ/lùi về lượt chạy thành công gần nhất.
+     - Khi `FAILED`/`ABORTED`: Không bắn toast đỏ 6s mà kích hoạt `failedJobPrompt`.
+   - Sửa `handleTriggerRun`: Xóa bỏ hoàn toàn `toast.loading('Bot đang thực thi...')`.
+   - Sửa `handleEmergencyStopBot`: Rút gọn thông báo về 1 toast duy nhất: `Đã dừng tiến trình đối soát (2s)`.
+   - Xóa bỏ hoàn toàn khối banner lỗi cồng kềnh (110 dòng JSX).
+   - Tinh giản `isWaitingFiles` thành thanh `glass-panel` viền trái 4px (`#f59e0b`) chuẩn CCP.
+   - Bổ sung `FailedJobModal` tinh gọn với 2 lựa chọn: `[Chạy lại]` và `[Đóng & Về lần gần nhất]`.
+
+### 3. Xác nhận Build & Deploy
+
+- **Frontend Turbopack Build (52 routes)**: Exit Code 0.
+- **TypeScript Check (`tsc --noEmit`)**: Exit Code 0.
+- **Đã deploy lên máy chủ Ubuntu 10.0.0.26**: Restart PM2 thành công, `mxv-frontend` (pid 4088893) và `mxv-backend` (pid 4088636) đều `online`.
+
+---
+
+## [2026-10-22T16:35] BUGFIX: Chuẩn Hóa Bộ Lọc Biểu Đồ Dashboard Chỉ Lấy Các Ca Đã Hoàn Thành (status: 'COMPLETED')
+
+### 1. Mục tiêu thay đổi
+
+- Sửa triệt để hiện tượng biểu đồ đường lũy kế (Line Chart) trên Executive Dashboard (`/trading-manager/dashboard`) bị cắm thẳng đứng xuống đáy (về 0).
+- Nguyên nhân gốc rễ: Truy vấn `bot_jobs` trong [qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts) không lọc `status`, dẫn tới việc gom cả các Job bị `CANCELLED`, `FAILED` hoặc `RUNNING` (chưa có kết quả `totalNano`/`totalDSGD`, mặc định = 0) vào mảng điểm vẽ.
+- **Tuân thủ chỉ đạo của USER**: TUYỆT ĐỐI KHÔNG lọc theo điều kiện phỏng đoán `khối lượng > 0` (vì nếu ca trực hoàn thành hợp lệ lúc đầu ngày chưa có giao dịch hoặc ngày lễ thì khối lượng = 0 là dữ liệu thực tế trung thực). CHỈ LỌC DUY NHẤT theo trạng thái đã hoàn thành: `status === 'COMPLETED'`.
+
+### 2. Danh sách file chỉnh sửa
+
+1. **[backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts#L364-L372)**:
+   - Thêm điều kiện `status: 'COMPLETED'` vào truy vấn `botJobModel.find` để chỉ lấy các ca chạy đã hoàn tất.
+2. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx#L635-L641)**:
+   - Thêm bộ lọc `!r.status || r.status === 'COMPLETED'` vào `chronologicalRuns` để biểu đồ chỉ vẽ các điểm của ca chạy đã hoàn tất.
+
+### 3. Xác nhận Build & Deploy
+
+- **Backend NestJS Build**: Exit Code 0.
+- **Frontend Turbopack Build (52 routes)**: Exit Code 0.
+- **Đã đồng bộ và restart PM2 trên máy chủ Ubuntu 10.0.0.26**: `mxv-backend` và `mxv-frontend` đều `online`.
+
+---
+
+## [2026-10-22T15:50] REVERT & BUGFIX: Hoàn Tác Cờ Khởi Động CQG (Phục Hồi WebGL/Canvas) & Khắc Phục Lỗi Màn Hình Trắng Khi Chưa Đăng Nhập
+
+### 1. Mục tiêu thay đổi
+
+- **Hoàn tác cờ Chromium sai lệch gây treo CQG**:
+  - Tại commit `46e0eee` lúc 10:15, việc đưa cờ `--disable-gpu` và `--disable-software-rasterizer` vào nhằm giảm RAM đã vô tình khóa chết khả năng render đồ họa (WebGL / Canvas) của CQG Desktop Web (`m.cqg.com`), dẫn tới việc giao diện sau khi bấm đăng nhập không thể vẽ xong, gây treo cứng Worker CQG 15 phút.
+  - Hoàn tác ngay lập tức về các cờ tiêu chuẩn: khôi phục `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy` để SwiftShader/CPU rasterizer hoạt động bình thường.
+  - Bổ sung Hard-Timeout (4 phút) bọc quanh `downloadCqgBackup` trong [recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts) để nếu sàn đối tác có sự cố mạng, bot sẽ Fail-Fast sau 4 phút thay vì ngâm tiến trình 15 phút.
+- **Khắc phục lỗi màn hình trắng tinh (Blank Screen) khi chưa đăng nhập**:
+  - Tại [GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/GlobalLayout.tsx), khi `!user`, layout trả về `null` khiến toàn bộ component con (kể cả `<ProtectedRoute>`) không được mount, làm mất khả năng tự động chuyển hướng về `/login`.
+  - Bổ sung `useEffect` điều hướng trực tiếp bằng `router.replace('/login')` và render spinner chuyển hướng thay vì `null`.
+- **Dọn dẹp triệt để tiến trình mồ côi (Zombie Chromium) trên Ubuntu**:
+  - Tự động `pkill -9 -f chrome-headless-shell` và xóa các file lock `Singleton*` trước khi khởi động lại dịch vụ.
+
+### 2. Danh sách file chỉnh sửa
+
+1. **[backend/src/modules/ingress/scrapers/rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Xóa bỏ `--disable-gpu`, `--disable-software-rasterizer`, `--renderer-process-limit=1`, `--js-flags=--max-old-space-size=512`.
+   - Khôi phục `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy`, `--disk-cache-size=209715200`.
+2. **[backend/src/modules/ingress/scrapers/cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts)**:
+   - Khôi phục bộ cờ tiêu chuẩn tương tự.
+3. **[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**:
+   - Bổ sung Hard-Timeout `Promise.race` 4 phút (240.000ms) cho luồng tải dữ liệu CQG.
+4. **[frontend/src/components/GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/GlobalLayout.tsx)**:
+   - Bổ sung `useEffect` redirect về `/login` khi `!loading && !user && !isPublicPage`.
+   - Render spinner thông báo chuyển hướng thay vì trả về `null`.
+5. **[backend/src/scripts/deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js)**:
+   - Bổ sung bước dọn sạch tiến trình chrome zombie (`pkill`) và file lock trước khi build.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build (`npm run build`)**: Exit Code 0, biên dịch NestJS thành công.
+- **Frontend Build (`npm run build`)**: Exit Code 0, biên dịch Turbopack 52/52 routes thành công.
+
+---
+
 ## [2026-10-22T15:15] BUGFIX & PERFORMANCE: Triệt Tiêu Vòng Lặp Vô Tận WebSocket & Đơ Trình Duyệt Khi Đổi Tab
 
 ### 1. Mục tiêu thay đổi
@@ -40,10 +140,16 @@
    - [trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/statistics/ms/page.tsx)
    - [useChecklist.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/hooks/useChecklist.ts)
 
-### 4. Xác nhận Build & Kiểm thử
+### 4. Xác nhận Build & Deployment
 
-- **Backend Build (`npm run build`)**: Exit Code 0, NestJS biên dịch sạch.
-- **Frontend Build (`npm run build`)**: Exit Code 0, toàn bộ 50/50 trang tĩnh và dynamic route biên dịch thành công.
+- **Local Verification**:
+  - Backend Build (`npm run build`): Exit Code 0, NestJS biên dịch sạch.
+  - Frontend Build (`npm run build`): Exit Code 0, toàn bộ 52/52 trang tĩnh và dynamic route biên dịch thành công.
+- **Ubuntu Native Production Deployment (`10.0.0.26`)**:
+  - Đồng bộ toàn bộ mã nguồn frontend/backend mới qua SFTP batch upload (`deploy_to_ubuntu.js`).
+  - Biên dịch thành công Backend trên Ubuntu: `npm run build` (Exit Code 0).
+  - Biên dịch thành công Frontend trên Ubuntu: `npm run build` Turbopack 52/52 static pages (Exit Code 0).
+  - Restart thành công cả 2 dịch vụ PM2: `mxv-backend` (id 0) và `mxv-frontend` (id 1) ở trạng thái `online`.
 
 ---
 

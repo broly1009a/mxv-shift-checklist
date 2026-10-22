@@ -28,6 +28,7 @@ import {
   RotateCcw,
   History,
   FileText,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import TradingManagerLogModal from '../shared/TradingManagerLogModal';
@@ -95,6 +96,14 @@ export default function LegacyReconSection({
   const [autoReconActive, setAutoReconActive] = useState<boolean>(true);
   const [updatingAutoRecon, setUpdatingAutoRecon] = useState<boolean>(false);
   const [cancellingBot, setCancellingBot] = useState<boolean>(false);
+
+  // Modal thông báo gián đoạn & Fallback về lần thành công gần nhất (Clean UI/UX)
+  const [failedJobPrompt, setFailedJobPrompt] = useState<{
+    jobId: string;
+    error?: string;
+    jobType: string;
+  } | null>(null);
+  const hasDismissedPromptRef = useRef<boolean>(false);
 
 
   // Sound Beeper
@@ -178,9 +187,9 @@ export default function LegacyReconSection({
       await api.admin.saveSystemSetting('bot_auto_recon_enabled', nextVal ? 'true' : 'false', token);
       setAutoReconActive(nextVal);
       if (nextVal) {
-        toast.success('Đã BẬT tự động đối chiếu trong phiên!');
+        toast.success('Đã bật tự động đối chiếu trong phiên!', { duration: 2000 });
       } else {
-        toast.error('Đã TẮT (DỪNG) tự động đối chiếu trong phiên!');
+        toast('Đã tắt tự động đối chiếu trong phiên', { duration: 2000 });
       }
     } catch (err: any) {
       toast.error(`Lỗi cập nhật tự động: ${err.message}`);
@@ -366,6 +375,7 @@ export default function LegacyReconSection({
       }
 
       if (job.status === 'COMPLETED') {
+        setFailedJobPrompt(null);
         const payloadResult = job.result || job.payload?.result;
         if (jobType === 'CHECK_KLGD') {
           const diffKLGD = payloadResult?.totals?.differ || 0;
@@ -373,57 +383,57 @@ export default function LegacyReconSection({
           const mismatchTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
           const pendingCount = payloadResult?.pendingSyncTrades?.length || 0;
           if (diffKLGD === 0 && diffACM === 0 && mismatchTrades === 0) {
-            const note = pendingCount > 0 ? ` (Bảo lưu ${pendingCount} lệnh sau mốc cắt)` : '';
-            toast.success(`Đối chiếu Khớp lệnh hoàn tất: Số liệu khớp hoàn toàn!${note}`, { duration: 5000 });
+            const note = pendingCount > 0 ? ` (Bảo lưu ${pendingCount} lệnh)` : '';
+            toast.success(`Đối chiếu Khớp lệnh hoàn tất: Khớp 100%!${note}`, { duration: 2500 });
           } else {
-            toast.error(`Đối chiếu Khớp lệnh: Lệch ${mismatchTrades} lệnh (Lệch CQG: ${diffKLGD}, ACM: ${diffACM})`, { duration: 6000 });
+            toast(`Phát hiện chênh lệch đối chiếu (${mismatchTrades} lệnh lệch)`, { icon: '⚠️', duration: 3000 });
           }
         } else if (jobType === 'SCAN_NEGATIVE_MARGIN' || jobType === 'CHECK_EOD_MS') {
           const negAccs = payloadResult?.eodResult?.negativeIMRAcc?.length || payloadResult?.negativeIMRAcc?.length || 0;
           const mismatchEOD = payloadResult?.eodResult?.mismatchedEOD?.length || payloadResult?.mismatchedEOD?.length || 0;
           const mismatchCQG = payloadResult?.cqgResult?.length || 0;
           if (negAccs === 0 && mismatchEOD === 0 && mismatchCQG === 0) {
-            toast.success('Đối chiếu EOD hoàn tất: Vị thế & Số dư khớp hoàn toàn, không có TK âm!', { duration: 5000 });
+            toast.success('Đối chiếu EOD hoàn tất: Khớp 100%!', { duration: 2500 });
           } else {
-            const parts = [];
-            if (negAccs > 0) parts.push(`${negAccs} TK âm KQ`);
-            if (mismatchEOD > 0) parts.push(`${mismatchEOD} TK lệch EOD`);
-            if (mismatchCQG > 0) parts.push(`${mismatchCQG} TK lệch số dư CQG`);
-            toast.error(`Hoàn tất EOD: Phát hiện ${parts.join(', ')}!`, { duration: 6000 });
+            toast('Hoàn tất EOD: Phát hiện tài khoản cần kiểm tra', { icon: '⚠️', duration: 3000 });
           }
         } else if (jobType === 'CHECK_DSGD_BEFORE_EOD') {
           const misTrades = payloadResult?.mismatchedTradesTotal || payloadResult?.mismatchedTrades?.length || 0;
           const misPos = payloadResult?.mismatchedPositionsTotal || payloadResult?.mismatchedPositions?.length || 0;
           if (misTrades === 0 && misPos === 0) {
-            toast.success('Đối chiếu Dsgd-Before-EOD hoàn tất: Khớp lệnh & vị thế trùng khớp 100%!', { duration: 5000 });
+            toast.success('Đối chiếu Dsgd-Before-EOD: Khớp 100%!', { duration: 2500 });
           } else {
-            toast.error(`Đối chiếu Dsgd-Before-EOD: Phát hiện ${misTrades} lệnh lệch, ${misPos} vị thế lệch!`, { duration: 6000 });
+            toast('Đối chiếu Dsgd-Before-EOD: Phát hiện chênh lệch', { icon: '⚠️', duration: 3000 });
           }
         } else if (jobType === 'CHECK_EOD_CCP') {
           const totalMis = payloadResult?.mismatchedEOD?.length || 0;
           const totalNeg = (payloadResult?.negativeBalanceAccs?.length || 0) + (payloadResult?.negativeIMRAcc?.length || 0);
           if (totalMis === 0 && totalNeg === 0) {
-            toast.success('Đối chiếu CoreCCP hoàn tất: Toàn bộ tài khoản khớp 100% công thức EOD!', { duration: 5000 });
+            toast.success('Đối chiếu CoreCCP hoàn tất: Khớp 100%!', { duration: 2500 });
           } else {
-            toast.error(`Hoàn tất EOD CoreCCP: Phát hiện ${totalMis} TK lệch công thức, ${totalNeg} TK âm ký quỹ!`, { duration: 6000 });
+            toast('Hoàn tất EOD CoreCCP: Phát hiện chênh lệch', { icon: '⚠️', duration: 3000 });
           }
         } else {
-          toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 5000 });
+          toast.success('Tác vụ đối chiếu đã hoàn thành thành công!', { duration: 2500 });
         }
-      } else if (job.status === 'ABORTED') {
-        const errDetail = job.error || 'Dịch vụ đối tác sàn ngoài tạm thời không khả dụng.';
-        toast.error(`Tác vụ tạm dừng: ${errDetail}`, { duration: 6000 });
       } else if (job.status === 'CANCELLED') {
-        const errDetail = job.error || 'Tác vụ đối chiếu đã bị hủy bỏ.';
-        toast.error(`Tác vụ đã bị hủy: ${errDetail}`, { duration: 5000 });
-      } else if (job.status === 'FAILED') {
-        const errDetail = job.error || 'Có lỗi xảy ra trong quá trình đối chiếu của Bot.';
-        toast.error(`Bot thất bại: ${errDetail}`, { duration: 6000 });
+        setFailedJobPrompt(null);
+        // Tự động giữ / lùi về lần chạy thành công gần nhất mà không văng popup lỗi
+        const lastCompleted = (runs || []).find((r: any) => r.status === 'COMPLETED');
+        if (lastCompleted && lastCompleted.id && lastCompleted.id !== selectedRunJobIdRef.current) {
+          handleSelectRun(lastCompleted.id);
+        }
+      } else if (job.status === 'ABORTED' || job.status === 'FAILED') {
+        setFailedJobPrompt({
+          jobId: job._id || job.id,
+          error: job.error || (job.status === 'ABORTED' ? 'Dịch vụ đối tác sàn ngoài tạm thời không khả dụng.' : 'Quá trình đối chiếu của Bot gặp sự cố.'),
+          jobType,
+        });
       }
 
       await fetchConsoleSummary(selectedDate, true);
     },
-    [selectedDate, fetchConsoleSummary],
+    [selectedDate, fetchConsoleSummary, runs, handleSelectRun],
   );
 
   // Reusable Polling Fallback Function for Bot Job
@@ -482,7 +492,7 @@ export default function LegacyReconSection({
         activeJobIdRef.current = null;
         setTriggering(false);
         setTriggeringSection(null);
-        toast.success('Bot đã hoàn tất kiểm tra trạng thái.', { duration: 4000 });
+        toast.success('Bot đã hoàn tất kiểm tra trạng thái.', { duration: 2500 });
         await fetchConsoleSummary(selectedDate, true);
       }
     },
@@ -578,18 +588,10 @@ export default function LegacyReconSection({
         return;
       }
 
-      if (isReused) {
-        // Job đang chạy bởi tiến trình khác / tab khác - tự động kết nối theo dõi
-        toast.loading(`Tiến trình đang chạy ngầm. Đang kết nối theo dõi...`, {
-          id: 'bot-job-progress',
-        });
-      } else {
-        toast.loading('Bot đang thực thi đối chiếu ngầm, vui lòng chờ...', { id: 'bot-job-progress' });
-      }
+      hasDismissedPromptRef.current = false;
 
       await pollJobProgress(jobId, jobType);
     } catch (err: any) {
-      toast.dismiss('bot-job-progress');
       toast.error(`Không thể kích hoạt đối chiếu: ${err.message}`);
       setTriggering(false);
       setTriggeringSection(null);
@@ -625,11 +627,10 @@ export default function LegacyReconSection({
     if (!confirmed) return;
 
     setCancellingBot(true);
-    const toastId = toast.loading('Đang gửi lệnh dừng bot...');
     try {
       await api.checklistHub.cancelJob(targetJobId, token);
 
-      toast.success('Đã dừng tiến trình đối soát thành công!', { id: toastId });
+      toast('Đã dừng tiến trình đối soát', { duration: 2000 });
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('activeTriggerJobId');
       }
@@ -639,11 +640,34 @@ export default function LegacyReconSection({
       setTriggeringSection(null);
       await fetchConsoleSummary(selectedDate, true);
     } catch (err: any) {
-      toast.error(`Lỗi khi dừng bot: ${err.message}`, { id: toastId });
+      toast.error(`Lỗi khi dừng bot: ${err.message}`);
     } finally {
       setCancellingBot(false);
     }
   };
+
+  // Handlers cho Failed Job Prompt (Clean UI / UX)
+  const handleRetryFromPrompt = useCallback(async () => {
+    const currentPrompt = failedJobPrompt;
+    setFailedJobPrompt(null);
+    hasDismissedPromptRef.current = false;
+    if (currentPrompt?.jobType) {
+      await handleTriggerRun(currentPrompt.jobType, 'TABLE1');
+    } else {
+      await handleTriggerRun('CHECK_KLGD', 'TABLE1');
+    }
+  }, [failedJobPrompt, handleTriggerRun]);
+
+  const handleDismissFromPrompt = useCallback(() => {
+    setFailedJobPrompt(null);
+    hasDismissedPromptRef.current = true;
+    const lastCompleted = (runs || []).find((r: any) => r.status === 'COMPLETED');
+    if (lastCompleted && lastCompleted.id) {
+      handleSelectRun(lastCompleted.id);
+    } else {
+      handleSelectRun(null, true);
+    }
+  }, [runs, handleSelectRun]);
 
   // Trigger CoreCCP Playwright Download Job
 
@@ -828,199 +852,72 @@ export default function LegacyReconSection({
     onStatusChange?.({ isDiffer, totalDifferLots, klgdStatus });
   }, [isDiffer, totalDifferLots, klgdStatus, onStatusChange]);
 
+  // Tự động kích hoạt Modal khi lần quét mới nhất gặp sự cố và chưa bị người dùng đóng
+  useEffect(() => {
+    if (
+      !isBotRunning &&
+      (klgdStatus === 'FAILED' || klgdStatus === 'ABORTED') &&
+      !failedJobPrompt &&
+      !hasDismissedPromptRef.current &&
+      summaryData?.klgd?.jobId &&
+      !selectedRunJobId
+    ) {
+      setFailedJobPrompt({
+        jobId: summaryData.klgd.jobId,
+        error: klgdError || 'Lần quét mới nhất bị gián đoạn.',
+        jobType: 'CHECK_KLGD',
+      });
+    }
+  }, [isBotRunning, klgdStatus, failedJobPrompt, summaryData?.klgd?.jobId, selectedRunJobId, klgdError]);
+
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-            {/* BOT EXECUTION STATUS & ERROR ALERT BANNER */}
-            {klgdStatus === 'FAILED' || klgdStatus === 'CANCELLED' || klgdStatus === 'ABORTED' ? (
-              <div style={{
-                background: klgdStatus === 'FAILED'
-                  ? 'rgba(239, 68, 68, 0.08)'
-                  : klgdStatus === 'CANCELLED'
-                    ? 'rgba(100, 116, 139, 0.08)'
-                    : 'rgba(249, 115, 22, 0.08)',
-                border: `1px solid ${klgdStatus === 'FAILED'
-                    ? 'rgba(239, 68, 68, 0.3)'
-                    : klgdStatus === 'CANCELLED'
-                      ? 'rgba(100, 116, 139, 0.3)'
-                      : 'rgba(249, 115, 22, 0.3)'
-                  }`,
-                borderRadius: '12px',
-                padding: '14px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    backgroundColor: klgdStatus === 'FAILED' ? 'rgba(239, 68, 68, 0.15)' : klgdStatus === 'CANCELLED' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(249, 115, 22, 0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: klgdStatus === 'FAILED' ? '#dc2626' : klgdStatus === 'CANCELLED' ? '#475569' : '#ea580c',
-                    flexShrink: 0
-                  }}>
-                    <AlertTriangle size={22} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span>
-                        {klgdStatus === 'FAILED' ? 'Lần quét đối soát gần nhất thất bại' : klgdStatus === 'CANCELLED' ? 'Lần quét đối soát gần nhất đã bị hủy' : 'Lần quét đối soát gần nhất bị tạm dừng'}
-                      </span>
-                      <span style={{
-                        fontSize: '0.72rem',
-                        backgroundColor: klgdStatus === 'FAILED' ? '#dc2626' : klgdStatus === 'CANCELLED' ? '#64748b' : '#ea580c',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        color: '#ffffff',
-                        fontWeight: 700
-                      }}>
-                        {klgdStatus}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px', maxWidth: '750px', wordBreak: 'break-word' }}>
-                      {klgdError || (klgdStatus === 'CANCELLED' ? 'Tác vụ đối chiếu đã bị hủy bỏ trước khi hoàn thành.' : 'Gặp lỗi trong quá trình tải file M-System / CQG hoặc đối chiếu dữ liệu.')}
-                    </div>
-                  </div>
-                </div>
+            {/* TRẠNG THÁI CHỜ FILE DỮ LIỆU HOẶC TIẾN TRÌNH CHẠY CỦA BOT */}
+            {isWaitingFiles ? (
+              <div
+                className="glass-panel"
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  borderLeft: '4px solid #f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Clock size={16} color="#d97706" />
+                  <span style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--text-primary)' }}>
+                    Chờ dữ liệu:
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {waitingMessage || 'Một số file dữ liệu từ M-System hoặc CQG chưa sẵn sàng để đối chiếu.'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {klgdLogs.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setShowLogModal(true)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '8px 14px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                        transition: 'all 0.2s'
-                      }}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.74rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
-                      <Terminal size={14} />
-                      <span>Xem chi tiết Log</span>
+                      <Terminal size={12} />
+                      <span>Log</span>
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => handleTriggerRun('CHECK_KLGD', 'TABLE1')}
                     disabled={triggering}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: klgdStatus === 'FAILED' ? '#dc2626' : klgdStatus === 'CANCELLED' ? '#2563eb' : '#ea580c',
-                      color: '#ffffff',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      cursor: triggering ? 'not-allowed' : 'pointer',
-                      opacity: triggering ? 0.7 : 1,
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
-                      transition: 'all 0.2s'
-                    }}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.74rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
                   >
-                    <RefreshCw size={14} className={triggering ? 'animate-spin' : ''} />
-                    <span>{triggering ? 'Đang chạy lại...' : 'Chạy lại ngay'}</span>
-                  </button>
-                </div>
-              </div>
-            ) : isWaitingFiles ? (
-              <div style={{
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                borderRadius: '12px',
-                padding: '14px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#d97706',
-                    flexShrink: 0
-                  }}>
-                    <Clock size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                      Chờ dữ liệu báo cáo đối soát
-                    </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {waitingMessage || 'Một số file dữ liệu từ M-System hoặc CQG chưa sẵn sàng để đối chiếu.'}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {klgdLogs.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowLogModal(true)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '8px 14px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-                      }}
-                    >
-                      <Terminal size={14} />
-                      <span>Xem Log</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleTriggerRun('CHECK_KLGD', 'TABLE1')}
-                    disabled={triggering}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: '#d97706',
-                      color: '#ffffff',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      cursor: triggering ? 'not-allowed' : 'pointer',
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)'
-                    }}
-                  >
-                    <RefreshCw size={14} className={triggering ? 'animate-spin' : ''} />
+                    <RefreshCw size={12} className={triggering ? 'animate-spin' : ''} />
                     <span>{triggering ? 'Đang tải lại...' : 'Tải lại & Đối chiếu'}</span>
                   </button>
                 </div>
@@ -2361,6 +2258,157 @@ export default function LegacyReconSection({
         }}
         isRetrying={triggering}
       />
+
+      {/* MODAL BÁO LỖI TINH GỌN (CLEAN UI / UX CHUẨN CCP) */}
+      {failedJobPrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1050,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--bg-card, #ffffff)',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.18)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: '14px 18px',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'rgba(239, 68, 68, 0.05)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={18} color="#ef4444" />
+                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Tiến trình đối chiếu bị gián đoạn
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDismissFromPrompt}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '4px',
+                }}
+                title="Đóng"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Lần quét đối chiếu vừa qua gặp sự cố hoặc gián đoạn kết nối. Bạn có thể chọn <strong>Chạy lại ngay</strong> hoặc <strong>Đóng</strong> để tự động lùi về kết quả thành công gần nhất.
+              </p>
+              {failedJobPrompt.error && (
+                <div
+                  style={{
+                    fontSize: '0.76rem',
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-input, rgba(0, 0, 0, 0.03))',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    fontFamily: 'monospace',
+                    maxHeight: '80px',
+                    overflowY: 'auto',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {failedJobPrompt.error}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: '12px 18px',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--bg-secondary, rgba(0, 0, 0, 0.02))',
+                gap: '8px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLogModal(true);
+                }}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.78rem',
+                  padding: '6px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <Terminal size={13} />
+                <span>Xem Log</span>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleDismissFromPrompt}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.8rem', padding: '6px 12px', fontWeight: 600 }}
+                >
+                  Đóng & Về lần gần nhất
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRetryFromPrompt}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.8rem',
+                    padding: '6px 14px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <RefreshCw size={13} />
+                  <span>Chạy lại</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
