@@ -615,6 +615,40 @@ export default function CcpLotStatisticsSection({
     }
   };
 
+  // ─── 1-CHẠM: Chạy Macro Toàn Diện (11 File: Số Lot + GTGD) ────────────────
+  const [runningMacro, setRunningMacro] = useState<boolean>(false);
+  const handleRunMacroDirect = async () => {
+    if (!token) return;
+    if (!scanResult?.canProcess) {
+      toast.error('Chưa tìm thấy file DSGD trong thư mục ngày. Vui lòng kiểm tra lại!');
+      return;
+    }
+
+    setRunningMacro(true);
+    setAccumulatorLogs([]);
+    const toastId = toast.loading(`Đang chạy Macro toàn diện (11 file) ngày ${ngayGD}...`);
+    try {
+      const data = await api.ccpClearing.runMacro({ date: ngayGD }, token);
+      if (data?.logs && Array.isArray(data.logs)) {
+        setAccumulatorLogs(data.logs);
+      }
+      if (data?.success) {
+        if (data?.result) setResult(data.result);
+        toast.success(
+          data.message || `Đã chạy hoàn tất Macro CoreCCP toàn diện ngày ${ngayGD}!`,
+          { id: toastId },
+        );
+        fetchRunHistory();
+      } else {
+        toast.error(data?.message || 'Có lỗi khi chạy Macro CoreCCP', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kết nối máy chủ: ' + err.message, { id: toastId });
+    } finally {
+      setRunningMacro(false);
+    }
+  };
+
   // Formatter helpers
   const fmtNum = (v?: number) => (v !== undefined && v !== null ? v.toLocaleString('vi-VN') : '0');
   const fmtCur = (v?: number) => (v !== undefined && v !== null ? `${v.toLocaleString('vi-VN')} đ` : '0 đ');
@@ -889,19 +923,81 @@ export default function CcpLotStatisticsSection({
                 </span>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>•</span>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                  DSGD: {scanResult?.files.dsgd?.present ? '✓' : '✗'} | TTM: {scanResult?.files.ttm?.present ? '✓' : '✗'} | TTTT: {scanResult?.files.tttt?.present ? '✓' : '✗'} | Tỷ giá: 1 USD = {fmtNum(scanResult?.dbExchangeRates?.detectedRate || scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || result?.tyGiaUsed?.['USD'] || 25920)} đ
+                  DSGD: {scanResult?.files.dsgd?.present ? '✓' : '✗'} | TTM: {scanResult?.files.ttm?.present ? '✓' : '✗'} | TTTT: {scanResult?.files.tttt?.present ? '✓' : '✗'} | Tỷ giá: 1 USD = {(scanResult?.dbExchangeRates?.detectedRate || scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || result?.tyGiaUsed?.['USD']) ? `${fmtNum(scanResult?.dbExchangeRates?.detectedRate || scanResult?.dbExchangeRates?.ccpUsd || scanResult?.dbExchangeRates?.usd || result?.tyGiaUsed?.['USD'])} đ` : 'Chưa tải'}
                 </span>
               </div>
             </div>
 
             {/* 1-Click Action Buttons: Tách Độc Lập Số Lot & Giá Trị Giao Dịch */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Nút 0: Chạy Macro Toàn Diện (11 File) + Icon Kiểm Tra PreFlight */}
+              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleRunMacroDirect}
+                  disabled={runningMacro || runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.86rem',
+                    fontWeight: 800,
+                    padding: '10px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderTopLeftRadius: '8px',
+                    borderBottomLeftRadius: '8px',
+                    borderTopRightRadius: 0,
+                    borderBottomRightRadius: 0,
+                    borderRight: '1px solid rgba(255, 255, 255, 0.25)',
+                    boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                    cursor: runningMacro || runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                    backgroundColor: scanResult?.canProcess ? '#8b5cf6' : undefined,
+                  }}
+                >
+                  {runningMacro ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Đang Ghi 11 File...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      <span>Chạy Macro (11 File)</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
+                  style={{
+                    fontSize: '0.86rem',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTopRightRadius: '8px',
+                    borderBottomRightRadius: '8px',
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                    border: 'none',
+                    backgroundColor: scanResult?.canProcess ? '#7c3aed' : '#334155',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu toàn bộ 11 file lũy kế CoreCCP"
+                >
+                  <FileSearch size={16} />
+                </button>
+              </div>
+
               {/* Nút 1: Thống Kê Số Lot (1-Chạm Ghi Trực Tiếp) + Icon Kiểm Tra File */}
               <div style={{ display: 'inline-flex', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={handleRunLotDirect}
-                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  disabled={runningMacro || runningLot || runningValue || !scanResult?.canProcess}
                   className="btn btn-primary"
                   style={{
                     fontSize: '0.86rem',

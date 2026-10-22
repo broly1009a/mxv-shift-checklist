@@ -12,6 +12,7 @@ interface ReconciliationModalProps {
   shiftLogId: string;
   taskId: string;
   taskName?: string;
+  botCheckType?: string;
   token: string;
   onSuccess: () => void;
 }
@@ -22,16 +23,26 @@ export default function ReconciliationModal({
   shiftLogId,
   taskId,
   taskName = '',
+  botCheckType = '',
   token,
   onSuccess
 }: ReconciliationModalProps) {
-  // Determine mode based on taskId and taskName
+  // Determine mode based on botCheckType (Rule 6 Data-Driven), then taskName and taskId
+  const checkTypeUpper = (botCheckType || '').toUpperCase();
   const taskNameUpper = taskName.toUpperCase();
   const taskIdUpper = taskId.toUpperCase();
   
   let mode: 'KLGD' | 'EOD' | 'CQG' | 'DSGD_BEFORE_EOD' = 'KLGD';
   
-  if (taskIdUpper === 'TASK_CHECK_KLGD') {
+  if (checkTypeUpper === 'CHECK_DSGD_BEFORE_EOD' || checkTypeUpper === 'DSGD_BEFORE_EOD') {
+    mode = 'DSGD_BEFORE_EOD';
+  } else if (checkTypeUpper === 'CHECK_KLGD' || checkTypeUpper === 'KLGD') {
+    mode = 'KLGD';
+  } else if (checkTypeUpper === 'CHECK_CQG' || checkTypeUpper === 'CQG') {
+    mode = 'CQG';
+  } else if (checkTypeUpper === 'CHECK_EOD' || checkTypeUpper === 'EOD') {
+    mode = 'EOD';
+  } else if (taskIdUpper === 'TASK_CHECK_KLGD') {
     mode = 'KLGD';
   } else if (taskIdUpper === 'TASK_CHECK_EOD') {
     mode = 'DSGD_BEFORE_EOD';

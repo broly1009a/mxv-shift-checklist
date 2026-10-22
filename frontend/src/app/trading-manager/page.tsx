@@ -606,7 +606,7 @@ export default function TradingManagerPage() {
             </span>
           </div>
           <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Server: 10.0.0.26:3001
+            Server: {API_BASE_URL.replace(/^https?:\/\//, '')}
           </div>
         </div>
 

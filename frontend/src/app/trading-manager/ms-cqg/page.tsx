@@ -478,7 +478,7 @@ export default function MsCqgTradingManagerPage() {
             </span>
           </div>
           <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Server: 10.0.0.26:3001 | Route: /trading-manager/ms-cqg
+            Server: {API_BASE_URL.replace(/^https?:\/\//, '')} | Route: /trading-manager/ms-cqg
           </div>
         </div>
 

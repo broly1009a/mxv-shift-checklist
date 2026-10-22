@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { resolveStoragePathCrossPlatform } from '../../../shared';
+import { resolveDynamicPath } from '../../bot-engine/helpers/bot-path.helper';
 import {
   resolveCcpAccumulatorFilePath,
   checkDateExistsInAccumulator,
@@ -71,7 +72,8 @@ export class TradingOpsPreflightService {
     }
 
     const configuredRoot = await this.settingsService.getSetting(baseSettingKey, defaultMount);
-    const resolvedRoot = resolveStoragePathCrossPlatform(configuredRoot);
+    const dynamicRoot = resolveDynamicPath(configuredRoot, dateStr);
+    const resolvedRoot = resolveStoragePathCrossPlatform(dynamicRoot);
 
     const candidates = [
       path.join(resolvedRoot, subFolderDot),
@@ -99,9 +101,10 @@ export class TradingOpsPreflightService {
    * Quét tỷ giá USD/VND hiện hành từ DB cấu hình hoặc mặc định
    */
   private async getUsdExchangeRate(): Promise<number> {
-    const raw = await this.settingsService.getSetting('exchange_rate_usd', '25920');
-    const parsed = parseFloat(String(raw).replace(/,/g, ''));
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 25920;
+    const ccpRate = await this.settingsService.getSetting('ccp_usd_exchange_rate', '');
+    const msRate = await this.settingsService.getSetting('usd_exchange_rate', '');
+    const parsed = parseFloat(String(ccpRate || msRate).replace(/,/g, ''));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }
 
   /**
@@ -175,6 +178,8 @@ export class TradingOpsPreflightService {
       let filename = '';
       let fullPath = '';
       let sizeBytes = 0;
+      let lastModified: string | undefined;
+      let lastModifiedFormatted: string | undefined;
 
       if (folderInfo.exists) {
         const matched = findMatchingTradingFile(folderInfo.resolvedPath, fileSpec.patterns);
@@ -183,13 +188,34 @@ export class TradingOpsPreflightService {
           filename = matched.filename;
           fullPath = matched.fullPath;
           sizeBytes = matched.size;
+
+          try {
+            const st = fs.statSync(fullPath);
+            lastModified = st.mtime.toISOString();
+            lastModifiedFormatted = new Intl.DateTimeFormat('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            }).format(st.mtime);
+          } catch {
+            // Ignore stat error
+          }
         }
       }
 
-      let status: 'READY' | 'MISSING' | 'OPTIONAL_MISSING' = 'READY';
+      let status: 'READY' | 'MISSING' | 'OPTIONAL_MISSING' | 'CORRUPTED' = 'READY';
       let statusText = `Sẵn sàng (${this.formatBytes(sizeBytes)})`;
 
-      if (!found) {
+      if (found && sizeBytes === 0) {
+        status = 'CORRUPTED';
+        statusText = 'Tệp rỗng (0 bytes - có thể quá trình tải bị gián đoạn)';
+        if (fileSpec.required) {
+          warnings.push(`Tệp bắt buộc "${fileSpec.name}" bị rỗng (0 bytes) tại ${folderInfo.resolvedPath}`);
+        }
+      } else if (!found) {
         if (fileSpec.required) {
           status = 'MISSING';
           statusText = `Chưa có tệp ${fileSpec.name} trong thư mục ngày`;
@@ -205,14 +231,34 @@ export class TradingOpsPreflightService {
         name: fileSpec.name,
         role: fileSpec.role,
         required: fileSpec.required,
-        present: found,
+        present: found && sizeBytes > 0,
         filename: filename || undefined,
         fullPath: fullPath || path.join(folderInfo.resolvedPath, `${fileSpec.id}.xlsx`),
         sizeBytes,
         formattedSize: this.formatBytes(sizeBytes),
+        lastModified,
+        lastModifiedFormatted,
         status,
         statusText,
       });
+    }
+
+    // Thống kê chi tiết các thư mục nguồn ngày đã quét
+    const directorySummary: Record<string, { path: string; exists: boolean; totalFiles: number }> = {};
+    for (const [cat, info] of Object.entries(categoryFolderCache)) {
+      let count = 0;
+      if (info.exists) {
+        try {
+          count = fs.readdirSync(info.resolvedPath).length;
+        } catch {
+          // Ignore readdir error
+        }
+      }
+      directorySummary[cat] = {
+        path: info.resolvedPath,
+        exists: info.exists,
+        totalFiles: count,
+      };
     }
 
     // 3. Quét kiểm tra các File Lũy Kế / Đầu Ra (Accumulator Files)
@@ -246,9 +292,14 @@ export class TradingOpsPreflightService {
             configuredPattern: '',
             resolvedPath: '',
             existsOnDisk: false,
+            fileExists: false,
             parentDir: '',
             parentDirValid: false,
+            parentDirExists: false,
+            isWritable: false,
+            isValidPath: false,
             dateAlreadyRecorded: false,
+            hasSessionData: false,
             status: 'UNCONFIGURED',
             statusText: 'Chưa cấu hình đường dẫn lưu file',
             recommendation: `Vào Cấu hình hệ thống để thiết lập đường dẫn cho: ${accSpec.label}`,
@@ -257,12 +308,24 @@ export class TradingOpsPreflightService {
           continue;
         }
 
-        const resolvedPath = resolveCcpAccumulatorFilePath(configuredPattern);
+        const dynamicPattern = resolveDynamicPath(configuredPattern, dateStr);
+        const crossPlatformPath = resolveStoragePathCrossPlatform(dynamicPattern);
+        const resolvedPath = resolveCcpAccumulatorFilePath(crossPlatformPath);
         const parentDir = path.dirname(resolvedPath);
         const parentDirValid = fs.existsSync(parentDir);
+        let isWritable = true;
+        if (parentDirValid) {
+          try {
+            fs.accessSync(parentDir, fs.constants.W_OK);
+          } catch {
+            isWritable = false;
+          }
+        }
         const existsOnDisk = fs.existsSync(resolvedPath);
 
         let sizeBytes = 0;
+        let lastModified: string | undefined;
+        let lastModifiedFormatted: string | undefined;
         let dateAlreadyRecorded = false;
         let existingTotal: number | undefined;
 
@@ -270,6 +333,15 @@ export class TradingOpsPreflightService {
           try {
             const st = fs.statSync(resolvedPath);
             sizeBytes = st.size;
+            lastModified = st.mtime.toISOString();
+            lastModifiedFormatted = new Intl.DateTimeFormat('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            }).format(st.mtime);
           } catch {
             // Ignore stat error
           }
@@ -301,6 +373,11 @@ export class TradingOpsPreflightService {
           statusText = 'Thư mục cha không tồn tại hoặc không thể truy cập';
           recommendation = `Đảm bảo ổ đĩa mạng (${parentDir}) đã được mount và máy chủ có quyền ghi.`;
           warnings.push(`Thư mục lưu ${accSpec.label} không tồn tại: ${parentDir}`);
+        } else if (!isWritable) {
+          status = 'FOLDER_INVALID';
+          statusText = 'Không có quyền ghi vào thư mục đích (Permission Denied)';
+          recommendation = `Đảm bảo tiến trình backend có quyền Write vào thư mục: ${parentDir}`;
+          warnings.push(`Không có quyền ghi vào thư mục: ${parentDir}`);
         } else if (!existsOnDisk) {
           status = 'READY';
           statusText = 'Tệp chưa tạo (Sẽ tự động khởi tạo khi chạy)';
@@ -322,12 +399,20 @@ export class TradingOpsPreflightService {
           configuredPattern,
           resolvedPath,
           existsOnDisk,
+          fileExists: existsOnDisk,
           parentDir,
           parentDirValid,
+          parentDirExists: parentDirValid,
+          isWritable,
+          isValidPath: parentDirValid && isWritable,
           dateAlreadyRecorded,
+          hasSessionData: dateAlreadyRecorded,
           existingTotal,
           sizeBytes,
           formattedSize: this.formatBytes(sizeBytes),
+          fileFormattedSize: this.formatBytes(sizeBytes),
+          lastModified,
+          lastModifiedFormatted,
           status,
           statusText,
           recommendation,
@@ -340,11 +425,14 @@ export class TradingOpsPreflightService {
     if (taskDef.extraChecks?.includes('USD_EXCHANGE_RATE')) {
       const usdRate = await this.getUsdExchangeRate();
       extraData.usdExchangeRate = usdRate;
+      if (!usdRate || usdRate <= 0) {
+        warnings.push('Chưa cấu hình hoặc chưa đồng bộ tỷ giá USD quy đổi trong CSDL MongoDB (ccp_usd_exchange_rate / usd_exchange_rate).');
+      }
     }
 
     // 5. Đánh giá tính sẵn sàng tổng thể (Executive Readiness)
-    const missingRequiredFiles = sourceFiles.filter((f) => f.required && !f.present);
-    const invalidDestinations = destinations.filter((d) => !d.parentDirValid || d.status === 'UNCONFIGURED');
+    const missingRequiredFiles = sourceFiles.filter((f) => f.required && (!f.present || f.sizeBytes === 0));
+    const invalidDestinations = destinations.filter((d) => !d.parentDirValid || d.status === 'UNCONFIGURED' || d.isWritable === false);
     const overwriteDestinations = destinations.filter((d) => d.dateAlreadyRecorded);
 
     const canExecute = missingRequiredFiles.length === 0 && invalidDestinations.length === 0;
@@ -360,7 +448,7 @@ export class TradingOpsPreflightService {
       summaryBadge = {
         variant: 'danger',
         label: 'Chưa Thể Thực Thi',
-        description: `Còn ${missingRequiredFiles.length} tệp đầu vào bắt buộc chưa có hoặc ${invalidDestinations.length} đường dẫn lưu file không hợp lệ.`,
+        description: `Còn ${missingRequiredFiles.length} tệp đầu vào bắt buộc chưa có/bị rỗng hoặc ${invalidDestinations.length} đường dẫn lưu file không hợp lệ.`,
       };
       if (missingRequiredFiles.length > 0) {
         recommendations.push(
@@ -383,6 +471,21 @@ export class TradingOpsPreflightService {
       );
     }
 
+    const primaryFolderInfo = Object.values(categoryFolderCache)[0] || { resolvedPath: '', exists: false };
+    const source = {
+      folderPath: primaryFolderInfo.resolvedPath,
+      folderExists: primaryFolderInfo.exists,
+      files: sourceFiles,
+      directorySummary,
+      exchangeRate: extraData.usdExchangeRate
+        ? {
+            currency: 'USD',
+            rate: extraData.usdExchangeRate,
+            source: 'Cấu hình hệ thống (Settings)',
+          }
+        : undefined,
+    };
+
     return {
       taskKey: taskDef.taskKey,
       displayName: taskDef.displayName,
@@ -392,8 +495,10 @@ export class TradingOpsPreflightService {
       canExecute,
       isReady,
       summaryBadge,
+      source,
       sourceFiles,
       destinations,
+      directorySummary,
       warnings,
       recommendations,
       extraData,

@@ -28,6 +28,7 @@ import {
   X,
   ExternalLink,
   FileSearch,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -395,6 +396,28 @@ export default function CeLotStatisticsSection({
     }
   };
 
+  // Ghi đồng thời cả Số Lot & GTGD (Macro CE)
+  const [writingMacro, setWritingMacro] = useState<boolean>(false);
+  const handleRunMacro = async (opts?: { forceOverwrite?: boolean }) => {
+    if (!token || writingMacro) return;
+    setWritingMacro(true);
+    const toastId = toast.loading('Đang chạy Macro toàn diện (Số Lot & GTGD ACM)...');
+    try {
+      const data = await api.ceClearing.runMacroStatistics(selectedDate, token, opts);
+      if (data?.success) {
+        toast.success(data?.message || 'Đã ghi thành công toàn bộ Số Lot & GTGD ACM!', { id: toastId });
+      } else {
+        toast.error(data?.message || 'Có lỗi khi chạy Macro CE', { id: toastId });
+      }
+      if (data?.logs) setLogs(data.logs);
+      fetchRunHistory();
+    } catch (err: any) {
+      toast.error(`Lỗi chạy Macro CE: ${err.message}`, { id: toastId });
+    } finally {
+      setWritingMacro(false);
+    }
+  };
+
   // Danh sách hàng hóa động từ kết quả
   const uniqueCommodities = useMemo(() => {
     if (!result?.byTvkd) return ['SI5CO', 'PL1NY', 'CP2CO'];
@@ -571,12 +594,59 @@ export default function CeLotStatisticsSection({
             <span>{loading ? 'Đang tính toán...' : 'Tính Toán Thống Kê'}</span>
           </button>
 
+          {/* Nút Chạy Macro Toàn Diện (Số Lot + GTGD) + Icon Kiểm Tra PreFlight */}
+          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => handleRunMacro()}
+              disabled={writingMacro || writingLot || writingValue || !result}
+              className="btn btn-primary"
+              style={{
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                padding: '8px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderTopRightRadius: 0,
+                borderBottomRightRadius: 0,
+                borderRight: '1px solid rgba(255, 255, 255, 0.25)',
+                backgroundColor: result ? '#8b5cf6' : undefined,
+                cursor: writingMacro || writingLot || writingValue || !result ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {writingMacro ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+              <span>Chạy Macro (Lot + GTGD)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.82rem',
+                padding: '8px 9px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                borderLeft: 'none',
+                color: '#8b5cf6',
+                borderColor: 'var(--border-color)',
+                cursor: 'pointer',
+              }}
+              title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu toàn bộ sổ lũy kế ACM"
+            >
+              <FileSearch size={14} />
+            </button>
+          </div>
+
           {/* Nút Ghi File Số Lot + Icon Kiểm tra luồng file */}
           <div style={{ display: 'inline-flex', alignItems: 'center' }}>
             <button
               type="button"
               onClick={() => handleRunLot()}
-              disabled={writingLot || !result}
+              disabled={writingMacro || writingLot || !result}
               className="btn btn-secondary"
               style={{
                 fontSize: '0.82rem',

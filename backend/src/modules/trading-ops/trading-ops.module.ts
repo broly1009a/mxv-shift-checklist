@@ -30,6 +30,9 @@ import { CcpEodWorker } from './workers/ccp-eod.worker';
 import { SodReconWorker } from './workers/sod-recon.worker';
 import { CqgSyncWorker } from './workers/cqg-sync.worker';
 import { EodMsWorker } from './workers/eod-ms.worker';
+import { CeCcpGttWorker } from './workers/ce-ccp-gtt.worker';
+import { MsCqgGttWorker } from './workers/ms-cqg-gtt.worker';
+import { CeLotWorker } from './workers/ce-lot.worker';
 
 import { IngressModule } from '../ingress/ingress.module';
 import { BotEngineModule } from '../bot-engine/bot-engine.module';
@@ -111,6 +114,9 @@ import { OmsReconService } from './services/oms-recon.service';
     SodReconWorker,
     CqgSyncWorker,
     EodMsWorker,
+    CeCcpGttWorker,
+    MsCqgGttWorker,
+    CeLotWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
     CeLotStatisticsService,
@@ -145,6 +151,9 @@ import { OmsReconService } from './services/oms-recon.service';
     SodReconWorker,
     CqgSyncWorker,
     EodMsWorker,
+    CeCcpGttWorker,
+    MsCqgGttWorker,
+    CeLotWorker,
     CcpLotStatisticsService,
     CcpStatisticsService,
     CcpAdHocStatisticsService,

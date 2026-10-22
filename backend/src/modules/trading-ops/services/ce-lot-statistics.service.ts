@@ -235,7 +235,7 @@ export class CeLotStatisticsService {
 
     const dsgdBuffer = fs.readFileSync(scan.files.dsgd.path);
     const ttmBuffer = scan.files.ttm?.path ? fs.readFileSync(scan.files.ttm.path) : undefined;
-    const usdRate = scan.dbExchangeRates?.usd || 25920;
+    const usdRate = scan.dbExchangeRates?.usd || await this.getUsdExchangeRate();
 
     return this.calculateCeStatistics(dsgdBuffer, ttmBuffer, usdRate, dateStr);
   }
@@ -246,10 +246,14 @@ export class CeLotStatisticsService {
   calculateCeStatistics(
     dsgdBuffer: Buffer,
     ttmBuffer?: Buffer,
-    usdExchangeRate: number = 25920,
+    usdExchangeRate?: number,
     sessionDateStr?: string,
   ): CeLotResultData {
     const warnings: string[] = [];
+    if (!usdExchangeRate || usdExchangeRate <= 0) {
+      warnings.push('Chưa cấu hình hoặc chưa đồng bộ tỷ giá USD quy đổi. Giá trị giao dịch CE quy đổi có thể chưa chính xác.');
+    }
+    const effectiveUsdRate = usdExchangeRate && usdExchangeRate > 0 ? usdExchangeRate : 0;
     const dsgdRows = this.parseCeDsgd(dsgdBuffer, warnings);
     const ttmRows = ttmBuffer ? this.parseCeTtm(ttmBuffer) : [];
 
@@ -300,7 +304,7 @@ export class CeLotStatisticsService {
         const maHH = getMaHHFromCcpMaHD(r.maHD, r.maTKGD);
         const spec = getCcpHhSpec(maHH);
         const doCao = spec?.doCao ?? 1;
-        const tyGia = spec?.tienTe === 'VND' ? 1 : usdExchangeRate;
+        const tyGia = spec?.tienTe === 'VND' ? 1 : effectiveUsdRate;
 
         // Công thức C# Ground Truth: klgd * giakhop * DoLonHopDong * DonViYetGia * convertEx
         const gtgdItem = Math.round(r.klKhop * r.giaKhop * doCao * tyGia);
@@ -990,18 +994,23 @@ export class CeLotStatisticsService {
   }
 
   private async getUsdExchangeRate(): Promise<number> {
-    if (!this.settingsService) return 25920;
+    if (!this.settingsService) return 0;
     try {
       const matrixStr = await this.settingsService.getSetting('ccp_exchange_rates_matrix', '');
       if (matrixStr) {
         const matrix = JSON.parse(matrixStr);
         if (matrix.USD?.conversionRate) return Number(matrix.USD.conversionRate);
       }
-      const rawUsd = await this.settingsService.getSetting('usd_exchange_rate', '25920');
+      const ccpUsd = await this.settingsService.getSetting('ccp_usd_exchange_rate', '');
+      if (ccpUsd) {
+        const val = parseFloat(ccpUsd);
+        if (!isNaN(val) && val > 0) return val;
+      }
+      const rawUsd = await this.settingsService.getSetting('usd_exchange_rate', '');
       const val = parseFloat(rawUsd);
-      return !isNaN(val) && val > 1000 ? val : 25920;
+      return !isNaN(val) && val > 0 ? val : 0;
     } catch {
-      return 25920;
+      return 0;
     }
   }
 

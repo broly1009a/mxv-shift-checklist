@@ -11,7 +11,12 @@ import {
   Logger,
   Req,
   Res,
+  Optional,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -19,6 +24,8 @@ import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { CeLotStatisticsService } from '../services/ce-lot-statistics.service';
 import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
+import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
+import { BotJob } from '../../../schemas/bot-job.schema';
 
 /**
  * Controller chuyên biệt quản lý nghiệp vụ Thống kê Số Lot & Giá trị Giao dịch Core Exchange (CE)
@@ -34,6 +41,12 @@ export class CeReconController {
   constructor(
     private readonly ceLotStatisticsService: CeLotStatisticsService,
     private readonly preflightService: TradingOpsPreflightService,
+    @Optional()
+    @Inject(forwardRef(() => BotJobQueueService))
+    private readonly botJobQueueService?: BotJobQueueService,
+    @Optional()
+    @InjectModel(BotJob.name)
+    private readonly botJobModel?: Model<BotJob>,
   ) {}
 
   /**
@@ -94,10 +107,30 @@ export class CeReconController {
   @Post('lot-statistics/run-lot')
   @Permissions('ACCESS_AUTO_SHIFT')
   async runLotDirect(
-    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean },
+    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean; async?: boolean; shiftLogId?: string } = {},
     @Req() req: any,
   ) {
     const targetDate = body?.date || new Date().toISOString().split('T')[0];
+
+    if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('CE_LOT_STATS', {
+          targetDate,
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.userId || req?.user?.id || req?.user?._id,
+          username: req?.user?.username || 'SYSTEM',
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: `Đã đưa yêu cầu thống kê Số Lot CoreEX ngày ${targetDate} vào hàng đợi xử lý.`,
+        };
+      }
+    }
+
     try {
       const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
       const result = await this.ceLotStatisticsService.runLotStatisticsDirect(
@@ -154,10 +187,30 @@ export class CeReconController {
   @Post('lot-statistics/run-value')
   @Permissions('ACCESS_AUTO_SHIFT')
   async runValueDirect(
-    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean },
+    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean; async?: boolean; shiftLogId?: string } = {},
     @Req() req: any,
   ) {
     const targetDate = body?.date || new Date().toISOString().split('T')[0];
+
+    if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('CE_VALUE_STATS', {
+          targetDate,
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.userId || req?.user?.id || req?.user?._id,
+          username: req?.user?.username || 'SYSTEM',
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: `Đã đưa yêu cầu thống kê Giá Trị CoreEX ngày ${targetDate} vào hàng đợi xử lý.`,
+        };
+      }
+    }
+
     try {
       const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
       const result = await this.ceLotStatisticsService.runValueStatisticsDirect(
@@ -208,6 +261,65 @@ export class CeReconController {
   }
 
   /**
+   * POST /api/v1/ce-clearing/lot-statistics/run-macro
+   * Tự động tổng hợp và GHI TRỰC TIẾP toàn bộ Số Lot & Giá trị Giao dịch CoreEX (ACM Nano Macro).
+   */
+  @Post(['lot-statistics/run-macro', 'lot-statistics/run-all'])
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runMacroDirect(
+    @Body() body: { date?: string; forceOverwrite?: boolean; exportDraft?: boolean; async?: boolean; shiftLogId?: string } = {},
+    @Req() req: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+
+    if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('RUN_MACRO_CE', {
+          targetDate,
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.userId || req?.user?.id || req?.user?._id,
+          username: req?.user?.username || 'SYSTEM',
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: `Đã đưa yêu cầu chạy Macro CoreEX toàn diện ngày ${targetDate} vào hàng đợi xử lý.`,
+        };
+      }
+    }
+
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const lotRes = await this.ceLotStatisticsService.runLotStatisticsDirect(
+        targetDate,
+        { forceOverwrite: body?.forceOverwrite, exportDraft: body?.exportDraft },
+        user,
+      );
+      const valRes = await this.ceLotStatisticsService.runValueStatisticsDirect(
+        targetDate,
+        { forceOverwrite: body?.forceOverwrite, exportDraft: body?.exportDraft },
+        user,
+      );
+      return {
+        success: lotRes.success !== false && valRes.success !== false,
+        message: `${lotRes.message || ''} | ${valRes.message || ''}`,
+        lotResult: lotRes,
+        valueResult: valRes,
+        logs: [...(lotRes.logs || []), ...(valRes.logs || [])],
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi chạy Macro CoreEX: ${err.message}`);
+      throw new HttpException(
+        `Lỗi chạy Macro CoreEX: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
    * GET /api/v1/ce-clearing/lot-statistics/run-history
    * Truy vấn danh sách lịch sử thực thi thống kê Số Lot & Giá Trị CoreEX gần nhất
    */
@@ -227,7 +339,33 @@ export class CeReconController {
    */
   @Get('lot-statistics/latest-run')
   @Permissions('ACCESS_AUTO_SHIFT')
-  async getLatestLotRun(@Query('date') date?: string) {
+  async getLatestLotRun(
+    @Query('date') date?: string,
+    @Query('jobId') jobIdQuery?: string,
+  ) {
+    if (this.botJobModel) {
+      const activeJob = jobIdQuery
+        ? await this.botJobModel.findById(jobIdQuery).exec()
+        : await this.botJobModel
+            .findOne({
+              jobType: { $in: ['RUN_MACRO_CE', 'CE_STATISTICS', 'CE_LOT_STATS', 'CE_VALUE_STATS'] },
+              status: { $in: ['PENDING', 'PROCESSING'] },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
+
+      if (activeJob) {
+        return {
+          success: true,
+          isRunning: true,
+          jobId: activeJob._id,
+          status: activeJob.status,
+          currentLogs: activeJob.logs || [],
+          data: null,
+        };
+      }
+    }
+
     const runs = await this.ceLotStatisticsService.getRunHistory(date, 1);
     return runs.length > 0 ? runs[0] : null;
   }

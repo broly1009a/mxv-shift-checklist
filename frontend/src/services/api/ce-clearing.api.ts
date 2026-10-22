@@ -28,12 +28,12 @@ export const ceClearingApi = {
   },
 
   /**
-   * Ghi trực tiếp Số Lot CE vào file lũy kế (hỗ trợ cờ forceOverwrite và exportDraft)
+   * Ghi trực tiếp Số Lot CE vào file lũy kế (hỗ trợ cờ forceOverwrite, exportDraft, async)
    */
   async runLotStatistics(
     date: string,
     token?: string | null,
-    options?: { forceOverwrite?: boolean; exportDraft?: boolean },
+    options?: { forceOverwrite?: boolean; exportDraft?: boolean; async?: boolean },
   ): Promise<any> {
     return requestJson<any>(
       API_ENDPOINTS.CE_CLEARING.LOT_RUN,
@@ -43,6 +43,7 @@ export const ceClearingApi = {
           date,
           forceOverwrite: options?.forceOverwrite,
           exportDraft: options?.exportDraft,
+          async: options?.async,
         }),
       },
       token,
@@ -50,12 +51,12 @@ export const ceClearingApi = {
   },
 
   /**
-   * Ghi trực tiếp GTGD CE vào file lũy kế (hỗ trợ cờ forceOverwrite và exportDraft)
+   * Ghi trực tiếp GTGD CE vào file lũy kế (hỗ trợ cờ forceOverwrite, exportDraft, async)
    */
   async runValueStatistics(
     date: string,
     token?: string | null,
-    options?: { forceOverwrite?: boolean; exportDraft?: boolean },
+    options?: { forceOverwrite?: boolean; exportDraft?: boolean; async?: boolean },
   ): Promise<any> {
     return requestJson<any>(
       API_ENDPOINTS.CE_CLEARING.VALUE_RUN,
@@ -65,6 +66,29 @@ export const ceClearingApi = {
           date,
           forceOverwrite: options?.forceOverwrite,
           exportDraft: options?.exportDraft,
+          async: options?.async,
+        }),
+      },
+      token,
+    );
+  },
+
+  /**
+   * Chạy Macro CoreEX toàn diện (Lot + GTGD)
+   */
+  async runMacroStatistics(
+    date: string,
+    token?: string | null,
+    options?: { forceOverwrite?: boolean; async?: boolean },
+  ): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CE_CLEARING.MACRO_RUN,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          date,
+          forceOverwrite: options?.forceOverwrite,
+          async: options?.async,
         }),
       },
       token,
@@ -136,13 +160,14 @@ export const ceClearingApi = {
   },
 
   /**
-   * Lấy bản ghi chạy gần nhất cho một ngày phiên
+   * Lấy bản ghi chạy gần nhất cho một ngày phiên hoặc tra cứu active job theo jobId
    */
   async getLatestLotRun(
     date?: string,
+    jobId?: string,
     token?: string | null,
   ): Promise<any | null> {
-    const endpoint = API_ENDPOINTS.CE_CLEARING.LATEST_RUN(date);
+    const endpoint = API_ENDPOINTS.CE_CLEARING.LATEST_RUN(date, jobId);
     return requestJson<any | null>(endpoint, { method: 'GET' }, token);
   },
 

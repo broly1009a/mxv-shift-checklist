@@ -17,12 +17,16 @@ import {
   UploadedFiles,
   UseInterceptors,
   Req,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as fs from 'fs';
+import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
+import { BotJob } from '../../../schemas/bot-job.schema';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { CcpLotStatisticsService } from '../services/ccp-lot-statistics.service';
@@ -77,6 +81,12 @@ export class CcpReconController {
     private readonly ccpLogModel: Model<CcpClearingLog>,
     @Optional()
     private readonly ingressService?: IngressService,
+    @Optional()
+    @Inject(forwardRef(() => BotJobQueueService))
+    private readonly botJobQueueService?: BotJobQueueService,
+    @Optional()
+    @InjectModel(BotJob.name)
+    private readonly botJobModel?: Model<BotJob>,
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -482,7 +492,9 @@ export class CcpReconController {
       ccpGttPath?: string;
       ceHhPath?: string;
       ccpHhPath?: string;
+      shiftLogId?: string;
     } = {},
+    @Req() req?: any,
   ) {
     if (this.ceCcpGttService.getIsRunning()) {
       return {
@@ -494,6 +506,22 @@ export class CcpReconController {
     }
 
     if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('CHECK_GTT_CE_CCP', {
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.id || req?.user?.userId,
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: 'Đã đưa yêu cầu đối soát GTT CE-CCP vào hàng đợi xử lý.',
+          report: this.ceCcpGttService.getLatestReport(),
+        };
+      }
+
       this.ceCcpGttService.runCeCcpGttCheck(body).catch((err) => {
         this.logger.error(`[Background CE-CCP GTT Check] Lỗi: ${err.message}`, err.stack);
       });
@@ -520,7 +548,35 @@ export class CcpReconController {
    * Lấy báo cáo đối soát GTT CE-CCP gần nhất hoặc theo ngày.
    */
   @Get('ce-ccp-gtt-report')
-  async getCeCcpGttReport(@Query('date') dateQuery?: string) {
+  async getCeCcpGttReport(
+    @Query('date') dateQuery?: string,
+    @Query('jobId') jobIdQuery?: string,
+  ) {
+    // 1. Kiểm tra Job đang chạy trong bot_jobs nếu có
+    if (this.botJobModel) {
+      const activeJob = jobIdQuery
+        ? await this.botJobModel.findById(jobIdQuery).exec()
+        : await this.botJobModel
+            .findOne({
+              jobType: 'CHECK_GTT_CE_CCP',
+              status: { $in: ['PENDING', 'PROCESSING'] },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
+
+      if (activeJob) {
+        return {
+          success: true,
+          isRunning: true,
+          jobId: activeJob._id,
+          status: activeJob.status,
+          currentLogs: activeJob.logs || [],
+          report: null,
+        };
+      }
+    }
+
+    // 2. Trả về kết quả từ service / cache
     const report = this.ceCcpGttService.getLatestReport();
     const isRunning = this.ceCcpGttService.getIsRunning();
     const currentLogs = this.ceCcpGttService.getCurrentLogs();
@@ -530,12 +586,28 @@ export class CcpReconController {
     }
 
     if (!report) {
+      // 3. Phục hồi kết quả từ Job gần nhất nếu service vừa restart
+      if (this.botJobModel) {
+        const latestDoneJob = await this.botJobModel
+          .findOne({ jobType: 'CHECK_GTT_CE_CCP', status: 'COMPLETED' })
+          .sort({ createdAt: -1 })
+          .exec();
+        if (latestDoneJob && (latestDoneJob.payload as any)?.result) {
+          return {
+            success: true,
+            isRunning: false,
+            currentLogs: latestDoneJob.logs || [],
+            report: (latestDoneJob.payload as any).result,
+          };
+        }
+      }
+
       return {
         success: false,
         isRunning: false,
         currentLogs: [],
         report: null,
-        message: 'Chưa có báo cáo GTT CE-CCP nào. Hãy bấm nút [Đối Chiếu GTT (CE vs CCP)] để chạy.',
+        message: 'Chưa có báo cáo GTT CE-CCP nào. Hãy chạy đối soát trước.',
       };
     }
 
@@ -810,8 +882,31 @@ export class CcpReconController {
    */
   @Post('lot-statistics/run-lot')
   @Permissions('ACCESS_AUTO_SHIFT')
-  async runLotDirect(@Body() body: { date?: string }, @Req() req: any) {
+  async runLotDirect(
+    @Body() body: { date?: string; async?: boolean; shiftLogId?: string } = {},
+    @Req() req?: any,
+  ) {
     const targetDate = body?.date || new Date().toISOString().split('T')[0];
+
+    if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('RUN_LOT_MACRO', {
+          targetDate,
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.userId || req?.user?.id || req?.user?._id,
+          username: req?.user?.username || 'SYSTEM',
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: `Đã đưa yêu cầu thống kê Số Lot CoreCCP ngày ${targetDate} vào hàng đợi xử lý.`,
+        };
+      }
+    }
+
     try {
       const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
       const result = await this.ccpLotStatisticsService.runLotStatisticsDirect(targetDate, user);
@@ -830,8 +925,31 @@ export class CcpReconController {
    */
   @Post('lot-statistics/run-value')
   @Permissions('ACCESS_AUTO_SHIFT')
-  async runValueDirect(@Body() body: { date?: string }, @Req() req: any) {
+  async runValueDirect(
+    @Body() body: { date?: string; async?: boolean; shiftLogId?: string } = {},
+    @Req() req?: any,
+  ) {
     const targetDate = body?.date || new Date().toISOString().split('T')[0];
+
+    if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('RUN_VALUE_MACRO', {
+          targetDate,
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.userId || req?.user?.id || req?.user?._id,
+          username: req?.user?.username || 'SYSTEM',
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: `Đã đưa yêu cầu thống kê Giá Trị CoreCCP ngày ${targetDate} vào hàng đợi xử lý.`,
+        };
+      }
+    }
+
     try {
       const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
       const result = await this.ccpLotStatisticsService.runValueStatisticsDirect(targetDate, user);
@@ -839,6 +957,49 @@ export class CcpReconController {
     } catch (err: any) {
       throw new HttpException(
         `Lỗi thống kê và ghi file Giá Trị: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * POST lot-statistics/run-macro
+   * Tự động tổng hợp và GHI TRỰC TIẾP toàn bộ 11 file SỐ LOT & GIÁ TRỊ GIAO DỊCH (CoreCCP Macro).
+   */
+  @Post(['lot-statistics/run-macro', 'lot-statistics/run-all'])
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async runMacroDirect(
+    @Body() body: { date?: string; async?: boolean; shiftLogId?: string } = {},
+    @Req() req?: any,
+  ) {
+    const targetDate = body?.date || new Date().toISOString().split('T')[0];
+
+    if (body.async) {
+      if (this.botJobQueueService) {
+        const job = await this.botJobQueueService.enqueue('RUN_MACRO', {
+          targetDate,
+          ...body,
+          scope: body.shiftLogId ? 'CHECKLIST' : 'OPERATION_TOOL',
+          userId: req?.user?.userId || req?.user?.id || req?.user?._id,
+          username: req?.user?.username || 'SYSTEM',
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: `Đã đưa yêu cầu chạy Macro CoreCCP toàn diện ngày ${targetDate} vào hàng đợi xử lý.`,
+        };
+      }
+    }
+
+    try {
+      const user = req?.user ? { id: req.user.userId || req.user._id, username: req.user.username } : undefined;
+      const result = await this.ccpLotStatisticsService.runFullMacroStatisticsDirect(targetDate, user);
+      return result;
+    } catch (err: any) {
+      throw new HttpException(
+        `Lỗi chạy Macro CoreCCP: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -864,7 +1025,33 @@ export class CcpReconController {
    */
   @Get('lot-statistics/latest-run')
   @Permissions('ACCESS_AUTO_SHIFT')
-  async getLatestLotRun(@Query('date') date?: string) {
+  async getLatestLotRun(
+    @Query('date') date?: string,
+    @Query('jobId') jobIdQuery?: string,
+  ) {
+    if (this.botJobModel) {
+      const activeJob = jobIdQuery
+        ? await this.botJobModel.findById(jobIdQuery).exec()
+        : await this.botJobModel
+            .findOne({
+              jobType: { $in: ['RUN_MACRO', 'RUN_LOT_MACRO', 'RUN_VALUE_MACRO', 'CCP_STATISTICS', 'CCP_LOT_STATS', 'CCP_VALUE_STATS'] },
+              status: { $in: ['PENDING', 'PROCESSING'] },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
+
+      if (activeJob) {
+        return {
+          success: true,
+          isRunning: true,
+          jobId: activeJob._id,
+          status: activeJob.status,
+          currentLogs: activeJob.logs || [],
+          data: null,
+        };
+      }
+    }
+
     const runs = await this.ccpLotStatisticsService.getRunHistory(date, 1);
     return runs.length > 0 ? runs[0] : null;
   }
