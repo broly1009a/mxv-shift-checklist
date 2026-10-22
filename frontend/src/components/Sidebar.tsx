@@ -35,6 +35,7 @@ import {
   Folder,
   FolderTree,
   Terminal,
+  ShieldCheck,
 } from 'lucide-react';
 
 
@@ -452,7 +453,19 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <span>Đối chiếu giao dịch</span>
             </Link>
 
-            {/* 3. Nghiệp vụ đầu phiên -> /trading-manager/session-open */}
+            {/* 3. Đối chiếu OMS ACM -> /trading-manager/oms-recon */}
+            <Link
+              href="/trading-manager/oms-recon"
+              onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
+              className={`nav-link ${pathname.startsWith('/trading-manager/oms-recon') || pathname.startsWith('/trading-manager/oms') ? 'active' : ''}`}
+              title={isCollapsed ? "Đối chiếu OMS ACM" : undefined}
+            >
+              <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+              <span>Đối chiếu OMS ACM</span>
+            </Link>
+
+            {/* 4. Nghiệp vụ đầu phiên -> /trading-manager/session-open */}
             <Link
               href="/trading-manager/session-open"
               onClick={onClose}
@@ -831,6 +844,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                 >
                   <ArrowLeftRight size={18} style={{ flexShrink: 0 }} />
                   <span>Đối chiếu giao dịch</span>
+                </Link>
+                <Link
+                  href="/trading-manager/oms-recon"
+                  onClick={onClose}
+                  className={`nav-link ${pathname.startsWith('/trading-manager/oms-recon') || pathname.startsWith('/trading-manager/oms') ? 'active' : ''}`}
+                  title={isCollapsed ? "Đối chiếu OMS ACM" : undefined}
+                >
+                  <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+                  <span>Đối chiếu OMS ACM</span>
                 </Link>
                 <Link
                   href="/trading-manager/session-open"
