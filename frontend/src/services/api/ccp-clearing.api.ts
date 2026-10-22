@@ -276,6 +276,18 @@ export const ccpClearingApi = {
   },
 
   /**
+   * Kiểm tra thông tin các file sẽ chạy và tính hợp lý của đường dẫn lưu file (CoreCCP)
+   */
+  async inspectLotPreFlight(
+    date: string,
+    type: 'LOT' | 'VALUE' | 'ALL' = 'ALL',
+    token?: string | null,
+  ): Promise<any> {
+    const endpoint = `/api/v1/ccp-statistics/lot-statistics/preflight?date=${encodeURIComponent(date)}&type=${encodeURIComponent(type)}`;
+    return requestJson<any>(endpoint, { method: 'GET' }, token);
+  },
+
+  /**
    * Kích hoạt Thống kê CoreCCP theo Khoảng Thời Gian (Ad-hoc Range)
    */
   async runAdHocRange(

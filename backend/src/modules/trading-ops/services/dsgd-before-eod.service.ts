@@ -31,6 +31,10 @@ import {
   parseDSGD,
   parseStraitsCsv,
 } from '../helpers/trading-math.helper';
+import {
+  TRADING_FILE_PATTERNS,
+  matchTradingFileName,
+} from '../constants/trading-file-patterns.constant';
 import { CcpExcelParser } from '../parsers/ccp-excel.parser';
 
 export interface CheckDSGDBeforeEODResult {
@@ -331,7 +335,7 @@ export class DsgdBeforeEodService {
     if (system === 'CCP') {
       const rawCcpBase = options?.customMsDir || (await getCcpBackupBasePath(this.settingsService));
       dailyDir = path.join(rawCcpBase, year, `T${month}.${year}`, `${day}.${month}`);
-      if (!fs.existsSync(dailyDir) || !fs.readdirSync(dailyDir).some(f => /^DSGD/i.test(f) && !/DSGD\s+MM/i.test(f))) {
+      if (!fs.existsSync(dailyDir) || !fs.readdirSync(dailyDir).some(f => matchTradingFileName(f, TRADING_FILE_PATTERNS.CCP_DSGD))) {
         const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures';
         const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
         if (fs.existsSync(mShareDir)) {
@@ -371,21 +375,9 @@ export class DsgdBeforeEodService {
         );
       }
       const ccpFiles = fs.readdirSync(dailyDir);
-      const matched =
-        ccpFiles.find(
-          (f) =>
-            /^DSGD/i.test(f) &&
-            !/DSGD\s+MM/i.test(f) &&
-            !f.startsWith('~$') &&
-            f.endsWith('.xlsx'),
-        ) ||
-        ccpFiles.find(
-          (f) =>
-            /^(?:DSGD|LSGD)/i.test(f) &&
-            !/DSGD\s+MM/i.test(f) &&
-            !f.startsWith('~$') &&
-            f.endsWith('.xlsx'),
-        );
+      const matched = ccpFiles.find((f) =>
+        matchTradingFileName(f, TRADING_FILE_PATTERNS.CCP_DSGD) && f.endsWith('.xlsx'),
+      );
       if (!matched) {
         throw new Error(
           `Không tìm thấy file DSGD CCP trong thư mục: ${dailyDir}. Vui lòng kiểm tra lại.`,
@@ -516,10 +508,9 @@ export class DsgdBeforeEodService {
             const matched =
               acmFiles.find(
                 (f) =>
-                  /straits/i.test(f) &&
-                  f.includes(`${day}${month}${year}`) &&
-                  f.endsWith('.csv'),
-              ) || acmFiles.find((f) => /straits/i.test(f) && f.endsWith('.csv'));
+                  matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV) &&
+                  f.includes(`${day}${month}${year}`),
+              ) || acmFiles.find((f) => matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV));
 
             if (matched) {
               foundAcmPath = path.join(dailyAcmDir, matched);
@@ -581,10 +572,9 @@ export class DsgdBeforeEodService {
         const matched =
           acmFiles.find(
             (f) =>
-              /straits/i.test(f) &&
-              f.includes(`${day}${month}${year}`) &&
-              f.endsWith('.csv'),
-          ) || acmFiles.find((f) => /straits/i.test(f) && f.endsWith('.csv'));
+              matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV) &&
+              f.includes(`${day}${month}${year}`),
+          ) || acmFiles.find((f) => matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV));
 
         if (matched) {
           foundAcmPath = path.join(dailyAcmDir, matched);

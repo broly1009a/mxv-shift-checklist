@@ -388,4 +388,32 @@ export const tradingOpsApi = {
       token,
     );
   },
+
+  /**
+   * Kiểm tra thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file tập trung
+   * Dùng cho tất cả tác vụ Trading Ops (CE, CCP, KLGD, EOD, Margin...)
+   */
+  async inspectPreFlight(
+    taskKey: string,
+    date: string,
+    scope: string = 'ALL',
+    token?: string | null,
+  ): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.PREFLIGHT(taskKey, date, scope),
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
+   * Lấy danh mục các tác vụ có hỗ trợ Pre-flight check
+   */
+  async getPreflightTasks(token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.TRADING_OPS.PREFLIGHT_TASKS,
+      { method: 'GET' },
+      token,
+    );
+  },
 };

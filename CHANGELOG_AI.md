@@ -1,3 +1,204 @@
+## [2026-10-22T10:05] REFACTOR & ARCH: Hợp Nhất Master Registry Duy Nhất & Triệt Tiêu 100% Nguy Cơ Lệch Pha Regex (Pattern Drift) Trong Toàn Hệ Thống
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: Xử lý triệt để 3 điểm nguy cơ kiến trúc:
+  1. *Trùng lặp Registry*: Gộp `preflightSpec` thành thuộc tính tùy chọn bên trong `BOT_TASK_REGISTRY` để cả hệ thống chỉ có DUY NHẤT 1 Master Registry.
+  2. *Gắn Pre-flight vào tác vụ không cần thiết*: Chỉ gắn Pre-flight cho các tác vụ đọc file thô từ ổ đĩa hoặc ghi đè vào sổ lũy kế Excel (`CE_STATISTICS`, `CCP_STATISTICS`, `CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `SCAN_NEGATIVE_MARGIN`). Các tác vụ nhẹ (API, DB lookup, crawler) không gắn Pre-flight.
+  3. *Nguy cơ lệch pha Regex (Pattern Drift)*: Pre-flight Engine và Worker xử lý bắt buộc phải dùng chung một hàm nhận diện file (Helper chung), không code regex ở 2 nơi riêng biệt.
+
+### 2. Chi tiết giải pháp kỹ thuật đã triển khai
+1. **Bộ Từ Điển Mẫu Tệp Chuẩn Dùng Chung (`TRADING_FILE_PATTERNS`) & Helper Đồng Nhất**:
+   - Tạo `backend/src/modules/trading-ops/constants/trading-file-patterns.constant.ts`:
+     - Khai báo chuẩn toàn bộ mẫu regex cho: `CCP_DSGD` (bao gồm `DSGD(?!\s*MM)`, `ORDERMATCH_DETAIL...`), `CCP_TTM`, `CCP_TTTT`, `TY_GIA`, `MA_HD_COMMODITY`, `CE_DSGD`, `CE_TTM`, `CE_GTT`, `CE_HH`, `CE_HD`, `MS_TKGD`, `MS_DSGD`, `CQG_FR`, `STRAITS_CSV` (AGENTS.md Rule 2.1), `MARGIN_DETAIL`, `NET_POSITION`.
+     - Cung cấp hàm `matchTradingFileName(filename, patterns)`: tự động bỏ qua file khóa tạm của Excel (`~$...`).
+     - Cung cấp hàm `findMatchingTradingFile(dirPath, patterns)`: dùng chung cho cả Pre-flight và Worker thật.
+2. **Triệt Tiêu Hoàn Toàn Lệch Pha Regex (Zero Pattern Drift)**:
+   - `ccp-lot-statistics.service.ts`: Thay thế toàn bộ mảng regex độc lập trong `scanDailyFiles` và `findLatestFileInHistory` bằng `TRADING_FILE_PATTERNS.CCP_DSGD`, `CCP_TTM`, `CCP_TTTT`, `TY_GIA`, `MA_HD_COMMODITY`.
+   - `ce-lot-statistics.service.ts`: Thay thế toàn bộ mảng regex độc lập trong `scanDailyFiles` bằng `TRADING_FILE_PATTERNS.CE_DSGD`, `CE_TTM`, `CE_GTT`, `CE_HH`, `CE_HD`.
+   - `dsgd-before-eod.service.ts`: Sử dụng `TRADING_FILE_PATTERNS.CCP_DSGD` và `TRADING_FILE_PATTERNS.STRAITS_CSV`.
+   - `trading-ops-preflight.service.ts`: Quét file thông qua `findMatchingTradingFile` dùng chung.
+3. **Hợp Nhất Thành 1 Master Registry Duy Nhất (`BOT_TASK_REGISTRY`)**:
+   - Tách kiểu dữ liệu preflight ra `backend/src/modules/trading-ops/constants/preflight.types.ts` để triệt tiêu phụ thuộc vòng (Zero Circular Dependency).
+   - Trong `backend/src/modules/bot-engine/constants/bot-task-registry.ts`:
+     - Bổ sung trường tùy chọn `preflightSpec?: TradingOpsTaskPreflightDefinition`.
+     - Nhúng cấu hình `preflightSpec` trực tiếp cho 5 tác vụ I/O nặng (`RUN_MACRO` / CCP, `CE_STATISTICS`, `CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `SCAN_NEGATIVE_MARGIN`).
+     - Các tác vụ nhẹ (`AUTO_CHECK_SOD`, `CHECK_EOD_MS`, `CHECK_CQG_SYNC`, `DOWNLOAD_CCP_REPORT`...) không có `preflightSpec`.
+   - Trong `backend/src/modules/trading-ops/constants/trading-ops-preflight.registry.ts`:
+     - `TRADING_OPS_PREFLIGHT_REGISTRY` được chuyển thành Dynamic View trích xuất tự động từ `BOT_TASK_REGISTRY`.
+     - `getPreflightTaskDefinition()` và `getAllPreflightTasks()` truy vấn trực tiếp từ `BOT_TASK_REGISTRY`.
+     - Giữ nguyên 100% tương thích ngược với các controller/frontend đã gọi trước đó.
+
+### 3. Danh sách file chỉnh sửa & tạo mới
+1. **[backend/src/modules/trading-ops/constants/trading-file-patterns.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/trading-file-patterns.constant.ts)** (Tạo mới): Bộ từ điển mẫu regex chuẩn dùng chung & matcher helper.
+2. **[backend/src/modules/trading-ops/constants/preflight.types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/preflight.types.ts)** (Tạo mới): Định nghĩa interface `PreflightFileSpec`, `PreflightAccumulatorSpec`, `TradingOpsTaskPreflightDefinition`.
+3. **[backend/src/modules/bot-engine/constants/bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/constants/bot-task-registry.ts)**: Master Registry duy nhất tích hợp `preflightSpec`.
+4. **[backend/src/modules/trading-ops/constants/trading-ops-preflight.registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/trading-ops-preflight.registry.ts)**: Chuyển sang trích xuất động từ Master `BOT_TASK_REGISTRY`.
+5. **[backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts)**: Sử dụng helper `findMatchingTradingFile`.
+6. **[backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts)**: Sử dụng `TRADING_FILE_PATTERNS` và `matchTradingFileName`.
+7. **[backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts)**: Sử dụng `TRADING_FILE_PATTERNS` và `matchTradingFileName`.
+8. **[backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/dsgd-before-eod.service.ts)**: Sử dụng `TRADING_FILE_PATTERNS` và `matchTradingFileName`.
+
+### 4. Xác nhận Build & Triển khai
+- **Local Backend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Local Frontend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Ubuntu 10.0.0.26 Deployment**: Đồng bộ mã nguồn, native build NestJS và Next.js trên server, restart PM2 thành công (Exit Code 0).
+- **PM2 Status**: `mxv-backend` online (pid 3952506), `mxv-frontend` online (pid 3953074).
+
+---
+
+## [2026-10-22T09:45] ARCH & FEAT: Thiết Kế & Triển Khai Chuẩn Bộ Quản Lý Tập Trung Pre-Flight Registry & Inspection Engine Cho Toàn Bộ Phân Hệ Trading Ops
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: "theo bạn có cách nào viết tập trung thay vì viết rải rác như hiện tại không ví dụ sẽ có 1 file tổng hợp hết thông tin vào đấy ý", "vì sau còn nhiều đầu api ở trading ops cần thêm cái này", "đúng rồi tôi muốn viết theo bot-task-registry.ts quản lý tập trung vì sau nếu không dùng tới thì off được", "giúp tôi tổng hợp thông tin logic mã nguồn rồi viết thành tài liệu thiết kế chi tiết rồi triển khai chuẩn".
+- **Kiến trúc tập trung hóa (Centralized Architecture)**:
+  1. **Bản Thiết Kế Hệ Thống Chi Tiết (System Design Document)**:
+     - Tạo tài liệu thiết kế toàn diện tại `docs/moi/THIET_KE_KIEN_TRUC_PREFLIGHT_REGISTRY_TAP_TRUNG_TRADING_OPS.md`:
+       - Bối cảnh & vấn đề phân mảnh, so sánh với `BOT_TASK_REGISTRY`.
+       - Triết lý kiến trúc Zero-Hardcoding, Data-Driven & Capabilities-Based (AGENTS.md Mục 7).
+       - Sơ đồ khối kiến trúc Mermaid, sơ đồ luồng tuần tự (Sequence Diagram).
+       - Bảng ma trận các tác vụ hiện có trong Trading Ops.
+       - Cơ chế Bật/Tắt (Feature Flag & Runtime Toggle ON/OFF).
+       - Hướng dẫn mở rộng thêm tác vụ mới trong 5 phút.
+  2. **File Quản Lý Tập Trung (Capabilities Catalog)**:
+     - Tạo `backend/src/modules/trading-ops/constants/trading-ops-preflight.registry.ts` phỏng theo pattern chuẩn của `bot-task-registry.ts`.
+     - Cấu trúc `TRADING_OPS_PREFLIGHT_REGISTRY`: Mỗi tác vụ khai báo `taskKey`, `category`, `enabled: boolean` (OFF được khi không dùng), `toggleSettingKey` (bật/tắt runtime từ CSDL), `inputFiles` (danh sách tệp đầu vào, regex pattern, required, source category), `accumulators` (danh sách sổ lũy kế, settingKey, defaultPattern, checkOverwriteRule), và `extraChecks` (tỷ giá USD, ghép cặp file thô CQG).
+     - Khai báo 7 tác vụ cốt lõi: `CE_STATISTICS`, `CCP_STATISTICS`, `CHECK_KLGD`, `CHECK_DSGD_BEFORE_EOD`, `SCAN_NEGATIVE_MARGIN`, `SESSION_OPEN_SYNC`, `RECON_GTT`.
+  3. **Service Engine Dùng Chung (Centralized Inspection Engine)**:
+     - Tạo `TradingOpsPreflightService` tại `backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts`.
+     - Nhận `{ taskKey, dateStr, filterScope }`, tự động đọc registry, kiểm tra trạng thái ON/OFF:
+       - Nếu `enabled === false` hoặc setting toggle trong CSDL là `'OFF'`: trả về ngay trạng thái `DISABLED` với thông báo thân thiện.
+       - Nếu `enabled === true`: tự động quét thư mục ngày, đo dung lượng byte, kiểm tra file bắt buộc, phân giải `{YYYY}`, kiểm tra thư mục cha & ổ đĩa mạng, đọc sheet Excel kiểm tra ghi đè phiên cũ.
+  4. **1 Đầu API RESTful Duy Nhất**:
+     - Thêm `GET /api/v1/trading-ops/preflight` và `GET /api/v1/trading-ops/preflight/tasks` vào `TradingOpsMiscController`.
+  5. **Component Frontend Duy Nhất & Động Hóa 100%**:
+     - Nâng cấp `PreFlightFileInspectorModal.tsx` nhận `taskKey?: string` (giữ tương thích `system: 'CE' | 'CCP'`).
+     - Tự động gọi API tập trung `api.tradingOps.inspectPreFlight(effectiveTaskKey, targetDate, activeType, token)`.
+     - Hiển thị Banner Tắt (OFF) trực quan khi tác vụ bị tắt trong cấu hình.
+     - Ẩn Section 2 (Sổ lũy kế) đối với các tác vụ đối chiếu thuần đọc (read-only) như `CHECK_KLGD`, `SCAN_NEGATIVE_MARGIN`.
+     - Cập nhật `CeLotStatisticsSection.tsx` truyền `taskKey="CE_STATISTICS"` và `CcpLotStatisticsSection.tsx` truyền `taskKey="CCP_STATISTICS"`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. **[docs/moi/THIET_KE_KIEN_TRUC_PREFLIGHT_REGISTRY_TAP_TRUNG_TRADING_OPS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/THIET_KE_KIEN_TRUC_PREFLIGHT_REGISTRY_TAP_TRUNG_TRADING_OPS.md)** (Tạo mới): Bản tài liệu thiết kế kiến trúc toàn diện.
+2. **[backend/src/modules/trading-ops/constants/trading-ops-preflight.registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/constants/trading-ops-preflight.registry.ts)** (Tạo mới): Registry tập trung 7 tác vụ Trading Ops với cờ `enabled`.
+3. **[backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts)** (Tạo mới): Service engine kiểm tra tệp và đường dẫn dùng chung.
+4. **[backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts)**: Đăng ký `TradingOpsPreflightService` vào providers và exports.
+5. **[backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts)**: Thêm 2 endpoint tập trung `GET preflight` và `GET preflight/tasks`.
+6. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)**: Thêm `PREFLIGHT` và `PREFLIGHT_TASKS` vào `TRADING_OPS`.
+7. **[frontend/src/services/api/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/trading-ops.api.ts)**: Bổ sung 2 hàm client `inspectPreFlight` và `getPreflightTasks`.
+8. **[frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx)**: Nâng cấp nhận `taskKey`, gọi API tập trung, hỗ trợ banner OFF và render động.
+9. **[frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**: Truyền `taskKey="CE_STATISTICS"`.
+10. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**: Truyền `taskKey="CCP_STATISTICS"`.
+
+### 3. Xác nhận Build & Triển khai
+- **Local Backend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Local Frontend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Ubuntu 10.0.0.26 Deployment**: Đồng bộ mã nguồn, native build Next.js/NestJS, restart PM2 thành công (Exit Code 0).
+- **PM2 Status**: `mxv-backend` online, `mxv-frontend` online.
+
+---
+
+## [2026-10-22T09:20] FEAT: Bổ Sung Component "PreFlightFileInspectorModal" & Icon Kiểm Tra File Đầu Vào / Đường Dẫn Lưu File Cho Thống Kê CoreEX & CoreCCP
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: "giúp tôi thêm một component mới ở trong màn hình các hàm chạy sẽ có 1 icon để ấn vào có thể xem thông tin các file sẽ chạy và đường dẫn lưu file có hợp lý không ví dụ ở Thống Kê Giá Trị có nút icon ấn vào sẽ hiển thị các file sẽ chạy (sẽ check đã có chưa, file đó đã có chưa và lưu ở đâu). giúp tôi xây dựng component trực quan này".
+- **Giải pháp toàn diện & trực quan**:
+  1. **Backend Real-Time File & Path Inspection Services**:
+     - Do trình duyệt không thể trực tiếp truy cập hệ thống file hoặc ổ đĩa mạng máy chủ (`M:\...`), triển khai 2 endpoint kiểm tra pre-flight thời gian thực:
+       - `GET /api/v1/ce-clearing/lot-statistics/preflight?date=...&action=...`
+       - `GET /api/v1/ccp-clearing/lot-statistics/preflight?date=...&action=...`
+     - Kiểm tra toàn diện 3 tầng:
+       - **File đầu vào (Input Files)**: Kiểm tra thư mục backup ngày, quét file DSGD, TTM, TTTT, Tỷ giá (hoặc Straits CSV đối với CE). Kiểm tra trạng thái tồn tại (`present`), kích thước (`sizeKb`/`sizeMb`), đường dẫn tuyệt đối máy chủ (`resolvedPath`).
+       - **File lũy kế đích (Destination Accumulator Files)**: Phân giải đường dẫn động (thay thế `{YYYY}` / `${YYYY}` theo năm của phiên), kiểm tra thư mục cha có tồn tại và hợp lệ không (`parentDirValid`), kiểm tra file Excel đích đã tồn tại chưa (`existsOnDisk`), đọc các sheet Excel để quét xem phiên ngày được chọn đã từng được ghi vào file chưa (`dateAlreadyRecorded`).
+       - **Chẩn đoán sẵn sàng thực thi (Readiness Diagnostic)**: Tổng hợp đánh giá `isReady` (100% Sẵn sàng chạy), `canExecute`, đưa ra khuyến nghị xử lý và danh sách cảnh báo chi tiết (`warnings`, `recommendations`).
+  2. **Component UI Trực Quan `PreFlightFileInspectorModal`**:
+     - Xây dựng tại `frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx`.
+     - Header hiển thị ngày phiên, nhãn hệ thống (CoreEX / CoreCCP) và bộ tab phạm vi kiểm tra: "Tất cả file", "Thống kê Số Lot", "Thống kê Giá Trị (GTGD)".
+     - Banner trạng thái tổng thể trực quan (Executive Readiness Banner): Màu xanh emerald rực rỡ khi 100% sẵn sàng, hoặc màu hổ phách/đỏ khi thiếu file đầu vào hoặc đường dẫn cấu hình chưa hợp lệ.
+     - **Phần 1: Danh sách tệp đầu vào sẽ đọc**: Card chi tiết cho từng file (DSGD, TTM, GTT, TTTT, Tỷ giá USD/VND), badge trạng thái "Đã có sẵn" / "Chưa có file", kích thước tệp, nút 1-click sao chép đường dẫn tuyệt đối với thông báo toast.
+     - **Phần 2: Danh sách file Excel lũy kế sẽ ghi**: Card cho từng file lũy kế (File Số Lot ACM, File GTGD ACM, 10 file lũy kế CoreCCP Normal/Spread/LME/Options và DSGD tháng). Kiểm tra trạng thái file trên đĩa, kiểm tra thư mục cha, kiểm tra phiên ngày đã được ghi hay chưa (Ghi đè dòng cũ vs Ghi mới dòng tiếp theo), cảnh báo đường dẫn chưa cấu hình hoặc thư mục không tồn tại kèm nút "Mở cấu hình đường dẫn".
+     - Thiết kế giao diện Enterprise cao cấp, tuân thủ 100% icon SVG từ `lucide-react` (zero Unicode emojis thô).
+  3. **Tích hợp Split-Button & Nút Kiểm Tra trên Màn Hình Thống Kê**:
+     - Tích hợp tại cả 2 màn hình:
+       - **CoreEX / ACM Nano** (`/trading-manager/statistics/ce` - `CeLotStatisticsSection.tsx`): Split-button icon `<FileSearch />` cạnh nút "Ghi File Số Lot ACM" và "Ghi File GTGD ACM", cùng nút "Kiểm Tra Luồng Tệp".
+       - **CoreCCP** (`/trading-manager/statistics/ccp` - `CcpLotStatisticsSection.tsx`): Split-button icon `<FileSearch />` cạnh nút "Thống Kê Số Lot (CoreCCP)" và "Thống Kê Giá Trị (CoreCCP)", cùng nút "Kiểm Tra Luồng File" (áp dụng cho cả chế độ USER và EXPERT).
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts)**:
+   - Thêm phương thức `inspectPreFlight(dateStr, actionType)` kiểm tra tệp đầu vào, tỷ giá USD/VND, đường dẫn accumulator Số Lot/GTGD CE, kiểm tra parent dir và phiên ngày trong file Excel.
+2. **[backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts)**:
+   - Import `checkDateExistsInAccumulator` từ `ccp-accumulator.helper`.
+   - Thêm phương thức `inspectPreFlight(dateStr, actionType)` kiểm tra tệp đầu vào DSGD/TTM/TTTT/Tỷ giá, phân giải đường dẫn và kiểm tra 11 file lũy kế CoreCCP trên đĩa.
+3. **[backend/src/modules/trading-ops/controllers/ce-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ce-recon.controller.ts)**:
+   - Thêm endpoint `GET /api/v1/ce-clearing/lot-statistics/preflight`.
+4. **[backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)**:
+   - Thêm endpoint `GET /api/v1/ccp-clearing/lot-statistics/preflight`.
+5. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)**:
+   - Thêm `PREFLIGHT` vào `CE_CLEARING` và `LOT_PREFLIGHT` vào `CCP_STATISTICS`.
+6. **[frontend/src/services/api/ce-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ce-clearing.api.ts)**:
+   - Thêm hàm `inspectPreFlight(date, type, token)`.
+7. **[frontend/src/services/api/ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ccp-clearing.api.ts)**:
+   - Thêm hàm `inspectLotPreFlight(date, type, token)`.
+8. **[frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx)** (Tạo mới):
+   - Component modal trực quan kiểm tra file đầu vào & đường dẫn lưu file đích, tab chuyển đổi phạm vi, sao chép đường dẫn, kiểm tra sự tồn tại trên ổ đĩa và kiểm tra trùng lặp ngày phiên.
+9. **[frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**:
+   - Thêm split-button `<FileSearch />` cạnh nút "Ghi File Số Lot ACM" và "Ghi File GTGD ACM", nút "Kiểm Tra Luồng Tệp", tích hợp modal inspector.
+10. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+    - Thêm split-button `<FileSearch />` cạnh nút "Thống Kê Số Lot (CoreCCP)" và "Thống Kê Giá Trị (CoreCCP)", nút "Kiểm Tra Luồng File", tích hợp modal inspector cho cả USER mode và EXPERT mode.
+
+### 3. Xác nhận Build & Triển khai
+- **Local Backend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Local Frontend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Ubuntu 10.0.0.26 Deployment**: Đồng bộ mã nguồn, native build Next.js/NestJS, khởi động lại PM2 thành công (Exit Code 0).
+- **PM2 Status**: `mxv-backend` online, `mxv-frontend` online.
+
+---
+
+## [2026-10-22T09:05] FEAT: Bổ Sung Component "Tiến Trình Chạy Thống Kê Gần Nhất" Cho Trang Thống Kê CoreEX / ACM Nano (/trading-manager/statistics/ce)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu từ USER**: "giúp tôi bổ sung" - Thêm component **"Tiến trình chạy Thống kê gần nhất"** cho trang **Thống kê Số Lot & Giá Trị Giao Dịch CoreEX (ACM Nano)** (`/trading-manager/statistics/ce`), đồng bộ chuẩn UX/UI và tính năng với màn hình CoreCCP (`/trading-manager/statistics/ccp`).
+- **Lưu trữ lịch sử thực thi bền vững**:
+  - Tự động ghi lại lịch sử mỗi khi thực hiện ghi file lũy kế Số Lot hoặc Giá Trị Giao Dịch CE vào MongoDB (`ce_lot_run_histories`) kèm file JSON backup trong thư mục backup ngày của CE.
+  - Cung cấp API truy vấn lịch sử thực thi gần nhất (`/api/v1/ce-clearing/lot-statistics/run-history` & `latest-run`).
+- **Giao diện người dùng Enterprise**:
+  - Thêm thẻ Glass-Panel "Tiến trình chạy Thống kê gần nhất (CoreEX)" với bộ lọc nhanh (Tất cả, Số Lot, Giá Trị), nút "Làm mới", liên kết tới "Hàng đợi logs".
+  - Bảng cuộn mượt (Sticky Header) hiển thị: Loại tác vụ, Người chạy, Trạng thái (Đã ghi file), Phiên, Thời gian, Số liệu tóm tắt (số lot / giá trị), Thao tác ("Xem số liệu", "Log").
+  - Nút "Xem số liệu": Nạp trực tiếp kết quả lịch sử vào màn hình để xem KPI, bảng tổng hợp theo TVKD, cơ cấu theo Hàng hóa và Vị thế mở TTM mà không cần chạy lại.
+  - Nút "Log": Mở modal xem toàn bộ nhật ký ghi file Excel với highlight màu cảnh báo/lỗi.
+  - Phân trang nhỏ gọn, thiết kế tinh tế tuân thủ 100% Lucide-React icons (zero raw Unicode emojis).
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/schemas/ce-lot-run-history.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/schemas/ce-lot-run-history.schema.ts)** (Tạo mới):
+   - Định nghĩa schema Mongoose `CeLotRunHistory` lưu trong collection `ce_lot_run_histories` với các trường: `sessionDate`, `action`, `runType`, `result`, `accumulatorLogs`, `accumulatorPaths`, `userId`, `username`, `jsonBackupPath`, `createdAt`.
+   - Index: `{ sessionDate: 1, createdAt: -1 }` và TTL Index 180 ngày.
+2. **[backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts)**:
+   - Import và đăng ký `CeLotRunHistory` vào `MongooseModule.forFeature`.
+3. **[backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts)**:
+   - Inject model `CeLotRunHistory`.
+   - Thêm phương thức `saveRunHistory(...)` lưu vào CSDL MongoDB và ghi file JSON backup trong thư mục backup ngày của CE.
+   - Thêm phương thức `getRunHistory(...)` truy vấn lịch sử theo phiên hoặc mới nhất.
+   - Tự động gọi `saveRunHistory` trong `runLotStatisticsDirect` (loại `LOT`) và `runValueStatisticsDirect` (loại `VALUE`).
+4. **[backend/src/modules/trading-ops/controllers/ce-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ce-recon.controller.ts)**:
+   - Thêm endpoint `GET /api/v1/ce-clearing/lot-statistics/run-history`.
+   - Thêm endpoint `GET /api/v1/ce-clearing/lot-statistics/latest-run`.
+5. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/endpoints.ts)**:
+   - Bổ sung `RUN_HISTORY` và `LATEST_RUN` vào nhánh `CE_CLEARING`.
+6. **[frontend/src/services/api/ce-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/services/api/ce-clearing.api.ts)**:
+   - Bổ sung 2 hàm API: `getLotRunHistory` và `getLatestLotRun`.
+7. **[frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**:
+   - Import các icon Lucide: `User`, `Eye`, `FileText`, `ChevronLeft`, `ChevronRight`, `X`, `ExternalLink`.
+   - Bổ sung các state quản lý lịch sử: `runHistory`, `loadingHistory`, `historyTypeFilter`, `historyPage`, `selectedHistoryLog`.
+   - Bổ sung logic fetch/filter/phân trang và hàm `handleQuickLoadResult`.
+   - Render UI block "Tiến trình chạy Thống kê gần nhất (CoreEX)", panel nhật ký ghi file gần nhất và Modal xem chi tiết log.
+
+### 3. Xác nhận Build & Triển khai
+- **Local Backend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Local Frontend Build**: `npm.cmd run build` $\rightarrow$ Exit Code 0.
+- **Ubuntu 10.0.0.26 Deployment**: Đồng bộ mã nguồn, native build Next.js/NestJS, khởi động lại PM2 thành công (Exit Code 0).
+- **PM2 Status**: `mxv-backend` online, `mxv-frontend` online.
+
+---
+
 ## [2026-10-21T20:38] FIX: Hiển Thị Thời Gian & Thời Lượng Chạy Gần Nhất (Lần chạy gần nhất: HH:mm:ss dd/MM/yyyy • Xxs) Cho Màn Hình Đối Chiếu DSGD Trước EOD (MS & CoreCCP)
 
 ### 1. Mục tiêu thay đổi

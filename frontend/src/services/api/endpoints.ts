@@ -65,6 +65,9 @@ export const API_ENDPOINTS = {
     GTT_CHECK: '/api/v1/trading-ops/run-gtt-check',
     GTT_PUSH_TO_MS: '/api/v1/trading-ops/gtt-report/push-to-ms',
     GTT_EXPORT_CORRECTION: (type: string = 'settlement') => `/api/v1/trading-ops/gtt-report/export-correction?type=${encodeURIComponent(type)}`,
+    PREFLIGHT: (taskKey: string, date: string, scope: string = 'ALL') =>
+      `/api/v1/trading-ops/preflight?taskKey=${encodeURIComponent(taskKey)}&date=${encodeURIComponent(date)}&scope=${encodeURIComponent(scope)}`,
+    PREFLIGHT_TASKS: '/api/v1/trading-ops/preflight/tasks',
   },
 
   // ─── CCP CLEARING (Bù trừ, Thống kê Lot/Value, GTT CE vs CCP) ─────────────
@@ -92,6 +95,8 @@ export const API_ENDPOINTS = {
       date ? `/api/v1/ccp-statistics/lot-statistics/run-history?date=${encodeURIComponent(date)}` : '/api/v1/ccp-statistics/lot-statistics/run-history',
     LOT_LATEST_RUN: (date?: string) =>
       date ? `/api/v1/ccp-statistics/lot-statistics/latest-run?date=${encodeURIComponent(date)}` : '/api/v1/ccp-statistics/lot-statistics/latest-run',
+    LOT_PREFLIGHT: (date: string, type: string = 'ALL') =>
+      `/api/v1/ccp-statistics/lot-statistics/preflight?date=${encodeURIComponent(date)}&type=${encodeURIComponent(type)}`,
     LOT_RUN_ADHOC_RANGE: '/api/v1/ccp-statistics/lot-statistics/run-adhoc-range',
     LOT_ADHOC_REPORTS: '/api/v1/ccp-statistics/lot-statistics/adhoc-reports',
     LOT_DOWNLOAD_ADHOC: (filename: string) => `/api/v1/ccp-statistics/lot-statistics/download-adhoc?filename=${encodeURIComponent(filename)}`,
@@ -116,6 +121,11 @@ export const API_ENDPOINTS = {
     LOT_PROCESS: '/api/v1/ce-clearing/lot-statistics/process-daily',
     LOT_RUN: '/api/v1/ce-clearing/lot-statistics/run-lot',
     VALUE_RUN: '/api/v1/ce-clearing/lot-statistics/run-value',
+    RUN_HISTORY: (qs: string) => `/api/v1/ce-clearing/lot-statistics/run-history${qs ? `?${qs}` : ''}`,
+    LATEST_RUN: (date?: string) =>
+      `/api/v1/ce-clearing/lot-statistics/latest-run${date ? `?date=${encodeURIComponent(date)}` : ''}`,
+    PREFLIGHT: (date: string, type: string = 'ALL') =>
+      `/api/v1/ce-clearing/lot-statistics/preflight?date=${encodeURIComponent(date)}&type=${encodeURIComponent(type)}`,
     DRAFT_DOWNLOAD: (filename: string) =>
       `/api/v1/ce-clearing/lot-statistics/download-draft?filename=${encodeURIComponent(filename)}`,
     CONFIG: '/api/v1/ce-clearing/lot-statistics/config',

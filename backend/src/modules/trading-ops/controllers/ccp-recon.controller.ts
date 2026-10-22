@@ -45,6 +45,7 @@ import { ValueStatisticsService } from '../services/value-statistics.service';
 import { CeCcpGttCheckerService } from '../services/ce-ccp-gtt.service';
 import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
+import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
 
 /**
  * Controller chuyên biệt quản lý toàn bộ nghiệp vụ Bù trừ CoreCCP & Thống kê Lot/Value trong Trading Ops
@@ -71,6 +72,7 @@ export class CcpReconController {
     private readonly ccpLotStatisticsService: CcpLotStatisticsService,
     private readonly ccpStatisticsService: CcpStatisticsService,
     private readonly ccpAdHocStatisticsService: CcpAdHocStatisticsService,
+    private readonly preflightService: TradingOpsPreflightService,
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel: Model<CcpClearingLog>,
     @Optional()
@@ -865,6 +867,24 @@ export class CcpReconController {
   async getLatestLotRun(@Query('date') date?: string) {
     const runs = await this.ccpLotStatisticsService.getRunHistory(date, 1);
     return runs.length > 0 ? runs[0] : null;
+  }
+
+  /**
+   * GET lot-statistics/preflight
+   * Kiểm tra thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file có hợp lý không (CoreCCP)
+   */
+  @Get('lot-statistics/preflight')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async inspectPreFlight(
+    @Query('date') date?: string,
+    @Query('type') type?: 'LOT' | 'VALUE' | 'ALL',
+  ) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    return this.preflightService.inspect({
+      taskKey: 'CCP_STATISTICS',
+      dateStr: targetDate,
+      filterScope: type || 'ALL',
+    });
   }
 
   /**

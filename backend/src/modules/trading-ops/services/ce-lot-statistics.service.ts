@@ -14,9 +14,12 @@
  */
 
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import * as XLSX from 'xlsx';
 import * as path from 'path';
 import * as fs from 'fs';
+import { CeLotRunHistory } from '../../../schemas/ce-lot-run-history.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
   resolveDailySubfolder,
@@ -37,6 +40,10 @@ import {
   checkDateExistsInAccumulator,
   exportDraftAcmStatistics,
 } from '../helpers/ccp-accumulator.helper';
+import {
+  TRADING_FILE_PATTERNS,
+  matchTradingFileName,
+} from '../constants/trading-file-patterns.constant';
 
 export interface CeDsgdRow {
   raw: any[];
@@ -127,6 +134,8 @@ export class CeLotStatisticsService {
   private readonly logger = new Logger(CeLotStatisticsService.name);
 
   constructor(
+    @InjectModel(CeLotRunHistory.name)
+    private readonly runHistoryModel: Model<CeLotRunHistory>,
     @Optional()
     private readonly settingsService?: SystemSettingsService,
   ) {}
@@ -163,9 +172,9 @@ export class CeLotStatisticsService {
     try {
       const allFiles = fs.readdirSync(targetFolder);
 
-      const findFile = (patterns: RegExp[]): CeDailyFileInfo | undefined => {
+      const findFile = (patterns: (RegExp | string)[]): CeDailyFileInfo | undefined => {
         for (const pattern of patterns) {
-          const match = allFiles.find((f) => pattern.test(f));
+          const match = allFiles.find((f) => matchTradingFileName(f, [pattern]));
           if (match) {
             const fullPath = path.join(targetFolder, match);
             try {
@@ -184,40 +193,20 @@ export class CeLotStatisticsService {
         return undefined;
       };
 
-      // 1. DSGD ACM CE
-      result.files.dsgd = findFile([
-        /^DSGD.*ACM.*CE.*\.xlsx$/i,
-        /^DSGD.*CE.*\.xlsx$/i,
-        /^DSGD.*\.xlsx$/i,
-        /^DSGD.*\.csv$/i,
-      ]);
+      // 1. DSGD ACM CE (Bắt buộc) - Nguồn khớp lệnh chính từ TRADING_FILE_PATTERNS
+      result.files.dsgd = findFile(TRADING_FILE_PATTERNS.CE_DSGD);
 
       // 2. TTM CE (Vị thế mở)
-      result.files.ttm = findFile([
-        /^TTM.*CE.*\.xlsx$/i,
-        /^TTM.*\.xlsx$/i,
-        /^TTM.*\.csv$/i,
-      ]);
+      result.files.ttm = findFile(TRADING_FILE_PATTERNS.CE_TTM);
 
       // 3. GTT ACM (Giá thanh toán)
-      result.files.gtt = findFile([
-        /^GTT.*ACM.*\.xlsx$/i,
-        /^GTT.*\.xlsx$/i,
-        /^GTT.*\.csv$/i,
-      ]);
+      result.files.gtt = findFile(TRADING_FILE_PATTERNS.CE_GTT);
 
       // 4. HH ACM (Danh mục hàng hóa)
-      result.files.hh = findFile([
-        /^HH.*ACM.*\.xlsx$/i,
-        /^HH.*\.xlsx$/i,
-        /^HH.*\.csv$/i,
-      ]);
+      result.files.hh = findFile(TRADING_FILE_PATTERNS.CE_HH);
 
       // 5. HĐ chi tiết (Tùy chọn)
-      result.files.hd = findFile([
-        /^HĐ.*\.xlsx$/i,
-        /^HD.*\.xlsx$/i,
-      ]);
+      result.files.hd = findFile(TRADING_FILE_PATTERNS.CE_HD);
 
       result.canProcess = !!result.files.dsgd;
     } catch (err: any) {
@@ -455,6 +444,22 @@ export class CeLotStatisticsService {
     await writeCcpLotToAccumulator(result as any, resolvedPath, logs);
     log(`Hoàn tất ghi file lũy kế Số Lot CE.`);
 
+    // Lưu lịch sử chạy vào CSDL MongoDB và file JSON backup
+    try {
+      await this.saveRunHistory({
+        sessionDate: dateStr,
+        action: 'WRITE',
+        runType: 'LOT',
+        result,
+        accumulatorLogs: logs,
+        accumulatorPaths: { ce_path_acm_lot: resolvedPath },
+        userId: user?.id,
+        username: user?.username || 'SYSTEM',
+      });
+    } catch (histErr: any) {
+      this.logger.warn(`[CoreEX Lot] Lưu run history thất bại: ${histErr.message}`);
+    }
+
     return {
       success: true,
       message: `Đã hoàn tất thống kê và ghi file lũy kế Số Lot CE cho ngày ${dateStr}${options?.forceOverwrite ? ' (Ghi đè thành công)' : ''}`,
@@ -541,6 +546,22 @@ export class CeLotStatisticsService {
     await writeCcpGtgdToAccumulator(result as any, resolvedPath, logs);
     log(`Hoàn tất ghi file lũy kế GTGD CE.`);
 
+    // Lưu lịch sử chạy vào CSDL MongoDB và file JSON backup
+    try {
+      await this.saveRunHistory({
+        sessionDate: dateStr,
+        action: 'WRITE',
+        runType: 'VALUE',
+        result,
+        accumulatorLogs: logs,
+        accumulatorPaths: { ce_path_acm_gtgd: resolvedPath },
+        userId: user?.id,
+        username: user?.username || 'SYSTEM',
+      });
+    } catch (histErr: any) {
+      this.logger.warn(`[CoreEX GTGD] Lưu run history thất bại: ${histErr.message}`);
+    }
+
     return {
       success: true,
       message: `Đã hoàn tất thống kê và ghi file lũy kế GTGD CE cho ngày ${dateStr}${options?.forceOverwrite ? ' (Ghi đè thành công)' : ''}`,
@@ -557,6 +578,299 @@ export class CeLotStatisticsService {
     const resolvedPath = resolveCcpAccumulatorFilePath(acmLotPath);
     const draftsDir = path.join(path.dirname(resolvedPath), '_Drafts');
     return path.join(draftsDir, filename);
+  }
+
+  /**
+   * Lưu lịch sử thực thi thống kê Số Lot / GTGD CE vào MongoDB và ghi file JSON backup.
+   */
+  async saveRunHistory(params: {
+    sessionDate: string;
+    action: 'PROCESS' | 'WRITE';
+    runType?: 'LOT' | 'VALUE' | 'ALL';
+    result: any;
+    accumulatorLogs?: string[];
+    accumulatorPaths?: Record<string, string>;
+    userId?: any;
+    username?: string;
+  }): Promise<CeLotRunHistory> {
+    const doc = await this.runHistoryModel.create({
+      sessionDate: params.sessionDate,
+      action: params.action,
+      runType: params.runType || 'LOT',
+      result: params.result,
+      accumulatorLogs: params.accumulatorLogs || [],
+      accumulatorPaths: params.accumulatorPaths,
+      userId: params.userId,
+      username: params.username,
+    });
+
+    try {
+      const ceBaseRaw = await this.getCeBackupBase();
+      if (ceBaseRaw) {
+        let dailyDir = '';
+        try {
+          const resolved = resolveBotTargetDate({ targetDate: params.sessionDate });
+          const ceSub = resolveDailySubfolder(resolveStoragePathCrossPlatform(ceBaseRaw), resolved.dateObj);
+          dailyDir = ceSub.fullPath;
+        } catch {
+          dailyDir = resolveStoragePathCrossPlatform(ceBaseRaw);
+        }
+
+        if (fs.existsSync(dailyDir)) {
+          const now = new Date();
+          const hhmm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+          const jsonFileName = `ce_lot_run_${params.action}_${hhmm}.json`;
+          const jsonPath = path.join(dailyDir, jsonFileName);
+
+          fs.writeFileSync(jsonPath, JSON.stringify(doc.toObject(), null, 2), 'utf8');
+          this.logger.log(`[RunHistory] Đã ghi JSON backup: ${jsonPath}`);
+
+          doc.jsonBackupPath = jsonPath;
+          await doc.save();
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`[RunHistory] Không thể ghi JSON backup: ${err.message}`);
+    }
+
+    return doc;
+  }
+
+  /**
+   * Truy vấn danh sách lịch sử chạy theo ngày phiên hoặc tất cả nếu không truyền ngày, mới nhất trước.
+   */
+  async getRunHistory(
+    sessionDate?: string,
+    limit = 20,
+  ): Promise<CeLotRunHistory[]> {
+    const filter = sessionDate ? { sessionDate } : {};
+    return this.runHistoryModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Kiểm tra thông tin các tệp sẽ chạy và tính hợp lý của các đường dẫn lưu file trước khi thực thi.
+   */
+  async inspectPreFlight(
+    dateStr: string,
+    actionType: 'LOT' | 'VALUE' | 'ALL' = 'ALL',
+  ): Promise<any> {
+    const scan = await this.scanDailyFiles(dateStr);
+    const config = await this.getConfig();
+    const usdRate = await this.getUsdExchangeRate();
+    const warnings: string[] = [];
+
+    const formatBytes = (bytes?: number) => {
+      if (!bytes || bytes <= 0) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    };
+
+    // 1. Danh sách tệp nguồn đầu vào
+    const sourceFiles = [
+      {
+        key: 'dsgd',
+        name: 'Tệp Khớp Lệnh (DSGD)',
+        role: 'Nguồn khớp lệnh chính để tính Số Lot và Giá Trị Giao Dịch',
+        required: true,
+        present: !!scan.files.dsgd?.present,
+        filename: scan.files.dsgd?.filename,
+        fullPath: scan.files.dsgd?.path,
+        sizeBytes: scan.files.dsgd?.size,
+        formattedSize: formatBytes(scan.files.dsgd?.size),
+        status: scan.files.dsgd?.present ? 'READY' : 'MISSING',
+        statusText: scan.files.dsgd?.present
+          ? `Sẵn sàng (${formatBytes(scan.files.dsgd?.size)})`
+          : 'Chưa có file DSGD trong thư mục ngày',
+      },
+      {
+        key: 'ttm',
+        name: 'Tệp Vị Thế Mở (TTM)',
+        role: 'Tính vị thế mở Mua/Bán và Lãi lỗ dự kiến',
+        required: false,
+        present: !!scan.files.ttm?.present,
+        filename: scan.files.ttm?.filename,
+        fullPath: scan.files.ttm?.path,
+        sizeBytes: scan.files.ttm?.size,
+        formattedSize: formatBytes(scan.files.ttm?.size),
+        status: scan.files.ttm?.present ? 'READY' : 'OPTIONAL_MISSING',
+        statusText: scan.files.ttm?.present
+          ? `Sẵn sàng (${formatBytes(scan.files.ttm?.size)})`
+          : 'Chưa có file TTM (sẽ bỏ qua tính vị thế mở)',
+      },
+      {
+        key: 'gtt',
+        name: 'Tệp Giá Thanh Toán (GTT)',
+        role: 'Đối chiếu giá khớp so với giá thanh toán',
+        required: false,
+        present: !!scan.files.gtt?.present,
+        filename: scan.files.gtt?.filename,
+        fullPath: scan.files.gtt?.path,
+        sizeBytes: scan.files.gtt?.size,
+        formattedSize: formatBytes(scan.files.gtt?.size),
+        status: scan.files.gtt?.present ? 'READY' : 'OPTIONAL_MISSING',
+        statusText: scan.files.gtt?.present
+          ? `Sẵn sàng (${formatBytes(scan.files.gtt?.size)})`
+          : 'Không bắt buộc',
+      },
+    ];
+
+    // 2. Danh sách tệp đích lưu dữ liệu
+    const rawDestinations: Array<{
+      key: string;
+      label: string;
+      group: 'LOT' | 'VALUE';
+      configuredPattern: string;
+    }> = [];
+
+    if (actionType === 'LOT' || actionType === 'ALL') {
+      rawDestinations.push({
+        key: 'ce_path_acm_lot',
+        label: 'Sổ Lũy Kế Số Lot Giao Dịch ACM',
+        group: 'LOT',
+        configuredPattern: config.ce_path_acm_lot || config.pathAcmLot || '',
+      });
+    }
+
+    if (actionType === 'VALUE' || actionType === 'ALL') {
+      rawDestinations.push({
+        key: 'ce_path_acm_gtgd',
+        label: 'Sổ Lũy Kế Giá Trị Giao Dịch ACM',
+        group: 'VALUE',
+        configuredPattern: config.ce_path_acm_gtgd || config.pathAcmGtgd || '',
+      });
+    }
+
+    const destinations = await Promise.all(
+      rawDestinations.map(async (dest) => {
+        const pattern = dest.configuredPattern;
+        if (!pattern) {
+          return {
+            ...dest,
+            resolvedPath: '',
+            parentDir: '',
+            parentDirExists: false,
+            fileExists: false,
+            isValidPath: false,
+            status: 'NOT_CONFIGURED',
+            statusText: 'Chưa cấu hình đường dẫn',
+            recommendation: 'Vào "Cấu Hình Đường Dẫn" để thiết lập đường dẫn file lũy kế.',
+          };
+        }
+
+        const resolvedPath = resolveCcpAccumulatorFilePath(pattern);
+        const parentDir = path.dirname(resolvedPath);
+        const parentDirExists = fs.existsSync(parentDir);
+        const fileExists = fs.existsSync(resolvedPath);
+        let fileSizeBytes = 0;
+        let hasSessionData = false;
+        let existingTotal: number | undefined;
+        let existingRow: number | undefined;
+
+        if (!parentDirExists) {
+          warnings.push(`Thư mục lưu file ${dest.label} không tồn tại: ${parentDir}`);
+          return {
+            ...dest,
+            resolvedPath,
+            parentDir,
+            parentDirExists: false,
+            fileExists: false,
+            isValidPath: false,
+            status: 'INVALID_DIR',
+            statusText: 'Thư mục cha không tồn tại trên máy chủ / ổ đĩa mạng',
+            recommendation: 'Kiểm tra đường dẫn thư mục cha hoặc kết nối ổ đĩa mạng (M:\\).',
+          };
+        }
+
+        if (fileExists) {
+          try {
+            const stat = fs.statSync(resolvedPath);
+            fileSizeBytes = stat.size;
+            const check = await checkDateExistsInAccumulator(
+              resolvedPath,
+              dateStr,
+              dest.group === 'VALUE' ? 'GTGD' : 'LOT',
+            );
+            hasSessionData = check.hasExistingData;
+            existingTotal = check.existingTotal;
+            existingRow = check.existingRow;
+          } catch (e: any) {
+            warnings.push(`Lỗi khi đọc kiểm tra file ${path.basename(resolvedPath)}: ${e.message}`);
+          }
+        }
+
+        let status = 'READY_UPDATE';
+        let statusText = 'File đã có trên đĩa - Sẵn sàng ghi nhận phiên mới';
+        let recommendation = 'Đường dẫn hợp lệ. Khi chạy sẽ ghi bổ sung dữ liệu phiên vào file.';
+
+        if (!fileExists) {
+          status = 'READY_NEW';
+          statusText = 'File chưa có trên đĩa (Sẽ tự tạo mới)';
+          recommendation = 'Thư mục hợp lệ. Hệ thống sẽ tự tạo file Excel mới theo mẫu chuẩn khi ghi.';
+        } else if (hasSessionData) {
+          status = 'READY_OVERWRITE';
+          statusText = `Đã có dữ liệu phiên ${dateStr} (${existingTotal?.toLocaleString('vi-VN')} ${dest.group === 'VALUE' ? 'đ' : 'lot'})`;
+          recommendation = 'Phiên này đã có số liệu. Khi chạy sẽ yêu cầu xác nhận ghi đè hoặc xuất bản nháp.';
+        }
+
+        return {
+          ...dest,
+          resolvedPath,
+          parentDir,
+          parentDirExists: true,
+          fileExists,
+          fileSizeBytes,
+          fileFormattedSize: formatBytes(fileSizeBytes),
+          hasSessionData,
+          existingTotal,
+          existingRow,
+          isValidPath: true,
+          status,
+          statusText,
+          recommendation,
+        };
+      }),
+    );
+
+    const isSourceReady = !!scan.files.dsgd?.present;
+    const isDestReady = destinations.length > 0 && destinations.every((d) => d.isValidPath);
+    const canExecute = isSourceReady && isDestReady;
+
+    let summary = '';
+    if (canExecute) {
+      summary = `Tất cả điều kiện hợp lệ. Sẵn sàng thực thi ${actionType === 'LOT' ? 'Thống Kê Số Lot' : actionType === 'VALUE' ? 'Thống Kê Giá Trị' : 'Thống Kê CoreEX'}.`;
+    } else if (!isSourceReady) {
+      summary = `Chưa đủ file nguồn đầu vào: Thiếu file DSGD trong thư mục ngày (${scan.folderPath}).`;
+    } else {
+      summary = `Đường dẫn file đích chưa hợp lệ hoặc chưa được cấu hình.`;
+    }
+
+    return {
+      system: 'CE',
+      systemName: 'Core Exchange (ACM Nano)',
+      targetDate: dateStr,
+      actionType,
+      isReady: canExecute,
+      canExecute,
+      summary,
+      source: {
+        folderPath: scan.folderPath,
+        folderExists: scan.exists,
+        files: sourceFiles,
+        exchangeRate: {
+          rate: usdRate,
+          source: 'Hệ thống / DB',
+          currency: 'USD',
+        },
+      },
+      destinations,
+      warnings,
+    };
   }
 
   // ──────────────────────────────────────────────────────────────────────────
