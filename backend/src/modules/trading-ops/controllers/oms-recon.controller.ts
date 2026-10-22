@@ -38,10 +38,7 @@ export class OmsReconController {
   @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async getOmsMarginSummary(@Query('sessionDate') sessionDate?: string) {
     try {
-      let result = this.omsReconService.getLatestResult();
-      if (!result) {
-        result = await this.omsReconService.checkOmsMarginReconciliation(sessionDate);
-      }
+      const result = this.omsReconService.getLatestResult(sessionDate);
       return {
         success: true,
         data: result,
@@ -77,10 +74,7 @@ export class OmsReconController {
   @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async getOmsTtmSummary(@Query('sessionDate') sessionDate?: string) {
     try {
-      let result = this.omsReconService.getLatestTtmResult();
-      if (!result) {
-        result = await this.omsReconService.checkOmsTtmReconciliation(sessionDate);
-      }
+      const result = this.omsReconService.getLatestTtmResult(sessionDate);
       return {
         success: true,
         data: result,
@@ -116,10 +110,7 @@ export class OmsReconController {
   @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE')
   async getOmsTtttSummary(@Query('sessionDate') sessionDate?: string) {
     try {
-      let result = this.omsReconService.getLatestTtttResult();
-      if (!result) {
-        result = await this.omsReconService.checkOmsTtttReconciliation(sessionDate);
-      }
+      const result = this.omsReconService.getLatestTtttResult(sessionDate);
       return {
         success: true,
         data: result,
@@ -129,4 +120,5 @@ export class OmsReconController {
     }
   }
 }
+
 

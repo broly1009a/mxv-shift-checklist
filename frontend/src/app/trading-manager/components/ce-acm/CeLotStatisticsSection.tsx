@@ -181,6 +181,12 @@ export default function CeLotStatisticsSection({
     return { total, lotCount, valueCount };
   }, [runHistory]);
 
+  // Kiểm tra xem phiên đang chọn (selectedDate) đã có lượt chạy thành công nào chưa
+  const latestRunForSelectedDate = useMemo(() => {
+    if (!selectedDate) return null;
+    return runHistory.find((h) => h.sessionDate === selectedDate) || null;
+  }, [runHistory, selectedDate]);
+
   // Nạp nhanh kết quả đã lưu vào màn hình để kiểm tra
   const handleQuickLoadResult = (item: any) => {
     if (!item?.result) {
@@ -344,6 +350,7 @@ export default function CeLotStatisticsSection({
         toast.success(data?.message || 'Đã ghi thành công file lũy kế Số Lot ACM!', { id: toastId });
       }
       if (data?.logs) setLogs(data.logs);
+      if (data?.result) setResult(data.result);
       setConfirmModal(null);
       fetchRunHistory();
     } catch (err: any) {
@@ -387,6 +394,7 @@ export default function CeLotStatisticsSection({
         toast.success(data?.message || 'Đã ghi thành công file lũy kế GTGD ACM!', { id: toastId });
       }
       if (data?.logs) setLogs(data.logs);
+      if (data?.result) setResult(data.result);
       setConfirmModal(null);
       fetchRunHistory();
     } catch (err: any) {
@@ -410,6 +418,8 @@ export default function CeLotStatisticsSection({
         toast.error(data?.message || 'Có lỗi khi chạy Macro CE', { id: toastId });
       }
       if (data?.logs) setLogs(data.logs);
+      if (data?.result) setResult(data.result);
+      else if (data?.lotResult?.result) setResult(data.lotResult.result);
       fetchRunHistory();
     } catch (err: any) {
       toast.error(`Lỗi chạy Macro CE: ${err.message}`, { id: toastId });
@@ -478,294 +488,253 @@ export default function CeLotStatisticsSection({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* ===== TOP BAR: KPI METRICS CARDS ===== */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        {/* KPI 1: TỔNG SỐ LOT CE */}
-        <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Tổng Số Lot CE (ACM)
-            </span>
-            <Layers size={18} color="#0ea5e9" />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 900, fontFamily: 'monospace', color: '#0ea5e9' }}>
-            {fmtNum(result?.totalSoLot || 0)}
-          </div>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            Phiên giao dịch: {selectedDate || 'Hôm nay'}
-          </span>
-        </div>
-
-        {/* KPI 2: TỔNG GIÁ TRỊ GIAO DỊCH (VND) */}
-        <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Tổng Giá Trị Giao Dịch
-            </span>
-            <DollarSign size={18} color="#10b981" />
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, fontFamily: 'monospace', color: '#10b981' }}>
-            {result?.totalGiaTri ? (result.totalGiaTri / 1e9).toFixed(2) + ' tỷ' : '0 đ'}
-          </div>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            Tỷ giá: {result?.tyGiaUsed?.USD?.toLocaleString('vi-VN') || '25.920'} VND/USD
-          </span>
-        </div>
-
-        {/* KPI 3: THÀNH VIÊN KINH DOANH */}
-        <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              TVKD Khớp Lệnh
-            </span>
-            <Activity size={18} color="#8b5cf6" />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 900, fontFamily: 'monospace', color: '#8b5cf6' }}>
-            {activeTvkdCount} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ {result?.byTvkd?.length || 0}</span>
-          </div>
-          <span style={{ fontSize: '0.74rem', color: missingTypesTvkdCount > 0 ? '#ef4444' : '#10b981' }}>
-            {missingTypesTvkdCount > 0 ? `${missingTypesTvkdCount} TVKD thiếu 4 loại lệnh` : '100% đủ 4 loại lệnh'}
-          </span>
-        </div>
-
-        {/* KPI 4: VỊ THẾ MỞ (TTM) */}
-        <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Vị Thế Mở (TTM CE)
-            </span>
-            <TrendingUp size={18} color="#f59e0b" />
-          </div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#f59e0b' }}>
-            {fmtNum(result?.totalTtmMua || 0)} M / {fmtNum(result?.totalTtmBan || 0)} B
-          </div>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            Tổng: {fmtNum(result?.totalTtmLot || 0)} Lot
-          </span>
-        </div>
-      </div>
-
-      {/* ===== ACTION CONTROL BAR ===== */}
+      {/* ── BỐ CỤC TINH GỌN MỚI (CHUẨN OPERATOR UX: SẠCH CHỮ, TRỰC QUAN, TINH TẾ) ── */}
       <div
         className="glass-panel"
         style={{
-          padding: '16px 20px',
+          padding: '20px 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '12px',
+          gap: '16px',
+          borderLeft: '4px solid #0ea5e9',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Nút Quét Thư Mục */}
-          <button
-            type="button"
-            onClick={() => handleScan(true)}
-            disabled={scanning || loading}
-            className="btn btn-secondary"
-            style={{ fontSize: '0.82rem', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            {scanning ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-            <span>{scanning ? 'Đang quét...' : 'Quét Thư Mục CE'}</span>
-          </button>
-
-          {/* Nút Tính Toán */}
-          <button
-            type="button"
-            onClick={handleProcess}
-            disabled={loading || scanning || !scanResult?.canProcess}
-            className="btn"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
             style={{
-              fontSize: '0.82rem',
-              padding: '8px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: scanResult?.canProcess ? '#0ea5e9' : 'var(--bg-input)',
-              color: scanResult?.canProcess ? '#fff' : 'var(--text-muted)',
-              fontWeight: 700,
+              padding: '3px 8px',
               borderRadius: '6px',
-              border: 'none',
-              cursor: scanResult?.canProcess ? 'pointer' : 'not-allowed',
+              backgroundColor: 'rgba(14, 165, 233, 0.15)',
+              border: '1px solid rgba(14, 165, 233, 0.3)',
+              color: '#0ea5e9',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
             }}
           >
-            {loading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-            <span>{loading ? 'Đang tính toán...' : 'Tính Toán Thống Kê'}</span>
-          </button>
-
-          {/* Nút Chạy Macro Toàn Diện (Số Lot + GTGD) + Icon Kiểm Tra PreFlight */}
-          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => handleRunMacro()}
-              disabled={writingMacro || writingLot || writingValue || !result}
-              className="btn btn-primary"
-              style={{
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                borderRight: '1px solid rgba(255, 255, 255, 0.25)',
-                backgroundColor: result ? '#8b5cf6' : undefined,
-                cursor: writingMacro || writingLot || writingValue || !result ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {writingMacro ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-              <span>Chạy Macro (Lot + GTGD)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.82rem',
-                padding: '8px 9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                borderLeft: 'none',
-                color: '#8b5cf6',
-                borderColor: 'var(--border-color)',
-                cursor: 'pointer',
-              }}
-              title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu toàn bộ sổ lũy kế ACM"
-            >
-              <FileSearch size={14} />
-            </button>
-          </div>
-
-          {/* Nút Ghi File Số Lot + Icon Kiểm tra luồng file */}
-          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => handleRunLot()}
-              disabled={writingMacro || writingLot || !result}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.82rem',
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                color: result ? '#10b981' : 'var(--text-muted)',
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                borderRight: 'none',
-              }}
-            >
-              {writingLot ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              <span>Ghi File Số Lot ACM</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInspectorModal({ isOpen: true, type: 'LOT' })}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.82rem',
-                padding: '8px 9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                color: '#3b82f6',
-                borderColor: 'var(--border-color)',
-                cursor: 'pointer',
-              }}
-              title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file Số Lot"
-            >
-              <FileSearch size={14} />
-            </button>
-          </div>
-
-          {/* Nút Ghi File Giá Trị + Icon Kiểm tra luồng file */}
-          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => handleRunValue()}
-              disabled={writingValue || !result}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.82rem',
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                color: result ? '#10b981' : 'var(--text-muted)',
-                borderTopRightRadius: 0,
-                borderBottomRightRadius: 0,
-                borderRight: 'none',
-              }}
-            >
-              {writingValue ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              <span>Ghi File GTGD ACM</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInspectorModal({ isOpen: true, type: 'VALUE' })}
-              className="btn btn-secondary"
-              style={{
-                fontSize: '0.82rem',
-                padding: '8px 9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                color: '#f59e0b',
-                borderColor: 'var(--border-color)',
-                cursor: 'pointer',
-              }}
-              title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file Giá Trị (GTGD)"
-            >
-              <FileSearch size={14} />
-            </button>
-          </div>
+            CoreEX ACM Nano
+          </span>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            Thống Kê
+          </h3>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Nút Kiểm Tra Toàn Bộ Luồng Tệp */}
+        {/* Thanh công cụ hành động trực quan */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Nút 1: Tổng Hợp Toàn Bộ (Lot & Giá Trị) */}
+          <button
+            type="button"
+            onClick={() => handleRunMacro()}
+            disabled={writingMacro || writingLot || writingValue}
+            className="btn btn-primary"
+            style={{
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              padding: '9px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)',
+              backgroundColor: '#8b5cf6',
+              cursor: writingMacro || writingLot || writingValue ? 'not-allowed' : 'pointer',
+            }}
+            title="Tổng hợp tự động cả Số Lot và Giá Trị Giao Dịch ACM"
+          >
+            {writingMacro ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Đang Ghi File...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                <span>Tổng Hợp Toàn Bộ</span>
+              </>
+            )}
+          </button>
+
+          {/* Nút 2: Thống Kê Số Lot */}
+          <button
+            type="button"
+            onClick={() => handleRunLot()}
+            disabled={writingMacro || writingLot || writingValue}
+            className="btn btn-primary"
+            style={{
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              padding: '9px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+              backgroundColor: '#10b981',
+              cursor: writingMacro || writingLot || writingValue ? 'not-allowed' : 'pointer',
+            }}
+            title="Ghi sổ sách Thống Kê Số Lot ACM"
+          >
+            {writingLot ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Đang Ghi File...</span>
+              </>
+            ) : (
+              <>
+                <Layers size={16} />
+                <span>Thống kê Số Lot</span>
+              </>
+            )}
+          </button>
+
+          {/* Nút 3: Thống Kê Giá Trị */}
+          <button
+            type="button"
+            onClick={() => handleRunValue()}
+            disabled={writingMacro || writingLot || writingValue}
+            className="btn btn-secondary"
+            style={{
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              padding: '9px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              borderColor: 'rgba(245, 158, 11, 0.4)',
+              color: '#f59e0b',
+              boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+              cursor: writingMacro || writingLot || writingValue ? 'not-allowed' : 'pointer',
+            }}
+            title="Ghi sổ sách Thống Kê Giá Trị Giao Dịch ACM"
+          >
+            {writingValue ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Đang Ghi File...</span>
+              </>
+            ) : (
+              <>
+                <DollarSign size={16} />
+                <span>Thống kê Giá Trị</span>
+              </>
+            )}
+          </button>
+
+          {/* Nút 4: Kiểm Tra Luồng File (Pre-Flight File Inspector) */}
           <button
             type="button"
             onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
             className="btn btn-secondary"
             style={{
-              fontSize: '0.82rem',
-              padding: '8px 14px',
+              fontSize: '0.84rem',
+              fontWeight: 600,
+              padding: '9px 12px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              color: '#0ea5e9',
-              borderColor: 'rgba(14, 165, 233, 0.4)',
-              backgroundColor: 'rgba(14, 165, 233, 0.08)',
-              fontWeight: 700,
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
             }}
-            title="Kiểm tra thông tin các file nguồn và đường dẫn lưu tất cả sổ lũy kế"
+            title="Kiểm tra thông tin các file nguồn và đường dẫn lưu tất cả sổ lũy kế ACM"
           >
             <FileSearch size={15} />
-            <span>Kiểm Tra Luồng File</span>
+            <span style={{ fontSize: '0.78rem' }}>Kiểm tra file</span>
           </button>
 
-          {/* Nút Cấu Hình */}
+          {/* Nút 5: Quét lại thư mục dữ liệu */}
+          <button
+            type="button"
+            onClick={() => handleScan(true)}
+            disabled={scanning}
+            className="btn btn-secondary"
+            style={{
+              padding: '9px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '8px',
+              color: 'var(--text-muted)',
+              cursor: scanning ? 'not-allowed' : 'pointer',
+            }}
+            title="Quét lại thư mục dữ liệu CE"
+          >
+            <RefreshCw size={15} className={scanning ? 'animate-spin' : ''} />
+          </button>
+
+          {/* Nút 6: Cấu hình tham số */}
           <button
             type="button"
             onClick={() => setShowConfig(!showConfig)}
             className="btn btn-secondary"
-            style={{ fontSize: '0.82rem', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              padding: '9px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '8px',
+              color: showConfig ? '#0ea5e9' : 'var(--text-muted)',
+              borderColor: showConfig ? '#0ea5e9' : undefined,
+              cursor: 'pointer',
+            }}
+            title="Cấu hình đường dẫn sổ sách"
           >
             <Sliders size={15} />
-            <span>Cấu Hình Đường Dẫn</span>
           </button>
         </div>
       </div>
+
+      {/* Thông báo nếu phiên đang chọn đã có kết quả chạy thành công và màn hình chưa nạp số liệu */}
+      {latestRunForSelectedDate && !result && (
+        <div
+          style={{
+            padding: '12px 18px',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Info size={18} color="#0ea5e9" />
+            <div>
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Phiên {selectedDate} đã có kết quả thống kê trong hệ thống
+              </span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                (Thực hiện lúc {latestRunForSelectedDate.createdAt ? new Date(latestRunForSelectedDate.createdAt).toLocaleTimeString('vi-VN') : '--'} bởi {latestRunForSelectedDate.username || 'SYSTEM'} — {latestRunForSelectedDate.result?.totalSoLot ? `${latestRunForSelectedDate.result.totalSoLot.toLocaleString('vi-VN')} lot` : 'Đã ghi sổ'})
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleQuickLoadResult(latestRunForSelectedDate)}
+            className="btn btn-secondary"
+            style={{
+              fontSize: '0.76rem',
+              padding: '5px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: 700,
+              color: '#0ea5e9',
+              borderColor: '#0ea5e9',
+            }}
+          >
+            <Eye size={14} />
+            <span>Xem nhanh số liệu</span>
+          </button>
+        </div>
+      )}
 
       {/* ===== FILE SCAN BADGES ===== */}
       {scanResult && (
@@ -1249,9 +1218,97 @@ export default function CeLotStatisticsSection({
         </div>
       )}
 
-      {/* ===== RESULTS TABLE SECTION ===== */}
+      {/* ===== RESULTS SECTION (CHỈ HIỂN THỊ KHI CÓ KẾT QUẢ ĐỐI SOÁT / THỐNG KÊ) ===== */}
       {result && (
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Header tóm tắt & nút đóng số liệu */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={16} color="#0ea5e9" />
+              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                Chi tiết số liệu Thống kê phiên {selectedDate}
+              </strong>
+            </div>
+            <button
+              type="button"
+              onClick={() => setResult(null)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.74rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              title="Đóng bảng số liệu để thu gọn giao diện"
+            >
+              <X size={12} />
+              <span>Thu gọn số liệu</span>
+            </button>
+          </div>
+
+          {/* 4 KPI METRICS CARDS */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            {/* KPI 1: TỔNG SỐ LOT CE */}
+            <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Tổng Số Lot CE (ACM)
+                </span>
+                <Layers size={18} color="#0ea5e9" />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 900, fontFamily: 'monospace', color: '#0ea5e9' }}>
+                {fmtNum(result?.totalSoLot || 0)}
+              </div>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Phiên giao dịch: {selectedDate || 'Hôm nay'}
+              </span>
+            </div>
+
+            {/* KPI 2: TỔNG GIÁ TRỊ GIAO DỊCH (VND) */}
+            <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Tổng Giá Trị Giao Dịch
+                </span>
+                <DollarSign size={18} color="#10b981" />
+              </div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 900, fontFamily: 'monospace', color: '#10b981' }}>
+                {result?.totalGiaTri ? (result.totalGiaTri / 1e9).toFixed(2) + ' tỷ' : '0 đ'}
+              </div>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Tỷ giá: {result?.tyGiaUsed?.USD?.toLocaleString('vi-VN') || '25.920'} VND/USD
+              </span>
+            </div>
+
+            {/* KPI 3: THÀNH VIÊN KINH DOANH */}
+            <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  TVKD Khớp Lệnh
+                </span>
+                <Activity size={18} color="#8b5cf6" />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 900, fontFamily: 'monospace', color: '#8b5cf6' }}>
+                {activeTvkdCount} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/ {result?.byTvkd?.length || 0}</span>
+              </div>
+              <span style={{ fontSize: '0.74rem', color: missingTypesTvkdCount > 0 ? '#ef4444' : '#10b981' }}>
+                {missingTypesTvkdCount > 0 ? `${missingTypesTvkdCount} TVKD thiếu 4 loại lệnh` : '100% đủ 4 loại lệnh'}
+              </span>
+            </div>
+
+            {/* KPI 4: VỊ THẾ MỞ (TTM) */}
+            <div className="glass-panel" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Vị Thế Mở (TTM CE)
+                </span>
+                <TrendingUp size={18} color="#f59e0b" />
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#f59e0b' }}>
+                {fmtNum(result?.totalTtmMua || 0)} M / {fmtNum(result?.totalTtmBan || 0)} B
+              </div>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Tổng: {fmtNum(result?.totalTtmLot || 0)} Lot
+              </span>
+            </div>
+          </div>
+
+          <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Table Header Controls */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1458,7 +1515,8 @@ export default function CeLotStatisticsSection({
             </div>
           )}
         </div>
-      )}
+      </div>
+    )}
 
       {/* ===== ACCUMULATOR LOGS (NẾU CÓ) ===== */}
       {logs.length > 0 && (

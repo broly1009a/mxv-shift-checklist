@@ -1,3 +1,83 @@
+## [2026-10-22T17:05] UI ENHANCEMENT: Chuẩn Hóa & Tinh Giản Giao Diện Thống Kê CoreEX (CE) & M-System (MS) Đồng Bộ Chuẩn CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Cập nhật giao diện của 2 màn hình Thống kê:
+  - `https://10.0.0.26/trading-manager/statistics/ce` (CoreEX ACM Nano)
+  - `https://10.0.0.26/trading-manager/statistics/ms` (M-System & CQG Legacy)
+  để đồng bộ hoàn toàn với phong cách thiết kế **tinh giản, hiện đại, chuẩn Operator UX** của màn hình `https://10.0.0.26/trading-manager/statistics/ccp` (CoreCCP VNCLEAR).
+
+### 2. Danh sách file chỉnh sửa
+
+1. **[frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**:
+   - Loại bỏ 4 thẻ KPI thô và thanh điều khiển chia cắt phức tạp ở đầu trang khi chưa có kết quả.
+   - Thiết kế lại Thanh Thao Tác (Action Bar) đồng bộ với chuẩn CoreCCP:
+     - Badge nhận diện: `CoreEX ACM Nano` + Tiêu đề `Thống Kê`.
+     - Bộ nút bấm thao tác trực tiếp, hiện đại:
+       - `[Tổng Hợp Toàn Bộ]` (Tím `#8b5cf6`, icon `Sparkles`).
+       - `[Thống kê Số Lot]` (Xanh lá `#10b981`, icon `Layers`).
+       - `[Thống kê Giá Trị]` (Vàng hổ phách `#f59e0b`, icon `DollarSign`).
+       - `[Kiểm tra file]` (icon `FileSearch`, mở Pre-Flight File Inspector).
+       - `[Làm mới]` (icon `RefreshCw`, quét lại thư mục dữ liệu).
+       - `[Cấu hình]` (icon `Sliders`, mở ngăn kéo cấu hình đường dẫn).
+   - Bổ sung Banner thông báo phiên đã có dữ liệu gần nhất (`latestRunForSelectedDate && !result`) kèm nút *"Xem nhanh số liệu"*.
+   - Đưa 4 thẻ KPI Metrics và Bảng thống kê chi tiết (TVKD & Hàng Hóa) vào khối kết quả có điều kiện (`{result && (...)}`), bổ sung nút *"Thu gọn số liệu"* giúp người vận hành linh hoạt đóng/mở khi cần.
+   - Tự động cập nhật `result` khi các lệnh chạy Macro (`handleRunMacro`, `handleRunLot`, `handleRunValue`) hoàn tất.
+
+2. **[frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx)**:
+   - Thay thế toàn bộ khối Action Panel cồng kềnh (2 card lớn 300px chiếm trọn màn hình) bằng Thanh Thao Tác (Action Bar) tinh gọn chuẩn CoreCCP:
+     - Badge nhận diện: `M-System & CQG` + Tiêu đề `Thống Kê`.
+     - Bộ nút bấm:
+       - `[Tổng Hợp Toàn Bộ]` (Tím `#8b5cf6`, icon `Sparkles`, thực thi đồng thời Lot + Giá trị).
+       - `[Thống kê Số Lot]` (Xanh dương `#3b82f6`, icon `Layers`).
+       - `[Thống kê Giá Trị]` (Vàng hổ phách `#f59e0b`, icon `DollarSign`).
+       - `[Đường dẫn tệp]` (icon `Folder`, đóng/mở ngăn kéo xem đường dẫn tệp Macro).
+       - `[Làm mới]` (icon `RefreshCw`, nạp lại tiến trình).
+   - Chuyển toàn bộ khung hiển thị đường dẫn tệp cố định sang dạng ngăn kéo Collapsible Drawer (`showPaths`), giữ cho giao diện mặc định luôn thoáng và sạch chữ.
+   - Bổ sung Banner cảnh báo thông minh khi phiên đang chọn đã có tác vụ Macro hoàn tất gần nhất.
+
+3. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Sửa typo chữ hoa trong nhãn nút bấm `<span>THống kê Giá Trị</span>` $\rightarrow$ `<span>Thống kê Giá Trị</span>`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build (`cmd.exe /c "npm run build"`)**: Exit Code 0, biên dịch Turbopack thành công 52/52 routes static & dynamic.
+
+---
+
+## [2026-10-22T16:45] PERFORMANCE & PERSISTENCE FIX: Tái Cấu Trúc Toàn Diện Đối Chiếu OMS ACM (Triệt Tiêu Lag DOM & Bền Vững Hóa Dữ Liệu)
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố nghiêm trọng do USER phản ánh tại màn hình Đối Chiếu OMS ACM (`/trading-manager/oms-recon`):
+  1. Trình duyệt bị đơ cứng, giật lag dữ dội ("đơ lòi") khi mở trang: Do Frontend kết xuất cùng một lúc 9.999 tài khoản khớp 100% vào DOM mà không có phân trang.
+  2. Mỗi lần mở vào trang, hệ thống lại tự động chạy quét đối chiếu mới từ đầu từ OMS & CoreCCP do Backend không lưu lại kết quả bền vững, biến request GET thành tác vụ quét dữ liệu nặng nề.
+  3. Giao diện chưa tuân thủ nguyên tắc Discrepancy-First của hệ thống: Chỉ tập trung hiển thị các tài khoản có chênh lệch thay vì đổ toàn bộ danh sách khớp ra bảng.
+
+### 2. Danh sách file chỉnh sửa
+
+1. **[backend/src/modules/trading-ops/controllers/oms-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/oms-recon.controller.ts)**:
+   - Loại bỏ hoàn toàn side-effect tự động chạy hàm `checkOms*Reconciliation()` bên trong các hàm GET summary (`getOmsMarginSummary`, `getOmsTtmSummary`, `getOmsTtttSummary`).
+   - Các API GET summary giờ đây chỉ thuần túy đọc kết quả đã lưu gần nhất từ service cache, trả về `null` nếu chưa có dữ liệu. Chỉ khi người dùng bấm nút "Chạy Đối Chiếu" (gọi POST) mới thực thi đối soát.
+2. **[backend/src/modules/trading-ops/services/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/oms-recon.service.ts)**:
+   - Bổ sung cơ chế Persistent File Cache trong `temp/oms_recon/`: Tự động lưu kết quả vào `margin_latest.json`, `ttm_latest.json`, `tttt_latest.json` (và theo ngày phiên `*_YYYY-MM-DD.json`).
+   - Tự động nạp lại kết quả gần nhất từ đĩa khi service khởi tạo, đảm bảo không bao giờ bị mất kết quả khi restart PM2 hoặc reload server.
+3. **[frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx)**:
+   - Đổi mặc định `filterStatus` từ `'ALL'` sang `'DIFF_ANY'` (Discrepancy-First).
+   - Bổ sung phân trang `paginatedRows` với `pageSize` (mặc định 50 dòng/trang, tùy chọn 25/50/100/200), triệt tiêu hoàn toàn hiện tượng quá tải DOM.
+   - Thêm trạng thái thông báo xanh nổi bật khi 100% tài khoản khớp ("KHỚP HOÀN TOÀN 100% - Không phát hiện tài khoản nào lệch").
+   - Thêm thanh điều khiển phân trang (Trước/Sau, Số trang) ở footer bảng.
+4. **[frontend/src/app/trading-manager/components/oms-recon/OmsTtmSubSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsTtmSubSection.tsx)**:
+   - Đổi mặc định `filterStatus` sang `'DIFF_ANY'`.
+   - Bổ sung phân trang 50 dòng/trang và thanh điều khiển phân trang ở footer.
+5. **[frontend/src/app/trading-manager/components/oms-recon/OmsTtttSubSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsTtttSubSection.tsx)**:
+   - Đổi mặc định `filterStatus` sang `'DIFF_ANY'`.
+   - Bổ sung phân trang 50 dòng/trang và thanh điều khiển phân trang ở footer.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend Build (`cmd.exe /c "npm run build"`)**: Exit Code 0, NestJS biên dịch sạch.
+- **Frontend Build (`cmd.exe /c "npm run build"`)**: Exit Code 0, Turbopack biên dịch 52/52 routes thành công.
+
+---
+
 ## [2026-10-22T15:15] BUGFIX & PERFORMANCE: Triệt Tiêu Vòng Lặp Vô Tận WebSocket & Đơ Trình Duyệt Khi Đổi Tab
 
 ### 1. Mục tiêu thay đổi

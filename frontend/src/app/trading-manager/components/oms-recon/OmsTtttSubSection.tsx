@@ -18,6 +18,8 @@ import {
   Filter,
   FileSpreadsheet,
   TrendingUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -127,15 +129,24 @@ export default function OmsTtttSubSection({
   const [triggering, setTriggering] = useState<boolean>(false);
   const [reconResult, setReconResult] = useState<IOmsTtttReconResult | null>(null);
 
-  // ── 2. Filters & Search States
+  // ── 2. Filters & Search States (Mặc định: DIFF_ANY - Discrepancy-First)
   const [filterStatus, setFilterStatus] = useState<
     'ALL' | 'DIFF_ANY' | 'DIFF_VOL' | 'DIFF_PNL' | 'DIFF_BOTH' | 'MATCH' | 'NOT_FOUND'
-  >('ALL');
+  >('DIFF_ANY');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortField, setSortField] = useState<string>('diffPnlVnd');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
 
-  // ── 3. Detail Modal State
+  // ── 3. Pagination States (Khắc phục giật lag DOM)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(50);
+
+  // Reset trang về 1 khi đổi bộ lọc hoặc tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, searchQuery, sortField, sortAsc]);
+
+  // ── 4. Detail Modal State
   const [selectedRowForModal, setSelectedRowForModal] = useState<IOmsTtttReconRow | null>(null);
 
   const fmt = (n: number | undefined | null) => {
@@ -277,6 +288,13 @@ export default function OmsTtttSubSection({
 
     return list;
   }, [reconResult, filterStatus, searchQuery, sortField, sortAsc]);
+
+  // ── Phân trang (Pagination)
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, currentPage, pageSize]);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -958,8 +976,9 @@ export default function OmsTtttSubSection({
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row, idx) => {
+                paginatedRows.map((row, idx) => {
                   const isMatch = row.status === 'MATCH';
+                  const stt = (currentPage - 1) * pageSize + idx + 1;
                   return (
                     <tr
                       key={`${row.accountNumber}_${row.symbol}_${idx}`}
@@ -971,7 +990,7 @@ export default function OmsTtttSubSection({
                     >
                       {/* STT */}
                       <td style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        {idx + 1}
+                        {stt}
                       </td>
 
                       {/* Mã TKGD */}
@@ -1202,6 +1221,95 @@ export default function OmsTtttSubSection({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* TABLE FOOTER & PAGINATION */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '12px 16px',
+            borderTop: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-input)',
+            fontSize: '0.78rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span>
+              Hiển thị <strong>{filteredRows.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(currentPage * pageSize, filteredRows.length)}</strong> / Tổng số <strong>{filteredRows.length.toLocaleString()}</strong> bản ghi
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>Số dòng/trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="btn btn-secondary"
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                  opacity: currentPage <= 1 ? 0.4 : 1,
+                }}
+              >
+                <ChevronLeft size={14} /> Trước
+              </button>
+              <span style={{ padding: '0 8px', fontWeight: 700 }}>
+                Trang {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="btn btn-secondary"
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                  opacity: currentPage >= totalPages ? 0.4 : 1,
+                }}
+              >
+                Sau <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

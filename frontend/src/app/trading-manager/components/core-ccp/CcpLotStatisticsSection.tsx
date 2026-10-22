@@ -913,7 +913,7 @@ export default function CcpLotStatisticsSection({
                 CoreCCP VNCLEAR
               </span>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                Thống Kê Khối Lượng & Giá Trị Giao Dịch
+                Thống Kê
               </h3>
             </div>
 
@@ -992,7 +992,7 @@ export default function CcpLotStatisticsSection({
                 ) : (
                   <>
                     <Layers size={16} />
-                    <span>Số Lot</span>
+                    <span>Thống kê Số Lot</span>
                   </>
                 )}
               </button>
@@ -1033,7 +1033,7 @@ export default function CcpLotStatisticsSection({
                 ) : (
                   <>
                     <DollarSign size={16} />
-                    <span>Giá Trị</span>
+                    <span>Thống kê Giá Trị</span>
                   </>
                 )}
               </button>

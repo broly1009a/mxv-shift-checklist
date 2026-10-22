@@ -245,13 +245,55 @@ export interface IOmsMarginReconResult {
 export class OmsReconService {
   private readonly logger = new Logger(OmsReconService.name);
   private cachedLatestResult: IOmsMarginReconResult | null = null;
+  private cachedLatestTtmResult: IOmsTtmReconResult | null = null;
+  private cachedLatestTtttResult: IOmsTtttReconResult | null = null;
+  private readonly cacheDir = path.join(process.cwd(), 'temp', 'oms_recon');
 
   constructor(
     private readonly settingsService: SystemSettingsService,
     @Optional()
     @Inject(forwardRef(() => CoreCcpApiAdapter))
     private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
-  ) {}
+  ) {
+    if (!fs.existsSync(this.cacheDir)) {
+      try {
+        fs.mkdirSync(this.cacheDir, { recursive: true });
+      } catch (err: any) {
+        this.logger.warn(`Không thể tạo thư mục cache OMS ${this.cacheDir}: ${err.message}`);
+      }
+    }
+    // Nạp lại kết quả đã lưu bền vững gần nhất từ đĩa khi khởi động server
+    this.cachedLatestResult = this.loadJsonCache<IOmsMarginReconResult>('margin_latest.json');
+    this.cachedLatestTtmResult = this.loadJsonCache<IOmsTtmReconResult>('ttm_latest.json');
+    this.cachedLatestTtttResult = this.loadJsonCache<IOmsTtttReconResult>('tttt_latest.json');
+    if (this.cachedLatestResult) {
+      this.logger.log(`[OMS-Recon] Đã nạp cache Ký quỹ OMS từ đĩa (phiên ${this.cachedLatestResult.sessionDate}).`);
+    }
+  }
+
+  private saveJsonCache(filename: string, data: any) {
+    try {
+      if (!fs.existsSync(this.cacheDir)) {
+        fs.mkdirSync(this.cacheDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(this.cacheDir, filename), JSON.stringify(data), 'utf8');
+    } catch (err: any) {
+      this.logger.warn(`Không thể lưu cache OMS ${filename}: ${err.message}`);
+    }
+  }
+
+  private loadJsonCache<T>(filename: string): T | null {
+    try {
+      const fullPath = path.join(this.cacheDir, filename);
+      if (fs.existsSync(fullPath)) {
+        const raw = fs.readFileSync(fullPath, 'utf8');
+        return JSON.parse(raw);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Không thể đọc cache OMS ${filename}: ${err.message}`);
+    }
+    return null;
+  }
 
   /**
    * Chuẩn hóa mã tài khoản (loại bỏ hậu tố -A, -M, khoảng trắng)
@@ -601,17 +643,23 @@ export class OmsReconService {
     };
 
     this.cachedLatestResult = result;
+    this.saveJsonCache('margin_latest.json', result);
+    if (targetDate) {
+      this.saveJsonCache(`margin_${targetDate}.json`, result);
+    }
     return result;
   }
 
   /**
-   * Lấy kết quả đối chiếu OMS mới nhất trong cache
+   * Lấy kết quả đối chiếu OMS mới nhất trong cache (ưu tiên ngày nếu có)
    */
-  public getLatestResult(): IOmsMarginReconResult | null {
-    return this.cachedLatestResult;
+  public getLatestResult(sessionDate?: string): IOmsMarginReconResult | null {
+    if (sessionDate) {
+      const dateResult = this.loadJsonCache<IOmsMarginReconResult>(`margin_${sessionDate}.json`);
+      if (dateResult) return dateResult;
+    }
+    return this.cachedLatestResult || this.loadJsonCache<IOmsMarginReconResult>('margin_latest.json');
   }
-
-  private cachedLatestTtmResult: IOmsTtmReconResult | null = null;
 
   /**
    * Quét tìm file TTM tải trực tiếp trong các thư mục lưu trữ phiên
@@ -991,17 +1039,23 @@ export class OmsReconService {
     };
 
     this.cachedLatestTtmResult = result;
+    this.saveJsonCache('ttm_latest.json', result);
+    if (targetDate) {
+      this.saveJsonCache(`ttm_${targetDate}.json`, result);
+    }
     return result;
   }
 
   /**
-   * Lấy kết quả đối chiếu TTM mới nhất trong cache
+   * Lấy kết quả đối chiếu TTM mới nhất trong cache (ưu tiên ngày nếu có)
    */
-  public getLatestTtmResult(): IOmsTtmReconResult | null {
-    return this.cachedLatestTtmResult;
+  public getLatestTtmResult(sessionDate?: string): IOmsTtmReconResult | null {
+    if (sessionDate) {
+      const dateResult = this.loadJsonCache<IOmsTtmReconResult>(`ttm_${sessionDate}.json`);
+      if (dateResult) return dateResult;
+    }
+    return this.cachedLatestTtmResult || this.loadJsonCache<IOmsTtmReconResult>('ttm_latest.json');
   }
-
-  private cachedLatestTtttResult: IOmsTtttReconResult | null = null;
 
   /**
    * Quét tìm file TTTT tải trực tiếp trong các thư mục lưu trữ phiên
@@ -1452,13 +1506,21 @@ export class OmsReconService {
     };
 
     this.cachedLatestTtttResult = result;
+    this.saveJsonCache('tttt_latest.json', result);
+    if (targetDate) {
+      this.saveJsonCache(`tttt_${targetDate}.json`, result);
+    }
     return result;
   }
 
   /**
-   * Lấy kết quả đối chiếu TTTT mới nhất trong cache
+   * Lấy kết quả đối chiếu TTTT mới nhất trong cache (ưu tiên ngày nếu có)
    */
-  public getLatestTtttResult(): IOmsTtttReconResult | null {
-    return this.cachedLatestTtttResult;
+  public getLatestTtttResult(sessionDate?: string): IOmsTtttReconResult | null {
+    if (sessionDate) {
+      const dateResult = this.loadJsonCache<IOmsTtttReconResult>(`tttt_${sessionDate}.json`);
+      if (dateResult) return dateResult;
+    }
+    return this.cachedLatestTtttResult || this.loadJsonCache<IOmsTtttReconResult>('tttt_latest.json');
   }
 }
