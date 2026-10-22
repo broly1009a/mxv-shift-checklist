@@ -1122,6 +1122,8 @@ export class OmsReconService {
     let accIdx = -1;
     let symIdx = -1;
     let closeQttyIdx = -1;
+    let buyQttyIdx = -1;
+    let sellQttyIdx = -1;
 
     for (let r = 0; r < Math.min(rows.length, 5); r++) {
       if (!rows[r]) continue;
@@ -1129,25 +1131,29 @@ export class OmsReconService {
       const tempAcc = findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Mã TK', 'Account', 'ACCTNO', 'Số tài khoản', 'Investor Code', 'Tai khoan', 'TKGD']);
       const tempSym = findHeaderIndex(header, 'Mã hợp đồng', ['Mã HĐ', 'Symbol', 'SYMBOL', 'Hợp đồng', 'Contract', 'Mã HD']);
       const tempClose = findHeaderIndex(header, 'Khối lượng đóng', ['KL Đóng', 'KL đóng', 'CLOSEQTTY', 'Close Volume', 'Close Qtty', 'Khối lượng']);
+      const tempBuy = findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'KL mua', 'BUYQTTY', 'Buy Volume']);
+      const tempSell = findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'KL bán', 'SELLQTTY', 'Sell Volume']);
 
-      if (tempAcc !== -1 && tempSym !== -1 && tempClose !== -1) {
+      if (tempAcc !== -1 && tempSym !== -1 && (tempClose !== -1 || tempBuy !== -1 || tempSell !== -1)) {
         headerRowIdx = r;
         accIdx = tempAcc;
         symIdx = tempSym;
         closeQttyIdx = tempClose;
+        buyQttyIdx = tempBuy;
+        sellQttyIdx = tempSell;
         break;
       }
     }
 
-    if (accIdx === -1 || symIdx === -1 || closeQttyIdx === -1) {
-      this.logger.warn(`File TTTT ${filePath} không tìm thấy cột Mã TKGD, Mã hợp đồng hoặc Khối lượng đóng.`);
+    if (accIdx === -1 || symIdx === -1 || (closeQttyIdx === -1 && buyQttyIdx === -1 && sellQttyIdx === -1)) {
+      this.logger.warn(`File TTTT ${filePath} không tìm thấy cột Mã TKGD, Mã hợp đồng hoặc Khối lượng đóng/mua/bán.`);
       return [];
     }
 
     const header = rows[headerRowIdx].map((h) => String(h || '').trim());
     const sideIdx = findHeaderIndex(header, 'Lệnh', ['Side', 'Chiều', 'SIDE', 'Loại lệnh']);
     const pnlIdx = findHeaderIndex(header, 'Lãi lỗ thực tế', ['Lãi/lỗ thực tế', 'VRPL', 'VRPLAMT', 'Realized PnL', 'Lãi lỗ TT', 'Lãi lỗ']);
-    const pnlVndIdx = findHeaderIndex(header, 'Lãi lỗ thực tế (VND)', ['Lãi/lỗ thực tế (VND)', 'VRPLAMT_VND', 'Realized PnL (VND)', 'Lãi lỗ VND']);
+    const pnlVndIdx = findHeaderIndex(header, 'Lãi lỗ thực tế(VND)', ['Lãi lỗ thực tế (VND)', 'Lãi/lỗ thực tế (VND)', 'Lãi/lỗ thực tế(VND)', 'VRPLAMT_VND', 'Realized PnL (VND)', 'Lãi lỗ VND']);
     const costPriceIdx = findHeaderIndex(header, 'Giá vốn', ['Cost Price', 'Giavốn', 'COSTPRICE']);
     const closePriceIdx = findHeaderIndex(header, 'Giá đóng', ['Close Price', 'Giáđóng', 'CLOSEPRICE']);
     const orderIdx = findHeaderIndex(header, 'SHL mở', ['Mã GD mở', 'Số hiệu lệnh mở', 'ORDERID', 'Open Order ID', 'Mã lệnh mở']);
@@ -1166,11 +1172,26 @@ export class OmsReconService {
       const rawSym = String(row[symIdx] || '').trim();
       if (!rawAcc || !rawSym) continue;
 
-      const sideRaw = sideIdx !== -1 ? String(row[sideIdx] || '').trim().toUpperCase() : 'BUY';
-      const isBuy = sideRaw.startsWith('BUY') || sideRaw.startsWith('MUA') || sideRaw === 'B';
-      const closeSide = isBuy ? 'BUY' : 'SELL';
+      const buyQtty = buyQttyIdx !== -1 ? this.parseNumber(row[buyQttyIdx]) : 0;
+      const sellQtty = sellQttyIdx !== -1 ? this.parseNumber(row[sellQttyIdx]) : 0;
+      let closeQtty = closeQttyIdx !== -1 ? this.parseNumber(row[closeQttyIdx]) : 0;
+      if (closeQtty === 0 && (buyQtty > 0 || sellQtty > 0)) {
+        closeQtty = Math.max(buyQtty, sellQtty);
+      }
 
-      const closeQtty = this.parseNumber(row[closeQttyIdx]);
+      let closeSide = 'BUY';
+      if (sideIdx !== -1) {
+        const sideRaw = String(row[sideIdx] || '').trim().toUpperCase();
+        const isBuy = sideRaw.startsWith('BUY') || sideRaw.startsWith('MUA') || sideRaw === 'B';
+        closeSide = isBuy ? 'BUY' : 'SELL';
+      } else if (buyQtty > 0 && sellQtty === 0) {
+        closeSide = 'BUY';
+      } else if (sellQtty > 0 && buyQtty === 0) {
+        closeSide = 'SELL';
+      } else {
+        closeSide = 'BOTH';
+      }
+
       const vrplAmt = pnlIdx !== -1 ? this.parseNumber(row[pnlIdx]) : 0;
       const vrplAmt_Vnd = pnlVndIdx !== -1 ? this.parseNumber(row[pnlVndIdx]) : 0;
       const costPrice = costPriceIdx !== -1 ? this.parseNumber(row[costPriceIdx]) : 0;
@@ -1333,7 +1354,20 @@ export class OmsReconService {
         });
       }
       const g = ttttMap.get(key)!;
-      if (p.closeSide === 'BUY') {
+      const omsItem = omsMap.get(key);
+      if (p.closeSide === 'BOTH') {
+        // Tệp TTTT CCP đối trừ bù trừ cả 2 chiều mua/bán (matched pair), phân bổ theo OMS leg để hiển thị chuẩn xác
+        if (omsItem && omsItem.buyQty === p.closeQtty && omsItem.sellQty === 0) {
+          g.buyQty += p.closeQtty;
+        } else if (omsItem && omsItem.sellQty === p.closeQtty && omsItem.buyQty === 0) {
+          g.sellQty += p.closeQtty;
+        } else if (omsItem && omsItem.buyQty + omsItem.sellQty === p.closeQtty) {
+          g.buyQty += omsItem.buyQty;
+          g.sellQty += omsItem.sellQty;
+        } else {
+          g.buyQty += p.closeQtty;
+        }
+      } else if (p.closeSide === 'BUY') {
         g.buyQty += p.closeQtty;
       } else {
         g.sellQty += p.closeQtty;

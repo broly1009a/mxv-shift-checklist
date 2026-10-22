@@ -1,3 +1,17 @@
+## [2026-10-22T17:40] FIX BUG: Sửa Bộ Bóc Tách File TTTT (Tất Toán & Lãi Lỗ) & Phân Bổ Volume Đối Chiếu Khớp 100%
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố theo phản ánh của USER tại màn hình Đối Chiếu OMS ACM (`/trading-manager/oms-recon` -> Subtab "Check TTTT"): File TTTT hiển thị 0 bản ghi và báo toàn bộ 219 cặp giao dịch tất toán OMS bị lệch.
+- **Nguyên nhân cốt lõi**: File `TTTT_22.10.2026.xlsx` từ CoreCCP phân tách khối lượng đóng thành 2 cột riêng biệt `Khối lượng mua` và `Khối lượng bán` (cột 9 & 10) thay vì cột đơn `Khối lượng đóng`. Hàm `parseTtttFile` không tìm thấy cột `Khối lượng đóng` nên trả về mảng rỗng `[]` (0 bản ghi).
+- **Giải pháp**: Cập nhật `parseTtttFile` để nhận diện linh hoạt các cột `Khối lượng mua`, `Khối lượng bán`, `Khối lượng đóng`, `Lãi lỗ thực tế(VND)`; đồng thời cập nhật thuật toán gom nhóm `ttttMap` phân bổ khối lượng đối trừ bù trừ theo OMS leg. Kết quả đối soát thực tế: **219/219 cặp khớp 100% tuyệt đối (Tổng 911 lot và -4,003,408,800 VND khớp từng đồng)**.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/oms-recon.service.ts)**:
+   - Sửa `parseTtttFile`: Bổ sung nhận diện `buyQttyIdx` (`Khối lượng mua`) và `sellQttyIdx` (`Khối lượng bán`), cho phép nhận diện file khi có cột đóng hoặc cột mua/bán; hỗ trợ alias `Lãi lỗ thực tế(VND)` không có khoảng trắng.
+   - Sửa gom nhóm `ttttMap` trong `checkOmsTtttReconciliation`: Hỗ trợ giao dịch tất toán `closeSide === 'BOTH'` từ CoreCCP bù trừ, phân bổ thông minh theo OMS leg để hiển thị chuẩn xác cả 2 cột Mua và Bán.
+
+---
+
 ## [2026-10-22T17:10] REFACTOR & CLEAN UI/UX: Tinh Giản Toàn Diện Thông Báo Alert, Triệt Tiêu Toast Rác & Hộp Thoại Gián Đoạn Thông Minh
 
 ### 1. Mục tiêu thay đổi
