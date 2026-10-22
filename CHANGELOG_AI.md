@@ -1,3 +1,30 @@
+## [2026-10-22T14:25] FEAT: Chuyển Toàn Bộ Phân Hệ Đối Chiếu TTTT (Tất Toán & Lãi Lỗ) Sang Đơn Vị Tiền Tệ VND
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: "giúp tôi chuyển toàn bộ sang đơn vị vnd" trên giao diện đối chiếu TTTT (Tất toán & Lãi lỗ OMS vs CoreCCP).
+- Đồng bộ hóa toàn bộ tiêu chí so khớp, thẻ thống kê tổng hợp, các cột dữ liệu bảng hiển thị, bộ lọc sắp xếp, xuất báo cáo CSV và Modal chi tiết theo đơn vị tiền tệ VND (₫).
+- Đảm bảo cơ chế so khớp PnL hoạt động dựa trên trường `vrplAmt_Vnd` từ API `OMS_PNL_DETAIL` và cột `Lãi lỗ thực tế(VND)` từ tệp báo cáo `TTTT.xlsx` / `TTTT.csv` của CoreCCP với tỷ giá cố định trong ngày, loại bỏ hoàn toàn các sai số lẻ quy đổi của USD.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/oms-recon.service.ts)**:
+   - Cập nhật hàm `checkOmsTtttReconciliation`: So khớp PnL dựa trên `diffRealizedPnlVnd` (`Math.abs(diffRealizedPnlVnd) <= 1`).
+   - Thêm các chỉ số tổng hợp VND vào `summary`: `totalOmsRealizedPnlVnd`, `totalTtttRealizedPnlVnd`, `totalDiffRealizedPnlVnd`.
+   - Cập nhật thông điệp trạng thái `statusNote` hiển thị số tiền lệch theo VND (`... đ`).
+   - Sắp xếp ưu tiên độ lệch theo VND (`diffRealizedPnlVnd`).
+2. **[frontend/src/app/trading-manager/components/oms-recon/OmsTtttSubSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/oms-recon/OmsTtttSubSection.tsx)**:
+   - Thêm các trường VND vào `IOmsTtttReconResult.summary`.
+   - Đổi thẻ thống kê KPI 4 thành **Tổng Lãi Lỗ Thực Tế (VND)**, hiển thị số tiền OMS, TTTT và chênh lệch theo VND (₫) kèm icon `TrendingUp` từ `lucide-react`.
+   - Cập nhật nhóm cột bảng chính thành **Lãi Lỗ Thực Tế (VND)** với 3 cột: `OMS PnL (VND)`, `TTTT PnL (VND)`, `Chênh Lệch (VND)`.
+   - Đổi tiêu chí sắp xếp mặc định và hàm so sánh sort sang `diffPnlVnd`.
+   - Cập nhật file xuất CSV ưu tiên các cột VND lên trước: `OMS Lãi Lỗ (VND)`, `TTTT Lãi Lỗ (VND)`, `Chênh Lệch Lãi Lỗ (VND)`.
+   - Cập nhật Modal chi tiết: Header và cả 2 bảng (OMS & TTTT File) làm nổi bật cột **Lãi Lỗ Thực Tế (VND)** lên trước, đưa USD về cột tham chiếu phụ.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`npm run build`)**: Exit Code 0, biên dịch NestJS thành công.
+- **Frontend Build (`npm run build`)**: Exit Code 0, biên dịch Next.js (50/50 routes) thành công.
+
+---
+
 ## [2026-10-22T14:05] FIX: Khắc Phục Lỗi Nhận Diện Thư Mục Master Template Báo Cáo Đột Xuất CCP (Ad-Hoc Statistics)
 
 ### 1. Mục tiêu thay đổi

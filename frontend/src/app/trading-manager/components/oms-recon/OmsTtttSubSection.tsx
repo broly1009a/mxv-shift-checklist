@@ -18,7 +18,6 @@ import {
   Filter,
   FileSpreadsheet,
   TrendingUp,
-  DollarSign,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -1258,13 +1257,18 @@ export default function OmsTtttSubSection({
                   <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                     Tài khoản: <strong>{selectedRowForModal.accountNumber}</strong> • Hợp đồng:{' '}
                     <strong>{selectedRowForModal.symbol}</strong> • Lãi lỗ: OMS{' '}
-                    <strong style={{ color: selectedRowForModal.omsRealizedPnl >= 0 ? '#10b981' : '#ef4444' }}>
-                      ${fmtDec(selectedRowForModal.omsRealizedPnl)}
+                    <strong style={{ color: selectedRowForModal.omsRealizedPnlVnd >= 0 ? '#10b981' : '#ef4444' }}>
+                      {fmt(selectedRowForModal.omsRealizedPnlVnd)} đ
                     </strong>{' '}
                     / TTTT{' '}
-                    <strong style={{ color: selectedRowForModal.ttttRealizedPnl >= 0 ? '#10b981' : '#ef4444' }}>
-                      ${fmtDec(selectedRowForModal.ttttRealizedPnl)}
+                    <strong style={{ color: selectedRowForModal.ttttRealizedPnlVnd >= 0 ? '#10b981' : '#ef4444' }}>
+                      {fmt(selectedRowForModal.ttttRealizedPnlVnd)} đ
                     </strong>
+                    {Math.abs(selectedRowForModal.diffRealizedPnlVnd) > 1 && (
+                      <span style={{ color: '#ef4444', marginLeft: '6px' }}>
+                        (Lệch: {fmt(selectedRowForModal.diffRealizedPnlVnd)} đ)
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -1316,8 +1320,8 @@ export default function OmsTtttSubSection({
                         <th style={{ padding: '6px 10px', textAlign: 'right' }}>KL Đóng</th>
                         <th style={{ padding: '6px 10px', textAlign: 'right' }}>Giá Vốn</th>
                         <th style={{ padding: '6px 10px', textAlign: 'right' }}>Giá Đóng</th>
-                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ Thực Tế (USD)</th>
-                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ (VND)</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ Thực Tế (VND)</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ (USD)</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>SHL Mở / Đóng</th>
                         <th style={{ padding: '6px 10px', textAlign: 'center' }}>Ngày Giờ Mở/Đóng</th>
                       </tr>
@@ -1338,13 +1342,13 @@ export default function OmsTtttSubSection({
                               padding: '6px 10px',
                               textAlign: 'right',
                               fontWeight: 700,
-                              color: (det.vrplAmt || 0) >= 0 ? '#10b981' : '#ef4444',
+                              color: (det.vrplAmt_Vnd || 0) >= 0 ? '#10b981' : '#ef4444',
                             }}
                           >
-                            ${fmtDec(det.vrplAmt)}
+                            {fmt(det.vrplAmt_Vnd)} đ
                           </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>
-                            {fmt(det.vrplAmt_Vnd)}
+                          <td style={{ padding: '6px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                            ${fmtDec(det.vrplAmt)}
                           </td>
                           <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>
                             {det.orderId || '—'} / {det.closeOrderId || '—'}
@@ -1380,8 +1384,8 @@ export default function OmsTtttSubSection({
                         <th style={{ padding: '6px 10px', textAlign: 'right' }}>KL Đóng</th>
                         <th style={{ padding: '6px 10px', textAlign: 'right' }}>Giá Vốn</th>
                         <th style={{ padding: '6px 10px', textAlign: 'right' }}>Giá Đóng</th>
-                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ Thực Tế (USD)</th>
-                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ (VND)</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ Thực Tế (VND)</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'right' }}>Lãi Lỗ (USD)</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>SHL Mở / Đóng</th>
                         <th style={{ padding: '6px 10px', textAlign: 'center' }}>Ngày Mở / Đóng</th>
                       </tr>
@@ -1402,13 +1406,13 @@ export default function OmsTtttSubSection({
                               padding: '6px 10px',
                               textAlign: 'right',
                               fontWeight: 700,
-                              color: (det.vrplAmt || 0) >= 0 ? '#10b981' : '#ef4444',
+                              color: (det.vrplAmt_Vnd || 0) >= 0 ? '#10b981' : '#ef4444',
                             }}
                           >
-                            ${fmtDec(det.vrplAmt)}
+                            {fmt(det.vrplAmt_Vnd)} đ
                           </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'right' }}>
-                            {fmt(det.vrplAmt_Vnd)}
+                          <td style={{ padding: '6px 10px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                            ${fmtDec(det.vrplAmt)}
                           </td>
                           <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>
                             {det.orderId || '—'} / {det.closeOrderId || '—'}
