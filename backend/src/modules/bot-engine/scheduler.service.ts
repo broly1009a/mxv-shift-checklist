@@ -336,7 +336,7 @@ export class SchedulerService implements OnModuleInit {
     // 1. Kiểm tra Master Switch: bot_auto_recon_enabled
     const autoReconSetting = await this.settingsService.getSetting(
       'bot_auto_recon_enabled',
-      'false',
+      'true',
     );
     if (autoReconSetting !== 'true') {
       return;

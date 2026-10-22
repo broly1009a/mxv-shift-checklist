@@ -1,3 +1,23 @@
+## [2026-10-22T17:40] BUGFIX: Đồng Nhất Cấu Hình Mặc Định Master Switch 'bot_auto_recon_enabled' Giữa Frontend và Backend Scheduler
+
+### 1. Mục tiêu thay đổi
+
+- **Khắc phục lỗi chạy tự động đối chiếu trong phiên (autonomous-klgd-runner)**:
+  - Hiện tượng: Trên giao diện Trading Manager hiển thị `● Tự động: BẬT`, đếm lùi về 00:00:00 và hiện nhãn cam ` Đến lịch quét định kỳ` nhưng Backend không tự kích hoạt đối chiếu ngầm, buộc người dùng phải ấn nút thủ công.
+  - Nguyên nhân cốt lõi: Tại [scheduler.service.ts#L337-L343](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/scheduler.service.ts#L337-L343), hàm `handleAutonomousKlgdRun` gọi `getSetting('bot_auto_recon_enabled', 'false')`. Khi CSDL chưa có bản ghi này, hàm trả về mặc định `'false'` và `return` ngay lập tức mỗi phút. Trong khi đó Frontend lại khởi tạo `true` (`autoReconActive = true`), gây ra sự bất đồng bộ giữa UI và tiến trình ngầm.
+
+### 2. Danh sách file chỉnh sửa
+
+1. **[backend/src/modules/bot-engine/scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/scheduler.service.ts)**:
+   - Sửa giá trị fallback của `bot_auto_recon_enabled` từ `'false'` thành `'true'` tại dòng 339, đồng nhất với `shift-scanner.service.ts` và Frontend.
+   - Khi hết 60 phút và không có tác vụ đang chạy, cron ngầm sẽ tự động kích hoạt `CHECK_KLGD` mà không cần người dùng thao tác thủ công.
+
+### 3. Xác nhận Build & Kiểm thử
+
+- **Backend NestJS Build (`npm run build`)**: Exit Code 0, dist compiled successfully.
+
+---
+
 ## [2026-10-22T17:10] REFACTOR & CLEAN UI/UX: Tinh Giản Toàn Diện Thông Báo Alert, Triệt Tiêu Toast Rác & Hộp Thoại Gián Đoạn Thông Minh
 
 ### 1. Mục tiêu thay đổi
@@ -95,13 +115,15 @@
 
 - **Backend Build (`npm run build`)**: Exit Code 0, biên dịch NestJS thành công.
 - **Frontend Build (`npm run build`)**: Exit Code 0, biên dịch Turbopack 52/52 routes thành công.
+
 ## [2026-10-22T17:05] UI ENHANCEMENT: Chuẩn Hóa & Tinh Giản Giao Diện Thống Kê CoreEX (CE) & M-System (MS) Đồng Bộ Chuẩn CoreCCP
 
 ### 1. Mục tiêu thay đổi
+
 - Thực hiện yêu cầu của USER: Cập nhật giao diện của 2 màn hình Thống kê:
   - `https://10.0.0.26/trading-manager/statistics/ce` (CoreEX ACM Nano)
   - `https://10.0.0.26/trading-manager/statistics/ms` (M-System & CQG Legacy)
-  để đồng bộ hoàn toàn với phong cách thiết kế **tinh giản, hiện đại, chuẩn Operator UX** của màn hình `https://10.0.0.26/trading-manager/statistics/ccp` (CoreCCP VNCLEAR).
+    để đồng bộ hoàn toàn với phong cách thiết kế **tinh giản, hiện đại, chuẩn Operator UX** của màn hình `https://10.0.0.26/trading-manager/statistics/ccp` (CoreCCP VNCLEAR).
 
 ### 2. Danh sách file chỉnh sửa
 
@@ -116,8 +138,8 @@
        - `[Kiểm tra file]` (icon `FileSearch`, mở Pre-Flight File Inspector).
        - `[Làm mới]` (icon `RefreshCw`, quét lại thư mục dữ liệu).
        - `[Cấu hình]` (icon `Sliders`, mở ngăn kéo cấu hình đường dẫn).
-   - Bổ sung Banner thông báo phiên đã có dữ liệu gần nhất (`latestRunForSelectedDate && !result`) kèm nút *"Xem nhanh số liệu"*.
-   - Đưa 4 thẻ KPI Metrics và Bảng thống kê chi tiết (TVKD & Hàng Hóa) vào khối kết quả có điều kiện (`{result && (...)}`), bổ sung nút *"Thu gọn số liệu"* giúp người vận hành linh hoạt đóng/mở khi cần.
+   - Bổ sung Banner thông báo phiên đã có dữ liệu gần nhất (`latestRunForSelectedDate && !result`) kèm nút _"Xem nhanh số liệu"_.
+   - Đưa 4 thẻ KPI Metrics và Bảng thống kê chi tiết (TVKD & Hàng Hóa) vào khối kết quả có điều kiện (`{result && (...)}`), bổ sung nút _"Thu gọn số liệu"_ giúp người vận hành linh hoạt đóng/mở khi cần.
    - Tự động cập nhật `result` khi các lệnh chạy Macro (`handleRunMacro`, `handleRunLot`, `handleRunValue`) hoàn tất.
 
 2. **[frontend/src/app/trading-manager/statistics/ms/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/statistics/ms/page.tsx)**:
@@ -136,6 +158,7 @@
    - Sửa typo chữ hoa trong nhãn nút bấm `<span>THống kê Giá Trị</span>` $\rightarrow$ `<span>Thống kê Giá Trị</span>`.
 
 ### 3. Xác nhận Build & Kiểm thử
+
 - **Frontend Build (`cmd.exe /c "npm run build"`)**: Exit Code 0, biên dịch Turbopack thành công 52/52 routes static & dynamic.
 
 ---
@@ -143,6 +166,7 @@
 ## [2026-10-22T16:45] PERFORMANCE & PERSISTENCE FIX: Tái Cấu Trúc Toàn Diện Đối Chiếu OMS ACM (Triệt Tiêu Lag DOM & Bền Vững Hóa Dữ Liệu)
 
 ### 1. Mục tiêu thay đổi
+
 - Khắc phục sự cố nghiêm trọng do USER phản ánh tại màn hình Đối Chiếu OMS ACM (`/trading-manager/oms-recon`):
   1. Trình duyệt bị đơ cứng, giật lag dữ dội ("đơ lòi") khi mở trang: Do Frontend kết xuất cùng một lúc 9.999 tài khoản khớp 100% vào DOM mà không có phân trang.
   2. Mỗi lần mở vào trang, hệ thống lại tự động chạy quét đối chiếu mới từ đầu từ OMS & CoreCCP do Backend không lưu lại kết quả bền vững, biến request GET thành tác vụ quét dữ liệu nặng nề.
