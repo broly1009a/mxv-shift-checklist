@@ -327,8 +327,15 @@ export class CcpEodService {
    */
   async runAutoCheckEodCcp(
     tradingDate: Date,
-    options?: { isExplicitDate?: boolean },
+    options?: { isExplicitDate?: boolean; onLog?: (msg: string) => void },
   ): Promise<CcpAutoEodResult> {
+    const emitLog = (msg: string) => {
+      this.logger.log(msg);
+      if (options?.onLog) {
+        options.onLog(msg);
+      }
+    };
+
     let evalSession: {
       dateObj: Date;
       day: string;
@@ -358,8 +365,8 @@ export class CcpEodService {
     const { day, month, year, dateFormatted, ymd } = evalSession;
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    this.logger.log(
-      `[CcpEodService]  Thực thi đối chiếu EOD CoreCCP cho phiên chốt sổ T-1: ${dateFormatted} (Ngày ca trực: ${tradingDate.toISOString().split('T')[0]})`,
+    emitLog(
+      `[CcpEodService] Thực thi đối chiếu EOD CoreCCP cho phiên chốt sổ T-1: ${dateFormatted} (Ngày ca trực: ${tradingDate.toISOString().split('T')[0]})`,
     );
 
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
@@ -411,8 +418,8 @@ export class CcpEodService {
       if (!ttttCcpFile) missingReports.push('TTTT');
       if (!nrCcpFile) missingReports.push('NR');
 
-      this.logger.log(
-        `[CcpEodService]  Chưa có đủ file EOD CoreCCP cho phiên T-1 (${dateFormatted}) trong thư mục lưu trữ. Đang tự động kết nối API CoreCCP tải: ${missingReports.join(', ')}...`,
+      emitLog(
+        `[CcpEodService] Thư mục lưu trữ phiên T-1 (${dateFormatted}) chưa có đủ file. Đang tự động kết nối API CoreCCP tải: ${missingReports.join(', ')}...`,
       );
 
       try {
@@ -421,9 +428,10 @@ export class CcpEodService {
           targetDate: dateFormatted,
           reportCodes: missingReports,
           exactDate: true,
+          onLog: emitLog,
         });
-        this.logger.log(
-          `[CcpEodService]  Hoàn tất tự động tải ${dlRes.files?.length || 0} file CoreCCP cho phiên T-1 (${dateFormatted})`,
+        emitLog(
+          `[CcpEodService] ✓ Hoàn tất tự động tải ${dlRes.files?.length || 0} file CoreCCP cho phiên T-1 (${dateFormatted})`,
         );
 
         // Quét lại các file sau khi tải về thành công
@@ -444,8 +452,8 @@ export class CcpEodService {
           nrCcpFile = findFileAcrossDirs(/nr/i);
         }
       } catch (dlErr: any) {
-        this.logger.error(
-          `[CcpEodService]  Lỗi khi tự động tải file EOD CoreCCP qua Ingress API: ${dlErr.message}`,
+        emitLog(
+          `[CcpEodService] ⚠️ Lỗi khi tự động tải file EOD CoreCCP qua Ingress API: ${dlErr.message}`,
         );
       }
     }
@@ -490,6 +498,10 @@ export class CcpEodService {
       }
     }
 
+    emitLog(
+      `[CcpEodService] Đang đọc file và đối chiếu số dư 4 thành phần: ${path.basename(qltkgdCcpFile)} & ${path.basename(eodCcpFile)}...`,
+    );
+
     const ccpResult = await this.checkEODCCP({
       qltkgdCcp: qltkgdCcpBuffer,
       eodCcp: eodCcpBuffer,
@@ -510,6 +522,10 @@ export class CcpEodService {
       const eodRows: any[] = XLSX.utils.sheet_to_json(eodSheet, { header: 1 });
       totalAccounts = Math.max(0, eodRows.length - 1);
     } catch {}
+
+    emitLog(
+      `[CcpEodService] Hoàn tất đối chiếu EOD CoreCCP: Tổng ${totalAccounts} TK | Khớp: ${totalAccounts - mismatchedCcp.length} TK | Lệch công thức: ${mismatchedCcp.length} TK | Âm ký quỹ (IMR): ${negativeIMRAcc.length} TK`,
+    );
 
     if (this.telegramService) {
       let telegramMsg = ` <b>[ĐỐI CHIẾU EOD CORECCP - PHIÊN T-1: ${dateFormatted}]</b>\n`;

@@ -461,8 +461,23 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               job,
             },
             job,
+            onLog: (line: string) => {
+              const logLine = line.startsWith('[')
+                ? line
+                : `[${new Date().toISOString()}] ${line}`;
+              if (!job.logs.includes(logLine)) {
+                job.logs.push(logLine);
+              }
+            },
           };
           const dispatchRes = await this.botDispatcher.dispatch(taskContext);
+          if (dispatchRes.logs && Array.isArray(dispatchRes.logs)) {
+            for (const l of dispatchRes.logs) {
+              if (!job.logs.includes(l)) {
+                job.logs.push(l);
+              }
+            }
+          }
           job.logs.push(
             `[${new Date().toISOString()}] [BotDispatcher V2] ${dispatchRes.summary}`,
           );

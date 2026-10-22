@@ -130,6 +130,7 @@ export class BotDispatcherService implements OnModuleInit {
     const botCheckType = payload.botCheckType || job.jobType;
     const taskId = payload.taskId || 'DYNAMIC_TASK';
 
+    const inMemoryLogs: string[] = [];
     const context: TaskExecutionContext = {
       taskId,
       shiftId: payload.shiftLogId,
@@ -137,6 +138,11 @@ export class BotDispatcherService implements OnModuleInit {
       targetDate: payload.targetDate,
       parameters: payload,
       triggeredBy: payload.triggeredBy || 'SYSTEM_DISPATCHER',
+      job,
+      onLog: (line: string) => {
+        const logLine = line.startsWith('[') ? line : `[${new Date().toISOString()}] ${line}`;
+        inMemoryLogs.push(logLine);
+      },
     };
 
     try {
@@ -149,6 +155,13 @@ export class BotDispatcherService implements OnModuleInit {
       } else if (isWaiting) {
         finalStatus = 'WAITING';
       }
+
+      const allNewLogs = [...inMemoryLogs, ...(result.logs || [])].filter(
+        (v, i, a) => a.indexOf(v) === i,
+      );
+      allNewLogs.push(
+        `[${new Date().toISOString()}] Instance [${this.instanceId}] hoàn tất: ${result.summary}`,
+      );
 
       await this.botJobModel.updateOne(
         { _id: job._id },
@@ -169,7 +182,7 @@ export class BotDispatcherService implements OnModuleInit {
             error: result.error,
           },
           $push: {
-            logs: `[${new Date().toISOString()}] Instance [${this.instanceId}] hoàn tất: ${result.summary}`,
+            logs: { $each: allNewLogs },
           },
         },
       );

@@ -1,3 +1,93 @@
+## [2026-10-21T20:38] FIX: Hiển Thị Thời Gian & Thời Lượng Chạy Gần Nhất (Lần chạy gần nhất: HH:mm:ss dd/MM/yyyy • Xxs) Cho Màn Hình Đối Chiếu DSGD Trước EOD (MS & CoreCCP)
+
+### 1. Mục tiêu thay đổi
+- **Hiển thị thời gian & thời lượng check gần nhất chuẩn UI**:
+  - Khắc phục tình trạng người dùng đã chạy kiểm tra DSGD trước EOD (đặc biệt là phân hệ CoreCCP) và có log thực thi nhưng giao diện màn hình "Đối chiếu giao dịch trước EOD" (`DsgdBeforeEodSection.tsx`) không hiển thị thời gian check gần nhất tương tự như `(Lần chạy gần nhất: 06:43:59 20/10/2026 • 24s)` ở module "Đối chiếu giá thanh toán CoreCCP ↔ CoreEX".
+  - Khắc phục tình trạng khi người dùng chuyển qua lại giữa các tab (ví dụ từ `Tất cả (MS & CCP)` sang `Phân hệ CoreCCP - CoreEX`) hoặc tải lại trang thì toàn bộ trạng thái bị reset về "Chưa kiểm tra phiên này" do component chỉ lưu trạng thái trong local state `useState` mà không phục hồi từ cache hoặc máy chủ.
+  - Lưu trữ bền vững kết quả kiểm tra DSGD trước EOD vào MongoDB (`trading_recon_logs`) mỗi khi bấm nút "Check" hoặc khi bot chạy.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/klgd-recon.controller.ts)**:
+   - Inject `TradingReconLog` Model vào constructor.
+   - Trong `POST check-dsgd-before-eod`: Đo lường `durationMs = Date.now() - startTime`, ghi nhận `executedAt = new Date().toISOString()`, tự động lưu bản ghi kết quả đối chiếu vào collection `trading_recon_logs`.
+   - Thêm endpoint `GET latest-dsgd-before-eod` để truy xuất kết quả kiểm tra gần nhất theo `system` (`CCP` hoặc `MS`) và `tradingDate`.
+2. **[frontend/src/features/trading/services/trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/services/trading-ops.api.ts)**:
+   - Thêm phương thức API `getLatestDsgdBeforeEod` gọi tới `/api/v1/trading-ops/latest-dsgd-before-eod`.
+   - Bổ sung `durationMs` và `executedAt` vào kiểu dữ liệu trả về của `checkDsgdBeforeEod`.
+3. **[frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/DsgdBeforeEodSection.tsx)**:
+   - Bổ sung state `durationMs` và 2 hàm định dạng chuẩn `formatRunTime` (`HH:mm:ss dd/MM/yyyy`) và `formatDuration` (`Xxs` hoặc `Xp Ys`).
+   - Tự động phục hồi kết quả khi mount / đổi tab / đổi ngày phiên thông qua `sessionStorage` (chống giật trắng giao diện) kết hợp gọi API `getLatestDsgdBeforeEod` từ server.
+   - Cập nhật tiêu đề card: Hiển thị đầy đủ `(Lần chạy gần nhất: {formatRunTime} • {formatDuration})`.
+   - Cập nhật văn bản copy báo cáo đầy đủ thời gian và thời lượng chạy.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeScript Build**: `cmd /c "npm run build"` $\rightarrow$ Pass 100%, Exit Code 0.
+- **Frontend Next.js Build**: `cmd /c "npm run build"` $\rightarrow$ Pass 100%, Exit Code 0.
+
+---
+
+## [2026-10-21T20:25] FIX: Hiển Thị Thời Gian & Thời Lượng Chạy Gần Nhất (Lần chạy gần nhất: HH:mm:ss dd/MM/yyyy • Xxs) Cho Màn Hình Đối Chiếu Kết Quả EOD
+
+### 1. Mục tiêu thay đổi
+- **Hiển thị thời gian và thời lượng chạy gần nhất chuẩn UI**:
+  - Khắc phục tình trạng người dùng bấm "Check" đối chiếu EOD hoặc BotJob `CHECK_EOD_CCP` chạy xong trong log/DB nhưng trên giao diện "Đối chiếu kết quả EOD" (`CcpCeEodReconSection.tsx`) không hiển thị thời gian chạy gần nhất kèm thời lượng giống như màn hình "Đối chiếu giá thanh toán CoreCCP ↔ CoreEX" (`(Lần chạy gần nhất: 06:43:59 20/10/2026 • 24s)`).
+  - Khắc phục tình trạng sau khi bấm "Check", do job chạy ngầm bất đồng bộ (khoảng 10-15s) nhưng giao diện không tự động thăm dò (polling) kết quả, dẫn tới UI vẫn giữ nguyên dòng chữ "Chưa chạy kiểm tra số liệu...".
+  - Hiển thị đầy đủ danh sách tài khoản âm ký quỹ mới từ kết quả đối chiếu EOD thay vì bảng trống.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon-console-summary.service.ts)**:
+   - Thêm `'CHECK_EOD_CCP'` vào bộ lọc `marginPromise` để `negativeMargin` tổng hợp được kết quả từ job đối chiếu EOD của CoreCCP.
+   - Bổ sung fallback trích xuất danh sách tài khoản âm (`rawNegativeIMR`, `rawNegativeBalance`) từ `ccpCheckResult` nếu `marginCheckResult` trống.
+   - Bổ sung `completedAt` và tính toán `durationMs = completedAt - executedAt` cho các đối tượng `eod`, `negativeMargin`, và `ccpSummary.checkJob` trả về qua API `/api/v1/trading-ops/console-summary`.
+2. **[frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx)**:
+   - Thêm state `marginDurationMs`, `eodDurationMs`, và ref `pollIntervalRef`.
+   - Thêm helper format `formatRunTime` (`HH:mm:ss dd/MM/yyyy`) và `formatDuration` (`Xxs` hoặc `Xp Ys`) tương đồng 100% với `CeCcpGttCheckerSection.tsx`.
+   - Cập nhật banner xanh, card header và nhãn thời gian kiểm tra trên bảng để hiển thị: `(Lần chạy gần nhất: HH:mm:ss dd/MM/yyyy • Xxs)`.
+   - Triển khai cơ chế auto-poll (chu kỳ 2.5s, tối đa 60s) ngay khi người dùng nhấn nút "Check" để tự động cập nhật kết quả và thời gian lên giao diện ngay khi background job hoàn thành.
+   - Đọc danh sách tài khoản âm ký quỹ từ `ccpSummary?.negativeIMRAcc || eodData?.negativeIMRAcc`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeScript Build**: `cmd /c "npm run build"` $\rightarrow$ Pass 100%, Exit Code 0.
+- **Frontend Next.js Build**: `cmd /c "npm run build"` $\rightarrow$ Pass 100%, Exit Code 0.
+
+---
+
+## [2026-10-21T20:15] FIX: Phát Sóng & Đồng Bộ Toàn Bộ Log Tải File Ingress CoreCCP & Đối Chiếu EOD Vào job.logs
+
+### 1. Mục tiêu thay đổi
+- **Khắc phục tình trạng không thấy log tải file CoreCCP trong modal chi tiết Job**:
+  - Khi BotJob `CHECK_EOD_CCP` chạy qua `CcpEodWorker` và tự động kéo file từ API CoreCCP (`CoreCcpApiAdapter`), các log tải file và trạng thái đối chiếu chỉ được ghi ra server console (`this.logger.log`) mà không đẩy vào mảng `job.logs` trong MongoDB.
+  - Do đó trên giao diện UI (modal xem log của Job), người dùng chỉ thấy log `Job enqueued.`, `Starting attempt 1/3...` và log tổng kết cuối cùng `[BotDispatcher V2] Đối chiếu EOD CoreCCP có cảnh báo...`, hoàn toàn thiếu các dòng log chi tiết về: kết nối tải file, danh sách file tải về thành công (dung lượng KB, thời gian) và quá trình đọc/đối soát 4 thành phần số dư.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/shared/contracts/ingress-result.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/contracts/ingress-result.contract.ts)**:
+   - Thêm thuộc tính `onLog?: (message: string) => void` vào `IngressDownloadOptions` để mọi Ingress Adapter có thể phát sóng tiến trình tải file theo thời gian thực.
+2. **[backend/src/shared/contracts/bot-execution.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/contracts/bot-execution.contract.ts)**:
+   - Thêm `job?: any` và `onLog?: (message: string) => void` vào `TaskExecutionContext`.
+   - Thêm `logs?: string[]` vào `TaskExecutionResult` để Worker có thể trả về toàn bộ mảng log thực thi.
+3. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Trong hàm `download()`: Phát sóng trực tiếp qua `options.onLog` khi bắt đầu kết nối tải từng báo cáo, khi tải file thành công (kèm dung lượng KB), và khi hoàn tất toàn bộ đợt tải.
+4. **[backend/src/modules/trading-ops/services/ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/ccp-eod.service.ts)**:
+   - Trong `runAutoCheckEodCcp()`: Bổ sung tham số `options.onLog` và helper `emitLog(msg)`.
+   - Phát log phiên chốt sổ $T-1$, cảnh báo thiếu file, gọi `coreCcpApiAdapter.download` kèm `onLog: emitLog`, log xác nhận tải file thành công, log đọc dữ liệu 4 thành phần số dư, và log chi tiết kết quả đối chiếu số tài khoản.
+5. **[backend/src/modules/trading-ops/workers/ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts)**:
+   - Triển khai `handleLog(msg)` ghi trực tiếp vào `job.logs`, `context.onLog` và mảng `executionLogs`.
+   - Truyền `onLog: handleLog` vào `ccpEodService.runAutoCheckEodCcp(...)`.
+   - Trả về `logs: executionLogs` trong `TaskExecutionResult`.
+6. **[backend/src/modules/bot-engine/bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/bot-engine/bot-job-queue.service.ts)**:
+   - Bổ sung `job` và callback `onLog` vào `taskContext` khi điều phối ưu tiên qua `botDispatcher.dispatch`.
+   - Tự động hợp nhất các dòng log từ `dispatchRes.logs` vào `job.logs` nếu chưa có.
+7. **[backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts)**:
+   - Trong `acquireAndProcessNextJob()`: Khởi tạo mảng `inMemoryLogs` và callback `onLog`, đẩy toàn bộ log chi tiết vào MongoDB qua `$push: { logs: { $each: allNewLogs } }`.
+8. **[backend/src/modules/trading-ops/services/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon-console-summary.service.ts)**:
+   - Khởi tạo `ccpCheckPayload` và `ccpCheckResult` trước khi trích xuất `rawNegativeIMR` và `rawNegativeBalance`, loại bỏ lỗi `TS2448` biến bị sử dụng trước khi khai báo.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeScript Build**: `cmd /c "npm run build"` $\rightarrow$ Pass 100%, Exit Code 0.
+- **Frontend Next.js Build**: `cmd /c "npm run build"` $\rightarrow$ Pass 100%, Exit Code 0.
+
+---
+
 ## [2026-10-21T19:48] FIX: Tự Động Tải EOD CoreCCP & Parse Đường Dẫn Mount Ổ Mạng Windows Cho DSGD Before EOD
 
 ### 1. Mục tiêu thay đổi
