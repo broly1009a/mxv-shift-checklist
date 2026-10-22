@@ -843,6 +843,31 @@ export class CcpReconController {
   }
 
   /**
+   * GET lot-statistics/run-history
+   * Truy vấn danh sách lịch sử thực thi thống kê Số Lot & Giá Trị CoreCCP gần nhất
+   */
+  @Get('lot-statistics/run-history')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getLotRunHistory(
+    @Query('date') date?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const lim = limit ? Math.min(50, Math.max(1, parseInt(limit, 10))) : 20;
+    return this.ccpLotStatisticsService.getRunHistory(date, lim);
+  }
+
+  /**
+   * GET lot-statistics/latest-run
+   * Truy vấn bản ghi chạy gần nhất (cho phiên giao dịch nếu chỉ định)
+   */
+  @Get('lot-statistics/latest-run')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getLatestLotRun(@Query('date') date?: string) {
+    const runs = await this.ccpLotStatisticsService.getRunHistory(date, 1);
+    return runs.length > 0 ? runs[0] : null;
+  }
+
+  /**
    * POST lot-statistics/write-accumulator
    * Ghi kết quả tổng hợp lot CCP vào file lũy kế Excel.
    */

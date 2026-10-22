@@ -30,6 +30,11 @@ import {
   Download,
   Calendar,
   Sparkles,
+  Eye,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  User,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -198,6 +203,89 @@ export default function CcpLotStatisticsSection({
   const [adhocLogs, setAdhocLogs] = useState<string[]>([]);
   const [adhocReports, setAdhocReports] = useState<any[]>([]);
   const [loadingAdHocReports, setLoadingAdHocReports] = useState<boolean>(false);
+
+  // ── Lịch sử / tiến trình các tác vụ Thống kê CoreCCP gần nhất ──
+  const [runHistory, setRunHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<'ALL' | 'LOT' | 'VALUE'>('ALL');
+  const [historyPage, setHistoryPage] = useState<number>(1);
+  const historyPageSize = 5;
+  const [selectedHistoryLog, setSelectedHistoryLog] = useState<{ title: string; logs: string[] } | null>(null);
+
+  const fetchRunHistory = useCallback(async () => {
+    if (!token) return;
+    setLoadingHistory(true);
+    try {
+      const data = await api.ccpClearing.getLotRunHistory({ limit: 20 }, token);
+      if (Array.isArray(data)) {
+        setRunHistory(data);
+      }
+    } catch (err: any) {
+      console.warn('Không thể nạp lịch sử thống kê CoreCCP:', err.message);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchRunHistory();
+  }, [fetchRunHistory]);
+
+  // Lọc lịch sử
+  const filteredHistory = useMemo(() => {
+    return runHistory.filter((item) => {
+      if (historyTypeFilter === 'ALL') return true;
+      if (historyTypeFilter === 'LOT') {
+        return item.runType === 'LOT' || (!item.runType && item.accumulatorLogs?.[0]?.includes('Lot'));
+      }
+      if (historyTypeFilter === 'VALUE') {
+        return item.runType === 'VALUE' || item.accumulatorLogs?.[0]?.includes('GTGD');
+      }
+      return true;
+    });
+  }, [runHistory, historyTypeFilter]);
+
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / historyPageSize));
+  const paginatedHistory = useMemo(() => {
+    const start = (historyPage - 1) * historyPageSize;
+    return filteredHistory.slice(start, start + historyPageSize);
+  }, [filteredHistory, historyPage, historyPageSize]);
+
+  // Bộ đếm theo loại
+  const historyCounts = useMemo(() => {
+    const total = runHistory.length;
+    const lotCount = runHistory.filter(
+      (h) => h.runType === 'LOT' || (!h.runType && h.accumulatorLogs?.[0]?.includes('Lot')),
+    ).length;
+    const valueCount = runHistory.filter(
+      (h) => h.runType === 'VALUE' || h.accumulatorLogs?.[0]?.includes('GTGD'),
+    ).length;
+    return { total, lotCount, valueCount };
+  }, [runHistory]);
+
+  // Kiểm tra xem phiên đang chọn (ngayGD) đã có lượt chạy thành công nào chưa
+  const latestRunForSelectedDate = useMemo(() => {
+    if (!ngayGD) return null;
+    return runHistory.find((h) => h.sessionDate === ngayGD) || null;
+  }, [runHistory, ngayGD]);
+
+  // Nạp nhanh kết quả đã lưu vào màn hình
+  const handleQuickLoadResult = (item: any) => {
+    if (!item?.result) {
+      toast.error('Bản ghi này không có cấu trúc dữ liệu kết quả để hiển thị.');
+      return;
+    }
+    setResult(item.result);
+    if (Array.isArray(item.accumulatorLogs)) {
+      setAccumulatorLogs(item.accumulatorLogs);
+    }
+    if (item.sessionDate && item.sessionDate !== ngayGD) {
+      setNgayGD(item.sessionDate);
+    }
+    toast.success(
+      `Đã nạp số liệu thống kê phiên ${item.sessionDate} (${item.result?.totalSoLot ? item.result.totalSoLot.toLocaleString('vi-VN') + ' lot' : 'hoàn tất'})!`,
+    );
+  };
 
   // Sync date when parent selectedDate changes
   useEffect(() => {
@@ -477,6 +565,7 @@ export default function CcpLotStatisticsSection({
           data.message || `Đã ghi thành công các file Số Lot ngày ${ngayGD} (${data.result?.totalSoLot?.toLocaleString('vi-VN')} lot)`,
           { id: toastId },
         );
+        fetchRunHistory();
       } else {
         toast.error(data?.message || 'Có lỗi khi ghi file Số Lot', { id: toastId });
       }
@@ -510,6 +599,7 @@ export default function CcpLotStatisticsSection({
           data.message || `Đã ghi thành công các file Giá Trị Giao Dịch ngày ${ngayGD}`,
           { id: toastId },
         );
+        fetchRunHistory();
       } else {
         toast.error(data?.message || 'Có lỗi khi ghi file Giá Trị', { id: toastId });
       }
@@ -889,6 +979,351 @@ export default function CcpLotStatisticsSection({
               )}
             </div>
             */}
+          </div>
+
+          {/* Thông báo nếu phiên đang chọn đã có kết quả chạy thành công và màn hình chưa nạp số liệu */}
+          {latestRunForSelectedDate && !result && (
+            <div
+              style={{
+                padding: '12px 18px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Info size={18} color="#3b82f6" />
+                <div>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Phiên {ngayGD} đã có kết quả thống kê trong hệ thống
+                  </span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                    (Thực hiện lúc {latestRunForSelectedDate.createdAt ? new Date(latestRunForSelectedDate.createdAt).toLocaleTimeString('vi-VN') : '--'} bởi {latestRunForSelectedDate.username || 'SYSTEM'} — {latestRunForSelectedDate.result?.totalSoLot ? `${latestRunForSelectedDate.result.totalSoLot.toLocaleString('vi-VN')} lot` : 'Đã ghi sổ'})
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleQuickLoadResult(latestRunForSelectedDate)}
+                className="btn btn-secondary"
+                style={{
+                  fontSize: '0.76rem',
+                  padding: '5px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 700,
+                  color: '#3b82f6',
+                  borderColor: '#3b82f6',
+                }}
+              >
+                <Eye size={14} />
+                <span>Xem nhanh số liệu</span>
+              </button>
+            </div>
+          )}
+
+          {/* Component: Tiến trình chạy Thống kê gần nhất (CoreCCP) */}
+          <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Header & Bộ lọc nhanh trạng thái */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={16} color="var(--text-muted)" />
+                  <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                    Tiến trình chạy Thống kê gần nhất
+                  </strong>
+                </div>
+
+                {/* Filter Chips */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setHistoryTypeFilter('ALL'); setHistoryPage(1); }}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid',
+                      borderColor: historyTypeFilter === 'ALL' ? '#10b981' : 'var(--border-color)',
+                      backgroundColor: historyTypeFilter === 'ALL' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                      color: historyTypeFilter === 'ALL' ? '#10b981' : 'var(--text-secondary)',
+                      fontWeight: historyTypeFilter === 'ALL' ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Tất cả ({historyCounts.total})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setHistoryTypeFilter('LOT'); setHistoryPage(1); }}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid',
+                      borderColor: historyTypeFilter === 'LOT' ? '#3b82f6' : 'var(--border-color)',
+                      backgroundColor: historyTypeFilter === 'LOT' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                      color: historyTypeFilter === 'LOT' ? '#3b82f6' : 'var(--text-secondary)',
+                      fontWeight: historyTypeFilter === 'LOT' ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Số Lot ({historyCounts.lotCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setHistoryTypeFilter('VALUE'); setHistoryPage(1); }}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid',
+                      borderColor: historyTypeFilter === 'VALUE' ? '#f59e0b' : 'var(--border-color)',
+                      backgroundColor: historyTypeFilter === 'VALUE' ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                      color: historyTypeFilter === 'VALUE' ? '#f59e0b' : 'var(--text-secondary)',
+                      fontWeight: historyTypeFilter === 'VALUE' ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Giá Trị ({historyCounts.valueCount})
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={fetchRunHistory}
+                  disabled={loadingHistory}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.72rem', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '4px', height: '26px' }}
+                  title="Làm mới danh sách tiến trình"
+                >
+                  <RefreshCw size={11} className={loadingHistory ? 'animate-spin' : ''} />
+                  <span>Làm mới</span>
+                </button>
+                <a
+                  href="/trading-manager/job-queue"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.72rem', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '4px', height: '26px', textDecoration: 'none' }}
+                  title="Mở toàn bộ trang quản trị Hàng Đợi & Nhật Ký Robot"
+                >
+                  <span>Hàng đợi logs</span>
+                  <ExternalLink size={11} />
+                </a>
+              </div>
+            </div>
+
+            {filteredHistory.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                {loadingHistory ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Đang nạp lịch sử thống kê...</span>
+                  </div>
+                ) : (
+                  'Chưa có tác vụ Thống kê CoreCCP nào được ghi nhận gần đây.'
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Bảng cuộn mượt có giới hạn chiều cao & Sticky Header */}
+                <div
+                  style={{
+                    maxHeight: '230px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                  }}
+                >
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
+                    <thead>
+                      <tr style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '7px 10px', minWidth: '150px' }}>Loại tác vụ</th>
+                        <th style={{ padding: '7px 10px', minWidth: '110px' }}>Người chạy</th>
+                        <th style={{ padding: '7px 10px', minWidth: '105px' }}>Trạng thái</th>
+                        <th style={{ padding: '7px 10px', minWidth: '95px' }}>Phiên</th>
+                        <th style={{ padding: '7px 10px', minWidth: '110px' }}>Thời gian</th>
+                        <th style={{ padding: '7px 10px' }}>Số liệu tóm tắt</th>
+                        <th style={{ padding: '7px 10px', minWidth: '150px', textAlign: 'center' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedHistory.map((item) => {
+                        const isLot = item.runType === 'LOT' || (!item.runType && item.accumulatorLogs?.[0]?.includes('Lot'));
+                        const isValue = item.runType === 'VALUE' || item.accumulatorLogs?.[0]?.includes('GTGD');
+                        const label = isLot ? 'Thống Kê Số Lot' : isValue ? 'Thống Kê Giá Trị' : 'Ghi Lũy Kế CoreCCP';
+                        const color = isLot ? '#3b82f6' : isValue ? '#f59e0b' : '#10b981';
+                        const bg = isLot ? 'rgba(59, 130, 246, 0.12)' : isValue ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)';
+                        const border = isLot ? 'rgba(59, 130, 246, 0.3)' : isValue ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+
+                        const totalSoLot = item.result?.totalSoLot;
+                        const totalGiaTri = item.result?.totalGiaTri;
+
+                        return (
+                          <tr
+                            key={item._id || item.id}
+                            style={{
+                              borderBottom: '1px solid var(--border-color)',
+                              transition: 'background-color 0.15s ease',
+                            }}
+                            className="hover-row"
+                          >
+                            <td style={{ padding: '7px 10px' }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '2px 7px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  backgroundColor: bg,
+                                  color,
+                                  border: `1px solid ${border}`,
+                                }}
+                              >
+                                {label}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-primary)' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
+                                <User size={12} color="var(--text-muted)" />
+                                {item.username || 'SYSTEM'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.72rem', fontWeight: 700 }}>
+                                <CheckCircle2 size={12} />
+                                Đã ghi file
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600 }}>
+                              {item.sessionDate || '--'}
+                            </td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)' }}>
+                              {item.createdAt ? new Date(item.createdAt).toLocaleTimeString('vi-VN') : '--'}
+                            </td>
+                            <td
+                              style={{
+                                padding: '7px 10px',
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.73rem',
+                                maxWidth: '300px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={
+                                totalSoLot !== undefined
+                                  ? `Tổng số lot: ${totalSoLot.toLocaleString('vi-VN')} lot`
+                                  : totalGiaTri !== undefined
+                                  ? `Tổng giá trị: ${totalGiaTri.toLocaleString('vi-VN')} đ`
+                                  : 'Đã hoàn tất ghi sổ'
+                              }
+                            >
+                              {totalSoLot !== undefined && (
+                                <strong style={{ color: '#10b981' }}>{totalSoLot.toLocaleString('vi-VN')} lot</strong>
+                              )}
+                              {totalSoLot !== undefined && totalGiaTri !== undefined && ' | '}
+                              {totalGiaTri !== undefined && (
+                                <span style={{ color: '#f59e0b' }}>{(totalGiaTri / 1e9).toFixed(2)} tỷ đ</span>
+                              )}
+                              {totalSoLot === undefined && totalGiaTri === undefined && 'Đã hoàn tất ghi file Excel'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickLoadResult(item)}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    padding: '2px 8px',
+                                    height: '24px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontWeight: 700,
+                                    color: '#3b82f6',
+                                    borderColor: 'rgba(59, 130, 246, 0.4)',
+                                  }}
+                                  title="Nạp số liệu này vào màn hình để xem biểu đồ, KPI và phân tích TVKD"
+                                >
+                                  <Eye size={12} />
+                                  <span>Xem số liệu</span>
+                                </button>
+                                {item.accumulatorLogs && item.accumulatorLogs.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedHistoryLog({ title: `Nhật ký ghi file: ${label} - ${item.sessionDate}`, logs: item.accumulatorLogs })}
+                                    className="btn btn-secondary"
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      padding: '2px 6px',
+                                      height: '24px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                    }}
+                                    title="Xem chi tiết nhật ký ghi file Excel"
+                                  >
+                                    <FileText size={12} />
+                                    <span>Log</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Thanh phân trang nhỏ gọn & đếm số lượng */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  <span>
+                    Hiển thị {(historyPage - 1) * historyPageSize + 1} - {Math.min(historyPage * historyPageSize, filteredHistory.length)} trên tổng số {filteredHistory.length} tác vụ
+                  </span>
+
+                  {historyTotalPages > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                        disabled={historyPage <= 1}
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 6px', height: '22px', fontSize: '0.7rem', display: 'flex', alignItems: 'center' }}
+                        title="Trang trước"
+                      >
+                        <ChevronLeft size={12} />
+                      </button>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {historyPage} / {historyTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                        disabled={historyPage >= historyTotalPages}
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 6px', height: '22px', fontSize: '0.7rem', display: 'flex', alignItems: 'center' }}
+                        title="Trang tiếp theo"
+                      >
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* User Mode: Accumulator Logs (nếu có) */}
@@ -2806,6 +3241,101 @@ export default function CcpLotStatisticsSection({
                 {adhocLogs.map((log, i) => (
                   <div key={i}>{log}</div>
                 ))}
+              </div>
+            </div>
+          )}
+          {/* Modal Xem Chi Tiết Nhật Ký Ghi File Lũy Kế */}
+          {selectedHistoryLog && (
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                padding: '20px',
+                backdropFilter: 'blur(3px)',
+              }}
+              onClick={() => setSelectedHistoryLog(null)}
+            >
+              <div
+                className="glass-panel"
+                style={{
+                  width: '100%',
+                  maxWidth: '750px',
+                  maxHeight: '85vh',
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: '12px',
+                  padding: '20px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  border: '1px solid var(--border-color)',
+                  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={18} color="#3b82f6" />
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {selectedHistoryLog.title}
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedHistoryLog(null)}
+                    className="btn btn-secondary"
+                    style={{ padding: '4px 8px', height: '28px' }}
+                    title="Đóng modal"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    backgroundColor: '#0f172a',
+                    color: '#e2e8f0',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.74rem',
+                    lineHeight: '1.5',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    maxHeight: '450px',
+                  }}
+                >
+                  {selectedHistoryLog.logs.length === 0 ? (
+                    <div style={{ color: '#94a3b8' }}>Không có log chi tiết nào được ghi lại cho bản ghi này.</div>
+                  ) : (
+                    selectedHistoryLog.logs.map((log, idx) => (
+                      <div key={idx} style={{ color: log.includes('ERR') || log.includes('Cảnh báo') ? '#f59e0b' : '#93c5fd' }}>
+                        {log}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedHistoryLog(null)}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '6px 18px', fontWeight: 600 }}
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -14,6 +14,10 @@ export class CcpLotRunHistory extends Document {
   @Prop({ required: true, enum: ['PROCESS', 'WRITE'] })
   action: 'PROCESS' | 'WRITE';
 
+  /** Phân loại chạy: 'LOT' | 'VALUE' | 'ALL' */
+  @Prop({ enum: ['LOT', 'VALUE', 'ALL'], default: 'LOT' })
+  runType?: 'LOT' | 'VALUE' | 'ALL';
+
   /** Kết quả tổng hợp (CcpLotResult serialized) */
   @Prop({ type: Object, required: true })
   result: Record<string, any>;

@@ -250,6 +250,32 @@ export const ccpClearingApi = {
   },
 
   /**
+   * Lấy danh sách lịch sử thực thi thống kê CoreCCP gần nhất
+   */
+  async getLotRunHistory(
+    params?: { date?: string; limit?: number },
+    token?: string | null,
+  ): Promise<any[]> {
+    const query = new URLSearchParams();
+    if (params?.date) query.set('date', params.date);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const endpoint = `/api/v1/ccp-statistics/lot-statistics/run-history${qs ? `?${qs}` : ''}`;
+    return requestJson<any[]>(endpoint, { method: 'GET' }, token);
+  },
+
+  /**
+   * Lấy bản ghi chạy gần nhất cho một ngày phiên
+   */
+  async getLatestLotRun(
+    date?: string,
+    token?: string | null,
+  ): Promise<any | null> {
+    const endpoint = `/api/v1/ccp-statistics/lot-statistics/latest-run${date ? `?date=${encodeURIComponent(date)}` : ''}`;
+    return requestJson<any | null>(endpoint, { method: 'GET' }, token);
+  },
+
+  /**
    * Kích hoạt Thống kê CoreCCP theo Khoảng Thời Gian (Ad-hoc Range)
    */
   async runAdHocRange(

@@ -1689,6 +1689,7 @@ export class CcpLotStatisticsService {
       await this.saveRunHistory({
         sessionDate: dateStr,
         action: 'WRITE',
+        runType: 'LOT',
         result,
         accumulatorLogs: jobLogs,
         accumulatorPaths: paths as any,
@@ -1746,6 +1747,7 @@ export class CcpLotStatisticsService {
       await this.saveRunHistory({
         sessionDate: dateStr,
         action: 'WRITE',
+        runType: 'VALUE',
         result,
         accumulatorLogs: jobLogs,
         accumulatorPaths: paths as any,
@@ -1778,6 +1780,7 @@ export class CcpLotStatisticsService {
   async saveRunHistory(params: {
     sessionDate: string;
     action: 'PROCESS' | 'WRITE';
+    runType?: 'LOT' | 'VALUE' | 'ALL';
     result: any;
     accumulatorLogs?: string[];
     accumulatorPaths?: Record<string, string>;
@@ -1788,6 +1791,7 @@ export class CcpLotStatisticsService {
     const doc = await this.runHistoryModel.create({
       sessionDate: params.sessionDate,
       action: params.action,
+      runType: params.runType || 'LOT',
       result: params.result,
       accumulatorLogs: params.accumulatorLogs || [],
       accumulatorPaths: params.accumulatorPaths,
@@ -1828,14 +1832,15 @@ export class CcpLotStatisticsService {
   }
 
   /**
-   * Truy vấn danh sách lịch sử chạy theo ngày phiên, mới nhất trước.
+   * Truy vấn danh sách lịch sử chạy theo ngày phiên hoặc tất cả nếu không truyền ngày, mới nhất trước.
    */
   async getRunHistory(
-    sessionDate: string,
+    sessionDate?: string,
     limit = 20,
   ): Promise<CcpLotRunHistory[]> {
+    const filter = sessionDate ? { sessionDate } : {};
     return this.runHistoryModel
-      .find({ sessionDate })
+      .find(filter)
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean()
