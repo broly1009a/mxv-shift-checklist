@@ -144,106 +144,108 @@ export default function BotLogViewerModal({
     const titleUpper = (taskTitle || '').toUpperCase();
     const idUpper = (taskId || '').toUpperCase();
 
-    // 0. MARGIN_DECISION Tasks (Bot quét thư mục Quyết định thay đổi ký quỹ)
-    if (
-      idUpper.includes('MARGIN') ||
-      idUpper.includes('DECISION') ||
-      titleUpper.includes('QUYẾT ĐỊNH') ||
-      titleUpper.includes('THAY ĐỔI KÝ QUỸ') ||
-      text.includes('Quyết định thay đổi ký quỹ')
-    ) {
-      jsonType = 'MARGIN_DECISION';
-    }
-    // 1. CQG Balance Check (SOD / Số dư CQG / TASK_CHECK_CQG) -> CQG Mode
-    else if (
-      idUpper === 'TASK_CHECK_CQG' ||
-      idUpper.includes('CQG') ||
-      titleUpper.includes('SỐ DƯ CQG') ||
-      titleUpper.includes('SOD') ||
-      text.includes('[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]')
-    ) {
-      jsonType = 'CQG';
-    }
-    // 2. EOD Negative Margin Check (Âm ký quỹ) -> EOD Mode
-    else if (
-      idUpper.includes('EOD_MARGIN') ||
-      titleUpper.includes('ÂM KÝ QUỸ') ||
-      text.includes('[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]')
-    ) {
-      jsonType = 'EOD';
-    }
-    // 3a. EMAIL_SCAN Tasks (Bot quét hòm thư để tải báo cáo)
-    else if (
-      idUpper.includes('EMAIL_PARSE') ||
-      titleUpper.includes('XÁC MINH EMAIL') ||
-      titleUpper.includes('QUÉT HÒM THƯ') ||
-      titleUpper.includes('ĐỌC EMAIL') ||
-      titleUpper.includes('CHECK EMAIL') ||
-      text.includes('quét hòm thư') ||
-      text.includes('Đã tìm thấy email khớp') ||
-      text.includes('Đã quét hòm thư') ||
-      text.includes('email nào khớp tiêu đề')
-    ) {
-      jsonType = 'EMAIL_SCAN';
-    }
-    // 3b. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
-    else if (
-      idUpper.includes('SYSTEM_API') ||
-      titleUpper.includes('EMAIL') ||
-      titleUpper.includes('SAO KÊ') ||
-      titleUpper.includes('XÁC MINH') ||
-      titleUpper.includes('SYSTEM_API') ||
-      titleUpper.includes('OPS_OPEN_07') ||
-      text.includes('email sao kê') ||
-      text.includes('xác minh email')
-    ) {
-      jsonType = 'SYSTEM_API';
-    }
-    // 4. FILE_AUDIT Tasks (RPA report scanning)
-    else if (
-      idUpper.includes('FILE_AUDIT') ||
-      titleUpper.includes('FILE') ||
-      titleUpper.includes('AUDIT') ||
-      titleUpper.includes('SCAN') ||
-      titleUpper.includes('BACKUP') ||
-      titleUpper.includes('TẢI BÁO CÁO') ||
-      titleUpper.includes('RPA') ||
-      text.includes('FILE_AUDIT')
-    ) {
-      jsonType = 'FILE_AUDIT';
-    }
-    // 5. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
-    else if (
-      idUpper === 'TASK_CHECK_KLGD' ||
-      idUpper.includes('KLGD') ||
-      (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('SOD') && !titleUpper.includes('3 BÊN')) ||
-      titleUpper.includes('TASK_CHECK_KLGD') ||
-      titleUpper.includes('TRONG PHIÊN') ||
-      text.includes('[ĐỐI CHIẾU KLGD]')
-    ) {
-      jsonType = 'KLGD';
-    }
-    // 6. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> DSGD_BEFORE_EOD Mode (Ảnh 1)
-    else if (
-      idUpper === 'TASK_CHECK_EOD' ||
-      idUpper.includes('DSGD_BEFORE_EOD') ||
-      titleUpper.includes('TASK_CHECK_EOD') ||
-      titleUpper.includes('CHECK_EOD') ||
-      titleUpper.includes('DỮ LIỆU 3 BÊN') ||
-      titleUpper.includes('DSGD_BEFORE_EOD') ||
-      titleUpper.includes('ĐẦU PHIÊN') ||
-      text.includes('[ĐỐI CHIẾU TRƯỚC EOD]')
-    ) {
-      jsonType = 'DSGD_BEFORE_EOD';
-    } else {
-      if (idUpper.includes('DSGD_BEFORE_EOD') || titleUpper.includes('DSGD_BEFORE_EOD')) {
-        jsonType = 'DSGD_BEFORE_EOD';
-      } else if ((idUpper.includes('CQG') || titleUpper.includes('CQG')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
+    if (!jsonType) {
+      // 0. MARGIN_DECISION Tasks (Bot quét thư mục Quyết định thay đổi ký quỹ)
+      if (
+        idUpper.includes('MARGIN') ||
+        idUpper.includes('DECISION') ||
+        titleUpper.includes('QUYẾT ĐỊNH') ||
+        titleUpper.includes('THAY ĐỔI KÝ QUỸ') ||
+        text.includes('Quyết định thay đổi ký quỹ')
+      ) {
+        jsonType = 'MARGIN_DECISION';
+      }
+      // 1. CQG Balance Check (SOD / Số dư CQG / TASK_CHECK_CQG) -> CQG Mode
+      else if (
+        idUpper === 'TASK_CHECK_CQG' ||
+        idUpper.includes('CQG') ||
+        titleUpper.includes('SỐ DƯ CQG') ||
+        titleUpper.includes('SOD') ||
+        text.includes('[ĐỐI CHIẾU SỐ DƯ CQG TỰ ĐỘNG]')
+      ) {
         jsonType = 'CQG';
-      } else if ((idUpper.includes('EOD') || titleUpper.includes('EOD')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
+      }
+      // 2. EOD Negative Margin Check (Âm ký quỹ) -> EOD Mode
+      else if (
+        idUpper.includes('EOD_MARGIN') ||
+        titleUpper.includes('ÂM KÝ QUỸ') ||
+        text.includes('[ĐỐI CHIẾU SỐ DƯ EOD (LỌC TK ÂM KÝ QUỸ)]')
+      ) {
         jsonType = 'EOD';
-      } else {
+      }
+      // 3a. EMAIL_SCAN Tasks (Bot quét hòm thư để tải báo cáo)
+      else if (
+        idUpper.includes('EMAIL_PARSE') ||
+        titleUpper.includes('XÁC MINH EMAIL') ||
+        titleUpper.includes('QUÉT HÒM THƯ') ||
+        titleUpper.includes('ĐỌC EMAIL') ||
+        titleUpper.includes('CHECK EMAIL') ||
+        text.includes('quét hòm thư') ||
+        text.includes('Đã tìm thấy email khớp') ||
+        text.includes('Đã quét hòm thư') ||
+        text.includes('email nào khớp tiêu đề')
+      ) {
+        jsonType = 'EMAIL_SCAN';
+      }
+      // 3b. SYSTEM_API / Email / Warning Tasks (ops_open_07, etc.)
+      else if (
+        idUpper.includes('SYSTEM_API') ||
+        titleUpper.includes('EMAIL') ||
+        titleUpper.includes('SAO KÊ') ||
+        titleUpper.includes('XÁC MINH') ||
+        titleUpper.includes('SYSTEM_API') ||
+        titleUpper.includes('OPS_OPEN_07') ||
+        text.includes('email sao kê') ||
+        text.includes('xác minh email')
+      ) {
         jsonType = 'SYSTEM_API';
+      }
+      // 4. FILE_AUDIT Tasks (RPA report scanning)
+      else if (
+        idUpper.includes('FILE_AUDIT') ||
+        titleUpper.includes('FILE') ||
+        titleUpper.includes('AUDIT') ||
+        titleUpper.includes('SCAN') ||
+        titleUpper.includes('BACKUP') ||
+        titleUpper.includes('TẢI BÁO CÁO') ||
+        titleUpper.includes('RPA') ||
+        text.includes('FILE_AUDIT')
+      ) {
+        jsonType = 'FILE_AUDIT';
+      }
+      // 5. TRONG PHIÊN (Bot so sánh M-System vs CQG và gửi kết quả báo cáo hệ thống / TASK_CHECK_KLGD) -> KLGD Mode (Ảnh 2)
+      else if (
+        idUpper === 'TASK_CHECK_KLGD' ||
+        idUpper.includes('KLGD') ||
+        (titleUpper.includes('SO SÁNH M-SYSTEM VS CQG') && !titleUpper.includes('SOD') && !titleUpper.includes('3 BÊN')) ||
+        titleUpper.includes('TASK_CHECK_KLGD') ||
+        titleUpper.includes('TRONG PHIÊN') ||
+        text.includes('[ĐỐI CHIẾU KLGD]')
+      ) {
+        jsonType = 'KLGD';
+      }
+      // 6. ĐẦU PHIÊN (Bot tự động chạy đối chiếu dữ liệu 3 bên / TASK_CHECK_EOD) -> DSGD_BEFORE_EOD Mode (Ảnh 1)
+      else if (
+        idUpper === 'TASK_CHECK_EOD' ||
+        idUpper.includes('DSGD_BEFORE_EOD') ||
+        titleUpper.includes('TASK_CHECK_EOD') ||
+        titleUpper.includes('CHECK_EOD') ||
+        titleUpper.includes('DỮ LIỆU 3 BÊN') ||
+        titleUpper.includes('DSGD_BEFORE_EOD') ||
+        titleUpper.includes('ĐẦU PHIÊN') ||
+        text.includes('[ĐỐI CHIẾU TRƯỚC EOD]')
+      ) {
+        jsonType = 'DSGD_BEFORE_EOD';
+      } else {
+        if (idUpper.includes('DSGD_BEFORE_EOD') || titleUpper.includes('DSGD_BEFORE_EOD')) {
+          jsonType = 'DSGD_BEFORE_EOD';
+        } else if ((idUpper.includes('CQG') || titleUpper.includes('CQG')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
+          jsonType = 'CQG';
+        } else if ((idUpper.includes('EOD') || titleUpper.includes('EOD')) && !idUpper.includes('OPS_OPEN_02') && !titleUpper.includes('OMS')) {
+          jsonType = 'EOD';
+        } else {
+          jsonType = 'SYSTEM_API';
+        }
       }
     }
 

@@ -33,7 +33,7 @@ export class CcpClearingConfigService {
         storageDir: process.env.CCP_BACKUP_DIR || defaultDataDir,
         macroExportDir: path.join(defaultDataDir, 'Export'),
       },
-      defaultUsdVndRate: Number(process.env.USD_VND_RATE || 25400),
+      defaultUsdVndRate: Number(process.env.USD_VND_RATE || 0),
     };
   }
 }

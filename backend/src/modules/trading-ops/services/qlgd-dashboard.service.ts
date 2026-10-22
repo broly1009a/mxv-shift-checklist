@@ -643,11 +643,16 @@ export class QlgdDashboardService {
     let lmeLot = 0;
     let optionsLot = 0;
 
+    const rawUsdRate = (await this.settingsService.getSetting('usd_exchange_rate', '')) ||
+                       (await this.settingsService.getSetting('ccp_usd_exchange_rate', ''));
+    const parsedUsdRate = parseFloat(String(rawUsdRate).replace(/,/g, ''));
+    const effectiveUsdRate = Number.isFinite(parsedUsdRate) && parsedUsdRate > 0 ? parsedUsdRate : 0;
+
     for (const trade of filteredTrades) {
       const isAccountAcm = isAcm(trade.account);
       const lot = trade.lot;
       const price = trade.price;
-      const estimatedValueVnd = lot * price * 25400;
+      const estimatedValueVnd = lot * price * effectiveUsdRate;
 
       const hourFloat = parseTradeHour(trade.timeStr);
       const baseSym = extractCcpBaseProduct(trade.symbol);

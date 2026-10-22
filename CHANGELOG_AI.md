@@ -1,3 +1,228 @@
+## [2026-10-22T14:15] AUDIT & REFACTOR: Rà Soát & Triệt Tiêu Toàn Bộ Giá Trị Cứng (Hardcoded) Trên Giao Diện Frontend và Backend
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu rà soát toàn diện mã nguồn của USER sau khi phát hiện các số liệu tỷ giá `25920`, `25400`, IP server `10.0.0.26:3001` và các đường dẫn cá nhân/mặc định bị gán cứng trên giao diện (UI) và các service nghiệp vụ liên quan.
+- Tuân thủ nghiêm ngặt **Quy chuẩn AGENTS.md (Mục 7: Universal Zero-Hardcoding & Data-Driven Architecture Standard và Mục 4: Fail-Fast & Zero-Silent-Swallow)**:
+  1. Loại bỏ toàn bộ các fallback ngầm về tỷ giá cố định (`25920`, `25400`) trên cả giao diện và backend; chuyển sang đọc động từ MongoDB `system_settings` (`usd_exchange_rate`, `ccp_usd_exchange_rate`, `ccp_exchange_rates_matrix`, `ms_payment_rates`). Khi tỷ giá chưa có, hiển thị trạng thái `Chưa tải` / `Chưa cấu hình` kèm cảnh báo rõ ràng thay vì nuốt lỗi.
+  2. Loại bỏ IP cứng `Server: 10.0.0.26:3001` ở footer 3 trang Trading Manager (`page.tsx`, `ms-cqg/page.tsx`, `ccp-ce/page.tsx`), thay bằng hiển thị động theo `API_BASE_URL`.
+  3. Xóa đường dẫn OneDrive cá nhân của lập trình viên bị gán cứng làm default state trong `ValueStatisticsPanel.tsx`.
+  4. Nâng cấp `ReconciliationModal.tsx` và `BotLogViewerModal.tsx` ưu tiên nhận diện qua `botCheckType` / `json.type` từ CSDL thay vì phỏng đoán cứng chuỗi `taskId`.
+
+### 2. Danh sách file chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Thay thế đoạn fallback ngầm `|| 25920` (L926) bằng logic hiển thị động: nếu có tỷ giá thì hiển thị giá trị, nếu chưa có thì hiển thị `'Chưa tải'`.
+2. **[frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)**:
+   - Thay thế `value={ccpUsdExchangeRate || 25400}` (L1157) thành `value={ccpRatesMatrix['USD']?.conversionRate || ccpUsdExchangeRate || ''}` với placeholder gợi ý trực quan.
+   - Loại bỏ các đường dẫn ổ đĩa M mặc định gán cứng trong `setBotBackupPathAcm`, `setBotBackupPathCcp`, `setBotBackupPathCe`, `setBotCcpStatTargetRoot` (L212-L218), đồng bộ về fallback rỗng `''` như các đường dẫn khác.
+3. **[frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx)**:
+   - Chuyển `Server: 10.0.0.26:3001` (L574) thành hiển thị động `Server: {API_BASE_URL.replace(/^https?:\/\//, '')}`.
+4. **[frontend/src/app/trading-manager/ms-cqg/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ms-cqg/page.tsx)**:
+   - Chuyển `Server: 10.0.0.26:3001` (L481) thành hiển thị động `Server: {API_BASE_URL.replace(/^https?:\/\//, '')}`.
+5. **[frontend/src/app/trading-manager/ccp-ce/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/ccp-ce/page.tsx)**:
+   - Chuyển `Server: 10.0.0.26:3001` (L599) thành hiển thị động `Server: {API_BASE_URL.replace(/^https?:\/\//, '')}`.
+6. **[frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx)**:
+   - Loại bỏ đường dẫn cá nhân `c:\Users\hiepth\...` khỏi `useState` khởi tạo của `basePath` (L32), đưa về `''`.
+7. **[frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/ReconciliationModal.tsx)**:
+   - Bổ sung prop `botCheckType?: string` và đưa vào vị trí ưu tiên số 1 để xác định mode đối chiếu (`CHECK_DSGD_BEFORE_EOD`, `CHECK_KLGD`, `CHECK_CQG`), loại bỏ việc hoàn toàn phụ thuộc vào chuỗi `taskId`.
+8. **[frontend/src/components/ui/BotLogViewerModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/ui/BotLogViewerModal.tsx)**:
+   - Ưu tiên sử dụng trực tiếp `json.type` trả về từ Bot Job payload, chỉ chạy bộ phân giải suy đoán (heuristics) khi `!jsonType`.
+9. **[backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ce-lot-statistics.service.ts)**:
+   - Xóa bỏ tham số mặc định `usdExchangeRate: number = 25920` (L249).
+   - Nâng cấp `getUsdExchangeRate()` (L992-L1006) đọc tuần tự từ ma trận `ccp_exchange_rates_matrix` -> `ccp_usd_exchange_rate` -> `usd_exchange_rate`, trả về 0 nếu chưa có cấu hình thay vì nuốt lỗi bằng số 25920.
+   - Thêm cảnh báo rõ ràng khi tỷ giá USD chưa được cấu hình/đồng bộ trong hệ thống.
+10. **[backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts)**:
+    - Loại bỏ fallback `|| 25920` (L2123); nếu tỷ giá không tồn tại, trả về 0 kèm cảnh báo `warnings.push(...)`.
+11. **[backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts)**:
+    - Sửa `getUsdExchangeRate()` (L103-L107) tra cứu đúng các khóa cấu hình chuẩn trong MongoDB (`ccp_usd_exchange_rate`, `usd_exchange_rate`), loại bỏ khóa sai `exchange_rate_usd` và số cứng `25920`.
+    - Bổ sung cảnh báo vào danh sách warnings của PreFlight khi chưa đồng bộ tỷ giá.
+12. **[backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/qlgd-dashboard.service.ts)**:
+    - Thay thế công thức tính giá trị ước tính `lot * price * 25400` (L650) bằng tỷ giá động `effectiveUsdRate` đọc từ CSDL.
+13. **[backend/src/modules/trading-ops/services/ccp-clearing-config.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-clearing-config.service.ts)**:
+    - Loại bỏ số cứng `25400` trong fallback biến môi trường `USD_VND_RATE`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`npm run build`)**: Exit Code 0, NestJS biên dịch sạch toàn bộ.
+- **Frontend Build (`npm run build`)**: Exit Code 0, toàn bộ 50/50 trang tĩnh và động biên dịch thành công.
+
+---
+
+## [2026-10-22T13:58] FEAT & UI/UX: Nâng Cấp Bảng Tỷ Giá M-System Hiển Thị Đồng Thời Đủ 4 Cặp Tiền Thanh Toán & Quy Đổi
+
+### 1. Mục tiêu thay đổi
+- Khắc phục phản hồi của USER: Mặc dù M-System REST API đã đồng bộ đủ 4 cặp tiền thanh toán (`USD/VND`, `JPY/VND`, `MYR/VND`, `RMB/VND`), giao diện `TradingManagerConfigSection.tsx` trước đây giấu các cặp tiền sau một dropdown `<select>`, chỉ cho xem 1 cặp mỗi lần và ô Tỷ giá quy đổi bị fix cứng duy nhất USD.
+- Chuyển đổi giao diện sang dạng Bảng Tỷ Giá Đa Tiền Tệ trực quan (tương đồng với bảng CoreCCP), hiển thị cùng lúc cả 4 cặp tiền với đầy đủ: Cặp tiền, Tỷ giá quy đổi (VND), Tỷ giá Mua (VND), Tỷ giá Bán (VND).
+- Hiển thị trực quan mốc thời gian "Đồng bộ gần nhất" trên card header M-System.
+- Đảm bảo CSDL MongoDB lưu trữ đầy đủ `ms_conversion_rates` (`usd_exchange_rate`, `jpy_exchange_rate`, `myr_exchange_rate`, `rmb_exchange_rate`), `ms_payment_rates` và metadata đồng bộ.
+- Bảo vệ đồng tiền `RMB` trong ma trận CoreCCP không bị ghi đè/mất khi đồng bộ với file Excel chỉ có 3 loại tiền.
+
+### 2. Danh sách file chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)**:
+   - Thêm state `msConversionRates`, `msRatesLastSynced`, `msRateSource` (L57-L60).
+   - Nâng cấp `fetchConfig` (L124-L180) khởi tạo đầy đủ 4 cặp tiền mặc định cho M-System và nạp đầy đủ conversion rates từ MongoDB.
+   - Nâng cấp `handleSyncMsRate` (L220-L260) lưu trữ cả `conversionRates`, `paymentRates`, `msRatesLastSynced`, và `msRateSource`.
+   - Nâng cấp `handleSaveConfig` (L365-L380) ghi nhận đầy đủ 4 tỷ giá quy đổi `usd_exchange_rate`, `jpy_exchange_rate`, `myr_exchange_rate`, `rmb_exchange_rate` vào MongoDB.
+   - Thay thế toàn bộ cụm dropdown select đơn lẻ (L607-L728) bằng Bảng Tỷ Giá Đa Tiền Tệ chuẩn enterprise, hiển thị đồng thời cả 4 cặp tiền thanh toán và quy đổi.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build (`npm run build`)**: Exit Code 0, 50/50 trang tĩnh và động biên dịch thành công 100%.
+
+---
+
+## [2026-10-22T11:45] FEAT & ARCHITECTURE: Chuẩn Hóa PreFlight Central Registry & Kiểm Tra Trước Khi Chạy Đồng Bộ CoreCCP/CoreEX (Giai Đoạn 3)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER triển khai Giai đoạn 3 theo Phương án 3 (Unified Modular Monolith + PreFlight Pipeline trên nền `bot_jobs`):
+  1. Chuẩn hóa và làm giàu dữ liệu trả về của `TradingOpsPreflightService` cho toàn bộ các màn hình trước khi chạy: kiểm tra số lượng file, dung lượng file, định dạng thời gian chỉnh sửa gần nhất (`lastModifiedFormatted`), quyền ghi thư mục đích (`isWritable`), phát hiện file hỏng (`CORRUPTED` - 0 B), và cảnh báo thiếu file báo cáo phiên.
+  2. Xây dựng cấu trúc dữ liệu phản hồi tương thích chuẩn cho `PreFlightFileInspectorModal` (hỗ trợ cả schema đối tượng `source` và mảng `destinations` aliases).
+  3. Bổ sung nút bấm "Kiểm tra trước khi chạy" (PreFlight Check) và tích hợp nút "Chạy Macro" trọn gói đồng bộ trên thanh điều khiển Trading Manager của cả phân hệ CoreCCP (`CcpLotStatisticsSection.tsx`) và CoreEX (`CeLotStatisticsSection.tsx`).
+  4. Tuân thủ tuyệt đối quy định `AGENTS.md`: Fail-Fast (chặn chạy khi file 0 B hoặc thiếu quyền ghi), không dùng emoji thô trên UI (dùng `lucide-react`), không hardcode ID.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/trading-ops-preflight.service.ts)**:
+   - Thêm cơ chế kiểm tra file hỏng dung lượng 0 bytes: nếu `matched.size === 0`, gán `status = 'CORRUPTED'`, `isCorrupted = true`, ghi cảnh báo và loại khỏi danh sách `present` để ngăn lỗi crash parser Excel.
+   - Tích hợp `resolveDynamicPath(pattern, dateStr)` kết hợp `resolveStoragePathCrossPlatform()`: tự động phân giải các biến động như `${YYYY}`, `${MM}` sang năm/tháng của phiên (ví dụ `2026`), giúp hàm kiểm tra chính xác tệp thực tế trên ổ đĩa thay vì tìm chuỗi thô `${YYYY}.xlsx`.
+   - Bổ sung trường `lastModified` (ISO) và `lastModifiedFormatted` (định dạng tiếng Việt `dd/MM/yyyy HH:mm`) cho cả file đầu vào và file đích tích lũy.
+   - Thêm trường `directorySummary` thống kê đường dẫn, sự tồn tại và tổng số file trong thư mục của từng danh mục kiểm tra.
+   - Thêm kiểm tra quyền ghi thư mục đích thông qua `fs.accessSync(parentDir, fs.constants.W_OK)` và gắn cờ `isWritable: false`, `status: 'FOLDER_INVALID'` nếu không có quyền ghi.
+   - Cung cấp cấu trúc tương thích kép (Dual Compatibility): object `source: { folderPath, folderExists, files, exchangeRate }` song song với `sourceFiles` ở root, và destination aliases (`fileExists`, `parentDirExists`, `isValidPath`, `hasSessionData`, `fileFormattedSize`) đồng bộ trên cả nhánh `UNCONFIGURED` và `READY`.
+2. **[frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/PreFlightFileInspectorModal.tsx)**:
+   - Hỗ trợ cả 2 định dạng trả về: `data.source?.files || data.sourceFiles || []`.
+   - Bổ sung hiển thị badge trạng thái `File rỗng / Hỏng (0 B)` cảnh báo đỏ khi `file.isCorrupted` hoặc `file.status === 'CORRUPTED'`.
+   - Hiển thị thông tin thời gian cập nhật gần nhất (`file.lastModifiedFormatted`).
+   - Sử dụng toán tử nullish coalescing cho các chỉ số đích (`dest.isValidPath ?? dest.parentDirValid`, `dest.fileExists ?? dest.existsOnDisk`, `dest.hasSessionData ?? dest.alreadyProcessed`).
+   - Bổ sung hiển thị tổng số lot hoặc giá trị hiện có trong phiên (`dest.existingTotal`).
+3. **[frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx)**:
+   - Thêm state `runningMacro` và handler `handleRunMacroDirect()` gọi `api.ccpClearing.runMacro({ date: ngayGD })`.
+   - Bổ sung cụm nút hành động gồm: Nút "Kiểm tra trước khi chạy" (`FileSearch`, mở `PreFlightFileInspectorModal` với `type: 'ALL'`) và nút "Chạy Macro (11 File)".
+4. **[frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx)**:
+   - Thêm state `writingMacro` và handler `handleRunMacro()` gọi `api.ceClearing.runMacroStatistics(selectedDate)`.
+   - Bổ sung cụm nút hành động gồm: Nút "Kiểm tra trước khi chạy" (`FileSearch`, mở `PreFlightFileInspectorModal` với `type: 'ALL'`) và nút "Chạy Macro (Lot + GTGD)".
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - `TradingOpsPreflightService` chỉ kiểm tra sự tồn tại của file, không kiểm tra dung lượng 0 bytes. Các file tải ngắt quãng do rớt mạng bị tính là `Sẵn sàng`, dẫn tới lỗi vỡ parser Excel khi đọc.
+  - Không có thông tin thời gian sửa đổi gần nhất (`lastModified`) và không kiểm tra quyền ghi vào ổ đĩa/thư mục đích.
+  - Cấu trúc dữ liệu trả về giữa backend và `PreFlightFileInspectorModal` bị lệch trường (`sourceFiles` vs `source.files`, `existsOnDisk` vs `fileExists`).
+  - Giao diện CoreCCP và CoreEX thiếu nút kiểm tra PreFlight tập trung và chưa có nút bấm tiện ích chạy trọn gói Macro trực tiếp trên thanh công cụ.
+- **Sau khi sửa**:
+  - PreFlight Service chủ động bảo vệ hệ thống: cảnh báo đỏ `CORRUPTED` nếu file 0 B, cảnh báo quyền ghi ổ đĩa đích, định dạng kích thước và thời gian sửa đổi chuẩn tiếng Việt.
+  - Hỗ trợ song song cấu trúc tương thích ngược, đảm bảo Modal hiển thị đầy đủ, chính xác, không phát sinh lỗi `undefined`.
+  - Cả hai phân hệ CoreCCP và CoreEX đều được trang bị nút "Kiểm tra trước khi chạy" mở modal thanh tra file toàn diện, và nút "Chạy Macro" 1-click kích hoạt pipeline đồng bộ qua `bot_jobs`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`npm run build`)**: Exit Code 0, NestJS biên dịch thành công 100%.
+- **Frontend Build (`npm run build`)**: Exit Code 0, Next.js Turbopack biên dịch thành công toàn bộ 50/50 trang tĩnh và động.
+
+---
+
+## [2026-10-22T11:15] FEAT & ARCHITECTURE: Chuẩn Hóa Phân Hệ Thống Kê Số Lot, GTGD & Macro CoreCCP/CoreEX Sang Mô Hình Hàng Đợi bot_jobs & Modular Monolith V2 (Giai Đoạn 2)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER tiếp tục triển khai Giai đoạn 2 theo Phương án 3 (Unified Modular Monolith + PreFlight Pipeline trên nền `bot_jobs`): Chuẩn hóa phân hệ Thống kê Số Lot, Giá trị Giao dịch & Macro toàn diện của cả CoreCCP (`RUN_MACRO`, `RUN_LOT_MACRO`, `RUN_VALUE_MACRO`, `CCP_STATISTICS`, `CCP_LOT_STATS`, `CCP_VALUE_STATS`) và CoreEX (`RUN_MACRO_CE`, `CE_STATISTICS`, `CE_LOT_STATS`, `CE_VALUE_STATS`) vào hàng đợi tập trung `bot_jobs`.
+- Chấm dứt triệt để nguy cơ nghẽn kết nối và HTTP Gateway Timeout (thường mất 15-40s để ghi 11 file Excel tích lũy) bằng cách hỗ trợ cơ chế bất đồng bộ `async: true`, phản hồi tức thì (`~30ms`) kèm `jobId`.
+- Chuyển giao các tác vụ thống kê cho các Worker chuyên biệt trong Modular Monolith V2 (`CcpLotWorker`, `CcpValueWorker`, `CeLotWorker`) tích hợp trực tiếp `CcpLotStatisticsService` và `CeLotStatisticsService` với live log streaming vào MongoDB `bot_jobs.logs`.
+- Cung cấp handler dự phòng `MacroStatsJobHandler` (Monolith V1) tự đăng ký vào `BotJobHandlerRegistry` để an toàn 100% trong quá trình chuyển tiếp (Strangler Fig Pattern).
+- Đảm bảo endpoint tra cứu `lot-statistics/latest-run` tự động phát hiện các Job đang chạy trong MongoDB và khôi phục trạng thái sau khi khởi động lại server.
+- Nâng cấp API Client ở Frontend (`endpoints.ts`, `ce-clearing.api.ts`, `ccp-clearing.api.ts`) với đầy đủ các phương thức chạy async và `runMacro`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. **[backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/ccp-lot-statistics.service.ts)**:
+   - Thêm phương thức `runFullMacroStatisticsDirect(dateStr, user)` (L1735-L1814) thực thi tổng hợp trọn gói cả Số Lot và Giá trị Giao dịch (11 file tích lũy) trong một lượt gọi duy nhất.
+2. **[backend/src/modules/trading-ops/workers/ce-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ce-lot.worker.ts)** *(Tạo mới)*:
+   - Worker triển khai chuẩn `IBotWorker` cho CoreEX (ACM Nano), xử lý các capabilities: `CE_STATISTICS`, `RUN_MACRO_CE`, `CE_LOT_STATS`, `CE_VALUE_STATS`, stream logs và trả về `TaskExecutionResult` chuẩn.
+3. **[backend/src/modules/trading-ops/workers/ccp-lot.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-lot.worker.ts)**:
+   - Nâng cấp Worker inject `CcpLotStatisticsService`, mở rộng `canHandle` tiếp nhận `RUN_MACRO`, `CCP_STATISTICS`, `RUN_LOT_MACRO`, `CCP_LOT_STATS`, và stream logs tiến trình.
+4. **[backend/src/modules/trading-ops/workers/ccp-value.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ccp-value.worker.ts)**:
+   - Nâng cấp Worker inject `CcpLotStatisticsService`, định tuyến `RUN_VALUE_MACRO` và `CCP_VALUE_STATS` với stream logs tiến trình.
+5. **[backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts)**:
+   - Khai báo và export `CeLotWorker` trong `TradingOpsModule`.
+6. **[backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts)**:
+   - Inject và đăng ký `ceLotWorker` vào `BotDispatcherService` lúc khởi tạo module (`onModuleInit`).
+7. **[backend/src/modules/bot-engine/handlers/macro-stats.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/macro-stats.handler.ts)** *(Tạo mới)*:
+   - Handler dự phòng triển khai `IBotJobHandler, OnModuleInit` tự đăng ký vào `BotJobHandlerRegistry` cho toàn bộ các job types thống kê của CoreCCP và CoreEX.
+8. **[backend/src/modules/bot-engine/bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.module.ts)**:
+   - Khai báo `MacroStatsJobHandler` vào providers và exports của `BotEngineModule`.
+9. **[backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)**:
+   - Nâng cấp `runLotDirect` (`lot-statistics/run-lot`), `runValueDirect` (`lot-statistics/run-value`), và bổ sung `runMacroDirect` (`lot-statistics/run-macro`) hỗ trợ `async: true` đưa vào hàng đợi `bot_jobs`.
+   - Nâng cấp `getLatestLotRun` (`lot-statistics/latest-run`) kiểm tra active MongoDB `bot_jobs`.
+10. **[backend/src/modules/trading-ops/controllers/ce-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ce-recon.controller.ts)**:
+    - Nâng cấp `runLotDirect`, `runValueDirect`, và bổ sung `runMacroDirect` hỗ trợ `async: true` đưa vào hàng đợi `bot_jobs`.
+    - Nâng cấp `getLatestLotRun` kiểm tra active MongoDB `bot_jobs`.
+11. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts)**:
+    - Bổ sung `MACRO_RUN` và tham số `jobId` trong `CE_CLEARING.LATEST_RUN`.
+12. **[frontend/src/services/api/ce-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/ce-clearing.api.ts)**:
+    - Bổ sung tùy chọn `async` cho `runLotStatistics` và `runValueStatistics`, thêm hàm `runMacroStatistics`, cập nhật `getLatestLotRun`.
+13. **[frontend/src/services/api/ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/ccp-clearing.api.ts)**:
+    - Bổ sung hàm `runMacro(payload, token)` gọi endpoint `/api/v1/ccp-statistics/lot-statistics/run-macro`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - Các thao tác chạy thống kê Số Lot và GTGD (đặc biệt là macro ghi 11 file Excel) chạy đồng bộ trên request HTTP. Nếu lượng dòng lớn hoặc ổ cứng mạng chậm, request dễ bị timeout (504 Gateway Timeout).
+  - Không có Worker chuyên trách cho CoreEX Lot/Value trong `BotDispatcherService` Modular Monolith V2.
+  - CoreCCP `CcpLotWorker` và `CcpValueWorker` chưa kết nối với `CcpLotStatisticsService` native TypeScript.
+  - Khi reload trang hoặc server restart trong lúc thống kê đang chạy, tiến trình bị gián đoạn và UI không thể tự phục hồi trạng thái.
+- **Sau khi sửa**:
+  - Hỗ trợ đầy đủ cờ `async: true` đưa yêu cầu vào hàng đợi `bot_jobs`, trả về ngay lập tức (`jobId`) sau 30ms.
+  - Cả 3 Worker (`CcpLotWorker`, `CcpValueWorker`, `CeLotWorker`) vận hành trực tiếp các service TypeScript xử lý Excel độc lập, không phụ thuộc script Python bên ngoài, live stream logs chi tiết vào `bot_jobs.logs`.
+  - Cơ chế dự phòng `MacroStatsJobHandler` bảo đảm tính sẵn sàng cao trên cả hai phân hệ kiến trúc V1 và V2.
+  - Endpoint `latest-run` tự động tra cứu active jobs từ MongoDB, giúp UI hiển thị tiến trình mượt mà và phục hồi kết quả sau sự cố.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100% không còn bất kỳ lỗi compile nào.
+- **Frontend Build (`next build`)**: Exit Code 0, Turbopack biên dịch 50/50 trang tĩnh và động thành công 100%.
+
+---
+
+## [2026-10-22T10:55] FEAT & ARCHITECTURE: Chuẩn Hóa Phân Hệ GTT Sang Mô Hình Hàng Đợi bot_jobs & Modular Monolith V2 (Giai Đoạn 1)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER theo Phương án 3 (Unified Modular Monolith + PreFlight Pipeline trên nền `bot_jobs`): Chuẩn hóa phân hệ Đối soát Giá thanh toán (GTT) giữa CoreEX vs CoreCCP (`CHECK_GTT_CE_CCP`) và giữa M-System vs CQG (`CHECK_GTT_LEGACY`) vào hàng đợi tập trung `bot_jobs`.
+- Đảm bảo khi kích hoạt từ giao diện (bấm nút đối soát với `async: true`), request trả về ngay lập tức (~30ms) kèm `jobId`, không bao giờ bị nghẽn mạng hay HTTP Gateway Timeout (504).
+- Phục hồi và hiển thị trạng thái real-time qua MongoDB `bot_jobs`: Người dùng có thể theo dõi tiến trình chạy và nhật ký logs, kể cả khi reload trang hoặc backend server vừa restart thì dữ liệu báo cáo vẫn được khôi phục nguyên vẹn từ MongoDB `bot_jobs`.
+- Kiến trúc 2 tầng (Strangler Fig Pattern): Đăng ký Worker vào `BotDispatcherService` (Modular Monolith V2) đồng thời cung cấp Handler fallback cho `BotJobHandlerRegistry` (Monolith V1), đảm bảo 100% tương thích ngược và an toàn vận hành.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. **[backend/src/modules/bot-engine/constants/bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/constants/bot-task-registry.ts)**:
+   - Khai báo 2 capabilities chuẩn trong `BOT_TASK_REGISTRY`: `CHECK_GTT_CE_CCP` (Đối soát GTT CE vs CoreCCP) và `CHECK_GTT_LEGACY` (Đối chiếu GTT M-System vs CQG).
+2. **[backend/src/modules/trading-ops/workers/ce-ccp-gtt.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ce-ccp-gtt.worker.ts)** *(Tạo mới)*:
+   - Worker triển khai chuẩn `IBotWorker` cho đối soát GTT CoreEX vs CoreCCP, trả về `TaskExecutionResult` chuẩn (`status`, `passed`, `summary`, `metrics`, `details`, `logs`).
+3. **[backend/src/modules/trading-ops/workers/ms-cqg-gtt.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/ms-cqg-gtt.worker.ts)** *(Tạo mới)*:
+   - Worker triển khai chuẩn `IBotWorker` cho đối chiếu GTT M-System vs CQG.
+4. **[backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts)**:
+   - Đăng ký và export `CeCcpGttWorker` và `MsCqgGttWorker` trong module `TradingOpsModule`.
+5. **[backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts)**:
+   - Inject và đăng ký `ceCcpGttWorker` và `msCqgGttWorker` vào `BotDispatcherService` lúc `onModuleInit()`.
+6. **[backend/src/modules/bot-engine/handlers/gtt-recon.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/gtt-recon.handler.ts)** *(Tạo mới)*:
+   - Handler dự phòng triển khai `IBotJobHandler, OnModuleInit` tự đăng ký vào `BotJobHandlerRegistry` cho cả 2 capabilities.
+7. **[backend/src/modules/bot-engine/bot-engine.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.module.ts)**:
+   - Đăng ký `GttReconJobHandler` vào providers và exports của `BotEngineModule`.
+8. **[backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts)**:
+   - Sửa endpoint `runCeCcpGttCheck`: Khi nhận cờ `async: true`, enqueue job `CHECK_GTT_CE_CCP` vào `botJobQueueService` và trả ngay `jobId`.
+   - Sửa endpoint `getCeCcpGttReport`: Bổ sung kiểm tra job đang chạy trong MongoDB `bot_jobs` và tự động khôi phục kết quả báo cáo từ `latestDoneJob` khi server khởi động lại.
+   - Dọn dẹp đoạn code trùng lặp cũ.
+9. **[backend/src/modules/trading-ops/controllers/gtt-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/gtt-recon.controller.ts)**:
+   - Sửa endpoint `runGttCheck`: Enqueue job `CHECK_GTT_LEGACY` vào `botJobQueueService` khi `async: true`.
+   - Sửa endpoint `getGttReport`: Kiểm tra job đang chạy và khôi phục từ MongoDB `bot_jobs`.
+10. **[backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)**:
+   - Đồng bộ hoàn toàn các endpoint legacy (`run-gtt-check`, `gtt-report`, `run-ce-ccp-gtt-check`, `ce-ccp-gtt-report`) sử dụng cơ chế enqueue và khôi phục từ hàng đợi `bot_jobs`.
+
+### 3. Tóm tắt nội dung code đã sửa
+- **Trước khi sửa**:
+  - GTT CE-CCP và GTT MS-CQG chạy trực tiếp trên luồng HTTP hoặc Promise nền không theo dõi (`.catch(...)`), không qua hàng đợi MongoDB `bot_jobs`.
+  - Nếu server backend restart hoặc crash giữa chừng, toàn bộ trạng thái tiến trình và log bị mất trắng (`report: null`).
+  - Giao diện frontend nếu mở tab mới hoặc nhiều máy truy cập không thấy trạng thái đang chạy của nhau.
+- **Sau khi sửa**:
+  - Mọi thao tác chạy GTT đều được đưa vào hàng đợi `bot_jobs` với `jobType: 'CHECK_GTT_CE_CCP'` hoặc `'CHECK_GTT_LEGACY'`.
+  - HTTP POST phản hồi tức thì (`< 30ms`), giải phóng hoàn toàn socket kết nối của người dùng.
+  - Workers Modular Monolith V2 thực thi tác vụ chuyên trách, liên tục lưu logs và kết quả vào MongoDB.
+  - API GET đọc trạng thái đồng bộ từ `bot_jobs`, khôi phục báo cáo 100% sau khi khởi động lại server.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build (`nest build`)**: Exit Code 0, Build thành công 100% không còn bất kỳ lỗi compile nào.
+- **Frontend Build (`next build`)**: Exit Code 0, Turbopack biên dịch 50/50 trang tĩnh và động thành công 100%.
+
+---
+
 ## [2026-10-22T09:33] PERF & REFACTOR: Tối Ưu Hóa Cờ Bộ Nhớ RAM Cho Chromium CQG & Dọn Dẹp Import Thừa Recon Handler
 
 ### 1. Mục tiêu thay đổi

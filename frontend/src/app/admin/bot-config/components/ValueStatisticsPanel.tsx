@@ -29,7 +29,7 @@ function getPreviousWorkday(d: Date = new Date()): Date {
 }
 
 export default function ValueStatisticsPanel({ token, apiBaseUrl }: ValueStatisticsPanelProps) {
-  const [basePath, setBasePath] = useState('c:\\Users\\hiepth\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\Documents\\Github\\mxv-shift-checklist\\Marco thong ke gia tri');
+  const [basePath, setBasePath] = useState('');
   const [ngayGD, setNgayGD] = useState(() => {
     const prevWorkday = getPreviousWorkday();
     return prevWorkday.toISOString().split('T')[0];

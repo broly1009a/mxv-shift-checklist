@@ -451,6 +451,20 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
     description: 'Đối chiếu số dư cuối ngày EOD CoreCCP (VNCLEAR)',
     category: 'POST_EOD',
   },
+  CHECK_GTT_CE_CCP: {
+    jobType: 'CHECK_GTT_CE_CCP',
+    botCheckType: 'CHECK_GTT_CE_CCP',
+    displayName: 'Đối Soát Giá Thanh Toán CE vs CCP',
+    description: 'So khớp bảng giá thanh toán CoreEX vs CoreCCP (GTT ACM.xlsx vs GTT CCP.xlsx)',
+    category: 'RECONCILIATION',
+  },
+  CHECK_GTT_LEGACY: {
+    jobType: 'CHECK_GTT_LEGACY',
+    botCheckType: 'CHECK_GTT_LEGACY',
+    displayName: 'Đối Chiếu Giá Thanh Toán M-System vs CQG',
+    description: 'Đối chiếu giá thanh toán giữa M-System (market.csv) và CQG QSS',
+    category: 'RECONCILIATION',
+  },
 };
 
 /**

@@ -26,6 +26,8 @@ import { ReconJobsHandler } from './handlers/recon-jobs.handler';
 import { FileAuditJobHandler } from './handlers/file-audit.handler';
 import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
 import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
+import { GttReconJobHandler } from './handlers/gtt-recon.handler';
+import { MacroStatsJobHandler } from './handlers/macro-stats.handler';
 import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
 import { IngressModule } from '../ingress/ingress.module';
 import { TradingOpsModule } from '../trading-ops/trading-ops.module';
@@ -56,6 +58,8 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     FileAuditJobHandler,
     VerifyEmailJobHandler,
     CcpCeDownloadJobHandler,
+    GttReconJobHandler,
+    MacroStatsJobHandler,
     {
       provide: RECON_PIPELINE_PORT,
       useExisting: ReconJobsHandler,
@@ -82,6 +86,8 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     OmsWatcherService,
     FileAuditJobHandler,
     ReconJobsHandler,
+    GttReconJobHandler,
+    MacroStatsJobHandler,
     RECON_PIPELINE_PORT,
   ],
 })

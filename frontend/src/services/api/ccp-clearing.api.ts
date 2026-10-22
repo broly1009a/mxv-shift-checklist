@@ -250,6 +250,20 @@ export const ccpClearingApi = {
   },
 
   /**
+   * Chạy Macro CoreCCP toàn diện (Tất cả 11 file Số Lot + GTGD)
+   */
+  async runMacro(payload: any, token?: string | null): Promise<any> {
+    return requestJson<any>(
+      '/api/v1/ccp-statistics/lot-statistics/run-macro',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token,
+    );
+  },
+
+  /**
    * Lấy danh sách lịch sử thực thi thống kê CoreCCP gần nhất
    */
   async getLotRunHistory(

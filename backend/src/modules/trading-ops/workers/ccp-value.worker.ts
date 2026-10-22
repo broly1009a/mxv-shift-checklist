@@ -5,8 +5,10 @@ import {
   IBotWorker,
   TaskExecutionContext,
   TaskExecutionResult,
+  TaskExecutionStatus,
 } from '../../../shared';
 import { ValueStatisticsService } from '../services/value-statistics.service';
+import { CcpLotStatisticsService } from '../services/ccp-lot-statistics.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
 import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
 
@@ -20,6 +22,8 @@ export class CcpValueWorker implements IBotWorker {
   constructor(
     private readonly valueStatisticsService: ValueStatisticsService,
     @Optional()
+    private readonly ccpLotStatisticsService?: CcpLotStatisticsService,
+    @Optional()
     @InjectModel(CcpClearingLog.name)
     private readonly ccpLogModel?: Model<CcpClearingLog>,
     @Optional()
@@ -27,24 +31,67 @@ export class CcpValueWorker implements IBotWorker {
   ) {}
 
   canHandle(capabilityType: string): boolean {
+    const norm = (capabilityType || '').toUpperCase().trim();
     return (
-      capabilityType === this.capabilityType ||
-      capabilityType === 'CHECK_CCP_VALUE' ||
-      capabilityType === 'MACRO_VALUE' ||
-      capabilityType === 'RUN_VALUE_MACRO' ||
-      capabilityType === 'RUN_VALUE_TVKD_MACRO'
+      norm === this.capabilityType ||
+      norm === 'CHECK_CCP_VALUE' ||
+      norm === 'MACRO_VALUE' ||
+      norm === 'RUN_VALUE_MACRO' ||
+      norm === 'RUN_VALUE_TVKD_MACRO' ||
+      norm === 'CCP_VALUE'
     );
   }
 
   async execute(context: TaskExecutionContext): Promise<TaskExecutionResult> {
     const startTime = Date.now();
+    const norm = (context.botCheckType || '').toUpperCase().trim();
+    const targetDateStr = context.targetDate || new Date().toISOString().split('T')[0];
+    const user = context.triggeredBy ? { username: context.triggeredBy } : undefined;
+
     this.logger.log(
-      `[CcpValueWorker] Tiếp nhận thực thi ${this.capabilityType} cho Task: ${context.taskId}, Ca: ${context.shiftId || 'N/A'}`,
+      `[CcpValueWorker] Tiếp nhận thực thi ${norm || this.capabilityType} cho Task: ${context.taskId || 'N/A'}, Ca: ${context.shiftId || 'N/A'} (Ngày: ${targetDateStr})`,
     );
 
+    const logs: string[] = [];
+    const handleLog = (msg: string) => {
+      const line = msg.startsWith('[') ? msg : `[${new Date().toISOString()}] ${msg}`;
+      logs.push(line);
+      if (typeof context.onLog === 'function') {
+        context.onLog(line);
+      }
+    };
+
+    handleLog(`[CcpValueWorker] Khởi chạy tác vụ ${norm || this.capabilityType} ngày ${targetDateStr}...`);
+
     try {
+      // 1. Nếu là RUN_VALUE_MACRO hoặc context yêu cầu ghi trực tiếp qua CcpLotStatisticsService
+      if (this.ccpLotStatisticsService && (norm === 'RUN_VALUE_MACRO' || norm === 'MACRO_VALUE' || context.parameters?.writeDirect)) {
+        const valueDirectRes = await this.ccpLotStatisticsService.runValueStatisticsDirect(targetDateStr, user);
+        if (valueDirectRes.logs && Array.isArray(valueDirectRes.logs)) {
+          valueDirectRes.logs.forEach((l) => handleLog(l));
+        }
+
+        const status: TaskExecutionStatus = valueDirectRes.success ? 'SUCCESS' : 'WARNING';
+        return {
+          status,
+          passed: valueDirectRes.success,
+          summary: valueDirectRes.message,
+          metrics: {
+            totalGiaTri: valueDirectRes.result?.totalGiaTri,
+            totalSoLot: valueDirectRes.result?.totalSoLot,
+            gtgdUpdated: valueDirectRes.gtgdUpdated,
+            errorsCount: valueDirectRes.errors?.length || 0,
+          },
+          details: valueDirectRes.result,
+          logs,
+          durationMs: Date.now() - startTime,
+          executedAt: new Date(),
+        };
+      }
+
+      // 2. Fallback: Luồng tính toán tự động qua ValueStatisticsService
       const res = await this.valueStatisticsService.runAutoValueStatistics(
-        context.targetDate,
+        targetDateStr,
         context.parameters?.folderPath,
       );
 
@@ -61,12 +108,13 @@ export class CcpValueWorker implements IBotWorker {
             formattedTotalValueVnd: '0.00 tỷ VND',
           },
           details: res,
+          logs,
           durationMs: Date.now() - startTime,
           executedAt: new Date(),
         };
       }
 
-      const status = res.passed ? 'SUCCESS' : 'WARNING';
+      const status: TaskExecutionStatus = res.passed ? 'SUCCESS' : 'WARNING';
       const formattedTotalValue = (res.totalValueVnd / 1e9).toFixed(2);
       const summary = res.passed
         ? `Thống kê Giá trị CCP thành công: Tổng ${res.totalLots} lots, tương đương ${formattedTotalValue} tỷ VND.`
@@ -76,7 +124,6 @@ export class CcpValueWorker implements IBotWorker {
 
       if (this.ccpLogModel) {
         try {
-          const targetDateStr = context.targetDate || res.sessionDate;
           const logRecord = await this.ccpLogModel.create({
             tradingDate: targetDateStr,
             shiftLogId: context.shiftId,
@@ -102,10 +149,9 @@ export class CcpValueWorker implements IBotWorker {
         }
       }
 
-      // Kế thừa luồng Master Excel Accumulation: Tự động ghi vào file Excel năm & sinh Sheet tháng mới bằng Python
+      // Kế thừa luồng Master Excel Accumulation Python nếu có
       if (this.ccpAccumulatorService && res.passed) {
         try {
-          const targetDateStr = context.targetDate || res.sessionDate;
           const writeResults = await this.ccpAccumulatorService.writeValueStatsToAccumulator({
             targetDate: targetDateStr,
             result: res,
@@ -113,7 +159,7 @@ export class CcpValueWorker implements IBotWorker {
           });
           const clonedCount = writeResults.filter((w) => w.clonedNewMonthSheet).length;
           if (clonedCount > 0) {
-            this.logger.log(`[CcpValueWorker] Đã tự động sinh ${clonedCount} Sheet tháng mới qua Python openpyxl.`);
+            handleLog(`[CcpValueWorker] Đã tự động sinh ${clonedCount} Sheet tháng mới.`);
           }
         } catch (accErr: any) {
           this.logger.warn(`[CcpValueWorker] Cảnh báo ghi file Excel lũy kế: ${accErr.message}`);
@@ -122,6 +168,7 @@ export class CcpValueWorker implements IBotWorker {
 
       return {
         status,
+        passed: res.passed,
         summary,
         metrics: {
           totalLots: res.totalLots,
@@ -133,6 +180,7 @@ export class CcpValueWorker implements IBotWorker {
           topProducts: res.breakdownByProduct.slice(0, 5),
         },
         domainLogRefId,
+        logs,
         durationMs: Date.now() - startTime,
         executedAt: new Date(),
       };
@@ -140,8 +188,10 @@ export class CcpValueWorker implements IBotWorker {
       this.logger.error(`[CcpValueWorker] Lỗi thực thi thống kê Giá trị CCP: ${err.message}`);
       return {
         status: 'FAILED',
+        passed: false,
         summary: `Thất bại: ${err.message}`,
         error: err.message,
+        logs,
         durationMs: Date.now() - startTime,
         executedAt: new Date(),
       };

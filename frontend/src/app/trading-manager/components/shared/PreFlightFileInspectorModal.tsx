@@ -454,16 +454,21 @@ export default function PreFlightFileInspectorModal({
 
               {/* Bảng danh sách các file nguồn */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '10px' }}>
-                {data.source?.files?.map((file: any) => {
-                  const isReady = file.present;
-                  const isMissingRequired = file.required && !file.present;
+                {(data.source?.files || data.sourceFiles || []).map((file: any) => {
+                  const isCorrupted = file.status === 'CORRUPTED';
+                  const isReady = file.present && !isCorrupted;
+                  const isMissingRequired = file.required && (!file.present || isCorrupted);
                   const borderColor = isReady
                     ? 'rgba(16, 185, 129, 0.3)'
+                    : isCorrupted
+                    ? 'rgba(245, 158, 11, 0.4)'
                     : isMissingRequired
                     ? 'rgba(239, 68, 68, 0.3)'
                     : 'var(--border-color)';
                   const bgColor = isReady
                     ? 'rgba(16, 185, 129, 0.05)'
+                    : isCorrupted
+                    ? 'rgba(245, 158, 11, 0.06)'
                     : isMissingRequired
                     ? 'rgba(239, 68, 68, 0.05)'
                     : 'transparent';
@@ -493,13 +498,21 @@ export default function PreFlightFileInspectorModal({
                             fontWeight: 700,
                             backgroundColor: isReady
                               ? 'rgba(16, 185, 129, 0.15)'
+                              : isCorrupted
+                              ? 'rgba(245, 158, 11, 0.15)'
                               : isMissingRequired
                               ? 'rgba(239, 68, 68, 0.15)'
                               : 'rgba(148, 163, 184, 0.15)',
-                            color: isReady ? '#10b981' : isMissingRequired ? '#ef4444' : 'var(--text-muted)',
+                            color: isReady ? '#10b981' : isCorrupted ? '#f59e0b' : isMissingRequired ? '#ef4444' : 'var(--text-muted)',
                           }}
                         >
-                          {isReady ? `Sẵn sàng (${file.formattedSize})` : file.required ? 'Chưa có' : 'Tùy chọn'}
+                          {isReady
+                            ? `Sẵn sàng (${file.formattedSize})`
+                            : isCorrupted
+                            ? 'Tệp rỗng (0 B)'
+                            : file.required
+                            ? 'Chưa có'
+                            : 'Tùy chọn'}
                         </span>
                       </div>
 
@@ -508,18 +521,25 @@ export default function PreFlightFileInspectorModal({
                       </div>
 
                       {file.filename && (
-                        <div
-                          style={{
-                            fontSize: '0.7rem',
-                            fontFamily: 'monospace',
-                            color: '#0ea5e9',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={file.fullPath || file.filename}
-                        >
-                          {file.filename}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              fontFamily: 'monospace',
+                              color: '#0ea5e9',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={file.fullPath || file.filename}
+                          >
+                            {file.filename}
+                          </span>
+                          {file.lastModifiedFormatted && (
+                            <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                              {file.lastModifiedFormatted.split(' ')[0]}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -583,9 +603,9 @@ export default function PreFlightFileInspectorModal({
               {/* Danh sách các file sổ đích */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {data.destinations?.map((dest: any) => {
-                  const isValid = dest.isValidPath;
-                  const fileExists = dest.fileExists;
-                  const hasSessionData = dest.hasSessionData;
+                  const isValid = dest.isValidPath ?? (dest.parentDirValid && dest.isWritable !== false);
+                  const fileExists = dest.fileExists ?? dest.existsOnDisk;
+                  const hasSessionData = dest.hasSessionData ?? dest.dateAlreadyRecorded;
 
                   const badgeBg = !isValid
                     ? 'rgba(239, 68, 68, 0.15)'
@@ -704,7 +724,7 @@ export default function PreFlightFileInspectorModal({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: hasSessionData ? '#f59e0b' : '#10b981' }}>
                           <Clock size={14} />
                           <span>
-                            Số liệu ngày {targetDate}: {hasSessionData ? `Đã có (dòng ${dest.existingRow})` : 'Chưa có (ghi mới)'}
+                            Số liệu ngày {targetDate}: {hasSessionData ? `Đã có (${dest.existingTotal ? dest.existingTotal.toLocaleString('vi-VN') + (dest.group === 'VALUE' ? ' đ' : ' lot') : (dest.existingRow ? 'dòng ' + dest.existingRow : 'đã ghi')})` : 'Chưa có (ghi mới)'}
                           </span>
                         </div>
                       </div>

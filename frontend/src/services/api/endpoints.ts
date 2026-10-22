@@ -121,9 +121,15 @@ export const API_ENDPOINTS = {
     LOT_PROCESS: '/api/v1/ce-clearing/lot-statistics/process-daily',
     LOT_RUN: '/api/v1/ce-clearing/lot-statistics/run-lot',
     VALUE_RUN: '/api/v1/ce-clearing/lot-statistics/run-value',
+    MACRO_RUN: '/api/v1/ce-clearing/lot-statistics/run-macro',
     RUN_HISTORY: (qs: string) => `/api/v1/ce-clearing/lot-statistics/run-history${qs ? `?${qs}` : ''}`,
-    LATEST_RUN: (date?: string) =>
-      `/api/v1/ce-clearing/lot-statistics/latest-run${date ? `?date=${encodeURIComponent(date)}` : ''}`,
+    LATEST_RUN: (date?: string, jobId?: string) => {
+      const q = new URLSearchParams();
+      if (date) q.set('date', date);
+      if (jobId) q.set('jobId', jobId);
+      const qs = q.toString();
+      return `/api/v1/ce-clearing/lot-statistics/latest-run${qs ? `?${qs}` : ''}`;
+    },
     PREFLIGHT: (date: string, type: string = 'ALL') =>
       `/api/v1/ce-clearing/lot-statistics/preflight?date=${encodeURIComponent(date)}&type=${encodeURIComponent(type)}`,
     DRAFT_DOWNLOAD: (filename: string) =>

@@ -14,6 +14,7 @@ import {
   Query,
   Headers,
   HttpCode,
+  Req,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -1577,6 +1578,7 @@ export class BotEngineController {
   @Post('run-gtt-check')
   async runGttCheck(
     @Body() body: { downloadMarketCsv?: boolean; async?: boolean; targetDate?: string } = {},
+    @Req() req?: any,
   ) {
     if (this.gttService.getIsRunning()) {
       return {
@@ -1588,6 +1590,22 @@ export class BotEngineController {
     }
 
     if (body.async) {
+      if (this.jobQueueService) {
+        const job = await this.jobQueueService.enqueue('CHECK_GTT_LEGACY', {
+          ...body,
+          scope: 'OPERATION_TOOL',
+          userId: req?.user?.id || req?.user?.userId,
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: 'Đã đưa yêu cầu kiểm tra GTT MS-CQG vào hàng đợi xử lý.',
+          report: this.gttService.getLatestReport(),
+        };
+      }
+
       // Chạy ngầm trong background, không block HTTP request
       this.gttService
         .runFullGttCheck({
@@ -1627,7 +1645,34 @@ export class BotEngineController {
    * Returns the latest GTT comparison report.
    */
   @Get('gtt-report')
-  async getGttReport(@Query('date') dateQuery?: string) {
+  async getGttReport(
+    @Query('date') dateQuery?: string,
+    @Query('jobId') jobIdQuery?: string,
+  ) {
+    // 1. Kiểm tra Job đang chạy trong bot_jobs nếu có
+    if (this.botJobModel) {
+      const activeJob = jobIdQuery
+        ? await this.botJobModel.findById(jobIdQuery).exec()
+        : await this.botJobModel
+            .findOne({
+              jobType: 'CHECK_GTT_LEGACY',
+              status: { $in: ['PENDING', 'PROCESSING'] },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
+
+      if (activeJob) {
+        return {
+          success: true,
+          isRunning: true,
+          jobId: activeJob._id,
+          status: activeJob.status,
+          currentLogs: activeJob.logs || [],
+          report: null,
+        };
+      }
+    }
+
     const report = this.gttService.getLatestReport();
     const isRunning = this.gttService.getIsRunning();
     const currentLogs = this.gttService.getCurrentLogs();
@@ -1642,6 +1687,22 @@ export class BotEngineController {
     }
 
     if (!report) {
+      // Phục hồi kết quả từ Job gần nhất nếu service vừa restart
+      if (this.botJobModel) {
+        const latestDoneJob = await this.botJobModel
+          .findOne({ jobType: 'CHECK_GTT_LEGACY', status: 'COMPLETED' })
+          .sort({ createdAt: -1 })
+          .exec();
+        if (latestDoneJob && (latestDoneJob.payload as any)?.result) {
+          return {
+            success: true,
+            isRunning: false,
+            currentLogs: latestDoneJob.logs || [],
+            report: (latestDoneJob.payload as any).result,
+          };
+        }
+      }
+
       return {
         success: false,
         isRunning: false,
@@ -3317,6 +3378,7 @@ export class BotEngineController {
       ccpHhPath?: string;
       ttmPath?: string;
     } = {},
+    @Req() req?: any,
   ) {
     if (this.ceCcpGttService.getIsRunning()) {
       return {
@@ -3328,6 +3390,22 @@ export class BotEngineController {
     }
 
     if (body.async) {
+      if (this.jobQueueService) {
+        const job = await this.jobQueueService.enqueue('CHECK_GTT_CE_CCP', {
+          ...body,
+          scope: 'OPERATION_TOOL',
+          userId: req?.user?.id || req?.user?.userId,
+        });
+
+        return {
+          success: true,
+          isRunning: true,
+          jobId: job._id,
+          message: 'Đã đưa yêu cầu đối soát GTT CE-CCP vào hàng đợi xử lý.',
+          report: this.ceCcpGttService.getLatestReport(),
+        };
+      }
+
       this.ceCcpGttService
         .runCeCcpGttCheck(body)
         .catch((err) => {
@@ -3361,7 +3439,34 @@ export class BotEngineController {
    * GET /api/v1/bot-engine/ce-ccp-gtt-report
    */
   @Get('ce-ccp-gtt-report')
-  async getCeCcpGttReport(@Query('date') dateQuery?: string) {
+  async getCeCcpGttReport(
+    @Query('date') dateQuery?: string,
+    @Query('jobId') jobIdQuery?: string,
+  ) {
+    // 1. Kiểm tra Job đang chạy trong bot_jobs nếu có
+    if (this.botJobModel) {
+      const activeJob = jobIdQuery
+        ? await this.botJobModel.findById(jobIdQuery).exec()
+        : await this.botJobModel
+            .findOne({
+              jobType: 'CHECK_GTT_CE_CCP',
+              status: { $in: ['PENDING', 'PROCESSING'] },
+            })
+            .sort({ createdAt: -1 })
+            .exec();
+
+      if (activeJob) {
+        return {
+          success: true,
+          isRunning: true,
+          jobId: activeJob._id,
+          status: activeJob.status,
+          currentLogs: activeJob.logs || [],
+          report: null,
+        };
+      }
+    }
+
     const report = this.ceCcpGttService.getLatestReport();
     const isRunning = this.ceCcpGttService.getIsRunning();
     const currentLogs = this.ceCcpGttService.getCurrentLogs();
@@ -3376,6 +3481,22 @@ export class BotEngineController {
     }
 
     if (!report) {
+      // Phục hồi kết quả từ Job gần nhất nếu service vừa restart
+      if (this.botJobModel) {
+        const latestDoneJob = await this.botJobModel
+          .findOne({ jobType: 'CHECK_GTT_CE_CCP', status: 'COMPLETED' })
+          .sort({ createdAt: -1 })
+          .exec();
+        if (latestDoneJob && (latestDoneJob.payload as any)?.result) {
+          return {
+            success: true,
+            isRunning: false,
+            currentLogs: latestDoneJob.logs || [],
+            report: (latestDoneJob.payload as any).result,
+          };
+        }
+      }
+
       return {
         success: false,
         isRunning: false,

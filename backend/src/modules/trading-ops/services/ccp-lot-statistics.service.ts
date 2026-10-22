@@ -1732,6 +1732,85 @@ export class CcpLotStatisticsService {
     };
   }
 
+  /**
+   * Tự động tổng hợp và ghi TRỰC TIẾP toàn bộ sổ SỐ LOT & GIÁ TRỊ GIAO DỊCH (CoreCCP Macro).
+   * Thực hiện đồng thời cả 2 phân hệ Lot và GTGD trong 1 lượt chạy thống nhất.
+   */
+  async runFullMacroStatisticsDirect(dateStr: string, user?: { id?: any; username?: string }) {
+    const jobLogs: string[] = [];
+    jobLogs.push(`[CoreCCP Macro] Bắt đầu tổng hợp và ghi trực tiếp toàn bộ Số Lot & Giá Trị Giao Dịch ngày: ${dateStr}`);
+
+    // 1. Đọc và tính toán số liệu từ thư mục ngày
+    const result = await this.processDailyFiles(dateStr);
+    jobLogs.push(`[CoreCCP Macro] Tổng hợp hoàn tất: ${result.totalSoLot?.toLocaleString('vi-VN')} lot, ${result.totalGiaTri?.toLocaleString('vi-VN')} VND`);
+
+    // 2. Lấy cấu hình đường dẫn file
+    const config = await this.getConfig();
+    const paths: CcpAccumulatorPaths = {
+      pathAcmLot: config.pathAcmLot || config.pathAcmCumulative || '',
+      pathAcmGtgd: config.pathAcmGtgd || config.pathGtgdAcm || '',
+      pathNormalLot: config.pathNormalLot || config.pathNormalCumulative || '',
+      pathSpreadLot: config.pathSpreadLot || config.pathSpreadCumulative || '',
+      pathLmeLot: config.pathLmeLot || config.pathLmeCumulative || '',
+      pathOptionsLot: config.pathOptionsLot || config.pathOptionsCumulative || '',
+      pathGtgdNormal: config.pathGtgdNormal || '',
+      pathGtgdSpread: config.pathGtgdSpread || '',
+      pathGtgdLme: config.pathGtgdLme || '',
+      pathGtgdOptions: config.pathGtgdOptions || '',
+      pathDsgdCumulative: config.pathDsgdCumulative || '',
+    };
+
+    // 3. Đọc buffer DSGD nếu cấu hình có ghi file DSGD thô lũy kế
+    let dsgdBuffer: Buffer | undefined;
+    if (paths.pathDsgdCumulative) {
+      try {
+        const scan = await this.scanDailyFiles(dateStr);
+        if (scan.files.dsgd?.path && fs.existsSync(scan.files.dsgd.path)) {
+          dsgdBuffer = fs.readFileSync(scan.files.dsgd.path);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[CoreCCP Macro] Không thể nạp dsgdBuffer: ${err.message}`);
+      }
+    }
+
+    // 4. Ghi trực tiếp các file Số Lot & GTGD (scope = ALL)
+    const writeResult = await this.writeToAccumulator(
+      result,
+      paths,
+      dsgdBuffer,
+      jobLogs,
+      'ALL',
+    );
+
+    // 5. Lưu lịch sử chạy
+    try {
+      await this.saveRunHistory({
+        sessionDate: dateStr,
+        action: 'WRITE',
+        runType: 'ALL',
+        result,
+        accumulatorLogs: jobLogs,
+        accumulatorPaths: paths as any,
+        userId: user?.id,
+        username: user?.username || 'SYSTEM',
+      });
+    } catch (histErr: any) {
+      this.logger.warn(`[CoreCCP Macro] Lưu run history thất bại: ${histErr.message}`);
+    }
+
+    return {
+      success: writeResult.errors.length === 0,
+      lotUpdated: writeResult.lotUpdated,
+      gtgdUpdated: writeResult.gtgdUpdated,
+      errors: writeResult.errors,
+      logs: jobLogs,
+      result,
+      message: writeResult.errors.length === 0
+        ? `Đã ghi thành công toàn bộ sổ Số Lot & GTGD ngày ${dateStr} (${result.totalSoLot?.toLocaleString('vi-VN')} lot, ${result.totalGiaTri?.toLocaleString('vi-VN')} VND)`
+        : `Ghi sổ Macro hoàn tất nhưng có cảnh báo: ${writeResult.errors.join('; ')}`,
+    };
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // RUN HISTORY: Lưu & Truy vấn lịch sử chạy tổng hợp
   // ──────────────────────────────────────────────────────────────────────────
@@ -2028,6 +2107,11 @@ export class CcpLotStatisticsService {
       summary = `Một số đường dẫn file đích chưa hợp lệ hoặc thư mục cha không tồn tại.`;
     }
 
+    const detectedUsdRate = scan.dbExchangeRates?.detectedRate || 0;
+    if (detectedUsdRate <= 0) {
+      warnings.push('Chưa cấu hình hoặc chưa đồng bộ tỷ giá USD quy đổi trong CSDL MongoDB (ccp_usd_exchange_rate / usd_exchange_rate).');
+    }
+
     return {
       system: 'CCP',
       systemName: 'CoreCCP VNCLEAR (Toàn Thị Trường)',
@@ -2041,8 +2125,8 @@ export class CcpLotStatisticsService {
         folderExists: scan.exists,
         files: sourceFiles,
         exchangeRate: {
-          rate: scan.dbExchangeRates?.detectedRate || 25920,
-          source: scan.dbExchangeRates?.detectedSource || 'Hệ thống / DB',
+          rate: detectedUsdRate,
+          source: detectedUsdRate > 0 ? (scan.dbExchangeRates?.detectedSource || 'Hệ thống / DB') : 'Chưa cấu hình',
           currency: 'USD',
         },
       },
