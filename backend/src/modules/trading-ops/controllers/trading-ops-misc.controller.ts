@@ -31,6 +31,7 @@ import { MsEodReconService } from '../services/ms-eod-recon.service';
 import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
 import { QlgdDashboardService } from '../services/qlgd-dashboard.service';
 import { QlgdExcelExportService } from '../services/qlgd-excel-export.service';
+import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])
@@ -44,7 +45,42 @@ export class TradingOpsMiscController {
     private readonly settingsService: SystemSettingsService,
     private readonly qlgdDashboardService: QlgdDashboardService,
     private readonly qlgdExcelExportService: QlgdExcelExportService,
+    private readonly preflightService: TradingOpsPreflightService,
   ) {}
+
+  /**
+   * Endpoint Kiểm Tra Tình Trạng Tệp & Đường Dẫn Tập Trung (Pre-Flight File Inspector).
+   * Dùng chung cho toàn bộ phân hệ Trading Ops dựa theo TRADING_OPS_PREFLIGHT_REGISTRY.
+   */
+  @Get('preflight')
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE', 'ACCESS_RECON_REPORTS')
+  async inspectPreFlight(
+    @Query('taskKey') taskKey: string,
+    @Query('date') date: string,
+    @Query('scope') scope?: 'LOT' | 'VALUE' | 'ALL',
+  ) {
+    if (!taskKey) {
+      throw new BadRequestException('taskKey là bắt buộc (ví dụ: CE_STATISTICS, CCP_STATISTICS, CHECK_KLGD...)');
+    }
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    return this.preflightService.inspect({
+      taskKey,
+      dateStr: targetDate,
+      filterScope: scope || 'ALL',
+    });
+  }
+
+  /**
+   * Lấy danh mục tất cả các tác vụ trong Trading Ops hỗ trợ kiểm tra trước khi chạy
+   */
+  @Get('preflight/tasks')
+  @Permissions('ACCESS_AUTO_SHIFT', 'ACCESS_MARGIN_CHANGE', 'ACCESS_RECON_REPORTS')
+  async getPreflightTasks() {
+    return {
+      success: true,
+      tasks: this.preflightService.getRegisteredTasks(),
+    };
+  }
 
   /**
    * Đồng bộ tỷ giá USD từ M-System.

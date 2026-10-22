@@ -834,7 +834,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
         const outFileName = reportDef.fileName;
         const targetPath = path.join(fileOutputDir, outFileName);
 
-        this.logger.log(`[CoreCcpApiAdapter] Đang tải ${reportDef.key} (${reportDef.searchCode})...`);
+        const logStarting = `[CoreCCP API] Đang kết nối tải báo cáo ${reportDef.key} (${reportDef.searchCode})...`;
+        this.logger.log(logStarting);
+        if (options?.onLog) options.onLog(logStarting);
         try {
           let downloadSuccess = false;
           let usedServerExport = false;
@@ -971,7 +973,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 fileSize: stat.size,
               },
             });
-            this.logger.log(`[CoreCcpApiAdapter]  Tải thành công ${outFileName} (${stat.size} bytes)`);
+            const logSuccess = `[CoreCCP API] ✓ Tải thành công ${outFileName} (${(stat.size / 1024).toFixed(1)} KB)`;
+            this.logger.log(logSuccess);
+            if (options?.onLog) options.onLog(logSuccess);
 
             // ── TỰ ĐỘNG TRÍCH XUẤT TOÀN BỘ HỢP ĐỒNG (INSTRUMENTS) THEO TỪNG MÃ HÀNG HÓA THỰC TẾ ──
             if (reportDef.key === 'HH' && searchResult && Array.isArray(searchResult.rows)) {
@@ -1037,6 +1041,10 @@ export class CoreCcpApiAdapter implements IIngressPort {
       }
 
       const isSuccess = files.length > 0;
+      const downloadSummary = `[CoreCCP API] ✓ Hoàn tất tải ${files.length} báo cáo CoreCCP qua Direct REST API (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
+      this.logger.log(downloadSummary);
+      if (options?.onLog) options.onLog(downloadSummary);
+
       return {
         success: isSuccess,
         source: 'CCP',

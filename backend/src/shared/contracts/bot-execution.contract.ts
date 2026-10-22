@@ -18,6 +18,8 @@ export interface TaskExecutionContext {
   targetDate?: string;  // YYYY-MM-DD hoặc DD/MM/YYYY
   parameters?: Record<string, any>;
   triggeredBy?: string; // Tên người bấm nút hoặc 'SYSTEM_SCHEDULER'
+  job?: any;            // Tham chiếu BotJob document nếu chạy qua hàng đợi
+  onLog?: (message: string) => void; // Callback ghi log thời gian thực
 }
 
 export interface TaskExecutionResult {
@@ -28,6 +30,7 @@ export interface TaskExecutionResult {
   metrics?: Record<string, any>;        // Các chỉ số tóm tắt (ví dụ: totalMatches: 150, mismatchedCount: 0)
   domainLogRefId?: string;              // ID tham chiếu tới bản ghi chi tiết trong collection riêng (trading_recon_logs, ccp_clearing_logs)
   details?: Record<string, any>;        // Dữ liệu đối chiếu chi tiết (mismatchedTrades, mismatchedPositions, passed, v.v.)
+  logs?: string[];                      // Danh sách các log chi tiết trong quá trình thực thi
   error?: string;
   durationMs?: number;
   executedAt: Date;

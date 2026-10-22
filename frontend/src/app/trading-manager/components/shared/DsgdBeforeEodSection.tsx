@@ -56,12 +56,30 @@ export default function DsgdBeforeEodSection({
   const [result, setResult] = useState<CheckDsgdResult | null>(null);
   const [hasChecked, setHasChecked] = useState<boolean>(false);
   const [executedAt, setExecutedAt] = useState<string | null>(null);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
   const [showAdvancedModal, setShowAdvancedModal] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [showTooltip, setShowTooltip] = useState<boolean>(false);
 
   // Format helper
   const fmtNum = (v?: number) => (v !== undefined && v !== null ? v.toLocaleString('en-US') : '0');
+
+  const formatRunTime = (isoString?: string | null) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  };
+
+  const formatDuration = (ms?: number | null) => {
+    if (ms === null || ms === undefined || ms < 0) return '';
+    const totalSeconds = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes > 0) return `${minutes}p ${seconds}s`;
+    return `${seconds}s`;
+  };
 
   // Chuyển đổi đường dẫn Linux mount sang đường dẫn Windows ổ M:\Tailieuchung\QLGD-IT
   const toWindowsDisplayPath = (rawPath?: string) => {
@@ -77,17 +95,79 @@ export default function DsgdBeforeEodSection({
     toast.success(`Đã sao chép ${label} Windows!`);
   };
 
-  // Reset state on date change
+  // Load state on mount or date/system change
   useEffect(() => {
-    setResult(null);
-    setHasChecked(false);
-    setExecutedAt(null);
-  }, [selectedDate, system]);
+    let isCancelled = false;
+    const cacheKey = `dsgd_before_eod_${system}_${selectedDate}`;
+
+    // 1. Phục hồi nhanh từ cache để UI không bị giật / mất dữ liệu khi chuyển tab
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.result) {
+          setResult(parsed.result);
+          setHasChecked(true);
+          setExecutedAt(parsed.executedAt || null);
+          setDurationMs(parsed.durationMs || null);
+        }
+      } else {
+        setResult(null);
+        setHasChecked(false);
+        setExecutedAt(null);
+        setDurationMs(null);
+      }
+    } catch {
+      setResult(null);
+      setHasChecked(false);
+      setExecutedAt(null);
+      setDurationMs(null);
+    }
+
+    // 2. Fetch kết quả đối chiếu gần nhất từ máy chủ backend
+    if (token) {
+      tradingOpsApi
+        .getLatestDsgdBeforeEod({ system, tradingDate: selectedDate }, token)
+        .then((res) => {
+          if (isCancelled) return;
+          if (res && res.success && res.result) {
+            setResult(res.result);
+            setHasChecked(true);
+            setExecutedAt(res.executedAt || null);
+            setDurationMs(res.durationMs || null);
+
+            try {
+              sessionStorage.setItem(
+                cacheKey,
+                JSON.stringify({
+                  result: res.result,
+                  executedAt: res.executedAt,
+                  durationMs: res.durationMs,
+                }),
+              );
+            } catch {}
+
+            if (onStatusChange) {
+              onStatusChange({
+                passed: res.result.passed,
+                differTotal: res.result.differTotal || 0,
+              });
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedDate, system, token]);
 
   // Quick check handler
   const handleRunQuickCheck = async () => {
     if (!token || loading) return;
     setLoading(true);
+    const startTime = Date.now();
     const toastId = toast.loading(`Đang quét và đối chiếu DSGD trước EOD (${system})...`);
 
     try {
@@ -103,9 +183,25 @@ export default function DsgdBeforeEodSection({
 
       if (res && res.result) {
         const data: CheckDsgdResult = res.result;
+        const dur = res.durationMs ?? (Date.now() - startTime);
+        const execAt = res.executedAt ?? new Date().toISOString();
+
         setResult(data);
         setHasChecked(true);
-        setExecutedAt(new Date().toLocaleTimeString('vi-VN'));
+        setExecutedAt(execAt);
+        setDurationMs(dur);
+
+        try {
+          const cacheKey = `dsgd_before_eod_${system}_${selectedDate}`;
+          sessionStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              result: data,
+              executedAt: execAt,
+              durationMs: dur,
+            }),
+          );
+        } catch {}
 
         if (onStatusChange) {
           onStatusChange({
@@ -137,7 +233,19 @@ export default function DsgdBeforeEodSection({
     if (modalResult) {
       setResult(modalResult);
       setHasChecked(true);
-      setExecutedAt(new Date().toLocaleTimeString('vi-VN'));
+      const execAt = new Date().toISOString();
+      setExecutedAt(execAt);
+      try {
+        const cacheKey = `dsgd_before_eod_${system}_${selectedDate}`;
+        sessionStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            result: modalResult,
+            executedAt: execAt,
+            durationMs,
+          }),
+        );
+      } catch {}
       if (onStatusChange) {
         onStatusChange({
           passed: modalResult.passed,
@@ -153,7 +261,7 @@ export default function DsgdBeforeEodSection({
     const reportText = `[KIỂM TRA DSGD TRƯỚC EOD (${system}) (CheckDSGDBeforeEOD)]
 Phiên đối chiếu: ${result.sessionDate || selectedDate}
 Phân hệ: ${system === 'CCP' ? 'CoreCCP' : 'M-System'}
-Thời gian kiểm tra: ${executedAt || 'N/A'}
+Thời gian kiểm tra: ${formatRunTime(executedAt) || 'N/A'}${durationMs ? ` (${formatDuration(durationMs)})` : ''}
 - DSGD gốc / backup T-1 (${system}): ${result.totalOriginal?.toLocaleString('en-US')} lot
 - DSGD snapshot / tươi API T-1 (${system}): ${result.totalTemp?.toLocaleString('en-US')} lot
 - Chênh lệch tổng: ${result.differTotal} lot
@@ -299,12 +407,16 @@ Trạng thái: ${result.passed ? 'KHỚP 100%' : result.isSnapshotMissing ? 'THI
               <span
                 style={{
                   fontSize: '0.74rem',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'monospace',
+                  color: result?.passed ? '#10b981' : '#f59e0b',
                   fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginLeft: '4px',
                 }}
               >
-                ({executedAt})
+                (Lần chạy gần nhất: {formatRunTime(executedAt)}
+                {durationMs !== null && durationMs !== undefined ? ` • ${formatDuration(durationMs)}` : ''})
               </span>
             )}
           </div>

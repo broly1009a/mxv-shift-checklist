@@ -119,4 +119,43 @@ export const ceClearingApi = {
       token,
     );
   },
+
+  /**
+   * Lấy danh sách lịch sử thực thi thống kê CoreEX gần nhất
+   */
+  async getLotRunHistory(
+    params?: { date?: string; limit?: number },
+    token?: string | null,
+  ): Promise<any[]> {
+    const query = new URLSearchParams();
+    if (params?.date) query.set('date', params.date);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const endpoint = API_ENDPOINTS.CE_CLEARING.RUN_HISTORY(qs);
+    return requestJson<any[]>(endpoint, { method: 'GET' }, token);
+  },
+
+  /**
+   * Lấy bản ghi chạy gần nhất cho một ngày phiên
+   */
+  async getLatestLotRun(
+    date?: string,
+    token?: string | null,
+  ): Promise<any | null> {
+    const endpoint = API_ENDPOINTS.CE_CLEARING.LATEST_RUN(date);
+    return requestJson<any | null>(endpoint, { method: 'GET' }, token);
+  },
+
+  /**
+   * Kiểm tra thông tin các file sẽ chạy và tính hợp lý của đường dẫn lưu file (CoreEX)
+   */
+  async inspectPreFlight(
+    date: string,
+    type: 'LOT' | 'VALUE' | 'ALL' = 'ALL',
+    token?: string | null,
+  ): Promise<any> {
+    const endpoint = API_ENDPOINTS.CE_CLEARING.PREFLIGHT(date, type);
+    return requestJson<any>(endpoint, { method: 'GET' }, token);
+  },
 };
+

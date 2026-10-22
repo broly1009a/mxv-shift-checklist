@@ -101,13 +101,33 @@ export const tradingOpsApi = {
       taskId?: string;
     },
     token?: string | null,
-  ): Promise<{ success: boolean; message: string; result: any }> {
-    return requestJson<{ success: boolean; message: string; result: any }>(
+  ): Promise<{ success: boolean; message: string; result: any; durationMs?: number; executedAt?: string }> {
+    return requestJson<{ success: boolean; message: string; result: any; durationMs?: number; executedAt?: string }>(
       '/api/v1/trading-ops/check-dsgd-before-eod',
       {
         method: 'POST',
         body: JSON.stringify(params),
       },
+      token,
+    );
+  },
+
+  /**
+   * Lấy kết quả kiểm tra DSGD trước EOD mới nhất của một phiên và phân hệ.
+   */
+  async getLatestDsgdBeforeEod(
+    params: {
+      system?: 'MS' | 'CCP';
+      tradingDate?: string;
+    },
+    token?: string | null,
+  ): Promise<{ success: boolean; result?: any; executedAt?: string; durationMs?: number; message?: string }> {
+    const query = new URLSearchParams();
+    if (params.system) query.append('system', params.system);
+    if (params.tradingDate) query.append('tradingDate', params.tradingDate);
+    return requestJson<{ success: boolean; result?: any; executedAt?: string; durationMs?: number; message?: string }>(
+      `/api/v1/trading-ops/latest-dsgd-before-eod?${query.toString()}`,
+      { method: 'GET' },
       token,
     );
   },

@@ -35,11 +35,13 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  FileSearch,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
 import SmartPathInput from '@/components/admin/SmartPathInput';
 import { STORAGE_MOUNT_CONFIG } from '@/config/storage-path.config';
+import PreFlightFileInspectorModal from '../shared/PreFlightFileInspectorModal';
 
 export interface CcpLotStatisticsSectionProps {
   token: string | null;
@@ -211,6 +213,9 @@ export default function CcpLotStatisticsSection({
   const [historyPage, setHistoryPage] = useState<number>(1);
   const historyPageSize = 5;
   const [selectedHistoryLog, setSelectedHistoryLog] = useState<{ title: string; logs: string[] } | null>(null);
+
+  // ── Pre-Flight Inspector Modal (Kiểm tra tệp & đường dẫn trước khi chạy) ──
+  const [inspectorModal, setInspectorModal] = useState<{ isOpen: boolean; type: 'LOT' | 'VALUE' | 'ALL' } | null>(null);
 
   const fetchRunHistory = useCallback(async () => {
     if (!token) return;
@@ -891,70 +896,154 @@ export default function CcpLotStatisticsSection({
 
             {/* 1-Click Action Buttons: Tách Độc Lập Số Lot & Giá Trị Giao Dịch */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Nút 1: Thống Kê Số Lot (1-Chạm Ghi Trực Tiếp) */}
-              <button
-                type="button"
-                onClick={handleRunLotDirect}
-                disabled={runningLot || runningValue || !scanResult?.canProcess}
-                className="btn btn-primary"
-                style={{
-                  fontSize: '0.86rem',
-                  fontWeight: 800,
-                  padding: '10px 22px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-                  cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
-                  backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
-                }}
-              >
-                {runningLot ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Đang Ghi File Số Lot...</span>
-                  </>
-                ) : (
-                  <>
-                    <Layers size={16} />
-                    <span>Thống Kê Số Lot (CoreCCP)</span>
-                  </>
-                )}
-              </button>
+              {/* Nút 1: Thống Kê Số Lot (1-Chạm Ghi Trực Tiếp) + Icon Kiểm Tra File */}
+              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleRunLotDirect}
+                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-primary"
+                  style={{
+                    fontSize: '0.86rem',
+                    fontWeight: 800,
+                    padding: '10px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderTopLeftRadius: '8px',
+                    borderBottomLeftRadius: '8px',
+                    borderTopRightRadius: 0,
+                    borderBottomRightRadius: 0,
+                    borderRight: '1px solid rgba(255, 255, 255, 0.25)',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                    backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
+                  }}
+                >
+                  {runningLot ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Đang Ghi File Số Lot...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers size={16} />
+                      <span>Thống Kê Số Lot (CoreCCP)</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectorModal({ isOpen: true, type: 'LOT' })}
+                  style={{
+                    fontSize: '0.86rem',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTopRightRadius: '8px',
+                    borderBottomRightRadius: '8px',
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                    border: 'none',
+                    backgroundColor: scanResult?.canProcess ? '#059669' : '#334155',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file Số Lot CoreCCP"
+                >
+                  <FileSearch size={16} />
+                </button>
+              </div>
 
-              {/* Nút 2: Thống Kê Giá Trị (1-Chạm Ghi Trực Tiếp) */}
+              {/* Nút 2: Thống Kê Giá Trị (1-Chạm Ghi Trực Tiếp) + Icon Kiểm Tra File */}
+              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleRunValueDirect}
+                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.86rem',
+                    fontWeight: 800,
+                    padding: '10px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderTopLeftRadius: '8px',
+                    borderBottomLeftRadius: '8px',
+                    borderTopRightRadius: 0,
+                    borderBottomRightRadius: 0,
+                    borderRight: 'none',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    color: '#f59e0b',
+                    boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {runningValue ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Đang Ghi File Giá Trị...</span>
+                    </>
+                  ) : (
+                    <>
+                      <DollarSign size={16} />
+                      <span>Thống Kê Giá Trị (CoreCCP)</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectorModal({ isOpen: true, type: 'VALUE' })}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.86rem',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTopRightRadius: '8px',
+                    borderBottomRightRadius: '8px',
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    color: '#f59e0b',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
+                  }}
+                  title="Xem thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file Giá Trị CoreCCP"
+                >
+                  <FileSearch size={16} />
+                </button>
+              </div>
+
+              {/* Nút 3: Kiểm Tra Toàn Bộ Luồng File (Pre-Flight File Inspector) */}
               <button
                 type="button"
-                onClick={handleRunValueDirect}
-                disabled={runningLot || runningValue || !scanResult?.canProcess}
+                onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
                 className="btn btn-secondary"
                 style={{
                   fontSize: '0.86rem',
-                  fontWeight: 800,
-                  padding: '10px 22px',
+                  fontWeight: 700,
+                  padding: '10px 16px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '6px',
                   borderRadius: '8px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                  borderColor: 'rgba(245, 158, 11, 0.4)',
-                  color: '#f59e0b',
-                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.2)',
-                  cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                  backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                  borderColor: 'rgba(14, 165, 233, 0.35)',
+                  color: '#0ea5e9',
+                  cursor: 'pointer',
                 }}
+                title="Kiểm tra chi tiết tình trạng các file đầu vào và đường dẫn lưu 11 file lũy kế CoreCCP"
               >
-                {runningValue ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Đang Ghi File Giá Trị...</span>
-                  </>
-                ) : (
-                  <>
-                    <DollarSign size={16} />
-                    <span>Thống Kê Giá Trị (CoreCCP)</span>
-                  </>
-                )}
+                <FileSearch size={16} />
+                <span>Kiểm Tra Luồng File</span>
               </button>
             </div>
 
@@ -1534,64 +1623,141 @@ export default function CcpLotStatisticsSection({
 
             {dataSourceMode === 'AUTO_DETECT' ? (
               <>
-                <button
-                  type="button"
-                  onClick={handleRunLotDirect}
-                  disabled={runningLot || runningValue || !scanResult?.canProcess}
-                  className="btn btn-primary"
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    padding: '8px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
-                    backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
-                  }}
-                >
-                  {runningLot ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      <span>Đang Ghi Lot...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Layers size={15} />
-                      <span>Thống Kê Số Lot</span>
-                    </>
-                  )}
-                </button>
+                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={handleRunLotDirect}
+                    disabled={runningLot || runningValue || !scanResult?.canProcess}
+                    className="btn btn-primary"
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      padding: '8px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                      borderRight: '1px solid rgba(255, 255, 255, 0.25)',
+                      cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                      backgroundColor: scanResult?.canProcess ? '#10b981' : undefined,
+                    }}
+                  >
+                    {runningLot ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Đang Ghi Lot...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Layers size={15} />
+                        <span>Thống Kê Số Lot</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInspectorModal({ isOpen: true, type: 'LOT' })}
+                    style={{
+                      fontSize: '0.82rem',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderTopRightRadius: '6px',
+                      borderBottomRightRadius: '6px',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                      border: 'none',
+                      backgroundColor: scanResult?.canProcess ? '#059669' : '#334155',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                    }}
+                    title="Kiểm tra file Số Lot"
+                  >
+                    <FileSearch size={14} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={handleRunValueDirect}
+                    disabled={runningLot || runningValue || !scanResult?.canProcess}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      padding: '8px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                      borderRight: 'none',
+                      cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      borderColor: 'rgba(245, 158, 11, 0.4)',
+                      color: '#f59e0b',
+                    }}
+                  >
+                    {runningValue ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Đang Ghi GTGD...</span>
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign size={15} />
+                        <span>Thống Kê Giá Trị</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInspectorModal({ isOpen: true, type: 'VALUE' })}
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: '0.82rem',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderTopRightRadius: '6px',
+                      borderBottomRightRadius: '6px',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                      backgroundColor: 'rgba(245, 158, 11, 0.22)',
+                      borderColor: 'rgba(245, 158, 11, 0.4)',
+                      color: '#f59e0b',
+                      cursor: 'pointer',
+                    }}
+                    title="Kiểm tra file Giá Trị"
+                  >
+                    <FileSearch size={14} />
+                  </button>
+                </div>
 
                 <button
                   type="button"
-                  onClick={handleRunValueDirect}
-                  disabled={runningLot || runningValue || !scanResult?.canProcess}
+                  onClick={() => setInspectorModal({ isOpen: true, type: 'ALL' })}
                   className="btn btn-secondary"
                   style={{
                     fontSize: '0.82rem',
                     fontWeight: 700,
-                    padding: '8px 16px',
+                    padding: '8px 12px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    cursor: runningLot || runningValue || !scanResult?.canProcess ? 'not-allowed' : 'pointer',
-                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                    borderColor: 'rgba(245, 158, 11, 0.4)',
-                    color: '#f59e0b',
+                    gap: '5px',
+                    color: '#0ea5e9',
+                    borderColor: 'rgba(14, 165, 233, 0.35)',
+                    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                    cursor: 'pointer',
                   }}
+                  title="Kiểm tra toàn bộ luồng file đầu vào & đầu ra CoreCCP"
                 >
-                  {runningValue ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      <span>Đang Ghi GTGD...</span>
-                    </>
-                  ) : (
-                    <>
-                      <DollarSign size={15} />
-                      <span>Thống Kê Giá Trị</span>
-                    </>
-                  )}
+                  <FileSearch size={14} />
+                  <span>Kiểm Tra File</span>
                 </button>
               </>
             ) : (
@@ -3341,6 +3507,21 @@ export default function CcpLotStatisticsSection({
           )}
         </div>
       )}
+
+      {/* Modal Kiểm Tra Tình Trạng File & Đường Dẫn (Pre-Flight File Inspector) */}
+      <PreFlightFileInspectorModal
+        isOpen={!!inspectorModal?.isOpen}
+        onClose={() => setInspectorModal(null)}
+        taskKey="CCP_STATISTICS"
+        system="CCP"
+        targetDate={ngayGD}
+        initialType={inspectorModal?.type || 'ALL'}
+        token={token}
+        onOpenConfig={() => {
+          setInspectorModal(null);
+          setShowConfig(true);
+        }}
+      />
     </div>
   );
 }

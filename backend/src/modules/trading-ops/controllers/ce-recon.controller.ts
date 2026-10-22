@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { CeLotStatisticsService } from '../services/ce-lot-statistics.service';
+import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
 
 /**
  * Controller chuyên biệt quản lý nghiệp vụ Thống kê Số Lot & Giá trị Giao dịch Core Exchange (CE)
@@ -32,6 +33,7 @@ export class CeReconController {
 
   constructor(
     private readonly ceLotStatisticsService: CeLotStatisticsService,
+    private readonly preflightService: TradingOpsPreflightService,
   ) {}
 
   /**
@@ -203,6 +205,49 @@ export class CeReconController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * GET /api/v1/ce-clearing/lot-statistics/run-history
+   * Truy vấn danh sách lịch sử thực thi thống kê Số Lot & Giá Trị CoreEX gần nhất
+   */
+  @Get('lot-statistics/run-history')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getLotRunHistory(
+    @Query('date') date?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const lim = limit ? Math.min(50, Math.max(1, parseInt(limit, 10))) : 20;
+    return this.ceLotStatisticsService.getRunHistory(date, lim);
+  }
+
+  /**
+   * GET /api/v1/ce-clearing/lot-statistics/latest-run
+   * Truy vấn bản ghi chạy gần nhất (cho phiên giao dịch nếu chỉ định)
+   */
+  @Get('lot-statistics/latest-run')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getLatestLotRun(@Query('date') date?: string) {
+    const runs = await this.ceLotStatisticsService.getRunHistory(date, 1);
+    return runs.length > 0 ? runs[0] : null;
+  }
+
+  /**
+   * GET /api/v1/ce-clearing/lot-statistics/preflight
+   * Kiểm tra thông tin các file sẽ chạy và kiểm tra đường dẫn lưu file có hợp lý không
+   */
+  @Get('lot-statistics/preflight')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async inspectPreFlight(
+    @Query('date') date?: string,
+    @Query('type') type?: 'LOT' | 'VALUE' | 'ALL',
+  ) {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    return this.preflightService.inspect({
+      taskKey: 'CE_STATISTICS',
+      dateStr: targetDate,
+      filterScope: type || 'ALL',
+    });
   }
 
   /**

@@ -40,10 +40,12 @@ import { WorkingCalendarModule } from '../working-calendar/working-calendar.modu
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-run-history.schema';
+import { CeLotRunHistory, CeLotRunHistorySchema } from '../../schemas/ce-lot-run-history.schema';
 import { CcpLotStatisticsService } from './services/ccp-lot-statistics.service';
 import { CcpStatisticsService } from './services/ccp-statistics.service';
 import { CeLotStatisticsService } from './services/ce-lot-statistics.service';
 import { CcpAdHocStatisticsService } from './services/ccp-adhoc-statistics.service';
+import { TradingOpsPreflightService } from './services/trading-ops-preflight.service';
 
 // Controllers Domain Chuyên Biệt V2
 import { KlgdReconController } from './controllers/klgd-recon.controller';
@@ -68,6 +70,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
       { name: BotJob.name, schema: BotJobSchema },
       { name: ShiftLog.name, schema: ShiftLogSchema },
       { name: CcpLotRunHistory.name, schema: CcpLotRunHistorySchema },
+      { name: CeLotRunHistory.name, schema: CeLotRunHistorySchema },
     ]),
   ],
   controllers: [
@@ -110,6 +113,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CcpStatisticsService,
     CeLotStatisticsService,
     CcpAdHocStatisticsService,
+    TradingOpsPreflightService,
   ],
   exports: [
     CqgMergerService,
@@ -141,6 +145,7 @@ import { CeReconController } from './controllers/ce-recon.controller';
     CcpLotStatisticsService,
     CcpStatisticsService,
     CcpAdHocStatisticsService,
+    TradingOpsPreflightService,
     MongooseModule,
   ],
 })

@@ -36,12 +36,32 @@ export class CcpEodWorker implements IBotWorker {
       `[CcpEodWorker] Tiếp nhận thực thi ${this.capabilityType} cho Task: ${context.taskId}, Ca: ${context.shiftId || 'N/A'}`,
     );
 
+    const job = (context as any).job || context.parameters?.job;
+    const executionLogs: string[] = [];
+
+    const handleLog = (msg: string) => {
+      const line = msg.startsWith('[') ? msg : `[${new Date().toISOString()}] ${msg}`;
+      executionLogs.push(line);
+      if (job && Array.isArray(job.logs)) {
+        job.logs.push(line);
+      }
+      if (typeof context.onLog === 'function') {
+        context.onLog(line);
+      }
+    };
+
+    handleLog(
+      `[CcpEodWorker] Tiếp nhận thực thi ${this.displayName} cho Task: ${context.taskId}, Ca: ${context.shiftId || 'N/A'}`,
+    );
+
     try {
       const targetDate = context.targetDate
         ? new Date(context.targetDate)
         : new Date();
 
-      const res = await this.ccpEodService.runAutoCheckEodCcp(targetDate);
+      const res = await this.ccpEodService.runAutoCheckEodCcp(targetDate, {
+        onLog: handleLog,
+      });
 
       const passed =
         res.mismatchedEOD.length === 0 && res.negativeIMRAcc.length === 0;
@@ -86,6 +106,7 @@ export class CcpEodWorker implements IBotWorker {
       return {
         status,
         summary,
+        logs: executionLogs,
         metrics: {
           totalAccounts: res.totalAccounts,
           mismatchedCount: res.mismatchedEOD.length,

@@ -686,7 +686,7 @@ export class ReconConsoleSummaryService {
       const marginPromise = this.botJobModel
         .findOne({
           jobType: {
-            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS'],
+            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS', 'CHECK_EOD_CCP'],
           },
           ...dateFilterCondition,
         })
@@ -916,19 +916,32 @@ export class ReconConsoleSummaryService {
       : {};
     const marginResult = marginPayload.result || {};
 
+    const ccpCheckPayload = ccpCheckJob
+      ? typeof ccpCheckJob.toObject === 'function'
+        ? ccpCheckJob.toObject().payload || {}
+        : ccpCheckJob.payload && typeof ccpCheckJob.payload.toObject === 'function'
+          ? ccpCheckJob.payload.toObject()
+          : ccpCheckJob.payload || {}
+      : {};
+    const ccpCheckResult = ccpCheckPayload.result || {};
+
     const rawNegativeIMR: string[] =
       marginResult.negativeIMRAcc && marginResult.negativeIMRAcc.length > 0
         ? marginResult.negativeIMRAcc
         : marginResult.eodResult?.negativeIMRAcc && marginResult.eodResult.negativeIMRAcc.length > 0
           ? marginResult.eodResult.negativeIMRAcc
-          : dsgdBeforeEodResult.eodResult?.negativeIMRAcc || [];
+          : ccpCheckResult?.negativeIMRAcc && ccpCheckResult.negativeIMRAcc.length > 0
+            ? ccpCheckResult.negativeIMRAcc
+            : dsgdBeforeEodResult.eodResult?.negativeIMRAcc || [];
 
     const rawNegativeBalance: string[] =
       marginResult.negativeBalanceAccs && marginResult.negativeBalanceAccs.length > 0
         ? marginResult.negativeBalanceAccs
         : marginResult.eodResult?.negativeBalanceAccs && marginResult.eodResult.negativeBalanceAccs.length > 0
           ? marginResult.eodResult.negativeBalanceAccs
-          : dsgdBeforeEodResult.eodResult?.negativeBalanceAccs || [];
+          : ccpCheckResult?.negativeBalanceAccs && ccpCheckResult.negativeBalanceAccs.length > 0
+            ? ccpCheckResult.negativeBalanceAccs
+            : dsgdBeforeEodResult.eodResult?.negativeBalanceAccs || [];
 
     // Lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi cấu hình (Chuẩn C# FormMain.cs#L1625)
     const monitoredAccsStr = await this.settingsService.getSetting(
@@ -1045,7 +1058,6 @@ export class ReconConsoleSummaryService {
       }
     }
 
-    const ccpCheckResult = ccpCheckJob?.payload?.result || {};
     const ccpMismatchedAccounts = ccpCheckResult?.mismatchedEOD || [];
 
     const latestRunId = runs.length > 0 ? runs[0].id : null;
@@ -1222,6 +1234,13 @@ export class ReconConsoleSummaryService {
         executedAt: latestEodJob?.createdAt
           ? new Date(latestEodJob.createdAt).toISOString()
           : null,
+        completedAt: latestEodJob?.completedAt
+          ? new Date(latestEodJob.completedAt).toISOString()
+          : null,
+        durationMs:
+          latestEodJob?.completedAt && latestEodJob?.createdAt
+            ? new Date(latestEodJob.completedAt).getTime() - new Date(latestEodJob.createdAt).getTime()
+            : null,
         error: latestEodJob?.error || null,
         logs: latestEodJob?.logs || [],
         isWaitingFiles: !!(latestEodResult.isWaitingFiles),
@@ -1230,13 +1249,24 @@ export class ReconConsoleSummaryService {
         totals: latestEodResult.totals || {},
         mismatchedEODCount: resolvedMismatchedEOD.length,
         mismatchedEOD: resolvedMismatchedEOD,
+        negativeIMRAcc: ccpCheckResult?.negativeIMRAcc || [],
+        negativeBalanceAccs: ccpCheckResult?.negativeBalanceAccs || [],
       },
       negativeMargin: {
-        jobId: marginJob?._id?.toString() || null,
-        executedAt: marginJob?.createdAt
-          ? new Date(marginJob.createdAt).toISOString()
+        jobId: marginJob?._id?.toString() || ccpCheckJob?._id?.toString() || null,
+        executedAt: (marginJob?.createdAt || ccpCheckJob?.createdAt)
+          ? new Date(marginJob?.createdAt || ccpCheckJob?.createdAt).toISOString()
           : null,
-        status: marginJob?.status || 'IDLE',
+        completedAt: (marginJob?.completedAt || ccpCheckJob?.completedAt)
+          ? new Date(marginJob?.completedAt || ccpCheckJob?.completedAt).toISOString()
+          : null,
+        durationMs:
+          marginJob?.completedAt && marginJob?.createdAt
+            ? new Date(marginJob.completedAt).getTime() - new Date(marginJob.createdAt).getTime()
+            : ccpCheckJob?.completedAt && ccpCheckJob?.createdAt
+              ? new Date(ccpCheckJob.completedAt).getTime() - new Date(ccpCheckJob.createdAt).getTime()
+              : null,
+        status: marginJob?.status || ccpCheckJob?.status || 'IDLE',
         isWaitingFiles: !!(marginResult.isWaitingFiles),
         waitingMessage: marginResult.waitingMessage || marginResult.message || null,
         negativeIMRAccCount: newNegativeIMR.length,
@@ -1272,6 +1302,14 @@ export class ReconConsoleSummaryService {
           executedAt: ccpCheckJob?.createdAt
             ? new Date(ccpCheckJob.createdAt).toISOString()
             : null,
+          completedAt: ccpCheckJob?.completedAt
+            ? new Date(ccpCheckJob.completedAt).toISOString()
+            : null,
+          durationMs:
+            ccpCheckJob?.completedAt && ccpCheckJob?.createdAt
+              ? new Date(ccpCheckJob.completedAt).getTime() - new Date(ccpCheckJob.createdAt).getTime()
+              : null,
+          result: ccpCheckResult,
         },
         filesPresent: ccpFilesPresent,
         folderPath: ccpDailyPath,

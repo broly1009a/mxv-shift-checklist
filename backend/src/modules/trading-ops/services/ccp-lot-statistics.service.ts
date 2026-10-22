@@ -50,6 +50,7 @@ import {
   writeCcpTypedValueToAccumulator,
   appendCcpRawDsgd,
   resolveCcpAccumulatorFilePath,
+  checkDateExistsInAccumulator,
   CcpAccumulatorPaths,
 } from '../helpers/ccp-accumulator.helper';
 import {
@@ -60,6 +61,10 @@ import {
   resolveStoragePathCrossPlatform,
   resolveDynamicPath,
 } from '../../bot-engine/helpers/bot-path.helper';
+import {
+  TRADING_FILE_PATTERNS,
+  matchTradingFileName,
+} from '../constants/trading-file-patterns.constant';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1177,13 +1182,8 @@ export class CcpLotStatisticsService {
         folderExists = true;
         try {
           const files = fs.readdirSync(folder);
-          const hasDsgd = files.some(
-            (f) =>
-              /^DSGD.*\.xlsx$/i.test(f) ||
-              /^DSGD.*\.xls$/i.test(f) ||
-              /^DSGD.*\.csv$/i.test(f) ||
-              /^ORDERMATCH.*\.xlsx$/i.test(f) ||
-              /^ORDERMATCH.*\.csv$/i.test(f),
+          const hasDsgd = files.some((f) =>
+            matchTradingFileName(f, TRADING_FILE_PATTERNS.CCP_DSGD),
           );
           if (hasDsgd) {
             folderToScan = folder;
@@ -1210,9 +1210,9 @@ export class CcpLotStatisticsService {
     try {
       const dirFiles = fs.readdirSync(folderToScan);
 
-      const findFile = (patterns: RegExp[]): CcpDailyFileInfo | undefined => {
+      const findFile = (patterns: (RegExp | string)[]): CcpDailyFileInfo | undefined => {
         for (const pattern of patterns) {
-          const match = dirFiles.find((f) => pattern.test(f));
+          const match = dirFiles.find((f) => matchTradingFileName(f, [pattern]));
           if (match) {
             const fpath = path.join(folderToScan, match);
             const stat = fs.statSync(fpath);
@@ -1227,43 +1227,17 @@ export class CcpLotStatisticsService {
         return undefined;
       };
 
-      // 1. DSGD (bắt buộc) - Ưu tiên file DSGD giao dịch chuẩn
-      result.files.dsgd = findFile([
-        /^DSGD(?!\s*MM).*\.csv$/i,
-        /^DSGD(?!\s*MM).*\.xlsx$/i,
-        /^DSGD(?!\s*MM).*\.xls$/i,
-        /^ORDERMATCH_DETAIL.*\.xlsx$/i,
-        /^ORDERMATCH.*\.xlsx$/i,
-        /^ORDERMATCH.*\.csv$/i,
-        /^DSGD.*\.csv$/i,
-        /^DSGD.*\.xlsx$/i,
-        /^DSGD.*\.xls$/i,
-      ]);
+      // 1. DSGD (bắt buộc) - Nguồn khớp lệnh chính từ TRADING_FILE_PATTERNS
+      result.files.dsgd = findFile(TRADING_FILE_PATTERNS.CCP_DSGD);
 
       // 2. TTM (tùy chọn)
-      result.files.ttm = findFile([
-        /^TTM.*\.xlsx$/i,
-        /^TTM.*\.xls$/i,
-        /^TTM.*\.csv$/i,
-        /^OPEN_POSITION.*\.xlsx$/i,
-        /^OPEN_POSITION.*\.csv$/i,
-      ]);
+      result.files.ttm = findFile(TRADING_FILE_PATTERNS.CCP_TTM);
 
       // 3. TTTT (tùy chọn)
-      result.files.tttt = findFile([
-        /^TTTT.*\.xlsx$/i,
-        /^TTTT.*\.xls$/i,
-        /^TTTT.*\.csv$/i,
-        /^PNL_EXECUTED.*\.xlsx$/i,
-        /^PNL_EXECUTED.*\.csv$/i,
-      ]);
+      result.files.tttt = findFile(TRADING_FILE_PATTERNS.CCP_TTTT);
 
       // 4. Tỷ giá (tùy chọn) - ưu tiên ngày hiện tại
-      result.files.tyGia = findFile([
-        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xlsx$/i,
-        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xls$/i,
-        /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.csv$/i,
-      ]);
+      result.files.tyGia = findFile(TRADING_FILE_PATTERNS.TY_GIA);
 
       // Nếu ngày hiện tại chưa có file tỷ giá -> Quét tìm file tỷ giá gần nhất từ các ngày trước
       if (!result.files.tyGia) {
@@ -1272,11 +1246,7 @@ export class CcpLotStatisticsService {
           const nearestTyGia = this.findLatestFileInHistory(
             baseFolder,
             dateObj,
-            [
-              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xlsx$/i,
-              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.xls$/i,
-              /^(?:Tỷ\s*giá|Ty_?gia|ExchangeRate|TYGIA).*\.csv$/i,
-            ],
+            TRADING_FILE_PATTERNS.TY_GIA,
             30,
           );
           if (nearestTyGia) {
@@ -1290,11 +1260,7 @@ export class CcpLotStatisticsService {
       }
 
       // 5. Mã HĐ / Quy chuẩn Hàng hóa doCao (tùy chọn) - ưu tiên ngày hiện tại
-      result.files.maHD = findFile([
-        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xlsx$/i,
-        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xls$/i,
-        /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.csv$/i,
-      ]);
+      result.files.maHD = findFile(TRADING_FILE_PATTERNS.MA_HD_COMMODITY);
 
       // Nếu ngày hiện tại chưa có file Mã HĐ -> Quét tìm file Mã HĐ gần nhất từ các ngày trước
       if (!result.files.maHD) {
@@ -1303,12 +1269,8 @@ export class CcpLotStatisticsService {
           const nearestMaHD = this.findLatestFileInHistory(
             baseFolder,
             dateObj,
-            [
-              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xlsx$/i,
-              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.xls$/i,
-              /^(?:Mã\s*HĐ|Ma_?HD|COMMODITY|Hợp\s*đồng).*\.csv$/i,
-            ],
-            60,
+            TRADING_FILE_PATTERNS.MA_HD_COMMODITY,
+            30,
           );
           if (nearestMaHD) {
             result.files.maHD = nearestMaHD;
@@ -1578,7 +1540,7 @@ export class CcpLotStatisticsService {
   private findLatestFileInHistory(
     baseDir: string,
     targetDate: Date,
-    patterns: RegExp[],
+    patterns: (RegExp | string)[],
     maxDays = 30,
   ): (CcpDailyFileInfo & { fromDate?: string }) | undefined {
     if (!fs.existsSync(baseDir)) return undefined;
@@ -1592,7 +1554,7 @@ export class CcpLotStatisticsService {
         if (fs.existsSync(sub.fullPath)) {
           const files = fs.readdirSync(sub.fullPath);
           for (const pattern of patterns) {
-            const match = files.find((f) => pattern.test(f));
+            const match = files.find((f) => matchTradingFileName(f, [pattern]));
             if (match) {
               const fpath = path.join(sub.fullPath, match);
               const stat = fs.statSync(fpath);
@@ -1845,5 +1807,247 @@ export class CcpLotStatisticsService {
       .limit(limit)
       .lean()
       .exec();
+  }
+
+  /**
+   * Kiểm tra thông tin các tệp sẽ chạy và tính hợp lý của các đường dẫn lưu file trước khi thực thi (CoreCCP).
+   */
+  async inspectPreFlight(
+    dateStr: string,
+    actionType: 'LOT' | 'VALUE' | 'ALL' = 'ALL',
+  ): Promise<any> {
+    const scan = await this.scanDailyFiles(dateStr);
+    const config = await this.getConfig();
+    const warnings: string[] = [];
+
+    const formatBytes = (bytes?: number) => {
+      if (!bytes || bytes <= 0) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    };
+
+    // 1. Danh sách tệp nguồn đầu vào
+    const sourceFiles = [
+      {
+        key: 'dsgd',
+        name: 'Tệp Khớp Lệnh (DSGD CoreCCP)',
+        role: 'Nguồn khớp lệnh chính 5 phân hệ (Thường, ACM, Spread, LME, Options)',
+        required: true,
+        present: !!scan.files.dsgd?.present,
+        filename: scan.files.dsgd?.filename,
+        fullPath: scan.files.dsgd?.path,
+        sizeBytes: scan.files.dsgd?.size,
+        formattedSize: formatBytes(scan.files.dsgd?.size),
+        status: scan.files.dsgd?.present ? 'READY' : 'MISSING',
+        statusText: scan.files.dsgd?.present
+          ? `Sẵn sàng (${formatBytes(scan.files.dsgd?.size)})`
+          : 'Chưa có file DSGD trong thư mục ngày',
+      },
+      {
+        key: 'ttm',
+        name: 'Tệp Vị Thế Mở (TTM)',
+        role: 'Tổng hợp trạng thái mở Mua/Bán và vị thế ròng',
+        required: false,
+        present: !!scan.files.ttm?.present,
+        filename: scan.files.ttm?.filename,
+        fullPath: scan.files.ttm?.path,
+        sizeBytes: scan.files.ttm?.size,
+        formattedSize: formatBytes(scan.files.ttm?.size),
+        status: scan.files.ttm?.present ? 'READY' : 'OPTIONAL_MISSING',
+        statusText: scan.files.ttm?.present
+          ? `Sẵn sàng (${formatBytes(scan.files.ttm?.size)})`
+          : 'Chưa có file TTM (sẽ bỏ qua tính vị thế mở)',
+      },
+      {
+        key: 'tttt',
+        name: 'Tệp Tất Toán Vị Thế (TTTT)',
+        role: 'Tính khối lượng tất toán và lãi lỗ thực tế',
+        required: false,
+        present: !!scan.files.tttt?.present,
+        filename: scan.files.tttt?.filename,
+        fullPath: scan.files.tttt?.path,
+        sizeBytes: scan.files.tttt?.size,
+        formattedSize: formatBytes(scan.files.tttt?.size),
+        status: scan.files.tttt?.present ? 'READY' : 'OPTIONAL_MISSING',
+        statusText: scan.files.tttt?.present
+          ? `Sẵn sàng (${formatBytes(scan.files.tttt?.size)})`
+          : 'Không bắt buộc',
+      },
+      {
+        key: 'tyGia',
+        name: 'Tệp / Nguồn Tỷ Giá Quy Đổi',
+        role: 'Quy đổi giá trị hợp đồng USD, EUR, GBP, JPY... sang VND',
+        required: actionType === 'VALUE' || actionType === 'ALL',
+        present: !!scan.files.tyGia || !!scan.dbExchangeRates?.detectedRate,
+        filename: scan.files.tyGia?.filename || 'Tỷ giá Database / Mặc định',
+        fullPath: scan.files.tyGia?.path,
+        sizeBytes: scan.files.tyGia?.size,
+        formattedSize: formatBytes(scan.files.tyGia?.size),
+        status: scan.files.tyGia || scan.dbExchangeRates?.detectedRate ? 'READY' : 'MISSING',
+        statusText: scan.files.tyGia
+          ? `Tệp ngày: ${scan.files.tyGia.filename}`
+          : scan.dbExchangeRates?.detectedRate
+          ? `Tỷ giá DB: 1 USD = ${scan.dbExchangeRates.detectedRate.toLocaleString('vi-VN')} đ`
+          : 'Sử dụng tỷ giá mặc định 25.920 VND/USD',
+      },
+    ];
+
+    // 2. Danh sách tệp đích lưu dữ liệu CoreCCP
+    const rawDestinations: Array<{
+      key: string;
+      label: string;
+      group: 'LOT' | 'VALUE' | 'DSGD';
+      configuredPattern: string;
+    }> = [];
+
+    if (actionType === 'LOT' || actionType === 'ALL') {
+      rawDestinations.push(
+        { key: 'pathNormalLot', label: 'Sổ Số Lot Giao Dịch Thường', group: 'LOT', configuredPattern: config.pathNormalLot || '' },
+        { key: 'pathAcmLot', label: 'Sổ Số Lot Giao Dịch ACM', group: 'LOT', configuredPattern: config.pathAcmLot || '' },
+        { key: 'pathSpreadLot', label: 'Sổ Số Lot Giao Dịch Spread', group: 'LOT', configuredPattern: config.pathSpreadLot || '' },
+        { key: 'pathLmeLot', label: 'Sổ Số Lot Giao Dịch LME', group: 'LOT', configuredPattern: config.pathLmeLot || '' },
+        { key: 'pathOptionsLot', label: 'Sổ Số Lot Giao Dịch Options', group: 'LOT', configuredPattern: config.pathOptionsLot || '' },
+        { key: 'pathDsgdCumulative', label: 'Sổ DSGD Lũy Kế Tháng (Raw CCP)', group: 'DSGD', configuredPattern: config.pathDsgdCumulative || '' },
+      );
+    }
+
+    if (actionType === 'VALUE' || actionType === 'ALL') {
+      rawDestinations.push(
+        { key: 'pathGtgdNormal', label: 'Sổ Giá Trị Giao Dịch Thường', group: 'VALUE', configuredPattern: config.pathGtgdNormal || '' },
+        { key: 'pathAcmGtgd', label: 'Sổ Giá Trị Giao Dịch ACM', group: 'VALUE', configuredPattern: config.pathAcmGtgd || '' },
+        { key: 'pathGtgdSpread', label: 'Sổ Giá Trị Giao Dịch Spread', group: 'VALUE', configuredPattern: config.pathGtgdSpread || '' },
+        { key: 'pathGtgdLme', label: 'Sổ Giá Trị Giao Dịch LME', group: 'VALUE', configuredPattern: config.pathGtgdLme || '' },
+        { key: 'pathGtgdOptions', label: 'Sổ Giá Trị Giao Dịch Options', group: 'VALUE', configuredPattern: config.pathGtgdOptions || '' },
+      );
+    }
+
+    const destinations = await Promise.all(
+      rawDestinations.map(async (dest) => {
+        const pattern = dest.configuredPattern;
+        if (!pattern) {
+          return {
+            ...dest,
+            resolvedPath: '',
+            parentDir: '',
+            parentDirExists: false,
+            fileExists: false,
+            isValidPath: false,
+            status: 'NOT_CONFIGURED',
+            statusText: 'Chưa cấu hình đường dẫn',
+            recommendation: 'Vào "Cấu Hình Đường Dẫn" để áp dụng bộ đường dẫn chuẩn.',
+          };
+        }
+
+        const resolvedPath = resolveCcpAccumulatorFilePath(pattern);
+        const parentDir = path.dirname(resolvedPath);
+        const parentDirExists = fs.existsSync(parentDir);
+        const fileExists = fs.existsSync(resolvedPath);
+        let fileSizeBytes = 0;
+        let hasSessionData = false;
+        let existingTotal: number | undefined;
+        let existingRow: number | undefined;
+
+        if (!parentDirExists) {
+          warnings.push(`Thư mục lưu file ${dest.label} không tồn tại: ${parentDir}`);
+          return {
+            ...dest,
+            resolvedPath,
+            parentDir,
+            parentDirExists: false,
+            fileExists: false,
+            isValidPath: false,
+            status: 'INVALID_DIR',
+            statusText: 'Thư mục cha không tồn tại trên máy chủ / ổ đĩa mạng',
+            recommendation: 'Kiểm tra đường dẫn thư mục cha hoặc kết nối ổ đĩa mạng (M:\\).',
+          };
+        }
+
+        if (fileExists) {
+          try {
+            const stat = fs.statSync(resolvedPath);
+            fileSizeBytes = stat.size;
+            if (dest.group !== 'DSGD') {
+              const check = await checkDateExistsInAccumulator(
+                resolvedPath,
+                dateStr,
+                dest.group === 'VALUE' ? 'GTGD' : 'LOT',
+              );
+              hasSessionData = check.hasExistingData;
+              existingTotal = check.existingTotal;
+              existingRow = check.existingRow;
+            }
+          } catch (e: any) {
+            warnings.push(`Lỗi khi đọc kiểm tra file ${path.basename(resolvedPath)}: ${e.message}`);
+          }
+        }
+
+        let status = 'READY_UPDATE';
+        let statusText = 'File đã có trên đĩa - Sẵn sàng ghi nhận phiên mới';
+        let recommendation = 'Đường dẫn hợp lệ. Khi chạy sẽ ghi bổ sung dữ liệu phiên vào file.';
+
+        if (!fileExists) {
+          status = 'READY_NEW';
+          statusText = 'File chưa có trên đĩa (Sẽ tự tạo mới)';
+          recommendation = 'Thư mục hợp lệ. Hệ thống sẽ tự tạo file Excel mới theo mẫu chuẩn khi ghi.';
+        } else if (hasSessionData) {
+          status = 'READY_OVERWRITE';
+          statusText = `Đã có dữ liệu phiên ${dateStr} (${existingTotal?.toLocaleString('vi-VN')} ${dest.group === 'VALUE' ? 'đ' : 'lot'})`;
+          recommendation = 'Phiên này đã có số liệu. Khi chạy sẽ yêu cầu xác nhận ghi đè hoặc xuất bản nháp.';
+        }
+
+        return {
+          ...dest,
+          resolvedPath,
+          parentDir,
+          parentDirExists: true,
+          fileExists,
+          fileSizeBytes,
+          fileFormattedSize: formatBytes(fileSizeBytes),
+          hasSessionData,
+          existingTotal,
+          existingRow,
+          isValidPath: true,
+          status,
+          statusText,
+          recommendation,
+        };
+      }),
+    );
+
+    const isSourceReady = !!scan.files.dsgd?.present;
+    const isDestReady = destinations.length > 0 && destinations.every((d) => d.isValidPath);
+    const canExecute = isSourceReady && isDestReady;
+
+    let summary = '';
+    if (canExecute) {
+      summary = `Tất cả điều kiện hợp lệ. Sẵn sàng thực thi ${actionType === 'LOT' ? 'Thống Kê Số Lot' : actionType === 'VALUE' ? 'Thống Kê Giá Trị' : 'Thống Kê CoreCCP'}.`;
+    } else if (!isSourceReady) {
+      summary = `Chưa đủ file nguồn đầu vào: Thiếu file DSGD trong thư mục ngày (${scan.folderPath}).`;
+    } else {
+      summary = `Một số đường dẫn file đích chưa hợp lệ hoặc thư mục cha không tồn tại.`;
+    }
+
+    return {
+      system: 'CCP',
+      systemName: 'CoreCCP VNCLEAR (Toàn Thị Trường)',
+      targetDate: dateStr,
+      actionType,
+      isReady: canExecute,
+      canExecute,
+      summary,
+      source: {
+        folderPath: scan.folderPath,
+        folderExists: scan.exists,
+        files: sourceFiles,
+        exchangeRate: {
+          rate: scan.dbExchangeRates?.detectedRate || 25920,
+          source: scan.dbExchangeRates?.detectedSource || 'Hệ thống / DB',
+          currency: 'USD',
+        },
+      },
+      destinations,
+      warnings,
+    };
   }
 }

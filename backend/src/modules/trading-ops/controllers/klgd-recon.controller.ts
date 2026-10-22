@@ -8,13 +8,19 @@
 import {
   Controller,
   Post,
+  Get,
+  Query,
   Body,
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
   UseGuards,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,6 +48,9 @@ export class KlgdReconController {
     private readonly dsgdBeforeEodService: DsgdBeforeEodService,
     private readonly shiftsService: ShiftsService,
     private readonly rpaService: RpaScraperService,
+    @Optional()
+    @InjectModel(TradingReconLog.name)
+    private readonly reconLogModel?: Model<TradingReconLog>,
   ) {}
 
   /**
@@ -638,6 +647,7 @@ export class KlgdReconController {
     @Body('shiftLogId') shiftLogId?: string,
     @Body('taskId') taskId?: string,
   ) {
+    const startTime = Date.now();
     try {
       const result = await this.dsgdBeforeEodService.runAutoCheckDSGDBeforeEOD({
         system,
@@ -646,6 +656,43 @@ export class KlgdReconController {
         triggerDownload: Boolean(triggerDownload),
         exactDate: Boolean(exactDate),
       });
+
+      const durationMs = Date.now() - startTime;
+      const executedAt = new Date().toISOString();
+
+      if (this.reconLogModel) {
+        try {
+          const dateStr = tradingDateStr
+            ? new Date(tradingDateStr).toISOString().split('T')[0]
+            : new Date().toISOString().split('T')[0];
+          await this.reconLogModel.create({
+            reconType: 'DSGD_BEFORE_EOD',
+            tradingDate: dateStr,
+            shiftLogId,
+            taskId,
+            passed: result.passed,
+            totals: {
+              system: result.system || system || 'MS',
+              totalOriginal: result.totalOriginal,
+              totalTemp: result.totalTemp,
+              differTotal: result.differTotal,
+              totalACMMS: result.totalACMMS,
+              totalACMSFTP: result.totalACMSFTP,
+              differACM: result.differACM,
+              durationMs,
+              executedAt,
+            },
+            dsgdBeforeEod: {
+              ...result,
+              system: result.system || system || 'MS',
+              durationMs,
+              executedAt,
+            },
+          });
+        } catch (dbErr: any) {
+          this.logger.warn(`Lỗi lưu TradingReconLog cho DSGD_BEFORE_EOD: ${dbErr.message}`);
+        }
+      }
 
       if (shiftLogId && taskId) {
         const systemUser = {
@@ -677,7 +724,8 @@ export class KlgdReconController {
           system: result.system || 'MS',
           attempts: 1,
           maxAttempts: 1,
-          executedAt: new Date().toISOString(),
+          executedAt,
+          durationMs,
         });
 
         await this.shiftsService.updateTaskStatus(
@@ -693,10 +741,61 @@ export class KlgdReconController {
       return {
         success: result.passed,
         message: result.messages.join(' | '),
-        result,
+        result: {
+          ...result,
+          durationMs,
+          executedAt,
+        },
+        durationMs,
+        executedAt,
       };
     } catch (err: any) {
       throw new BadRequestException(err.message);
     }
+  }
+
+  /**
+   * Lấy kết quả kiểm tra DSGD trước EOD mới nhất của một phiên và phân hệ.
+   */
+  @Get('latest-dsgd-before-eod')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getLatestDsgdBeforeEod(
+    @Query('system') system?: 'MS' | 'CCP',
+    @Query('tradingDate') tradingDateStr?: string,
+  ) {
+    const targetSystem = system || 'MS';
+    const dateStr = tradingDateStr
+      ? new Date(tradingDateStr).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    if (this.reconLogModel) {
+      const log = await this.reconLogModel
+        .findOne({
+          reconType: 'DSGD_BEFORE_EOD',
+          tradingDate: dateStr,
+          $or: [
+            { 'totals.system': targetSystem },
+            { 'dsgdBeforeEod.system': targetSystem },
+          ],
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+
+      if (log && log.dsgdBeforeEod) {
+        return {
+          success: true,
+          result: log.dsgdBeforeEod,
+          executedAt: (log.totals as any)?.executedAt || (log.dsgdBeforeEod as any)?.executedAt || log.createdAt,
+          durationMs: (log.totals as any)?.durationMs || (log.dsgdBeforeEod as any)?.durationMs,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      result: null,
+      message: 'Chưa có kết quả đối chiếu DSGD trước EOD cho phiên này.',
+    };
   }
 }
