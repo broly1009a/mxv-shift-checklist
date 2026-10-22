@@ -610,6 +610,121 @@ export class CoreCcpApiAdapter implements IIngressPort {
     throw new Error(`Search API ${searchCode} thất bại (${res.status}): ${JSON.stringify(res.data)}`);
   }
 
+  /**
+   * Truy vấn danh sách tài khoản và ký quỹ từ phân hệ Monitor OMS ACM (/ccp/inquiry/OMS_ACM)
+   */
+  public async getOmsAcmAccounts(
+    session: ICcpSession,
+    baseUrl: string,
+    filter: Record<string, any> = {},
+  ): Promise<{ data: any[]; total: number }> {
+    const endpoint = '/ccp/inquiry/OMS_ACM';
+    const payload = {
+      searchcode: 'OMS_ACCOUNT',
+      search: filter || {},
+      page: 1,
+      pageSize: 9999,
+    };
+    const refererRoute = '/MONITOR_OMS/MONITOR_OMS_ACM';
+    const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);
+    if (res.status === 200 && res.data && (res.data.success || res.data.code === '0')) {
+      const data = res.data.payload?.data || res.data.data || [];
+      const total = res.data.payload?.page?.total || data.length;
+      return { data, total };
+    }
+    throw new Error(`OMS ACM Search API thất bại (${res.status}): ${JSON.stringify(res.data)}`);
+  }
+
+  /**
+   * Truy vấn danh sách trạng thái mở (Open Positions) từ phân hệ Monitor OMS ACM (/ccp/inquiry/OMS_ACM)
+   * searchcode: 'OMS_OPEN_POSITION'
+   */
+  public async getOmsOpenPositions(
+    session: ICcpSession,
+    baseUrl: string,
+    accountId: string = '',
+  ): Promise<{ data: any[]; total: number }> {
+    const endpoint = '/ccp/inquiry/OMS_ACM';
+    const payload = {
+      searchcode: 'OMS_OPEN_POSITION',
+      search: { accountId: accountId || '' },
+      page: 1,
+      pageSize: 9999,
+    };
+    const refererRoute = '/MONITOR_OMS/MONITOR_OMS_ACM';
+    const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);
+    if (res.status === 200 && res.data && (res.data.success || res.data.code === '0')) {
+      const rawData = res.data.payload?.data || res.data.data || [];
+      const items: any[] = [];
+      if (Array.isArray(rawData)) {
+        for (const entry of rawData) {
+          if (entry && typeof entry === 'object') {
+            for (const [sym, arr] of Object.entries(entry)) {
+              if (Array.isArray(arr)) {
+                for (const item of arr) {
+                  items.push({
+                    ...item,
+                    symbol: item.symbol || sym,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+      const total = res.data.payload?.page?.total || items.length;
+      return { data: items, total };
+    }
+    throw new Error(`OMS Open Position Search API thất bại (${res.status}): ${JSON.stringify(res.data)}`);
+  }
+
+  /**
+   * Truy vấn danh sách trạng thái tất toán và lãi lỗ (PnL Details) từ phân hệ Monitor OMS ACM (/ccp/inquiry/OMS_ACM)
+   * searchcode: 'OMS_PNL_DETAIL'
+   */
+  public async getOmsPnlDetails(
+    session: ICcpSession,
+    baseUrl: string,
+    accountId: string = '',
+  ): Promise<{ data: any[]; total: number }> {
+    const endpoint = '/ccp/inquiry/OMS_ACM';
+    const payload = {
+      searchcode: 'OMS_PNL_DETAIL',
+      search: { accountId: accountId || '' },
+      page: 1,
+      pageSize: 9999,
+    };
+    const refererRoute = '/MONITOR_OMS/MONITOR_OMS_ACM';
+    const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);
+    if (res.status === 200 && res.data && (res.data.success || res.data.code === '0')) {
+      const rawData = res.data.payload?.data || res.data.data || [];
+      const items: any[] = [];
+      if (Array.isArray(rawData)) {
+        for (const entry of rawData) {
+          if (entry && typeof entry === 'object') {
+            if ('accountId' in entry || 'closeQtty' in entry) {
+              items.push(entry);
+            } else {
+              for (const [sym, arr] of Object.entries(entry)) {
+                if (Array.isArray(arr)) {
+                  for (const item of arr) {
+                    items.push({
+                      ...item,
+                      symbol: item.symbol || sym,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      const total = res.data.payload?.page?.total || items.length;
+      return { data: items, total };
+    }
+    throw new Error(`OMS PnL Detail Search API thất bại (${res.status}): ${JSON.stringify(res.data)}`);
+  }
+
   private makeJsonPost(
     session: ICcpSession,
     baseUrl: string,
