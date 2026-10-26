@@ -114,6 +114,10 @@ export class BotEngineService {
         periodicFreqStr && !isNaN(parseInt(periodicFreqStr, 10)) && parseInt(periodicFreqStr, 10) > 0
           ? parseInt(periodicFreqStr, 10)
           : null;
+      const sessionStartSetting = await this.settingsService.getSetting(
+        'session_start_time',
+        '05:00',
+      );
 
       for (const log of activeLogs) {
         let hasReset = false;
@@ -129,8 +133,8 @@ export class BotEngineService {
               if (!isPeriodicEnabled) {
                 continue; // Người dùng đã tắt check định kỳ trên UI
               }
-              if (isMarketWeekendClosed()) {
-                continue; // Thị trường đóng cửa cuối tuần (sau 06:30 Thứ 7 đến trước 05:00 Thứ 2)
+              if (isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })) {
+                continue; // Thị trường đóng cửa cuối tuần
               }
             }
 
@@ -188,7 +192,10 @@ export class BotEngineService {
 
           // Market Weekend Guard: Không kích hoạt đối chiếu khớp lệnh trong phiên khi thị trường đóng cửa cuối tuần
           const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
-          if (isKlgdTask && isMarketWeekendClosed()) {
+          if (
+            isKlgdTask &&
+            isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })
+          ) {
             continue;
           }
 

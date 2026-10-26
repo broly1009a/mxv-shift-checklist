@@ -688,7 +688,13 @@ export class GttCheckerService {
       throw new Error('Tiến trình kiểm tra GTT đang chạy trên hệ thống. Vui lòng đợi.');
     }
 
-    const resolvedSession = resolveTradingSessionDate(options.targetDate);
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(options.targetDate, {
+      sessionStartStr,
+    });
     const sessionDate = resolvedSession.dateStr;
     const targetDate = options.targetDate ? options.targetDate.trim().slice(0, 10) : sessionDate;
 

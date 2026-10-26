@@ -72,7 +72,7 @@ export default function CcpCeTradingManagerPage() {
     klgdStatus: 'IDLE',
   });
 
-  // Khởi tạo ngày phiên hiện tại (tự động nhận diện ca đêm T-1 trước 06:30 sáng)
+  // Khởi tạo ngày phiên hiện tại (tự động nhận diện ca đêm T-1 theo cấu hình session_start_time)
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
   }, []);

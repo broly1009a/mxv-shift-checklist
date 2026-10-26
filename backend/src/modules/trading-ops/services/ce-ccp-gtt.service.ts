@@ -419,7 +419,13 @@ export class CeCcpGttCheckerService {
         this.logStep(
           `Trạng thái file ban đầu: CE GTT = [${files.ceGtt ? 'Đã có' : 'Chưa có'}], CCP GTT = [${files.ccpGtt ? 'Đã có' : 'Chưa có'}]. Kích hoạt bot tự động tải On-Demand...`,
         );
-        const resolvedDate = resolveTradingSessionDate(options.targetDate);
+        const sessionStartStr = await this.settingsService.getSetting(
+          'session_start_time',
+          '05:00',
+        );
+        const resolvedDate = resolveTradingSessionDate(options.targetDate, {
+          sessionStartStr,
+        });
         await this.autoDownloadMissingFiles(
           resolvedDate.dateStr,
           needCe,

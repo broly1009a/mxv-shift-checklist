@@ -1714,7 +1714,11 @@ export class BotEngineController {
 
     // Xác định ngày mục tiêu: nếu client truyền dateQuery (YYYY-MM-DD), ưu tiên dùng dateQuery;
     // ngược lại, mặc định lấy phiên làm việc hiện tại (theo giờ Việt Nam UTC+7).
-    const resolvedSession = resolveTradingSessionDate(dateQuery);
+    const sessionStartStr = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+    const resolvedSession = resolveTradingSessionDate(dateQuery, { sessionStartStr });
     const targetDateStr = resolvedSession.dateStr;
 
     // Lấy ngày phiên thực tế của báo cáo (ưu tiên targetDate / sessionDate đã ghi nhận khi chạy, fallback runAt)

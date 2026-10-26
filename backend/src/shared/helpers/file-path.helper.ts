@@ -175,129 +175,183 @@ export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: st
 }
 
 /**
- * Kiểm tra xem thị trường tài chính / hàng hóa có đang trong khoảng đóng cửa cuối tuần hay không:
- * - Sau 06:30 sáng Thứ Bảy (kết thúc phiên đêm thứ 6 của thị trường Mỹ)
- * - Cả ngày Chủ Nhật
- * - Trước 05:00 sáng Thứ Hai (trước khi CME Globex mở lại phiên tuần mới)
+ * Mốc giờ bắt đầu phiên giao dịch mặc định của hệ thống MXV (đồng bộ với setting session_start_time trong CSDL)
  */
-export function isMarketWeekendClosed(dateInput?: Date): boolean {
+/**
+ * Interface cho tham số cấu hình thời gian phiên giao dịch linh hoạt từ CSDL.
+ * Tuân thủ quy tắc Fail-Fast: Bắt buộc cung cấp sessionStartStr, không dùng fallback ngầm.
+ */
+export interface TradingSessionTimeOptions {
+  sessionStartStr: string; // Giờ bắt đầu phiên giao dịch từ CSDL (Bắt buộc, ví dụ: '05:00', '06:00')
+}
+
+/**
+ * Chuyển đổi chuỗi thời gian HH:mm sang số phút trong ngày (0 - 1439).
+ * Không ném lỗi, trả về defaultMinutes nếu chuỗi không hợp lệ.
+ */
+export function parseTimeToMinutes(timeStr?: string | null, defaultMinutes = 0): number {
+  if (!timeStr || typeof timeStr !== 'string') return defaultMinutes;
+  const parts = timeStr.trim().split(':').map((v) => parseInt(v, 10));
+  if (parts.length >= 1 && !isNaN(parts[0])) {
+    const hours = Math.max(0, Math.min(23, parts[0]));
+    const minutes = parts.length >= 2 && !isNaN(parts[1]) ? Math.max(0, Math.min(59, parts[1])) : 0;
+    return hours * 60 + minutes;
+  }
+  return defaultMinutes;
+}
+
+/**
+ * Định dạng Date thành chuỗi ISO Date (YYYY-MM-DD).
+ */
+export function formatDateToIso(date: Date): string {
+  const year = date.getFullYear().toString();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Kiểm tra xem thị trường tài chính / hàng hóa có đang trong khoảng đóng cửa cuối tuần hay không:
+ * - Sau giờ kết thúc phiên Thứ Sáu vào sáng Thứ Bảy (được xác định theo mốc session_start_time từ CSDL)
+ * - Cả ngày Chủ Nhật
+ * - Trước giờ mở phiên sáng Thứ Hai (được xác định theo mốc session_start_time từ CSDL)
+ * 
+ * Toàn bộ chu kỳ đóng/mở phiên cuối tuần được điều khiển 100% động bởi mốc phiên session_start_time:
+ * - options.sessionStartStr: Bắt buộc truyền giờ bắt đầu phiên từ CSDL. Fail-Fast nếu rỗng/thiếu.
+ */
+export function isMarketWeekendClosed(
+  dateInput?: Date,
+  options?: TradingSessionTimeOptions,
+): boolean {
+  if (
+    !options?.sessionStartStr ||
+    typeof options.sessionStartStr !== 'string' ||
+    options.sessionStartStr.trim() === ''
+  ) {
+    throw new Error(
+      '[Market Weekend Guard] options.sessionStartStr là bắt buộc để xác định chính xác thời điểm đóng/mở phiên giao dịch từ CSDL. Tuyệt đối không phỏng đoán giờ mặc định.',
+    );
+  }
+
+  const sessionMinutes = parseTimeToMinutes(options.sessionStartStr, -1);
+  if (sessionMinutes < 0) {
+    throw new Error(
+      `[Market Weekend Guard] Định dạng giờ phiên không hợp lệ: "${options.sessionStartStr}". Kỳ vọng định dạng "HH:mm".`,
+    );
+  }
+
   const d = dateInput
     ? new Date(dateInput.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
     : new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
 
   const day = d.getDay(); // 0 = Chủ Nhật, 1 = Thứ Hai, ..., 6 = Thứ Bảy
-  const hour = d.getHours();
-  const minute = d.getMinutes();
-  const timeNum = hour * 60 + minute;
+  const timeNum = d.getHours() * 60 + d.getMinutes();
 
-  // 1. Cả ngày Chủ Nhật
+  // 1. Cả ngày Chủ Nhật luôn đóng cửa
   if (day === 0) return true;
 
-  // 2. Thứ Bảy sau 06:30 sáng
-  if (day === 6 && timeNum >= 6 * 60 + 30) return true;
+  // 2. Sáng Thứ Bảy sau khi phiên Thứ Sáu kết thúc (sau mốc session_start_time)
+  if (day === 6 && timeNum >= sessionMinutes) return true;
 
-  // 3. Thứ Hai trước 05:00 sáng
-  if (day === 1 && timeNum < 5 * 60) return true;
+  // 3. Sáng Thứ Hai trước khi phiên tuần mới mở (trước mốc session_start_time)
+  if (day === 1 && timeNum < sessionMinutes) return true;
 
   return false;
 }
 
 /**
+ * Hàm nội bộ: Lùi ngày làm việc cho phiên giao dịch (bỏ qua Thứ 7, Chủ Nhật)
+ */
+function rollBackTradingDay(baseDate: Date, isOvernight: boolean, isMonday: boolean): Date {
+  const target = new Date(baseDate);
+  target.setHours(0, 0, 0, 0);
+
+  if (isOvernight) {
+    // Ca đêm: lùi về phiên trước (trừ rạng sáng Thứ Hai để tránh bẫy lùi vượt cuối tuần về Thứ Sáu)
+    if (!isMonday) {
+      target.setDate(target.getDate() - 1);
+      while (target.getDay() === 0 || target.getDay() === 6) {
+        target.setDate(target.getDate() - 1);
+      }
+    }
+  } else {
+    // Ban ngày: nếu rơi vào Thứ 7 hoặc Chủ Nhật thì lùi về Thứ 6 làm việc gần nhất
+    while (target.getDay() === 0 || target.getDay() === 6) {
+      target.setDate(target.getDate() - 1);
+    }
+  }
+  return target;
+}
+
+/**
  * Xác định Ngày Phiên Giao Dịch thực tế (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
- * - Một phiên giao dịch mở lúc sessionStart (mặc định 05:00 / 06:30) và kéo dài xuyên đêm tới phiên hôm sau.
- * - Nếu thời điểm hiện tại < giờ mở phiên (ví dụ 01:42 sáng), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
+ * - Một phiên giao dịch mở lúc sessionStartStr và kéo dài xuyên đêm tới trước giờ mở phiên hôm sau.
+ * - Nếu thời điểm hiện tại < giờ mở phiên (ca đêm), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
  * - Nếu dateInput là ngày hôm nay theo dương lịch, hàm tự động lùi về T-1 khi đang trong ca đêm.
  * - Nếu dateInput là một ngày quá khứ cụ thể khác hôm nay (người dùng cố ý soi lại lịch sử), hàm giữ nguyên ngày đó.
+ * 
+ * Áp dụng nguyên tắc Fail-Fast: options.sessionStartStr là bắt buộc để tránh tính sai ngày phiên.
  */
 export function resolveTradingSessionDate(
   dateInput?: string | Date | null,
   options?: {
     now?: Date;
-    sessionStartStr?: string;
+    sessionStartStr: string;
     forceExactDate?: boolean;
   },
 ): { dateObj: Date; dateStr: string; isOvernight: boolean } {
+  if (
+    !options?.sessionStartStr ||
+    typeof options.sessionStartStr !== 'string' ||
+    options.sessionStartStr.trim() === ''
+  ) {
+    throw new Error(
+      '[resolveTradingSessionDate] options.sessionStartStr là bắt buộc để xác định chính xác ngày phiên giao dịch từ CSDL. Tuyệt đối không phỏng đoán giờ mặc định.',
+    );
+  }
+
+  const sessionStartMinutes = parseTimeToMinutes(options.sessionStartStr, -1);
+  if (sessionStartMinutes < 0) {
+    throw new Error(
+      `[resolveTradingSessionDate] Định dạng giờ phiên không hợp lệ: "${options.sessionStartStr}". Kỳ vọng định dạng "HH:mm".`,
+    );
+  }
+
   const nowVN =
     options?.now ||
     new Date(
       new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
     );
-  const nowYear = nowVN.getFullYear();
-  const nowMonth = String(nowVN.getMonth() + 1).padStart(2, '0');
-  const nowDay = String(nowVN.getDate()).padStart(2, '0');
-  const todayVnStr = `${nowYear}-${nowMonth}-${nowDay}`;
+  const todayVnStr = formatDateToIso(nowVN);
 
-  // Kiểm tra khung giờ ca đêm
-  let sessionHour = 6;
-  let sessionMin = 30;
-  if (options?.sessionStartStr) {
-    const parts = options.sessionStartStr.split(':').map(Number);
-    if (parts.length >= 1 && !isNaN(parts[0])) sessionHour = parts[0];
-    if (parts.length >= 2 && !isNaN(parts[1])) sessionMin = parts[1];
-  }
-
-  const currentHour = nowVN.getHours();
-  const currentMin = nowVN.getMinutes();
-  const isOvernight =
-    currentHour < sessionHour ||
-    (currentHour === sessionHour && currentMin < sessionMin);
+  const currentMinutes = nowVN.getHours() * 60 + nowVN.getMinutes();
+  const isOvernight = currentMinutes < sessionStartMinutes;
+  const isMonday = nowVN.getDay() === 1;
 
   let targetDateObj: Date;
 
   if (!dateInput) {
-    targetDateObj = new Date(nowVN);
-    targetDateObj.setHours(0, 0, 0, 0);
-    if (isOvernight) {
-      // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
-      if (nowVN.getDay() !== 1) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
-        while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-          targetDateObj.setDate(targetDateObj.getDate() - 1);
-        }
-      }
-    } else {
-      // Thứ 7 hoặc Chủ Nhật luôn lùi về ngày làm việc gần nhất (Thứ 6)
-      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
-      }
-    }
+    targetDateObj = rollBackTradingDay(nowVN, isOvernight, isMonday);
   } else {
-    let parsed: Date;
-    if (dateInput instanceof Date) {
-      parsed = new Date(dateInput);
-    } else {
-      parsed = resolveBotTargetDate({ targetDate: dateInput }).dateObj;
-    }
+    const parsed =
+      dateInput instanceof Date
+        ? new Date(dateInput)
+        : resolveBotTargetDate({ targetDate: dateInput }).dateObj;
     parsed.setHours(0, 0, 0, 0);
 
-    const pY = parsed.getFullYear().toString();
-    const pM = String(parsed.getMonth() + 1).padStart(2, '0');
-    const pD = String(parsed.getDate()).padStart(2, '0');
-    const parsedStr = `${pY}-${pM}-${pD}`;
-
+    const parsedStr = formatDateToIso(parsed);
     if (!options?.forceExactDate && parsedStr === todayVnStr) {
-      // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương -> lùi ca đêm & cuối tuần đúng chuẩn C#
-      targetDateObj = new Date(parsed);
-      if (isOvernight) {
-        // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
-        if (nowVN.getDay() !== 1) {
-          targetDateObj.setDate(targetDateObj.getDate() - 1);
-          while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-            targetDateObj.setDate(targetDateObj.getDate() - 1);
-          }
-        }
-      }
+      targetDateObj = rollBackTradingDay(parsed, isOvernight, isMonday);
     } else {
       targetDateObj = parsed;
     }
   }
 
-  const y = targetDateObj.getFullYear().toString();
-  const m = String(targetDateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(targetDateObj.getDate()).padStart(2, '0');
-  const dateStr = `${y}-${m}-${d}`;
-
-  return { dateObj: targetDateObj, dateStr, isOvernight };
+  return {
+    dateObj: targetDateObj,
+    dateStr: formatDateToIso(targetDateObj),
+    isOvernight,
+  };
 }
 
 /**

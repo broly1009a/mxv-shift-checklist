@@ -62,7 +62,7 @@ export default function TradingManagerPage() {
     klgdStatus: 'IDLE',
   });
 
-  // Khởi tạo ngày phiên hiện tại (tự động nhận diện ca đêm T-1 trước 06:30 sáng) và lắng nghe query param tab
+  // Khởi tạo ngày phiên hiện tại (tự động nhận diện ca đêm T-1 theo cấu hình session_start_time) và lắng nghe query param tab
   useEffect(() => {
     setSelectedDate(getInitialTradingSessionDate());
     if (typeof window !== 'undefined') {

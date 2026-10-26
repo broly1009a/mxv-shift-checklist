@@ -75,9 +75,9 @@ export default function CcpCeBackupThongKeSection({
   const [backupPeriodic, setBackupPeriodic] = useState<boolean>(true);
   const [backupPeriodicMinutes, setBackupPeriodicMinutes] = useState<number>(60);
   const [enableBackupTime, setEnableBackupTime] = useState<boolean>(true);
-  const [backupTime, setBackupTime] = useState<string>('04:00');
+  const [backupTime, setBackupTime] = useState<string>('');
   const [enableStatTime, setEnableStatTime] = useState<boolean>(true);
-  const [statTime, setStatTime] = useState<string>('06:30');
+  const [statTime, setStatTime] = useState<string>('');
 
   // CoreCCP Reports State
   const [ccpReports, setCcpReports] = useState<Record<string, boolean>>(() =>
@@ -130,9 +130,29 @@ export default function CcpCeBackupThongKeSection({
         setBackupPeriodic(getVal('bot_backup_periodic_enabled', 'true') === 'true');
         setBackupPeriodicMinutes(parseInt(getVal('bot_backup_periodic_minutes', '60'), 10) || 60);
         setEnableBackupTime(getVal('bot_backup_time_enabled', 'true') === 'true');
-        setBackupTime(getVal('bot_backup_time', '04:00'));
+        
+        const bTime = getVal('bot_backup_time', '');
+        if (bTime && /^\d{2}:\d{2}$/.test(bTime)) {
+          setBackupTime(bTime);
+        } else {
+          try {
+            const sc = JSON.parse(getVal('bot_scheduler_config', '[]'));
+            const rpa = Array.isArray(sc) && sc.find((t: any) => t.id === 'RPA_DOWNLOAD_MS' || t.jobType === 'DOWNLOAD_CCP_REPORT');
+            if (rpa?.time && /^\d{2}:\d{2}$/.test(rpa.time)) setBackupTime(rpa.time);
+          } catch {}
+        }
+
         setEnableStatTime(getVal('bot_stat_time_enabled', 'true') === 'true');
-        setStatTime(getVal('bot_stat_time', '06:30'));
+        const sTime = getVal('bot_stat_time', '');
+        if (sTime && /^\d{2}:\d{2}$/.test(sTime)) {
+          setStatTime(sTime);
+        } else {
+          try {
+            const sc = JSON.parse(getVal('bot_scheduler_config', '[]'));
+            const stat = Array.isArray(sc) && sc.find((t: any) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO');
+            if (stat?.time && /^\d{2}:\d{2}$/.test(stat.time)) setStatTime(stat.time);
+          } catch {}
+        }
       } catch {}
     };
     fetchSettings();
@@ -358,7 +378,10 @@ export default function CcpCeBackupThongKeSection({
           </div>
 
           {/* Cụm 2: Thời điểm backup */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Tự động tải báo cáo sao lưu chốt ngày CoreCCP & CoreEX độc lập (theo cấu hình hệ thống)"
+          >
             <input
               type="checkbox"
               id="ccp_ce_backup_time"
@@ -395,7 +418,10 @@ export default function CcpCeBackupThongKeSection({
           </div>
 
           {/* Cụm 3: Thời điểm tạo thống kê */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Tự động kích hoạt Macro thống kê số lot & GTGD CCP độc lập (theo cấu hình hệ thống)"
+          >
             <input
               type="checkbox"
               id="ccp_ce_stat_time"

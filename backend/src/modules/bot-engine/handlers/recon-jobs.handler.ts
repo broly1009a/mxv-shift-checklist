@@ -152,14 +152,18 @@ export class ReconJobsHandler implements IBotJobHandler, IReconPipelinePort, OnM
     log(`Bắt đầu chạy đối chiếu khớp lệnh định kỳ trong phiên ngày ${dateStr}...`);
     await job.save();
 
-    // Market Weekend Guard: Nếu đang trong khoảng đóng cửa cuối tuần (sau 06:30 Thứ 7 đến trước 05:00 Thứ 2)
-    // Và không có chỉ định ép buộc ngày quá khứ cụ thể
-    if (!payload.targetDate && isMarketWeekendClosed()) {
-      log('⏸ [Market Weekend Guard] Thị trường hàng hóa quốc tế và MXV đang đóng cửa cuối tuần (từ sáng Thứ Bảy đến 05:00 sáng Thứ Hai). Tác vụ đối chiếu trong phiên (CHECK_KLGD) tạm nghỉ.');
+    // Market Weekend Guard: Nếu đang trong khoảng đóng cửa cuối tuần và không chỉ định ép buộc ngày quá khứ cụ thể
+    if (
+      !payload.targetDate &&
+      isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })
+    ) {
+      log(
+        `⏸ [Market Weekend Guard] Thị trường hàng hóa quốc tế và MXV đang đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tạm nghỉ.`,
+      );
       payload.result = {
         passed: true,
         isWeekendRest: true,
-        message: 'Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc 05:00 sáng Thứ Hai.',
+        message: `Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc ${sessionStartSetting || '05:00'} sáng Thứ Hai.`,
         mismatchedTrades: [],
         mismatchedTradesTotal: 0,
       };

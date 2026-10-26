@@ -90,6 +90,7 @@ export default function TradingManagerConfigSection({
   const [botBackupPathCcp, setBotBackupPathCcp] = useState<string>('');
   const [botBackupPathCe, setBotBackupPathCe] = useState<string>('');
   const [botCcpStatTargetRoot, setBotCcpStatTargetRoot] = useState<string>('');
+  const [botCeStatTargetRoot, setBotCeStatTargetRoot] = useState<string>('');
 
   // Path check statuses
   const [pathChecking, setPathChecking] = useState<Record<string, boolean>>({});
@@ -216,6 +217,7 @@ export default function TradingManagerConfigSection({
       setBotBackupPathCcp(toWindowsM(map.bot_backup_path_ccp || ''));
       setBotBackupPathCe(toWindowsM(map.bot_backup_path_ce || ''));
       setBotCcpStatTargetRoot(toWindowsM(map.bot_ccp_stat_target_root || ''));
+      setBotCeStatTargetRoot(toWindowsM(map.bot_ce_stat_target_root || ''));
 
       if (map.negative_margin_monitored_accounts) {
         try {
@@ -434,6 +436,7 @@ export default function TradingManagerConfigSection({
               { key: 'bot_backup_path_ce', value: botBackupPathCe },
               { key: 'bot_backup_path_acm', value: botBackupPathAcm },
               { key: 'bot_ccp_stat_target_root', value: botCcpStatTargetRoot },
+              { key: 'bot_ce_stat_target_root', value: botCeStatTargetRoot },
             ]
           : []),
         // BỘ GIỜ PHIÊN GIAO DỊCH DÙNG CHUNG TOÀN HỆ THỐNG (MS, CQG, CoreCCP, CE)
@@ -1372,7 +1375,7 @@ export default function TradingManagerConfigSection({
               <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                 {isMsCqgScope
                   ? 'Gồm 8 thư mục chuẩn: Backup MS/CQG/ACM, Thư mục TradingCheck, 2 Sổ Master FOM (Lot & Giá trị) và Ban Tin Tức'
-                  : 'Gồm 4 thư mục: Backup 25 báo cáo CoreCCP, Backup CoreEX, Backup ACM (Straits CSV) và Thư mục 10 Master Templates CCP'}
+                  : 'Gồm 5 thư mục: Backup CoreCCP, Backup CoreEX, Backup ACM (Straits CSV), Sổ sách CoreCCP và Sổ sách CoreEX (tách riêng/dùng chung)'}
               </p>
             </div>
           </div>
@@ -1399,6 +1402,7 @@ export default function TradingManagerConfigSection({
                   setBotBackupPathCe((p) => toWindowsM(p));
                   setBotBackupPathAcm((p) => toWindowsM(p));
                   setBotCcpStatTargetRoot((p) => toWindowsM(p));
+                  setBotCeStatTargetRoot((p) => toWindowsM(p));
                 }
                 toast.success('Đã chuẩn hóa toàn bộ đường dẫn về định dạng ổ M:\\ (Windows)!');
               }}
@@ -1503,6 +1507,13 @@ export default function TradingManagerConfigSection({
                   val: botCcpStatTargetRoot,
                   setVal: setBotCcpStatTargetRoot,
                   desc: 'Thư mục chứa 10 Master Templates CCP (Thống kê số lot & giá trị CCP) và thư mục output bảng tháng',
+                },
+                {
+                  id: 'botCeStatTargetRoot',
+                  label: 'Thư mục Sổ sách Thống kê CoreEX (Tùy chọn tách riêng)',
+                  val: botCeStatTargetRoot,
+                  setVal: setBotCeStatTargetRoot,
+                  desc: 'Thư mục lưu 2 file Thống kê ACM (Lot & Giá trị) cho CoreEX. Để trống nếu muốn dùng chung với CoreCCP; hoặc điền thư mục riêng để test độc lập.',
                 },
               ]
           )

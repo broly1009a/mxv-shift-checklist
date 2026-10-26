@@ -12,10 +12,10 @@
 
 let isMarketWeekendClosed, resolveTradingSessionDate;
 try {
-  ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../../dist/modules/bot-engine/helpers/bot-path.helper'));
-} catch {
   require('ts-node/register');
   ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../modules/bot-engine/helpers/bot-path.helper'));
+} catch {
+  ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../../dist/modules/bot-engine/helpers/bot-path.helper'));
 }
 
 console.log('================================================================================');
@@ -108,10 +108,12 @@ console.log('\n▶ TEST SUITE 2: Kiểm thử lùi phiên ca đêm các ngày tr
 // -----------------------------------------------------------------------------
 console.log('\n▶ TEST SUITE 3: Kiểm thử nhận diện thị trường đóng cửa cuối tuần (isMarketWeekendClosed)');
 {
+  const defaultOpts = { sessionStartStr: '05:00' };
+
   // 1. Thứ Bảy lúc 03:00 sáng (Thị trường Mỹ vẫn giao dịch phiên Thứ 6) -> FALSE
   const satEarly = new Date('2026-10-09T20:00:00.000Z'); // 03:00 GMT+7 Thứ Bảy
   assert(
-    isMarketWeekendClosed(satEarly) === false,
+    isMarketWeekendClosed(satEarly, defaultOpts) === false,
     'Thứ Bảy lúc 03:00 AM: Thị trường Mỹ vẫn mở phiên đêm -> isMarketWeekendClosed = FALSE',
     `Giờ VN: ${satEarly.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
   );
@@ -119,7 +121,7 @@ console.log('\n▶ TEST SUITE 3: Kiểm thử nhận diện thị trường đó
   // 2. Thứ Bảy lúc 07:00 sáng (Thị trường đã đóng cửa chốt tuần) -> TRUE
   const satClosed = new Date('2026-10-10T00:00:00.000Z'); // 07:00 GMT+7 Thứ Bảy
   assert(
-    isMarketWeekendClosed(satClosed) === true,
+    isMarketWeekendClosed(satClosed, defaultOpts) === true,
     'Thứ Bảy lúc 07:00 AM: Thị trường đã đóng cửa -> isMarketWeekendClosed = TRUE',
     `Giờ VN: ${satClosed.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
   );
@@ -127,7 +129,7 @@ console.log('\n▶ TEST SUITE 3: Kiểm thử nhận diện thị trường đó
   // 3. Chủ Nhật cả ngày -> TRUE
   const sunNoon = new Date('2026-10-11T05:00:00.000Z'); // 12:00 trưa GMT+7 Chủ Nhật
   assert(
-    isMarketWeekendClosed(sunNoon) === true,
+    isMarketWeekendClosed(sunNoon, defaultOpts) === true,
     'Chủ Nhật lúc 12:00 trưa: Thị trường đóng cửa hoàn toàn -> isMarketWeekendClosed = TRUE',
     `Giờ VN: ${sunNoon.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
   );
@@ -135,7 +137,7 @@ console.log('\n▶ TEST SUITE 3: Kiểm thử nhận diện thị trường đó
   // 4. Thứ Hai lúc 02:00 sáng (Trước 05:00 AM, CME chưa mở) -> TRUE
   const monEarly = new Date('2026-10-11T19:00:00.000Z'); // 02:00 GMT+7 Thứ Hai
   assert(
-    isMarketWeekendClosed(monEarly) === true,
+    isMarketWeekendClosed(monEarly, defaultOpts) === true,
     'Thứ Hai lúc 02:00 AM: CME Globex chưa mở phiên -> isMarketWeekendClosed = TRUE',
     `Giờ VN: ${monEarly.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
   );
@@ -143,7 +145,7 @@ console.log('\n▶ TEST SUITE 3: Kiểm thử nhận diện thị trường đó
   // 5. Thứ Hai lúc 05:15 sáng (CME Globex đã mở phiên tuần mới) -> FALSE
   const monOpen = new Date('2026-10-11T22:15:00.000Z'); // 05:15 GMT+7 Thứ Hai
   assert(
-    isMarketWeekendClosed(monOpen) === false,
+    isMarketWeekendClosed(monOpen, defaultOpts) === false,
     'Thứ Hai lúc 05:15 AM: CME Globex đã mở phiên tuần mới -> isMarketWeekendClosed = FALSE',
     `Giờ VN: ${monOpen.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
   );
@@ -151,9 +153,31 @@ console.log('\n▶ TEST SUITE 3: Kiểm thử nhận diện thị trường đó
   // 6. Thứ Tư lúc 10:00 sáng trong tuần -> FALSE
   const wedDay = new Date('2026-10-07T03:00:00.000Z'); // 10:00 GMT+7 Thứ Tư
   assert(
-    isMarketWeekendClosed(wedDay) === false,
+    isMarketWeekendClosed(wedDay, defaultOpts) === false,
     'Thứ Tư lúc 10:00 AM ngày trong tuần -> isMarketWeekendClosed = FALSE',
     `Giờ VN: ${wedDay.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
+  );
+
+  // 7. Cấu hình động: Thứ Bảy phiên Thứ Sáu kéo dài tới 06:00 (sessionStartStr = '06:00')
+  const satCustomEarly = new Date('2026-10-09T22:30:00.000Z'); // 05:30 GMT+7 Thứ Bảy
+  const satCustomLate = new Date('2026-10-09T23:15:00.000Z'); // 06:15 GMT+7 Thứ Bảy
+  assert(
+    isMarketWeekendClosed(satCustomEarly, { sessionStartStr: '06:00' }) === false,
+    'Thứ Bảy lúc 05:30 AM với sessionStartStr = "06:00" -> isMarketWeekendClosed = FALSE (Phiên Thứ Sáu chưa kết thúc)',
+    `Giờ VN: ${satCustomEarly.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
+  );
+  assert(
+    isMarketWeekendClosed(satCustomLate, { sessionStartStr: '06:00' }) === true,
+    'Thứ Bảy lúc 06:15 AM với sessionStartStr = "06:00" -> isMarketWeekendClosed = TRUE (Phiên Thứ Sáu đã kết thúc theo cấu hình CSDL)',
+    `Giờ VN: ${satCustomLate.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
+  );
+
+  // 8. Cấu hình động: Thứ Hai mở phiên muộn lúc 06:00 (sessionStartStr = '06:00')
+  const monLateOpen = new Date('2026-10-11T22:30:00.000Z'); // 05:30 GMT+7 Thứ Hai
+  assert(
+    isMarketWeekendClosed(monLateOpen, { sessionStartStr: '06:00' }) === true,
+    'Thứ Hai lúc 05:30 AM với sessionStartStr = "06:00" -> isMarketWeekendClosed = TRUE (Chưa mở theo cấu hình CSDL)',
+    `Giờ VN: ${monLateOpen.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`
   );
 }
 
@@ -218,11 +242,57 @@ console.log('\n▶ TEST SUITE 5: Kiểm thử người dùng chủ động soi l
 {
   const mockNow = new Date('2026-10-05T02:00:00.000Z');
   // Người dùng chọn ngày quá khứ 2026-09-15
-  const resPast = resolveTradingSessionDate('2026-09-15', { now: mockNow, forceExactDate: true });
+  const resPast = resolveTradingSessionDate('2026-09-15', {
+    now: mockNow,
+    sessionStartStr: '05:00',
+    forceExactDate: true,
+  });
   assert(
     resPast.dateStr === '2026-09-15',
     'Soi lại ngày quá khứ cụ thể (2026-09-15) được giữ nguyên tuyệt đối',
     `dateStr = ${resPast.dateStr}`
+  );
+}
+
+// -----------------------------------------------------------------------------
+// TEST SUITE 6: KIỂM THỬ NGUYÊN TẮC FAIL-FAST (BẮT BUỘC CÓ sessionStartStr)
+// -----------------------------------------------------------------------------
+console.log('\n▶ TEST SUITE 6: Kiểm thử nguyên tắc Fail-Fast (Tuyệt đối không fallback ngầm khi thiếu cấu hình)');
+{
+  // 1. isMarketWeekendClosed không truyền options -> Bắt buộc ném lỗi
+  let threwWeekendNoOpts = false;
+  try {
+    isMarketWeekendClosed(new Date());
+  } catch (err) {
+    threwWeekendNoOpts = true;
+  }
+  assert(
+    threwWeekendNoOpts === true,
+    'isMarketWeekendClosed() không truyền options -> FAIL-FAST ném lỗi Error ngay lập tức',
+  );
+
+  // 2. isMarketWeekendClosed truyền sessionStartStr rỗng -> Bắt buộc ném lỗi
+  let threwWeekendEmpty = false;
+  try {
+    isMarketWeekendClosed(new Date(), { sessionStartStr: '' });
+  } catch (err) {
+    threwWeekendEmpty = true;
+  }
+  assert(
+    threwWeekendEmpty === true,
+    'isMarketWeekendClosed() với sessionStartStr rỗng -> FAIL-FAST ném lỗi Error ngay lập tức',
+  );
+
+  // 3. resolveTradingSessionDate thiếu sessionStartStr -> Bắt buộc ném lỗi
+  let threwResolveNoOpts = false;
+  try {
+    resolveTradingSessionDate(undefined, {});
+  } catch (err) {
+    threwResolveNoOpts = true;
+  }
+  assert(
+    threwResolveNoOpts === true,
+    'resolveTradingSessionDate() thiếu sessionStartStr -> FAIL-FAST ném lỗi Error ngay lập tức',
   );
 }
 
