@@ -12,13 +12,10 @@ import {
   Body,
   Query,
   Res,
-  UseInterceptors,
-  UploadedFiles,
   BadRequestException,
   UseGuards,
   Logger,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -27,11 +24,11 @@ import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { resolveStoragePathCrossPlatform } from '../../../shared';
-import { MsEodReconService } from '../services/ms-eod-recon.service';
-import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
-import { QlgdDashboardService } from '../services/qlgd-dashboard.service';
-import { QlgdExcelExportService } from '../services/qlgd-excel-export.service';
-import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
+import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
+import { ReconConsoleSummaryService } from '../services/console/recon-console-summary.service';
+import { QlgdDashboardService } from '../services/console/qlgd-dashboard.service';
+import { QlgdExcelExportService } from '../services/console/qlgd-excel-export.service';
+import { TradingOpsPreflightService } from '../services/console/trading-ops-preflight.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])
@@ -270,75 +267,6 @@ export class TradingOpsMiscController {
       formattedDate,
       textContent,
       jsonContent,
-    };
-  }
-
-  /**
-   * Upload file sao lưu thủ công vào thư mục lưu trữ Backup CQG/MS.
-   */
-  @Post('upload-backup')
-  @Permissions('ACCESS_AUTO_SHIFT')
-  @UseInterceptors(FilesInterceptor('files'))
-  async uploadBackupFiles(
-    @UploadedFiles() files: Express.Multer.File[],
-    @Body('date') dateStr?: string,
-    @Body('categories') categories?: string | string[],
-  ) {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('Không có file nào được tải lên');
-    }
-
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    if (isNaN(targetDate.getTime())) {
-      throw new BadRequestException('Định dạng ngày không hợp lệ. Sử dụng YYYY-MM-DD');
-    }
-
-    const year = targetDate.getFullYear().toString();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const day = String(targetDate.getDate()).padStart(2, '0');
-    const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-
-    const cqgBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
-      'bot_backup_path_cqg',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-    ));
-    const msBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
-    ));
-
-    const savedFiles: { filename: string; path: string; category: string }[] = [];
-
-    let index = 0;
-    const catList = Array.isArray(categories) ? categories : [categories || 'auto'];
-
-    for (const file of files) {
-      const category = catList[index] || catList[0] || 'auto';
-      index++;
-
-      const isCqg = category === 'cqg' || /FR|OP|PS|Od|Accounts_Balances/i.test(file.originalname);
-      const targetBase = isCqg ? cqgBase : msBase;
-      const targetDir = path.join(targetBase, subFolder);
-
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-
-      const filePath = path.join(targetDir, file.originalname);
-      fs.writeFileSync(filePath, file.buffer);
-
-      savedFiles.push({
-        filename: file.originalname,
-        path: filePath,
-        category: isCqg ? 'CQG' : 'M-System',
-      });
-    }
-
-    return {
-      success: true,
-      message: `Đã lưu thành công ${savedFiles.length} file vào thư mục Backup (${subFolder})`,
-      targetDate: targetDate.toISOString().split('T')[0],
-      savedFiles,
     };
   }
 

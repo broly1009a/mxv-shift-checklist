@@ -1,8 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
-import { RpaDownloaderService } from '../modules/ingress';
-import { CqgSyncService } from '../modules/bot-engine/cqg-sync.service';
+import { CqgMergerService } from '../modules/trading-ops/services/merger/cqg-merger.service';
 import { decrypt } from '../modules/bot-engine/utils/crypto';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -31,8 +30,7 @@ async function run() {
   });
 
   const settingsService = app.get(SystemSettingsService);
-  const rpaDownloader = app.get(RpaDownloaderService);
-  const cqgSyncService = app.get(CqgSyncService);
+  const cqgMergerService = app.get(CqgMergerService);
 
   const credRaw = await settingsService.getSetting('bot_credentials_cqg', '');
   if (!credRaw) {
@@ -131,11 +129,7 @@ async function run() {
 
       // Thử nghiệm ghép file tự động theo danh sách loại file vừa tải
       console.log(`\n🔄 Kích hoạt tự động ghép file (${mergeTypes.map(t => `${t}1 + ${t}2 -> ${t}.xlsx`).join(', ')})...`);
-      /*
-      // Code cũ:
-      const mergeRes = await cqgSyncService.autoMergeMissingFiles(today, ['FR'], true);
-      */
-      const mergeRes = await cqgSyncService.autoMergeMissingFiles(today, mergeTypes, true);
+      const mergeRes = await cqgMergerService.autoMergeMissingFiles(today, mergeTypes, true);
       console.log(` Ghép file thành công: ${mergeRes.success}`);
       for (const l of mergeRes.logs) {
         console.log(`   ${l}`);

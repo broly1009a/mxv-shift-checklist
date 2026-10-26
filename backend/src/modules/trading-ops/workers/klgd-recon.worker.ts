@@ -8,7 +8,7 @@ import {
   RECON_PIPELINE_PORT,
 } from '../../../shared';
 import type { IReconPipelinePort } from '../../../shared';
-import { KlgdReconService } from '../services/klgd-recon.service';
+import { KlgdReconService } from '../services/recon/klgd-recon.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
 @Injectable()

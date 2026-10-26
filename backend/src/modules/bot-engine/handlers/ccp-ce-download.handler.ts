@@ -1,12 +1,10 @@
-import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
-import { CcpCeScraperService, CcpReportConfig, DEFAULT_CCP_REPORTS, DEFAULT_CE_REPORTS } from '../../ingress/scrapers/ccp-ce-scraper.service';
 import { IngressService } from '../../ingress/ingress.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { decrypt } from '../utils/crypto';
 import {
   parseJobPayload,
   resolveStoragePathCrossPlatform,
@@ -15,12 +13,10 @@ import {
 } from '../helpers/bot-path.helper';
 
 /**
- * CcpCeDownloadJobHandler — Xử lý Job tải báo cáo từ VNCLEAR CoreCCP / CoreEX.
+ * CcpCeDownloadJobHandler — Điều phối Job tải báo cáo từ VNCLEAR CoreCCP / CoreEX.
  *
  * Trigger qua BotJob với jobType: 'DOWNLOAD_CCP_REPORT' hoặc 'DOWNLOAD_CE_REPORT'.
- * Hỗ trợ chuyển đổi 100% sang Direct REST API qua IngressService khi bật cờ:
- *   - ingress_mode_ccp = 'REST_API'
- *   - ingress_mode_ce = 'REST_API'
+ * Hoàn toàn Data-driven và ủy quyền 100% cho IngressService (fail-fast, zero silent swallow, zero fallback).
  */
 @Injectable()
 export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
@@ -30,10 +26,8 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
-    private readonly ccpCeDownloaderService: CcpCeScraperService,
     private readonly settingsService: SystemSettingsService,
-    @Optional()
-    private readonly ingressService?: IngressService,
+    private readonly ingressService: IngressService,
   ) {}
 
   onModuleInit() {
@@ -44,7 +38,6 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const { jobType } = job;
     const isCcp = jobType === 'DOWNLOAD_CCP_REPORT';
     const sourceKey = isCcp ? 'CCP' : 'CORE_EX';
-    const credKey = isCcp ? 'bot_credentials_ccp' : 'bot_credentials_ce';
     const systemLabel = isCcp ? 'CoreCCP' : 'CoreEX';
 
     const payload = parseJobPayload(job);
@@ -89,104 +82,52 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const logPrefix = `[${new Date().toISOString()}]`;
     job.logs = job.logs || [];
     job.logs.push(
-      `${logPrefix} [${systemLabel}] Bắt đầu tải báo cáo: ${startDate} → ${endDate}`,
+      `${logPrefix} [${systemLabel}] Bắt đầu điều phối tải báo cáo: ${startDate} → ${endDate}`,
     );
     job.logs.push(
       `${logPrefix} [${systemLabel}] [${isTradingCheck ? 'TradingCheck - Đối soát' : 'Backup ca trực'}] Thư mục lưu: ${outputDir}`,
     );
     await job.save();
 
-    // ─── KIỂM TRA CHẾ ĐỘ DIRECT REST API TỪ CẤU HÌNH CSDL ─────────────────
-    const globalMode = await this.settingsService.getSetting('ingress_mode', process.env.INGRESS_MODE || 'PLAYWRIGHT');
-    const specificModeKey = isCcp ? 'ingress_mode_ccp' : 'ingress_mode_ce';
-    const ingressMode = await this.settingsService.getSetting(
-      specificModeKey,
-      process.env[specificModeKey.toUpperCase()] || globalMode,
-    );
+    const reportCodes = reports && reports.length > 0 ? reports : ['FULL'];
+    const isFullBackup = reportCodes.includes('FULL') || reportCodes.includes('ALL');
 
-    if (ingressMode === 'REST_API' && this.ingressService) {
-      this.logger.log(`[CcpCeDownloadJobHandler] Kích hoạt Direct REST API Mode cho ${systemLabel} (Cờ: ${specificModeKey}=REST_API), bỏ qua Chromium!`);
-      job.logs.push(`${logPrefix} [${systemLabel}] Kích hoạt Direct REST API Mode (Không mở Chromium)...`);
-      await job.save();
+    this.logger.log(`[CcpCeDownloadJobHandler] Gửi yêu cầu tải ${reportCodes.length} báo cáo ${systemLabel} tới IngressService`);
 
-      const reportCodes = reports && reports.length > 0 ? reports : ['FULL'];
-      let apiFailed = false;
-      let apiErrorMsg = '';
+    const ingressRes = await this.ingressService.download(sourceKey, {
+      targetDirectory: outputDir,
+      reportCodes,
+      targetDate: startDate,
+      isFullBackup,
+    });
 
-      try {
-        const ingressRes = await this.ingressService.download(sourceKey, {
-          targetDirectory: outputDir,
-          reportCodes,
-          targetDate: startDate,
-          isFullBackup: reportCodes.includes('FULL') || reportCodes.includes('ALL'),
-        });
-
-        for (const f of ingressRes.files) {
-          job.logs.push(`${logPrefix} [API Downloaded] ${f.fileName} (${(f.fileSize / 1024).toFixed(1)} KB)`);
-        }
-
-        job.logs.push(`${logPrefix} [${systemLabel}] Hoàn tất tải ${ingressRes.files.length} báo cáo qua Direct REST API (${ingressRes.durationMs}ms)`);
-        if (ingressRes.success && ingressRes.files.length > 0) {
-          job.status = 'COMPLETED';
-          await job.save();
-
-          return {
-            success: true,
-            downloadedCount: ingressRes.files.length,
-            outputDir,
-            mode: 'DIRECT_REST_API',
-          };
-        }
-
-        apiFailed = true;
-        apiErrorMsg = ingressRes.error || `Không tải được báo cáo nào từ ${systemLabel} qua Direct REST API.`;
-      } catch (apiErr: any) {
-        apiFailed = true;
-        apiErrorMsg = apiErr.message;
-      }
-
-      if (apiFailed) {
-        this.logger.warn(`[CcpCeDownloadJobHandler] Direct REST API cho ${systemLabel} thất bại: ${apiErrorMsg}. Tự động fallback sang Playwright Browser...`);
-        job.logs.push(`${logPrefix} [${systemLabel}] [CẢNH BÁO] Direct REST API gặp sự cố: ${apiErrorMsg}. Tự động chuyển sang tải dự phòng qua Playwright Browser...`);
-        await job.save();
-      }
+    for (const f of ingressRes.files) {
+      const sizeKb = f.fileSize ? (f.fileSize / 1024).toFixed(1) : '0';
+      job.logs.push(`${logPrefix} [Tải thành công] ${f.fileName} (${sizeKb} KB)`);
     }
 
-    // ─── PLAYWRIGHT FALLBACK NẾU CHƯA BẬT REST_API ──────────────────────────
-    const credRaw = await this.settingsService.getSetting(credKey, '');
-    let creds: any = {};
-    if (credRaw) {
-      try {
-        creds = JSON.parse(decrypt(credRaw));
-      } catch {}
-    }
-
-    let success = false;
-    try {
-      success = await this.ccpCeDownloaderService.run(
-        {
-          username: creds.username || 'hieptruong',
-          password: creds.password || 'Taovipko0!',
-          systemUrl: creds.url || '',
-          startDate,
-          endDate,
-          reports: reports as any,
-          outputDir,
-        },
-        (msg: string) => {
-          job.logs.push(`[${new Date().toISOString()}] ${msg}`);
-        },
-      );
-    } catch (err: any) {
-      job.logs.push(`[${new Date().toISOString()}] Lỗi cào Playwright: ${err.message}`);
-      job.error = err.message;
+    if (!ingressRes.success || ingressRes.files.length === 0) {
+      const errorMsg = ingressRes.error || `Không tải được báo cáo nào từ ${systemLabel}.`;
+      this.logger.error(`[CcpCeDownloadJobHandler] Lỗi tải báo cáo ${systemLabel}: ${errorMsg}`);
+      job.logs.push(`${logPrefix} [${systemLabel}] [LỖI] Tải thất bại: ${errorMsg}`);
+      job.error = errorMsg;
       job.status = 'FAILED';
       await job.save();
-      throw err;
+      throw new Error(`[${systemLabel}] Tải báo cáo thất bại: ${errorMsg}`);
     }
 
-    job.status = success ? 'COMPLETED' : 'FAILED';
+    job.logs.push(
+      `${logPrefix} [${systemLabel}] Hoàn tất tải ${ingressRes.files.length} báo cáo thành công (${ingressRes.durationMs}ms)`,
+    );
+    job.status = 'COMPLETED';
     await job.save();
-    return { success, outputDir, mode: 'PLAYWRIGHT' };
+
+    return {
+      success: true,
+      downloadedCount: ingressRes.files.length,
+      outputDir,
+      files: ingressRes.files,
+      durationMs: ingressRes.durationMs,
+    };
   }
 }

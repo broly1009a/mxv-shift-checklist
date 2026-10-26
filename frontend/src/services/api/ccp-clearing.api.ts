@@ -376,6 +376,70 @@ export const ccpClearingApi = {
   },
 
   /**
+   * Lấy cấu hình Macro Thống kê Khối lượng (Lot Macro)
+   */
+  async getMacroLotConfig(token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CCP_CLEARING.MACRO_LOT_CONFIG,
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
+   * Lưu cấu hình Macro Thống kê Khối lượng (Lot Macro)
+   */
+  async saveMacroLotConfig(
+    payload: {
+      macroPath?: string;
+      scriptPath?: string;
+      pythonExe?: string;
+      targetRoot?: string;
+    },
+    token?: string | null,
+  ): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CCP_CLEARING.MACRO_LOT_CONFIG,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token,
+    );
+  },
+
+  /**
+   * Lấy cấu hình Macro Thống kê Giá trị (Value Macro)
+   */
+  async getMacroValueConfig(token?: string | null): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CCP_CLEARING.MACRO_VALUE_CONFIG,
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
+   * Lưu cấu hình Macro Thống kê Giá trị (Value Macro)
+   */
+  async saveMacroValueConfig(
+    payload: {
+      macroPath?: string;
+      scriptPath?: string;
+    },
+    token?: string | null,
+  ): Promise<any> {
+    return requestJson<any>(
+      API_ENDPOINTS.CCP_CLEARING.MACRO_VALUE_CONFIG,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token,
+    );
+  },
+
+  /**
    * Lấy cấu hình thống kê Giá trị
    */
   async getValueConfig(token?: string | null): Promise<any> {

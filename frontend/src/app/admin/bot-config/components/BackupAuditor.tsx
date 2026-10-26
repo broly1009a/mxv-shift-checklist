@@ -13,7 +13,6 @@ import {
   Play,
 } from 'lucide-react';
 import { api } from '@/services/api';
-import { requestJson } from '@/services/api/client';
 
 interface BackupAuditorProps {
   token: string;
@@ -74,53 +73,44 @@ export default function BackupAuditor({
   const fetchPaths = async () => {
     if (!token) return;
     try {
-      // Backup MS path
+      // 1. Fetch System Settings (MS, CQG, ACM, Margin)
       try {
-        const backupData = await requestJson<any>('/api/v1/bot-engine/backup-ms/config', {}, token);
-        if (backupData?.backupPath) {
-          setBackupPathMs(backupData.backupPath);
+        const msSetting = await api.admin.getSystemSetting('bot_backup_path_ms', token);
+        if (msSetting?.value) setBackupPathMs(msSetting.value);
+      } catch {}
+
+      try {
+        const cqgSetting = await api.admin.getSystemSetting('bot_backup_path_cqg', token);
+        if (cqgSetting?.value) {
+          setBackupPathCqg(cqgSetting.value);
+          setBackupPathCast(cqgSetting.value);
         }
       } catch {}
 
-      // Backup CQG path
       try {
-        const backupCqgData = await requestJson<any>('/api/v1/bot-engine/backup-cqg/config', {}, token);
-        if (backupCqgData?.backupPath) {
-          setBackupPathCqg(backupCqgData.backupPath);
-          setBackupPathCast(backupCqgData.backupPath);
-        }
+        const acmSetting = await api.admin.getSystemSetting('bot_backup_path_acm', token);
+        if (acmSetting?.value) setBackupPathAcm(acmSetting.value);
       } catch {}
 
-      // Backup ACM path
       try {
-        const backupAcmData = await requestJson<any>('/api/v1/bot-engine/backup-acm/config', {}, token);
-        if (backupAcmData?.backupPath) {
-          setBackupPathAcm(backupAcmData.backupPath);
-        }
+        const marginSetting = await api.admin.getSystemSetting('margin_decision_folder_path', token);
+        if (marginSetting?.value) setMarginDecisionPath(marginSetting.value);
       } catch {}
 
-      // Macro Lot config
+      // 2. Macro Lot config
       try {
-        const macroData = await requestJson<any>('/api/v1/bot-engine/macro-lot/config', {}, token);
+        const macroData = await api.ccpClearing.getMacroLotConfig(token);
         if (macroData?.macroPath) setMacroLotPath(macroData.macroPath);
         if (macroData?.scriptPath) setMacroLotScriptPath(macroData.scriptPath);
         if (macroData?.pythonExe) setPythonExe(macroData.pythonExe);
         if (macroData?.targetRoot) setTargetRoot(macroData.targetRoot);
       } catch {}
 
-      // Macro Value config
+      // 3. Macro Value config
       try {
-        const macroValueData = await requestJson<any>('/api/v1/bot-engine/macro-value/config', {}, token);
+        const macroValueData = await api.ccpClearing.getMacroValueConfig(token);
         if (macroValueData?.macroPath) setMacroValuePath(macroValueData.macroPath);
         if (macroValueData?.scriptPath) setMacroValueScriptPath(macroValueData.scriptPath);
-      } catch {}
-
-      // Margin Decision folder path setting
-      try {
-        const marginData = await requestJson<any>('/api/v1/system-settings/margin_decision_folder_path', {}, token);
-        if (marginData?.value) {
-          setMarginDecisionPath(marginData.value);
-        }
       } catch {}
     } catch (err) {
       console.error('Failed to fetch backup path configurations', err);
@@ -137,15 +127,8 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingBackupPathMs(true);
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/backup-ms/config',
-        {
-          method: 'POST',
-          body: JSON.stringify({ backupPath: backupPathMs }),
-        },
-        token,
-      );
-      toast.success(data?.message || 'Đã lưu đường dẫn backup MS thành công!');
+      await api.admin.saveSystemSetting('bot_backup_path_ms', backupPathMs, token);
+      toast.success('Đã lưu đường dẫn backup MS thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
@@ -175,14 +158,11 @@ export default function BackupAuditor({
     setTriggeringAuditMs(true);
     const toastId = toast.loading('Đang khởi tạo job tải bổ sung file thiếu...');
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/trigger-audit-ms',
-        { method: 'POST' },
-        token,
-      );
+      const data = await api.ingress.triggerMsDownload({}, token);
       toast.success('Đã xếp hàng job kiểm tra & tải bổ sung file MS thành công!', { id: toastId });
       if (data?.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+        const newJobId = data.jobId;
+        setTrackedJobs((prev) => [...prev, newJobId]);
       }
       fetchJobs();
     } catch (err: any) {
@@ -198,15 +178,8 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingBackupPathCqg(true);
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/backup-cqg/config',
-        {
-          method: 'POST',
-          body: JSON.stringify({ backupPath: backupPathCqg }),
-        },
-        token,
-      );
-      toast.success(data?.message || 'Đã lưu đường dẫn backup CQG thành công!');
+      await api.admin.saveSystemSetting('bot_backup_path_cqg', backupPathCqg, token);
+      toast.success('Đã lưu đường dẫn backup CQG thành công!');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi lưu cấu hình');
     } finally {
@@ -236,14 +209,11 @@ export default function BackupAuditor({
     setTriggeringAuditCqg(true);
     const toastId = toast.loading('Đang khởi tạo job ghép file backup CQG...');
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/trigger-audit-cqg',
-        { method: 'POST' },
-        token,
-      );
+      const data = await api.ingress.triggerCqgDownload({}, token);
       toast.success('Đã xếp hàng job tự động ghép file CQG thành công!', { id: toastId });
       if (data?.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+        const newJobId = data.jobId;
+        setTrackedJobs((prev) => [...prev, newJobId]);
       }
       fetchJobs();
     } catch (err: any) {
@@ -276,14 +246,11 @@ export default function BackupAuditor({
     setTriggeringAuditAcm(true);
     const toastId = toast.loading('Đang khởi tạo job tải file backup ACM...');
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/trigger-audit-acm',
-        { method: 'POST' },
-        token,
-      );
+      const data = await api.ingress.triggerAcmDownload({}, token);
       toast.success('Đã xếp hàng job tự động tải file ACM thành công!', { id: toastId });
       if (data?.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+        const newJobId = data.jobId;
+        setTrackedJobs((prev) => [...prev, newJobId]);
       }
       fetchJobs();
     } catch (err: any) {
@@ -314,17 +281,11 @@ export default function BackupAuditor({
     setTriggeringCastDownload(true);
     const toastId = toast.loading('Đang khởi tạo job tải báo cáo CQG CAST...');
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/trigger-cast-download',
-        {
-          method: 'POST',
-          body: JSON.stringify({ backupPath: backupPathCast }),
-        },
-        token,
-      );
+      const data = await api.ingress.triggerCastDownload({ backupPath: backupPathCast }, token);
       toast.success('Đã xếp hàng job tự động tải báo cáo CQG CAST thành công!', { id: toastId });
       if (data?.jobId) {
-        setTrackedJobs((prev) => [...prev, data.jobId]);
+        const newJobId = data.jobId;
+        setTrackedJobs((prev) => [...prev, newJobId]);
       }
       fetchJobs();
     } catch (err: any) {
@@ -340,16 +301,12 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingMacroConfig(true);
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/macro-lot/config',
+      const data = await api.ccpClearing.saveMacroLotConfig(
         {
-          method: 'POST',
-          body: JSON.stringify({
-            macroPath: macroLotPath,
-            scriptPath: macroLotScriptPath,
-            pythonExe,
-            targetRoot,
-          }),
+          macroPath: macroLotPath,
+          scriptPath: macroLotScriptPath,
+          pythonExe,
+          targetRoot,
         },
         token,
       );
@@ -387,14 +344,10 @@ export default function BackupAuditor({
     if (!token) return;
     setSavingValueMacroConfig(true);
     try {
-      const data = await requestJson<any>(
-        '/api/v1/bot-engine/macro-value/config',
+      const data = await api.ccpClearing.saveMacroValueConfig(
         {
-          method: 'POST',
-          body: JSON.stringify({
-            macroPath: macroValuePath,
-            scriptPath: macroValueScriptPath,
-          }),
+          macroPath: macroValuePath,
+          scriptPath: macroValueScriptPath,
         },
         token,
       );

@@ -97,6 +97,23 @@ export const ingressApi = {
   },
 
   /**
+   * Kích hoạt bot tải báo cáo CQG CAST
+   */
+  async triggerCastDownload(
+    options: { backupPath?: string; targetDate?: string } = {},
+    token?: string | null,
+  ): Promise<TriggerRunResponse> {
+    return requestJson<TriggerRunResponse>(
+      API_ENDPOINTS.INGRESS.TRIGGER_CAST,
+      {
+        method: 'POST',
+        body: JSON.stringify(options),
+      },
+      token,
+    );
+  },
+
+  /**
    * Thẩm định (audit) tệp tin Backup M-System
    */
   async auditMsBackup(sessionDate?: string, token?: string | null): Promise<BackupAuditResult> {

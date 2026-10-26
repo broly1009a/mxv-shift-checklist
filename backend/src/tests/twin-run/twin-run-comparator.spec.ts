@@ -1,11 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
-import { CqgMergerService } from '../../modules/trading-ops/services/cqg-merger.service';
-import { KlgdReconService } from '../../modules/trading-ops/services/klgd-recon.service';
-import { MsEodReconService } from '../../modules/trading-ops/services/ms-eod-recon.service';
-import { LotStatisticsService } from '../../modules/trading-ops/services/lot-statistics.service';
-import { ValueStatisticsService } from '../../modules/trading-ops/services/value-statistics.service';
+import { CqgMergerService } from '../../modules/trading-ops/services/merger/cqg-merger.service';
+import { KlgdReconService } from '../../modules/trading-ops/services/recon/klgd-recon.service';
+import { MsEodReconService } from '../../modules/trading-ops/services/recon/ms-eod-recon.service';
+import { LotStatisticsService } from '../../modules/trading-ops/services/statistics/lot-statistics.service';
+import { ValueStatisticsService } from '../../modules/trading-ops/services/statistics/value-statistics.service';
 import { CcpLotWorker } from '../../modules/trading-ops/workers/ccp-lot.worker';
 import { CcpValueWorker } from '../../modules/trading-ops/workers/ccp-value.worker';
 import { BotDispatcherService } from '../../modules/checklist-hub/dispatcher/bot-dispatcher.service';

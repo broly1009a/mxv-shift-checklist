@@ -22,8 +22,8 @@ import * as path from 'path';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
-import { CeLotStatisticsService } from '../services/ce-lot-statistics.service';
-import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
+import { CeLotStatisticsService } from '../services/statistics/ce-lot-statistics.service';
+import { TradingOpsPreflightService } from '../services/console/trading-ops-preflight.service';
 import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 

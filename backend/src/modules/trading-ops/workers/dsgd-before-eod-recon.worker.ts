@@ -8,8 +8,8 @@ import {
   RECON_PIPELINE_PORT,
 } from '../../../shared';
 import type { IReconPipelinePort } from '../../../shared';
-import { MsEodReconService } from '../services/ms-eod-recon.service';
-import { DsgdBeforeEodService } from '../services/dsgd-before-eod.service';
+import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
+import { DsgdBeforeEodService } from '../services/recon/dsgd-before-eod.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
 @Injectable()

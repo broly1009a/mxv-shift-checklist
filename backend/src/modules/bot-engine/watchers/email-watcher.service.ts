@@ -1,0 +1,1025 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import * as fs from 'fs';
+import * as path from 'path';
+import { resolveStoragePathCrossPlatform, resolveDailySubfolder } from '../helpers/bot-path.helper';
+
+@Injectable()
+export class EmailWatcherService {
+  private readonly logger = new Logger(EmailWatcherService.name);
+
+  constructor(private readonly settingsService: SystemSettingsService) {}
+
+  /**
+   * Check if email condition is met for a given task configuration.
+   */
+  async checkEmailTask(
+    target: string,
+    condition: string,
+  ): Promise<{ success: boolean; message: string }> {
+    // 1. Resolve Target parameters (e.g. Subject, Sender, and optional custom downloadDir)
+    let filterSubject = '';
+    let filterSender = '';
+    let customDownloadDir = '';
+    try {
+      const parsedTarget = this.safeParseJson(target);
+      if (parsedTarget) {
+        filterSubject = parsedTarget.subject || '';
+        filterSender = parsedTarget.sender || '';
+        customDownloadDir = parsedTarget.downloadDir || '';
+      } else {
+        filterSubject = target;
+      }
+    } catch {
+      filterSubject = target; // Fallback to raw string
+    }
+
+    // 2. Fetch MS Graph API credentials from settings (with environment fallback)
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
+
+    const isSimulation =
+      !clientId ||
+      !clientSecret ||
+      !tenantId ||
+      !watcherEmail ||
+      process.env.SIMULATE_BOT_CHECKS === 'true';
+
+    if (isSimulation) {
+      this.logger.debug(
+        `[Simulation] Checking mock email for Subject: "${filterSubject}", Sender: "${filterSender}"`,
+      );
+      return this.checkMockEmail(
+        filterSubject,
+        filterSender,
+        condition,
+        customDownloadDir,
+      );
+    }
+
+    try {
+      // 3. Authenticate with Microsoft OAuth2
+      const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+      const params = new URLSearchParams();
+      params.append('client_id', clientId);
+      params.append('scope', 'https://graph.microsoft.com/.default');
+      params.append('client_secret', clientSecret);
+      params.append('grant_type', 'client_credentials');
+
+      const tokenRes = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+      });
+
+      if (!tokenRes.ok) {
+        throw new Error(`Auth failed: ${tokenRes.statusText}`);
+      }
+
+      const tokenData = await tokenRes.json();
+      const accessToken = tokenData.access_token;
+
+      // 4. Query messages from user's mailbox received in the last 12 hours
+      const timeLimit = new Date(
+        Date.now() - 12 * 60 * 60 * 1000,
+      ).toISOString();
+      const filter = `receivedDateTime ge ${timeLimit}`;
+      const select = 'subject,sender,bodyPreview,body';
+      const url = `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=30`;
+
+      const mailRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!mailRes.ok) {
+        throw new Error(`Graph API query failed: ${mailRes.statusText}`);
+      }
+
+      const mailData = await mailRes.json();
+      const emails = mailData.value || [];
+
+      // 5. Scan emails for subject, sender, and success condition
+      for (const email of emails) {
+        const subjectMatch =
+          !filterSubject ||
+          email.subject.toLowerCase().includes(filterSubject.toLowerCase());
+        const senderMatch =
+          !filterSender ||
+          email.sender?.emailAddress?.address.toLowerCase() ===
+            filterSender.toLowerCase();
+
+        if (subjectMatch && senderMatch) {
+          const bodyContent = (
+            email.body?.content ||
+            email.bodyPreview ||
+            ''
+          ).toLowerCase();
+          const conditionMatch =
+            !condition || bodyContent.includes(condition.toLowerCase());
+
+          if (conditionMatch) {
+            let downloadMsg = '';
+            const rawDownloadDir =
+              customDownloadDir ||
+              (await this.settingsService.getSetting(
+                'm365_download_directory',
+                '',
+              ));
+            if (rawDownloadDir) {
+              const downloadDir = this.formatDownloadDir(rawDownloadDir);
+              try {
+                const downloaded = await this.downloadAttachments(
+                  accessToken,
+                  watcherEmail,
+                  email.id,
+                  downloadDir,
+                );
+                if (downloaded.length > 0) {
+                  downloadMsg = `. Đã tải ${downloaded.length} file đính kèm về ${downloadDir}: ${downloaded.map((p) => path.basename(p)).join(', ')}`;
+                } else {
+                  downloadMsg = `. Không tìm thấy file đính kèm nào để tải.`;
+                }
+              } catch (dlErr: any) {
+                downloadMsg = `. Lỗi khi tải file đính kèm: ${dlErr.message}`;
+                this.logger.error(
+                  `Error downloading attachments for email ${email.id}: ${dlErr.message}`,
+                );
+              }
+            }
+
+            return {
+              success: true,
+              message: `Tìm thấy email khớp: Subject: "${email.subject}", Sender: "${email.sender?.emailAddress?.address}"${downloadMsg}`,
+            };
+          }
+        }
+      }
+
+      return {
+        success: false,
+        message: `Không tìm thấy email nào khớp với tiêu chí trong 12 giờ qua.`,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error in EmailWatcherService: ${error.message}`);
+      return {
+        success: false,
+        message: `Lỗi kết nối Microsoft Graph API: ${error.message}. Đang chạy chế độ mô phỏng fallback...`,
+      };
+    }
+  }
+
+  /**
+   * Helper to download attachments from MS Graph API.
+   * Tự động thử endpoint /me trước (Delegated Token), sau đó fallback sang /users/{email}
+   */
+  async downloadAttachments(
+    accessToken: string,
+    watcherEmail: string,
+    messageId: string,
+    downloadDir: string,
+  ): Promise<string[]> {
+    // Ưu tiên /me nếu có delegated token, fallback sang /users/{watcherEmail}
+    const endpoints = [
+      `https://graph.microsoft.com/v1.0/me/messages/${messageId}/attachments`,
+    ];
+    if (watcherEmail) {
+      endpoints.push(`https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages/${messageId}/attachments`);
+    }
+
+    let res: Response | null = null;
+    let lastError = '';
+    for (const url of endpoints) {
+      try {
+        const r = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (r.ok) {
+          res = r;
+          break;
+        } else {
+          lastError = `HTTP ${r.status}: ${r.statusText}`;
+        }
+      } catch (err: any) {
+        lastError = err.message;
+      }
+    }
+
+    if (!res || !res.ok) {
+      throw new Error(`Failed to fetch attachments from Graph API: ${lastError}`);
+    }
+
+    const data = await res.json();
+    const attachments = data.value || [];
+    const downloadedFiles: string[] = [];
+
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    for (const attachment of attachments) {
+      if (
+        attachment['@odata.type'] === '#microsoft.graph.fileAttachment' &&
+        attachment.contentBytes
+      ) {
+        const filePath = path.join(downloadDir, attachment.name);
+        const buffer = Buffer.from(attachment.contentBytes, 'base64');
+        fs.writeFileSync(filePath, buffer);
+        downloadedFiles.push(filePath);
+        this.logger.log(`Tải file đính kèm thành công: ${filePath}`);
+      }
+    }
+
+    return downloadedFiles;
+  }
+
+  /**
+   * Formats dynamic placeholders in download folder path.
+   */
+  private formatDownloadDir(rawDir: string): string {
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000); // Vietnam time (GMT+7)
+    const yyyy = today.getUTCFullYear().toString();
+    const mm = (today.getUTCMonth() + 1).toString().padStart(2, '0');
+    const dd = today.getUTCDate().toString().padStart(2, '0');
+
+    const formatted = rawDir
+      .replace(/\${YYYY}/g, yyyy)
+      .replace(/\${MM}/g, mm)
+      .replace(/\${DD}/g, dd)
+      .replace(/\${yyyy}/g, yyyy)
+      .replace(/\${mm}/g, mm)
+      .replace(/\${dd}/g, dd);
+
+    return resolveStoragePathCrossPlatform(formatted);
+  }
+
+  /**
+   * Helper to check mock email from mock data file.
+   */
+  private async checkMockEmail(
+    subject: string,
+    sender: string,
+    condition: string,
+    customDownloadDir?: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const mockFilePath = path.join(__dirname, 'mock-emails.json');
+    if (!fs.existsSync(mockFilePath)) {
+      // Create empty mock file if it doesn't exist
+      const defaultMock = [
+        {
+          id: '1',
+          sender: 'anhdao@mxv.vn',
+          subject: 'Job Snapshot - THÀNH CÔNG',
+          body: 'Job Snapshot completed successfully on production database.',
+          receivedDateTime: new Date().toISOString(),
+        },
+        {
+          id: '2',
+          sender: 'backoffice@mxv.vn',
+          subject: 'Báo cáo chênh lệch KLGD CQG vs M-System',
+          body: 'Kết quả đối chiếu khớp lệnh: SUCCESS. Không phát hiện chênh lệch.',
+          receivedDateTime: new Date().toISOString(),
+        },
+      ];
+      fs.writeFileSync(
+        mockFilePath,
+        JSON.stringify(defaultMock, null, 2),
+        'utf8',
+      );
+    }
+
+    try {
+      const mockData = JSON.parse(fs.readFileSync(mockFilePath, 'utf8'));
+      for (const email of mockData) {
+        const subjectMatch =
+          !subject ||
+          email.subject.toLowerCase().includes(subject.toLowerCase());
+        const senderMatch =
+          !sender || email.sender.toLowerCase() === sender.toLowerCase();
+
+        if (subjectMatch && senderMatch) {
+          const bodyContent = (email.body || '').toLowerCase();
+          const conditionMatch =
+            !condition || bodyContent.includes(condition.toLowerCase());
+
+          if (conditionMatch) {
+            let downloadMsg = '';
+            const rawDownloadDir =
+              customDownloadDir ||
+              (await this.settingsService.getSetting(
+                'm365_download_directory',
+                '',
+              ));
+            if (rawDownloadDir) {
+              const downloadDir = this.formatDownloadDir(rawDownloadDir);
+              if (!fs.existsSync(downloadDir)) {
+                fs.mkdirSync(downloadDir, { recursive: true });
+              }
+
+              // Create simulated files depending on the type of email
+              let fileName = '';
+              let fileContent = '';
+              if (
+                email.subject.toLowerCase().includes('eod') ||
+                email.subject.toLowerCase().includes('đối chiếu')
+              ) {
+                fileName = `EOD_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                fileContent =
+                  'Mock Excel EOD Content\nAccount,InitialMargin\nTK001,-50000\nTK002,150000\nTK003,-12000\nTK004,-450000';
+              } else {
+                fileName = `Job_Snapshot_${new Date().toISOString().split('T')[0]}.txt`;
+                fileContent =
+                  'Job Snapshot SUCCESS\nAll databases are backup ready.';
+              }
+
+              const filePath = path.join(downloadDir, fileName);
+              fs.writeFileSync(filePath, fileContent, 'utf8');
+              downloadMsg = `. [Mô Phỏng] Đã sinh file đính kèm: ${fileName} tại ${downloadDir}`;
+            }
+
+            return {
+              success: true,
+              message: `[Mô Phỏng] Tìm thấy email: "${email.subject}" từ "${email.sender}"${downloadMsg}`,
+            };
+          }
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to parse mock emails file: ${err.message}`);
+    }
+
+    return {
+      success: false,
+      message: `[Mô Phỏng] Không tìm thấy mock email khớp cho: Subject "${subject}" từ "${sender}"`,
+    };
+  }
+
+  /**
+   * Fetch the latest matching email from MS Graph API or Mock Emails
+   */
+  async getLatestEmail(
+    subject: string,
+    sender: string,
+  ): Promise<{ subject: string; sender: string; body: string } | null> {
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
+
+    const isSimulation =
+      !clientId ||
+      !clientSecret ||
+      !tenantId ||
+      !watcherEmail ||
+      process.env.SIMULATE_BOT_CHECKS === 'true';
+
+    if (isSimulation) {
+      const mockFilePath = path.join(__dirname, 'mock-emails.json');
+      if (fs.existsSync(mockFilePath)) {
+        try {
+          const mockData = JSON.parse(fs.readFileSync(mockFilePath, 'utf8'));
+          for (const email of mockData) {
+            const subjectMatch =
+              !subject ||
+              email.subject.toLowerCase().includes(subject.toLowerCase());
+            const senderMatch =
+              !sender || email.sender.toLowerCase() === sender.toLowerCase();
+            if (subjectMatch && senderMatch) {
+              return {
+                subject: email.subject,
+                sender: email.sender,
+                body: email.body || '',
+              };
+            }
+          }
+        } catch (err: any) {
+          this.logger.error(`Error reading mock emails: ${err.message}`);
+        }
+      }
+      return null;
+    }
+
+    try {
+      let accessToken = '';
+      let isDelegated = false;
+
+      // 1. Thử lấy token qua Delegated Refresh Token trước (nếu có cấu hình m365_refresh_token)
+      try {
+        accessToken = await this.getAccessTokenDelegated(clientId, clientSecret, tenantId);
+        if (accessToken) {
+          isDelegated = true;
+        }
+      } catch (delegatedErr: any) {
+        this.logger.debug(`[EmailWatcher] Không dùng được delegated token: ${delegatedErr.message}, fallback client_credentials`);
+      }
+
+      // 2. Fallback: Client credentials nếu chưa có delegated token
+      if (!accessToken) {
+        const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+        const params = new URLSearchParams();
+        params.append('client_id', clientId);
+        params.append('scope', 'https://graph.microsoft.com/.default');
+        params.append('client_secret', clientSecret);
+        params.append('grant_type', 'client_credentials');
+
+        const tokenRes = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+        });
+
+        if (!tokenRes.ok) {
+          throw new Error(`Auth failed: ${tokenRes.statusText}`);
+        }
+
+        const tokenData = await tokenRes.json();
+        accessToken = tokenData.access_token;
+      }
+
+      const timeLimit = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const filter = `receivedDateTime ge ${timeLimit}`;
+      const select = 'subject,sender,body';
+      const url = isDelegated
+        ? `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`
+        : `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=10`;
+
+      const mailRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!mailRes.ok) {
+        throw new Error(`Graph API query failed: ${mailRes.statusText}`);
+      }
+
+      const mailData = await mailRes.json();
+      const emails = mailData.value || [];
+
+      for (const email of emails) {
+        const subjectMatch =
+          !subject ||
+          email.subject.toLowerCase().includes(subject.toLowerCase());
+        const senderMatch =
+          !sender ||
+          email.sender?.emailAddress?.address.toLowerCase() ===
+            sender.toLowerCase();
+
+        if (subjectMatch && senderMatch) {
+          return {
+            subject: email.subject,
+            sender: email.sender?.emailAddress?.address || '',
+            body: email.body?.content || email.bodyPreview || '',
+          };
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Error in getLatestEmail: ${err.message}`);
+    }
+    return null;
+  }
+
+  /**
+   * NEW DELEGATED MECHANISM: Check if email condition is met using a Delegated Refresh Token.
+   * This is used for UAT testing without requiring IT to grant tenant-wide Application permissions.
+   */
+  async checkEmailTaskDelegated(
+    target: string,
+    condition: string,
+  ): Promise<{ success: boolean; message: string }> {
+    // 1. Resolve Target parameters
+    let filterSubject = '';
+    let filterSender = '';
+    let customDownloadDir = '';
+    try {
+      const parsedTarget = this.safeParseJson(target);
+      if (parsedTarget) {
+        filterSubject = parsedTarget.subject || '';
+        filterSender = parsedTarget.sender || '';
+        customDownloadDir = parsedTarget.downloadDir || '';
+      } else {
+        filterSubject = target;
+      }
+    } catch {
+      filterSubject = target;
+    }
+
+    // 2. Fetch credentials
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
+
+    const isSimulation =
+      !clientId ||
+      !clientSecret ||
+      !tenantId ||
+      !watcherEmail ||
+      process.env.SIMULATE_BOT_CHECKS === 'true';
+
+    if (isSimulation) {
+      this.logger.debug(
+        `[Simulation-Delegated] Checking mock email for Subject: "${filterSubject}", Sender: "${filterSender}"`,
+      );
+      return this.checkMockEmail(
+        filterSubject,
+        filterSender,
+        condition,
+        customDownloadDir,
+      );
+    }
+
+    try {
+      // 3. Get Delegated Access Token using Refresh Token
+      const accessToken = await this.getAccessTokenDelegated(clientId, clientSecret, tenantId);
+
+      // 4. Query messages from user's mailbox received in the last 48 hours (tránh bỏ lỡ email gửi tối hôm trước)
+      const timeLimit = new Date(
+        Date.now() - 48 * 60 * 60 * 1000,
+      ).toISOString();
+      const filter = `receivedDateTime ge ${timeLimit}`;
+      const select = 'id,subject,sender,bodyPreview,body';
+
+      // Ưu tiên /me/messages (Delegated OAuth2), fallback sang /users/{watcherEmail}
+      const endpoints = [
+        `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=50&$orderby=receivedDateTime desc`,
+      ];
+      if (watcherEmail) {
+        endpoints.push(
+          `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=50&$orderby=receivedDateTime desc`
+        );
+      }
+
+      let mailRes: Response | null = null;
+      let lastFetchErr = '';
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            mailRes = res;
+            break;
+          } else {
+            lastFetchErr = `HTTP ${res.status}: ${res.statusText}`;
+          }
+        } catch (fErr: any) {
+          lastFetchErr = fErr.message;
+        }
+      }
+
+      if (!mailRes || !mailRes.ok) {
+        throw new Error(`Graph API query failed: ${lastFetchErr}`);
+      }
+
+      const mailData = await mailRes.json();
+      const emails = mailData.value || [];
+
+      const normalizeStr = (s: string) => (s || '').toLowerCase().replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\s+/g, ' ').trim();
+      const cleanFilterSubject = normalizeStr(filterSubject);
+      const cleanFilterSender = normalizeStr(filterSender);
+
+      // 5. Scan emails for subject, sender, and success condition
+      for (const email of emails) {
+        const cleanEmailSubject = normalizeStr(email.subject);
+        const cleanEmailSender = normalizeStr(email.sender?.emailAddress?.address);
+        const cleanEmailSenderName = normalizeStr(email.sender?.emailAddress?.name);
+
+        const subjectMatch =
+          !cleanFilterSubject ||
+          cleanEmailSubject.includes(cleanFilterSubject);
+        const senderMatch =
+          !cleanFilterSender ||
+          cleanEmailSender === cleanFilterSender ||
+          cleanEmailSender.includes(cleanFilterSender) ||
+          cleanEmailSenderName.includes(cleanFilterSender) ||
+          (cleanFilterSender.includes('it.support') && (cleanEmailSender.includes('m-system') || cleanEmailSenderName.includes('m-system')));
+
+        if (subjectMatch && senderMatch) {
+          const bodyContent: string = (
+            email.body?.content ||
+            email.bodyPreview ||
+            ''
+          ).toLowerCase();
+
+          const lines = bodyContent.split('\n');
+          let conditionMet = false;
+          let matchedSnippet = '';
+
+          if (condition.startsWith('body_contains:')) {
+            const keyword = condition.replace('body_contains:', '').trim().toLowerCase();
+            conditionMet = bodyContent.includes(keyword);
+            if (conditionMet) {
+              matchedSnippet = `Nội dung thư chứa từ khóa "${keyword}"`;
+            }
+          } else if (condition.startsWith('body_regex:')) {
+            const regexStr = condition.replace('body_regex:', '').trim();
+            const regex = new RegExp(regexStr, 'i');
+            conditionMet = regex.test(bodyContent);
+            if (conditionMet) {
+              matchedSnippet = `Nội dung thư khớp biểu thức chính quy: /${regexStr}/`;
+            }
+          } else if (condition.startsWith('body_line_match:')) {
+            const matchStr = condition.replace('body_line_match:', '').trim().toLowerCase();
+            const matchingLine = lines.find((line) => line.toLowerCase().includes(matchStr));
+            if (matchingLine) {
+              conditionMet = true;
+              matchedSnippet = `Dòng khớp: "${matchingLine.trim()}"`;
+            }
+          } else {
+            // Default fallback if no prefix is specified (simple substring search)
+            const keyword = condition.trim().toLowerCase();
+            conditionMet = !condition || bodyContent.includes(keyword);
+            if (conditionMet) {
+              matchedSnippet = `Nội dung thư chứa từ khóa "${keyword}"`;
+            }
+          }
+
+          if (conditionMet) {
+            let downloadMsg = '';
+            const rawDownloadDir =
+              customDownloadDir ||
+              (await this.settingsService.getSetting(
+                'm365_download_directory',
+                '',
+              ));
+            if (rawDownloadDir) {
+              const downloadDir = this.formatDownloadDir(rawDownloadDir);
+              try {
+                const downloaded = await this.downloadAttachments(
+                  accessToken,
+                  watcherEmail,
+                  email.id,
+                  downloadDir,
+                );
+                if (downloaded.length > 0) {
+                  downloadMsg = `. Đã tải ${downloaded.length} file đính kèm về ${downloadDir}: ${downloaded.map((p) => path.basename(p)).join(', ')}`;
+                } else {
+                  downloadMsg = `. Không tìm thấy file đính kèm nào để tải.`;
+                }
+              } catch (dlErr: any) {
+                downloadMsg = `. Lỗi khi tải file đính kèm: ${dlErr.message}`;
+                this.logger.error(
+                  `Error downloading attachments for delegated email ${email.id}: ${dlErr.message}`,
+                );
+              }
+            }
+
+            return {
+              success: true,
+              message: `Đã tìm thấy email khớp: "${email.subject}". ${matchedSnippet}${downloadMsg}`,
+            };
+          }
+        }
+      }
+
+      return {
+        success: false,
+        message: `Đã quét hòm thư nhưng không tìm thấy email nào khớp tiêu đề "${filterSubject}" và người gửi "${filterSender}" đáp ứng điều kiện: "${condition}"`,
+      };
+    } catch (err: any) {
+      this.logger.error(`Error in checkEmailTaskDelegated: ${err.message}`);
+      return {
+        success: false,
+        message: `Lỗi kết nối kiểm tra email (Delegated): ${err.message}`,
+      };
+    }
+  }
+
+  /**
+   * Helper to retrieve Microsoft Graph Access Token using Refresh Token flow.
+   * Auto-rotates and saves the new refresh token to the database settings.
+   */
+  private async getAccessTokenDelegated(
+    clientId: string,
+    clientSecret: string,
+    tenantId: string,
+  ): Promise<string> {
+    const refreshToken =
+      (await this.settingsService.getSetting('m365_refresh_token', '')) ||
+      process.env.MICROSOFT_REFRESH_TOKEN ||
+      '';
+
+    if (!refreshToken) {
+      throw new Error("Không tìm thấy m365_refresh_token trong Database hoặc MICROSOFT_REFRESH_TOKEN trong file .env!");
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', refreshToken);
+    params.append('scope', 'https://graph.microsoft.com/.default');
+
+    this.logger.debug(`[M365-DELEGATED] Requesting new access token with Refresh Token...`);
+    const tokenRes = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    });
+
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      const errorMsg = `Xác thực bằng Refresh Token thất bại (HTTP ${tokenRes.status}): ${errText}`;
+      
+      // If 400/401, it is a permanent credentials invalidation (expired or revoked token)
+      if (tokenRes.status === 400 || tokenRes.status === 401) {
+        await this.settingsService.sendM365TokenExpiredAlert(errorMsg);
+      }
+      
+      throw new Error(errorMsg);
+    }
+
+    const tokenData = await tokenRes.json();
+    if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
+      this.logger.log(`[M365-DELEGATED] Tự động cập nhật Refresh Token mới vào Database.`);
+      await this.settingsService.setSetting('m365_refresh_token', tokenData.refresh_token);
+      await this.settingsService.setSetting('m365_token_renewed_at', new Date().toISOString());
+      await this.settingsService.setSetting('m365_token_error_sent_at', '1970-01-01T00:00:00.000Z'); // Clear warning throttle timestamp on success
+    }
+    return tokenData.access_token;
+  }
+
+  /**
+   * Helper to loosely parse JSON targets, fixing unquoted or single-quoted keys/values.
+   */
+  private safeParseJson(jsonStr: string): any {
+    let cleanStr = jsonStr.trim();
+    if (!cleanStr.startsWith('{') || !cleanStr.endsWith('}')) {
+      return null;
+    }
+    try {
+      // 1. Fix unquoted keys, e.g. downloadDir: -> "downloadDir":
+      cleanStr = cleanStr.replace(/([{,]\s*)([a-zA-Z0-9_-]+)\s*:/g, '$1"$2":');
+      // 2. Fix single-quoted keys, e.g. 'downloadDir': -> "downloadDir":
+      cleanStr = cleanStr.replace(/([{,]\s*)'([a-zA-Z0-9_-]+)'\s*:/g, '$1"$2":');
+      return JSON.parse(cleanStr);
+    } catch (err) {
+      try {
+        const subjectMatch = cleanStr.match(/["']?subject["']?\s*:\s*["']([^"']+)["']/i);
+        const senderMatch = cleanStr.match(/["']?sender["']?\s*:\s*["']([^"']+)["']/i);
+        const downloadDirMatch = cleanStr.match(/["']?downloadDir["']?\s*:\s*["']([^"']+)["']/i);
+        
+        return {
+          subject: subjectMatch ? subjectMatch[1] : undefined,
+          sender: senderMatch ? senderMatch[1] : undefined,
+          downloadDir: downloadDirMatch ? downloadDirMatch[1] : undefined,
+        };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Tải trực tiếp file EOD từ Microsoft 365 Outlook về thư mục Backup M-System.
+   */
+  async fetchEodEmail(
+    targetDateStr?: string,
+    customDir?: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data?: {
+      subject: string;
+      sender: string;
+      receivedDateTime: string;
+      downloadDir: string;
+      downloadedFiles: string[];
+    };
+  }> {
+    const clientId =
+      (await this.settingsService.getSetting('m365_client_id', '')) ||
+      process.env.MICROSOFT_CLIENT_ID ||
+      '';
+    const clientSecret =
+      (await this.settingsService.getSetting('m365_client_secret', '')) ||
+      process.env.MICROSOFT_CLIENT_SECRET ||
+      '';
+    const tenantId =
+      (await this.settingsService.getSetting('m365_tenant_id', '')) ||
+      process.env.MICROSOFT_TENANT_ID ||
+      '';
+    const watcherEmail =
+      (await this.settingsService.getSetting('m365_watcher_email', '')) ||
+      process.env.MICROSOFT_WATCHER_EMAIL ||
+      '';
+
+    const accessToken = await this.getAccessTokenDelegated(clientId, clientSecret, tenantId);
+
+    // Xác định thư mục lưu trữ theo cấu hình
+    let downloadDir = '';
+    const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+
+    if (customDir) {
+      downloadDir = this.formatDownloadDir(customDir);
+    } else {
+      const msBackupBase = await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        process.env.DEFAULT_BACKUP_PATH_MS || '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures',
+      );
+      const { fullPath } = resolveDailySubfolder(msBackupBase, targetDate);
+      downloadDir = fullPath;
+    }
+
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    // Quét tìm email trong 7 ngày gần nhất
+    const timeLimit = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const filter = `receivedDateTime ge ${timeLimit}`;
+    const select = 'id,subject,sender,receivedDateTime,hasAttachments,bodyPreview';
+
+    const endpoints = [
+      `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=50&$orderby=receivedDateTime desc`,
+    ];
+    if (watcherEmail) {
+      endpoints.push(
+        `https://graph.microsoft.com/v1.0/users/${watcherEmail}/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=50&$orderby=receivedDateTime desc`
+      );
+    }
+
+    let emails: any[] = [];
+    let fetchError = '';
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          emails = data.value || [];
+          break;
+        } else {
+          fetchError = `HTTP ${res.status}: ${res.statusText}`;
+        }
+      } catch (err: any) {
+        fetchError = err.message;
+      }
+    }
+
+    if (emails.length === 0 && fetchError) {
+      throw new Error(`Không thể kết nối hòm thư Microsoft Graph: ${fetchError}`);
+    }
+
+    // Tìm email EOD
+    const normalize = (s: string) => (s || '').toLowerCase().replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\s+/g, ' ').trim();
+    const targetKey1 = normalize('Thông báo kết quả chạy EOD hệ thống');
+    const targetKey2 = 'eod';
+
+    // Lọc các email ứng viên EOD chuẩn từ hệ thống M-System / IT Support
+    const candidates = emails.filter((em: any) => {
+      const sub = normalize(em.subject);
+      const senderAddr = (em.sender?.emailAddress?.address || '').toLowerCase();
+      const senderName = (em.sender?.emailAddress?.name || '').toLowerCase();
+
+      const isEodSub = sub.includes(targetKey1) || sub.includes(targetKey2);
+      const isSender = senderAddr.includes('it.support') || senderAddr.includes('m-system') || senderName.includes('m-system');
+      return isEodSub && isSender;
+    });
+
+    if (candidates.length === 0) {
+      return {
+        success: false,
+        message: `Đã quét hòm thư trong 7 ngày qua nhưng không tìm thấy email thông báo kết quả chạy EOD từ it.support@mxv.vn.`,
+      };
+    }
+
+    // Ưu tiên 1: Chỉ lấy email CÓ FILE ĐÍNH KÈM (loại bỏ các email báo chạy EOD thất bại/không có file)
+    // Ưu tiên 2: Loại bỏ email test từ môi trường Staging [STG] nếu có email thật từ Production
+    let validWithFiles = candidates.filter((em: any) => em.hasAttachments);
+    const prodWithFiles = validWithFiles.filter((em: any) => !em.subject?.toUpperCase().includes('[STG]'));
+    if (prodWithFiles.length > 0) {
+      validWithFiles = prodWithFiles;
+    }
+
+    if (validWithFiles.length === 0) {
+      const latestMail = candidates[0];
+      return {
+        success: false,
+        message: `Tìm thấy email "${latestMail.subject}" (nhận lúc ${latestMail.receivedDateTime}) nhưng email này KHÔNG có tệp đính kèm file EOD (có thể do ca chạy EOD không thành công).`,
+      };
+    }
+
+    // Nếu người dùng chọn ngày cụ thể, bắt buộc email phải khớp đúng ngày phiên mục tiêu
+    let targetEmail = validWithFiles[0];
+    if (targetDateStr) {
+      const parts = targetDateStr.split('-');
+      const yyyy = parts[0];
+      const mm = parts[1];
+      const dd = parts[2];
+      const dateSlash = `${dd}/${mm}/${yyyy}`;
+      const dateDash = `${dd}-${mm}-${yyyy}`;
+      const dateDot = `${dd}.${mm}`;
+      const dateNoDash = `${yyyy}${mm}${dd}`;
+
+      const matchedByDate = validWithFiles.find((em: any) => {
+        const s = (em.subject + ' ' + (em.bodyPreview || '')).toLowerCase();
+        return (
+          s.includes(targetDateStr.toLowerCase()) ||
+          s.includes(dateNoDash) ||
+          s.includes(dateSlash) ||
+          s.includes(dateDash) ||
+          s.includes(`eod.${targetDateStr}`) ||
+          s.includes(`phiên ${dateDot}`)
+        );
+      });
+
+      if (matchedByDate) {
+        targetEmail = matchedByDate;
+      } else {
+        return {
+          success: false,
+          message: `Đã quét hòm thư trong 7 ngày qua nhưng không tìm thấy email thông báo EOD của đúng ngày phiên ${targetDateStr} từ it.support@mxv.vn.`,
+        };
+      }
+    }
+
+    // Tự động nhận diện ngày phiên thực tế từ tiêu đề / nội dung email để lưu vào đúng thư mục phiên (nếu chưa truyền customDir)
+    const extractSessionDateFromEmail = (subject: string, preview: string): Date | null => {
+      const combined = `${subject} ${preview}`;
+      const m = combined.match(/(?:ngày\s+phiên|phiên)\s*[:\-]?\s*(\d{4})[-/](\d{2})[-/](\d{2})/i) ||
+                combined.match(/eod\.(\d{4})[-/](\d{2})[-/](\d{2})/i);
+      if (m) {
+        return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+      }
+      return null;
+    };
+
+    const sessionDateFromMail = extractSessionDateFromEmail(targetEmail.subject, targetEmail.bodyPreview || '');
+    if (sessionDateFromMail && !customDir) {
+      const msBackupBase = await this.settingsService.getSetting(
+        'bot_backup_path_ms',
+        process.env.DEFAULT_BACKUP_PATH_MS || '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures',
+      );
+      const { fullPath } = resolveDailySubfolder(msBackupBase, sessionDateFromMail);
+      downloadDir = fullPath;
+      this.logger.log(`[EmailWatcher] Đã nhận diện ngày phiên từ email (${sessionDateFromMail.toISOString().split('T')[0]}), thư mục lưu EOD chuẩn: ${downloadDir}`);
+    }
+
+    if (!fs.existsSync(downloadDir)) {
+      fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
+    // Tải attachment từ email đã chọn
+    const downloaded = await this.downloadAttachments(
+      accessToken,
+      watcherEmail,
+      targetEmail.id,
+      downloadDir,
+    );
+
+    return {
+      success: true,
+      message: `Đã tải ${downloaded.length} tệp đính kèm từ email "${targetEmail.subject}" về ${downloadDir}`,
+      data: {
+        subject: targetEmail.subject,
+        sender: targetEmail.sender?.emailAddress?.address || '',
+        receivedDateTime: targetEmail.receivedDateTime,
+        downloadDir,
+        downloadedFiles: downloaded,
+      },
+    };
+  }
+}

@@ -5,7 +5,7 @@ import {
   TaskExecutionResult,
   TaskExecutionStatus,
 } from '../../../shared';
-import { CeLotStatisticsService } from '../services/ce-lot-statistics.service';
+import { CeLotStatisticsService } from '../services/statistics/ce-lot-statistics.service';
 
 /**
  * CeLotWorker: Worker chuyên trách Thống Kê Số Lot & Giá Trị Giao Dịch CoreEX (ACM Nano).

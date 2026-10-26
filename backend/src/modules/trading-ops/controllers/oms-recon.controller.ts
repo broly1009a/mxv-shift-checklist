@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, Query, UseGuards, BadRequestException } fr
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
-import { OmsReconService } from '../services/oms-recon.service';
+import { OmsReconService } from '../services/recon/oms-recon.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller([

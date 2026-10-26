@@ -4,7 +4,7 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
-import { CcpAdHocStatisticsService } from '../modules/trading-ops/services/ccp-adhoc-statistics.service';
+import { CcpAdHocStatisticsService } from '../modules/trading-ops/services/statistics/ccp-adhoc-statistics.service';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';

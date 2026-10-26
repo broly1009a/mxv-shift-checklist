@@ -5,7 +5,7 @@ import {
   TaskExecutionResult,
   TaskExecutionStatus,
 } from '../../../shared';
-import { GttCheckerService } from '../services/gtt-checker.service';
+import { GttCheckerService } from '../services/recon/gtt-checker.service';
 
 /**
  * Worker chuyên trách Đối Chiếu Giá Thanh Toán (GTT) giữa M-System và CQG.

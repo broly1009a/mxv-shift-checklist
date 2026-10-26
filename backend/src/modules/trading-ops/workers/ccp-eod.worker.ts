@@ -6,7 +6,7 @@ import {
   TaskExecutionContext,
   TaskExecutionResult,
 } from '../../../shared';
-import { CcpEodService } from '../services/ccp-eod.service';
+import { CcpEodService } from '../services/recon/ccp-eod.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
 
 @Injectable()

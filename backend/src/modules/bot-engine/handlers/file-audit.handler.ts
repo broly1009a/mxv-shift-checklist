@@ -9,7 +9,7 @@ import { BotJob } from '../../../schemas/bot-job.schema';
 import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { IngressService } from '../../ingress/ingress.service';
 import { AcmEtpAdapter } from '../../ingress/adapters/acm-etp.adapter';
-import { CqgSyncService } from '../cqg-sync.service';
+import { CqgMergerService } from '../../trading-ops/services/merger/cqg-merger.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
   parseJobPayload,
@@ -18,246 +18,21 @@ import {
   getMsBackupBase,
   getAcmBackupBase,
 } from '../helpers/bot-path.helper';
+import {
+  REQUIRED_MS_FILES,
+  REQUIRED_CCP_FILES,
+  REQUIRED_CE_FILES,
+  ACM_REPORT_CONFIGS,
+  isAcmReportRequested,
+} from '../constants/required-files.constant';
 
-export const REQUIRED_MS_FILES: Array<{ key: string; filename: string; patterns?: RegExp[] }> = [
-  { key: 'DSGD', filename: 'DSGD.xlsx' },
-  { key: 'DSLCK', filename: 'DSLCK.xlsx' },
-  { key: 'DSLDK', filename: 'DSLDK.xlsx' },
-  { key: 'DSLH', filename: 'DSLH.xlsx' },
-  { key: 'DSLK', filename: 'DSLK.xlsx' },
-  { key: 'DSQLKQ', filename: 'DSQLKQ.xlsx' },
-  { key: 'DSTKGD-ACM', filename: 'DSTKGD-ACM.xlsx' },
-  { key: 'DSTKGD-Futures', filename: 'DSTKGD-Futures.xlsx' },
-  { key: 'DSTKGD-LME', filename: 'DSTKGD-LME.xlsx' },
-  { key: 'DSTKGD-Spread', filename: 'DSTKGD-Spread.xlsx' },
-  { key: 'DSTrader', filename: 'DSTrader.xlsx' },
-  { key: 'Markettruoc6h', filename: 'market truoc 6h.csv', patterns: [/market.*truoc.*6.*h/i] },
-  { key: 'NKTTHT', filename: 'NKTTHT.xlsx', patterns: [/^nktt?ht\./i] },
-  { key: 'NR', filename: 'NR.xlsx' },
-  { key: 'QLTKGD', filename: 'QLTKGD.xlsx' },
-  { key: 'QLTKGDAmKQ', filename: 'QLTKGDAmKQ.xlsx', patterns: [/qltkgd.*am.*kq/i, /qltkgdamkq/i] },
-  { key: 'TLKQHSKQ', filename: 'TLKQHSKQ.xlsx', patterns: [/tlk?qhskq/i] },
-  { key: 'TTCDH', filename: 'TTCDH.xlsx' },
-  { key: 'TTM', filename: 'TTM.xlsx' },
-  { key: 'TTTT', filename: 'TTTT.xlsx' },
-];
-
-export const REQUIRED_CCP_FILES: Array<{
-  key: string;
-  name: string;
-  filename: string;
-  patterns: RegExp[];
-  optional?: boolean;
-}> = [
-  // ── Nhóm Lệnh thường ──────────────────────────────────────────────────────
-  {
-    key: 'DSL',
-    name: 'Danh sách lệnh (Tất cả)',
-    filename: 'DSL CCP.xlsx',
-    patterns: [/^dsl\s+ccp/i, /^dsl\b/i, /orderbook/i],
-  },
-  {
-    key: 'DSLDK',
-    name: 'Danh sách lệnh đã khớp',
-    filename: 'DSLDK CCP.xlsx',
-    patterns: [/^dsldk\s+ccp/i, /dsldk/i, /lenh.*da.*khop/i],
-  },
-  {
-    key: 'DSLCK',
-    name: 'Danh sách lệnh chờ khớp',
-    filename: 'DSLCK CCP.xlsx',
-    patterns: [/^dslck\s+ccp/i, /dslck/i, /lenh.*cho.*khop/i],
-  },
-  {
-    key: 'DSLDH',
-    name: 'Danh sách lệnh đã hủy',
-    filename: 'DSLDH CCP.xlsx',
-    patterns: [/^dsldh\s+ccp/i, /dsldh/i, /lenh.*da.*huy/i],
-  },
-  {
-    key: 'DSGD',
-    name: 'Danh sách giao dịch',
-    filename: 'DSGD CCP.xlsx',
-    patterns: [/^dsgd\s+ccp/i, /^dsgd\b/i, /ordermatch/i],
-  },
-
-  // ── Nhóm Lệnh Market Maker ───────────────────────────────────────────────
-  {
-    key: 'DSL_MM',
-    name: 'Danh sách lệnh MM',
-    filename: 'DSL MM CCP.xlsx',
-    patterns: [/dsl.*mm/i, /orderbook_mm/i],
-  },
-  {
-    key: 'DSLDK_MM',
-    name: 'Lệnh đã khớp MM',
-    filename: 'DSLDK MM CCP.xlsx',
-    patterns: [/dsldk.*mm/i],
-  },
-  {
-    key: 'DSLCK_MM',
-    name: 'Lệnh chờ khớp MM',
-    filename: 'DSLCK MM CCP.xlsx',
-    patterns: [/dslck.*mm/i],
-  },
-  {
-    key: 'DSLDH_MM',
-    name: 'Lệnh đã hủy MM',
-    filename: 'DSLDH MM CCP.xlsx',
-    patterns: [/dsldh.*mm/i],
-  },
-  {
-    key: 'DSGD_MM',
-    name: 'Danh sách giao dịch MM',
-    filename: 'DSGD MM CCP.xlsx',
-    patterns: [/dsgd.*mm/i],
-  },
-
-  // ── Nhóm Vị thế & Lãi lỗ ─────────────────────────────────────────────────
-  {
-    key: 'TTM',
-    name: 'Trạng thái mở cuối ngày',
-    filename: 'TTM CCP.xlsx',
-    patterns: [/ttm\s+ccp/i, /^ttm\b/i, /open_pos/i],
-  },
-  {
-    key: 'TTM_PRE1620',
-    name: 'Trạng thái mở trước 16h20',
-    filename: 'TTM truoc 4h20.xlsx',
-    patterns: [/ttm.*4h20/i, /ttm.*16h/i, /ttm.*1620/i, /^ttm_pre/i],
-    optional: true,
-  },
-  {
-    key: 'TTTT',
-    name: 'Trạng thái tất toán',
-    filename: 'TTTT.xlsx',
-    patterns: [/tttt/i, /pnl/i, /tat.*toan/i],
-  },
-
-  // ── Nhóm Rủi ro & Ký quỹ ─────────────────────────────────────────────────
-  {
-    key: 'QLTTTKGD',
-    name: 'Quản lý trạng thái TKGD',
-    filename: 'QL TT TKGD.xlsx',
-    patterns: [/ql.*tt.*tkgd\.xlsx$/i, /qltkgd/i, /acctmargin_all/i],
-  },
-  {
-    key: 'QLTTTKGD_PRE1620',
-    name: 'Quản lý trạng thái TKGD trước 16h20',
-    filename: 'QL TT TKGD truoc 4h20.xlsx',
-    patterns: [/ql.*tt.*tkgd.*4h20/i, /ql.*tt.*tkgd.*1620/i, /^qltttkgd_pre/i],
-    optional: true,
-  },
-  {
-    key: 'QLTTTVKD',
-    name: 'Quản lý trạng thái TVKD',
-    filename: 'QL TT TVKD.xlsx',
-    patterns: [/ql.*tt.*tvkd/i],
-  },
-  {
-    key: 'DSQLKQ_TKGD',
-    name: 'Quản lý ký quỹ TKGD',
-    filename: 'DSQLKQ TKGD.xlsx',
-    patterns: [/dsqlkq.*tkgd/i],
-  },
-  {
-    key: 'DSQLKQ_TVKD',
-    name: 'Quản lý ký quỹ TVKD',
-    filename: 'DSQLKQ TVKD.xlsx',
-    patterns: [/dsqlkq.*tvkd/i],
-  },
-
-  // ── Nhóm Tiền & Tài khoản ────────────────────────────────────────────────
-  {
-    key: 'NR',
-    name: 'Lịch sử nộp rút tiền',
-    filename: 'NR.xlsx',
-    patterns: [/^nr\b/i, /cashtranfer/i, /nop.*rut/i],
-  },
-  {
-    key: 'DSTKGD',
-    name: 'Danh sách tài khoản giao dịch',
-    filename: 'DSTKGD ACM.xlsx',
-    patterns: [/dstkgd/i, /accounts_info/i],
-  },
-
-  // ── Nhóm Hàng hóa & Hợp đồng & Giá ───────────────────────────────────────
-  {
-    key: 'GTT',
-    name: 'Giá thanh toán',
-    filename: 'GTT CCP.xlsx',
-    patterns: [/^gtt\s+ccp/i, /^gtt\b/i, /settlement/i],
-  },
-  {
-    key: 'HH',
-    name: 'Danh mục hàng hóa',
-    filename: 'HH.xlsx',
-    patterns: [/^(hh|commodity)\.(xlsx|csv)$/i, /^hh\b/i, /commodity/i],
-  },
-  {
-    key: 'HD',
-    name: 'Hợp đồng hàng hóa',
-    filename: 'HĐ *.xlsx',
-    patterns: [/^hđ\s+/i, /^hd_/i, /^hd\b/i, /contracts?/i],
-    optional: true,
-  },
-];
-
-export const REQUIRED_CE_FILES: Array<{
-  key: string;
-  name: string;
-  filename: string;
-  patterns: RegExp[];
-}> = [
-  {
-    key: 'DSGD',
-    name: 'Danh sách giao dịch CE',
-    filename: 'DSGD ACM CE.xlsx',
-    patterns: [/dsgd.*acm.*ce/i, /dsgd.*ce/i, /^dsgd\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'DSL',
-    name: 'Sổ lệnh CE',
-    filename: 'DSL ACM CE.xlsx',
-    patterns: [/dsl.*acm.*ce/i, /dsl.*ce/i, /^dsl\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'DSLCK',
-    name: 'Lệnh chờ khớp CE',
-    filename: 'DSLCK ACM CE.xlsx',
-    patterns: [/dslck.*acm.*ce/i, /dslck.*ce/i, /^dslck\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'DSLDK',
-    name: 'Lệnh điều kiện CE',
-    filename: 'DSLDK ACM CE.xlsx',
-    patterns: [/dsldk.*acm.*ce/i, /dsldk.*ce/i, /^dsldk\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'DSLH',
-    name: 'Lệnh hủy CE',
-    filename: 'DSLH ACM CE.xlsx',
-    patterns: [/dslh.*acm.*ce/i, /dslh.*ce/i, /^dslh\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'GTT',
-    name: 'Giá thanh toán ACM',
-    filename: 'GTT ACM.xlsx',
-    patterns: [/gtt.*acm/i, /^gtt\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'HH',
-    name: 'Hàng hóa ACM',
-    filename: 'HH ACM.xlsx',
-    patterns: [/hh.*acm/i, /^hh\.(xlsx|xls|csv)$/i],
-  },
-  {
-    key: 'HD',
-    name: 'Hợp đồng chi tiết CE',
-    filename: 'HĐ *.xlsx',
-    patterns: [/^hđ\s+/i, /^hd_/i, /^hd\b/i, /contracts?/i],
-  },
-];
+export {
+  REQUIRED_MS_FILES,
+  REQUIRED_CCP_FILES,
+  REQUIRED_CE_FILES,
+  ACM_REPORT_CONFIGS,
+  isAcmReportRequested,
+};
 
 @Injectable()
 export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
@@ -266,16 +41,16 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     'FILE_AUDIT_MS',
     'FILE_AUDIT_CQG',
     'FILE_AUDIT_ACM',
+    'FILE_AUDIT_CCP',
+    'FILE_AUDIT_CE',
     'DOWNLOAD_CQG_BACKUP',
   ];
-
-  public readonly captchaResolvers = new Map<string, (captcha: string) => void>();
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     private readonly rpaDownloaderService: RpaScraperService,
-    private readonly cqgSyncService: CqgSyncService,
+    private readonly cqgMergerService: CqgMergerService,
     private readonly settingsService: SystemSettingsService,
     @Optional() private readonly ingressService?: IngressService,
     @Optional() private readonly acmEtpAdapter?: AcmEtpAdapter,
@@ -293,6 +68,10 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
         return this.handleFileAuditCqgJob(job);
       case 'FILE_AUDIT_ACM':
         return this.handleFileAuditAcmJob(job, context);
+      case 'FILE_AUDIT_CCP':
+        return this.handleFileAuditCcpJob(job);
+      case 'FILE_AUDIT_CE':
+        return this.handleFileAuditCeJob(job);
       case 'DOWNLOAD_CQG_BACKUP':
         return this.handleDownloadCqgBackupJob(job);
       default:
@@ -795,14 +574,14 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
   private async handleFileAuditCqgJob(job: any) {
     const payload = parseJobPayload(job);
     const { dateObj: targetDate } = resolveBotTargetDate(payload);
-    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+    const { fullPath } = await this.cqgMergerService.getDailyBackupPath(targetDate);
 
     job.logs.push(
       `[${new Date().toISOString()}] Bắt đầu kiểm tra file backup CQG tại thư mục: ${fullPath}`,
     );
     await job.save();
 
-    const result = await this.cqgSyncService.autoMergeMissingFiles(targetDate);
+    const result = await this.cqgMergerService.autoMergeMissingFiles(targetDate);
     for (const logLine of result.logs) {
       job.logs.push(`[${new Date().toISOString()}] ${logLine}`);
     }
@@ -823,7 +602,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       );
     }
 
-    const finalScan = await this.cqgSyncService.scanCqgBackupFiles(targetDate);
+    const finalScan = await this.cqgMergerService.scanCqgBackupFiles(targetDate);
     const requiredConsolidated = ['FR', 'OP', 'Od', 'PS'];
     const hasMissingConsolidated = finalScan.some(
       (r) => requiredConsolidated.includes(r.key) && r.status !== 'OK',
@@ -872,7 +651,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       >
     > = payload.reports || defaultReports;
 
-    const { fullPath } = await this.cqgSyncService.getDailyBackupPath(targetDate);
+    const { fullPath } = await this.cqgMergerService.getDailyBackupPath(targetDate);
 
     job.logs.push(
       `[${new Date().toISOString()}] Bắt đầu tải file CQG từ web tới: ${fullPath}`,
@@ -910,7 +689,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       );
       await job.save();
 
-      const mergeResult = await this.cqgSyncService.autoMergeMissingFiles(targetDate);
+      const mergeResult = await this.cqgMergerService.autoMergeMissingFiles(targetDate);
       for (const logLine of mergeResult.logs) {
         job.logs.push(`[${new Date().toISOString()}] ${logLine}`);
       }
@@ -924,19 +703,9 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     }
   }
 
-  private async handleFileAuditAcmJob(job: any, context: IJobExecutionContext) {
-    const payload = parseJobPayload(job);
-    const { dateObj: targetDate } = resolveBotTargetDate(payload);
-
-    const acmBackupBase = await getAcmBackupBase(this.settingsService);
-    const { fullPath: dailyPath } = resolveDailySubfolder(acmBackupBase, targetDate);
-
-    if (!fs.existsSync(dailyPath)) {
-      fs.mkdirSync(dailyPath, { recursive: true });
-    }
-
+  private createJobLogger(job: any): (msg: string) => Promise<void> {
     let saveQueue = Promise.resolve();
-    const logAndSave = async (msg: string) => {
+    return async (msg: string) => {
       const logEntry = `[${new Date().toISOString()}] ${msg}`;
       job.logs.push(logEntry);
 
@@ -951,273 +720,253 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       });
       await saveQueue;
     };
+  }
 
-    await logAndSave(
-      `Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`,
-    );
-
-    const requestedReports: string[] | undefined =
-      Array.isArray(payload.reports) && payload.reports.length > 0
-        ? payload.reports.map((r: any) => String(r).toUpperCase().trim())
-        : undefined;
-
-    const isWebRequested =
-      !requestedReports ||
-      requestedReports.some((r) =>
-        ['ORDER', 'FILL', 'TRADE', 'WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(r),
-      );
-
-    const isSftpRequested =
-      !requestedReports ||
-      requestedReports.some((r) =>
-        ['SFTP', 'SFTP_CSV', 'SFTP_XLS', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(r),
-      );
-
-    const scanResults = await this.scanAcmBackupFiles(dailyPath, targetDate);
-
-    // Chỉ lọc các file thiếu/cũ mà người dùng hoặc hệ thống THỰC SỰ YÊU CẦU
-    const missingOrOutdated = scanResults.filter((r) => {
-      if (r.status === 'OK') return false;
-      if (r.key === 'ORDER') {
-        return (
-          isWebRequested &&
-          (!requestedReports ||
-            requestedReports.includes('ORDER') ||
-            requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x)))
-        );
-      }
-      if (r.key === 'FILL') {
-        return (
-          isWebRequested &&
-          (!requestedReports ||
-            requestedReports.includes('FILL') ||
-            requestedReports.includes('TRADE') ||
-            requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x)))
-        );
-      }
-      if (r.key === 'SFTP_CSV') {
-        return (
-          isSftpRequested &&
-          (!requestedReports ||
-            requestedReports.includes('SFTP_CSV') ||
-            requestedReports.some((x) => ['SFTP', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(x)))
-        );
-      }
-      if (r.key === 'SFTP_XLS') {
-        return (
-          isSftpRequested &&
-          (!requestedReports ||
-            requestedReports.includes('SFTP_XLS') ||
-            requestedReports.some((x) => ['SFTP', 'FULL', 'ALL', 'BACKUP'].includes(x)))
-        );
-      }
-      return false;
-    });
-
-    if (missingOrOutdated.length === 0) {
-      await logAndSave(
-        ` Tất cả báo cáo ACM theo yêu cầu [${requestedReports ? requestedReports.join(', ') : 'Web & SFTP'}] đã đầy đủ. Không cần tải thêm.`,
-      );
-      return;
-    }
-
+  private async downloadAcmWebReports(
+    dailyPath: string,
+    targetDate: Date,
+    reportCodes: string[],
+    logAndSave: (msg: string) => Promise<void>,
+  ): Promise<void> {
     const globalMode = await this.settingsService.getSetting('ingress_mode', process.env.INGRESS_MODE || 'PLAYWRIGHT');
     const ingressModeAcm = await this.settingsService.getSetting(
       'ingress_mode_acm',
       process.env.INGRESS_MODE_ACM || globalMode,
     );
 
-    const webMissing = isWebRequested && missingOrOutdated.some(
-      (r) => r.key === 'ORDER' || r.key === 'FILL',
-    );
-    if (webMissing) {
-      let apiDownloaded = false;
-
-      const webReportCodes: string[] = [];
-      if (!requestedReports || requestedReports.includes('ORDER') || requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x))) {
-        webReportCodes.push('ORDER');
-      }
-      if (!requestedReports || requestedReports.includes('FILL') || requestedReports.includes('TRADE') || requestedReports.some((x) => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x))) {
-        webReportCodes.push('FILL');
-      }
-      const finalWebReportCodes = webReportCodes.length > 0 ? webReportCodes : ['ORDER', 'FILL'];
-
-      // ── PHÂN NHÁNH 1: TẢI TRỰC TIẾP QUA REST API (KHÔNG MỞ CHROMIUM) ─────────
-      if (ingressModeAcm === 'REST_API' && (this.acmEtpAdapter || this.ingressService)) {
-        await logAndSave(
-          `[ACM Direct API] Kích hoạt tải ${finalWebReportCodes.join(' & ')} qua Direct REST API (Cờ ingress_mode_acm=REST_API, Không mở Chromium)...`,
-        );
-        try {
-          if (this.acmEtpAdapter) {
-            await this.acmEtpAdapter.download('ACM', {
-              targetDirectory: dailyPath,
-              targetDate: targetDate.toISOString(),
-              reportCodes: finalWebReportCodes,
-            });
-          } else if (this.ingressService) {
-            await this.ingressService.download('ACM', {
-              targetDirectory: dailyPath,
-              targetDate: targetDate.toISOString(),
-              reportCodes: finalWebReportCodes,
-            });
-          }
-
-          const intermediateScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
-          const webOkAfterApi = intermediateScan
-            .filter((r) => finalWebReportCodes.includes(r.key))
-            .every((r) => r.status === 'OK');
-          if (webOkAfterApi) {
-            apiDownloaded = true;
-            await logAndSave(`[ACM Direct API] Hoàn tất tải báo cáo Web (${finalWebReportCodes.join('/')}) qua Direct REST API.`);
-          }
-        } catch (apiErr: any) {
-          await logAndSave(`[ACM Direct API] Gọi Direct REST API gặp lỗi: ${apiErr.message}. Fallback sang Playwright...`);
-        }
-      }
-
-      // ── PHÂN NHÁNH 2: PLAYWRIGHT CHROMIUM (CHỈ CHẠY KHI KHÔNG DÙNG REST_API HOẶC REST_API LỖI) ──
-      if (!apiDownloaded) {
-        await logAndSave(
-          ` Thiếu báo cáo Web (${finalWebReportCodes.join('/')}). Đang tiến hành đăng nhập Playwright và tải bổ sung...`,
-        );
-
-        const getCaptchaFromUI = (base64Img: string): Promise<string> => {
-          return new Promise<string>((resolve, reject) => {
-            const timeoutId = setTimeout(
-              () => {
-                this.captchaResolvers.delete(job._id.toString());
-                reject(
-                  new Error(
-                    'Hết thời gian chờ người dùng nhập Captcha (5 phút).',
-                  ),
-                );
-              },
-              5 * 60 * 1000,
-            );
-
-            const currentPayload = parseJobPayload(job);
-            job.payload = {
-              ...currentPayload,
-              captchaImage: base64Img,
-            };
-
-            logAndSave(
-              ` Phát hiện Captcha. Đang chờ người dùng gõ mã xác nhận từ giao diện Web Checklist.`,
-            )
-              .then(() => context.syncJobToChecklist(job, 'AWAITING_CAPTCHA'))
-              .then(() => {
-                this.captchaResolvers.set(job._id.toString(), (userCaptcha: string) => {
-                  clearTimeout(timeoutId);
-                  resolve(userCaptcha);
-                });
-              })
-              .catch(reject);
-          });
-        };
-
-        const { browser, page } = await this.rpaDownloaderService.loginACM(
-          dailyPath,
-          getCaptchaFromUI,
-          logAndSave,
-        );
-
-        try {
-          await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, logAndSave);
-        } finally {
-          await browser.close().catch(() => { });
-        }
-      }
-    }
-
-    // ── PHÂN NHÁNH 3: ĐỒNG BỘ SFTP ĐỘC LẬP ──────────────────────────────────
-    const sftpMissing = isSftpRequested && missingOrOutdated.some(
-      (r) => r.key === 'SFTP_CSV' || r.key === 'SFTP_XLS',
-    );
-    if (sftpMissing) {
+    let apiDownloaded = false;
+    if (ingressModeAcm === 'REST_API' && (this.acmEtpAdapter || this.ingressService)) {
       await logAndSave(
-        ` Thiếu file SFTP (CSV/XLS). Đang tiến hành kết nối SFTP Server để tải bổ sung...`,
+        `[ACM Direct API] Kích hoạt tải ${reportCodes.join(' & ')} qua Direct REST API (Không mở Chromium)...`,
       );
       try {
-        await this.rpaDownloaderService.downloadAcmSftpBackup(
-          dailyPath,
-          targetDate,
-          logAndSave,
-        );
-        await logAndSave(` Hoàn tất đồng bộ file từ SFTP.`);
-      } catch (err: any) {
-        await logAndSave(` Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
+        const client = this.acmEtpAdapter || this.ingressService;
+        await client?.download('ACM', {
+          targetDirectory: dailyPath,
+          targetDate: targetDate.toISOString(),
+          reportCodes,
+        });
+
+        const intermediateScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
+        apiDownloaded = intermediateScan
+          .filter((r) => reportCodes.includes(r.key))
+          .every((r) => r.status === 'OK');
+
+        if (apiDownloaded) {
+          await logAndSave(`[ACM Direct API] Hoàn tất tải báo cáo Web (${reportCodes.join('/')}) qua Direct REST API.`);
+        }
+      } catch (apiErr: any) {
+        await logAndSave(`[ACM Direct API] Lỗi Direct REST API: ${apiErr.message}. Fallback sang Playwright...`);
       }
     }
 
-    // ── PHÂN NHÁNH 4: THẨM ĐỊNH KẾT QUẢ & XỬ LÝ ĐỘC LẬP (WEB API VS SFTP) ────
+    if (!apiDownloaded) {
+      await logAndSave(
+        `Đang đăng nhập Playwright tải bổ sung báo cáo Web (${reportCodes.join('/')}) (Gemini AI tự động giải Captcha)...`,
+      );
+      const { browser, page } = await this.rpaDownloaderService.loginACM(
+        dailyPath,
+        undefined,
+        logAndSave,
+      );
+      try {
+        await this.rpaDownloaderService.downloadAcmBackup(page, dailyPath, logAndSave);
+      } finally {
+        await browser.close().catch(() => {});
+      }
+    }
+  }
+
+  private async downloadAcmSftpReports(
+    dailyPath: string,
+    targetDate: Date,
+    logAndSave: (msg: string) => Promise<void>,
+  ): Promise<void> {
+    await logAndSave(`Thiếu file SFTP. Đang tiến hành kết nối SFTP Server để tải bổ sung...`);
+    try {
+      await this.rpaDownloaderService.downloadAcmSftpBackup(
+        dailyPath,
+        targetDate,
+        logAndSave,
+      );
+      await logAndSave(`Hoàn tất đồng bộ file từ SFTP.`);
+    } catch (err: any) {
+      await logAndSave(`Cảnh báo lỗi đồng bộ SFTP: ${err.message}`);
+    }
+  }
+
+  private async handleFileAuditAcmJob(job: any, context: IJobExecutionContext) {
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
+    const acmBackupBase = await getAcmBackupBase(this.settingsService);
+    const { fullPath: dailyPath } = resolveDailySubfolder(acmBackupBase, targetDate);
+
+    if (!fs.existsSync(dailyPath)) {
+      fs.mkdirSync(dailyPath, { recursive: true });
+    }
+
+    const logAndSave = this.createJobLogger(job);
+    await logAndSave(`Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`);
+
+    const requestedReports: string[] | undefined =
+      Array.isArray(payload.reports) && payload.reports.length > 0
+        ? payload.reports.map((r: any) => String(r).toUpperCase().trim())
+        : undefined;
+
+    const initialScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
+    const missing = initialScan.filter((r) => r.status !== 'OK' && isAcmReportRequested(r.key, requestedReports));
+
+    if (missing.length === 0) {
+      await logAndSave(
+        `Tất cả báo cáo ACM theo yêu cầu [${requestedReports ? requestedReports.join(', ') : 'Web & SFTP'}] đã đầy đủ. Không cần tải thêm.`,
+      );
+      return;
+    }
+
+    // 1. Phân nhánh tải Web (ORDER / FILL)
+    const missingWebKeys = missing
+      .filter((r) => ACM_REPORT_CONFIGS[r.key]?.group === 'WEB')
+      .map((r) => r.key);
+    if (missingWebKeys.length > 0) {
+      await this.downloadAcmWebReports(dailyPath, targetDate, missingWebKeys, logAndSave);
+    }
+
+    // 2. Phân nhánh tải SFTP (Straits CSV / XLS)
+    const hasSftpMissing = missing.some((r) => ACM_REPORT_CONFIGS[r.key]?.group === 'SFTP');
+    if (hasSftpMissing) {
+      await this.downloadAcmSftpReports(dailyPath, targetDate, logAndSave);
+    }
+
+    // 3. Quét kiểm tra kết quả sau tải
     const finalScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
-    const webReportsOk = !isWebRequested || finalScan
-      .filter((r) => {
-        if (r.key !== 'ORDER' && r.key !== 'FILL') return false;
-        if (!requestedReports) return true;
-        if (r.key === 'ORDER') return requestedReports.includes('ORDER') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
-        if (r.key === 'FILL') return requestedReports.includes('FILL') || requestedReports.includes('TRADE') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
-        return false;
-      })
-      .every((r) => r.status === 'OK');
+    const remainingMissing = finalScan.filter(
+      (r) => r.status !== 'OK' && isAcmReportRequested(r.key, requestedReports),
+    );
 
-    const sftpOk = !isSftpRequested || finalScan
-      .filter((r) => {
-        if (r.key !== 'SFTP_CSV' && r.key !== 'SFTP_XLS') return false;
-        if (!requestedReports) return true;
-        if (r.key === 'SFTP_CSV') return requestedReports.includes('SFTP_CSV') || requestedReports.some(x => ['SFTP', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(x));
-        if (r.key === 'SFTP_XLS') return requestedReports.includes('SFTP_XLS') || requestedReports.some(x => ['SFTP', 'FULL', 'ALL', 'BACKUP'].includes(x));
-        return false;
-      })
-      .every((r) => r.status === 'OK');
+    const remainingWeb = remainingMissing.filter((r) => ACM_REPORT_CONFIGS[r.key]?.group === 'WEB');
+    const remainingSftp = remainingMissing.filter((r) => ACM_REPORT_CONFIGS[r.key]?.group === 'SFTP');
 
-    const currentPayload = parseJobPayload(job);
+    const isWebRequested = !requestedReports || requestedReports.some((r) => ['ORDER', 'FILL', 'TRADE', 'WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(r));
+    const isSftpRequested = !requestedReports || requestedReports.some((r) => ['SFTP', 'SFTP_CSV', 'SFTP_XLS', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(r));
+
     job.payload = {
-      ...currentPayload,
+      ...payload,
       result: {
-        isWaitingFiles: isWebRequested ? !webReportsOk : false,
+        isWaitingFiles: isWebRequested ? remainingWeb.length > 0 : false,
         scanResults: finalScan,
-        webReportsOk,
-        sftpOk,
+        webReportsOk: remainingWeb.length === 0,
+        sftpOk: remainingSftp.length === 0,
       },
     };
     await this.botJobModel
       .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
       .exec();
 
-    // NGUYÊN TẮC NGHIỆP VỤ: SFTP và Call API ACM ETP là hoàn toàn độc lập.
-    // Nếu báo cáo Web (Order.xlsx & Fill.xlsx) đã đầy đủ -> Job BÁO THÀNH CÔNG 100%.
-    // Nếu không tải được SFTP -> Chỉ ghi cảnh báo lỗi cho SFTP, không làm thất bại Job ca trực.
-    if (isWebRequested && !webReportsOk) {
-      const missingWeb = finalScan
-        .filter((r) => {
-          if (r.status === 'OK') return false;
-          if (r.key === 'ORDER') return !requestedReports || requestedReports.includes('ORDER') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
-          if (r.key === 'FILL') return !requestedReports || requestedReports.includes('FILL') || requestedReports.includes('TRADE') || requestedReports.some(x => ['WEB', 'ETP', 'FULL', 'ALL', 'BACKUP'].includes(x));
-          return false;
-        })
-        .map((r) => `${r.key} (${r.filename})`)
-        .join(', ');
-      throw new Error(
-        `Kiểm tra file backup ACM thất bại: Thiếu báo cáo Web bắt buộc [${missingWeb}]`,
-      );
+    // NGUYÊN TẮC NGHIỆP VỤ: Web (Order & Fill) bắt buộc, SFTP chỉ cảnh báo
+    if (isWebRequested && remainingWeb.length > 0) {
+      const missingWebStr = remainingWeb.map((r) => `${r.key} (${r.filename})`).join(', ');
+      throw new Error(`Kiểm tra file backup ACM thất bại: Thiếu báo cáo Web bắt buộc [${missingWebStr}]`);
     }
 
-    if (isSftpRequested && !sftpOk) {
-      const missingSftp = finalScan
-        .filter((r) => {
-          if (r.status === 'OK') return false;
-          if (r.key === 'SFTP_CSV') return !requestedReports || requestedReports.includes('SFTP_CSV') || requestedReports.some(x => ['SFTP', 'STRAITS', 'FULL', 'ALL', 'BACKUP'].includes(x));
-          if (r.key === 'SFTP_XLS') return !requestedReports || requestedReports.includes('SFTP_XLS') || requestedReports.some(x => ['SFTP', 'FULL', 'ALL', 'BACKUP'].includes(x));
-          return false;
-        })
-        .map((r) => `${r.key} (${r.filename})`)
-        .join(', ');
+    if (isSftpRequested && remainingSftp.length > 0) {
+      const missingSftpStr = remainingSftp.map((r) => `${r.key} (${r.filename})`).join(', ');
       await logAndSave(
-        `[Cảnh báo SFTP] Báo cáo Web ETP đã đầy đủ (Job Hoàn Tất Thành Công), nhưng chưa có đủ file SFTP [${missingSftp}]. Ca trực có thể đồng bộ bổ sung file SFTP sau khi sàn chốt phiên.`,
+        `[Cảnh báo SFTP] Báo cáo Web ETP đã đầy đủ (Job Hoàn Tất Thành Công), nhưng chưa có đủ file SFTP [${missingSftpStr}]. Ca trực có thể đồng bộ bổ sung file SFTP sau khi sàn chốt phiên.`,
       );
     } else {
       await logAndSave(`Toàn bộ báo cáo ACM theo yêu cầu [${requestedReports ? requestedReports.join(', ') : 'Web & SFTP'}] đã đồng bộ đầy đủ.`);
+    }
+  }
+
+  private async handleFileAuditCcpJob(job: any) {
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
+    const ccpBackupBase =
+      payload.backupPath ||
+      (await this.settingsService.getSetting(
+        'bot_backup_path_ccp',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP',
+      ));
+    const { fullPath: dailyPath } = resolveDailySubfolder(ccpBackupBase, targetDate);
+
+    if (!fs.existsSync(dailyPath)) {
+      fs.mkdirSync(dailyPath, { recursive: true });
+    }
+
+    job.logs.push(`[${new Date().toISOString()}] Thư mục backup CCP: ${dailyPath}`);
+    await job.save();
+
+    const scanResults = await this.scanCcpBackupFiles(dailyPath, targetDate);
+    const missing = scanResults.filter((r) => r.status === 'MISSING');
+    const empty = scanResults.filter((r) => r.status === 'EMPTY');
+    const okCount = scanResults.filter((r) => r.status === 'OK').length;
+
+    job.logs.push(
+      `[${new Date().toISOString()}] Kết quả scan CCP: ${okCount}/${scanResults.length} file đầy đủ (Thiếu: ${missing.length}, Trống: ${empty.length}).`,
+    );
+
+    const hasMissing = missing.length > 0;
+    const currentPayload = parseJobPayload(job);
+    job.payload = {
+      ...currentPayload,
+      result: {
+        isWaitingFiles: hasMissing,
+        scanResults,
+      },
+    };
+    await this.botJobModel
+      .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
+      .exec();
+
+    if (hasMissing) {
+      const missingList = missing.map((r) => r.filename).join(', ');
+      throw new Error(`Kiểm tra file backup CCP: Còn thiếu ${missing.length} file [${missingList}]`);
+    }
+  }
+
+  private async handleFileAuditCeJob(job: any) {
+    const payload = parseJobPayload(job);
+    const { dateObj: targetDate } = resolveBotTargetDate(payload);
+    const ceBackupBase =
+      payload.backupPath ||
+      (await this.settingsService.getSetting(
+        'bot_backup_path_ce',
+        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
+      ));
+    const { fullPath: dailyPath } = resolveDailySubfolder(ceBackupBase, targetDate);
+
+    if (!fs.existsSync(dailyPath)) {
+      fs.mkdirSync(dailyPath, { recursive: true });
+    }
+
+    job.logs.push(`[${new Date().toISOString()}] Thư mục backup CE: ${dailyPath}`);
+    await job.save();
+
+    const scanResults = await this.scanCeBackupFiles(dailyPath, targetDate);
+    const missing = scanResults.filter((r) => r.status === 'MISSING');
+    const empty = scanResults.filter((r) => r.status === 'EMPTY');
+    const okCount = scanResults.filter((r) => r.status === 'OK').length;
+
+    job.logs.push(
+      `[${new Date().toISOString()}] Kết quả scan CE: ${okCount}/${scanResults.length} file đầy đủ (Thiếu: ${missing.length}, Trống: ${empty.length}).`,
+    );
+
+    const hasMissing = missing.length > 0;
+    const currentPayload = parseJobPayload(job);
+    job.payload = {
+      ...currentPayload,
+      result: {
+        isWaitingFiles: hasMissing,
+        scanResults,
+      },
+    };
+    await this.botJobModel
+      .updateOne({ _id: job._id }, { $set: { payload: job.payload } })
+      .exec();
+
+    if (hasMissing) {
+      const missingList = missing.map((r) => r.filename).join(', ');
+      throw new Error(`Kiểm tra file backup CE: Còn thiếu ${missing.length} file [${missingList}]`);
     }
   }
 }

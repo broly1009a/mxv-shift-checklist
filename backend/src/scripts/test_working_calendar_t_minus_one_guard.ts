@@ -14,8 +14,8 @@
  * cmd.exe /c "npx ts-node -r tsconfig-paths/register src/scripts/test_working_calendar_t_minus_one_guard.ts"
  */
 
-import { DsgdBeforeEodService } from '../modules/trading-ops/services/dsgd-before-eod.service';
-import { MsEodReconService } from '../modules/trading-ops/services/ms-eod-recon.service';
+import { DsgdBeforeEodService } from '../modules/trading-ops/services/recon/dsgd-before-eod.service';
+import { MsEodReconService } from '../modules/trading-ops/services/recon/ms-eod-recon.service';
 
 // Mock WorkingCalendarService có khả năng nhận diện ngày lễ/tết
 class MockWorkingCalendarService {

@@ -5,7 +5,7 @@ import {
   TaskExecutionResult,
   TaskExecutionStatus,
 } from '../../../shared';
-import { CeCcpGttCheckerService } from '../services/ce-ccp-gtt.service';
+import { CeCcpGttCheckerService } from '../services/recon/ce-ccp-gtt.service';
 
 /**
  * Worker chuyên trách Đối Soát Giá Thanh Toán (GTT) giữa CoreEX (CE) và CoreCCP (VNCLEAR).

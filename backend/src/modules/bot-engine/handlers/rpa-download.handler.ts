@@ -1,9 +1,8 @@
-import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../core/job-handler.interface';
 import { BotJobHandlerRegistry } from '../core/job-handler.registry';
-import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
 import { IngressService } from '../../ingress/ingress.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
@@ -14,6 +13,12 @@ import {
   resolveDailySubfolder,
 } from '../helpers/bot-path.helper';
 
+/**
+ * RpaDownloadJobHandler — Điều phối Job tải báo cáo từ M-System.
+ *
+ * Trigger qua BotJob với jobType: 'RPA_DOWNLOAD_REPORTS'.
+ * Hoàn toàn Data-driven và ủy quyền 100% cho IngressService (fail-fast, zero silent swallow, zero fallback).
+ */
 @Injectable()
 export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(RpaDownloadJobHandler.name);
@@ -21,16 +26,17 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
-    private readonly rpaDownloaderService: RpaScraperService,
     private readonly settingsService: SystemSettingsService,
-    @Optional()
-    private readonly ingressService?: IngressService,
-  ) { }
+    private readonly ingressService: IngressService,
+  ) {}
 
   onModuleInit() {
     this.registry.register(this);
   }
 
+  /**
+   * Helper ánh xạ mã báo cáo sang tên file chuẩn (phục vụ test & backwards compatibility).
+   */
   public getReportFileName(target: string): string {
     switch (target) {
       case 'NKTTHT':
@@ -86,15 +92,8 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
   }
 
   async execute(job: any, context: IJobExecutionContext): Promise<any> {
-    const tempDir = path.join(
-      process.cwd(),
-      'temp',
-      'reports',
-      job._id.toString(),
-    );
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    const logPrefix = `[${new Date().toISOString()}]`;
+    job.logs = job.logs || [];
 
     const payload = parseJobPayload(job);
     const targets: string[] = payload.targets || [
@@ -106,7 +105,7 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const sessionDay: string = payload.sessionDay;
 
     job.logs.push(
-      `[${new Date().toISOString()}] Reports to download: ${targets.join(', ')}`,
+      `${logPrefix} [M-System] Danh sách báo cáo cần tải: ${targets.join(', ')}`,
     );
     await job.save();
 
@@ -121,8 +120,9 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     }
     const backupMsBase = resolveStoragePathCrossPlatform(rawBackupMs);
 
-    let destFolder: string | null = null;
+    let destFolder = path.join(process.cwd(), 'temp', 'reports', job._id?.toString() || 'ms');
     let resolvedDateStr = new Date().toISOString().split('T')[0];
+
     if (backupMsBase) {
       const sessionStartStr = await this.settingsService.getSetting(
         'session_start_time',
@@ -135,294 +135,54 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
       resolvedDateStr = dateStr;
       const { fullPath } = resolveDailySubfolder(backupMsBase, targetDate);
       destFolder = fullPath;
-      if (!fs.existsSync(destFolder)) {
-        fs.mkdirSync(destFolder, { recursive: true });
-      }
-      job.logs.push(
-        `[${new Date().toISOString()}] Target ${isTradingCheck ? 'TradingCheck (Đối soát)' : 'Backup MS'} folder: ${destFolder} (Session: ${resolvedDateStr})`,
-      );
-      await job.save();
     }
+
+    if (!fs.existsSync(destFolder)) {
+      fs.mkdirSync(destFolder, { recursive: true });
+    }
+
+    job.logs.push(
+      `${logPrefix} [M-System] [${isTradingCheck ? 'TradingCheck (Đối soát)' : 'Backup MS'}] Thư mục lưu: ${destFolder} (Phiên: ${resolvedDateStr})`,
+    );
+    await job.save();
+
+    this.logger.log(`[RpaDownloadJobHandler] Điều phối IngressService tải ${targets.length} báo cáo M-System về ${destFolder}`);
+
+    const ingressRes = await this.ingressService.download('MS', {
+      targetDirectory: destFolder,
+      reportCodes: targets,
+      targetDate: resolvedDateStr,
+    });
 
     const successfulTargets: string[] = [];
-    const failedTargets: Array<{ target: string; error: string }> = [];
+    for (const f of ingressRes.files) {
+      successfulTargets.push(f.category || f.fileName);
+      const sizeKb = f.fileSize ? (f.fileSize / 1024).toFixed(1) : '0';
+      job.logs.push(`${logPrefix} [M-System OK] ${f.fileName} (${sizeKb} KB)`);
+    }
 
-    // KIỂM TRA CHẾ ĐỘ DIRECT REST API TỪ CẤU HÌNH CSDL
-    const globalMode = await this.settingsService.getSetting('ingress_mode', process.env.INGRESS_MODE || 'PLAYWRIGHT');
-    const ingressModeMs = await this.settingsService.getSetting('ingress_mode_ms', process.env.INGRESS_MODE_MS || globalMode);
-
-    if (ingressModeMs === 'REST_API' && this.ingressService) {
-      this.logger.log(`[RpaDownloadJobHandler] Kích hoạt Direct REST API Mode cho M-System (Cờ: ingress_mode_ms=REST_API). Bỏ qua mở Chromium!`);
-      job.logs.push(`[${new Date().toISOString()}] Kích hoạt Direct REST API Mode cho M-System (MsApiAdapter), không mở trình duyệt...`);
+    if (!ingressRes.success || ingressRes.files.length === 0) {
+      const errorMsg = ingressRes.error || `Không thể tải báo cáo M-System nào cho phiên ${resolvedDateStr}.`;
+      this.logger.error(`[RpaDownloadJobHandler] Tải báo cáo M-System thất bại: ${errorMsg}`);
+      job.logs.push(`${logPrefix} [M-System] [LỖI] Tải thất bại: ${errorMsg}`);
+      job.error = errorMsg;
+      job.status = 'FAILED';
       await job.save();
-
-      const targetDir = destFolder || tempDir;
-      try {
-        const ingressRes = await this.ingressService.download('MS', {
-          targetDirectory: targetDir,
-          reportCodes: targets,
-          targetDate: resolvedDateStr,
-        });
-
-        for (const f of ingressRes.files) {
-          successfulTargets.push(f.category || f.fileName);
-          job.logs.push(`[${new Date().toISOString()}] [Direct API OK] ${f.fileName} (${(f.fileSize / 1024).toFixed(1)} KB)`);
-        }
-
-        job.logs.push(`[${new Date().toISOString()}] Hoàn tất tải ${ingressRes.files.length}/${targets.length} báo cáo M-System qua Direct REST API (${ingressRes.durationMs}ms)`);
-        job.status = ingressRes.success ? 'COMPLETED' : 'FAILED';
-        if (ingressRes.error) job.error = ingressRes.error;
-        await job.save();
-
-        return {
-          successfulTargets,
-          failedTargets,
-          destFolder: targetDir,
-          mode: 'DIRECT_REST_API',
-        };
-      } catch (apiErr: any) {
-        this.logger.error(`[RpaDownloadJobHandler] Lỗi Direct REST API (${apiErr.message}), fallback về Playwright...`);
-        job.logs.push(`[${new Date().toISOString()}] [WARN] Direct REST API lỗi (${apiErr.message}), kích hoạt Playwright fallback...`);
-        await job.save();
-      }
+      throw new Error(`[M-System] Tải báo cáo thất bại: ${errorMsg}`);
     }
 
-    const { browser, page } =
-      await this.rpaDownloaderService.loginMSystem(tempDir);
+    job.logs.push(
+      `${logPrefix} [M-System] Hoàn tất tải ${ingressRes.files.length}/${targets.length} báo cáo thành công (${ingressRes.durationMs}ms)`,
+    );
+    job.status = 'COMPLETED';
+    await job.save();
 
-    try {
-      for (const target of targets) {
-        const filename = this.getReportFileName(target);
-        const destFile = path.join(tempDir, filename);
-        const finalBackupFile = destFolder ? path.join(destFolder, filename) : null;
-
-        // Skip check: Nếu file đã tồn tại hợp lệ trong thư mục Backup MS (ví dụ từ attempt trước), bỏ qua để tiết kiệm thời gian
-        if (finalBackupFile && fs.existsSync(finalBackupFile)) {
-          const stats = fs.statSync(finalBackupFile);
-          if (stats.size > 100) {
-            this.logger.log(
-              `[SKIP] Báo cáo ${target} (${filename}) đã tồn tại trong thư mục Backup (${(stats.size / 1024).toFixed(1)} KB), bỏ qua không tải lại.`,
-            );
-            job.logs.push(
-              `[${new Date().toISOString()}] Báo cáo ${target} (${filename}) đã có trong Backup (${(stats.size / 1024).toFixed(1)} KB), bỏ qua.`,
-            );
-            successfulTargets.push(target);
-            await job.save();
-            continue;
-          }
-        }
-
-        job.logs.push(
-          `[${new Date().toISOString()}] Downloading report: ${target} (as ${filename})...`,
-        );
-        await job.save();
-
-        try {
-          switch (target) {
-            case 'NKTTHT':
-            case 'NKTHT':
-              await this.rpaDownloaderService.downloadNKTTHT(page, destFile);
-              break;
-            case 'DSTKGD-Futures':
-              await this.rpaDownloaderService.downloadDSTKGDFutures(
-                page,
-                destFile,
-              );
-              break;
-            case 'DSTKGD-Spread':
-              await this.rpaDownloaderService.downloadDSTKGDSpread(
-                page,
-                destFile,
-              );
-              break;
-            case 'DSTKGD-LME':
-              await this.rpaDownloaderService.downloadDSTKGDLME(page, destFile);
-              break;
-            case 'DSTKGD-ACM':
-              await this.rpaDownloaderService.downloadDSTKGDACM(page, destFile);
-              break;
-            case 'QLTKGD':
-            case 'QLTTTKGD':
-              await this.rpaDownloaderService.downloadQLTTTKGD(page, destFile);
-              break;
-            case 'QLTKGDAmKQ':
-            case 'QLTKGD âm KQ':
-            case 'QLTTTKGDAmKQ':
-              await this.rpaDownloaderService.downloadQLTTTKGDAmKQ(
-                page,
-                destFile,
-              );
-              break;
-            case 'TLKQHSKQ':
-            case 'TLQHSKQ':
-              await this.rpaDownloaderService.downloadTLKQHSKQ(page, destFile);
-              break;
-            case 'NR':
-              await this.rpaDownloaderService.downloadNR(page, destFile);
-              break;
-            case 'DSTrader':
-              await this.rpaDownloaderService.downloadDSTrader(page, destFile);
-              break;
-            case 'Markettruoc6h':
-            case 'market truoc 6h':
-            case 'market truoc 6 h':
-              await this.rpaDownloaderService.downloadMarkettruoc6h(
-                page,
-                destFile,
-              );
-              break;
-            case 'DSLDK':
-              await this.rpaDownloaderService.downloadDSLDK(page, destFile);
-              break;
-            case 'DSLCK':
-              await this.rpaDownloaderService.downloadDSLCK(page, destFile);
-              break;
-            case 'DSLH':
-              await this.rpaDownloaderService.downloadDSLH(page, destFile);
-              break;
-            case 'DSLK':
-              await this.rpaDownloaderService.downloadDSLK(page, destFile);
-              break;
-            case 'DSGD':
-              await this.rpaDownloaderService.downloadDSGD(
-                page,
-                destFile,
-                sessionDay,
-              );
-              break;
-            case 'TTM':
-              await this.rpaDownloaderService.downloadTTM(page, destFile);
-              break;
-            case 'TTTT':
-              await this.rpaDownloaderService.downloadTTTT(page, destFile);
-              break;
-            case 'TTCDH':
-              await this.rpaDownloaderService.downloadTTCDH(page, destFile);
-              break;
-            case 'DSQLKQ':
-              await this.rpaDownloaderService.downloadDSQLKQ(page, destFile);
-              break;
-            default:
-              this.logger.warn(`Unknown download target skipped: ${target}`);
-              job.logs.push(
-                `[${new Date().toISOString()}] Warning: Unknown download target skipped: ${target}`,
-              );
-              continue;
-          }
-
-          if (fs.existsSync(destFile)) {
-            successfulTargets.push(target);
-            job.logs.push(
-              `[${new Date().toISOString()}] Downloaded report: ${target} successfully.`,
-            );
-
-            // Immediate Copy on Success: Lưu ngay vào thư mục Backup MS
-            if (destFolder) {
-              const finalBackupFile = path.join(destFolder, filename);
-              fs.copyFileSync(destFile, finalBackupFile);
-              job.logs.push(
-                `[${new Date().toISOString()}] Copied ${filename} to ${finalBackupFile}`,
-              );
-            }
-
-            // Giãn cách nhẹ 1.5s giữa các báo cáo để tránh API Gateway 429 Too Many Requests
-            await page.waitForTimeout(1500);
-          } else {
-            throw new Error(`File ${filename} không tồn tại sau khi tải!`);
-          }
-        } catch (targetErr: any) {
-          this.logger.error(
-            `Error downloading target ${target}: ${targetErr.message}`,
-          );
-          failedTargets.push({ target, error: targetErr.message });
-          job.logs.push(
-            `[${new Date().toISOString()}] ERROR downloading ${target}: ${targetErr.message}`,
-          );
-        }
-
-        await job.save();
-      }
-
-      // VÒNG TẢI BỔ SUNG (FAST RETRY): Nếu có báo cáo tạm thời bị nghẽn mạng/gián đoạn, tự động quay lại tải nốt
-      if (failedTargets.length > 0) {
-        this.logger.log(
-          `Có ${failedTargets.length} báo cáo chưa hoàn tất. Tạm nghỉ 3 giây để hệ thống ổn định và tự động tải bổ sung...`,
-        );
-        job.logs.push(
-          `[${new Date().toISOString()}] Có ${failedTargets.length} báo cáo chưa tải xong. Tạm nghỉ 3 giây và tự động tải lại bổ sung...`,
-        );
-        await job.save();
-        await page.waitForTimeout(3000);
-
-        const retryQueue = [...failedTargets];
-        for (const item of retryQueue) {
-          const filename = this.getReportFileName(item.target);
-          const destFile = path.join(tempDir, filename);
-
-          try {
-            this.logger.log(`[Tải bổ sung] Đang tải lại: ${item.target}...`);
-            job.logs.push(
-              `[${new Date().toISOString()}] [Tải bổ sung] Đang tải lại báo cáo: ${item.target}...`,
-            );
-            await job.save();
-
-            await this.rpaDownloaderService.downloadByTarget(
-              page,
-              item.target,
-              destFile,
-              sessionDay,
-            );
-
-            if (fs.existsSync(destFile)) {
-              if (destFolder) {
-                const finalBackupFile = path.join(destFolder, filename);
-                fs.copyFileSync(destFile, finalBackupFile);
-                job.logs.push(
-                  `[${new Date().toISOString()}] [Tải bổ sung] Đã lưu thành công ${filename} vào thư mục Backup.`,
-                );
-              }
-              successfulTargets.push(item.target);
-              const idx = failedTargets.findIndex((f) => f.target === item.target);
-              if (idx !== -1) failedTargets.splice(idx, 1);
-              this.logger.log(`[Tải bổ sung] Báo cáo ${item.target} đã tải thành công!`);
-            }
-          } catch (retryErr: any) {
-            this.logger.warn(
-              `[Tải bổ sung] Báo cáo ${item.target} vẫn chưa tải được: ${retryErr.message}`,
-            );
-            job.logs.push(
-              `[${new Date().toISOString()}] [Tải bổ sung] Báo cáo ${item.target} vẫn chưa tải được: ${retryErr.message}`,
-            );
-          }
-          await page.waitForTimeout(1500);
-          await job.save();
-        }
-      }
-
-      if (failedTargets.length > 0) {
-        const failedSummary = failedTargets
-          .map((f) => `${f.target} (${f.error})`)
-          .join('; ');
-        job.logs.push(
-          `[${new Date().toISOString()}] Hoàn tất ${successfulTargets.length}/${targets.length} báo cáo MS. Có ${failedTargets.length} báo cáo gặp sự cố: ${failedSummary}`,
-        );
-        await job.save();
-        throw new Error(
-          `Có ${failedTargets.length}/${targets.length} báo cáo MS tải thất bại: ${failedSummary}`,
-        );
-      } else {
-        job.logs.push(
-          `[${new Date().toISOString()}] Hoàn tất thành công toàn bộ ${successfulTargets.length}/${targets.length} báo cáo MS về thư mục Backup!`,
-        );
-        await job.save();
-      }
-
-      return { tempDir, successfulTargets, failedTargets };
-    } finally {
-      this.logger.log('Closing Playwright browser context.');
-      await browser.close().catch((err) => {
-        this.logger.error(`Error closing browser: ${err.message}`);
-      });
-    }
+    return {
+      success: true,
+      successfulTargets,
+      downloadedCount: ingressRes.files.length,
+      destFolder,
+      durationMs: ingressRes.durationMs,
+    };
   }
 }

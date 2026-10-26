@@ -8,7 +8,7 @@ import {
   TaskExecutionContext,
   TaskExecutionResult,
 } from '../../../shared';
-import { MarginCheckerService } from '../services/margin-checker.service';
+import { MarginCheckerService } from '../services/recon/margin-checker.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
 @Injectable()

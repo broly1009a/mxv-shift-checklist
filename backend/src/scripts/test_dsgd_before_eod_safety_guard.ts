@@ -19,7 +19,7 @@ import * as path from 'path';
 import * as XLSX from 'xlsx';
 import {
   DsgdBeforeEodService,
-} from '../modules/trading-ops/services/dsgd-before-eod.service';
+} from '../modules/trading-ops/services/recon/dsgd-before-eod.service';
 
 function createMockDsgdExcel(filePath: string, records: Array<{ maTKGD: string; klGiaoDich: number; maHD: string }>) {
   const dir = path.dirname(filePath);

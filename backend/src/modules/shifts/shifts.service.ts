@@ -20,6 +20,7 @@ import { IncidentsService } from '../incidents/incidents.service';
 import { AccessControlService } from '../auth/access-control.service';
 import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import { WorkingCalendarService } from '../working-calendar/working-calendar.service';
+import { AUDIT_JOB_TYPES } from '../../shared';
 
 @Injectable()
 export class ShiftsService {
@@ -631,25 +632,13 @@ export class ShiftsService {
 
     // Nếu người dùng chủ động tích hoàn thành thủ công, hủy các Job Kiểm tra/Audit PENDING của tác vụ này
     if (isChecked && !isInternal) {
-      const AUDIT_JOB_TYPES = [
-        'CHECK_KLGD',
-        'CHECK_DSGD_BEFORE_EOD',
-        'CHECK_EOD_MS',
-        'FILE_AUDIT_ACM',
-        'FILE_AUDIT_CQG',
-        'FILE_AUDIT_MS',
-        'AUTO_CHECK_SOD',
-        'RUN_MACRO',
-        'RUN_LOT_MACRO',
-        'RUN_VALUE_MACRO',
-      ];
       this.botJobModel
         .updateMany(
           {
             'payload.shiftLogId': shiftLogId,
             'payload.taskId': taskId,
             status: 'PENDING',
-            jobType: { $in: AUDIT_JOB_TYPES },
+            jobType: { $in: AUDIT_JOB_TYPES as readonly string[] },
           },
           {
             $set: {

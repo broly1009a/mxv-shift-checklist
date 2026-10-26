@@ -11,7 +11,7 @@ import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
 import * as XLSX from 'xlsx';
 import { safeWriteExcel } from './excel-safe-writer.helper';
 import { ensureBaseFileExists } from '../../../common/file-guard.helper';
-import { CcpLotResult } from '../services/ccp-lot-statistics.service';
+import { CcpLotResult } from '../services/statistics/ccp-lot-statistics.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

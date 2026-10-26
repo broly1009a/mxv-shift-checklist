@@ -14,6 +14,7 @@ import {
 } from '../../schemas/notification-log.schema';
 import { NotificationsService } from './notifications.service';
 import { TeamsNotifierService } from './teams-notifier.service';
+import { BotAlertEmailService } from './bot-alert-email.service';
 import { NotificationsController } from './notifications.controller';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
@@ -27,7 +28,7 @@ import { SystemSettingsModule } from '../system-settings/system-settings.module'
     SystemSettingsModule,
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, TeamsNotifierService],
-  exports: [NotificationsService, TeamsNotifierService],
+  providers: [NotificationsService, TeamsNotifierService, BotAlertEmailService],
+  exports: [NotificationsService, TeamsNotifierService, BotAlertEmailService],
 })
 export class NotificationsModule {}

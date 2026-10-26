@@ -104,11 +104,10 @@ const SELECTORS_TO_AUDIT = [
 function staticAuditCodebase() {
   console.log('\n🔍 [BƯỚC 1/2] QUÉT TĨNH MÃ NGUỒN BACKEND TÌM DẤU HIỆU TRỘN SELECTOR...');
   const filesToScan = [
-    path.join(__dirname, '../modules/bot-engine/handlers/recon-jobs.handler.ts'),
-    path.join(__dirname, '../modules/bot-engine/rpa-downloader.service.ts'),
-    path.join(__dirname, '../modules/bot-engine/helpers/msystem-tab-navigator.helper.ts'),
-    path.join(__dirname, '../modules/bot-engine/ccp-ce-downloader.service.ts'),
-    path.join(__dirname, '../modules/trading-ops/services/gtt-checker.service.ts'),
+    path.join(__dirname, '../modules/ingress/services/recon-ingress-pipeline.service.ts'),
+    path.join(__dirname, '../modules/ingress/scrapers/rpa-scraper.service.ts'),
+    path.join(__dirname, '../modules/ingress/scrapers/ccp-ce-scraper.service.ts'),
+    path.join(__dirname, '../modules/trading-ops/services/recon/gtt-checker.service.ts'),
   ];
 
   let staticErrors = 0;

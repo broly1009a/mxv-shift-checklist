@@ -19,8 +19,8 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
-import { MarginCheckerService } from '../services/margin-checker.service';
-import { ReconConsoleSummaryService } from '../services/recon-console-summary.service';
+import { MarginCheckerService } from '../services/recon/margin-checker.service';
+import { ReconConsoleSummaryService } from '../services/console/recon-console-summary.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])

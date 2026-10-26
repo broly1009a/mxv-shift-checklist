@@ -18,7 +18,7 @@ import * as XLSX from 'xlsx';
 import {
   CqgMergerService,
   validateCqgPairFreshness,
-} from '../modules/trading-ops/services/cqg-merger.service';
+} from '../modules/trading-ops/services/merger/cqg-merger.service';
 
 function createMockCqgExcel(
   filePath: string,

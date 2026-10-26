@@ -7,10 +7,10 @@ import {
   TaskExecutionResult,
   TaskExecutionStatus,
 } from '../../../shared';
-import { LotStatisticsService } from '../services/lot-statistics.service';
-import { CcpLotStatisticsService } from '../services/ccp-lot-statistics.service';
+import { LotStatisticsService } from '../services/statistics/lot-statistics.service';
+import { CcpLotStatisticsService } from '../services/statistics/ccp-lot-statistics.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
-import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
+import { CcpAccumulatorService } from '../services/statistics/ccp-accumulator.service';
 
 @Injectable()
 export class CcpLotWorker implements IBotWorker {

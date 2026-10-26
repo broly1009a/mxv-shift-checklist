@@ -1,3 +1,17 @@
+/**
+ * bot-job-queue.service.ts
+ *
+ * Dịch vụ Quản lý Hàng đợi Tác vụ Bot (Bot Job Queue Service).
+ * Tuân thủ nghiêm ngặt nguyên lý Đơn trách nhiệm (Single Responsibility Principle - SRP):
+ *  1. Quản lý hàng đợi Job (Enqueue, Atomic Deduplication Guard).
+ *  2. Điều phối thực thi (ProcessQueue, Atomic Locks, Dispatch to V2 Dispatcher / V1 Registry).
+ *  3. Đồng bộ trạng thái (SyncJobToChecklist, WebSocket Events, ShiftLog update).
+ *  4. Quản lý vòng đời Job (Cancel, Cleanup Stuck Jobs, Query Job Status).
+ *
+ * Mọi nghiệp vụ phụ trợ (gửi Email cảnh báo, giám sát Agent heartbeat) đã được bóc tách
+ * sang các phân hệ chuyên trách (NotificationsModule, AgentHeartbeatService).
+ */
+
 import {
   Injectable,
   Logger,
@@ -17,23 +31,18 @@ import { BotJobHandlerRegistry } from './core/job-handler.registry';
 import { IJobExecutionContext } from './core/job-handler.interface';
 import { ShiftsService } from '../shifts/shifts.service';
 import { ShiftsGateway } from '../shifts/shifts.gateway';
-import { MarginCheckerService } from '../margin-checker/margin-checker.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
-import { FileAuditJobHandler } from './handlers/file-audit.handler';
-import {
-  parseJobPayload,
-  getMsBackupBase,
-  getCqgBackupBase,
-  getAcmBackupBase,
-} from './helpers/bot-path.helper';
+import { parseJobPayload } from './helpers/bot-path.helper';
 import { BotJobDedupHelper } from './helpers/bot-job-dedup.helper';
+import { isAuditJobType } from '../../shared';
+import { BotAlertEmailService } from '../notifications/bot-alert-email.service';
 
 interface IActiveJobContext {
   jobId: string;
   abortController: AbortController;
   cleanups: (() => Promise<void> | void)[];
-  startedAt: Date;
+  startedAt?: Date;
 }
 
 @Injectable()
@@ -41,24 +50,22 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotJobQueueService.name);
   private isProcessing = false;
   private activeJobs = new Map<string, IActiveJobContext>();
-  private queueInterval: NodeJS.Timeout;
-  private cleanupInterval: NodeJS.Timeout;
-  private healthInterval: NodeJS.Timeout;
-  private wasAgentOnlineMap = new Map<string, boolean>();
+  private queueInterval?: NodeJS.Timeout;
+  private cleanupInterval?: NodeJS.Timeout;
 
   constructor(
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     private readonly registry: BotJobHandlerRegistry,
-    private readonly fileAuditHandler: FileAuditJobHandler,
     private readonly shiftsService: ShiftsService,
     private readonly shiftsGateway: ShiftsGateway,
-    private readonly marginCheckerService: MarginCheckerService,
     private readonly settingsService: SystemSettingsService,
     private readonly systemLogsService: SystemLogsService,
     @Optional()
     @Inject(forwardRef(() => BotDispatcherService))
     private readonly botDispatcher?: BotDispatcherService,
-  ) { }
+    @Optional()
+    private readonly botAlertEmailService?: BotAlertEmailService,
+  ) {}
 
   onModuleInit() {
     // Dọn dẹp các Job bị treo ở trạng thái PROCESSING khi khởi động server
@@ -90,13 +97,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       5 * 60 * 1000,
     );
 
-    // Kiểm tra kết nối của Agent mỗi 60 giây
-    this.healthInterval = setInterval(() => {
-      this.checkAgentConnectionHealth().catch((err) => {
-        this.logger.error(`Lỗi khi kiểm tra kết nối Agent: ${err.message}`);
-      });
-    }, 60000);
-
     this.logger.log(
       'Background BotJob queue worker initialized (polling every 10s with Handler Strategy Pattern).',
     );
@@ -109,105 +109,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
-    if (this.healthInterval) {
-      clearInterval(this.healthInterval);
-    }
     this.logger.log('Background BotJob queue worker stopped.');
   }
 
-  private async checkAgentConnectionHealth() {
-    const { AgentController } = require('./bot-agent.controller');
-    const statuses = AgentController?.agentStatuses;
-    if (!statuses) return;
-
-    for (const [hostname, status] of statuses.entries()) {
-      const diffMs = Date.now() - status.lastSeen.getTime();
-      const isOnline = diffMs < 180000; // 3 minutes timeout
-      const wasOnline = this.wasAgentOnlineMap.get(hostname) || false;
-
-      if (!isOnline && wasOnline) {
-        this.wasAgentOnlineMap.set(hostname, false);
-        this.logger.warn(`Agent ${hostname} offline alert. Sending email...`);
-        await this.sendConnectionAlertEmail(status, false);
-        statuses.delete(hostname);
-      } else if (isOnline && !wasOnline) {
-        this.wasAgentOnlineMap.set(hostname, true);
-        this.logger.log(`Agent ${hostname} online info. Sending email...`);
-        await this.sendConnectionAlertEmail(status, true);
-      }
-    }
-  }
-
-  private async sendConnectionAlertEmail(
-    status: { hostname: string; platform: string; lastSeen: Date },
-    isOnline: boolean,
-  ) {
-    try {
-      const config = await this.marginCheckerService.loadConfig();
-      const mailSettings = config.opFailureAlert || {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-      };
-      if (!mailSettings.isSendWarning) return;
-
-      const smtp = config.smtp || {
-        host: 'smtp.office365.com',
-        port: 587,
-        user: 'it.support@mxv.vn',
-        pass: 'OFmng239',
-        senderEmail: 'it.support@mxv.vn',
-        senderName: 'MXV IT Support',
-      };
-
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: smtp.host,
-        port: smtp.port,
-        secure: smtp.port === 465,
-        auth: {
-          user: smtp.user,
-          pass: smtp.pass,
-        },
-        tls: {
-          ciphers: 'SSLv3',
-          rejectUnauthorized: false,
-        },
-      });
-
-      const subject = isOnline
-        ? `[THÔNG BÁO ONLINE] RPA Agent ${status.hostname} đã kết nối lại`
-        : `[CẢNH BÁO MẤT KẾT NỐI] RPA Agent ${status.hostname} đã ngắt kết nối`;
-
-      const html = `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <h2 style="color: ${isOnline ? '#28a745' : '#dc3545'};">
-            ${isOnline ? '🟢 RPA Agent Online' : ' RPA Agent Offline Alert'}
-          </h2>
-          <p>Hệ thống ghi nhận trạng thái kết nối của RPA Agent:</p>
-          <ul>
-            <li><strong>Hostname:</strong> ${status.hostname}</li>
-            <li><strong>Hệ điều hành / Platform:</strong> ${status.platform}</li>
-            <li><strong>Lần cuối gửi tín hiệu (Last Seen):</strong> ${new Date(status.lastSeen).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</li>
-            <li><strong>Trạng thái hiện tại:</strong> <span style="font-weight: bold; color: ${isOnline ? '#28a745' : '#dc3545'};">${isOnline ? 'ONLINE' : 'OFFLINE (Quá 3 phút không có heartbeat)'}</span></li>
-          </ul>
-          <p>Vui lòng kiểm tra lại dịch vụ chạy ngầm trên máy trạm Windows nếu agent bị ngắt kết nối đột ngột.</p>
-          <hr style="border: 0; border-top: 1px solid #eee;" />
-          <p style="font-size: 12px; color: #777;">Email tự động từ hệ thống MXV Shift Checklist Bot Engine.</p>
-        </div>
-      `;
-
-      await transporter.sendMail({
-        from: `"${smtp.senderName}" <${smtp.senderEmail}>`,
-        to: mailSettings.email,
-        subject,
-        html,
-      });
-
-      this.logger.log(`Connection alert email sent to: ${mailSettings.email.join(', ')}`);
-    } catch (err: any) {
-      this.logger.error(`Failed to send connection alert email: ${err.message}`);
-    }
-  }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 1. ENQUEUE (ĐƯA JOB VÀO HÀNG ĐỢI KÈM ATOMIC DEDUPLICATION GUARD)
+  // ─────────────────────────────────────────────────────────────────────────────
 
   /**
    * Đưa một job mới vào hàng đợi PENDING (có tích hợp Deduplication Guard).
@@ -264,6 +171,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     await handler.execute(job, context);
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 2. PROCESS QUEUE (ĐIỀU PHỐI VÀ THỰC THI TÁC VỤ TRONG HÀNG ĐỢI)
+  // ─────────────────────────────────────────────────────────────────────────────
+
   private async processQueue() {
     // Tự động phục hồi cờ isProcessing nếu không có Job nào đang thực sự chạy trong RAM
     if (this.isProcessing && this.activeJobs.size === 0) {
@@ -297,20 +208,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     // Chốt chặn Queue Guard: Kiểm tra xem ca trực đã COMPLETED hoặc tác vụ kiểm tra đã được hoàn thành thủ công chưa
     const payload = parseJobPayload(job);
     const { shiftLogId, taskId } = payload;
-
-    const AUDIT_JOB_TYPES = [
-      'CHECK_KLGD',
-      'CHECK_DSGD_BEFORE_EOD',
-      'CHECK_EOD_MS',
-      'CHECK_CQG_SYNC',
-      'FILE_AUDIT_ACM',
-      'FILE_AUDIT_CQG',
-      'FILE_AUDIT_MS',
-      'AUTO_CHECK_SOD',
-      'RUN_MACRO',
-      'RUN_LOT_MACRO',
-      'RUN_VALUE_MACRO',
-    ];
 
     if (shiftLogId) {
       try {
@@ -351,7 +248,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
           if (taskId) {
             const task = (rawShiftLog.details || []).find((d: any) => d.taskId === taskId);
-            const isAuditJob = AUDIT_JOB_TYPES.includes(job.jobType);
+            const isAuditJob = isAuditJobType(job.jobType);
             if (task && task.isChecked && isAuditJob) {
               job.status = 'CANCELLED';
               job.completedAt = new Date();
@@ -371,7 +268,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
                 },
               );
               this.logger.log(
-                `[QUEUE_GUARD] Đã hủy Job audit ${job.jobType} (${job._id}) do tác vụ [${taskId}] đã hoàn thành.`,
+                `[QUEUE_GUARD] Đã hủy Job ${job.jobType} (${job._id}) do tác vụ [${taskId}] đã tích hoàn thành.`,
               );
               this.shiftsGateway.emitJobStatusUpdated(job._id.toString(), {
                 status: 'CANCELLED',
@@ -423,7 +320,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const contextPayload = parseJobPayload(job);
       const capabilityKey = contextPayload.botCheckType || job.jobType;
 
-      // Tự động flush log định kỳ ra MongoDB mỗi 1.5s cho bất kỳ Job nào đang chạy (Cả V1 lẫn V2)
+      // Tự động flush log định kỳ ra MongoDB mỗi 1.5s cho bất kỳ Job nào đang chạy
       let lastFlushedLength = job.logs?.length || 0;
       const logFlushTimer = setInterval(async () => {
         if (job.logs && job.logs.length > lastFlushedLength) {
@@ -445,8 +342,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       }, 1500);
 
       try {
-        // ── ƯU TIÊN SỐ 1: BÀN GIAO CHO BOT DISPATCHER V2 (STRANGLER FIG CUTOVER) ──
-        // Nếu ChecklistHub BotDispatcherService đã có Worker chuyên biệt xử lý năng lực này (CHECK_KLGD, CHECK_DSGD_BEFORE_EOD, CCP_LOT, CCP_VALUE, CCP_EOD, CHECK_NEGATIVE_MARGIN,...)
+        // ── ƯU TIÊN SỐ 1: BÀN GIAO CHO BOT DISPATCHER V2 (STRANGLER FIG PATTERN) ──
         if (this.botDispatcher && this.botDispatcher.hasWorker(capabilityKey)) {
           this.logger.log(
             `[BotJobQueue] Điều phối ưu tiên sang BotDispatcherService V2 cho năng lực: "${capabilityKey}" (Job: ${job.jobType}, ID: ${job._id})...`,
@@ -518,6 +414,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           return;
         }
 
+        // ── ƯU TIÊN SỐ 2: THỰC THI QUA V1 HANDLER REGISTRY ──
         const handler = this.registry.getHandler(job.jobType);
         if (!handler) {
           throw new Error(`Loại job không được hỗ trợ: ${job.jobType}`);
@@ -585,8 +482,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 3. CANCEL JOB (HỦY / DỪNG KHẨN CẤP MỘT JOB)
+  // ─────────────────────────────────────────────────────────────────────────────
+
   /**
-   * Hủy hoặc Dừng khẩn cấp một Job bất kỳ (PENDING, AWAITING_CAPTCHA, hoặc PROCESSING)
+   * Hủy hoặc Dừng khẩn cấp một Job bất kỳ (PENDING hoặc PROCESSING)
    */
   public async cancelJob(jobId: string, reason?: string): Promise<any> {
     const job = await this.botJobModel.findById(jobId).exec();
@@ -627,7 +528,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       return { success: true, message: 'Đã hủy tác vụ đang chờ trong hàng đợi.', job };
     }
 
-    // 2. Trường hợp Job PROCESSING hoặc AWAITING_CAPTCHA: Kích hoạt abort & cleanup
+    // 2. Trường hợp Job PROCESSING: Kích hoạt abort & cleanup
     const activeCtx = this.activeJobs.get(jobId);
     if (activeCtx) {
       this.logger.log(`[JOB_CANCEL] Đang kích hoạt Abort & Cleanup cho job đang chạy: ${jobId}...`);
@@ -670,6 +571,88 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     return { success: true, message: 'Đã dừng khẩn cấp tác vụ thành công.', job };
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 4. CLEANUP STUCK JOBS (DỌN DẸP CÁC JOB BỊ TREO / ZOMBIE)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async cleanupStuckJobs(isStartup: boolean = false): Promise<void> {
+    const thresholdMs = 15 * 60 * 1000;
+    const now = Date.now();
+    const currentInstanceId = process.env.INSTANCE_ID || `inst_${process.pid}`;
+
+    const query: any = {
+      status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
+    };
+    if (isStartup) {
+      query.$or = [
+        { lockedBy: currentInstanceId },
+        { lockedAt: { $lt: new Date(now - thresholdMs) } },
+        { updatedAt: { $lt: new Date(now - thresholdMs) } },
+      ];
+    } else {
+      query.$or = [
+        { lockedAt: { $lt: new Date(now - thresholdMs) } },
+        { updatedAt: { $lt: new Date(now - thresholdMs) } },
+      ];
+    }
+
+    const stuckJobs = await this.botJobModel.find(query).exec();
+    if (stuckJobs.length === 0) return;
+
+    this.logger.warn(
+      `Phát hiện ${stuckJobs.length} Job bị treo hoặc timeout. Đang tiến hành dọn dẹp...`,
+    );
+
+    for (const job of stuckJobs) {
+      if (job.status === 'PROCESSING') {
+        const activeCtx = this.activeJobs.get(job._id.toString());
+        if (activeCtx) {
+          try {
+            activeCtx.abortController.abort();
+          } catch {}
+          for (const cleanup of activeCtx.cleanups) {
+            try {
+              await cleanup();
+            } catch {}
+          }
+          this.activeJobs.delete(job._id.toString());
+        }
+      }
+
+      const reason = `Tự động dọn dẹp do Job bị treo quá 15 phút (lockedAt: ${job.lockedAt || job.updatedAt})`;
+      job.logs.push(`[${new Date().toISOString()}] ${reason}`);
+      job.status = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
+      job.lockedBy = null;
+      job.lockedAt = null;
+
+      await this.botJobModel.updateOne(
+        { _id: job._id },
+        {
+          $set: {
+            status: job.status,
+            lockedBy: null,
+            lockedAt: null,
+            logs: job.logs,
+          },
+        },
+      );
+
+      if (job.attempts < job.maxAttempts) {
+        await this.syncJobToChecklist(job, 'PENDING', reason);
+      } else {
+        await this.syncJobToChecklist(job, 'FAILED', reason);
+      }
+    }
+
+    if (this.activeJobs.size === 0) {
+      this.isProcessing = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 5. SYNC JOB TO CHECKLIST & WEBSOCKET BROADCASTING
+  // ─────────────────────────────────────────────────────────────────────────────
+
   private async logFailureToSystemLog(job: any, errorMsg: string) {
     const payload = parseJobPayload(job);
     const dateStr = payload.sessionDay || new Date().toISOString().split('T')[0];
@@ -701,6 +684,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         jobType: job.jobType,
       },
     );
+  }
+
+  /**
+   * Gửi cảnh báo lỗi vận hành Job thất bại (ủy quyền qua BotAlertEmailService).
+   */
+  async sendOperationalFailureAlert(job: any, errorMsg: string): Promise<void> {
+    if (this.botAlertEmailService) {
+      await this.botAlertEmailService.sendOperationalFailureAlert(job, errorMsg);
+    }
   }
 
   /**
@@ -821,21 +813,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           );
         } else if (status === 'COMPLETED') {
           let message = 'Bot đã hoàn thành kiểm tra tự động thành công.';
-          if (
-            [
-              'RUN_MACRO',
-              'RUN_LOT_MACRO',
-              'RUN_VALUE_MACRO',
-              'FILE_AUDIT_ACM',
-              'FILE_AUDIT_CQG',
-              'FILE_AUDIT_MS',
-              'AUTO_CHECK_SOD',
-              'CHECK_DSGD_BEFORE_EOD',
-              'CHECK_EOD_MS',
-              'CHECK_CQG_SYNC',
-              'CHECK_KLGD',
-            ].includes(job.jobType)
-          ) {
+          if (isAuditJobType(job.jobType)) {
             const checkData = {
               type: job.jobType,
               jobId: job._id.toString(),
@@ -856,12 +834,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
           let taskStatus: 'PASSED' | 'NEEDS_ATTENTION' | 'PENDING' = 'PASSED';
           if (
+            isAuditJobType(job.jobType) ||
             [
-              'AUTO_CHECK_SOD',
-              'CHECK_DSGD_BEFORE_EOD',
-              'CHECK_EOD_MS',
-              'CHECK_CQG_SYNC',
-              'CHECK_KLGD',
               'CCP_LOT_STATS',
               'CCP_VALUE_STATS',
               'CCP_EOD_RECON',
@@ -869,8 +843,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'CHECK_CCP_VALUE',
               'CHECK_EOD_CCP',
               'CHECK_NEGATIVE_MARGIN',
-              'RUN_LOT_MACRO',
-              'RUN_VALUE_MACRO',
             ].includes(job.jobType)
           ) {
             if (payload?.result?.isWaitingFiles || payload?.result?.status === 'WAITING') {
@@ -941,21 +913,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           let message = error || (status === 'ABORTED' ? 'Tạm dừng do dịch vụ đối tác không khả dụng.' : 'Lỗi không xác định khi chạy bot.');
           if (payload?.totalCount !== undefined) {
             message = `Đã xác minh ${payload.totalCount} email: Phát hiện ${payload.failedCount} lỗi. Danh sách: ${payload.failedList}`;
-          } else if (
-            [
-              'FILE_AUDIT_ACM',
-              'FILE_AUDIT_CQG',
-              'FILE_AUDIT_MS',
-              'AUTO_CHECK_SOD',
-              'CHECK_DSGD_BEFORE_EOD',
-              'CHECK_EOD_MS',
-              'CHECK_CQG_SYNC',
-              'CHECK_KLGD',
-              'RUN_MACRO',
-              'RUN_LOT_MACRO',
-              'RUN_VALUE_MACRO',
-            ].includes(job.jobType)
-          ) {
+          } else if (isAuditJobType(job.jobType)) {
             const checkData = {
               type: job.jobType,
               jobId: job._id.toString(),
@@ -978,19 +936,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             taskId,
             targetTaskStatus,
             systemUser,
-            [
-              'FILE_AUDIT_ACM',
-              'FILE_AUDIT_CQG',
-              'FILE_AUDIT_MS',
-              'AUTO_CHECK_SOD',
-              'CHECK_DSGD_BEFORE_EOD',
-              'CHECK_EOD_MS',
-              'CHECK_CQG_SYNC',
-              'CHECK_KLGD',
-              'RUN_MACRO',
-              'RUN_LOT_MACRO',
-              'RUN_VALUE_MACRO',
-            ].includes(job.jobType)
+            isAuditJobType(job.jobType)
               ? message
               : message.includes('SLA')
                 ? message
@@ -1044,180 +990,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async sendOperationalFailureAlert(job: BotJob, errorMsg: string) {
-    try {
-      const config = await this.marginCheckerService.loadConfig();
-      const mailSettings = config.opFailureAlert || {
-        isSendWarning: true,
-        email: ['it.support@mxv.vn'],
-      };
-      if (!mailSettings.isSendWarning) return;
-
-      const smtp = config.smtp || {
-        host: 'smtp.office365.com',
-        port: 587,
-        user: 'it.support@mxv.vn',
-        pass: 'OFmng239',
-        senderEmail: 'it.support@mxv.vn',
-        senderName: 'MXV IT Support',
-      };
-
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: smtp.host,
-        port: smtp.port,
-        secure: smtp.port === 465,
-        auth: {
-          user: smtp.user,
-          pass: smtp.pass,
-        },
-        tls: {
-          ciphers: 'SSLv3',
-          rejectUnauthorized: false,
-        },
-      });
-
-      const payload = parseJobPayload(job);
-      const subject = `[CẢNH BÁO VẬN HÀNH BOT] Tác vụ ${job.jobType} thất bại sau ${job.maxAttempts} lần thử`;
-      const html = `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <h2 style="color: #dc3545;"> Cảnh Báo Tác Vụ Bot Thất Bại Vĩnh Viễn</h2>
-          <p>Hệ thống MXV Shift Checklist ghi nhận một tác vụ tự động đã thất bại sau khi vượt quá số lần thử tối đa:</p>
-          <ul>
-            <li><strong>Mã Job:</strong> ${job._id}</li>
-            <li><strong>Loại Tác Vụ (Job Type):</strong> <span style="color: #0056b3; font-weight: bold;">${job.jobType}</span></li>
-            <li><strong>Số lần thử:</strong> ${job.attempts}/${job.maxAttempts}</li>
-            <li><strong>Ngày ca trực (Session Day / Target Date):</strong> ${payload.targetDate || payload.sessionDay || 'N/A'}</li>
-            <li><strong>Mã ca trực (Shift Log ID):</strong> ${payload.shiftLogId || 'N/A'}</li>
-            <li><strong>Mã công việc (Task ID):</strong> ${payload.taskId || 'N/A'}</li>
-            <li><strong>Thời gian thất bại:</strong> ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</li>
-          </ul>
-          <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin: 15px 0;">
-            <strong>Chi tiết lỗi cuối cùng:</strong>
-            <p style="margin: 5px 0 0 0; font-family: monospace; color: #721c24;">${errorMsg}</p>
-          </div>
-          <p>Vui lòng đăng nhập vào hệ thống để kiểm tra chi tiết nhật ký (logs) và can thiệp xử lý thủ công.</p>
-          <hr style="border: 0; border-top: 1px solid #eee;" />
-          <p style="font-size: 12px; color: #777;">Email tự động từ hệ thống MXV Shift Checklist Bot Engine.</p>
-        </div>
-      `;
-
-      await transporter.sendMail({
-        from: `"${smtp.senderName}" <${smtp.senderEmail}>`,
-        to: mailSettings.email,
-        subject,
-        html,
-      });
-
-      this.logger.log(`Operational failure alert email sent to: ${mailSettings.email.join(', ')}`);
-    } catch (err: any) {
-      this.logger.error(`Failed to send operational failure alert email: ${err.message}`);
-    }
-  }
-
-  async submitCaptcha(jobId: string, captchaText: string): Promise<void> {
-    const resolver = this.fileAuditHandler.captchaResolvers.get(jobId);
-    if (!resolver) {
-      throw new Error(
-        'Không tìm thấy phiên giải Captcha hợp lệ hoặc đã hết hạn.',
-      );
-    }
-
-    const job = await this.botJobModel.findById(jobId).exec();
-    if (job) {
-      job.logs.push(
-        `[${new Date().toISOString()}] Đã nhận mã Captcha từ người dùng: "${captchaText}". Tiếp tục đăng nhập...`,
-      );
-      await this.syncJobToChecklist(job, 'PROCESSING');
-    }
-
-    resolver(captchaText);
-    this.fileAuditHandler.captchaResolvers.delete(jobId);
-  }
-
-  async cleanupStuckJobs(isStartup: boolean = false): Promise<void> {
-    const thresholdMs = 15 * 60 * 1000;
-    const now = Date.now();
-    const currentInstanceId = process.env.INSTANCE_ID || `inst_${process.pid}`;
-
-    // Khi startup, chỉ thu hồi các job bị khóa bởi chính instance này hoặc các job bị timeout > 15 phút
-    const query: any = {
-      status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
-    };
-    if (isStartup) {
-      query.$or = [
-        { lockedBy: currentInstanceId },
-        { lockedAt: { $lt: new Date(now - thresholdMs) } },
-        { updatedAt: { $lt: new Date(now - thresholdMs) } },
-      ];
-    } else {
-      query.$or = [
-        { lockedAt: { $lt: new Date(now - thresholdMs) } },
-        { updatedAt: { $lt: new Date(now - thresholdMs) } },
-      ];
-    }
-
-    const stuckJobs = await this.botJobModel.find(query).exec();
-
-    if (stuckJobs.length === 0) return;
-
-    for (const job of stuckJobs) {
-      const reason = isStartup
-        ? `Instance ${currentInstanceId} khởi động lại (Reclaim stuck job)`
-        : 'Hết thời gian xử lý (Timeout 15 phút)';
-
-      this.logger.warn(`Dọn dẹp Job bị treo ${job._id} (${job.jobType}): ${reason}`);
-      job.logs.push(`[${new Date().toISOString()}] Tự động dọn dẹp job bị treo: ${reason}`);
-
-      // Giải phóng khóa MongoDB
-      job.lockedBy = undefined;
-      job.lockedAt = undefined;
-
-      // Hủy bỏ tiến trình active trong RAM và dọn dẹp tài nguyên nếu job chạy trên instance này
-      const jobId = job._id.toString();
-      const activeContext = this.activeJobs.get(jobId);
-      if (activeContext) {
-        try {
-          activeContext.abortController.abort();
-          for (const cleanup of activeContext.cleanups) {
-            try {
-              await cleanup();
-            } catch (cleanupErr: any) {
-              this.logger.warn(`Lỗi khi dọn dẹp tài nguyên job ${jobId}: ${cleanupErr.message}`);
-            }
-          }
-        } catch {}
-        this.activeJobs.delete(jobId);
-      }
-
-      if (job.attempts < job.maxAttempts) {
-        await this.syncJobToChecklist(job, 'PENDING', reason);
-      } else {
-        await this.syncJobToChecklist(job, 'FAILED', reason);
-      }
-    }
-
-    if (this.activeJobs.size === 0) {
-      this.isProcessing = false;
-    }
-  }
-
-  // Delegated audit methods for backward compatibility with Controller
-  async scanMsBackupFiles(backupPath: string, targetDate: Date = new Date()) {
-    return this.fileAuditHandler.scanMsBackupFiles(backupPath, targetDate);
-  }
-
-  async scanAcmBackupFiles(backupPath: string, targetDate: Date = new Date()) {
-    return this.fileAuditHandler.scanAcmBackupFiles(backupPath, targetDate);
-  }
-
-  async scanCcpBackupFiles(backupPath: string, targetDate: Date = new Date()) {
-    return this.fileAuditHandler.scanCcpBackupFiles(backupPath, targetDate);
-  }
-
-  async scanCeBackupFiles(backupPath: string, targetDate: Date = new Date()) {
-    return this.fileAuditHandler.scanCeBackupFiles(backupPath, targetDate);
-  }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 6. QUERY METHODS (TRA CỨU JOB THEO TASK / ID / LOẠI)
+  // ─────────────────────────────────────────────────────────────────────────────
 
   async getJobForTask(
     taskId: string,
@@ -1259,17 +1034,4 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   async getJobById(id: string): Promise<BotJob | null> {
     return this.botJobModel.findById(id).exec();
   }
-
-  async getMsBackupBase(): Promise<string> {
-    return getMsBackupBase(this.settingsService);
-  }
-
-  async getCqgBackupBase(): Promise<string> {
-    return getCqgBackupBase(this.settingsService);
-  }
-
-  async getAcmBackupBase(): Promise<string> {
-    return getAcmBackupBase(this.settingsService);
-  }
 }
-

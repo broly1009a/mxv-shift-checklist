@@ -5,22 +5,22 @@ import { TradingReconLog, TradingReconLogSchema } from './schemas/trading-recon-
 import { CcpClearingLog, CcpClearingLogSchema } from './schemas/ccp-clearing-log.schema';
 import { TradingReconLogController } from './controllers/trading-recon-log.controller';
 import { CcpReconController } from './controllers/ccp-recon.controller';
-import { CqgMergerService } from './services/cqg-merger.service';
-import { KlgdReconService } from './services/klgd-recon.service';
-import { MsEodReconService } from './services/ms-eod-recon.service';
-import { MarginCheckerService } from './services/margin-checker.service';
-import { TradingOpsConfigService } from './services/trading-ops-config.service';
-import { DsgdBeforeEodService } from './services/dsgd-before-eod.service';
-import { GttCheckerService } from './services/gtt-checker.service';
-import { ReconConsoleSummaryService } from './services/recon-console-summary.service';
-import { LotStatisticsService } from './services/lot-statistics.service';
-import { ValueStatisticsService } from './services/value-statistics.service';
-import { CcpAccumulatorService } from './services/ccp-accumulator.service';
-import { CcpClearingConfigService } from './services/ccp-clearing-config.service';
-import { CcpEodService } from './services/ccp-eod.service';
-import { CeCcpGttCheckerService } from './services/ce-ccp-gtt.service';
-import { QlgdDashboardService } from './services/qlgd-dashboard.service';
-import { QlgdExcelExportService } from './services/qlgd-excel-export.service';
+import { CqgMergerService } from './services/merger/cqg-merger.service';
+import { KlgdReconService } from './services/recon/klgd-recon.service';
+import { MsEodReconService } from './services/recon/ms-eod-recon.service';
+import { MarginCheckerService } from './services/recon/margin-checker.service';
+import { TradingOpsConfigService } from './services/config/trading-ops-config.service';
+import { DsgdBeforeEodService } from './services/recon/dsgd-before-eod.service';
+import { GttCheckerService } from './services/recon/gtt-checker.service';
+import { ReconConsoleSummaryService } from './services/console/recon-console-summary.service';
+import { LotStatisticsService } from './services/statistics/lot-statistics.service';
+import { ValueStatisticsService } from './services/statistics/value-statistics.service';
+import { CcpAccumulatorService } from './services/statistics/ccp-accumulator.service';
+import { CcpClearingConfigService } from './services/config/ccp-clearing-config.service';
+import { CcpEodService } from './services/recon/ccp-eod.service';
+import { CeCcpGttCheckerService } from './services/recon/ce-ccp-gtt.service';
+import { QlgdDashboardService } from './services/console/qlgd-dashboard.service';
+import { QlgdExcelExportService } from './services/console/qlgd-excel-export.service';
 import { KlgdReconWorker } from './workers/klgd-recon.worker';
 import { DsgdBeforeEodReconWorker } from './workers/dsgd-before-eod-recon.worker';
 import { NegativeMarginWorker } from './workers/negative-margin.worker';
@@ -44,20 +44,23 @@ import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-run-history.schema';
 import { CeLotRunHistory, CeLotRunHistorySchema } from '../../schemas/ce-lot-run-history.schema';
-import { CcpLotStatisticsService } from './services/ccp-lot-statistics.service';
-import { CcpStatisticsService } from './services/ccp-statistics.service';
-import { CeLotStatisticsService } from './services/ce-lot-statistics.service';
-import { CcpAdHocStatisticsService } from './services/ccp-adhoc-statistics.service';
-import { TradingOpsPreflightService } from './services/trading-ops-preflight.service';
+import { CcpLotStatisticsService } from './services/statistics/ccp-lot-statistics.service';
+import { CcpStatisticsService } from './services/statistics/ccp-statistics.service';
+import { CeLotStatisticsService } from './services/statistics/ce-lot-statistics.service';
+import { CcpAdHocStatisticsService } from './services/statistics/ccp-adhoc-statistics.service';
+import { TradingOpsPreflightService } from './services/console/trading-ops-preflight.service';
 
 import { KlgdReconController } from './controllers/klgd-recon.controller';
 import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-recon.controller';
+import { TradingOpsUploadController } from './controllers/trading-ops-upload.controller';
 import { MarginCheckerController } from './controllers/margin-checker.controller';
 import { GttReconController } from './controllers/gtt-recon.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
 import { CeReconController } from './controllers/ce-recon.controller';
 import { OmsReconController } from './controllers/oms-recon.controller';
-import { OmsReconService } from './services/oms-recon.service';
+import { OmsReconService } from './services/recon/oms-recon.service';
+import { ReconPipelineService } from './services/pipeline/recon-pipeline.service';
+import { RECON_PIPELINE_PORT } from '../../shared';
 
 @Module({
   imports: [
@@ -80,6 +83,7 @@ import { OmsReconService } from './services/oms-recon.service';
   controllers: [
     KlgdReconController,
     DsgdBeforeEodReconController,
+    TradingOpsUploadController,
     MarginCheckerController,
     GttReconController,
     TradingOpsMiscController,
@@ -123,6 +127,11 @@ import { OmsReconService } from './services/oms-recon.service';
     CcpAdHocStatisticsService,
     TradingOpsPreflightService,
     OmsReconService,
+    ReconPipelineService,
+    {
+      provide: RECON_PIPELINE_PORT,
+      useClass: ReconPipelineService,
+    },
   ],
   exports: [
     CqgMergerService,
@@ -159,6 +168,8 @@ import { OmsReconService } from './services/oms-recon.service';
     CcpAdHocStatisticsService,
     TradingOpsPreflightService,
     OmsReconService,
+    ReconPipelineService,
+    RECON_PIPELINE_PORT,
     MongooseModule,
   ],
 })

@@ -14,6 +14,17 @@ export const adminApi = {
   },
 
   /**
+   * Đọc một mục cấu hình theo key
+   */
+  async getSystemSetting(key: string, token?: string | null): Promise<{ key: string; value: string }> {
+    return requestJson<{ key: string; value: string }>(
+      API_ENDPOINTS.ADMIN.SYSTEM_SETTING_DETAIL(key),
+      { method: 'GET' },
+      token,
+    );
+  },
+
+  /**
    * Lưu hoặc cập nhật một mục cấu hình
    */
   async saveSystemSetting(

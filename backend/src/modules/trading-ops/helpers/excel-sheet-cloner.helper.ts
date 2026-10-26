@@ -26,7 +26,6 @@ export function ensureMonthSheetExists(
     path.resolve(__dirname, '..', '..', '..', 'scripts', 'python', 'excel_sheet_cloner.py'),
     path.resolve(process.cwd(), 'dist', 'scripts', 'python', 'excel_sheet_cloner.py'),
     path.resolve(process.cwd(), 'src', 'scripts', 'python', 'excel_sheet_cloner.py'),
-    path.resolve(__dirname, '..', '..', '..', 'legacy', 'archive', 'lot-statistics', 'scripts', 'excel_sheet_cloner.py'),
     '/opt/mxv-checklist/backend/dist/scripts/python/excel_sheet_cloner.py',
     '/opt/mxv-checklist/backend/src/scripts/python/excel_sheet_cloner.py',
   ];

@@ -29,9 +29,9 @@ import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
-import { CcpLotStatisticsService } from '../services/ccp-lot-statistics.service';
-import { CcpStatisticsService } from '../services/ccp-statistics.service';
-import { CcpAdHocStatisticsService } from '../services/ccp-adhoc-statistics.service';
+import { CcpLotStatisticsService } from '../services/statistics/ccp-lot-statistics.service';
+import { CcpStatisticsService } from '../services/statistics/ccp-statistics.service';
+import { CcpAdHocStatisticsService } from '../services/statistics/ccp-adhoc-statistics.service';
 
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
@@ -45,11 +45,11 @@ import {
   resolveStoragePathCrossPlatform,
 } from '../../bot-engine/helpers/bot-path.helper';
 
-import { ValueStatisticsService } from '../services/value-statistics.service';
-import { CeCcpGttCheckerService } from '../services/ce-ccp-gtt.service';
-import { CcpAccumulatorService } from '../services/ccp-accumulator.service';
+import { ValueStatisticsService } from '../services/statistics/value-statistics.service';
+import { CeCcpGttCheckerService } from '../services/recon/ce-ccp-gtt.service';
+import { CcpAccumulatorService } from '../services/statistics/ccp-accumulator.service';
 import { CcpClearingLog } from '../schemas/ccp-clearing-log.schema';
-import { TradingOpsPreflightService } from '../services/trading-ops-preflight.service';
+import { TradingOpsPreflightService } from '../services/console/trading-ops-preflight.service';
 
 /**
  * Controller chuyên biệt quản lý toàn bộ nghiệp vụ Bù trừ CoreCCP & Thống kê Lot/Value trong Trading Ops

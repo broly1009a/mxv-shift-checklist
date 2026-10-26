@@ -10,7 +10,7 @@ import {
   resolveStoragePathCrossPlatform,
   findLatestFile,
 } from '../../../shared';
-import { CqgMergerService } from '../services/cqg-merger.service';
+import { CqgMergerService } from '../services/merger/cqg-merger.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 

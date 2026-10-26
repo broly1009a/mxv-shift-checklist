@@ -12,7 +12,7 @@ import {
 } from '../../../shared';
 import type { IReconPipelinePort } from '../../../shared';
 import { RECON_PIPELINE_PORT } from '../../../shared';
-import { MsEodReconService } from '../services/ms-eod-recon.service';
+import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 

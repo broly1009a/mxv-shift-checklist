@@ -270,13 +270,13 @@ export class CoreCcpApiAdapter implements IIngressPort {
     let hops = 0;
     while (nextUrl && hops < 10) {
       hops++;
-      const fullUrl = nextUrl.startsWith('http') ? nextUrl : `${baseUrl}${nextUrl}`;
+      const fullUrl: string = nextUrl.startsWith('http') ? nextUrl : `${baseUrl}${nextUrl}`;
       const urlObj = new URL(fullUrl);
       if (urlObj.searchParams.has('code')) {
         code = urlObj.searchParams.get('code');
         break;
       }
-      const hopRes = await fetch(fullUrl, {
+      const hopRes: any = await fetch(fullUrl, {
         method: 'GET',
         headers: { Cookie: jar.getCookieHeader() },
         redirect: 'manual',

@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
     TRIGGER_CQG: '/api/v1/bot-engine/trigger-cqg-download',
     TRIGGER_ACM: '/api/v1/bot-engine/trigger-acm-download',
     TRIGGER_CCP: '/api/v1/bot-engine/trigger-ccp-download',
+    TRIGGER_CAST: '/api/v1/bot-engine/trigger-cast-download',
     AUDIT_MS: '/api/v1/bot-engine/audit-ms-backup',
     AUDIT_CQG: '/api/v1/bot-engine/audit-cqg-backup',
     AUDIT_ACM: '/api/v1/bot-engine/audit-acm-backup',
@@ -114,6 +115,8 @@ export const API_ENDPOINTS = {
     LOT_UPLOAD_TYGIA: '/api/v1/ccp-clearing/lot-statistics/upload-tygia',
     TRIGGER_LOT_MACRO: '/api/v1/bot-engine/trigger-lot-macro',
     TRIGGER_VALUE_MACRO: '/api/v1/bot-engine/trigger-value-macro',
+    MACRO_LOT_CONFIG: '/api/v1/bot-engine/macro-lot/config',
+    MACRO_VALUE_CONFIG: '/api/v1/bot-engine/macro-value/config',
     VALUE_CONFIG: '/api/v1/value-statistics/config',
     VALUE_PROCESS_LOCAL: '/api/v1/value-statistics/process-local',
     VALUE_PROCESS_TVKD_ONLY: '/api/v1/value-statistics/process-tvkd-only',
@@ -211,6 +214,7 @@ export const API_ENDPOINTS = {
   // ─── ADMIN ───────────────────────────────────────────────────────────────────
   ADMIN: {
     SYSTEM_SETTINGS: '/api/v1/system-settings',
+    SYSTEM_SETTING_DETAIL: (key: string) => `/api/v1/system-settings/${encodeURIComponent(key)}`,
     VERIFY_STORAGE_PATH: '/api/v1/system-settings/verify-storage-path',
     USERS: '/api/v1/users',
     USER_DETAIL: (id: string) => `/api/v1/users/${encodeURIComponent(id)}`,

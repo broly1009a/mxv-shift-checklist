@@ -13,6 +13,7 @@ import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 import { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
 import { AcmEtpAdapter } from './adapters/acm-etp.adapter';
 import { MsApiAdapter } from './adapters/ms-api.adapter';
+import { ReconIngressPipelineService } from './services/recon-ingress-pipeline.service';
 
 @Module({
   imports: [SystemSettingsModule],
@@ -31,11 +32,13 @@ import { MsApiAdapter } from './adapters/ms-api.adapter';
     AcmSftpAdapter,
     AcmEtpAdapter,
     MsApiAdapter,
-    // Facade Service
+    // Facade Service & Pipelines
     IngressService,
+    ReconIngressPipelineService,
   ],
   exports: [
     IngressService,
+    ReconIngressPipelineService,
     MSystemScraperService,
     MSystemTabScraperService,
     CqgScraperService,
