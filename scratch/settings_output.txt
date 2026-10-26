@@ -1,0 +1,110 @@
+bot_auto_backup_enabled: true
+bot_backup_path_acm: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup ACM\Futures
+bot_backup_path_ccp: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures
+bot_backup_path_ce: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures
+bot_backup_path_cqg: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CQG\Futures
+bot_backup_path_ms: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures
+bot_backup_periodic_minutes: 120
+bot_backup_time: 04:05
+bot_ccp_stat_target_root: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp\output
+bot_ce_stat_target_root: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ce\output
+bot_scheduler_config: [
+  {
+    "id": "DOWNLOAD_CAST",
+    "name": "Tải báo cáo CQG CAST Balances",
+    "enabled": true,
+    "time": "07:00",
+    "jobType": "DOWNLOAD_CAST"
+  },
+  {
+    "id": "AUTO_CHECK_SOD",
+    "name": "Đối chiếu số dư đầu ngày (SOD)",
+    "enabled": true,
+    "time": "07:05",
+    "jobType": "AUTO_CHECK_SOD"
+  },
+  {
+    "id": "RPA_DOWNLOAD_MS",
+    "name": "Tải báo cáo đối chiếu đầu ngày M-System",
+    "enabled": true,
+    "time": "04:00",
+    "jobType": "RPA_DOWNLOAD_REPORTS",
+    "payload": {
+      "targets": [
+        "NKTTHT",
+        "DSTKGD-Futures",
+        "DSTKGD-Spread",
+        "DSTKGD-LME",
+        "DSTKGD-ACM",
+        "QLTKGD",
+        "NR",
+        "DSGD",
+        "TTTT"
+      ]
+    }
+  },
+  {
+    "id": "CHECK_PRE_EOD",
+    "name": "Kiểm tra tiền EOD (Pre-EOD Check)",
+    "enabled": false,
+    "time": "16:30",
+    "jobType": "CHECK_PRE_EOD"
+  },
+  {
+    "id": "CHECK_EOD_MM",
+    "name": "Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)",
+    "enabled": false,
+    "time": "18:00",
+    "jobType": "CHECK_EOD_MM"
+  },
+  {
+    "id": "DOWNLOAD_CQG_BACKUP",
+    "name": "Tải file sao lưu CQG (Orders, Positions, Trades)",
+    "enabled": true,
+    "time": "04:00",
+    "jobType": "DOWNLOAD_CQG_BACKUP"
+  },
+  {
+    "id": "AUTO_GENERATE_STATISTICS",
+    "name": "Tự động tạo báo cáo thống kê số lot & GTGD",
+    "enabled": true,
+    "time": "06:30",
+    "jobType": "RUN_LOT_MACRO"
+  },
+  {
+    "id": "RPA_DOWNLOAD_CCP_PHASE1",
+    "name": "Tải báo cáo CoreCCP Phase 1 (NR, TTTT, DSL, DSGD)",
+    "enabled": true,
+    "time": "16:15",
+    "jobType": "DOWNLOAD_CCP_REPORT"
+  },
+  {
+    "id": "RPA_DOWNLOAD_CE",
+    "name": "Tải báo cáo CoreEX (VNCLEAR)",
+    "enabled": false,
+    "time": "19:30",
+    "jobType": "DOWNLOAD_CE_REPORT"
+  },
+  {
+    "id": "CHECK_DSGD_BEFORE_EOD",
+    "name": "Kiểm tra tiền EOD (Dsgd-Before-EOD Check)",
+    "enabled": false,
+    "time": "16:30",
+    "jobType": "CHECK_DSGD_BEFORE_EOD"
+  },
+  {
+    "id": "CHECK_EOD_MS",
+    "name": "Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)",
+    "enabled": false,
+    "time": "18:00",
+    "jobType": "CHECK_EOD_MS"
+  }
+]
+bot_stat_time: 04:55
+bot_stat_time_enabled: true
+ccp_lot_statistics_config: {"pathNormalLot":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich ${YYYY}.xlsx","pathAcmLot":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx","pathLmeLot":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich LME ${YYYY}.xlsx","pathSpreadLot":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx","pathOptionsLot":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich Options ${YYYY}.xlsx","pathGtgdNormal":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke gia tri giao dich ${YYYY}.xlsx","pathAcmGtgd":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx","pathGtgdLme":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke gia tri giao dich LME ${YYYY}.xlsx","pathGtgdSpread":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke gia tri giao dich Spread ${YYYY}.xlsx","pathGtgdOptions":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke gia tri giao dich Options ${YYYY}.xlsx","pathDsgdCumulative":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\DSGD T${MM}.${YYYY} CCP.xlsx","bot_backup_path_ccp":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures","pathAcmCumulative":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx","pathGtgdAcm":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx","pathNormalCumulative":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich ${YYYY}.xlsx","pathSpreadCumulative":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx","pathLmeCumulative":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich LME ${YYYY}.xlsx","pathOptionsCumulative":"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\output\\\\Thong ke so lot giao dich Options ${YYYY}.xlsx"}
+lot_statistics_config: {"defaultPathDsgd":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T08.2026/18.08\\DSGD.xlsx","defaultPathFr":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/2026/T08.2026/18.08\\FR.xlsx","defaultPathTtm":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T08.2026/18.08\\TTM.xlsx","defaultPathTttt":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/2026/T08.2026/18.08\\TTTT.xlsx","defaultPathOp":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/2026/T08.2026/18.08\\OP.xlsx","defaultPathPs":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/2026/T08.2026/18.08\\PS.xlsx","defaultLmeKyHan":"U26","defaultPathDsgdCumulative":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/DSGD T08.2026.xlsx","defaultPathNormal":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich 2026 2.xlsx","defaultPathAcm":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich ACM 2026 2.xlsx","defaultPathLme":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich LME 2026.xlsx","defaultPathOptions":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich Options 2026.xlsx","defaultPathSpread":"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich Spread 2026.xlsx","updateCumulative":true}
+news_team_stat_path: M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Ban tin
+session_end_time: 05:00
+session_start_time: 05:00
+shift_generation_time: 00:01

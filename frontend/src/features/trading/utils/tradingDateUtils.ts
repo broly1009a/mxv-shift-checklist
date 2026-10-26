@@ -1,6 +1,6 @@
 /**
  * Tiện ích xử lý Ngày Phiên Giao Dịch (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
- * - Phiên giao dịch mở lúc sáng sớm (mặc định cấu hình session_start_time, thường là 05:00 hoặc 06:30) và kéo dài xuyên đêm tới sáng hôm sau.
+ * - Phiên giao dịch mở lúc sáng sớm (theo cấu hình session_start_time, mặc định '05:00') và kéo dài xuyên đêm tới sáng hôm sau.
  * - Nếu thời điểm hiện tại < giờ bắt đầu phiên (giờ VN), phiên làm việc thực tế là ca đêm của ngày T - 1 (bỏ qua Thứ 7, Chủ Nhật).
  */
 export function getInitialTradingSessionDate(

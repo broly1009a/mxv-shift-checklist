@@ -1,0 +1,30 @@
+--------------------------------------------------
+ID: 6aded16c3c0f60968b48457c | CreatedAt: Mon Oct 26 2026 11:05:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-26","endDate":"2026-10-26","sessionDay":"2026-10-26","targetDate":"2026-10-26","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6adeb5103c0f60968b484577 | CreatedAt: Mon Oct 26 2026 09:04:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-26","endDate":"2026-10-26","sessionDay":"2026-10-26","targetDate":"2026-10-26","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6ade983c3c0f60968b484568 | CreatedAt: Mon Oct 26 2026 07:01:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-26","endDate":"2026-10-26","sessionDay":"2026-10-26","targetDate":"2026-10-26","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6ade7be03c0f60968b484532 | CreatedAt: Mon Oct 26 2026 05:00:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-26","endDate":"2026-10-26","sessionDay":"2026-10-26","targetDate":"2026-10-26","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6ade7ab43c0f60968b48452c | CreatedAt: Mon Oct 26 2026 04:55:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"reports":["FULL"],"sessionDay":"2026-10-26","targetDate":"2026-10-26","startDate":"2026-10-26","endDate":"2026-10-26","isStandalone":false,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6add29343c0f60968b48451b | CreatedAt: Sun Oct 25 2026 04:55:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"reports":["FULL"],"sessionDay":"2026-10-23","targetDate":"2026-10-23","startDate":"2026-10-23","endDate":"2026-10-23","isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6adbe4d43c0f60968b48450c | CreatedAt: Sat Oct 24 2026 05:51:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-23","endDate":"2026-10-23","sessionDay":"2026-10-23","targetDate":"2026-10-23","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6adbd7b43c0f60968b4844de | CreatedAt: Sat Oct 24 2026 04:55:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"reports":["FULL"],"sessionDay":"2026-10-23","targetDate":"2026-10-23","startDate":"2026-10-23","endDate":"2026-10-23","isStandalone":false,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6adbc8783c0f60968b4844d4 | CreatedAt: Sat Oct 24 2026 03:50:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-23","endDate":"2026-10-23","sessionDay":"2026-10-23","targetDate":"2026-10-23","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}
+--------------------------------------------------
+ID: 6adbac1c3c0f60968b4844cf | CreatedAt: Sat Oct 24 2026 01:49:00 GMT+0700 (Indochina Time) | Status: COMPLETED
+Payload: {"startDate":"2026-10-23","endDate":"2026-10-23","sessionDay":"2026-10-23","targetDate":"2026-10-23","reports":["FULL"],"maxAttempts":1,"isStandalone":true,"shiftLogId":null,"taskId":null}

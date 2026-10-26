@@ -1016,25 +1016,37 @@ export class CeLotStatisticsService {
 
   async getConfig(): Promise<Record<string, any>> {
     const currentYear = new Date().getFullYear();
-    const ceBackupBase = await this.getCeBackupBase();
+    const rawCeStatTarget = this.settingsService
+      ? await this.settingsService.getSetting('bot_ce_stat_target_root', '')
+      : '';
+    const rawCcpStatTarget = this.settingsService
+      ? await this.settingsService.getSetting('bot_ccp_stat_target_root', '')
+      : '';
+    let statTargetRoot = rawCeStatTarget
+      ? resolveStoragePathCrossPlatform(rawCeStatTarget)
+      : rawCcpStatTarget
+      ? resolveStoragePathCrossPlatform(rawCcpStatTarget)
+      : '';
 
-    const parentRoot = path.dirname(path.dirname(ceBackupBase));
+    if (!statTargetRoot) {
+      const ceBackupBase = resolveStoragePathCrossPlatform(await this.getCeBackupBase());
+      const parentRoot = path.dirname(path.dirname(ceBackupBase));
+      statTargetRoot = path.join(parentRoot, 'Thong ke ccp', 'output');
+    }
+
     const defaultAcmLot = path.join(
-      parentRoot,
-      'Thong ke ccp',
-      'output',
+      statTargetRoot,
       `Thong ke so lot giao dich ACM ${currentYear}.xlsx`,
     );
     const defaultAcmGtgd = path.join(
-      parentRoot,
-      'Thong ke ccp',
-      'output',
+      statTargetRoot,
       `Thong ke gia tri giao dich ACM ${currentYear}.xlsx`,
     );
 
     if (!this.settingsService) {
       return {
-        bot_backup_path_ce: ceBackupBase,
+        bot_backup_path_ce: await this.getCeBackupBase(),
+        bot_ce_stat_target_root: rawCeStatTarget,
         ce_path_acm_lot: defaultAcmLot,
         ce_path_acm_gtgd: defaultAcmGtgd,
       };
@@ -1053,8 +1065,10 @@ export class CeLotStatisticsService {
       } catch {}
     }
 
+    const rawCeBackup = await this.getCeBackupBase();
     return {
-      bot_backup_path_ce: ceBackupBase,
+      bot_backup_path_ce: rawCeBackup,
+      bot_ce_stat_target_root: rawCeStatTarget,
       ce_path_acm_lot: cfg.ce_path_acm_lot || cePathLot,
       ce_path_acm_gtgd: cfg.ce_path_acm_gtgd || cePathGtgd,
       pathAcmLot: cfg.ce_path_acm_lot || cePathLot,
@@ -1068,6 +1082,9 @@ export class CeLotStatisticsService {
 
     if (config.bot_backup_path_ce !== undefined) {
       await this.settingsService.setSetting('bot_backup_path_ce', String(config.bot_backup_path_ce).trim());
+    }
+    if (config.bot_ce_stat_target_root !== undefined) {
+      await this.settingsService.setSetting('bot_ce_stat_target_root', String(config.bot_ce_stat_target_root).trim());
     }
     if (config.ce_path_acm_lot !== undefined) {
       await this.settingsService.setSetting('ce_path_acm_lot', String(config.ce_path_acm_lot).trim());

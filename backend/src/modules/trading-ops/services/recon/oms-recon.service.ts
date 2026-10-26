@@ -797,7 +797,39 @@ export class OmsReconService {
   }
 
   /**
-   * Thực hiện đối chiếu trạng thái mở (TTM) giữa OMS (API OMS_OPEN_POSITION) và File TTM tải trực tiếp
+   * Bóc tách dữ liệu từ API CoreCCP (OPEN_POSITION)
+   */
+  private parseCcpOpenPositionRows(rows: any[]): IOmsTtmPositionDetail[] {
+    const items: IOmsTtmPositionDetail[] = [];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue;
+      const rawAcc = String(row.ACCTNO || row.CUSTODYCD || row.INVESTORCODE || '').trim();
+      const rawSym = String(row.SYMBOL || row.CONTRACT || '').trim();
+      if (!rawAcc || !rawSym) continue;
+
+      const longQtty = this.parseNumber(row.LONGQTTY ?? row.BUYQTTY);
+      const shortQtty = this.parseNumber(row.SHORTQTTY ?? row.SELLQTTY);
+      if (longQtty === 0 && shortQtty === 0) continue;
+
+      items.push({
+        accountId: rawAcc,
+        symbol: rawSym,
+        txDate: String(row.TXDATE || ''),
+        orderId: String(row.ORDERID || row.OPENPOS_ID || ''),
+        execId: String(row.EXECID || ''),
+        longQtty,
+        shortQtty,
+        closeQtty: 0,
+        matchPrice: this.parseNumber(row.VWAP || row.MARKETPRICE || row.MATCHPRICE),
+        currency: 'USD',
+        source: 'TTM_FILE',
+      });
+    }
+    return items;
+  }
+
+  /**
+   * Thực hiện đối chiếu trạng thái mở (TTM) giữa OMS (API OMS_OPEN_POSITION) và CoreCCP (Direct API OPEN_POSITION / File TTM)
    */
   public async checkOmsTtmReconciliation(sessionDateStr?: string): Promise<IOmsTtmReconResult> {
     const startTime = Date.now();
@@ -808,7 +840,7 @@ export class OmsReconService {
     };
 
     const targetDate = sessionDateStr || new Date().toISOString().split('T')[0];
-    emitLog(`Khởi chạy đối chiếu TTM (Trạng thái mở) OMS vs File TTM cho phiên: ${targetDate}`);
+    emitLog(`Khởi chạy đối chiếu TTM (Trạng thái mở) OMS vs CoreCCP cho phiên: ${targetDate}`);
 
     if (!this.coreCcpApiAdapter) {
       throw new Error('Hệ thống chưa nạp CoreCcpApiAdapter!');
@@ -828,16 +860,38 @@ export class OmsReconService {
     const omsPositions: any[] = omsRes.data || [];
     emitLog(`Nhận về ${omsPositions.length} bản ghi vị thế mở từ OMS.`);
 
-    // 3. Tìm và bóc tách file TTM tải trực tiếp
-    emitLog(`Đang quét tệp TTM tải trực tiếp cho ngày ${targetDate}...`);
-    const ttmFilePath = await this.findTtmFile(targetDate);
+    // 3. Lấy dữ liệu Vị thế mở CoreCCP (Ưu tiên gọi Direct REST Search API OPEN_POSITION, fallback sang file backup)
     let ttmPositions: IOmsTtmPositionDetail[] = [];
-    if (ttmFilePath) {
-      emitLog(`Đã tìm thấy tệp TTM: ${ttmFilePath}`);
-      ttmPositions = this.parseTtmFile(ttmFilePath);
-      emitLog(`Bóc tách được ${ttmPositions.length} bản ghi từ tệp TTM.`);
-    } else {
-      emitLog(`CẢNH BÁO: Chưa tìm thấy tệp TTM trong các thư mục lưu trữ phiên ${targetDate}.`);
+    let ttmFilePath: string | null = null;
+    let usedTtmApi = false;
+    try {
+      emitLog(`Đang gọi Direct REST API CoreCCP (OPEN_POSITION) lấy vị thế mở trực tiếp...`);
+      const searchRes = await this.coreCcpApiAdapter.searchFullJson(
+        session,
+        'OPEN_POSITION',
+        baseUrl,
+        '/ORDERS/OPEN_POSITION',
+      );
+      if (searchRes && Array.isArray(searchRes.rows) && searchRes.rows.length > 0) {
+        ttmPositions = this.parseCcpOpenPositionRows(searchRes.rows);
+        usedTtmApi = true;
+        ttmFilePath = 'CoreCCP Direct REST API (OPEN_POSITION)';
+        emitLog(`Nạp thành công ${ttmPositions.length} bản ghi vị thế mở tươi qua Direct API CoreCCP.`);
+      }
+    } catch (apiErr: any) {
+      emitLog(`CẢNH BÁO: Không thể gọi Direct API OPEN_POSITION (${apiErr.message}). Tự động fallback sang file backup...`);
+    }
+
+    if (!usedTtmApi) {
+      emitLog(`Đang quét tệp TTM tải trực tiếp cho ngày ${targetDate}...`);
+      ttmFilePath = await this.findTtmFile(targetDate);
+      if (ttmFilePath) {
+        emitLog(`Đã tìm thấy tệp TTM: ${ttmFilePath}`);
+        ttmPositions = this.parseTtmFile(ttmFilePath);
+        emitLog(`Bóc tách được ${ttmPositions.length} bản ghi từ tệp TTM.`);
+      } else {
+        emitLog(`CẢNH BÁO: Chưa tìm thấy tệp TTM trong các thư mục lưu trữ phiên ${targetDate}.`);
+      }
     }
 
     // 4. Gom nhóm theo cặp (Mã TKGD, Mã Hợp Đồng)
@@ -1224,7 +1278,64 @@ export class OmsReconService {
   }
 
   /**
-   * Thực hiện đối chiếu trạng thái tất toán và lãi lỗ (TTTT) giữa OMS (API OMS_PNL_DETAIL) và File TTTT tải trực tiếp
+   * Bóc tách dữ liệu từ API CoreCCP (PNL_EXECUTED)
+   */
+  private parseCcpPnlExecutedRows(rows: any[]): IOmsTtttPositionDetail[] {
+    const items: IOmsTtttPositionDetail[] = [];
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue;
+      const rawAcc = String(row.ACCTNO || row.CUSTODYCD || row.ACCOUNT_ID || '').trim();
+      const rawSym = String(row.SYMBOL || '').trim();
+      if (!rawAcc || !rawSym) continue;
+
+      const buyQty = this.parseNumber(row.LONGQTTY ?? row.BUYQTTY);
+      const sellQty = this.parseNumber(row.SHORTQTTY ?? row.SELLQTTY);
+      let closeQtty = this.parseNumber(row.CLOSEQTTY);
+      if (closeQtty === 0) {
+        closeQtty = Math.max(buyQty, sellQty);
+      }
+
+      let closeSide: 'BUY' | 'SELL' | 'BOTH' = 'BUY';
+      if (buyQty > 0 && sellQty > 0) {
+        closeSide = 'BOTH';
+      } else if (sellQty > 0 && buyQty === 0) {
+        closeSide = 'SELL';
+      } else if (buyQty > 0 && sellQty === 0) {
+        closeSide = 'BUY';
+      } else {
+        const sideRaw = String(row.CLOSE_SIDE || '').toUpperCase();
+        if (sideRaw.includes('SELL') || sideRaw === 'S' || sideRaw.includes('BÁN')) {
+          closeSide = 'SELL';
+        } else {
+          closeSide = 'BUY';
+        }
+      }
+
+      const vrplAmt = this.parseNumber(row.PNLEXCUTED_USD ?? row.PNLEXCUTED ?? row.VRPLAMT);
+      const vrplAmt_Vnd = this.parseNumber(row.PNLEXCUTED_VND ?? row.VRPLAMT_VND);
+
+      items.push({
+        accountId: rawAcc,
+        symbol: rawSym,
+        closeSide,
+        closeQtty,
+        vrplAmt,
+        vrplAmt_Vnd,
+        costPrice: this.parseNumber(row.BUYPRICE),
+        closePrice: this.parseNumber(row.SELLPRICE),
+        orderId: String(row.ID_BUY || row.ID_SELL || row.PNL_ID || ''),
+        closeOrderId: String(row.ID_SELL || row.ID_BUY || ''),
+        txDate: String(row.TXDATE || row.SESSION_DATE || ''),
+        closeDate: String(row.TIMECREATE_CLOSE || row.TXDATE || row.MATCHTIME || ''),
+        currency: 'USD',
+        source: 'TTTT_FILE',
+      });
+    }
+    return items;
+  }
+
+  /**
+   * Thực hiện đối chiếu trạng thái tất toán và lãi lỗ (TTTT) giữa OMS (API OMS_PNL_DETAIL) và CoreCCP (Direct API PNL_EXECUTED / File TTTT)
    */
   public async checkOmsTtttReconciliation(sessionDateStr?: string): Promise<IOmsTtttReconResult> {
     const startTime = Date.now();
@@ -1235,7 +1346,7 @@ export class OmsReconService {
     };
 
     const targetDate = sessionDateStr || new Date().toISOString().split('T')[0];
-    emitLog(`Khởi chạy đối chiếu TTTT (Tất toán & Lãi lỗ) OMS vs File TTTT cho phiên: ${targetDate}`);
+    emitLog(`Khởi chạy đối chiếu TTTT (Tất toán & Lãi lỗ) OMS vs CoreCCP cho phiên: ${targetDate}`);
 
     if (!this.coreCcpApiAdapter) {
       throw new Error('Hệ thống chưa nạp CoreCcpApiAdapter!');
@@ -1255,16 +1366,38 @@ export class OmsReconService {
     const omsPositions: any[] = omsRes.data || [];
     emitLog(`Nhận về ${omsPositions.length} bản ghi tất toán từ OMS.`);
 
-    // 3. Tìm và bóc tách file TTTT tải trực tiếp
-    emitLog(`Đang quét tệp TTTT tải trực tiếp cho ngày ${targetDate}...`);
-    const ttttFilePath = await this.findTtttFile(targetDate);
+    // 3. Lấy dữ liệu Tất toán & Lãi lỗ CoreCCP (Ưu tiên gọi Direct REST Search API PNL_EXECUTED, fallback sang file backup)
     let ttttPositions: IOmsTtttPositionDetail[] = [];
-    if (ttttFilePath) {
-      emitLog(`Đã tìm thấy tệp TTTT: ${ttttFilePath}`);
-      ttttPositions = this.parseTtttFile(ttttFilePath);
-      emitLog(`Bóc tách được ${ttttPositions.length} bản ghi từ tệp TTTT.`);
-    } else {
-      emitLog(`CẢNH BÁO: Chưa tìm thấy tệp TTTT trong các thư mục lưu trữ phiên ${targetDate}.`);
+    let ttttFilePath: string | null = null;
+    let usedTtttApi = false;
+    try {
+      emitLog(`Đang gọi Direct REST API CoreCCP (PNL_EXECUTED) lấy dữ liệu tất toán & lãi lỗ trực tiếp...`);
+      const searchRes = await this.coreCcpApiAdapter.searchFullJson(
+        session,
+        'PNL_EXECUTED',
+        baseUrl,
+        '/ORDERS/PNL_EXECUTED',
+      );
+      if (searchRes && Array.isArray(searchRes.rows) && searchRes.rows.length > 0) {
+        ttttPositions = this.parseCcpPnlExecutedRows(searchRes.rows);
+        usedTtttApi = true;
+        ttttFilePath = 'CoreCCP Direct REST API (PNL_EXECUTED)';
+        emitLog(`Nạp thành công ${ttttPositions.length} bản ghi tất toán & lãi lỗ tươi qua Direct API CoreCCP.`);
+      }
+    } catch (apiErr: any) {
+      emitLog(`CẢNH BÁO: Không thể gọi Direct API PNL_EXECUTED (${apiErr.message}). Tự động fallback sang file backup...`);
+    }
+
+    if (!usedTtttApi) {
+      emitLog(`Đang quét tệp TTTT tải trực tiếp cho ngày ${targetDate}...`);
+      ttttFilePath = await this.findTtttFile(targetDate);
+      if (ttttFilePath) {
+        emitLog(`Đã tìm thấy tệp TTTT: ${ttttFilePath}`);
+        ttttPositions = this.parseTtttFile(ttttFilePath);
+        emitLog(`Bóc tách được ${ttttPositions.length} bản ghi từ tệp TTTT.`);
+      } else {
+        emitLog(`CẢNH BÁO: Chưa tìm thấy tệp TTTT trong các thư mục lưu trữ phiên ${targetDate}.`);
+      }
     }
 
     // 4. Gom nhóm theo cặp (Mã TKGD, Mã Hợp Đồng)

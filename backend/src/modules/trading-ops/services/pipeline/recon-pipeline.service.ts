@@ -78,12 +78,17 @@ export class ReconPipelineService implements IReconPipelinePort {
     if (job?.save) await job.save();
 
     // Market Weekend Guard: Tạm nghỉ khi thị trường đóng cửa cuối tuần
-    if (!payload.targetDate && isMarketWeekendClosed()) {
-      log('⏸ [Market Weekend Guard] Thị trường hàng hóa quốc tế và MXV đang đóng cửa cuối tuần (từ sáng Thứ Bảy đến 05:00 sáng Thứ Hai). Tác vụ đối chiếu trong phiên (CHECK_KLGD) tạm nghỉ.');
+    if (
+      !payload.targetDate &&
+      isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })
+    ) {
+      log(
+        `⏸ [Market Weekend Guard] Thị trường hàng hóa quốc tế và MXV đang đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tạm nghỉ.`,
+      );
       payload.result = {
         passed: true,
         isWeekendRest: true,
-        message: 'Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc 05:00 sáng Thứ Hai.',
+        message: `Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc ${sessionStartSetting || '05:00'} sáng Thứ Hai.`,
         mismatchedTrades: [],
         mismatchedTradesTotal: 0,
       };

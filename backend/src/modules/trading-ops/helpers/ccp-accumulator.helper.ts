@@ -11,6 +11,7 @@ import { ensureMonthSheetExists } from './excel-sheet-cloner.helper';
 import * as XLSX from 'xlsx';
 import { safeWriteExcel } from './excel-safe-writer.helper';
 import { ensureBaseFileExists } from '../../../common/file-guard.helper';
+import { resolveStoragePathCrossPlatform } from '../../../shared';
 import { CcpLotResult } from '../services/statistics/ccp-lot-statistics.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -43,8 +44,9 @@ export interface CcpAccumulatorPaths {
  * 3. Nếu đường dẫn đã có "/output/" nhưng file lại nằm ở thư mục cha, tự động kiểm tra thư mục cha.
  * Giúp hệ thống tự động thích ứng với cả 2 cấu trúc thư mục mà không gây gián đoạn vận hành.
  */
-export function resolveCcpAccumulatorFilePath(filePath: string, jobLogs?: string[]): string {
-  if (!filePath) return filePath;
+export function resolveCcpAccumulatorFilePath(rawFilePath: string, jobLogs?: string[]): string {
+  if (!rawFilePath) return rawFilePath;
+  const filePath = resolveStoragePathCrossPlatform(rawFilePath);
   if (fs.existsSync(filePath)) {
     return filePath;
   }
@@ -69,6 +71,42 @@ export function resolveCcpAccumulatorFilePath(filePath: string, jobLogs?: string
       jobLogs?.push(`[CCP-ACC] ${msg}`);
       console.log(`[CCP-ACC] ${msg}`);
       return parentCandidate;
+    }
+  }
+
+  // Thử 3: Kiểm tra trong các thư mục chuẩn Quanlygiaodich
+  const parentRoot = path.basename(dir).toLowerCase() === 'output' ? path.dirname(path.dirname(dir)) : path.dirname(dir);
+  const additionalCandidates = [
+    path.join(parentRoot, 'Thong ke ccp', 'output', base),
+    path.join(parentRoot, 'Thong ke so lot giao dich', base),
+    path.join(parentRoot, 'Thong ke gia tri giao dich', base),
+    path.join(parentRoot, 'Thong ke so lot giao dich', base.replace('.xlsx', ' 2.xlsx')),
+    path.join(parentRoot, 'Thong ke gia tri giao dich', base.replace('.xlsx', ' 1.xlsx')),
+    path.join(dir, base.replace('.xlsx', ' 2.xlsx')),
+    path.join(dir, base.replace('.xlsx', ' 1.xlsx')),
+  ];
+
+  for (const cand of additionalCandidates) {
+    if (fs.existsSync(cand)) {
+      const msg = `Tự động nhận diện file lũy kế tại: "${cand}"`;
+      jobLogs?.push(`[CCP-ACC] ${msg}`);
+      console.log(`[CCP-ACC] ${msg}`);
+      return cand;
+    }
+  }
+
+  // Nếu file tại target folder chưa có, nhưng tồn tại file mẫu trong Thong ke ccp/output, tự động clone sang target folder để phục vụ test/tách riêng
+  const masterInCcp = path.join(parentRoot, 'Thong ke ccp', 'output', base);
+  if (!fs.existsSync(filePath) && fs.existsSync(masterInCcp) && path.resolve(filePath) !== path.resolve(masterInCcp)) {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.copyFileSync(masterInCcp, filePath);
+      const msg = `Tự động khởi tạo file test/tách riêng từ CoreCCP Master Template: "${masterInCcp}" -> "${filePath}"`;
+      jobLogs?.push(`[CCP-ACC] ${msg}`);
+      console.log(`[CCP-ACC] ${msg}`);
+      return filePath;
+    } catch (err: any) {
+      console.warn(`[CCP-ACC WARN] Không thể copy template từ CCP sang ${filePath}: ${err.message}`);
     }
   }
 

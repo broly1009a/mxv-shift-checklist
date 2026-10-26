@@ -957,7 +957,7 @@ export default function LegacyBackupThongKeSection({
           {/* 2. Thời điểm backup */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Tự động tải báo cáo sao lưu chốt ngày M-System & CQG độc lập (mặc định 04:00 AM)"
+            title="Tự động tải báo cáo sao lưu chốt ngày M-System & CQG độc lập (theo cấu hình hệ thống)"
           >
             <label
               style={{
@@ -1017,7 +1017,7 @@ export default function LegacyBackupThongKeSection({
           {/* 3. Thời điểm tạo thống kê */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Tự động kích hoạt Macro thống kê số lot & GTGD CCP độc lập (mặc định 06:30 AM)"
+            title="Tự động kích hoạt Macro thống kê số lot & GTGD CCP độc lập (theo cấu hình hệ thống)"
           >
             <label
               style={{

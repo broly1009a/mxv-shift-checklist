@@ -1,6 +1,39 @@
 import * as path from 'path';
 
 /**
+ * Interface cho tham số cấu hình thời gian phiên giao dịch linh hoạt từ CSDL.
+ * Tuân thủ quy tắc Fail-Fast: Bắt buộc cung cấp sessionStartStr, không dùng fallback ngầm.
+ */
+export interface TradingSessionTimeOptions {
+  sessionStartStr: string; // Giờ bắt đầu phiên giao dịch từ CSDL (Bắt buộc, ví dụ: '05:00', '06:00')
+}
+
+/**
+ * Chuyển đổi chuỗi thời gian HH:mm sang số phút trong ngày (0 - 1439).
+ * Không ném lỗi, trả về defaultMinutes nếu chuỗi không hợp lệ.
+ */
+export function parseTimeToMinutes(timeStr?: string | null, defaultMinutes = 0): number {
+  if (!timeStr || typeof timeStr !== 'string') return defaultMinutes;
+  const parts = timeStr.trim().split(':').map((v) => parseInt(v, 10));
+  if (parts.length >= 1 && !isNaN(parts[0])) {
+    const hours = Math.max(0, Math.min(23, parts[0]));
+    const minutes = parts.length >= 2 && !isNaN(parts[1]) ? Math.max(0, Math.min(59, parts[1])) : 0;
+    return hours * 60 + minutes;
+  }
+  return defaultMinutes;
+}
+
+/**
+ * Định dạng Date thành chuỗi ISO Date (YYYY-MM-DD).
+ */
+export function formatDateToIso(date: Date): string {
+  const year = date.getFullYear().toString();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Helper to safely extract job payload from Mongoose Map or Object.
  * Calls .toObject() if available to automatically convert nested Mongoose Maps.
  */
@@ -16,8 +49,8 @@ export function parseJobPayload<T = Record<string, any>>(job: { payload?: any } 
 }
 
 /**
- * Helper to strictly extract and parse targetDate / sessionDay from job payload.
- * Throws an error if targetDate is missing or invalid, preventing implicit fallback to real-time Date.
+ * Trích xuất và parse ngày ca trực (targetDate / sessionDay) từ payload.
+ * Hỗ trợ các định dạng ngày phổ biến: YYYY-MM-DD, DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY.
  */
 export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: string } {
   const targetDateStr = payload?.targetDate || payload?.sessionDay;
@@ -29,49 +62,18 @@ export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: st
 
   let dateObj: Date;
   if (targetDateStr instanceof Date) {
-    dateObj = targetDateStr;
+    dateObj = new Date(targetDateStr);
   } else {
-    // Parse YYYY-MM-DD, DD/MM/YYYY, or DD.MM.YYYY safely without timezone offset issues
     const str = String(targetDateStr).split('T')[0].trim();
-    if (str.includes('-')) {
-      const parts = str.split('-');
-      if (parts.length === 3) {
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD
-          const year = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const day = parseInt(parts[2], 10);
-          dateObj = new Date(year, month, day);
-        } else {
-          // DD-MM-YYYY
-          const day = parseInt(parts[0], 10);
-          const month = parseInt(parts[1], 10) - 1;
-          const year = parseInt(parts[2], 10);
-          dateObj = new Date(year, month, day);
-        }
+    const match = str.match(/^(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})$/);
+    if (match) {
+      const [, p1, p2, p3] = match;
+      if (p1.length === 4) {
+        // YYYY-MM-DD hoặc YYYY/MM/DD
+        dateObj = new Date(parseInt(p1, 10), parseInt(p2, 10) - 1, parseInt(p3, 10));
       } else {
-        dateObj = new Date(targetDateStr);
-      }
-    } else if (str.includes('/')) {
-      const parts = str.split('/');
-      if (parts.length === 3) {
-        if (parts[0].length === 4) {
-          // YYYY/MM/DD
-          dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        } else {
-          // DD/MM/YYYY
-          dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-        }
-      } else {
-        dateObj = new Date(targetDateStr);
-      }
-    } else if (str.includes('.')) {
-      const parts = str.split('.');
-      if (parts.length === 3) {
-        // DD.MM.YYYY
-        dateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-      } else {
-        dateObj = new Date(targetDateStr);
+        // DD-MM-YYYY hoặc DD/MM/YYYY hoặc DD.MM.YYYY
+        dateObj = new Date(parseInt(p3, 10), parseInt(p2, 10) - 1, parseInt(p1, 10));
       }
     } else {
       dateObj = new Date(targetDateStr);
@@ -82,142 +84,155 @@ export function resolveBotTargetDate(payload: any): { dateObj: Date; dateStr: st
     throw new Error(`Định dạng ngày ca trực không hợp lệ: ${targetDateStr}`);
   }
 
-  const year = dateObj.getFullYear().toString();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  const formattedDateStr = `${year}-${month}-${day}`;
-
-  return { dateObj, dateStr: formattedDateStr };
+  return { dateObj, dateStr: formatDateToIso(dateObj) };
 }
 
 /**
  * Kiểm tra xem thị trường tài chính / hàng hóa có đang trong khoảng đóng cửa cuối tuần hay không:
- * - Sau 06:30 sáng Thứ Bảy (kết thúc phiên đêm thứ 6 của thị trường Mỹ)
+ * - Sau giờ kết thúc phiên Thứ Sáu vào sáng Thứ Bảy (được xác định theo mốc session_start_time từ CSDL)
  * - Cả ngày Chủ Nhật
- * - Trước 05:00 sáng Thứ Hai (trước khi CME Globex mở lại phiên tuần mới)
+ * - Trước giờ mở phiên sáng Thứ Hai (được xác định theo mốc session_start_time từ CSDL)
+ * 
+ * Toàn bộ chu kỳ đóng/mở phiên cuối tuần được điều khiển 100% động bởi mốc phiên session_start_time:
+ * - options.sessionStartStr: Bắt buộc truyền giờ bắt đầu phiên từ CSDL. Fail-Fast nếu rỗng/thiếu.
  */
-export function isMarketWeekendClosed(dateInput?: Date): boolean {
+export function isMarketWeekendClosed(
+  dateInput?: Date,
+  options?: TradingSessionTimeOptions,
+): boolean {
+  if (
+    !options?.sessionStartStr ||
+    typeof options.sessionStartStr !== 'string' ||
+    options.sessionStartStr.trim() === ''
+  ) {
+    throw new Error(
+      '[Market Weekend Guard] options.sessionStartStr là bắt buộc để xác định chính xác thời điểm đóng/mở phiên giao dịch từ CSDL. Tuyệt đối không phỏng đoán giờ mặc định.',
+    );
+  }
+
+  const sessionMinutes = parseTimeToMinutes(options.sessionStartStr, -1);
+  if (sessionMinutes < 0) {
+    throw new Error(
+      `[Market Weekend Guard] Định dạng giờ phiên không hợp lệ: "${options.sessionStartStr}". Kỳ vọng định dạng "HH:mm".`,
+    );
+  }
+
   const d = dateInput
     ? new Date(dateInput.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
     : new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
 
   const day = d.getDay(); // 0 = Chủ Nhật, 1 = Thứ Hai, ..., 6 = Thứ Bảy
-  const hour = d.getHours();
-  const minute = d.getMinutes();
-  const timeNum = hour * 60 + minute;
+  const timeNum = d.getHours() * 60 + d.getMinutes();
 
-  // 1. Cả ngày Chủ Nhật
+  // 1. Cả ngày Chủ Nhật luôn đóng cửa
   if (day === 0) return true;
 
-  // 2. Thứ Bảy sau 06:30 sáng
-  if (day === 6 && timeNum >= 6 * 60 + 30) return true;
+  // 2. Sáng Thứ Bảy sau khi phiên Thứ Sáu kết thúc (sau mốc session_start_time)
+  if (day === 6 && timeNum >= sessionMinutes) return true;
 
-  // 3. Thứ Hai trước 05:00 sáng
-  if (day === 1 && timeNum < 5 * 60) return true;
+  // 3. Sáng Thứ Hai trước khi phiên tuần mới mở (trước mốc session_start_time)
+  if (day === 1 && timeNum < sessionMinutes) return true;
 
   return false;
 }
 
 /**
+ * Hàm nội bộ: Lùi ngày làm việc cho phiên giao dịch (bỏ qua Thứ 7, Chủ Nhật)
+ */
+function rollBackTradingDay(baseDate: Date, isOvernight: boolean, isMonday: boolean): Date {
+  const target = new Date(baseDate);
+  target.setHours(0, 0, 0, 0);
+
+  if (isOvernight) {
+    // Ca đêm: lùi về phiên trước (trừ rạng sáng Thứ Hai để tránh bẫy lùi vượt cuối tuần về Thứ Sáu)
+    if (!isMonday) {
+      target.setDate(target.getDate() - 1);
+      while (target.getDay() === 0 || target.getDay() === 6) {
+        target.setDate(target.getDate() - 1);
+      }
+    }
+  } else {
+    // Ban ngày: nếu rơi vào Thứ 7 hoặc Chủ Nhật thì lùi về Thứ 6 làm việc gần nhất
+    while (target.getDay() === 0 || target.getDay() === 6) {
+      target.setDate(target.getDate() - 1);
+    }
+  }
+  return target;
+}
+
+/**
  * Xác định Ngày Phiên Giao Dịch thực tế (Trading Session Date) chuẩn theo Tool C# (operate-transaction-app):
- * - Một phiên giao dịch mở lúc sessionStart (mặc định 05:00 / 06:30) và kéo dài xuyên đêm tới phiên hôm sau.
- * - Nếu thời điểm hiện tại < giờ mở phiên (ví dụ 01:42 sáng), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
+ * - Một phiên giao dịch mở lúc sessionStartStr và kéo dài xuyên đêm tới trước giờ mở phiên hôm sau.
+ * - Nếu thời điểm hiện tại < giờ mở phiên (ca đêm), phiên giao dịch thực tế là ngày T-1 (bỏ qua T7, CN).
  * - Nếu dateInput là ngày hôm nay theo dương lịch, hàm tự động lùi về T-1 khi đang trong ca đêm.
  * - Nếu dateInput là một ngày quá khứ cụ thể khác hôm nay (người dùng cố ý soi lại lịch sử), hàm giữ nguyên ngày đó.
+ * 
+ * Áp dụng nguyên tắc Fail-Fast: options.sessionStartStr là bắt buộc để tránh tính sai ngày phiên.
  */
 export function resolveTradingSessionDate(
   dateInput?: string | Date | null,
   options?: {
     now?: Date;
-    sessionStartStr?: string;
+    sessionStartStr: string;
     forceExactDate?: boolean;
   },
 ): { dateObj: Date; dateStr: string; isOvernight: boolean } {
+  if (
+    !options?.sessionStartStr ||
+    typeof options.sessionStartStr !== 'string' ||
+    options.sessionStartStr.trim() === ''
+  ) {
+    throw new Error(
+      '[resolveTradingSessionDate] options.sessionStartStr là bắt buộc để xác định chính xác ngày phiên giao dịch từ CSDL. Tuyệt đối không phỏng đoán giờ mặc định.',
+    );
+  }
+
+  const sessionStartMinutes = parseTimeToMinutes(options.sessionStartStr, -1);
+  if (sessionStartMinutes < 0) {
+    throw new Error(
+      `[resolveTradingSessionDate] Định dạng giờ phiên không hợp lệ: "${options.sessionStartStr}". Kỳ vọng định dạng "HH:mm".`,
+    );
+  }
+
   const nowVN =
     options?.now ||
     new Date(
       new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
     );
-  const nowYear = nowVN.getFullYear();
-  const nowMonth = String(nowVN.getMonth() + 1).padStart(2, '0');
-  const nowDay = String(nowVN.getDate()).padStart(2, '0');
-  const todayVnStr = `${nowYear}-${nowMonth}-${nowDay}`;
+  const todayVnStr = formatDateToIso(nowVN);
 
-  // Kiểm tra khung giờ ca đêm
-  let sessionHour = 6;
-  let sessionMin = 30;
-  if (options?.sessionStartStr) {
-    const parts = options.sessionStartStr.split(':').map(Number);
-    if (parts.length >= 1 && !isNaN(parts[0])) sessionHour = parts[0];
-    if (parts.length >= 2 && !isNaN(parts[1])) sessionMin = parts[1];
-  }
-
-  const currentHour = nowVN.getHours();
-  const currentMin = nowVN.getMinutes();
-  const isOvernight =
-    currentHour < sessionHour ||
-    (currentHour === sessionHour && currentMin < sessionMin);
+  const currentMinutes = nowVN.getHours() * 60 + nowVN.getMinutes();
+  const isOvernight = currentMinutes < sessionStartMinutes;
+  const isMonday = nowVN.getDay() === 1;
 
   let targetDateObj: Date;
 
   if (!dateInput) {
-    targetDateObj = new Date(nowVN);
-    targetDateObj.setHours(0, 0, 0, 0);
-    if (isOvernight) {
-      // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
-      if (nowVN.getDay() !== 1) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
-        while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-          targetDateObj.setDate(targetDateObj.getDate() - 1);
-        }
-      }
-    } else {
-      // Thứ 7 hoặc Chủ Nhật luôn lùi về ngày làm việc gần nhất (Thứ 6)
-      while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-        targetDateObj.setDate(targetDateObj.getDate() - 1);
-      }
-    }
+    targetDateObj = rollBackTradingDay(nowVN, isOvernight, isMonday);
   } else {
-    let parsed: Date;
-    if (dateInput instanceof Date) {
-      parsed = new Date(dateInput);
-    } else {
-      parsed = resolveBotTargetDate({ targetDate: dateInput }).dateObj;
-    }
+    const parsed =
+      dateInput instanceof Date
+        ? new Date(dateInput)
+        : resolveBotTargetDate({ targetDate: dateInput }).dateObj;
     parsed.setHours(0, 0, 0, 0);
 
-    const pY = parsed.getFullYear().toString();
-    const pM = String(parsed.getMonth() + 1).padStart(2, '0');
-    const pD = String(parsed.getDate()).padStart(2, '0');
-    const parsedStr = `${pY}-${pM}-${pD}`;
-
+    const parsedStr = formatDateToIso(parsed);
     if (!options?.forceExactDate && parsedStr === todayVnStr) {
-      // Người dùng hoặc giao diện gửi ngày hôm nay theo lịch dương -> lùi ca đêm & cuối tuần đúng chuẩn C#
-      targetDateObj = new Date(parsed);
-      if (isOvernight) {
-        // Chỉ lùi phiên nếu KHÔNG PHẢI rạng sáng Thứ Hai (để tránh lùi vượt qua 2 ngày cuối tuần về Thứ Sáu)
-        if (nowVN.getDay() !== 1) {
-          targetDateObj.setDate(targetDateObj.getDate() - 1);
-          while (targetDateObj.getDay() === 0 || targetDateObj.getDay() === 6) {
-            targetDateObj.setDate(targetDateObj.getDate() - 1);
-          }
-        }
-      }
+      targetDateObj = rollBackTradingDay(parsed, isOvernight, isMonday);
     } else {
       targetDateObj = parsed;
     }
   }
 
-  const y = targetDateObj.getFullYear().toString();
-  const m = String(targetDateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(targetDateObj.getDate()).padStart(2, '0');
-  const dateStr = `${y}-${m}-${d}`;
-
-  return { dateObj: targetDateObj, dateStr, isOvernight };
+  return {
+    dateObj: targetDateObj,
+    dateStr: formatDateToIso(targetDateObj),
+    isOvernight,
+  };
 }
 
 /**
- * Helper to compute daily backup subfolder (YYYY\TMM.YYYY\DD.MM) and full path.
+ * Helper to compute daily backup subfolder (YYYY\\TMM.YYYY\\DD.MM) and full path.
  */
 export function resolveDailySubfolder(
   baseDir: string,
@@ -239,50 +254,32 @@ export function resolveDailySubfolder(
   return { subFolder, fullPath };
 }
 
-export async function getMsBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  const raw = await settingsService.getSetting(
-    'bot_backup_path_ms',
-    process.env.DEFAULT_BACKUP_PATH_MS ||
-    '',
-  );
+/**
+ * Hàm lấy thư mục backup gốc từ cấu hình CSDL và biến môi trường
+ */
+export async function getBackupBasePath(
+  settingsService: { getSetting: (key: string, def: string) => Promise<string> },
+  settingKey: string,
+  envDefault = '',
+): Promise<string> {
+  const raw = await settingsService.getSetting(settingKey, envDefault);
   return resolveStoragePathCrossPlatform(raw);
 }
 
-export async function getCqgBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  const raw = await settingsService.getSetting(
-    'bot_backup_path_cqg',
-    process.env.DEFAULT_BACKUP_PATH_CQG ||
-    '',
-  );
-  return resolveStoragePathCrossPlatform(raw);
-}
+export const getMsBackupBase = (s: { getSetting: (k: string, d: string) => Promise<string> }) =>
+  getBackupBasePath(s, 'bot_backup_path_ms', process.env.DEFAULT_BACKUP_PATH_MS || '');
 
-export async function getAcmBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  const raw = await settingsService.getSetting(
-    'bot_backup_path_acm',
-    process.env.DEFAULT_BACKUP_PATH_ACM ||
-    '',
-  );
-  return resolveStoragePathCrossPlatform(raw);
-}
+export const getCqgBackupBase = (s: { getSetting: (k: string, d: string) => Promise<string> }) =>
+  getBackupBasePath(s, 'bot_backup_path_cqg', process.env.DEFAULT_BACKUP_PATH_CQG || '');
 
-export async function getCcpBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  const raw = await settingsService.getSetting(
-    'bot_backup_path_ccp',
-    process.env.DEFAULT_BACKUP_PATH_CCP ||
-    '',
-  );
-  return resolveStoragePathCrossPlatform(raw);
-}
+export const getAcmBackupBase = (s: { getSetting: (k: string, d: string) => Promise<string> }) =>
+  getBackupBasePath(s, 'bot_backup_path_acm', process.env.DEFAULT_BACKUP_PATH_ACM || '');
 
-export async function getCeBackupBase(settingsService: { getSetting: (key: string, def: string) => Promise<string> }): Promise<string> {
-  const raw = await settingsService.getSetting(
-    'bot_backup_path_ce',
-    process.env.DEFAULT_BACKUP_PATH_CE ||
-    '',
-  );
-  return resolveStoragePathCrossPlatform(raw);
-}
+export const getCcpBackupBase = (s: { getSetting: (k: string, d: string) => Promise<string> }) =>
+  getBackupBasePath(s, 'bot_backup_path_ccp', process.env.DEFAULT_BACKUP_PATH_CCP || '');
+
+export const getCeBackupBase = (s: { getSetting: (k: string, d: string) => Promise<string> }) =>
+  getBackupBasePath(s, 'bot_backup_path_ce', process.env.DEFAULT_BACKUP_PATH_CE || '');
 
 /**
  * Thay thế biến động ngày/tháng/năm (${YYYY}, ${MM}, ${DD}) vào chuỗi đường dẫn.
@@ -292,8 +289,7 @@ export function resolveDynamicPath(
   templatePath: string,
   dateInput?: Date | string,
 ): string {
-  if (!templatePath) return templatePath;
-  if (!templatePath.includes('${')) return templatePath;
+  if (!templatePath || !templatePath.includes('${')) return templatePath;
 
   let d: Date;
   if (dateInput) {
@@ -307,21 +303,20 @@ export function resolveDynamicPath(
       }
     }
   } else {
-    // Mặc định GMT+7
     d = new Date(Date.now() + 7 * 60 * 60 * 1000);
   }
 
-  const yyyy = d.getFullYear ? d.getFullYear().toString() : new Date().getFullYear().toString();
-  const mm = String((d.getMonth ? d.getMonth() : new Date().getMonth()) + 1).padStart(2, '0');
-  const dd = String(d.getDate ? d.getDate() : new Date().getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear().toString();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
 
-  return templatePath
-    .replace(/\${YYYY}/g, yyyy)
-    .replace(/\${yyyy}/g, yyyy)
-    .replace(/\${MM}/g, mm)
-    .replace(/\${mm}/g, mm)
-    .replace(/\${DD}/g, dd)
-    .replace(/\${dd}/g, dd);
+  return templatePath.replace(/\${(yyyy|mm|dd)}/gi, (_, key) => {
+    const k = String(key).toUpperCase();
+    if (k === 'YYYY') return yyyy;
+    if (k === 'MM') return mm;
+    if (k === 'DD') return dd;
+    return _;
+  });
 }
 
 /**
@@ -351,14 +346,8 @@ export function resolveStoragePathCrossPlatform(rawPath: string): string {
     if (qlgdMatch) {
       return `${linuxMountBase}/${qlgdMatch[1]}`.replace(/\/+/g, '/');
     }
-    if (/^[a-zA-Z]:\/tailieuchung\/qlgd-it\/(.*)$/i.test(normalized)) {
-      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/tailieuchung\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
-    }
-    if (/^[a-zA-Z]:\/qlgd-it\/(.*)$/i.test(normalized)) {
-      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/qlgd-it\//i, '')}`.replace(/\/+/g, '/');
-    }
-    if (/^\/mnt\/oc-uat\/(.*)$/i.test(normalized)) {
-      return `${linuxMountBase}/${normalized.replace(/^\/mnt\/oc-uat\//i, '')}`.replace(/\/+/g, '/');
+    if (/^[a-zA-Z]:\/(?:tailieuchung\/)?qlgd-it\/(.*)$/i.test(normalized)) {
+      return `${linuxMountBase}/${normalized.replace(/^[a-zA-Z]:\/(?:tailieuchung\/)?qlgd-it\//i, '')}`.replace(/\/+/g, '/');
     }
     if (/^m:\/(.*)$/i.test(normalized)) {
       return `${linuxMountBase}/${normalized.replace(/^m:\//i, '')}`.replace(/\/+/g, '/');
@@ -371,13 +360,6 @@ export function resolveStoragePathCrossPlatform(rawPath: string): string {
       const remainder = normalized.slice(linuxBaseSlash.length).replace(/^\/+/, '');
       return path.join(windowsShareBase, remainder);
     }
-    if (normalized.toLowerCase().startsWith('/mnt/oc-uat')) {
-      const remainder = normalized.slice('/mnt/oc-uat'.length).replace(/^\/+/, '');
-      return path.join(windowsShareBase, remainder);
-    }
     return path.normalize(rawPath);
   }
 }
-
-
-

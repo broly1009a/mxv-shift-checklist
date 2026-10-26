@@ -85,6 +85,11 @@ export class ShiftScannerService {
       // 3. Pass 1: Xử lý Reset định kỳ theo tần suất (frequencyMinutesSnapshot)
       await this.handlePeriodicTaskResets(activeLogs, systemUser);
 
+      const sessionStartSetting = await this.settingsService.getSetting(
+        'session_start_time',
+        '05:00',
+      );
+
       // 4. Pass 2: Quét và kích hoạt các tác vụ đến giờ
       for (const log of activeLogs) {
         const isOvernight = this.isOvernightShift(log);
@@ -96,7 +101,10 @@ export class ShiftScannerService {
 
           // Market Weekend Guard: Không chạy kiểm tra khớp lệnh khi thị trường đóng cửa cuối tuần
           const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
-          if (isKlgdTask && isMarketWeekendClosed()) {
+          if (
+            isKlgdTask &&
+            isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })
+          ) {
             continue;
           }
 
@@ -241,6 +249,11 @@ export class ShiftScannerService {
         ? parseInt(periodicFreqStr, 10)
         : null;
 
+    const sessionStartSetting = await this.settingsService.getSetting(
+      'session_start_time',
+      '05:00',
+    );
+
     for (const log of activeLogs) {
       let hasReset = false;
       for (const task of log.details || []) {
@@ -252,7 +265,10 @@ export class ShiftScannerService {
           const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
           if (isKlgdTask) {
             if (!isPeriodicEnabled) continue;
-            if (isMarketWeekendClosed()) continue;
+            if (
+              isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })
+            )
+              continue;
           }
 
           const effectiveFrequency =
