@@ -1,3 +1,26 @@
+## [2026-10-26T16:20] MERGE: Giải Quyết Xung Đột Merge backup-v5 vào v3-refactor & Đảm Bảo Tính Toàn Vẹn Kiến Trúc
+
+### 1. Mục tiêu thay đổi
+- Hỗ trợ USER giải quyết các xung đột merge phát sinh khi tích hợp nhánh `backup-v5` vào `v3-refactor`:
+  1. `backend/src/modules/bot-engine/bot-engine.controller.ts`: Nhận diện file không tồn tại trên `v3-refactor` do đã được phân rã thành các modular controllers (`bot-agent`, `bot-config`, `bot-ingress`, `bot-jobs`, `bot-macro`, `gtt-recon`). Đoạn logic mới từ `backup-v5` (`resolveTradingSessionDate(dateQuery, { sessionStartStr })` cho GTT) đã có mặt đầy đủ trong `gtt-recon.controller.ts`. Xác nhận xóa file legacy (`git rm`).
+  2. `backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts`: File không tồn tại trên `v3-refactor` do đã chuyển sang `KlgdReconWorker`, `DsgdBeforeEodReconWorker` và `ReconPipelineService`. Đã port logic kiểm tra `sessionStartSetting` cho `isMarketWeekendClosed` sang `recon-pipeline.service.ts` và xóa file legacy (`git rm`).
+  3. `backend/src/modules/bot-engine/bot-engine.service.ts`: Giữ nguyên triển khai tinh gọn của `v3-refactor` (chuyển giao hoàn toàn cho `ShiftScannerService` đã tích hợp sẵn kiểm tra `session_start_time` và `isMarketWeekendClosed`).
+  4. `backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts`: Sửa đường dẫn import của `CcpLotResult` sang `../services/statistics/ccp-lot-statistics.service` và bảo toàn helper `resolveStoragePathCrossPlatform`.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/bot-engine/bot-engine.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.controller.ts)**: Loại bỏ file thừa (`git rm`).
+2. **[backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/handlers/recon-jobs.handler.ts)**: Loại bỏ file thừa (`git rm`).
+3. **[backend/src/modules/bot-engine/bot-engine.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/bot-engine/bot-engine.service.ts)**: Giữ phiên bản modular `v3-refactor`.
+4. **[backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/ccp-accumulator.helper.ts)**: Chuẩn hóa import path sang kiến trúc modular.
+5. **[backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts)**: Bổ sung `sessionStartSetting` vào `isMarketWeekendClosed`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build (`npm run build`)**: Exit Code 0, build thành công 100%.
+- **Frontend Next.js Build (`npm run build`)**: Exit Code 0, biên dịch 52/52 routes thành công.
+- **Git Commit**: Hoàn tất commit merge `backup-v5` vào `v3-refactor`.
+
+---
+
 ## [2026-10-26T16:00] REFACTOR: Chuẩn Hóa handleFileAuditAcmJob & Tinh Gọn Toàn Diện BackupAuditor Qua API Service Tập Trung
 
 ### 1. Mục tiêu thay đổi
