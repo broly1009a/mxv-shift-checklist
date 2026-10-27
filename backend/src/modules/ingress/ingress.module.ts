@@ -41,7 +41,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     ]),
     SystemSettingsModule,
     NotificationsModule,
-    ChecklistHubModule,
+    forwardRef(() => ChecklistHubModule),
     forwardRef(() => TradingOpsModule),
   ],
   controllers: [

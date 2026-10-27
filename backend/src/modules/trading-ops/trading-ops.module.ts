@@ -71,10 +71,10 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     AuthModule,
     SystemSettingsModule,
     TelegramModule,
-    IngressModule,
+    forwardRef(() => IngressModule),
     ShiftsModule,
     WorkingCalendarModule,
-    ChecklistHubModule,
+    forwardRef(() => ChecklistHubModule),
     MongooseModule.forFeature([
       { name: TradingReconLog.name, schema: TradingReconLogSchema },
       { name: CcpClearingLog.name, schema: CcpClearingLogSchema },

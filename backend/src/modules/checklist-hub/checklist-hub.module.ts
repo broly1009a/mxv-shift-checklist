@@ -26,7 +26,7 @@ import { ChecklistBotJobsController } from './controllers/checklist-bot-jobs.con
       { name: ShiftLog.name, schema: ShiftLogSchema },
       { name: ActivityLog.name, schema: ActivityLogSchema },
     ]),
-    TradingOpsModule,
+    forwardRef(() => TradingOpsModule),
     ShiftsModule,
     SystemLogsModule,
     SystemSettingsModule,

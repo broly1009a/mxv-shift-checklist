@@ -297,6 +297,14 @@ export class QlgdExcelExportService {
     // KHỐI 3: DỮ LIỆU CÁC MẶT HÀNG (ROW 12 TRỞ ĐI) - GỘP DÒNG THEO NHÓM
     // ─────────────────────────────────────────────────────────────────────────
 
+    // Tính toán động các mã nổi bật phục vụ phân tầng màu sắc Heatmap (Zero-Hardcoding - Hướng 1)
+    const allItems = data.items || [];
+    const topLossItem = [...allItems].filter((i) => (i.expectedPnL || 0) < 0).sort((a, b) => (a.expectedPnL || 0) - (b.expectedPnL || 0))[0] || null;
+    const topOpenPositionItem = [...allItems].sort((a, b) => (b.openPositions || 0) - (a.openPositions || 0))[0] || null;
+    const topLiquidatedItem = [...allItems].sort((a, b) => (b.liquidatedLots || 0) - (a.liquidatedLots || 0))[0] || null;
+    const topRealizedProfitItem = [...allItems].filter((i) => (i.realizedPnL || 0) > 0).sort((a, b) => (b.realizedPnL || 0) - (a.realizedPnL || 0))[0] || null;
+    const topRealizedLossItem = [...allItems].filter((i) => (i.realizedPnL || 0) < 0).sort((a, b) => (a.realizedPnL || 0) - (b.realizedPnL || 0))[0] || null;
+
     // Gom nhóm các mặt hàng theo category để gộp dòng Nhóm HH
     const categoryGroups: { category: string; items: CommodityDashboardItem[] }[] = [];
     data.items.forEach((item) => {
@@ -318,6 +326,13 @@ export class QlgdExcelExportService {
       group.items.forEach((item, itemIdx) => {
         const row = sheet.getRow(currentRow);
         row.height = 20;
+
+        // Cờ động nhận diện phân tầng Heatmap tương đối (Hướng 1)
+        const isTopExpectedLoss = !!(item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol));
+        const isTopOpen = !!(item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol));
+        const isTopLiquidated = !!(item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol));
+        const isTopProfit = !!(topRealizedProfitItem && item.symbol === topRealizedProfitItem.symbol && (item.realizedPnL || 0) > 0);
+        const isTopRealizedLoss = !!(topRealizedLossItem && item.symbol === topRealizedLossItem.symbol && (item.realizedPnL || 0) < 0);
 
         // Col A: STT
         const cellA = sheet.getCell(`A${currentRow}`);
@@ -346,7 +361,7 @@ export class QlgdExcelExportService {
         cellD.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
         cellD.border = thinBorder;
 
-        // Col E: Tổng lãi lỗ dự kiến
+        // Col E: Tổng lãi lỗ dự kiến (Đa tầng Heatmap: Đỏ đậm nếu lỗ lớn nhất sàn, Hồng nhạt nếu lỗ thường, Xanh nhạt nếu lãi)
         const cellE = sheet.getCell(`E${currentRow}`);
         cellE.value = item.expectedPnL || 0;
         cellE.font = { name: 'Arial', size: 10 };
@@ -354,21 +369,20 @@ export class QlgdExcelExportService {
         cellE.numFmt = '#,##0;(#,##0);"-"';
         cellE.border = thinBorder;
 
-        // Màu sắc cảnh báo lãi lỗ dự kiến (Đỏ cá hồi / hồng nhạt nếu âm)
-        if (item.expectedPnL < 0) {
-          if (item.highlightExpectedLoss || item.expectedPnL <= -50000000000) {
-            cellE.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF87171' } }; // Đỏ đậm hơn cho mã lớn (như SI5CO)
+        if ((item.expectedPnL || 0) < 0) {
+          if (isTopExpectedLoss) {
+            cellE.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF87171' } }; // Đỏ đậm hơn cho mã lỗ lớn nhất sàn
             cellE.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF7F1D1D' } };
           } else {
-            cellE.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Hồng nhạt
+            cellE.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Hồng nhạt cho các mã lỗ thông thường
             cellE.font = { name: 'Arial', size: 10, color: { argb: 'FF991B1B' } };
           }
-        } else if (item.expectedPnL > 0) {
+        } else if ((item.expectedPnL || 0) > 0) {
           cellE.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // Xanh lá nhạt
           cellE.font = { name: 'Arial', size: 10, color: { argb: 'FF166534' } };
         }
 
-        // Col F: Tổng vị thế mở
+        // Col F: Tổng vị thế mở (Đa tầng Heatmap: Vị thế lớn nhất Xanh đậm nổi bật)
         const cellF = sheet.getCell(`F${currentRow}`);
         cellF.value = item.openPositions || 0;
         cellF.font = { name: 'Arial', size: 10 };
@@ -376,32 +390,40 @@ export class QlgdExcelExportService {
         cellF.numFmt = '#,##0;(#,##0);"-"';
         cellF.border = thinBorder;
 
-        if (item.highlightOpenPosition || item.openPositions >= 5000) {
-          cellF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Xanh lá nổi bật (như SI5CO 5,770)
-          cellF.font = { name: 'Arial', size: 10, bold: true };
+        if (isTopOpen) {
+          cellF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Xanh lá nổi bật cho mã mở lớn nhất sàn
+          cellF.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF14532D' } };
         } else {
           cellF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } }; // Xanh rất nhạt
         }
 
-        // Col G: % mở Mua (Vị thế Mua/Long - Xanh lá)
+        // Col G: % mở Mua & Col H: % mở Bán (Động: Bên nào chiếm ưu thế hiển thị Xanh dương, bên thấp hơn hiển thị Xám)
         const cellG = sheet.getCell(`G${currentRow}`);
         cellG.value = (item.longRatio || 0) / 100;
-        cellG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF166534' } };
         cellG.alignment = { vertical: 'middle', horizontal: 'right' };
         cellG.numFmt = '0%';
         cellG.border = thinBorder;
-        cellG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBBF7D0' } }; // Xanh lá nhạt mô phỏng tiến trình Mua
 
-        // Col H: % mở Bán (Vị thế Bán/Short - Đỏ nhạt)
         const cellH = sheet.getCell(`H${currentRow}`);
         cellH.value = (item.shortRatio || 0) / 100;
-        cellH.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF991B1B' } };
         cellH.alignment = { vertical: 'middle', horizontal: 'right' };
         cellH.numFmt = '0%';
         cellH.border = thinBorder;
-        cellH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Đỏ nhạt mô phỏng tiến trình Bán
 
-        // Col I: Lãi lỗ thực tế
+        const isLongHigher = (item.longRatio || 0) >= (item.shortRatio || 0);
+        if (isLongHigher) {
+          cellG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1D4ED8' } }; // Xanh dương đậm
+          cellG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFDBFE' } }; // Xanh dương nhạt
+          cellH.font = { name: 'Arial', size: 10, color: { argb: 'FF64748B' } }; // Xám
+          cellH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Xám rất nhạt
+        } else {
+          cellG.font = { name: 'Arial', size: 10, color: { argb: 'FF64748B' } }; // Xám
+          cellG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Xám rất nhạt
+          cellH.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1D4ED8' } }; // Xanh dương đậm
+          cellH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFDBFE' } }; // Xanh dương nhạt
+        }
+
+        // Col I: Lãi lỗ thực tế (Đa tầng Heatmap: Lãi lớn nhất Xanh đậm, lỗ lớn nhất Đỏ đậm, lãi thường Xanh nhạt, lỗ thường Hồng nhạt)
         const cellI = sheet.getCell(`I${currentRow}`);
         cellI.value = item.realizedPnL || 0;
         cellI.font = { name: 'Arial', size: 10 };
@@ -409,25 +431,25 @@ export class QlgdExcelExportService {
         cellI.numFmt = '#,##0;(#,##0);"-"';
         cellI.border = thinBorder;
 
-        if (item.realizedPnL < 0) {
-          if (item.realizedPnL <= -1000000000) {
-            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF87171' } }; // Đỏ cảnh báo lớn
+        if ((item.realizedPnL || 0) < 0) {
+          if (isTopRealizedLoss) {
+            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF87171' } }; // Đỏ cảnh báo mã lỗ thực tế lớn nhất
             cellI.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF7F1D1D' } };
           } else {
-            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
+            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Hồng nhạt
             cellI.font = { name: 'Arial', size: 10, color: { argb: 'FF991B1B' } };
           }
-        } else if (item.realizedPnL > 0) {
-          if (item.realizedPnL >= 1000000000) {
-            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Xanh lá lãi khủng (như ZME 1 tỷ)
+        } else if ((item.realizedPnL || 0) > 0) {
+          if (isTopProfit) {
+            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Xanh lá đậm cho mã lãi khủng nhất sàn
             cellI.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF14532D' } };
           } else {
-            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+            cellI.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }; // Xanh lá nhạt
             cellI.font = { name: 'Arial', size: 10, color: { argb: 'FF166534' } };
           }
         }
 
-        // Col J: Trạng thái tất toán
+        // Col J: Trạng thái tất toán (Đa tầng Heatmap: Tất toán lớn nhất Xanh đậm nổi bật)
         const cellJ = sheet.getCell(`J${currentRow}`);
         cellJ.value = item.liquidatedLots || 0;
         cellJ.font = { name: 'Arial', size: 10 };
@@ -435,9 +457,9 @@ export class QlgdExcelExportService {
         cellJ.numFmt = '#,##0;(#,##0);"-"';
         cellJ.border = thinBorder;
 
-        if (item.highlightLiquidated || item.liquidatedLots >= 1000) {
-          cellJ.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Xanh lá nổi bật (như SI5CO 1,111 hoặc ZME 1,312)
-          cellJ.font = { name: 'Arial', size: 10, bold: true };
+        if (isTopLiquidated) {
+          cellJ.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF86EFAC' } }; // Xanh lá nổi bật cho mã tất toán nhiều nhất sàn
+          cellJ.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF14532D' } };
         } else {
           cellJ.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
         }
@@ -491,22 +513,32 @@ export class QlgdExcelExportService {
     cellTotF.numFmt = '#,##0;(#,##0);"-"';
     cellTotF.border = thinBorder;
 
-    // Col G & H: Tỷ lệ Mua / Bán Toàn sàn
+    // Col G & H: Tỷ lệ Mua / Bán Toàn sàn (Động: bên nào cao hơn mang màu Xanh dương, bên thấp hơn mang màu Xám)
+    const isTotLongHigher = (data.totals.avgLongRatio || 0) >= (data.totals.avgShortRatio || 0);
+
     const cellTotG = sheet.getCell(`G${totRow}`);
     cellTotG.value = (data.totals.avgLongRatio || 0) / 100;
-    cellTotG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF166534' } };
     cellTotG.alignment = { vertical: 'middle', horizontal: 'right' };
     cellTotG.numFmt = '0%';
     cellTotG.border = thinBorder;
-    cellTotG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
 
     const cellTotH = sheet.getCell(`H${totRow}`);
     cellTotH.value = (data.totals.avgShortRatio || 0) / 100;
-    cellTotH.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF991B1B' } };
     cellTotH.alignment = { vertical: 'middle', horizontal: 'right' };
     cellTotH.numFmt = '0%';
     cellTotH.border = thinBorder;
-    cellTotH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+
+    if (isTotLongHigher) {
+      cellTotG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1D4ED8' } }; // Xanh dương đậm
+      cellTotG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFDBFE' } }; // Xanh dương nhạt
+      cellTotH.font = { name: 'Arial', size: 10, color: { argb: 'FF64748B' } }; // Xám
+      cellTotH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Xám rất nhạt
+    } else {
+      cellTotG.font = { name: 'Arial', size: 10, color: { argb: 'FF64748B' } }; // Xám
+      cellTotG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Xám rất nhạt
+      cellTotH.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1D4ED8' } }; // Xanh dương đậm
+      cellTotH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFDBFE' } }; // Xanh dương nhạt
+    }
 
     // Col I: Tổng lãi lỗ thực tế
     const cellTotI = sheet.getCell(`I${totRow}`);
