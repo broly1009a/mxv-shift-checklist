@@ -383,23 +383,23 @@ export class QlgdExcelExportService {
           cellF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } }; // Xanh rất nhạt
         }
 
-        // Col G: % mở Mua (Hiển thị dạng thanh màu xanh nước biển)
+        // Col G: % mở Mua (Vị thế Mua/Long - Xanh lá)
         const cellG = sheet.getCell(`G${currentRow}`);
         cellG.value = (item.longRatio || 0) / 100;
-        cellG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
+        cellG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF166534' } };
         cellG.alignment = { vertical: 'middle', horizontal: 'right' };
         cellG.numFmt = '0%';
         cellG.border = thinBorder;
-        cellG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF93C5FD' } }; // Xanh nước biển nhạt mô phỏng thanh tiến trình
+        cellG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBBF7D0' } }; // Xanh lá nhạt mô phỏng tiến trình Mua
 
-        // Col H: % mở Bán
+        // Col H: % mở Bán (Vị thế Bán/Short - Đỏ nhạt)
         const cellH = sheet.getCell(`H${currentRow}`);
         cellH.value = (item.shortRatio || 0) / 100;
-        cellH.font = { name: 'Arial', size: 10 };
+        cellH.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF991B1B' } };
         cellH.alignment = { vertical: 'middle', horizontal: 'right' };
         cellH.numFmt = '0%';
         cellH.border = thinBorder;
-        cellH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+        cellH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } }; // Đỏ nhạt mô phỏng tiến trình Bán
 
         // Col I: Lãi lỗ thực tế
         const cellI = sheet.getCell(`I${currentRow}`);
@@ -473,7 +473,12 @@ export class QlgdExcelExportService {
     // Col E: Tổng lãi lỗ dự kiến
     const cellTotE = sheet.getCell(`E${totRow}`);
     cellTotE.value = data.totals.expectedPnL || 0;
-    cellTotE.font = { name: 'Arial', size: 10, bold: true };
+    cellTotE.font = {
+      name: 'Arial',
+      size: 10,
+      bold: true,
+      color: (data.totals.expectedPnL || 0) < 0 ? { argb: 'FFDC2626' } : { argb: 'FF16A34A' },
+    };
     cellTotE.alignment = { vertical: 'middle', horizontal: 'right' };
     cellTotE.numFmt = '#,##0;(#,##0);"-"';
     cellTotE.border = thinBorder;
@@ -486,16 +491,32 @@ export class QlgdExcelExportService {
     cellTotF.numFmt = '#,##0;(#,##0);"-"';
     cellTotF.border = thinBorder;
 
-    // Col G & H: Trống
+    // Col G & H: Tỷ lệ Mua / Bán Toàn sàn
     const cellTotG = sheet.getCell(`G${totRow}`);
+    cellTotG.value = (data.totals.avgLongRatio || 0) / 100;
+    cellTotG.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF166534' } };
+    cellTotG.alignment = { vertical: 'middle', horizontal: 'right' };
+    cellTotG.numFmt = '0%';
     cellTotG.border = thinBorder;
+    cellTotG.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+
     const cellTotH = sheet.getCell(`H${totRow}`);
+    cellTotH.value = (data.totals.avgShortRatio || 0) / 100;
+    cellTotH.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF991B1B' } };
+    cellTotH.alignment = { vertical: 'middle', horizontal: 'right' };
+    cellTotH.numFmt = '0%';
     cellTotH.border = thinBorder;
+    cellTotH.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
 
     // Col I: Tổng lãi lỗ thực tế
     const cellTotI = sheet.getCell(`I${totRow}`);
     cellTotI.value = data.totals.realizedPnL || 0;
-    cellTotI.font = { name: 'Arial', size: 10, bold: true };
+    cellTotI.font = {
+      name: 'Arial',
+      size: 10,
+      bold: true,
+      color: (data.totals.realizedPnL || 0) < 0 ? { argb: 'FFDC2626' } : { argb: 'FF16A34A' },
+    };
     cellTotI.alignment = { vertical: 'middle', horizontal: 'right' };
     cellTotI.numFmt = '#,##0;(#,##0);"-"';
     cellTotI.border = thinBorder;

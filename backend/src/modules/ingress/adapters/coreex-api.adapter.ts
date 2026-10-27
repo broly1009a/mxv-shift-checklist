@@ -12,7 +12,6 @@ import {
   EXTERNAL_SYSTEM_COREEX,
   ICoreExchangeReportMapping,
   CANONICAL_COREEX_API_KEYS,
-  COREEX_DERIVED_RULES,
   resolveCoreExchangeReport,
   resolveVnclearColumnHeader,
 } from '../../../shared';
@@ -84,6 +83,7 @@ export interface ICoreExchangeAuthSession {
   accessToken?: string;
   oauthCode?: string;
   clientId?: string;
+  userId?: number;
   expiresAt?: number;
   updatedAt: string;
 }
@@ -410,6 +410,14 @@ export class CoreExApiAdapter implements IIngressPort {
       }
     }
 
+    let userId = 9;
+    if (accessToken) {
+      const jwt = this.decodeJwt(accessToken);
+      if (jwt) {
+        userId = Number(jwt.user_id) || Number(jwt.sub) || 9;
+      }
+    }
+
     const sessionData: ICoreExchangeAuthSession = {
       baseUrl,
       username,
@@ -417,6 +425,7 @@ export class CoreExApiAdapter implements IIngressPort {
       accessToken,
       oauthCode,
       clientId,
+      userId,
       expiresAt,
       updatedAt: new Date().toISOString(),
     };
@@ -531,7 +540,6 @@ export class CoreExApiAdapter implements IIngressPort {
     const worksheet = workbook.addWorksheet(reportDef.name || 'Sheet1');
 
     if (rows.length === 0) {
-      worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)']);
       await workbook.xlsx.writeFile(targetFilePath);
       return;
     }
@@ -555,6 +563,263 @@ export class CoreExApiAdapter implements IIngressPort {
     };
 
     await workbook.xlsx.writeFile(targetFilePath);
+  }
+
+  private getWebSocketClass(): any {
+    try {
+      return require('ws');
+    } catch {
+      try {
+        return require('socket.io/node_modules/engine.io/node_modules/ws');
+      } catch {
+        if (typeof (globalThis as any).WebSocket !== 'undefined') {
+          return (globalThis as any).WebSocket;
+        }
+        throw new Error('Không tìm thấy thư viện WebSocket (yêu cầu gói ws)');
+      }
+    }
+  }
+
+  /**
+   * KIỂU 2: Gửi lệnh tạo file Excel trên Server Core Exchange (/exchange/export/create)
+   */
+  private async createExportJob(
+    session: ICoreExchangeAuthSession,
+    searchCode: string,
+    fekey: string,
+    baseUrl: string,
+    refererRoute = '',
+    filterPayload: Record<string, any> = {},
+  ): Promise<void> {
+    const res = await fetch(`${baseUrl}/exchange/export/create`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        Authorization: `Bearer ${session.accessToken}`,
+        connectkey: 'fsscssiam2021',
+        'Content-Type': 'application/json',
+        Cookie: session.sessionCookie,
+        Origin: baseUrl,
+        Referer: `${baseUrl}${refererRoute || '/'}`,
+      },
+      body: JSON.stringify({
+        searchcode: searchCode,
+        search: filterPayload.search || {},
+        filter: filterPayload.filter || {},
+        orderBy: filterPayload.orderBy || {},
+        page: { pageIndex: 1, pageSize: 20 },
+        exptype: 'XLSX',
+        fekey,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const data: any = await res.json().catch(() => null);
+    if (!res.ok || (data && data.success === false)) {
+      throw new Error(`Export Create ${searchCode} thất bại (${res.status}): ${JSON.stringify(data)}`);
+    }
+  }
+
+  /**
+   * KIỂU 2: Tải file Excel nhị phân nguyên bản trực tiếp từ Server (/exchange/report/download/{id})
+   */
+  private async downloadReportBinary(
+    session: ICoreExchangeAuthSession,
+    reportId: string | number,
+    baseUrl: string,
+    refererRoute = '',
+  ): Promise<Buffer> {
+    const res = await fetch(`${baseUrl}/exchange/report/download/${reportId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        connectkey: 'fsscssiam2021',
+        Cookie: session.sessionCookie,
+        Accept:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*',
+        Origin: baseUrl,
+        Referer: `${baseUrl}${refererRoute || '/'}`,
+      },
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Tải file download/${reportId} thất bại: HTTP ${res.status}`);
+    }
+
+    const arrayBuf = await res.arrayBuffer();
+    return Buffer.from(arrayBuf);
+  }
+
+  /**
+   * Lắng nghe WebSocket NotiSocket Engine.IO v4 bắt chính xác reportId sau khi Server hoàn tất xuất file
+   * Áp dụng cơ chế Subscribe-Before-Export: Chỉ phát lệnh tạo file khi socket đã mở và đã subscribe phòng REPORT.
+   */
+  private waitForReportIdViaSocket(
+    session: ICoreExchangeAuthSession,
+    baseUrl: string,
+    fekey: string,
+    timeoutMs = 50000,
+    onSubscribed?: () => Promise<void>,
+    searchCode?: string,
+  ): Promise<string | number> {
+    return new Promise(async (resolve, reject) => {
+      const parsed = new URL(baseUrl);
+      let wsTicket = '';
+      let exportTriggered = false;
+      let timer: any = null;
+      let ws: any = null;
+
+      const cleanup = () => {
+        if (timer) clearTimeout(timer);
+        if (ws) {
+          try {
+            ws.close();
+          } catch {}
+        }
+      };
+
+      try {
+        const ticketRes = await fetch(`${baseUrl}/sso/api/v1/oauth/issue-ws-ticket`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            Cookie: session.sessionCookie,
+          },
+          signal: AbortSignal.timeout(5000),
+        });
+        const ticketJson: any = await ticketRes.json().catch(() => ({}));
+        if (ticketJson.payload?.[0]) wsTicket = ticketJson.payload[0];
+      } catch (err: any) {
+        this.logger.warn(`[CoreExApiAdapter] Không lấy được wsTicket: ${err.message}`);
+      }
+
+      const userId = session.userId || 9;
+      const wsUrl = `wss://${parsed.hostname}/notisocket/socket.io/?ticket=${wsTicket}&userId=${userId}&EIO=4&transport=websocket`;
+      this.logger.log(`[CoreExApiAdapter] wsTicket="${wsTicket}", userId=${userId}, wsUrl=${wsUrl}`);
+
+      let WebSocketClass: any;
+      try {
+        WebSocketClass = this.getWebSocketClass();
+      } catch (err: any) {
+        return reject(err);
+      }
+
+      ws = new WebSocketClass(wsUrl, {
+        headers: {
+          Cookie: session.sessionCookie,
+          Origin: baseUrl,
+        },
+        rejectUnauthorized: false,
+      });
+
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Timeout ${timeoutMs}ms chờ notification WebSocket cho fekey ${fekey}`));
+      }, timeoutMs);
+
+      ws.onmessage = async (event: any) => {
+        const msg = event.data;
+        if (typeof msg === 'string' && msg.startsWith('0')) {
+          ws.send('40');
+          return;
+        }
+        if (typeof msg === 'string' && msg.startsWith('40')) {
+          // Handshake Engine.IO v4 thành công: Gửi bản tin SUBSCRIBE room REPORT
+          ws.send(
+            `42["SUBSCRIBE",{"action":"SUBSCRIBE","userID":${userId},"room":["NOTI","REPORT","SOCKET"]}]`,
+          );
+
+          // Cơ chế Subscribe-Before-Export: Kích hoạt tạo Export Job khi socket đã sẵn sàng phòng REPORT
+          if (onSubscribed && !exportTriggered) {
+            exportTriggered = true;
+            try {
+              await onSubscribed();
+            } catch (createErr: any) {
+              cleanup();
+              return reject(createErr);
+            }
+          }
+          return;
+        }
+        if (msg === '2') {
+          ws.send('3');
+          return;
+        }
+        if (typeof msg === 'string' && msg.startsWith('42')) {
+          try {
+            const jsonIdx = msg.indexOf('[');
+            const [, evData] = JSON.parse(msg.substring(jsonIdx));
+            const content = evData?.content || evData;
+            const rId = content?.autoid || content?.reportId || content?.id || evData?.reportId;
+            const rFekey = content?.fekey || content?.feKey || evData?.fekey;
+            const rSearchCode = content?.searchcode || content?.searchCode;
+
+            const isMatch =
+              rFekey === fekey ||
+              (rId && (!rFekey || (searchCode && rSearchCode === searchCode)));
+
+            if (isMatch) {
+              cleanup();
+              resolve(rId);
+            }
+          } catch {}
+        }
+      };
+
+      ws.onerror = (err: any) => {
+        cleanup();
+        reject(new Error(`WebSocket NotiSocket gặp sự cố: ${err.message || err}`));
+      };
+    });
+  }
+
+  /**
+   * KIỂU 2 TOÀN TRÌNH: Kết nối WebSocket + Kích hoạt Export + Bắt reportId + Tải file Excel nhị phân nguyên bản
+   */
+  private async downloadServerExport(
+    session: ICoreExchangeAuthSession,
+    searchCode: string,
+    baseUrl: string,
+    refererRoute: string,
+    filterPayload: Record<string, any>,
+    targetPath: string,
+  ): Promise<Buffer> {
+    const fekey = `${searchCode}_${Date.now()}`;
+    this.logger.log(
+      `[CoreExApiAdapter] Khởi động WebSocket NotiSocket chờ xuất ${searchCode} (fekey=${fekey})...`,
+    );
+
+    const reportId = await this.waitForReportIdViaSocket(
+      session,
+      baseUrl,
+      fekey,
+      50000,
+      async () => {
+        this.logger.log(
+          `[CoreExApiAdapter] NotiSocket đã Subscribe sẵn sàng phòng REPORT. Đang kích hoạt tạo export ${searchCode}...`,
+        );
+        await this.createExportJob(
+          session,
+          searchCode,
+          fekey,
+          baseUrl,
+          refererRoute,
+          filterPayload,
+        );
+      },
+      searchCode,
+    );
+
+    this.logger.log(
+      `[CoreExApiAdapter] Server hoàn tất xuất file ${searchCode} (reportId=${reportId}). Đang tải file nhị phân nguyên bản...`,
+    );
+
+    const buffer = await this.downloadReportBinary(session, reportId, baseUrl, refererRoute);
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(targetPath, buffer);
+    return buffer;
   }
 
   /**
@@ -602,6 +867,28 @@ export class CoreExApiAdapter implements IIngressPort {
 
     try {
       const session = await this.getValidSession();
+      let baseUrl = process.env.COREEXCHANGE_BASE_URL || this.defaultBaseUrl;
+      if (this.settingsService) {
+        baseUrl = await this.settingsService.getSetting('coreex_base_url', baseUrl);
+      }
+      try {
+        const parsedUrl = new URL(baseUrl);
+        baseUrl = parsedUrl.origin;
+      } catch {}
+
+      // Chuẩn hóa ngày dd/MM/yyyy để truyền vào search.SESSION_DATE cho CoreEX
+      let formattedDateForSearch = '';
+      if (targetDate) {
+        if (targetDate.includes('-')) {
+          const [y, m, d] = targetDate.split('-');
+          formattedDateForSearch = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        } else if (targetDate.includes('.')) {
+          const [d, m, y] = targetDate.split('.');
+          formattedDateForSearch = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+        } else if (targetDate.includes('/')) {
+          formattedDateForSearch = targetDate;
+        }
+      }
 
       for (const target of targets) {
         const reportDef = resolveCoreExchangeReport(target);
@@ -614,164 +901,210 @@ export class CoreExApiAdapter implements IIngressPort {
         const targetPath = path.join(outputDirectory, outFileName);
 
         const isHistorical = Boolean(reportDef.isHistorical || reportDef.searchCode.includes('_ALL'));
-        const effectiveDate = isHistorical ? getPreviousTradingDate(targetDate) : targetDate;
-
-        if (isHistorical) {
-          this.logger.log(
-            `[CoreExApiAdapter] Báo cáo lịch sử [${reportDef.name}] (${reportDef.searchCode}) mặc định tải theo ngày T-1: ${effectiveDate} (ngày ca trực: ${targetDate})`,
-          );
+        const effectiveHistoricalYmd = isHistorical ? getPreviousTradingDate(targetDate) : targetDate;
+        let histDmy = '';
+        if (isHistorical && formattedDateForSearch) {
+          histDmy = this.calculatePreviousWorkdayDmy(formattedDateForSearch);
         }
 
-        this.logger.log(`[CoreExApiAdapter] Đang tải ${reportDef.name} (SearchCode: ${reportDef.searchCode}, Ngày: ${effectiveDate})...`);
+        const logStarting = `[CoreEX API] Đang kết nối tải báo cáo ${reportDef.name} (${reportDef.searchCode})...`;
+        this.logger.log(logStarting);
+        if (options?.onLog) options.onLog(logStarting);
+
         try {
-          const searchResult = await this.searchData(
-            session,
-            reportDef.searchCode,
-            {
-              targetDate: effectiveDate,
-              search: reportDef.filterPayload || {},
-              pageSize: 200000,
+          let downloadSuccess = false;
+          let usedServerExport = false;
+          let searchResult: { rows: any[]; totalCount: number } | null = null;
+
+          // Xây dựng effectiveFilterPayload động theo ngày giao dịch
+          const effectiveFilterPayload: Record<string, any> = {
+            ...(reportDef.filterPayload || {}),
+            search: {
+              ...(reportDef.filterPayload?.search || {}),
             },
-            reportDef.parentSearchCode,
-          );
-
-          await this.convertJsonToExcel(searchResult.rows, reportDef, targetPath);
-
-          const stat = fs.statSync(targetPath);
-          files.push({
-            fileName: outFileName,
-            absolutePath: targetPath,
-            fileSize: stat.size,
-            mtime: stat.mtime,
-            category: 'CORE_EX',
-            metadata: {
-              transport: 'CORE_EXCHANGE_REST_API',
-              searchCode: reportDef.searchCode,
-              rowCount: searchResult.totalCount,
+            filter: {
+              ...(reportDef.filterPayload?.filter || {}),
             },
-          });
+          };
 
-          this.logger.log(`[CoreExApiAdapter] Đã xuất thành công ${outFileName} (${searchResult.totalCount} dòng, ${stat.size} bytes)`);
-
-          // ── TỰ ĐỘNG TRÍCH XUẤT TOÀN BỘ HỢP ĐỒNG (INSTRUMENTS) THEO TỪNG MÃ HÀNG HÓA THỰC TẾ ──
-          if (reportDef.key === 'HH' && Array.isArray(searchResult.rows)) {
-            const hdReportDef = resolveCoreExchangeReport('HD') || {
-              key: 'HD',
-              name: 'Hợp đồng chi tiết CE',
-              fileName: 'HĐ *.xlsx',
-              route: '/PRODUCT/COMMODITY_ACM',
-              searchCode: 'INSTRUMENTS_ACM',
-              parentSearchCode: 'COMMODITY_ACM',
-              description: 'Hợp đồng chi tiết theo từng hàng hóa',
-            };
-
-            for (const comm of searchResult.rows) {
-              const uacode = (comm.UACODE || comm.uacode || comm.SYMBOL || comm.commodityCode || '').trim();
-              if (!uacode) continue;
-
-              const hdFileName = `HĐ ${uacode}.xlsx`;
-              const hdPath = path.join(outputDirectory, hdFileName);
-              try {
-                this.logger.log(`[CoreExApiAdapter] Đang tải chi tiết hợp đồng cho hàng hóa ${uacode} (SearchCode: INSTRUMENTS_ACM)...`);
-                const contractResult = await this.searchData(
-                  session,
-                  'INSTRUMENTS_ACM',
-                  {
-                    targetDate,
-                    search: { KEYVAL: uacode },
-                    pageSize: 200000,
-                  },
-                  'COMMODITY_ACM',
-                );
-
-                await this.convertJsonToExcel(
-                  contractResult.rows,
-                  { ...hdReportDef, name: `Hợp đồng ${uacode}` },
-                  hdPath,
-                );
-
-                const hdStat = fs.statSync(hdPath);
-                files.push({
-                  fileName: hdFileName,
-                  absolutePath: hdPath,
-                  fileSize: hdStat.size,
-                  mtime: hdStat.mtime,
-                  category: 'CORE_EX',
-                  metadata: {
-                    transport: 'CORE_EXCHANGE_REST_API',
-                    searchCode: 'INSTRUMENTS_ACM',
-                    commodityCode: uacode,
-                    rowCount: contractResult.totalCount,
-                  },
-                });
-                this.logger.log(`[CoreExApiAdapter] Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
-              } catch (hdErr: any) {
-                this.logger.error(`[CoreExApiAdapter] Lỗi tải hợp đồng cho hàng hóa ${uacode}: ${hdErr.message}`);
-                errors.push(`HĐ ${uacode}: ${hdErr.message}`);
-              }
+          // Tự động inject bộ lọc SESSION_DATE nếu là ORDERMATCH hoặc ORDERBOOK
+          if (
+            (reportDef.searchCode.includes('ORDERMATCH') || reportDef.searchCode.includes('ORDERBOOK')) &&
+            !effectiveFilterPayload.search.SESSION_DATE
+          ) {
+            if (options?.targetDateRange?.fromDate && options?.targetDateRange?.toDate) {
+              const formatDmy = (dStr: string) => {
+                if (dStr.includes('-')) {
+                  const [y, m, d] = dStr.split('-');
+                  return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+                } else if (dStr.includes('.')) {
+                  const [d, m, y] = dStr.split('.');
+                  return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+                }
+                return dStr;
+              };
+              const fromDmy = formatDmy(options.targetDateRange.fromDate);
+              const toDmy = formatDmy(options.targetDateRange.toDate);
+              effectiveFilterPayload.search.SESSION_DATE = {
+                from: fromDmy,
+                to: toDmy,
+              };
+              this.logger.log(
+                `[CoreExApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
+              );
+            } else if (formattedDateForSearch) {
+              const sessionDateToUse = isHistorical && histDmy ? histDmy : formattedDateForSearch;
+              effectiveFilterPayload.search.SESSION_DATE = {
+                from: sessionDateToUse,
+                to: sessionDateToUse,
+              };
+              this.logger.log(
+                `[CoreExApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
+              );
             }
           }
 
-          // Tự động tạo file phái sinh cho ca trực (COREEX_DERIVED_RULES)
-          const derivedRules = COREEX_DERIVED_RULES[reportDef.key] || [];
-          for (const rule of derivedRules) {
-            const destPath = path.join(outputDirectory, rule.targetFileName);
-            if (destPath === targetPath) continue;
+          // Thử xuất Server Export (Kiểu 2) cho các báo cáo có khối lượng giao dịch lớn
+          const SERVER_EXPORT_CODES = new Set([
+            'ORDERMATCH_DETAIL_ACM',
+            'ORDERMATCH_ALL_ACM',
+            'ORDERBOOK_ACM',
+            'ORDERBOOK_ALL_ACM',
+            'OPEN_POSITION',
+          ]);
+          const isServerExportEligible = SERVER_EXPORT_CODES.has(reportDef.searchCode);
 
-            let derivedRows = searchResult.rows;
-            let isFiltered = false;
+          if (isServerExportEligible) {
+            try {
+              this.logger.log(
+                `[CoreExApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.name} (${reportDef.searchCode})...`,
+              );
+              await this.downloadServerExport(
+                session,
+                reportDef.searchCode,
+                session.baseUrl || baseUrl,
+                reportDef.route || `/ORDERS/${reportDef.searchCode}`,
+                effectiveFilterPayload,
+                targetPath,
+              );
+              downloadSuccess = true;
+              usedServerExport = true;
+            } catch (wsErr: any) {
+              this.logger.warn(
+                `[CoreExApiAdapter] Server Export WebSocket gặp sự cố (${wsErr.message}), tự động fallback sang Direct JSON Search...`,
+              );
+            }
+          }
 
-            // Nếu là nhóm sổ lệnh DSL, lọc chính xác theo trạng thái lệnh
-            if (reportDef.key === 'DSL' && Array.isArray(searchResult.rows) && searchResult.rows.length > 0) {
-              if (rule.targetFileName.includes('DSLH')) {
-                // Lệnh hủy (Cancelled)
-                derivedRows = searchResult.rows.filter(
-                  (r: any) => r.STATUS === 'DD' || r.EN_STATUS === 'Cancelled' || String(r.STATUS_DESC || '').toLowerCase().includes('hủy'),
-                );
-                isFiltered = true;
-              } else if (rule.targetFileName.includes('DSLCK')) {
-                // Lệnh chờ khớp (New / PendingNew)
-                derivedRows = searchResult.rows.filter(
-                  (r: any) => ['SS', 'BB'].includes(r.STATUS) || ['New', 'PendingNew'].includes(r.EN_STATUS) || String(r.STATUS_DESC || '').toLowerCase().includes('chờ'),
-                );
-                isFiltered = true;
-              } else if (rule.targetFileName.includes('DSLDK')) {
-                // Lệnh đã khớp (Filled)
-                derivedRows = searchResult.rows.filter(
-                  (r: any) => r.STATUS === 'TS' || r.EN_STATUS === 'Filled' || String(r.STATUS_DESC || '').toLowerCase().includes('khớp'),
-                );
-                isFiltered = true;
+          // Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không áp dụng
+          if (!downloadSuccess) {
+            searchResult = await this.searchData(
+              session,
+              reportDef.searchCode,
+              {
+                targetDate: isHistorical ? effectiveHistoricalYmd : targetDate,
+                search: effectiveFilterPayload.search || {},
+                pageSize: 200000,
+              },
+              reportDef.parentSearchCode,
+            );
+
+            await this.convertJsonToExcel(searchResult.rows, reportDef, targetPath);
+            downloadSuccess = true;
+          }
+
+          if (fs.existsSync(targetPath)) {
+            const stat = fs.statSync(targetPath);
+            files.push({
+              fileName: outFileName,
+              absolutePath: targetPath,
+              fileSize: stat.size,
+              mtime: stat.mtime,
+              category: 'CORE_EX',
+              metadata: {
+                transport: usedServerExport ? 'SERVER_EXPORT_WS' : 'DIRECT_REST_API',
+                searchCode: reportDef.searchCode,
+                fileSize: stat.size,
+              },
+            });
+            const logSuccess = `[CoreEX API] ✓ Tải thành công ${outFileName} (${(stat.size / 1024).toFixed(1)} KB) qua ${usedServerExport ? 'Server Export (File gốc)' : 'Direct JSON'}`;
+            this.logger.log(logSuccess);
+            if (options?.onLog) options.onLog(logSuccess);
+
+            // ── TỰ ĐỘNG TRÍCH XUẤT TOÀN BỘ HỢP ĐỒNG (INSTRUMENTS) THEO TỪNG MÃ HÀNG HÓA THỰC TẾ ──
+            if (reportDef.key === 'HH' && searchResult && Array.isArray(searchResult.rows)) {
+              const hdReportDef = resolveCoreExchangeReport('HD') || {
+                key: 'HD',
+                name: 'Hợp đồng chi tiết CE',
+                fileName: 'HĐ *.xlsx',
+                route: '/PRODUCT/COMMODITY_ACM',
+                searchCode: 'INSTRUMENTS_ACM',
+                parentSearchCode: 'COMMODITY_ACM',
+                description: 'Hợp đồng chi tiết theo từng hàng hóa',
+              };
+
+              for (const comm of searchResult.rows) {
+                const uacode = (comm.UACODE || comm.uacode || comm.SYMBOL || comm.commodityCode || '').trim();
+                if (!uacode) continue;
+
+                const hdFileName = `HĐ ${uacode}.xlsx`;
+                const hdPath = path.join(outputDirectory, hdFileName);
+                try {
+                  this.logger.log(`[CoreExApiAdapter] Đang tải chi tiết hợp đồng cho hàng hóa ${uacode} (SearchCode: INSTRUMENTS_ACM)...`);
+                  const contractResult = await this.searchData(
+                    session,
+                    'INSTRUMENTS_ACM',
+                    {
+                      targetDate,
+                      search: { KEYVAL: uacode },
+                      pageSize: 200000,
+                    },
+                    'COMMODITY_ACM',
+                  );
+
+                  await this.convertJsonToExcel(
+                    contractResult.rows,
+                    { ...hdReportDef, name: `Hợp đồng ${uacode}` },
+                    hdPath,
+                  );
+
+                  const hdStat = fs.statSync(hdPath);
+                  files.push({
+                    fileName: hdFileName,
+                    absolutePath: hdPath,
+                    fileSize: hdStat.size,
+                    mtime: hdStat.mtime,
+                    category: 'CORE_EX',
+                    metadata: {
+                      transport: 'CORE_EXCHANGE_REST_API',
+                      searchCode: 'INSTRUMENTS_ACM',
+                      commodityCode: uacode,
+                      rowCount: contractResult.totalCount,
+                    },
+                  });
+                  this.logger.log(`[CoreExApiAdapter] Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
+                } catch (hdErr: any) {
+                  this.logger.error(`[CoreExApiAdapter] Lỗi tải hợp đồng cho hàng hóa ${uacode}: ${hdErr.message}`);
+                  errors.push(`HĐ ${uacode}: ${hdErr.message}`);
+                }
               }
-            }
-
-            if (isFiltered) {
-              await this.convertJsonToExcel(derivedRows, { ...reportDef, name: rule.targetFileName.replace('.xlsx', '') }, destPath);
-            } else if (fs.existsSync(targetPath)) {
-              fs.copyFileSync(targetPath, destPath);
-            }
-
-            if (fs.existsSync(destPath)) {
-              const dStat = fs.statSync(destPath);
-              files.push({
-                fileName: rule.targetFileName,
-                absolutePath: destPath,
-                fileSize: dStat.size,
-                mtime: dStat.mtime,
-                category: 'CORE_EX',
-                metadata: { transport: 'DERIVED_EXPORT', source: outFileName, rowCount: derivedRows.length },
-              });
-              this.logger.log(`[CoreExApiAdapter] Tự động tạo bản sao phái sinh: ${rule.targetFileName} (${derivedRows.length} dòng, ${dStat.size} bytes)`);
             }
           }
         } catch (searchErr: any) {
-          this.logger.error(`[CoreExApiAdapter] Lỗi gọi API cho ${reportDef.name}: ${searchErr.message}`);
+          this.logger.error(`[CoreExApiAdapter] ❌ Lỗi gọi API cho ${reportDef.name}: ${searchErr.message}`);
           errors.push(`${reportDef.name}: ${searchErr.message}`);
         }
       }
 
-      if (errors.length > 0 && files.length === 0) {
-        throw new Error(`[CoreExApiAdapter] Tải báo cáo CoreExchange thất bại: ${errors.join('; ')}`);
+      if (errors.length > 0) {
+        const errorSummary = `Tải báo cáo CoreExchange thất bại (${errors.length}/${targets.length} lỗi): ${errors.join('; ')}`;
+        this.logger.error(`[CoreExApiAdapter] ❌ ${errorSummary}`);
+        throw new Error(errorSummary);
       }
+
+      const downloadSummary = `[CoreEX API] ✓ Hoàn tất tải ${files.length} báo cáo CoreExchange (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
+      this.logger.log(downloadSummary);
+      if (options?.onLog) options.onLog(downloadSummary);
 
       return {
         success: files.length > 0,
@@ -780,11 +1113,10 @@ export class CoreExApiAdapter implements IIngressPort {
         files,
         downloadedAt: new Date(),
         durationMs: Date.now() - startTime,
-        summary: `Đã tải thành công ${files.length}/${targets.length} báo cáo CoreExchange qua Direct API.${errors.length > 0 ? ` Lỗi (${errors.length}): ${errors.join('; ')}` : ''}`,
-        error: errors.length > 0 ? errors.join('; ') : undefined,
+        summary: `Đã tải thành công ${files.length}/${targets.length} báo cáo CoreExchange.`,
       };
     } catch (err: any) {
-      this.logger.error(`[CoreExApiAdapter] Lỗi gọi Direct API CoreExchange: ${err.message}`);
+      this.logger.error(`[CoreExApiAdapter] ❌ Thất bại khi tải báo cáo CoreExchange: ${err.message}`);
       return {
         success: false,
         source: 'CORE_EX',
@@ -793,7 +1125,34 @@ export class CoreExApiAdapter implements IIngressPort {
         downloadedAt: new Date(),
         error: err.message,
         durationMs: Date.now() - startTime,
+        summary: `Thất bại khi tải báo cáo CoreExchange: ${err.message}`,
       };
+    }
+  }
+
+  /**
+   * Tính ngày phiên làm việc T-1 theo định dạng dd/MM/yyyy (tự động trừ Thứ Bảy / Chủ Nhật)
+   */
+  private calculatePreviousWorkdayDmy(dmy: string): string {
+    try {
+      const parts = dmy.split('/');
+      if (parts.length < 3) return dmy;
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      const dt = new Date(y, m, d);
+      dt.setDate(dt.getDate() - 1);
+      if (dt.getDay() === 0) {
+        dt.setDate(dt.getDate() - 2);
+      } else if (dt.getDay() === 6) {
+        dt.setDate(dt.getDate() - 1);
+      }
+      const prevD = String(dt.getDate()).padStart(2, '0');
+      const prevM = String(dt.getMonth() + 1).padStart(2, '0');
+      const prevY = dt.getFullYear();
+      return `${prevD}/${prevM}/${prevY}`;
+    } catch {
+      return dmy;
     }
   }
 

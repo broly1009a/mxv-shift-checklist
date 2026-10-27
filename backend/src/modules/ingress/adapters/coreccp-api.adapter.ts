@@ -25,6 +25,7 @@ export interface ICcpSession {
   userId?: number;
   username: string;
   expiresAt: number;
+  baseUrl?: string;
 }
 
 export class CookieJar {
@@ -180,6 +181,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       userId: loginRes.userId,
       username,
       expiresAt,
+      baseUrl,
     };
 
     this.saveSessionToCache(session);
@@ -328,16 +330,16 @@ export class CoreCcpApiAdapter implements IIngressPort {
   }
 
   private getWebSocketClass(): any {
-    if (typeof (globalThis as any).WebSocket !== 'undefined') {
-      return (globalThis as any).WebSocket;
-    }
     try {
       return require('ws');
     } catch {
       try {
         return require('socket.io/node_modules/engine.io/node_modules/ws');
       } catch {
-        throw new Error('Không tìm thấy thư viện WebSocket (yêu cầu Node 22+ hoặc gói ws)');
+        if (typeof (globalThis as any).WebSocket !== 'undefined') {
+          return (globalThis as any).WebSocket;
+        }
+        throw new Error('Không tìm thấy thư viện WebSocket (yêu cầu gói ws)');
       }
     }
   }
@@ -398,6 +400,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           Cookie: session.sessionCookie,
           Origin: baseUrl,
         },
+        rejectUnauthorized: false,
       });
 
       timer = setTimeout(() => {
@@ -865,8 +868,8 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     try {
       const session = await this.getValidSession();
-      let baseUrl = process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
-      if (this.settingsService) {
+      let baseUrl = session.baseUrl || process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
+      if (!session.baseUrl && this.settingsService) {
         baseUrl = await this.settingsService.getSetting('coreccp_base_url', baseUrl);
       }
       try {

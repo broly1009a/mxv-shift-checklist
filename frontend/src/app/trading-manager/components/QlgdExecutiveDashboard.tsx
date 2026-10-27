@@ -91,6 +91,12 @@ export interface MilestoneReportData {
   europeanSession: number; // Hết phiên Âu (5h-23h)
   americanSession: number | null; // Hết phiên Mỹ (cả ngày) - null hoặc pending nếu chưa qua 23h
   isAmericanSessionPending?: boolean;
+  uniqueAccounts?: {
+    earlySession: number;
+    asianSession: number;
+    europeanSession: number;
+    americanSession: number | null;
+  };
 }
 
 /**
@@ -439,13 +445,20 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     // Fallback tự động tổng hợp từ số liệu thực tế của phiên
     const formatLot = (n: number) => `${formatInteger(n)} lot`;
     const total16h = (othersMilestones.asianSession || 0) + (acmMilestones.asianSession || 0);
-    const acc16h = liveData?.milestones?.uniqueAccounts?.at16h || 0;
+    const acc16h = liveData?.milestones?.uniqueAccounts?.at16h || (
+      (acmMilestones.uniqueAccounts?.asianSession || 0) + (othersMilestones.uniqueAccounts?.asianSession || 0)
+    );
 
     const total23h = (othersMilestones.europeanSession || 0) + (acmMilestones.europeanSession || 0);
-    const acc23h = liveData?.milestones?.uniqueAccounts?.at23h || 0;
+    const acc23h = liveData?.milestones?.uniqueAccounts?.at23h || (
+      (acmMilestones.uniqueAccounts?.europeanSession || 0) + (othersMilestones.uniqueAccounts?.europeanSession || 0)
+    );
 
     const totalEod = (othersMilestones.americanSession ?? othersMilestones.europeanSession ?? 0) + (acmMilestones.americanSession ?? acmMilestones.europeanSession ?? 0);
-    const accEod = liveData?.milestones?.uniqueAccounts?.atEod || 0;
+    const accEod = liveData?.milestones?.uniqueAccounts?.atEod || (
+      (acmMilestones.uniqueAccounts?.americanSession ?? acmMilestones.uniqueAccounts?.europeanSession ?? 0) +
+      (othersMilestones.uniqueAccounts?.americanSession ?? othersMilestones.uniqueAccounts?.europeanSession ?? 0)
+    );
 
     if (activeBgsTab === '16H') {
       return `Em xin phép báo cáo các anh khối lượng giao dịch tính tới 16:00 phiên ${sessionDate} ạ. Tổng khối lượng giao dịch đạt ${formatLot(total16h)}, với Futures là ${formatLot(othersMilestones.asianSession || 0)} và ACM là ${formatLot(acmMilestones.asianSession || 0)}.\nTới thời điểm này có ${acc16h} tài khoản phát sinh giao dịch ạ.`;
@@ -534,16 +547,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
 
   // Tính tổng chân trang Bảng chính
   const footerTotals = useMemo(() => {
-    return displayItems.reduce(
+    const base = displayItems.reduce(
       (acc, item) => {
         acc.expectedPnL += item.expectedPnL;
         acc.openPositions += item.openPositions;
         acc.realizedPnL += item.realizedPnL;
         acc.liquidatedLots += item.liquidatedLots;
+        acc.totalLongLots += item.openPositions * (item.longRatio / 100);
         return acc;
       },
-      { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0 }
+      { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0, totalLongLots: 0 }
     );
+    const avgLongRatio = base.openPositions > 0 ? Math.round((base.totalLongLots / base.openPositions) * 100) : 0;
+    const avgShortRatio = base.openPositions > 0 ? 100 - avgLongRatio : 0;
+    return {
+      ...base,
+      avgLongRatio,
+      avgShortRatio,
+    };
   }, [displayItems]);
 
   // Dữ liệu cho Modal Toàn bộ 44 mặt hàng (Search + Filter nhóm)
@@ -570,16 +591,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   }, [modalFilteredItems]);
 
   const modalTotals = useMemo(() => {
-    return modalFilteredItems.reduce(
+    const base = modalFilteredItems.reduce(
       (acc, item) => {
         acc.expectedPnL += item.expectedPnL;
         acc.openPositions += item.openPositions;
         acc.realizedPnL += item.realizedPnL;
         acc.liquidatedLots += item.liquidatedLots;
+        acc.totalLongLots += item.openPositions * (item.longRatio / 100);
         return acc;
       },
-      { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0 }
+      { expectedPnL: 0, openPositions: 0, realizedPnL: 0, liquidatedLots: 0, totalLongLots: 0 }
     );
+    const avgLongRatio = base.openPositions > 0 ? Math.round((base.totalLongLots / base.openPositions) * 100) : 0;
+    const avgShortRatio = base.openPositions > 0 ? 100 - avgLongRatio : 0;
+    return {
+      ...base,
+      avgLongRatio,
+      avgShortRatio,
+    };
   }, [modalFilteredItems]);
 
   // Dữ liệu 4 mốc thời điểm động từ liveData (mặc định 0 nếu phiên mới chưa có dữ liệu)
@@ -593,6 +622,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       europeanSession: 0,
       americanSession: 0,
       isAmericanSessionPending: true,
+      uniqueAccounts: {
+        earlySession: 0,
+        asianSession: 0,
+        europeanSession: 0,
+        americanSession: 0,
+      },
     };
   }, [liveData?.milestones?.acm]);
 
@@ -606,6 +641,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       europeanSession: 0,
       americanSession: 0,
       isAmericanSessionPending: true,
+      uniqueAccounts: {
+        earlySession: 0,
+        asianSession: 0,
+        europeanSession: 0,
+        americanSession: 0,
+      },
     };
   }, [liveData?.milestones?.others]);
 
@@ -1042,7 +1083,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     borderRadius: '8px',
                     backgroundColor: 'var(--bg-input)',
                     border: '1px solid var(--border-color)',
-                    height: '56px',
+                    height: '86px',
                     opacity: 0.6,
                   }}
                 />
@@ -1725,13 +1766,31 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Đầu phiên</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-8h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatInteger(acmMilestones.earlySession)}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Đầu phiên</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>5h-8h</div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {formatInteger(acmMilestones.earlySession)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {acmMilestones.uniqueAccounts?.earlySession != null ? formatInteger(acmMilestones.uniqueAccounts.earlySession) : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1741,13 +1800,31 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Á</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-16h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
-                  {formatInteger(acmMilestones.asianSession)}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hết phiên Á</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>5h-16h</div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0284c7' }}>
+                      {formatInteger(acmMilestones.asianSession)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {acmMilestones.uniqueAccounts?.asianSession != null ? formatInteger(acmMilestones.uniqueAccounts.asianSession) : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1757,13 +1834,31 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Âu</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-23h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d97706' }}>
-                  {formatInteger(acmMilestones.europeanSession)}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hết phiên Âu</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>5h-23h</div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#d97706' }}>
+                      {formatInteger(acmMilestones.europeanSession)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {acmMilestones.uniqueAccounts?.europeanSession != null ? formatInteger(acmMilestones.uniqueAccounts.europeanSession) : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1773,17 +1868,37 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid rgba(16, 185, 129, 0.35)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>Hết phiên Mỹ</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  {acmMilestones.isAmericanSessionPending ? 'Chưa qua 23h' : 'Cả ngày'}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>Hết phiên Mỹ</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>
+                    {acmMilestones.isAmericanSessionPending ? 'Chưa qua 23h' : 'Cả ngày'}
+                  </div>
                 </div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981' }}>
-                  {acmMilestones.isAmericanSessionPending
-                    ? (acmMilestones.americanSession !== null ? `${formatInteger(acmMilestones.americanSession)}*` : '—')
-                    : (acmMilestones.americanSession !== null ? formatInteger(acmMilestones.americanSession) : '—')}
+                <div style={{ borderTop: '1px solid rgba(16, 185, 129, 0.25)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
+                      {acmMilestones.isAmericanSessionPending
+                        ? (acmMilestones.americanSession !== null ? `${formatInteger(acmMilestones.americanSession)}*` : '—')
+                        : (acmMilestones.americanSession !== null ? formatInteger(acmMilestones.americanSession) : '—')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {acmMilestones.isAmericanSessionPending
+                        ? (acmMilestones.uniqueAccounts?.americanSession != null ? `${formatInteger(acmMilestones.uniqueAccounts.americanSession)}*` : '—')
+                        : (acmMilestones.uniqueAccounts?.americanSession != null ? formatInteger(acmMilestones.uniqueAccounts.americanSession) : '—')}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1925,13 +2040,31 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Đầu phiên</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-8h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatInteger(othersMilestones.earlySession)}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Đầu phiên</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>5h-8h</div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {formatInteger(othersMilestones.earlySession)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {othersMilestones.uniqueAccounts?.earlySession != null ? formatInteger(othersMilestones.uniqueAccounts.earlySession) : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1941,13 +2074,31 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Á</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-16h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
-                  {formatInteger(othersMilestones.asianSession)}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hết phiên Á</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>5h-16h</div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0284c7' }}>
+                      {formatInteger(othersMilestones.asianSession)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {othersMilestones.uniqueAccounts?.asianSession != null ? formatInteger(othersMilestones.uniqueAccounts.asianSession) : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1957,13 +2108,31 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Hết phiên Âu</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>5h-23h</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d97706' }}>
-                  {formatInteger(othersMilestones.europeanSession)}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Hết phiên Âu</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>5h-23h</div>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#d97706' }}>
+                      {formatInteger(othersMilestones.europeanSession)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {othersMilestones.uniqueAccounts?.europeanSession != null ? formatInteger(othersMilestones.uniqueAccounts.europeanSession) : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1973,17 +2142,37 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   border: '1px solid rgba(59, 130, 246, 0.35)',
                   borderRadius: '8px',
                   padding: '8px 10px',
-                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
                 }}
               >
-                <div style={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700 }}>Hết phiên Mỹ</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  {othersMilestones.isAmericanSessionPending ? 'Chưa qua 23h' : 'Cả ngày'}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700 }}>Hết phiên Mỹ</div>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>
+                    {othersMilestones.isAmericanSessionPending ? 'Chưa qua 23h' : 'Cả ngày'}
+                  </div>
                 </div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#2563eb' }}>
-                  {othersMilestones.isAmericanSessionPending
-                    ? (othersMilestones.americanSession !== null ? `${formatInteger(othersMilestones.americanSession)}*` : '—')
-                    : (othersMilestones.americanSession !== null ? formatInteger(othersMilestones.americanSession) : '—')}
+                <div style={{ borderTop: '1px solid rgba(59, 130, 246, 0.25)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>KLGD</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#2563eb' }}>
+                      {othersMilestones.isAmericanSessionPending
+                        ? (othersMilestones.americanSession !== null ? `${formatInteger(othersMilestones.americanSession)}*` : '—')
+                        : (othersMilestones.americanSession !== null ? formatInteger(othersMilestones.americanSession) : '—')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Users size={10} style={{ opacity: 0.7 }} />
+                      TKGD
+                    </span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {othersMilestones.isAmericanSessionPending
+                        ? (othersMilestones.uniqueAccounts?.americanSession != null ? `${formatInteger(othersMilestones.uniqueAccounts.americanSession)}*` : '—')
+                        : (othersMilestones.uniqueAccounts?.americanSession != null ? formatInteger(othersMilestones.uniqueAccounts.americanSession) : '—')}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2244,9 +2433,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           fontWeight: 700,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          color: isExpectedLoss ? '#ef4444' : '#10b981',
-                          backgroundColor: item.highlightExpectedLoss
-                            ? 'rgba(239, 68, 68, 0.12)'
+                          color: item.expectedPnL < 0 ? '#ef4444' : item.expectedPnL > 0 ? '#10b981' : 'var(--text-muted)',
+                          backgroundColor: (item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol))
+                            ? 'rgba(239, 68, 68, 0.15)'
                             : 'transparent',
                         }}
                       >
@@ -2263,15 +2452,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           color: 'var(--text-primary)',
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          backgroundColor: item.highlightOpenPosition
-                            ? 'rgba(16, 185, 129, 0.12)'
+                          backgroundColor: (item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol))
+                            ? 'rgba(16, 185, 129, 0.15)'
                             : 'transparent',
                         }}
                       >
                         {formatInteger(item.openPositions)}
                       </td>
 
-                      {/* 7. % mở Mua (Progress bar xanh) */}
+                      {/* 7. % mở Mua (Progress bar xanh lá - Vị thế Mua/Long) */}
                       <td
                         style={{
                           padding: '5px 8px',
@@ -2284,7 +2473,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             style={{
                               flex: 1,
                               height: '12px',
-                              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                              backgroundColor: 'rgba(16, 185, 129, 0.15)',
                               borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative',
@@ -2294,7 +2483,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               style={{
                                 width: `${item.longRatio}%`,
                                 height: '100%',
-                                backgroundColor: '#3b82f6',
+                                backgroundColor: '#10b981',
                                 borderRadius: '3px',
                                 transition: 'width 0.4s ease',
                               }}
@@ -2306,7 +2495,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               textAlign: 'right',
                               fontSize: '0.72rem',
                               fontWeight: 700,
-                              color: '#2563eb',
+                              color: '#10b981',
                             }}
                           >
                             {item.longRatio}%
@@ -2314,7 +2503,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         </div>
                       </td>
 
-                      {/* 8. % mở Bán (Progress bar xám) */}
+                      {/* 8. % mở Bán (Progress bar đỏ - Vị thế Bán/Short) */}
                       <td
                         style={{
                           padding: '5px 8px',
@@ -2327,7 +2516,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             style={{
                               flex: 1,
                               height: '12px',
-                              backgroundColor: 'rgba(148, 163, 184, 0.18)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
                               borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative',
@@ -2337,7 +2526,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               style={{
                                 width: `${item.shortRatio}%`,
                                 height: '100%',
-                                backgroundColor: '#94a3b8',
+                                backgroundColor: '#ef4444',
                                 borderRadius: '3px',
                                 transition: 'width 0.4s ease',
                               }}
@@ -2348,8 +2537,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               width: '28px',
                               textAlign: 'right',
                               fontSize: '0.72rem',
-                              fontWeight: 600,
-                              color: 'var(--text-muted)',
+                              fontWeight: 700,
+                              color: '#ef4444',
                             }}
                           >
                             {item.shortRatio}%
@@ -2366,10 +2555,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           fontWeight: 700,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          color: isRealizedLoss ? '#ef4444' : '#10b981',
-                          backgroundColor: isRealizedLoss
+                          color: item.realizedPnL < 0 ? '#ef4444' : item.realizedPnL > 0 ? '#10b981' : 'var(--text-muted)',
+                          backgroundColor: item.realizedPnL < 0
                             ? 'rgba(239, 68, 68, 0.08)'
-                            : 'rgba(16, 185, 129, 0.08)',
+                            : item.realizedPnL > 0
+                            ? 'rgba(16, 185, 129, 0.08)'
+                            : 'transparent',
                         }}
                       >
                         {formatAccountingCurrency(item.realizedPnL)}
@@ -2384,8 +2575,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
                           color: 'var(--text-primary)',
-                          backgroundColor: item.highlightLiquidated
-                            ? 'rgba(16, 185, 129, 0.12)'
+                          backgroundColor: (item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol))
+                            ? 'rgba(16, 185, 129, 0.15)'
                             : 'transparent',
                         }}
                       >
@@ -2428,7 +2619,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '8px 10px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#ef4444',
+                    color: footerTotals.expectedPnL < 0 ? '#ef4444' : footerTotals.expectedPnL > 0 ? '#10b981' : 'var(--text-primary)',
                     fontFamily: 'monospace',
                   }}
                 >
@@ -2459,7 +2650,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     fontSize: '0.72rem',
                   }}
                 >
-                  Toàn sàn: <strong style={{ color: '#2563eb' }}>78% Mua</strong> / <strong style={{ color: 'var(--text-muted)' }}>22% Bán</strong>
+                  Toàn sàn: <strong style={{ color: '#10b981' }}>{footerTotals.avgLongRatio}% Mua</strong> / <strong style={{ color: '#ef4444' }}>{footerTotals.avgShortRatio}% Bán</strong>
                 </td>
 
                 {/* Lãi lỗ thực tế */}
@@ -2468,7 +2659,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     padding: '8px 10px',
                     textAlign: 'right',
                     borderRight: '1px solid var(--border-color)',
-                    color: '#10b981',
+                    color: footerTotals.realizedPnL < 0 ? '#ef4444' : footerTotals.realizedPnL > 0 ? '#10b981' : 'var(--text-primary)',
                     fontFamily: 'monospace',
                   }}
                 >
@@ -2932,10 +3123,10 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   Tổng vị thế mở: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{formatInteger(modalTotals.openPositions)} lots</strong>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Lãi lỗ dự kiến: <strong style={{ color: modalTotals.expectedPnL < 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{formatAccountingCurrency(modalTotals.expectedPnL)} VND</strong>
+                  Lãi lỗ dự kiến: <strong style={{ color: modalTotals.expectedPnL < 0 ? '#ef4444' : modalTotals.expectedPnL > 0 ? '#10b981' : 'var(--text-primary)', fontFamily: 'monospace' }}>{formatAccountingCurrency(modalTotals.expectedPnL)} VND</strong>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Lãi lỗ thực tế: <strong style={{ color: modalTotals.realizedPnL < 0 ? '#ef4444' : '#10b981', fontFamily: 'monospace' }}>{formatAccountingCurrency(modalTotals.realizedPnL)} VND</strong>
+                  Lãi lỗ thực tế: <strong style={{ color: modalTotals.realizedPnL < 0 ? '#ef4444' : modalTotals.realizedPnL > 0 ? '#10b981' : 'var(--text-primary)', fontFamily: 'monospace' }}>{formatAccountingCurrency(modalTotals.realizedPnL)} VND</strong>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Tất toán: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{formatInteger(modalTotals.liquidatedLots)} lots</strong>
@@ -3105,9 +3296,9 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               borderRight: '1px solid var(--border-color)',
                               fontWeight: 700,
                               fontFamily: 'monospace',
-                              color: isExpectedLoss ? '#ef4444' : '#10b981',
-                              backgroundColor: item.highlightExpectedLoss
-                                ? 'rgba(239, 68, 68, 0.12)'
+                              color: item.expectedPnL < 0 ? '#ef4444' : item.expectedPnL > 0 ? '#10b981' : 'var(--text-muted)',
+                              backgroundColor: (item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol))
+                                ? 'rgba(239, 68, 68, 0.15)'
                                 : 'transparent',
                             }}
                           >
@@ -3121,8 +3312,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               fontWeight: 700,
                               color: 'var(--text-primary)',
                               fontFamily: 'monospace',
-                              backgroundColor: item.highlightOpenPosition
-                                ? 'rgba(16, 185, 129, 0.12)'
+                              backgroundColor: (item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol))
+                                ? 'rgba(16, 185, 129, 0.15)'
                                 : 'transparent',
                             }}
                           >
@@ -3140,7 +3331,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 style={{
                                   flex: 1,
                                   height: '16px',
-                                  backgroundColor: 'rgba(148, 163, 184, 0.18)',
+                                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
                                   borderRadius: '4px',
                                   overflow: 'hidden',
                                   position: 'relative',
@@ -3150,7 +3341,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   style={{
                                     width: `${item.longRatio}%`,
                                     height: '100%',
-                                    backgroundColor: '#3b82f6',
+                                    backgroundColor: '#10b981',
                                     borderRadius: '4px',
                                     transition: 'width 0.4s ease',
                                   }}
@@ -3162,7 +3353,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   textAlign: 'right',
                                   fontSize: '0.75rem',
                                   fontWeight: 700,
-                                  color: '#2563eb',
+                                  color: '#10b981',
                                 }}
                               >
                                 {item.longRatio}%
@@ -3181,7 +3372,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 style={{
                                   flex: 1,
                                   height: '16px',
-                                  backgroundColor: 'rgba(148, 163, 184, 0.18)',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
                                   borderRadius: '4px',
                                   overflow: 'hidden',
                                   position: 'relative',
@@ -3191,7 +3382,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   style={{
                                     width: `${item.shortRatio}%`,
                                     height: '100%',
-                                    backgroundColor: '#94a3b8',
+                                    backgroundColor: '#ef4444',
                                     borderRadius: '4px',
                                     transition: 'width 0.4s ease',
                                   }}
@@ -3202,8 +3393,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   width: '32px',
                                   textAlign: 'right',
                                   fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  color: 'var(--text-muted)',
+                                  fontWeight: 700,
+                                  color: '#ef4444',
                                 }}
                               >
                                 {item.shortRatio}%
@@ -3217,10 +3408,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               borderRight: '1px solid var(--border-color)',
                               fontWeight: 700,
                               fontFamily: 'monospace',
-                              color: isRealizedLoss ? '#ef4444' : '#10b981',
-                              backgroundColor: isRealizedLoss
+                              color: item.realizedPnL < 0 ? '#ef4444' : item.realizedPnL > 0 ? '#10b981' : 'var(--text-muted)',
+                              backgroundColor: item.realizedPnL < 0
                                 ? 'rgba(239, 68, 68, 0.08)'
-                                : 'rgba(16, 185, 129, 0.08)',
+                                : item.realizedPnL > 0
+                                ? 'rgba(16, 185, 129, 0.08)'
+                                : 'transparent',
                             }}
                           >
                             {formatAccountingCurrency(item.realizedPnL)}
@@ -3232,8 +3425,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               fontWeight: 700,
                               fontFamily: 'monospace',
                               color: 'var(--text-primary)',
-                              backgroundColor: item.highlightLiquidated
-                                ? 'rgba(16, 185, 129, 0.12)'
+                              backgroundColor: (item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol))
+                                ? 'rgba(16, 185, 129, 0.15)'
                                 : 'transparent',
                             }}
                           >
@@ -3273,7 +3466,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         padding: '12px',
                         textAlign: 'right',
                         borderRight: '1px solid var(--border-color)',
-                        color: modalTotals.expectedPnL < 0 ? '#ef4444' : '#10b981',
+                        color: modalTotals.expectedPnL < 0 ? '#ef4444' : modalTotals.expectedPnL > 0 ? '#10b981' : 'var(--text-primary)',
                         fontFamily: 'monospace',
                       }}
                     >
@@ -3290,15 +3483,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     >
                       {formatInteger(modalTotals.openPositions)}
                     </td>
-                    <td colSpan={2} style={{ padding: '12px', textAlign: 'center', borderRight: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
+                    <td colSpan={2} style={{ padding: '12px', textAlign: 'center', borderRight: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
+                      Toàn danh mục: <strong style={{ color: '#10b981' }}>{modalTotals.avgLongRatio}% Mua</strong> / <strong style={{ color: '#ef4444' }}>{modalTotals.avgShortRatio}% Bán</strong>
                     </td>
                     <td
                       style={{
                         padding: '12px',
                         textAlign: 'right',
                         borderRight: '1px solid var(--border-color)',
-                        color: modalTotals.realizedPnL < 0 ? '#ef4444' : '#10b981',
+                        color: modalTotals.realizedPnL < 0 ? '#ef4444' : modalTotals.realizedPnL > 0 ? '#10b981' : 'var(--text-primary)',
                         fontFamily: 'monospace',
                       }}
                     >

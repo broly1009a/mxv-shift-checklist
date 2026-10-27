@@ -27,27 +27,13 @@ export interface ICoreExchangeReportMapping {
 export const CANONICAL_COREEX_API_KEYS = [
   'DSGD',           // ORDERMATCH_DETAIL_ACM -> DSGD ACM CE.xlsx
   'DSL',            // ORDERBOOK_ALL_ACM -> DSL ACM CE.xlsx (Lịch sử T-1)
-  'GTT',            // SETTLEMENT -> GTT ACM.xlsx
+  'GTT',            // SETTLEMENT_ACM -> GTT ACM.xlsx
   'HH',             // COMMODITY_ACM -> HH ACM.xlsx (Hàng hóa & tự động trích xuất HĐ theo từng mã hàng hóa động)
   'SESSION_INFO',   // SESSION_INFO -> SESSION_INFO.xlsx
   'SESSION_CONFIG', // SESSION_CONFIG_ALL -> SESSION_CONFIG.xlsx (Lịch sử T-1)
   'TTM',            // OPEN_POSITION -> TTM CE.xlsx
   'ACM_RECON',      // ACM_RECON_ORDERS -> Doi chieu lenh ACM.xlsx
 ] as const;
-
-export const COREEX_DERIVED_RULES: Record<string, Array<{ targetFileName: string }>> = {
-  DSL: [
-    { targetFileName: 'DSLDK ACM CE.xlsx' },
-    { targetFileName: 'DSLCK ACM CE.xlsx' },
-    { targetFileName: 'DSLH ACM CE.xlsx' },
-    { targetFileName: 'DSL Trong Phien CE.xlsx' },
-    { targetFileName: 'DSL MM CE.xlsx' },
-  ],
-  DSGD: [
-    { targetFileName: 'DSGD ALL ACM CE.xlsx' },
-    { targetFileName: 'DSGD MM CE.xlsx' },
-  ],
-};
 
 export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportMapping> = {
   // 1. Sổ lệnh & Khớp lệnh CE
@@ -148,8 +134,9 @@ export const CORE_EXCHANGE_REPORTS_REGISTRY: Record<string, ICoreExchangeReportM
     name: 'Giá thanh toán ACM',
     fileName: 'GTT ACM.xlsx',
     route: '/PRODUCT/SETTLEMENT',
-    searchCode: 'SETTLEMENT',
-    description: 'Bảng giá thanh toán (Settlement Price) phục vụ EOD tính PnL',
+    searchCode: 'SETTLEMENT_ACM',
+    parentSearchCode: 'SETTLEMENT',
+    description: 'Bảng giá thanh toán liên thông ACM (Settlement Price) phục vụ EOD tính PnL',
   },
   HH: {
     key: 'HH',
@@ -215,7 +202,13 @@ export function resolveCoreExchangeReport(target: string): ICoreExchangeReportMa
   return Object.values(CORE_EXCHANGE_REPORTS_REGISTRY).find((r) => {
     const cleanKey = r.key.toUpperCase().replace(/[\s_.-]/g, '');
     const cleanSearch = r.searchCode.toUpperCase().replace(/[\s_.-]/g, '');
+    const cleanParent = r.parentSearchCode ? r.parentSearchCode.toUpperCase().replace(/[\s_.-]/g, '') : '';
     const cleanFile = r.fileName.toUpperCase().replace(/[\s_.-]/g, '');
-    return cleanKey === cleanTarget || cleanSearch === cleanTarget || cleanFile.includes(cleanTarget);
+    return (
+      cleanKey === cleanTarget ||
+      cleanSearch === cleanTarget ||
+      cleanParent === cleanTarget ||
+      cleanFile.includes(cleanTarget)
+    );
   });
 }
