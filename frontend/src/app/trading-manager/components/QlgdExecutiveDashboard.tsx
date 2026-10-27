@@ -889,7 +889,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     };
   }, [chronologicalRuns, othersLatestMetrics, othersMilestones]);
 
-  // Tính toán động các mã nổi bật phục vụ chú thích bảng chân trang
+  // Tính toán động các mã nổi bật phục vụ chú thích bảng chân trang & phân tầng màu sắc Heatmap
   const topLossItem = useMemo(() => {
     if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
     const sorted = [...rawDisplayItems].filter((i) => i.expectedPnL < 0).sort((a, b) => a.expectedPnL - b.expectedPnL);
@@ -905,6 +905,18 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const topLiquidatedItem = useMemo(() => {
     if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
     const sorted = [...rawDisplayItems].sort((a, b) => b.liquidatedLots - a.liquidatedLots);
+    return sorted[0] || null;
+  }, [rawDisplayItems]);
+
+  const topRealizedProfitItem = useMemo(() => {
+    if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
+    const sorted = [...rawDisplayItems].filter((i) => i.realizedPnL > 0).sort((a, b) => b.realizedPnL - a.realizedPnL);
+    return sorted[0] || null;
+  }, [rawDisplayItems]);
+
+  const topRealizedLossItem = useMemo(() => {
+    if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
+    const sorted = [...rawDisplayItems].filter((i) => i.realizedPnL < 0).sort((a, b) => a.realizedPnL - b.realizedPnL);
     return sorted[0] || null;
   }, [rawDisplayItems]);
 
@@ -1784,7 +1796,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <Users size={10} style={{ opacity: 0.7 }} />
+                      {/* <Users size={10} style={{ opacity: 0.7 }} /> */}
                       TKGD
                     </span>
                     <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -2347,9 +2359,15 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   const isFirstOfGroup = idx === 0;
                   const isLastOfGroup = idx === items.length - 1;
 
-                  // Màu số tiền
+                  // Màu số tiền & Cờ động nhận diện phân tầng Heatmap
                   const isExpectedLoss = item.expectedPnL < 0;
                   const isRealizedLoss = item.realizedPnL < 0;
+                  const isLongDominant = item.longRatio >= item.shortRatio;
+                  const isTopExpectedLoss = !!(item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol));
+                  const isTopOpen = !!(item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol));
+                  const isTopLiquidated = !!(item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol));
+                  const isTopProfit = !!(topRealizedProfitItem && item.symbol === topRealizedProfitItem.symbol && item.realizedPnL > 0);
+                  const isTopRealizedLoss = !!(topRealizedLossItem && item.symbol === topRealizedLossItem.symbol && item.realizedPnL < 0);
 
                   return (
                     <tr
@@ -2424,43 +2442,47 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         {item.name}
                       </td>
 
-                      {/* 5. Tổng lãi lỗ dự kiến (VND) */}
+                      {/* 5. Tổng lãi lỗ dự kiến (VND) - Đa tầng: Lỗ lớn nhất Đỏ đậm, lỗ thường Hồng nhạt, lãi Xanh nhạt */}
                       <td
                         style={{
                           padding: '6px 10px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
-                          fontWeight: 700,
+                          fontWeight: isTopExpectedLoss ? 800 : 700,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
                           color: item.expectedPnL < 0 ? '#ef4444' : item.expectedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                          backgroundColor: (item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol))
-                            ? 'rgba(239, 68, 68, 0.15)'
+                          backgroundColor: isTopExpectedLoss
+                            ? 'rgba(239, 68, 68, 0.22)'
+                            : item.expectedPnL < 0
+                            ? 'rgba(239, 68, 68, 0.08)'
+                            : item.expectedPnL > 0
+                            ? 'rgba(16, 185, 129, 0.08)'
                             : 'transparent',
                         }}
                       >
                         {formatAccountingCurrency(item.expectedPnL)}
                       </td>
 
-                      {/* 6. Tổng vị thế mở */}
+                      {/* 6. Tổng vị thế mở - Đa tầng: Vị thế lớn nhất Xanh đậm nổi bật */}
                       <td
                         style={{
                           padding: '6px 8px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
-                          fontWeight: 700,
+                          fontWeight: isTopOpen ? 800 : 700,
                           color: 'var(--text-primary)',
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          backgroundColor: (item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol))
-                            ? 'rgba(16, 185, 129, 0.15)'
+                          backgroundColor: isTopOpen
+                            ? 'rgba(16, 185, 129, 0.22)'
                             : 'transparent',
                         }}
                       >
                         {formatInteger(item.openPositions)}
                       </td>
 
-                      {/* 7. % mở Mua (Progress bar xanh lá - Vị thế Mua/Long) */}
+                      {/* 7. % mở Mua (Động: Xanh dương nếu Mua >= Bán, Xám nếu Mua < Bán) */}
                       <td
                         style={{
                           padding: '5px 8px',
@@ -2473,7 +2495,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             style={{
                               flex: 1,
                               height: '12px',
-                              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                              backgroundColor: isLongDominant ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.18)',
                               borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative',
@@ -2483,7 +2505,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               style={{
                                 width: `${item.longRatio}%`,
                                 height: '100%',
-                                backgroundColor: '#10b981',
+                                backgroundColor: isLongDominant ? '#3b82f6' : '#94a3b8',
                                 borderRadius: '3px',
                                 transition: 'width 0.4s ease',
                               }}
@@ -2494,8 +2516,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               width: '28px',
                               textAlign: 'right',
                               fontSize: '0.72rem',
-                              fontWeight: 700,
-                              color: '#10b981',
+                              fontWeight: isLongDominant ? 700 : 600,
+                              color: isLongDominant ? '#2563eb' : 'var(--text-muted)',
                             }}
                           >
                             {item.longRatio}%
@@ -2503,7 +2525,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         </div>
                       </td>
 
-                      {/* 8. % mở Bán (Progress bar đỏ - Vị thế Bán/Short) */}
+                      {/* 8. % mở Bán (Động: Xanh dương nếu Bán > Mua, Xám nếu Bán <= Mua) */}
                       <td
                         style={{
                           padding: '5px 8px',
@@ -2516,7 +2538,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                             style={{
                               flex: 1,
                               height: '12px',
-                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                              backgroundColor: !isLongDominant ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.18)',
                               borderRadius: '3px',
                               overflow: 'hidden',
                               position: 'relative',
@@ -2526,7 +2548,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               style={{
                                 width: `${item.shortRatio}%`,
                                 height: '100%',
-                                backgroundColor: '#ef4444',
+                                backgroundColor: !isLongDominant ? '#3b82f6' : '#94a3b8',
                                 borderRadius: '3px',
                                 transition: 'width 0.4s ease',
                               }}
@@ -2537,8 +2559,8 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               width: '28px',
                               textAlign: 'right',
                               fontSize: '0.72rem',
-                              fontWeight: 700,
-                              color: '#ef4444',
+                              fontWeight: !isLongDominant ? 700 : 600,
+                              color: !isLongDominant ? '#2563eb' : 'var(--text-muted)',
                             }}
                           >
                             {item.shortRatio}%
@@ -2546,17 +2568,21 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         </div>
                       </td>
 
-                      {/* 9. Lãi lỗ thực tế (VND) */}
+                      {/* 9. Lãi lỗ thực tế (VND) - Đa tầng: Lãi lớn nhất Xanh đậm, lỗ lớn nhất Đỏ đậm, lãi thường Xanh nhạt, lỗ thường Hồng nhạt */}
                       <td
                         style={{
                           padding: '6px 10px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
-                          fontWeight: 700,
+                          fontWeight: (isTopProfit || isTopRealizedLoss) ? 800 : 700,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
                           color: item.realizedPnL < 0 ? '#ef4444' : item.realizedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                          backgroundColor: item.realizedPnL < 0
+                          backgroundColor: isTopProfit
+                            ? 'rgba(16, 185, 129, 0.22)'
+                            : isTopRealizedLoss
+                            ? 'rgba(239, 68, 68, 0.22)'
+                            : item.realizedPnL < 0
                             ? 'rgba(239, 68, 68, 0.08)'
                             : item.realizedPnL > 0
                             ? 'rgba(16, 185, 129, 0.08)'
@@ -2566,17 +2592,17 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         {formatAccountingCurrency(item.realizedPnL)}
                       </td>
 
-                      {/* 10. Trạng thái tất toán */}
+                      {/* 10. Trạng thái tất toán - Đa tầng: Tất toán lớn nhất Xanh đậm nổi bật */}
                       <td
                         style={{
                           padding: '6px 8px',
                           textAlign: 'right',
-                          fontWeight: 700,
+                          fontWeight: isTopLiquidated ? 800 : 700,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
                           color: 'var(--text-primary)',
-                          backgroundColor: (item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol))
-                            ? 'rgba(16, 185, 129, 0.15)'
+                          backgroundColor: isTopLiquidated
+                            ? 'rgba(16, 185, 129, 0.22)'
                             : 'transparent',
                         }}
                       >
@@ -2639,7 +2665,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   {formatInteger(footerTotals.openPositions)}
                 </td>
 
-                {/* Tỷ lệ Mua / Bán Toàn sàn */}
+                {/* Tỷ lệ Mua / Bán Toàn sàn (Động: bên nào cao hơn mang màu Xanh dương) */}
                 <td
                   colSpan={2}
                   style={{
@@ -2650,7 +2676,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     fontSize: '0.72rem',
                   }}
                 >
-                  Toàn sàn: <strong style={{ color: '#10b981' }}>{footerTotals.avgLongRatio}% Mua</strong> / <strong style={{ color: '#ef4444' }}>{footerTotals.avgShortRatio}% Bán</strong>
+                  Toàn sàn:{' '}
+                  <strong
+                    style={{
+                      color:
+                        footerTotals.avgLongRatio >= footerTotals.avgShortRatio
+                          ? '#2563eb'
+                          : 'var(--text-muted)',
+                    }}
+                  >
+                    {footerTotals.avgLongRatio}% Mua
+                  </strong>{' '}
+                  /{' '}
+                  <strong
+                    style={{
+                      color:
+                        footerTotals.avgShortRatio > footerTotals.avgLongRatio
+                          ? '#2563eb'
+                          : 'var(--text-muted)',
+                    }}
+                  >
+                    {footerTotals.avgShortRatio}% Bán
+                  </strong>
                 </td>
 
                 {/* Lãi lỗ thực tế */}
@@ -2700,12 +2747,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 display: 'inline-block',
                 width: '12px',
                 height: '12px',
-                backgroundColor: 'rgba(239, 68, 68, 0.35)',
+                backgroundColor: 'rgba(239, 68, 68, 0.22)',
                 border: '1px solid rgba(239, 68, 68, 0.6)',
                 borderRadius: '3px',
               }}
             />
-            <span>Đỏ đậm: Lỗ dự kiến lớn nhất {topLossItem ? `(${topLossItem.symbol}: ${formatAccountingCurrency(topLossItem.expectedPnL)})` : ''}</span>
+            <span>Đỏ đậm: Lỗ lớn nhất {topLossItem ? `(${topLossItem.symbol}: ${formatAccountingCurrency(topLossItem.expectedPnL)})` : ''} • Hồng nhạt: Lỗ thông thường</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
@@ -2713,12 +2760,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                 display: 'inline-block',
                 width: '12px',
                 height: '12px',
-                backgroundColor: 'rgba(16, 185, 129, 0.35)',
+                backgroundColor: 'rgba(16, 185, 129, 0.22)',
                 border: '1px solid rgba(16, 185, 129, 0.6)',
                 borderRadius: '3px',
               }}
             />
-            <span>Xanh lá: Vị thế mở & tất toán tập trung cao nhất {topOpenPositionItem ? `(${topOpenPositionItem.symbol}: ${formatInteger(topOpenPositionItem.openPositions)} lots${topLiquidatedItem && topLiquidatedItem.symbol !== topOpenPositionItem.symbol ? `; ${topLiquidatedItem.symbol}: ${formatInteger(topLiquidatedItem.liquidatedLots)} lots` : ''})` : ''}</span>
+            <span>Xanh đậm: Vị thế &amp; tất toán lớn nhất {topOpenPositionItem ? `(${topOpenPositionItem.symbol}: ${formatInteger(topOpenPositionItem.openPositions)} lots${topLiquidatedItem && topLiquidatedItem.symbol !== topOpenPositionItem.symbol ? `; ${topLiquidatedItem.symbol}: ${formatInteger(topLiquidatedItem.liquidatedLots)} lots` : ''})` : ''} • Xanh nhạt: Lãi</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Info size={12} color="#38bdf8" />
@@ -3210,6 +3257,12 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       const isLastOfGroup = idx === items.length - 1;
                       const isExpectedLoss = item.expectedPnL < 0;
                       const isRealizedLoss = item.realizedPnL < 0;
+                      const isLongDominant = item.longRatio >= item.shortRatio;
+                      const isTopExpectedLoss = !!(item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol));
+                      const isTopOpen = !!(item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol));
+                      const isTopLiquidated = !!(item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol));
+                      const isTopProfit = !!(topRealizedProfitItem && item.symbol === topRealizedProfitItem.symbol && item.realizedPnL > 0);
+                      const isTopRealizedLoss = !!(topRealizedLossItem && item.symbol === topRealizedLossItem.symbol && item.realizedPnL < 0);
 
                       return (
                         <tr
@@ -3289,36 +3342,43 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               </span>
                             )}
                           </td>
+                          {/* 5. Tổng lãi lỗ dự kiến Modal (Đa tầng) */}
                           <td
                             style={{
                               padding: '9px 12px',
                               textAlign: 'right',
                               borderRight: '1px solid var(--border-color)',
-                              fontWeight: 700,
+                              fontWeight: isTopExpectedLoss ? 800 : 700,
                               fontFamily: 'monospace',
                               color: item.expectedPnL < 0 ? '#ef4444' : item.expectedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                              backgroundColor: (item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol))
-                                ? 'rgba(239, 68, 68, 0.15)'
+                              backgroundColor: isTopExpectedLoss
+                                ? 'rgba(239, 68, 68, 0.22)'
+                                : item.expectedPnL < 0
+                                ? 'rgba(239, 68, 68, 0.08)'
+                                : item.expectedPnL > 0
+                                ? 'rgba(16, 185, 129, 0.08)'
                                 : 'transparent',
                             }}
                           >
                             {formatAccountingCurrency(item.expectedPnL)}
                           </td>
+                          {/* 6. Tổng vị thế mở Modal (Đa tầng) */}
                           <td
                             style={{
                               padding: '9px 10px',
                               textAlign: 'right',
                               borderRight: '1px solid var(--border-color)',
-                              fontWeight: 700,
+                              fontWeight: isTopOpen ? 800 : 700,
                               color: 'var(--text-primary)',
                               fontFamily: 'monospace',
-                              backgroundColor: (item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol))
-                                ? 'rgba(16, 185, 129, 0.15)'
+                              backgroundColor: isTopOpen
+                                ? 'rgba(16, 185, 129, 0.22)'
                                 : 'transparent',
                             }}
                           >
                             {formatInteger(item.openPositions)}
                           </td>
+                          {/* 7. % mở Mua Modal (Động) */}
                           <td
                             style={{
                               padding: '6px 10px',
@@ -3331,7 +3391,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 style={{
                                   flex: 1,
                                   height: '16px',
-                                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                  backgroundColor: isLongDominant ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.18)',
                                   borderRadius: '4px',
                                   overflow: 'hidden',
                                   position: 'relative',
@@ -3341,7 +3401,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   style={{
                                     width: `${item.longRatio}%`,
                                     height: '100%',
-                                    backgroundColor: '#10b981',
+                                    backgroundColor: isLongDominant ? '#3b82f6' : '#94a3b8',
                                     borderRadius: '4px',
                                     transition: 'width 0.4s ease',
                                   }}
@@ -3352,14 +3412,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   width: '32px',
                                   textAlign: 'right',
                                   fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: '#10b981',
+                                  fontWeight: isLongDominant ? 700 : 600,
+                                  color: isLongDominant ? '#2563eb' : 'var(--text-muted)',
                                 }}
                               >
                                 {item.longRatio}%
                               </span>
                             </div>
                           </td>
+
+                          {/* 8. % mở Bán Modal (Động) */}
                           <td
                             style={{
                               padding: '6px 10px',
@@ -3372,7 +3434,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                 style={{
                                   flex: 1,
                                   height: '16px',
-                                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                  backgroundColor: !isLongDominant ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.18)',
                                   borderRadius: '4px',
                                   overflow: 'hidden',
                                   position: 'relative',
@@ -3382,7 +3444,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   style={{
                                     width: `${item.shortRatio}%`,
                                     height: '100%',
-                                    backgroundColor: '#ef4444',
+                                    backgroundColor: !isLongDominant ? '#3b82f6' : '#94a3b8',
                                     borderRadius: '4px',
                                     transition: 'width 0.4s ease',
                                   }}
@@ -3393,23 +3455,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                                   width: '32px',
                                   textAlign: 'right',
                                   fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: '#ef4444',
+                                  fontWeight: !isLongDominant ? 700 : 600,
+                                  color: !isLongDominant ? '#2563eb' : 'var(--text-muted)',
                                 }}
                               >
                                 {item.shortRatio}%
                               </span>
                             </div>
                           </td>
+                          {/* 9. Lãi lỗ thực tế Modal (Đa tầng) */}
                           <td
                             style={{
                               padding: '9px 12px',
                               textAlign: 'right',
                               borderRight: '1px solid var(--border-color)',
-                              fontWeight: 700,
+                              fontWeight: (isTopProfit || isTopRealizedLoss) ? 800 : 700,
                               fontFamily: 'monospace',
                               color: item.realizedPnL < 0 ? '#ef4444' : item.realizedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                              backgroundColor: item.realizedPnL < 0
+                              backgroundColor: isTopProfit
+                                ? 'rgba(16, 185, 129, 0.22)'
+                                : isTopRealizedLoss
+                                ? 'rgba(239, 68, 68, 0.22)'
+                                : item.realizedPnL < 0
                                 ? 'rgba(239, 68, 68, 0.08)'
                                 : item.realizedPnL > 0
                                 ? 'rgba(16, 185, 129, 0.08)'
@@ -3418,15 +3485,16 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                           >
                             {formatAccountingCurrency(item.realizedPnL)}
                           </td>
+                          {/* 10. Trạng thái tất toán Modal (Đa tầng) */}
                           <td
                             style={{
                               padding: '9px 10px',
                               textAlign: 'right',
-                              fontWeight: 700,
+                              fontWeight: isTopLiquidated ? 800 : 700,
                               fontFamily: 'monospace',
                               color: 'var(--text-primary)',
-                              backgroundColor: (item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol))
-                                ? 'rgba(16, 185, 129, 0.15)'
+                              backgroundColor: isTopLiquidated
+                                ? 'rgba(16, 185, 129, 0.22)'
                                 : 'transparent',
                             }}
                           >
@@ -3484,7 +3552,28 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                       {formatInteger(modalTotals.openPositions)}
                     </td>
                     <td colSpan={2} style={{ padding: '12px', textAlign: 'center', borderRight: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
-                      Toàn danh mục: <strong style={{ color: '#10b981' }}>{modalTotals.avgLongRatio}% Mua</strong> / <strong style={{ color: '#ef4444' }}>{modalTotals.avgShortRatio}% Bán</strong>
+                      Toàn danh mục:{' '}
+                      <strong
+                        style={{
+                          color:
+                            modalTotals.avgLongRatio >= modalTotals.avgShortRatio
+                              ? '#2563eb'
+                              : 'var(--text-muted)',
+                        }}
+                      >
+                        {modalTotals.avgLongRatio}% Mua
+                      </strong>{' '}
+                      /{' '}
+                      <strong
+                        style={{
+                          color:
+                            modalTotals.avgShortRatio > modalTotals.avgLongRatio
+                              ? '#2563eb'
+                              : 'var(--text-muted)',
+                        }}
+                      >
+                        {modalTotals.avgShortRatio}% Bán
+                      </strong>
                     </td>
                     <td
                       style={{

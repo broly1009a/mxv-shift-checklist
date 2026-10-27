@@ -138,34 +138,70 @@ const conn = new Client();
 conn.on('ready', () => {
   console.log('Da ket noi SSH toi Ubuntu 10.0.0.26');
 
-  // Tao toan bo thu muc cha tren Ubuntu truoc khi upload
-  const uniqueDirs = [...new Set(filesToUpload.map((f) => path.dirname(f.remote).replace(/\\/g, '/')))];
-  console.log(`Dang kiem tra & tao ${uniqueDirs.length} thu muc tren Ubuntu...`);
-  const dirBatches = [];
-  for (let i = 0; i < uniqueDirs.length; i += 30) {
-    dirBatches.push(uniqueDirs.slice(i, i + 30).map((d) => `"${d}"`).join(' '));
-  }
-  const mkdirCmd = dirBatches.map((batch) => `mkdir -p ${batch}`).join(' && ');
+  // BƯỚC 1: TẠO BẢN SAO LƯU (BACKUP) TOÀN BỘ MÃ NGUỒN HIỆN TẠI TRÊN UBUNTU
+  console.log('\n=== BƯỚC 1: SAO LƯU (BACKUP) MÃ NGUỒN HIỆN TẠI TRÊN UBUNTU ===');
+  const backupCmd = `
+    mkdir -p /home/mxvadmin/code_backups
+    BACKUP_FILE="/home/mxvadmin/code_backups/mxv-checklist_backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+    echo "Dang nen toan bo /opt/mxv-checklist vao: $BACKUP_FILE ..."
+    tar -czf "$BACKUP_FILE" \\
+      --exclude='mxv-checklist/node_modules' \\
+      --exclude='mxv-checklist/backend/node_modules' \\
+      --exclude='mxv-checklist/frontend/node_modules' \\
+      --exclude='mxv-checklist/frontend/.next' \\
+      --exclude='mxv-checklist/backend/dist' \\
+      --exclude='mxv-checklist/backend/temp' \\
+      --exclude='mxv-checklist/*.log' \\
+      --exclude='mxv-checklist/*.txt' \\
+      -C /opt mxv-checklist
+    echo "=== SAO LUU THANH CONG ==="
+    ls -lh "$BACKUP_FILE"
+  `;
 
-  conn.exec(mkdirCmd, (mkErr, mkStream) => {
-    if (mkErr) {
-      console.error('Mkdir error:', mkErr);
+  conn.exec(backupCmd, (bkErr, bkStream) => {
+    if (bkErr) {
+      console.error('Loi khoi tao backup tren Ubuntu:', bkErr);
       conn.end();
       return;
     }
-    mkStream.resume();
-    mkStream.stderr.resume();
-    mkStream.on('close', () => {
-      console.log('Da tao/kiem tra toan bo thu muc con tren Ubuntu san sang.');
+    bkStream.on('data', (d) => process.stdout.write(d.toString()));
+    bkStream.stderr.on('data', (d) => process.stderr.write(d.toString()));
+    bkStream.on('close', (bkCode) => {
+      if (bkCode !== 0) {
+        console.error(`Backup tren Ubuntu that bai (Exit Code: ${bkCode}). DUNG TIEN TRINH DE BAO VE DU LIEU!`);
+        conn.end();
+        return;
+      }
 
-      // Mở SFTP và upload trực tiếp
-      conn.sftp((sftpErr, sftp) => {
-        if (sftpErr) {
-          console.error('SFTP Error:', sftpErr);
+      console.log('\n=== BƯỚC 2: TẠO THƯ MỤC VÀ ĐỒNG BỘ MÃ NGUỒN MỚI LÊN UBUNTU ===');
+      // Tao toan bo thu muc cha tren Ubuntu truoc khi upload
+      const uniqueDirs = [...new Set(filesToUpload.map((f) => path.dirname(f.remote).replace(/\\/g, '/')))];
+      console.log(`Dang kiem tra & tao ${uniqueDirs.length} thu muc tren Ubuntu...`);
+      const dirBatches = [];
+      for (let i = 0; i < uniqueDirs.length; i += 30) {
+        dirBatches.push(uniqueDirs.slice(i, i + 30).map((d) => `"${d}"`).join(' '));
+      }
+      const mkdirCmd = dirBatches.map((batch) => `mkdir -p ${batch}`).join(' && ');
+
+      conn.exec(mkdirCmd, (mkErr, mkStream) => {
+        if (mkErr) {
+          console.error('Mkdir error:', mkErr);
           conn.end();
           return;
         }
-        console.log('SFTP san sang. Bat dau upload...');
+        mkStream.resume();
+        mkStream.stderr.resume();
+        mkStream.on('close', () => {
+          console.log('Da tao/kiem tra toan bo thu muc con tren Ubuntu san sang.');
+
+          // Mở SFTP và upload trực tiếp
+          conn.sftp((sftpErr, sftp) => {
+            if (sftpErr) {
+              console.error('SFTP Error:', sftpErr);
+              conn.end();
+              return;
+            }
+            console.log('SFTP san sang. Bat dau upload...');
 
         let completed = 0;
         let cursor = 0;
@@ -216,6 +252,8 @@ conn.on('ready', () => {
       });
     });
   });
+    });
+  });
 
   function runBuildAndRestart() {
     console.log('\n=== DANG BUILD BACKEND VA FRONTEND TREN UBUNTU ===');
@@ -234,6 +272,9 @@ conn.on('ready', () => {
       pm2 restart mxv-frontend
       echo "=== 5. PM2 STATUS ==="
       pm2 status
+      echo "=== 6. HEALTH CHECK ==="
+      curl -I -s http://127.0.0.1:3000/login | head -n 1
+      curl -I -s http://127.0.0.1:3001/api/v1/users | head -n 1
     `;
     conn.exec(cmd, (err, stream) => {
       if (err) {

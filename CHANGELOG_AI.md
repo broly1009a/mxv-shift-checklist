@@ -1,3 +1,101 @@
+## [2026-10-27T09:42] FEATURE & ARCHITECTURE: Triển Khai Toàn Diện Bảng Màu Phân Tầng Heatmap Đa Tầng Động 100% (Hướng 1 - Zero-Hardcoding)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER phê duyệt **Hướng 1**: Triển khai cơ chế tô màu phân tầng Heatmap đa cấp độ mô phỏng chuẩn xác mẫu báo cáo Excel Ban Giám Đốc (`Check BGS All.xlsm` / ảnh phiên `8/10/2026`).
+- Tuân thủ tuyệt đối quy chuẩn **Zero-Hardcoding** ([AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.agents/AGENTS.md)): Loại bỏ hoàn toàn các con số ngưỡng tĩnh (như `-50 tỷ`, `5,000 lots`, `1 tỷ`, `1,000 lots`), thay bằng thuật toán xếp hạng tương đối động 100% dựa trên dữ liệu thực tế của phiên giao dịch.
+
+### 2. Danh sách file chỉnh sửa & Chi tiết kỹ thuật
+1. **[QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Thêm tính toán động các mã nổi bật trong phiên qua `useMemo`:
+     - `topLossItem`: Mã có lỗ dự kiến lớn nhất sàn (`expectedPnL < 0`).
+     - `topOpenPositionItem`: Mã có vị thế mở lớn nhất sàn.
+     - `topLiquidatedItem`: Mã có khối lượng tất toán lớn nhất sàn.
+     - `topRealizedProfitItem`: Mã có lãi thực tế lớn nhất sàn (`realizedPnL > 0`).
+     - `topRealizedLossItem`: Mã có lỗ thực tế lớn nhất sàn (`realizedPnL < 0`).
+   - Phân tầng màu sắc trực quan (áp dụng đồng bộ cho cả **Bảng 17 mặt hàng chủ lực** và **Modal 44 mặt hàng toàn sàn**):
+     - **Cột 5 (Tổng lãi lỗ dự kiến)**: Mã lỗ lớn nhất = Đỏ đậm (`rgba(239, 68, 68, 0.22)`), mã lỗ khác = Hồng nhạt (`rgba(239, 68, 68, 0.08)`), mã lãi = Xanh nhạt (`rgba(16, 185, 129, 0.08)`).
+     - **Cột 6 (Tổng vị thế mở)**: Mã mở lớn nhất sàn = Xanh đậm nổi bật (`rgba(16, 185, 129, 0.22)`).
+     - **Cột 9 (Lãi lỗ thực tế)**: Mã lãi lớn nhất = Xanh đậm (`rgba(16, 185, 129, 0.22)`), lãi thường = Xanh nhạt (`rgba(16, 185, 129, 0.08)`), mã lỗ lớn nhất = Đỏ đậm (`rgba(239, 68, 68, 0.22)`), lỗ thường = Hồng nhạt (`rgba(239, 68, 68, 0.08)`).
+     - **Cột 10 (Trạng thái tất toán)**: Mã tất toán lớn nhất sàn = Xanh đậm nổi bật (`rgba(16, 185, 129, 0.22)`).
+   - Bổ sung Footnote hướng dẫn trực quan ở chân bảng giải thích mã màu rõ ràng cho người dùng.
+2. **[qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts)**:
+   - Xóa bỏ triệt để các ngưỡng hardcode (`-50000000000`, `5000`, `1000000000`, `1000`).
+   - Đồng bộ hóa logic Heatmap tương đối động:
+     - Col E: Đỏ đậm (`FFF87171` + chữ `FF7F1D1D`) cho mã lỗ dự kiến lớn nhất; Hồng nhạt (`FFFECACA`) cho mã lỗ thông thường; Xanh lá nhạt (`FFDCFCE7`) cho mã lãi.
+     - Col F: Xanh lá nổi bật (`FF86EFAC` + chữ `FF14532D`) cho mã mở nhiều nhất sàn.
+     - Col I: Lãi lớn nhất Xanh lá đậm (`FF86EFAC`), lãi thường Xanh nhạt (`FFDCFCE7`); Lỗ lớn nhất Đỏ đậm (`FFF87171`), lỗ thường Hồng nhạt (`FFFECACA`).
+     - Col J: Xanh lá nổi bật (`FF86EFAC` + chữ `FF14532D`) cho mã tất toán nhiều nhất sàn.
+   - Hàng Tổng (Total Row): Động hóa màu sắc hai cột Tỷ lệ Mua / Bán Toàn sàn (Col G & H) theo quy luật ưu thế (Xanh dương cho bên chiếm ưu thế, Xám cho bên thấp hơn).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Typecheck (`npx tsc --noEmit`)**: Exit Code 0 (Sạch lỗi 100%).
+- **Backend Build (`npm run build`)**: Exit Code 0 (Biên dịch thành công 100%).
+
+---
+
+## [2026-10-27T09:30] REFACTOR: Động Hóa Toàn Diện Màu Sắc % Mở Mua & % Mở Bán (Xanh Dương vs Xám Theo Tỷ Lệ Ưu Thế)
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER: Khắc phục việc hiểu nhầm cố định màu Xanh lá / Đỏ ở lượt trước, chuyển đổi thanh dữ liệu `% mở Mua` và `% mở Bán` thành **bảng màu động 100%**:
+  - Không cố định cột nào phải mang màu gì.
+  - Bên nào chiếm ưu thế (% cao hơn, ví dụ Mua > Bán hoặc Bán > Mua): Hiển thị thanh màu **Xanh dương** (`#3b82f6`), nền `rgba(59, 130, 246, 0.15)` và chữ màu xanh dương (`#2563eb`) in đậm.
+  - Bên nào có tỷ lệ thấp hơn: Hiển thị thanh màu **Xám** (`#94a3b8`), nền `rgba(148, 163, 184, 0.18)` và chữ màu xám (`var(--text-muted)`).
+  - Dòng tổng chân trang: Bên nào chiếm tỷ lệ cao hơn trên toàn sàn / toàn danh mục sẽ hiển thị màu Xanh dương, bên thấp hơn hiển thị màu Xám.
+
+### 2. Danh sách file chỉnh sửa
+1. **[QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Thêm cờ động `const isLongDominant = item.longRatio >= item.shortRatio;` cho từng dòng mặt hàng ở cả Bảng 17 mặt hàng chính và Bảng Modal 44 mặt hàng.
+   - Cập nhật thanh progress bar và số % của cột `% mở Mua` và `% mở Bán`: Bên nào lớn hơn thì mang màu Xanh dương, bên thấp hơn mang màu Xám.
+   - Cập nhật dòng footer toàn sàn và toàn danh mục tự động nhận diện bên ưu thế mang màu Xanh dương (`#2563eb`).
+2. **[qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts)**:
+   - Đồng bộ logic xuất Excel: Bên nào có % cao hơn sẽ fill nền Xanh dương nhạt (`FFBFDBFE`) kèm chữ Xanh dương đậm (`FF1D4ED8`), bên thấp hơn fill Xám nhạt (`FFF1F5F9`) kèm chữ Xám (`FF64748B`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend TypeScript Check (`npx tsc --noEmit`)**: Exit Code 0, sạch lỗi 100%.
+- **Backend NestJS Build (`npx nest build`)**: Exit Code 0, biên dịch thành công 100%.
+
+---
+
+## [2026-10-27T08:48] DEPLOYMENT & UBUNTU BACKUP: Sao Lưu Toàn Diện Ubuntu Server & Triển Khai Mã Nguồn Mới Thành Công
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: "giúp tôi backup code unbutune hiện tại và ủn code mới lên".
+- Tự động hóa quy trình 2 pha an toàn tuyệt đối:
+  1. Tạo bản sao lưu (backup) nén toàn bộ mã nguồn hiện tại trên Ubuntu Server (`10.0.0.26`) vào `/home/mxvadmin/code_backups/` trước khi thực hiện bất kỳ thay đổi nào.
+  2. Đồng bộ 685 file mã nguồn mới nhất (Backend Modular Monolith V2 Clean Trinity, Frontend Next.js 16) lên `/opt/mxv-checklist`.
+  3. Khắc phục triệt để lỗi Circular Dependency giữa các module NestJS (`TradingOpsModule`, `ChecklistHubModule`, `IngressModule`) bằng `forwardRef()`.
+  4. Thực hiện build cả Backend & Frontend trên Ubuntu, khởi động lại dịch vụ PM2 và kiểm tra sức khỏe hệ thống (Health Check).
+
+### 2. Chi tiết thực hiện
+1. **[deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/deploy_to_ubuntu.js)**:
+   - Tích hợp **BƯỚC 1: SAO LƯU TỰ ĐỘNG** qua SSH trước khi upload bất kỳ tệp tin nào:
+     - Tạo thư mục `/home/mxvadmin/code_backups`.
+     - Chạy `tar -czf "$BACKUP_FILE" -C /opt mxv-checklist`.
+     - Đã tạo thành công 2 bản backup an toàn:
+       * `/home/mxvadmin/code_backups/mxv-checklist_backup_20261027_084053.tar.gz` (**2.6 GB**)
+       * `/home/mxvadmin/code_backups/mxv-checklist_backup_20261027_084523.tar.gz` (**2.4 GB**)
+   - Cập nhật quy trình SFTP upload đồng bộ 685 file.
+   - Thêm bước kiểm tra sức khỏe tự động (Health Check curl 3000 & 3001) sau khi khởi động lại PM2.
+2. **Khắc phục lỗi Circular Dependency trong NestJS Modules**:
+   - [trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts): Bọc `forwardRef(() => IngressModule)` và `forwardRef(() => ChecklistHubModule)`.
+   - [checklist-hub.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/checklist-hub.module.ts): Bọc `forwardRef(() => TradingOpsModule)`.
+   - [ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.module.ts): Bọc `forwardRef(() => ChecklistHubModule)`.
+
+### 3. Kết quả Triển khai & Kiểm thử trên Ubuntu 10.0.0.26 (Live Verified)
+- **Tình trạng sao lưu**: Đã tạo bản sao lưu toàn bộ mã nguồn tại `/home/mxvadmin/code_backups/` an toàn 100%.
+- **Backend Build (`nest build`)**: Hoàn tất thành công không lỗi.
+- **Frontend Build (`next build`)**: Hoàn tất thành công 52/52 routes static pages.
+- **Tình trạng PM2 Process**:
+  * `mxv-backend` (ID: 0): **online**, memory ~236 MB, 0 restart.
+  * `mxv-frontend` (ID: 1): **online**, memory ~56 MB, 0 restart.
+  * `mock-sftp` (ID: 3): **online**.
+- **Kiểm tra Health Check curl trực tiếp trên Server**:
+  * `curl http://127.0.0.1:3000/login` $\rightarrow$ `HTTP/1.1 200 OK` (Frontend hoạt động bình thường).
+  * `curl http://127.0.0.1:3001/api/v1/users` $\rightarrow$ `HTTP/1.1 401 Unauthorized` (Backend API NestJS phản hồi chuẩn xác).
+  * `systemctl is-active nginx` $\rightarrow$ `active`.
+
+---
+
 ## [2026-10-26T19:40] ARCHITECTURE: Khai Tử Hoàn Toàn Phân Hệ bot-engine Chuyển Dịch Sang Chuẩn Modular Monolith V2 Clean Trinity
 
 ### 1. Mục tiêu thay đổi
