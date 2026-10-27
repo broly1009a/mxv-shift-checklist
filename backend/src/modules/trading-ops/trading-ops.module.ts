@@ -35,11 +35,11 @@ import { MsCqgGttWorker } from './workers/ms-cqg-gtt.worker';
 import { CeLotWorker } from './workers/ce-lot.worker';
 
 import { IngressModule } from '../ingress/ingress.module';
-import { BotEngineModule } from '../bot-engine/bot-engine.module';
 import { ShiftsModule } from '../shifts/shifts.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
 import { WorkingCalendarModule } from '../working-calendar/working-calendar.module';
+import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
 import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-run-history.schema';
@@ -55,9 +55,13 @@ import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-reco
 import { TradingOpsUploadController } from './controllers/trading-ops-upload.controller';
 import { MarginCheckerController } from './controllers/margin-checker.controller';
 import { GttReconController } from './controllers/gtt-recon.controller';
+import { GttUploadController } from './controllers/gtt-upload.controller';
+import { MacroExecutionController } from './controllers/macro-execution.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
 import { CeReconController } from './controllers/ce-recon.controller';
 import { OmsReconController } from './controllers/oms-recon.controller';
+import { OmsWatcherService } from './services/oms/oms-watcher.service';
+import { VerifyEmailJobHandler } from './handlers/verify-email.handler';
 import { OmsReconService } from './services/recon/oms-recon.service';
 import { ReconPipelineService } from './services/pipeline/recon-pipeline.service';
 import { RECON_PIPELINE_PORT } from '../../shared';
@@ -70,7 +74,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     IngressModule,
     ShiftsModule,
     WorkingCalendarModule,
-    forwardRef(() => BotEngineModule),
+    ChecklistHubModule,
     MongooseModule.forFeature([
       { name: TradingReconLog.name, schema: TradingReconLogSchema },
       { name: CcpClearingLog.name, schema: CcpClearingLogSchema },
@@ -86,6 +90,8 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     TradingOpsUploadController,
     MarginCheckerController,
     GttReconController,
+    GttUploadController,
+    MacroExecutionController,
     TradingOpsMiscController,
     TradingReconLogController,
     CcpReconController,
@@ -93,6 +99,8 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     OmsReconController,
   ],
   providers: [
+    OmsWatcherService,
+    VerifyEmailJobHandler,
     CqgMergerService,
     KlgdReconService,
     MsEodReconService,
@@ -168,6 +176,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     CcpAdHocStatisticsService,
     TradingOpsPreflightService,
     OmsReconService,
+    OmsWatcherService,
     ReconPipelineService,
     RECON_PIPELINE_PORT,
     MongooseModule,

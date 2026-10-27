@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { SystemSetting } from '../../schemas/system-setting.schema';
 import * as fs from 'fs';
 import * as path from 'path';
-import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../bot-engine/helpers/bot-path.helper';
+import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../../shared/helpers/file-path.helper';
 
 @Injectable()
 export class SystemSettingsService implements OnModuleInit {

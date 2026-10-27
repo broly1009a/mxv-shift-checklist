@@ -14,7 +14,7 @@
  * cmd.exe /c "npx ts-node -r tsconfig-paths/register src/scripts/test_dst_scheduler_guard.ts"
  */
 
-import { getRecommendedMarketCloseDownloadTime } from '../modules/bot-engine/scheduler.service';
+import { getRecommendedMarketCloseDownloadTime } from '../modules/checklist-hub/scheduler/autonomous-scheduler.service';
 
 function runTests() {
   console.log('================================================================');

@@ -7,7 +7,7 @@ import { BotJob } from '../../../schemas/bot-job.schema';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { BotDispatcherService } from '../dispatcher/bot-dispatcher.service';
-import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
+import { BotJobQueueService } from '../queue/bot-job-queue.service';
 import { isMarketWeekendClosed } from '../../../shared';
 
 @Injectable()

@@ -2,8 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
-import { resolveStoragePathCrossPlatform } from '../../../../shared';
-import { resolveDynamicPath } from '../../../bot-engine/helpers/bot-path.helper';
+import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../../../../shared';
 import {
   resolveCcpAccumulatorFilePath,
   checkDateExistsInAccumulator,

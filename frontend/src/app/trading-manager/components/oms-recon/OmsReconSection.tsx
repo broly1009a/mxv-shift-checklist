@@ -79,6 +79,8 @@ export interface IOmsMarginReconResult {
   source: string;
   summary: {
     totalOmsAccounts: number;
+    totalActiveAccounts?: number;
+    totalZeroAccounts?: number;
     totalMatched: number;
     totalDiff: number;
     totalDiffTtm: number;
@@ -171,12 +173,12 @@ export default function OmsReconSection({
         setReconResult(res.data);
         const { totalMatched, totalDiff, totalOmsAccounts } = res.data.summary || {};
         if (totalDiff === 0) {
-          toast.success(`Đối chiếu hoàn tất! Toàn bộ ${totalMatched}/${totalOmsAccounts} tài khoản KHỚP 100%.`, {
+          toast.success(`Đối chiếu hoàn tất! Toàn bộ ${totalMatched?.toLocaleString('vi-VN')}/${totalOmsAccounts?.toLocaleString('vi-VN')} tài khoản KHỚP 100%.`, {
             id: toastId,
             duration: 5000,
           });
         } else {
-          toast.error(`Đối chiếu hoàn tất! Phát hiện ${totalDiff} tài khoản có chênh lệch ký quỹ.`, {
+          toast.error(`Đối chiếu hoàn tất! Phát hiện ${totalDiff?.toLocaleString('vi-VN')} tài khoản có chênh lệch ký quỹ.`, {
             id: toastId,
             duration: 6000,
           });
@@ -616,10 +618,12 @@ export default function OmsReconSection({
                 <Layers size={18} color="#0284c7" />
               </div>
               <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--text-primary)' }}>
-                {summary?.totalOmsAccounts ?? 0}
+                {summary?.totalOmsAccounts?.toLocaleString('vi-VN') ?? 0}
               </div>
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                Tài khoản lấy từ CoreCCP OMS_ACM
+                {summary?.totalActiveAccounts !== undefined
+                  ? `${summary.totalActiveAccounts.toLocaleString('vi-VN')} TK có phát sinh KQ/tiền (${(summary.totalZeroAccounts ?? 0).toLocaleString('vi-VN')} TK số dư 0)`
+                  : 'Tài khoản lấy từ CoreCCP OMS_ACM'}
               </span>
             </div>
 
@@ -642,7 +646,7 @@ export default function OmsReconSection({
                 <CheckCircle2 size={18} color="#10b981" />
               </div>
               <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#10b981' }}>
-                {summary?.totalMatched ?? 0}
+                {summary?.totalMatched?.toLocaleString('vi-VN') ?? 0}
               </div>
               <span style={{ fontSize: '0.74rem', color: '#10b981' }}>
                 {summary && summary.totalOmsAccounts > 0

@@ -623,7 +623,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       searchcode: 'OMS_ACCOUNT',
       search: filter || {},
       page: 1,
-      pageSize: 9999,
+      pageSize: 200000,
     };
     const refererRoute = '/MONITOR_OMS/MONITOR_OMS_ACM';
     const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);
@@ -649,7 +649,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       searchcode: 'OMS_OPEN_POSITION',
       search: { accountId: accountId || '' },
       page: 1,
-      pageSize: 9999,
+      pageSize: 200000,
     };
     const refererRoute = '/MONITOR_OMS/MONITOR_OMS_ACM';
     const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);
@@ -692,7 +692,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       searchcode: 'OMS_PNL_DETAIL',
       search: { accountId: accountId || '' },
       page: 1,
-      pageSize: 9999,
+      pageSize: 200000,
     };
     const refererRoute = '/MONITOR_OMS/MONITOR_OMS_ACM';
     const res = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute);

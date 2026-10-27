@@ -5,7 +5,7 @@ import { SystemSettingsService } from '../../../system-settings/system-settings.
 import { CoreCcpApiAdapter } from '../../../ingress/adapters/coreccp-api.adapter';
 import { CcpLotStatisticsService, CcpLotResult, CcpTvkdStat } from './ccp-lot-statistics.service';
 import { executePythonTemplateWriter } from '../../helpers/ccp-adhoc-template.helper';
-import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../../../bot-engine/helpers/bot-path.helper';
+import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../../../../shared/helpers/file-path.helper';
 
 export interface CcpAdHocRangeParams {
   fromDate: string; // YYYY-MM-DD hoặc DD/MM/YYYY

@@ -1,10 +1,10 @@
 /**
  * symbol-normalizer.helper.ts
  *
- * Bộ chuẩn hóa mã hợp đồng (Symbol Normalizer) & Tài khoản (Account Normalizer)
+ * BỘ CHUẨN HÓA MÃ HỢP ĐỒNG (SYMBOL NORMALIZER) & HỢP NHẤT NORMALIZERS
  * Chuẩn Clean Architecture & Domain-Driven Design (DDD).
  *
- * Làm điểm chặn duy nhất (Single Point of Truth) để chuẩn hóa mã giữa:
+ * Điểm chặn duy nhất (Single Point of Truth) để chuẩn hóa mã giữa:
  * - MS (M-System lõi MXV)
  * - CQG (Gateway giao dịch quốc tế)
  * - CE (CoreExchange sàn hàng hóa tập trung nội bộ)
@@ -16,6 +16,9 @@ import {
   TT_TO_MXV_COMMODITY_MAP,
   TT_MONTH_TO_CODE,
 } from './tt-symbol-mapping.config';
+
+// Tái xuất toàn bộ bộ chuẩn hóa tài khoản giao dịch (TKGD Normalizer)
+export * from './tkgd-normalizer.helper';
 
 // Mappings for LME symbols (from statics.json)
 export const LME_CODE_MAP: Record<string, string> = {
@@ -41,78 +44,6 @@ export const REVERSE_MONTH_CODE: Record<string, string> = {
   '11': 'X',
   '12': 'Z',
 };
-
-/**
- * Chuẩn hóa số tài khoản giao dịch theo M-System cũ (Account Normalizer)
- * Ví dụ: 001C123456F -> 001C123456, 001C123456L -> 001C123456-L
- */
-export function getNormalizedAccount(account: string): string {
-  if (!account) return '';
-  let acc = account.trim();
-  acc = acc.replace(/F$/i, '');
-  acc = acc.replace(/L$/i, '-L');
-  acc = acc.replace(/S$/i, '-S');
-  acc = acc.replace(/--/g, '-');
-  return acc.toUpperCase();
-}
-
-/**
- * Giải mã 2 ký tự đại diện TVKD trên sàn TT (theo quy định ICE US giới hạn 12 ký tự)
- * Bảng quy chuẩn tại tài liệu: Rule về mã tài khoản tạo trên TT (14/10/2026)
- * - 01..99 -> 001..099
- * - A0..A9 -> 100..109
- * - B0..B9 -> 110..119
- * - ...
- * - Z0..Z9 -> 350..359
- */
-export function decodeTvkd2Chars(shortCode: string): string {
-  if (!shortCode) return '';
-  const sc = shortCode.trim().toUpperCase();
-  if (/^\d{2}$/.test(sc)) {
-    return '0' + sc;
-  }
-  const firstChar = sc.charCodeAt(0);
-  if (firstChar >= 65 && firstChar <= 90) {
-    const base = 100 + (firstChar - 65) * 10;
-    const secondDigit = parseInt(sc[1], 10);
-    if (!isNaN(secondDigit)) {
-      return String(base + secondDigit).padStart(3, '0');
-    }
-  }
-  return sc;
-}
-
-/**
- * Chuẩn hóa số tài khoản từ TT sang định dạng chuẩn 13 ký tự của CoreCCP (ví dụ: 004C0011778-F)
- * Hỗ trợ đồng thời 2 cấu trúc:
- * 1. Cấu trúc hiện tại có tiền tố route: "MXV 1-004C0011778-F" hoặc "IT-601C9999990-F" -> "004C0011778-F"
- * 2. Cấu trúc 12 ký tự ICE US: "P104C0011778" -> "004C0011778-F"
- */
-export function normalizeTtToCcpAccount(rawAccount: string): string {
-  if (!rawAccount) return '';
-  const s = rawAccount.trim().toUpperCase();
-
-  // Dạng 1: Chứa đầy đủ mã tiểu khoản 13 ký tự kèm hậu tố -F (ví dụ MXV 1-004C0011778-F, IT-601C9999990-F)
-  const matchFull = s.match(/([0-9]{3}[A-Z][0-9]{7}-F)/i);
-  if (matchFull) {
-    return matchFull[1].toUpperCase();
-  }
-
-  // Dạng 2: Cấu trúc 12 ký tự co gọn ICE US (2 ký tự MXV + 2 ký tự TVKD + 8 ký tự Cxxxxxxx)
-  const match12Char = s.match(/^[A-Z0-9]{2}([A-Z0-9]{2})(C[0-9]{7})$/i);
-  if (match12Char) {
-    const tvkd = decodeTvkd2Chars(match12Char[1]);
-    return `${tvkd}${match12Char[2]}-F`.toUpperCase();
-  }
-
-  // Dạng 3: Tiểu khoản 11 ký tự nhưng thiếu hậu tố (ví dụ 004C0011778)
-  const match11Char = s.match(/([0-9]{3}[A-Z][0-9]{7})/i);
-  if (match11Char) {
-    return `${match11Char[1]}-F`.toUpperCase();
-  }
-
-  return s;
-}
 
 /**
  * Quy đổi mã LME của CQG sang chuẩn M-System
@@ -255,7 +186,7 @@ export function normalizeContractCode(
     case 'CE':
     case 'CCP': {
       // Chuẩn hóa mã sàn nội bộ CoreExchange / CoreCCP:
-      // Xóa bỏ khoảng trắng thừa, chuẩn hóa dấu gạch ngang/dưới nếu có
+      // Xóa bỏ khoảng trống thừa, chuẩn hóa dấu gạch ngang/dưới nếu có
       return sym.replace(/[\s_]+/g, '');
     }
     default:

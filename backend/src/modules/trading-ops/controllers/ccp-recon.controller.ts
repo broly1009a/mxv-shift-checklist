@@ -25,7 +25,7 @@ import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as fs from 'fs';
-import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
+import { BotJobQueueService } from '../../checklist-hub/queue/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
@@ -43,7 +43,7 @@ import {
   resolveTradingSessionDate,
   resolveDailySubfolder,
   resolveStoragePathCrossPlatform,
-} from '../../bot-engine/helpers/bot-path.helper';
+} from '../../../shared/helpers/file-path.helper';
 
 import { ValueStatisticsService } from '../services/statistics/value-statistics.service';
 import { CeCcpGttCheckerService } from '../services/recon/ce-ccp-gtt.service';
@@ -752,10 +752,7 @@ export class CcpReconController {
           throw new BadRequestException(res.message);
         }
 
-        return {
-          success: true,
-          ...res,
-        };
+        return res;
       }
     } catch (err: any) {
       throw new BadRequestException(`Lỗi mở rộng cột template: ${err.message}`);

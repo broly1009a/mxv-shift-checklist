@@ -8,22 +8,27 @@
 
 import {
   normalizeContractCode,
-  normalizeTtToCcpAccount,
 } from './symbol-normalizer.helper';
+import {
+  normalizeTtToCcpAccount,
+  parseTkgd,
+  ParsedTkgdInfo,
+} from './tkgd-normalizer.helper';
 
 export interface TtTradeRecord {
   dateUtc: string;
   timeUtc: string;
   exchange: string;
   rawContract: string;
-  contract: string;         // Mã hợp đồng chuẩn CoreCCP/MXV (ví dụ: CLEF27, KWEZ26)
+  contract: string;         // Mã hợp đồng chuẩn CoreCCP/MXV (Ví dụ: CLEF27, KWEZ26)
   side: 'BUY' | 'SELL';     // B -> BUY, S -> SELL
   fillQty: number;          // Khối lượng khớp
   price: number;            // Giá khớp
   pf: string;               // P = Partial Fill, F = Full Fill
   route: string;
   rawAccount: string;
-  account: string;          // Mã tiểu khoản chuẩn CoreCCP 13 ký tự (ví dụ: 004C0011778-F)
+  account: string;          // Mã tiểu khoản chuẩn CoreCCP 13 ký tự (Ví dụ: 004C0011778-F)
+  parsedAccount?: ParsedTkgdInfo; // Thông tin bóc tách chi tiết TKGD (TVKD, mã thêm, tiền tố TT...)
   originator: string;
   currentUser: string;
   ttOrderId: string;        // TT Order ID (UUID)
@@ -140,8 +145,9 @@ export function parseTtTradesCsv(bufferOrContent: Buffer | string): TtTradeRecor
     // Chuẩn hóa mã hợp đồng TT sang CoreCCP/MXV
     const contract = normalizeContractCode(rawContract, 'TT');
 
-    // Chuẩn hóa số tài khoản TT sang chuẩn CoreCCP 13 ký tự kèm hậu tố -F
-    const account = normalizeTtToCcpAccount(rawAccount);
+    // Bóc tách & chuẩn hóa số tài khoản TT sang chuẩn CoreCCP 13 ký tự kèm hậu tố -F
+    const parsedAccount = parseTkgd(rawAccount);
+    const account = parsedAccount.normalizedAccount || normalizeTtToCcpAccount(rawAccount);
 
     const dateUtc = getVal(dateUtcIdx);
     const timeUtc = getVal(timeUtcIdx);
@@ -172,6 +178,7 @@ export function parseTtTradesCsv(bufferOrContent: Buffer | string): TtTradeRecor
       route,
       rawAccount,
       account,
+      parsedAccount,
       originator,
       currentUser,
       ttOrderId,

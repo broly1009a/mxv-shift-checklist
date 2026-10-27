@@ -19,9 +19,10 @@ export class LoggerMiddleware implements NestMiddleware {
       const isPeriodicPolling =
         method === 'GET' &&
         (originalUrl.includes('/dashboard/system-status') ||
-          originalUrl.includes('/dashboard/summary') ||
           originalUrl.includes('/bot-engine/agent-status') ||
-          originalUrl.includes('/bot-engine/jobs'));
+          originalUrl.includes('/bot-engine/jobs') ||
+          originalUrl.includes('/ingress/agent') ||
+          originalUrl.includes('/checklist-hub/jobs'));
 
       if (isPeriodicPolling && (statusCode === 200 || statusCode === 304)) {
         return;

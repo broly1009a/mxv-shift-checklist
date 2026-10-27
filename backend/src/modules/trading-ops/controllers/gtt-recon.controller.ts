@@ -28,7 +28,7 @@ import * as path from 'path';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { GttCheckerService } from '../services/recon/gtt-checker.service';
-import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
+import { BotJobQueueService } from '../../checklist-hub/queue/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)

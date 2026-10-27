@@ -20,7 +20,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
-import { BotEngineModule } from './modules/bot-engine/bot-engine.module';
 import { MarginCheckerModule } from './modules/margin-checker/margin-checker.module';
 import { TradingReportModule } from './modules/trading-report/trading-report.module';
 import { IngressModule } from './modules/ingress/ingress.module';
@@ -47,7 +46,6 @@ import { ChecklistHubModule } from './modules/checklist-hub/checklist-hub.module
     DashboardModule,
     IncidentsModule,
     MarginChangeRequestsModule,
-    BotEngineModule,
     MarginCheckerModule,
     TradingReportModule,
     // Modular Monolith V2 Modules (Strangler Fig Integration)

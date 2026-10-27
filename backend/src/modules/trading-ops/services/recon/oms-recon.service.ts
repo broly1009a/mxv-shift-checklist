@@ -229,6 +229,8 @@ export interface IOmsMarginReconResult {
   source: string;
   summary: {
     totalOmsAccounts: number;
+    totalActiveAccounts?: number;
+    totalZeroAccounts?: number;
     totalMatched: number;
     totalDiff: number;
     totalDiffTtm: number;
@@ -454,6 +456,8 @@ export class OmsReconService {
     let totalDiffTotal = 0;
     let totalDiffBoth = 0;
     let totalNotFoundInQl = 0;
+    let totalActiveAccounts = 0;
+    let totalZeroAccounts = 0;
 
     for (const item of omsAccounts) {
       const accountId = String(item.accountId || `${item.dmaAccount}-A`);
@@ -577,6 +581,13 @@ export class OmsReconService {
           portfolios,
         });
       }
+
+      const hasActivity = omsRma > 0 || omsRmo > 0 || imCash > 0 || qlReqSecured > 0 || qlEReqSecured > 0;
+      if (hasActivity) {
+        totalActiveAccounts++;
+      } else {
+        totalZeroAccounts++;
+      }
     }
 
     // 5. Kiểm tra các tài khoản có ký quỹ trong QLTTTKGD nhưng thiếu trong OMS
@@ -584,6 +595,7 @@ export class OmsReconService {
     for (const [cleanAcc, qlItem] of qlMap.entries()) {
       if (!matchedSet.has(cleanAcc) && (qlItem.reqSecured > 0 || qlItem.eReqSecured > 0)) {
         totalNotFoundInOms++;
+        totalActiveAccounts++;
         rows.push({
           accountNumber: cleanAcc,
           accountId: cleanAcc,
@@ -619,7 +631,7 @@ export class OmsReconService {
     const totalDiff = totalDiffTtm + totalDiffTotal + totalDiffBoth + totalNotFoundInQl + totalNotFoundInOms;
 
     emitLog(
-      `Hoàn tất đối chiếu OMS: Tổng ${rows.length} TK | Khớp: ${totalMatched} | Lệch TTM: ${totalDiffTtm} | Lệch Tổng: ${totalDiffTotal} | Lệch Cả Hai: ${totalDiffBoth} (${(durationMs / 1000).toFixed(2)}s)`,
+      `Hoàn tất đối chiếu OMS: Tổng ${rows.length} TK (Có phát sinh: ${totalActiveAccounts}, Số dư 0: ${totalZeroAccounts}) | Khớp: ${totalMatched} | Lệch TTM: ${totalDiffTtm} | Lệch Tổng: ${totalDiffTotal} | Lệch Cả Hai: ${totalDiffBoth} (${(durationMs / 1000).toFixed(2)}s)`,
     );
 
     const result: IOmsMarginReconResult = {
@@ -630,6 +642,8 @@ export class OmsReconService {
       source: baseUrl,
       summary: {
         totalOmsAccounts: omsAccounts.length,
+        totalActiveAccounts,
+        totalZeroAccounts,
         totalMatched,
         totalDiff,
         totalDiffTtm,
@@ -924,8 +938,31 @@ export class OmsReconService {
       const g = omsMap.get(key)!;
       const buy = this.parseNumber(p.longQtty);
       const sell = this.parseNumber(p.shortQtty);
-      g.buy += buy;
-      g.sell += sell;
+      const close = Math.abs(this.parseNumber(p.closeQtty));
+
+      // Logic tính vị thế mở thực tế của OMS: Khối lượng mở = (Khối lượng mua + Khối lượng bán) - Khối lượng đóng
+      if (buy > 0 && sell === 0) {
+        g.buy += Math.max(0, buy - close);
+      } else if (sell > 0 && buy === 0) {
+        g.sell += Math.max(0, sell - close);
+      } else if (buy > 0 && sell > 0) {
+        // Trường hợp bản ghi có cả mua và bán
+        const netBuy = Math.max(0, buy - close);
+        const remClose = Math.max(0, close - buy);
+        const netSell = Math.max(0, sell - remClose);
+        g.buy += netBuy;
+        g.sell += netSell;
+      } else if (close > 0) {
+        // Trường hợp bản ghi độc lập chỉ chứa khối lượng đóng
+        if (g.buy >= close) {
+          g.buy -= close;
+        } else {
+          const rem = close - g.buy;
+          g.buy = 0;
+          g.sell = Math.max(0, g.sell - rem);
+        }
+      }
+
       g.details.push({
         accountId: p.accountId,
         symbol: p.symbol,
@@ -934,7 +971,7 @@ export class OmsReconService {
         execId: p.execId,
         longQtty: buy,
         shortQtty: sell,
-        closeQtty: this.parseNumber(p.closeQtty),
+        closeQtty: close,
         matchPrice: this.parseNumber(p.matchPrice),
         currency: p.currency || 'USD',
         source: 'OMS',
@@ -991,6 +1028,11 @@ export class OmsReconService {
       const omsSellQty = omsItem?.sell || 0;
       const ttmBuyQty = ttmItem?.buy || 0;
       const ttmSellQty = ttmItem?.sell || 0;
+
+      // Nếu cả 2 bên đều không còn vị thế mở (đã đóng/tất toán hết = 0) thì bỏ qua
+      if (omsBuyQty === 0 && omsSellQty === 0 && ttmBuyQty === 0 && ttmSellQty === 0) {
+        continue;
+      }
 
       totalOmsBuyVol += omsBuyQty;
       totalOmsSellVol += omsSellQty;

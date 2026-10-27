@@ -24,7 +24,7 @@ import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { CeLotStatisticsService } from '../services/statistics/ce-lot-statistics.service';
 import { TradingOpsPreflightService } from '../services/console/trading-ops-preflight.service';
-import { BotJobQueueService } from '../../bot-engine/bot-job-queue.service';
+import { BotJobQueueService } from '../../checklist-hub/queue/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 
 /**

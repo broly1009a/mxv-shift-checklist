@@ -7,13 +7,13 @@ import { ReconIngressPipelineService } from '../../../ingress/services/recon-ing
 import { KlgdReconService } from '../recon/klgd-recon.service';
 import { DsgdBeforeEodService } from '../recon/dsgd-before-eod.service';
 import { CqgMergerService } from '../merger/cqg-merger.service';
-import { EmailWatcherService } from '../../../bot-engine/watchers/email-watcher.service';
+import { EmailWatcherService } from '../../../ingress/services/email-watcher.service';
 import {
   parseJobPayload,
   resolveTradingSessionDate,
   resolveBotTargetDate,
   isMarketWeekendClosed,
-} from '../../../bot-engine/helpers/bot-path.helper';
+} from '../../../../shared/helpers/file-path.helper';
 
 /**
  * Service điều phối Pipeline Đối soát trong phiên (CHECK_KLGD) và Cuối ngày (CHECK_DSGD_BEFORE_EOD)

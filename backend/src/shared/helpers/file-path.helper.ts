@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
-import { decrypt } from '../../modules/bot-engine/utils/crypto';
+import { decrypt } from './crypto';
 
 /**
  * Chuyển đổi đường dẫn lưu trữ đa nền tảng (Windows UNC / Drive Letter <-> Linux Mount /mnt/qlgd-it)
@@ -756,5 +756,58 @@ export function findExactSessionEodFile(dirPath: string, dateStr: string): strin
   } catch {
     return null;
   }
+}
+
+/**
+ * Helper to safely extract job payload from Mongoose Map or Object.
+ * Calls .toObject() if available to automatically convert nested Mongoose Maps.
+ */
+export function parseJobPayload<T = Record<string, any>>(job: { payload?: any } | any): T {
+  if (!job) return {} as T;
+  const rawObj = typeof job?.toObject === 'function' ? job.toObject() : job;
+  const payload = rawObj?.payload;
+  if (!payload) return {} as T;
+  if (payload instanceof Map) {
+    return Object.fromEntries(payload) as T;
+  }
+  return payload as T;
+}
+
+/**
+ * Thay thế biến động ngày/tháng/năm (${YYYY}, ${MM}, ${DD}) vào chuỗi đường dẫn.
+ * Nếu không truyền dateInput, mặc định lấy theo thời gian thực tế hiện tại (GMT+7).
+ */
+export function resolveDynamicPath(
+  templatePath: string,
+  dateInput?: Date | string,
+): string {
+  if (!templatePath || !templatePath.includes('${')) return templatePath;
+
+  let d: Date;
+  if (dateInput) {
+    if (dateInput instanceof Date) {
+      d = isNaN(dateInput.getTime()) ? new Date() : dateInput;
+    } else {
+      try {
+        d = resolveBotTargetDate({ targetDate: dateInput }).dateObj;
+      } catch {
+        d = new Date();
+      }
+    }
+  } else {
+    d = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  }
+
+  const yyyy = d.getFullYear().toString();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+
+  return templatePath.replace(/\${(yyyy|mm|dd)}/gi, (_, key) => {
+    const k = String(key).toUpperCase();
+    if (k === 'YYYY') return yyyy;
+    if (k === 'MM') return mm;
+    if (k === 'DD') return dd;
+    return _;
+  });
 }
 

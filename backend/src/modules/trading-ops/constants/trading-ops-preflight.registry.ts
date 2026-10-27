@@ -1,4 +1,4 @@
-import { BOT_TASK_REGISTRY } from '../../bot-engine/constants/bot-task-registry';
+import { BOT_TASK_REGISTRY } from '../../../shared/constants/bot-task-registry';
 import {
   PreflightFileSpec,
   PreflightAccumulatorSpec,

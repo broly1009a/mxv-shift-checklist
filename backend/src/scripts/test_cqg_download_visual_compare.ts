@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { SystemSettingsService } from '../modules/system-settings/system-settings.service';
 import { RpaDownloaderService } from '../modules/ingress';
-import { decrypt, encrypt } from '../modules/bot-engine/utils/crypto';
+import { decrypt, encrypt } from '../shared/helpers/crypto';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';

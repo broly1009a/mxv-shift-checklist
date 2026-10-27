@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
 import { RpaDownloaderService } from '../modules/ingress';
-import { decrypt, encrypt } from '../modules/bot-engine/utils/crypto';
+import { decrypt, encrypt } from '../shared/helpers/crypto';
 
 // Nạp file .env từ nhiều vị trí khả dĩ
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });

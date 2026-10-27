@@ -184,7 +184,7 @@ conn.on('ready', () => {
           searchcode,
           search: searchObj,
           page: 1,
-          pageSize: 9999,
+          pageSize: 200000,
         }),
       });
 

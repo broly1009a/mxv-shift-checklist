@@ -1,3 +1,112 @@
+## [2026-10-26T19:40] ARCHITECTURE: Khai Tử Hoàn Toàn Phân Hệ bot-engine Chuyển Dịch Sang Chuẩn Modular Monolith V2 Clean Trinity
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: Phân tích bóc tách toàn diện 21 file trong `backend/src/modules/bot-engine/`, lập tài liệu kỹ thuật chi tiết và triển khai ngay lộ trình **khai tử hoàn toàn folder `bot-engine`**.
+- Chuyển giao toàn bộ trách nhiệm của `bot-engine` về đúng 3 phân hệ chủ lực chuẩn Clean Trinity (`ingress`, `trading-ops`, `checklist-hub`) và hạ tầng dùng chung (`shared`):
+  1. **Ingress**: Tiếp nhận toàn bộ việc tải/quét dữ liệu (RPA Scrapers, Ingress Handlers: `rpa-download`, `cast-download`, `ccp-ce-download`, `file-audit`, Heartbeat & Agent Controller, Email Watcher Service & Mock Emails).
+  2. **Trading-Ops**: Tiếp nhận toàn bộ điều phối đối soát, upload và thực thi macro (`GttUploadController`, `MacroExecutionController`, `VerifyEmailJobHandler`, `OmsWatcherService`).
+  3. **Checklist-Hub**: Tiếp nhận hàng đợi job tập trung (`BotJobQueueService`, `JobHandlerRegistry`), Deduplication Helper, Seeder, và Bộ lập lịch tự hành 24/7 (`AutonomousSchedulerService`), loại bỏ hoàn toàn vòng lặp quét ca trùng lặp (bàn giao 100% cho `ShiftScannerService`).
+  4. **Shared**: Quản lý danh mục báo cáo yêu cầu (`required-files.constant.ts`), mã hóa mật khẩu (`crypto.ts`), danh mục tác vụ (`bot-task-registry.ts`), giải quyết đường dẫn động (`file-path.helper.ts`).
+- **Đảm bảo Zero Breaking Change cho Frontend**: Sử dụng NestJS Multi-Route Aliases `@Controller(['api/v1/<new_module>', 'api/v1/bot-engine'])` trên toàn bộ các controller đích để Frontend tiếp tục hoạt động trơn tru không phát sinh lỗi 404.
+
+### 2. Danh sách file & cấu trúc chuyển dịch
+1. **Hạ tầng Dùng chung (`backend/src/shared/`)**:
+   - [required-files.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/required-files.constant.ts): 25 file CCP, 10 file CE, MS và Straits ACM file patterns.
+   - [bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/bot-task-registry.ts): Danh mục năng lực bot data-driven.
+   - [file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts): Tích hợp `parseJobPayload` và `resolveDynamicPath`.
+   - [shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts): Barrel exports chuẩn hóa.
+
+2. **Phân hệ Ingress (`backend/src/modules/ingress/`)**:
+   - [ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-download.controller.ts): `@Controller(['api/v1/ingress', 'api/v1/bot-engine'])`.
+   - [ingress-config.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-config.controller.ts): `@Controller(['api/v1/ingress/config', 'api/v1/bot-engine'])`.
+   - [ingress-agent.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-agent.controller.ts): `@Controller(['api/v1/ingress/agent', 'api/v1/bot-engine/agent'])`.
+   - Handlers chuyển vị: `rpa-download.handler.ts`, `cast-download.handler.ts`, `ccp-ce-download.handler.ts`, `file-audit.handler.ts`.
+   - Services chuyển vị: `agent-heartbeat.service.ts`, `email-watcher.service.ts`, `mock-emails.json`.
+   - [ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.module.ts): Đăng ký toàn bộ controller/handler và gỡ bỏ `BotEngineModule`.
+
+3. **Phân hệ Trading-Ops (`backend/src/modules/trading-ops/`)**:
+   - [gtt-upload.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/gtt-upload.controller.ts): `@Controller(['api/v1/trading-ops', 'api/v1/bot-engine'])`.
+   - [macro-execution.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/macro-execution.controller.ts): `@Controller(['api/v1/trading-ops', 'api/v1/bot-engine'])`.
+   - Handlers & Services: `verify-email.handler.ts`, `oms-watcher.service.ts`.
+   - Cập nhật import `BotJobQueueService` và `file-path.helper` trong `ccp-recon.controller.ts`, `ce-recon.controller.ts`, `gtt-recon.controller.ts`, `ccp-adhoc-statistics.service.ts`, `ccp-lot-statistics.service.ts`, `trading-ops-preflight.service.ts`, `recon-pipeline.service.ts`.
+   - [trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts): Gỡ bỏ hoàn toàn `BotEngineModule`.
+
+4. **Phân hệ Checklist-Hub (`backend/src/modules/checklist-hub/`)**:
+   - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts): Hàng đợi job hợp nhất V2.
+   - [job-handler.interface.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/job-handler.interface.ts) & [job-handler.registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/job-handler.registry.ts).
+   - [bot-job-dedup.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/helpers/bot-job-dedup.helper.ts) & [scheduler-config-seeder.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/helpers/scheduler-config-seeder.helper.ts).
+   - [autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts): Bộ lập lịch độc lập 24/7 (đối soát KLGD định kỳ 60p/lần khi không có ca trực, trigger backup cuối ngày).
+   - [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts): `@Controller(['api/v1/checklist-hub', 'api/v1/bot-engine'])`.
+   - [checklist-hub.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/checklist-hub.module.ts): Đăng ký đầy đủ Queue, Scheduler và Controller.
+
+5. **Xóa Sạch Hoàn Toàn Thư Mục `backend/src/modules/bot-engine/`**:
+   - Đã xóa toàn bộ thư mục `bot-engine/` (21 file và toàn bộ subfolder).
+   - [app.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/app.module.ts): Gỡ bỏ triệt để `BotEngineModule`.
+   - Cập nhật test scripts (`test_cqg_pure.ts`, `test_cqg_parallel_live.ts`, `test_cqg_download_visual_compare.ts`, `test_download_cqg_od.ts`, `test_dst_scheduler_guard.ts`) tham chiếu trực tiếp đến `shared/helpers/crypto` và `checklist-hub/scheduler`.
+
+### 3. Xác nhận Build & Kiểm thử Toàn Diện
+- **Backend NestJS Build (`npm run build`)**: Exit Code 0, biên dịch sạch sẽ không còn bất kỳ tham chiếu lỗi nào đến `bot-engine`.
+- **Frontend Next.js Build (`npm run build`)**: Exit Code 0, toàn bộ 52/52 trang tĩnh/động đều biên dịch thành công 100%.
+
+---
+
+## [2026-10-26T17:35] FIX & API AUDIT: Kiểm Chứng Trực Tiếp Live API CoreCCP & Khắc Phục Cắt Xén Dữ Liệu 9999 Tài Khoản OMS
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: Kiểm chứng trực tiếp qua Live API CoreCCP và xử lý chuẩn hóa triệt để tình trạng:
+  - Phản hồi từ CoreCCP API bị giới hạn ở 9,999 bản ghi mặc dù tổng số tài khoản thực tế trên hệ thống là 10,185.
+  - Trên giao diện UI hiển thị tổng số tài khoản là 9,999 (do bị `pageSize: 9999` cắt xén 186 tài khoản).
+- Bổ sung phân loại chính xác số tài khoản có phát sinh ký quỹ/tiền mặt (1,926 TK) vs số tài khoản rỗng (8,259 TK).
+- Nâng `pageSize: 200000` cho tất cả các endpoint truy vấn dữ liệu từ phân hệ Monitor OMS ACM (`OMS_ACCOUNT`, `OMS_OPEN_POSITION`, `OMS_PNL_DETAIL`) đồng bộ với cơ chế của `searchFullJson`.
+
+### 2. Dẫn chứng Kiểm chứng Trực tiếp qua Live API CoreCCP
+- Thực hiện gọi trực tiếp tới CoreCCP API (`https://coreccp.vnclear.vn`, user `anhdao`):
+  - Request: `POST /ccp/inquiry/OMS_ACM` với `searchcode: 'OMS_ACCOUNT', pageSize: 9999`:
+    - Status: 200 (580ms).
+    - `payload.page`: `{"page": 1, "pageSize": 9999, "total": 10185}`.
+    - `payload.data.length`: `9999` (bị cắt xén mất 186 tài khoản do hardcode `pageSize: 9999`).
+  - Request: `POST /ccp/inquiry/OMS_ACM` với `searchcode: 'OMS_ACCOUNT', pageSize: 200000`:
+    - Status: 200 (641ms).
+    - `payload.page`: `{"page": 1, "pageSize": 200000, "total": 10185}`.
+    - `payload.data.length`: `10185` (lấy trọn vẹn 100% tất cả 10,185 tài khoản).
+  - Phân tích chi tiết 10,185 tài khoản:
+    - Số tài khoản có phát sinh ký quỹ/tiền (`rma > 0 || rmo > 0 || imCash > 0`): 1,926 TK.
+    - Số tài khoản rỗng hoàn toàn (`rma = 0, rmo = 0, imCash = 0`): 8,256 TK.
+
+### 3. Danh sách file chỉnh sửa
+1. **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Nâng `pageSize` từ `9999` lên `200000` trong `getOmsAcmAccounts`, `getOmsOpenPositions`, `getOmsPnlDetails` để không bị cắt xén dữ liệu.
+2. **[backend/src/modules/trading-ops/services/recon/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/oms-recon.service.ts)**:
+   - Bổ sung `totalActiveAccounts` và `totalZeroAccounts` vào interface và logic tính toán summary của `checkOmsMarginReconciliation`.
+3. **[frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/oms-recon/OmsReconSection.tsx)**:
+   - Cập nhật Card 1 hiển thị tổng số tài khoản kèm chi tiết số TK có phát sinh ký quỹ/tiền và số TK số dư 0.
+   - Định dạng số lượng hiển thị bằng `.toLocaleString('vi-VN')` trong cả UI và toast thông báo.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build (`npm run build`)**: Exit Code 0, biên dịch thành công 100%.
+- **Frontend Next.js Build (`npm run build`)**: Exit Code 0, toàn bộ 52/52 routes đều build thành công không lỗi TypeScript.
+
+---
+
+## [2026-10-26T17:15] FEATURE: Cập Nhật Logic Vị Thế Mở OMS (Trừ Khối Lượng Đóng) Trong checkOmsTtmReconciliation
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: Cập nhật logic gom nhóm vị thế mở của Monitor OMS ACM trong hàm `checkOmsTtmReconciliation`:
+  - Khối lượng mở thực tế phía OMS = `(Tổng khối lượng mua + Tổng khối lượng bán) - Khối lượng đóng` (`longQtty + shortQtty - closeQtty`).
+  - Giữ nguyên logic đối chiếu phía CoreCCP TTM (`g.buy += p.longQtty; g.sell += p.shortQtty`).
+  - Bổ sung cơ chế loại trừ các cặp đã tất toán hoàn toàn (cả 2 bên đều có khối lượng mở = 0) để tránh sinh cảnh báo chênh lệch ảo (`NOT_FOUND_IN_TTM`).
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/trading-ops/services/recon/oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/oms-recon.service.ts)**:
+   - Tại vòng lặp `omsPositions`: Phân bổ `closeQtty` để trừ vào khối lượng mua (`g.buy`) hoặc bán (`g.sell`) thực tế còn mở của từng vị thế.
+   - Tại vòng lặp `allKeys`: Bỏ qua các cặp đã đóng hết vị thế (khối lượng mở cả 2 bên = 0).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build (`npm run build`)**: Exit Code 0, build thành công 100%.
+- **Frontend Next.js Build (`npm run build`)**: Exit Code 0, biên dịch 52/52 routes thành công.
+
+---
+
 ## [2026-10-26T16:20] MERGE: Giải Quyết Xung Đột Merge backup-v5 vào v3-refactor & Đảm Bảo Tính Toàn Vẹn Kiến Trúc
 
 ### 1. Mục tiêu thay đổi

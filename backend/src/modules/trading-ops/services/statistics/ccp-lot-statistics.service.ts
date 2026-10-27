@@ -60,7 +60,7 @@ import {
   resolveBotTargetDate,
   resolveStoragePathCrossPlatform,
   resolveDynamicPath,
-} from '../../../bot-engine/helpers/bot-path.helper';
+} from '../../../../shared/helpers/file-path.helper';
 import {
   TRADING_FILE_PATTERNS,
   matchTradingFileName,

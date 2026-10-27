@@ -10,9 +10,9 @@ import { ShiftLog } from '../../../../schemas/shift-log.schema';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { ShiftsService } from '../../../shifts/shifts.service';
 import { CcpCeScraperService, MsApiAdapter } from '../../../ingress';
-import { BotJobQueueService } from '../../../bot-engine/bot-job-queue.service';
+import { BotJobQueueService } from '../../../checklist-hub/queue/bot-job-queue.service';
 import { TelegramService } from '../../../telegram/telegram.service';
-import { findBotTasksInShift } from '../../../bot-engine/constants/bot-task-registry';
+import { findBotTasksInShift } from '../../../../shared/constants/bot-task-registry';
 import { decrypt, EXTERNAL_SYSTEM_MSYSTEM } from '../../../../shared';
 
 import {
