@@ -10,6 +10,9 @@ import {
   HttpStatus,
   Logger,
   Res,
+  Inject,
+  forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -22,6 +25,7 @@ import { BotJobQueueService } from '../queue/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 import { ShiftLog } from '../../../schemas/shift-log.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { OmsWatcherService } from '../../trading-ops/services/oms/oms-watcher.service';
 import {
   getMsBackupBase,
   resolveDailySubfolder,
@@ -39,6 +43,9 @@ export class ChecklistBotJobsController {
     private readonly settingsService: SystemSettingsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
+    @Optional()
+    @Inject(forwardRef(() => OmsWatcherService))
+    private readonly omsWatcherService?: OmsWatcherService,
   ) {}
   /**
    * Lấy danh sách background jobs (hỗ trợ lọc theo jobTypes, status, phân trang limit)
@@ -273,4 +280,244 @@ export class ChecklistBotJobsController {
       throw new HttpException(err.message, HttpStatus.BAD_REQUEST);
     }
   }
+
+  /**
+   * Kích hoạt xác minh gửi email sao kê cho tác vụ ca trực.
+   * POST /api/v1/checklist-hub/trigger-email-check/:shiftLogId/:taskId & POST /api/v1/bot-engine/trigger-email-check/:shiftLogId/:taskId
+   */
+  @Post('trigger-email-check/:shiftLogId/:taskId')
+  async triggerEmailCheck(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    const log = await this.shiftLogModel.findById(shiftLogId).exec();
+    if (!log) {
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const task = log.details.find((t) => t.taskId === taskId);
+    if (!task) {
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const existingJob = await this.botJobModel
+      .findOne({
+        shiftLogId,
+        taskId,
+        jobType: 'VERIFY_EMAIL_STATUS',
+        status: { $in: ['PENDING', 'PROCESSING'] },
+      })
+      .exec();
+
+    if (existingJob) {
+      throw new HttpException(
+        'Hệ thống đang chạy xác minh email cho tác vụ này. Vui lòng đợi.',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    await this.shiftLogModel.updateOne(
+      { _id: shiftLogId, 'details.taskId': taskId },
+      {
+        $set: {
+          'details.$.status': 'WAITING',
+          'details.$.resultNote':
+            'Đang bắt đầu kích hoạt xác minh gửi email sao kê tự động...',
+          'details.$.isBotCheckSnapshot': true,
+          'details.$.botCheckTypeSnapshot': 'EMAIL_STATUS_CHECK',
+          'details.$.botTriggerTimeSnapshot': '07:30',
+          'details.$.slaDeadlineSnapshot': '08:00',
+        },
+      },
+    );
+
+    await this.jobQueueService.enqueue('VERIFY_EMAIL_STATUS', {
+      taskId,
+      shiftLogId,
+      sessionDay: log.shiftDate,
+      maxAttempts: 1,
+    });
+
+    return {
+      success: true,
+      message: 'Đã kích hoạt xác minh email sao kê tự động.',
+    };
+  }
+
+  /**
+   * Kích hoạt kiểm tra OMS tự động cho tác vụ ca trực.
+   * POST /api/v1/checklist-hub/trigger-oms-check/:shiftLogId/:taskId & POST /api/v1/bot-engine/trigger-oms-check/:shiftLogId/:taskId
+   */
+  @Post('trigger-oms-check/:shiftLogId/:taskId')
+  async triggerOmsCheck(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    if (this.omsWatcherService?.isRunning()) {
+      throw new HttpException(
+        'Hệ thống đang chạy một phiên kiểm tra OMS khác. Vui lòng đợi.',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    const log = await this.shiftLogModel.findById(shiftLogId).exec();
+    if (!log) {
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const task = log.details.find((t) => t.taskId === taskId);
+    if (!task) {
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.shiftLogModel.updateOne(
+      { _id: shiftLogId, 'details.taskId': taskId },
+      {
+        $set: {
+          'details.$.status': 'WAITING',
+          'details.$.resultNote':
+            'Đang bắt đầu kích hoạt kiểm tra OMS tự động...',
+        },
+      },
+    );
+
+    if (this.omsWatcherService) {
+      this.omsWatcherService
+        .checkOmsStatus()
+        .then(async (result) => {
+          const status = result?.success ? 'PASSED' : 'FAILED';
+          const resultNoteStr = JSON.stringify({
+            message: result?.message || 'Không có phản hồi.',
+            timestamp: new Date().toISOString(),
+            data: result?.data || null,
+          });
+
+          await this.shiftLogModel.updateOne(
+            { _id: shiftLogId, 'details.taskId': taskId },
+            {
+              $set: {
+                'details.$.status': status,
+                'details.$.resultNote': resultNoteStr,
+                'details.$.isChecked': result?.success || false,
+                'details.$.checkedAt': new Date(),
+              },
+            },
+          );
+        })
+        .catch(async (err: any) => {
+          await this.shiftLogModel.updateOne(
+            { _id: shiftLogId, 'details.taskId': taskId },
+            {
+              $set: {
+                'details.$.status': 'FAILED',
+                'details.$.resultNote': JSON.stringify({
+                  message: `Lỗi kích hoạt bot: ${err.message}`,
+                  timestamp: new Date().toISOString(),
+                }),
+              },
+            },
+          );
+        });
+    }
+
+    return {
+      success: true,
+      message: 'Đã kích hoạt kiểm tra OMS.',
+    };
+  }
+
+  /**
+   * Kích hoạt chạy bot tải báo cáo cho tác vụ ca trực.
+   * POST /api/v1/checklist-hub/trigger/:shiftLogId/:taskId & POST /api/v1/bot-engine/trigger/:shiftLogId/:taskId
+   */
+  @Post('trigger/:shiftLogId/:taskId')
+  async triggerTaskRpa(
+    @Param('shiftLogId') shiftLogId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    const log = await this.shiftLogModel.findById(shiftLogId).exec();
+    if (!log) {
+      throw new HttpException(
+        'Không tìm thấy ca trực tương ứng.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const task = log.details.find((t) => t.taskId === taskId);
+    if (!task) {
+      throw new HttpException(
+        'Không tìm thấy tác vụ tương ứng trong ca trực.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const targetStr = task.botCheckTargetSnapshot || '';
+    let targets: string[] = ['NKTTHT'];
+    try {
+      if (targetStr.trim().startsWith('[')) {
+        targets = JSON.parse(targetStr);
+      } else if (targetStr) {
+        targets = targetStr.split(',').map((t) => t.trim());
+      }
+    } catch {
+      targets = [targetStr];
+    }
+
+    const checkType = task.botCheckTypeSnapshot;
+    let jobType: any = 'RPA_DOWNLOAD_REPORTS';
+    const payload: any = {
+      taskId: task.taskId,
+      shiftLogId,
+      sessionDay: log.shiftDate,
+      maxAttempts: 1,
+    };
+
+    if (checkType === 'AUTO_DOWNLOAD_MS') {
+      jobType = 'RPA_DOWNLOAD_REPORTS';
+      payload.targets = targets;
+    } else if (
+      checkType === 'AUTO_DOWNLOAD_CQG' ||
+      checkType === 'DOWNLOAD_CQG_BACKUP'
+    ) {
+      jobType = 'DOWNLOAD_CQG_BACKUP';
+    } else if (
+      checkType === 'AUTO_DOWNLOAD_CCP' ||
+      checkType === 'DOWNLOAD_CCP_REPORT'
+    ) {
+      jobType = 'DOWNLOAD_CCP_REPORT';
+    } else if (
+      checkType === 'AUTO_DOWNLOAD_CE' ||
+      checkType === 'DOWNLOAD_CE_REPORT'
+    ) {
+      jobType = 'DOWNLOAD_CE_REPORT';
+    } else if (
+      checkType === 'AUTO_DOWNLOAD_CAST' ||
+      checkType === 'DOWNLOAD_CAST'
+    ) {
+      jobType = 'DOWNLOAD_CAST';
+    } else {
+      payload.targets = targets;
+    }
+
+    const job = await this.jobQueueService.enqueue(jobType, payload);
+
+    return {
+      success: true,
+      message: `Đã đưa yêu cầu chạy tác vụ ${jobType} vào hàng đợi.`,
+      jobId: job._id,
+    };
+  }
 }
+
