@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../shared';
 
 export interface QltkgdRecord {
   maTKGD: string;
@@ -92,7 +93,7 @@ export class MarginExcelParser {
           headerRow: [],
         };
       }
-      workbook = XLSX.readFile(input);
+      workbook = XLSX.readFile(input, FAST_XLSX_OPTS);
     } else {
       if (!input || input.length === 0) {
         return {
@@ -104,7 +105,7 @@ export class MarginExcelParser {
           headerRow: [],
         };
       }
-      workbook = XLSX.read(input, { type: 'buffer' });
+      workbook = XLSX.read(input, { ...FAST_XLSX_OPTS, type: 'buffer' });
     }
 
     const sheetName = workbook.SheetNames[0];
@@ -272,12 +273,12 @@ export class MarginExcelParser {
       if (!fs.existsSync(input)) {
         return { totalRows: 0, records: [], eodBalanceMap: new Map(), negativeIMRAcc: [] };
       }
-      workbook = XLSX.readFile(input);
+      workbook = XLSX.readFile(input, FAST_XLSX_OPTS);
     } else {
       if (!input || input.length === 0) {
         return { totalRows: 0, records: [], eodBalanceMap: new Map(), negativeIMRAcc: [] };
       }
-      workbook = XLSX.read(input, { type: 'buffer' });
+      workbook = XLSX.read(input, { ...FAST_XLSX_OPTS, type: 'buffer' });
     }
 
     const sheetName = workbook.SheetNames[0];
@@ -429,10 +430,10 @@ export class MarginExcelParser {
     let workbook: XLSX.WorkBook;
     if (typeof input === 'string') {
       if (!fs.existsSync(input)) return pnlMap;
-      workbook = XLSX.readFile(input);
+      workbook = XLSX.readFile(input, FAST_XLSX_OPTS);
     } else {
       if (!input || input.length === 0) return pnlMap;
-      workbook = XLSX.read(input, { type: 'buffer' });
+      workbook = XLSX.read(input, { ...FAST_XLSX_OPTS, type: 'buffer' });
     }
 
     const sheetName = workbook.SheetNames[0];

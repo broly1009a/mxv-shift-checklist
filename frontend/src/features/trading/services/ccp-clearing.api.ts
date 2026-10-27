@@ -100,7 +100,7 @@ export const ccpClearingApi = {
    */
   async triggerLotMacro(token?: string | null): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/bot-engine/trigger-lot-macro',
+      '/api/v1/trading-ops/trigger-lot-macro',
       { method: 'POST' },
       token,
     );
@@ -111,7 +111,7 @@ export const ccpClearingApi = {
    */
   async triggerValueMacro(token?: string | null): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/bot-engine/trigger-value-macro',
+      '/api/v1/trading-ops/trigger-value-macro',
       { method: 'POST' },
       token,
     );

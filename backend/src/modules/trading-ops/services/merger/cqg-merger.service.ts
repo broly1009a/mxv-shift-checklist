@@ -6,7 +6,7 @@ import { MarginExcelParser } from '../../parsers';
 import { extractCqgSnapshotTime } from '../../parsers/cqg-excel.parser';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { TelegramService } from '../../../telegram/telegram.service';
-import { resolveStoragePathCrossPlatform, resolveDailySubfolder } from '../../../../shared';
+import { resolveStoragePathCrossPlatform, resolveDailySubfolder, FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../../shared';
 
 export interface CqgAuditResult {
   key: string;
@@ -219,7 +219,7 @@ export class CqgMergerService {
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
-        const wb1 = XLSX.readFile(src1);
+        const wb1 = XLSX.readFile(src1, FAST_XLSX_OPTS);
         rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
@@ -229,7 +229,7 @@ export class CqgMergerService {
     let rows2: any[][] = [];
     if (fs.existsSync(src2)) {
       try {
-        const wb2 = XLSX.readFile(src2);
+        const wb2 = XLSX.readFile(src2, FAST_XLSX_OPTS);
         rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.warn(`Lỗi đọc ${src2}: ${err.message}`);
@@ -313,7 +313,7 @@ export class CqgMergerService {
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
-        const wb1 = XLSX.readFile(src1);
+        const wb1 = XLSX.readFile(src1, FAST_XLSX_OPTS);
         rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
@@ -326,7 +326,7 @@ export class CqgMergerService {
 
     if (fs.existsSync(src2)) {
       try {
-        const wb2 = XLSX.readFile(src2);
+        const wb2 = XLSX.readFile(src2, FAST_XLSX_OPTS);
         const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
         if (rows2.length > 3) {
           const data2 = rows2.slice(2);
@@ -367,7 +367,7 @@ export class CqgMergerService {
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
-        const wb1 = XLSX.readFile(src1);
+        const wb1 = XLSX.readFile(src1, FAST_XLSX_OPTS);
         rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
@@ -380,7 +380,7 @@ export class CqgMergerService {
 
     if (fs.existsSync(src2)) {
       try {
-        const wb2 = XLSX.readFile(src2);
+        const wb2 = XLSX.readFile(src2, FAST_XLSX_OPTS);
         const rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
         if (rows2.length > 3) {
           const data2 = rows2.slice(3);
@@ -428,7 +428,7 @@ export class CqgMergerService {
     let rows1: any[][] = [];
     if (fs.existsSync(src1)) {
       try {
-        const wb1 = XLSX.readFile(src1);
+        const wb1 = XLSX.readFile(src1, FAST_XLSX_OPTS);
         rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.warn(`Lỗi đọc ${src1}: ${err.message}`);
@@ -438,7 +438,7 @@ export class CqgMergerService {
     let rows2: any[][] = [];
     if (fs.existsSync(src2)) {
       try {
-        const wb2 = XLSX.readFile(src2);
+        const wb2 = XLSX.readFile(src2, FAST_XLSX_OPTS);
         rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.warn(`Lỗi đọc ${src2}: ${err.message}`);
@@ -506,7 +506,7 @@ export class CqgMergerService {
     let ttmRows: any[][] = [];
     if (ttmPath && fs.existsSync(ttmPath)) {
       try {
-        const wbTtm = XLSX.readFile(ttmPath);
+        const wbTtm = XLSX.readFile(ttmPath, FAST_XLSX_OPTS);
         ttmRows = XLSX.utils.sheet_to_json(wbTtm.Sheets[wbTtm.SheetNames[0]], { header: 1 }) as any[][];
       } catch (err: any) {
         this.logger.error(`Không thể đọc file TTM tại ${ttmPath}: ${err.message}`);

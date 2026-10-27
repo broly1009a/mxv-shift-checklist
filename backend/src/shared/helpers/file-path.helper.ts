@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { decrypt } from './crypto';
+import { FAST_XLSX_READ_OPTIONS } from '../constants/excel.constant';
 
 /**
  * Chuyển đổi đường dẫn lưu trữ đa nền tảng (Windows UNC / Drive Letter <-> Linux Mount /mnt/qlgd-it)
@@ -431,7 +432,7 @@ export function mergeCqgRawFiles(
     let rows1: any[][] = [];
     if (p1 && fs.existsSync(p1)) {
       try {
-        const wb1 = XLSX.readFile(p1);
+        const wb1 = XLSX.readFile(p1, FAST_XLSX_READ_OPTIONS);
         rows1 = XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]], { header: 1 });
       } catch {}
     }
@@ -439,7 +440,7 @@ export function mergeCqgRawFiles(
     let rows2: any[][] = [];
     if (p2 && fs.existsSync(p2)) {
       try {
-        const wb2 = XLSX.readFile(p2);
+        const wb2 = XLSX.readFile(p2, FAST_XLSX_READ_OPTIONS);
         rows2 = XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]], { header: 1 });
       } catch {}
     }

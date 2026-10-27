@@ -40,12 +40,65 @@ export class ChecklistBotJobsController {
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
   ) {}
-
-  
-  
   /**
-   * Zips and downloads files for a completed RPA download job.
+   * Lấy danh sách background jobs (hỗ trợ lọc theo jobTypes, status, phân trang limit)
+   * GET /api/v1/checklist-hub/jobs & GET /api/v1/bot-engine/jobs
    */
+  @Get('jobs')
+  async getJobs(
+    @Query('jobTypes') jobTypes?: string,
+    @Query('status') status?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const filter: Record<string, any> = {};
+    if (jobTypes) {
+      const types = jobTypes.split(',').map((t) => t.trim()).filter(Boolean);
+      if (types.length > 0) {
+        filter.jobType = { $in: types };
+      }
+    }
+    if (status) {
+      filter.status = status;
+    }
+    const maxLimit = Math.min(parseInt(limit || '20', 10) || 20, 100);
+    return this.botJobModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(maxLimit)
+      .lean()
+      .exec();
+  }
+
+  /**
+   * Truy vấn trạng thái chi tiết của một Job cụ thể
+   * GET /api/v1/checklist-hub/jobs/:id & GET /api/v1/bot-engine/jobs/:id
+   */
+  @Get('jobs/:id')
+  async getJobById(@Param('id') jobId: string) {
+    const job = await this.botJobModel.findById(jobId).lean().exec();
+    if (!job) {
+      throw new HttpException('Không tìm thấy job tương ứng.', HttpStatus.NOT_FOUND);
+    }
+    return job;
+  }
+
+  /**
+   * Hủy / Dừng khẩn cấp một Job đang thực thi
+   * POST /api/v1/checklist-hub/jobs/:id/cancel & POST /api/v1/bot-engine/jobs/:id/cancel
+   */
+  @Post('jobs/:id/cancel')
+  async cancelJob(
+    @Param('id') jobId: string,
+    @Body('reason') reason?: string,
+  ) {
+    const result = await this.jobQueueService.cancelJob(jobId, reason);
+    return {
+      success: true,
+      message: 'Đã hủy job thành công.',
+      data: result,
+    };
+  }
+
   @Get('jobs/:id/download-zip')
   async downloadJobZip(@Param('id') jobId: string, @Res() res: Response) {
     const job = await this.botJobModel.findById(jobId).exec();

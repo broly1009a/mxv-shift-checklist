@@ -17,7 +17,7 @@ import { OmsWatcherService } from '../../trading-ops/services/oms/oms-watcher.se
 import { AgentController } from './ingress-agent.controller';
 import { encrypt, decrypt } from '../../../shared/helpers/crypto';
 
-@Controller(['api/v1/ingress/config', 'api/v1/bot-engine'])
+@Controller(['api/v1/ingress', 'api/v1/bot-engine'])
 @UseGuards(JwtAuthGuard)
 export class IngressConfigController {
   private readonly logger = new Logger(IngressConfigController.name);

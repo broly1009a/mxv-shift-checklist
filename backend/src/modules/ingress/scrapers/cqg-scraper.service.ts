@@ -204,7 +204,6 @@ export class CqgScraperService {
         '--disable-blink-features=AutomationControlled',
         '--disable-infobars',
         '--disable-extensions',
-        '--start-maximized',
         '--ignore-gpu-blocklist',
         '--enable-gpu-rasterization',
         '--enable-zero-copy',
@@ -218,7 +217,7 @@ export class CqgScraperService {
         '--disable-features=DownloadBubble,DownloadBubbleV2,InsecureDownloadWarnings',
         '--no-default-browser-check',
       ],
-      viewport: null,
+      viewport: { width: 1280, height: 720 },
       userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       acceptDownloads: true,
@@ -761,6 +760,11 @@ export class CqgScraperService {
         session1.browser.close().catch(() => {}),
         session2.browser.close().catch(() => {}),
       ]);
+      if (typeof global !== 'undefined' && (global as any).gc) {
+        try {
+          (global as any).gc();
+        } catch {}
+      }
     }
   }
 }

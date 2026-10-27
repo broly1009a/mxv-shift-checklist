@@ -436,77 +436,77 @@ export function parseActivityLog(actionStr: string, detailsStr: string, ipStr: s
   let technicalTag: string | undefined;
 
   // 1. INGRESS & BOT ENGINE
-  if (path.includes('/bot-engine/trigger-ce-download')) {
+  if (path.includes('/ingress/trigger-ce-download') || path.includes('/bot-engine/trigger-ce-download')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Kích hoạt tải báo cáo CoreEX (CE) (RPA)';
     actionDescription = 'Gửi lệnh tới Bot RPA tự động tải bộ báo cáo thị trường từ hệ thống sàn CoreEX (CE).';
     technicalTag = 'TRIGGER_CE_DOWNLOAD';
-  } else if (path.includes('/bot-engine/trigger-ccp-download')) {
+  } else if (path.includes('/ingress/trigger-ccp-download') || path.includes('/bot-engine/trigger-ccp-download')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Kích hoạt tải 25 báo cáo CoreCCP (RPA)';
     actionDescription = 'Kích hoạt quy trình Bot Playwright tự động đăng nhập và tải bộ 25 báo cáo thanh toán bù trừ CoreCCP.';
     technicalTag = 'TRIGGER_CCP_DOWNLOAD';
-  } else if (path.includes('/bot-engine/trigger-download')) {
+  } else if (path.includes('/ingress/trigger-download') || path.includes('/bot-engine/trigger-download')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Kích hoạt tải báo cáo M-System (RPA)';
     actionDescription = 'Kích hoạt Bot Playwright tự động đăng nhập và tải báo cáo từ hệ thống M-System.';
     technicalTag = 'TRIGGER_MS_DOWNLOAD';
-  } else if (path.includes('/bot-engine/trigger-cqg-download')) {
+  } else if (path.includes('/ingress/trigger-cqg-download') || path.includes('/bot-engine/trigger-cqg-download')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Kích hoạt tải báo cáo CQG (2 tài khoản)';
     actionDescription = 'Kích hoạt Bot Playwright tự động tải bộ báo cáo giao dịch song song từ 2 tài khoản CQG (FR, PS, OP, OD).';
     technicalTag = 'TRIGGER_CQG_DOWNLOAD';
-  } else if (path.includes('/bot-engine/trigger-acm-download')) {
+  } else if (path.includes('/ingress/trigger-acm-download') || path.includes('/bot-engine/trigger-acm-download')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Kích hoạt tải báo cáo ACM (Straits CSV)';
     actionDescription = 'Kích hoạt tác vụ kết nối SFTP/Web ACM để tải tệp đối chiếu Straits CSV.';
     technicalTag = 'TRIGGER_ACM_DOWNLOAD';
-  } else if (path.includes('/bot-engine/audit-ccp-backup')) {
+  } else if (path.includes('/ingress/audit-ccp-backup') || path.includes('/bot-engine/audit-ccp-backup')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Kiểm tra & Audit tệp sao lưu CoreCCP';
     actionDescription = 'Quét và kiểm tra sự hiện diện, tính toàn vẹn của 25 tệp báo cáo sao lưu CoreCCP trong ngày.';
     technicalTag = 'AUDIT_CCP_BACKUP';
-  } else if (path.includes('/bot-engine/audit-ce-backup')) {
+  } else if (path.includes('/ingress/audit-ce-backup') || path.includes('/bot-engine/audit-ce-backup')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Kiểm tra & Audit tệp sao lưu CoreEX';
     actionDescription = 'Quét và kiểm tra tính đầy đủ của các tệp báo cáo sao lưu CoreEX (CE) trong ngày.';
     technicalTag = 'AUDIT_CE_BACKUP';
-  } else if (path.includes('/bot-engine/audit-ms-backup')) {
+  } else if (path.includes('/ingress/audit-ms-backup') || path.includes('/bot-engine/audit-ms-backup')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Kiểm tra & Audit tệp sao lưu M-System';
     actionDescription = 'Quét và kiểm tra tính đầy đủ của các tệp sao lưu giao dịch M-System.';
     technicalTag = 'AUDIT_MS_BACKUP';
-  } else if (path.includes('/bot-engine/audit-cqg-backup')) {
+  } else if (path.includes('/ingress/audit-cqg-backup') || path.includes('/bot-engine/audit-cqg-backup')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Kiểm tra & Audit tệp sao lưu CQG';
     actionDescription = 'Kiểm tra sự hiện diện của các tệp FR, PS, OP, OD từ 2 tài khoản CQG.';
     technicalTag = 'AUDIT_CQG_BACKUP';
-  } else if (path.includes('/bot-engine/audit-acm-backup')) {
+  } else if (path.includes('/ingress/audit-acm-backup') || path.includes('/bot-engine/audit-acm-backup')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Kiểm tra & Audit tệp sao lưu ACM';
     actionDescription = 'Kiểm tra sự hiện diện của tệp Straits CSV trong thư mục sao lưu ACM.';
     technicalTag = 'AUDIT_ACM_BACKUP';
-  } else if (path.includes('/bot-engine/test-connection')) {
+  } else if (path.includes('/ingress/test-connection') || path.includes('/bot-engine/test-connection')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Kiểm tra kết nối Bot / Sàn giao dịch';
     actionDescription = 'Thực hiện kiểm tra tính khả dụng của thông tin đăng nhập và đường truyền kết nối Bot.';
     technicalTag = 'TEST_CONNECTION';
-  } else if (path.includes('/bot-engine/files/upload-daily')) {
+  } else if (path.includes('/files/upload-daily')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Tải lên tệp sao lưu thủ công hàng ngày';
     actionDescription = 'Người dùng tải tệp sao lưu bổ sung trực tiếp vào thư mục ngày của hệ thống.';
     technicalTag = 'UPLOAD_DAILY_FILES';
-  } else if (path.includes('/bot-engine/jobs') && path.includes('/cancel')) {
+  } else if ((path.includes('/bot-engine/jobs') || path.includes('/checklist-hub/jobs')) && path.includes('/cancel')) {
     module = LOG_MODULES.STORAGE_AUDIT;
     actionTitle = 'Hủy tác vụ Bot đang chạy';
     actionDescription = 'Dừng khẩn cấp một tác vụ Bot hoặc Worker đang xử lý trong hàng đợi.';
     technicalTag = 'CANCEL_JOB';
-  } else if (path.includes('/bot-engine/jobs') && path.includes('/submit-captcha')) {
+  } else if ((path.includes('/bot-engine/jobs') || path.includes('/checklist-hub/jobs')) && path.includes('/submit-captcha')) {
     module = LOG_MODULES.INGRESS;
     actionTitle = 'Gửi mã xác thực Captcha cho Bot';
     actionDescription = 'Cung cấp mã Captcha để Bot giải quyết phiên đăng nhập hệ thống đối tác.';
     technicalTag = 'SUBMIT_CAPTCHA';
-  } else if (path.includes('/bot-engine/config')) {
+  } else if (path.includes('/bot-engine/config') || path.includes('/ingress/config')) {
     module = LOG_MODULES.ADMIN_SYSTEM;
     actionTitle = 'Lưu cấu hình hệ thống Bot/RPA';
     actionDescription = 'Cập nhật tài khoản, mật khẩu hoặc URL kết nối cho các Bot cào dữ liệu.';

@@ -16,4 +16,5 @@ export * from './helpers/crypto';
 export * from './helpers/captcha-solver.helper';
 export * from './constants/job-types.constant';
 export * from './constants/required-files.constant';
+export * from './constants/excel.constant';
 

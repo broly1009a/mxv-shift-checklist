@@ -11,6 +11,7 @@ import {
   getCcpBackupBasePath,
   resolveCcpDailyPath,
   resolveTradingCheckCcpDailyPath,
+  FAST_XLSX_READ_OPTIONS,
 } from '../../../../shared';
 import { TRADING_FILE_PATTERNS } from '../../constants/trading-file-patterns.constant';
 
@@ -378,7 +379,7 @@ export class OmsReconService {
 
       if (qltkgdFile && fs.existsSync(qltkgdFile)) {
         this.logger.log(`[OmsReconService] Đọc dữ liệu QLTTTKGD từ tệp: ${qltkgdFile}`);
-        const wb = XLSX.readFile(qltkgdFile);
+        const wb = XLSX.readFile(qltkgdFile, FAST_XLSX_READ_OPTIONS);
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
         if (rows && rows.length > 1) {

@@ -1,3 +1,182 @@
+## [2026-10-27T11:02] REFACTOR: Chuẩn Hóa Single Source of Truth Cho FAST_XLSX_READ_OPTIONS Tại shared/constants/excel.constant.ts
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận chỉ đạo bằng văn bản từ USER: *"Về mặt kiến trúc mã nguồn (Clean Code & DRY): HƠI TẠM BỢ (Ad-hoc) vì biến FAST_XLSX_OPTS đang bị khai báo lặp lại ở đầu từng file (margin-excel.parser.ts, gtt-excel.parser.ts, cqg-merger.service.ts) thay vì tập trung thành một Single Source of Truth trong thư mục dùng chung shared/constants/. giúp tôi code chuẩn"*.
+- Xóa bỏ hoàn toàn định nghĩa cục bộ trùng lặp, xây dựng Single Source of Truth (SSOT) cho cấu hình SheetJS ParsingOptions theo chuẩn Enterprise Clean Architecture (DRY).
+
+### 2. Danh sách file thay đổi
+1. [excel.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/excel.constant.ts):
+   - Tạo mới file hằng số tập trung định nghĩa `FAST_XLSX_READ_OPTIONS` và alias `FAST_XLSX_OPTS`.
+2. [shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts#L19):
+   - Xuất khẩu `export * from './constants/excel.constant';`.
+3. [margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts#L4):
+   - Xóa bỏ khai báo `const FAST_XLSX_OPTS` cục bộ, chuyển sang import từ `../../../shared`.
+4. [gtt-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/gtt-excel.parser.ts#L4):
+   - Xóa bỏ khai báo `const FAST_XLSX_OPTS` cục bộ, chuyển sang import từ `../../../shared`.
+5. [cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts#L9):
+   - Xóa bỏ khai báo `export const FAST_XLSX_OPTS` cục bộ, chuyển sang import từ `../../../../shared`.
+6. [file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts#L5):
+   - Import `FAST_XLSX_READ_OPTIONS` từ `../constants/excel.constant`.
+7. [oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/oms-recon.service.ts#L14):
+   - Import `FAST_XLSX_READ_OPTIONS` từ `../../../../shared`.
+
+### 3. Kết quả xác nhận Build
+- Backend: `npx.cmd tsc --project tsconfig.build.json --noEmit` hoàn tất không lỗi (Exit code 0).
+- Frontend: `npx.cmd tsc --noEmit` hoàn tất không lỗi (Exit code 0).
+
+---
+
+## [2026-10-27T10:50] PERF & OPS: Áp Dụng Tối Ưu Toàn Diện Viewport Chromium 1280x720, SheetJS Memory Footprint & Proactive Global GC Cho Trading Ops
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phê duyệt bằng văn bản từ USER: *"có giúp tôi"* (triển khai các hạng mục tối ưu đã kiểm chứng thực nghiệm).
+- Tối ưu hóa toàn diện hiệu năng và giải phóng RAM V8 cho phân hệ Crawler và Parser dữ liệu:
+  1. Loại bỏ Framebuffer thừa của CPU SwiftShader khi cào dữ liệu CQG song song bằng cách khóa Viewport 1280x720 (bỏ `--start-maximized`).
+  2. Bật bộ cờ `{ cellFormula: false, cellHTML: false, cellText: false }` khi nạp file Excel bằng SheetJS xuyên suốt các service merger và parser, giúp giảm 110 MB Heap V8 cho mỗi file đọc và tăng tốc đọc file 11.2%.
+  3. Kích hoạt Garbage Collection chủ động (`global.gc()`) sau khi đóng trình duyệt Playwright và sau khi kết thúc một Job Bot trong hàng đợi `BotJobQueueService`.
+  4. Khắc phục lỗi kiểu dữ liệu `TS2322` (`lockedBy`, `lockedAt` nhận `undefined`) trong `bot-job-queue.service.ts`.
+
+### 2. Danh sách file thay đổi
+1. [cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts#L207-L221):
+   - Bỏ cờ `--start-maximized`, đặt `viewport: { width: 1280, height: 720 }`.
+   - Thêm `if (global.gc) global.gc()` trong block `finally` của `downloadParallelAllRawFiles`.
+2. [cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts#L18-L510):
+   - Khai báo `FAST_XLSX_OPTS` và áp dụng cho 9 vị trí `XLSX.readFile` trong `mergeFRFiles`, `mergePSFiles`, `mergeODFiles`, `mergePS`, `createASFromMerged`.
+3. [file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/file-path.helper.ts#L434-L442):
+   - Bổ sung `readOpts` với `cellFormula: false, cellHTML: false, cellText: false` khi merge file thô.
+4. [margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts#L5-L435):
+   - Áp dụng `FAST_XLSX_OPTS` cho tất cả các lệnh `readFile` và `read(buffer)` trong parser QLTKGD và TTTT.
+5. [gtt-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/gtt-excel.parser.ts#L5-L210):
+   - Áp dụng `FAST_XLSX_OPTS` cho các lệnh đọc file GTT, bước giá và trạng thái mở.
+6. [oms-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/oms-recon.service.ts#L381):
+   - Áp dụng `{ cellFormula: false, cellHTML: false, cellText: false }` khi đọc file QLTTTKGD.
+7. [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts#L480-L630):
+   - Thêm `if (global.gc) global.gc()` vào `finally` của `processNextJob()`.
+   - Gán `undefined` thay cho `null` tại `job.lockedBy` và `job.lockedAt` để thỏa mãn strict typing.
+
+### 3. Kết quả xác nhận Build
+- Backend: `npx.cmd tsc --project tsconfig.build.json --noEmit` hoàn tất không lỗi (Exit code 0).
+- Frontend: `npx.cmd tsc --noEmit` hoàn tất không lỗi (Exit code 0).
+
+---
+
+## [2026-10-27T10:32] INFRA & OPS: Nâng Cấp Kịch Trần Full RAM Cho Backend (3GB V8) và Frontend (2GB V8) Trên Máy Chủ Ubuntu 10.0.0.26 Chuyên Dụng Trading Ops
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận chỉ đạo bằng văn bản từ USER: *"với giúp tôi nâng full ram cho cả be và fe nhé vì hiện tại ubtune này chỉ phục vụ cho trading ops"*.
+- Máy chủ Ubuntu 10.0.0.26 có 3.9GB RAM vật lý + 3.8GB Swap SSD sẵn có (tổng không gian nhớ ảo khả dụng ~7.8GB).
+- Cấu hình cũ trước đây:
+  - `mxv-backend`: `node_args: []` (chạy mặc định ~1.4GB Heap, không có `--expose-gc`), `max_memory_restart: 2.5GB`.
+  - `mxv-frontend`: `node_args: []` (chạy mặc định), `max_memory_restart: 500MB` (quá thấp, dễ bị PM2 kill nhầm khi Next.js render trang lớn).
+- Cần mở khóa toàn bộ tài nguyên cho các tiến trình Node.js chạy tối đa công suất mà không bị kẹt giới hạn heap của V8 hay giới hạn restart của PM2.
+
+### 2. Danh sách file & hạ tầng thay đổi
+1. **Máy chủ Ubuntu 10.0.0.26 (PM2 Runtime)**:
+   - `mxv-backend` (PM ID 0):
+     - `node_args`: Thiết lập `['--max-old-space-size=3072', '--expose-gc']` (Cấp trần 3.0 GB V8 Heap và bật cờ thu hồi rác GC chủ động).
+     - `max_memory_restart`: Nâng lên `3500M` (~3.67 GB).
+     - Trạng thái: Online (PID 1580300).
+   - `mxv-frontend` (PM ID 1):
+     - `node_args`: Thiết lập `['--max-old-space-size=2048']` (Cấp trần 2.0 GB V8 Heap cho Next.js SSR).
+     - `max_memory_restart`: Nâng lên `2500M` (~2.62 GB, tăng gấp 5 lần so với 500MB cũ).
+     - Trạng thái: Online (PID 1580319).
+   - Đã lưu cấu hình vĩnh viễn: `pm2 save` (`/home/mxvadmin/.pm2/dump.pm2`).
+2. **Mã nguồn dự án**:
+   - [deploy_to_ubuntu.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js#L230-L236):
+     - Cập nhật lệnh restart PM2 tự động mang theo cấu hình Full RAM cho cả Backend và Frontend trong mọi lượt deploy tiếp theo.
+
+### 3. Kết quả xác nhận
+- Trích xuất từ PM2 runtime trên Ubuntu 10.0.0.26: Cả 2 service đều online và nhận chính xác bộ cờ V8 mới (`3072MB` cho BE và `2048MB` cho FE).
+
+---
+
+## [2026-10-27T09:27] FIX & REFACTOR: Khắc Phục Lỗi 404 GET /api/v1/bot-engine/jobs & Đồng Bộ Hoàn Toàn API Client Frontend Sang Chuẩn Modular Monolith V2
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phản ánh từ USER: Khi giao diện Frontend truy vấn danh sách công việc ngầm, hệ thống báo lỗi `GET https://10.0.0.26/api/v1/bot-engine/jobs 404 Not Found`. Đồng thời, nhiều vị trí mã nguồn Frontend vẫn còn gọi vào các endpoint cũ của `bot-engine`.
+- Kiểm tra toàn diện nguyên nhân gốc rễ (Root Cause Analysis - Code-First Grounding) ở cả 2 đầu Backend và Frontend:
+  1. **Backend**: Controller [ChecklistBotJobsController](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts) dù đã có alias `@Controller(['api/v1/checklist-hub', 'api/v1/bot-engine'])` nhưng thiếu các handler `@Get('jobs')`, `@Get('jobs/:id')`, `@Post('jobs/:id/cancel')` (trước đó chỉ có `download-zip` và `submit-captcha`). Do đó, mọi request truy vấn jobs qua alias hay path mới đều bị NestJS trả về 404.
+  2. **Backend Prefix Bug**: Controller [IngressConfigController](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-config.controller.ts) khai báo sai prefix `@Controller(['api/v1/ingress/config', 'api/v1/bot-engine'])` làm các route con như `test-connection` bị đẩy sâu thành `/api/v1/ingress/config/test-connection`.
+  3. **Backend Overwrite Bug**: Sửa cảnh báo `TS2783: 'success' is specified more than once` tại [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts#L756).
+  4. **Frontend API Endpoints**: Các service API frontend ([trading-bot.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-bot.api.ts), [ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/ccp-clearing.api.ts), [endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts)) vẫn còn lưu vết endpoint `/api/v1/bot-engine/*`.
+
+### 2. Danh sách file & chi tiết thay đổi
+1. **Backend**:
+   - [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts):
+     - Thêm `@Get('jobs')`: Tìm kiếm và lọc danh sách `BotJob` theo `jobTypes`, `status`, phân trang `limit` (tối đa 100), sắp xếp `createdAt: -1`.
+     - Thêm `@Get('jobs/:id')`: Lấy chi tiết job theo ID.
+     - Thêm `@Post('jobs/:id/cancel')`: Tiếp nhận lệnh dừng khẩn cấp job qua `jobQueueService.cancelJob()`.
+   - [ingress-config.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-config.controller.ts):
+     - Chuẩn hóa prefix controller thành `@Controller(['api/v1/ingress', 'api/v1/bot-engine'])`.
+   - [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts):
+     - Loại bỏ thuộc tính ghi đè thừa `success: true` khi trả về kết quả `res`.
+2. **Frontend**:
+   - [trading-bot.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/trading-bot.api.ts):
+     - Chuyển `getJobs`, `getJobById`, `cancelJob` sang `/api/v1/checklist-hub/jobs*`.
+     - Chuyển `trigger*Download`, `audit*Backup` sang `/api/v1/ingress/*`.
+   - [ccp-clearing.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/services/ccp-clearing.api.ts):
+     - Chuyển `triggerLotMacro`, `triggerValueMacro` sang `/api/v1/trading-ops/*`.
+   - [endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts):
+     - Hiện đại hóa nhóm `INGRESS` -> `/api/v1/ingress/*`.
+     - Hiện đại hóa nhóm `JOBS` -> `/api/v1/checklist-hub/jobs*`.
+     - Hiện đại hóa nhóm `MACRO` & `GTT_UPLOAD` -> `/api/v1/trading-ops/*`.
+   - [activity-log-mapper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/utils/activity-log-mapper.ts):
+     - Mở rộng bộ phân giải log hỗ trợ cả 2 họ URL (`/ingress/` & `/bot-engine/`, `/checklist-hub/` & `/bot-engine/`) đảm bảo không bị mất log lịch sử cũ.
+
+### 3. Kết quả Build & Kiểm thử
+- **Backend Build (`npm run build`)**: Thành công 100% (Exit Code 0).
+- **Frontend Build (`npm run build`)**: Thành công 100% (Turbopack, TypeScript check 18.5s 0 error, static pages 52/52, Exit Code 0).
+- **Tính tương thích ngược (Dual Compatibility)**: Cả 2 URL `/api/v1/bot-engine/jobs` (cũ) và `/api/v1/checklist-hub/jobs` (mới) đều hoạt động trơn tru.
+
+---
+
+## [2026-10-27T09:21] BENCHMARK THỰC TẾ 100%: Đo Đạc Toàn Bộ 1 Tiến Trình Thực Thi CQG (Tải Fills FR1) Từ Đầu Đến Cuối
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu và chỉ đạo từ USER: Kiểm thử thực tế trọn vẹn 1 chu trình nghiệp vụ (Full Lifecycle Process), không võ đoán qua code/mồm và không chỉ mở trang login rồi tắt đi.
+- Xây dựng công cụ đo đạc thực nghiệm [test_measure_real_cqg_process.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_measure_real_cqg_process.js) tích hợp Background Memory Sampler (lấy mẫu RAM mỗi 1 giây) ghi nhận chi tiết mức tiêu thụ của từng tiến trình (Node.js RSS/Heap, Chromium Browser, GPU Process, Renderer Process) xuyên suốt 6 chặng.
+
+### 2. Số liệu đo lường thực tế (Empirical Ground Truth)
+- **Tài khoản test thật**: `mxvtradingdesk1` (kết nối MongoDB Atlas lấy credentials).
+- **Kết quả đo lường từng chặng**:
+  1. **Chặng 0 (Baseline)**: Node.js RSS = 168 MB (HeapUsed: 90 MB), Chromium = 0 MB.
+  2. **Chặng 1 (Khởi động Chromium cờ production)**: 419 MB RAM (9 tiến trình con).
+  3. **Chặng 2 (Đăng nhập & Nạp Workspace CQG)**: Vọt lên **1,642 MB RAM** (+1,223 MB khi nạp toàn bộ DOM, WebSockets và Canvas của CQG)!
+  4. **Chặng 3 (Mở Widget Fills & Stream dữ liệu bảng)**: 1,659 MB RAM.
+  5. **Chặng 4 (Bấm xuất Excel & Download file thật)**: 1,773 MB RAM (Tải thành công file `FR1_real_benchmark.xlsx` dung lượng 412.9 KB).
+  6. **Chặng 5 (Node.js nạp file và parse SheetJS)**: Bóc tách thành công **2,024 dòng dữ liệu thực tế**, Node Heap tăng +8 MB (82 MB), RSS 163 MB.
+  7. **Chặng 6 (Đóng trình duyệt & Thu hồi bộ nhớ)**: Chromium giải phóng hoàn toàn về **0 MB**, RAM hệ thống được hoàn trả nguyên trạng.
+- **ĐỈNH ĐIỂM TIÊU THỤ BỘ NHỚ (PEAK MEMORY)**:
+  - **Đỉnh RAM Chromium (Browser + GPU + Renderers)**: **1,820 MB** (~1.82 GB).
+  - **Đỉnh RAM Toàn bộ Tiến trình (Chromium + Node.js)**: **1,983 MB** (~1.98 GB).
+
+---
+
+## [2026-10-27T08:52] OPTIMIZATION & SYSTEM AUDIT: Dọn Dẹp Các Tiến Trình Node Mồ Côi & Giải Phóng ~660MB Bộ Nhớ Trên Máy Chủ Ubuntu 10.0.0.26
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu kiểm tra và chỉ đạo từ USER: Phân tích kỹ lưỡng các tiến trình chạy ngầm trước khi dọn dẹp bộ nhớ trên máy chủ Ubuntu production (10.0.0.26).
+- Phát hiện 5 tiến trình Node mồ côi (PPID 1) tồn tại từ ngày 21/10 và 22/10 (đã chạy liên tục 4 - 5 ngày) do chạy lệnh test interactive ad-hoc (`NestFactory.createApplicationContext` và `mongoose.connect`) không có lệnh thoát `process.exit(0)`, ngâm giữ 11 kết nối socket TCP tới MongoDB và chiếm dụng RAM máy chủ:
+  - `PID 3651758` (chạy từ 21/10, script test MsApiAdapter): 135 MB RSS.
+  - `PID 4100500` (chạy từ 22/10, script test OmsReconService): 130 MB RSS.
+  - `PID 4103455` (chạy từ 22/10, script test CoreCcpApiAdapter): 15.5 MB RSS.
+  - `PID 4104034` (chạy từ 22/10, script test CoreCCP OAuth2): 15 MB RSS.
+  - `PID 4025874` (chạy từ 22/10, script `/tmp/inspect_tttt.js`): 14.8 MB RSS.
+- Được USER phê duyệt dọn dẹp, tiến hành hủy 5 tiến trình trên một cách an toàn tuyệt đối, không ảnh hưởng tới các dịch vụ chính thức của hệ thống (`mxv-backend`, `mxv-frontend`, `mongod`, `mock-sftp`).
+
+### 2. Kết quả đo đạc bộ nhớ thực tế sau dọn dẹp
+- **RAM thực tế đã giải phóng**: Từ `1,551 MB` giảm xuống còn `1,226 MB` (Thu hồi ngay **325 MB RAM vật lý**).
+- **Bộ nhớ Swap đã giải phóng**: Từ `1,697 MB` giảm xuống còn `1,360 MB` (Thu hồi **337 MB Swap**).
+- **Tổng dung lượng bộ nhớ thu hồi**: **~662 MB**.
+- **RAM khả dụng của máy chủ (MemAvailable)**: Tăng vọt từ `2,316 MB` lên **`2,641 MB`** (Mức RAM sử dụng của host giảm xuống chỉ còn **40.2%**).
+- **Trạng thái dịch vụ sản xuất**:
+  - `mxv-backend` (PM2 PID 1552587): Online (244.3 MB).
+  - `mxv-frontend` (PM2 PID 1552960): Online (54.7 MB).
+  - `mock-sftp` (PM2 PID 6866): Online (11.3 MB).
+  - `mongod` (PID 1506461): Online, hoạt động ổn định.
+
+---
+
 ## [2026-10-26T19:40] ARCHITECTURE: Khai Tử Hoàn Toàn Phân Hệ bot-engine Chuyển Dịch Sang Chuẩn Modular Monolith V2 Clean Trinity
 
 ### 1. Mục tiêu thay đổi

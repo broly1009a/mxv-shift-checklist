@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../shared';
 
 export interface GttParsedItem {
   symbol: string;
@@ -31,7 +32,7 @@ export class GttExcelParser {
       return { map: new Map<string, GttParsedItem>(), date: null, rows: [], filePath: null };
     }
 
-    const wb = XLSX.readFile(filePath);
+    const wb = XLSX.readFile(filePath, FAST_XLSX_OPTS);
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rawRows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
     if (!rawRows || rawRows.length < 2) {
@@ -134,7 +135,7 @@ export class GttExcelParser {
     if (!filePath || !fs.existsSync(filePath)) return tickMap;
 
     try {
-      const wb = XLSX.readFile(filePath);
+      const wb = XLSX.readFile(filePath, FAST_XLSX_OPTS);
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
       if (!data || data.length < 2) return tickMap;
@@ -206,7 +207,7 @@ export class GttExcelParser {
     if (!filePath || !fs.existsSync(filePath)) return openSet;
 
     try {
-      const wb = XLSX.readFile(filePath);
+      const wb = XLSX.readFile(filePath, FAST_XLSX_OPTS);
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rawRows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
       if (!rawRows || rawRows.length < 2) return openSet;

@@ -14,7 +14,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<BotJobItem[]> {
     return requestJson<BotJobItem[]>(
-      '/api/v1/bot-engine/jobs',
+      '/api/v1/checklist-hub/jobs',
       {
         method: 'GET',
         params: {
@@ -32,7 +32,7 @@ export const tradingBotApi = {
    */
   async getJobById(jobId: string, token?: string | null): Promise<BotJobItem> {
     return requestJson<BotJobItem>(
-      `/api/v1/bot-engine/jobs/${encodeURIComponent(jobId)}`,
+      `/api/v1/checklist-hub/jobs/${encodeURIComponent(jobId)}`,
       { method: 'GET' },
       token,
     );
@@ -46,7 +46,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<{ success: boolean; message: string }> {
     return requestJson<{ success: boolean; message: string }>(
-      `/api/v1/bot-engine/jobs/${encodeURIComponent(jobId)}/cancel`,
+      `/api/v1/checklist-hub/jobs/${encodeURIComponent(jobId)}/cancel`,
       { method: 'POST' },
       token,
     );
@@ -60,7 +60,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/bot-engine/trigger-download',
+      '/api/v1/ingress/trigger-download',
       {
         method: 'POST',
         body: JSON.stringify(options),
@@ -77,7 +77,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/bot-engine/trigger-cqg-download',
+      '/api/v1/ingress/trigger-cqg-download',
       {
         method: 'POST',
         body: JSON.stringify(options),
@@ -94,7 +94,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/bot-engine/trigger-acm-download',
+      '/api/v1/ingress/trigger-acm-download',
       {
         method: 'POST',
         body: JSON.stringify(options),
@@ -111,7 +111,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<TriggerRunResponse> {
     return requestJson<TriggerRunResponse>(
-      '/api/v1/bot-engine/trigger-ccp-download',
+      '/api/v1/ingress/trigger-ccp-download',
       {
         method: 'POST',
         body: JSON.stringify(options),
@@ -128,7 +128,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<BackupAuditResult> {
     return requestJson<BackupAuditResult>(
-      '/api/v1/bot-engine/audit-ms-backup',
+      '/api/v1/ingress/audit-ms-backup',
       {
         method: 'POST',
         body: JSON.stringify({ sessionDate }),
@@ -145,7 +145,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<BackupAuditResult> {
     return requestJson<BackupAuditResult>(
-      '/api/v1/bot-engine/audit-cqg-backup',
+      '/api/v1/ingress/audit-cqg-backup',
       {
         method: 'POST',
         body: JSON.stringify({ sessionDate }),
@@ -162,7 +162,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<BackupAuditResult> {
     return requestJson<BackupAuditResult>(
-      '/api/v1/bot-engine/audit-acm-backup',
+      '/api/v1/ingress/audit-acm-backup',
       {
         method: 'POST',
         body: JSON.stringify({ sessionDate }),
@@ -179,7 +179,7 @@ export const tradingBotApi = {
     token?: string | null,
   ): Promise<BackupAuditResult> {
     return requestJson<BackupAuditResult>(
-      '/api/v1/bot-engine/audit-ccp-backup',
+      '/api/v1/ingress/audit-ccp-backup',
       {
         method: 'POST',
         body: JSON.stringify({ sessionDate }),

@@ -477,6 +477,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     } finally {
       this.activeJobs.delete(job._id.toString());
       this.isProcessing = false;
+      if (typeof global !== 'undefined' && (global as any).gc) {
+        try {
+          (global as any).gc();
+        } catch {}
+      }
     }
   }
 
@@ -620,8 +625,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       const reason = `Tự động dọn dẹp do Job bị treo quá 15 phút (lockedAt: ${job.lockedAt || job.updatedAt})`;
       job.logs.push(`[${new Date().toISOString()}] ${reason}`);
       job.status = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
-      job.lockedBy = null;
-      job.lockedAt = null;
+      job.lockedBy = undefined;
+      job.lockedAt = undefined;
 
       await this.botJobModel.updateOne(
         { _id: job._id },
