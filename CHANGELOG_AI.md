@@ -1,3 +1,82 @@
+## [2026-10-27T12:00] OPS & CLEANUP: Dọn Dẹp Toàn Bộ File Tạm, Script Test Và Debug Artifacts Trên Máy Chủ Ubuntu 10.0.0.26
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo từ USER (**Lựa chọn 3**): *"Lựa chọn 3 (Dọn dẹp file tạm trên server): Tôi vừa rà soát trên 10.0.0.26 có 24 tệp script test cũ trong /tmp/ và các ảnh debug cũ trong /opt/mxv-checklist/backend/temp/debug/. giúp tôi xử lý"*.
+- Dọn sạch toàn bộ các tệp trung gian, các thư mục tải test và ảnh chụp lỗi debug cũ tích lũy từ các đợt phát triển trước trên máy chủ production `10.0.0.26`.
+
+### 2. Danh mục tài nguyên đã dọn dẹp
+1. **Các script test tạm trong `/tmp/`**:
+   - Xóa bỏ 24 tệp `test_*.js` và `test_*.py` (bao gồm `test_actual_recon.js`, `test_adapter_*.js`, `test_ce_ws.js`, `test_ms_*.js`...).
+2. **Các thư mục tải test tạm trong `/tmp/`**:
+   - Xóa bỏ các thư mục `test_ccp/`, `test_ccp_download_nest_*`, `test_ms_download/`.
+3. **Ảnh chụp lỗi debug cũ**:
+   - Xóa bỏ 15 tệp ảnh chụp màn hình `.png` cũ trong `/opt/mxv-checklist/backend/temp/debug/cast/`.
+
+### 3. Kết quả kiểm tra sau dọn dẹp
+- `/tmp/`: 100% sạch sẽ, không còn tệp test rác nào.
+- `/opt/mxv-checklist/backend/temp/debug/`: 100% sạch sẽ.
+- Dung lượng ổ đĩa phân vùng root `/`: Còn trống 16 GB (66% used).
+
+---
+
+## [2026-10-27T11:48] SYSADMIN & INFRA: Tối Ưu Tầng Linux Kernel (vfs_cache_pressure & swappiness) Trên Máy Chủ Ubuntu 10.0.0.26
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phê duyệt từ USER: *"Lựa chọn 1 tôi check ok rồi giờ sang lựa chọn 2 đúng không? bạn vẫn còn nhớ ngữ cảnh chứ"*.
+- Triển khai **Lựa chọn 2**: Tối ưu hóa thu hồi bộ nhớ đệm inode/dentry PageCache của hệ điều hành Linux sau các tác vụ I/O ghi/đọc hàng chục file Excel (`.xlsx`) từ M-System, CoreCCP, Straits và CQG.
+- Cấu hình bền vững qua tệp `/etc/sysctl.d/99-trading-ops.conf` trên máy chủ `10.0.0.26`.
+
+### 2. Chi tiết cấu hình & Bằng chứng thực nghiệm
+1. **Trước khi cấu hình**:
+   - `vm.vfs_cache_pressure = 50` (Kernel giữ cache inode/dentry lâu gấp đôi mức mặc định, làm PageCache chiếm giữ hơn 869 MB RAM).
+   - `vm.swappiness = 20`.
+   - `free = 1931 MB`, `buff/cache = 869 MB`, `available = 2516 MB`.
+2. **Nội dung cấu hình `/etc/sysctl.d/99-trading-ops.conf`**:
+   ```ini
+   # Trading Ops Performance Tuning (MXV Server 10.0.0.26)
+   # Thu hồi cache thư mục & inode dentry nhanh hơn sau khi đọc/ghi file Excel
+   vm.vfs_cache_pressure = 150
+   # Giảm thiểu swap, ưu tiên giữ tiến trình trong RAM vật lý
+   vm.swappiness = 10
+   ```
+3. **Kết quả đo đạc ngay sau khi áp dụng**:
+   - `vm.vfs_cache_pressure`: Đạt `150`.
+   - `vm.swappiness`: Đạt `10`.
+   - `free`: Tăng từ `1931 MB` $\rightarrow$ `2580 MB` (**+649 MB RAM hoàn toàn tự do**).
+   - `buff/cache`: Giảm từ `869 MB` $\rightarrow$ `259 MB` (đã thu hồi 610 MB cache rác).
+   - `available`: Đạt `2609 MB` (chiếm 68.6% tổng RAM vật lý của server sẵn sàng cho Chromium và Node.js).
+
+---
+
+## [2026-10-27T11:45] UX & PIPELINE: Cải Tiến Thanh Tiến Trình Đối Soát Mượt Mà, Thêm Đồng Hồ Bấm Giây Thực Tế & Khắc Phục Hiện Tượng Nhảy Ảo 90%
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phản ánh và chỉ đạo từ USER: *"tôi thấy trung bình là 1 phút @LegacyReconSection.tsx kết hợp với cách tính % hiện tại thì bạn có phương án nào hiển thị tiến trình trực quan hơn không chứ tôi thấy từ 20% nhảy lên 90% rồi đợi gần 1 phút mới ra kết quả nó đang không thực tiễn lắm"*.
+- **Khắc phục triệt để lỗi logic**: Cụm từ `"đối chiếu khớp lệnh"` nằm ở câu log mở đầu của Backend ([recon-pipeline.service.ts#L77](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts#L77)) làm Frontend ngộ nhận tiến trình đã bước vào giai đoạn so khớp chi tiết, khiến `%` bị nhảy vọt từ 20% lên 90% ngay từ giây đầu tiên và đứng hình gần 1 phút.
+- Tinh chỉnh giao diện tinh gọn trên một dòng duy nhất (Compact Single Line), bổ sung đồng hồ đếm giây thực tế (`Elapsed Stopwatch`) và micro-ticker giúp % tiến triển mượt mà và chặn trần an toàn ở 92%.
+
+### 2. Danh sách file thay đổi
+1. [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+   - Bổ sung state `elapsedSeconds`, ref `botStartTimeRef` và `useEffect` bấm giờ đếm giây thực tế từng giây khi bot chạy.
+   - Viết lại hàm `botProgressInfo` với State Machine 5 chặng chuẩn xác:
+     - Chặng 1: Khởi tạo quy trình (12% - 18%).
+     - Chặng 2: Đang tải & Đồng bộ dữ liệu 4 nguồn (20% - 54%).
+     - Chặng 3: Xử lý & Ghép file thô CQG (55% - 70%).
+     - Chặng 4: Đang so khớp chi tiết & Kiểm tra chênh lệch (72% - 92%, nhích đều theo thời gian thực và chặn trần ở 92%).
+     - Chặng 5: Đã hoàn tất đối chiếu (100%).
+   - Cập nhật giao diện: Thêm badge đồng hồ bấm giây `Clock` từ `lucide-react` kế bên cụm nút `Log` và `Stop`; nâng cấp transition của Progress Bar thành `width 0.4s ease-out`.
+2. [recon-pipeline.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts#L183):
+   - Thêm log rõ ràng `TradingOps → Bắt đầu so khớp và kiểm tra chênh lệch số liệu 4 nguồn...` ngay trước khi gọi `runAutoCheckKLGD` để Frontend nhận diện chuẩn xác thời điểm bước vào Chặng 4.
+
+### 3. Kết quả xác nhận Build & Deploy
+- Frontend: `cmd /c npx tsc --noEmit` & `npm run build` hoàn tất 100% không lỗi (Exit code 0).
+- Backend: `cmd /c npm run build` hoàn tất 100% không lỗi (Exit code 0).
+- Đã sync code và build trực tiếp trên máy chủ Ubuntu `10.0.0.26`:
+  - `mxv-backend`: Online (PID 1615264, 3GB RAM limit).
+  - `mxv-frontend`: Online (PID 1615512, 2GB RAM limit).
+
+---
+
 ## [2026-10-27T11:02] REFACTOR: Chuẩn Hóa Single Source of Truth Cho FAST_XLSX_READ_OPTIONS Tại shared/constants/excel.constant.ts
 
 ### 1. Mục tiêu thay đổi
