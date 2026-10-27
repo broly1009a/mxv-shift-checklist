@@ -32,7 +32,7 @@ import { BotJobQueueService } from '../../checklist-hub/queue/bot-job-queue.serv
 import { BotJob } from '../../../schemas/bot-job.schema';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation'])
+@Controller(['api/v1/trading-ops', 'api/v1/reconciliation', 'reconciliation', 'api/v1/bot-engine'])
 export class GttReconController {
   private readonly logger = new Logger(GttReconController.name);
 

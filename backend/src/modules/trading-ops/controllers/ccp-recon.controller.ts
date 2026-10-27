@@ -63,6 +63,7 @@ import { TradingOpsPreflightService } from '../services/console/trading-ops-pref
   'ccp-statistics',
   'api/v1/reconciliation',
   'reconciliation',
+  'api/v1/bot-engine',
 ])
 export class CcpReconController {
   private readonly logger = new Logger(CcpReconController.name);

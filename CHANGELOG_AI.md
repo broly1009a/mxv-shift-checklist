@@ -1,3 +1,49 @@
+## [2026-10-27T12:05] FIX(INGRESS, CHECKLIST-HUB & TRADING-OPS): Khôi Phục Toàn Diện Các Endpoint Ingress Trigger/Audit Báo Cáo & Route Aliases Bị Bỏ Sót Sau Khi Tinh Giản Bot Engine
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phản ánh từ USER: *"Tôi có thực hiện chuyển đổi bỏ hết thư mục bot engine cũ và chuyển đổi nốt v2 sang backend/src/modules/ingress backend/src/modules/checklist-hub CHANGELOG_AI.md và hiện tại 1 số đầu api vẫn gọi bot engine controler cũ là ví dụ: Lỗi tải CQG: Cannot POST /api/v1/ingress/trigger-cqg-download và Lỗi tải CoreCCP: Cannot POST /api/v1/ingress/trigger-ccp-download,... giúp tôi kiểm tra lại xem chuyển đổi có lỗi gì không hay do fe đang gọi sai api"*.
+- Kết quả kiểm tra code ground truth:
+  - **Frontend gọi hoàn toàn đúng** theo thiết kế tại `API_ENDPOINTS.INGRESS` (`/api/v1/ingress/trigger-cqg-download`, `/api/v1/ingress/trigger-ccp-download`, v.v.) và đúng với tài liệu cam kết tại [CHANGELOG_AI.md#L950](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md#L950).
+  - **Backend bị thiếu sót trong quá trình tách module**: Khi xóa bỏ `bot-engine.controller.ts`, bộ controller mới `IngressDownloadController` chỉ mới copy 4 endpoint (`trigger-cast-download`, `audit-ce-backup`, `trigger-ce-download`, `trigger-acm-download`), bỏ quên toàn bộ các endpoint trigger tải báo cáo MS, CQG, CCP, audit tệp backup và cấu hình lịch/đường dẫn.
+  - Đồng thời bổ sung các endpoint kích hoạt bot theo task ca trực (`trigger-email-check`, `trigger-oms-check`, `trigger/:shiftLogId/:taskId`) vào `ChecklistBotJobsController`.
+  - Bổ sung alias route `'api/v1/bot-engine'` vào `CcpReconController` và `GttReconController` để triệt tiêu 100% rủi ro 404 cho mọi lời gọi cũ.
+
+### 2. Danh sách file thay đổi
+1. [ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-download.controller.ts):
+   - Bổ sung `@Post('trigger-download')`: Kích hoạt job tải báo cáo RPA M-System (`RPA_DOWNLOAD_REPORTS`).
+   - Bổ sung `@Post('trigger-cqg-download')`: Kích hoạt job tải và ghép báo cáo CQG 2 tài khoản (`DOWNLOAD_CQG_BACKUP`).
+   - Bổ sung `@Post('trigger-audit-cqg')`: Kích hoạt job kiểm tra và ghép file backup CQG (`FILE_AUDIT_CQG`).
+   - Bổ sung `@Post('trigger-ccp-download')`: Kích hoạt job tải báo cáo CoreCCP (`DOWNLOAD_CCP_REPORT`).
+   - Bổ sung `@Post('download-ccp-report')` & `@Post('download-ce-report')`: Chạy trực tiếp tải CCP/CE qua `CcpCeScraperService`.
+   - Bổ sung `@Post('audit-ms-backup')`: Quét thư mục backup MS và kiểm tra trạng thái 20 file qua `FileAuditJobHandler.scanMsBackupFiles`.
+   - Bổ sung `@Post('trigger-audit-ms')`: Kích hoạt job tải bổ sung file thiếu MS (`FILE_AUDIT_MS`).
+   - Bổ sung `@Post('audit-cqg-backup')`: Quét thư mục backup CQG qua `CqgMergerService.scanCqgBackupFiles`.
+   - Bổ sung `@Post('audit-ccp-backup')`: Quét thư mục backup CCP qua `FileAuditJobHandler.scanCcpBackupFiles`.
+   - Bổ sung `@Post('audit-acm-backup')`: Quét thư mục backup ACM qua `FileAuditJobHandler.scanAcmBackupFiles`.
+   - Bổ sung `@Post('trigger-audit-acm')`: Kích hoạt job audit ACM (`FILE_AUDIT_ACM`).
+   - Bổ sung `@Post('fetch-eod-email')`: Tải file EOD từ Microsoft 365 qua `EmailWatcherService.fetchEodEmail`.
+   - Bổ sung `@Get('files/readiness-matrix')`: Trả về ma trận sẵn sàng file báo cáo theo ngày giao dịch.
+   - Bổ sung `@Post('files/upload-daily')`: Nạp file báo cáo thủ công trực tiếp vào thư mục ngày tương ứng.
+   - Bổ sung `@Get('backup-ms/config')` & `@Post('backup-ms/config')`: Đọc và lưu đường dẫn backup M-System.
+   - Bổ sung `@Get('backup-cqg/config')` & `@Post('backup-cqg/config')`: Đọc và lưu đường dẫn backup CQG.
+   - Bổ sung `@Get('backup-acm/config')` & `@Post('backup-acm/config')`: Đọc và lưu đường dẫn backup ACM.
+   - Bổ sung `@Get('backup-ccp/schedule')` & `@Post('backup-ccp/schedule')`: Đọc và lưu cấu hình lịch tự động tải CoreCCP.
+2. [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts):
+   - Bổ sung `@Post('trigger-email-check/:shiftLogId/:taskId')`: Kích hoạt xác minh email sao kê cho task ca trực.
+   - Bổ sung `@Post('trigger-oms-check/:shiftLogId/:taskId')`: Kích hoạt kiểm tra OMS qua `OmsWatcherService`.
+   - Bổ sung `@Post('trigger/:shiftLogId/:taskId')`: Kích hoạt tác vụ tải báo cáo RPA gắn với ca trực.
+3. [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts#L66):
+   - Bổ sung alias route `'api/v1/bot-engine'` cho các endpoint đối soát GTT CE-CCP (`run-ce-ccp-gtt-check`, `ce-ccp-gtt-report`).
+4. [gtt-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/gtt-recon.controller.ts#L35):
+   - Bổ sung alias route `'api/v1/bot-engine'` cho các endpoint đối soát GTT MS vs CQG (`run-gtt-check`, `gtt-report`, `gtt-report/push-to-ms`).
+
+### 3. Kết quả xác nhận Build & Kiểm Thử
+- Backend: `npm run build` (`nest build`) biên dịch thành công 100% (Exit code 0).
+- Frontend: `npm run build` (`next build`) biên dịch thành công 100% (52 static pages, Exit code 0).
+- Tương thích ngược: Hỗ trợ cả 2 tiền tố đường dẫn song song qua `@Controller(['api/v1/ingress', 'api/v1/bot-engine'])` và `@Controller(['api/v1/checklist-hub', 'api/v1/bot-engine'])`.
+
+---
+
 ## [2026-10-27T12:00] OPS & CLEANUP: Dọn Dẹp Toàn Bộ File Tạm, Script Test Và Debug Artifacts Trên Máy Chủ Ubuntu 10.0.0.26
 
 ### 1. Mục tiêu thay đổi
