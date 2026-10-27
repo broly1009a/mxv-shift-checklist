@@ -744,7 +744,40 @@ export default function LegacyReconSection({
       ? activeJobLogs
       : klgdLogs;
 
-  // Tính toán phần trăm tiến độ (%) và giai đoạn chạy của Bot dựa trên stream log thực tế
+  // Stopwatch đếm thời gian thực thi (giây) khi Bot đang chạy
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const botStartTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (isBotRunning) {
+      if (!botStartTimeRef.current) {
+        botStartTimeRef.current = Date.now();
+      }
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - botStartTimeRef.current) / 1000)));
+
+      interval = setInterval(() => {
+        if (botStartTimeRef.current) {
+          setElapsedSeconds(Math.max(0, Math.floor((Date.now() - botStartTimeRef.current) / 1000)));
+        }
+      }, 1000);
+    } else {
+      botStartTimeRef.current = null;
+      setElapsedSeconds(0);
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isBotRunning]);
+
+  const formatElapsed = (sec: number) => {
+    const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+    const ss = String(sec % 60).padStart(2, '0');
+    return `${mm}:${ss}s`;
+  };
+
+  // Tính toán phần trăm tiến độ (%) và giai đoạn chạy của Bot dựa trên stream log thực tế + elapsedSeconds
   const botProgressInfo = useMemo(() => {
     if (!isBotRunning) {
       return { percent: 0, stage: '', detail: '' };
@@ -753,52 +786,123 @@ export default function LegacyReconSection({
     const logs = displayLogs || [];
     const lastLogRaw = logs.length > 0 ? logs[logs.length - 1] : '';
     const cleanLog = lastLogRaw.replace(/^\[.*?\]\s*/, '').trim();
-
-    let percent = 20;
-    let stage = 'Khởi tạo quy trình';
-    let detail = cleanLog || 'Đang kết nối worker và kiểm tra rào cản dữ liệu...';
-
     const fullLogText = logs.join(' ').toLowerCase();
 
-    if (
-      fullLogText.includes('so khớp') ||
-      fullLogText.includes('đối chiếu khớp lệnh') ||
-      fullLogText.includes('khoảng thời gian lọc') ||
-      fullLogText.includes('runautocheckklgd')
-    ) {
-      percent = 90;
-      stage = 'Đang so khớp & Kiểm tra chênh lệch';
-      detail = cleanLog || 'Đang so khớp chi tiết từng lệnh giữa MS, CQG, CoreCCP và Straits...';
-    } else if (
-      fullLogText.includes('ghép') ||
-      fullLogText.includes('hoàn tất quy trình tải') ||
-      fullLogText.includes('barrier') ||
-      fullLogText.includes('kiểm soát toàn vẹn')
-    ) {
-      percent = 75;
-      stage = 'Xử lý & Ghép file thô';
-      detail = cleanLog || 'Ghép nối dữ liệu CQG và kiểm tra tính toàn vẹn 4 nguồn...';
-    } else if (
-      fullLogText.includes('ccp') ||
-      fullLogText.includes('cqg') ||
-      fullLogText.includes('ms') ||
-      fullLogText.includes('straits') ||
-      fullLogText.includes('tải') ||
-      fullLogText.includes('worker')
-    ) {
-      let sourceCount = 0;
-      if (fullLogText.includes('ms') && (fullLogText.includes('thành công') || fullLogText.includes('tải'))) sourceCount++;
-      if (fullLogText.includes('ccp') && (fullLogText.includes('thành công') || fullLogText.includes('tải'))) sourceCount++;
-      if (fullLogText.includes('cqg') && (fullLogText.includes('thành công') || fullLogText.includes('tải'))) sourceCount++;
-      if (fullLogText.includes('straits') || fullLogText.includes('acm')) sourceCount++;
+    // 1. Kiểm tra trạng thái hoàn tất
+    const isCompleted =
+      klgdStatus === 'COMPLETED' ||
+      fullLogText.includes('hoàn thành đối chiếu khớp lệnh') ||
+      fullLogText.includes('kết quả: khớp') ||
+      fullLogText.includes('kết quả: lệch');
 
-      percent = Math.min(68, 30 + sourceCount * 10);
-      stage = 'Đang tải dữ liệu 4 nguồn';
-      detail = cleanLog || 'Đang tải dữ liệu M-System, CoreCCP, CQG và Straits...';
+    if (isCompleted) {
+      return {
+        percent: 100,
+        stage: 'Đã hoàn tất đối chiếu',
+        detail: cleanLog || 'Đối chiếu khớp lệnh đã hoàn thành thành công.',
+      };
     }
 
-    return { percent, stage, detail };
-  }, [isBotRunning, displayLogs]);
+    // 2. Chặng 4: Đang so khớp & Kiểm tra chênh lệch (Matching Engine)
+    // Nhận diện khi bắt đầu so khớp hoặc đã hoàn tất bước ghép file thô
+    const isMatchingStage =
+      fullLogText.includes('so khớp và kiểm tra') ||
+      fullLogText.includes('bắt đầu so khớp') ||
+      fullLogText.includes('khoảng thời gian lọc') ||
+      fullLogText.includes('bảo lưu lệnh khớp muộn') ||
+      fullLogText.includes('hoàn tất kiểm tra và ghép file thô') ||
+      fullLogText.includes('ghép thành công ps') ||
+      (fullLogText.includes('so khớp') && !fullLogText.includes('bắt đầu chạy đối chiếu khớp lệnh định kỳ'));
+
+    if (isMatchingStage) {
+      const stageBase = 72;
+      const stageCap = 92;
+      const dynamicPercent = Math.min(stageCap, stageBase + Math.floor(elapsedSeconds * 0.7));
+
+      return {
+        percent: Math.max(stageBase, dynamicPercent),
+        stage: 'Đang so khớp & Kiểm tra chênh lệch',
+        detail: cleanLog || 'Đang so khớp chi tiết từng giao dịch giữa MS, CQG, CoreCCP và Straits...',
+      };
+    }
+
+    // 3. Chặng 3: Xử lý & Ghép file thô CQG
+    const isMergingStage =
+      fullLogText.includes('ghép nối các file thô') ||
+      fullLogText.includes('ghép thành công fr') ||
+      fullLogText.includes('ghép thành công op') ||
+      fullLogText.includes('kiểm soát toàn vẹn');
+
+    if (isMergingStage) {
+      const stageBase = 55;
+      const stageCap = 70;
+      const dynamicPercent = Math.min(stageCap, stageBase + Math.floor(elapsedSeconds * 0.8));
+
+      return {
+        percent: Math.max(stageBase, dynamicPercent),
+        stage: 'Xử lý & Ghép file thô CQG',
+        detail: cleanLog || 'Ghép nối dữ liệu CQG và kiểm tra tính toàn vẹn 4 nguồn...',
+      };
+    }
+
+    // 4. Chặng 2: Đang tải & Đồng bộ dữ liệu 4 nguồn (Ingress Barrier)
+    const isIngressStage =
+      fullLogText.includes('chuẩn bị và đồng bộ') ||
+      fullLogText.includes('pre-flight') ||
+      fullLogText.includes('rào cản') ||
+      fullLogText.includes('tất cả các hệ thống') ||
+      fullLogText.includes('ms') ||
+      fullLogText.includes('cqg') ||
+      fullLogText.includes('ccp') ||
+      fullLogText.includes('straits') ||
+      fullLogText.includes('tải');
+
+    if (isIngressStage) {
+      let sourceCount = 0;
+      if (
+        fullLogText.includes('ms') &&
+        (fullLogText.includes('thành công') || fullLogText.includes('sẵn sàng') || fullLogText.includes('bỏ qua m-system'))
+      ) sourceCount++;
+      if (
+        fullLogText.includes('ccp') &&
+        (fullLogText.includes('hoàn tất') || fullLogText.includes('sẵn sàng') || fullLogText.includes('thành công'))
+      ) sourceCount++;
+      if (
+        fullLogText.includes('cqg') &&
+        (fullLogText.includes('thành công') || fullLogText.includes('sẵn sàng') || fullLogText.includes('đã lưu'))
+      ) sourceCount++;
+      if (
+        fullLogText.includes('straits') ||
+        (fullLogText.includes('acm') &&
+          (fullLogText.includes('thành công') || fullLogText.includes('sẵn sàng') || fullLogText.includes('bỏ qua acm')))
+      ) sourceCount++;
+
+      const barrierTriggered =
+        fullLogText.includes('tất cả các hệ thống') ||
+        fullLogText.includes('bắt đầu đồng loạt xuất');
+
+      const stageBase = barrierTriggered ? 45 : Math.min(48, 20 + sourceCount * 7);
+      const stageCap = 54;
+      const dynamicPercent = Math.min(stageCap, stageBase + Math.floor(elapsedSeconds * 0.5));
+
+      return {
+        percent: Math.max(stageBase, dynamicPercent),
+        stage: 'Đang tải dữ liệu 4 nguồn',
+        detail: cleanLog || 'Đang đồng bộ tải dữ liệu M-System, CoreCCP, CQG và Straits...',
+      };
+    }
+
+    // 5. Chặng 1: Khởi tạo quy trình
+    const initialBase = 12;
+    const initialCap = 18;
+    const dynamicPercent = Math.min(initialCap, initialBase + Math.floor(elapsedSeconds * 1.0));
+
+    return {
+      percent: dynamicPercent,
+      stage: 'Khởi tạo quy trình',
+      detail: cleanLog || 'Đang kết nối worker và kiểm tra rào cản dữ liệu...',
+    };
+  }, [isBotRunning, displayLogs, elapsedSeconds, klgdStatus]);
 
   // Discrepancy Trades
   const mismatchedTrades = summaryData?.klgd?.mismatchedTrades || [];
@@ -990,8 +1094,29 @@ export default function LegacyReconSection({
                     </div>
                   </div>
 
-                  {/* Cụm nút thao tác bên phải */}
+                  {/* Cụm nút thao tác bên phải: Đồng hồ bấm giờ + Nút Log + Nút Stop */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-input, rgba(0, 0, 0, 0.04))',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        fontVariantNumeric: 'tabular-nums',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title="Thời gian thực thi của lượt đối soát này"
+                    >
+                      <Clock size={12} className="animate-pulse" style={{ color: '#0ea5e9' }} />
+                      <span>{formatElapsed(elapsedSeconds)}</span>
+                    </div>
+
                     {(displayLogs.length > 0 || klgdLogs.length > 0) && (
                       <button
                         type="button"
@@ -1057,7 +1182,7 @@ export default function LegacyReconSection({
                       height: '100%',
                       background: 'linear-gradient(90deg, #2563eb, #38bdf8)',
                       borderRadius: '999px',
-                      transition: 'width 0.35s ease-in-out',
+                      transition: 'width 0.4s ease-out',
                     }}
                   />
                 </div>

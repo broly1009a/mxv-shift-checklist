@@ -180,6 +180,9 @@ export class ReconPipelineService implements IReconPipelinePort {
       throw new Error('KlgdReconService chưa được khởi tạo trong TradingOps.');
     }
 
+    log('TradingOps → Bắt đầu so khớp và kiểm tra chênh lệch số liệu 4 nguồn...');
+    if (job?.save) await job.save();
+
     try {
       const result = await this.klgdReconService.runAutoCheckKLGD(targetDate, options);
       if (result.sessionStart && result.checkTime) {
