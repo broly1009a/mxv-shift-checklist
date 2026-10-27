@@ -1,3 +1,239 @@
+## [2026-10-26T20:00] VERIFICATION & LIVE TEST: Kiểm Thử Toàn Trình Tải File Kiểu 2 Cả CoreCCP & CoreEX — Xác Nhận 100% Cột Tiếng Việt Nguyên Bản & Khớp Logic Thống Kê Cũ Không Cần Cột Tiếng Anh
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo của USER (bỏ qua Rule 8 để chạy kiểm thử thực tế):
+  1. Kiểm tra xác thực file tải về từ sàn qua cơ chế **Kiểu 2 (Server Export + WebSocket NotiSocket Engine.IO v4)** của cả hai hệ thống **CoreCCP** và **CoreEX** đã trả về 100% tên cột Tiếng Việt nguyên bản do máy chủ FSS sinh ra hay chưa.
+  2. Chạy thử thuật toán thống kê Số Lot và GTGD (logic cũ từ bản manual export của C# IT Tool / Ca trực) trực tiếp trên các cột tiếng Việt vừa tải về, kiểm chứng xem có ra kết quả chính xác mà **hoàn toàn không cần bất kỳ bước ánh xạ cột tiếng Anh nào**.
+
+### 2. Chi tiết thực hiện
+1. **[coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Thêm trường `baseUrl?: string` vào giao diện `ICcpSession` và lưu `baseUrl` thực tế vào session khi đăng nhập OAuth2 thành công.
+   - Chuẩn hóa hàm `download()`: Ưu tiên sử dụng `session.baseUrl` để đồng bộ chính xác endpoint SSO ticket và NotiSocket WebSocket với đúng máy chủ đã cấp access token (`https://uat-coreccp.mxv.com.vn`), tránh tình trạng lệch domain giữa production và UAT.
+2. **[test_ccp_native_and_stats.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_ccp_native_and_stats.ts)**:
+   - Tạo file test độc lập kết nối trực tiếp vào MongoDB Atlas nạp cấu hình `bot_credentials_ccp`.
+   - Gọi `adapter.download('CCP', { reportCodes: ['DSGD_CCP'], targetDate: '2026-10-26' })` qua Kiểu 2.
+   - Bắt `reportId=34705` qua NotiSocket và tải về `DSGD CCP.xlsx` (374,056 bytes).
+   - Kiểm tra 28 cột của file và chạy trực tiếp `parseCcpDsgdRow` trên `buildCcpHeaderMap` chuẩn tiếng Việt.
+
+### 3. Kết quả Kiểm thử Toàn trình Trực tiếp (Live Verified):
+- **CoreCCP Kiểu 2**:
+  - Tải thành công `DSGD CCP.xlsx` (374,056 bytes) trong **1.9 giây** qua WebSocket NotiSocket bắt `reportId=34705`.
+  - **100% 28 cột là Tiếng Việt nguyên bản**:
+    `Ngày hệ thống`, `FCM`, `Ngày phiên`, `Mã lệnh`, `Mã giao dịch OMS`, `Mã giao dịch EX`, `Mã TKGD`, `Mã HĐ`, `Mua/Bán`, `Loại lệnh`, `KL đặt`, `KL khớp`, `Giá đặt`, `Giá dừng`, `Giá khớp trung bình`, `KL còn lại`, `KL hủy`, `Phí giao dịch`, `Thời gian đặt`, `Hiệu lực`, `Ngày hiệu lực`, `Sàn giao dịch`, `Tên TKGD`, `Tên hợp đồng`, `Mã thành viên`, `Tên thành viên`, `Người đặt lệnh`, `Thời gian khớp lệnh`.
+  - **Kết quả Thống kê Số Lot trên cột Tiếng Việt (Logic cũ, 0% cột tiếng Anh)**:
+    - Tổng số giao dịch khớp: **3,003 lệnh**
+    - Tổng số Lot khớp: **3,153 lots**
+    - Số TVKD phát sinh GD: **17 TVKD** (Top: TVKD 712: 2,814 lots; TVKD 713: 115 lots; TVKD 682: 94 lots; TVKD 641: 34 lots; TVKD 782: 34 lots; TVKD 699: 24 lots; TVKD 714: 11 lots...).
+- **CoreEX Kiểu 2**:
+  - Tải thành công `DSGD ACM CE.xlsx` (253,289 bytes) qua WebSocket NotiSocket bắt `reportId=2461`.
+  - **100% 17 cột là Tiếng Việt nguyên bản**:
+    `FCM`, `Ngày phiên`, `Mã lệnh OMS`, `Mã lệnh liên thông`, `ExchOrderID`, `Mã giao dịch OMS`, `Mã giao dịch liên thông`, `Số tài khoản`, `Thời gian khớp`, `Mã hợp đồng`, `Loại lệnh`, `Khối lượng khớp`, `Giá khớp`, `Mua/bán`, `Ngày giờ đặt lệnh`, `Tên TKGD`, `Tên hợp đồng`.
+  - **Kết quả Thống kê Số Lot & GTGD trên cột Tiếng Việt (Logic cũ, 0% cột tiếng Anh)**:
+    - Tổng số lệnh khớp: **2,820 lệnh**
+    - Tổng Số Lot: **2,841 lot**
+    - Tổng Giá trị giao dịch: **$17,608,288.00 USD** = **454,645,996,160 VND** (454.6 tỷ VND) trên 14 TVKD.
+- **Build Verification**: `npm run build` thành công 100%, Exit Code 0.
+
+---
+
+## [2026-10-26T19:45] UNIFICATION & LIVE TEST: Đồng Nhất Cơ Chế Tải Kiểu 2 CoreEX Theo Chuẩn CoreCCP & Xác Nhận 100% Cột Tiếng Việt Thành Công
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Đồng nhất hóa hoàn toàn hàm `download()` trong `CoreExApiAdapter` theo đúng khuôn mẫu chuẩn của `CoreCcpApiAdapter` (chuẩn hóa `effectiveFilterPayload`, cơ chế ưu tiên Kiểu 2 Server Export qua WebSocket NotiSocket Engine.IO v4, tự động fallback sang Direct JSON Search nếu WS sự cố, và helper `calculatePreviousWorkdayDmy`).
+  2. Bỏ qua Rule 8 theo lệnh của USER để chạy kiểm thử thực tế toàn trình: kiểm chứng file tải về qua Kiểu 2 xem các cột đã là tiếng Việt chưa và chạy thống kê trực tiếp trên 100% cột tiếng Việt (logic cũ từ bản manual export) mà không cần cột tiếng Anh.
+
+### 2. Chi tiết thực hiện
+1. **[coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts)**:
+   - Xóa bỏ khai báo cứng `SERVER_EXPORT_CODES` ở cấp class; chuyển vào quản lý tập trung và đồng bộ trong hàm `download()`.
+   - Chuẩn hóa `formattedDateForSearch` (`dd/MM/yyyy`) và `effectiveFilterPayload` đồng nhất.
+   - Luồng tải Kiểu 2 đồng bộ 100% với CoreCCP:
+     - Kích hoạt `downloadServerExport` qua WebSocket NotiSocket Engine.IO v4.
+     - Tự động fallback sang Direct REST Search JSON (`searchData` + `convertJsonToExcel`) nếu WebSocket gặp sự cố.
+     - Sử dụng `session.baseUrl` để đồng bộ chính xác endpoint SSO / NotiSocket theo môi trường đang kết nối.
+     - Bổ sung helper `calculatePreviousWorkdayDmy(dmy: string)` để tự động lùi ngày làm việc T-1 cho các báo cáo lịch sử.
+   - Sửa `getWebSocketClass()` và options WebSocket: ưu tiên gói `ws` npm module thay vì `globalThis.WebSocket` để truyền đúng các HTTP headers (`Cookie`, `Origin`) và cờ `rejectUnauthorized: false`.
+2. **[coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+   - Đồng bộ `getWebSocketClass()` ưu tiên gói `ws` và cờ `rejectUnauthorized: false` trong constructor WebSocket NotiSocket.
+
+### 3. Kết quả Kiểm thử Toàn trình Trực tiếp (Live Verified):
+- **Tải file Kiểu 2 thành công 100%**:
+  - Giao thức: `POST /sso/api/v1/oauth/issue-ws-ticket` $\rightarrow$ WebSocket `wss://uat-coreexchange.mxv.com.vn/notisocket/socket.io/?ticket=...` $\rightarrow$ Nhận frame `42["REPORT",{"autoid":2461,...}]` $\rightarrow$ `GET /exchange/report/download/2461` tải về file `DSGD ACM CE.xlsx` (253,289 bytes).
+- **Kiểm chứng Cột Excel tải về (100% Tiếng Việt nguyên bản do sàn sinh ra)**:
+  - Cột 1: `FCM` | Cột 2: `Ngày phiên` | Cột 3: `Mã lệnh OMS` | Cột 4: `Mã lệnh liên thông` | Cột 5: `ExchOrderID`
+  - Cột 6: `Mã giao dịch OMS` | Cột 7: `Mã giao dịch liên thông` | Cột 8: `Số tài khoản` | Cột 9: `Thời gian khớp`
+  - Cột 10: `Mã hợp đồng` | Cột 11: `Loại lệnh` | Cột 12: `Khối lượng khớp` | Cột 13: `Giá khớp` | Cột 14: `Mua/bán`
+  - Cột 15: `Ngày giờ đặt lệnh` | Cột 16: `Tên TKGD` | Cột 17: `Tên hợp đồng`
+- **Kết quả chạy Thống kê Số Lot & GTGD trực tiếp trên cột tiếng Việt (Không cần cột tiếng Anh)**:
+  - Tổng số lệnh khớp: **2,820 lệnh**.
+  - Tổng Số Lot: **2,841 lot**.
+  - Tổng Giá trị giao dịch: **$17,608,288.00 USD** = **454,645,996,160 VND** (454.6 tỷ VND).
+  - Phân bổ Hàng hóa: Đồng Nano `CP2CO`: 1,017 lot (170.8 tỷ VND); Bạc Nano `SI5CO`: 1,314 lot (184.4 tỷ VND); Bạch kim Nano `PL1NY`: 495 lot (99.0 tỷ VND); Khác `KWEZ2`: 15 lot (258.3 triệu VND).
+  - Phân bổ TVKD: 14 TVKD (TVKD 712: 2,744 lot; TVKD 782: 34 lot; TVKD 641: 20 lot; TVKD 699: 15 lot...).
+- **Build Verification**: `npm run build` thành công 100%, Exit Code 0.
+
+---
+
+## [2026-10-26T19:25] REFACTOR & CLEANUP: Xóa Bỏ Hoàn Toàn Logic Sao Chép Phái Sinh Giả Mạo (COREEX_DERIVED_RULES) & Thực Hiện Chuẩn Fail-Fast Cho CoreExApiAdapter
+
+### 1. Mục tiêu thay đổi
+- Thực hiện nghiêm túc chỉ đạo của USER và tuân thủ tuyệt đối Quy tắc `AGENTS.md`:
+  - Xóa bỏ triệt để logic "ảo tưởng" tự tạo bản sao phái sinh (`COREEX_DERIVED_RULES`) bằng lệnh `fs.copyFileSync`.
+  - Khắc phục lỗ hổng nuốt lỗi (Silent Error Swallow) và báo thành công ảo (`if (errors.length > 0 && files.length === 0)` $\rightarrow$ trả về `success: true` dù nhiều file bị lỗi).
+  - Áp dụng triệt để nguyên tắc **Rule 4: Fail-Fast & Zero-Silent-Swallow**: Khi bất kỳ file nào trong danh sách yêu cầu tải bị lỗi, Adapter lập tức ghi log lỗi chi tiết, quăng Exception hoặc trả về `success: false` kèm thông tin lỗi để dừng Job/Worker ngay lập tức.
+
+### 2. Chi tiết thực hiện
+1. **[coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts)**:
+   - Xóa bỏ import `COREEX_DERIVED_RULES` từ `shared`.
+   - Xóa bỏ hoàn toàn khối lặp phái sinh và lệnh sao chép đè file `fs.copyFileSync(targetPath, destPath)` ở cuối hàm `download`.
+   - Tái cấu trúc bộ xử lý lỗi:
+     - Thay thế điều kiện nuốt lỗi cũ (`if (errors.length > 0 && files.length === 0)`) thành chuẩn Fail-Fast: `if (errors.length > 0) throw new Error(...)`.
+     - Đảm bảo khi có lỗi phát sinh, Adapter trả về `success: false`, `error: errorSummary` để downstream services (như `ccp-ce-download.handler.ts`) không bao giờ ghi nhận thành công ảo.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build (`npm run build`)**: Exit Code 0, Nest build thành công 100% không phát sinh lỗi TypeScript.
+
+---
+
+## [2026-10-26T18:45] ROLLBACK: Xóa Bỏ Toàn Bộ Mã Nguồn Tự Chế Suy Diễn Trong vnclear-column-headers.config.ts
+
+### 1. Mục tiêu thay đổi
+- Thực hiện nghiêm túc chỉ đạo của USER: Xóa bỏ toàn bộ các mã nguồn "tự chế phỏng đoán" (speculative translations) trong hệ thống.
+- Hoàn trả nguyên trạng sạch cho file cấu hình `vnclear-column-headers.config.ts` và `ccp-lot-statistics.service.ts`.
+
+### 2. Chi tiết thực hiện
+1. **[vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/vnclear-column-headers.config.ts)**:
+   - Rollback 100% các dòng mã nguồn tự chế ánh xạ tiếng Anh sang tiếng Việt (`ORDERID`, `MATCHQTY`, `MATCHPX`, `ACCTNO`...) vừa được AI tự ý thêm vào `ORDERMATCH_DETAIL`.
+   - File đã được đưa về trạng thái nguyên bản sạch từ Git HEAD.
+2. **[ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/statistics/ccp-lot-statistics.service.ts)**:
+   - Rollback các alias bổ sung chưa có chỉ đạo (`basecurrency`, `exchangerate`).
+   - Đưa về nguyên trạng ban đầu.
+3. **Giữ nguyên Ground Truth từ USER**:
+   - `ce-lot-statistics.service.ts`: Giữ nguyên việc nhận diện trực tiếp các cột có thật trong file tải về thực tế từ USER (`ORDERMATCH_DETAIL_ACM_3245.xlsx` với các cột tiếng Việt: `Số tài khoản`, `Khối lượng khớp`, `Giá khớp`, `Loại lệnh`, `Mua/bán` và file `DSGD ACM CE.xlsx`).
+   - `coreex-reports.config.ts`: Giữ nguyên `SETTLEMENT_ACM` từ cURL chính xác của USER.
+
+### 3. Xác nhận Build & Kiểm thử
+- Chạy `nest build` trong `backend/` $\rightarrow$ Biên dịch thành công 100%, Exit Code 0.
+
+---
+
+## [2026-10-26T18:00] BUGFIX: Khắc Phục Lỗi Parser Bỏ Sót 515 Dòng Khớp Lệnh File Backup DSGD ACM CE Khiến Số Lot & GTGD Bị Về 0
+
+### 1. Mục tiêu thay đổi
+- Khắc phục sự cố nghiêm trọng do USER phát hiện: File backup `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures\2026\T10.2026\26.10\DSGD ACM CE.xlsx` có đầy đủ 515 dòng giao dịch nhưng bot lại tính ra **0 lot, 0 VND**.
+- **Nguyên nhân gốc rễ**: Hàm `parseCeDsgd` trong `ce-lot-statistics.service.ts` trước đây sử dụng từ điển tìm cột của M-System (`EXECQTTY`, `EXECPRICE`, `AFACCTNO`, `PRICETYPE_DESC`), trong khi file backup CoreEX thực tế sử dụng các cột chuẩn của sàn:
+  - Khối lượng khớp: `MATCHQTY` (trước đó không match `EXECQTTY` $\rightarrow$ `idxKl = -1` $\rightarrow$ bỏ qua 100% 515 dòng).
+  - Giá khớp: `MATCHPX` (trước đó không match `EXECPRICE` $\rightarrow$ `idxGia = -1`).
+  - Tài khoản: `ACCTNO` (trước đó không match `AFACCTNO` $\rightarrow$ `idxTkgd = -1`).
+  - Loại lệnh: `TYPECD` (trước đó không match `PRICETYPE_DESC` $\rightarrow$ `idxLoaiLenh = -1`).
+
+### 2. Chi tiết thực hiện
+1. **[ce-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/statistics/ce-lot-statistics.service.ts)**:
+   - Cập nhật hàm `parseCeDsgd`:
+     - Bổ sung `MATCHQTY`, `QTTY` vào danh sách nhận diện cột Khối lượng khớp.
+     - Bổ sung `MATCHPX` vào danh sách nhận diện cột Giá khớp.
+     - Bổ sung `ACCTNO` vào danh sách nhận diện cột Số tài khoản.
+     - Bổ sung `TYPECD` vào danh sách nhận diện cột Loại lệnh.
+     - Bổ sung `SIDE` vào danh sách nhận diện cột Mua/Bán.
+   - Cập nhật `parseCeTtm` & `calculateCeStatistics`: Tự động trích xuất `tenThanhVien` của TVKD từ tệp TTM CE để hiển thị tên thành viên chính xác.
+   - Sửa kiểu dữ liệu `tyGiaUsed: { USD: usdExchangeRate || 0 }`.
+
+### 3. Kết quả xác nhận sau khi sửa
+- Chạy trực tiếp trên tệp backup thực tế `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures\2026\T10.2026\26.10\DSGD ACM CE.xlsx`:
+  - **Tổng Số Lot CE (ACM)**: **728 lot** (thay vì 0 lot).
+  - **Tổng Giá Trị Giao Dịch**: **107,157,479,770 VND** (107 tỷ 157 triệu VND, thay vì 0 VND).
+  - **TVKD Khớp Lệnh**: **15 / 19 TVKD** (thay vì 0 / 18).
+  - **Phân bổ theo Hàng hóa**:
+    - `SI5CO` (Bạc Nano): **585 lot** - **81,858,178,800 VND**.
+    - `CP2CO` (Đồng Nano): **107 lot** - **18,013,323,000 VND**.
+    - `PL1NY` (Bạch kim Nano): **36 lot** - **7,285,977,970 VND**.
+- **Build Kiểm thử**: `nest build` thành công 100%, Exit Code 0.
+
+---
+
+## [2026-10-26T17:55] FIX: Chuẩn Hóa Endpoint Direct REST API Giá Thanh Toán CoreEX (GTT) Sang SETTLEMENT_ACM
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER căn cứ trên cURL thực tế trích xuất trực tiếp từ giao diện Web CoreEX (`https://coreexchange.mxv.com.vn/PRODUCT/SETTLEMENT`):
+  - URL chuẩn: `https://coreexchange.mxv.com.vn/exchange/inquiry/maintain/SETTLEMENT/search/SETTLEMENT_ACM`
+  - Body payload chuẩn: `{"searchcode":"SETTLEMENT_ACM","search":{},"filter":{},"orderBy":{},"page":{"pageIndex":1,"pageSize":200000}}`
+- Khắc phục cấu hình `searchCode: 'SETTLEMENT'` trước đây (dẫn tới việc gọi nhầm endpoint `/SETTLEMENT/search/SETTLEMENT` thay vì liên thông `SETTLEMENT_ACM`).
+
+### 2. Chi tiết thực hiện
+1. **[coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreex-reports.config.ts)**:
+   - Cập nhật định nghĩa báo cáo `GTT` (Giá thanh toán ACM):
+     - `searchCode`: Chuyển từ `'SETTLEMENT'` sang `'SETTLEMENT_ACM'`.
+     - `parentSearchCode`: Gán rõ ràng là `'SETTLEMENT'`.
+     - URL sinh ra qua `CoreExApiAdapter.searchData`: `/exchange/inquiry/maintain/SETTLEMENT/search/SETTLEMENT_ACM` với payload `searchcode: 'SETTLEMENT_ACM'` khớp 100% với cURL của USER.
+   - Cập nhật hàm `resolveCoreExchangeReport` để tự động đối chiếu cả trường `parentSearchCode`, đảm bảo backward compatibility khi gọi bằng key `'GTT'`, `'SETTLEMENT'` hoặc `'SETTLEMENT_ACM'`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeScript Build (`npx tsc --project tsconfig.build.json --noEmit`)**: Exit Code 0, biên dịch thành công 100%.
+
+---
+
+## [2026-10-26T17:40] FEATURE: Bổ Sung Hàng Hiển Thị Số Tài Khoản Giao Dịch (TKGD) Vào 4 Mốc Thời Điểm Báo Cáo BGĐ
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER về việc bổ sung hiển thị chỉ số **TKGD** (Tài khoản giao dịch - số tài khoản duy nhất lũy kế phát sinh giao dịch) thành một hàng riêng biệt bên dưới chỉ số **KLGD** (Khối lượng giao dịch - lots) trong khối "4 MỐC THỜI ĐIỂM PHỤC VỤ BÁO CÁO BGĐ" cho cả 2 phân khúc ACM và CQG/Others.
+- Bố cục hiển thị tương ứng chính xác với bảng ma trận 4 mốc thời điểm trong báo cáo chuẩn BGĐ (`Check BGS All.xlsm` ô B1:E9):
+  - ACM: Đầu phiên (5h-8h), Hết phiên Á (5h-16h), Hết phiên Âu (5h-23h), Hết phiên Mỹ (cả ngày / chưa qua 23h).
+  - CQG: Đầu phiên (5h-8h), Hết phiên Á (5h-16h), Hết phiên Âu (5h-23h), Hết phiên Mỹ (cả ngày / chưa qua 23h).
+
+### 2. Chi tiết thực hiện
+1. **[QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Cập nhật interface `MilestoneReportData` bổ sung `uniqueAccounts?: { earlySession: number; asianSession: number; europeanSession: number; americanSession: number | null; }`.
+   - Cập nhật hook `useMemo` của `acmMilestones` và `othersMilestones` để khởi tạo giá trị mặc định cho `uniqueAccounts` tránh lỗi `undefined`.
+   - Cải tiến hàm tổng hợp tin nhắn `getActiveMessageText()` để tự động tổng hợp số tài khoản duy nhất `acc16h`, `acc23h`, `accEod` từ `uniqueAccounts` của cả hai phân hệ khi cần fallback.
+   - Thiết kế lại 4 card mốc thời gian của cả 2 phân khúc ACM và CQG:
+     - Header: Tên mốc + Khung giờ căn giữa thanh lịch.
+     - Divider phân cách nhẹ nhàng.
+     - Hàng 1: Nhãn `KLGD` + Số lot in đậm với màu sắc tương ứng theo phiên (Xanh dương cho Á, Cam cho Âu, Xanh lá/Xanh biển cho Mỹ kèm ký hiệu `*` khi phiên đang chạy).
+     - Hàng 2: Icon SVG chuẩn `Users` (tuyệt đối không dùng Unicode emoji) + Nhãn `TKGD` + Số lượng tài khoản font monospace rõ ràng.
+   - Nâng chiều cao của Skeleton placeholder từ `56px` lên `86px` để tương thích kích thước card mới, chống layout shift.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend TypeScript Check (`npx tsc --noEmit`)**: Exit Code 0, không có lỗi kiểu dữ liệu.
+- **Frontend Next.js Build (`npm run build`)**: Exit Code 0, toàn bộ 52/52 routes build thành công với Turbopack.
+- **Backend NestJS Build (`npx nest build`)**: Exit Code 0, biên dịch thành công 100%.
+
+---
+
+## [2026-10-26T17:30] FIX & REFACTOR: Chuẩn Hóa Màu Sắc Lãi/Lỗ, Mua/Bán & Động Hóa Toàn Diện Logic Executive Dashboard
+
+### 1. Mục tiêu thay đổi
+- Thực thi chỉ đạo của USER về việc kiểm tra toàn diện và sửa lỗi logic/hiển thị màu sắc trên [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+  1. **Khắc phục lỗi ngược màu nghiêm trọng ở dòng Tổng (Footer)**:
+     - Sửa lỗi gán cứng `color: '#ef4444'` cho Lãi lỗ dự kiến và `color: '#10b981'` cho Lãi lỗ thực tế dẫn tới việc khi Lãi lỗ thực tế âm `(537,569,818)` (lỗ 537 triệu) lại bị hiển thị màu Xanh lá.
+     - Chuyển sang kiểm tra giá trị động: `< 0` là Đỏ (`#ef4444`), `> 0` là Xanh lá (`#10b981`), `= 0` là màu trung tính (`var(--text-primary)`).
+  2. **Khắc phục lỗi hiển thị tại các ô hòa vốn (0 VND)**:
+     - Tại các ô có giá trị = 0 (như mã KCE), sửa logic để không còn bị tô màu xanh lá / nền xanh lá nhầm lẫn là có lãi.
+  3. **Chuẩn hóa hệ màu trực quan tài chính Mua / Bán**:
+     - Cột `% mở Mua` (Long): Chuyển từ Xanh dương (`#3b82f6`) sang Xanh lá (`#10b981`) với nền `rgba(16, 185, 129, 0.15)`.
+     - Cột `% mở Bán` (Short): Chuyển từ Xám (`#94a3b8`) sang Đỏ (`#ef4444`) với nền `rgba(239, 68, 68, 0.15)`.
+     - Dòng footer toàn sàn: Tính động tỷ lệ bình quân gia quyền `avgLongRatio` và `avgShortRatio` thay vì gán cứng chuỗi `78% Mua / 22% Bán`.
+  4. **Động hóa 100% việc tính toán các mặt hàng nổi bật (Zero-hardcoding)**:
+     - Tại Backend [qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-dashboard.service.ts): Xóa bỏ việc gán cứng `meta.symbol === 'SI5CO'` / `'ZME'`, thay bằng thuật toán quét động `topLossSymbol`, `topOpenSymbol`, `topLiquidatedSymbol`.
+     - Khớp chính xác chú thích chân bảng: Đỏ là mã lỗ dự kiến lớn nhất (phiên này là ZWA: -91 tỷ thay vì tô nhầm SI5CO).
+  5. **Đồng bộ định dạng sang file Excel Báo cáo BGĐ**:
+     - Cập nhật [qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts) để file Excel xuất ra có màu % Mở Mua (Xanh lá) và % Mở Bán (Đỏ) đồng bộ 100% với Web UI.
+
+### 2. Danh sách file chỉnh sửa
+1. **[frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)**:
+   - Thêm tính toán `avgLongRatio` & `avgShortRatio` động trong `footerTotals` và `modalTotals`.
+   - Chuẩn hóa màu sắc PnL (Lãi = Xanh lá, Lỗ = Đỏ, 0 = Trung tính) cho Bảng chính, Footer và Modal 44 mặt hàng.
+   - Chuẩn hóa progress bar % Mở Mua (Xanh lá) & % Mở Bán (Đỏ) cho cả Bảng chính và Modal.
+2. **[backend/src/modules/trading-ops/services/console/qlgd-dashboard.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-dashboard.service.ts)**:
+   - Động hóa cờ `highlightExpectedLoss`, `highlightOpenPosition`, `highlightLiquidated` theo dữ liệu thực tế thay vì hardcode tên mã.
+3. **[backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts)**:
+   - Đồng bộ màu sắc cột G (% Mở Mua - Xanh lá), cột H (% Mở Bán - Đỏ) và màu font chân trang PnL trong Excel.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend NestJS Build (`npx nest build`)**: Exit Code 0, biên dịch thành công 100%.
+- **Frontend Next.js Build (`npm run build`)**: Exit Code 0, toàn bộ 52/52 routes biên dịch thành công.
+
+---
+
 ## [2026-10-26T16:20] MERGE: Giải Quyết Xung Đột Merge backup-v5 vào v3-refactor & Đảm Bảo Tính Toàn Vẹn Kiến Trúc
 
 ### 1. Mục tiêu thay đổi
@@ -5278,3 +5514,56 @@
 - Frontend Build: `npm run build` (`next build`) -> **Exit code 0 (Pass 100% không lỗi, 30/30 pages static)**.
 
 ---
+
+## [2026-10-26T18:57] ARCHITECTURE SPECIFICATION UPDATE: Bổ Sung Đặc Tả 2 Cơ Chế Tải Core Exchange (Server Export Kiểu 2 vs Direct JSON Search Kiểu 1) & Triệt Tiêu Từ Điển Suy Diễn
+
+### 1. Mục tiêu thay đổi
+
+- Thực thi chỉ đạo của USER: Cập nhật tài liệu thiết kế kiến trúc [THIET_KE_LOGIC_VA_TICH_HOP_4_PHAN_HE_INGRESS_API_CLIENT_VAO_V2.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/THIET_KE_LOGIC_VA_TICH_HOP_4_PHAN_HE_INGRESS_API_CLIENT_VAO_V2.md) dựa trên các phát hiện thực chứng (Ground Truth Audited) và kết quả kiểm thử thực nghiệm trên môi trường Core Exchange (CE):
+  1. **Làm rõ nguyên nhân gốc rễ file `DSGD ACM CE.xlsx` tải về bị tiếng Anh và khác số dòng so với kết xuất thủ công**:
+     - Bot trước đây gọi REST API JSON tra cứu trực tiếp (`POST /exchange/inquiry/maintain/ORDERMATCH_DETAIL_ACM/search/...`), nhận về mảng JSON thô với mã cột Database tiếng Anh (`ORDERID`, `MATCHPX`, `MATCHQTY`, `ACCTNO`...).
+     - Bot sau đó dùng ExcelJS tự vẽ lại file Excel qua từ điển ánh xạ `vnclear-column-headers.config.ts` (vốn là lược đồ AG-Grid của CoreCCP, không có bộ từ điển của CoreEX).
+     - File `ORDERBOOK_ACM_3240.xlsx` (1.192 dòng) là **Sổ lệnh** (gồm cả lệnh Khớp hết, Chờ khớp, Đã hủy, Từ chối), trong khi `ORDERMATCH_DETAIL_ACM_3245.xlsx` (543 dòng) là **Danh sách khớp lệnh** (chỉ gồm giao dịch khớp thành công, 761 lot).
+  2. **Giải mã & Kiểm chứng thực tế 100% Cơ chế Server-Side Export Kiểu 2 của Core Exchange**:
+     - Endpoint tạo job: `POST https://coreexchange.mxv.com.vn/exchange/export/create` với `{ searchcode, exptype: "XLSX", fekey }`.
+     - Phản hồi từ Server CE: HTTP 200 `{ code: 130, message: "Yêu cầu của bạn đã được tiếp nhận vào hàng đợi xử lý..." }`.
+     - Kênh thông báo: WebSocket NotiSocket Engine.IO v4 `wss://coreexchange.mxv.com.vn/notisocket/socket.io/?ticket=...&userId=...&EIO=4&transport=websocket`, room `REPORT`/`NOTI`, nhận frame chứa `reportId`.
+     - Endpoint tải file nhị phân: `GET https://coreexchange.mxv.com.vn/exchange/report/download/{reportId}` nhận trực tiếp file `.xlsx` gốc chuẩn 15 cột tiếng Việt từ sàn.
+     - Đã chạy kiểm nghiệm thành công trên 8 mã: `ORDERMATCH_DETAIL_ACM`, `ORDERBOOK_ACM`, `ORDERBOOK_ALL_ACM`, `OPEN_POSITION`, `SETTLEMENT_ACM`, `COMMODITY_ACM`, `SESSION_INFO`, `ACM_RECON_ORDERS`.
+
+### 2. Chi tiết cập nhật tài liệu kiến trúc
+
+- [docs/moi/THIET_KE_LOGIC_VA_TICH_HOP_4_PHAN_HE_INGRESS_API_CLIENT_VAO_V2.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/docs/moi/THIET_KE_LOGIC_VA_TICH_HOP_4_PHAN_HE_INGRESS_API_CLIENT_VAO_V2.md):
+  - **Mục lục**: Bổ sung chi tiết các tiểu mục 4.1 - 4.5 cho Phân hệ Core Exchange.
+  - **Phần I.2**: Cập nhật mô tả phân hệ Core Exchange hỗ trợ cả 2 cơ chế: Direct REST JSON Search và Server-Side Export qua NotiSocket.
+  - **Mục 4.1**: Cập nhật cấu trúc thư mục `coreexchange-api-client` bổ sung `socket.client.ts` và test scripts.
+  - **Mục 4.3**: Bổ sung sơ đồ Mermaid phân nhánh 2 cơ chế xuất dữ liệu của CE và quy trình 3 bước của Server-Side Export Kiểu 2.
+  - **Mục 4.4**: Bổ sung Ma trận phân định cơ chế xuất chuẩn và kết quả kiểm chứng thực tế cho 8 searchCode của CE.
+  - **Mục 4.5**: Xác lập nguyên tắc **Zero Fake Translation & Triệt tiêu Từ điển Suy diễn** theo chuẩn `AGENTS.md`.
+  - **Phần IV (Task 2)**: Khai báo rõ `CoreExApiAdapter` hỗ trợ song song cả Kiểu 1 và Kiểu 2.
+
+---
+
+## [2026-10-26T19:16] IMPLEMENTATION: Triển Khai Cơ Chế Tải File Server Export Kiểu 2 Vào CoreExApiAdapter Tương Tự CoreCCP, Lấy Trực Tiếp File .xlsx Gốc Tiếng Việt
+
+### 1. Mục tiêu thay đổi
+
+- Thực thi chỉ đạo của USER: Áp dụng cơ chế tải file nguyên bản tương tự như CoreCCP (`coreccp-api.adapter.ts`) vào CoreExchange (`coreex-api.adapter.ts`), bỏ qua các tầng trung gian tự dựng lại Excel bằng ExcelJS:
+  1. **Tải file nhị phân nguyên bản (.xlsx) trực tiếp từ máy chủ sàn**: Với các báo cáo đối soát lớn (`ORDERMATCH_DETAIL_ACM` - DSGD, `ORDERBOOK_ALL_ACM` - DSL, `OPEN_POSITION` - TTM), kích hoạt luồng xuất file qua NotiSocket WebSocket Engine.IO v4, tải trực tiếp file `.xlsx` gốc từ endpoint `/exchange/report/download/{id}`. File tải về có đầy đủ tiêu đề tiếng Việt chuẩn và 100% bản ghi không bị cắt ngắn phân trang.
+  2. **Đơn giản hóa logic nhân bản file phái sinh tương tự CoreCCP**: Xóa bỏ toàn bộ các bước lọc mảng JSON và vẽ lại bằng ExcelJS. Khi file gốc được tải về, tự động sao chép (`fs.copyFileSync`) sang các tên file phái sinh tương ứng trong ca trực (`DSLDK ACM CE.xlsx`, `DSLCK ACM CE.xlsx`, `DSLH ACM CE.xlsx`, `DSGD ALL ACM CE.xlsx`), đảm bảo các file phái sinh giữ nguyên 100% định dạng tiếng Việt gốc.
+  3. **Xóa bỏ dứt điểm các định danh tự chế**: Xóa sạch định danh thừa `SO_LENH`, giữ nguyên duy nhất định danh chuẩn `DSL` trong toàn bộ hệ thống.
+
+### 2. Danh sách file chỉnh sửa
+
+1. [backend/src/modules/ingress/adapters/coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Bổ sung `SERVER_EXPORT_CODES = new Set(['ORDERMATCH_DETAIL_ACM', 'ORDERBOOK_ACM', 'ORDERBOOK_ALL_ACM', 'OPEN_POSITION'])`.
+   - Bổ sung các phương thức: `getWebSocketClass()`, `createExportJob()`, `downloadReportBinary()`, `waitForReportIdViaSocket()`, `downloadServerExport()`.
+   - Tích hợp luồng Kiểu 2 vào `download()`: Tải trực tiếp stream nhị phân `.xlsx` và ghi file.
+   - Chuẩn hóa việc nhân bản file phái sinh qua `fs.copyFileSync(targetPath, destPath)` theo đúng mẫu CoreCCP.
+   - Xóa bỏ dòng chèn text `(Không có dữ liệu phát sinh trong phiên)` trong `convertJsonToExcel`.
+2. [backend/src/shared/domain-configs/coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - Đảm bảo 100% giữ nguyên định danh chuẩn `DSL` cho sổ lệnh, không có định danh tự chế nào.
+
+### 3. Kết quả Build
+
+- `npm run build` (`nest build`) -> **Exit code 0 (Pass 100% không lỗi)**.

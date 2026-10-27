@@ -1,0 +1,23 @@
+OUTPUT:
+Access token: eyJraWQiOiJhZDMxN2Q3NS1iMjFkLT...
+JWT Payload: {"sub":"anhdao","aud":"web-exchange-mxv","nbf":1793016118,"user_id":9,"scope":["openid","profile"],"iss":"https://coreexchange.mxv.com.vn","exp":1793026918,"iat":1793016118,"jti":"22a56c27-353f-4e0e-b59b-590c315fd1b0"}
+issue-ws-ticket status: 200
+issue-ws-ticket response: {"time":"2026-10-26T19:01:58.856894013","success":true,"code":"0","msg":"WS Ticket issued!","payload":["74e698c9-61f1-4aeb-8b53-2c5c2aeabc49"]}
+Connecting to WebSocket: wss://coreexchange.mxv.com.vn/notisocket/socket.io/?ticket=74e698c9-61f1-4aeb-8b53-2c5c2aeabc49&userId=9&EIO=4&transport=websocket
+✓ WebSocket connected!
+WS << 0{"sid":"fc5a7a93-59a6-4f01-a8ea-6b61f36a4c23","upgrades":[],"pingInterval":25000,"pingTimeout":60000}
+WS >> 40
+WS << 40{"sid":"fc5a7a93-59a6-4f01-a8ea-6b61f36a4c23"}
+WS >> 42["SUBSCRIBE",{"action":"SUBSCRIBE","userID":9,"room":["NOTI","REPORT","SOCKET"]}]
+Triggering export for ORDERMATCH_DETAIL_ACM_1793016118873...
+Export create status: 200
+Export create body: {"time":"2026-10-26T19:01:58.940795832","success":true,"code":"130","msg":"","payload":[]}
+WS << 42["REPORT",{"eventID":"EXPORT_19090","eventType":"REPORT","eventChannel":"REPORT","format":"text","content":{"autoid":3305,"fekey":"ORDERMATCH_DETAIL
+*** EVENT RECEIVED! *** 42["REPORT",{"eventID":"EXPORT_19090","eventType":"REPORT","eventChannel":"REPORT","format":"text","content":{"autoid":3305,"fekey":"ORDERMATCH_DETAIL_ACM_1793016118873","searchcode":"ORDERMATCH_DETAIL_ACM","exptype":"XLSX","status":"S","recipients":"9"},"timestamp":"20261026T19:01:59.097+07:00"}]
+Event name: REPORT Data: {"eventID":"EXPORT_19090","eventType":"REPORT","eventChannel":"REPORT","format":"text","content":{"autoid":3305,"fekey":"ORDERMATCH_DETAIL_ACM_1793016118873","searchcode":"ORDERMATCH_DETAIL_ACM","exptype":"XLSX","status":"S","recipients":"9"},"timestamp":"20261026T19:01:59.097+07:00"}
+Captured reportId: 3305
+Downloading report 3305...
+Download status: 200
+Downloaded file size: 58648 bytes!
+
+ERROR:

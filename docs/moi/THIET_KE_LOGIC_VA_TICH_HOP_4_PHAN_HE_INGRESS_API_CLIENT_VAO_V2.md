@@ -15,6 +15,11 @@
   - [2. Phân hệ M-System Newgen Ingress Client (`ms-api-client`)](#2-phân-hệ-m-system-newgen-ingress-client-ms-api-client)
   - [3. Phân hệ ACM ETP Exchange Ingress Client (`acm-etp-client`)](#3-phân-hệ-acm-etp-exchange-ingress-client-acm-etp-client)
   - [4. Phân hệ Core Exchange (CE) Ingress Client (`coreexchange-api-client`)](#4-phân-hệ-core-exchange-ce-ingress-client-coreexchange-api-client)
+    - [4.1. Cấu trúc thư mục độc lập](#41-cấu-trúc-thư-mục-độc-lập)
+    - [4.2. Quy trình xác thực Spring Security & OAuth2](#42-quy-trình-xác-thực-spring-security--oauth2)
+    - [4.3. Hai cơ chế trích xuất dữ liệu của Core Exchange (Export Mechanisms)](#43-hai-cơ-chế-trích-xuất-dữ-liệu-của-core-exchange-export-mechanisms)
+    - [4.4. Ma trận Phân định Cơ chế & Kiểm chứng Thực tế (Ground Truth Audited)](#44-ma-trận-phân-định-cơ-chế--kiểm-chứng-thực-tế-ground-truth-audited)
+    - [4.5. Nguyên tắc Zero Fake Translation & Triệt tiêu Từ điển Suy diễn](#45-nguyên-tắc-zero-fake-translation--triệt-tiêu-từ-điển-suy-diễn)
 - [PHẦN III: BẢN THIẾT KẾ TÍCH HỢP VÀO KIẾN TRÚC MODULAR MONOLITH V2](#phần-iii-bản-thiết-kế-tích-hợp-vào-kiến-trúc-modular-monolith-v2)
   - [1. Kiến trúc Cổng Ingress Gateway (`IIngressPort`)](#1-kiến-trúc-cổng-ingress-gateway-iingressport)
   - [2. Ma trận Ánh xạ Dữ liệu Vào Các Workers Nghiệp Vụ V2](#2-ma-trận-ánh-xạ-dữ-liệu-vào-các-workers-nghiệp-vụ-v2)
@@ -41,7 +46,7 @@ Toàn bộ 4 hệ thống đối tác đã được giải mã thành công 100%
 - **CoreCCP**: Gọi Search API JSON hoặc kích hoạt Export Job qua WebSocket.
 - **M-System**: Đăng nhập 2 bước (Password + PIN) $\rightarrow$ Tải trực tiếp qua 18 Endpoint REST API nhị phân.
 - **ACM ETP**: Hứng AWS ALB Sticky Session + UUID + Hook Captcha $\rightarrow$ Gọi Endpoint Export file Excel trực tiếp.
-- **Core Exchange**: Bẫy CSRF + Session Cookie + OAuth2 Code $\rightarrow$ Gọi API tra cứu và kết xuất file Excel.
+- **Core Exchange**: Bẫy CSRF + Session Cookie + OAuth2 Code $\rightarrow$ Hỗ trợ 2 cơ chế: Direct REST JSON Search (mili-giây cho cấu hình) và Server-Side Export qua WebSocket NotiSocket Engine.IO v4 (nhận file Excel nhị phân `.xlsx` gốc chuẩn tiếng Việt cho Khớp lệnh & Sổ lệnh).
 
 ### 3. Bảng so sánh hiệu năng thực tế (Playwright UI vs Direct REST API)
 
@@ -260,15 +265,18 @@ sequenceDiagram
 coreexchange-api-client/
 ├── package.json, tsconfig.json, SPECIFICATION.md, README.md
 ├── coreexchange_session.json # Cache Session Cookie (SESSION=...) & OAuth2 Code
-├── output/                   # Chứa 8 file báo cáo cốt lõi của CE
+├── output/                   # Chứa các file báo cáo kết xuất nguyên bản từ sàn (.xlsx)
 ├── src/
-│   ├── types.ts          # Registry 8 báo cáo cốt lõi CE
-│   ├── cookie-jar.ts     # Quản lý Session Cookie
+│   ├── types.ts          # Registry các báo cáo cốt lõi CE & Enum cơ chế tải (Kiểu 1 vs Kiểu 2)
+│   ├── cookie-jar.ts     # Quản lý Session Cookie & CSRF Token
 │   ├── auth.service.ts   # Bẫy CSRF, POST /login, OAuth2 Authorize Code
-│   ├── rest.client.ts    # Truy vấn bảng dữ liệu JSON & xuất Excel bằng ExcelJS
+│   ├── rest.client.ts    # Truy vấn bảng dữ liệu JSON (Kiểu 1) & Kích hoạt Export (Kiểu 2)
+│   ├── socket.client.ts  # Lắng nghe WebSocket NotiSocket Engine.IO v4 (room REPORT/NOTI)
 │   ├── client.service.ts # Unified Facade CoreExchangeClient
 │   └── index.ts          # Public API exports
 └── scripts/
+    ├── probe_ce_export_codes.py # Script kiểm chứng thực tế 100% endpoint Server Export
+    └── test_quick_ce.js         # Script kiểm thử đăng nhập và tải file mẫu
 ```
 
 ### 4.2. Quy trình xác thực Spring Security & OAuth2
@@ -298,16 +306,91 @@ sequenceDiagram
     App-->>Client: 200 OK (Session hợp lệ 100%)
 ```
 
-### 4.3. Danh mục 8 Báo cáo Cốt lõi của Core Exchange
+### 4.3. Hai cơ chế trích xuất dữ liệu của Core Exchange (Export Mechanisms)
 
-1. `DSL`: Sổ lệnh tổng hợp CE (`/ORDERS/ORDERBOOK_ALL_ACM`).
-2. `DSGD`: Danh sách giao dịch CE (`/ORDERS/ORDERMATCH_DETAIL_ACM`).
-3. `DSLCK`: Lệnh chờ khớp CE (`/ORDERS/ORDERBOOK_ACM` - Tab: Lệnh chờ khớp).
-4. `DSLDK`: Lệnh đã khớp CE (`/ORDERS/ORDERBOOK_ACM` - Tab: Lệnh đã khớp).
-5. `DSLH`: Lệnh hủy CE (`/ORDERS/ORDERBOOK_ACM` - Tab: Lệnh đã hủy).
-6. `GTT`: Giá thanh toán ACM (`/PRODUCT/SETTLEMENT` - Tab: Giá thanh toán liên thông).
-7. `HH`: Hàng hóa ACM (`/PRODUCT/COMMODITY`).
-8. `SESSION_INFO`: Thông tin phiên giao dịch trong ngày (`/SESSIONMNG/SESSION_INFO`).
+Tương tự như CoreCCP (VNCLEAR), Core Exchange cung cấp 2 cơ chế trích xuất dữ liệu riêng biệt tùy theo quy mô và tính chất nghiệp vụ của báo cáo:
+
+```mermaid
+graph TD
+    A[Yêu Cầu Tải Báo Cáo Core Exchange] --> B{Phân Loại Báo Cáo}
+    B -->|Báo Cáo Cấu Hình / Danh Mục Nhỏ| C[Cơ Chế 1: DIRECT_JSON_SEARCH<br/>POST /exchange/inquiry/maintain/.../search]
+    C --> D[Nhận mảng JSON thô trong 100-300ms<br/>Dựng Excel cấu hình cho HH, GTT, Session]
+
+    B -->|Báo Cáo Đối Soát / Giao Dịch Lớn| E[Cơ Chế 2: SERVER_SIDE_EXPORT<br/>POST /exchange/export/create]
+    E --> F[WebSocket NotiSocket: Engine.IO v4<br/>Room REPORT/NOTI - Sự kiện export_fekey]
+    F --> G[Bắt reportId từ Socket Frame]
+    G --> H[GET /exchange/report/download/:reportId<br/>Tải trực tiếp Stream .xlsx nhị phân gốc]
+    H --> I[File Excel Chuẩn Tiếng Việt 100% Gốc Từ Sàn<br/>Không Lệch Cột - Đầy Đủ Records]
+```
+
+1. **Cơ chế 1 - `DIRECT_JSON_SEARCH` (Tốc độ mili-giây, JSON thô)**:
+   - **Bản chất**: Gọi API REST tra cứu trực tiếp vào CSDL backend của sàn.
+   - **Endpoint**: `POST /exchange/inquiry/maintain/${searchCode}/search/${searchCode}`.
+   - **Payload**: `{ searchcode, search: {}, filter: {}, orderBy: {}, page: { pageIndex: 1, pageSize: 200000 } }`.
+   - **Đặc điểm dữ liệu**: Trả về dữ liệu JSON với tên trường trong Database bằng tiếng Anh (`ACCTNO`, `MATCHPX`, `MATCHQTY`, `ORDERID`, `TYPECD`...).
+   - **Phạm vi áp dụng**: Chỉ áp dụng cho các bảng tra cứu danh mục, cấu hình hệ thống nhỏ (< 100 bản ghi) như `SETTLEMENT_ACM`, `COMMODITY_ACM`, `SESSION_INFO`, `INSTRUMENTS_ACM`.
+
+2. **Cơ chế 2 - `SERVER_SIDE_EXPORT` (Báo cáo chuẩn nguyên bản từ sàn - Ground Truth)**:
+   - **Bản chất**: Gửi lệnh yêu cầu Worker ngầm của sàn Core Exchange sinh file Excel chính thức.
+   - **Bước 1 (Gửi yêu cầu Export)**:
+     - Endpoint: `POST https://coreexchange.mxv.com.vn/exchange/export/create`
+     - Payload:
+       ```json
+       {
+         "searchcode": "ORDERMATCH_DETAIL_ACM",
+         "search": {},
+         "filter": {},
+         "orderBy": {},
+         "page": { "pageIndex": 1, "pageSize": 20 },
+         "exptype": "XLSX",
+         "fekey": "ORDERMATCH_DETAIL_ACM_1793011680193"
+       }
+       ```
+     - Phản hồi từ Server CoreEX: `HTTP 200` với `{ "code": 130, "message": "Yêu cầu của bạn đã được tiếp nhận vào hàng đợi xử lý..." }`.
+   - **Bước 2 (Lắng nghe WebSocket NotiSocket Engine.IO v4)**:
+     - Kết nối URL: `wss://coreexchange.mxv.com.vn/notisocket/socket.io/?ticket=...&userId=...&EIO=4&transport=websocket`.
+     - Nhận handshake frame `40` $\rightarrow$ Gửi subscribe frame:
+       ```json
+       42["SUBSCRIBE",{"action":"SUBSCRIBE","room":["NOTI","REPORT","SOCKET"]}]
+       ```
+     - Nhận frame thông báo hoàn tất xuất file chứa `reportId` (ví dụ `reportId = 3245`).
+   - **Bước 3 (Tải file nhị phân nguyên bản)**:
+     - Endpoint: `GET https://coreexchange.mxv.com.vn/exchange/report/download/${reportId}`
+     - Nhận trực tiếp Buffer nhị phân `.xlsx`. File tải về là bản gốc 100% chuẩn tiếng Việt (15 cột: `Ngày phiên`, `Số tài khoản`, `Mã hợp đồng`, `Loại lệnh`, `Khối lượng khớp`, `Giá khớp`, `Mua/bán`...), khớp hoàn toàn với thao tác bấm nút "Kết xuất" của người dùng trên Web.
+
+### 4.4. Ma trận Phân định Cơ chế & Kiểm chứng Thực tế (Ground Truth Audited)
+
+Dựa trên kết quả chạy script kiểm chứng thực nghiệm trên môi trường thật (chứng chỉ tài khoản vận hành `anhdao`), ma trận phân loại cơ chế xuất của Core Exchange được xác lập như sau:
+
+| STT | Mã Nghiệp Vụ (`searchCode`) | Tên Báo Cáo Trên Giao Diện | Tên File Chuẩn Xuất Ra | Cơ Chế Xuất Khuyến Nghị | Số Dòng & Đặc Điểm Dữ Liệu Thực Tế | Phục Vụ Cho Worker V2 |
+| :-: | :--------------------------- | :------------------------- | :--------------------- | :---------------------: | :--------------------------------- | :-------------------- |
+| 1 | **`ORDERMATCH_DETAIL_ACM`** | Khớp lệnh liên thông chi tiết | `DSGD ACM CE.xlsx` / `ORDERMATCH_DETAIL_ACM_*.xlsx` | **Cơ chế 2: `SERVER_SIDE_EXPORT`** | **543 dòng khớp lệnh** (761 lot, GTGD 112,26 tỷ). Đầy đủ 15 cột tiếng Việt chuẩn từ sàn. | `CeLotStatisticsService`, `CeDsgdParser` |
+| 2 | **`ORDERBOOK_ACM`** | Sổ lệnh ACM (Đầy đủ trạng thái) | `ORDERBOOK_ACM_*.xlsx` | **Cơ chế 2: `SERVER_SIDE_EXPORT`** | **1.192 dòng lệnh** (529 Khớp hết, 345 Đã hủy, 297 Chờ khớp, 21 Từ chối). | `KlgdReconWorker` |
+| 3 | **`ORDERBOOK_ALL_ACM`** | Sổ lệnh tổng hợp liên thông (T-1) | `DSL ACM CE.xlsx` | **Cơ chế 2: `SERVER_SIDE_EXPORT`** | Lịch sử toàn bộ lệnh ngày T-1. | `TradingOpsWorker` |
+| 4 | **`OPEN_POSITION`** | Vị thế mở liên thông | `TTM CE.xlsx` | **Cơ chế 2: `SERVER_SIDE_EXPORT`** | Vị thế mở toàn thị trường trên sàn CoreEX. | `DsgdBeforeEodReconWorker` |
+| 5 | **`SETTLEMENT_ACM`** | Giá thanh toán liên thông | `GTT ACM CE.xlsx` | **Cơ chế 1: `DIRECT_JSON_SEARCH`** (hoặc Kiểu 2) | Danh mục bảng giá thanh toán từng mã hàng hóa. | `CeCcpGttWorker` |
+| 6 | **`COMMODITY_ACM`** | Danh mục hàng hóa liên thông | `HH ACM CE.xlsx` | **Cơ chế 1: `DIRECT_JSON_SEARCH`** | Danh sách mã hàng hóa ACM (`TTE`, `ZCE`, `INE`...). | `CeCcpGttWorker` |
+| 7 | **`SESSION_INFO`** | Thông tin phiên giao dịch | `SESSION_INFO.xlsx` | **Cơ chế 1: `DIRECT_JSON_SEARCH`** | Trạng thái phiên hiện tại (Mở/Đóng/Tạm dừng). | `SessionAuditWorker` |
+| 8 | **`INSTRUMENTS_ACM`** | Hợp đồng chi tiết theo hàng hóa | `HĐ {UACODE}.xlsx` | **Cơ chế 1: `DIRECT_JSON_SEARCH`** | Quét động theo từng mã hàng hóa từ `COMMODITY_ACM`. | `ContractSyncWorker` |
+
+#### Phân định bản chất giữa `ORDERMATCH_DETAIL_ACM` (DSGD) và `ORDERBOOK_ACM` (Sổ lệnh):
+- **Báo cáo Khớp lệnh (`ORDERMATCH_DETAIL_ACM`)**: Chỉ chứa các giao dịch đã khớp thành công (543 dòng $\rightarrow$ 761 lot). Dùng để đối chiếu số Lot, Giá trị khớp lệnh và tính phí.
+- **Báo cáo Sổ lệnh (`ORDERBOOK_ACM`)**: Chứa toàn bộ vòng đời của lệnh (1.192 dòng), bao gồm:
+  - 529 lệnh Khớp hết (`FILLED`).
+  - 345 lệnh Đã hủy (`CANCELLED`).
+  - 297 lệnh Chờ khớp (`WORKING`).
+  - 21 lệnh Sở từ chối (`REJECTED`).
+- Việc tải cả 2 báo cáo này qua Server Export Kiểu 2 đảm bảo 100% dữ liệu không bị cắt ngắn phân trang và có đầy đủ tiêu đề tiếng Việt gốc.
+
+### 4.5. Nguyên tắc Zero Fake Translation & Triệt tiêu Từ điển Suy diễn
+
+Tuân thủ nghiêm ngặt **Quy chuẩn AGENTS.md**:
+1. **Tuyệt đối cấm tạo mảng ánh xạ dịch cột tiếng Anh tự chế**:
+   - Khi tải báo cáo qua Direct JSON Search, các cột nhận về là mã trường Database (`MATCHPX`, `MATCHQTY`, `ACCTNO`, `ORDERID`...).
+   - Trước đây việc tự viết từ điển dịch trong `vnclear-column-headers.config.ts` dẫn tới nguy cơ lệch tên cột khi sàn thay đổi hoặc thiếu sót từ khóa.
+2. **Quy tắc Ground Truth File Nhị phân Gốc**:
+   - Mọi báo cáo nghiệp vụ đối soát (`DSGD`, `ORDERBOOK`, `TTM`) **BẮT BUỘC 100% sử dụng Cơ chế 2 (`SERVER_SIDE_EXPORT`)** để tải file `.xlsx` nguyên bản do Server sàn sinh ra.
+   - Bot chỉ đóng vai trò lưu trữ và chuyển tiếp stream nhị phân (Pure Buffer Stream), tuyệt đối không parse lại JSON rồi dùng ExcelJS để tái tạo file giả lập.
 
 ---
 
@@ -562,7 +645,7 @@ Kế hoạch tích hợp được chia nhỏ thành 4 Atomic Tasks đảm bảo 
   ├── Hoàn thiện MsApiAdapter (kết nối MsClient)
   ├── Hoàn thiện CoreCcpApiAdapter (kết nối CoreCcpClient)
   ├── Hoàn thiện AcmApiAdapter (kết nối AcmEtpClient)
-  └── Hoàn thiện CoreExApiAdapter (kết nối CoreExchangeClient)
+  └── Hoàn thiện CoreExApiAdapter (kết nối CoreExchangeClient hỗ trợ cả Kiểu 1 JSON Search & Kiểu 2 Server Export)
 
 [TASK 3] Đấu nối Ingress Gateway vào Workers V2
   ├── Đấu nối KlgdReconWorker & DsgdBeforeEodReconWorker nhận file từ MsApiAdapter

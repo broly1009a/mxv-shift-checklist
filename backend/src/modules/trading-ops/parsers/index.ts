@@ -1,3 +1,4 @@
+export * from './tkgd-normalizer.helper';
 export * from './symbol-normalizer.helper';
 export * from './tt-symbol-mapping.config';
 export * from './tt-trades-csv.parser';

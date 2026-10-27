@@ -939,10 +939,39 @@ export class QlgdDashboardService {
         realizedPnL: Math.round(data.realizedPnL),
         liquidatedLots: data.liquidatedLots,
         isTop17: meta.isTop17,
-        highlightExpectedLoss: meta.symbol === 'SI5CO' && data.expectedPnL < 0,
-        highlightOpenPosition: meta.symbol === 'SI5CO' && totalOpen > 1000,
-        highlightLiquidated: (meta.symbol === 'ZME' || meta.symbol === 'SI5CO') && data.liquidatedLots > 500,
+        highlightExpectedLoss: false,
+        highlightOpenPosition: false,
+        highlightLiquidated: false,
       });
+    }
+
+    // Xác định động các mặt hàng nổi bật (Zero-hardcoding chuẩn AGENTS.md)
+    let maxExpectedLoss = 0; // Số âm nhỏ nhất (lỗ nặng nhất)
+    let topLossSymbol = '';
+    let maxOpenLots = 0;
+    let topOpenSymbol = '';
+    let maxLiquidatedLots = 0;
+    let topLiquidatedSymbol = '';
+
+    for (const it of allItems) {
+      if (it.expectedPnL < maxExpectedLoss) {
+        maxExpectedLoss = it.expectedPnL;
+        topLossSymbol = it.symbol;
+      }
+      if (it.openPositions > maxOpenLots) {
+        maxOpenLots = it.openPositions;
+        topOpenSymbol = it.symbol;
+      }
+      if (it.liquidatedLots > maxLiquidatedLots) {
+        maxLiquidatedLots = it.liquidatedLots;
+        topLiquidatedSymbol = it.symbol;
+      }
+    }
+
+    for (const it of allItems) {
+      it.highlightExpectedLoss = topLossSymbol !== '' && it.symbol === topLossSymbol;
+      it.highlightOpenPosition = topOpenSymbol !== '' && it.symbol === topOpenSymbol;
+      it.highlightLiquidated = topLiquidatedSymbol !== '' && it.symbol === topLiquidatedSymbol;
     }
 
     // Sắp xếp: Ưu tiên hiển thị 17 mặt hàng chủ lực lên trước theo thứ tự BGS_TOP_17_SYMBOLS

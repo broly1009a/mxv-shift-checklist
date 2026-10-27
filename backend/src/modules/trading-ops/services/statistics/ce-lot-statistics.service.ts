@@ -61,6 +61,7 @@ export interface CeDsgdRow {
 export interface CeTtmRow {
   raw: any[];
   maTvkd: string;
+  tenThanhVien?: string;
   maTKGD: string;
   maHD: string;
   klMua: number;
@@ -278,6 +279,9 @@ export class CeLotStatisticsService {
       if (!tvkd) continue;
       if (!ttmByTvkd.has(tvkd)) ttmByTvkd.set(tvkd, []);
       ttmByTvkd.get(tvkd)!.push(row);
+      if (row.tenThanhVien && !tvkdNames.has(tvkd)) {
+        tvkdNames.set(tvkd, row.tenThanhVien);
+      }
     }
 
     const allTvkds = new Set<string>([...dsgdByTvkd.keys(), ...ttmByTvkd.keys()]);
@@ -364,7 +368,7 @@ export class CeLotStatisticsService {
           byTvkd,
         },
       },
-      tyGiaUsed: { USD: usdExchangeRate },
+      tyGiaUsed: { USD: usdExchangeRate || 0 },
       warnings,
     };
   }
@@ -895,13 +899,13 @@ export class CeLotStatisticsService {
     };
 
     const idxTvkd = findIdx(['MEMBERCODE', 'MÃ THÀNH VIÊN', 'MÃ TVKD'], -1);
-    const idxTvkdName = findIdx(['MEMBERNAME', 'TÊN THÀNH VIÊN', 'TÊN TVKD'], -1);
-    const idxTkgd = findIdx(['AFACCTNO', 'MÃ TKGD', 'SỐ TÀI KHOẢN'], -1);
+    const idxTvkdName = findIdx(['MEMBERNAME', 'TÊN THÀNH VIÊN', 'TÊN TVKD', 'TÊN TKGD'], -1);
+    const idxTkgd = findIdx(['ACCTNO', 'AFACCTNO', 'MÃ TKGD', 'SỐ TÀI KHOẢN'], -1);
     const idxHd = findIdx(['SYMBOL', 'MÃ HỢP ĐỒNG', 'MÃ HĐ'], -1);
-    const idxLoaiLenh = findIdx(['PRICETYPE_DESC', 'LOẠI LỆNH'], -1);
-    const idxKl = findIdx(['EXECQTTY', 'KL KHỚP', 'KHỐI LƯỢNG KHỚP'], -1);
-    const idxGia = findIdx(['EXECPRICE', 'GIÁ KHỚP TRUNG BÌNH', 'GIÁ KHỚP', 'PRICE', 'GIÁ ĐẶT'], -1);
-    const idxMuaBan = findIdx(['SIDE_DESC', 'MUA/BÁN'], -1);
+    const idxLoaiLenh = findIdx(['TYPECD', 'PRICETYPE_DESC', 'LOẠI LỆNH'], -1);
+    const idxKl = findIdx(['MATCHQTY', 'EXECQTTY', 'KL KHỚP', 'KHỐI LƯỢNG KHỚP', 'QTTY'], -1);
+    const idxGia = findIdx(['MATCHPX', 'EXECPRICE', 'GIÁ KHỚP TRUNG BÌNH', 'GIÁ KHỚP', 'PRICE', 'GIÁ ĐẶT'], -1);
+    const idxMuaBan = findIdx(['SIDE', 'SIDE_DESC', 'MUA/BÁN'], -1);
     const idxNgay = findIdx(['SESSION_DATE', 'NGÀY PHIÊN'], -1);
 
     const rows: CeDsgdRow[] = [];
@@ -947,7 +951,8 @@ export class CeLotStatisticsService {
       if (rawRows.length < 2) return rows;
 
       const headers = rawRows[0].map((h) => String(h || '').trim().toUpperCase());
-      const idxTvkd = headers.findIndex((h) => h.includes('MEMBERCODE') || h.includes('MÃ THÀNH VIÊN'));
+      const idxTvkd = headers.findIndex((h) => h.includes('MEMBERCODE') || h.includes('MÃ THÀNH VIÊN') || h.includes('MÃ TVKD'));
+      const idxTvkdName = headers.findIndex((h) => h.includes('MEMBERNAME') || h.includes('TÊN THÀNH VIÊN') || h.includes('TÊN TVKD'));
       const idxTkgd = headers.findIndex((h) => h.includes('ACCTNO') || h.includes('MÃ TKGD'));
       const idxHd = headers.findIndex((h) => h.includes('SYMBOL') || h.includes('MÃ HỢP ĐỒNG'));
       const idxLong = headers.findIndex((h) => h.includes('LONGQTTY') || h.includes('KHỐI LƯỢNG MUA'));
@@ -965,6 +970,7 @@ export class CeLotStatisticsService {
         rows.push({
           raw: r,
           maTvkd: tvkd,
+          tenThanhVien: idxTvkdName >= 0 ? String(r[idxTvkdName] || '').trim() : '',
           maTKGD: tkgd,
           maHD: idxHd >= 0 ? String(r[idxHd] || '').trim() : '',
           klMua: idxLong >= 0 ? parseFloat(r[idxLong]) || 0 : 0,
