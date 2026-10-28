@@ -15,6 +15,8 @@ export interface ICcpReportMapping {
   key: string;
   fileName: string;
   searchCode: string;
+  parentSearchCode?: string;
+  exportSearchCode?: string;
   route: string;
   description: string;
   filterPayload?: Record<string, any>;
@@ -25,18 +27,27 @@ export interface ICcpReportMapping {
 }
 
 /**
- * 12 ENDPOINT GỐC CHUẨN CỦA VNCLEAR CORECCP API (ĐÃ AUDIT 100% LIVE HTTP 200)
+ * 14 ENDPOINT GỐC CHUẨN CỦA VNCLEAR CORECCP API (ĐÃ AUDIT 100% LIVE HTTP 200)
  * Tuyệt đối không thêm các searchCode phỏng đoán không tồn tại trên máy chủ.
  */
 export const CANONICAL_CORECCP_API_KEYS = [
   'DSL_CCP',      // ORDERBOOK -> DSL CCP.xlsx
+  'DSLCK_CCP',    // ORDERBOOK_PENDING -> DSLCK CCP.xlsx (Chờ khớp)
+  'DSLDH_CCP',    // ORDERBOOK_CANCEL -> DSLDH CCP.xlsx (Đã hủy)
+  'DSLDK_CCP',    // ORDERBOOK_MATCH -> DSLDK CCP.xlsx (Đã khớp)
   'DSGD_CCP',     // ORDERMATCH_DETAIL -> DSGD CCP.xlsx
   'LSGD_CCP',     // ORDERMATCH_ALL -> LSGD CCP.xlsx
   'DSL_MM_CCP',   // ORDERBOOK_MM -> DSL MM CCP.xlsx
+  'DSLCK_MM_CCP', // ORDERBOOK_MM_PENDING -> DSLCK MM CCP.xlsx (Chờ khớp MM)
+  'DSLDH_MM_CCP', // ORDERBOOK_MM_CANCEL -> DSLDH MM CCP.xlsx (Đã hủy MM)
+  'DSLDK_MM_CCP', // ORDERBOOK_MM_MATCH -> DSLDK MM CCP.xlsx (Đã khớp MM)
+  'DSGD_MM_CCP',  // ORDERBOOK_ALL_MM -> DSGD MM CCP.xlsx (Khớp lệnh MM)
   'TTM_CCP',      // OPEN_POSITION -> TTM CCP.xlsx
   'TTTT',         // PNL_EXECUTED -> TTTT.xlsx
   'QL_TT_TKGD',   // ACCTMARGIN_ALL -> QL TT TKGD.xlsx
+  'QL_TT_TVKD',   // ACCTMARGIN_ALL / MEMBERMARGIN_ALL -> QL TT TVKD.xlsx
   'DSQLKQ_TKGD',  // ACCTMARGIN_POS -> DSQLKQ TKGD.xlsx
+  'DSQLKQ_TVKD',  // ACCTMARGIN_POS / MEMBERMARGIN_POS -> DSQLKQ TVKD.xlsx
   'NR',           // CASHTRANFER_HIST -> NR.xlsx
   'DSTKGD_ACM',   // ACCOUNTS_INFO -> DSTKGD ACM.xlsx
   'GTT_CCP',      // SETTLEMENT -> GTT CCP.xlsx
@@ -47,28 +58,35 @@ export const CANONICAL_CORECCP_API_KEYS = [
 
 export type CanonicalCoreCcpKey = typeof CANONICAL_CORECCP_API_KEYS[number];
 
+export interface ICcpDerivedRule {
+  targetFileName: string;
+  isDated?: boolean;
+  freezeHour?: number;           // Mốc giờ đóng băng (ví dụ: 6 cho 06:00 sáng, 16 cho 16:20 chiều)
+  freezeMinute?: number;         // Mốc phút đóng băng (ví dụ: 0 hoặc 20)
+  noOverwriteIfExists?: boolean; // Sau mốc giờ đóng băng, nếu file đã tồn tại thì KHÔNG ghi đè
+}
+
 /**
  * QUY TẮC NHÂN BẢN FILE PHÁI SINH (DERIVED REQUISITES) CHO CA TRỰC
  * Từ 1 file gốc tải về -> Tự động sinh ra các file phân loại tương ứng
+ * GHI CHÚ:
+ * - DSLDK, DSLCK, DSLDH (thường & MM) ĐÃ ĐƯỢC TẢI TRỰC TIẾP TỪ SERVER EXPORT API, KHÔNG COPY DERIVED.
+ * - GTT trước 6h.xlsx: Đóng băng sau 06:00 sáng, nếu đã tồn tại thì không ghi đè để bảo toàn snapshot mốc 6h.
+ * - TTM truoc 4h20.xlsx & QL TT TKGD truoc 4h20.xlsx: Đóng băng sau 16:20 chiều.
  */
-export const CORECCP_DERIVED_RULES: Record<string, Array<{ targetFileName: string; isDated?: boolean }>> = {
-  DSL_CCP: [
-    { targetFileName: 'DSLDK CCP.xlsx' },
-    { targetFileName: 'DSLCK CCP.xlsx' },
-    { targetFileName: 'DSLDH CCP.xlsx' },
-  ],
-  DSL_MM_CCP: [
-    { targetFileName: 'DSLDK MM CCP.xlsx' },
-    { targetFileName: 'DSLCK MM CCP.xlsx' },
-    { targetFileName: 'DSLDH MM CCP.xlsx' },
-    { targetFileName: 'DSGD MM CCP.xlsx' },
+export const CORECCP_DERIVED_RULES: Record<string, ICcpDerivedRule[]> = {
+  GTT_CCP: [
+    { targetFileName: 'GTT trước 6h.xlsx', freezeHour: 6, freezeMinute: 0, noOverwriteIfExists: true },
+    { targetFileName: 'GTT truoc 6h.xlsx', freezeHour: 6, freezeMinute: 0, noOverwriteIfExists: true },
+    { targetFileName: 'GTT.xlsx' },
   ],
   TTM_CCP: [
-    { targetFileName: 'TTM truoc 4h20.xlsx' },
+    { targetFileName: 'TTM.xlsx' },
+    { targetFileName: 'TTM truoc 4h20.xlsx', freezeHour: 16, freezeMinute: 20, noOverwriteIfExists: true },
     { targetFileName: 'TTM_{date}.xlsx', isDated: true },
   ],
   QL_TT_TKGD: [
-    { targetFileName: 'QL TT TKGD truoc 4h20.xlsx' },
+    { targetFileName: 'QL TT TKGD truoc 4h20.xlsx', freezeHour: 16, freezeMinute: 20, noOverwriteIfExists: true },
   ],
   DSGD_CCP: [
     { targetFileName: 'DSGD_{date}.xlsx', isDated: true },
@@ -134,6 +152,7 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     key: 'TTM_CCP',
     fileName: 'TTM CCP.xlsx',
     searchCode: 'OPEN_POSITION',
+    exportSearchCode: 'OPEN_POSITION_EXPORT',
     route: '/ORDERS/OPEN_POSITION',
     description: 'Trạng thái mở toàn sàn chốt cuối ngày (EOD)',
     group: 'POSITION',
@@ -143,6 +162,7 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     key: 'TTTT',
     fileName: 'TTTT.xlsx',
     searchCode: 'PNL_EXECUTED',
+    exportSearchCode: 'PNL_EXECUTED_EXPORT',
     route: '/ORDERS/PNL_EXECUTED',
     description: 'Trạng thái tất toán vị thế và lãi lỗ thực hiện',
     group: 'POSITION',
@@ -258,66 +278,54 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
   DSLDK: {
     key: 'DSLDK',
     fileName: 'DSLDK CCP.xlsx',
-    searchCode: 'ORDERBOOK',
+    searchCode: 'ORDERBOOK_MATCH',
     route: '/ORDERS/ORDERBOOK',
-    description: 'Lệnh đã khớp (Dẫn xuất từ ORDERBOOK)',
-    isDerived: true,
-    derivedFrom: 'DSL_CCP',
+    description: 'Danh sách lệnh đã khớp (Alias DSLDK_CCP)',
     group: 'ORDERS',
     phase: 'EOD',
   },
   DSLCK: {
     key: 'DSLCK',
     fileName: 'DSLCK CCP.xlsx',
-    searchCode: 'ORDERBOOK',
+    searchCode: 'ORDERBOOK_PENDING',
     route: '/ORDERS/ORDERBOOK',
-    description: 'Lệnh chờ khớp (Dẫn xuất từ ORDERBOOK)',
-    isDerived: true,
-    derivedFrom: 'DSL_CCP',
+    description: 'Danh sách lệnh chờ khớp (Alias DSLCK_CCP)',
     group: 'ORDERS',
     phase: 'EOD',
   },
   DSLDH: {
     key: 'DSLDH',
     fileName: 'DSLDH CCP.xlsx',
-    searchCode: 'ORDERBOOK',
+    searchCode: 'ORDERBOOK_CANCEL',
     route: '/ORDERS/ORDERBOOK',
-    description: 'Lệnh đã hủy (Dẫn xuất từ ORDERBOOK)',
-    isDerived: true,
-    derivedFrom: 'DSL_CCP',
+    description: 'Danh sách lệnh đã hủy (Alias DSLDH_CCP)',
     group: 'ORDERS',
     phase: 'EOD',
   },
   DSLDK_CCP: {
     key: 'DSLDK_CCP',
     fileName: 'DSLDK CCP.xlsx',
-    searchCode: 'ORDERBOOK',
+    searchCode: 'ORDERBOOK_MATCH',
     route: '/ORDERS/ORDERBOOK',
-    description: 'Lệnh thường đã khớp (Dẫn xuất từ ORDERBOOK)',
-    isDerived: true,
-    derivedFrom: 'DSL_CCP',
+    description: 'Danh sách lệnh thường đã khớp (ORDERBOOK_MATCH)',
     group: 'ORDERS',
     phase: 'EOD',
   },
   DSLCK_CCP: {
     key: 'DSLCK_CCP',
     fileName: 'DSLCK CCP.xlsx',
-    searchCode: 'ORDERBOOK',
+    searchCode: 'ORDERBOOK_PENDING',
     route: '/ORDERS/ORDERBOOK',
-    description: 'Lệnh thường chờ khớp (Dẫn xuất từ ORDERBOOK)',
-    isDerived: true,
-    derivedFrom: 'DSL_CCP',
+    description: 'Danh sách lệnh thường chờ khớp (ORDERBOOK_PENDING)',
     group: 'ORDERS',
     phase: 'EOD',
   },
   DSLDH_CCP: {
     key: 'DSLDH_CCP',
     fileName: 'DSLDH CCP.xlsx',
-    searchCode: 'ORDERBOOK',
+    searchCode: 'ORDERBOOK_CANCEL',
     route: '/ORDERS/ORDERBOOK',
-    description: 'Lệnh thường đã hủy (Dẫn xuất từ ORDERBOOK)',
-    isDerived: true,
-    derivedFrom: 'DSL_CCP',
+    description: 'Danh sách lệnh thường đã hủy (ORDERBOOK_CANCEL)',
     group: 'ORDERS',
     phase: 'EOD',
   },
@@ -360,95 +368,80 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
   DSLDK_MM: {
     key: 'DSLDK_MM',
     fileName: 'DSLDK MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
+    searchCode: 'ORDERBOOK_MM_MATCH',
     route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Lệnh MM đã khớp (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    description: 'Danh sách lệnh MM đã khớp (Alias DSLDK_MM_CCP)',
     group: 'MM',
     phase: 'EOD',
   },
   DSLCK_MM: {
     key: 'DSLCK_MM',
     fileName: 'DSLCK MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
+    searchCode: 'ORDERBOOK_MM_PENDING',
     route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Lệnh MM chờ khớp (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    description: 'Danh sách lệnh MM chờ khớp (Alias DSLCK_MM_CCP)',
     group: 'MM',
     phase: 'EOD',
   },
   DSLDH_MM: {
     key: 'DSLDH_MM',
     fileName: 'DSLDH MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
+    searchCode: 'ORDERBOOK_MM_CANCEL',
     route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Lệnh MM đã hủy (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    description: 'Danh sách lệnh MM đã hủy (Alias DSLDH_MM_CCP)',
     group: 'MM',
     phase: 'EOD',
   },
   DSGD_MM: {
     key: 'DSGD_MM',
     fileName: 'DSGD MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
-    route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Khớp lệnh MM (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    searchCode: 'ORDERBOOK_ALL_MM',
+    route: '/ORDERS/ORDERBOOK_ALL_MM',
+    description: 'Giao dịch khớp lệnh MM (Alias DSGD_MM_CCP)',
     group: 'MM',
     phase: 'EOD',
   },
   DSLDK_MM_CCP: {
     key: 'DSLDK_MM_CCP',
     fileName: 'DSLDK MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
+    searchCode: 'ORDERBOOK_MM_MATCH',
     route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Lệnh MM đã khớp (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    description: 'Danh sách lệnh MM đã khớp (ORDERBOOK_MM_MATCH)',
     group: 'MM',
     phase: 'EOD',
   },
   DSLCK_MM_CCP: {
     key: 'DSLCK_MM_CCP',
     fileName: 'DSLCK MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
+    searchCode: 'ORDERBOOK_MM_PENDING',
     route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Lệnh MM chờ khớp (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    description: 'Danh sách lệnh MM chờ khớp (ORDERBOOK_MM_PENDING)',
     group: 'MM',
     phase: 'EOD',
   },
   DSLDH_MM_CCP: {
     key: 'DSLDH_MM_CCP',
     fileName: 'DSLDH MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
+    searchCode: 'ORDERBOOK_MM_CANCEL',
     route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Lệnh MM đã hủy (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    description: 'Danh sách lệnh MM đã hủy (ORDERBOOK_MM_CANCEL)',
     group: 'MM',
     phase: 'EOD',
   },
   DSGD_MM_CCP: {
     key: 'DSGD_MM_CCP',
     fileName: 'DSGD MM CCP.xlsx',
-    searchCode: 'ORDERBOOK_MM',
-    route: '/ORDERS/ORDERBOOK_MM',
-    description: 'Khớp lệnh MM (Dẫn xuất từ ORDERBOOK_MM)',
-    isDerived: true,
-    derivedFrom: 'DSL_MM_CCP',
+    searchCode: 'ORDERBOOK_ALL_MM',
+    route: '/ORDERS/ORDERBOOK_ALL_MM',
+    description: 'Giao dịch khớp lệnh MM toàn sàn (ORDERBOOK_ALL_MM)',
     group: 'MM',
     phase: 'EOD',
   },
   TTM: {
     key: 'TTM',
-    fileName: 'TTM CCP.xlsx',
+    fileName: 'TTM.xlsx',
     searchCode: 'OPEN_POSITION',
+    exportSearchCode: 'OPEN_POSITION_EXPORT',
     route: '/ORDERS/OPEN_POSITION',
     description: 'Trạng thái mở EOD (Alias TTM_CCP)',
     group: 'POSITION',
@@ -496,36 +489,43 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     group: 'RISK',
     phase: 'EOD',
   },
+  QL_TT_TVKD: {
+    key: 'QL_TT_TVKD',
+    fileName: 'QL TT TVKD.xlsx',
+    searchCode: 'MEMBERMARGIN_ALL',
+    parentSearchCode: 'ACCTMARGIN_ALL',
+    route: '/RISKMNG/ACCTMARGIN_ALL',
+    description: 'Quản lý trạng thái ký quỹ TVKD cuối ngày (EOD)',
+    group: 'RISK',
+    phase: 'EOD',
+  },
   QLTTTVKD: {
     key: 'QLTTTVKD',
     fileName: 'QL TT TVKD.xlsx',
-    searchCode: 'ACCTMARGIN_ALL',
+    searchCode: 'MEMBERMARGIN_ALL',
+    parentSearchCode: 'ACCTMARGIN_ALL',
     route: '/RISKMNG/ACCTMARGIN_ALL',
-    description: 'Quản lý trạng thái ký quỹ TVKD (Dẫn xuất)',
-    isDerived: true,
-    derivedFrom: 'QL_TT_TKGD',
+    description: 'Quản lý trạng thái ký quỹ TVKD (Alias QL_TT_TVKD)',
     group: 'RISK',
     phase: 'EOD',
   },
   QLTT_TVKD: {
     key: 'QLTT_TVKD',
     fileName: 'QL TT TVKD.xlsx',
-    searchCode: 'ACCTMARGIN_ALL',
+    searchCode: 'MEMBERMARGIN_ALL',
+    parentSearchCode: 'ACCTMARGIN_ALL',
     route: '/RISKMNG/ACCTMARGIN_ALL',
-    description: 'Quản lý trạng thái ký quỹ TVKD (Dẫn xuất)',
-    isDerived: true,
-    derivedFrom: 'QL_TT_TKGD',
+    description: 'Quản lý trạng thái ký quỹ TVKD (Alias QL_TT_TVKD)',
     group: 'RISK',
     phase: 'EOD',
   },
   DSQLKQ_TVKD: {
     key: 'DSQLKQ_TVKD',
     fileName: 'DSQLKQ TVKD.xlsx',
-    searchCode: 'ACCTMARGIN_POS',
+    searchCode: 'MEMBERMARGIN_POS',
+    parentSearchCode: 'ACCTMARGIN_POS',
     route: '/RISKMNG/ACCTMARGIN_POS',
-    description: 'Danh sách quản lý ký quỹ TVKD (Dẫn xuất)',
-    isDerived: true,
-    derivedFrom: 'DSQLKQ_TKGD',
+    description: 'Danh sách quản lý ký quỹ TVKD cuối ngày (EOD)',
     group: 'RISK',
     phase: 'EOD',
   },
@@ -544,6 +544,15 @@ export const CORECCP_API_REPORTS: Record<string, ICcpReportMapping> = {
     searchCode: 'SETTLEMENT',
     route: '/PRODUCT/SETTLEMENT',
     description: 'Giá thanh toán (Alias GTT_CCP)',
+    group: 'PRODUCT',
+    phase: 'EOD',
+  },
+  GTT_TRUOC_6H: {
+    key: 'GTT_TRUOC_6H',
+    fileName: 'GTT trước 6h.xlsx',
+    searchCode: 'SETTLEMENT',
+    route: '/PRODUCT/SETTLEMENT',
+    description: 'Giá thanh toán trước 6h sáng (Alias GTT_CCP)',
     group: 'PRODUCT',
     phase: 'EOD',
   },

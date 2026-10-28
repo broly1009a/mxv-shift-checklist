@@ -272,6 +272,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
       totalDSGD?: number;
       totalNano?: number;
       cutoffTime?: string;
+      targetDate?: string;
     }>;
   }, [liveData?.runs]);
 
@@ -673,13 +674,25 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     };
   }, [liveData?.latestMetrics?.others]);
 
-  // Dòng thời gian các lần kiểm tra trong phiên (sắp xếp tăng dần theo thời gian tạo, chỉ lấy các lượt đã hoàn thành COMPLETED)
+  // Dòng thời gian các lần kiểm tra trong phiên (sắp xếp tăng dần theo thời gian tạo, chỉ lấy các lượt đã hoàn thành COMPLETED và đúng sessionDate)
   const chronologicalRuns = useMemo(() => {
     if (!runs || runs.length === 0) return [];
     return runs
-      .filter((r) => !r.status || r.status === 'COMPLETED')
+      .filter((r) => {
+        if (r.status && r.status !== 'COMPLETED') return false;
+        if (!sessionDate) return true;
+        if (!r.targetDate) return true;
+        if (r.targetDate === sessionDate) return true;
+
+        const sessionParts = sessionDate.split('-');
+        if (sessionParts.length === 3) {
+          const slashDate = `${sessionParts[2]}/${sessionParts[1]}/${sessionParts[0]}`;
+          if (r.targetDate === slashDate) return true;
+        }
+        return false;
+      })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [runs]);
+  }, [runs, sessionDate]);
 
   // Cấu hình Biểu đồ Check Timeline cho Khối ACM (100% dữ liệu thực)
   const acmChartData = useMemo(() => {
@@ -889,7 +902,134 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     };
   }, [chronologicalRuns, othersLatestMetrics, othersMilestones]);
 
-  // Tính toán động các mã nổi bật phục vụ chú thích bảng chân trang & phân tầng màu sắc Heatmap
+  // Tính toán động các giá trị cực đại để chia cấp độ tương đối (100% Dynamic Zero-Hardcoding)
+  const heatmapMaxMetrics = useMemo(() => {
+    const items = rawDisplayItems || [];
+    let maxOpen = 0;
+    let maxLiquidated = 0;
+    let maxExpectedLoss = 0;
+    let maxExpectedProfit = 0;
+    let maxRealizedLoss = 0;
+    let maxRealizedProfit = 0;
+
+    for (const item of items) {
+      if ((item.openPositions || 0) > maxOpen) maxOpen = item.openPositions;
+      if ((item.liquidatedLots || 0) > maxLiquidated) maxLiquidated = item.liquidatedLots;
+      if ((item.expectedPnL || 0) < 0 && Math.abs(item.expectedPnL) > maxExpectedLoss) {
+        maxExpectedLoss = Math.abs(item.expectedPnL);
+      }
+      if ((item.expectedPnL || 0) > 0 && item.expectedPnL > maxExpectedProfit) {
+        maxExpectedProfit = item.expectedPnL;
+      }
+      if ((item.realizedPnL || 0) < 0 && Math.abs(item.realizedPnL) > maxRealizedLoss) {
+        maxRealizedLoss = Math.abs(item.realizedPnL);
+      }
+      if ((item.realizedPnL || 0) > 0 && item.realizedPnL > maxRealizedProfit) {
+        maxRealizedProfit = item.realizedPnL;
+      }
+    }
+
+    return {
+      maxOpen,
+      maxLiquidated,
+      maxExpectedLoss,
+      maxExpectedProfit,
+      maxRealizedLoss,
+      maxRealizedProfit,
+    };
+  }, [rawDisplayItems]);
+
+  // Helper phân tầng 5 cấp độ Xanh (Green Tier Heatmap: Vị thế mở, Tất toán, Khoản Lãi)
+  const getGreenTierStyle = (val: number, maxVal: number) => {
+    if (!val || val <= 0 || !maxVal || maxVal <= 0) {
+      return {
+        backgroundColor: 'transparent',
+        color: 'var(--text-primary)',
+        fontWeight: 500,
+      };
+    }
+    const ratio = val / maxVal;
+    if (ratio >= 0.7) {
+      return {
+        backgroundColor: 'rgba(16, 185, 129, 0.28)',
+        color: '#059669',
+        fontWeight: 800,
+      };
+    }
+    if (ratio >= 0.4) {
+      return {
+        backgroundColor: 'rgba(16, 185, 129, 0.18)',
+        color: '#10b981',
+        fontWeight: 700,
+      };
+    }
+    if (ratio >= 0.2) {
+      return {
+        backgroundColor: 'rgba(16, 185, 129, 0.10)',
+        color: 'var(--text-primary)',
+        fontWeight: 600,
+      };
+    }
+    if (ratio >= 0.05) {
+      return {
+        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+        color: 'var(--text-primary)',
+        fontWeight: 500,
+      };
+    }
+    return {
+      backgroundColor: 'transparent',
+      color: 'var(--text-primary)',
+      fontWeight: 400,
+    };
+  };
+
+  // Helper phân tầng 5 cấp độ Đỏ (Red Tier Heatmap: Khoản Lỗ)
+  const getRedTierStyle = (absVal: number, maxLoss: number) => {
+    if (!absVal || absVal <= 0 || !maxLoss || maxLoss <= 0) {
+      return {
+        backgroundColor: 'transparent',
+        color: 'var(--text-muted)',
+        fontWeight: 500,
+      };
+    }
+    const ratio = absVal / maxLoss;
+    if (ratio >= 0.7) {
+      return {
+        backgroundColor: 'rgba(239, 68, 68, 0.28)',
+        color: '#dc2626',
+        fontWeight: 800,
+      };
+    }
+    if (ratio >= 0.4) {
+      return {
+        backgroundColor: 'rgba(239, 68, 68, 0.18)',
+        color: '#ef4444',
+        fontWeight: 700,
+      };
+    }
+    if (ratio >= 0.2) {
+      return {
+        backgroundColor: 'rgba(239, 68, 68, 0.10)',
+        color: '#ef4444',
+        fontWeight: 600,
+      };
+    }
+    if (ratio >= 0.05) {
+      return {
+        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+        color: '#ef4444',
+        fontWeight: 500,
+      };
+    }
+    return {
+      backgroundColor: 'transparent',
+      color: 'var(--text-muted)',
+      fontWeight: 400,
+    };
+  };
+
+  // Tính toán động các mã nổi bật phục vụ chú thích bảng chân trang
   const topLossItem = useMemo(() => {
     if (!rawDisplayItems || rawDisplayItems.length === 0) return null;
     const sorted = [...rawDisplayItems].filter((i) => i.expectedPnL < 0).sort((a, b) => a.expectedPnL - b.expectedPnL);
@@ -2359,15 +2499,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                   const isFirstOfGroup = idx === 0;
                   const isLastOfGroup = idx === items.length - 1;
 
-                  // Màu số tiền & Cờ động nhận diện phân tầng Heatmap
-                  const isExpectedLoss = item.expectedPnL < 0;
-                  const isRealizedLoss = item.realizedPnL < 0;
+                  // Phân tầng Heatmap 5 Cấp độ động (100% Zero-Hardcoding)
                   const isLongDominant = item.longRatio >= item.shortRatio;
-                  const isTopExpectedLoss = !!(item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol));
-                  const isTopOpen = !!(item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol));
-                  const isTopLiquidated = !!(item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol));
-                  const isTopProfit = !!(topRealizedProfitItem && item.symbol === topRealizedProfitItem.symbol && item.realizedPnL > 0);
-                  const isTopRealizedLoss = !!(topRealizedLossItem && item.symbol === topRealizedLossItem.symbol && item.realizedPnL < 0);
+
+                  const expPnlStyle = item.expectedPnL < 0
+                    ? getRedTierStyle(Math.abs(item.expectedPnL), heatmapMaxMetrics.maxExpectedLoss)
+                    : item.expectedPnL > 0
+                    ? getGreenTierStyle(item.expectedPnL, heatmapMaxMetrics.maxExpectedProfit)
+                    : { color: 'var(--text-muted)', backgroundColor: 'transparent', fontWeight: 500 };
+
+                  const openPosStyle = getGreenTierStyle(item.openPositions, heatmapMaxMetrics.maxOpen);
+
+                  const realPnlStyle = item.realizedPnL < 0
+                    ? getRedTierStyle(Math.abs(item.realizedPnL), heatmapMaxMetrics.maxRealizedLoss)
+                    : item.realizedPnL > 0
+                    ? getGreenTierStyle(item.realizedPnL, heatmapMaxMetrics.maxRealizedProfit)
+                    : { color: 'var(--text-muted)', backgroundColor: 'transparent', fontWeight: 500 };
+
+                  const liqStyle = getGreenTierStyle(item.liquidatedLots, heatmapMaxMetrics.maxLiquidated);
 
                   return (
                     <tr
@@ -2442,41 +2591,33 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         {item.name}
                       </td>
 
-                      {/* 5. Tổng lãi lỗ dự kiến (VND) - Đa tầng: Lỗ lớn nhất Đỏ đậm, lỗ thường Hồng nhạt, lãi Xanh nhạt */}
+                      {/* 5. Tổng lãi lỗ dự kiến (VND) - Phân tầng 5 Cấp độ Heatmap */}
                       <td
                         style={{
                           padding: '6px 10px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
-                          fontWeight: isTopExpectedLoss ? 800 : 700,
+                          fontWeight: expPnlStyle.fontWeight,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          color: item.expectedPnL < 0 ? '#ef4444' : item.expectedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                          backgroundColor: isTopExpectedLoss
-                            ? 'rgba(239, 68, 68, 0.22)'
-                            : item.expectedPnL < 0
-                            ? 'rgba(239, 68, 68, 0.08)'
-                            : item.expectedPnL > 0
-                            ? 'rgba(16, 185, 129, 0.08)'
-                            : 'transparent',
+                          color: expPnlStyle.color,
+                          backgroundColor: expPnlStyle.backgroundColor,
                         }}
                       >
                         {formatAccountingCurrency(item.expectedPnL)}
                       </td>
 
-                      {/* 6. Tổng vị thế mở - Đa tầng: Vị thế lớn nhất Xanh đậm nổi bật */}
+                      {/* 6. Tổng vị thế mở - Phân tầng 5 Cấp độ Heatmap */}
                       <td
                         style={{
                           padding: '6px 8px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
-                          fontWeight: isTopOpen ? 800 : 700,
-                          color: 'var(--text-primary)',
+                          fontWeight: openPosStyle.fontWeight,
+                          color: openPosStyle.color,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          backgroundColor: isTopOpen
-                            ? 'rgba(16, 185, 129, 0.22)'
-                            : 'transparent',
+                          backgroundColor: openPosStyle.backgroundColor,
                         }}
                       >
                         {formatInteger(item.openPositions)}
@@ -2568,42 +2709,32 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                         </div>
                       </td>
 
-                      {/* 9. Lãi lỗ thực tế (VND) - Đa tầng: Lãi lớn nhất Xanh đậm, lỗ lớn nhất Đỏ đậm, lãi thường Xanh nhạt, lỗ thường Hồng nhạt */}
+                      {/* 9. Lãi lỗ thực tế (VND) - Phân tầng 5 Cấp độ Heatmap */}
                       <td
                         style={{
                           padding: '6px 10px',
                           textAlign: 'right',
                           borderRight: '1px solid var(--border-color)',
-                          fontWeight: (isTopProfit || isTopRealizedLoss) ? 800 : 700,
+                          fontWeight: realPnlStyle.fontWeight,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          color: item.realizedPnL < 0 ? '#ef4444' : item.realizedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                          backgroundColor: isTopProfit
-                            ? 'rgba(16, 185, 129, 0.22)'
-                            : isTopRealizedLoss
-                            ? 'rgba(239, 68, 68, 0.22)'
-                            : item.realizedPnL < 0
-                            ? 'rgba(239, 68, 68, 0.08)'
-                            : item.realizedPnL > 0
-                            ? 'rgba(16, 185, 129, 0.08)'
-                            : 'transparent',
+                          color: realPnlStyle.color,
+                          backgroundColor: realPnlStyle.backgroundColor,
                         }}
                       >
                         {formatAccountingCurrency(item.realizedPnL)}
                       </td>
 
-                      {/* 10. Trạng thái tất toán - Đa tầng: Tất toán lớn nhất Xanh đậm nổi bật */}
+                      {/* 10. Trạng thái tất toán - Phân tầng 5 Cấp độ Heatmap */}
                       <td
                         style={{
                           padding: '6px 8px',
                           textAlign: 'right',
-                          fontWeight: isTopLiquidated ? 800 : 700,
+                          fontWeight: liqStyle.fontWeight,
                           fontFamily: 'monospace',
                           fontSize: '0.78rem',
-                          color: 'var(--text-primary)',
-                          backgroundColor: isTopLiquidated
-                            ? 'rgba(16, 185, 129, 0.22)'
-                            : 'transparent',
+                          color: liqStyle.color,
+                          backgroundColor: liqStyle.backgroundColor,
                         }}
                       >
                         {formatInteger(item.liquidatedLots)}
@@ -2742,30 +2873,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: '12px',
-                height: '12px',
-                backgroundColor: 'rgba(239, 68, 68, 0.22)',
-                border: '1px solid rgba(239, 68, 68, 0.6)',
-                borderRadius: '3px',
-              }}
-            />
-            <span>Đỏ đậm: Lỗ lớn nhất {topLossItem ? `(${topLossItem.symbol}: ${formatAccountingCurrency(topLossItem.expectedPnL)})` : ''} • Hồng nhạt: Lỗ thông thường</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444', borderRadius: '2px' }} title="Cấp 1: >=70% Max lỗ" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(239, 68, 68, 0.18)', borderRadius: '2px' }} title="Cấp 2: 40-70%" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(239, 68, 68, 0.10)', borderRadius: '2px' }} title="Cấp 3: 20-40%" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderRadius: '2px' }} title="Cấp 4: 5-20%" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '2px' }} title="Cấp 5: <5%" />
+            </div>
+            <span>Dải Đỏ (5 Cấp): Lỗ lớn nhất &rarr; chìm dần {topLossItem ? `(${topLossItem.symbol}: ${formatAccountingCurrency(topLossItem.expectedPnL)})` : ''}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: '12px',
-                height: '12px',
-                backgroundColor: 'rgba(16, 185, 129, 0.22)',
-                border: '1px solid rgba(16, 185, 129, 0.6)',
-                borderRadius: '3px',
-              }}
-            />
-            <span>Xanh đậm: Vị thế &amp; tất toán lớn nhất {topOpenPositionItem ? `(${topOpenPositionItem.symbol}: ${formatInteger(topOpenPositionItem.openPositions)} lots${topLiquidatedItem && topLiquidatedItem.symbol !== topOpenPositionItem.symbol ? `; ${topLiquidatedItem.symbol}: ${formatInteger(topLiquidatedItem.liquidatedLots)} lots` : ''})` : ''} • Xanh nhạt: Lãi</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(16, 185, 129, 0.28)', border: '1px solid #10b981', borderRadius: '2px' }} title="Cấp 1: >=70% Max" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(16, 185, 129, 0.18)', borderRadius: '2px' }} title="Cấp 2: 40-70%" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(16, 185, 129, 0.10)', borderRadius: '2px' }} title="Cấp 3: 20-40%" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'rgba(16, 185, 129, 0.05)', borderRadius: '2px' }} title="Cấp 4: 5-20%" />
+              <span style={{ width: '10px', height: '10px', backgroundColor: 'transparent', border: '1px solid var(--border-color)', borderRadius: '2px' }} title="Cấp 5: <5%" />
+            </div>
+            <span>Dải Xanh (5 Cấp): Vị thế mở &amp; tất toán lớn nhất {topOpenPositionItem ? `(${topOpenPositionItem.symbol}: ${formatInteger(topOpenPositionItem.openPositions)} lots)` : ''}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Info size={12} color="#38bdf8" />
@@ -3255,14 +3380,24 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                     return items.map((item, idx) => {
                       const isFirstOfGroup = idx === 0;
                       const isLastOfGroup = idx === items.length - 1;
-                      const isExpectedLoss = item.expectedPnL < 0;
-                      const isRealizedLoss = item.realizedPnL < 0;
+                      // Phân tầng Heatmap 5 Cấp độ động Modal (100% Zero-Hardcoding)
                       const isLongDominant = item.longRatio >= item.shortRatio;
-                      const isTopExpectedLoss = !!(item.highlightExpectedLoss || (topLossItem && item.symbol === topLossItem.symbol));
-                      const isTopOpen = !!(item.highlightOpenPosition || (topOpenPositionItem && item.symbol === topOpenPositionItem.symbol));
-                      const isTopLiquidated = !!(item.highlightLiquidated || (topLiquidatedItem && item.symbol === topLiquidatedItem.symbol));
-                      const isTopProfit = !!(topRealizedProfitItem && item.symbol === topRealizedProfitItem.symbol && item.realizedPnL > 0);
-                      const isTopRealizedLoss = !!(topRealizedLossItem && item.symbol === topRealizedLossItem.symbol && item.realizedPnL < 0);
+
+                      const expPnlStyle = item.expectedPnL < 0
+                        ? getRedTierStyle(Math.abs(item.expectedPnL), heatmapMaxMetrics.maxExpectedLoss)
+                        : item.expectedPnL > 0
+                        ? getGreenTierStyle(item.expectedPnL, heatmapMaxMetrics.maxExpectedProfit)
+                        : { color: 'var(--text-muted)', backgroundColor: 'transparent', fontWeight: 500 };
+
+                      const openPosStyle = getGreenTierStyle(item.openPositions, heatmapMaxMetrics.maxOpen);
+
+                      const realPnlStyle = item.realizedPnL < 0
+                        ? getRedTierStyle(Math.abs(item.realizedPnL), heatmapMaxMetrics.maxRealizedLoss)
+                        : item.realizedPnL > 0
+                        ? getGreenTierStyle(item.realizedPnL, heatmapMaxMetrics.maxRealizedProfit)
+                        : { color: 'var(--text-muted)', backgroundColor: 'transparent', fontWeight: 500 };
+
+                      const liqStyle = getGreenTierStyle(item.liquidatedLots, heatmapMaxMetrics.maxLiquidated);
 
                       return (
                         <tr
@@ -3342,38 +3477,30 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               </span>
                             )}
                           </td>
-                          {/* 5. Tổng lãi lỗ dự kiến Modal (Đa tầng) */}
+                          {/* 5. Tổng lãi lỗ dự kiến Modal (5 Cấp độ Heatmap) */}
                           <td
                             style={{
                               padding: '9px 12px',
                               textAlign: 'right',
                               borderRight: '1px solid var(--border-color)',
-                              fontWeight: isTopExpectedLoss ? 800 : 700,
+                              fontWeight: expPnlStyle.fontWeight,
                               fontFamily: 'monospace',
-                              color: item.expectedPnL < 0 ? '#ef4444' : item.expectedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                              backgroundColor: isTopExpectedLoss
-                                ? 'rgba(239, 68, 68, 0.22)'
-                                : item.expectedPnL < 0
-                                ? 'rgba(239, 68, 68, 0.08)'
-                                : item.expectedPnL > 0
-                                ? 'rgba(16, 185, 129, 0.08)'
-                                : 'transparent',
+                              color: expPnlStyle.color,
+                              backgroundColor: expPnlStyle.backgroundColor,
                             }}
                           >
                             {formatAccountingCurrency(item.expectedPnL)}
                           </td>
-                          {/* 6. Tổng vị thế mở Modal (Đa tầng) */}
+                          {/* 6. Tổng vị thế mở Modal (5 Cấp độ Heatmap) */}
                           <td
                             style={{
                               padding: '9px 10px',
                               textAlign: 'right',
                               borderRight: '1px solid var(--border-color)',
-                              fontWeight: isTopOpen ? 800 : 700,
-                              color: 'var(--text-primary)',
+                              fontWeight: openPosStyle.fontWeight,
+                              color: openPosStyle.color,
                               fontFamily: 'monospace',
-                              backgroundColor: isTopOpen
-                                ? 'rgba(16, 185, 129, 0.22)'
-                                : 'transparent',
+                              backgroundColor: openPosStyle.backgroundColor,
                             }}
                           >
                             {formatInteger(item.openPositions)}
@@ -3463,39 +3590,29 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
                               </span>
                             </div>
                           </td>
-                          {/* 9. Lãi lỗ thực tế Modal (Đa tầng) */}
+                          {/* 9. Lãi lỗ thực tế Modal (5 Cấp độ Heatmap) */}
                           <td
                             style={{
                               padding: '9px 12px',
                               textAlign: 'right',
                               borderRight: '1px solid var(--border-color)',
-                              fontWeight: (isTopProfit || isTopRealizedLoss) ? 800 : 700,
+                              fontWeight: realPnlStyle.fontWeight,
                               fontFamily: 'monospace',
-                              color: item.realizedPnL < 0 ? '#ef4444' : item.realizedPnL > 0 ? '#10b981' : 'var(--text-muted)',
-                              backgroundColor: isTopProfit
-                                ? 'rgba(16, 185, 129, 0.22)'
-                                : isTopRealizedLoss
-                                ? 'rgba(239, 68, 68, 0.22)'
-                                : item.realizedPnL < 0
-                                ? 'rgba(239, 68, 68, 0.08)'
-                                : item.realizedPnL > 0
-                                ? 'rgba(16, 185, 129, 0.08)'
-                                : 'transparent',
+                              color: realPnlStyle.color,
+                              backgroundColor: realPnlStyle.backgroundColor,
                             }}
                           >
                             {formatAccountingCurrency(item.realizedPnL)}
                           </td>
-                          {/* 10. Trạng thái tất toán Modal (Đa tầng) */}
+                          {/* 10. Trạng thái tất toán Modal (5 Cấp độ Heatmap) */}
                           <td
                             style={{
                               padding: '9px 10px',
                               textAlign: 'right',
-                              fontWeight: isTopLiquidated ? 800 : 700,
+                              fontWeight: liqStyle.fontWeight,
                               fontFamily: 'monospace',
-                              color: 'var(--text-primary)',
-                              backgroundColor: isTopLiquidated
-                                ? 'rgba(16, 185, 129, 0.22)'
-                                : 'transparent',
+                              color: liqStyle.color,
+                              backgroundColor: liqStyle.backgroundColor,
                             }}
                           >
                             {formatInteger(item.liquidatedLots)}

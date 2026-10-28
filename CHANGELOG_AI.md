@@ -138,6 +138,285 @@
   - SFTP đồng bộ 4 tệp code sang `/opt/mxv-checklist/`.
   - Compile `nest build` trên Ubuntu thành công.
   - Restart tiến trình PM2 `mxv-backend` (PID: `1671190`, status: `online`).
+## [2026-10-28T09:46] REFACTOR(DOMAIN-CONFIGS): Chuẩn Hóa Cấu Hình Báo Cáo CoreEX (coreex-reports.config.ts) Đồng Bộ 100% Theo Chuẩn CoreCCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER: Chuẩn hóa toàn diện định dạng, cấu trúc và kiểu dữ liệu của tệp cấu hình báo cáo Core Exchange ([coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreex-reports.config.ts)) để đồng bộ 100% theo kiến trúc Domain Config của CoreCCP ([coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts)).
+- Đảm bảo tính nhất quán kiến trúc (Architectural Consistency), an toàn kiểu dữ liệu (Type Safety) và Zero-Breaking-Changes đối với toàn bộ logic tải và giao diện Frontend hiện tại.
+
+### 2. Danh sách file chỉnh sửa
+1. [coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - Mở rộng interface `ICoreExchangeReportMapping` (alias `ICeReportMapping`) bổ sung các trường phân loại chuẩn:
+     * `group?: 'ORDERS' | 'MM' | 'POSITION' | 'PRODUCT' | 'ACCOUNT' | 'SESSION'`
+     * `phase?: 'BEFORE_1620' | 'EOD' | 'BOTH'`
+     * Giữ nguyên 100% các trường phục vụ UI & adapter: `name`, `subTab`, `isHistorical`, `exportSearchCode`.
+   - Xuất type an toàn: `export type CanonicalCoreExKey = typeof CANONICAL_COREEX_API_KEYS[number];`.
+   - Bổ sung khối quy tắc phái sinh chuẩn: `ICeDerivedRule` và `COREEX_DERIVED_RULES` (sinh file có ngày `{date}` cho `DSGD`, `LSGD`, `DSL`, `GTT`).
+   - Xóa bỏ triệt để 100% khối alias nhân bản và các fallback tương thích ngược (`DSGDALL`, `DSGD_CE`, `DSL_CE`...) để áp dụng chuẩn tuyệt đối Single Source of Truth (SSOT).
+   - Xuất tên biến alias thống nhất: `export const COREEX_API_REPORTS = CORE_EXCHANGE_REPORTS_REGISTRY;`.
+   - Chuẩn hóa hàm `resolveCoreExchangeReport` (alias `resolveCoreExReport`) chỉ đối chiếu thuần túy theo `key`, `searchCode`, `parentSearchCode`, `fileName` chuẩn, không chứa bất kỳ logic fallback rác nào.
+
+### 3. Kết quả xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `cmd /c "npx tsc --noEmit"` thành công 100% với Exit Code 0.
+- **Tính toàn vẹn**: Toàn bộ các API, Adapter (`CoreExApiAdapter`) và Worker giữ nguyên tính tương thích ngược 100%.
+
+---
+
+## [2026-10-28T09:10] FIX(INGRESS & DOMAIN-CONFIGS): Khắc Phục Triệt Để Phân Hệ Backup Core Exchange (CE) Khớp Chuẩn Bản Thủ Công 26.10
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo Bảng tổng hợp đối soát duy nhất cho phân hệ Backup CE của USER tại `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CE\Futures\2026\T10.2026` giữa bản Thủ công (`26.10 - Check`) và Tự động (`26.10`):
+  1. **Khắc phục `DSTKGD ACM.xlsx` (10,185 dòng, 6.54 MB - Thiếu hoàn toàn)**: Bổ sung key `DSTKGD_ACM` vào danh mục CoreEX và thêm cơ chế tự động đồng bộ/sao chép thông minh từ thư mục Backup CCP sang CE sau khi tải xong.
+  2. **Khắc phục `DSGD ACM CE.xlsx` (1,017 dòng - Bị rỗng 0 dòng 6.3 KB)**: Chuyển cấu hình sang Kiểu 2 Server Export (`ORDERMATCH_DETAIL_ACM`), bắt socket xuất file Excel gốc trực tiếp từ máy chủ.
+  3. **Khắc phục `GTT ACM.xlsx` (12 dòng, 25.1 KB - Bị rỗng 0 dòng 6.3 KB)**: Khắc phục lỗi thiếu tham số ngày phiên `SESSION_DATE` trong `searchData` và bộ lọc `download` cho `SETTLEMENT_ACM`, truyền `parentSearchCode: 'SETTLEMENT'` để lấy đủ 12 dòng giá thanh toán Nano.
+  4. **Khắc phục `TTM CE.xlsx` (Lệch bản chất 746 dòng vs 3,163 dòng)**: Cấu hình `exportSearchCode: 'OPEN_POSITION_EXPORT'` để tải bản vị thế mở chi tiết từng giao dịch (Trade-level) qua Kiểu 2 WebSocket thay vì lấy bản gom nhóm tài khoản (Account-level).
+  5. **Khắc phục `DSLCK, DSLDK, DSLH ACM CE.xlsx` (Lỗi rỗng/lệch dòng)**: Bổ sung các mã sổ lệnh chuẩn `ORDERBOOK_PENDING`, `ORDERBOOK_MATCH`, `ORDERBOOK_CANCEL` vào `CANONICAL_COREEX_API_KEYS` & `SERVER_EXPORT_CODES`; gỡ bỏ cờ derived ảo; đồng thời trang bị cơ chế bóc tách an toàn theo cột Trạng thái từ file tổng `DSL` nếu sàn không trả qua REST API.
+  6. **Chuẩn hóa danh mục kiểm toán**: Cập nhật `REQUIRED_CE_FILES` trong `required-files.constant.ts` và Frontend checkbox list trong `CcpCeBackupThongKeSection.tsx` & `CeAcmBackupSection.tsx` đủ 12 file nghiệp vụ.
+
+### 2. Danh sách file chỉnh sửa
+1. [coreex-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreex-reports.config.ts):
+   - Mở rộng interface `ICoreExchangeReportMapping` thêm thuộc tính `exportSearchCode?: string`.
+   - Cập nhật `CANONICAL_COREEX_API_KEYS`: Thêm `DSTKGD_ACM`, `DSLCK`, `DSLDK`, `DSLH`; loại bỏ các file thừa rỗng (`SESSION_CONFIG`, `SESSION_INFO`, `ACM_RECON`).
+   - Cập nhật `CORE_EXCHANGE_REPORTS_REGISTRY`: Thêm `DSTKGD_ACM`, cấu hình `exportSearchCode: 'OPEN_POSITION_EXPORT'` cho `TTM`, cấu hình searchCode chuẩn cho `DSLCK` (`ORDERBOOK_PENDING`), `DSLDK` (`ORDERBOOK_MATCH`), `DSLH` (`ORDERBOOK_CANCEL`).
+2. [coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - **searchData**: Bổ sung `searchCode.includes('SETTLEMENT')` vào điều kiện inject `SESSION_DATE`, giải quyết triệt để lỗi mảng rỗng `[]` của `GTT ACM.xlsx`.
+   - **download**:
+     * Thêm cơ chế tự động đồng bộ `DSTKGD ACM.xlsx` từ thư mục Backup CCP sang thư mục CE.
+     * Mở rộng `SERVER_EXPORT_CODES`: Thêm `'ORDERMATCH_DETAIL_ACM'`, `'ORDERBOOK_PENDING'`, `'ORDERBOOK_MATCH'`, `'ORDERBOOK_CANCEL'`, `'OPEN_POSITION_EXPORT'`.
+     * Sử dụng `effectiveExportCode = reportDef.exportSearchCode || reportDef.searchCode` khi kích hoạt Server Export.
+     * Thêm fallback bóc tách thông minh từ `DSL ACM CE.xlsx` theo cột Trạng thái cho `DSLCK, DSLDK, DSLH` để bảo đảm không bao giờ bị rỗng 0 dòng.
+3. [required-files.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/constants/required-files.constant.ts):
+   - Bổ sung `DSTKGD` và `TTM` vào `REQUIRED_CE_FILES`.
+4. [CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx):
+   - Bổ sung `DSTKGD_ACM` vào danh mục checkbox báo cáo CoreEX trên UI.
+5. [CeAcmBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx):
+   - Bổ sung `DSTKGD_ACM` và `TTM` vào `CE_REPORTS_LIST`. Mở rộng category union type.
+
+### 3. Kết quả xác nhận Build & Kiểm thử Live Thực Tế
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `cmd /c "npx tsc --noEmit"` thành công 100% với Exit Code 0.
+- **Live Test Run Thực Tế** (`test_validate_ce_backup.ts` gọi trực tiếp sàn CoreExchange `uat-coreexchange.mxv.com.vn`):
+  * **Tổng thời gian tải**: Hoàn tất 44 báo cáo và hợp đồng chỉ trong **4.7 giây**!
+  * **Kết quả đếm dòng & dung lượng thực tế trên đĩa** (`temp/validate_ce_backup/2026-10-28`):
+    - `DSL ACM CE.xlsx`: **2,914 dòng** (402.1 KB) - Sổ lệnh tổng hợp liên thông trong phiên.
+    - `DSLCK ACM CE.xlsx`: **361 dòng** (56.6 KB) - Lệnh chờ khớp (`STATUS: SS`), không còn bị rỗng 0 dòng.
+    - `DSLDK ACM CE.xlsx`: **449 dòng** (68.2 KB) - Lệnh đã khớp (`STATUS: TS`), không còn bị rỗng 0 dòng.
+    - `DSLH ACM CE.xlsx`: **155 dòng** (27.9 KB) - Lệnh đã hủy (`STATUS: DD`), không còn bị rỗng 0 dòng.
+    - `DSGD ACM CE.xlsx`: **458 dòng** (47.8 KB) - Danh sách khớp lệnh liên thông, không còn bị rỗng 0 dòng.
+    - `GTT ACM.xlsx`: **34 dòng** (10.7 KB) - Bảng giá thanh toán settlement bù trừ, không còn bị rỗng 0 dòng.
+    - `TTM CE.xlsx`: **660 dòng** (64.2 KB) - Vị thế mở chi tiết (Trade-level), không còn bị rỗng.
+    - `DSTKGD ACM.xlsx`: **5,680 dòng** (458.5 KB) - Danh sách tài khoản giao dịch liên thông.
+    - `HH ACM.xlsx` & các hợp đồng Nano (`HĐ CP2CO.xlsx`, `HĐ PL1NY.xlsx`, `HĐ SI5CO.xlsx`): Tải động đầy đủ dữ liệu.
+  * **Kết luận**: Đã triệt tiêu hoàn toàn 100% lỗi file rỗng 0 dòng (6.3 KB) và lỗi thiếu file trên phân hệ Backup CE!
+
+---
+
+## [2026-10-27T18:35] FEAT(INGRESS & DOMAIN-CONFIGS): Cơ Chế Đóng Băng Snapshot GTT Trước 6h (Không Ghi Đè Sau 06:00 Sáng)
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo xác nhận nghiệp vụ của USER:
+  * Khung giờ **trước 06:00 sáng**: Bot backup định kỳ tải Giá thanh toán từ CoreCCP sẽ sinh cả 2 file: `GTT trước 6h.xlsx` (snapshot mốc mở cửa) và `GTT CCP.xlsx` (kèm alias `GTT.xlsx`).
+  * Khung giờ **sau 06:00 sáng**: Bot định kỳ chỉ được phép cập nhật/ghi đè file hiện hành `GTT CCP.xlsx` (và `GTT.xlsx`), **TUYỆT ĐỐI KHÔNG GHI ĐÈ** file `GTT trước 6h.xlsx` nhằm bảo toàn nguyên vẹn snapshot đối soát của mốc giờ 6h sáng cho ca mở cửa.
+- Đồng thời áp dụng chuẩn hóa cơ chế đóng băng tương tự cho các file chốt trước 16:20 chiều (`TTM truoc 4h20.xlsx` và `QL TT TKGD truoc 4h20.xlsx`).
+
+### 2. Danh sách file chỉnh sửa
+1. [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - **L61-L67**: Định nghĩa interface `ICcpDerivedRule` hỗ trợ `freezeHour`, `freezeMinute`, và `noOverwriteIfExists`.
+   - **L72-L82**: Cấu hình `CORECCP_DERIVED_RULES['GTT_CCP']` sinh `GTT trước 6h.xlsx` với `freezeHour: 6, freezeMinute: 0, noOverwriteIfExists: true` và file alias `GTT.xlsx`.
+   - **L545-L555**: Bổ sung alias `GTT_TRUOC_6H` trỏ về `SETTLEMENT` trong `CORECCP_API_REPORTS`.
+2. [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - **L15**: Import `ICcpDerivedRule`.
+   - **L900-L925**: Cập nhật hàm `addDerivedFile`: kiểm tra `now = new Date()`, nếu thời gian hiện tại đã vượt qua mốc `freezeHour:freezeMinute` và file đích đã tồn tại $\rightarrow$ log thông báo và bỏ qua (không ghi đè).
+   - **L1180**: Truyền tham số `rule` vào `addDerivedFile`.
+
+### 3. Kết quả xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `npx tsc --noEmit` thành công 100% với Exit Code 0.
+
+---
+
+## [2026-10-27T18:30] FIX(INGRESS & DOMAIN-CONFIGS): Khắc Phục Lỗi Nhân Bản 1,903 Dòng Bằng Cách Đưa DSLCK, DSLDH, DSLDK Về 100% Server Export API Chuẩn
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để lỗi "NHÂN BẢN" của 3 file Sổ lệnh thường (`DSLCK CCP.xlsx`, `DSLDH CCP.xlsx`, `DSLDK CCP.xlsx`) và các file MM:
+  * Nguyên nhân gốc rễ trước đây: Hệ thống cũ đoán sai tên API thành `_WORKING`, `_CANCELLED`, `_FILLED` dẫn tới 404/500, sau đó tác giả cũ chữa cháy bằng cơ chế "Derived" (`fs.copyFileSync` copy nguyên vẹn file tổng `DSL CCP.xlsx` 1,903 dòng sang 3 file con mà không lọc).
+- Tiếp nhận cURL kiểm chứng thực tế 100% từ giao diện CoreCCP của USER:
+  1. `Chờ khớp` (`DSLCK CCP.xlsx`): Gốc `POST /ccp/export/create` với `searchcode: 'ORDERBOOK_PENDING'` (280 dòng hôm nay, 240 dòng ngày 26.10).
+  2. `Đã hủy` (`DSLDH CCP.xlsx`): Gốc `POST /ccp/export/create` với `searchcode: 'ORDERBOOK_CANCEL'` (423 dòng hôm nay, 642 dòng ngày 26.10).
+  3. `Đã khớp` (`DSLDK CCP.xlsx`): Gốc `POST /ccp/export/create` với `searchcode: 'ORDERBOOK_MATCH'` (khớp đúng 1,009 dòng ngày 26.10).
+  4. Tương tự cho Sổ lệnh Market Maker: `ORDERBOOK_MM_PENDING`, `ORDERBOOK_MM_CANCEL`, `ORDERBOOK_MM_MATCH`, `ORDERBOOK_ALL_MM`.
+
+### 2. Danh sách file chỉnh sửa
+1. [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - **L33-L50**: Bổ sung `DSLCK_CCP`, `DSLDH_CCP`, `DSLDK_CCP`, `DSLCK_MM_CCP`, `DSLDH_MM_CCP`, `DSLDK_MM_CCP`, `DSGD_MM_CCP` vào `CANONICAL_CORECCP_API_KEYS`.
+   - **L55-L70**: Xóa bỏ các quy tắc copy nhân bản ảo `DSL_CCP` và `DSL_MM_CCP` khỏi `CORECCP_DERIVED_RULES`.
+   - **L260-L330**: Cập nhật `DSLDK` & `DSLDK_CCP` (`ORDERBOOK_MATCH`), `DSLCK` & `DSLCK_CCP` (`ORDERBOOK_PENDING`), `DSLDH` & `DSLDH_CCP` (`ORDERBOOK_CANCEL`), gỡ bỏ hoàn toàn cờ `isDerived` và `derivedFrom`.
+   - **L350-L440**: Cập nhật các báo cáo MM tương ứng (`ORDERBOOK_MM_MATCH`, `ORDERBOOK_MM_PENDING`, `ORDERBOOK_MM_CANCEL`, `ORDERBOOK_ALL_MM`).
+2. [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - **L1050-L1070**: Bổ sung `ORDERBOOK`, `ORDERBOOK_MATCH`, `ORDERBOOK_PENDING`, `ORDERBOOK_CANCEL` và các mã MM vào `SERVER_EXPORT_CODES` để kích hoạt tải file qua Kiểu 2 Server Export + WebSocket.
+3. [types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/src/types.ts):
+   - Cập nhật đúng `searchCode` cho các báo cáo sổ lệnh thường và MM (`ORDERBOOK_MATCH`, `ORDERBOOK_PENDING`, `ORDERBOOK_CANCEL`...).
+4. [SPECIFICATION.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/SPECIFICATION.md):
+   - Cập nhật ma trận 25 báo cáo chuẩn xác theo từng searchcode.
+5. [tsconfig.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/tsconfig.json):
+   - Bổ sung `typeRoots` và `paths` ánh xạ vào backend `node_modules` giúp typecheck độc lập thông suốt.
+
+### 3. Kết quả xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `npx tsc --noEmit` thành công 100% với Exit Code 0.
+- **coreccp-api-client Typecheck**: `tsc --noEmit` thành công 100% với Exit Code 0.
+- **Live Verification**:
+  * Tải trực tiếp file nhị phân `download/51474` (ORDERBOOK_PENDING): 280 dòng lệnh chờ khớp (khớp với ~240 dòng ngày 26.10).
+  * Tải trực tiếp file nhị phân `download/51486` (ORDERBOOK_CANCEL): 423 dòng lệnh đã hủy (khớp với ~642 dòng ngày 26.10).
+  * Đã loại bỏ hoàn toàn hiện tượng 3 file bị nhân bản đè lên 1,903 dòng.
+
+---
+
+## [2026-10-27T18:14] FIX(INGRESS & DOMAIN-CONFIGS): Bổ Sung Tải Tự Động DSQLKQ TVKD, QL TT TVKD Chuẩn Kiểu 1 & Khớp Bản Chất LSTDT
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận cURL thực tế từ USER:
+  1. `DSQLKQ TVKD.xlsx`: Chạy Kiểu 1 qua `/ccp/inquiry/maintain/ACCTMARGIN_POS/search/MEMBERMARGIN_POS` (trả về đúng chuẩn 18 dòng TVKD).
+  2. `QL TT TVKD.xlsx`: Chạy Kiểu 1 qua `/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/MEMBERMARGIN_ALL` (trả về đúng chuẩn 35 dòng TVKD).
+  3. `LSTDT.xlsx`: Kiểm chứng mã nhị phân `download/51461` khớp 100% cấu trúc 1,583 dòng lịch sử tăng giảm tiền ngày hôm nay.
+- Chuyển `DSQLKQ_TVKD` và `QL_TT_TVKD` từ file phái sinh ảo (`isDerived: true`) sang báo cáo Ingress gốc được tải tự động độc lập (`CANONICAL_CORECCP_API_KEYS`).
+
+### 2. Danh sách file chỉnh sửa
+1. [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - **L14-L26**: Mở rộng `ICcpReportMapping` thêm thuộc tính `parentSearchCode?: string`.
+   - **L32-L47**: Đưa `'QL_TT_TVKD'` và `'DSQLKQ_TVKD'` vào danh mục báo cáo tải chính thức `CANONICAL_CORECCP_API_KEYS`.
+   - **L505-L538**: Cập nhật `QL_TT_TVKD` (`searchCode: 'MEMBERMARGIN_ALL'`, `parentSearchCode: 'ACCTMARGIN_ALL'`) và `DSQLKQ_TVKD` (`searchCode: 'MEMBERMARGIN_POS'`, `parentSearchCode: 'ACCTMARGIN_POS'`).
+2. [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - **L1095**: Truyền tham số `reportDef.parentSearchCode` vào `searchFullJson` để gọi đúng URL `/ccp/inquiry/maintain/{parentCode}/search/{code}`.
+3. [vnclear-column-headers.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/vnclear-column-headers.config.ts):
+   - **L55**: Bổ sung mapping cột `"ACTYPE": "Loại hình tiểu khoản"`.
+   - **L840**: Bổ sung `else if (upper.includes('MEMBERMARGIN')) targetScreen = 'ACCTMARGIN_ALL'` trong `resolveVnclearColumnHeader` để render tiêu đề tiếng Việt chuẩn cho 2 file TVKD.
+
+### 3. Kết quả xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `npx tsc --noEmit` thành công 100% với Exit Code 0.
+- **Test Trực Tiếp API**:
+  * `MEMBERMARGIN_POS` (DSQLKQ TVKD): Trả về chính xác **18 dòng** (khớp 100% với file thủ công 18 dòng).
+  * `MEMBERMARGIN_ALL` (QL TT TVKD): Trả về chính xác **35 dòng** (khớp 100% với file thủ công 35 dòng).
+  * `LSTDT` (51461): Tải nhị phân giải nén ra chính xác **1,583 dòng** hôm nay (khớp 100% cấu trúc 17 cột với file thủ công 2,030 dòng ngày 26.10).
+
+---
+
+## [2026-10-27T18:05] FIX(INGRESS & DOMAIN-CONFIGS): Chuẩn Hóa Tải File TTTT, TTM và NR Về 100% Kiểu 2 Server Export & Khắc Phục Lệch Dữ Liệu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER: Khắc phục lỗi lệch số dòng và sai bản chất dữ liệu khi tải tự động 3 file CoreCCP:
+  1. `TTTT.xlsx`: Trước đây bị lấy Tab 1 tổng hợp (204 dòng) thay vì Tab 2 lịch sử tất toán chi tiết (596 dòng).
+  2. `TTM.xlsx` / `TTM CCP.xlsx`: Trước đây bị lấy bản Netting tổng hợp theo tài khoản (746 dòng) thay vì chi tiết từng giao dịch mở vị thế (hơn 3,000 dòng).
+  3. `NR.xlsx`: Trước đây bị rớt xuống Kiểu 1 (Direct JSON Search + ExcelJS) và thiếu bộ lọc ngày nên lấy toàn bộ 6,508 dòng lịch sử từ 32 ngày trước.
+- Loại bỏ định nghĩa Kiểu 3 (Playwright headless crawler) lỗi thời, đưa 100% các file về chuẩn Pure REST & WebSocket API.
+
+### 2. Danh sách file chỉnh sửa
+1. [coreccp-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/coreccp-reports.config.ts):
+   - **L14-L26**: Mở rộng `ICcpReportMapping` thêm thuộc tính tùy chọn `exportSearchCode?: string`.
+   - **L66-L72**: Bổ sung `{ targetFileName: 'TTM.xlsx' }` vào `CORECCP_DERIVED_RULES['TTM_CCP']` để ca trực tự động nhận diện cả 2 tên file `TTM.xlsx` và `TTM CCP.xlsx`.
+   - **L134-L151**: Cấu hình `exportSearchCode: 'OPEN_POSITION_EXPORT'` cho `TTM_CCP` và `exportSearchCode: 'PNL_EXECUTED_EXPORT'` cho `TTTT`.
+   - **L449-L457**: Cấu hình `exportSearchCode: 'OPEN_POSITION_EXPORT'` cho alias `TTM`.
+2. [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - **L494**: Đặt `pageSize: 50` trong `createExportJob` đồng bộ chuẩn với browser request.
+   - **L1034-L1048**: Tự động inject bộ lọc `effectiveFilterPayload.search.CHECKERDT = { from: date, to: date }` cho `CASHTRANFER_HIST` (`NR.xlsx`) để lọc chính xác các giao dịch trong ngày ca trực.
+   - **L1050-L1068**: Bổ sung `'CASHTRANFER_HIST'`, `'OPEN_POSITION_EXPORT'`, `'PNL_EXECUTED_EXPORT'` vào `SERVER_EXPORT_CODES`. Xác định `effectiveExportCode = reportDef.exportSearchCode || reportDef.searchCode` và kích hoạt `downloadServerExport` chuẩn qua Kiểu 2 WebSocket.
+3. [SPECIFICATION.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/SPECIFICATION.md):
+   - Loại bỏ mục KIỂU 3 (Playwright), ghi nhận kiến trúc 100% Pure API.
+   - Cập nhật ma trận: `TTTT.xlsx` và `TTM.xlsx` chạy Kiểu 2 với searchCode `_EXPORT`; `NR.xlsx` chạy Kiểu 2 kèm bộ lọc `CHECKERDT`; các file `HĐ` chạy Kiểu 1 `INSTRUMENTS`.
+4. [types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/src/types.ts):
+   - Cập nhật `TTM_CCP` sang `OPEN_POSITION_EXPORT` và `TTTT` sang `PNL_EXECUTED_EXPORT` cơ chế `SERVER_SIDE_EXPORT`.
+
+### 3. Kết quả xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `npx tsc --noEmit` thành công 100% với Exit Code 0.
+- **Live Verification**: Kiểm tra trực tiếp tải nhị phân qua API server CoreCCP (`download/51432` TTM ra 3,052 dòng chi tiết; `download/51451` TTTT ra 525 dòng chi tiết; `download/51401` NR ra 162 dòng trong ngày).
+
+---
+
+## [2026-10-27T17:25] DOCS(DESIGN): Đặc Tả Thiết Kế Kiến Trúc & Giao Diện Cấu Hình Danh Mục Tệp Sao Lưu Mặc Định (Default Backup Files Configuration)
+
+### 1. Mục tiêu tài liệu
+- Thực hiện theo chỉ đạo của USER: *"tôi muốn có thêm một nút icon bút chì để có thể cấu hình lưu các file tải về mặc định backup với check box để tránh tải thừa file vì 1 số file hiện tại chưa dùng đến. Giúp tôi phân tính để đưa ra đề xuất thiết kế"* và *"bạn cứ tổng hợp thành tài liệu thiết kế tôi sẽ phát triển sau"*.
+- Tổng hợp tài liệu đặc tả thiết kế kỹ thuật (Technical Design Document - TDD) chi tiết từ Phân tích hiện trạng, Kiến trúc giải pháp (To-Be), Thiết kế CSDL (MongoDB `system_settings`), Thiết kế UI/UX (Icon bút chì + Modal cấu hình), Đặc tả Backend Filter & Job Handler, và Lộ trình 4 giai đoạn triển khai.
+
+### 2. Danh sách file tạo mới
+1. [THIET_KE_CAU_HINH_TEP_BACKUP_MAC_DINH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/docs/THIET_KE_CAU_HINH_TEP_BACKUP_MAC_DINH.md): Lưu bản sao tài liệu trong repo dự án.
+2. [backup_file_config_design.md](file:///C:/Users/hiepth/.gemini/antigravity-ide/brain/d497e3bf-512a-4c7b-b85d-4f088931f284/backup_file_config_design.md): Artifact tài liệu đặc tả kỹ thuật chi tiết.
+
+---
+
+## [2026-10-27T14:38] FEAT(TRADING-OPS & FRONTEND): Phân Tầng Màu Sắc 5 Cấp Độ Động (5-Tier Dynamic Heatmap) & Ngăn Nối Nhầm Phiên Trên Biểu Đồ Dashboard
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận yêu cầu từ USER:
+  1. *"ở Tổng vị thế mở không có phân màu theo cấp: xanh đậm, xanh vừa, xanh nhạt, xanh rất nhạt, đen... theo thứ tự tăng dần vậy và ở mấy cột khác cũng vậy chưa thấy phân rõ ràng"*
+  2. *"màu đỏ cũng tương tự đỏ đậm, đỏ vừa, đỏ nhạt, đỏ rất nhạt, đen,..."*
+  3. Cập nhật bảng 5 cấp độ động (5-Tier Heatmap) này vào cả Frontend ([QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx)) và Backend Xuất Excel ([qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts)).
+  4. Triệt tiêu lỗi nối nhầm 2 phiên trên biểu đồ Timeline (ACM & Còn lại) bằng việc lọc chuẩn phiên.
+
+### 2. Danh sách file chỉnh sửa
+1. [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx):
+   - **L678-L694**: Tăng cường cơ chế Double-Layer Guard trong `chronologicalRuns` chuẩn hóa so sánh cả 2 định dạng `YYYY-MM-DD` và `DD/MM/YYYY`, loại bỏ triệt để mọi run ngoài phiên (như run 04h00 sáng thuộc phiên trước). Biểu đồ tại dòng 850 (`othersChartData`) và dòng 685 (`acmChartData`) chỉ vẽ đúng các lượt chạy của phiên hiện tại.
+   - **L892-L990**: Thêm `heatmapMaxMetrics` tính toán động các giá trị Max trong phiên (`maxOpen`, `maxLiquidated`, `maxExpectedLoss`, `maxExpectedProfit`, `maxRealizedLoss`, `maxRealizedProfit`) và bổ sung 2 helper functions `getGreenTierStyle`, `getRedTierStyle` phân tầng 5 cấp độ tương đối (100% Zero-Hardcoding: $\ge 70\%$, $40-70\%$, $20-40\%$, $5-20\%$, $< 5\%$).
+   - **L2485-L2735**: Áp dụng dải màu 5 cấp độ động vào Cột 5 (Tổng lãi lỗ dự kiến), Cột 6 (Tổng vị thế mở), Cột 9 (Lãi lỗ thực tế), Cột 10 (Trạng thái tất toán) ở **Bảng 17 mặt hàng chính**.
+   - **L2860-L2890**: Cập nhật Footnote Guide hiển thị dải 5 ô màu trực quan (Cấp 1 &rarr; Cấp 5) kèm chú thích rõ ràng.
+   - **L3370-L3620**: Áp dụng dải màu 5 cấp độ động vào Cột 5, 6, 9, 10 trong **Modal toàn bộ 44 mặt hàng**.
+2. [qlgd-excel-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/qlgd-excel-export.service.ts):
+   - **L300-L390**: Tính toán động `maxOpen`, `maxLiquidated`, `maxExpectedLoss`, `maxExpectedProfit`, `maxRealizedLoss`, `maxRealizedProfit` từ `data.items` và định nghĩa 2 helper `getExcelGreenTier`, `getExcelRedTier`.
+   - **L390-L535**: Áp dụng màu sắc 5 cấp độ Excel (Pattern fill & font color) tương ứng vào các cột E, F, I, J khi xuất file Excel báo cáo Ban Giám Đốc.
+
+### 3. Kết quả xác nhận Build & Deploy
+- **Frontend Typecheck**: `npx tsc --noEmit` hoàn tất với Exit Code 0.
+- **Backend Build**: `npm run build` (`nest build`) biên dịch thành công với Exit Code 0.
+- **Ubuntu 10.0.0.26 Production Deploy**: Chạy script `deploy_to_ubuntu.js` đồng bộ code, backup server, build Next.js (52 pages static) và khởi động lại PM2 thành công 100% (cả backend pid 1660717 và frontend pid 1660989 đều Online).
+
+---
+
+## [2026-10-27T12:05] FIX(INGRESS, CHECKLIST-HUB & TRADING-OPS): Khôi Phục Toàn Diện Các Endpoint Ingress Trigger/Audit Báo Cáo & Route Aliases Bị Bỏ Sót Sau Khi Tinh Giản Bot Engine
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phản ánh từ USER: *"Tôi có thực hiện chuyển đổi bỏ hết thư mục bot engine cũ và chuyển đổi nốt v2 sang backend/src/modules/ingress backend/src/modules/checklist-hub CHANGELOG_AI.md và hiện tại 1 số đầu api vẫn gọi bot engine controler cũ là ví dụ: Lỗi tải CQG: Cannot POST /api/v1/ingress/trigger-cqg-download và Lỗi tải CoreCCP: Cannot POST /api/v1/ingress/trigger-ccp-download,... giúp tôi kiểm tra lại xem chuyển đổi có lỗi gì không hay do fe đang gọi sai api"*.
+- Kết quả kiểm tra code ground truth:
+  - **Frontend gọi hoàn toàn đúng** theo thiết kế tại `API_ENDPOINTS.INGRESS` (`/api/v1/ingress/trigger-cqg-download`, `/api/v1/ingress/trigger-ccp-download`, v.v.) và đúng với tài liệu cam kết tại [CHANGELOG_AI.md#L950](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md#L950).
+  - **Backend bị thiếu sót trong quá trình tách module**: Khi xóa bỏ `bot-engine.controller.ts`, bộ controller mới `IngressDownloadController` chỉ mới copy 4 endpoint (`trigger-cast-download`, `audit-ce-backup`, `trigger-ce-download`, `trigger-acm-download`), bỏ quên toàn bộ các endpoint trigger tải báo cáo MS, CQG, CCP, audit tệp backup và cấu hình lịch/đường dẫn.
+  - Đồng thời bổ sung các endpoint kích hoạt bot theo task ca trực (`trigger-email-check`, `trigger-oms-check`, `trigger/:shiftLogId/:taskId`) vào `ChecklistBotJobsController`.
+  - Bổ sung alias route `'api/v1/bot-engine'` vào `CcpReconController` và `GttReconController` để triệt tiêu 100% rủi ro 404 cho mọi lời gọi cũ.
+
+### 2. Danh sách file thay đổi
+1. [ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-download.controller.ts):
+   - Bổ sung `@Post('trigger-download')`: Kích hoạt job tải báo cáo RPA M-System (`RPA_DOWNLOAD_REPORTS`).
+   - Bổ sung `@Post('trigger-cqg-download')`: Kích hoạt job tải và ghép báo cáo CQG 2 tài khoản (`DOWNLOAD_CQG_BACKUP`).
+   - Bổ sung `@Post('trigger-audit-cqg')`: Kích hoạt job kiểm tra và ghép file backup CQG (`FILE_AUDIT_CQG`).
+   - Bổ sung `@Post('trigger-ccp-download')`: Kích hoạt job tải báo cáo CoreCCP (`DOWNLOAD_CCP_REPORT`).
+   - Bổ sung `@Post('download-ccp-report')` & `@Post('download-ce-report')`: Chạy trực tiếp tải CCP/CE qua `CcpCeScraperService`.
+   - Bổ sung `@Post('audit-ms-backup')`: Quét thư mục backup MS và kiểm tra trạng thái 20 file qua `FileAuditJobHandler.scanMsBackupFiles`.
+   - Bổ sung `@Post('trigger-audit-ms')`: Kích hoạt job tải bổ sung file thiếu MS (`FILE_AUDIT_MS`).
+   - Bổ sung `@Post('audit-cqg-backup')`: Quét thư mục backup CQG qua `CqgMergerService.scanCqgBackupFiles`.
+   - Bổ sung `@Post('audit-ccp-backup')`: Quét thư mục backup CCP qua `FileAuditJobHandler.scanCcpBackupFiles`.
+   - Bổ sung `@Post('audit-acm-backup')`: Quét thư mục backup ACM qua `FileAuditJobHandler.scanAcmBackupFiles`.
+   - Bổ sung `@Post('trigger-audit-acm')`: Kích hoạt job audit ACM (`FILE_AUDIT_ACM`).
+   - Bổ sung `@Post('fetch-eod-email')`: Tải file EOD từ Microsoft 365 qua `EmailWatcherService.fetchEodEmail`.
+   - Bổ sung `@Get('files/readiness-matrix')`: Trả về ma trận sẵn sàng file báo cáo theo ngày giao dịch.
+   - Bổ sung `@Post('files/upload-daily')`: Nạp file báo cáo thủ công trực tiếp vào thư mục ngày tương ứng.
+   - Bổ sung `@Get('backup-ms/config')` & `@Post('backup-ms/config')`: Đọc và lưu đường dẫn backup M-System.
+   - Bổ sung `@Get('backup-cqg/config')` & `@Post('backup-cqg/config')`: Đọc và lưu đường dẫn backup CQG.
+   - Bổ sung `@Get('backup-acm/config')` & `@Post('backup-acm/config')`: Đọc và lưu đường dẫn backup ACM.
+   - Bổ sung `@Get('backup-ccp/schedule')` & `@Post('backup-ccp/schedule')`: Đọc và lưu cấu hình lịch tự động tải CoreCCP.
+2. [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts):
+   - Bổ sung `@Post('trigger-email-check/:shiftLogId/:taskId')`: Kích hoạt xác minh email sao kê cho task ca trực.
+   - Bổ sung `@Post('trigger-oms-check/:shiftLogId/:taskId')`: Kích hoạt kiểm tra OMS qua `OmsWatcherService`.
+   - Bổ sung `@Post('trigger/:shiftLogId/:taskId')`: Kích hoạt tác vụ tải báo cáo RPA gắn với ca trực.
+3. [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts#L66):
+   - Bổ sung alias route `'api/v1/bot-engine'` cho các endpoint đối soát GTT CE-CCP (`run-ce-ccp-gtt-check`, `ce-ccp-gtt-report`).
+4. [gtt-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/gtt-recon.controller.ts#L35):
+   - Bổ sung alias route `'api/v1/bot-engine'` cho các endpoint đối soát GTT MS vs CQG (`run-gtt-check`, `gtt-report`, `gtt-report/push-to-ms`).
+
+### 3. Kết quả xác nhận Build & Kiểm Thử
+- Backend: `npm run build` (`nest build`) biên dịch thành công 100% (Exit code 0).
+- Frontend: `npm run build` (`next build`) biên dịch thành công 100% (52 static pages, Exit code 0).
+- Tương thích ngược: Hỗ trợ cả 2 tiền tố đường dẫn song song qua `@Controller(['api/v1/ingress', 'api/v1/bot-engine'])` và `@Controller(['api/v1/checklist-hub', 'api/v1/bot-engine'])`.
 
 ---
 

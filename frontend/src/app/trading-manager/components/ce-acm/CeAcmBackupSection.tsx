@@ -31,7 +31,7 @@ export const CE_REPORTS_LIST: Array<{
   key: string;
   name: string;
   filename: string;
-  category: 'ORDERS' | 'PRICE' | 'PRODUCT';
+  category: 'ORDERS' | 'PRICE' | 'PRODUCT' | 'ACCOUNT';
   categoryLabel: string;
   description: string;
 }> = [
@@ -95,7 +95,25 @@ export const CE_REPORTS_LIST: Array<{
     description: 'Danh mục các mặt hàng phái sinh giao dịch ACM',
   },
 
-  // 3. Hợp đồng chi tiết CE (Động 100% theo sàn giống CCP)
+  // 3. Vị thế mở & Tài khoản giao dịch
+  {
+    key: 'DSTKGD_ACM',
+    name: 'Danh sách tài khoản giao dịch ACM',
+    filename: 'DSTKGD ACM.xlsx',
+    category: 'ACCOUNT',
+    categoryLabel: 'Tài khoản & Vị thế',
+    description: 'Danh sách tài khoản giao dịch liên thông ACM đồng bộ từ CCP',
+  },
+  {
+    key: 'TTM',
+    name: 'Trạng thái mở CE',
+    filename: 'TTM CE.xlsx',
+    category: 'ORDERS',
+    categoryLabel: 'Tài khoản & Vị thế',
+    description: 'Vị thế mở chi tiết từng giao dịch liên thông sàn CoreEX (Trade-level Kiểu 2)',
+  },
+
+  // 4. Hợp đồng chi tiết CE (Động 100% theo sàn giống CCP)
   {
     key: 'HD',
     name: 'Hợp đồng chi tiết CE',

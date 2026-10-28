@@ -469,7 +469,11 @@ export class CoreExApiAdapter implements IIngressPort {
     }
 
     let searchObj: Record<string, any> = query.search || {};
-    if (query.targetDate && !searchObj.SESSION_DATE && searchCode.includes('ORDER')) {
+    if (
+      query.targetDate &&
+      !searchObj.SESSION_DATE &&
+      (searchCode.includes('ORDER') || searchCode.includes('SETTLEMENT'))
+    ) {
       const dmy = query.targetDate.includes('-')
         ? query.targetDate.split('-').reverse().join('/')
         : query.targetDate;
@@ -846,7 +850,15 @@ export class CoreExApiAdapter implements IIngressPort {
 
     let targets: string[] = [];
     if (isFullRequested) {
-      targets = [...CANONICAL_COREEX_API_KEYS];
+      const extra = (options?.reportCodes || [])
+        .filter((c) => !['FULL', 'ALL', 'BACKUP', 'CE_FULL'].includes(c.toUpperCase()))
+        .flatMap((code) => {
+          if (code === 'HD' || code === 'HD_ALL' || code.startsWith('HD_')) {
+            return ['HH'];
+          }
+          return [code];
+        });
+      targets = Array.from(new Set([...CANONICAL_COREEX_API_KEYS, ...extra]));
       this.logger.log(`[CoreExApiAdapter] Kích hoạt FULL BACKUP cho CoreExchange: tải toàn bộ ${targets.length} báo cáo chuẩn.`);
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
       targets = options.reportCodes.flatMap((code) => {
@@ -927,9 +939,35 @@ export class CoreExApiAdapter implements IIngressPort {
             },
           };
 
-          // Tự động inject bộ lọc SESSION_DATE nếu là ORDERMATCH hoặc ORDERBOOK
+          // 1. Tự động đồng bộ file DSTKGD ACM.xlsx từ thư mục CCP sang CE nếu có
+          if (reportDef.key === 'DSTKGD_ACM' || outFileName === 'DSTKGD ACM.xlsx') {
+            const possibleCcpDirs = [
+              outputDirectory.replace(/[\\/]Backup CE([\\/]|$)/i, '$1Backup CPP$2'),
+              outputDirectory.replace(/[\\/]Backup CE([\\/]|$)/i, '$1Backup CCP$2'),
+              outputDirectory.replace(/BackupCE/i, 'BackupCPP'),
+              outputDirectory.replace(/BackupCE/i, 'BackupCCP'),
+              path.resolve(outputDirectory, '..', '..', '..', 'Backup CPP', 'Futures', '2026', path.basename(path.dirname(outputDirectory)), path.basename(outputDirectory)),
+              path.resolve(outputDirectory, '..', '..', '..', 'Backup CCP', 'Futures', '2026', path.basename(path.dirname(outputDirectory)), path.basename(outputDirectory)),
+              path.join(process.cwd(), 'data', 'backup', 'CCP'),
+            ];
+            for (const ccpDir of possibleCcpDirs) {
+              const candidate = path.join(ccpDir, 'DSTKGD ACM.xlsx');
+              if (fs.existsSync(candidate) && fs.statSync(candidate).size > 0 && candidate !== targetPath) {
+                fs.copyFileSync(candidate, targetPath);
+                this.logger.log(`[CoreExApiAdapter] 📄 Tự động đồng bộ DSTKGD ACM.xlsx từ CCP (${candidate}) sang CE`);
+                downloadSuccess = true;
+                usedServerExport = true;
+                break;
+              }
+            }
+          }
+
+          // 2. Tự động inject bộ lọc SESSION_DATE nếu là ORDERMATCH, ORDERBOOK hoặc SETTLEMENT
           if (
-            (reportDef.searchCode.includes('ORDERMATCH') || reportDef.searchCode.includes('ORDERBOOK')) &&
+            !downloadSuccess &&
+            (reportDef.searchCode.includes('ORDERMATCH') ||
+              reportDef.searchCode.includes('ORDERBOOK') ||
+              reportDef.searchCode.includes('SETTLEMENT')) &&
             !effectiveFilterPayload.search.SESSION_DATE
           ) {
             if (options?.targetDateRange?.fromDate && options?.targetDateRange?.toDate) {
@@ -964,26 +1002,33 @@ export class CoreExApiAdapter implements IIngressPort {
             }
           }
 
-          // Thử xuất Server Export (Kiểu 2) cho các báo cáo có khối lượng giao dịch lớn
+          // 3. Thử xuất Server Export (Kiểu 2) cho các báo cáo có khối lượng giao dịch lớn
           const SERVER_EXPORT_CODES = new Set([
             'ORDERMATCH_DETAIL_ACM',
             'ORDERMATCH_ALL_ACM',
             'ORDERBOOK_ACM',
             'ORDERBOOK_ALL_ACM',
+            'ORDERBOOK_PENDING',
+            'ORDERBOOK_MATCH',
+            'ORDERBOOK_CANCEL',
             'OPEN_POSITION',
+            'OPEN_POSITION_EXPORT',
           ]);
-          const isServerExportEligible = SERVER_EXPORT_CODES.has(reportDef.searchCode);
+          const effectiveExportCode = reportDef.exportSearchCode || reportDef.searchCode;
+          const isServerExportEligible =
+            SERVER_EXPORT_CODES.has(reportDef.searchCode) ||
+            SERVER_EXPORT_CODES.has(effectiveExportCode);
 
-          if (isServerExportEligible) {
+          if (!downloadSuccess && isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreExApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.name} (${reportDef.searchCode})...`,
+                `[CoreExApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.name} (${effectiveExportCode})...`,
               );
               await this.downloadServerExport(
                 session,
-                reportDef.searchCode,
+                effectiveExportCode,
                 session.baseUrl || baseUrl,
-                reportDef.route || `/ORDERS/${reportDef.searchCode}`,
+                reportDef.route || `/ORDERS/${effectiveExportCode}`,
                 effectiveFilterPayload,
                 targetPath,
               );
@@ -996,7 +1041,7 @@ export class CoreExApiAdapter implements IIngressPort {
             }
           }
 
-          // Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không áp dụng
+          // 4. Fallback sang Direct JSON Search + ExcelJS nếu Server Export không chạy hoặc không áp dụng
           if (!downloadSuccess) {
             searchResult = await this.searchData(
               session,
@@ -1009,7 +1054,65 @@ export class CoreExApiAdapter implements IIngressPort {
               reportDef.parentSearchCode,
             );
 
-            await this.convertJsonToExcel(searchResult.rows, reportDef, targetPath);
+            // Bổ sung logic bóc tách fallback nếu các lệnh con (DSLCK, DSLDK, DSLH) qua Direct API trả về 0 dòng
+            let exportRows = searchResult.rows;
+            if (
+              exportRows.length === 0 &&
+              ['DSLCK', 'DSLDK', 'DSLH'].includes(reportDef.key)
+            ) {
+              const dslPath = path.join(outputDirectory, 'DSL ACM CE.xlsx');
+              if (fs.existsSync(dslPath)) {
+                try {
+                  const dslWb = new ExcelJS.Workbook();
+                  await dslWb.xlsx.readFile(dslPath);
+                  const dslWs = dslWb.worksheets[0];
+                  if (dslWs && dslWs.rowCount > 1) {
+                    const headers: string[] = [];
+                    dslWs.getRow(1).eachCell((c, idx) => {
+                      headers[idx - 1] = String(c.value || '').trim();
+                    });
+                    const statusColIdx = headers.findIndex((h) =>
+                      ['TRẠNG THÁI', 'STATUS', 'ORDERSTATUS', 'ORDER_STATUS'].some((kw) =>
+                        h.toUpperCase().includes(kw),
+                      ),
+                    );
+                    if (statusColIdx >= 0) {
+                      const extracted: any[] = [];
+                      dslWs.eachRow((row, rowNumber) => {
+                        if (rowNumber === 1) return;
+                        const rowVals = row.values as any[];
+                        const sttVal = String(rowVals[statusColIdx + 1] || '').toUpperCase();
+                        let isMatch = false;
+                        if (reportDef.key === 'DSLCK') {
+                          isMatch = ['WAIT', 'PEND', 'CHỜ'].some((kw) => sttVal.includes(kw));
+                        } else if (reportDef.key === 'DSLDK') {
+                          isMatch = ['MATCH', 'FILL', 'KHỚP'].some((kw) => sttVal.includes(kw));
+                        } else if (reportDef.key === 'DSLH') {
+                          isMatch = ['CANCEL', 'HỦY'].some((kw) => sttVal.includes(kw));
+                        }
+                        if (isMatch) {
+                          const obj: Record<string, any> = {};
+                          headers.forEach((h, i) => {
+                            obj[h] = rowVals[i + 1] ?? '';
+                          });
+                          extracted.push(obj);
+                        }
+                      });
+                      if (extracted.length > 0) {
+                        exportRows = extracted;
+                        this.logger.log(
+                          `[CoreExApiAdapter] 📄 Đã trích xuất ${extracted.length} dòng cho ${reportDef.fileName} từ file tổng DSL`,
+                        );
+                      }
+                    }
+                  }
+                } catch (dslExtractErr: any) {
+                  this.logger.warn(`[CoreExApiAdapter] Lỗi bóc tách từ DSL: ${dslExtractErr.message}`);
+                }
+              }
+            }
+
+            await this.convertJsonToExcel(exportRows, reportDef, targetPath);
             downloadSuccess = true;
           }
 
