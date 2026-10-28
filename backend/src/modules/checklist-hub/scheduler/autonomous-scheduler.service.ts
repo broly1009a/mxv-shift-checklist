@@ -90,12 +90,15 @@ export class AutonomousSchedulerService implements OnModuleInit {
       return;
     }
 
-    // 6. Kiểm tra thời điểm hoàn tất gần nhất
+    // 6. Kiểm tra thời điểm hoàn tất gần nhất (tính cả COMPLETED, WAITING, FAILED, CANCELLED)
     const lastJob = await this.jobQueueService.getLatestCompletedJobByType('CHECK_KLGD');
-    if (lastJob && lastJob.completedAt) {
-      const elapsedMinutes = (Date.now() - new Date(lastJob.completedAt).getTime()) / 60000;
-      if (elapsedMinutes < intervalMinutes) {
-        return; // Chưa tới chu kỳ tiếp theo
+    if (lastJob) {
+      const lastRunTime = lastJob.completedAt || lastJob.updatedAt || lastJob.createdAt;
+      if (lastRunTime) {
+        const elapsedMinutes = (Date.now() - new Date(lastRunTime).getTime()) / 60000;
+        if (elapsedMinutes < intervalMinutes) {
+          return; // Chưa tới chu kỳ tiếp theo
+        }
       }
     }
 
@@ -181,13 +184,24 @@ export class AutonomousSchedulerService implements OnModuleInit {
       return;
     }
 
-    // 6. Kiểm tra thời điểm hoàn tất gần nhất của tiến trình backup MS/CQG
-    const lastBackupJob =
-      (await this.jobQueueService.getLatestCompletedJobByType('RPA_DOWNLOAD_REPORTS')) ||
-      (await this.jobQueueService.getLatestCompletedJobByType('DOWNLOAD_CQG_BACKUP')) ||
-      (await this.jobQueueService.getLatestCompletedJobByType('FILE_AUDIT_MS'));
-    if (lastBackupJob && lastBackupJob.completedAt) {
-      const elapsedMinutes = (Date.now() - new Date(lastBackupJob.completedAt).getTime()) / 60000;
+    // 6. Kiểm tra thời điểm hoàn tất gần nhất của toàn bộ tiến trình backup (MS, CQG, CCP, CE, ACM)
+    const backupJobs = await Promise.all([
+      this.jobQueueService.getLatestCompletedJobByType('RPA_DOWNLOAD_REPORTS'),
+      this.jobQueueService.getLatestCompletedJobByType('DOWNLOAD_CQG_BACKUP'),
+      this.jobQueueService.getLatestCompletedJobByType('FILE_AUDIT_MS'),
+      this.jobQueueService.getLatestCompletedJobByType('DOWNLOAD_CCP_REPORT'),
+      this.jobQueueService.getLatestCompletedJobByType('DOWNLOAD_CE_REPORT'),
+      this.jobQueueService.getLatestCompletedJobByType('FILE_AUDIT_ACM'),
+    ]);
+
+    const latestTimestamp = backupJobs.reduce((max, j) => {
+      if (!j) return max;
+      const t = new Date(j.completedAt || j.updatedAt || j.createdAt).getTime();
+      return t > max ? t : max;
+    }, 0);
+
+    if (latestTimestamp > 0) {
+      const elapsedMinutes = (Date.now() - latestTimestamp) / 60000;
       if (elapsedMinutes < intervalMinutes) {
         return; // Chưa tới chu kỳ tiếp theo
       }
