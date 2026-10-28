@@ -20,6 +20,29 @@
   - Tự động sao lưu `/opt/mxv-checklist` vào `/home/mxvadmin/code_backups/`.
   - Đồng bộ và build thành công Backend & Frontend.
   - Restart PM2: `mxv-backend` (pid: 2028560, online), `mxv-frontend` (pid: 2028836, online).
+## [2026-10-28T15:52] ROLLBACK & FIX: Khôi Phục Nguyên Trạng Code Nhận Diện Khớp Lệnh Trong Phiên (klgd-recon) Về Chuẩn Ban Đầu
+
+### 1. Mục tiêu thay đổi
+- Khôi phục 100% nguyên trạng ban đầu cho [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts).
+- Loại bỏ hoàn toàn đoạn code chế thêm tự tiện đưa `findSessionStraitsPath` vào hàm đối chiếu khớp lệnh trong phiên (`CHECK_KLGD`).
+- Khôi phục lại chính xác 4 dòng code nhận diện file ban đầu hoạt động ổn định:
+  ```typescript
+  const acmTradesPath =
+    findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
+    findLatestFile(acmDailyPath, /Nano|Fill/i) ||
+    findLatestFile(acmTradingDailyPath, /Straits/i) ||
+    findLatestFile(acmDailyPath, /Straits/i);
+  ```
+  và trả lại thông báo thiếu file chuẩn ban đầu:
+  ```typescript
+  if (!acmTradesPath) missingFiles.push('ACM Trades (Fill.xlsx)');
+  ```
+
+### 2. Danh sách file chỉnh sửa
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts): Revert về nguyên bản commit `acf7d6d`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` thành công 100% (**Exit Code 0**).
 
 ---
 
