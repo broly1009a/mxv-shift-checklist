@@ -1,27 +1,44 @@
-<<<<<<< HEAD
-## [2026-10-28T15:15] FEATURE(CORECCP EOD): Đối Chiếu Tài Khoản Âm Ký Quỹ Phiên T-1 & T-2 Loại Trừ Âm Cố Hữu
+## [2026-10-28T16:58] FEAT(RBAC): Phân Quyền Chỉ Admin Mới Được Phép Xóa Tác Vụ & Dọn Dẹp Hàng Đợi (Bảo Vệ Tính Toàn Vẹn Audit Trail)
 
 ### 1. Mục tiêu thay đổi
-- Thực hiện yêu cầu của USER:
-  1. Nâng cấp logic phân hệ **Tài khoản âm ký quỹ mới (EOD CoreCCP)** trên màn hình "Nghiệp vụ đầu phiên (SOD) - Đối chiếu kết quả EOD" (`/trading-manager/session-open/eod-result`).
-  2. Đối chiếu chéo tài khoản âm ký quỹ IMR giữa **phiên chốt sổ T-1** và **phiên làm việc liền trước T-2** (sử dụng `WorkingCalendarService` để tự động lùi qua Thứ 7, Chủ Nhật và ngày lễ).
-  3. Nếu tài khoản đã âm ở T-2 và vẫn tiếp tục âm ở T-1 thì **bỏ qua (loại trừ)**, chỉ hiển thị và báo động các tài khoản **âm ký quỹ mới phát sinh** ($Set_{T-1} \setminus Set_{T-2}$).
-  4. Nếu không có tài khoản âm mới, giao diện chuyển trạng thái an toàn (Tick Xanh).
+- Thực hiện yêu cầu phân quyền bảo mật và kiểm toán vận hành:
+  - **Người dùng thông thường (User)**: Bị ẩn hoàn toàn 100% các nút và biểu tượng xóa ("Dọn tác vụ hủy/lỗi" trên Header, icon thùng rác `Trash2` trên thẻ Card, và nút "Xóa Tác Vụ" trong Drawer chi tiết). Đảm bảo nhân viên không thể xóa nhầm lịch sử hoặc che giấu vết kiểm toán của ca trực.
+  - **Quản trị viên (Admin - `role === 'ADMIN'`)**: Hiển thị đầy đủ công cụ dọn dẹp để làm sạch hàng đợi sau các đợt kiểm thử hoặc giải phóng các job bị hủy/thất bại.
+  - **Bảo vệ 2 lớp (Defense-in-Depth)**:
+    - Ở Frontend: Chặn ngay trong `handleDeleteJob` và `handleCleanupCancelledJobs` nếu `!isAdmin` đồng thời ẩn toàn bộ UI xóa.
+    - Ở Backend: Cả 2 endpoints `DELETE /api/v1/checklist-hub/jobs/:id` và `POST /api/v1/checklist-hub/jobs/cleanup-cancelled` đều kiểm tra `if (req.user?.role !== 'ADMIN') throw new HttpException(..., HttpStatus.FORBIDDEN)`.
 
 ### 2. Danh sách file chỉnh sửa
-- [ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts): Tự động nạp/tải file EOD của T-2, trích xuất tài khoản âm T-2 và lọc chỉ giữ lại tài khoản âm mới ở T-1.
-- [ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts): Ghi nhận metrics so sánh T-1 và T-2 vào `CcpClearingLog`.
-- [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx): Hiển thị ngày T-1 và T-2, nhãn loại trừ tài khoản cố hữu và thông báo an toàn trực quan bằng icon Lucide SVG (không dùng emoji).
+- [TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx):
+  - Import `useAuth` từ `@/context/AuthContext` và lấy `isAdmin = user?.role === 'ADMIN'`.
+  - Bổ sung điều kiện `isAdmin` hiển thị nút "Dọn tác vụ hủy/lỗi" ở Header, icon thùng rác trên Card, và nút "Xóa Tác Vụ" trên Drawer.
+  - Gắn guard chặn trong hàm `handleDeleteJob` và `handleCleanupCancelledJobs` nếu không phải Admin.
+- [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts): Chặn `req.user?.role !== 'ADMIN'` ở tầng Controller.
 
-### 3. Xác nhận Build & Triển khai
-- **Local Build**:
-  - Backend: `nest build` thành công 100% (**Exit Code 0**).
-  - Frontend: `next build` Turbopack thành công 100% (**Exit Code 0**, 52/52 static routes).
-- **Ubuntu 10.0.0.26**:
-  - Tự động sao lưu `/opt/mxv-checklist` vào `/home/mxvadmin/code_backups/`.
-  - Đồng bộ và build thành công Backend & Frontend.
-  - Restart PM2: `mxv-backend` (pid: 2028560, online), `mxv-frontend` (pid: 2028836, online).
-=======
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (**Exit Code 0**).
+- **Frontend Build**: `cmd /c npm run build` (`next build`) thành công 100% (**Exit Code 0**).
+
+---
+
+## [2026-10-28T16:28] FEAT(JOB_QUEUE): Ghi Rõ Tên Người Đăng Nhập Khi Hủy/Dừng Tác Vụ & Tối Ưu Giải Phóng Job Mồ Côi Khi Restart Container
+
+### 1. Mục tiêu thay đổi
+- Ghi nhận chính xác danh tính người dùng thực hiện thao tác Hủy/Dừng khẩn cấp tác vụ Bot (`cancelJob`) thay vì ghi cứng "Admin".
+- Khi người dùng bấm "Dừng Tác Vụ", log của Job sẽ ghi rõ: `[timestamp] Tác vụ đã bị HỦY / DỪNG THỦ CÔNG bởi <Họ Tên / Username>. Lý do: <Lý do>`.
+- Khắc phục triệt để hiện tượng Job bị "treo ảo 30 phút" trên giao diện khi container Docker bị restart lúc deploy: Khi server/container khởi động lại (`isStartup: true`), tự động giải phóng ngay lập tức các Job `PROCESSING` của phiên container trước đó.
+
+### 2. Danh sách file chỉnh sửa
+- [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts): Thêm `@Req() req` vào endpoint `@Post('jobs/:id/cancel')`, trích xuất thông tin người dùng đăng nhập (`fullName`, `username`, `email`) và truyền xuống `jobQueueService.cancelJob()`.
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts):
+  - `cancelJob`: Nhận tham số `cancelledBy`, ghi nhận chính xác tên người dùng vào `cancelLog`, `cancelReason`, và thông báo đồng bộ Checklist.
+  - `cleanupStuckJobs`: Bổ sung điều kiện dọn dẹp ngay các Job `status: 'PROCESSING'` có `lockedBy != currentInstanceId` lúc server vừa khởi động (`isStartup: true`), tránh việc Job cũ bị treo trên giao diện 15 phút.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (**Exit Code 0**).
+
+---
+
 ## [2026-10-28T16:00] FIX(SCHEDULER): Chặn Lặp Hàng Đợi Liên Tục Cho Autonomous Scheduler Khi Job Chờ File, Thất Bại Hoặc Bị Hủy
 
 ### 1. Mục tiêu thay đổi
@@ -44,7 +61,28 @@
 
 ---
 
->>>>>>> v4-refactor
+## [2026-10-28T15:15] FEATURE(CORECCP EOD): Đối Chiếu Tài Khoản Âm Ký Quỹ Phiên T-1 & T-2 Loại Trừ Âm Cố Hữu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Nâng cấp logic phân hệ **Tài khoản âm ký quỹ mới (EOD CoreCCP)** trên màn hình "Nghiệp vụ đầu phiên (SOD) - Đối chiếu kết quả EOD" (`/trading-manager/session-open/eod-result`).
+  2. Đối chiếu chéo tài khoản âm ký quỹ IMR giữa **phiên chốt sổ T-1** và **phiên làm việc liền trước T-2** (sử dụng `WorkingCalendarService` để tự động lùi qua Thứ 7, Chủ Nhật và ngày lễ).
+  3. Nếu tài khoản đã âm ở T-2 và vẫn tiếp tục âm ở T-1 thì **bỏ qua (loại trừ)**, chỉ hiển thị và báo động các tài khoản **âm ký quỹ mới phát sinh** ($Set_{T-1} \setminus Set_{T-2}$).
+  4. Nếu không có tài khoản âm mới, giao diện chuyển trạng thái an toàn (Tick Xanh).
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts): Tự động nạp/tải file EOD của T-2, trích xuất tài khoản âm T-2 và lọc chỉ giữ lại tài khoản âm mới ở T-1.
+- [ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts): Ghi nhận metrics so sánh T-1 và T-2 vào `CcpClearingLog`.
+- [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx): Hiển thị ngày T-1 và T-2, nhãn loại trừ tài khoản cố hữu và thông báo an toàn trực quan bằng icon Lucide SVG (không dùng emoji).
+
+### 3. Xác nhận Build & Triển khai
+- **Local Build**:
+  - Backend: `nest build` thành công 100% (**Exit Code 0**).
+  - Frontend: `next build` Turbopack thành công 100% (**Exit Code 0**, 52/52 static routes).
+- **Ubuntu 10.0.0.26**:
+  - Tự động sao lưu `/opt/mxv-checklist` vào `/home/mxvadmin/code_backups/`.
+  - Đồng bộ và build thành công Backend & Frontend.
+  - Restart PM2: `mxv-backend` (pid: 2028560, online), `mxv-frontend` (pid: 2028836, online).
 ## [2026-10-28T15:52] ROLLBACK & FIX: Khôi Phục Nguyên Trạng Code Nhận Diện Khớp Lệnh Trong Phiên (klgd-recon) Về Chuẩn Ban Đầu
 
 ### 1. Mục tiêu thay đổi

@@ -24,9 +24,10 @@ import {
   FileText,
   ArrowRight,
   Info,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '@/context/AuthContext';
+import { API_BASE_URL, useAuth } from '@/context/AuthContext';
 import { useAppSocket } from '@/services/appSocket';
 import { api } from '@/services/api';
 
@@ -86,6 +87,9 @@ export default function TradingManagerJobQueueSection({
   selectedDate,
   onActiveCountChange,
 }: TradingManagerJobQueueSectionProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [jobs, setJobs] = useState<BotJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -261,6 +265,58 @@ export default function TradingManagerJobQueueSection({
       toast.error(`Lỗi khi dừng tác vụ: ${err.message}`);
     } finally {
       setCancellingJob(false);
+    }
+  };
+
+  // Xử lý xóa một tác vụ đã kết thúc (hủy hoặc thất bại)
+  const handleDeleteJob = async (jobId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!isAdmin) {
+      toast.error('Chỉ Quản trị viên (Admin) mới có quyền xóa tác vụ.');
+      return;
+    }
+    if (!token) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa tác vụ [${jobId.substring(0, 8)}] khỏi hàng đợi?`)) {
+      return;
+    }
+    const toastId = toast.loading('Đang xóa tác vụ...');
+    try {
+      await api.checklistHub.deleteJob(jobId, token);
+      toast.success('Đã xóa tác vụ thành công!', { id: toastId });
+      if (selectedJobId === jobId) {
+        setSelectedJobId(null);
+        setSelectedJobDetail(null);
+      }
+      await fetchJobs();
+    } catch (err: any) {
+      toast.error(`Lỗi khi xóa tác vụ: ${err.message}`, { id: toastId });
+    }
+  };
+
+  // Xử lý dọn sạch toàn bộ tác vụ Đã Hủy / Thất Bại
+  const handleCleanupCancelledJobs = async () => {
+    if (!isAdmin) {
+      toast.error('Chỉ Quản trị viên (Admin) mới có quyền dọn dẹp hàng đợi.');
+      return;
+    }
+    if (!token) return;
+    const cancelledCount = jobs.filter((j) => ['CANCELLED', 'FAILED'].includes(j.status)).length;
+    if (cancelledCount === 0) {
+      toast.error('Không có tác vụ đã hủy hoặc thất bại nào để dọn dẹp.');
+      return;
+    }
+    if (!window.confirm(`Bạn có chắc chắn muốn dọn sạch ${cancelledCount} tác vụ Đã Hủy / Thất Bại khỏi hàng đợi không?`)) {
+      return;
+    }
+    const toastId = toast.loading('Đang dọn dẹp hàng đợi...');
+    try {
+      const res = await api.checklistHub.cleanupCancelledJobs(undefined, token);
+      toast.success(`Đã dọn dẹp thành công ${res.deletedCount || cancelledCount} tác vụ!`, { id: toastId });
+      setSelectedJobId(null);
+      setSelectedJobDetail(null);
+      await fetchJobs();
+    } catch (err: any) {
+      toast.error(`Lỗi dọn dẹp: ${err.message}`, { id: toastId });
     }
   };
 
@@ -789,6 +845,32 @@ export default function TradingManagerJobQueueSection({
                       </button>
                     )}
 
+                    {/* Nút Xóa Tác Vụ nếu đã kết thúc (hủy hoặc lỗi) - Chỉ hiển thị cho Admin */}
+                    {isAdmin && ['CANCELLED', 'FAILED'].includes(selectedJob.status) && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteJob(selectedJob._id, e)}
+                        className="btn"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 14px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                          color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                        title="Xóa tác vụ này khỏi hàng đợi"
+                      >
+                        <Trash2 size={12} />
+                        <span>Xóa Tác Vụ</span>
+                      </button>
+                    )}
+
                     {/* Nút Tải ZIP nếu hoàn thành */}
                     {hasDownloadableReports(selectedJob) && (
                       <button
@@ -1113,6 +1195,33 @@ export default function TradingManagerJobQueueSection({
                       </button>
                     )}
 
+                    {/* Nút Xóa Tác Vụ - Chỉ hiển thị cho Admin */}
+                    {isAdmin && ['CANCELLED', 'FAILED'].includes(selectedJob.status) && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteJob(selectedJob._id, e)}
+                        className="btn"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 12px',
+                          height: '28px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                          color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                        }}
+                        title="Xóa tác vụ này khỏi hàng đợi"
+                      >
+                        <Trash2 size={10} />
+                        <span>Xóa Tác Vụ</span>
+                      </button>
+                    )}
+
                     {/* Nút Tải ZIP nếu có */}
                     {hasDownloadableReports(selectedJob) && (
                       <button
@@ -1304,9 +1413,34 @@ export default function TradingManagerJobQueueSection({
               <Activity size={14} color="#0284c7" />
               Hàng đợi tác vụ ({filteredJobs.length})
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              Tự động cập nhật 4s
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isAdmin && filteredJobs.some((j) => ['CANCELLED', 'FAILED'].includes(j.status)) && (
+                <button
+                  type="button"
+                  onClick={handleCleanupCancelledJobs}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.68rem',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                  title="Xóa tất cả các tác vụ Đã hủy hoặc Thất bại để làm sạch hàng đợi"
+                >
+                  <Trash2 size={11} />
+                  Dọn tác vụ hủy/lỗi
+                </button>
+              )}
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                Tự động cập nhật 4s
+              </span>
+            </div>
           </div>
 
           {filteredJobs.length === 0 ? (
@@ -1359,6 +1493,27 @@ export default function TradingManagerJobQueueSection({
                             }}
                           >
                             <Square size={12} fill="#ef4444" />
+                          </button>
+                        )}
+                        {isAdmin && ['CANCELLED', 'FAILED'].includes(job.status) && (
+                          <button
+                            type="button"
+                            title="Xóa tác vụ này khỏi hàng đợi"
+                            onClick={(e) => handleDeleteJob(job._id, e)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              padding: '2px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              transition: 'color 0.2s',
+                            }}
+                            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = '#ef4444')}
+                            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = '#94a3b8')}
+                          >
+                            <Trash2 size={12} />
                           </button>
                         )}
                       </div>

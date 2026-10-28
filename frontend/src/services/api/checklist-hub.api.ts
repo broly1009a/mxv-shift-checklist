@@ -208,6 +208,31 @@ export const checklistHubApi = {
   },
 
   /**
+   * Xóa vĩnh viễn một Job đã kết thúc khỏi CSDL
+   */
+  async deleteJob(jobId: string, token?: string | null): Promise<{ success: boolean; message?: string }> {
+    return requestJson<{ success: boolean; message?: string }>(
+      API_ENDPOINTS.CHECKLIST_HUB.JOB_DELETE(jobId),
+      { method: 'DELETE' },
+      token,
+    );
+  },
+
+  /**
+   * Dọn dẹp hàng loạt các tác vụ Đã Hủy hoặc Thất Bại khỏi hàng đợi
+   */
+  async cleanupCancelledJobs(date?: string, token?: string | null): Promise<{ success: boolean; deletedCount: number; message?: string }> {
+    return requestJson<{ success: boolean; deletedCount: number; message?: string }>(
+      API_ENDPOINTS.CHECKLIST_HUB.JOB_CLEANUP_CANCELLED,
+      {
+        method: 'POST',
+        body: JSON.stringify({ date }),
+      },
+      token,
+    );
+  },
+
+  /**
    * Gửi mã CAPTCHA giải thủ công cho bot
    */
   async submitCaptcha(jobId: string, captchaText: string, token?: string | null): Promise<{ success: boolean }> {
