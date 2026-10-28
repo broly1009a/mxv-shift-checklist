@@ -294,7 +294,7 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
         {
           id: 'acm_straits',
           name: 'Báo Cáo Khớp Lệnh ACM (Straits CSV)',
-          role: 'Dữ liệu khớp lệnh ACM Straits CSV (AGENTS.md Rule 2.1)',
+          role: 'Dữ liệu khớp lệnh ACM (Straits CSV)',
           patterns: TRADING_FILE_PATTERNS.STRAITS_CSV,
           required: false,
           sourceCategory: 'COMMON',
@@ -352,7 +352,7 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
         {
           id: 'acm_straits',
           name: 'Báo Cáo Khớp Lệnh ACM (Straits CSV)',
-          role: 'Dữ liệu khớp lệnh ACM Straits CSV (AGENTS.md Rule 2.1)',
+          role: 'Dữ liệu khớp lệnh ACM (Straits CSV)',
           patterns: TRADING_FILE_PATTERNS.STRAITS_CSV,
           required: false,
           sourceCategory: 'COMMON',

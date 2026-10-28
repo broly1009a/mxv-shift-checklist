@@ -1,3 +1,93 @@
+## [2026-10-28T14:45] REFACTOR(CLEAN INGRESS): Tinh Gọn Triệt Để Cơ Chế Tải File ACM SFTP & Web Theo Chuẩn Minimalist Clean Architecture
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER ("nếu đã đúng tải về rồi thì cần gì check lại nội bộ nữa cho phức tạp ra nhỉ"):
+  1. Loại bỏ toàn bộ cơ chế đệm tạm nội bộ `os.tmpdir()` (`mxv_sftp_acm_staging`, `mxv_web_acm_staging`) và xóa bỏ bước mở ruột file soi dữ liệu dòng 1-5 (`inspectAcmFileContent`) gây cồng kềnh, phức tạp hóa luồng tải.
+  2. Chuẩn hóa luồng tải ACM SFTP & Web:
+     - Trên SFTP: Lọc chính xác tên file mang ngày phiên hôm nay $T$ (`*_${ddmmyyyy}.csv` hoặc `${yyyy_mm_dd}_*.xls`). Nếu chưa có file phiên $T \rightarrow$ Dừng lại, thông báo sàn chưa chốt phiên, không tải file $T-1$.
+     - Khi đã tìm thấy file phiên $T \rightarrow$ Tải thẳng trực tiếp về thư mục lưu trữ đích (`outputDirectory`/`destFile`), tạo alias nếu là Straits CSV phiên $T$.
+  3. Đơn giản hóa đối soát Reconciliation (`klgd-recon.service.ts`, `dsgd-before-eod.service.ts`) và kiểm định file (`file-audit.handler.ts`): Nhận diện file theo tên chuẩn ngày phiên $T$, không parse nội dung thô trước khi nạp.
+
+### 2. Danh sách file chỉnh sửa
+- [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts): Tải thẳng từ SFTP về `outputDirectory`, loại bỏ thư mục tạm và `inspectAcmFileContent`.
+- [acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts): Tải trực tiếp file SFTP và Web về `localFilePath`/`destFile`.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts): Tải trực tiếp file Web và SFTP về `destFile`/`dailyPath`, loại bỏ thư mục đệm tạm và bước soi ruột.
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts): Nhận diện trạng thái file ACM Backup theo tên file ngày phiên $T$.
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts): Lọc file Straits CSV theo tên file ngày phiên, loại bỏ kiểm tra nội dung dư thừa.
+- [dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts): Khớp file Straits CSV theo tên file ngày phiên.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% (**Exit Code 0**).
+- **Frontend Build**: `cmd /c "npm run build"` (`next build` Turbopack) thành công 100% (**Exit Code 0**, biên dịch tĩnh 52/52 routes).
+
+---
+
+## [2026-10-28T14:25] REFACTOR & CLEANUP: Xóa Bỏ Hoàn Toàn File Bak Rác Trong Thư Mục Backup & Chuẩn Hóa Clean Architecture
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. **Xóa bỏ triệt để file `_bak_` rác**: Khắc phục tình trạng khi bot tải lại dữ liệu CQG hoặc M-System tự động nhân bản file cũ thành `_bak_YYYYMMDD_HHmmss.xlsx` ngay trong thư mục chia sẻ Backup chính thức (`Backup CQG`, `Backup MS`), gây rác và rối mắt người dùng. Ghi đè trực tiếp, an toàn và sạch sẽ vào file đích.
+  2. **Chuẩn hóa Single-pass Architecture cho Ingress ACM SFTP**: Thu thập trực tiếp danh sách file tải hợp lệ trong luồng tải chính của SFTP Adapter, loại bỏ vòng lặp `fs.readdirSync` và inspect kiểm tra nội dung lần 2 thừa thãi.
+  3. **Làm sạch Log & Comment**: Loại bỏ hoàn toàn các tag máy móc, từ ngữ nội bộ không cần thiết (`AGENTS.md`, `Guard`, `đệm tạm nội bộ`, `thư mục chia sẻ`...), chuyển toàn bộ sang ngôn ngữ nghiệp vụ rõ ràng, tự nhiên, dễ hiểu cho người vận hành ca trực và IT.
+  4. **Bảo vệ phạm vi**: Revert nguyên trạng phân hệ EOD MS (`eod-ms.worker.ts`), không can thiệp ngoài phạm vi chỉ đạo.
+
+### 2. Danh sách file chỉnh sửa
+- [cqg-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cqg-scraper.service.ts): Xóa bỏ logic copy `snapshotPath` tạo file `_bak_` khi tải CQG bằng Playwright.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts): Xóa bỏ snapshot `_bak_` trong tải báo cáo CQG của RPA; làm sạch câu chữ log và comment khi tải ACM SFTP.
+- [msystem-tab-navigator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/helpers/msystem-tab-navigator.helper.ts): Xóa bỏ snapshot `_bak_` khi tải xuất file M-System, ghi đè trực tiếp file đích.
+- [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts): Tối ưu luồng Single-pass, loại bỏ quét đúp thư mục local; làm sạch thông báo log.
+- [acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts): Làm sạch câu chữ log khi phát hiện file ACM phiên cũ.
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts): Làm sạch comment, loại bỏ các tag nội bộ máy móc.
+- [dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts): Chuẩn hóa tiền tố log thành `[DSGD-Before-EOD]`.
+- [bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/bot-task-registry.ts): Làm sạch chuỗi `role` của ACM Straits CSV, hiển thị chuẩn `Dữ liệu khớp lệnh ACM (Straits CSV)` trên UI.
+- [acm-session-validator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/acm-session-validator.helper.ts): Làm sạch comment mô tả module.
+- [trading-file-patterns.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/constants/trading-file-patterns.constant.ts): Chuyển comment tham chiếu sang mô tả nghiệp vụ chuẩn.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Build**: `cmd /c "npm run build"` (`next build` Turbopack) thành công 100% với Exit Code 0, toàn bộ 52/52 routes tĩnh biên dịch thành công.
+
+---
+
+## [2026-10-28T13:55] REFACTOR(INGRESS & RECON): Áp Dụng Toàn Diện Staging Buffer Pattern & Deep Content Validation Chống Ghi Đè/Nhặt Nhầm File Cũ T-1
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Rà soát toàn bộ các phân hệ và chuyển đổi đồng bộ tất cả các logic tải file và nạp file đối soát sang phương thức mới:
+  1. **Staging Buffer Pattern (Đệm tạm nội bộ / Atomic File Delivery)**: Khi tải file SFTP/Web/API từ xa, bot tải về thư mục tạm máy cục bộ (`os.tmpdir()/...`). Kiểm tra tính hợp lệ và nội dung phiên giao dịch $T$ ngay tại máy cục bộ. Nếu không đúng phiên $T$ hoặc file cũ $T-1$ $\rightarrow$ hủy/xóa ngay tại đệm tạm, **tuyệt đối không ghi dở dang hay chạm vào thư mục chia sẻ mạng (`dailyPath`/`outputDirectory` trên ổ `M:`)**. Chỉ khi file hợp lệ $100\%$ mới copy sang thư mục chia sẻ.
+  2. **Deep Content Validation (Xác thực ruột file)**: Đọc dòng đầu của file (CSV Trade Date/Header `SESSION_DATE`) để phân định chính xác phiên $T$ vs $T-1$, không dựa thuần túy vào tên file bề mặt.
+  3. **Loại bỏ triệt để Anti-Pattern bốc nhầm file cũ trong Reconciliation**:
+     - Xóa bỏ việc nhặt nhầm `Fill.xlsx` cho ACM Nano (tuân thủ AGENTS.md Rule 2.1 - duy nhất Straits CSV).
+     - Loại bỏ việc `findLatestFile` bốc bừa file Straits cũ hoặc file EOD cũ trong thư mục ngày. Chuyển sang `findExactSessionEodFile` và `findSessionStraitsPath`.
+
+### 2. Danh sách file chỉnh sửa
+1. [acm-session-validator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/acm-session-validator.helper.ts):
+   - Tạo mới bộ công cụ `inspectAcmFileContent` và `isAcmFilenameMatchSession` phân tích sâu nội dung ngày phiên của file ACM (Straits CSV & XLS).
+2. [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts):
+   - Chuyển `fastGet` tải về `stagingPath` trong `os.tmpdir()/mxv_sftp_acm_staging`.
+   - Kiểm tra nội dung tại máy nội bộ. Nếu file chứa dữ liệu $T-1$ $\rightarrow$ xóa tại đệm tạm, không ghi sang `outputDirectory`.
+   - Hợp lệ mới copy sang `outputDirectory` và tạo alias `Straits_${ddmmyyyy}.csv`.
+3. [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts):
+   - `downloadAcmSftpBackup`: Chuyển sang tải qua đệm tạm nội bộ `mxv_sftp_acm_staging`, kiểm tra nội dung trước khi copy sang `dailyPath`.
+   - `downloadAcmReport`: Chuyển tải file Web qua đệm tạm nội bộ `mxv_web_acm_staging` và kiểm tra `inspectAcmFileContent` trước khi copy sang `destFile`.
+4. [acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts):
+   - `downloadStraitsViaSftp`: Chuyển `fastGet` sang đệm tạm nội bộ `mxv_sftp_acm_staging`. Hủy file tại đệm tạm nếu sai phiên, bảo vệ tuyệt đối thư mục chia sẻ.
+   - `downloadStraitsViaWeb`: Chuyển tải trình duyệt qua `mxv_web_acm_staging`, xác thực nội dung trước khi copy sang `destFile`.
+5. [dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts):
+   - Loại bỏ hoàn toàn fallback nhặt file bừa bãi `|| acmFiles.find(...)`. Bắt buộc kiểm tra `inspectAcmFileContent` trước khi nạp buffer đối chiếu.
+6. [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts):
+   - Thay thế `findLatestFile(/Nano|Fill/i)` bằng `findSessionStraitsPath`: Khớp chính xác file Straits CSV ngày phiên $T$ và xác thực nội dung qua `inspectAcmFileContent`.
+   - Loại bỏ việc nhận nhầm `Fill.xlsx`, chuẩn hóa cảnh báo thiếu file thành `ACM Trades (Straits CSV)`.
+7. [eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/eod-ms.worker.ts):
+   - Thay thế `findLatestFile(msDailyPath, /eod/i)` bằng `findExactSessionEodFile(msDailyPath, dateStr)`: Khớp chính xác ngày phiên và đọc kiểm tra cột `sessionDate` trong CSV, chống bốc nhầm file EOD $T-1$.
+8. [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts):
+   - Cập nhật `scanAcmBackupFiles`: Nhận diện file ngày cũ, đánh dấu `OUTDATED`/`MISSING` kèm lý do cụ thể khi phát hiện file cũ trong thư mục phiên mới.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Build**: `cmd /c "npm run build"` (`next build` Turbopack) thành công 100% với Exit Code 0, toàn bộ 52/52 routes biên dịch thành công.
+
+---
+
 ## [2026-10-28T11:37] FEAT(TRADING-OPS): Nâng Cấp Logic Lọc Tài Khoản Âm Ký Quỹ Mới (EOD CoreCCP) So Sánh Giữa Phiên T-1 và Phiên T-2
 
 ### 1. Mục tiêu thay đổi

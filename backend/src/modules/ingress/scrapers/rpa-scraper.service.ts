@@ -21,7 +21,6 @@ import {
   MS_SPECIFIC_EXPORT_BUTTON_SELECTORS,
 } from '../helpers/msystem-tab-navigator.helper';
 import { IE_MOCK_SCRIPT } from '../helpers/ie-mock.script';
-import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 
 @Injectable()
 export class RpaScraperService {
@@ -3053,7 +3052,10 @@ export class RpaScraperService {
         const downloadPromise = page.waitForEvent('download');
         await fallbackBtn.click();
         const download = await downloadPromise;
+        const parentDir = path.dirname(destFile);
+        if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
         await download.saveAs(destFile);
+
         await log(`Tải file thành công: ${destFile}`);
         await page.waitForTimeout(1500).catch(() => { });
         return;
@@ -3067,7 +3069,10 @@ export class RpaScraperService {
     const downloadPromise = page.waitForEvent('download');
     await btn.click();
     const download = await downloadPromise;
+    const parentDir = path.dirname(destFile);
+    if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
     await download.saveAs(destFile);
+
     await log(`Tải và lưu file thành công: ${destFile}`);
     await page.waitForTimeout(1500).catch(() => { });
   }
@@ -3195,44 +3200,22 @@ export class RpaScraperService {
                 return resolve();
               }
 
-              const stagingDir = path.join(os.tmpdir(), 'mxv_sftp_acm_staging');
-              if (!fs.existsSync(stagingDir)) {
-                fs.mkdirSync(stagingDir, { recursive: true });
-              }
               const item = filesToDownload[downloadedCount];
               const remoteFile = path.posix.join(sftpRemoteDir, item.filename);
-              const stagingFile = path.join(stagingDir, item.filename);
               const localFile = path.join(dailyPath, item.filename);
 
               await log(
-                `Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} (đệm tạm nội bộ -> ${dailyPath})`,
+                `Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename}`,
               );
 
-              sftp.fastGet(remoteFile, stagingFile, {}, async (err: any) => {
+              sftp.fastGet(remoteFile, localFile, {}, async (err: any) => {
                 if (err) {
                   await log(` Lỗi tải file ${item.filename}: ${err.message}`);
                   conn.end();
                   return reject(err);
                 }
 
-                // Kiểm tra sâu nội dung file ngay tại thư mục đệm tạm máy nội bộ
-                const contentCheck = inspectAcmFileContent(stagingFile, targetDate);
-                if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
-                  await log(
-                    ` [ACM SFTP Guard] File ${item.filename} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T (${contentCheck.reason}). Đã xóa bỏ ngay tại máy nội bộ, CHƯA hề chuyển sang thư mục chia sẻ!`,
-                  );
-                  try {
-                    fs.unlinkSync(stagingFile);
-                  } catch {}
-                } else {
-                  // Chỉ khi file hợp lệ thuộc đúng phiên T mới copy sang thư mục chia sẻ
-                  fs.copyFileSync(stagingFile, localFile);
-                  try {
-                    fs.unlinkSync(stagingFile);
-                  } catch {}
-                  await log(` Đã chuyển file hợp lệ ${item.filename} sang thư mục chia sẻ.`);
-                }
-
+                await log(`Tải thành công file ${item.filename}.`);
                 downloadedCount++;
                 await downloadNext();
               });
@@ -4337,24 +4320,6 @@ export class RpaScraperService {
             const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
             await downloadBtn.click();
             const download = await downloadPromise;
-
-            // Tự động tạo bản sao lưu snapshot file cũ trước khi ghi đè nếu file đã tồn tại
-            if (fs.existsSync(destFile)) {
-              try {
-                const dir = path.dirname(destFile);
-                const ext = path.extname(destFile);
-                const name = path.basename(destFile, ext);
-                const d = new Date();
-                const pad = (n: number) => String(n).padStart(2, '0');
-                const timestamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-                const snapshotPath = path.join(dir, `${name}_bak_${timestamp}${ext}`);
-                fs.copyFileSync(destFile, snapshotPath);
-                this.logger.log(`[CQG Snapshot] Đã tạo bản sao lưu snapshot file cũ: ${path.basename(snapshotPath)}`);
-              } catch (snapErr: any) {
-                this.logger.warn(`[CQG Snapshot] Không thể tạo snapshot file cũ: ${snapErr.message}`);
-              }
-            }
-
             await download.saveAs(destFile);
             this.logger.log(`[CQG] Đã lưu file thành công: ${destFile}`);
             downloaded = true;

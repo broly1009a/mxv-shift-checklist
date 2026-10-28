@@ -13,7 +13,6 @@ import {
   EXTERNAL_SYSTEM_ACM,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 
 @Injectable()
 export class AcmSftpAdapter implements IIngressPort {
@@ -198,53 +197,60 @@ export class AcmSftpAdapter implements IIngressPort {
                   return resolve();
                 }
 
-                const stagingDir = path.join(os.tmpdir(), 'mxv_sftp_acm_staging');
-                if (!fs.existsSync(stagingDir)) {
-                  fs.mkdirSync(stagingDir, { recursive: true });
+                if (!fs.existsSync(outputDirectory)) {
+                  fs.mkdirSync(outputDirectory, { recursive: true });
                 }
 
                 try {
                   for (const item of candidateFiles) {
                     const remotePath = path.posix.join(creds.remoteDir, item.filename);
-                    const stagingPath = path.join(stagingDir, item.filename);
+                    const localPath = path.join(outputDirectory, item.filename);
 
-                    // 1. Tải về thư mục đệm tạm nội bộ trên máy chủ (Staging Buffer)
                     await new Promise<void>((getRes, getRej) => {
-                      sftp.fastGet(remotePath, stagingPath, (getErr) => {
+                      sftp.fastGet(remotePath, localPath, (getErr) => {
                         if (getErr) return getRej(getErr);
                         getRes();
                       });
                     });
 
-                    // 2. Kiểm tra sâu nội dung file ngay tại thư mục đệm tạm nội bộ
-                    const contentCheck = inspectAcmFileContent(stagingPath, targetDateObj);
-                    if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
-                      this.logger.warn(
-                        `[AcmSftpAdapter Guard] File ${item.filename} tải về thư mục tạm máy nội bộ chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T ${yyyy_mm_dd} (${contentCheck.reason}). Đã xóa bỏ ngay tại máy nội bộ, CHƯA hề chuyển sang thư mục chia sẻ!`,
-                      );
-                      try {
-                        fs.unlinkSync(stagingPath);
-                      } catch {}
-                      continue; // Dừng lại, tuyệt đối KHÔNG chuyển sang folder share!
-                    }
+                    const stat = fs.statSync(localPath);
+                    const isCsv = item.filename.toLowerCase().endsWith('.csv');
+                    files.push({
+                      fileName: item.filename,
+                      absolutePath: localPath,
+                      fileSize: stat.size,
+                      mtime: stat.mtime,
+                      category: 'ACM',
+                      metadata: {
+                        transport: 'SFTP_SSH2_CLIENT',
+                        host: creds.host,
+                        fileType: isCsv ? 'STRAITS_CSV' : 'ACCOUNT_XLS',
+                      },
+                    });
 
-                    // 3. Đúng ngày phiên T: Mới copy sang folder chia sẻ (outputDirectory)
-                    const localPath = path.join(outputDirectory, item.filename);
-                    fs.copyFileSync(stagingPath, localPath);
-                    try {
-                      fs.unlinkSync(stagingPath);
-                    } catch {}
-
-                    // 4. Chỉ tạo alias Straits_<ddmmyyyy>.csv nếu file tải về đúng ngày ddmmyyyy của phiên T
+                    // Chỉ tạo alias Straits_<ddmmyyyy>.csv nếu file tải về đúng ngày ddmmyyyy của phiên T
                     if (
                       item.filename.toLowerCase().includes('straits') &&
-                      item.filename.toLowerCase().endsWith('.csv') &&
+                      isCsv &&
                       item.filename.includes(ddmmyyyy)
                     ) {
                       const aliasPath = path.join(outputDirectory, `Straits_${ddmmyyyy}.csv`);
                       if (aliasPath !== localPath && !fs.existsSync(aliasPath)) {
                         try {
                           fs.copyFileSync(localPath, aliasPath);
+                          const aliasStat = fs.statSync(aliasPath);
+                          files.push({
+                            fileName: `Straits_${ddmmyyyy}.csv`,
+                            absolutePath: aliasPath,
+                            fileSize: aliasStat.size,
+                            mtime: aliasStat.mtime,
+                            category: 'ACM',
+                            metadata: {
+                              transport: 'SFTP_SSH2_CLIENT',
+                              host: creds.host,
+                              fileType: 'STRAITS_CSV',
+                            },
+                          });
                         } catch {}
                       }
                     }
@@ -278,44 +284,6 @@ export class AcmSftpAdapter implements IIngressPort {
         });
       } catch (connErr: any) {
         this.logger.warn(`[AcmSftpAdapter] Kết nối SFTP trực tiếp gặp lỗi: ${connErr.message}`);
-      }
-    }
-
-    // Quét lại thư mục local để thu thập các file đã tải hợp lệ thuộc đúng phiên T
-    if (fs.existsSync(outputDirectory)) {
-      const localFiles = fs.readdirSync(outputDirectory);
-      for (const fn of localFiles) {
-        const isTargetCsv =
-          fn.toLowerCase().endsWith(csvSuffix.toLowerCase()) ||
-          fn.toLowerCase() === `straits_${ddmmyyyy}.csv`.toLowerCase();
-        const isTargetXls =
-          fn.toLowerCase().startsWith(xlsPrefix.toLowerCase()) && fn.toLowerCase().endsWith('.xls');
-
-        if (isTargetCsv || isTargetXls) {
-          const absPath = path.join(outputDirectory, fn);
-          // Kiểm tra tính hợp lệ của phiên qua nội dung
-          const contentCheck = inspectAcmFileContent(absPath, targetDateObj);
-          if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
-            this.logger.warn(
-              `[AcmSftpAdapter Guard] File ${fn} trong thư mục local chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T ${yyyy_mm_dd}. Bỏ qua không đưa vào danh sách file hợp lệ.`,
-            );
-            continue;
-          }
-
-          const stat = fs.statSync(absPath);
-          files.push({
-            fileName: fn,
-            absolutePath: absPath,
-            fileSize: stat.size,
-            mtime: stat.mtime,
-            category: 'ACM',
-            metadata: {
-              transport: 'SFTP_SSH2_CLIENT',
-              host: creds.host,
-              fileType: isTargetCsv ? 'STRAITS_CSV' : 'ACCOUNT_XLS',
-            },
-          });
-        }
       }
     }
 

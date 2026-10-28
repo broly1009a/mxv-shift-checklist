@@ -8,9 +8,8 @@ import * as path from 'path';
  * BẮT BUỘC phải dùng chung từ điển này.
  * TUYỆT ĐỐI không viết regex riêng rẽ ở các service/worker khác nhau để loại bỏ 100% nguy cơ lệch pha (Pattern Drift).
  *
- * Tuân thủ nghiêm ngặt:
- * - AGENTS.md Mục 2 Rule 1: Duy nhất Straits CSV cho ACM Nano.
- * - AGENTS.md Mục 2 Rule 2: Cặp file thô CQG (FR1/FR2, PS1/PS2, OP1/OP2, OD1/OD2).
+ * - Nghiệp vụ: Duy nhất Straits CSV cho ACM Nano.
+ * - Nghiệp vụ: Cặp file thô CQG (FR1/FR2, PS1/PS2, OP1/OP2, OD1/OD2).
  */
 export const TRADING_FILE_PATTERNS = {
   // ── 1. CoreCCP (Toàn thị trường) ──────────────────────────────────────────

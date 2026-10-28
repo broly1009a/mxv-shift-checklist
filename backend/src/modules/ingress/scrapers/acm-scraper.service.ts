@@ -5,7 +5,6 @@ import * as os from 'os';
 import { Client } from 'ssh2';
 import { Browser, Page } from 'playwright-core';
 import { BrowserLauncherHelper } from '../helpers/browser-launcher.helper';
-import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 
 export interface IAcmSftpConnectionOptions {
   host: string;
@@ -38,11 +37,8 @@ export class AcmScraperService {
   private readonly logger = new Logger(AcmScraperService.name);
 
   /**
-   * Tải file Straits CSV qua cổng SFTP (Phương thức ưu tiên hàng đầu)
-   *
-   * QUY CHUẨN NGHIỆP VỤ (AGENTS.md):
-   * - Duy nhất nhận diện file chuẩn Straits CSV (chứa từ khóa "Straits", ví dụ: Straits.csv, Straits_23072026.csv).
-   * - Tuyệt đối KHÔNG nhận nhầm Fill.xlsx hay Order.xlsx.
+   * Tải file Straits CSV qua cổng SFTP.
+   * Nhận diện file chứa từ khóa "Straits".
    */
   async downloadStraitsViaSftp(
     options: IAcmSftpConnectionOptions,
@@ -133,6 +129,11 @@ export class AcmScraperService {
             const remoteFilePath = path.posix.join(remoteDir, chosenFileName);
             const localFilePath = path.join(localDir, chosenFileName);
 
+            const parentFolder = path.dirname(localFilePath);
+            if (!fs.existsSync(parentFolder)) {
+              fs.mkdirSync(parentFolder, { recursive: true });
+            }
+
             this.logger.log(`[ACM SFTP] Bắt đầu tải file: ${chosenFileName} -> ${localFilePath}`);
             sftp.fastGet(remoteFilePath, localFilePath, {}, (dlErr) => {
               conn.end();
@@ -141,23 +142,6 @@ export class AcmScraperService {
               }
 
               const stat = fs.statSync(localFilePath);
-
-              // Kiểm tra sâu nội dung file vừa tải (Deep Content Validation)
-              const contentCheck = inspectAcmFileContent(localFilePath, targetDate || new Date());
-              if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
-                this.logger.warn(
-                  `[ACM SFTP Content Guard] File ${chosenFileName} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T ${contentCheck.expectedDateStr} (${contentCheck.reason}). Đang xóa file để bảo vệ thư mục.`,
-                );
-                try {
-                  fs.unlinkSync(localFilePath);
-                } catch {}
-                return reject(
-                  new Error(
-                    `[ACM SFTP Content Guard] File ${chosenFileName} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T ${contentCheck.expectedDateStr} (${contentCheck.reason}). Đã xóa bỏ file.`,
-                  ),
-                );
-              }
-
               this.logger.log(
                 `[ACM SFTP] Tải thành công Straits CSV: ${localFilePath} (${(stat.size / 1024).toFixed(2)} KB)`,
               );

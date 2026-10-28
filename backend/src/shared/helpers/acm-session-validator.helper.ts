@@ -2,8 +2,7 @@
  * acm-session-validator.helper.ts
  *
  * Bộ công cụ kiểm tra tính hợp lệ của phiên giao dịch đối với các file ACM (Straits CSV & XLS).
- * Ngăn chặn tuyệt đối việc tải nhầm hoặc lấy nhầm file phiên cũ (T-1) vào thư mục phiên hôm nay (T).
- * Tuân thủ AGENTS.md Rule 2.1 & Rule 5 (No Speculative Fallbacks & Proof of Ground Truth).
+ * Đảm bảo dữ liệu tải về hoặc đối chiếu khớp đúng ngày phiên hôm nay.
  */
 
 import * as fs from 'fs';

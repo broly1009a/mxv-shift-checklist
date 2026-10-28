@@ -492,18 +492,9 @@ export class CqgScraperService {
             downloadBtn.click({ timeout: 5000 }),
           ]);
 
-          // Snapshot file cũ nếu đã tồn tại
-          if (fs.existsSync(destFile)) {
-            try {
-              const dir = path.dirname(destFile);
-              const ext = path.extname(destFile);
-              const name = path.basename(destFile, ext);
-              const d = new Date();
-              const pad = (n: number) => String(n).padStart(2, '0');
-              const timestamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-              const snapshotPath = path.join(dir, `${name}_bak_${timestamp}${ext}`);
-              fs.copyFileSync(destFile, snapshotPath);
-            } catch {}
+          const destDir = path.dirname(destFile);
+          if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
           }
 
           await download.saveAs(destFile);

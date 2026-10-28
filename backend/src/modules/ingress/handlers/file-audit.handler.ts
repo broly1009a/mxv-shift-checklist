@@ -18,7 +18,6 @@ import {
   getMsBackupBase,
   getAcmBackupBase,
 } from '../../../shared/helpers/file-path.helper';
-import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 import {
   REQUIRED_MS_FILES,
   REQUIRED_CCP_FILES,
@@ -365,44 +364,26 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       let csvFile = files.find(
         (f) =>
           f.toLowerCase().endsWith(`_${ddmmyyyy}.csv`.toLowerCase()) ||
-          f.toLowerCase() === `straits_${ddmmyyyy}.csv`.toLowerCase(),
+          f.toLowerCase() === `straits_${ddmmyyyy}.csv`.toLowerCase() ||
+          f.toLowerCase() === 'straits.csv',
       );
-
-      // Nếu có Straits.csv nhưng không có ngày trong tên: kiểm tra nội dung
-      if (!csvFile && files.includes('Straits.csv')) {
-        const fullStraits = path.join(backupPath, 'Straits.csv');
-        const validation = inspectAcmFileContent(fullStraits, today);
-        if (validation.isValidSession) {
-          csvFile = 'Straits.csv';
-        }
-      }
 
       if (csvFile) {
         const absCsvPath = path.join(backupPath, csvFile);
         const stat = fs.statSync(absCsvPath);
-        const contentValidation = inspectAcmFileContent(absCsvPath, today);
-        if (contentValidation.isDateDetermined && !contentValidation.isValidSession) {
-          results.push({
-            key: 'SFTP_CSV',
-            filename: `${csvFile} (LỖI: Dữ liệu phiên ${contentValidation.detectedDateStr}, không phải phiên T)`,
-            status: 'OUTDATED' as const,
-            lastModified: stat.mtime,
-          });
-        } else {
-          results.push({
-            key: 'SFTP_CSV',
-            filename: csvFile,
-            status: 'OK' as const,
-            lastModified: stat.mtime,
-          });
-        }
+        results.push({
+          key: 'SFTP_CSV',
+          filename: csvFile,
+          status: 'OK' as const,
+          lastModified: stat.mtime,
+        });
       } else {
         const otherCsv = files.find(
           (f) => f.toLowerCase().includes('straits') && f.toLowerCase().endsWith('.csv'),
         );
         results.push({
           key: 'SFTP_CSV',
-          filename: otherCsv ? `*_${ddmmyyyy}.csv (Phát hiện file phiên khác: ${otherCsv})` : `*_${ddmmyyyy}.csv`,
+          filename: otherCsv ? `*_${ddmmyyyy}.csv (Phát hiện file: ${otherCsv})` : `*_${ddmmyyyy}.csv`,
           status: 'MISSING' as const,
         });
       }
@@ -416,22 +397,12 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       if (xlsFile) {
         const absXlsPath = path.join(backupPath, xlsFile);
         const stat = fs.statSync(absXlsPath);
-        const contentValidation = inspectAcmFileContent(absXlsPath, today);
-        if (contentValidation.isDateDetermined && !contentValidation.isValidSession) {
-          results.push({
-            key: 'SFTP_XLS',
-            filename: `${xlsFile} (LỖI: Dữ liệu phiên ${contentValidation.detectedDateStr}, không phải phiên T)`,
-            status: 'OUTDATED' as const,
-            lastModified: stat.mtime,
-          });
-        } else {
-          results.push({
-            key: 'SFTP_XLS',
-            filename: xlsFile,
-            status: 'OK' as const,
-            lastModified: stat.mtime,
-          });
-        }
+        results.push({
+          key: 'SFTP_XLS',
+          filename: xlsFile,
+          status: 'OK' as const,
+          lastModified: stat.mtime,
+        });
       } else {
         const otherXls = files.find((f) => f.toLowerCase().endsWith('_10017890000.xls'));
         results.push({

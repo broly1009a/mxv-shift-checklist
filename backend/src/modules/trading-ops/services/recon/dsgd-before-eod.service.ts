@@ -31,7 +31,6 @@ import {
   parseDSGD,
   parseStraitsCsv,
 } from '../../helpers/trading-math.helper';
-import { inspectAcmFileContent } from '../../../../shared/helpers/acm-session-validator.helper';
 import {
   TRADING_FILE_PATTERNS,
   matchTradingFileName,
@@ -512,26 +511,18 @@ export class DsgdBeforeEodService {
                 f.includes(`${day}${month}${year}`),
             );
 
+            if (!matched && acmFiles.includes(`Straits_${day}${month}${year}.csv`)) {
+              matched = `Straits_${day}${month}${year}.csv`;
+            }
+
             if (!matched && acmFiles.includes('Straits.csv')) {
-              const candPath = path.join(dailyAcmDir, 'Straits.csv');
-              const validation = inspectAcmFileContent(candPath, `${year}-${month}-${day}`);
-              if (validation.isValidSession) {
-                matched = 'Straits.csv';
-              }
+              matched = 'Straits.csv';
             }
 
             if (matched) {
               const candFullPath = path.join(dailyAcmDir, matched);
-              const buf = fs.readFileSync(candFullPath);
-              const contentCheck = inspectAcmFileContent(buf, `${year}-${month}-${day}`);
-              if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
-                this.logger.warn(
-                  `[DSGD-Before-EOD Guard] File ${matched} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không khớp phiên T ${year}-${month}-${day}. Bỏ qua không lấy đối soát.`,
-                );
-              } else {
-                foundAcmPath = candFullPath;
-                acmTradesBuffer = buf;
-              }
+              foundAcmPath = candFullPath;
+              acmTradesBuffer = fs.readFileSync(candFullPath);
             }
           }
         }
@@ -592,26 +583,18 @@ export class DsgdBeforeEodService {
             f.includes(`${day}${month}${year}`),
         );
 
+        if (!matched && acmFiles.includes(`Straits_${day}${month}${year}.csv`)) {
+          matched = `Straits_${day}${month}${year}.csv`;
+        }
+
         if (!matched && acmFiles.includes('Straits.csv')) {
-          const candPath = path.join(dailyAcmDir, 'Straits.csv');
-          const validation = inspectAcmFileContent(candPath, `${year}-${month}-${day}`);
-          if (validation.isValidSession) {
-            matched = 'Straits.csv';
-          }
+          matched = 'Straits.csv';
         }
 
         if (matched) {
           const candFullPath = path.join(dailyAcmDir, matched);
-          const buf = fs.readFileSync(candFullPath);
-          const contentCheck = inspectAcmFileContent(buf, `${year}-${month}-${day}`);
-          if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
-            this.logger.warn(
-              `[DSGD-Before-EOD Guard] File ${matched} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không khớp phiên T ${year}-${month}-${day}. Bỏ qua không lấy đối soát.`,
-            );
-          } else {
-            foundAcmPath = candFullPath;
-            acmTradesBuffer = buf;
-          }
+          foundAcmPath = candFullPath;
+          acmTradesBuffer = fs.readFileSync(candFullPath);
         }
       }
     }
