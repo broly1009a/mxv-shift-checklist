@@ -1014,15 +1014,18 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   ): Promise<BotJob | null> {
     const query: Record<string, any> = {
       jobType,
-      status: 'COMPLETED',
+      status: { $in: ['COMPLETED', 'WAITING', 'FAILED', 'CANCELLED'] },
     };
     if (withinMinutes && withinMinutes > 0) {
       const cutoff = new Date(Date.now() - withinMinutes * 60 * 1000);
-      query.completedAt = { $gte: cutoff };
+      query.$or = [
+        { completedAt: { $gte: cutoff } },
+        { updatedAt: { $gte: cutoff } },
+      ];
     }
     return this.botJobModel
       .findOne(query)
-      .sort({ completedAt: -1, createdAt: -1 })
+      .sort({ updatedAt: -1, completedAt: -1, createdAt: -1 })
       .exec();
   }
 
