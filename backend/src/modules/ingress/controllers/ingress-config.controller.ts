@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { RpaScraperService } from '../scrapers/rpa-scraper.service';
+import { CastScraperService } from '../scrapers/cast-scraper.service';
 import { OmsWatcherService } from '../../trading-ops/services/oms/oms-watcher.service';
 import { AgentController } from './ingress-agent.controller';
 import { encrypt, decrypt } from '../../../shared/helpers/crypto';
@@ -25,6 +26,7 @@ export class IngressConfigController {
   constructor(
     private readonly settingsService: SystemSettingsService,
     private readonly rpaService: RpaScraperService,
+    private readonly castScraperService: CastScraperService,
     private readonly omsWatcherService: OmsWatcherService,
   ) {}
 
@@ -742,7 +744,7 @@ export class IngressConfigController {
     const testFile = path.join(tempDir, `test_cast_${Date.now()}.xlsx`);
 
     try {
-      await this.rpaService.downloadCastBalances(testFile);
+      await this.castScraperService.downloadCastBalances(testFile);
       if (fs.existsSync(testFile)) {
         fs.unlinkSync(testFile);
       }

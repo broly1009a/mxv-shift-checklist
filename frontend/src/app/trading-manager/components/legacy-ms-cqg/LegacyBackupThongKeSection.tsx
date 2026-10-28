@@ -957,7 +957,7 @@ export default function LegacyBackupThongKeSection({
           {/* 2. Thời điểm backup */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Tự động tải báo cáo sao lưu chốt ngày M-System & CQG độc lập (theo cấu hình hệ thống)"
+            title="Tự động tải báo cáo sao lưu chốt ngày M-System, CQG, ACM, CoreCCP & CoreEX độc lập (theo cấu hình hệ thống)"
           >
             <label
               style={{

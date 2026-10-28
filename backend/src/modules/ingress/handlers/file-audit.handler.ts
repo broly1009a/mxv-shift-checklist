@@ -642,7 +642,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       PS2: true,
       OP2: true,
       OD2: true,
-      // AS: true, // Tạm comment: CQG không có widget AS thực tế, tránh sleep 2s và sinh file ảo
+      AS: true, // File AS: Tải báo cáo số dư CQG CAST (Accounts_Balances.xlsx & AS.xlsx)
     };
     const reports: Partial<
       Record<
@@ -664,9 +664,17 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     );
     await job.save();
 
+    const logRealtime = async (msg: string) => {
+      job.logs.push(`[${new Date().toISOString()}] ${msg}`);
+      await job.save().catch(() => {});
+    };
+
     const { errors, downloaded } = await this.rpaDownloaderService.downloadCqgBackup(
       reports,
       fullPath,
+      undefined,
+      undefined,
+      logRealtime,
     );
 
     for (const d of downloaded) {
@@ -683,7 +691,18 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       );
     }
 
-    if (!payload.skipMerge) {
+    const hasRawReports = !!(
+      reports.FR1 ||
+      reports.FR2 ||
+      reports.PS1 ||
+      reports.PS2 ||
+      reports.OP1 ||
+      reports.OP2 ||
+      reports.OD1 ||
+      reports.OD2
+    );
+
+    if (!payload.skipMerge && hasRawReports) {
       job.logs.push(
         `[${new Date().toISOString()}] Tiến hành tự động ghép nối file thô CQG sau khi tải...`,
       );

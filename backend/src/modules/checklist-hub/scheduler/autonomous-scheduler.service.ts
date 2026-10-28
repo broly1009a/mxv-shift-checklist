@@ -5,7 +5,11 @@ import { Model } from 'mongoose';
 import { BotJobQueueService } from '../queue/bot-job-queue.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { ShiftLog } from '../../../schemas/shift-log.schema';
-import { resolveTradingSessionDate, isMarketWeekendClosed } from '../../../shared/helpers/file-path.helper';
+import {
+  resolveTradingSessionDate,
+  isMarketWeekendClosed,
+  getAcmBackupBase,
+} from '../../../shared/helpers/file-path.helper';
 
 import {
   SchedulerTaskConfig,
@@ -163,12 +167,13 @@ export class AutonomousSchedulerService implements OnModuleInit {
     );
     const intervalMinutes = Math.max(5, parseInt(freqSetting, 10) || 60);
 
-    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của FILE_AUDIT_MS, FILE_AUDIT_CQG, CoreCCP hoặc CoreEX thì bỏ qua
+    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của FILE_AUDIT_MS, FILE_AUDIT_CQG, CoreCCP, CoreEX hoặc FILE_AUDIT_ACM thì bỏ qua
     const hasActiveMs = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_MS');
     const hasActiveCqg = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_CQG');
     const hasActiveCcp = await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CCP_REPORT');
     const hasActiveCe = await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CE_REPORT');
-    if (hasActiveMs || hasActiveCqg || hasActiveCcp || hasActiveCe) {
+    const hasActiveAcm = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_ACM');
+    if (hasActiveMs || hasActiveCqg || hasActiveCcp || hasActiveCe || hasActiveAcm) {
       return;
     }
 
@@ -235,6 +240,18 @@ export class AutonomousSchedulerService implements OnModuleInit {
         sessionDay: sessionDayStr,
         targetDate: sessionDayStr,
         reports: ['FULL'],
+        maxAttempts: 1,
+        isStandalone: true,
+        shiftLogId: null,
+        taskId: null,
+      });
+
+      // Tự động kiểm tra và tải báo cáo ACM định kỳ độc lập
+      const acmBackupBase = await getAcmBackupBase(this.settingsService);
+      await this.jobQueueService.enqueue('FILE_AUDIT_ACM', {
+        backupPath: acmBackupBase,
+        targetDate: sessionDayStr,
+        sessionDay: sessionDayStr,
         maxAttempts: 1,
         isStandalone: true,
         shiftLogId: null,
@@ -342,6 +359,21 @@ export class AutonomousSchedulerService implements OnModuleInit {
           time: backupTime,
           jobType: 'DOWNLOAD_CE_REPORT',
           payload: { reports: ['FULL'] },
+        });
+      }
+
+      // Đồng bộ mốc giờ tải cho ACM
+      let acmTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_ACM' || t.jobType === 'FILE_AUDIT_ACM');
+      if (acmTask) {
+        acmTask.time = backupTime;
+        acmTask.enabled = backupTimeEnabled !== 'false';
+      } else {
+        tasks.push({
+          id: 'RPA_DOWNLOAD_ACM',
+          name: 'Tự động tải & kiểm tra file backup ACM (Web & SFTP)',
+          enabled: backupTimeEnabled !== 'false',
+          time: backupTime,
+          jobType: 'FILE_AUDIT_ACM',
         });
       }
     }

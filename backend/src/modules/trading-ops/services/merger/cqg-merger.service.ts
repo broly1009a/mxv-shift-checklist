@@ -880,7 +880,14 @@ export class CqgMergerService {
 
     // Scan CQG files
     for (const f of REQUIRED_CQG_FILES) {
-      const filePath = path.join(fullPath, f.filename);
+      let filePath = path.join(fullPath, f.filename);
+      if (f.key === 'AS' && (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0)) {
+        const altPath = path.join(fullPath, 'Accounts_Balances.xlsx');
+        if (fs.existsSync(altPath) && fs.statSync(altPath).size > 0) {
+          filePath = altPath;
+        }
+      }
+
       if (!fs.existsSync(fullPath) || !fs.existsSync(filePath)) {
         results.push({
           key: f.key,
