@@ -1,3 +1,64 @@
+## [2026-10-28T17:30] FEAT(ARCHITECTURE): Tái Cấu Trúc Hàng Đợi Song Song Phân Hệ (Subsystem-Isolated Parallelism) & Dọn Sạch Tàn Dư TKGD
+
+### 1. Mục tiêu thay đổi
+1. **Kiến Trúc Hàng Đợi "Tuần Tự Nội Bộ Phân Hệ - Song Song Giữa Các Phân Hệ"**:
+   - Khắc phục nút thắt cổ chai đơn luồng (`isProcessing = true`) trước đây.
+   - **Tách Biệt Miền Tài Nguyên (`JobResourceDomain`)**: Tạo mới `backend/src/shared/constants/job-domains.constant.ts` phân định rõ 7 phân hệ tài nguyên: `MS`, `CQG`, `CCP`, `CE`, `ACM`, `EMAIL`, `RECON`.
+   - **Quy Tắc Vàng Doanh Nghiệp**:
+     - **Cùng Phân Hệ**: Bắt buộc xếp hàng tuần tự (`maxPerDomain = 1`) để bảo vệ tài khoản, tránh bị đá session và tránh xung đột ghi file.
+     - **Khác Phân Hệ**: Kích hoạt chạy song song hoàn toàn (`maxGlobalConcurrency = 6`), cho phép đồng thời tải M-System, CQG, CoreCCP, CE, ACM Straits, Email cùng lúc, rút ngắn thời gian chuẩn bị ca trực từ 8 phút xuống còn 1-2 phút.
+   - **Tự Động Kích Hoạt (Reactive Dispatch)**: Khi một Job của phân hệ vừa hoàn tất, hệ thống tự động bốc tiếp Job đang chờ của phân hệ đó mà không phải đợi chu kỳ poll 10s.
+2. **Dọn Sạch Toàn Bộ Tàn Dư Phân Hệ Đối Soát Hồ Sơ Mở TKGD**:
+   - Theo chỉ đạo của USER, do phân hệ đối soát mở TKGD đã chuyển hẳn sang dự án độc lập riêng (`tool-duyet-tkgd-ms`):
+     - **Frontend**: Xóa thư mục route `/admin/tkgd-dashboard`, `/admin/tkgd-config`, file `tkgdTutorial.ts`, xóa block `TKGD` trong `endpoints.ts`, xóa job types `TKGD_EXTRACT`/`TKGD_RECONCILE` trong hàng đợi, dọn dẹp `TutorialContext.tsx` và `GlobalLayout.tsx`.
+     - **Backend**: Xóa các Schema mồ côi `tkgd-activity-log.schema.ts`, `tkgd-user-config.schema.ts`, `clean-account-record.schema.ts`.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- **Tạo mới**: [job-domains.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/job-domains.constant.ts): Định nghĩa enum `JobResourceDomain` và hàm `resolveJobResourceDomain`.
+- **Cập nhật Backend**:
+  - [shared/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts): Export `job-domains.constant`.
+  - [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts): Tái cấu trúc `processQueue()` và `executeJobInPool(job, domain)` với cơ chế `activeDomains` set lock.
+  - Xóa 3 schema mồ côi: `tkgd-activity-log.schema.ts`, `tkgd-user-config.schema.ts`, `clean-account-record.schema.ts`.
+- **Cập nhật Frontend**:
+  - Xóa thư mục: `frontend/src/app/admin/tkgd-dashboard/`, `frontend/src/app/admin/tkgd-config/`, `frontend/src/tutorials/tkgdTutorial.ts`.
+  - [endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts): Xóa block `TKGD`.
+  - [TutorialContext.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/context/TutorialContext.tsx): Loại bỏ keys `tkgd`, `tkgd-config`.
+  - [GlobalLayout.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/GlobalLayout.tsx): Loại bỏ kiểm tra `isStandalonePage` tkgd.
+  - [TradingManagerJobQueueSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx): Loại bỏ `TKGD_EXTRACT`, `TKGD_RECONCILE`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (**Exit Code 0**).
+- **Frontend Build**: `cmd /c npm run build` (`next build`) thành công 100% (**Exit Code 0**).
+
+---
+
+## [2026-10-28T17:08] FEAT(AUDIT_TRAIL): Nâng Cấp Toàn Diện Cơ Chế Soft Delete (Xóa Mềm) & Ghi Nhận System Log Khi Xóa/Dọn Hàng Đợi
+
+### 1. Mục tiêu thay đổi
+- Khắc phục nguy cơ mất vĩnh viễn dữ liệu kiểm toán khi Admin thao tác xóa hoặc dọn dẹp hàng đợi:
+  - **Không xóa vật lý (Zero Hard Delete)**: Thay vì dùng `deleteOne` / `deleteMany` làm mất vĩnh viễn bản ghi tác vụ và các mảng log chi tiết, hệ thống chuyển sang **Soft Delete (Xóa mềm / Lưu trữ an toàn)** bằng cách cập nhật cờ `isDeleted: true`, `deletedAt: new Date()`, `deletedBy: actor`, `deleteReason`.
+  - **Bảo toàn dữ liệu 100% trong CSDL**: Toàn bộ mảng console `job.logs`, tham số chạy `payload`, kết quả và thời gian chạy vẫn được lưu trữ vĩnh viễn trong collection `bot_jobs` của MongoDB.
+  - **Giao diện sạch sẽ**: Mặc định endpoint `GET /api/v1/checklist-hub/jobs` tự động lọc `{ isDeleted: { $ne: true } }`, đảm bảo danh sách hàng đợi trên màn hình Trading Manager và Admin Bot Config hoàn toàn sạch bóng các tác vụ đã dọn.
+  - **Ghi nhận vết kiểm toán (System Log Audit Trail)**: Mỗi khi Admin thực hiện xóa đơn lẻ (`BOT_JOB_DELETED`) hoặc dọn hàng loạt (`BOT_JOB_CLEANUP`), hệ thống tự động ghi bản ghi vào collection `system_logs` (hiển thị trên màn hình `/admin/activity-logs`), ghi nhận rõ ràng:
+    - Danh tính Admin thực hiện (`actorUserId`, `fullName`).
+    - Thời gian chính xác.
+    - Số lượng và loại tác vụ bị xóa.
+    - Trạng thái ban đầu của tác vụ.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-job.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/schemas/bot-job.schema.ts): Bổ sung các trường `isDeleted`, `deletedAt`, `deletedBy`, `deleteReason` vào model `BotJob`.
+- [checklist-bot-jobs.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts):
+  - Inject `SystemLogsService`.
+  - Cập nhật `getJobs`: Tự động loại bỏ các job `isDeleted: true` khỏi danh sách trả về hàng đợi.
+  - Cập nhật `deleteJob`: Chuyển sang `updateOne({ isDeleted: true })` và ghi sự kiện `BOT_JOB_DELETED` vào `systemLogsService.logEvent`.
+  - Cập nhật `cleanupCancelledJobs`: Chuyển sang `updateMany({ isDeleted: true })` và ghi sự kiện `BOT_JOB_CLEANUP` vào `systemLogsService.logEvent`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (**Exit Code 0**).
+- **Frontend Build**: `cmd /c npm run build` (`next build`) thành công 100% (**Exit Code 0**).
+
+---
+
 ## [2026-10-28T16:58] FEAT(RBAC): Phân Quyền Chỉ Admin Mới Được Phép Xóa Tác Vụ & Dọn Dẹp Hàng Đợi (Bảo Vệ Tính Toàn Vẹn Audit Trail)
 
 ### 1. Mục tiêu thay đổi

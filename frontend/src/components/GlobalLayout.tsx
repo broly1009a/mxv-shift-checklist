@@ -28,7 +28,6 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
   };
 
   const isPublicPage = pathname === '/login' || pathname === '/' || pathname === '/test-shadcn';
-  const isStandalonePage = pathname?.startsWith('/admin/tkgd-dashboard') || pathname?.startsWith('/admin/tkgd-config');
 
   // TUÂN THỦ NGHIÊM NGẶT RULES OF HOOKS: Khai báo Hook ở cấp cao nhất (Top-Level), trước mọi câu lệnh return sớm
   useEffect(() => {
@@ -41,15 +40,6 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
 
   if (isPublicPage) {
     return <>{children}</>;
-  }
-
-  if (isStandalonePage) {
-    return (
-      <TutorialProvider>
-        {children}
-        <TutorialOverlay />
-      </TutorialProvider>
-    );
   }
 
   if (loading || !user) {

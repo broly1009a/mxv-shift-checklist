@@ -33,11 +33,12 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { SystemLogsService } from '../../system-logs/system-logs.service';
 import { parseJobPayload } from '../../../shared/helpers/file-path.helper';
 import { BotJobDedupHelper } from '../helpers/bot-job-dedup.helper';
-import { isAuditJobType } from '../../../shared';
+import { isAuditJobType, JobResourceDomain, resolveJobResourceDomain } from '../../../shared';
 import { BotAlertEmailService } from '../../notifications/bot-alert-email.service';
 
 interface IActiveJobContext {
   jobId: string;
+  domain: JobResourceDomain;
   abortController: AbortController;
   cleanups: (() => Promise<void> | void)[];
   startedAt?: Date;
@@ -46,7 +47,7 @@ interface IActiveJobContext {
 @Injectable()
 export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotJobQueueService.name);
-  private isProcessing = false;
+  private readonly maxGlobalConcurrency = 6;
   private activeJobs = new Map<string, IActiveJobContext>();
   private queueInterval?: NodeJS.Timeout;
   private cleanupInterval?: NodeJS.Timeout;
@@ -170,39 +171,81 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 2. PROCESS QUEUE (ĐIỀU PHỐI VÀ THỰC THI TÁC VỤ TRONG HÀNG ĐỢI)
+  // 2. PROCESS QUEUE (ĐIỀU PHỐI TÀI NGUYÊN: TUẦN TỰ NỘI BỘ PHÂN HỆ, SONG SONG LIÊN PHÂN HỆ)
   // ─────────────────────────────────────────────────────────────────────────────
 
-  private async processQueue() {
-    // Tự động phục hồi cờ isProcessing nếu không có Job nào đang thực sự chạy trong RAM
-    if (this.isProcessing && this.activeJobs.size === 0) {
-      this.logger.warn('[QUEUE] Cờ isProcessing bị kẹt khi không có Job active -> Tự động giải phóng.');
-      this.isProcessing = false;
-    }
-
-    if (this.isProcessing) {
+  private async processQueue(): Promise<void> {
+    // 1. Kiểm tra trần song song toàn hệ thống
+    if (this.activeJobs.size >= this.maxGlobalConcurrency) {
       return;
     }
 
-    // Nâng cấp Atomic Lock qua findOneAndUpdate: An toàn tuyệt đối khi chạy đa instance song song
+    // 2. Thu thập danh sách các Phân Hệ (Resource Domains) hiện đang có Job chạy
+    const activeDomains = new Set<JobResourceDomain>();
+    for (const ctx of this.activeJobs.values()) {
+      activeDomains.add(ctx.domain);
+    }
+
+    // 3. Quét các candidate PENDING cũ nhất chưa bị xóa mềm
+    const candidates = await this.botJobModel
+      .find({
+        status: 'PENDING',
+        isDeleted: { $ne: true },
+      })
+      .sort({ createdAt: 1 })
+      .limit(20)
+      .exec();
+
+    if (!candidates || candidates.length === 0) {
+      return;
+    }
+
     const instanceId = process.env.INSTANCE_ID || `inst_${process.pid}`;
-    const job: any = await this.botJobModel.findOneAndUpdate(
-      { status: 'PENDING' },
-      {
-        $set: {
-          status: 'PROCESSING',
-          lockedBy: instanceId,
-          lockedAt: new Date(),
+
+    // 4. Lặp qua các candidate để bốc job cho các phân hệ đang RẢNH
+    for (const candidate of candidates) {
+      if (this.activeJobs.size >= this.maxGlobalConcurrency) {
+        break;
+      }
+
+      const domain = resolveJobResourceDomain(candidate.jobType);
+
+      // QUY TẮC VÀNG: CÙNG PHÂN HỆ ĐANG CÓ JOB CHẠY -> BẮT BUỘC BỎ QUA ĐỂ CHỜ TRONG HÀNG ĐỢI!
+      if (activeDomains.has(domain)) {
+        continue;
+      }
+
+      // Khóa nguyên tử (Atomic Lock) qua findOneAndUpdate
+      const job: any = await this.botJobModel.findOneAndUpdate(
+        { _id: candidate._id, status: 'PENDING' },
+        {
+          $set: {
+            status: 'PROCESSING',
+            lockedBy: instanceId,
+            lockedAt: new Date(),
+          },
         },
-      },
-      { sort: { createdAt: 1 }, returnDocument: 'after' } as any,
-    );
-    if (!job) {
-      return;
+        { returnDocument: 'after' } as any,
+      );
+
+      if (!job) {
+        continue;
+      }
+
+      // Đánh dấu ngay domain này bận trong lượt dispatch hiện tại
+      activeDomains.add(domain);
+
+      // 5. Khởi chạy Job bất đồng bộ trong Worker Pool (không await để bốc tiếp các domain khác)
+      this.executeJobInPool(job, domain).catch((err) => {
+        this.logger.error(`Lỗi thực thi Job ${job._id} (${domain}): ${err.message}`, err.stack);
+      });
     }
+  }
 
-    this.isProcessing = true;
-
+  /**
+   * Thực thi một tác vụ trong Worker Pool độc lập
+   */
+  private async executeJobInPool(job: any, domain: JobResourceDomain): Promise<void> {
     // Chốt chặn Queue Guard: Kiểm tra xem ca trực đã COMPLETED hoặc tác vụ kiểm tra đã được hoàn thành thủ công chưa
     const payload = parseJobPayload(job);
     const { shiftLogId, taskId } = payload;
@@ -240,7 +283,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               error: job.error,
               logs: job.logs,
             });
-            this.isProcessing = false;
             return;
           }
 
@@ -276,7 +318,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
                 error: job.error,
                 logs: job.logs,
               });
-              this.isProcessing = false;
               return;
             }
           }
@@ -289,12 +330,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     job.attempts += 1;
     const startTime = new Date().toISOString();
     job.logs.push(
-      `[${startTime}] Starting attempt ${job.attempts}/${job.maxAttempts}...`,
+      `[${startTime}] Starting attempt ${job.attempts}/${job.maxAttempts} [Phân hệ: ${domain}]...`,
     );
     await this.syncJobToChecklist(job, 'PROCESSING');
 
     this.logger.log(
-      `Processing job ${job.jobType} (ID: ${job._id}, Attempt: ${job.attempts}) via Registry`,
+      `Processing job ${job.jobType} (ID: ${job._id}, Attempt: ${job.attempts}, Domain: ${domain})`,
     );
 
     const abortController = new AbortController();
@@ -302,6 +343,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     this.activeJobs.set(job._id.toString(), {
       jobId: job._id.toString(),
+      domain,
       abortController,
       cleanups,
       startedAt: new Date(),
@@ -334,7 +376,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
               'PROCESSING',
             );
           } catch {
-            // Chạy nền an toàn: Bỏ qua lỗi tạm thời, không làm gián đoạn Job
+            // Chạy nền an toàn
           }
         }
       }, 1500);
@@ -343,7 +385,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         // ── ƯU TIÊN SỐ 1: BÀN GIAO CHO BOT DISPATCHER V2 (STRANGLER FIG PATTERN) ──
         if (this.botDispatcher && this.botDispatcher.hasWorker(capabilityKey)) {
           this.logger.log(
-            `[BotJobQueue] Điều phối ưu tiên sang BotDispatcherService V2 cho năng lực: "${capabilityKey}" (Job: ${job.jobType}, ID: ${job._id})...`,
+            `[BotJobQueue] Điều phối ưu tiên sang BotDispatcherService V2 cho năng lực: "${capabilityKey}" (Job: ${job.jobType}, ID: ${job._id}, Domain: ${domain})...`,
           );
           const taskContext = {
             taskId: contextPayload.taskId || `JOB_${job._id}`,
@@ -358,7 +400,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             onLog: (line: string) => {
               const logLine = line.startsWith('[')
                 ? line
-                : `[${new Date().toISOString()}] ${line}`;
+                 : `[${new Date().toISOString()}] ${line}`;
               if (!job.logs.includes(logLine)) {
                 job.logs.push(logLine);
               }
@@ -455,7 +497,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         await this.syncJobToChecklist(job, 'PENDING', errorMsg);
       } else {
         if (isPartnerUnavailable) {
-          // Gán nhãn ABORTED (Tạm dừng do lỗi sàn ngoài) thay vì FAILED (Lỗi hệ thống)
           await this.syncJobToChecklist(job, 'ABORTED', errorMsg);
           this.logger.warn(
             `Job ${job.jobType} (ID: ${job._id}) tạm dừng (ABORTED) do đối tác không khả dụng sau ${job.attempts} lần thử: ${errorMsg}`,
@@ -476,7 +517,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       }
     } finally {
       this.activeJobs.delete(job._id.toString());
-      this.isProcessing = false;
+      // Kích hoạt ngay vòng lặp bốc job tiếp theo cho phân hệ vừa rảnh
+      setImmediate(() => {
+        this.processQueue().catch((err) => {
+          this.logger.error(`Error triggering queue after job release: ${err.message}`);
+        });
+      });
       if (typeof global !== 'undefined' && (global as any).gc) {
         try {
           (global as any).gc();
@@ -525,9 +571,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         },
       );
       await this.syncJobToChecklist(job, 'CANCELLED', cancelReason);
-      if (this.activeJobs.size === 0) {
-        this.isProcessing = false;
-      }
       this.logger.log(`[JOB_CANCEL] Đã hủy job PENDING: ${jobId}`);
       return { success: true, message: 'Đã hủy tác vụ đang chờ trong hàng đợi.', job };
     }
@@ -570,7 +613,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     );
 
     await this.syncJobToChecklist(job, 'CANCELLED', cancelReason);
-    this.isProcessing = false;
+    setImmediate(() => {
+      this.processQueue().catch(() => {});
+    });
     this.logger.log(`[JOB_CANCEL] Đã dừng khẩn cấp job ${jobId} bởi ${actor} thành công.`);
     return { success: true, message: 'Đã dừng khẩn cấp tác vụ thành công.', job };
   }
@@ -651,10 +696,6 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       } else {
         await this.syncJobToChecklist(job, 'FAILED', reason);
       }
-    }
-
-    if (this.activeJobs.size === 0) {
-      this.isProcessing = false;
     }
   }
 

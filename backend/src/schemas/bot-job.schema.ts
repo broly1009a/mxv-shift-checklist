@@ -40,6 +40,18 @@ export class BotJob extends Document {
   @Prop({ type: Date, default: null })
   lockedAt?: Date;
 
+  @Prop({ type: Boolean, default: false, index: true })
+  isDeleted?: boolean;
+
+  @Prop({ type: Date, default: null })
+  deletedAt?: Date;
+
+  @Prop({ type: String, default: null })
+  deletedBy?: string;
+
+  @Prop({ type: String, default: null })
+  deleteReason?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

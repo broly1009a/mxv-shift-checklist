@@ -60,8 +60,6 @@ export const TRADING_JOB_TYPES = [
   'VERIFY_EMAIL',
   'EMAIL_PARSER',
   'EMAIL_PARSE',
-  'TKGD_EXTRACT',
-  'TKGD_RECONCILE',
 ];
 
 export interface BotJob {
@@ -452,10 +450,6 @@ export default function TradingManagerJobQueueSection({
       case 'EMAIL_PARSER':
       case 'EMAIL_PARSE':
         return 'Quét & Bóc Tách Email';
-      case 'TKGD_EXTRACT':
-        return 'Bóc Tách Hồ Sơ Mở TKGD';
-      case 'TKGD_RECONCILE':
-        return 'Đối Soát Hồ Sơ Mở TKGD';
       default:
         return jobType;
     }
