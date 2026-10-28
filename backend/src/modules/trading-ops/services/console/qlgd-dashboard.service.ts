@@ -340,23 +340,30 @@ export class QlgdDashboardService {
     let isViewingHistorical = false;
 
     if (this.botJobModel) {
-      const dayStartVN = new Date(`${targetDate}T00:00:00.000+07:00`);
-      const dayEndVN = new Date(`${targetDate}T23:59:59.999+07:00`);
-      const dayStartUTC = new Date(`${targetDate}T00:00:00.000Z`);
-      const dayEndUTC = new Date(`${targetDate}T23:59:59.999Z`);
-      const minDate = new Date(Math.min(dayStartVN.getTime(), dayStartUTC.getTime()));
-      const maxDate = new Date(Math.max(dayEndVN.getTime(), dayEndUTC.getTime()));
+      // Khung thời gian phiên giao dịch MXV: Bắt đầu từ 05:00 sáng ngày T đến 06:00 sáng ngày T+1 (giờ VN)
+      const sessionStartVN = new Date(`${targetDate}T05:00:00.000+07:00`);
+      const nextDayDate = new Date(new Date(targetDate).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
+      const sessionEndVN = new Date(`${nextDayDate}T06:00:00.000+07:00`);
 
       const parts = targetDate.split('-');
       const slashDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : targetDate;
 
+      // Điều kiện lọc phiên chính xác (triệt tiêu rò rỉ 2 phiên):
+      // 1. Phải khớp targetDate / sessionDay / shiftDate nếu job có trường này
+      // 2. Chỉ fallback theo createdAt nếu job KHÔNG khai báo targetDate/sessionDay, và thời gian nằm trong khung 05:00 sáng T -> 06:00 sáng T+1
       const dateFilterCondition = {
         $or: [
-          { createdAt: { $gte: minDate, $lte: maxDate } },
           { 'payload.targetDate': { $in: [targetDate, slashDate] } },
           { 'payload.sessionDay': { $in: [targetDate, slashDate] } },
           { 'payload.shiftDate': { $in: [targetDate, slashDate] } },
           { 'payload.date': { $in: [targetDate, slashDate] } },
+          {
+            $and: [
+              { 'payload.targetDate': { $exists: false } },
+              { 'payload.sessionDay': { $exists: false } },
+              { createdAt: { $gte: sessionStartVN, $lte: sessionEndVN } },
+            ],
+          },
         ],
       };
 
@@ -392,6 +399,7 @@ export class QlgdDashboardService {
               time: timeStr,
               label: `${String(vnDate.getUTCDate()).padStart(2, '0')}/${String(vnDate.getUTCMonth() + 1).padStart(2, '0')} ${timeStr}`,
               createdAt: created.toISOString(),
+              targetDate: payload.targetDate || payload.sessionDay || targetDate,
               status: j.status,
               triggerType: isManual ? 'MANUAL' : 'AUTO',
               triggerLabel: trigger,

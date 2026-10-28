@@ -53,7 +53,8 @@ export const VNCLEAR_COLUMN_HEADERS: Record<string, Record<string, string>> = {
     "EVRPLAMT_OPTION": "Lãi lỗ dự kiến Options",
     "EVRPLAMT_OPTION_USD": "Lãi lỗ dự kiến Options (USD)",
     "BOD_EIMCASH": "Số dư đầu ngày tạm tính",
-    "BOD_EIMCASH_USD": "Số dư đầu ngày tạm tính (USD)"
+    "BOD_EIMCASH_USD": "Số dư đầu ngày tạm tính (USD)",
+    "ACTYPE": "Loại hình tiểu khoản"
   },
   "ORDERBOOK": {
     "TXDATE": "Ngày hệ thống",
@@ -836,6 +837,7 @@ export function resolveVnclearColumnHeader(searchCode: string, key: string): str
   else if (upper.includes('ORDERBOOK')) targetScreen = 'ORDERBOOK';
   else if (upper.includes('OPEN_POSITION')) targetScreen = 'OPEN_POSITION_EXPORT';
   else if (upper === 'SETTLEMENT_ACM') targetScreen = 'SETTLEMENT';
+  else if (upper.includes('MEMBERMARGIN')) targetScreen = 'ACCTMARGIN_ALL';
 
   const screenHeaders = VNCLEAR_COLUMN_HEADERS[targetScreen] || VNCLEAR_COLUMN_HEADERS[upper];
   return screenHeaders?.[key] || key;

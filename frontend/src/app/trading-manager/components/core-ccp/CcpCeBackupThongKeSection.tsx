@@ -73,8 +73,11 @@ export const CORE_CCP_REPORTS_LIST = [
   { key: 'HD', name: 'Hợp đồng hàng hóa (Động theo sàn)', filename: 'HĐ *.xlsx', group: 'PRODUCT', groupLabel: 'Hàng hóa & Giá', phase: 2 },
 ];
 
-// 12 Báo cáo chuẩn CoreEX (CE) + Hợp đồng Hàng hóa liên thông (Động)
+// 13 Báo cáo chuẩn CoreEX (CE) + Hợp đồng Hàng hóa liên thông (Động)
 export const CORE_EX_REPORTS_LIST = [
+  // 0. Tài khoản giao dịch liên thông ACM (1 file)
+  { key: 'DSTKGD_ACM', name: 'Danh sách tài khoản giao dịch ACM', filename: 'DSTKGD ACM.xlsx', description: 'Danh sách tài khoản giao dịch liên thông ACM đồng bộ từ CCP' },
+
   // 1. Sổ lệnh & Giao dịch CE (5 file)
   { key: 'DSGD', name: 'Danh sách giao dịch CE', filename: 'DSGD ACM CE.xlsx', description: 'Khớp lệnh liên thông chi tiết CE' },
   { key: 'DSL', name: 'Sổ lệnh tổng hợp CE', filename: 'DSL ACM CE.xlsx', description: 'Lịch sử toàn bộ sổ lệnh liên thông CE' },

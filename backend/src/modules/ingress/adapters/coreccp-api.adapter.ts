@@ -13,6 +13,7 @@ import {
   EXTERNAL_SYSTEM_CORECCP,
   CANONICAL_CORECCP_API_KEYS,
   CORECCP_DERIVED_RULES,
+  ICcpDerivedRule,
   resolveCoreCcpReport,
   resolveVnclearColumnHeader,
 } from '../../../shared';
@@ -491,7 +492,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
         search: filterPayload.search || {},
         filter: filterPayload.filter || {},
         orderBy: {},
-        page: { pageIndex: 1, pageSize: 20 },
+        page: { pageIndex: 1, pageSize: 50 },
         exptype: 'XLSX',
         fekey,
       }),
@@ -900,9 +901,28 @@ export class CoreCcpApiAdapter implements IIngressPort {
         destFileName: string,
         targetDir = outputDirectory,
         category = 'CCP',
+        rule?: ICcpDerivedRule,
       ) => {
         const destPath = path.join(targetDir, destFileName);
         if (fs.existsSync(sourceFilePath) && destPath !== sourceFilePath) {
+          // Kiểm tra quy tắc đóng băng snapshot theo mốc thời gian (ví dụ: GTT trước 6h sáng, TTM trước 4h20 chiều)
+          if (rule?.freezeHour !== undefined && rule?.noOverwriteIfExists) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const freezeHour = rule.freezeHour;
+            const freezeMinute = rule.freezeMinute || 0;
+            const isPastFreezeTime =
+              currentHour > freezeHour || (currentHour === freezeHour && currentMinute >= freezeMinute);
+
+            if (isPastFreezeTime && fs.existsSync(destPath)) {
+              this.logger.log(
+                `[CoreCcpApiAdapter] ⏱️ Đã qua mốc ${freezeHour}h${freezeMinute ? freezeMinute : '00'}, giữ nguyên snapshot lịch sử: ${destFileName} (không ghi đè)`,
+              );
+              return;
+            }
+          }
+
           fs.copyFileSync(sourceFilePath, destPath);
           const stat = fs.statSync(destPath);
           files.push({
@@ -1031,24 +1051,54 @@ export class CoreCcpApiAdapter implements IIngressPort {
             );
           }
 
+          // Tự động inject bộ lọc CHECKERDT nếu là CASHTRANFER_HIST (Nộp rút tiền CoreCCP)
+          if (
+            reportDef.searchCode === 'CASHTRANFER_HIST' &&
+            formattedDateForSearch &&
+            !effectiveFilterPayload.search.CHECKERDT
+          ) {
+            effectiveFilterPayload.search.CHECKERDT = {
+              from: formattedDateForSearch,
+              to: formattedDateForSearch,
+            };
+            this.logger.log(
+              `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc CHECKERDT trong ngày: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+            );
+          }
+
           // Thử xuất Server Export (Kiểu 2) cho các báo cáo có khối lượng giao dịch lớn
           const SERVER_EXPORT_CODES = new Set([
             'ORDERMATCH_DETAIL',
             'ORDERMATCH_ALL',
             'OPEN_POSITION',
+            'OPEN_POSITION_EXPORT',
             'PNL_EXECUTED',
+            'PNL_EXECUTED_EXPORT',
             'ACCTMARGIN_HIST',
+            'CASHTRANFER_HIST',
+            'ORDERBOOK',
+            'ORDERBOOK_MATCH',
+            'ORDERBOOK_PENDING',
+            'ORDERBOOK_CANCEL',
+            'ORDERBOOK_MM',
+            'ORDERBOOK_MM_MATCH',
+            'ORDERBOOK_MM_PENDING',
+            'ORDERBOOK_MM_CANCEL',
+            'ORDERBOOK_ALL_MM',
           ]);
-          const isServerExportEligible = SERVER_EXPORT_CODES.has(reportDef.searchCode);
+          const effectiveExportCode = reportDef.exportSearchCode || reportDef.searchCode;
+          const isServerExportEligible =
+            SERVER_EXPORT_CODES.has(reportDef.searchCode) ||
+            SERVER_EXPORT_CODES.has(effectiveExportCode);
 
           if (isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreCcpApiAdapter]  [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${reportDef.searchCode})...`,
+                `[CoreCcpApiAdapter] ⚡ [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${effectiveExportCode})...`,
               );
               await this.downloadServerExport(
                 session,
-                reportDef.searchCode,
+                effectiveExportCode,
                 baseUrl,
                 reportDef.route,
                 effectiveFilterPayload,
@@ -1071,6 +1121,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               baseUrl,
               reportDef.route,
               effectiveFilterPayload,
+              reportDef.parentSearchCode,
             );
 
             await this.convertJsonToExcel(searchResult.rows, reportDef.searchCode, targetPath);
@@ -1149,7 +1200,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               const destName = rule.isDated
                 ? rule.targetFileName.replace('{date}', ruleDate)
                 : rule.targetFileName;
-              addDerivedFile(targetPath, destName, fileOutputDir);
+              addDerivedFile(targetPath, destName, fileOutputDir, 'CCP', rule);
             }
           }
         } catch (searchErr: any) {

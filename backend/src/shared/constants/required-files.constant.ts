@@ -202,8 +202,14 @@ export const REQUIRED_CCP_FILES: RequiredCcpCeFileDefinition[] = [
   },
 ];
 
-// ── 3. COREEX (8 BÁO CÁO ACM NANO / KIM LOẠI VNCLEAR) ────────────────────────
+// ── 3. COREEX (10 BÁO CÁO ACM NANO / KIM LOẠI VNCLEAR) ────────────────────────
 export const REQUIRED_CE_FILES: RequiredCcpCeFileDefinition[] = [
+  {
+    key: 'DSTKGD',
+    name: 'Danh sách tài khoản giao dịch ACM',
+    filename: 'DSTKGD ACM.xlsx',
+    patterns: [/dstkgd.*acm/i, /^dstkgd\.(xlsx|xls|csv)$/i],
+  },
   {
     key: 'DSGD',
     name: 'Danh sách giao dịch CE',
@@ -239,6 +245,12 @@ export const REQUIRED_CE_FILES: RequiredCcpCeFileDefinition[] = [
     name: 'Giá thanh toán ACM',
     filename: 'GTT ACM.xlsx',
     patterns: [/gtt.*acm/i, /^gtt\.(xlsx|xls|csv)$/i],
+  },
+  {
+    key: 'TTM',
+    name: 'Trạng thái mở CE',
+    filename: 'TTM CE.xlsx',
+    patterns: [/ttm.*ce/i, /^ttm\.(xlsx|xls|csv)$/i],
   },
   {
     key: 'HH',
