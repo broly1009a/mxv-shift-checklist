@@ -164,6 +164,8 @@ export const API_ENDPOINTS = {
     JOBS: '/api/v1/checklist-hub/jobs',
     JOB_DETAIL: (id: string) => `/api/v1/checklist-hub/jobs/${encodeURIComponent(id)}`,
     JOB_CANCEL: (id: string) => `/api/v1/checklist-hub/jobs/${encodeURIComponent(id)}/cancel`,
+    JOB_DELETE: (id: string) => `/api/v1/checklist-hub/jobs/${encodeURIComponent(id)}`,
+    JOB_CLEANUP_CANCELLED: '/api/v1/checklist-hub/jobs/cleanup-cancelled',
     JOB_CAPTCHA: (id: string) => `/api/v1/checklist-hub/jobs/${encodeURIComponent(id)}/submit-captcha`,
     JOB_DOWNLOAD_ZIP: (id: string) => `/api/v1/checklist-hub/jobs/${encodeURIComponent(id)}/download-zip`,
     TRIGGER_EMAIL: (shiftId: string, taskId: string) =>

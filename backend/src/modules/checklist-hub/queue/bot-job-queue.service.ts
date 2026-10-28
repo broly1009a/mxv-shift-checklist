@@ -492,7 +492,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Hủy hoặc Dừng khẩn cấp một Job bất kỳ (PENDING hoặc PROCESSING)
    */
-  public async cancelJob(jobId: string, reason?: string): Promise<any> {
+  public async cancelJob(jobId: string, reason?: string, cancelledBy?: string): Promise<any> {
     const job = await this.botJobModel.findById(jobId).exec();
     if (!job) {
       throw new NotFoundException(`Không tìm thấy Job với ID: ${jobId}`);
@@ -502,9 +502,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException(`Không thể hủy tác vụ đã ở trạng thái kết thúc (${job.status}).`);
     }
 
-    const cancelReason = reason || 'Đã hủy thủ công bởi Quản trị viên';
+    const actor = cancelledBy || 'Admin';
+    const cancelReason = reason || `Đã hủy thủ công bởi ${actor}`;
     const timestamp = new Date().toISOString();
-    const cancelLog = `[${timestamp}] Tác vụ đã bị HỦY / DỪNG THỦ CÔNG bởi Admin. Lý do: ${cancelReason}`;
+    const cancelLog = `[${timestamp}] Tác vụ đã bị HỦY / DỪNG THỦ CÔNG bởi ${actor}. Lý do: ${cancelReason}`;
 
     // 1. Trường hợp Job PENDING: Hủy ngay trong DB
     if (job.status === 'PENDING') {
@@ -570,7 +571,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     await this.syncJobToChecklist(job, 'CANCELLED', cancelReason);
     this.isProcessing = false;
-    this.logger.log(`[JOB_CANCEL] Đã dừng khẩn cấp job ${jobId} thành công.`);
+    this.logger.log(`[JOB_CANCEL] Đã dừng khẩn cấp job ${jobId} bởi ${actor} thành công.`);
     return { success: true, message: 'Đã dừng khẩn cấp tác vụ thành công.', job };
   }
 
@@ -587,7 +588,10 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       status: { $in: ['PROCESSING', 'AWAITING_CAPTCHA'] },
     };
     if (isStartup) {
+      // Khi server vừa khởi động lại (deploy/restart container), mọi Job PROCESSING của phiên trước
+      // chắc chắn đã bị ngắt tiến trình (tiến trình cũ đã chết). Dọn dẹp ngay để giải phóng UI.
       query.$or = [
+        { lockedBy: { $ne: currentInstanceId } },
         { lockedBy: currentInstanceId },
         { lockedAt: { $lt: new Date(now - thresholdMs) } },
         { updatedAt: { $lt: new Date(now - thresholdMs) } },
@@ -622,7 +626,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      const reason = `Tự động dọn dẹp do Job bị treo quá 15 phút (lockedAt: ${job.lockedAt || job.updatedAt})`;
+      const reason = isStartup
+        ? `Tự động giải phóng do server/container vừa khởi động lại trong khi tác vụ đang chạy`
+        : `Tự động dọn dẹp do Job bị treo quá 15 phút (lockedAt: ${job.lockedAt || job.updatedAt})`;
       job.logs.push(`[${new Date().toISOString()}] ${reason}`);
       job.status = job.attempts < job.maxAttempts ? 'PENDING' : 'FAILED';
       job.lockedBy = undefined;

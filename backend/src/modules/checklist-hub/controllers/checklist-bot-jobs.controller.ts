@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -10,6 +11,7 @@ import {
   HttpStatus,
   Logger,
   Res,
+  Req,
   Inject,
   forwardRef,
   Optional,
@@ -97,12 +99,83 @@ export class ChecklistBotJobsController {
   async cancelJob(
     @Param('id') jobId: string,
     @Body('reason') reason?: string,
+    @Body('cancelledBy') bodyCancelledBy?: string,
+    @Req() req?: any,
   ) {
-    const result = await this.jobQueueService.cancelJob(jobId, reason);
+    const userFromToken = req?.user?.fullName
+      ? `${req.user.fullName} (${req.user.username})`
+      : req?.user?.username || req?.user?.email;
+    const actor = userFromToken || bodyCancelledBy || 'Admin';
+    const result = await this.jobQueueService.cancelJob(jobId, reason, actor);
     return {
       success: true,
       message: 'Đã hủy job thành công.',
       data: result,
+    };
+  }
+
+  /**
+   * Xóa vĩnh viễn một Job đã kết thúc (CANCELLED hoặc FAILED) khỏi CSDL
+   * DELETE /api/v1/checklist-hub/jobs/:id & DELETE /api/v1/bot-engine/jobs/:id
+   */
+  @Delete('jobs/:id')
+  async deleteJob(@Param('id') jobId: string, @Req() req: any) {
+    if (req.user?.role !== 'ADMIN') {
+      throw new HttpException(
+        'Chỉ Quản trị viên (Admin) mới có quyền xóa bản ghi tác vụ.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const job = await this.botJobModel.findById(jobId).exec();
+    if (!job) {
+      throw new HttpException('Không tìm thấy job cần xóa.', HttpStatus.NOT_FOUND);
+    }
+    if (['PROCESSING', 'PENDING', 'AWAITING_CAPTCHA'].includes(job.status)) {
+      throw new HttpException(
+        'Không thể xóa tác vụ đang trong hàng đợi hoặc đang chạy. Vui lòng bấm Dừng tác vụ trước.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    await this.botJobModel.deleteOne({ _id: jobId });
+    return {
+      success: true,
+      message: 'Đã xóa bản ghi tác vụ thành công.',
+    };
+  }
+
+  /**
+   * Dọn dẹp hàng loạt các tác vụ Đã Hủy hoặc Thất Bại (làm sạch hàng đợi)
+   * POST /api/v1/checklist-hub/jobs/cleanup-cancelled & POST /api/v1/bot-engine/jobs/cleanup-cancelled
+   */
+  @Post('jobs/cleanup-cancelled')
+  async cleanupCancelledJobs(
+    @Body('date') targetDate?: string,
+    @Body('statuses') statuses?: string[],
+    @Req() req?: any,
+  ) {
+    if (req?.user?.role !== 'ADMIN') {
+      throw new HttpException(
+        'Chỉ Quản trị viên (Admin) mới có quyền dọn dẹp hàng đợi tác vụ.',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const filter: Record<string, any> = {
+      status: { $in: statuses && statuses.length > 0 ? statuses : ['CANCELLED', 'FAILED'] },
+    };
+
+    if (targetDate) {
+      const start = new Date(`${targetDate}T00:00:00.000Z`);
+      const end = new Date(`${targetDate}T23:59:59.999Z`);
+      filter.createdAt = { $gte: start, $lte: end };
+    }
+
+    const res = await this.botJobModel.deleteMany(filter);
+    return {
+      success: true,
+      deletedCount: res.deletedCount,
+      message: `Đã dọn dẹp ${res.deletedCount} tác vụ khỏi hàng đợi.`,
     };
   }
 
