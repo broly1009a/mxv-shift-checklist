@@ -17,7 +17,7 @@ export interface TutorialStep {
   padding?: number;
 }
 
-export type TutorialPageKey = 'dashboard' | 'checklist' | 'settings' | 'tkgd' | 'tkgd-config';
+export type TutorialPageKey = 'dashboard' | 'checklist' | 'settings';
 
 interface TutorialContextValue {
   isActive: boolean;
@@ -51,7 +51,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
 
   // Load done keys from localStorage on mount
   useEffect(() => {
-    const keys: string[] = ['dashboard', 'checklist', 'settings', 'tkgd'];
+    const keys: string[] = ['dashboard', 'checklist', 'settings'];
     const done = new Set<string>();
     keys.forEach(k => {
       if (localStorage.getItem(`${LS_PREFIX}${k}_done`) === 'true') {

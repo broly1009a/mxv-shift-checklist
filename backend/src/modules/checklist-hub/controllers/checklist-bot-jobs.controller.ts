@@ -27,6 +27,7 @@ import { BotJobQueueService } from '../queue/bot-job-queue.service';
 import { BotJob } from '../../../schemas/bot-job.schema';
 import { ShiftLog } from '../../../schemas/shift-log.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { SystemLogsService } from '../../system-logs/system-logs.service';
 import { OmsWatcherService } from '../../trading-ops/services/oms/oms-watcher.service';
 import {
   getMsBackupBase,
@@ -43,6 +44,7 @@ export class ChecklistBotJobsController {
   constructor(
     private readonly jobQueueService: BotJobQueueService,
     private readonly settingsService: SystemSettingsService,
+    private readonly systemLogsService: SystemLogsService,
     @InjectModel(ShiftLog.name) private readonly shiftLogModel: Model<ShiftLog>,
     @InjectModel(BotJob.name) private readonly botJobModel: Model<BotJob>,
     @Optional()
@@ -58,8 +60,12 @@ export class ChecklistBotJobsController {
     @Query('jobTypes') jobTypes?: string,
     @Query('status') status?: string,
     @Query('limit') limit?: string,
+    @Query('includeDeleted') includeDeleted?: string,
   ) {
     const filter: Record<string, any> = {};
+    if (includeDeleted !== 'true') {
+      filter.isDeleted = { $ne: true };
+    }
     if (jobTypes) {
       const types = jobTypes.split(',').map((t) => t.trim()).filter(Boolean);
       if (types.length > 0) {
@@ -115,7 +121,8 @@ export class ChecklistBotJobsController {
   }
 
   /**
-   * Xóa vĩnh viễn một Job đã kết thúc (CANCELLED hoặc FAILED) khỏi CSDL
+   * Xóa mềm (Soft Delete / Archive) một Job đã kết thúc (CANCELLED hoặc FAILED) khỏi hàng đợi hiển thị
+   * Bảo toàn 100% dữ liệu gốc trong CSDL và ghi nhận vết kiểm toán vào SystemLog.
    * DELETE /api/v1/checklist-hub/jobs/:id & DELETE /api/v1/bot-engine/jobs/:id
    */
   @Delete('jobs/:id')
@@ -137,15 +144,53 @@ export class ChecklistBotJobsController {
         HttpStatus.BAD_REQUEST,
       );
     }
-    await this.botJobModel.deleteOne({ _id: jobId });
+
+    const actor = req.user?.fullName || req.user?.username || 'Admin';
+    const deletedAt = new Date();
+
+    // 1. Soft Delete: Đánh dấu cờ isDeleted = true, lưu giữ toàn bộ dữ liệu & log trong MongoDB
+    await this.botJobModel.updateOne(
+      { _id: jobId },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt,
+          deletedBy: actor,
+          deleteReason: 'Đã xóa bởi Quản trị viên',
+        },
+      },
+    );
+
+    // 2. Ghi vết Audit Trail vào SystemLog (Màn hình Activity Logs)
+    await this.systemLogsService
+      .logEvent({
+        eventType: 'BOT_JOB_DELETED',
+        source: 'USER',
+        actorUserId: req.user?.id || req.user?._id,
+        jobId: job._id as any,
+        status: 'SUCCESS',
+        message: `Quản trị viên ${actor} đã xóa (lưu trữ) tác vụ ${job.jobType} [${jobId.substring(0, 8)}] khỏi hàng đợi.`,
+        metadata: {
+          jobId: job._id?.toString(),
+          jobType: job.jobType,
+          originalStatus: job.status,
+          deletedBy: actor,
+          deletedAt: deletedAt.toISOString(),
+        },
+      })
+      .catch((err) => {
+        this.logger.warn(`Lỗi ghi SystemLog khi xóa job: ${err.message}`);
+      });
+
     return {
       success: true,
-      message: 'Đã xóa bản ghi tác vụ thành công.',
+      message: 'Đã xóa (lưu trữ an toàn) bản ghi tác vụ thành công.',
     };
   }
 
   /**
-   * Dọn dẹp hàng loạt các tác vụ Đã Hủy hoặc Thất Bại (làm sạch hàng đợi)
+   * Dọn dẹp hàng loạt các tác vụ Đã Hủy hoặc Thất Bại (Soft Delete / Archive hàng đợi)
+   * Bảo toàn 100% dữ liệu gốc trong CSDL và ghi nhận vết kiểm toán vào SystemLog.
    * POST /api/v1/checklist-hub/jobs/cleanup-cancelled & POST /api/v1/bot-engine/jobs/cleanup-cancelled
    */
   @Post('jobs/cleanup-cancelled')
@@ -161,8 +206,12 @@ export class ChecklistBotJobsController {
       );
     }
 
+    const actor = req?.user?.fullName || req?.user?.username || 'Admin';
+    const deletedAt = new Date();
+
     const filter: Record<string, any> = {
       status: { $in: statuses && statuses.length > 0 ? statuses : ['CANCELLED', 'FAILED'] },
+      isDeleted: { $ne: true },
     };
 
     if (targetDate) {
@@ -171,11 +220,42 @@ export class ChecklistBotJobsController {
       filter.createdAt = { $gte: start, $lte: end };
     }
 
-    const res = await this.botJobModel.deleteMany(filter);
+    // 1. Soft Delete hàng loạt: Đánh dấu isDeleted = true, tuyệt đối không xóa cứng CSDL
+    const res = await this.botJobModel.updateMany(filter, {
+      $set: {
+        isDeleted: true,
+        deletedAt,
+        deletedBy: actor,
+        deleteReason: 'Dọn dẹp hàng loạt bởi Quản trị viên',
+      },
+    });
+
+    const affectedCount = res.modifiedCount || 0;
+
+    // 2. Ghi vết Audit Trail vào SystemLog (Màn hình Activity Logs)
+    await this.systemLogsService
+      .logEvent({
+        eventType: 'BOT_JOB_CLEANUP',
+        source: 'USER',
+        actorUserId: req?.user?.id || req?.user?._id,
+        status: 'SUCCESS',
+        message: `Quản trị viên ${actor} đã dọn dẹp ${affectedCount} tác vụ đã hủy/thất bại khỏi hàng đợi (được lưu trữ an toàn).`,
+        metadata: {
+          deletedCount: affectedCount,
+          deletedBy: actor,
+          targetDate: targetDate || 'all',
+          statuses: filter.status.$in,
+          deletedAt: deletedAt.toISOString(),
+        },
+      })
+      .catch((err) => {
+        this.logger.warn(`Lỗi ghi SystemLog khi dọn hàng đợi: ${err.message}`);
+      });
+
     return {
       success: true,
-      deletedCount: res.deletedCount,
-      message: `Đã dọn dẹp ${res.deletedCount} tác vụ khỏi hàng đợi.`,
+      deletedCount: affectedCount,
+      message: `Đã dọn dẹp ${affectedCount} tác vụ khỏi hàng đợi (dữ liệu được lưu trữ an toàn trong CSDL).`,
     };
   }
 

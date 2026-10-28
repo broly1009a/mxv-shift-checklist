@@ -265,28 +265,4 @@ export const API_ENDPOINTS = {
     CONFIG: '/ccp-statistics/config',
     PROCESS: '/ccp-statistics/process',
   },
-
-  // ─── TKGD (TÀI KHOẢN GIAO DỊCH) ──────────────────────────────────────────────
-  TKGD: {
-    RECORDS: '/api/v1/tkgd/records',
-    STATS: '/api/v1/tkgd/stats',
-    SYNC_MAIL: '/api/v1/tkgd/sync-mail',
-    SYNC_MSYSTEM: '/api/v1/tkgd/sync-msystem',
-    REPARSE_ACCOUNT: '/api/v1/tkgd/reparse-account',
-    RUN_PIPELINE_ALL: '/api/v1/tkgd/run-pipeline-all',
-    RUN: '/api/v1/tkgd/run',
-    DOWNLOAD_EXCEL: '/api/v1/tkgd/download-excel',
-    MANIFEST: (accountCode: string) => `/api/v1/tkgd/files/manifest/${encodeURIComponent(accountCode)}`,
-    MANUAL_APPROVE: (recordId: string) => `/api/v1/tkgd/records/${encodeURIComponent(recordId)}/manual-approve`,
-    REVERT_APPROVE: (recordId: string) => `/api/v1/tkgd/records/${encodeURIComponent(recordId)}/revert-approve`,
-    PROGRESS: '/api/v1/tkgd/progress',
-    AUTO_PIPELINE_STATUS: '/api/v1/tkgd/auto-pipeline/status',
-    AUTO_PIPELINE_TOGGLE: '/api/v1/tkgd/auto-pipeline/toggle',
-    AUTO_PIPELINE_BACKFILL: '/api/v1/tkgd/auto-pipeline/backfill',
-    LOGS: '/api/v1/tkgd/logs',
-    CONFIG: '/api/v1/tkgd/config',
-    AUTH_MICROSOFT: (userEmail: string) => `/api/v1/tkgd/auth/microsoft?userEmail=${encodeURIComponent(userEmail)}`,
-    DISCONNECT_MICROSOFT: '/api/v1/tkgd/auth/microsoft/disconnect',
-    TEST_MS: '/api/v1/tkgd/test-ms',
-  },
 } as const;
