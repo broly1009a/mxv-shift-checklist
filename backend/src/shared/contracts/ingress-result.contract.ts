@@ -4,7 +4,7 @@
  * BẮT BUỘC mang theo outputDirectory và absolutePath để downstream services không tự đoán mò đường dẫn.
  */
 
-export type IngressSourceType = 'MS' | 'CQG' | 'ACM' | 'CCP' | 'CORE_EX' | 'CORE_CCP';
+export type IngressSourceType = 'MS' | 'CQG' | 'ACM' | 'CCP' | 'CORE_EX' | 'CORE_CCP' | 'CAST';
 
 export interface IngressFileDetail {
   fileName: string;

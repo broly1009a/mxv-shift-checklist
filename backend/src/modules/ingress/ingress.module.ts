@@ -13,6 +13,7 @@ import { CqgScraperService } from './scrapers/cqg-scraper.service';
 import { AcmScraperService } from './scrapers/acm-scraper.service';
 import { CcpScraperService } from './scrapers/ccp-scraper.service';
 import { CcpCeScraperService } from './scrapers/ccp-ce-scraper.service';
+import { CastScraperService } from './scrapers/cast-scraper.service';
 import { RpaScraperService } from './scrapers/rpa-scraper.service';
 import { CoreExApiAdapter } from './adapters/coreex-api.adapter';
 import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
@@ -57,6 +58,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     AcmScraperService,
     CcpScraperService,
     CcpCeScraperService,
+    CastScraperService,
     RpaScraperService,
     // Native REST/SFTP Adapters (Playwright Sunsetting Bridge)
     CoreExApiAdapter,
@@ -86,6 +88,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     AcmScraperService,
     CcpScraperService,
     CcpCeScraperService,
+    CastScraperService,
     RpaScraperService,
     CoreExApiAdapter,
     CoreCcpApiAdapter,

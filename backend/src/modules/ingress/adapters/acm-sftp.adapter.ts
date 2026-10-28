@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { Client } from 'ssh2';
 import {
   IIngressPort,
@@ -12,6 +13,7 @@ import {
   EXTERNAL_SYSTEM_ACM,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 
 @Injectable()
 export class AcmSftpAdapter implements IIngressPort {
@@ -113,15 +115,35 @@ export class AcmSftpAdapter implements IIngressPort {
       fs.mkdirSync(outputDirectory, { recursive: true });
     }
 
-    const cleanDateHyphen = targetDateStr.split('T')[0]; // YYYY-MM-DD
-    const [year, month, day] = cleanDateHyphen.split('-');
-    const ddmmyyyy = `${day}${month}${year}`; // 19102026
-    const yyyy_mm_dd = `${year}-${month}-${day}`;
+    let targetDateObj: Date;
+    const rawTargetDate = (options as any)?.targetDate;
+    if (rawTargetDate instanceof Date) {
+      targetDateObj = rawTargetDate;
+    } else if (typeof rawTargetDate === 'string' && rawTargetDate) {
+      const parts = rawTargetDate.split('T')[0].replace(/\//g, '-').replace(/\./g, '-').split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          targetDateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        } else {
+          targetDateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+      } else {
+        targetDateObj = new Date(rawTargetDate);
+      }
+    } else {
+      targetDateObj = new Date();
+    }
+
+    const year = targetDateObj.getFullYear().toString();
+    const month = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDateObj.getDate()).padStart(2, '0');
+    const ddmmyyyy = `${day}${month}${year}`; // 27102026
+    const yyyy_mm_dd = `${year}-${month}-${day}`; // 2026-10-27
     const csvSuffix = `_${ddmmyyyy}.csv`;
     const xlsPrefix = `${yyyy_mm_dd}_`;
 
     const creds = await this.getSftpCredentials();
-    this.logger.log(`[AcmSftpAdapter] Bắt đầu tải file SFTP ACM từ ${creds.host}:${creds.port} (Phiên: ${targetDateStr}, Thư mục remote: ${creds.remoteDir})`);
+    this.logger.log(`[AcmSftpAdapter] Bắt đầu tải file SFTP ACM từ ${creds.host}:${creds.port} (Phiên: ${yyyy_mm_dd}, Thư mục remote: ${creds.remoteDir})`);
 
     const files: IngressFileDetail[] = [];
     let sftpSuccess = false;
@@ -150,17 +172,17 @@ export class AcmSftpAdapter implements IIngressPort {
                   return reject(readdirErr);
                 }
 
-                // Lọc các file phù hợp: File CSV (*_<ddmmyyyy>.csv hoặc chứa 'straits') và File XLS (<yyyy-mm-dd>_*.xls)
+                // Lọc các file phù hợp BẮT BUỘC khớp đúng ngày phiên T (ddmmyyyy & yyyy_mm_dd)
                 const candidateFiles = (list || []).filter((item) => {
                   const name = item.filename;
                   if (!name) return false;
                   const isCsvMatch =
-                    name.toLowerCase().endsWith(csvSuffix.toLowerCase()) ||
-                    (name.toLowerCase().includes('straits') &&
-                      (name.includes(ddmmyyyy) || name.includes(yyyy_mm_dd)) &&
-                      name.toLowerCase().endsWith('.csv') &&
-                      !name.toLowerCase().includes('fill') &&
-                      !name.toLowerCase().includes('order'));
+                    (name.toLowerCase().endsWith(csvSuffix.toLowerCase()) ||
+                      (name.toLowerCase().includes('straits') &&
+                        name.includes(ddmmyyyy) &&
+                        name.toLowerCase().endsWith('.csv'))) &&
+                    !name.toLowerCase().includes('fill') &&
+                    !name.toLowerCase().includes('order');
                   const isXlsMatch =
                     name.toLowerCase().startsWith(xlsPrefix.toLowerCase()) &&
                     name.toLowerCase().endsWith('.xls');
@@ -168,25 +190,57 @@ export class AcmSftpAdapter implements IIngressPort {
                 });
 
                 if (candidateFiles.length === 0) {
+                  this.logger.log(
+                    `[AcmSftpAdapter] Chưa tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) thuộc phiên ${yyyy_mm_dd} trên SFTP Server (Sàn chưa chốt/upload phiên này). Bỏ qua không tải file T-1.`,
+                  );
                   clearTimeout(timeoutTimer);
                   conn.end();
-                  return reject(new Error(`Không tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) trong thư mục SFTP ${creds.remoteDir}`));
+                  return resolve();
+                }
+
+                const stagingDir = path.join(os.tmpdir(), 'mxv_sftp_acm_staging');
+                if (!fs.existsSync(stagingDir)) {
+                  fs.mkdirSync(stagingDir, { recursive: true });
                 }
 
                 try {
                   for (const item of candidateFiles) {
                     const remotePath = path.posix.join(creds.remoteDir, item.filename);
-                    const localPath = path.join(outputDirectory, item.filename);
+                    const stagingPath = path.join(stagingDir, item.filename);
 
+                    // 1. Tải về thư mục đệm tạm nội bộ trên máy chủ (Staging Buffer)
                     await new Promise<void>((getRes, getRej) => {
-                      sftp.fastGet(remotePath, localPath, (getErr) => {
+                      sftp.fastGet(remotePath, stagingPath, (getErr) => {
                         if (getErr) return getRej(getErr);
                         getRes();
                       });
                     });
 
-                    // Nếu là file Straits CSV có tên dài, tạo thêm alias Straits_<ddmmyyyy>.csv để tương thích tuyệt đối
-                    if (item.filename.toLowerCase().includes('straits') && item.filename.toLowerCase().endsWith('.csv')) {
+                    // 2. Kiểm tra sâu nội dung file ngay tại thư mục đệm tạm nội bộ
+                    const contentCheck = inspectAcmFileContent(stagingPath, targetDateObj);
+                    if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
+                      this.logger.warn(
+                        `[AcmSftpAdapter Guard] File ${item.filename} tải về thư mục tạm máy nội bộ chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T ${yyyy_mm_dd} (${contentCheck.reason}). Đã xóa bỏ ngay tại máy nội bộ, CHƯA hề chuyển sang thư mục chia sẻ!`,
+                      );
+                      try {
+                        fs.unlinkSync(stagingPath);
+                      } catch {}
+                      continue; // Dừng lại, tuyệt đối KHÔNG chuyển sang folder share!
+                    }
+
+                    // 3. Đúng ngày phiên T: Mới copy sang folder chia sẻ (outputDirectory)
+                    const localPath = path.join(outputDirectory, item.filename);
+                    fs.copyFileSync(stagingPath, localPath);
+                    try {
+                      fs.unlinkSync(stagingPath);
+                    } catch {}
+
+                    // 4. Chỉ tạo alias Straits_<ddmmyyyy>.csv nếu file tải về đúng ngày ddmmyyyy của phiên T
+                    if (
+                      item.filename.toLowerCase().includes('straits') &&
+                      item.filename.toLowerCase().endsWith('.csv') &&
+                      item.filename.includes(ddmmyyyy)
+                    ) {
                       const aliasPath = path.join(outputDirectory, `Straits_${ddmmyyyy}.csv`);
                       if (aliasPath !== localPath && !fs.existsSync(aliasPath)) {
                         try {
@@ -227,7 +281,7 @@ export class AcmSftpAdapter implements IIngressPort {
       }
     }
 
-    // Quét lại thư mục local để thu thập các file đã tải
+    // Quét lại thư mục local để thu thập các file đã tải hợp lệ thuộc đúng phiên T
     if (fs.existsSync(outputDirectory)) {
       const localFiles = fs.readdirSync(outputDirectory);
       for (const fn of localFiles) {
@@ -239,6 +293,15 @@ export class AcmSftpAdapter implements IIngressPort {
 
         if (isTargetCsv || isTargetXls) {
           const absPath = path.join(outputDirectory, fn);
+          // Kiểm tra tính hợp lệ của phiên qua nội dung
+          const contentCheck = inspectAcmFileContent(absPath, targetDateObj);
+          if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
+            this.logger.warn(
+              `[AcmSftpAdapter Guard] File ${fn} trong thư mục local chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T ${yyyy_mm_dd}. Bỏ qua không đưa vào danh sách file hợp lệ.`,
+            );
+            continue;
+          }
+
           const stat = fs.statSync(absPath);
           files.push({
             fileName: fn,
@@ -256,13 +319,21 @@ export class AcmSftpAdapter implements IIngressPort {
       }
     }
 
-    if (!sftpSuccess && files.length === 0) {
-      throw new Error(
-        `Không thể kết nối hoặc không tìm thấy file Straits CSV/XLS trên máy chủ SFTP ${creds.host}:${creds.port} (Thư mục: ${creds.remoteDir}, Phiên: ${cleanDateHyphen}).`,
-      );
+    const totalDurationMs = Date.now() - startTime;
+    if (files.length === 0) {
+      const msg = `[AcmSftpAdapter] Chưa có file Straits CSV/XLS thuộc phiên ${yyyy_mm_dd} trên máy chủ SFTP ${creds.host}:${creds.port} (Sàn chưa chốt/upload phiên này). Đã bỏ qua, không tải file T-1.`;
+      this.logger.log(msg);
+      return {
+        success: true,
+        source: 'ACM',
+        outputDirectory,
+        files: [],
+        downloadedAt: new Date(),
+        durationMs: totalDurationMs,
+        summary: msg,
+      };
     }
 
-    const totalDurationMs = Date.now() - startTime;
     this.logger.log(`[AcmSftpAdapter] Tải hoàn tất ${files.length} file SFTP ACM tại: ${outputDirectory}`);
 
     return {

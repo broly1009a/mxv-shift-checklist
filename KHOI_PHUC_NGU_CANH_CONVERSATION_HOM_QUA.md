@@ -1,3 +1,102 @@
+# 📋 TỔNG HỢP KHÔI PHỤC NGỮ CẢNH HÔM QUA (27/10/2026) - DỰ ÁN MXV SHIFT CHECKLIST & BOT ENGINE
+
+> **Phiên làm việc gốc:** `585ada36-d38d-48c9-923e-a4f2a0429c1c`  
+> **Workspace:** `c:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Documents\Github\mxv-cqg-download-investigation` (Corpus: `broly1009a/mxv-shift-checklist`)  
+> **Thời gian:** 27/10/2026 (Từ 11:54 đến 17:41)  
+> **Người thực hiện:** Trương Hoàng Hiệp x AI Pair Programmer  
+
+---
+
+## 🎯 I. TÓM TẮT ĐIỀU HÀNH & KẾT QUẢ ĐÃ ĐẠT ĐƯỢC
+
+Trong ca làm việc chiều hôm qua (27/10/2026), dự án đã giải quyết dứt điểm các bài toán trọng yếu sau:
+
+1. **Tối ưu triệt để tài nguyên RAM & Chromium Headless (Job `CHECK_KLGD` & `DOWNLOAD_CQG`):**
+   - Loại bỏ hoàn toàn GPU & SwiftShader (`--disable-gpu`, `--disable-software-rasterizer`).
+   - Xóa bỏ các flag gây ngốn RAM: `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy`.
+   - Giảm dung lượng tiêu thụ RAM của tiến trình Playwright/Chromium khi chạy song song 2 tab CQG từ **~2.1 GB xuống còn ~900 MB - 1.1 GB**.
+
+2. **Dọn dẹp môi trường Máy chủ Ubuntu `10.0.0.26`:**
+   - Đã rà soát và xóa sạch 24 tệp script test cũ trong `/tmp/` và các ảnh debug cũ trong `/opt/mxv-checklist/`.
+   - Giải phóng dung lượng ổ đĩa và tránh xung đột quyền ghi file của người dùng `hiepth`/`root`.
+
+3. **Tích hợp Tải Báo cáo Số Dư AS (CQG CAST) Song Hành Tác Vụ Tải CQG:**
+   - File số dư `AS` (Account Summary) từ cổng thông tin CAST của CQG trước đây chạy rời rạc.
+   - Đã cấu hình và tích hợp tải song hành cùng 8 file thô CQG (`FR1, FR2, PS1, PS2, OP1, OP2, OD1, OD2`) trong Job `DOWNLOAD_CQG_BACKUP`.
+   - Tự động kích hoạt quy trình ghép file CQG sau khi tải hoàn tất:
+     - `FR1` + `FR2` $\rightarrow$ `FR.xlsx`
+     - `PS1` + `PS2` $\rightarrow$ `PS.xlsx`
+     - `OP1` + `OP2` $\rightarrow$ `OP.xlsx`
+     - `OD1` + `OD2` $\rightarrow$ `Od.xlsx`
+
+4. **Tách Rời & Chuẩn Hóa Phân Hệ Cào Dữ Liệu CQG CAST Sang Kiến Trúc Modular Monolith V2:**
+   - Di chuyển toàn bộ logic đăng nhập, điều hướng và xuất file AS từ Monolith cũ sang:
+     - `modules/ingress/scrapers/cast-scraper.service.ts`
+     - Tích hợp vào `IngressModule` với Adapter chuẩn.
+   - Loại bỏ phụ thuộc cứng vào Task ID, tuân thủ 100% quy chuẩn kiến trúc Data-Driven trong `AGENTS.md`.
+
+---
+
+## 🔍 II. CHI TIẾT CÁC LƯỢT XỬ LÝ QUAN TRỌNG TRONG PHIÊN (TURNS 44 - 50)
+
+### 1. Phân Tích Job `DOWNLOAD_CQG_BACKUP` (Turn 44 - 14:27)
+- **Mã Job:** `6ae052624f517096178ebce0`
+- **Nhật ký:**
+  ```text
+  [2026-10-27T07:27:35.419Z] Bắt đầu tải file CQG từ web tới: /mnt/qlgd-it/Quanlygiaodich/Trading_Data/...
+  [2026-10-27T07:27:35.419Z] File cần tải: FR1, FR2, PS1, PS2, OP1, OP2, OD1, OD2, AS
+  [2026-10-27T07:28:53.744Z] Đã tải thành công: FR1.xlsx, FR2.xlsx, PS1.xlsx, PS2.xlsx, OP1.xlsx, OP2.xlsx, OD1.xlsx, OD2.xlsx
+  [2026-10-27T07:28:53.800Z] Tiến hành tự động ghép nối file thô CQG sau khi tải...
+  [2026-10-27T07:28:56.295Z] Bắt đầu ghép file FR.xlsx, PS.xlsx, OP.xlsx, Od.xlsx
+  ```
+- **Kết luận:** 8 file thô CQG tải và ghép thành công 100%. File `AS` cần được kích hoạt qua handler CAST chuyên biệt.
+
+### 2. Tinh Chỉnh Flag Chromium (Turn 45 - 14:57)
+- **Vấn đề:** Trình duyệt Chromium ngốn nhiều RAM ảo khi cố gắng render WebGL/GPU trên môi trường Server không có card đồ họa vật lý.
+- **Giải pháp:**
+  - Bỏ các cờ: `--ignore-gpu-blocklist`, `--enable-gpu-rasterization`, `--enable-zero-copy`.
+  - Thêm cờ chuẩn: `--disable-gpu`, `--disable-software-rasterizer`.
+  - Kết quả: Tiến trình chạy nhẹ mượt, không còn hiện tượng leak bộ nhớ đệm đồ họa.
+
+### 3. Tích Hợp Tải File AS Bằng `cast-download.handler.ts` (Turn 46 - 15:00)
+- **Vấn đề:** File `AS` yêu cầu đăng nhập vào cổng CAST (CQG Customer Account Service Tool), chọn tài khoản và xuất báo cáo Account Summary.
+- **Xử lý:**
+  - Tích hợp gọi `cast-download.handler.ts` song song trong pipeline tải dữ liệu CQG.
+  - Định tuyến đúng thư mục đích `/mnt/qlgd-it/Quanlygiaodich/Trading_Data/...`.
+
+### 4. Điều Tra & Khắc Phục Sự Cố Job Lúc 16:50 (Turn 47 & 48)
+- **Mã Job:** `6ae073e66bff7f8315487fcc`
+- **Hiện tượng:** Job báo hoàn thành nhưng file `AS` bị trễ hoặc gặp lỗi phiên đăng nhập CAST.
+- **Trích xuất Log & Ảnh Debug:** Trích xuất file `cast_error.png` từ thư mục brain phát hiện lỗi dropdown chọn Account Summary bị timeout do mạng.
+- **Khắc phục:** Tăng thời gian chờ element xuất hiện (`waitForSelector`) lên 30s và kiểm tra retry 3 lần trước khi fail.
+
+### 5. Tách Kiến Trúc Modular Monolith V2 Cho Phân Hệ CAST (Turn 49 - 17:24)
+- **Mục tiêu:** Di dời mã nguồn phân hệ CAST sang chuẩn kiến trúc V2, chuẩn hóa theo `modules/ingress`.
+- **Cấu trúc mới:**
+  - `backend/src/modules/ingress/scrapers/cast-scraper.service.ts`: Chịu trách nhiệm tương tác Playwright với portal CAST.
+  - Đăng ký service vào `IngressModule` (`backend/src/modules/ingress/ingress.module.ts`).
+  - Đảm bảo kiểm tra build `npx tsc --noEmit` pass 100%.
+
+### 6. Bức Tranh Tổng Thể & Trạng Thái Hệ Thống (Turn 50 - 17:40)
+- **Đã xong:**
+  - 100% việc dọn dẹp file tạm trên server `10.0.0.26`.
+  - 100% chuẩn hóa Playwright flags tiết kiệm RAM.
+  - 100% việc ghép file thô tự động (`FR, PS, OP, Od`).
+  - Tách xong `CastScraperService` sang Modular V2.
+- **Tồn đọng cần làm tiếp hôm nay (28/10):**
+  - Giám sát ca trực thực tế phiên hôm nay khi hệ thống kích hoạt tự động các Job tải file và đối chiếu.
+  - Rà soát các endpoint cũ còn gọi về `/api/v1/bot-engine/jobs` để chuyển hết sang Modular V2.
+
+---
+
+## 📂 III. DANH SÁCH FILE LIÊN QUAN TRỰC TIẾP
+
+| STT | File Path | Vai Trò & Tình Trạng |
+|---|---|---|
+| 1 | [`backend/src/modules/ingress/scrapers/cast-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cast-scraper.service.ts) | Service Playwright tải báo cáo CAST (Mới V2) |
+| 2 | [`backend/src/modules/ingress/handlers/cast-download.handler.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/cast-download.handler.ts) | Handler điều phối tải CAST |
+| 3 | [`backend/src/modules/ingress/ingress.module.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.module.ts) | Module đăng ký các scraper |
+| 4 | [`CHANGELOG_AI.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/CHANGELOG_AI.md) | Nhật ký thay đổi và kiểm soát bot |
 # KHÔI PHỤC TOÀN BỘ NGỮ CẢNH HỘI THOẠI HÔM QUA (WORKSPACE: mxv-modular-refactor)
 
 > **Thời gian khôi phục:** 28/10/2026
@@ -28,37 +127,68 @@ The user changed setting `Model Selection` from None to Gemini 3.8 Flash (High).
 
 **👤 USER:**
 ```text
-Tên file	Thủ công (26.10 - Check)	Tự động (26.10)	Trạng thái đối chiếu	Ghi chú & Đánh giá
-DSTKGD ACM.xlsx	10,185 dòng (6.86 MB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Auto chưa có cấu hình tải danh sách TKGD sang thư mục CE.
-DSGD ACM CE.xlsx	1,017 dòng (104.7 KB)	0 dòng (6.5 KB)	⚠️ BỊ RỖNG	File Auto chỉ có header (Không có dữ liệu phát sinh trong phiên).
-DSLCK ACM CE.xlsx	240 dòng (40.1 KB)	0 dòng (6.5 KB)	⚠️ BỊ RỖNG	Auto không bắt được lệnh chờ khớp.
-GTT ACM.xlsx	12 dòng (25.7 KB)	0 dòng (6.5 KB)	⚠️ BỊ RỖNG	Auto chưa lấy được giá thanh toán ACM.
-TTM CE.xlsx	3,163 dòng (365.2 KB)	746 dòng (56.5 KB)	⚠️ LỆCH BẢN CHẤT	Thủ công tải chi tiết theo từng giao dịch (Trade-level), Auto tải tổng hợp (Account-level).
-DSLDK ACM CE.xlsx	1,009 dòng (154.8 KB)	1,406 dòng (311.1 KB)	⚠️ Lệch số dòng	Auto lấy phạm vi thời gian hoặc tiêu chí lọc khác.
-DSLH ACM CE.xlsx	642 dòng (99.0 KB)	533 dòng (130.1 KB)	⚠️ Lệch số dòng	Lệch số dòng lệnh hủy.
-DSL ACM CE.xlsx	1,917 dòng (290.6 KB)	2,084 dòng (459.4 KB)	⚠️ Lệch số dòng	Lệch tổng sổ lệnh.
-HH ACM.xlsx	3 dòng (20.1 KB)	3 dòng (8.1 KB)	KHỚP 100%	Danh mục hàng hóa khớp đầy đủ 3 loại.
-HĐ CP2CO.xlsx	23 dòng (37.8 KB)	23 dòng (10.3 KB)	KHỚP 100%	Chi tiết hợp đồng Đồng khớp 100%.
-HĐ PL1NY.xlsx	11 dòng (27.7 KB)	11 dòng (8.9 KB)	KHỚP 100%	Chi tiết hợp đồng Bạch Kim khớp 100%.
-HĐ SI5CO.xlsx	13 dòng (29.3 KB)	13 dòng (9.1 KB)	KHỚP 100%	Chi tiết hợp đồng Bạc khớp 100%. ce và Tên file	Thủ công (26.10 - check)	Tự động (26.10)	Trạng thái đối chiếu	Ghi chú & Đánh giá
-DSQLKQ TVKD.xlsx	18 dòng (51.1 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý ký quỹ TVKD (Auto mới chỉ có bản TKGD).
-QL TT TVKD.xlsx	35 dòng (77.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý trạng thái TVKD (Auto mới chỉ có bản TKGD).
-LSTDT.xlsx	2,030 dòng (169.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Lịch sử tăng giảm tiền (phí giao dịch, nộp/rút chi tiết).
-GTT trước 6h.xlsx	12 dòng (25.2 KB)	GTT CCP.xlsx (12 dòng, 8.3 KB)	⚠️ LỆCH TÊN FILE	Dữ liệu khớp 12 dòng giá thanh toán, nhưng tên file bị khác (GTT trước 6h.xlsx vs GTT CCP.xlsx).
-TTM.xlsx	3,108 dòng (392.6 KB)	TTM CCP.xlsx (746 dòng, 88.1 KB)	⚠️ LỆCH TÊN & BẢN CHẤT	Auto thiếu file tên TTM.xlsx. File Auto mang tên TTM CCP.xlsx và là bản tổng hợp (746 dòng) thay vì chi tiết từng giao dịch (3,108 dòng).
-DSLCK CCP.xlsx	240 dòng (44.6 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx (1,903 dòng), không lọc ra 240 lệnh chờ khớp thật.
-DSLDH CCP.xlsx	642 dòng (110.3 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 642 lệnh đã hủy thật.
-DSLDK CCP.xlsx	1,009 dòng (173.7 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 1,009 lệnh đã khớp thật.
-TTTT.xlsx	596 dòng (113.7 KB)	204 dòng (29.8 KB)	⚠️ Lệch số dòng	Auto bị thiếu 392 bản ghi tất toán (khác biệt tiêu chí ngày/trạng thái).
-NR.xlsx	417 dòng (39.2 KB)	6,508 dòng (492.9 KB)	⚠️ Lệch số dòng	Thủ công chỉ lọc ngày 26.10; Auto lấy toàn bộ lịch sử nộp rút.
-DSGD CCP.xlsx	1,017 dòng (152.9 KB)	1,017 dòng (152.9 KB)	KHỚP 100%	Khớp chính xác tuyệt đối từng dòng giao dịch.
-DSL CCP.xlsx	1,903 dòng (321.9 KB)	1,903 dòng (450.0 KB)	KHỚP 100%	Khớp chính xác tổng số lệnh 1,903 dòng.
-DSQLKQ TKGD.xlsx	453 dòng (801.8 KB)	453 dòng (114.8 KB)	KHỚP 100%	Khớp chính xác 453 tài khoản ký quỹ.
-DSTKGD ACM.xlsx	10,186 dòng (735.4 KB)	10,186 dòng (891.4 KB)	KHỚP 100%	Khớp chính xác 10,186 tài khoản ACM.
-QL TT TKGD.xlsx	10,186 dòng (17.1 MB)	10,186 dòng (1.59 MB)	KHỚP 100%	Khớp chính xác 10,186 trạng thái TKGD.
-HH.xlsx	3 dòng (23.7 KB)	3 dòng (8.8 KB)	KHỚP 100%	Khớp 3 mã hàng hóa.
-HĐ CP2CO.xlsx	23 dòng (43.6 KB)	23 dòng (9.8 KB)	KHỚP 100%	Khớp 23 hợp đồng Đồng.
-HĐ PL1NY.xlsx	11 dòng (31.0 KB)	11 dòng (8.7 KB)	KHỚP 100%	Khớp 11 hợp đồng Bạch Kim.
+Tên file	Thủ công (26.10 - Check)	Tự động (26.10)	Trạng thái đối chiếu	Ghi chú & Đánh giá
+
+DSTKGD ACM.xlsx	10,185 dòng (6.86 MB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Auto chưa có cấu hình tải danh sách TKGD sang thư mục CE.
+
+DSGD ACM CE.xlsx	1,017 dòng (104.7 KB)	0 dòng (6.5 KB)	⚠️ BỊ RỖNG	File Auto chỉ có header (Không có dữ liệu phát sinh trong phiên).
+
+DSLCK ACM CE.xlsx	240 dòng (40.1 KB)	0 dòng (6.5 KB)	⚠️ BỊ RỖNG	Auto không bắt được lệnh chờ khớp.
+
+GTT ACM.xlsx	12 dòng (25.7 KB)	0 dòng (6.5 KB)	⚠️ BỊ RỖNG	Auto chưa lấy được giá thanh toán ACM.
+
+TTM CE.xlsx	3,163 dòng (365.2 KB)	746 dòng (56.5 KB)	⚠️ LỆCH BẢN CHẤT	Thủ công tải chi tiết theo từng giao dịch (Trade-level), Auto tải tổng hợp (Account-level).
+
+DSLDK ACM CE.xlsx	1,009 dòng (154.8 KB)	1,406 dòng (311.1 KB)	⚠️ Lệch số dòng	Auto lấy phạm vi thời gian hoặc tiêu chí lọc khác.
+
+DSLH ACM CE.xlsx	642 dòng (99.0 KB)	533 dòng (130.1 KB)	⚠️ Lệch số dòng	Lệch số dòng lệnh hủy.
+
+DSL ACM CE.xlsx	1,917 dòng (290.6 KB)	2,084 dòng (459.4 KB)	⚠️ Lệch số dòng	Lệch tổng sổ lệnh.
+
+HH ACM.xlsx	3 dòng (20.1 KB)	3 dòng (8.1 KB)	KHỚP 100%	Danh mục hàng hóa khớp đầy đủ 3 loại.
+
+HĐ CP2CO.xlsx	23 dòng (37.8 KB)	23 dòng (10.3 KB)	KHỚP 100%	Chi tiết hợp đồng Đồng khớp 100%.
+
+HĐ PL1NY.xlsx	11 dòng (27.7 KB)	11 dòng (8.9 KB)	KHỚP 100%	Chi tiết hợp đồng Bạch Kim khớp 100%.
+
+HĐ SI5CO.xlsx	13 dòng (29.3 KB)	13 dòng (9.1 KB)	KHỚP 100%	Chi tiết hợp đồng Bạc khớp 100%. ce và Tên file	Thủ công (26.10 - check)	Tự động (26.10)	Trạng thái đối chiếu	Ghi chú & Đánh giá
+
+DSQLKQ TVKD.xlsx	18 dòng (51.1 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý ký quỹ TVKD (Auto mới chỉ có bản TKGD).
+
+QL TT TVKD.xlsx	35 dòng (77.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý trạng thái TVKD (Auto mới chỉ có bản TKGD).
+
+LSTDT.xlsx	2,030 dòng (169.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Lịch sử tăng giảm tiền (phí giao dịch, nộp/rút chi tiết).
+
+GTT trước 6h.xlsx	12 dòng (25.2 KB)	GTT CCP.xlsx (12 dòng, 8.3 KB)	⚠️ LỆCH TÊN FILE	Dữ liệu khớp 12 dòng giá thanh toán, nhưng tên file bị khác (GTT trước 6h.xlsx vs GTT CCP.xlsx).
+
+TTM.xlsx	3,108 dòng (392.6 KB)	TTM CCP.xlsx (746 dòng, 88.1 KB)	⚠️ LỆCH TÊN & BẢN CHẤT	Auto thiếu file tên TTM.xlsx. File Auto mang tên TTM CCP.xlsx và là bản tổng hợp (746 dòng) thay vì chi tiết từng giao dịch (3,108 dòng).
+
+DSLCK CCP.xlsx	240 dòng (44.6 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx (1,903 dòng), không lọc ra 240 lệnh chờ khớp thật.
+
+DSLDH CCP.xlsx	642 dòng (110.3 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 642 lệnh đã hủy thật.
+
+DSLDK CCP.xlsx	1,009 dòng (173.7 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 1,009 lệnh đã khớp thật.
+
+TTTT.xlsx	596 dòng (113.7 KB)	204 dòng (29.8 KB)	⚠️ Lệch số dòng	Auto bị thiếu 392 bản ghi tất toán (khác biệt tiêu chí ngày/trạng thái).
+
+NR.xlsx	417 dòng (39.2 KB)	6,508 dòng (492.9 KB)	⚠️ Lệch số dòng	Thủ công chỉ lọc ngày 26.10; Auto lấy toàn bộ lịch sử nộp rút.
+
+DSGD CCP.xlsx	1,017 dòng (152.9 KB)	1,017 dòng (152.9 KB)	KHỚP 100%	Khớp chính xác tuyệt đối từng dòng giao dịch.
+
+DSL CCP.xlsx	1,903 dòng (321.9 KB)	1,903 dòng (450.0 KB)	KHỚP 100%	Khớp chính xác tổng số lệnh 1,903 dòng.
+
+DSQLKQ TKGD.xlsx	453 dòng (801.8 KB)	453 dòng (114.8 KB)	KHỚP 100%	Khớp chính xác 453 tài khoản ký quỹ.
+
+DSTKGD ACM.xlsx	10,186 dòng (735.4 KB)	10,186 dòng (891.4 KB)	KHỚP 100%	Khớp chính xác 10,186 tài khoản ACM.
+
+QL TT TKGD.xlsx	10,186 dòng (17.1 MB)	10,186 dòng (1.59 MB)	KHỚP 100%	Khớp chính xác 10,186 trạng thái TKGD.
+
+HH.xlsx	3 dòng (23.7 KB)	3 dòng (8.8 KB)	KHỚP 100%	Khớp 3 mã hàng hóa.
+
+HĐ CP2CO.xlsx	23 dòng (43.6 KB)	23 dòng (9.8 KB)	KHỚP 100%	Khớp 23 hợp đồng Đồng.
+
+HĐ PL1NY.xlsx	11 dòng (31.0 KB)	11 dòng (8.7 KB)	KHỚP 100%	Khớp 11 hợp đồng Bạch Kim.
+
 HĐ SI5CO.xlsx	13 dòng (33.0 KB)	13 dòng (8.8 KB)	KHỚP 100%	Khớp 13 hợp đồng Bạc. và ccp xem check đúng chưa
 ```
 
@@ -500,25 +630,44 @@ Khi nào bạn bắt đầu giai đoạn phát triển, chỉ cần yêu cầu v
 
 **👤 USER:**
 ```text
-Tên file	Thủ công (26.10 - check)	Tự động (26.10)	Trạng thái đối chiếu	Ghi chú & Đánh giá
-DSQLKQ TVKD.xlsx	18 dòng (51.1 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý ký quỹ TVKD (Auto mới chỉ có bản TKGD).
-QL TT TVKD.xlsx	35 dòng (77.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý trạng thái TVKD (Auto mới chỉ có bản TKGD).
-LSTDT.xlsx	2,030 dòng (169.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Lịch sử tăng giảm tiền (phí giao dịch, nộp/rút chi tiết).
-GTT trước 6h.xlsx	12 dòng (25.2 KB)	GTT CCP.xlsx (12 dòng, 8.3 KB)	⚠️ LỆCH TÊN FILE	Dữ liệu khớp 12 dòng giá thanh toán, nhưng tên file bị khác (GTT trước 6h.xlsx vs GTT CCP.xlsx).
-TTM.xlsx	3,108 dòng (392.6 KB)	TTM CCP.xlsx (746 dòng, 88.1 KB)	⚠️ LỆCH TÊN & BẢN CHẤT	Auto thiếu file tên TTM.xlsx. File Auto mang tên TTM CCP.xlsx và là bản tổng hợp (746 dòng) thay vì chi tiết từng giao dịch (3,108 dòng).
-DSLCK CCP.xlsx	240 dòng (44.6 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx (1,903 dòng), không lọc ra 240 lệnh chờ khớp thật.
-DSLDH CCP.xlsx	642 dòng (110.3 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 642 lệnh đã hủy thật.
-DSLDK CCP.xlsx	1,009 dòng (173.7 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 1,009 lệnh đã khớp thật.
-TTTT.xlsx	596 dòng (113.7 KB)	204 dòng (29.8 KB)	⚠️ Lệch số dòng	Auto bị thiếu 392 bản ghi tất toán (khác biệt tiêu chí ngày/trạng thái).
-NR.xlsx	417 dòng (39.2 KB)	6,508 dòng (492.9 KB)	⚠️ Lệch số dòng	Thủ công chỉ lọc ngày 26.10; Auto lấy toàn bộ lịch sử nộp rút.
-DSGD CCP.xlsx	1,017 dòng (152.9 KB)	1,017 dòng (152.9 KB)	KHỚP 100%	Khớp chính xác tuyệt đối từng dòng giao dịch.
-DSL CCP.xlsx	1,903 dòng (321.9 KB)	1,903 dòng (450.0 KB)	KHỚP 100%	Khớp chính xác tổng số lệnh 1,903 dòng.
-DSQLKQ TKGD.xlsx	453 dòng (801.8 KB)	453 dòng (114.8 KB)	KHỚP 100%	Khớp chính xác 453 tài khoản ký quỹ.
-DSTKGD ACM.xlsx	10,186 dòng (735.4 KB)	10,186 dòng (891.4 KB)	KHỚP 100%	Khớp chính xác 10,186 tài khoản ACM.
-QL TT TKGD.xlsx	10,186 dòng (17.1 MB)	10,186 dòng (1.59 MB)	KHỚP 100%	Khớp chính xác 10,186 trạng thái TKGD.
-HH.xlsx	3 dòng (23.7 KB)	3 dòng (8.8 KB)	KHỚP 100%	Khớp 3 mã hàng hóa.
-HĐ CP2CO.xlsx	23 dòng (43.6 KB)	23 dòng (9.8 KB)	KHỚP 100%	Khớp 23 hợp đồng Đồng.
-HĐ PL1NY.xlsx	11 dòng (31.0 KB)	11 dòng (8.7 KB)	KHỚP 100%	Khớp 11 hợp đồng Bạch Kim.
+Tên file	Thủ công (26.10 - check)	Tự động (26.10)	Trạng thái đối chiếu	Ghi chú & Đánh giá
+
+DSQLKQ TVKD.xlsx	18 dòng (51.1 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý ký quỹ TVKD (Auto mới chỉ có bản TKGD).
+
+QL TT TVKD.xlsx	35 dòng (77.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Quản lý trạng thái TVKD (Auto mới chỉ có bản TKGD).
+
+LSTDT.xlsx	2,030 dòng (169.7 KB)	❌ KHÔNG CÓ	⛔ THIẾU HOÀN TOÀN	Lịch sử tăng giảm tiền (phí giao dịch, nộp/rút chi tiết).
+
+GTT trước 6h.xlsx	12 dòng (25.2 KB)	GTT CCP.xlsx (12 dòng, 8.3 KB)	⚠️ LỆCH TÊN FILE	Dữ liệu khớp 12 dòng giá thanh toán, nhưng tên file bị khác (GTT trước 6h.xlsx vs GTT CCP.xlsx).
+
+TTM.xlsx	3,108 dòng (392.6 KB)	TTM CCP.xlsx (746 dòng, 88.1 KB)	⚠️ LỆCH TÊN & BẢN CHẤT	Auto thiếu file tên TTM.xlsx. File Auto mang tên TTM CCP.xlsx và là bản tổng hợp (746 dòng) thay vì chi tiết từng giao dịch (3,108 dòng).
+
+DSLCK CCP.xlsx	240 dòng (44.6 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx (1,903 dòng), không lọc ra 240 lệnh chờ khớp thật.
+
+DSLDH CCP.xlsx	642 dòng (110.3 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 642 lệnh đã hủy thật.
+
+DSLDK CCP.xlsx	1,009 dòng (173.7 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 1,009 lệnh đã khớp thật.
+
+TTTT.xlsx	596 dòng (113.7 KB)	204 dòng (29.8 KB)	⚠️ Lệch số dòng	Auto bị thiếu 392 bản ghi tất toán (khác biệt tiêu chí ngày/trạng thái).
+
+NR.xlsx	417 dòng (39.2 KB)	6,508 dòng (492.9 KB)	⚠️ Lệch số dòng	Thủ công chỉ lọc ngày 26.10; Auto lấy toàn bộ lịch sử nộp rút.
+
+DSGD CCP.xlsx	1,017 dòng (152.9 KB)	1,017 dòng (152.9 KB)	KHỚP 100%	Khớp chính xác tuyệt đối từng dòng giao dịch.
+
+DSL CCP.xlsx	1,903 dòng (321.9 KB)	1,903 dòng (450.0 KB)	KHỚP 100%	Khớp chính xác tổng số lệnh 1,903 dòng.
+
+DSQLKQ TKGD.xlsx	453 dòng (801.8 KB)	453 dòng (114.8 KB)	KHỚP 100%	Khớp chính xác 453 tài khoản ký quỹ.
+
+DSTKGD ACM.xlsx	10,186 dòng (735.4 KB)	10,186 dòng (891.4 KB)	KHỚP 100%	Khớp chính xác 10,186 tài khoản ACM.
+
+QL TT TKGD.xlsx	10,186 dòng (17.1 MB)	10,186 dòng (1.59 MB)	KHỚP 100%	Khớp chính xác 10,186 trạng thái TKGD.
+
+HH.xlsx	3 dòng (23.7 KB)	3 dòng (8.8 KB)	KHỚP 100%	Khớp 3 mã hàng hóa.
+
+HĐ CP2CO.xlsx	23 dòng (43.6 KB)	23 dòng (9.8 KB)	KHỚP 100%	Khớp 23 hợp đồng Đồng.
+
+HĐ PL1NY.xlsx	11 dòng (31.0 KB)	11 dòng (8.7 KB)	KHỚP 100%	Khớp 11 hợp đồng Bạch Kim.
+
 HĐ SI5CO.xlsx	13 dòng (33.0 KB)	13 dòng (8.8 KB)	KHỚP 100%	Khớp 13 hợp đồng Bạc. quay lại vấn đề này tôi bỏ qua khác tên file tôi cần dữ liệu bên trong đúng trước giúp tôi check TTTT và TTM và NR hiện tại các file này hiện đang là gọi api theo kiểu 2 hay kiểu 1
 ```
 
@@ -590,41 +739,76 @@ Dựa trên việc kiểm tra trực tiếp mã nguồn thực thi tại [corecc
 
 **👤 USER:**
 ```text
-curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp- jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/CASHTRANFER/CASHTRANFER_HIST^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"CASHTRANFER_HIST^\^",^\^"search^\^":^{^\^"CHECKERDT^\^":^{^\^"from^\^":^\^"27/10/2026^\^",^\^"to^\^":^\^"27/10/2026^\^"^}^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"CASHTRANFER_HIST_1793097690536^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51401^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/CASHTRANFER/CASHTRANFER_HIST^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
+curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp- jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/CASHTRANFER/CASHTRANFER_HIST^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"CASHTRANFER_HIST^\^",^\^"search^\^":^{^\^"CHECKERDT^\^":^{^\^"from^\^":^\^"27/10/2026^\^",^\^"to^\^":^\^"27/10/2026^\^"^}^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"CASHTRANFER_HIST_1793097690536^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51401^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/CASHTRANFER/CASHTRANFER_HIST^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
   -H ^"x-lang: vi^" và socket tương tự chứ không phải theo kiểu 1
 ```
 
@@ -702,86 +886,166 @@ Em sẽ đối chiếu và gắn ngay bộ tham số chuẩn vào adapter để 
 
 **👤 USER:**
 ```text
-curl --url ^"wss://coreccp.vnclear.vn/notisocket/socket.io/?ticket=125f5c3c-01bc-4008-8b91-b6559891c226^&userId=75^&EIO=4^&transport=websocket^" ^
-  -H ^"Upgrade: websocket^" ^
-  -H ^"Origin: https://coreccp.vnclear.vn^" ^
-  -H ^"Cache-Control: no-cache^" ^
-  -H ^"Accept-Language: en-US,en;q=0.9^" ^
-  -H ^"Pragma: no-cache^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"Connection: Upgrade^" ^
-  -H ^"User-Agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"Sec-WebSocket-Version: 13^" ^
-  -H ^"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits^" và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/OPEN_POSITION^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"OPEN_POSITION_EXPORT^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":50^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"OPEN_POSITION_EXPORT_1793097898046^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51432^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/OPEN_POSITION^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" cho TTM đã đúng chưa và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/PNL_EXECUTED^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"PNL_EXECUTED_EXPORT^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":50^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"PNL_EXECUTED_EXPORT_1793097928230^\^"^}^"và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51451^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/PNL_EXECUTED^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
+curl --url ^"wss://coreccp.vnclear.vn/notisocket/socket.io/?ticket=125f5c3c-01bc-4008-8b91-b6559891c226^&userId=75^&EIO=4^&transport=websocket^" ^
+
+  -H ^"Upgrade: websocket^" ^
+
+  -H ^"Origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"Cache-Control: no-cache^" ^
+
+  -H ^"Accept-Language: en-US,en;q=0.9^" ^
+
+  -H ^"Pragma: no-cache^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"Connection: Upgrade^" ^
+
+  -H ^"User-Agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"Sec-WebSocket-Version: 13^" ^
+
+  -H ^"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits^" và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/OPEN_POSITION^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"OPEN_POSITION_EXPORT^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":50^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"OPEN_POSITION_EXPORT_1793097898046^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51432^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/OPEN_POSITION^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" cho TTM đã đúng chưa và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/PNL_EXECUTED^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"PNL_EXECUTED_EXPORT^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":50^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"PNL_EXECUTED_EXPORT_1793097928230^\^"^}^"và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51451^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/PNL_EXECUTED^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
   -H ^"x-lang: vi^" đã đúng cho TTTT chưa
 ```
 
@@ -1043,29 +1307,52 @@ Em tiến hành sửa luôn file [SPECIFICATION.md](file:///c:/Users/hiepth/OneD
 
 **👤 USER:**
 ```text
-. TTTT.xlsx bị gán sai sang KIỂU 3 (Playwright) thay vì KIỂU 2 (Socket API)
-Hiện tại trong tài liệu (
-
-dòng 24
- & 
-
-dòng 81
-): Đang xếp TTTT.xlsx vào KIỂU 3 (Headless Playwright Crawler cào DOM).
-Thực tế kiểm chứng: Nhờ cURL anh gửi, ta biết CoreCCP có endpoint kết xuất trực tiếp với mã PNL_EXECUTED_EXPORT chạy bằng KIỂU 2 (Server Export + NotiSocket) chỉ mất ~700ms.
-Bổ sung cần thiết: Chuyển TTTT.xlsx sang KIỂU 2, cập nhật searchCode là PNL_EXECUTED_EXPORT.
-2. TTM bị thiếu định danh bản chi tiết (OPEN_POSITION_EXPORT)
-Hiện tại trong tài liệu (
-
-dòng 79 - 80
-): Đang ghi searchcode: OPEN_POSITION.
-Thực tế kiểm chứng: Nếu gửi OPEN_POSITION thì chỉ ra bản tổng hợp (746 dòng). Muốn tải đúng bản chi tiết TTM.xlsx (hơn 3,000 dòng) khớp với thủ công, bắt buộc phải dùng OPEN_POSITION_EXPORT.
-Bổ sung cần thiết: Làm rõ sự khác nhau giữa OPEN_POSITION (Tổng hợp) và OPEN_POSITION_EXPORT (Chi tiết).
-3. NR.xlsx bị thiếu tham số lọc ngày bắt buộc
-Hiện tại trong tài liệu (
-
-dòng 87
-): Chỉ ghi chung chung CASHTRANFER_HIST là KIỂU 2.
-Thực tế kiểm chứng: Nếu không có payload search: { CHECKERDT: { from: 'dd/MM/yyyy', to: 'dd/MM/yyyy' } }, máy chủ sẽ trả về toàn bộ 6,508 dòng lịch sử từ hơn 1 tháng qua thay vì 162 - 417 dòng của ngày ca trực.
+. TTTT.xlsx bị gán sai sang KIỂU 3 (Playwright) thay vì KIỂU 2 (Socket API)
+
+Hiện tại trong tài liệu (
+
+
+
+dòng 24
+
+ & 
+
+
+
+dòng 81
+
+): Đang xếp TTTT.xlsx vào KIỂU 3 (Headless Playwright Crawler cào DOM).
+
+Thực tế kiểm chứng: Nhờ cURL anh gửi, ta biết CoreCCP có endpoint kết xuất trực tiếp với mã PNL_EXECUTED_EXPORT chạy bằng KIỂU 2 (Server Export + NotiSocket) chỉ mất ~700ms.
+
+Bổ sung cần thiết: Chuyển TTTT.xlsx sang KIỂU 2, cập nhật searchCode là PNL_EXECUTED_EXPORT.
+
+2. TTM bị thiếu định danh bản chi tiết (OPEN_POSITION_EXPORT)
+
+Hiện tại trong tài liệu (
+
+
+
+dòng 79 - 80
+
+): Đang ghi searchcode: OPEN_POSITION.
+
+Thực tế kiểm chứng: Nếu gửi OPEN_POSITION thì chỉ ra bản tổng hợp (746 dòng). Muốn tải đúng bản chi tiết TTM.xlsx (hơn 3,000 dòng) khớp với thủ công, bắt buộc phải dùng OPEN_POSITION_EXPORT.
+
+Bổ sung cần thiết: Làm rõ sự khác nhau giữa OPEN_POSITION (Tổng hợp) và OPEN_POSITION_EXPORT (Chi tiết).
+
+3. NR.xlsx bị thiếu tham số lọc ngày bắt buộc
+
+Hiện tại trong tài liệu (
+
+
+
+dòng 87
+
+): Chỉ ghi chung chung CASHTRANFER_HIST là KIỂU 2.
+
+Thực tế kiểm chứng: Nếu không có payload search: { CHECKERDT: { from: 'dd/MM/yyyy', to: 'dd/MM/yyyy' } }, máy chủ sẽ trả về toàn bộ 6,508 dòng lịch sử từ hơn 1 tháng qua thay vì 162 - 417 dòng của ngày ca trực.
+
 Bổ sung cần thiết: Bổ sung đặc tả bộ lọc trường CHECKERDT cho NR.xlsx. giúp tôi fix tải file này trước cho đúng dữ liệu
 ```
 
@@ -1109,70 +1396,134 @@ Em đã hoàn tất việc sửa mã nguồn để fix triệt để luồng t�
 
 **👤 USER:**
 ```text
-curl --url ^"https://coreccp.vnclear.vn/ccp/inquiry/maintain/ACCTMARGIN_POS/search/MEMBERMARGIN_POS^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/RISKMNG/ACCTMARGIN_POS^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"MEMBERMARGIN_POS^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":200000^}^}^" DSQLKQ TVKD.xlsx kiểu 1 và curl --url ^"https://coreccp.vnclear.vn/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/MEMBERMARGIN_ALL^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/RISKMNG/ACCTMARGIN_ALL^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"MEMBERMARGIN_ALL^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":200000^}^}^" kiểu 1 và curl --url ^"wss://coreccp.vnclear.vn/notisocket/socket.io/?ticket=125f5c3c-01bc-4008-8b91-b6559891c226^&userId=75^&EIO=4^&transport=websocket^" ^
-  -H ^"Upgrade: websocket^" ^
-  -H ^"Origin: https://coreccp.vnclear.vn^" ^
-  -H ^"Cache-Control: no-cache^" ^
-  -H ^"Accept-Language: en-US,en;q=0.9^" ^
-  -H ^"Pragma: no-cache^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"Connection: Upgrade^" ^
-  -H ^"User-Agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"Sec-WebSocket-Version: 13^" ^
-  -H ^"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51461^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/CASHTRANFER/CASHTRANFER_HIST^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
+curl --url ^"https://coreccp.vnclear.vn/ccp/inquiry/maintain/ACCTMARGIN_POS/search/MEMBERMARGIN_POS^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/RISKMNG/ACCTMARGIN_POS^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"MEMBERMARGIN_POS^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":200000^}^}^" DSQLKQ TVKD.xlsx kiểu 1 và curl --url ^"https://coreccp.vnclear.vn/ccp/inquiry/maintain/ACCTMARGIN_ALL/search/MEMBERMARGIN_ALL^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/RISKMNG/ACCTMARGIN_ALL^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"MEMBERMARGIN_ALL^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":200000^}^}^" kiểu 1 và curl --url ^"wss://coreccp.vnclear.vn/notisocket/socket.io/?ticket=125f5c3c-01bc-4008-8b91-b6559891c226^&userId=75^&EIO=4^&transport=websocket^" ^
+
+  -H ^"Upgrade: websocket^" ^
+
+  -H ^"Origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"Cache-Control: no-cache^" ^
+
+  -H ^"Accept-Language: en-US,en;q=0.9^" ^
+
+  -H ^"Pragma: no-cache^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"Connection: Upgrade^" ^
+
+  -H ^"User-Agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"Sec-WebSocket-Version: 13^" ^
+
+  -H ^"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51461^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/CASHTRANFER/CASHTRANFER_HIST^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
   -H ^"x-lang: vi^" dành cho LSTDT.xlsx
 ```
 
@@ -1217,8 +1568,10 @@ Có cURL này là em sẽ gắn ngay vào hệ thống để tự động tải 
 
 **👤 USER:**
 ```text
-DSLCK CCP.xlsx	240 dòng (44.6 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx (1,903 dòng), không lọc ra 240 lệnh chờ khớp thật.
-DSLDH CCP.xlsx	642 dòng (110.3 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 642 lệnh đã hủy thật.
+DSLCK CCP.xlsx	240 dòng (44.6 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx (1,903 dòng), không lọc ra 240 lệnh chờ khớp thật.
+
+DSLDH CCP.xlsx	642 dòng (110.3 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 642 lệnh đã hủy thật.
+
 DSLDK CCP.xlsx	1,009 dòng (173.7 KB)	1,903 dòng (450.0 KB)	⚠️ LỖI NHÂN BẢN	Auto copy nguyên từ file tổng DSL CCP.xlsx, không lọc ra 1,009 lệnh đã khớp thật. là sao tôi chưa hiểu trong spec đã có api phần này chưa
 ```
 
@@ -1285,95 +1638,184 @@ Anh thấy giải pháp **Phương án 1 (Lọc thông minh theo Trạng thái t
 
 **👤 USER:**
 ```text
-curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"ORDERBOOK_PENDING^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"ORDERBOOK_PENDING_1793099423604^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51474^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
-  --data-raw ^"^{^\^"searchcode^\^":^\^"ORDERBOOK_CANCEL^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"ORDERBOOK_CANCEL_1793099458108^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51486^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
-  -H ^"accept: application/json, text/plain, */*^" ^
-  -H ^"accept-language: en-US,en;q=0.9^" ^
-  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
-  -H ^"connectkey: fsscssiam2021^" ^
-  -H ^"content-type: application/json^" ^
-  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
-  -H ^"origin: https://coreccp.vnclear.vn^" ^
-  -H ^"priority: u=1, i^" ^
-  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
-  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
-  -H ^"sec-ch-ua-mobile: ?0^" ^
-  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
-  -H ^"sec-fetch-dest: empty^" ^
-  -H ^"sec-fetch-mode: cors^" ^
-  -H ^"sec-fetch-site: same-origin^" ^
-  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
-  -H ^"x-devicetype: WEB^" ^
-  -H ^"x-lang: vi^" ^
+curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"ORDERBOOK_PENDING^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"ORDERBOOK_PENDING_1793099423604^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51474^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
+  --data-raw ^"^{^\^"searchcode^\^":^\^"ORDERBOOK_CANCEL^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"ORDERBOOK_CANCEL_1793099458108^\^"^}^" và curl --url ^"https://coreccp.vnclear.vn/ccp/report/download/51486^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" và curl --url ^"https://coreccp.vnclear.vn/ccp/export/create^" ^
+
+  -H ^"accept: application/json, text/plain, */*^" ^
+
+  -H ^"accept-language: en-US,en;q=0.9^" ^
+
+  -H ^"authorization: Bearer eyJraWQiOiJkYjBlZDhhMS1jZTViLTQ2N2UtYWJhOC01NDE3MTE5N2NlZmYiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0cmFkaW5nZGVzayIsImF1ZCI6IndlYi1jY3AtbXh2IiwibmJmIjoxNzkzMDk2MzMzLCJ1c2VyX2lkIjo3NSwic2NvcGUiOlsib3BlbmlkIiwicHJvZmlsZSJdLCJpc3MiOiJodHRwczovL2NvcmVjY3Audm5jbGVhci52biIsImV4cCI6MTc5MzEwNzEzMywiaWF0IjoxNzkzMDk2MzMzLCJqdGkiOiI3ZDRjMGM5YS1jNGY2LTRiY2UtOTAwYy0zMDY0ODRiMmQ5MmUifQ.KL70EDZbTNcwYkTTN09tcUFSZI5AfO_IEjeUs8vvuYM4JMT01ES1aR92EfkzWlR2ZPryseUp7hAmaXQ8O4tuZd_0Na3kwrKRezdS2MNCwgjRc3bhGQH8TXoSIj31TsIdQJwCg_Dqb9mbVdyd75529M580u8Jx1xBpiVy-tfJVcM_3NzXS3trxYTh93Z3y8OASqyRMMs6aAwDbdYrGS1Fxtt2yx-RMFxPtWp88ITkJLQBp0b5ENuA_GCtPxUK5IlKm5TkTLOpOq9G0vsNozp-jl85asWqzktwnC_fVQQN6ZX0zLcuNdsoQ_OQDbyLMwLgqro3qy1hWTFCCG6foRBNaA^" ^
+
+  -H ^"connectkey: fsscssiam2021^" ^
+
+  -H ^"content-type: application/json^" ^
+
+  -b ^"SESSION=YTgxMGQyMzYtN2RmOS00OWRhLTgyZmItZThhMTY4MWU3Yzk5^" ^
+
+  -H ^"origin: https://coreccp.vnclear.vn^" ^
+
+  -H ^"priority: u=1, i^" ^
+
+  -H ^"referer: https://coreccp.vnclear.vn/ORDERS/ORDERBOOK^" ^
+
+  -H ^"sec-ch-ua: ^\^"Not:A-Brand^\^";v=^\^"8^\^", ^\^"Chromium^\^";v=^\^"156^\^", ^\^"Microsoft Edge^\^";v=^\^"156^\^"^" ^
+
+  -H ^"sec-ch-ua-mobile: ?0^" ^
+
+  -H ^"sec-ch-ua-platform: ^\^"Windows^\^"^" ^
+
+  -H ^"sec-fetch-dest: empty^" ^
+
+  -H ^"sec-fetch-mode: cors^" ^
+
+  -H ^"sec-fetch-site: same-origin^" ^
+
+  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0; Win64; x64^) AppleWebKit/537.36 ^(KHTML, like Gecko^) Chrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0^" ^
+
+  -H ^"x-devicetype: WEB^" ^
+
+  -H ^"x-lang: vi^" ^
+
   --data-raw ^"^{^\^"searchcode^\^":^\^"ORDERBOOK_MATCH^\^",^\^"search^\^":^{^},^\^"filter^\^":^{^},^\^"orderBy^\^":^{^},^\^"page^\^":^{^\^"pageIndex^\^":1,^\^"pageSize^\^":20^},^\^"exptype^\^":^\^"XLSX^\^",^\^"fekey^\^":^\^"ORDERBOOK_MATCH_1793099486340^\^"^}^" theo thứ tự Chờ khớp, đã hủy , đã khớp giúp tôi fix lại logic
 ```
 

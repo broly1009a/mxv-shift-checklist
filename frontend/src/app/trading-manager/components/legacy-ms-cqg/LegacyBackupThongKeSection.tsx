@@ -961,7 +961,7 @@ export default function LegacyBackupThongKeSection({
           {/* 1. Backup định kỳ (phút) */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Tự động kiểm tra và quét tải file backup định kỳ độc lập (mặc định 60 phút/lần)"
+            title="Tự động tải báo cáo backup định kỳ M-System, CQG, ACM, CoreCCP & CoreEX độc lập (mặc định 60 phút/lần)"
           >
             <label
               style={{
@@ -1024,7 +1024,7 @@ export default function LegacyBackupThongKeSection({
           {/* 2. Thời điểm backup */}
           <div
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            title="Tự động tải báo cáo sao lưu chốt ngày M-System & CQG độc lập (theo cấu hình hệ thống)"
+            title="Tự động tải báo cáo sao lưu chốt ngày M-System, CQG, ACM, CoreCCP & CoreEX độc lập (theo cấu hình hệ thống)"
           >
             <label
               style={{

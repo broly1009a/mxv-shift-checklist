@@ -134,6 +134,13 @@ export async function seedBotSchedulerConfig(
         jobType: 'DOWNLOAD_CE_REPORT',
         payload: { reports: ['FULL'] },
       },
+      {
+        id: 'RPA_DOWNLOAD_ACM',
+        name: 'Tự động tải & kiểm tra file backup ACM (Web & SFTP)',
+        enabled: true,
+        time: recommendedCloseTime,
+        jobType: 'FILE_AUDIT_ACM',
+      },
     ];
     await settingsService.setSetting('bot_scheduler_config', JSON.stringify(defaults, null, 2));
     logger?.log('Seeded default bot scheduler configurations.');
@@ -287,6 +294,17 @@ export async function seedBotSchedulerConfig(
             enabled: false,
             time: '19:30',
             jobType: 'DOWNLOAD_CE_REPORT',
+          });
+          updated = true;
+        }
+
+        if (!tasks.some((t) => t.id === 'RPA_DOWNLOAD_ACM' || t.jobType === 'FILE_AUDIT_ACM')) {
+          tasks.push({
+            id: 'RPA_DOWNLOAD_ACM',
+            name: 'Tự động tải & kiểm tra file backup ACM (Web & SFTP)',
+            enabled: true,
+            time: recommendedCloseTime,
+            jobType: 'FILE_AUDIT_ACM',
           });
           updated = true;
         }

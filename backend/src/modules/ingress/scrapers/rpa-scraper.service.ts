@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { chromium, Browser, Page, Download } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as https from 'https';
 import { URL } from 'url';
 import * as ExcelJS from 'exceljs';
@@ -12,6 +13,7 @@ import { decrypt, CaptchaSolverHelper, EXTERNAL_SYSTEM_MSYSTEM } from '../../../
 
 import { IngressService } from '../ingress.service';
 import { CcpScraperService } from './ccp-scraper.service';
+import { CastScraperService } from './cast-scraper.service';
 import {
   MSystemTabNavigatorHelper,
   MS_REPORT_FILE_PATTERNS,
@@ -19,6 +21,7 @@ import {
   MS_SPECIFIC_EXPORT_BUTTON_SELECTORS,
 } from '../helpers/msystem-tab-navigator.helper';
 import { IE_MOCK_SCRIPT } from '../helpers/ie-mock.script';
+import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 
 @Injectable()
 export class RpaScraperService {
@@ -30,6 +33,8 @@ export class RpaScraperService {
     private readonly ingressService?: IngressService,
     @Optional()
     private readonly ccpScraper?: CcpScraperService,
+    @Optional()
+    private readonly castScraper?: CastScraperService,
   ) { }
 
   /**
@@ -3174,7 +3179,7 @@ export class RpaScraperService {
 
             if (filesToDownload.length === 0) {
               await log(
-                ' Không tìm thấy file nào khớp với bộ lọc trên SFTP.',
+                `[ACM SFTP] Chưa tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) thuộc phiên ${yyyy_mm_dd} trên SFTP Server (Sàn chưa chốt/upload phiên này). Bỏ qua không tải file T-1.`,
               );
               conn.end();
               return resolve();
@@ -3190,20 +3195,44 @@ export class RpaScraperService {
                 return resolve();
               }
 
+              const stagingDir = path.join(os.tmpdir(), 'mxv_sftp_acm_staging');
+              if (!fs.existsSync(stagingDir)) {
+                fs.mkdirSync(stagingDir, { recursive: true });
+              }
               const item = filesToDownload[downloadedCount];
               const remoteFile = path.posix.join(sftpRemoteDir, item.filename);
+              const stagingFile = path.join(stagingDir, item.filename);
               const localFile = path.join(dailyPath, item.filename);
 
               await log(
-                `Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} -> ${localFile}`,
+                `Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} (đệm tạm nội bộ -> ${dailyPath})`,
               );
 
-              sftp.fastGet(remoteFile, localFile, {}, async (err: any) => {
+              sftp.fastGet(remoteFile, stagingFile, {}, async (err: any) => {
                 if (err) {
                   await log(` Lỗi tải file ${item.filename}: ${err.message}`);
                   conn.end();
                   return reject(err);
                 }
+
+                // Kiểm tra sâu nội dung file ngay tại thư mục đệm tạm máy nội bộ
+                const contentCheck = inspectAcmFileContent(stagingFile, targetDate);
+                if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
+                  await log(
+                    ` [ACM SFTP Guard] File ${item.filename} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T (${contentCheck.reason}). Đã xóa bỏ ngay tại máy nội bộ, CHƯA hề chuyển sang thư mục chia sẻ!`,
+                  );
+                  try {
+                    fs.unlinkSync(stagingFile);
+                  } catch {}
+                } else {
+                  // Chỉ khi file hợp lệ thuộc đúng phiên T mới copy sang thư mục chia sẻ
+                  fs.copyFileSync(stagingFile, localFile);
+                  try {
+                    fs.unlinkSync(stagingFile);
+                  } catch {}
+                  await log(` Đã chuyển file hợp lệ ${item.filename} sang thư mục chia sẻ.`);
+                }
+
                 downloadedCount++;
                 await downloadNext();
               });
@@ -3251,6 +3280,9 @@ export class RpaScraperService {
    * Tự động đăng nhập CQG CAST và tải Accounts_Balances.xlsx
    */
   async downloadCastBalances(destFile: string): Promise<string> {
+    if (this.castScraper) {
+      return this.castScraper.downloadCastBalances(destFile);
+    }
     // 1. Fetch credentials
     const credentialsRaw = await this.settingsService.getSetting(
       'bot_credentials_cast',
@@ -3481,9 +3513,23 @@ export class RpaScraperService {
         (window as any).doLogon();
       });
 
-      // Chờ chuyển hướng sau đăng nhập
-      this.logger.log('Waiting for login redirect to CastMain.asp...');
-      await page.waitForURL('**/CastMain.asp', { timeout: 30000 });
+      // Chờ chuyển hướng sau đăng nhập hoặc phát hiện lỗi đăng nhập
+      this.logger.log('Chờ phản hồi sau khi gửi form đăng nhập CQG CAST...');
+      const waitRedirect = page.waitForURL('**/CastMain.asp', { timeout: 30000 }).then(() => 'SUCCESS' as const);
+      const waitLoginFailed = page
+        .waitForSelector("text='Logon failed. Please try again', text='Logon failed', //td[contains(text(), 'Logon failed')]", { timeout: 8000 })
+        .then(() => 'FAILED' as const)
+        .catch(() => 'CONTINUE' as const);
+
+      const navState = await Promise.race([waitRedirect, waitLoginFailed]);
+      if (navState === 'FAILED') {
+        throw new Error(`Đăng nhập CQG CAST thất bại cho tài khoản "${username}": Hệ thống báo "Logon failed. Please try again" (Sai mật khẩu hoặc tài khoản CAST bị khóa).`);
+      }
+      if (navState !== 'SUCCESS') {
+        await waitRedirect.catch((waitErr) => {
+          throw new Error(`Đăng nhập CQG CAST không thành công sau 30s chờ chuyển hướng: ${waitErr.message}`);
+        });
+      }
       this.logger.log('Đăng nhập CQG CAST thành công!');
 
       // Đợi thêm 5 giây để frameset và menu XML tải hoàn toàn
@@ -4543,6 +4589,7 @@ export class RpaScraperService {
     destDir: string,
     onReadyBarrier?: () => Promise<void>,
     onReadyBarrierCqg2?: () => Promise<void>,
+    onLog?: (msg: string) => Promise<void> | void,
   ): Promise<{ errors: string[]; downloaded: string[] }> {
     const errors: string[] = [];
     const downloaded: string[] = [];
@@ -4551,35 +4598,52 @@ export class RpaScraperService {
       fs.mkdirSync(destDir, { recursive: true });
     }
 
-    // Ingress Facade: Thử ủy quyền kéo file thô CQG sang IngressService V2 (chỉ khi không yêu cầu callback rào cản đồng bộ)
-    if (
-      this.ingressService &&
-      !reports.cleanOnly &&
-      !onReadyBarrier &&
-      !onReadyBarrierCqg2
-    ) {
-      try {
-        const targetCodes: string[] = [];
-        if (reports.FR1 || reports.FR2) targetCodes.push('FR');
-        if (reports.PS1 || reports.PS2) targetCodes.push('PS');
-        if (reports.OP1 || reports.OP2) targetCodes.push('OP');
-        if (reports.OD1 || reports.OD2) targetCodes.push('OD');
+    const hasRawCqgReports = !!(
+      reports.FR1 ||
+      reports.FR2 ||
+      reports.PS1 ||
+      reports.PS2 ||
+      reports.OP1 ||
+      reports.OP2 ||
+      reports.OD1 ||
+      reports.OD2
+    );
 
-        const reportCodes = targetCodes.length > 0 ? targetCodes : undefined;
-        this.logger.log(
-          `[RpaDownloader-Facade] Ủy quyền tải ${reportCodes ? reportCodes.join(', ') : 'toàn bộ'} file thô CQG sang IngressService V2...`,
-        );
-        const res = await this.ingressService.download('CQG', {
-          targetDirectory: destDir,
-          reportCodes,
-        });
-        downloaded.push(...res.files.map((f) => f.fileName));
-        this.logger.log(`[RpaDownloader-Facade] IngressService V2 đã tải xong ${downloaded.length} file CQG.`);
-        return { errors: [], downloaded };
-      } catch (err: any) {
-        this.logger.warn(`[RpaDownloader-Facade] IngressService V2 CQG lỗi (${err.message}), fallback về logic CQG nội bộ...`);
+    if (hasRawCqgReports || reports.cleanOnly) {
+      // Ingress Facade: Thử ủy quyền kéo file thô CQG sang IngressService V2 (chỉ khi không yêu cầu callback rào cản đồng bộ)
+      if (
+        this.ingressService &&
+        !reports.cleanOnly &&
+        !onReadyBarrier &&
+        !onReadyBarrierCqg2
+      ) {
+        try {
+          const targetCodes: string[] = [];
+          if (reports.FR1 || reports.FR2) targetCodes.push('FR');
+          if (reports.PS1 || reports.PS2) targetCodes.push('PS');
+          if (reports.OP1 || reports.OP2) targetCodes.push('OP');
+          if (reports.OD1 || reports.OD2) targetCodes.push('OD');
+
+          const reportCodes = targetCodes.length > 0 ? targetCodes : undefined;
+          this.logger.log(
+            `[RpaDownloader-Facade] Ủy quyền tải ${reportCodes ? reportCodes.join(', ') : 'toàn bộ'} file thô CQG sang IngressService V2...`,
+          );
+          const res = await this.ingressService.download('CQG', {
+            targetDirectory: destDir,
+            reportCodes,
+          });
+          downloaded.push(...res.files.map((f) => f.fileName));
+          this.logger.log(`[RpaDownloader-Facade] IngressService V2 đã tải xong ${downloaded.length} file CQG.`);
+
+          if (reports.AS && !reports.cleanOnly) {
+            await this.downloadAndSaveCastBalanceFiles(destDir, downloaded, errors, onLog);
+          }
+
+          return { errors, downloaded };
+        } catch (err: any) {
+          this.logger.warn(`[RpaDownloader-Facade] IngressService V2 CQG lỗi (${err.message}), fallback về logic CQG nội bộ...`);
+        }
       }
-    }
 
     const credRaw = await this.settingsService.getSetting(
       'bot_credentials_cqg',
@@ -4749,8 +4813,7 @@ export class RpaScraperService {
         reports.FR1 ||
         reports.PS1 ||
         reports.OP1 ||
-        reports.OD1 ||
-        reports.AS;
+        reports.OD1;
       if (!needCqg1) return;
 
       const username1 = creds.username1 || creds.usernameCQG1;
@@ -4872,8 +4935,7 @@ export class RpaScraperService {
         reports.FR2 ||
         reports.PS2 ||
         reports.OP2 ||
-        reports.OD2 ||
-        reports.AS;
+        reports.OD2;
       if (!needCqg2) return;
 
       const username2 = creds.username2 || creds.usernameCQG2;
@@ -4990,8 +5052,68 @@ export class RpaScraperService {
 
     // Kích hoạt chạy song song đồng thời cả 2 tài khoản CQG1 và CQG2
     await Promise.allSettled([runCqg1(), runCqg2()]);
+    } else {
+      this.logger.log('[CQG] Bỏ qua đăng nhập CQG Desktop do không có file thô (FR/PS/OP/OD) nào được yêu cầu.');
+    }
+
+    if (reports.AS && !reports.cleanOnly) {
+      await this.downloadAndSaveCastBalanceFiles(destDir, downloaded, errors, onLog);
+    }
 
     return { errors, downloaded };
+  }
+
+  /**
+   * Tải báo cáo số dư CQG CAST (Accounts_Balances.xlsx) và lưu cả hai tên file:
+   * Accounts_Balances.xlsx (chuẩn Core/Recon) và AS.xlsx (chuẩn Checklist UI / Auditor)
+   */
+  public async downloadAndSaveCastBalanceFiles(
+    destDir: string,
+    downloaded: string[],
+    errors: string[],
+    onLog?: (msg: string) => Promise<void> | void,
+  ): Promise<void> {
+    if (this.castScraper) {
+      await this.castScraper.downloadAndSaveCastBalanceFiles(
+        destDir,
+        downloaded,
+        errors,
+        onLog,
+      );
+      return;
+    }
+
+    try {
+      this.logger.log('[CQG-CAST] Bắt đầu tải file AS (Accounts_Balances.xlsx) qua CQG CAST...');
+      if (onLog) await onLog('Bắt đầu tải file AS (Accounts_Balances.xlsx) qua CQG CAST...');
+
+      const castTempDir = path.join(process.cwd(), 'temp', 'cast-downloads');
+      if (!fs.existsSync(castTempDir)) fs.mkdirSync(castTempDir, { recursive: true });
+
+      const dateStr = new Date(Date.now() + 7 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0]
+        .replace(/-/g, '');
+      const tempAs = path.join(castTempDir, `Accounts_Balances_${dateStr}_${Date.now()}.xlsx`);
+
+      await this.downloadCastBalances(tempAs);
+
+      if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+
+      const targetAccountsBalances = path.join(destDir, 'Accounts_Balances.xlsx');
+      const targetAs = path.join(destDir, 'AS.xlsx');
+
+      fs.copyFileSync(tempAs, targetAccountsBalances);
+      fs.copyFileSync(tempAs, targetAs);
+
+      downloaded.push('Accounts_Balances.xlsx', 'AS.xlsx');
+      this.logger.log(`[CQG-CAST] Đã sao chép file AS thành công sang thư mục backup: ${targetAccountsBalances} & ${targetAs}`);
+      if (onLog) await onLog('Đã tải và lưu thành công file AS: Accounts_Balances.xlsx & AS.xlsx');
+    } catch (castErr: any) {
+      this.logger.error(`[CQG-CAST] Lỗi tải file AS (CQG CAST): ${castErr.message}`);
+      errors.push(`AS (CAST): ${castErr.message}`);
+      if (onLog) await onLog(`Lỗi tải file AS (CQG CAST): ${castErr.message}`);
+    }
   }
 }
 

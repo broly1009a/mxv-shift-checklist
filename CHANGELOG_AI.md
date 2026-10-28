@@ -108,6 +108,259 @@
 
 ---
 
+## [2026-10-28T11:35] INGRESS & RECON ACM: Kiểm Tra Sâu Nội Dung File (Deep Content Validation) & Chặn Triệt Để File T-1
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo bằng văn bản của USER: *"nhưng bạn có xác định được file thuộc phiên T hay T-1 không"*, *"ok vậy giúp tôi tôi update nhé"*.
+- Xây dựng cơ chế kiểm soát 2 tầng (Pre-flight Filter & Deep Content Inspection) áp dụng đồng bộ cho Ingress SFTP, Ingress Scraper, File Audit và Reconciliation:
+  - **Tầng 1 (Pre-flight Tên file)**: Bắt buộc lọc theo ngày phiên T (`ddmmyyyy` và `yyyy_mm_dd`), tuyệt đối không fallback sang file mới nhất trên SFTP nếu file đó thuộc ngày T-1.
+  - **Tầng 2 (Deep Content Inspection)**: Đọc trực tiếp nội dung các cột ngày (`Trade Date`, `Execution Date-time` trong CSV dạng `DD-MM-YY` và `Trading Day`, `Trade Date` trong XLS/Excel dạng `YYYYMMDD`).
+  - Nếu dữ liệu bên trong là của phiên T-1:
+    - Khi tải từ SFTP: Tự động xóa file tạm, không tạo alias `Straits_<ddmmyyyy>.csv`, báo log rõ ràng sàn chưa gửi phiên T và bỏ qua.
+    - Khi Audit: Đánh dấu `OUTDATED` hoặc `MISSING`, hiển thị cảnh báo phát hiện file ngày cũ.
+    - Khi Đối Soát Dsgd-Before-EOD: Loại bỏ hoàn toàn fallback lỏng lẻo nhặt file cũ; xác thực nội dung file trước khi đọc số lot để bảo vệ tính toàn vẹn của dữ liệu đối chiếu 3 bên.
+
+### 2. Danh sách file chỉnh sửa
+- **[acm-session-validator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/acm-session-validator.helper.ts)** (File mới)
+- **[acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts)**
+- **[acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts)**
+- **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**
+- **[file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)**
+- **[dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts)**
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[acm-session-validator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/helpers/acm-session-validator.helper.ts)**:
+   - Xây dựng module trích xuất ngày phiên chuẩn hóa (`extractSessionInfo`, `extractDateFromAcmFilename`).
+   - Xây dựng hàm `inspectAcmFileContent`: đọc 5 dòng đầu tiên của CSV/Excel, bóc tách giá trị cột `Trade Date`, `Execution Date-time`, `Trading Day`. So sánh đối chiếu với ngày phiên T, phát hiện sai lệch và gắn cờ `isPreviousDay: true`.
+2. **[acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts)**:
+   - Tích hợp `inspectAcmFileContent` ngay sau `sftp.fastGet`: Nếu phát hiện file tải về có nội dung T-1, lập tức xóa bỏ file `fs.unlinkSync(localPath)` và ghi log cảnh báo.
+   - Khi quét local files: Kiểm tra nội dung file, chỉ chấp nhận các file có dữ liệu đúng phiên T.
+   - Khi SFTP chưa có file phiên T: Trả về graceful result `files: []` kèm thông báo sàn chưa chốt phiên, không ném exception làm crash tiến trình.
+3. **[acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts)**:
+   - Thêm content validation sau `sftp.fastGet`. Nếu phát hiện file T-1, xóa file và từ chối.
+4. **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Thêm content validation sau `sftp.fastGet` trong `downloadAcmSftpBackup`.
+5. **[file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)**:
+   - Cập nhật `scanAcmBackupFiles`: Kiểm tra nội dung của `SFTP_CSV` và `SFTP_XLS`. Nếu phát hiện file ngày cũ, đánh dấu `OUTDATED` hoặc `MISSING`, ghi rõ lý do và ngày phát hiện.
+6. **[dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts)**:
+   - Xóa bỏ hoàn toàn fallback lỏng lẻo `|| acmFiles.find((f) => matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV))`.
+   - Kiểm tra nội dung file qua `inspectAcmFileContent` trước khi nạp buffer tính toán. Nếu file trong thư mục chứa dữ liệu T-1, từ chối nạp và ghi log cảnh báo.
+
+### 4. Kết quả Build & Kiểm thử
+- **Backend `npm run build`**: Thành công 100% (`nest build` exit code `0`).
+- **Frontend `npm run build`**: Thành công 100% (`next build` compiled successfully, 52/52 routes static optimized).
+
+---
+
+## [2026-10-28T11:20] INGRESS ACM SFTP: Chặn Tuyệt Đối Tải Nhầm File T-1 & Bắt Buộc Khớp Ngày Phiên T
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo bằng văn bản của USER: Giải quyết dứt điểm tình trạng khi phiên hôm nay `T` chưa có file backup trên máy chủ SFTP, bot tự ý tải file của ngày hôm trước `T-1` về thư mục hôm nay.
+- Xây dựng cơ chế Pre-flight Remote Check: Kiểm tra sự tồn tại của file đúng ngày phiên `T` ngay trên máy chủ SFTP trước khi tải. Nếu sàn chưa upload file phiên `T`, bot sẽ bỏ qua không tải và cảnh báo rõ ràng thay vì tự ý lấy file cũ `T-1`.
+
+### 2. Danh sách file chỉnh sửa
+- **[acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts)**
+- **[acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts)**
+- **[ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts)**
+- **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[acm-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/acm-scraper.service.ts)**:
+   - Xóa bỏ hoàn toàn khối lệnh `straitsCandidates.sort(...)` và `targetFileItem = straitsCandidates[0]` vốn tự ý lấy file T-1 gần nhất khi không tìm thấy file ngày hôm nay `ddmmyyyy`.
+   - Nếu SFTP chưa có file chứa `ddmmyyyy` của phiên T, lập tức reject với thông báo rõ ràng: `[ACM SFTP] Chưa tìm thấy file Straits CSV của phiên ${ddmmyyyy} trên SFTP Server (Sàn chưa chốt/upload phiên này). Bỏ qua không tải file T-1.`
+2. **[acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts)**:
+   - Chuẩn hóa bóc tách ngày phiên an toàn cho `targetDateObj` (hỗ trợ `YYYY-MM-DD`, `DD.MM.YYYY`, `DD/MM/YYYY`, ISO String, Date object).
+   - Thắt chặt điều kiện khớp ngày: File CSV bắt buộc phải khớp `_${ddmmyyyy}.csv` hoặc `straits` chứa `ddmmyyyy`. File XLS bắt buộc phải khớp tiền tố `${yyyy_mm_dd}_`.
+   - Chỉ tạo tệp alias `Straits_${ddmmyyyy}.csv` khi tên tệp nguồn thực sự chứa ngày `ddmmyyyy` của phiên `T`, ngăn chặn hoàn toàn việc nhân bản file T-1 thành alias phiên T.
+3. **[ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts)**:
+   - Truyền chính xác tham số `targetDate` vào `sftpOptions` khi gọi qua `acmScraper.downloadStraits`, tránh việc rơi về `new Date()` mặc định.
+4. **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Cập nhật log chi tiết khi không tìm thấy file phiên T trên SFTP, thông báo sàn chưa chốt phiên và bỏ qua không tải file sai ngày.
+
+### 4. Kết quả Build & Kiểm thử
+- **Backend `npm run build`**: Thành công 100% (`nest build` exit code `0`).
+- **Frontend `npm run build`**: Thành công 100% (`next build` compiled successfully, 52/52 routes static optimized).
+
+---
+
+## [2026-10-28T10:25] BOT SCHEDULER & INGRESS: Chuẩn Hóa Cơ Chế Tải File Mới Cho Tiến Trình Backup Định Kỳ
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo bằng văn bản của USER: *"vậy bạn cứ giúp tôi update lại cho đúng việc tải file theo backup định kỳ đã về logic ghi đè và snapshot tính sau"*.
+- Khắc phục triệt để bất cập trong logic backup định kỳ trước đây:
+  - Trước khi sửa: Khi đến chu kỳ phút định kỳ (ví dụ 120 phút), hệ thống chỉ đẩy job `FILE_AUDIT_MS` (nếu đã có 20 file trong thư mục thì bỏ qua và kết thúc ngay), `FILE_AUDIT_CQG` (chỉ ghép file thô nội bộ mà không hề đăng nhập Playwright cào file mới từ CQG Web), và `FILE_AUDIT_ACM` (nếu đã đủ 4 file thì bỏ qua).
+  - Sau khi sửa: Chu kỳ backup định kỳ chuyển sang kích hoạt các job tải thực tế:
+    1. **M-System**: Kích hoạt `RPA_DOWNLOAD_REPORTS` với danh sách targets cấu hình (ưu tiên từ `bot_scheduler_config` hoặc 9 báo cáo trọng tâm) để kéo dữ liệu mới nhất.
+    2. **CQG**: Kích hoạt `DOWNLOAD_CQG_BACKUP` (đăng nhập CQG Web tải 9 file thô + số dư AS và tự động ghép nối thành `FR, PS, OP, Od`).
+    3. **CoreCCP & CoreEX**: Tiếp tục duy trì `DOWNLOAD_CCP_REPORT` và `DOWNLOAD_CE_REPORT` bản FULL.
+    4. **ACM**: Kích hoạt `FILE_AUDIT_ACM` kèm cờ `forceDownload: true` để tải lại các báo cáo Web ETP (`Order`, `Fill`) và SFTP Straits (`Straits CSV`, `Straits XLS`) mới nhất.
+
+### 2. Danh sách file chỉnh sửa
+- **[autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts)**
+- **[file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)**
+- **[ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-download.controller.ts)**
+- **[LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)**
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts)**:
+   - Trong `handleAutonomousPeriodicBackupRun()`:
+     - Nâng cấp Guard chống xung đột `hasActiveJobByType`: Giám sát cả `RPA_DOWNLOAD_REPORTS`, `DOWNLOAD_CQG_BACKUP`, `FILE_AUDIT_MS`, `FILE_AUDIT_CQG`, `DOWNLOAD_CCP_REPORT`, `DOWNLOAD_CE_REPORT`, `FILE_AUDIT_ACM`.
+     - Nâng cấp kiểm tra thời gian hoàn tất gần nhất: Đọc thời điểm hoàn tất của `RPA_DOWNLOAD_REPORTS` hoặc `DOWNLOAD_CQG_BACKUP` hoặc `FILE_AUDIT_MS`.
+     - Enqueue thực tế `RPA_DOWNLOAD_REPORTS` (M-System) và `DOWNLOAD_CQG_BACKUP` (CQG) thay vì các job audit kiểm tra thiếu file.
+     - Enqueue `FILE_AUDIT_ACM` với cờ `forceDownload: true` để buộc tải mới từ Web ETP và SFTP Straits.
+2. **[file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)**:
+   - Trong `handleFileAuditAcmJob`: Hỗ trợ tham số `payload.forceDownload`. Khi cờ này bật, bot không bỏ qua khi đủ file mà chủ động tải lại các báo cáo Web ETP (`ORDER`, `FILL`) và báo cáo SFTP Straits.
+3. **[ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-download.controller.ts)**:
+   - Endpoint `triggerAcmDownload`: Bổ sung tham số `forceDownload` (mặc định `true`), đảm bảo khi người dùng bấm nút "Tải" trên Tab 2, bot sẽ tải mới thay vì chỉ quét ổ đĩa rồi thông báo đủ file.
+4. **[LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)**:
+   - Cập nhật tooltip cho "Backup định kỳ (phút)" để thể hiện đúng: *"Tự động tải báo cáo backup định kỳ M-System, CQG, ACM, CoreCCP & CoreEX độc lập (mặc định 60 phút/lần)"*.
+
+### 4. Kết quả Build & Kiểm thử
+- **Backend `npm run build`**: Thành công 100% (`nest build` exit code `0`).
+- **Frontend `npm run build`**: Thành công 100% (`next build` compiled successfully, 52/52 routes static optimized).
+
+---
+
+## [2026-10-28T09:45] BOT SCHEDULER: Tích Hợp Sao Lưu ACM Vào Luồng Tự Động Định Kỳ & Mốc Giờ Chốt Phiên
+
+### 1. Mục tiêu thay đổi
+- Thực hiện chỉ đạo bằng văn bản của USER: Xác nhận tích hợp cơ chế sao lưu tự động cho ACM (`M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup ACM\Futures\2026\T10.2026\27.10`).
+- Trước khi sửa: Cơ chế "Backup định kỳ" (120 phút) và "Thời điểm backup" (04:05) chỉ tự động chạy cho M-System, CQG, CoreCCP và CoreEX; phân hệ ACM hoàn toàn bị bỏ quên và chỉ chạy khi bấm nút thủ công trên giao diện Web.
+- Sau khi sửa: ACM (`FILE_AUDIT_ACM`) được tự động kích hoạt đồng bộ cùng chu kỳ sao lưu định kỳ và cùng mốc thời điểm backup chốt phiên hàng ngày độc lập.
+
+### 2. Danh sách file chỉnh sửa
+- **[autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts)**
+- **[scheduler-config-seeder.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/helpers/scheduler-config-seeder.helper.ts)**
+- **[LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)**
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts)**:
+   - Trong `handleAutonomousPeriodicBackupRun()`: Bổ sung guard tránh trùng lặp `hasActiveJobByType('FILE_AUDIT_ACM')` và tự động enqueue Job `FILE_AUDIT_ACM` với đường dẫn chuẩn từ `getAcmBackupBase(this.settingsService)` theo từng chu kỳ tần suất (ví dụ 120 phút).
+   - Trong `checkSchedule()`: Bổ sung logic tự động đồng bộ giờ kích hoạt `backupTime` cho task `RPA_DOWNLOAD_ACM` (`FILE_AUDIT_ACM`), đảm bảo khi đến mốc giờ chốt phiên (ví dụ 04:05), hệ thống tự động kích hoạt phiên audit và tải bổ sung 4 file ACM (`Fill.xlsx`, `Order.xlsx`, `Straits CSV`, `Straits XLS 10017890000`).
+2. **[scheduler-config-seeder.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/helpers/scheduler-config-seeder.helper.ts)**:
+   - Bổ sung cấu hình `RPA_DOWNLOAD_ACM` (`jobType: 'FILE_AUDIT_ACM'`) vào danh sách tác vụ khởi tạo mặc định `defaults` và logic tự động append/migrate cho cấu hình `bot_scheduler_config` hiện có trong CSDL MongoDB `system_settings`.
+3. **[LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)**:
+   - Cập nhật tooltip trên giao diện: phản ánh đúng việc tự động tải sao lưu chốt ngày bao gồm đầy đủ 5 phân hệ: M-System, CQG, ACM, CoreCCP & CoreEX.
+
+### 4. Kết quả Build & Kiểm thử
+- **Backend `npm run build`**: Thành công 100% (`nest build` exit code `0`).
+- **Frontend `npm run build`**: Thành công 100% (`next build` compiled successfully, 52/52 routes static optimized).
+
+---
+
+## [2026-10-27T17:35] INGRESS ARCHITECTURE: Chuẩn Hóa Modular Monolith V2 - Tách Rời CastScraperService Độc Lập
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: *"giúp tôi tách để chuẩn v2"*.
+- Xóa bỏ việc gom logic cào dữ liệu CQG CAST (Web ASP cổ điển) trong service nguyên khối `rpa-scraper.service.ts` (hơn 5,000 dòng).
+- Xây dựng service chuyên biệt [cast-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cast-scraper.service.ts) theo đúng chuẩn phân hệ Ingress Modular Monolith V2, nằm ngang hàng với `cqg-scraper.service.ts`, `ms-scraper.service.ts`, `acm-scraper.service.ts`, `ccp-scraper.service.ts`.
+- Đưa `CAST` thành một Ingress Source Type hạng nhất (`IngressSourceType: 'CAST'`) trong Facade Service [ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts).
+
+### 2. Danh sách file chỉnh sửa / tạo mới
+- **[cast-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/cast-scraper.service.ts)** (Tạo mới)
+- **[ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.module.ts)**
+- **[ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts)**
+- **[ingress/index.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/index.ts)**
+- **[cast-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/cast-download.handler.ts)**
+- **[ingress-config.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-config.controller.ts)**
+- **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**
+- **[ingress-result.contract.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/contracts/ingress-result.contract.ts)**
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **Tạo `CastScraperService`**:
+   - Tách toàn bộ logic Playwright của CQG CAST: Script giả lập `IE_MOCK_SCRIPT`, bộ lọc ASP/XML/XSL route cleaning, cơ chế Fail-Fast bắt lỗi đăng nhập `Promise.race`, điều hướng Reporting Tool frameset, chọn template `Accounts: Balances`, điền bộ lọc (FCM, Currency, Record Description) và trigger download.
+   - Cung cấp các phương thức chuẩn V2:
+     - `getCastCredentials()`: Lấy cấu hình `bot_credentials_cast` từ MongoDB hoặc `.env`.
+     - `downloadCastBalances(destFile, customCreds, onLog)`: Thực thi phiên cào dữ liệu độc lập.
+     - `downloadAndSaveCastBalanceFiles(destDir, downloaded, errors, onLog)`: Tự động lưu 2 file `Accounts_Balances.xlsx` & `AS.xlsx`.
+     - `testConnection()`: Kiểm tra đăng nhập thử nghiệm không lưu file rác.
+2. **Refactoring Handlers & Controllers sang dùng trực tiếp `CastScraperService`**:
+   - [cast-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/cast-download.handler.ts): Inject trực tiếp `CastScraperService`, không còn phụ thuộc `RpaScraperService`.
+   - [ingress-config.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-config.controller.ts): Endpoint `/api/v1/ingress/test-connection-cast` gọi trực tiếp qua `CastScraperService`.
+   - [ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.service.ts): Bổ sung `case 'CAST':` trong Facade `download()` cho phép gọi tải thống nhất từ `ingressService.download('CAST', options)`.
+   - [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts): Giữ tính tương thích ngược bằng cách ủy quyền (delegate) sang `CastScraperService`.
+
+### 4. Kết quả Build & Triển khai
+- **Local Build**:
+  - Backend `npm run build`: Thành công (Exit code `0`).
+  - Frontend `npm run build`: Thành công (Exit code `0`, 52/52 routes static compiled).
+- **Deploy Máy Chủ Ubuntu (10.0.0.26)**:
+  - Đồng bộ 8 tệp mã nguồn sang `/opt/mxv-checklist/backend/`.
+  - Compile NestJS trên server và restart PM2 `mxv-backend` (PID `1706125`, status `online`, RAM 272 MB).
+
+---
+
+## [2026-10-27T17:00] INGRESS: Khắc Phục Lỗi Tải Toàn Bộ File Thô Khi Chỉ Chọn Tải AS & Bắt Lỗi Nhanh CAST Đăng Nhập Thất Bại
+
+### 1. Mục tiêu thay đổi
+- Tiếp nhận phản hồi từ USER: *"tại sao vẫn tải tất vậy rõ ràng tôi chỉ muốn tải AS mà bug ở đâu"*.
+- Khắc phục lỗi logic định tuyến: khi người dùng chỉ tích chọn tải `AS` (hoặc tập con file), hệ thống bị fallback ngầm kéo toàn bộ 8 file thô từ 2 tài khoản CQG Desktop (`FR1, FR2, PS1, PS2, OP1, OP2, OD1, OD2`) và tự động kích hoạt ghép file không cần thiết.
+- Khắc phục lỗi timeout 30s khi đăng nhập CQG CAST thất bại (tài khoản `mxvanhdao` bị "Logon failed. Please try again").
+
+### 2. Nguyên nhân cốt lõi (Root Cause)
+1. **Lỗi tải toàn bộ file thô**:
+   - Trong `rpa-scraper.service.ts`: Biến `targetCodes` gom các mã `FR, PS, OP, OD`. Khi người dùng chỉ chọn `AS`, mảng `targetCodes` rỗng (`[]`).
+   - Biểu thức `const reportCodes = targetCodes.length > 0 ? targetCodes : undefined;` đã gán `reportCodes = undefined`.
+   - Khi truyền `reportCodes: undefined` sang `ingressService.download('CQG', ...)`, hệ thống hiểu ngầm là "tải toàn bộ tất cả báo cáo", dẫn tới việc khởi chạy 2 Chromium và tải hết 8 file thô.
+   - Thêm vào đó, trong hàm `runCqg1` và `runCqg2`, cờ `reports.AS` bị nhầm lẫn nằm trong danh sách điều kiện kích hoạt `needCqg1` / `needCqg2`.
+   - Trong `file-audit.handler.ts`, quy trình `autoMergeMissingFiles` chạy vô điều kiện sau tải kể cả khi không có file thô nào được yêu cầu.
+2. **Lỗi CAST Timeout 30s**:
+   - Web CQG CAST trả về thông báo lỗi `"Logon failed. Please try again"` ngay trên form đăng nhập do sai mật khẩu hoặc tài khoản bị khóa.
+   - Bot chỉ dùng `page.waitForURL('**/CastMain.asp', { timeout: 30000 })` nên bị treo hết 30 giây rồi mới báo lỗi timeout.
+
+### 3. Giải pháp khắc phục
+1. **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Thêm điều kiện `hasRawCqgReports`: Chỉ khi có ít nhất 1 file thô (`FR1..OD2`) hoặc `cleanOnly` được yêu cầu mới gọi `ingressService.download('CQG', ...)` hoặc đăng nhập CQG Desktop.
+   - Nếu `hasRawCqgReports === false`: Bỏ qua hoàn toàn việc mở trình duyệt CQG Desktop, chỉ chạy tải `AS` qua CAST.
+   - Loại bỏ `reports.AS` khỏi `needCqg1` và `needCqg2`.
+   - Trong `downloadCastBalances`: Lắng nghe song song bằng `Promise.race` giữa chuyển hướng `CastMain.asp` và thông báo `"Logon failed. Please try again"`. Báo lỗi rõ ràng ngay sau 3-5 giây nếu thông tin đăng nhập không hợp lệ.
+2. **[file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)**:
+   - Chỉ chạy `autoMergeMissingFiles` khi `hasRawReports === true` (có yêu cầu tải file thô).
+
+### 4. Kết quả Build & Triển khai
+- **Local Build**:
+  - Backend `npm run build` thành công (mã thoát `0`).
+  - Frontend `npm run build` thành công (mã thoát `0`).
+- **Deploy Máy Chủ Ubuntu (10.0.0.26)**:
+  - SFTP đồng bộ 2 tệp nguồn sang `/opt/mxv-checklist/`.
+  - Recompile backend trên Ubuntu và restart PM2 `mxv-backend` (PID `1697942`, status `online`).
+
+---
+
+## [2026-10-27T15:15] INGRESS & TRADING-OPS: Tích Hợp Tự Động Tải Báo Cáo Số Dư AS (CQG CAST Balances) Song Hành Cùng CQG Backup
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu từ USER: *"à file AS là phải tải bằng @cast-download.handler.ts tức là phải tải trên một phân hệ khác trước đây checklist đã tải rất tốt giờ tôi cũng cần bạn phải tải cùng CQG"*.
+- Tích hợp tính năng tải file `AS` (`Accounts_Balances.xlsx` từ hệ thống **CQG CAST** qua `RpaScraperService.downloadCastBalances`) vào tác vụ tải sao lưu CQG (`DOWNLOAD_CQG_BACKUP`), đảm bảo khi người dùng hoặc hệ thống kích hoạt tải CQG (với 9 checkbox: `FR1, FR2, PS1, PS2, OP1, OP2, OD1, OD2, AS`), file `AS` sẽ tự động được tải và lưu đồng thời cả hai tên: `Accounts_Balances.xlsx` (chuẩn SOD / CQG Sync) và `AS.xlsx` (chuẩn Audit / Checklist UI).
+
+### 2. Danh sách file chỉnh sửa
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)
+- [cast-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/cast-download.handler.ts)
+- [cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts)
+
+### 3. Tóm tắt nội dung code đã sửa
+1. **[rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)**:
+   - Bổ sung phương thức `downloadAndSaveCastBalanceFiles(destDir, downloaded, errors, onLog)`.
+   - Kết nối vào luồng `downloadCqgBackup`: Sau khi 2 trình duyệt CQG Desktop hoàn tất tải `FR, PS, OP, OD` và đóng phiên (giải phóng RAM về mức ~1.1 GB), bot kiểm tra nếu `reports.AS === true` thì khởi chạy tải `Accounts_Balances.xlsx` qua CQG CAST.
+   - Tự động sao chép thành 2 file song song: `Accounts_Balances.xlsx` và `AS.xlsx` trong thư mục đích `destDir`.
+   - Bổ sung tham số callback `onLog` để đẩy log trạng thái thời gian thực.
+2. **[file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/file-audit.handler.ts)**:
+   - Mở lại cờ `AS: true` trong `defaultReports` của `handleDownloadCqgBackupJob`.
+   - Truyền `logRealtime` callback vào `downloadCqgBackup` để lưu log theo từng bước tải CAST vào CSDL MongoDB.
+3. **[cast-download.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/handlers/cast-download.handler.ts)**:
+   - Khi chạy Job độc lập `DOWNLOAD_CAST`, sao chép đồng bộ cả hai tệp `Accounts_Balances.xlsx` và `AS.xlsx` vào thư mục backup ngày.
+4. **[cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts)**:
+   - Trong `scanCqgBackupFiles`, khi quét kiểm tra khóa `'AS'`, hệ thống tự động nhận diện nếu tồn tại một trong hai tệp `AS.xlsx` hoặc `Accounts_Balances.xlsx` (có `size > 0`) thì đều xác nhận trạng thái là `OK`.
+
+### 4. Kết quả Build & Triển khai
+- **Local Build**:
+  - Backend: `npm run build` $\rightarrow$ Mã thoát `0`, thành công 100%.
+  - Frontend: `npm run build` $\rightarrow$ Mã thoát `0`, thành công 100%.
+- **Remote Deploy Ubuntu (10.0.0.26)**:
+  - SFTP đồng bộ 4 tệp code sang `/opt/mxv-checklist/`.
+  - Compile `nest build` trên Ubuntu thành công.
+  - Restart tiến trình PM2 `mxv-backend` (PID: `1671190`, status: `online`).
 ## [2026-10-28T09:46] REFACTOR(DOMAIN-CONFIGS): Chuẩn Hóa Cấu Hình Báo Cáo CoreEX (coreex-reports.config.ts) Đồng Bộ 100% Theo Chuẩn CoreCCP
 
 ### 1. Mục tiêu thay đổi

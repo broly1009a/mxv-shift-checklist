@@ -15,6 +15,7 @@ import { MSystemTabScraperService } from './scrapers/ms-tab-scraper.service';
 import { CqgScraperService } from './scrapers/cqg-scraper.service';
 import { AcmScraperService } from './scrapers/acm-scraper.service';
 import { CcpScraperService } from './scrapers/ccp-scraper.service';
+import { CastScraperService } from './scrapers/cast-scraper.service';
 import { CoreExApiAdapter } from './adapters/coreex-api.adapter';
 import { CoreCcpApiAdapter } from './adapters/coreccp-api.adapter';
 import { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
@@ -31,6 +32,7 @@ export class IngressService implements IIngressPort {
     private readonly cqgScraper: CqgScraperService,
     private readonly acmScraper: AcmScraperService,
     private readonly ccpScraper: CcpScraperService,
+    private readonly castScraper: CastScraperService,
     private readonly coreExApiAdapter: CoreExApiAdapter,
     private readonly coreCcpApiAdapter: CoreCcpApiAdapter,
     private readonly acmSftpAdapter: AcmSftpAdapter,
@@ -197,6 +199,7 @@ export class IngressService implements IIngressPort {
           password: process.env.ACM_SFTP_PASS || '',
           remoteDir: '/data/',
           localDir: outputDirectory,
+          targetDate: options?.targetDate ? new Date(options.targetDate) : new Date(),
         };
 
         if (this.settingsService) {
@@ -251,6 +254,34 @@ export class IngressService implements IIngressPort {
             mtime: new Date(),
             category: 'CCP',
           });
+        }
+        break;
+      }
+
+      case 'CAST': {
+        const errors: string[] = [];
+        const downloadedNames: string[] = [];
+        await this.castScraper.downloadAndSaveCastBalanceFiles(
+          outputDirectory,
+          downloadedNames,
+          errors,
+          options?.onLog,
+        );
+        for (const name of downloadedNames) {
+          const filePath = path.join(outputDirectory, name);
+          if (fs.existsSync(filePath)) {
+            const stat = fs.statSync(filePath);
+            files.push({
+              fileName: name,
+              absolutePath: filePath,
+              fileSize: stat.size,
+              mtime: stat.mtime,
+              category: 'CAST',
+            });
+          }
+        }
+        if (errors.length > 0 && files.length === 0) {
+          throw new Error(`[IngressService] Tải báo cáo số dư CQG CAST thất bại: ${errors.join('; ')}`);
         }
         break;
       }

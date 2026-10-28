@@ -289,6 +289,7 @@ export class IngressDownloadController {
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
     @Body('reports') reports?: string[],
+    @Body('forceDownload') forceDownload?: boolean,
   ) {
     const backupPath = await getAcmBackupBase(this.settingsService);
     const effectiveDate = targetDateStr || sessionDateStr || dateStr || new Date().toISOString();
@@ -297,6 +298,7 @@ export class IngressDownloadController {
       backupPath,
       targetDate: effectiveDate,
       reports: reports && reports.length > 0 ? reports : undefined,
+      forceDownload: forceDownload !== undefined ? forceDownload : true,
       maxAttempts: 1,
     });
 

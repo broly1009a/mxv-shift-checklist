@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IBotJobHandler, IJobExecutionContext } from '../../checklist-hub/queue/job-handler.interface';
 import { BotJobHandlerRegistry } from '../../checklist-hub/queue/job-handler.registry';
-import { RpaScraperService } from '../scrapers/rpa-scraper.service';
+import { CastScraperService } from '../scrapers/cast-scraper.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { parseJobPayload, getCqgBackupBase } from '../../../shared/helpers/file-path.helper';
 
@@ -14,7 +14,7 @@ export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
-    private readonly rpaDownloaderService: RpaScraperService,
+    private readonly castScraperService: CastScraperService,
     private readonly settingsService: SystemSettingsService,
   ) { }
 
@@ -45,7 +45,7 @@ export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     await job.save();
 
     try {
-      await this.rpaDownloaderService.downloadCastBalances(destFile);
+      await this.castScraperService.downloadCastBalances(destFile);
       job.logs.push(
         `[${new Date().toISOString()}] Đã tải thành công file CAST về: ${destFile}`,
       );
@@ -88,8 +88,14 @@ export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
         );
         fs.copyFileSync(destFile, targetBackupFile);
 
+        const targetAsFile = path.join(
+          customBackupPath,
+          'AS.xlsx',
+        );
+        fs.copyFileSync(destFile, targetAsFile);
+
         job.logs.push(
-          `[${new Date().toISOString()}]  Đã copy và đổi tên thành công: ${targetBackupFile}`,
+          `[${new Date().toISOString()}]  Đã copy và đổi tên thành công: ${targetBackupFile} & ${targetAsFile}`,
         );
         await job.save();
       }
