@@ -747,32 +747,11 @@ export class KlgdReconService {
     const ttttPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTTT.xlsx');
     const ttmPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTM.xlsx');
 
-    // Lọc file Straits CSV theo ngày phiên giao dịch
-    const findSessionStraitsPath = (dirs: string[]): string | null => {
-      for (const d of dirs) {
-        if (!fs.existsSync(d)) continue;
-        const acmFiles = fs.readdirSync(d);
-        const expectedName = `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${day}${month}${year}.csv`;
-        const directPath = path.join(d, expectedName);
-        if (fs.existsSync(directPath)) return directPath;
-
-        const dateSpecific = acmFiles.find(
-          (f) => /straits.*\.csv$/i.test(f) && f.includes(`${day}${month}${year}`),
-        );
-        if (dateSpecific) return path.join(d, dateSpecific);
-
-        if (acmFiles.includes(`Straits_${day}${month}${year}.csv`)) {
-          return path.join(d, `Straits_${day}${month}${year}.csv`);
-        }
-
-        if (acmFiles.includes('Straits.csv')) {
-          return path.join(d, 'Straits.csv');
-        }
-      }
-      return null;
-    };
-
-    const acmTradesPath = findSessionStraitsPath([acmTradingDailyPath, acmDailyPath]);
+    const acmTradesPath =
+      findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
+      findLatestFile(acmDailyPath, /Nano|Fill/i) ||
+      findLatestFile(acmTradingDailyPath, /Straits/i) ||
+      findLatestFile(acmDailyPath, /Straits/i);
 
     const cqgFrPath =
       resolveCqgFile(cqgTradingDailyPath, 'FR', this.logger) ||
@@ -818,7 +797,7 @@ export class KlgdReconService {
     const missingFiles: string[] = [];
     if (checkKlgdFlag) {
       if (!fs.existsSync(dsgdPath)) missingFiles.push(`DSGD.xlsx`);
-      if (!acmTradesPath) missingFiles.push(`ACM Trades (Straits CSV)`);
+      if (!acmTradesPath) missingFiles.push(`ACM Trades (Fill.xlsx)`);
       if (!cqgFrPath) missingFiles.push(`CQG FR`);
     }
     if (checkTtmFlag) {
