@@ -156,6 +156,10 @@ conn.on('ready', () => {
       -C /opt mxv-checklist
     echo "=== SAO LUU THANH CONG ==="
     ls -lh "$BACKUP_FILE"
+    # Giữ lại tối đa 2 bản backup mới nhất để chống tràn ổ đĩa
+    echo "Dang don dep cac ban backup cu hon (chi giu lai 2 ban moi nhat)..."
+    cd /home/mxvadmin/code_backups && ls -t mxv-checklist_backup_*.tar.gz | tail -n +3 | xargs -r rm -f
+    df -h /
   `;
 
   conn.exec(backupCmd, (bkErr, bkStream) => {
