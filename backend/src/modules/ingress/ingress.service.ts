@@ -199,6 +199,7 @@ export class IngressService implements IIngressPort {
           password: process.env.ACM_SFTP_PASS || '',
           remoteDir: '/data/',
           localDir: outputDirectory,
+          targetDate: options?.targetDate ? new Date(options.targetDate) : new Date(),
         };
 
         if (this.settingsService) {

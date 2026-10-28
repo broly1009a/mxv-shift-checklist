@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { chromium, Browser, Page, Download } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as https from 'https';
 import { URL } from 'url';
 import * as ExcelJS from 'exceljs';
@@ -20,6 +21,7 @@ import {
   MS_SPECIFIC_EXPORT_BUTTON_SELECTORS,
 } from '../helpers/msystem-tab-navigator.helper';
 import { IE_MOCK_SCRIPT } from '../helpers/ie-mock.script';
+import { inspectAcmFileContent } from '../../../shared/helpers/acm-session-validator.helper';
 
 @Injectable()
 export class RpaScraperService {
@@ -3177,7 +3179,7 @@ export class RpaScraperService {
 
             if (filesToDownload.length === 0) {
               await log(
-                ' Không tìm thấy file nào khớp với bộ lọc trên SFTP.',
+                `[ACM SFTP] Chưa tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) thuộc phiên ${yyyy_mm_dd} trên SFTP Server (Sàn chưa chốt/upload phiên này). Bỏ qua không tải file T-1.`,
               );
               conn.end();
               return resolve();
@@ -3193,20 +3195,44 @@ export class RpaScraperService {
                 return resolve();
               }
 
+              const stagingDir = path.join(os.tmpdir(), 'mxv_sftp_acm_staging');
+              if (!fs.existsSync(stagingDir)) {
+                fs.mkdirSync(stagingDir, { recursive: true });
+              }
               const item = filesToDownload[downloadedCount];
               const remoteFile = path.posix.join(sftpRemoteDir, item.filename);
+              const stagingFile = path.join(stagingDir, item.filename);
               const localFile = path.join(dailyPath, item.filename);
 
               await log(
-                `Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} -> ${localFile}`,
+                `Đang tải [${downloadedCount + 1}/${filesToDownload.length}]: ${item.filename} (đệm tạm nội bộ -> ${dailyPath})`,
               );
 
-              sftp.fastGet(remoteFile, localFile, {}, async (err: any) => {
+              sftp.fastGet(remoteFile, stagingFile, {}, async (err: any) => {
                 if (err) {
                   await log(` Lỗi tải file ${item.filename}: ${err.message}`);
                   conn.end();
                   return reject(err);
                 }
+
+                // Kiểm tra sâu nội dung file ngay tại thư mục đệm tạm máy nội bộ
+                const contentCheck = inspectAcmFileContent(stagingFile, targetDate);
+                if (contentCheck.isDateDetermined && !contentCheck.isValidSession) {
+                  await log(
+                    ` [ACM SFTP Guard] File ${item.filename} chứa dữ liệu phiên ${contentCheck.detectedDateStr}, không phải phiên T (${contentCheck.reason}). Đã xóa bỏ ngay tại máy nội bộ, CHƯA hề chuyển sang thư mục chia sẻ!`,
+                  );
+                  try {
+                    fs.unlinkSync(stagingFile);
+                  } catch {}
+                } else {
+                  // Chỉ khi file hợp lệ thuộc đúng phiên T mới copy sang thư mục chia sẻ
+                  fs.copyFileSync(stagingFile, localFile);
+                  try {
+                    fs.unlinkSync(stagingFile);
+                  } catch {}
+                  await log(` Đã chuyển file hợp lệ ${item.filename} sang thư mục chia sẻ.`);
+                }
+
                 downloadedCount++;
                 await downloadNext();
               });

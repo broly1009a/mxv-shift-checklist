@@ -167,9 +167,13 @@ export class AutonomousSchedulerService implements OnModuleInit {
     );
     const intervalMinutes = Math.max(5, parseInt(freqSetting, 10) || 60);
 
-    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của FILE_AUDIT_MS, FILE_AUDIT_CQG, CoreCCP, CoreEX hoặc FILE_AUDIT_ACM thì bỏ qua
-    const hasActiveMs = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_MS');
-    const hasActiveCqg = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_CQG');
+    // 5. Tránh xung đột: Nếu đang có Job PENDING hoặc PROCESSING của MS, CQG, CoreCCP, CoreEX hoặc ACM thì bỏ qua
+    const hasActiveMs =
+      (await this.jobQueueService.hasActiveJobByType('RPA_DOWNLOAD_REPORTS')) ||
+      (await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_MS'));
+    const hasActiveCqg =
+      (await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CQG_BACKUP')) ||
+      (await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_CQG'));
     const hasActiveCcp = await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CCP_REPORT');
     const hasActiveCe = await this.jobQueueService.hasActiveJobByType('DOWNLOAD_CE_REPORT');
     const hasActiveAcm = await this.jobQueueService.hasActiveJobByType('FILE_AUDIT_ACM');
@@ -177,10 +181,13 @@ export class AutonomousSchedulerService implements OnModuleInit {
       return;
     }
 
-    // 6. Kiểm tra thời điểm hoàn tất gần nhất của FILE_AUDIT_MS
-    const lastMsJob = await this.jobQueueService.getLatestCompletedJobByType('FILE_AUDIT_MS');
-    if (lastMsJob && lastMsJob.completedAt) {
-      const elapsedMinutes = (Date.now() - new Date(lastMsJob.completedAt).getTime()) / 60000;
+    // 6. Kiểm tra thời điểm hoàn tất gần nhất của tiến trình backup MS/CQG
+    const lastBackupJob =
+      (await this.jobQueueService.getLatestCompletedJobByType('RPA_DOWNLOAD_REPORTS')) ||
+      (await this.jobQueueService.getLatestCompletedJobByType('DOWNLOAD_CQG_BACKUP')) ||
+      (await this.jobQueueService.getLatestCompletedJobByType('FILE_AUDIT_MS'));
+    if (lastBackupJob && lastBackupJob.completedAt) {
+      const elapsedMinutes = (Date.now() - new Date(lastBackupJob.completedAt).getTime()) / 60000;
       if (elapsedMinutes < intervalMinutes) {
         return; // Chưa tới chu kỳ tiếp theo
       }
@@ -193,17 +200,36 @@ export class AutonomousSchedulerService implements OnModuleInit {
     const sessionDayStr = resolvedSession.dateStr;
 
     this.logger.log(
-      `[Autonomous-Backup] Kích hoạt chạy audit file backup định kỳ độc lập Trading Manager (chu kỳ ${intervalMinutes}m, session: ${sessionDayStr}).`,
+      `[Autonomous-Backup] Kích hoạt tải file backup định kỳ độc lập Trading Manager (chu kỳ ${intervalMinutes}m, session: ${sessionDayStr}).`,
     );
 
-    const backupPath = await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      '',
-    );
+    // Xác định danh sách target báo cáo M-System từ cấu hình hệ thống (bot_scheduler_config) hoặc danh mục chuẩn
+    let msTargets = [
+      'NKTTHT',
+      'DSTKGD-Futures',
+      'DSTKGD-Spread',
+      'DSTKGD-LME',
+      'DSTKGD-ACM',
+      'QLTKGD',
+      'NR',
+      'DSGD',
+      'TTTT',
+    ];
+    try {
+      const configRaw = await this.settingsService.getSetting('bot_scheduler_config', '[]');
+      const tasks: SchedulerTaskConfig[] = JSON.parse(configRaw);
+      const msTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_MS' || t.jobType === 'RPA_DOWNLOAD_REPORTS');
+      if (msTask?.payload?.targets && Array.isArray(msTask.payload.targets) && msTask.payload.targets.length > 0) {
+        msTargets = msTask.payload.targets;
+      }
+    } catch {
+      // Giữ default core targets
+    }
 
     try {
-      await this.jobQueueService.enqueue('FILE_AUDIT_MS', {
-        backupPath,
+      // 1. M-System: Tải báo cáo trực tiếp từ sàn qua RPA_DOWNLOAD_REPORTS
+      await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
+        targets: msTargets,
         targetDate: sessionDayStr,
         sessionDay: sessionDayStr,
         maxAttempts: 1,
@@ -212,16 +238,28 @@ export class AutonomousSchedulerService implements OnModuleInit {
         taskId: null,
       });
 
-      await this.jobQueueService.enqueue('FILE_AUDIT_CQG', {
+      // 2. CQG: Tải báo cáo thô từ web và tự động ghép nối qua DOWNLOAD_CQG_BACKUP
+      await this.jobQueueService.enqueue('DOWNLOAD_CQG_BACKUP', {
         targetDate: sessionDayStr,
         sessionDay: sessionDayStr,
+        reports: {
+          FR1: true,
+          PS1: true,
+          OP1: true,
+          OD1: true,
+          FR2: true,
+          PS2: true,
+          OP2: true,
+          OD2: true,
+          AS: true,
+        },
         maxAttempts: 1,
         isStandalone: true,
         shiftLogId: null,
         taskId: null,
       });
 
-      // Tự động tải Full CoreCCP & CoreEX định kỳ độc lập tương tự MS & CQG
+      // 3. CoreCCP: Tự động tải Full CoreCCP
       await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
         startDate: sessionDayStr,
         endDate: sessionDayStr,
@@ -234,6 +272,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
         taskId: null,
       });
 
+      // 4. CoreEX: Tự động tải Full CoreEX
       await this.jobQueueService.enqueue('DOWNLOAD_CE_REPORT', {
         startDate: sessionDayStr,
         endDate: sessionDayStr,
@@ -246,12 +285,13 @@ export class AutonomousSchedulerService implements OnModuleInit {
         taskId: null,
       });
 
-      // Tự động kiểm tra và tải báo cáo ACM định kỳ độc lập
+      // 5. ACM: Tự động tải báo cáo ACM (Web ETP & SFTP Straits) với cờ forceDownload: true
       const acmBackupBase = await getAcmBackupBase(this.settingsService);
       await this.jobQueueService.enqueue('FILE_AUDIT_ACM', {
         backupPath: acmBackupBase,
         targetDate: sessionDayStr,
         sessionDay: sessionDayStr,
+        forceDownload: true,
         maxAttempts: 1,
         isStandalone: true,
         shiftLogId: null,
@@ -259,7 +299,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
       });
     } catch (err: any) {
       this.logger.error(
-        `[Autonomous-Backup] Lỗi enqueue Job FILE_AUDIT độc lập: ${err.message}`,
+        `[Autonomous-Backup] Lỗi enqueue Job tải backup định kỳ: ${err.message}`,
       );
     }
   }
