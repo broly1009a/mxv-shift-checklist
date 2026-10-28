@@ -27,6 +27,7 @@ import {
   REQUIRED_CCP_FILES,
   REQUIRED_CE_FILES,
 } from '../../../shared/constants/required-files.constant';
+import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
 import {
   getMsBackupBase,
   getCqgBackupBase,
@@ -66,20 +67,11 @@ export class IngressDownloadController {
     @Body('sessionDay') sessionDay?: string,
     @Body('sessionDate') sessionDate?: string,
   ) {
-    const defaultTargets = [
-      'NKTTHT',
-      'DSTKGD-Futures',
-      'DSTKGD-Spread',
-      'DSTKGD-LME',
-      'DSTKGD-ACM',
-      'QLTKGD',
-      'TTTT',
-      'NR',
-      'Markettruoc6h',
-    ];
-
-    const actualTargets =
-      targets && targets.length > 0 ? targets : defaultTargets;
+    const actualTargets = await getEffectiveReportTargets(
+      this.settingsService,
+      'MS',
+      targets,
+    );
 
     const sessionStartStr = await this.settingsService.getSetting(
       'session_start_time',
@@ -204,10 +196,16 @@ export class IngressDownloadController {
     const targetStart = resolvedStart.dateStr;
     const targetEnd = resolvedEnd.dateStr;
 
+    const effectiveReports = await getEffectiveReportTargets(
+      this.settingsService,
+      'CCP',
+      reports,
+    );
+
     const job = await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
       startDate: targetStart,
       endDate: targetEnd,
-      reports: reports && reports.length > 0 ? reports : ['QLTTTKGD', 'EOD', 'NR', 'TTTT'],
+      reports: effectiveReports,
       outputDir,
       sessionDay: targetStart,
       isTradingCheck: isTradingCheck ?? (purpose === 'CHECK'),
@@ -260,10 +258,16 @@ export class IngressDownloadController {
     const targetStart = startDate || sessionDate || dateStr || today;
     const targetEnd = endDate || sessionDate || dateStr || targetStart;
 
+    const effectiveReports = await getEffectiveReportTargets(
+      this.settingsService,
+      'CE',
+      reports,
+    );
+
     const job = await this.jobQueueService.enqueue('DOWNLOAD_CE_REPORT', {
       startDate: targetStart,
       endDate: targetEnd,
-      reports: reports && reports.length > 0 ? reports : undefined,
+      reports: effectiveReports,
       outputDir,
       sessionDay: targetStart,
     });

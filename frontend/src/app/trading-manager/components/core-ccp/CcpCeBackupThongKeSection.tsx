@@ -19,12 +19,14 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
 import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import CeCcpGttCheckerSection from '../ce-acm/CeCcpGttCheckerSection';
 import CeLotStatisticsSection from '../ce-acm/CeLotStatisticsSection';
+import BackupFileConfigModal, { BackupReportItem } from '../modals/BackupFileConfigModal';
 
 export interface CcpCeBackupThongKeSectionProps {
   token: string | null;
@@ -43,12 +45,12 @@ export const CORE_CCP_REPORTS_LIST = [
   { key: 'DSLDH', name: 'DSLDH CCP (Lệnh đã hủy)', filename: 'DSLDH CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
   { key: 'DSGD', name: 'DSGD CCP (Khớp lệnh)', filename: 'DSGD CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
 
-  // 2. Sổ lệnh MM (5 file)
-  { key: 'DSL_MM', name: 'DSL MM CCP (Sổ lệnh MM)', filename: 'DSL MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSLDK_MM', name: 'DSLDK MM CCP (Đã khớp MM)', filename: 'DSLDK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSLCK_MM', name: 'DSLCK MM CCP (Chờ khớp MM)', filename: 'DSLCK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSLDH_MM', name: 'DSLDH MM CCP (Đã hủy MM)', filename: 'DSLDH MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSGD_MM', name: 'DSGD MM CCP (Khớp lệnh MM)', filename: 'DSGD MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  // 2. Sổ lệnh MM (5 file) - Thường rỗng 0 dòng
+  { key: 'DSL_MM', name: 'DSL MM CCP (Sổ lệnh MM)', filename: 'DSL MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSLDK_MM', name: 'DSLDK MM CCP (Đã khớp MM)', filename: 'DSLDK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSLCK_MM', name: 'DSLCK MM CCP (Chờ khớp MM)', filename: 'DSLCK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSLDH_MM', name: 'DSLDH MM CCP (Đã hủy MM)', filename: 'DSLDH MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSGD_MM', name: 'DSGD MM CCP (Khớp lệnh MM)', filename: 'DSGD MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
 
   // 3. Vị thế & Lãi lỗ (3 file)
   { key: 'TTM_PRE1620', name: 'TTM trước 4h20', filename: 'TTM truoc 4h20.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 1 },
@@ -78,8 +80,9 @@ export const CORE_EX_REPORTS_LIST = [
   // 0. Tài khoản giao dịch liên thông ACM (1 file)
   { key: 'DSTKGD_ACM', name: 'Danh sách tài khoản giao dịch ACM', filename: 'DSTKGD ACM.xlsx', description: 'Danh sách tài khoản giao dịch liên thông ACM đồng bộ từ CCP' },
 
-  // 1. Sổ lệnh & Giao dịch CE (5 file)
+  // 1. Sổ lệnh & Giao dịch CE (6 file)
   { key: 'DSGD', name: 'Danh sách giao dịch CE', filename: 'DSGD ACM CE.xlsx', description: 'Khớp lệnh liên thông chi tiết CE' },
+  { key: 'LSGD', name: 'Lịch sử khớp lệnh liên thông', filename: 'LSGD ACM CE.xlsx', description: 'Lịch sử khớp lệnh liên thông ACM (Lịch sử T-1)' },
   { key: 'DSL', name: 'Sổ lệnh tổng hợp CE', filename: 'DSL ACM CE.xlsx', description: 'Lịch sử toàn bộ sổ lệnh liên thông CE' },
   { key: 'DSLCK', name: 'Lệnh chờ khớp CE', filename: 'DSLCK ACM CE.xlsx', description: 'Danh sách lệnh đang chờ khớp' },
   { key: 'DSLDK', name: 'Lệnh điều kiện CE', filename: 'DSLDK ACM CE.xlsx', description: 'Danh sách lệnh điều kiện / đã khớp' },
@@ -88,21 +91,21 @@ export const CORE_EX_REPORTS_LIST = [
   // 2. Giá, Hàng hóa & Phiên giao dịch (4 file)
   { key: 'GTT', name: 'Giá thanh toán ACM (CE)', filename: 'GTT ACM.xlsx', description: 'Bảng giá thanh toán settlement ACM' },
   { key: 'HH', name: 'Hàng hóa & Bước giá CE', filename: 'HH ACM.xlsx', description: 'Danh mục hàng hóa và thông số hợp đồng' },
-  { key: 'SESSION_INFO', name: 'Thông tin phiên trong ngày', filename: 'SESSION_INFO.xlsx', description: 'Trạng thái phiên giao dịch từng mặt hàng' },
-  { key: 'SESSION_CONFIG', name: 'Danh sách cấu hình phiên', filename: 'SESSION_CONFIG.xlsx', description: 'Danh sách cấu hình các phiên giao dịch' },
+  { key: 'SESSION_INFO', name: 'Thông tin phiên trong ngày', filename: 'SESSION_INFO.xlsx', description: 'Trạng thái phiên giao dịch từng mặt hàng', isUnused: true },
+  { key: 'SESSION_CONFIG', name: 'Danh sách cấu hình phiên', filename: 'SESSION_CONFIG.xlsx', description: 'Danh sách cấu hình các phiên giao dịch', isUnused: true },
 
   // 3. Vị thế mở, Đối chiếu & Hợp đồng chi tiết (Động)
   { key: 'TTM', name: 'Trạng thái mở CE', filename: 'TTM CE.xlsx', description: 'Vị thế mở liên thông sàn CoreEX' },
-  { key: 'ACM_RECON', name: 'Đối chiếu lệnh liên thông', filename: 'Doi chieu lenh ACM.xlsx', description: 'Đối chiếu lệnh liên thông sở ACM' },
+  { key: 'ACM_RECON', name: 'Đối chiếu lệnh liên thông', filename: 'Doi chieu lenh ACM.xlsx', description: 'Đối chiếu lệnh liên thông sở ACM', isUnused: true },
   { key: 'HD', name: 'Hợp đồng chi tiết CE (Động theo sàn)', filename: 'HĐ *.xlsx', description: 'Hợp đồng chi tiết quét theo danh mục hàng hóa' },
 ];
 
 // Báo cáo ACM (Straits Financial)
 export const ACM_REPORTS_LIST = [
-  { key: 'FILL', name: 'Khớp lệnh ACM (Fill)', filename: 'Fill.xlsx', source: 'WEB' },
-  { key: 'ORDER', name: 'Sổ lệnh ACM (Order)', filename: 'Order.xlsx', source: 'WEB' },
-  { key: 'SFTP_CSV', name: 'Straits EOD CSV (SFTP)', filename: 'EOD FO trades_PT Straits...csv', source: 'SFTP' },
-  { key: 'SFTP_XLS', name: 'Báo cáo TK 10017890000', filename: '<YYYY-MM-DD>_10017890000.xls', source: 'SFTP' },
+  { key: 'FILL', name: 'Khớp lệnh ACM (Fill)', filename: 'Fill.xlsx', source: 'WEB', description: 'Khớp lệnh tự doanh từ Web ACM' },
+  { key: 'ORDER', name: 'Sổ lệnh ACM (Order)', filename: 'Order.xlsx', source: 'WEB', description: 'Sổ lệnh tự doanh từ Web ACM' },
+  { key: 'SFTP_CSV', name: 'Straits EOD CSV (SFTP)', filename: 'EOD FO trades_PT Straits...csv', source: 'SFTP', description: 'File đối chiếu chuẩn Straits SFTP' },
+  { key: 'SFTP_XLS', name: 'Báo cáo TK 10017890000', filename: '<YYYY-MM-DD>_10017890000.xls', source: 'SFTP', description: 'File sao kê tài khoản Straits', isUnused: true },
 ];
 
 export default function CcpCeBackupThongKeSection({
@@ -147,6 +150,13 @@ export default function CcpCeBackupThongKeSection({
   const [downloadingAcm, setDownloadingAcm] = useState<boolean>(false);
   const [auditingAcm, setAuditingAcm] = useState<boolean>(false);
   const [auditAcmResult, setAuditAcmResult] = useState<any>(null);
+
+  // Config Modal State
+  const [configModal, setConfigModal] = useState<{
+    isOpen: boolean;
+    system: 'CCP' | 'CE' | 'ACM';
+    systemName: string;
+  } | null>(null);
 
   // IMR State (Giao diện chờ)
   const [imrLoading, setImrLoading] = useState<boolean>(false);
@@ -196,6 +206,35 @@ export default function CcpCeBackupThongKeSection({
             const sc = JSON.parse(getVal('bot_scheduler_config', '[]'));
             const stat = Array.isArray(sc) && sc.find((t: any) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO');
             if (stat?.time && /^\d{2}:\d{2}$/.test(stat.time)) setStatTime(stat.time);
+          } catch {}
+        }
+
+        // Nạp cấu hình danh mục file đã lưu từ MongoDB system_settings
+        const savedCcp = getVal('bot_backup_selected_reports_ccp', '');
+        if (savedCcp) {
+          try {
+            const parsed: string[] = JSON.parse(savedCcp);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setCcpReports(Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
+          } catch {}
+        }
+        const savedCe = getVal('bot_backup_selected_reports_ce', '');
+        if (savedCe) {
+          try {
+            const parsed: string[] = JSON.parse(savedCe);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setCeReports(Object.fromEntries(CORE_EX_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
+          } catch {}
+        }
+        const savedAcm = getVal('bot_backup_selected_reports_acm', '');
+        if (savedAcm) {
+          try {
+            const parsed: string[] = JSON.parse(savedAcm);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setAcmReports(Object.fromEntries(ACM_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
           } catch {}
         }
       } catch {}
@@ -636,8 +675,28 @@ export default function CcpCeBackupThongKeSection({
           <div style={{ border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#10b981' }}>Backup CoreCCP</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'CCP', systemName: 'VNCLEAR CoreCCP' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      cursor: 'pointer',
+                      color: '#10b981',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho CoreCCP"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
@@ -714,8 +773,28 @@ export default function CcpCeBackupThongKeSection({
           <div style={{ border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(59, 130, 246, 0.2)', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#3b82f6' }}>Backup CoreEX (CE)</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'CE', systemName: 'CoreEX (CE / ACM)' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(59, 130, 246, 0.35)',
+                      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                      cursor: 'pointer',
+                      color: '#3b82f6',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho CoreEX"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
@@ -729,7 +808,7 @@ export default function CcpCeBackupThongKeSection({
                     <span>All</span>
                   </label>
                 </div>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>12 báo cáo + HĐ hàng hóa (Động)</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>13 báo cáo + HĐ hàng hóa (Động)</span>
               </div>
 
               {/* Grid Checkboxes */}
@@ -795,8 +874,28 @@ export default function CcpCeBackupThongKeSection({
           <div style={{ border: '1px solid rgba(14, 165, 233, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(14, 165, 233, 0.02)' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(14, 165, 233, 0.2)', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0284c7' }}>Backup ACM</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'ACM', systemName: 'ACM Straits Financial' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(14, 165, 233, 0.35)',
+                      backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                      cursor: 'pointer',
+                      color: '#0ea5e9',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho ACM Straits"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
@@ -1019,6 +1118,33 @@ export default function CcpCeBackupThongKeSection({
         </>
       )}
         </>
+      )}
+
+      {/* Modal Cấu hình tệp sao lưu mặc định */}
+      {configModal && (
+        <BackupFileConfigModal
+          isOpen={configModal.isOpen}
+          onClose={() => setConfigModal(null)}
+          system={configModal.system}
+          systemName={configModal.systemName}
+          token={token}
+          allReports={
+            configModal.system === 'CCP'
+              ? (CORE_CCP_REPORTS_LIST as any)
+              : configModal.system === 'CE'
+              ? (CORE_EX_REPORTS_LIST as any)
+              : (ACM_REPORTS_LIST as any)
+          }
+          onSaved={(savedKeys) => {
+            if (configModal.system === 'CCP') {
+              setCcpReports(Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            } else if (configModal.system === 'CE') {
+              setCeReports(Object.fromEntries(CORE_EX_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            } else if (configModal.system === 'ACM') {
+              setAcmReports(Object.fromEntries(ACM_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            }
+          }}
+        />
       )}
     </div>
   );

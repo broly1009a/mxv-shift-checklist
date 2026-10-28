@@ -88,16 +88,14 @@ const defaultCeHhCandidates = [
 
 const defaultCcpGttCandidates = [
   getArg('--ccp-gtt'),
-  path.join(__dirname, '..', '..', 'temp', 'test_ccp_25_downloads', 'GTT CCP.xlsx'),
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_downloads', 'GTT CCP.xlsx'),
-  path.join(__dirname, '..', '..', 'temp', 'test_ccp_25_downloads', 'LSGTT.xlsx'),
+  path.join(__dirname, '..', '..', 'temp', 'test_ccp_downloads', 'LSGTT.xlsx'),
   'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\GTT CCP.xlsx',
   '\\GTT CCP.xlsx',
 ];
 
 const defaultCcpHhCandidates = [
   getArg('--ccp-hh'),
-  path.join(__dirname, '..', '..', 'temp', 'test_ccp_25_downloads', 'HH.xlsx'),
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_downloads', 'HH.xlsx'),
   'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\HH.xlsx',
   '\\HH.xlsx',
@@ -105,7 +103,6 @@ const defaultCcpHhCandidates = [
 
 const defaultCcpTtmCandidates = [
   getArg('--ttm'),
-  path.join(__dirname, '..', '..', 'temp', 'test_ccp_25_downloads', 'TTM CCP.xlsx'),
   path.join(__dirname, '..', '..', 'temp', 'test_ccp_downloads', 'TTM CCP.xlsx'),
   'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\TTM CCP.xlsx',
 ];

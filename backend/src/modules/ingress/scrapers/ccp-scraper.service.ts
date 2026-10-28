@@ -19,7 +19,7 @@ export interface ICcpReportDef {
   isCommodity?: boolean;
 }
 
-export const CCP_25_REPORTS: ICcpReportDef[] = [
+export const CORE_CCP_SCRAPER_REPORTS: ICcpReportDef[] = [
   { key: 'DSL_CCP', fileName: 'DSL CCP.xlsx', urlPath: '/ORDERS/ORDER_DETAIL' },
   { key: 'DSLDK_CCP', fileName: 'DSLDK CCP.xlsx', urlPath: '/ORDERS/ORDERMATCH_DETAIL' },
   { key: 'DSLCK_CCP', fileName: 'DSLCK CCP.xlsx', urlPath: '/ORDERS/ORDERPENDING_DETAIL' },
@@ -182,7 +182,7 @@ export class CcpScraperService {
     options?: { phase?: 'pre1620' | 'eod' | 'all' },
   ): Promise<Array<{ key: string; fileName: string; path: string; size: number }>> {
     const selectedPhase = options?.phase || 'all';
-    const reportsToDownload = CCP_25_REPORTS.filter((rep) => {
+    const reportsToDownload = CORE_CCP_SCRAPER_REPORTS.filter((rep) => {
       if (selectedPhase === 'all') return true;
       return !rep.phase || rep.phase === selectedPhase;
     });

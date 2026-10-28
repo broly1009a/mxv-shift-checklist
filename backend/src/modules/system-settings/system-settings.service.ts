@@ -68,6 +68,11 @@ export class SystemSettingsService implements OnModuleInit {
         'm365_refresh_token',
         'm365_token_renewed_at',
         'm365_token_error_sent_at',
+        'bot_backup_selected_reports_ms',
+        'bot_backup_selected_reports_cqg',
+        'bot_backup_selected_reports_ccp',
+        'bot_backup_selected_reports_ce',
+        'bot_backup_selected_reports_acm',
       ];
       if (ignoredKeys.includes(key)) {
         return;

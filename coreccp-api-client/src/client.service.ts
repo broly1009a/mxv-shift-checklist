@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   CcpExportMechanism,
-  CORECCP_25_MAKER_REPORTS,
+  CORECCP_MAKER_REPORTS,
   ICcpBatchDownloadProgress,
   ICcpDownloadResult,
   ICcpReportDef,
@@ -138,7 +138,7 @@ export class CoreCcpClient {
    * Tải trọn gói toàn bộ 25 Báo cáo Maker với Concurrency Control
    */
   async downloadAll25MakerReports(options: IDownloadOptions = {}): Promise<ICcpBatchDownloadProgress> {
-    const reports = CORECCP_25_MAKER_REPORTS;
+    const reports = CORECCP_MAKER_REPORTS;
     const concurrency = options.concurrency || 3;
 
     const progress: ICcpBatchDownloadProgress = {
@@ -167,7 +167,7 @@ export class CoreCcpClient {
   }
 
   findReportDef(keyOrFileName: string): ICcpReportDef | undefined {
-    return CORECCP_25_MAKER_REPORTS.find(
+    return CORECCP_MAKER_REPORTS.find(
       r =>
         r.key.toLowerCase() === keyOrFileName.toLowerCase() ||
         r.fileName.toLowerCase() === keyOrFileName.toLowerCase() ||

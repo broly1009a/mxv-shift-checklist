@@ -223,7 +223,7 @@ async function testCoreCcpIngress() {
   const outDir = path.join(BASE_TEST_DIR, 'coreccp');
   fs.mkdirSync(outDir, { recursive: true });
 
-  const CCP_25_REPORTS = [
+  const CORE_CCP_REPORTS = [
     // Lệnh thường
     { key: 'DSL_CCP', file: 'DSL CCP.xlsx', searchCode: 'ORDERBOOK' },
     { key: 'DSLDK_CCP', file: 'DSLDK CCP.xlsx', searchCode: 'ORDERBOOK_FILLED' },
@@ -257,14 +257,14 @@ async function testCoreCcpIngress() {
     { key: 'HD_SI5CO', file: 'HĐ SI5CO.xlsx', searchCode: 'CONTRACT_SI5CO' },
   ];
 
-  log(`- Tổng số báo cáo cần tải: ${CCP_25_REPORTS.length}`);
+  log(`- Tổng số báo cáo cần tải: ${CORE_CCP_REPORTS.length}`);
   log(`- Thư mục lưu          : ${outDir}\n`);
 
   const tStart = Date.now();
   let ccpOkCount = 0;
 
-  for (let i = 0; i < CCP_25_REPORTS.length; i++) {
-    const rep = CCP_25_REPORTS[i];
+  for (let i = 0; i < CORE_CCP_REPORTS.length; i++) {
+    const rep = CORE_CCP_REPORTS[i];
     const savePath = path.join(outDir, rep.file);
     const t0 = Date.now();
 

@@ -208,9 +208,8 @@ export class CeCcpGttCheckerService {
       path.join(ccpDailyPath, 'LSGTT.xlsx'),
       path.join(resolvedCcpBase, 'GTT CCP.xlsx'),
       path.join(resolvedCcpBase, 'LSGTT.xlsx'),
-      path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'GTT CCP.xlsx'),
-      path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'LSGTT.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'GTT CCP.xlsx'),
+      path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'LSGTT.xlsx'),
       path.join(this.workDir, 'GTT CCP.xlsx'),
     ];
 
@@ -228,7 +227,6 @@ export class CeCcpGttCheckerService {
       options.ccpHhPath,
       path.join(ccpDailyPath, 'HH.xlsx'),
       path.join(resolvedCcpBase, 'HH.xlsx'),
-      path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'HH.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'HH.xlsx'),
       path.join(this.workDir, 'HH.xlsx'),
     ];
@@ -239,7 +237,6 @@ export class CeCcpGttCheckerService {
       path.join(ccpDailyPath, 'TTM CCP.xlsx'),
       path.join(ccpDailyPath, 'TTM.xlsx'),
       path.join(resolvedCcpBase, 'TTM CCP.xlsx'),
-      path.join(process.cwd(), 'temp', 'test_ccp_25_downloads', 'TTM CCP.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'TTM CCP.xlsx'),
       'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\TTM CCP.xlsx',
       path.join(this.workDir, 'TTM CCP.xlsx'),

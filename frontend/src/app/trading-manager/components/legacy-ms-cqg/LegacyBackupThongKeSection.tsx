@@ -19,6 +19,7 @@ import {
   Database,
   Lock,
   Folder,
+  Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -27,6 +28,60 @@ import { getInitialTradingSessionDate } from '../../utils/tradingDateUtils';
 import LegacyCqgSyncSection from './LegacyCqgSyncSection';
 import BackupLogSummaryModal from './BackupLogSummaryModal';
 import CeAcmBackupSection from '../ce-acm/CeAcmBackupSection';
+import BackupFileConfigModal from '../modals/BackupFileConfigModal';
+
+// 20 Báo cáo M-System
+export const MS_REPORTS_LIST: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  group?: string;
+  groupLabel?: string;
+  description?: string;
+  isUnused?: boolean;
+}> = [
+  { key: 'NKTTHT', name: 'Nhật ký thao tác hệ thống', filename: 'NKTTHT.xlsx', group: 'SYSTEM', groupLabel: 'Nhật ký' },
+  { key: 'DSTKGD-Futures', name: 'Danh sách TKGD Futures', filename: 'DSTKGD-Futures.xlsx', group: 'ACCOUNTS', groupLabel: 'Tài khoản' },
+  { key: 'DSTKGD-Spread', name: 'Danh sách TKGD Spread', filename: 'DSTKGD-Spread.xlsx', group: 'ACCOUNTS', groupLabel: 'Tài khoản' },
+  { key: 'DSTKGD-LME', name: 'Danh sách TKGD LME', filename: 'DSTKGD-LME.xlsx', group: 'ACCOUNTS', groupLabel: 'Tài khoản' },
+  { key: 'DSTKGD-ACM', name: 'Danh sách TKGD ACM', filename: 'DSTKGD-ACM.xlsx', group: 'ACCOUNTS', groupLabel: 'Tài khoản' },
+  { key: 'TLQHSKQ', name: 'Tỷ lệ quỹ & Hạn mức KQ', filename: 'TLQHSKQ.xlsx', group: 'MARGIN', groupLabel: 'Ký quỹ', isUnused: true, description: 'File thường rỗng 0 dòng trong ca' },
+  { key: 'NR', name: 'Nộp rút tiền', filename: 'NR.xlsx', group: 'CASH', groupLabel: 'Tiền & Ký quỹ' },
+  { key: 'DSTrader', name: 'Danh sách Trader', filename: 'DSTrader.xlsx', group: 'ACCOUNTS', groupLabel: 'Tài khoản' },
+  { key: 'market truoc 6h', name: 'Thị trường trước 6h', filename: 'market truoc 6h.xlsx', group: 'MARKET', groupLabel: 'Thị trường' },
+  { key: 'DSLDK', name: 'Lệnh điều kiện', filename: 'DSLDK.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh' },
+  { key: 'DSLCK', name: 'Lệnh chờ khớp', filename: 'DSLCK.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh' },
+  { key: 'DSLH', name: 'Lệnh hủy', filename: 'DSLH.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh' },
+  { key: 'DSLK', name: 'Lệnh khớp', filename: 'DSLK.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh' },
+  { key: 'DSGD', name: 'Danh sách giao dịch', filename: 'DSGD.xlsx', group: 'ORDERS', groupLabel: 'Giao dịch' },
+  { key: 'TTM', name: 'Trạng thái mở', filename: 'TTM.xlsx', group: 'POSITION', groupLabel: 'Vị thế' },
+  { key: 'TTTT', name: 'Tất toán trạng thái', filename: 'TTTT.xlsx', group: 'POSITION', groupLabel: 'Vị thế' },
+  { key: 'TTCDH', name: 'Trạng thái chuyển đáo hạn', filename: 'TTCDH.xlsx', group: 'POSITION', groupLabel: 'Vị thế', isUnused: true, description: 'File thường rỗng 0 dòng trong ca' },
+  { key: 'DSQLKQ', name: 'Danh sách quản lý ký quỹ', filename: 'DSQLKQ.xlsx', group: 'MARGIN', groupLabel: 'Ký quỹ' },
+  { key: 'QLTKGD', name: 'Quản lý tài khoản giao dịch', filename: 'QLTKGD.xlsx', group: 'MARGIN', groupLabel: 'Ký quỹ' },
+  { key: 'QLTKGD âm KQ', name: 'QLTKGD âm ký quỹ', filename: 'QLTKGD am KQ.xlsx', group: 'MARGIN', groupLabel: 'Ký quỹ', isUnused: true, description: 'File thường rỗng 0 dòng trong ca' },
+];
+
+// 9 Báo cáo CQG Data
+export const CQG_REPORTS_LIST: Array<{
+  key: string;
+  name: string;
+  filename: string;
+  group?: string;
+  groupLabel?: string;
+  description?: string;
+  isUnused?: boolean;
+}> = [
+  { key: 'FR1', name: 'Giao dịch khớp lệnh TK 1', filename: 'FR1.xlsx', group: 'TRADES', groupLabel: 'Khớp lệnh' },
+  { key: 'FR2', name: 'Giao dịch khớp lệnh TK 2', filename: 'FR2.xlsx', group: 'TRADES', groupLabel: 'Khớp lệnh' },
+  { key: 'PS1', name: 'Vị thế ròng & Tất toán TK 1', filename: 'PS1.xlsx', group: 'POSITION', groupLabel: 'Vị thế' },
+  { key: 'PS2', name: 'Vị thế ròng & Tất toán TK 2', filename: 'PS2.xlsx', group: 'POSITION', groupLabel: 'Vị thế' },
+  { key: 'OP1', name: 'Trạng thái mở TK 1', filename: 'OP1.xlsx', group: 'POSITION', groupLabel: 'Vị thế' },
+  { key: 'OP2', name: 'Trạng thái mở TK 2', filename: 'OP2.xlsx', group: 'POSITION', groupLabel: 'Vị thế' },
+  { key: 'OD1', name: 'Sổ lệnh TK 1', filename: 'OD1.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh' },
+  { key: 'OD2', name: 'Sổ lệnh TK 2', filename: 'OD2.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh' },
+  { key: 'AS', name: 'Account Summary (Sao kê TK)', filename: 'AS.xlsx', group: 'SUMMARY', groupLabel: 'Tổng hợp', isUnused: true, description: 'File sao kê tài khoản phụ' },
+];
 
 // Danh sách 25 báo cáo VNCLEAR / CoreCCP theo chuẩn Ground Truth Maker
 export const CORE_CCP_REPORTS_LIST: Array<{
@@ -36,6 +91,7 @@ export const CORE_CCP_REPORTS_LIST: Array<{
   group: 'ORDERS' | 'MM' | 'POSITION' | 'RISK' | 'CASH' | 'PRODUCT';
   groupLabel: string;
   phase: 1 | 2; // 1: Trước 16h20, 2: EOD cuối ngày
+  isUnused?: boolean;
 }> = [
   // 1. Sổ lệnh thường (5 file)
   { key: 'DSL', name: 'DSL CCP', filename: 'DSL CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
@@ -44,12 +100,12 @@ export const CORE_CCP_REPORTS_LIST: Array<{
   { key: 'DSLDH', name: 'DSLDH CCP', filename: 'DSLDH CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
   { key: 'DSGD', name: 'DSGD CCP', filename: 'DSGD CCP.xlsx', group: 'ORDERS', groupLabel: 'Sổ lệnh thường', phase: 2 },
 
-  // 2. Sổ lệnh MM (5 file)
-  { key: 'DSL_MM', name: 'DSL MM CCP', filename: 'DSL MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSLDK_MM', name: 'DSLDK MM CCP', filename: 'DSLDK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSLCK_MM', name: 'DSLCK MM CCP', filename: 'DSLCK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSLDH_MM', name: 'DSLDH MM CCP', filename: 'DSLDH MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
-  { key: 'DSGD_MM', name: 'DSGD MM CCP', filename: 'DSGD MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2 },
+  // 2. Sổ lệnh MM (5 file) - Thường rỗng 0 dòng
+  { key: 'DSL_MM', name: 'DSL MM CCP', filename: 'DSL MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSLDK_MM', name: 'DSLDK MM CCP', filename: 'DSLDK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSLCK_MM', name: 'DSLCK MM CCP', filename: 'DSLCK MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSLDH_MM', name: 'DSLDH MM CCP', filename: 'DSLDH MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
+  { key: 'DSGD_MM', name: 'DSGD MM CCP', filename: 'DSGD MM CCP.xlsx', group: 'MM', groupLabel: 'Sổ lệnh MM', phase: 2, isUnused: true },
 
   // 3. Vị thế & Lãi lỗ (3 file)
   { key: 'TTM_PRE1620', name: 'TTM trước 4h20', filename: 'TTM truoc 4h20.xlsx', group: 'POSITION', groupLabel: 'Vị thế & Lãi lỗ', phase: 1 },
@@ -80,6 +136,7 @@ export const ACM_REPORTS_LIST: Array<{
   filename: string;
   source: 'WEB' | 'SFTP';
   description: string;
+  isUnused?: boolean;
 }> = [
   {
     key: 'FILL',
@@ -108,6 +165,7 @@ export const ACM_REPORTS_LIST: Array<{
     filename: '<YYYY-MM-DD>_10017890000.xls',
     source: 'SFTP',
     description: 'File sao kê tài khoản Straits 10017890000 định dạng bảng tính XLS',
+    isUnused: true,
   },
 ];
 
@@ -228,6 +286,40 @@ export default function LegacyBackupThongKeSection({
             if (stat?.time && /^\d{2}:\d{2}$/.test(stat.time)) setStatTime(stat.time);
           } catch {}
         }
+
+        // Nạp cấu hình danh mục file đã lưu từ MongoDB system_settings
+        if (map.bot_backup_selected_reports_ms) {
+          try {
+            const parsed = JSON.parse(map.bot_backup_selected_reports_ms);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setMsReports(Object.fromEntries(MS_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
+          } catch {}
+        }
+        if (map.bot_backup_selected_reports_cqg) {
+          try {
+            const parsed = JSON.parse(map.bot_backup_selected_reports_cqg);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setCqgReports(Object.fromEntries(CQG_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
+          } catch {}
+        }
+        if (map.bot_backup_selected_reports_ccp) {
+          try {
+            const parsed = JSON.parse(map.bot_backup_selected_reports_ccp);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setCcpReports(Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
+          } catch {}
+        }
+        if (map.bot_backup_selected_reports_acm) {
+          try {
+            const parsed = JSON.parse(map.bot_backup_selected_reports_acm);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setAcmReports(Object.fromEntries(ACM_REPORTS_LIST.map((r) => [r.key, parsed.includes(r.key)])));
+            }
+          } catch {}
+        }
       })
       .catch(() => {});
 
@@ -300,44 +392,22 @@ export default function LegacyBackupThongKeSection({
     }
   };
 
+  // Config Modal State
+  const [configModal, setConfigModal] = useState<{
+    isOpen: boolean;
+    system: 'MS' | 'CQG' | 'CCP' | 'ACM';
+    systemName: string;
+  } | null>(null);
+
   // MS Reports (20 checkboxes)
-  const [msReports, setMsReports] = useState<Record<string, boolean>>({
-    NKTTHT: true,
-    'DSTKGD-Futures': true,
-    'DSTKGD-Spread': true,
-    'DSTKGD-LME': true,
-    'DSTKGD-ACM': true,
-    TLQHSKQ: true,
-    NR: true,
-    DSTrader: true,
-    'market truoc 6h': true,
-    DSLDK: true,
-    DSLCK: true,
-    DSLH: true,
-    DSLK: true,
-    DSGD: true,
-    TTM: true,
-    TTTT: true,
-    TTCDH: true,
-    DSQLKQ: true,
-    QLTKGD: true,
-    'QLTKGD âm KQ': true,
-  });
+  const [msReports, setMsReports] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(MS_REPORTS_LIST.map((r) => [r.key, true]))
+  );
 
   // CQG Reports (9 checkboxes)
-  const [cqgReports, setCqgReports] = useState<Record<string, boolean>>({
-    FR1: true,
-    FR2: true,
-    PS1: true,
-    PS2: true,
-    OP1: true,
-    OP2: true,
-    OD1: true,
-    OD2: true,
-    AS: true,
-  });
-
-
+  const [cqgReports, setCqgReports] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(CQG_REPORTS_LIST.map((r) => [r.key, true]))
+  );
 
   // CoreCCP Reports (25 checkboxes)
   const [ccpReports, setCcpReports] = useState<Record<string, boolean>>(() =>
@@ -356,12 +426,9 @@ export default function LegacyBackupThongKeSection({
   const [auditAcmResult, setAuditAcmResult] = useState<any>(null);
 
   // ACM Reports (4 checkboxes)
-  const [acmReports, setAcmReports] = useState<Record<string, boolean>>({
-    FILL: true,
-    ORDER: true,
-    SFTP_CSV: true,
-    SFTP_XLS: true,
-  });
+  const [acmReports, setAcmReports] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(ACM_REPORTS_LIST.map((r) => [r.key, true]))
+  );
   const [downloadingAcm, setDownloadingAcm] = useState<boolean>(false);
 
   // IMR State
@@ -1200,15 +1267,35 @@ export default function LegacyBackupThongKeSection({
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>Backup MS</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'MS', systemName: 'M-System (MS)' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-input)',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho M-System"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
                       checked={Object.values(msReports).every(Boolean)}
                       onChange={(e) => {
                         const checked = e.target.checked;
-                        setMsReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                        setMsReports(Object.fromEntries(MS_REPORTS_LIST.map((r) => [r.key, checked])));
                       }}
                       style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
                     />
@@ -1315,15 +1402,35 @@ export default function LegacyBackupThongKeSection({
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>Backup CQG</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'CQG', systemName: 'CQG Data' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-input)',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho CQG"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
                       checked={Object.values(cqgReports).every(Boolean)}
                       onChange={(e) => {
                         const checked = e.target.checked;
-                        setCqgReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                        setCqgReports(Object.fromEntries(CQG_REPORTS_LIST.map((r) => [r.key, checked])));
                       }}
                       style={{ accentColor: '#10b981', width: '14px', height: '14px' }}
                     />
@@ -1399,15 +1506,35 @@ export default function LegacyBackupThongKeSection({
           <div style={{ border: '1px solid rgba(14, 165, 233, 0.35)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backgroundColor: 'rgba(14, 165, 233, 0.02)' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(14, 165, 233, 0.2)', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0284c7' }}>Backup ACM</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'ACM', systemName: 'ACM Straits Financial' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(14, 165, 233, 0.35)',
+                      backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                      cursor: 'pointer',
+                      color: '#0ea5e9',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho ACM Straits"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
                       checked={Object.values(acmReports).every(Boolean)}
                       onChange={(e) => {
                         const checked = e.target.checked;
-                        setAcmReports((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, checked])));
+                        setAcmReports(Object.fromEntries(ACM_REPORTS_LIST.map((r) => [r.key, checked])));
                       }}
                       style={{ accentColor: '#0ea5e9', width: '14px', height: '14px' }}
                     />
@@ -1560,6 +1687,26 @@ export default function LegacyBackupThongKeSection({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#10b981' }}>Backup CoreCCP</span>
+                  <button
+                    type="button"
+                    onClick={() => setConfigModal({ isOpen: true, system: 'CCP', systemName: 'VNCLEAR CoreCCP' })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      cursor: 'pointer',
+                      color: '#10b981',
+                      padding: 0,
+                    }}
+                    title="Cấu hình danh mục tệp sao lưu mặc định cho CoreCCP"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                     <input
                       type="checkbox"
@@ -1858,6 +2005,37 @@ export default function LegacyBackupThongKeSection({
         token={token}
         selectedDate={selectedDate}
       />
+
+      {/* Modal Cấu hình tệp sao lưu mặc định */}
+      {configModal && (
+        <BackupFileConfigModal
+          isOpen={configModal.isOpen}
+          onClose={() => setConfigModal(null)}
+          system={configModal.system}
+          systemName={configModal.systemName}
+          token={token}
+          allReports={
+            configModal.system === 'MS'
+              ? (MS_REPORTS_LIST as any)
+              : configModal.system === 'CQG'
+              ? (CQG_REPORTS_LIST as any)
+              : configModal.system === 'CCP'
+              ? (CORE_CCP_REPORTS_LIST as any)
+              : (ACM_REPORTS_LIST as any)
+          }
+          onSaved={(savedKeys) => {
+            if (configModal.system === 'MS') {
+              setMsReports(Object.fromEntries(MS_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            } else if (configModal.system === 'CQG') {
+              setCqgReports(Object.fromEntries(CQG_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            } else if (configModal.system === 'CCP') {
+              setCcpReports(Object.fromEntries(CORE_CCP_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            } else if (configModal.system === 'ACM') {
+              setAcmReports(Object.fromEntries(ACM_REPORTS_LIST.map((r) => [r.key, savedKeys.includes(r.key)])));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

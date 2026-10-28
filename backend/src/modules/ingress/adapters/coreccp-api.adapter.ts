@@ -19,6 +19,7 @@ import {
 } from '../../../shared';
 
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
 
 export interface ICcpSession {
   accessToken: string;
@@ -837,11 +838,25 @@ export class CoreCcpApiAdapter implements IIngressPort {
     const targetDate = options?.targetDate || new Date().toISOString().split('T')[0];
     const isFullRequested =
       options?.isFullBackup ||
-      options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'CCP_25'].includes(c.toUpperCase()));
+      options?.reportCodes?.some((c) => ['FULL', 'ALL', 'BACKUP', 'CCP_FULL'].includes(c.toUpperCase()));
 
     let targets: string[] = [];
     if (isFullRequested) {
-      targets = [...CANONICAL_CORECCP_API_KEYS];
+      const dynamicTargets = await getEffectiveReportTargets(this.settingsService, 'CCP');
+      const extra = (options?.reportCodes || [])
+        .filter((c) => !['FULL', 'ALL', 'BACKUP', 'CCP_FULL'].includes(c.toUpperCase()))
+        .flatMap((code) => {
+          if (code === 'HD' || code === 'HD_ALL' || code.startsWith('HD_')) {
+            return ['HH'];
+          }
+          const resolved = resolveCoreCcpReport(code);
+          if (resolved?.isDerived && resolved.derivedFrom) {
+            return [resolved.derivedFrom];
+          }
+          return [resolved?.key || code];
+        });
+      targets = Array.from(new Set([...dynamicTargets, ...extra]));
+      this.logger.log(`[CoreCcpApiAdapter] Kích hoạt FULL BACKUP cho CoreCCP: tải toàn bộ ${targets.length} báo cáo cấu hình.`);
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
       targets = options.reportCodes.flatMap((code) => {
         if (code === 'HD' || code === 'HD_ALL' || code.startsWith('HD_')) {
@@ -859,7 +874,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       const resolved = resolveCoreCcpReport(options.reportType);
       targets = [resolved?.derivedFrom || resolved?.key || options.reportType];
     } else {
-      targets = ['GTT_CCP', 'DSGD_CCP', 'TTM_CCP', 'TTTT', 'QL_TT_TKGD', 'HH'];
+      targets = await getEffectiveReportTargets(this.settingsService, 'CCP');
     }
 
     this.logger.log(`[CoreCcpApiAdapter] Bắt đầu tải ${targets.length} báo cáo CoreCCP (Phiên: ${targetDate}) vào: ${outputDirectory}`);

@@ -1,3 +1,81 @@
+## [2026-10-28T10:55] REFACTOR(CLEANUP): Chuẩn Hóa Toàn Diện Định Danh Cờ CCP_25 -> CCP_FULL & Loại Bỏ Hoàn Toàn Vết Hardcode Số Lượng File CCP
+
+### 1. Mục tiêu thay đổi
+- Thực hiện theo chỉ đạo của USER: Giải quyết triệt để vấn đề định danh số lượng file cứng `CCP_25` trong codebase:
+  1. `CCP_25` là tàn dư lịch sử từ lúc MXV có 25 file Maker tĩnh ban đầu. Thực tế hiện tại số lượng file biến thiên động theo ngày (5 file MM rỗng đã bỏ, các file HĐ theo danh mục hàng hóa của phiên) và danh mục tải được lưu động trong MongoDB `system_settings`.
+  2. Chuẩn hóa cờ Full Backup `CCP_25` thành `CCP_FULL` đồng bộ 100% với `CE_FULL`, `MS_FULL`, `CQG_FULL` và quy ước chuẩn `${systemKey}_FULL`.
+  3. Làm sạch hoàn toàn các vết alias `CCP_25_REPORTS`, `CORECCP_25_MAKER_REPORTS` và thư mục fallback tạm thời `test_ccp_25_downloads` khỏi mã nguồn.
+
+### 2. Danh sách file chỉnh sửa
+1. [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Thay thế cờ định danh `'CCP_25'` thành `'CCP_FULL'` tại dòng 841 và 847.
+2. [ccp-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts):
+   - Đổi tên danh mục scraper từ `CCP_25_REPORTS` thành `CORE_CCP_SCRAPER_REPORTS`.
+   - Xóa bỏ alias thừa `export const CCP_25_REPORTS = CORE_CCP_SCRAPER_REPORTS;`.
+3. [types.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/src/types.ts):
+   - Đổi tên danh mục `CORECCP_25_MAKER_REPORTS` thành `CORECCP_MAKER_REPORTS`.
+   - Xóa bỏ alias thừa `export const CORECCP_25_MAKER_REPORTS = CORECCP_MAKER_REPORTS;`.
+4. [client.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/coreccp-api-client/src/client.service.ts):
+   - Đồng bộ hóa tham chiếu `CORECCP_MAKER_REPORTS`.
+5. [ce-ccp-gtt.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ce-ccp-gtt.service.ts):
+   - Loại bỏ các đường dẫn fallback thư mục rác `test_ccp_25_downloads`, giữ lại đường dẫn chuẩn `test_ccp_downloads`.
+6. [test_autonomous_api_ingress_all_4.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_autonomous_api_ingress_all_4.js) & [test_check_gtt_ce_ccp.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_check_gtt_ce_ccp.js):
+   - Chuẩn hóa tên danh mục thành `CORE_CCP_REPORTS` và dọn dẹp các đường dẫn tạm.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `cmd /c "npx tsc --noEmit"` thành công 100% với Exit Code 0.
+- **Kiểm tra vết mã nguồn**: Grep toàn bộ dự án xác nhận không còn bất kỳ dòng code thực thi nào chứa `CCP_25` hay `CCP25`.
+
+---
+
+## [2026-10-28T10:40] FEAT(TRADING-OPS & INGRESS): Nâng Cấp Hệ Thống Cấu Hình Tệp Sao Lưu Mặc Định Động (Dynamic Default Backup File Configuration)
+
+### 1. Mục tiêu thay đổi
+- Triển khai hoàn chỉnh tính năng **Cấu hình tệp sao lưu mặc định động** theo đặc tả tại [THIET_KE_CAU_HINH_TEP_BACKUP_MAC_DINH.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/docs/THIET_KE_CAU_HINH_TEP_BACKUP_MAC_DINH.md):
+  1. **Khắc phục tình trạng mất cấu hình Checkbox**: Chấm dứt việc giao diện đặt lại trạng thái cứng `true` (chọn tất cả) sau mỗi lần F5 reload hoặc chuyển trang; tự động nạp cấu hình đã lưu từ MongoDB.
+  2. **Tiết kiệm tài nguyên máy chủ & rút ngắn thời gian sao lưu**: Chấm dứt việc bot chạy ngầm hoặc người dùng tải thủ công các tệp Market Maker (MM) luôn rỗng 0 dòng hoặc các tệp sao kê phụ không dùng đến.
+  3. **Lưu trữ CSDL tập trung (Single Source of Truth)**: Lưu trữ mảng JSON các file đã chọn vào MongoDB `system_settings` (`bot_backup_selected_reports_*`) để cả Web Frontend và Bot Ingress Scrapers ngầm dùng chung 1 cấu hình.
+  4. **Nút Bút chì (`Pencil`) & Modal Cấu hình Chuyên nghiệp**: Cung cấp icon Bút chì trên từng Card header của 5 phân hệ (MS, CQG, CoreCCP, CoreEX, ACM) cùng modal tùy biến tìm kiếm, lọc nhanh, bỏ chọn file thừa/rỗng, và khôi phục mặc định.
+
+### 2. Danh sách file chỉnh sửa
+1. [ingress-backup-targets.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/helpers/ingress-backup-targets.helper.ts):
+   - Tạo helper `getEffectiveReportTargets(settingsService, systemKey, explicitReports)`:
+     * Ưu tiên mảng báo cáo cụ thể được truyền vào.
+     * Đọc cấu hình từ MongoDB `system_settings` (`bot_backup_selected_reports_<system>`).
+     * Tự động fallback về danh mục chuẩn khuyến nghị `RECOMMENDED_DEFAULT_TARGETS` nếu chưa có cấu hình.
+2. [system-settings.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/system-settings/system-settings.service.ts):
+   - Bổ sung các keys `bot_backup_selected_reports_ms`, `bot_backup_selected_reports_cqg`, `bot_backup_selected_reports_ccp`, `bot_backup_selected_reports_ce`, `bot_backup_selected_reports_acm` vào mảng `ignoredKeys` để không spam email cảnh báo bảo mật khi người dùng lưu cấu hình danh mục file.
+3. [coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts):
+   - Thay thế việc gán cứng danh mục toàn bộ file bằng lệnh gọi `await getEffectiveReportTargets(this.settingsService, 'CCP', options.reports)`.
+4. [coreex-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts):
+   - Thay thế gán cứng danh mục file bằng `await getEffectiveReportTargets(this.settingsService, 'CE', ...)`; tích hợp thêm cơ chế gộp `extra` reports truyền từ `options.reportCodes`.
+5. [ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-download.controller.ts):
+   - Cập nhật 3 endpoint `POST trigger-download` (MS), `POST trigger-ccp-download` (CCP), `POST trigger-ce-download` (CE) sử dụng `getEffectiveReportTargets`.
+6. [BackupFileConfigModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/modals/BackupFileConfigModal.tsx):
+   - Xây dựng Component Modal cấu hình tệp sao lưu chuẩn Enterprise Look & Feel:
+     * Hỗ trợ tìm kiếm theo mã tệp (`key`), tên tệp (`name`), hoặc tên file Excel (`filename`).
+     * Phân loại tag rõ ràng: Cốt lõi (`#10b981`), Khuyên dùng (`#3b82f6`), Thường rỗng 0 dòng (`#ef4444`).
+     * Thanh tác vụ nhanh: Chọn tất cả, Bỏ chọn tất cả, Bỏ chọn file thừa/rỗng (`Filter`), Khôi phục mặc định (`RotateCcw`).
+     * Lưu cấu hình vào MongoDB qua `api.admin.saveSystemSetting`.
+     * Tuân thủ 100% icon SVG từ `lucide-react`, không dùng icon emoji Unicode.
+7. [CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx):
+   - Gắn nút icon Bút chì (`Pencil`) trên 3 Card headers: CoreCCP, CoreEX, ACM.
+   - Nạp cấu hình đã lưu từ MongoDB khi mở trang và cập nhật checkbox tương ứng.
+   - Mount `<BackupFileConfigModal>` để quản lý cấu hình danh mục file.
+8. [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+   - Khai báo danh mục chuẩn: `MS_REPORTS_LIST` (20 file) và `CQG_REPORTS_LIST` (9 file).
+   - Gắn nút icon Bút chì (`Pencil`) trên 4 Card headers: MS, CQG, ACM, CoreCCP.
+   - Nạp cấu hình đã lưu từ MongoDB khi mở trang và cập nhật checkbox tương ứng.
+   - Mount `<BackupFileConfigModal>`.
+
+### 3. Kết quả xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Typecheck**: `cmd /c "npx tsc --noEmit"` thành công 100% với Exit Code 0.
+- **Tuân thủ quy chuẩn [AGENTS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.agents/AGENTS.md)**: Không sử dụng emoji Unicode trên UI; không hardcode logic; dữ liệu được quản lý động 100% qua MongoDB.
+
+---
+
 ## [2026-10-28T09:46] REFACTOR(DOMAIN-CONFIGS): Chuẩn Hóa Cấu Hình Báo Cáo CoreEX (coreex-reports.config.ts) Đồng Bộ 100% Theo Chuẩn CoreCCP
 
 ### 1. Mục tiêu thay đổi

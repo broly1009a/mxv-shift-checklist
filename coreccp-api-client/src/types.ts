@@ -71,7 +71,7 @@ export interface IDownloadOptions {
 /**
  * Registry danh mục 25 Báo cáo Maker CoreCCP chuẩn hóa
  */
-export const CORECCP_25_MAKER_REPORTS: ICcpReportDef[] = [
+export const CORECCP_MAKER_REPORTS: ICcpReportDef[] = [
   // ─── NHÓM 1: SỔ LỆNH & KHỚP LỆNH THƯỜNG (5 File) ─────────────────────────
   {
     id: 1,

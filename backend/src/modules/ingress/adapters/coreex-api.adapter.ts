@@ -17,6 +17,7 @@ import {
 } from '../../../shared';
 
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
 
 /**
  * CookieJar helper chuẩn HTTP bẫy Session Cookie của Core Exchange
@@ -850,6 +851,7 @@ export class CoreExApiAdapter implements IIngressPort {
 
     let targets: string[] = [];
     if (isFullRequested) {
+      const dynamicTargets = await getEffectiveReportTargets(this.settingsService, 'CE');
       const extra = (options?.reportCodes || [])
         .filter((c) => !['FULL', 'ALL', 'BACKUP', 'CE_FULL'].includes(c.toUpperCase()))
         .flatMap((code) => {
@@ -858,8 +860,8 @@ export class CoreExApiAdapter implements IIngressPort {
           }
           return [code];
         });
-      targets = Array.from(new Set([...CANONICAL_COREEX_API_KEYS, ...extra]));
-      this.logger.log(`[CoreExApiAdapter] Kích hoạt FULL BACKUP cho CoreExchange: tải toàn bộ ${targets.length} báo cáo chuẩn.`);
+      targets = Array.from(new Set([...dynamicTargets, ...extra]));
+      this.logger.log(`[CoreExApiAdapter] Kích hoạt FULL BACKUP cho CoreExchange: tải toàn bộ ${targets.length} báo cáo cấu hình.`);
     } else if (options?.reportCodes && options.reportCodes.length > 0) {
       targets = options.reportCodes.flatMap((code) => {
         if (code === 'HD' || code === 'HD_ALL' || code.startsWith('HD_')) {
@@ -869,7 +871,7 @@ export class CoreExApiAdapter implements IIngressPort {
       });
       targets = Array.from(new Set(targets));
     } else {
-      targets = ['GTT', 'HH', 'DSGD', 'DSL'];
+      targets = await getEffectiveReportTargets(this.settingsService, 'CE');
     }
 
     this.logger.log(`[CoreExApiAdapter] Bắt đầu tải ${targets.length} báo cáo CoreExchange (Phiên: ${targetDate}) vào: ${outputDirectory}`);
