@@ -1,3 +1,28 @@
+## [2026-10-28T15:15] FEATURE(CORECCP EOD): Đối Chiếu Tài Khoản Âm Ký Quỹ Phiên T-1 & T-2 Loại Trừ Âm Cố Hữu
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  1. Nâng cấp logic phân hệ **Tài khoản âm ký quỹ mới (EOD CoreCCP)** trên màn hình "Nghiệp vụ đầu phiên (SOD) - Đối chiếu kết quả EOD" (`/trading-manager/session-open/eod-result`).
+  2. Đối chiếu chéo tài khoản âm ký quỹ IMR giữa **phiên chốt sổ T-1** và **phiên làm việc liền trước T-2** (sử dụng `WorkingCalendarService` để tự động lùi qua Thứ 7, Chủ Nhật và ngày lễ).
+  3. Nếu tài khoản đã âm ở T-2 và vẫn tiếp tục âm ở T-1 thì **bỏ qua (loại trừ)**, chỉ hiển thị và báo động các tài khoản **âm ký quỹ mới phát sinh** ($Set_{T-1} \setminus Set_{T-2}$).
+  4. Nếu không có tài khoản âm mới, giao diện chuyển trạng thái an toàn (Tick Xanh).
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts): Tự động nạp/tải file EOD của T-2, trích xuất tài khoản âm T-2 và lọc chỉ giữ lại tài khoản âm mới ở T-1.
+- [ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts): Ghi nhận metrics so sánh T-1 và T-2 vào `CcpClearingLog`.
+- [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx): Hiển thị ngày T-1 và T-2, nhãn loại trừ tài khoản cố hữu và thông báo an toàn trực quan bằng icon Lucide SVG (không dùng emoji).
+
+### 3. Xác nhận Build & Triển khai
+- **Local Build**:
+  - Backend: `nest build` thành công 100% (**Exit Code 0**).
+  - Frontend: `next build` Turbopack thành công 100% (**Exit Code 0**, 52/52 static routes).
+- **Ubuntu 10.0.0.26**:
+  - Tự động sao lưu `/opt/mxv-checklist` vào `/home/mxvadmin/code_backups/`.
+  - Đồng bộ và build thành công Backend & Frontend.
+  - Restart PM2: `mxv-backend` (pid: 2028560, online), `mxv-frontend` (pid: 2028836, online).
+
+---
+
 ## [2026-10-28T14:45] REFACTOR(CLEAN INGRESS): Tinh Gọn Triệt Để Cơ Chế Tải File ACM SFTP & Web Theo Chuẩn Minimalist Clean Architecture
 
 ### 1. Mục tiêu thay đổi
