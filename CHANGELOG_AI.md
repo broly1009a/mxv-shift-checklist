@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## [2026-10-28T15:15] FEATURE(CORECCP EOD): Đối Chiếu Tài Khoản Âm Ký Quỹ Phiên T-1 & T-2 Loại Trừ Âm Cố Hữu
 
 ### 1. Mục tiêu thay đổi
@@ -20,6 +21,30 @@
   - Tự động sao lưu `/opt/mxv-checklist` vào `/home/mxvadmin/code_backups/`.
   - Đồng bộ và build thành công Backend & Frontend.
   - Restart PM2: `mxv-backend` (pid: 2028560, online), `mxv-frontend` (pid: 2028836, online).
+=======
+## [2026-10-28T16:00] FIX(SCHEDULER): Chặn Lặp Hàng Đợi Liên Tục Cho Autonomous Scheduler Khi Job Chờ File, Thất Bại Hoặc Bị Hủy
+
+### 1. Mục tiêu thay đổi
+- Khắc phục triệt để hiện tượng hàng đợi tác vụ tự động kích hoạt lặp đi lặp lại liên tục mỗi 1-2 phút (15:26, 15:28, 15:30, 15:32...):
+  1. **Nguyên nhân**:
+     - `getLatestCompletedJobByType` trong [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts) trước đó chỉ query duy nhất `{ status: 'COMPLETED' }`.
+     - Khi Job kết thúc ở trạng thái `WAITING` (đang chờ file), `FAILED` (thất bại), hoặc `CANCELLED` (người dùng bấm Hủy), query này trả về `null` và `completedAt` bị rỗng.
+     - Dẫn tới [autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts) tưởng chưa từng có Job nào chạy, bỏ qua điều kiện kiểm tra chu kỳ giãn cách (`intervalMinutes`), tự động đẻ tiếp Job mới vào hàng đợi mỗi phút.
+     - Đối với cụm Backup 5 bên (RPA MS, CQG, CCP, CE, ACM), chỉ cần 1 Job như RPA MS bị FAILED là chu kỳ cooldown bị vô hiệu hóa và nạp lại cả 5 job lúc 15:37 và 15:41.
+  2. **Giải pháp**:
+     - Mở rộng query trong `getLatestCompletedJobByType` để bao quát toàn bộ các trạng thái kết thúc (`COMPLETED`, `WAITING`, `FAILED`, `CANCELLED`) và sắp xếp theo mốc thời gian cập nhật gần nhất (`updatedAt`/`completedAt`).
+     - Chuẩn hóa kiểm tra `lastRunTime` trong `handleAutonomousKlgdRun` và so sánh đồng thời mốc thời gian của toàn bộ 5 tiến trình backup bằng `Math.max` trong `handleAutonomousPeriodicBackupRun`.
+
+### 2. Danh sách file chỉnh sửa
+- [bot-job-queue.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts): Mở rộng `getLatestCompletedJobByType` nhận diện mọi job đã chạy xong.
+- [autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts): Cập nhật cơ chế cooldown chống lặp cho `CHECK_KLGD` và cụm Backup định kỳ.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` thành công 100% (**Exit Code 0**).
+
+---
+
+>>>>>>> v4-refactor
 ## [2026-10-28T15:52] ROLLBACK & FIX: Khôi Phục Nguyên Trạng Code Nhận Diện Khớp Lệnh Trong Phiên (klgd-recon) Về Chuẩn Ban Đầu
 
 ### 1. Mục tiêu thay đổi
