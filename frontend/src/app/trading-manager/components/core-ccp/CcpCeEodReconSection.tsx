@@ -97,6 +97,28 @@ export default function CcpCeEodReconSection({
     }
   }, [selectedDate]);
 
+  // Tính ngày phiên làm việc T-2 (bỏ qua Thứ Bảy, Chủ Nhật) để so sánh loại trừ âm cố hữu
+  const previousTradingDayT2Formatted = useMemo(() => {
+    if (!selectedDate) return '';
+    try {
+      const dt = new Date(selectedDate);
+      dt.setDate(dt.getDate() - 1);
+      if (dt.getDay() === 0) dt.setDate(dt.getDate() - 2);
+      else if (dt.getDay() === 6) dt.setDate(dt.getDate() - 1);
+
+      dt.setDate(dt.getDate() - 1);
+      if (dt.getDay() === 0) dt.setDate(dt.getDate() - 2);
+      else if (dt.getDay() === 6) dt.setDate(dt.getDate() - 1);
+
+      const d = String(dt.getDate()).padStart(2, '0');
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const y = dt.getFullYear();
+      return `${d}/${m}/${y}`;
+    } catch {
+      return '';
+    }
+  }, [selectedDate]);
+
   const selectedDateFormatted = useMemo(() => {
     if (!selectedDate) return '';
     try {
@@ -466,7 +488,7 @@ export default function CcpCeEodReconSection({
                     )}
                   </div>
                   <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>
-                    Đối chiếu phiên T-1: {previousTradingDayFormatted} (Phiên ca trực: {selectedDateFormatted})
+                    Đối chiếu phiên T-1: {previousTradingDayFormatted} (Loại trừ trùng T-2: {previousTradingDayT2Formatted})
                   </span>
                 </div>
                 <button
@@ -526,7 +548,7 @@ export default function CcpCeEodReconSection({
                               An Toàn: Không có tài khoản âm ký quỹ mới (CoreCCP)
                             </span>
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-                              Kiểm tra lúc: {formatRunTime(marginExecutedAt) || '--:--'} {formatDuration(marginDurationMs) ? `• ${formatDuration(marginDurationMs)}` : ''}
+                              Đã so sánh loại trừ các tài khoản âm cố hữu từ phiên T-2 ({previousTradingDayT2Formatted}) • Kiểm tra lúc: {formatRunTime(marginExecutedAt) || '--:--'} {formatDuration(marginDurationMs) ? `• ${formatDuration(marginDurationMs)}` : ''}
                             </span>
                           </div>
                         </td>

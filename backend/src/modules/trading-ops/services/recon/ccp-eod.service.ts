@@ -35,15 +35,25 @@ export interface CcpAutoEodResult {
   mismatchedEOD: EODMismatchedItem[];
   negativeBalanceAccs: string[];
   negativeIMRAcc: string[];
+  rawNegativeIMRAcc?: string[];
+  ignoredNegativeIMRAcc?: string[];
   sessionInfo?: {
     shiftSessionDate: string;
     eodSessionDate: string;
+    previousSessionDate?: string;
+  };
+  comparison?: {
+    totalRawNegativeIMR: number;
+    prevNegativeIMRCount: number;
+    newNegativeIMRCount: number;
+    ignoredAccounts: string[];
   };
   filesUsed: {
     qltkgd: string;
     eod: string;
     tttt: string | null;
     nr: string | null;
+    prevEod?: string | null;
   };
 }
 
@@ -498,6 +508,84 @@ export class CcpEodService {
       }
     }
 
+    // 3. QUÉT VÀ ĐỌC FILE EOD PHIÊN T-2 ĐỂ SO SÁNH LOẠI TRỪ TÀI KHOẢN ÂM CỐ HỮU
+    const prevSession = await this.getPreviousTradingSession(evalSession.dateObj);
+    const prevSubFolder = path.join(
+      prevSession.year,
+      `T${prevSession.month}.${prevSession.year}`,
+      `${prevSession.day}.${prevSession.month}`,
+    );
+    const prevCheckDailyPath = resolveTradingCheckCcpDailyPath(prevSubFolder, rawCcpBase);
+    const prevBackupDailyPath = resolveCcpDailyPath(prevSubFolder, rawCcpBase);
+
+    if (!fs.existsSync(prevBackupDailyPath)) {
+      try {
+        fs.mkdirSync(prevBackupDailyPath, { recursive: true });
+      } catch {}
+    }
+
+    let prevEodCcpFile: string | null = null;
+    for (const d of [prevBackupDailyPath, prevCheckDailyPath]) {
+      if (fs.existsSync(d)) {
+        const found = findLatestFile(d, /eod/i);
+        if (found && fs.existsSync(found)) {
+          prevEodCcpFile = found;
+          break;
+        }
+      }
+    }
+
+    // Tự động tải file EOD phiên T-2 nếu chưa có
+    if (!prevEodCcpFile && this.coreCcpApiAdapter) {
+      emitLog(
+        `[CcpEodService] Đang tự động kết nối API CoreCCP tải EOD phiên T-2 (${prevSession.dateFormatted}) để so sánh loại trừ...`,
+      );
+      try {
+        await this.coreCcpApiAdapter.download('CORE_CCP', {
+          outputDir: prevBackupDailyPath,
+          targetDate: prevSession.dateFormatted,
+          reportCodes: ['EOD_CCP'],
+          exactDate: true,
+          onLog: emitLog,
+        });
+        for (const d of [prevBackupDailyPath, prevCheckDailyPath]) {
+          if (fs.existsSync(d)) {
+            const found = findLatestFile(d, /eod/i);
+            if (found && fs.existsSync(found)) {
+              prevEodCcpFile = found;
+              break;
+            }
+          }
+        }
+      } catch (dlErr: any) {
+        emitLog(
+          `[CcpEodService] ⚠️ Không thể tải file EOD phiên T-2 (${prevSession.dateFormatted}): ${dlErr.message}`,
+        );
+      }
+    }
+
+    let prevNegativeIMRAcc: string[] = [];
+    if (prevEodCcpFile && fs.existsSync(prevEodCcpFile)) {
+      try {
+        const prevEodBuffer = fs.readFileSync(prevEodCcpFile);
+        const prevEodRes = MarginExcelParser.parseEodMargin(prevEodBuffer, {
+          fileName: path.basename(prevEodCcpFile),
+        });
+        prevNegativeIMRAcc = prevEodRes.negativeIMRAcc || [];
+        emitLog(
+          `[CcpEodService] Đã đọc file EOD phiên T-2 (${prevSession.dateFormatted}): ${prevNegativeIMRAcc.length} TK âm ký quỹ (${path.basename(prevEodCcpFile)}).`,
+        );
+      } catch (e: any) {
+        emitLog(
+          `[CcpEodService] ⚠️ Lỗi khi đọc file EOD phiên T-2 (${prevSession.dateFormatted}): ${e.message}`,
+        );
+      }
+    } else {
+      emitLog(
+        `[CcpEodService] ⚠️ Không tìm thấy file EOD phiên T-2 (${prevSession.dateFormatted}) để so sánh. Giữ nguyên danh sách âm của phiên T-1.`,
+      );
+    }
+
     emitLog(
       `[CcpEodService] Đang đọc file và đối chiếu số dư 4 thành phần: ${path.basename(qltkgdCcpFile)} & ${path.basename(eodCcpFile)}...`,
     );
@@ -513,7 +601,20 @@ export class CcpEodService {
 
     const mismatchedCcp = ccpResult.mismatchedEOD || [];
     const negativeBalanceAccs = ccpResult.negativeBalanceAccs || [];
-    const negativeIMRAcc = ccpResult.negativeIMRAcc || [];
+    const rawNegativeIMRAcc = ccpResult.negativeIMRAcc || [];
+
+    const prevNegSet = new Set(
+      prevNegativeIMRAcc.map((a) => String(a || '').trim().toUpperCase()),
+    );
+
+    // Lọc ra các tài khoản âm MỚI (có trong T-1 nhưng KHÔNG có trong T-2)
+    const newNegativeIMRAcc = prevNegSet.size > 0
+      ? rawNegativeIMRAcc.filter((acc) => !prevNegSet.has(String(acc || '').trim().toUpperCase()))
+      : rawNegativeIMRAcc;
+
+    const ignoredAccounts = prevNegSet.size > 0
+      ? rawNegativeIMRAcc.filter((acc) => prevNegSet.has(String(acc || '').trim().toUpperCase()))
+      : [];
 
     let totalAccounts = 0;
     try {
@@ -524,16 +625,18 @@ export class CcpEodService {
     } catch {}
 
     emitLog(
-      `[CcpEodService] Hoàn tất đối chiếu EOD CoreCCP: Tổng ${totalAccounts} TK | Khớp: ${totalAccounts - mismatchedCcp.length} TK | Lệch công thức: ${mismatchedCcp.length} TK | Âm ký quỹ (IMR): ${negativeIMRAcc.length} TK`,
+      `[CcpEodService] Hoàn tất đối chiếu EOD CoreCCP: Tổng ${totalAccounts} TK | Khớp: ${totalAccounts - mismatchedCcp.length} TK | Lệch công thức: ${mismatchedCcp.length} TK | Âm KQ phiên T-1: ${rawNegativeIMRAcc.length} TK | Loại trừ âm từ T-2 (${prevSession.dateFormatted}): ${ignoredAccounts.length} TK -> Âm ký quỹ MỚI: ${newNegativeIMRAcc.length} TK`,
     );
 
     if (this.telegramService) {
       let telegramMsg = ` <b>[ĐỐI CHIẾU EOD CORECCP - PHIÊN T-1: ${dateFormatted}]</b>\n`;
-      telegramMsg += `• Trạng thái: ${mismatchedCcp.length === 0 ? '✓ Khớp hoàn toàn công thức EOD CCP' : '<b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
+      telegramMsg += `• Trạng thái: ${mismatchedCcp.length === 0 && newNegativeIMRAcc.length === 0 ? '✓ Khớp hoàn toàn công thức EOD CCP' : '<b>PHÁT HIỆN BẤT THƯỜNG</b>'}\n`;
       telegramMsg += `• Tổng số TK CoreCCP: <b>${totalAccounts}</b>\n`;
       telegramMsg += `• Tài khoản lệch công thức: <b>${mismatchedCcp.length}</b>\n`;
-      telegramMsg += `• Tài khoản âm ký quỹ (IMR): <b>${negativeIMRAcc.length}</b>\n`;
-
+      telegramMsg += `• TK âm ký quỹ MỚI (IMR): <b>${newNegativeIMRAcc.length}</b> (Tổng âm T-1: ${rawNegativeIMRAcc.length}, đã loại trừ ${ignoredAccounts.length} TK âm từ T-2: ${prevSession.dateFormatted})\n`;
+      if (newNegativeIMRAcc.length > 0) {
+        telegramMsg += `• Danh sách âm mới: <code>${newNegativeIMRAcc.join(', ')}</code>\n`;
+      }
       await this.telegramService.sendMessage(telegramMsg).catch(() => {});
     }
 
@@ -541,16 +644,26 @@ export class CcpEodService {
       totalAccounts,
       mismatchedEOD: mismatchedCcp,
       negativeBalanceAccs,
-      negativeIMRAcc,
+      negativeIMRAcc: newNegativeIMRAcc,
+      rawNegativeIMRAcc,
+      ignoredNegativeIMRAcc: ignoredAccounts,
       sessionInfo: {
         shiftSessionDate: tradingDate.toISOString().split('T')[0],
         eodSessionDate: dateFormatted,
+        previousSessionDate: prevSession.dateFormatted,
+      },
+      comparison: {
+        totalRawNegativeIMR: rawNegativeIMRAcc.length,
+        prevNegativeIMRCount: prevNegativeIMRAcc.length,
+        newNegativeIMRCount: newNegativeIMRAcc.length,
+        ignoredAccounts,
       },
       filesUsed: {
         qltkgd: path.basename(qltkgdCcpFile),
         eod: path.basename(eodCcpFile),
         tttt: ttttCcpFile ? path.basename(ttttCcpFile) : null,
         nr: nrCcpFile ? path.basename(nrCcpFile) : null,
+        prevEod: prevEodCcpFile ? path.basename(prevEodCcpFile) : null,
       },
     };
   }

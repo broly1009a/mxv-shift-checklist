@@ -67,9 +67,10 @@ export class CcpEodWorker implements IBotWorker {
         res.mismatchedEOD.length === 0 && res.negativeIMRAcc.length === 0;
       const status = passed ? 'SUCCESS' : 'WARNING';
 
+      const ignoredCount = res.comparison?.ignoredAccounts?.length || 0;
       const summary = passed
-        ? `Đối chiếu EOD CoreCCP thành công: Khớp 100% trên ${res.totalAccounts} tài khoản.`
-        : `Đối chiếu EOD CoreCCP có cảnh báo: ${res.mismatchedEOD.length} TK lệch công thức, ${res.negativeIMRAcc.length} TK âm ký quỹ (IMR).`;
+        ? `Đối chiếu EOD CoreCCP thành công: Khớp 100% trên ${res.totalAccounts} tài khoản, không có tài khoản âm ký quỹ mới (IMR)${ignoredCount > 0 ? ` (đã loại trừ ${ignoredCount} TK âm từ T-2)` : ''}.`
+        : `Đối chiếu EOD CoreCCP có cảnh báo: ${res.mismatchedEOD.length} TK lệch công thức, ${res.negativeIMRAcc.length} TK âm ký quỹ MỚI (IMR)${ignoredCount > 0 ? ` (đã loại trừ ${ignoredCount} TK âm từ T-2)` : ''}.`;
 
       let domainLogRefId: string | undefined;
 
@@ -86,6 +87,9 @@ export class CcpEodWorker implements IBotWorker {
               mismatchedCount: res.mismatchedEOD.length,
               negativeIMRCount: res.negativeIMRAcc.length,
               negativeBalanceCount: res.negativeBalanceAccs.length,
+              rawNegativeIMRCount: res.comparison?.totalRawNegativeIMR ?? res.negativeIMRAcc.length,
+              prevNegativeIMRCount: res.comparison?.prevNegativeIMRCount ?? 0,
+              ignoredNegativeAccounts: res.comparison?.ignoredAccounts ?? [],
               filesUsed: res.filesUsed,
             },
             byProduct: [],
@@ -112,6 +116,9 @@ export class CcpEodWorker implements IBotWorker {
           mismatchedCount: res.mismatchedEOD.length,
           negativeIMRCount: res.negativeIMRAcc.length,
           negativeBalanceCount: res.negativeBalanceAccs.length,
+          rawNegativeIMRCount: res.comparison?.totalRawNegativeIMR ?? res.negativeIMRAcc.length,
+          prevNegativeIMRCount: res.comparison?.prevNegativeIMRCount ?? 0,
+          ignoredNegativeAccounts: res.comparison?.ignoredAccounts ?? [],
           filesUsed: res.filesUsed,
           mismatchedSample: res.mismatchedEOD.slice(0, 10),
         },

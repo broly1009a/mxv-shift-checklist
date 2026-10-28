@@ -1,3 +1,35 @@
+## [2026-10-28T11:37] FEAT(TRADING-OPS): Nâng Cấp Logic Lọc Tài Khoản Âm Ký Quỹ Mới (EOD CoreCCP) So Sánh Giữa Phiên T-1 và Phiên T-2
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Nâng cấp logic chức năng "Tài khoản âm ký quỹ mới (EOD CoreCCP)" trên màn hình "Đối chiếu kết quả EOD" (`/trading-manager/session-open/eod-result`):
+  1. Thay vì chỉ đọc đơn lẻ file `EOD.xlsx` của ngày $T-1$ rồi hiển thị toàn bộ tài khoản âm ký quỹ (khiến các tài khoản âm cố hữu từ các phiên trước bị báo cảnh báo liên tục), hệ thống tự động đối chiếu chéo giữa phiên chốt sổ $T-1$ và phiên liền trước $T-2$ (tự động loại trừ cuối tuần/ngày lễ Tết theo `WorkingCalendarService`).
+  2. Bỏ qua các tài khoản đã bị âm từ phiên $T-2$ mà sang phiên $T-1$ vẫn tiếp tục âm ($Set_{T-1} \setminus Set_{T-2}$).
+  3. Chỉ trích xuất và hiển thị danh sách các **Tài khoản âm ký quỹ MỚI phát sinh** trong phiên $T-1$.
+  4. Nếu không phát sinh tài khoản âm mới, giao diện tự động chuyển trạng thái An toàn (Tick xanh: "An Toàn: Không có tài khoản âm ký quỹ mới (CoreCCP)").
+
+### 2. Danh sách file chỉnh sửa
+1. [ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts):
+   - Mở rộng interface `CcpAutoEodResult` bổ sung `rawNegativeIMRAcc`, `ignoredNegativeIMRAcc`, `sessionInfo.previousSessionDate`, `comparison` metadata.
+   - Trong `runAutoCheckEodCcp()`:
+     * Tính toán ngày phiên $T-2$ qua `getPreviousTradingSession(evalSession.dateObj)`.
+     * Tự động quét và đọc file `EOD.xlsx` phiên $T-2$ (tự động tải qua Ingress API CoreCCP nếu thiếu).
+     * Phân tích `prevNegativeIMRAcc` từ file EOD $T-2$.
+     * Lọc `newNegativeIMRAcc` = các tài khoản âm tại $T-1$ mà chưa từng âm tại $T-2$.
+     * Ghi nhận `ignoredAccounts` và log chi tiết quá trình loại trừ.
+     * Cập nhật thông báo Telegram phản ánh số lượng âm mới và số lượng tài khoản cũ đã loại trừ.
+2. [ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts):
+   - Cập nhật summary và metrics ghi vết `CcpClearingLog` lưu trữ đầy đủ `rawNegativeIMRCount`, `prevNegativeIMRCount`, `ignoredNegativeAccounts` và số lượng `negativeIMRCount` (mới).
+3. [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx):
+   - Bổ sung hook `previousTradingDayT2Formatted` tính toán chính xác ngày phiên $T-2$.
+   - Cập nhật tiêu đề phụ: `Đối chiếu phiên T-1: {previousTradingDayFormatted} (Loại trừ trùng T-2: {previousTradingDayT2Formatted})`.
+   - Cập nhật thông báo trạng thái an toàn hiển thị minh bạch việc đã so sánh loại trừ phiên $T-2$.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "npm run build"` (`nest build`) thành công 100% với Exit Code 0.
+- **Frontend Build**: `cmd /c "npm run build"` (`next build` Turbopack) thành công 100% với Exit Code 0, toàn bộ 52 trang tĩnh biên dịch thành công.
+
+---
+
 ## [2026-10-28T10:55] REFACTOR(CLEANUP): Chuẩn Hóa Toàn Diện Định Danh Cờ CCP_25 -> CCP_FULL & Loại Bỏ Hoàn Toàn Vết Hardcode Số Lượng File CCP
 
 ### 1. Mục tiêu thay đổi
