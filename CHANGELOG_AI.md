@@ -1,3 +1,38 @@
+## [2026-10-29T12:00] REFACTOR(RECON_KLGD_CSHARP_STANDARDIZATION): Chuẩn Hóa 100% Thuật Toán Lọc Khớp Lệnh Trong Phiên (CHECK_KLGD) Theo C# IT Tool (Mốc Chặn Trên Làm Tròn Phút HH:mm:00)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu người dùng**:
+  - Chuẩn hóa 100% theo C# IT Tool gốc: Chặn trên số liệu `checkTime` của tất cả các hệ thống (M-System, CQG, ACM Nano, CoreCCP) cố định theo phút bắt đầu chạy (`HH:mm:00.000`).
+  - Loại bỏ hoàn toàn các logic phỏng đoán mtime file `- 2000ms`, buffer `cqgCutoffBufferMs = 2000ms`, hay mốc biên `cqgBoundaryThreshold`.
+  - Triệt tiêu 100% các trường hợp chênh lệch ảo do lệch giây tải (ví dụ: lệnh khớp ở giây thứ 56 trong khi CQG xuất file ở giây thứ 57, nhưng M-System tải chậm hơn 1 giây nên bắt được lệnh).
+- **Cơ sở mã nguồn C# IT Tool (Proof of Ground Truth)**:
+  - [FormMain.cs#L290](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/FormMain.cs#L290): `string currentTimeStr = now.ToString("dd/MM HH:mm");`
+  - [TransactionCheckingService.cs#L57-L59](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L57-L59): `DateTime.TryParseExact(timeStr, "dd/MM HH:mm", ... out var time);` $\rightarrow$ Biến `time` cố định tại `HH:mm:00.000` (giây và mili-giây bằng 0).
+  - [TransactionCheckingService.cs#L120](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L120): `if (timeMatched > time) continue;` (M-System).
+  - [TransactionCheckingService.cs#L153](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L153): `if (fullDateTime > time) continue;` (CQG).
+  - [TransactionCheckingService.cs#L167](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L167): `if (timeMatched > time) continue;` (Nano Straits).
+  - [TransactionCheckingService.cs#L229-L232](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L229-L232): `if (timeMatched > time) continue;` (Mismatched order details).
+
+### 2. Danh sách file chỉnh sửa
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts):
+  - Nhận diện `runTime = options?.checkTime || options?.jobStartTime || new Date()`.
+  - Làm tròn `minuteCutoff = new Date(runTime); minuteCutoff.setSeconds(0, 0); minuteCutoff.setMilliseconds(0);`.
+  - Phân định rõ: nếu đang trong phiên, lấy mốc phút chạy (`minuteCutoff`); nếu phiên lịch sử đã qua, lấy mốc đóng phiên (`sessionEnd`).
+  - Áp dụng `checkTime` đồng bộ 1:1 cho `dsgdData`, `nanoData`, `frData`, và truyền vào `CcpExcelParser.parseDSGD(..., checkTime)`.
+  - Xóa bỏ toàn bộ các biến đoán `dsgdCutoffTime`, `cqgCutoffTime` từ header/mtime và buffer 2s.
+- [recon-pipeline.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts):
+  - Truyền `jobStartTime: job?.createdAt || new Date()` vào `options` của `runAutoCheckKLGD`.
+  - Cập nhật định dạng log kiểm tra `Khoảng thời gian lọc (chuẩn C# HH:mm:00): từ ... đến ...`.
+- [klgd-recon.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts):
+  - Đồng bộ `checkTime` và `jobStartTime` cho luồng fallback quét file offline.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeCheck & Build**: `cmd /c npm run build` $\rightarrow$ Exit Code 0 (`nest build` thành công 100%).
+- **Frontend TypeCheck**: `cmd /c npx tsc --noEmit` $\rightarrow$ Exit Code 0 (Hoàn toàn sạch lỗi).
+- **Đồng bộ mã nguồn**: Đã copy đồng bộ sang repository song song `mxv-modular-refactor`.
+
+---
+
 ## [2026-10-29T11:00] FIX(ACM_ETP_EXTENSION): Chuẩn Hóa Đuôi File Tải Báo Cáo ACM Web Về .xls Khắc Phục Lỗi Mở File Trên Excel Windows
 
 ### 1. Mục tiêu thay đổi

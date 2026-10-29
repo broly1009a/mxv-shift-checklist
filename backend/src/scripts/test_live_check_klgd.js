@@ -186,7 +186,7 @@ function createPairCoordinator(benchmarkStart) {
       const at = Date.now();
       const t = relTime();
       timelineEvents.push({ type: 'TRIGGER', pair, at, t });
-      console.log(`[${t}] ⚡ [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]!`);
+      console.log(`[${t}]  [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]!`);
       pairResolvers[pair]();
     }
   };

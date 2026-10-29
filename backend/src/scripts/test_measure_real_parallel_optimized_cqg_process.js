@@ -409,7 +409,7 @@ async function runOptimizedParallelBenchmark() {
   console.log(`   - Tổng RAM cả 2 phiên         : ${snapLaunch.combinedMB} MB\n`);
 
   // MỐC 2: CHẠY SONG SONG 100% ĐẾN KHI XUẤT FILE HOÀN TẤT
-  console.log('⚡ [MỐC 2/5] KÍCH HOẠT CHẠY SONG SONG 100% (PROMISE.ALL) CẢ 2 TÀI KHOẢN...');
+  console.log(' [MỐC 2/5] KÍCH HOẠT CHẠY SONG SONG 100% (PROMISE.ALL) CẢ 2 TÀI KHOẢN...');
   const file1 = path.join(destDir, 'FR1_opt.xlsx');
   const file2 = path.join(destDir, 'FR2_opt.xlsx');
 

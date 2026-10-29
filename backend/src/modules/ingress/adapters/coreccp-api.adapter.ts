@@ -1109,7 +1109,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           if (isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreCcpApiAdapter] ⚡ [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${effectiveExportCode})...`,
+                `[CoreCcpApiAdapter]  [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${effectiveExportCode})...`,
               );
               await this.downloadServerExport(
                 session,

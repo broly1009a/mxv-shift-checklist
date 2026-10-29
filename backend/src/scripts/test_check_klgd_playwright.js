@@ -682,7 +682,7 @@ async function main() {
   });
 
   // 3. Thực thi theo nguồn được chọn
-  console.log(`⚡ [3/3] Bắt đầu kiểm thử nguồn: ${cliConfig.source.toUpperCase()}...\n`);
+  console.log(` [3/3] Bắt đầu kiểm thử nguồn: ${cliConfig.source.toUpperCase()}...\n`);
 
   const summary = {};
 
