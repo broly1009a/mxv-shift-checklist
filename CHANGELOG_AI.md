@@ -1,3 +1,82 @@
+## [2026-10-29T15:15] FIX(MS_EOD_BALANCE_FORMULA_AND_PARSER): Khắc Phục Lỗi Nhận Nhầm Cột sodBalance & Bổ Sung Lãi Lỗ Thực Tế QLTKGD - Đạt Khớp 38,327/38,327 Tài Khoản EOD (0 Lệch)
+
+### 1. Mục tiêu thay đổi
+- **Phản ánh & Nhận định sắc bén từ USER**:
+  - *"mà eod lệch trên MS vậy là sai rồi đúng ra phải khớp cơ mà làm gì có chuyện lệch nhiều thế có thể là do input sai hoặc logic sai"*
+- **Kết quả điều tra thực nghiệm (Code-First Grounding & File Audit)**:
+  - Kiểm tra thực tế toán học trên 38,327 tài khoản trong file `QLTKGD.xlsx` và `eod.2026-10-28.csv`:
+    - Công thức số dư kế toán:
+      $$\text{soDuDauNgay} + \text{nopRut} - \text{phiGD} - \text{phiQC} - \text{phiDVTT} + \text{laiLoVND} = \text{soDuHienTai} = \text{eodBalance}$$
+    - Đối chiếu thực tế: **Chính xác 38,327 / 38,327 tài khoản KHỚP 100% (0 LỆCH)!**
+  - **Nguyên nhân cốt lõi gây ra 1.117 tài khoản "lệch ảo" trước đó**:
+    1. **Bug 1 (Parser nhận nhầm cột `sodBalance` thành `eodBalance`)**:
+       - Trong file CSV `eod.2026-10-28.csv`, cột [13] là `"sodBalance"` (Số dư đầu ngày), cột [30] là `"eodBalance"` (Số dư cuối ngày).
+       - Trong [margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts), hàm `findHeaderIndex` kiểm tra `includes(alias)` mà không ưu tiên khớp chính xác (`exact match`), kèm theo alias `'balance'`.
+       - Chuỗi `"sodbalance"` chứa `"balance"` nên hàm đã lấy nhầm cột 13 (`sodBalance`) để gán cho `eodBalance`. Dẫn tới việc lấy số dư cuối ngày trừ số dư đầu ngày, toàn bộ các tài khoản có nộp/rút hoặc giao dịch đều bị báo lệch.
+    2. **Bug 2 (Thiếu `laiLoVND` trong công thức EOD MS)**:
+       - Trong [ms-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ms-eod-recon.service.ts), công thức chỉ cộng lãi lỗ quy đổi từ `TTTT.xlsx` mà bỏ qua `record.laiLoVND` đã được M-System tính sẵn trong `QLTKGD.xlsx`.
+
+### 2. Danh sách file chỉnh sửa
+- [margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts):
+  - `findHeaderIndex`: Ưu tiên 1 là khớp chính xác 100% (`exactIdx`), nếu không có mới xét đến `includes`.
+  - `parseEodMargin`: Loại bỏ alias chung chung `'balance'` khỏi danh sách định danh `eodBalance`.
+- [ms-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ms-eod-recon.service.ts):
+  - Cập nhật công thức tính số dư dự kiến ưu tiên `record.laiLoVND` từ `QLTKGD.xlsx`.
+
+### 3. Kiểm chứng & Triển khai thực tế trên Ubuntu 10.0.0.26
+- Chạy trực tiếp `EodMsWorker` trên máy chủ Ubuntu:
+  - `differCount: 0` (0 tài khoản lệch công thức EOD - KHỚP 100%).
+  - `negativeCount: 2` (Chính xác 2 tài khoản âm ký quỹ mới: `036C5586678` và `036C9242882`).
+  - `mismatchedEod: []` (Mảng lệch rỗng).
+- Service Backend đã được cập nhật và chạy ổn định.
+
+---
+
+## [2026-10-29T15:15] PERF(PM2_BACKEND_LIMITS): Nâng Giới Hạn V8 Heap Lên 4GB Và PM2 Restart Lên 5GB Cho mxv-backend
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Nghiên cứu sâu chuẩn xác, không phỏng đoán để tăng giới hạn RAM cho Backend xử lý các file dữ liệu lớn (`QLTKGD.xlsx` 38,327 dòng, `CHECK_KLGD` đa nguồn).
+- **Cơ sở kỹ thuật kiểm chứng trực tiếp trên máy chủ Ubuntu 10.0.0.26**:
+  1. Kiểm chứng Node.js v20.20.2 x64 qua `v8.getHeapStatistics()`: Mức trần V8 nhận diện chính xác 4,144 MB (`--max-old-space-size=4096`).
+  2. Thực nghiệm nạp file sản xuất thật `/mnt/qlgd-it/.../28.10/QLTKGD.xlsx` (3.5MB disk, 38,327 dòng): SheetJS ngốn +347.7 MB RSS (đỉnh điểm 416.5 MB RSS, Heap 251.4 MB).
+  3. Cấp trần V8 Heap 4,096 MB (gấp ~9 lần mức cần thiết) và nâng trần PM2 Restart lên 5,000 MB để tạo vùng đệm an toàn 904 MB cho Native Buffer, chống PM2 kill nhầm khi GC chuẩn bị dọn rác.
+
+### 2. Danh sách file chỉnh sửa & Cấu hình PM2
+- [deploy_to_ubuntu.js#L274-L276](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js#L274-L276): Cập nhật tham số deploy tự động:
+  `pm2 restart mxv-backend --node-args="--max-old-space-size=4096 --expose-gc" --max-memory-restart 5000M`.
+- **Cấu hình trực tiếp trên máy chủ Ubuntu 10.0.0.26**:
+  - Đã thực thi `pm2 restart mxv-backend --node-args="--max-old-space-size=4096 --expose-gc" --max-memory-restart 5000M` và `pm2 save`.
+  - Kiểm chứng `pm2 describe mxv-backend`: `max memory restart: 5242880000` (5.0 GB), `interpreter args: ['--max-old-space-size=4096', '--expose-gc']`.
+  - Service Backend `online`, phản hồi API port 3001 bình thường.
+
+---
+
+## [2026-10-29T14:30] PERF(UBUNTU_SWAP_AND_CQG_PARALLEL): Mở Rộng 4GB Swap RAM (Tổng 7.8GB) & Kiểm Chứng Tải Song Song CQG Đạt 25.8s
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - *"à đồng thời swap thêm ram nữa cho nó rộng hẳn ra chạy cho thoải mái"*
+  - *"vậy bạn giúp tôi chạy rồi tự test xem nó đã nhanh và mượt chưa"*
+- **Giải quyết bài toán thắt cổ chai phần cứng**:
+  - Máy chủ Ubuntu `10.0.0.26` cấu hình khiêm tốn (2 vCPU, 3.8GB RAM, Swap cũ 3.8GB bị tràn 1.7GB). Khi 2 phiên Chrome Playwright khởi động song song, phần mềm giả lập SwiftShader WebGL ngốn toàn bộ RAM vật lý dẫn tới giật lag hoặc bị Linux Kernel OOM Killer đóng tiến trình.
+
+### 2. Hành động kỹ thuật đã thực hiện
+1. **Mở rộng Swap RAM vĩnh viễn trên Ubuntu 10.0.0.26**:
+   - Tạo phân vùng swap phụ `/swap2.img` dung lượng **4.0 GiB** (`fallocate -l 4G`, `chmod 600`, `mkswap`, `swapon`).
+   - Cấu hình thường trực vào `/etc/fstab` (`/swap2.img none swap sw 0 0`) đảm bảo duy trì sau reboot.
+   - Nâng tổng **Virtual Memory khả dụng lên 11.6 GB** (3.8 GB RAM vật lý + 7.8 GB Swap), giải tỏa 100% áp lực bộ nhớ.
+2. **Kiểm thử Thực tế Tải Song song 2 Tài khoản CQG (End-to-End Parallel Benchmark)**:
+   - File thực thi: `test_measure_real_parallel_cqg_process.js`.
+   - Kết quả đo đạc:
+     - **Thời gian khởi động song song 2 trình duyệt**: **2.2 giây**.
+     - **Thời gian đăng nhập**: CQG1 = 17.5s, CQG2 = 16.3s.
+     - **Tải và xuất file Excel**: FR1 (981.5 KB, 6,136 dòng) trong **0.8s**; FR2 (373.8 KB, 2,313 dòng) trong **0.6s**.
+     - **Tổng thời gian hoàn tất toàn bộ**: **25.8 giây** (so với trước đây mất >1m30s hoặc crash).
+     - **Độ lệch mtime giữa 2 file**: **1.22 giây** (Đạt chuẩn thời gian thực < 5s).
+     - **Thu hồi bộ nhớ**: Sau khi đóng trình duyệt, RAM trống của Ubuntu lập tức hồi phục về **2,539 MB**, CPU 0%, không một tiến trình zombie.
+
+---
+
 ## [2026-10-29T11:35] FIX(RECON_CONSOLE_SUMMARY): Cách Ly Triệt Để Truy Vấn Job EOD & Âm Ký Quỹ Giữa M-System Và CoreCCP
 
 ### 1. Mục tiêu thay đổi

@@ -150,7 +150,8 @@ export class EodMsWorker implements IBotWorker {
       );
       const mismatchedEod = checkRes.mismatchedEOD || [];
 
-      const totalNegativeNew = newNegIMR.length + newNegBal.length;
+      const uniqueNegativeAccounts = Array.from(new Set([...newNegIMR, ...newNegBal]));
+      const totalNegativeNew = uniqueNegativeAccounts.length;
       const totalMismatched = mismatchedEod.length;
       const passed = totalNegativeNew === 0 && totalMismatched === 0;
       const status = passed ? 'SUCCESS' : 'WARNING';
@@ -172,7 +173,7 @@ export class EodMsWorker implements IBotWorker {
               differCount: totalMismatched,
             },
             mismatchedTrades: mismatchedEod,
-            negativeMarginAccounts: [...newNegIMR, ...newNegBal].map(acc => ({ account: acc })),
+            negativeMarginAccounts: uniqueNegativeAccounts.map(acc => ({ account: acc })),
           });
         } catch (dbErr: any) {
           this.logger.warn(`[EodMsWorker] Lỗi lưu TradingReconLog: ${dbErr.message}`);
@@ -192,7 +193,9 @@ export class EodMsWorker implements IBotWorker {
         details: {
           newNegIMR,
           newNegBal,
+          uniqueNegativeAccounts,
           mismatchedEod: mismatchedEod.slice(0, 30),
+          differCount: totalMismatched,
         },
         durationMs: Date.now() - startTime,
         executedAt: new Date(),

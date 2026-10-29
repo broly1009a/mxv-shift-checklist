@@ -68,9 +68,17 @@ export class MarginExcelParser {
     const normTarget = normalize(target);
     const normAliases = aliases.map((a) => normalize(a));
 
+    // Ưu tiên 1: Exact Match (Khớp chính xác 100%)
+    const exactIdx = headers.findIndex((h) => {
+      const normH = normalize(h);
+      return normH === normTarget || normAliases.includes(normH);
+    });
+    if (exactIdx !== -1) return exactIdx;
+
+    // Ưu tiên 2: Substring Match (Chỉ khi không có cột nào khớp chính xác)
     return headers.findIndex((h) => {
       const normH = normalize(h);
-      return normH === normTarget || normAliases.some((alias) => normH.includes(alias));
+      return normAliases.some((alias) => normH.includes(alias));
     });
   }
 
@@ -354,7 +362,6 @@ export class MarginExcelParser {
       'số dư eod',
       'end balance',
       'ending balance',
-      'balance',
     ]);
 
     if (investorCodeIdx === -1) {

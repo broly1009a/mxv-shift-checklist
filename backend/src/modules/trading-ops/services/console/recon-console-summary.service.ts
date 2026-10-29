@@ -936,7 +936,11 @@ export class ReconConsoleSummaryService {
 
     const resolvedMismatchedEOD =
       latestEodResult.eodResult?.mismatchedEOD ||
+      latestEodResult.eodResult?.mismatchedEod ||
       latestEodResult.mismatchedEOD ||
+      latestEodResult.mismatchedEod ||
+      latestEodResult.details?.mismatchedEod ||
+      latestEodResult.details?.mismatchedEOD ||
       [];
 
     const rawNegativeIMR: string[] =
@@ -944,22 +948,30 @@ export class ReconConsoleSummaryService {
         ? marginResult.negativeIMRAcc
         : Array.isArray(marginResult.newNegIMR)
           ? marginResult.newNegIMR
-          : Array.isArray(latestEodResult.negativeIMRAcc)
-            ? latestEodResult.negativeIMRAcc
-            : Array.isArray(latestEodResult.newNegIMR)
-              ? latestEodResult.newNegIMR
-              : [];
+          : Array.isArray(marginResult.details?.newNegIMR)
+            ? marginResult.details.newNegIMR
+            : Array.isArray(latestEodResult.negativeIMRAcc)
+              ? latestEodResult.negativeIMRAcc
+              : Array.isArray(latestEodResult.newNegIMR)
+                ? latestEodResult.newNegIMR
+                : Array.isArray(latestEodResult.details?.newNegIMR)
+                  ? latestEodResult.details.newNegIMR
+                  : [];
 
     const rawNegativeBalance: string[] =
       Array.isArray(marginResult.negativeBalanceAccs)
         ? marginResult.negativeBalanceAccs
         : Array.isArray(marginResult.newNegBal)
           ? marginResult.newNegBal
-          : Array.isArray(latestEodResult.negativeBalanceAccs)
-            ? latestEodResult.negativeBalanceAccs
-            : Array.isArray(latestEodResult.newNegBal)
-              ? latestEodResult.newNegBal
-              : [];
+          : Array.isArray(marginResult.details?.newNegBal)
+            ? marginResult.details.newNegBal
+            : Array.isArray(latestEodResult.negativeBalanceAccs)
+              ? latestEodResult.negativeBalanceAccs
+              : Array.isArray(latestEodResult.newNegBal)
+                ? latestEodResult.newNegBal
+                : Array.isArray(latestEodResult.details?.newNegBal)
+                  ? latestEodResult.details.newNegBal
+                  : [];
 
     // Lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi cấu hình (Chuẩn C# FormMain.cs#L1625)
     const monitoredAccsStr = await this.settingsService.getSetting(
@@ -1247,12 +1259,26 @@ export class ReconConsoleSummaryService {
         logs: latestEodJob?.logs || [],
         isWaitingFiles: !!(latestEodResult.isWaitingFiles),
         waitingMessage: latestEodResult.waitingMessage || latestEodResult.message || null,
-        passed: (latestEodResult.passed !== undefined ? latestEodResult.passed !== false : resolvedMismatchedEOD.length === 0),
+        passed: (latestEodResult.passed !== undefined
+          ? latestEodResult.passed !== false
+          : (resolvedMismatchedEOD.length === 0 && (latestEodResult.differCount || 0) === 0)),
         totals: latestEodResult.totals || {},
-        mismatchedEODCount: resolvedMismatchedEOD.length,
+        mismatchedEODCount:
+          latestEodResult.differCount ??
+          latestEodResult.metrics?.differCount ??
+          latestEodResult.totals?.differCount ??
+          resolvedMismatchedEOD.length,
         mismatchedEOD: resolvedMismatchedEOD,
-        negativeIMRAcc: latestEodResult.negativeIMRAcc || latestEodResult.newNegIMR || [],
-        negativeBalanceAccs: latestEodResult.negativeBalanceAccs || latestEodResult.newNegBal || [],
+        negativeIMRAcc:
+          latestEodResult.negativeIMRAcc ||
+          latestEodResult.newNegIMR ||
+          latestEodResult.details?.newNegIMR ||
+          [],
+        negativeBalanceAccs:
+          latestEodResult.negativeBalanceAccs ||
+          latestEodResult.newNegBal ||
+          latestEodResult.details?.newNegBal ||
+          [],
       },
       negativeMargin: {
         jobId: marginJob?._id?.toString() || null,

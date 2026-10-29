@@ -239,7 +239,7 @@ export default function LegacyEodResultSection({
               Lỗi đối chiếu EOD: {eodData?.error || 'Vui lòng kiểm tra log bot.'}
             </h5>
           </div>
-        ) : mismatchedEOD.length > 0 ? (
+        ) : (mismatchedEOD.length > 0 || (eodData?.mismatchedEODCount || 0) > 0) ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <span
@@ -252,7 +252,8 @@ export default function LegacyEodResultSection({
                   color: '#ef4444',
                 }}
               >
-                Phát hiện {mismatchedEOD.length} tài khoản lệch kết quả EOD
+                Phát hiện {eodData?.mismatchedEODCount || mismatchedEOD.length} tài khoản lệch kết quả EOD
+                {eodData?.mismatchedEODCount && eodData.mismatchedEODCount > mismatchedEOD.length ? ` (hiển thị ${mismatchedEOD.length} mẫu tiêu biểu)` : ''}
               </span>
             </div>
 

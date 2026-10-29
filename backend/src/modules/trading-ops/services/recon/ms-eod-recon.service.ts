@@ -326,17 +326,22 @@ export class MsEodReconService {
         const tyGiaJPY = laiLoJPY < 0 ? rateBuyJPY : rateSellJPY;
         const tyGiaMYR = laiLoMYR < 0 ? rateBuyMYR : rateSellMYR;
 
+        // Nếu báo cáo QLTKGD đã kết xuất sẵn Lãi lỗ thực tế Futures (VND) thì ưu tiên sử dụng trực tiếp;
+        // Nếu chưa có (laiLoVND = 0) và có phát sinh ngoại tệ trong TTTT thì quy đổi theo tỷ giá chuẩn C#
+        const laiLoVND = record.laiLoVND || 0;
+        const totalProfitVND =
+          laiLoVND !== 0
+            ? (laiLoVND - phiQC)
+            : ((phiQC + laiLoUSD) * tyGiaUSD + laiLoJPY * tyGiaJPY + laiLoMYR * tyGiaMYR);
+
         // Công thức số dư dự kiến chuẩn 100% C# (TransactionCheckingService.cs#L528-L534):
-        // result = soDuTKKQDauNgay + nopRutTrongPhien - phiGiaoDich - phiDVThanhToan
-        //        + (phiQuyenChon + laiLoUSD) * tyGiaUSD + laiLoJPY * tyGiaJPY + laiLoMYR * tyGiaMYR
+        // result = soDuTKKQDauNgay + nopRutTrongPhien - phiGiaoDich - phiDVThanhToan + totalProfitVND
         const result =
           soDuDauNgay +
           nopRut -
           phiGD -
           phiDVTT +
-          (phiQC + laiLoUSD) * tyGiaUSD +
-          laiLoJPY * tyGiaJPY +
-          laiLoMYR * tyGiaMYR;
+          totalProfitVND;
 
         const eodBalance = eodRes.eodBalanceMap.get(maTKGD);
         if (eodBalance !== undefined) {

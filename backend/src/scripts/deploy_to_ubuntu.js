@@ -271,8 +271,8 @@ conn.on('ready', () => {
       echo "=== 1. BUILD BACKEND ==="
       cd /opt/mxv-checklist/backend && rm -f tsconfig*.tsbuildinfo && rm -rf dist && npm run build
       mkdir -p /opt/mxv-checklist/backend/dist/scripts/python && cp -rf /opt/mxv-checklist/backend/src/scripts/python/* /opt/mxv-checklist/backend/dist/scripts/python/ 2>/dev/null || true
-      echo "=== 2. RESTART BACKEND PM2 (FULL RAM 3GB) ==="
-      pm2 restart mxv-backend --node-args="--max-old-space-size=3072 --expose-gc" --max-memory-restart 3500M
+      echo "=== 2. RESTART BACKEND PM2 (FULL RAM 4GB V8 / 5GB PM2) ==="
+      pm2 restart mxv-backend --node-args="--max-old-space-size=4096 --expose-gc" --max-memory-restart 5000M
       echo "=== 3. BUILD FRONTEND ==="
       cd /opt/mxv-checklist/frontend && rm -rf .next && npm run build
       echo "=== 4. RESTART FRONTEND PM2 (FULL RAM 2GB) ==="
