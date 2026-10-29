@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ShieldCheck,
   CheckCircle,
@@ -27,6 +27,26 @@ export default function LegacyEodResultSection({
   const [eodData, setEodData] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Tính ngày phiên làm việc liền trước T-1 (bỏ qua Thứ Bảy, Chủ Nhật)
+  const previousTradingDayFormatted = useMemo(() => {
+    if (!selectedDate) return '';
+    try {
+      const dt = new Date(selectedDate);
+      dt.setDate(dt.getDate() - 1);
+      if (dt.getDay() === 0) {
+        dt.setDate(dt.getDate() - 2);
+      } else if (dt.getDay() === 6) {
+        dt.setDate(dt.getDate() - 1);
+      }
+      const d = String(dt.getDate()).padStart(2, '0');
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const y = dt.getFullYear();
+      return `${d}/${m}/${y}`;
+    } catch {
+      return '';
+    }
+  }, [selectedDate]);
+
   const fetchEodData = useCallback(async (silent: boolean = false) => {
     if (!token) return;
     if (!silent) setLoading(true);
@@ -50,7 +70,7 @@ export default function LegacyEodResultSection({
     setTriggering(true);
     try {
       await api.tradingOps.triggerRun('CHECK_EOD_MS', selectedDate, {}, token);
-      toast.success('Đã gửi yêu cầu đối chiếu kết quả chạy EOD!');
+      toast.success(`Đã gửi yêu cầu đối chiếu EOD phiên T-1 (${previousTradingDayFormatted})!`);
       setTimeout(() => fetchEodData(true), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
@@ -64,11 +84,11 @@ export default function LegacyEodResultSection({
 
   const filteredMismatches = mismatchedEOD.filter(p => {
     const q = searchQuery.trim().toLowerCase();
-    return (
-      (p?.tkgd || '').toLowerCase().includes(q) ||
-      (p?.qltkgd || '').toLowerCase().includes(q) ||
-      (p?.reason || '').toLowerCase().includes(q)
-    );
+    const maTKGD = String(p?.maTKGD || p?.tkgd || '').toLowerCase();
+    const calcBal = String(p?.calculatedBalance ?? p?.qltkgd ?? '').toLowerCase();
+    const eodBal = String(p?.eodBalance ?? '').toLowerCase();
+    const reason = String(p?.reason || p?.differ || '').toLowerCase();
+    return maTKGD.includes(q) || calcBal.includes(q) || eodBal.includes(q) || reason.includes(q);
   });
 
   const formatSubCheckTime = (iso?: string | null) => {
@@ -118,9 +138,25 @@ export default function LegacyEodResultSection({
             <ShieldCheck size={20} />
           </div>
           <div>
-            <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Check Kết Quả EOD
-            </h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Check Kết Quả EOD
+              </h4>
+              {previousTradingDayFormatted && (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: '#3b82f6',
+                  }}
+                >
+                  Phiên chốt sổ T-1: {previousTradingDayFormatted}
+                </span>
+              )}
+            </div>
             {hasExecuted && eodData?.executedAt && (
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                 Thời gian đối chiếu: {formatSubCheckTime(eodData.executedAt)}
@@ -183,7 +219,7 @@ export default function LegacyEodResultSection({
           <div style={{ padding: '48px 20px', textAlign: 'center' }}>
             <Clock size={32} color="var(--text-muted)" style={{ margin: '0 auto 10px' }} />
             <h5 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-              Chưa chạy đối chiếu EOD phiên này
+              Chưa chạy đối chiếu EOD phiên T-1 ({previousTradingDayFormatted || selectedDate})
             </h5>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
               Bấm nút &quot;Check EOD&quot; phía trên để đối soát số dư và kết quả đóng sổ EOD giữa M-System và CCP.
@@ -224,9 +260,10 @@ export default function LegacyEodResultSection({
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)' }}>
                   <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 700 }}>
-                    <th style={{ padding: '10px 16px', width: '150px' }}>TKGD</th>
-                    <th style={{ padding: '10px 16px', width: '180px' }}>QLTKGD</th>
-                    <th style={{ padding: '10px 16px' }}>Kết quả / Chênh lệch</th>
+                    <th style={{ padding: '10px 16px', width: '140px' }}>Mã TKGD</th>
+                    <th style={{ padding: '10px 16px', width: '180px', textAlign: 'right' }}>QLTKGD (Dự kiến)</th>
+                    <th style={{ padding: '10px 16px', width: '180px', textAlign: 'right' }}>EOD (Thực tế)</th>
+                    <th style={{ padding: '10px 16px', textAlign: 'right' }}>Chênh lệch</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -239,9 +276,24 @@ export default function LegacyEodResultSection({
                         color: '#ef4444',
                       }}
                     >
-                      <td style={{ padding: '10px 16px', fontWeight: 800, fontFamily: 'monospace' }}>{p?.tkgd || '--'}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '0.82rem', fontFamily: 'monospace' }}>{p?.qltkgd || '--'}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '0.82rem', fontWeight: 700 }}>{p?.reason || 'Lệch số dư'}</td>
+                      <td style={{ padding: '10px 16px', fontWeight: 800, fontFamily: 'monospace' }}>
+                        {p?.maTKGD || p?.tkgd || '--'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.85rem', fontFamily: 'monospace', textAlign: 'right' }}>
+                        {p?.calculatedBalance != null
+                          ? p.calculatedBalance.toLocaleString('vi-VN')
+                          : (p?.qltkgd || '--')}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.85rem', fontFamily: 'monospace', textAlign: 'right' }}>
+                        {p?.eodBalance != null
+                          ? p.eodBalance.toLocaleString('vi-VN')
+                          : '--'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '0.85rem', fontWeight: 700, textAlign: 'right' }}>
+                        {p?.differ != null
+                          ? `${p.differ.toLocaleString('vi-VN')} đ`
+                          : (p?.reason || 'Lệch số dư')}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

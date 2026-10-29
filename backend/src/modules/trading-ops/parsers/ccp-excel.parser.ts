@@ -146,6 +146,7 @@ export class CcpExcelParser {
     expectedDate?: string | Date,
     sessionStart?: Date,
     checkTime?: Date,
+    cutoffTime?: Date,
   ): { totalKhop: number; records: CcpTradeRecord[] } {
     if (!buffer || buffer.length === 0) return { totalKhop: 0, records: [] };
     const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -223,7 +224,7 @@ export class CcpExcelParser {
         }
       }
 
-      // 2. Session Window Guard: Lọc theo mốc giờ phiên (mặc định 05:00:00)
+      // 2. Session Window Guard: Lọc theo mốc giờ phiên (mặc định 05:00:00) và mốc chốt dữ liệu (Cutoff Time)
       if (thoiGianKhopIdx !== -1 && row[thoiGianKhopIdx]) {
         const timeVal = row[thoiGianKhopIdx];
         if (effSessionStart && effCheckTime) {
@@ -232,6 +233,12 @@ export class CcpExcelParser {
             if (tradeTime < effSessionStart || tradeTime > effCheckTime) {
               continue;
             }
+            // [Pipelined-Sync] Không lọc cutoff time vì file CoreCCP và Nano đã xuất đồng pha cùng giây
+            /*
+            if (cutoffTime && tradeTime > cutoffTime) {
+              continue;
+            }
+            */
           }
         } else if (expectedDate && ngayPhienIdx === -1) {
           if (!this.isMatchingDate(timeVal, expectedDate)) {

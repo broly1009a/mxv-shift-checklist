@@ -122,7 +122,7 @@ export class IngressService implements IIngressPort {
             summary: `Đã tải trọn gói ${combinedFiles.length} file ACM (SFTP Straits CSV + ETP Order & Fill)`,
           };
         }
-        // Direct REST API: Sử dụng AcmEtpAdapter để kéo dữ liệu từ Web Portal ETP (Order.xlsx & Fill.xlsx)
+        // Direct REST API: Sử dụng AcmEtpAdapter để kéo dữ liệu từ Web Portal ETP (Order.xls & Fill.xls)
         return this.acmEtpAdapter.download('ACM', { ...options, targetDirectory: outputDirectory });
       }
     } else if (ingressMode === 'SFTP' && source === 'ACM') {

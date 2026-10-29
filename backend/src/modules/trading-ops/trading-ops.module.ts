@@ -21,6 +21,7 @@ import { CcpEodService } from './services/recon/ccp-eod.service';
 import { CeCcpGttCheckerService } from './services/recon/ce-ccp-gtt.service';
 import { QlgdDashboardService } from './services/console/qlgd-dashboard.service';
 import { QlgdExcelExportService } from './services/console/qlgd-excel-export.service';
+import { NewsGtgdExportService } from './services/console/news-gtgd-export.service';
 import { KlgdReconWorker } from './workers/klgd-recon.worker';
 import { DsgdBeforeEodReconWorker } from './workers/dsgd-before-eod-recon.worker';
 import { NegativeMarginWorker } from './workers/negative-margin.worker';
@@ -117,6 +118,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     CeCcpGttCheckerService,
     QlgdDashboardService,
     QlgdExcelExportService,
+    NewsGtgdExportService,
     KlgdReconWorker,
     DsgdBeforeEodReconWorker,
     NegativeMarginWorker,
@@ -159,6 +161,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     CeCcpGttCheckerService,
     QlgdDashboardService,
     QlgdExcelExportService,
+    NewsGtgdExportService,
     KlgdReconWorker,
     DsgdBeforeEodReconWorker,
     NegativeMarginWorker,

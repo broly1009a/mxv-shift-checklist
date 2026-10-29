@@ -332,10 +332,10 @@ export class AcmEtpAdapter implements IIngressPort {
 
         if (t.includes('ORDER')) {
           endpoint = '/exchange/business/tetporder/export';
-          outputFileName = 'Order.xlsx';
+          outputFileName = 'Order.xls';
         } else if (t.includes('TRADE') || t.includes('FILL')) {
           endpoint = '/exchange/business/tetptrade/export';
-          outputFileName = 'Fill.xlsx';
+          outputFileName = 'Fill.xls';
         } else {
           continue;
         }

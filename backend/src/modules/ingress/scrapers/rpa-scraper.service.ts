@@ -2915,8 +2915,8 @@ export class RpaScraperService {
   ): Promise<void> {
     const log = this.getLogFn(jobLogs);
 
-    const orderFile = path.join(dailyPath, 'Order.xlsx');
-    const fillFile = path.join(dailyPath, 'Fill.xlsx');
+    const orderFile = path.join(dailyPath, 'Order.xls');
+    const fillFile = path.join(dailyPath, 'Fill.xls');
 
     // Xác định base URL từ chính trang ACM hiện tại đang đăng nhập thành công
     const credentialsRaw = await this.settingsService.getSetting(
@@ -4555,9 +4555,26 @@ export class RpaScraperService {
     onReadyBarrier?: () => Promise<void>,
     onReadyBarrierCqg2?: () => Promise<void>,
     onLog?: (msg: string) => Promise<void> | void,
+    onDownloadingPair?: (pair: 'FR' | 'PS' | 'OP' | 'OD') => Promise<void> | void,
   ): Promise<{ errors: string[]; downloaded: string[] }> {
     const errors: string[] = [];
     const downloaded: string[] = [];
+
+    const notifiedPairs = new Set<string>();
+    const notifyPair = (pair: 'FR' | 'PS' | 'OP' | 'OD') => {
+      if (!notifiedPairs.has(pair)) {
+        notifiedPairs.add(pair);
+        if (onDownloadingPair) {
+          try {
+            Promise.resolve(onDownloadingPair(pair)).catch((err) => {
+              this.logger.warn(`[CQG] Lỗi callback onDownloadingPair(${pair}): ${err.message}`);
+            });
+          } catch (err: any) {
+            this.logger.warn(`[CQG] Lỗi callback onDownloadingPair(${pair}): ${err.message}`);
+          }
+        }
+      }
+    };
 
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
@@ -4839,6 +4856,7 @@ export class RpaScraperService {
         }
 
         if (reports.FR1) {
+          notifyPair('FR');
           try {
             await this.downloadCqgFR(page, path.join(destDir, 'FR1.xlsx'), ensureSessionActive1);
             downloaded.push('FR1.xlsx');
@@ -4847,6 +4865,7 @@ export class RpaScraperService {
           }
         }
         if (reports.PS1) {
+          notifyPair('PS');
           try {
             await this.downloadCqgPS(page, path.join(destDir, 'PS1.xlsx'), ensureSessionActive1);
             downloaded.push('PS1.xlsx');
@@ -4855,6 +4874,7 @@ export class RpaScraperService {
           }
         }
         if (reports.OP1) {
+          notifyPair('OP');
           try {
             await this.downloadCqgOP(page, path.join(destDir, 'OP1.xlsx'), ensureSessionActive1);
             downloaded.push('OP1.xlsx');
@@ -4863,6 +4883,7 @@ export class RpaScraperService {
           }
         }
         if (reports.OD1) {
+          notifyPair('OD');
           try {
             await this.downloadCqgOD(page, path.join(destDir, 'OD1.xlsx'), ensureSessionActive1);
             downloaded.push('OD1.xlsx');
@@ -4961,6 +4982,7 @@ export class RpaScraperService {
         }
 
         if (reports.FR2) {
+          notifyPair('FR');
           try {
             await this.downloadCqgFR(page, path.join(destDir, 'FR2.xlsx'), ensureSessionActive2);
             downloaded.push('FR2.xlsx');
@@ -4969,6 +4991,7 @@ export class RpaScraperService {
           }
         }
         if (reports.PS2) {
+          notifyPair('PS');
           try {
             await this.downloadCqgPS(page, path.join(destDir, 'PS2.xlsx'), ensureSessionActive2);
             downloaded.push('PS2.xlsx');
@@ -4977,6 +5000,7 @@ export class RpaScraperService {
           }
         }
         if (reports.OP2) {
+          notifyPair('OP');
           try {
             await this.downloadCqgOP(page, path.join(destDir, 'OP2.xlsx'), ensureSessionActive2);
             downloaded.push('OP2.xlsx');
@@ -4985,6 +5009,7 @@ export class RpaScraperService {
           }
         }
         if (reports.OD2) {
+          notifyPair('OD');
           try {
             await this.downloadCqgOD(page, path.join(destDir, 'OD2.xlsx'), ensureSessionActive2);
             downloaded.push('OD2.xlsx');

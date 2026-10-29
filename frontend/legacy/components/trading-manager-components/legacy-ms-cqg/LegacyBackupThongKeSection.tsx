@@ -84,14 +84,14 @@ export const ACM_REPORTS_LIST: Array<{
   {
     key: 'FILL',
     name: 'Khớp lệnh ACM (Fill)',
-    filename: 'Fill.xlsx',
+    filename: 'Fill.xls',
     source: 'WEB',
     description: 'Dữ liệu khớp lệnh tự doanh trích xuất từ giao diện Web ACM',
   },
   {
     key: 'ORDER',
     name: 'Sổ lệnh ACM (Order)',
-    filename: 'Order.xlsx',
+    filename: 'Order.xls',
     source: 'WEB',
     description: 'Sổ lệnh giao dịch tự doanh trích xuất từ giao diện Web ACM',
   },

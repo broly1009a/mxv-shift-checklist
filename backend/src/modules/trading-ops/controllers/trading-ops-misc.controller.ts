@@ -28,6 +28,7 @@ import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
 import { ReconConsoleSummaryService } from '../services/console/recon-console-summary.service';
 import { QlgdDashboardService } from '../services/console/qlgd-dashboard.service';
 import { QlgdExcelExportService } from '../services/console/qlgd-excel-export.service';
+import { NewsGtgdExportService } from '../services/console/news-gtgd-export.service';
 import { TradingOpsPreflightService } from '../services/console/trading-ops-preflight.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -42,6 +43,7 @@ export class TradingOpsMiscController {
     private readonly settingsService: SystemSettingsService,
     private readonly qlgdDashboardService: QlgdDashboardService,
     private readonly qlgdExcelExportService: QlgdExcelExportService,
+    private readonly newsGtgdExportService: NewsGtgdExportService,
     private readonly preflightService: TradingOpsPreflightService,
   ) {}
 
@@ -400,6 +402,29 @@ export class TradingOpsMiscController {
       return res.end(buffer);
     } catch (err: any) {
       throw new BadRequestException(`Không thể xuất báo cáo Excel BGS: ${err.message}`);
+    }
+  }
+
+  /**
+   * Xuất file Excel báo cáo Giá Trị Giao Dịch cuối phiên cho Ban Tin Tức.
+   */
+  @Get('export-news-gtgd-excel')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async exportNewsGtgd(
+    @Query('date') dateStr?: string,
+    @Res() res?: any,
+  ) {
+    try {
+      const buffer = await this.newsGtgdExportService.generateNewsGtgdExcel(dateStr);
+      const cleanDate = (dateStr || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+      const filename = `Bao_Cao_GTGD_Ban_Tin_Tuc_${cleanDate}.xlsx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+      return res.end(buffer);
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể xuất báo cáo GTGD Ban Tin Tức: ${err.message}`);
     }
   }
 }

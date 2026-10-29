@@ -310,8 +310,8 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     today.setHours(0, 0, 0, 0);
 
     const filesToCheck = [
-      { key: 'ORDER', filename: 'Order.xlsx', alt: 'Order.xls' },
-      { key: 'FILL', filename: 'Fill.xlsx', alt: 'Fill.xls' },
+      { key: 'ORDER', filename: 'Order.xls', alt: 'Order.xlsx' },
+      { key: 'FILL', filename: 'Fill.xls', alt: 'Fill.xlsx' },
     ];
 
     const results: Array<{

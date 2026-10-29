@@ -18,8 +18,8 @@ export interface IAcmReportDef {
 }
 
 export const CANONICAL_ACM_KEYS = [
-  'FILL',      // Khớp lệnh ETP Web -> Fill.xlsx
-  'ORDER',     // Sổ lệnh ETP Web -> Order.xlsx
+  'FILL',      // Khớp lệnh ETP Web -> Fill.xls
+  'ORDER',     // Sổ lệnh ETP Web -> Order.xls
   'SFTP_CSV',  // File CSV Straits EOD -> EOD FO trades_PT Straits...csv / Straits_<date>.csv
   'SFTP_XLS',  // Báo cáo TK 10017890000 -> <date>_10017890000.xls
 ] as const;
@@ -30,14 +30,14 @@ export const ACM_REPORTS_REGISTRY: Record<string, IAcmReportDef> = {
   FILL: {
     key: 'FILL',
     name: 'Khớp lệnh ACM (Fill)',
-    fileName: 'Fill.xlsx',
+    fileName: 'Fill.xls',
     source: 'WEB',
     description: 'Danh sách khớp lệnh liên thông ACM tải từ ETP Web Portal',
   },
   ORDER: {
     key: 'ORDER',
     name: 'Sổ lệnh ACM (Order)',
-    fileName: 'Order.xlsx',
+    fileName: 'Order.xls',
     source: 'WEB',
     description: 'Sổ lệnh giao dịch ACM tải từ ETP Web Portal',
   },

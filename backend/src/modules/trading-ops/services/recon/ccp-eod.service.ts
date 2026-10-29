@@ -293,10 +293,16 @@ export class CcpEodService {
                 const laiLoUSD = laiLoUSDIdx !== -1 ? parseFloat(qRow[laiLoUSDIdx]) || 0 : 0;
                 const laiLoJPY = laiLoJPYIdx !== -1 ? parseFloat(qRow[laiLoJPYIdx]) || 0 : 0;
                 const laiLoMYR = laiLoMYRIdx !== -1 ? parseFloat(qRow[laiLoMYRIdx]) || 0 : 0;
-                let phiDV = phiDVIdx !== -1 ? parseFloat(qRow[phiDVIdx]) || 0 : 0;
+                // Chuẩn theo Tool C# gốc (FileUtils.cs:L1730 & TransactionCheckingService.cs:L503):
+                // Phí dịch vụ thanh toán lấy 100% từ cột "Phí dịch vụ thanh toán (VND)" của file QL TT TKGD.
+                // Tool C# tuyệt đối KHÔNG lấy phí này từ file TTTT.xlsx (file TTTT chỉ dùng để cộng dồn lãi lỗ ngoại tệ).
+                // Việc cào phí từ TTTT đè lên số 0 của QLTKGD gây ra lệch ảo 6,993 VND (0.27 USD) vì CoreCCP không trừ khoản này vào số dư ký quỹ EOD.
+                const phiDV = phiDVIdx !== -1 ? parseFloat(qRow[phiDVIdx]) || 0 : 0;
+                /*
                 if (phiDV === 0 && ttttFeeMap.has(acc)) {
                   phiDV = ttttFeeMap.get(acc) || 0;
                 }
+                */
 
                 const tyGiaUSD = (phiQC + laiLoUSD < 0) ? effectiveRates.usdLoss : effectiveRates.usdGain;
                 const tyGiaJPY = (laiLoJPY < 0) ? effectiveRates.jpyLoss : effectiveRates.jpyGain;

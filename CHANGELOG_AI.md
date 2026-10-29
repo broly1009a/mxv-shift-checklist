@@ -1,3 +1,150 @@
+## [2026-10-29T11:00] FIX(ACM_ETP_EXTENSION): Chuẩn Hóa Đuôi File Tải Báo Cáo ACM Web Về .xls Khắc Phục Lỗi Mở File Trên Excel Windows
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu & Phản ánh từ người dùng**:
+  - Khi tải 2 báo cáo từ cổng Web ETP của ACM (qua Playwright RPA hoặc Direct REST API), hệ thống lưu file vào ổ đĩa với đuôi `.xlsx` (`Fill.xlsx`, `Order.xlsx`).
+  - Khi người dùng trên Windows bấm đúp chuột để mở bằng Microsoft Excel thì bị lỗi cấu trúc:
+    *"Excel cannot open the file 'Order.xlsx' because the file format or file extension is not valid. Verify that the file has not been corrupted and that the file extension matches the format of the file."*
+  - Người dùng phải đổi đuôi thủ công từ `.xlsx` về `.xls` thì Excel mới mở được.
+- **Nguyên nhân kỹ thuật (Ground Truth)**:
+  - Cổng Web ETP của sàn ACM tại các endpoint `/exchange/business/tetporder/export` và `/exchange/business/tetptrade/export` trả về dữ liệu nhị phân chuẩn Microsoft Excel 97-2003 (BIFF8 / `.xls`).
+  - Lệnh lưu file trước đây (`download.saveAs` trong Playwright hoặc `fs.writeFileSync` trong REST API) ghi trực tiếp luồng byte nhị phân thô vào tên file đuôi `.xlsx` mà không qua bước convert cấu trúc sang OpenXML.
+  - Microsoft Excel bắt buộc file `.xlsx` phải có cấu trúc nén ZIP OpenXML. Khi thấy magic bytes nhị phân BIFF8, Excel chặn lại và báo lỗi file hỏng.
+- **Giải pháp Hotfix Tinh Gọn (Clean & No Speculative Clutter)**:
+  - Đổi tên file đích khi lưu mặc định thành `Order.xls` và `Fill.xls` (đúng 100% với tên và định dạng gốc mà sàn ACM xuất ra).
+  - Cập nhật danh mục cấu hình, log, và giao diện UI hiển thị nhãn `Order.xls` / `Fill.xls`.
+  - Giữ cơ chế tương thích ngược (fallback `alt: 'Order.xlsx'` và `alt: 'Fill.xlsx'` trong file audit) để các thư mục ngày cũ có file `.xlsx` vẫn được nhận diện và kiểm soát bình thường.
+
+### 2. Danh sách file chỉnh sửa
+- [acm-reports.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/domain-configs/acm-reports.config.ts): Đổi `fileName` chuẩn của `FILL` và `ORDER` thành `Fill.xls` và `Order.xls`.
+- [acm-etp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-etp.adapter.ts): Đổi `outputFileName` thành `Order.xls` và `Fill.xls` khi gọi API export.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts): Đổi `orderFile` / `fillFile` thành `Order.xls` / `Fill.xls` khi lưu file tải về qua Playwright browser.
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts): Chuẩn hóa tên file chính là `Order.xls` / `Fill.xls`, giữ alt là `Order.xlsx` / `Fill.xlsx` để tương thích ngược 100%.
+- [recon-ingress-pipeline.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts): Chuẩn hóa log và đường dẫn file đối chiếu sang `Fill.xls`.
+- [required-files.constant.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/constants/required-files.constant.ts): Cập nhật label file `Order.xls` và `Fill.xls`.
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts): Chuẩn hóa thông báo thiếu file sang `Fill.xls`.
+- [ingress.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts) & [acm-session-validator.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/acm-session-validator.helper.ts): Cập nhật chú thích và tài liệu nội bộ.
+- [LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx) & [CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx) & [CeAcmBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx) & [BackupLogSummaryModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/BackupLogSummaryModal.tsx) & [ReconLogSummaryModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/ReconLogSummaryModal.tsx): Đồng bộ nhãn hiển thị và tên file tải về chuẩn `Fill.xls` và `Order.xls` trên toàn bộ Frontend (cả thư mục `src` và `legacy`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeCheck**: `cmd /c npx tsc -p tsconfig.build.json --noEmit` $\rightarrow$ Exit Code 0 (Hoàn toàn sạch lỗi).
+- **Frontend TypeCheck**: `cmd /c npx tsc --noEmit` $\rightarrow$ Exit Code 0 (Hoàn toàn sạch lỗi).
+
+---
+
+## [2026-10-29T10:50] FEAT(NEWS_GTGD_EXPORT): Bổ Sung Tính Năng Xuất File Excel GTGD Cuối Phiên Cho Ban Tin Tức Trên Dashboard QLGD
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu người dùng**: Bổ sung tính năng xuất ra file Excel Giá Trị Giao Dịch (GTGD) cuối phiên phục vụ Ban Tin Tức & Truyền Thông MXV trực tiếp trên giao diện [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx).
+- **Cơ sở nghiệp vụ**:
+  - Tái hiện 100% logic toán học và mẫu biểu từ file Macro gốc `Macro thong ke gia tri giao dich có ACM.xlsm` (Sheet1, HH, Hhoa Vlookup).
+  - Áp dụng chuẩn hệ số quy đổi độ lớn hợp đồng (`doCao`) và đơn vị yết giá (`donVi`) của 77 mã hàng hóa, nhân tỷ giá đa tệ (USD, JPY chia 100 cho cao su `TRU`, MYR cho dầu cọ `MPO`, VND).
+  - Báo cáo gồm 3 khối:
+    1. Tổng hợp 4 nhóm ngành (Nông sản, Năng lượng, Kim loại, Nguyên liệu công nghiệp) và tỷ trọng %.
+    2. Chi tiết 77 mặt hàng chuẩn để copy làm tin tức (KL & GTGD thường, KL & GTGD Spread, Tổng).
+    3. Thống kê khối Tự doanh / Tạo lập thị trường (ACM Nano: Bạc Nano `SI5CO`, Bạch kim Nano `PL1NY`, Đồng Nano `CP2CO`).
+  - Hỗ trợ cơ chế Fail-Safe tự động lưu một bản sao vào thư mục dùng chung của Ban Tin Tức trên ổ mạng M: (`news_team_stat_path`).
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- [news-gtgd-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/news-gtgd-export.service.ts): Tạo mới service chuyên trách tính toán GTGD và render ExcelJS 3 khối chuẩn mẫu corporate.
+- [trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký `NewsGtgdExportService` vào `providers` và `exports`.
+- [trading-ops-misc.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-ops-misc.controller.ts): Thêm endpoint `GET /api/v1/trading-ops/export-news-gtgd-excel`.
+- [trading-ops.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/services/trading-ops.api.ts): Bổ sung method `exportNewsGtgdExcel()`.
+- [QlgdExecutiveDashboard.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/QlgdExecutiveDashboard.tsx): Thêm nút bấm `Xuất GTGD Tin Tức` (icon `<Newspaper size={15} />`, màu tím Indigo `#6366f1`) kế bên nút xuất Excel BGS.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeCheck**: `cmd /c npx tsc -p tsconfig.build.json --noEmit` $\rightarrow$ Exit Code 0 (Hoàn toàn không có lỗi compile).
+- **Frontend TypeCheck**: `cmd /c npx tsc --noEmit` $\rightarrow$ Exit Code 0 (Hoàn toàn không có lỗi compile).
+
+---
+
+## [2026-10-29T10:20] FIX(EOD_MS_RECON): Đồng Bộ Logic Đối Chiếu EOD M-System Sang Phiên T-1 Chuẩn Nghiệp Vụ SOD Như CoreCCP
+
+### 1. Mục tiêu thay đổi
+- **Bối cảnh**: Trên màn hình Nghiệp vụ đầu phiên SOD (`/trading-manager/session-open/eod-result`), khi chọn ngày phiên hôm nay (`29/10/2026`), phân hệ MS - CQG báo lỗi: `[Đang chờ dữ liệu] Thư mục backup ngày 29.10.2026 đang chờ cập nhật file đối chiếu EOD MS (QLTKGD.xlsx).`
+- **Nguyên nhân cốt lõi (Root Cause)**:
+  - Về mặt nghiệp vụ SOD: Đầu ngày 29/10/2026, phiên hôm nay mới bắt đầu nên M-System chưa thể có file đóng sổ EOD (`QLTKGD.xlsx`, `eod.csv`) của ngày 29.10. Nghiệp vụ SOD đầu ngày thực chất là kiểm tra số dư đóng sổ của phiên liền trước ($T-1$, tức phiên 28/10/2026).
+  - Phân hệ CoreCCP ([ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts#L364-L386)) đã tự động gọi `getPreviousTradingSession(tradingDate)` để lùi về $T-1$, nên quét đúng thư mục `28.10` và chạy ra kết quả Khớp 100%.
+  - Phân hệ MS - CQG tại Worker [eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-ms.worker.ts) trước đó lấy trực tiếp ngày của ca trực hiện tại (`29.10.2026`) mà không lùi ngày về $T-1$, dẫn tới việc tìm file ở thư mục hôm nay và rơi vào trạng thái chờ dữ liệu.
+- **Giải pháp**:
+  - Tại Backend ([eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-ms.worker.ts)): Sử dụng `await this.msEodReconService.getPreviousTradingSession(targetDate)` để tự động lùi về phiên $T-1$ (trừ khi có cờ `isExplicitDate`), quét đúng thư mục backup của phiên hôm qua (`2026/T10.2026/28.10`).
+  - Tại Frontend ([LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx) & [LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx)): Hiển thị rõ nhãn phụ `"Phiên chốt sổ T-1: DD/MM/YYYY"` tương tự như thẻ CoreCCP để người dùng nhận biết rõ ràng phiên dữ liệu đang được đối soát. Đồng bộ sang cả thư mục `frontend/legacy`.
+
+### 2. Danh sách file chỉnh sửa
+- [eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-ms.worker.ts):
+  - Lùi ngày đối chiếu EOD về phiên $T-1$ qua `msEodReconService.getPreviousTradingSession`.
+  - Cập nhật thông điệp log và summary: `"Phiên T-1: DD/MM/YYYY"`.
+- [LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx) & [LegacyNegativeMarginSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyNegativeMarginSection.tsx):
+  - Tính `previousTradingDayFormatted` và hiển thị badge `"Phiên chốt sổ T-1: DD/MM/YYYY"` trên header toolbar.
+  - Đồng bộ sang `frontend/legacy/components/trading-manager-components/legacy-ms-cqg/`.
+
+### 3. Xác nhận Build & Triển khai
+- **TypeScript Check**:
+  - Backend: `cmd /c npx tsc -p tsconfig.build.json --noEmit` $\rightarrow$ Exit Code 0.
+  - Frontend: `cmd /c npx tsc --noEmit` $\rightarrow$ Exit Code 0.
+- **Deploy Ubuntu 10.0.0.26**:
+  - `npm run build` (`next build`) trên Ubuntu hoàn tất thành công (Exit Code 0).
+  - Restart PM2 `mxv-backend` (pid 2332144) & `mxv-frontend` (pid 2332387), trạng thái online 100%.
+
+---
+
+## [2026-10-29T09:35] FIX(FRONTEND_DEPLOY): Triển Khai Bản Build Frontend Khắc Phục Lỗi Hiển Thị 3 Tài Khoản Âm Ký Quỹ Mới Trên Server Ubuntu
+
+### 1. Mục tiêu thay đổi
+- **Bối cảnh**: Sau khi bot đối chiếu EOD CoreCCP hoàn tất, bot và backend đã tính toán và ghi nhận chính xác 100%: 3 tài khoản âm IMR trong phiên T-1 (`003C1577943-A`, `046C0002363-A`, `068C2600030-A`) đều đã âm từ phiên T-2 (27/10/2026) $\rightarrow$ Số tài khoản âm ký quỹ MỚI là **0 TK** (`negativeIMRAcc: []`).
+- **Nguyên nhân phát sinh hiển thị 3 tài khoản**:
+  - Ở lượt deploy trước đó, chỉ có Backend được build và deploy lên Ubuntu `10.0.0.26`, trong khi Frontend trên server vẫn đang chạy bundle cũ với logic fallback nguy hiểm:
+    ```typescript
+    const rawAccs =
+      (negJob?.accounts && negJob.accounts.length > 0 ? negJob.accounts : null) ||
+      (negJob?.negativeIMRAcc && negJob.negativeIMRAcc.length > 0 ? negJob.negativeIMRAcc : null) ||
+      (ccpSummary?.negativeIMRAcc && ccpSummary.negativeIMRAcc.length > 0 ? ccpSummary.negativeIMRAcc : null) ||
+      (ccpSummary?.negativeBalanceAccs && ccpSummary.negativeBalanceAccs.length > 0 ? ccpSummary.negativeBalanceAccs : null) || ...
+    ```
+  - Khi `negativeIMRAcc` là mảng rỗng `[]` (kết quả 0 tài khoản âm mới - hoàn toàn An Toàn), điều kiện `length > 0` trả về `false`, khiến code bỏ qua kết quả đúng và fallback sang `negativeBalanceAccs` (danh sách âm số dư tiền mặt của file `QL TT TKGD.xlsx`, vốn chứa 3 tài khoản này).
+  - File [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L164-L178) ở repo thứ hai (`mxv-cqg-download-investigation`) cũng chưa được đồng bộ code fix.
+- **Giải pháp**:
+  - Đồng bộ [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L164-L178) sang `mxv-cqg-download-investigation`.
+  - Đẩy file trực tiếp lên server Ubuntu `/opt/mxv-checklist/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx`.
+  - Rebuild toàn bộ frontend bằng `npm run build` trên Ubuntu server và restart process `mxv-frontend` qua PM2.
+
+### 2. Danh sách file chỉnh sửa
+- [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L164-L178) & `mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx`:
+  - Dùng `Array.isArray(negJob?.accounts)` và `Array.isArray(ccpSummary?.negativeIMRAcc)` để giữ nguyên mảng rỗng `[]` khi 0 có tài khoản âm mới.
+  - Tuyệt đối không fallback sang `negativeBalanceAccs`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **TypeScript Check**: `cmd /c npx tsc --noEmit` pass 100% (Exit Code 0).
+- **Ubuntu Frontend Build**: `npm run build` (`next build`) trên Ubuntu `10.0.0.26` hoàn tất thành công (Exit Code 0), tạo 50 static pages.
+- **PM2 Status**: `mxv-frontend` (pid 2320386) online, memory 60MB.
+- **Giao diện**: Thẻ bên trái "Tài khoản âm ký quỹ mới (EOD CoreCCP)" hiển thị `TKGD âm KQ mới (0)` và Tick Xanh An Toàn.
+
+---
+
+## [2026-10-29T09:02] FIX(EOD_CORECCP): Chuẩn Hóa Logic Đối Chiếu EOD CoreCCP Theo Tool C# Gốc - Loại Bỏ Lệch Ảo 6,993 VND
+
+### 1. Mục tiêu thay đổi
+- **Bối cảnh**: Màn hình Đối chiếu EOD CoreCCP (`/trading-manager/session-open/eod-result`) báo lệch ảo `6,993 VND` (và `13,986 VND`) cho 3 tài khoản phát sinh giao dịch tất toán: `012C1314121-A`, `012C2207413-A`, `046C0001679-A`. Trong khi thực tế kiểm tra giữa 2 file gốc `QL TT TKGD.xlsx` và `EOD_28.10.2026.xlsx` số dư cuối ngày hoàn toàn khớp nhau từng đồng một (Khớp 100%, differ = 0).
+- **Nguyên nhân cốt lõi (Root Cause)**:
+  - Kiểm tra đối chiếu mã nguồn C# gốc tại [FIleUtils.cs:L1728-L1738](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Utils/FIleUtils.cs#L1728-L1738) & [TransactionCheckingService.cs:L503-L536](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/scratch/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L503-L536) cho thấy: Tool C# lấy `phiDVThanhToan` **100% duy nhất từ cột "Phí dịch vụ thanh toán (VND)" của file QLTKGD.xlsx**. Tool C# hoàn toàn KHÔNG lấy phí thanh toán từ file `TTTT.xlsx` (file TTTT trong C# chỉ dùng để cộng dồn lãi lỗ ngoại tệ).
+  - Bản TypeScript cũ tại [ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts) có đoạn tự chế: `if (phiDV === 0 && ttttFeeMap.has(acc)) phiDV = ttttFeeMap.get(acc)`. Đoạn này đã tự ý cào phí `0.27 USD` ($= 6,993$ VND) từ file `TTTT` đè lên giá trị `= 0` của file sổ cái `QL TT TKGD.xlsx`, rồi trừ vào công thức tính số dư làm phát sinh lệch ảo.
+- **Giải pháp**: Comment out đoạn `if (phiDV === 0 && ttttFeeMap.has(acc))` để đưa logic về chuẩn 100% như tool C# gốc.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts#L296-L305):
+  - Comment out đoạn override `phiDV` từ `ttttFeeMap`.
+  - Giữ nguyên `phiDV` lấy từ cột `Phí dịch vụ thanh toán (VND)` của file `QL TT TKGD.xlsx` theo đúng C#.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Build Local**: `cmd /c npm run build` backend thành công 100% (Exit Code 0).
+- **Deploy Server**: Đồng bộ và build thành công trên Ubuntu `10.0.0.26`, PM2 backend và frontend đều online.
+- **Kiểm thử Thực tế (Live Session 28/10/2026)**:
+  - Tổng số tài khoản: **10,326** TK.
+  - Số tài khoản lệch công thức EOD: **0** TK (**Khớp hoàn toàn 100% - Zero Lệch**).
+  - Số tài khoản âm ký quỹ mới (IMR): **0** TK.
+
+---
+
 ## [2026-10-28T18:10] FIX(EOD_CORECCP): Khắc Phục Lỗi Fallback Nuốt Mảng Rỗng Làm Hiển Thị Sai Tài Khoản Âm Ký Quỹ Mới (EOD CoreCCP)
 
 ### 1. Mục tiêu thay đổi

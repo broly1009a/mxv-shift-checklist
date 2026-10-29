@@ -57,8 +57,8 @@ export const CORE_EX_REPORTS_LIST = [
 
 // Báo cáo ACM (Straits Financial)
 export const ACM_REPORTS_LIST = [
-  { key: 'FILL', name: 'Khớp lệnh ACM (Fill)', filename: 'Fill.xlsx', source: 'WEB' },
-  { key: 'ORDER', name: 'Sổ lệnh ACM (Order)', filename: 'Order.xlsx', source: 'WEB' },
+  { key: 'FILL', name: 'Khớp lệnh ACM (Fill)', filename: 'Fill.xls', source: 'WEB' },
+  { key: 'ORDER', name: 'Sổ lệnh ACM (Order)', filename: 'Order.xls', source: 'WEB' },
   { key: 'SFTP_CSV', name: 'Straits EOD CSV (SFTP)', filename: 'EOD FO trades_PT Straits...csv', source: 'SFTP' },
   { key: 'SFTP_XLS', name: 'Báo cáo TK 10017890000', filename: '<YYYY-MM-DD>_10017890000.xls', source: 'SFTP' },
 ];

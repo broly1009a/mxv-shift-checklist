@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -27,6 +27,26 @@ export default function LegacyNegativeMarginSection({
   const [marginData, setMarginData] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Tính ngày phiên làm việc liền trước T-1 (bỏ qua Thứ Bảy, Chủ Nhật)
+  const previousTradingDayFormatted = useMemo(() => {
+    if (!selectedDate) return '';
+    try {
+      const dt = new Date(selectedDate);
+      dt.setDate(dt.getDate() - 1);
+      if (dt.getDay() === 0) {
+        dt.setDate(dt.getDate() - 2);
+      } else if (dt.getDay() === 6) {
+        dt.setDate(dt.getDate() - 1);
+      }
+      const d = String(dt.getDate()).padStart(2, '0');
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const y = dt.getFullYear();
+      return `${d}/${m}/${y}`;
+    } catch {
+      return '';
+    }
+  }, [selectedDate]);
+
   const fetchMarginData = useCallback(async (silent: boolean = false) => {
     if (!token) return;
     if (!silent) setLoading(true);
@@ -49,7 +69,7 @@ export default function LegacyNegativeMarginSection({
     setTriggering(true);
     try {
       await api.tradingOps.triggerRun('SCAN_NEGATIVE_MARGIN', selectedDate, {}, token);
-      toast.success('Đã gửi yêu cầu quét tài khoản âm ký quỹ mới!');
+      toast.success(`Đã gửi yêu cầu quét âm ký quỹ phiên T-1 (${previousTradingDayFormatted})!`);
       setTimeout(() => fetchMarginData(true), 1500);
     } catch (err: any) {
       toast.error(`Lỗi: ${err.message}`);
@@ -59,7 +79,11 @@ export default function LegacyNegativeMarginSection({
   };
 
   const hasExecuted = !!(marginData?.executedAt && marginData?.status !== 'IDLE');
-  const accounts: string[] = Array.isArray(marginData?.accounts) ? marginData.accounts : [];
+  const accounts: string[] = Array.isArray(marginData?.negativeIMRAcc)
+    ? marginData.negativeIMRAcc
+    : Array.isArray(marginData?.accounts)
+    ? marginData.accounts
+    : [];
 
   const filteredAccounts = accounts.filter(acc =>
     acc.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -112,9 +136,25 @@ export default function LegacyNegativeMarginSection({
             <ShieldAlert size={20} />
           </div>
           <div>
-            <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Check TKGD Âm KQ Mới
-            </h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Check TKGD Âm KQ Mới
+              </h4>
+              {previousTradingDayFormatted && (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                    color: '#3b82f6',
+                  }}
+                >
+                  Phiên chốt sổ T-1: {previousTradingDayFormatted}
+                </span>
+              )}
+            </div>
             {hasExecuted && marginData?.executedAt && (
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                 Thời gian quét: {formatSubCheckTime(marginData.executedAt)}
@@ -177,7 +217,7 @@ export default function LegacyNegativeMarginSection({
           <div style={{ padding: '48px 20px', textAlign: 'center' }}>
             <Clock size={32} color="var(--text-muted)" style={{ margin: '0 auto 10px' }} />
             <h5 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-              Chưa chạy kiểm tra tài khoản âm ký quỹ phiên này
+              Chưa chạy kiểm tra tài khoản âm ký quỹ phiên T-1 ({previousTradingDayFormatted || selectedDate})
             </h5>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
               Bấm nút &quot;Quét âm ký quỹ&quot; phía trên để tự động phân tích dữ liệu ký quỹ sau EOD.

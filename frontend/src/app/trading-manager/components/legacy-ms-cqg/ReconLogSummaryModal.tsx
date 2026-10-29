@@ -367,7 +367,7 @@ export const ReconLogSummaryModal: React.FC<ReconLogSummaryModalProps> = ({
                   <SourceStatusCard milestone={parsed.downloads.cqg} label="CQG" defaultFile="FR, OP, PS" />
 
                   {/* ACM Nano */}
-                  <SourceStatusCard milestone={parsed.downloads.acm} label="ACM Nano" defaultFile="Straits.csv / Fill.xlsx" />
+                  <SourceStatusCard milestone={parsed.downloads.acm} label="ACM Nano" defaultFile="Straits.csv / Fill.xls" />
 
                   {/* CoreCCP */}
                   <SourceStatusCard milestone={parsed.downloads.ccp} label="CoreCCP" defaultFile="Báo cáo CoreCCP" />

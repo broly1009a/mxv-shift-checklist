@@ -222,6 +222,32 @@ export const tradingOpsApi = {
 
     return res.blob();
   },
+
+  /**
+   * Tải file Excel báo cáo Giá Trị Giao Dịch cuối phiên cho Ban Tin Tức
+   */
+  async exportNewsGtgdExcel(
+    params?: { date?: string },
+    token?: string | null,
+  ): Promise<Blob> {
+    const url = buildUrl('/api/v1/trading-ops/export-news-gtgd-excel', {
+      ...(params?.date ? { date: params.date } : {}),
+    });
+
+    const headers = getAuthHeaders(token);
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Lỗi tải file');
+      throw new Error(errText || 'Lỗi xuất file Excel GTGD Ban Tin Tức');
+    }
+
+    return res.blob();
+  },
 };
 
 

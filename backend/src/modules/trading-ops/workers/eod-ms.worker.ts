@@ -53,9 +53,18 @@ export class EodMsWorker implements IBotWorker {
         ? new Date(context.targetDate)
         : new Date();
 
-      const year = targetDate.getFullYear().toString();
-      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getDate()).padStart(2, '0');
+      const isExplicitDate = Boolean(
+        context.parameters?.isExplicitDate ||
+        context.parameters?.exactDate ||
+        context.parameters?.options?.exactDate,
+      );
+      const evalDate = isExplicitDate
+        ? targetDate
+        : await this.msEodReconService.getPreviousTradingSession(targetDate);
+
+      const year = evalDate.getFullYear().toString();
+      const month = String(evalDate.getMonth() + 1).padStart(2, '0');
+      const day = String(evalDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
@@ -95,13 +104,13 @@ export class EodMsWorker implements IBotWorker {
         if (!eodFile) missing.push('eod.csv / EOD.xlsx');
 
         this.logger.warn(
-          `[EodMsWorker] Đang chờ file EOD MS ngày ${dateStr}. Thiếu: ${missing.join(', ')}`,
+          `[EodMsWorker] Đang chờ file EOD MS phiên T-1 (${dateStr}). Thiếu: ${missing.join(', ')}`,
         );
         return {
           status: 'WAITING',
           isWaitingFiles: true,
-          summary: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật file đối chiếu EOD MS (${missing.join(', ')}).`,
-          metrics: { missingFiles: missing },
+          summary: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} (Phiên T-1) đang chờ cập nhật file đối chiếu EOD MS (${missing.join(', ')}).`,
+          metrics: { missingFiles: missing, evalDate: dateStr, targetDate: context.targetDate },
           durationMs: Date.now() - startTime,
           executedAt: new Date(),
         };
@@ -147,8 +156,8 @@ export class EodMsWorker implements IBotWorker {
       const status = passed ? 'SUCCESS' : 'WARNING';
 
       const summary = passed
-        ? `Đối chiếu EOD M-System thành công: Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm ký quỹ mới.`
-        : `Đối chiếu EOD M-System có cảnh báo: ${totalNegativeNew} tài khoản âm ký quỹ mới, ${totalMismatched} tài khoản lệch công thức EOD.`;
+        ? `Đối chiếu EOD M-System thành công (Phiên T-1: ${day}/${month}/${year}): Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm ký quỹ mới.`
+        : `Đối chiếu EOD M-System có cảnh báo (Phiên T-1: ${day}/${month}/${year}): ${totalNegativeNew} tài khoản âm ký quỹ mới, ${totalMismatched} tài khoản lệch công thức EOD.`;
 
       if (this.reconLogModel) {
         try {

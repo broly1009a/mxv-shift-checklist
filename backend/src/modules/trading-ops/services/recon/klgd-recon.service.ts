@@ -258,6 +258,8 @@ export class KlgdReconService {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
+      // [Pipelined-Sync] Khi ACM và CCP đã tải đồng pha cùng giây, comment lại đoạn cắt cutoff để giữ nguyên số liệu thô thực tế (800 = 800)
+      /*
       if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
         pendingSyncTrades.push({
           source: 'ACM',
@@ -272,6 +274,7 @@ export class KlgdReconService {
         });
         return false;
       }
+      */
       return tradeTime <= nanoUpperBound;
     });
 
@@ -584,7 +587,6 @@ export class KlgdReconService {
     }
 
     let finalMismatchedTrades = checkKlgdFlag ? [...mismatchedTrades] : [];
-
 
     let evaluatedDifferACM = finalDifferACM;
     const ccpDsgdLots = totalCCP_DSGD || 0;

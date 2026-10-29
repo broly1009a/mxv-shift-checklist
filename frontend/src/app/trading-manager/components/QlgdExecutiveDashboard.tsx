@@ -32,6 +32,7 @@ import {
   Maximize2,
   Search,
   Loader2,
+  Newspaper,
 } from 'lucide-react';
 
 import {
@@ -191,6 +192,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     const [selectedScope, setSelectedScope] = useState<'ALL' | 'ACM' | 'OTHERS'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isExportingNews, setIsExportingNews] = useState<boolean>(false);
 
   // Cache Key Helper cho cơ chế Stale-While-Revalidate
   const getDashboardCacheKey = useCallback(
@@ -1134,6 +1136,33 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     }
   };
 
+  // Xử lý xuất file Excel Báo cáo Giá Trị Giao Dịch cho Ban Tin Tức
+  const handleExportNewsGtgd = async () => {
+    setIsExportingNews(true);
+    try {
+      toast.loading('Đang khởi tạo file Excel GTGD cho Ban Tin Tức...', { id: 'export-news-gtgd' });
+      const blob = await tradingOpsApi.exportNewsGtgdExcel(
+        { date: sessionDate },
+        token,
+      );
+      const cleanDate = (sessionDate || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+      const filename = `Bao_Cao_GTGD_Ban_Tin_Tuc_${cleanDate}.xlsx`;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Xuất file Excel GTGD Ban Tin Tức thành công!', { id: 'export-news-gtgd' });
+    } catch (e: any) {
+      toast.error(`Lỗi xuất GTGD Tin Tức: ${e.message}`, { id: 'export-news-gtgd' });
+    } finally {
+      setIsExportingNews(false);
+    }
+  };
+
   /**
    * Component Skeleton Loader hiển thị hiệu ứng chuyển cảnh mượt mà khi dữ liệu chưa kịp tải
    */
@@ -1700,6 +1729,32 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           >
             <FileSpreadsheet size={15} />
             <span>{isExporting ? 'Đang xuất...' : 'Xuất File Excel'}</span>
+          </button>
+
+          {/* Export News GTGD Button */}
+          <button
+            type="button"
+            disabled={isExportingNews}
+            onClick={handleExportNewsGtgd}
+            className="btn btn-primary"
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              backgroundColor: '#6366f1',
+              color: '#ffffff',
+              border: 'none',
+              cursor: isExportingNews ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+            title="Xuất file thống kê Giá Trị Giao Dịch cuối phiên phục vụ Ban Tin Tức & Truyền Thông"
+          >
+            <Newspaper size={15} />
+            <span>{isExportingNews ? 'Đang xuất...' : 'Xuất GTGD Tin Tức'}</span>
           </button>
         </div>
       </div>

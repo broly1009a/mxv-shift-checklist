@@ -277,13 +277,13 @@ export interface AcmReportConfig {
 export const ACM_REPORT_CONFIGS: Record<string, AcmReportConfig> = {
   ORDER: {
     key: 'ORDER',
-    name: 'Sổ lệnh ACM (Order.xlsx)',
+    name: 'Sổ lệnh ACM (Order.xls)',
     group: 'WEB',
     aliases: ['ORDER', 'WEB', 'ETP'],
   },
   FILL: {
     key: 'FILL',
-    name: 'Khớp lệnh ACM (Fill.xlsx)',
+    name: 'Khớp lệnh ACM (Fill.xls)',
     group: 'WEB',
     aliases: ['FILL', 'TRADE', 'WEB', 'ETP'],
   },

@@ -122,7 +122,7 @@ export function isAcmFilenameMatchSession(
   const session = extractSessionInfo(targetDate);
   const fileDateInfo = extractDateFromAcmFilename(filename);
 
-  // Nếu tên file không chứa ngày (ví dụ Straits.csv hoặc Fill.xlsx)
+  // Nếu tên file không chứa ngày (ví dụ Straits.csv hoặc Fill.xls)
   if (!fileDateInfo) {
     return {
       isValidSession: true,

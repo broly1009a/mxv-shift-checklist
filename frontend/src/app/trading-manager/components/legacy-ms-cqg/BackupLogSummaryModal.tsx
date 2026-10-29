@@ -231,8 +231,8 @@ export const BackupLogSummaryModal: React.FC<BackupLogSummaryModalProps> = ({
     // ACM Download & Sync specific parsing
     if (jobType === 'ACM') {
       const acmItems = [
-        { key: 'FILL', name: 'Fill.xlsx', label: 'Khớp lệnh ACM (Fill)' },
-        { key: 'ORDER', name: 'Order.xlsx', label: 'Sổ lệnh ACM (Order)' },
+        { key: 'FILL', name: 'Fill.xls', label: 'Khớp lệnh ACM (Fill)' },
+        { key: 'ORDER', name: 'Order.xls', label: 'Sổ lệnh ACM (Order)' },
         { key: 'SFTP_CSV', name: 'Straits EOD CSV', label: 'Straits EOD CSV (SFTP)' },
         { key: 'SFTP_XLS', name: '10017890000.xls', label: 'Báo cáo TK 10017890000 (SFTP)' },
       ];
