@@ -1,3 +1,45 @@
+## [2026-10-29T17:45] FIX(PRE_EOD_MS_SNAPSHOT_API_AND_ACM_SFTP_ROUTING): Khắc Phục Lỗi Thiếu Snapshot DSGD Phiên Chiều (Tự Động Gọi API MS) & Chuẩn Hóa Đối Soát SFTP ACM
+
+### 1. Mục tiêu thay đổi
+- **Phản ánh & Yêu cầu từ USER**:
+  - Đối chiếu DSGD trước EOD trên UI báo: `CẢNH BÁO AN TOÀN DỮ LIỆU: THIẾU FILE SNAPSHOT TRƯỚC EOD!` và chênh lệch ảo `7,359 vs 0 lot`.
+  - Tác vụ Tải/Kiểm tra Backup ACM liên tục cảnh báo: `[Cảnh báo SFTP] Báo cáo Web ETP đã đầy đủ... nhưng chưa có đủ file SFTP [SFTP_CSV, SFTP_XLS]`.
+- **Căn cứ & Ground Truth (Đối chiếu mã nguồn C# tool và vận hành thực tế)**:
+  1. **Cơ chế Snapshot trước EOD trong C#**:
+     - Trong C# `TransactionCheckingService.cs#L446-L448` & `ChromeBot.cs#L1463-L1510`: Khi thực hiện `CheckDSGDBeforeEOD()`, tool tự động tải snapshot DSGD phiên chiều vào một thư mục tạm, sau đó lưu thành `DSGD{time}.xlsx` trong thư mục backup ngày $T-1$, rồi dùng `SumKL` so sánh giữa `DSGD.xlsx` (gốc) và `DSGD{time}.xlsx` (snapshot chiều).
+     - Trong code NestJS cũ, `DsgdBeforeEodService` chỉ có trigger API tải `ORDERMATCH_ALL` cho CoreCCP mà không có trigger tải cho M-System, dẫn đến việc không có file snapshot chiều và hệ thống kích hoạt cơ chế bảo vệ chống so sánh file gốc với chính nó (`isSnapshotMissing: true`, báo lệch 7,359 vs 0 lot).
+  2. **Đặc thù phiên giao dịch của đối tác Straits Financial (ACM SFTP)**:
+     - Sàn Straits Indonesia chốt phiên giao dịch $T$ vào rạng sáng ngày hôm sau $T+1$ (05:00 - 06:00 sáng giờ VN).
+     - Trong ca trực ngày $T$ (ví dụ: ngày 29/10/2026), SFTP của Straits mới chỉ có dữ liệu quyết toán của phiên $T-1$ (28/10/2026).
+     - Code audit cũ yêu cầu phải có file đuôi `_29102026.csv` ngay trong ngày 29/10 nên luôn báo `MISSING`, dù bot đã tải đầy đủ file phiên quyết toán gần nhất có trên SFTP (`28102026`).
+  3. **Phân định tài khoản tự doanh đuôi A giữa MS và CoreCCP**:
+     - Toàn bộ 1,900 lot tự doanh đuôi A đối chiếu với Straits CSV nằm trên phân hệ CoreCCP (đã khớp 100% 1,900 vs 1,900 lot).
+     - M-System hiện tại không còn tài khoản đuôi A (`totalACMMS = 0`), việc so sánh 0 với 1,900 lot là so sánh nhầm giữa 2 phân hệ.
+
+### 2. Danh sách file chỉnh sửa
+- [dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts):
+  - Inject `@Optional() @Inject(forwardRef(() => MsApiAdapter)) private readonly msApiAdapter?: MsApiAdapter`.
+  - Tự động gọi API M-System tải DSGD phiên $T-1$ vào thư mục tạm và lưu thành `DSGD${timeSuffix}.xlsx` (chuẩn theo C# `DownloadDSGDBeforeEOD`).
+  - Bổ sung helper `findAcmStraitsFile` tìm linh hoạt cả 2 mã tài khoản Straits của MXV (`10017890002` và `10017890000`), quét cả thư mục phiên $T-1$ và ca trực ngày $T$.
+  - Tách bạch logic đối chiếu ACM: Không ép so sánh khối lượng Straits của CoreCCP vào MS khi MS có `totalACMMS === 0`.
+- [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts):
+  - Cho phép tải bộ file quyết toán phiên $T-1$ mới nhất khi phiên $T$ chưa đóng trên SFTP, tự động lưu đúng thư mục phiên và tạo alias `Straits_${ddmmyyyy}.csv`, `Straits.csv`.
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts):
+  - Nhận diện linh hoạt file quyết toán SFTP $T-1$ khi quét thư mục ca trực ngày $T$, đánh dấu `status: 'OK'` thay vì cảnh báo thiếu ảo.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts):
+  - Cập nhật logic fallback tương ứng cho phương thức `downloadAcmSftpBackup`.
+
+### 3. Kiểm chứng thực tế trên Ubuntu 10.0.0.26
+- **Test 1 - MS Pre-EOD Recon**:
+  - Tự động tải snapshot `DSGD17h42.xlsx` từ API M-System (639,930 bytes, 2,222ms).
+  - Kết quả: `totalOriginal: 7359`, `totalTemp: 7359`, `diff: 0 lot`, `totalACMMS: 0`, `totalACMSFTP: 0` $\rightarrow$ **`passed: true` (KHỚP 100%)**.
+- **Test 2 - CCP Pre-EOD Recon**:
+  - `totalOriginal: 1900`, `totalTemp: 1900`, `diff: 0 lot`, `totalACMMS: 1900`, `totalACMSFTP: 1900` $\rightarrow$ **`passed: true` (KHỚP 100%)**.
+- **Test 3 - ACM File Audit**:
+  - Quét thư mục `29.10`: ORDER (`Order.xls` OK), FILL (`Fill.xls` OK), SFTP_CSV (`Straits_28102026.csv` OK), SFTP_XLS (`2026-10-28_10017890002.xls` OK) $\rightarrow$ **0 missing files (100% OK)**.
+
+---
+
 ## [2026-10-29T15:15] FIX(MS_EOD_BALANCE_FORMULA_AND_PARSER): Khắc Phục Lỗi Nhận Nhầm Cột sodBalance & Bổ Sung Lãi Lỗ Thực Tế QLTKGD - Đạt Khớp 38,327/38,327 Tài Khoản EOD (0 Lệch)
 
 ### 1. Mục tiêu thay đổi

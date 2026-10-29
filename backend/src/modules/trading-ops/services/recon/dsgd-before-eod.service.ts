@@ -20,6 +20,7 @@ import * as path from 'path';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { WorkingCalendarService } from '../../../working-calendar/working-calendar.service';
 import { CoreCcpApiAdapter } from '../../../ingress/adapters/coreccp-api.adapter';
+import { MsApiAdapter } from '../../../ingress/adapters/ms-api.adapter';
 import {
   getMsBackupBase,
   getAcmBackupBase,
@@ -69,6 +70,9 @@ export class DsgdBeforeEodService {
     @Optional()
     @Inject(forwardRef(() => CoreCcpApiAdapter))
     private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
+    @Optional()
+    @Inject(forwardRef(() => MsApiAdapter))
+    private readonly msApiAdapter?: MsApiAdapter,
   ) {}
 
   /**
@@ -245,8 +249,13 @@ export class DsgdBeforeEodService {
     // 4. Parse ACM Straits CSV (nếu có)
     let totalACMSFTP = totalACMMS;
     if (files.acmTrades && files.acmTrades.length > 0) {
-      const straitsResult = parseStraitsCsv(files.acmTrades);
-      totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
+      if (system === 'MS' && totalACMMS === 0) {
+        // Phân hệ MS không có tài khoản đuôi A (toàn bộ tài khoản ACM/Tự doanh đã chuyển sang phân hệ CoreCCP)
+        totalACMSFTP = 0;
+      } else {
+        const straitsResult = parseStraitsCsv(files.acmTrades);
+        totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
+      }
     }
 
     //  LOGIC BẮT BUỘC: Làm tròn 4 chữ số thập phân tránh floating point error
@@ -336,7 +345,7 @@ export class DsgdBeforeEodService {
       const rawCcpBase = options?.customMsDir || (await getCcpBackupBasePath(this.settingsService));
       dailyDir = path.join(rawCcpBase, year, `T${month}.${year}`, `${day}.${month}`);
       if (!fs.existsSync(dailyDir) || !fs.readdirSync(dailyDir).some(f => matchTradingFileName(f, TRADING_FILE_PATTERNS.CCP_DSGD))) {
-        const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures';
+        const mShareBase = resolveStoragePathCrossPlatform('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures');
         const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
         if (fs.existsSync(mShareDir)) {
           dailyDir = mShareDir;
@@ -347,7 +356,7 @@ export class DsgdBeforeEodService {
       dailyDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
 
       if (!fs.existsSync(path.join(dailyDir, 'DSGD.xlsx'))) {
-        const mShareBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures';
+        const mShareBase = resolveStoragePathCrossPlatform('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
         const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
         if (fs.existsSync(path.join(mShareDir, 'DSGD.xlsx'))) {
           dailyDir = mShareDir;
@@ -359,7 +368,7 @@ export class DsgdBeforeEodService {
     let dailyAcmDir = path.join(acmBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
 
     if (!fs.existsSync(dailyAcmDir)) {
-      const mAcmBase = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures';
+      const mAcmBase = resolveStoragePathCrossPlatform('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures');
       const mAcmDir = path.join(mAcmBase, year, `T${month}.${year}`, `${day}.${month}`);
       if (fs.existsSync(mAcmDir)) {
         dailyAcmDir = mAcmDir;
@@ -431,39 +440,71 @@ export class DsgdBeforeEodService {
         }
       }
 
-      const origBaseName = path.basename(dsgdOriginalPath).toLowerCase();
-      const candidates: Array<{ name: string; path: string; mtime: number }> = [];
-      for (const dir of searchDirs) {
+      // Đối với M-System: Tự động tải DSGD tươi (Lịch sử giao dịch T-1) qua API nếu có cờ triggerDownload hoặc chưa có file snapshot
+      if (system === 'MS' && this.msApiAdapter && options?.triggerDownload !== false) {
         try {
-          const filesInDir = fs.readdirSync(dir);
-          for (const f of filesInDir) {
-            if (/^(?:DSGD|LSGD).+\.xlsx$/i.test(f) && !f.startsWith('~$') && !/DSGD\s+MM/i.test(f) && f.toLowerCase() !== origBaseName) {
-              const full = path.join(dir, f);
-              candidates.push({ name: f, path: full, mtime: fs.statSync(full).mtimeMs });
+          this.logger.log(`[M-System Pre-EOD] Đang gọi API M-System tải Danh sách giao dịch tươi (DSGD) cho phiên T-1 ${dateFormatted}...`);
+          const tempDlDir = path.join(dailyDir, `_temp_dl_${Date.now()}`);
+          fs.mkdirSync(tempDlDir, { recursive: true });
+          const dlRes = await this.msApiAdapter.download('MS', {
+            targetDirectory: tempDlDir,
+            targetDate: dateFormatted,
+            reportCodes: ['DSGD'],
+          });
+          if (dlRes?.files && dlRes.files.length > 0) {
+            const downloadedDsgd = dlRes.files.find(f => f.fileName.includes('DSGD') || f.fileName.endsWith('.xlsx'));
+            if (downloadedDsgd && fs.existsSync(downloadedDsgd.absolutePath)) {
+              // Lưu thành file snapshot DSGD${timeSuffix}.xlsx theo chuẩn C#
+              const snapshotPath = path.join(dailyDir, defaultSnapshotName);
+              fs.copyFileSync(downloadedDsgd.absolutePath, snapshotPath);
+              dsgdTempPath = snapshotPath;
+              dsgdTempBuffer = fs.readFileSync(snapshotPath);
+              this.logger.log(`[M-System Pre-EOD] Đã tạo file snapshot DSGD tươi: ${defaultSnapshotName}`);
             }
           }
-        } catch {}
+          try { fs.rmSync(tempDlDir, { recursive: true, force: true }); } catch {}
+        } catch (dlErr: any) {
+          this.logger.warn(`[M-System Pre-EOD] Không thể tự động tải DSGD tươi qua API: ${dlErr.message}`);
+        }
       }
 
-      let matchedCandidate: { name: string; path: string; mtime: number } | undefined;
-      if (options?.timeSuffix) {
-        const cleanSuffix = options.timeSuffix.replace(/[^a-zA-Z0-9]/g, '');
-        matchedCandidate = candidates.find((c) => {
-          const cleanName = c.name.replace(/[^a-zA-Z0-9]/g, '');
-          return cleanName.includes(cleanSuffix);
-        });
+      if (!dsgdTempBuffer) {
+        const origBaseName = path.basename(dsgdOriginalPath).toLowerCase();
+        const candidates: Array<{ name: string; path: string; mtime: number }> = [];
+        for (const dir of searchDirs) {
+          try {
+            const filesInDir = fs.readdirSync(dir);
+            for (const f of filesInDir) {
+              if (/^(?:DSGD|LSGD).+\.xlsx$/i.test(f) && !f.startsWith('~$') && !/DSGD\s+MM/i.test(f) && f.toLowerCase() !== origBaseName) {
+                const full = path.join(dir, f);
+                candidates.push({ name: f, path: full, mtime: fs.statSync(full).mtimeMs });
+              }
+            }
+          } catch {}
+        }
+
+        let matchedCandidate: { name: string; path: string; mtime: number } | undefined;
+        if (options?.timeSuffix) {
+          const cleanSuffix = options.timeSuffix.replace(/[^a-zA-Z0-9]/g, '');
+          matchedCandidate = candidates.find((c) => {
+            const cleanName = c.name.replace(/[^a-zA-Z0-9]/g, '');
+            return cleanName.includes(cleanSuffix);
+          });
+        }
+
+        if (!matchedCandidate && candidates.length > 0) {
+          candidates.sort((a, b) => b.mtime - a.mtime);
+          matchedCandidate = candidates[0];
+        }
+
+        if (matchedCandidate) {
+          dsgdTempPath = matchedCandidate.path;
+          dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
+          this.logger.log(`Sử dụng file DSGD snapshot (${system}): ${matchedCandidate.name} (${matchedCandidate.path})`);
+        }
       }
 
-      if (!matchedCandidate && candidates.length > 0) {
-        candidates.sort((a, b) => b.mtime - a.mtime);
-        matchedCandidate = candidates[0];
-      }
-
-      if (matchedCandidate) {
-        dsgdTempPath = matchedCandidate.path;
-        dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
-        this.logger.log(`Sử dụng file DSGD snapshot (${system}): ${matchedCandidate.name} (${matchedCandidate.path})`);
-      } else {
+      if (!dsgdTempBuffer) {
         this.logger.error(
           `[BẢO VỆ DỮ LIỆU] Không tìm thấy bất kỳ file snapshot DSGD nào (${system}, hậu tố: "${timeSuffix || 'mới nhất'}") trong các thư mục đối soát: ${searchDirs.join(', ')}. Từ chối so sánh với file gốc!`,
         );
@@ -493,44 +534,18 @@ export class DsgdBeforeEodService {
         }
 
         // Tìm file ACM Straits CSV nếu có
-        let acmTradesBuffer: Buffer | undefined;
-        let foundAcmPath: string | undefined;
-
-        if (fs.existsSync(dailyAcmDir)) {
-          const acmFiles = fs.readdirSync(dailyAcmDir);
-          const expectedAcmFile = `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${day}${month}${year}.csv`;
-          const directAcmPath = path.join(dailyAcmDir, expectedAcmFile);
-
-          if (fs.existsSync(directAcmPath)) {
-            foundAcmPath = directAcmPath;
-            acmTradesBuffer = fs.readFileSync(directAcmPath);
-          } else {
-            let matched = acmFiles.find(
-              (f) =>
-                matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV) &&
-                f.includes(`${day}${month}${year}`),
-            );
-
-            if (!matched && acmFiles.includes(`Straits_${day}${month}${year}.csv`)) {
-              matched = `Straits_${day}${month}${year}.csv`;
-            }
-
-            if (!matched && acmFiles.includes('Straits.csv')) {
-              matched = 'Straits.csv';
-            }
-
-            if (matched) {
-              const candFullPath = path.join(dailyAcmDir, matched);
-              foundAcmPath = candFullPath;
-              acmTradesBuffer = fs.readFileSync(candFullPath);
-            }
-          }
-        }
+        const straitsFound = this.findAcmStraitsFile(dailyAcmDir, day, month, year);
+        const acmTradesBuffer = straitsFound?.buffer;
+        const foundAcmPath = straitsFound?.path;
 
         let totalACMSFTP = totalACMMS;
         if (acmTradesBuffer && acmTradesBuffer.length > 0) {
-          const straitsResult = parseStraitsCsv(acmTradesBuffer);
-          totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
+          if (system === 'MS' && totalACMMS === 0) {
+            totalACMSFTP = 0;
+          } else {
+            const straitsResult = parseStraitsCsv(acmTradesBuffer);
+            totalACMSFTP = Number(straitsResult?.totalVolume) || 0;
+          }
         }
 
         totalOriginal = Math.round(totalOriginal * 10000) / 10000;
@@ -565,39 +580,9 @@ export class DsgdBeforeEodService {
     }
 
     // 4. Tìm file ACM Straits CSV
-    let acmTradesBuffer: Buffer | undefined;
-    let foundAcmPath: string | undefined;
-
-    if (fs.existsSync(dailyAcmDir)) {
-      const acmFiles = fs.readdirSync(dailyAcmDir);
-      const expectedAcmFile = `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${day}${month}${year}.csv`;
-      const directAcmPath = path.join(dailyAcmDir, expectedAcmFile);
-
-      if (fs.existsSync(directAcmPath)) {
-        foundAcmPath = directAcmPath;
-        acmTradesBuffer = fs.readFileSync(directAcmPath);
-      } else {
-        let matched = acmFiles.find(
-          (f) =>
-            matchTradingFileName(f, TRADING_FILE_PATTERNS.STRAITS_CSV) &&
-            f.includes(`${day}${month}${year}`),
-        );
-
-        if (!matched && acmFiles.includes(`Straits_${day}${month}${year}.csv`)) {
-          matched = `Straits_${day}${month}${year}.csv`;
-        }
-
-        if (!matched && acmFiles.includes('Straits.csv')) {
-          matched = 'Straits.csv';
-        }
-
-        if (matched) {
-          const candFullPath = path.join(dailyAcmDir, matched);
-          foundAcmPath = candFullPath;
-          acmTradesBuffer = fs.readFileSync(candFullPath);
-        }
-      }
-    }
+    const straitsFound = this.findAcmStraitsFile(dailyAcmDir, day, month, year);
+    const acmTradesBuffer = straitsFound?.buffer;
+    const foundAcmPath = straitsFound?.path;
 
     if (!acmTradesBuffer) {
       this.logger.warn(
@@ -626,5 +611,68 @@ export class DsgdBeforeEodService {
     };
 
     return result;
+  }
+
+  /**
+   * Helper tìm kiếm file ACM Straits CSV linh hoạt
+   * Khớp cả tài khoản 10017890002 và 10017890000, kiểm tra cả thư mục phiên T-1 và thư mục ca trực ngày T
+   */
+  private findAcmStraitsFile(
+    dailyAcmDir: string,
+    day: string,
+    month: string,
+    year: string,
+  ): { path: string; buffer: Buffer } | null {
+    const dirsToCheck = [dailyAcmDir];
+    try {
+      const nextDay = String(parseInt(day, 10) + 1).padStart(2, '0');
+      const nextDayDir = path.join(path.dirname(dailyAcmDir), `${nextDay}.${month}`);
+      if (fs.existsSync(nextDayDir) && !dirsToCheck.includes(nextDayDir)) {
+        dirsToCheck.push(nextDayDir);
+      }
+    } catch {}
+
+    const ddmmyyyy = `${day}${month}${year}`;
+
+    for (const dir of dirsToCheck) {
+      if (!fs.existsSync(dir)) continue;
+      const acmFiles = fs.readdirSync(dir);
+
+      // 1. Kiểm tra exact name theo cả 2 mã tài khoản 10017890002 và 10017890000
+      const exactCandidates = [
+        `EOD FO trades_PT Straits Financial Indonesia - 10017890002_${ddmmyyyy}.csv`,
+        `EOD FO trades_PT Straits Financial Indonesia - 10017890000_${ddmmyyyy}.csv`,
+        `Straits_${ddmmyyyy}.csv`,
+        'Straits.csv',
+      ];
+      for (const name of exactCandidates) {
+        const fullPath = path.join(dir, name);
+        if (fs.existsSync(fullPath)) {
+          const stat = fs.statSync(fullPath);
+          if (stat.size > 0) {
+            return { path: fullPath, buffer: fs.readFileSync(fullPath) };
+          }
+        }
+      }
+
+      // 2. Kiểm tra file bất kỳ có chứa 'straits' và 'ddmmyyyy' đuôi .csv
+      const matched = acmFiles.find((f) => {
+        const lower = f.toLowerCase();
+        return (
+          lower.includes('straits') &&
+          lower.endsWith('.csv') &&
+          lower.includes(ddmmyyyy) &&
+          !lower.includes('fill') &&
+          !lower.includes('order')
+        );
+      });
+
+      if (matched) {
+        const fullPath = path.join(dir, matched);
+        return { path: fullPath, buffer: fs.readFileSync(fullPath) };
+      }
+    }
+
+    return null;
   }
 }

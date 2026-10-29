@@ -360,6 +360,21 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
       const ddmmyyyy = `${day}${month}${year}`;
       const yyyy_mm_dd = `${year}-${month}-${day}`;
 
+      // Tính ngày T-1 liền trước (bỏ qua T7 & CN)
+      const prevDate = new Date(today);
+      prevDate.setDate(prevDate.getDate() - 1);
+      while (prevDate.getDay() === 0 || prevDate.getDay() === 6) {
+        prevDate.setDate(prevDate.getDate() - 1);
+      }
+      const pYear = prevDate.getFullYear().toString();
+      const pMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
+      const pDay = String(prevDate.getDate()).padStart(2, '0');
+      const pDdmmyyyy = `${pDay}${pMonth}${pYear}`;
+      const pYyyyMmDd = `${pYear}-${pMonth}-${pDay}`;
+
+      const prevSessionDir = path.join(path.dirname(backupPath), `${pDay}.${pMonth}`);
+      const prevFiles = fs.existsSync(prevSessionDir) ? fs.readdirSync(prevSessionDir) : [];
+
       // 1. Kiểm tra file Straits CSV
       let csvFile = files.find(
         (f) =>
@@ -368,49 +383,87 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
           f.toLowerCase() === 'straits.csv',
       );
 
+      let csvStatus: 'OK' | 'MISSING' = 'MISSING';
+      let csvName = `*_${ddmmyyyy}.csv`;
+
       if (csvFile) {
-        const absCsvPath = path.join(backupPath, csvFile);
-        const stat = fs.statSync(absCsvPath);
-        results.push({
-          key: 'SFTP_CSV',
-          filename: csvFile,
-          status: 'OK' as const,
-          lastModified: stat.mtime,
-        });
+        csvStatus = 'OK';
+        csvName = csvFile;
       } else {
-        const otherCsv = files.find(
-          (f) => f.toLowerCase().includes('straits') && f.toLowerCase().endsWith('.csv'),
+        const t1InCurrent = files.find(
+          (f) =>
+            f.toLowerCase().endsWith(`_${pDdmmyyyy}.csv`.toLowerCase()) ||
+            f.toLowerCase() === `straits_${pDdmmyyyy}.csv`.toLowerCase(),
         );
-        results.push({
-          key: 'SFTP_CSV',
-          filename: otherCsv ? `*_${ddmmyyyy}.csv (Phát hiện file: ${otherCsv})` : `*_${ddmmyyyy}.csv`,
-          status: 'MISSING' as const,
-        });
+        const t1InPrev = prevFiles.find(
+          (f) =>
+            f.toLowerCase().endsWith(`_${pDdmmyyyy}.csv`.toLowerCase()) ||
+            f.toLowerCase() === `straits_${pDdmmyyyy}.csv`.toLowerCase() ||
+            f.toLowerCase() === 'straits.csv' ||
+            (f.toLowerCase().includes('straits') && f.toLowerCase().endsWith('.csv')),
+        );
+
+        if (t1InCurrent || t1InPrev) {
+          csvStatus = 'OK';
+          csvName = t1InCurrent || t1InPrev!;
+        } else {
+          const otherCsv = files.find(
+            (f) => f.toLowerCase().includes('straits') && f.toLowerCase().endsWith('.csv'),
+          );
+          if (otherCsv) {
+            csvName = `*_${ddmmyyyy}.csv (Phát hiện: ${otherCsv})`;
+          }
+        }
       }
 
+      results.push({
+        key: 'SFTP_CSV',
+        filename: csvName,
+        status: csvStatus,
+        lastModified: csvFile ? fs.statSync(path.join(backupPath, csvFile)).mtime : undefined,
+      });
+
       // 2. Kiểm tra file Straits XLS
-      const xlsFile = files.find(
+      let xlsFile = files.find(
         (f) =>
           f.toLowerCase().startsWith(`${yyyy_mm_dd}_`.toLowerCase()) &&
           f.toLowerCase().endsWith('.xls'),
       );
+      let xlsStatus: 'OK' | 'MISSING' = 'MISSING';
+      let xlsName = `${yyyy_mm_dd}_*.xls`;
+
       if (xlsFile) {
-        const absXlsPath = path.join(backupPath, xlsFile);
-        const stat = fs.statSync(absXlsPath);
-        results.push({
-          key: 'SFTP_XLS',
-          filename: xlsFile,
-          status: 'OK' as const,
-          lastModified: stat.mtime,
-        });
+        xlsStatus = 'OK';
+        xlsName = xlsFile;
       } else {
-        const otherXls = files.find((f) => f.toLowerCase().endsWith('_10017890000.xls'));
-        results.push({
-          key: 'SFTP_XLS',
-          filename: otherXls ? `${yyyy_mm_dd}_*.xls (Phát hiện file phiên khác: ${otherXls})` : `${yyyy_mm_dd}_*.xls`,
-          status: 'MISSING' as const,
-        });
+        const t1XlsInCurrent = files.find(
+          (f) =>
+            f.toLowerCase().startsWith(`${pYyyyMmDd}_`.toLowerCase()) &&
+            f.toLowerCase().endsWith('.xls'),
+        );
+        const t1XlsInPrev = prevFiles.find(
+          (f) =>
+            f.toLowerCase().startsWith(`${pYyyyMmDd}_`.toLowerCase()) &&
+            f.toLowerCase().endsWith('.xls'),
+        );
+
+        if (t1XlsInCurrent || t1XlsInPrev) {
+          xlsStatus = 'OK';
+          xlsName = t1XlsInCurrent || t1XlsInPrev!;
+        } else {
+          const otherXls = files.find((f) => f.toLowerCase().includes('1001789000'));
+          if (otherXls) {
+            xlsName = `${yyyy_mm_dd}_*.xls (Phát hiện: ${otherXls})`;
+          }
+        }
       }
+
+      results.push({
+        key: 'SFTP_XLS',
+        filename: xlsName,
+        status: xlsStatus,
+        lastModified: xlsFile ? fs.statSync(path.join(backupPath, xlsFile)).mtime : undefined,
+      });
     } else {
       const year = today.getFullYear().toString();
       const month = String(today.getMonth() + 1).padStart(2, '0');
