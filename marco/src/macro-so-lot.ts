@@ -242,7 +242,7 @@ async function main() {
     }
   }
 
-  console.log(`📅 Ngày giao dịch: ${formatDateDDMMYYYY(config.ngayGD)}`);
+  console.log(` Ngày giao dịch: ${formatDateDDMMYYYY(config.ngayGD)}`);
 
   try {
     // 1. Load dữ liệu

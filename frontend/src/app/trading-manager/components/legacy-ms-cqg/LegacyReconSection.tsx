@@ -702,7 +702,11 @@ export default function LegacyReconSection({
   const isTtttBalanced = msTTTT === cqgPS;
 
   // 2. Phần KLGD của ACM + CCP = Nano => Bằng (cân): màu đen, Không cân: màu đỏ
-  const isAcmNanoBalanced = (acmStraits + (Number(ccpDSGD) || 0)) === nanoLots;
+  // Đồng bộ với backend totals.differACM (đã tính mốc cutoff time và bù trừ pending trades)
+  const isAcmNanoBalanced =
+    totals.differACM !== undefined
+      ? totals.differACM === 0
+      : (acmStraits + (Number(ccpDSGD) || 0)) === nanoLots;
 
   const klgdMsCqgColor = isKlgdBalanced ? 'var(--text-primary)' : '#ef4444';
   const ttmMsCqgColor = isTtmBalanced ? 'var(--text-primary)' : '#ef4444';
@@ -1879,7 +1883,7 @@ export default function LegacyReconSection({
               </div>
 
               {/* DataGrid View: Dynamic columns matching C# IT Tool (dgvOrderInfo: 6 cols, dgvTTMInfo: 4 cols) */}
-              <div style={{ height: '220px', minHeight: '200px', overflowY: 'auto' }}>
+              <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-input)', zIndex: 10 }}>
                     {discrepancyTab === 'TRADE' ? (
@@ -1931,18 +1935,18 @@ export default function LegacyReconSection({
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center' }}>
+                          <td colSpan={6} style={{ padding: '24px 20px', textAlign: 'center' }}>
                             <div style={{
                               display: 'inline-flex',
                               flexDirection: 'column',
                               alignItems: 'center',
-                              gap: '10px',
-                              padding: '24px 36px',
-                              borderRadius: '16px',
+                              gap: '8px',
+                              padding: '16px 32px',
+                              borderRadius: '14px',
                               backgroundColor: 'rgba(16, 185, 129, 0.08)',
                               border: '1px solid rgba(16, 185, 129, 0.25)',
                             }}>
-                              <CheckCircle size={32} color="#10b981" />
+                              <CheckCircle size={28} color="#10b981" />
                               <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
                                 Số Liệu Khớp Hoàn Toàn Tuyệt Đối (Độ lệch: 0 lot)
                               </span>
@@ -1971,18 +1975,18 @@ export default function LegacyReconSection({
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={4} style={{ padding: '40px 20px', textAlign: 'center' }}>
+                          <td colSpan={4} style={{ padding: '24px 20px', textAlign: 'center' }}>
                             <div style={{
                               display: 'inline-flex',
                               flexDirection: 'column',
                               alignItems: 'center',
-                              gap: '10px',
-                              padding: '24px 36px',
-                              borderRadius: '16px',
+                              gap: '8px',
+                              padding: '16px 32px',
+                              borderRadius: '14px',
                               backgroundColor: 'rgba(16, 185, 129, 0.08)',
                               border: '1px solid rgba(16, 185, 129, 0.25)',
                             }}>
-                              <CheckCircle size={32} color="#10b981" />
+                              <CheckCircle size={28} color="#10b981" />
                               <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>
                                 Khớp Lệnh TTM Hoàn Toàn (0 Lệnh Lệch)
                               </span>

@@ -179,6 +179,54 @@ export class ReconIngressPipelineService {
       }
     }, BARRIER_TIMEOUT_MS);
 
+    // ── BỘ ĐIỀU PHỐI GHÉP CẶP ĐỒNG PHA (PIPELINED PAIRING) ──────────────────
+    type ReconPairKey = 'FR' | 'PS' | 'OP' | 'OD';
+    const pairResolvers: Record<ReconPairKey, () => void> = {
+      FR: () => {},
+      PS: () => {},
+      OP: () => {},
+      OD: () => {},
+    };
+    const pairTriggered: Record<ReconPairKey, boolean> = {
+      FR: false,
+      PS: false,
+      OP: false,
+      OD: false,
+    };
+    const pairPromises: Record<ReconPairKey, Promise<void>> = {
+      FR: new Promise<void>((r) => { pairResolvers.FR = r; }),
+      PS: new Promise<void>((r) => { pairResolvers.PS = r; }),
+      OP: new Promise<void>((r) => { pairResolvers.OP = r; }),
+      OD: new Promise<void>((r) => { pairResolvers.OD = r; }),
+    };
+
+    const triggerPair = (pair: ReconPairKey) => {
+      if (!pairTriggered[pair]) {
+        pairTriggered[pair] = true;
+        log(`⚡ [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]. Lập tức kích hoạt tải đồng pha các bên tương ứng!`);
+        pairResolvers[pair]();
+      }
+    };
+
+    const triggerAllRemainingPairs = () => {
+      (['FR', 'PS', 'OP', 'OD'] as ReconPairKey[]).forEach((p) => {
+        if (!pairTriggered[p]) {
+          pairTriggered[p] = true;
+          pairResolvers[p]();
+        }
+      });
+    };
+
+    const waitForPair = async (pair: ReconPairKey, timeoutMs: number = 90_000) => {
+      await Promise.race([
+        pairPromises[pair],
+        new Promise<void>((resolve) => setTimeout(() => {
+          log(`⚠️ [Pipelined-Sync] Chờ cặp [${pair}] từ CQG quá ${timeoutMs / 1000}s. Tự động kích hoạt tải fallback.`);
+          resolve();
+        }, timeoutMs)),
+      ]);
+    };
+
     const checkAllReadyAndTrigger = () => {
       if (barrierAborted) return;
       if (
@@ -194,11 +242,13 @@ export class ReconIngressPipelineService {
           log(' Tất cả các hệ thống (M-System, ACM, CoreCCP, CQG1, CQG2) đã sẵn sàng! BẮT ĐẦU ĐỒNG LOẠT XUẤT BÁO CÁO.');
         }
         triggerBarrierResolve();
+        triggerPair('FR');
       }
     };
 
     const abortBarrierIfStrict = (source: string, errorMsg: string) => {
       clearTimeout(barrierTimer);
+      triggerAllRemainingPairs();
       if (REQUIRE_ALL_SOURCES_FRESH && !barrierTriggered && !barrierAborted) {
         barrierAborted = true;
         abortReason = `Nguồn [${source}] gặp sự cố: ${errorMsg}`;
@@ -248,12 +298,13 @@ export class ReconIngressPipelineService {
 
           try {
             await barrierTriggerPromise;
-            log('MS [Direct REST API] Rào cản đã mở! Kích hoạt tải dữ liệu trực tiếp đồng thời...');
+            log('MS [Direct REST API] Rào cản đã mở! Kích hoạt tải dữ liệu trực tiếp theo từng cặp đồng pha CQG...');
 
             const msTasks: Promise<void>[] = [];
 
             if (options.checkKlgd !== false) {
               msTasks.push((async () => {
+                await waitForPair('FR');
                 const dsgdRes = await this.ingressService!.download('MS', {
                   targetDate: dateStr,
                   outputDir: msDailyPath,
@@ -266,30 +317,13 @@ export class ReconIngressPipelineService {
                 }
                 const names = (dsgdRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
                 downloadedFiles.push(...(dsgdRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
-                log(`MS Tải DSGD.xlsx qua Direct API hoàn tất: ${names}`);
-              })());
-            }
-
-            if (options.checkTtm !== false) {
-              msTasks.push((async () => {
-                const ttmRes = await this.ingressService!.download('MS', {
-                  targetDate: dateStr,
-                  outputDir: msDailyPath,
-                  reportType: 'TTM',
-                });
-                if (!ttmRes || !ttmRes.success || !ttmRes.files || ttmRes.files.length === 0) {
-                  throw new Error(
-                    `Direct API M-System không tải được file TTM.xlsx (${ttmRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
-                  );
-                }
-                const names = (ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-                downloadedFiles.push(...(ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
-                log(`MS Tải TTM.xlsx qua Direct API hoàn tất: ${names}`);
+                log(`MS [Cặp FR] Tải DSGD.xlsx qua Direct API hoàn tất: ${names}`);
               })());
             }
 
             if (options.checkTttt !== false) {
               msTasks.push((async () => {
+                await waitForPair('PS');
                 const ttttRes = await this.ingressService!.download('MS', {
                   targetDate: dateStr,
                   outputDir: msDailyPath,
@@ -302,12 +336,31 @@ export class ReconIngressPipelineService {
                 }
                 const names = (ttttRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
                 downloadedFiles.push(...(ttttRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
-                log(`MS Tải TTTT.xlsx qua Direct API hoàn tất: ${names}`);
+                log(`MS [Cặp PS] Tải TTTT.xlsx qua Direct API hoàn tất: ${names}`);
+              })());
+            }
+
+            if (options.checkTtm !== false) {
+              msTasks.push((async () => {
+                await waitForPair('OP');
+                const ttmRes = await this.ingressService!.download('MS', {
+                  targetDate: dateStr,
+                  outputDir: msDailyPath,
+                  reportType: 'TTM',
+                });
+                if (!ttmRes || !ttmRes.success || !ttmRes.files || ttmRes.files.length === 0) {
+                  throw new Error(
+                    `Direct API M-System không tải được file TTM.xlsx (${ttmRes?.error || 'Không có file trả về'}). Dừng để bảo vệ tính toàn vẹn dữ liệu.`,
+                  );
+                }
+                const names = (ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                downloadedFiles.push(...(ttmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
+                log(`MS [Cặp OP] Tải TTM.xlsx qua Direct API hoàn tất: ${names}`);
               })());
             }
 
             await Promise.all(msTasks);
-            log('MS Đã sẵn sàng dữ liệu đầy đủ qua Direct API đồng bộ thời gian với CQG.');
+            log('MS Đã sẵn sàng dữ liệu đầy đủ qua Direct API đồng bộ theo từng cặp CQG.');
             return;
           } catch (apiErr: any) {
             log(`MS  Direct API gặp sự cố sau rào cản (${apiErr.message}). Ghi nhận lỗi đối soát...`);
@@ -434,7 +487,8 @@ export class ReconIngressPipelineService {
 
           try {
             await barrierTriggerPromise;
-            log('ACM [Direct ETP REST API] Rào cản đã mở! Kích hoạt tải báo cáo Khớp lệnh (Fill.xlsx) từ ACM Web ETP qua REST API...');
+            await waitForPair('FR');
+            log('ACM [Direct ETP REST API] Rào cản đã mở! Kích hoạt tải báo cáo Khớp lệnh (Fill.xlsx) đồng bộ cùng cặp FR CQG...');
 
             const acmRes = await this.ingressService.download('ACM', {
               targetDate: dateStr,
@@ -444,8 +498,8 @@ export class ReconIngressPipelineService {
             });
             const downloadedNames = (acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
             downloadedFiles.push(...(acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
-            log(`ACM Tải Fill.xlsx qua Direct ETP REST API hoàn tất: ${downloadedNames}`);
-            log('ACM Đã sẵn sàng dữ liệu Fill.xlsx qua Direct REST API đồng bộ thời gian với CQG.');
+            log(`ACM [Cặp FR] Tải Fill.xlsx qua Direct ETP REST API hoàn tất: ${downloadedNames}`);
+            log('ACM Đã sẵn sàng dữ liệu Fill.xlsx qua Direct REST API đồng bộ cùng cặp FR CQG.');
             return;
           } catch (acmApiErr: any) {
             log(`ACM  Direct REST API gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
@@ -477,7 +531,8 @@ export class ReconIngressPipelineService {
 
           try {
             await barrierTriggerPromise;
-            log('ACM [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv từ SFTP...');
+            await waitForPair('FR');
+            log('ACM [Direct SFTP] Rào cản đã mở! Kích hoạt tải Straits.csv đồng bộ cùng cặp FR CQG...');
 
             const acmRes = await this.ingressService.download('ACM', {
               targetDate: dateStr,
@@ -487,8 +542,8 @@ export class ReconIngressPipelineService {
             });
             const downloadedNames = (acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
             downloadedFiles.push(...(acmRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
-            log(`ACM Tải Straits.csv qua Direct SFTP hoàn tất: ${downloadedNames}`);
-            log('ACM Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP đồng bộ thời gian với CQG.');
+            log(`ACM [Cặp FR] Tải Straits.csv qua Direct SFTP hoàn tất: ${downloadedNames}`);
+            log('ACM Đã sẵn sàng dữ liệu Straits.csv qua Direct SFTP đồng bộ cùng cặp FR CQG.');
             return;
           } catch (acmApiErr: any) {
             log(`ACM  Direct SFTP gặp sự cố sau rào cản (${acmApiErr.message}). Ghi nhận lỗi đối soát...`);
@@ -604,22 +659,69 @@ export class ReconIngressPipelineService {
 
           try {
             await barrierTriggerPromise;
-            log('CCP [Direct REST API] Rào cản đã mở! Kích hoạt tải báo cáo CoreCCP đồng thời...');
+            log('CCP [Direct REST API] Rào cản đã mở! Kích hoạt tải báo cáo CoreCCP theo từng cặp tương ứng CQG...');
 
-            const ccpRes = await this.ingressService.download('CCP', {
-              targetDate: dateStr,
-              outputDir: ccpDailyPath,
-              reportType: 'CL_MATCH',
-              reportCodes: ['DSGD_CCP', 'TTM_CCP', 'TTTT'],
-              mode: 'REST_API',
-            });
-            if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) {
-              throw new Error(`Direct API CoreCCP không tải được file nào (${ccpRes?.error || '0 files returned'})`);
+            const ccpTasks: Promise<void>[] = [];
+
+            if (options.checkKlgd !== false) {
+              ccpTasks.push((async () => {
+                await waitForPair('FR');
+                const ccpRes = await this.ingressService!.download('CCP', {
+                  targetDate: dateStr,
+                  outputDir: ccpDailyPath,
+                  reportType: 'CL_MATCH',
+                  reportCodes: ['DSGD_CCP'],
+                  mode: 'REST_API',
+                });
+                if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) {
+                  throw new Error(`Direct API CoreCCP không tải được DSGD CCP (${ccpRes?.error || '0 files'})`);
+                }
+                const names = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                downloadedFiles.push(...(ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
+                log(`CCP [Cặp FR] Tải DSGD CCP qua Direct API hoàn tất: ${names}`);
+              })());
             }
-            const ccpFilesList = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
-            downloadedFiles.push(...(ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
-            log(`CCP Tải báo cáo CoreCCP qua Direct API hoàn tất: ${ccpFilesList}`);
-            log('CCP Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ thời gian với CQG.');
+
+            if (options.checkTttt !== false) {
+              ccpTasks.push((async () => {
+                await waitForPair('PS');
+                const ccpRes = await this.ingressService!.download('CCP', {
+                  targetDate: dateStr,
+                  outputDir: ccpDailyPath,
+                  reportType: 'CL_MATCH',
+                  reportCodes: ['TTTT'],
+                  mode: 'REST_API',
+                });
+                if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) {
+                  throw new Error(`Direct API CoreCCP không tải được TTTT (${ccpRes?.error || '0 files'})`);
+                }
+                const names = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                downloadedFiles.push(...(ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
+                log(`CCP [Cặp PS] Tải TTTT CCP qua Direct API hoàn tất: ${names}`);
+              })());
+            }
+
+            if (options.checkTtm !== false) {
+              ccpTasks.push((async () => {
+                await waitForPair('OP');
+                const ccpRes = await this.ingressService!.download('CCP', {
+                  targetDate: dateStr,
+                  outputDir: ccpDailyPath,
+                  reportType: 'CL_MATCH',
+                  reportCodes: ['TTM_CCP'],
+                  mode: 'REST_API',
+                });
+                if (!ccpRes || !ccpRes.success || !ccpRes.files || ccpRes.files.length === 0) {
+                  throw new Error(`Direct API CoreCCP không tải được TTM CCP (${ccpRes?.error || '0 files'})`);
+                }
+                const names = (ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)).join(', ');
+                downloadedFiles.push(...(ccpRes.files || []).map((f: any) => (typeof f === 'string' ? f : f.fileName || f.name)));
+                log(`CCP [Cặp OP] Tải TTM CCP qua Direct API hoàn tất: ${names}`);
+              })());
+            }
+
+            await Promise.all(ccpTasks);
+            log('CCP Đã sẵn sàng dữ liệu CoreCCP qua Direct API đồng bộ theo từng cặp CQG.');
             return;
           } catch (ccpApiErr: any) {
             log(`CCP  Direct API CoreCCP gặp sự cố sau rào cản (${ccpApiErr.message}). Ghi nhận lỗi đối soát...`);
@@ -716,6 +818,7 @@ export class ReconIngressPipelineService {
         readyState.cqg1 = true;
         readyState.cqg2 = true;
         checkAllReadyAndTrigger();
+        triggerAllRemainingPairs();
         return;
       }
 
@@ -767,6 +870,8 @@ export class ReconIngressPipelineService {
           cqgDailyPath,
           onReadyBarrierCqg1,
           onReadyBarrierCqg2,
+          (msg) => log(msg),
+          (pair) => triggerPair(pair),
         );
         const timeoutPromise = new Promise<{ errors: string[]; downloaded: string[] }>((_, reject) =>
           setTimeout(() => reject(new Error('Hết thời gian chờ tối đa (4 phút) khi mở trình duyệt và tải file từ CQG.')), cqgTimeoutMs),
@@ -786,6 +891,7 @@ export class ReconIngressPipelineService {
         log(`CQG  Lỗi: ${err.message}`);
         abortBarrierIfStrict('CQG', err.message);
       } finally {
+        triggerAllRemainingPairs();
         if (!barrierAborted) {
           readyState.cqg1 = true;
           readyState.cqg2 = true;

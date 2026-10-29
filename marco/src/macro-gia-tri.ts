@@ -214,7 +214,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`📅 Ngày giao dịch: ${formatDateDDMMYYYY(config.ngayGD)}`);
+  console.log(` Ngày giao dịch: ${formatDateDDMMYYYY(config.ngayGD)}`);
   console.log(`💱 Tỷ giá: Default=${config.tyGiaDefault}, TRU=${config.tyGiaTru}, MPO=${config.tyGiaMpo}`);
 
   try {

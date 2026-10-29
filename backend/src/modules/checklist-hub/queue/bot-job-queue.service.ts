@@ -33,22 +33,13 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { SystemLogsService } from '../../system-logs/system-logs.service';
 import { parseJobPayload } from '../../../shared/helpers/file-path.helper';
 import { BotJobDedupHelper } from '../helpers/bot-job-dedup.helper';
-import { isAuditJobType, JobResourceDomain, resolveJobResourceDomain } from '../../../shared';
+import { isAuditJobType, JobResourceDomain, resolveJobResourceDomain, getRequiredJobDomains } from '../../../shared';
 import { BotAlertEmailService } from '../../notifications/bot-alert-email.service';
-
-interface IActiveJobContext {
-  jobId: string;
-  domain: JobResourceDomain;
-  abortController: AbortController;
-  cleanups: (() => Promise<void> | void)[];
-  startedAt?: Date;
-}
+import { DomainLockManagerService } from './domain-lock-manager.service';
 
 @Injectable()
 export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotJobQueueService.name);
-  private readonly maxGlobalConcurrency = 6;
-  private activeJobs = new Map<string, IActiveJobContext>();
   private queueInterval?: NodeJS.Timeout;
   private cleanupInterval?: NodeJS.Timeout;
 
@@ -59,6 +50,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly shiftsGateway: ShiftsGateway,
     private readonly settingsService: SystemSettingsService,
     private readonly systemLogsService: SystemLogsService,
+    private readonly domainLockManager: DomainLockManagerService,
     @Optional()
     @Inject(forwardRef(() => BotDispatcherService))
     private readonly botDispatcher?: BotDispatcherService,
@@ -139,13 +131,15 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    const domain = resolveJobResourceDomain(jobType);
     const job = new this.botJobModel({
       jobType,
+      domain,
       payload,
       maxAttempts,
       status: 'PENDING',
       attempts: 0,
-      logs: [`[${new Date().toISOString()}] Job enqueued.`],
+      logs: [`[${new Date().toISOString()}] Job enqueued [Phân hệ: ${domain}].`],
     });
     const saved = await job.save();
     await this.syncJobToChecklist(saved, 'PENDING');
@@ -176,15 +170,12 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
   private async processQueue(): Promise<void> {
     // 1. Kiểm tra trần song song toàn hệ thống
-    if (this.activeJobs.size >= this.maxGlobalConcurrency) {
+    if (this.domainLockManager.isGlobalLimitReached()) {
       return;
     }
 
     // 2. Thu thập danh sách các Phân Hệ (Resource Domains) hiện đang có Job chạy
-    const activeDomains = new Set<JobResourceDomain>();
-    for (const ctx of this.activeJobs.values()) {
-      activeDomains.add(ctx.domain);
-    }
+    const activeDomains = this.domainLockManager.getActiveDomains();
 
     // 3. Quét các candidate PENDING cũ nhất chưa bị xóa mềm
     const candidates = await this.botJobModel
@@ -204,14 +195,18 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     // 4. Lặp qua các candidate để bốc job cho các phân hệ đang RẢNH
     for (const candidate of candidates) {
-      if (this.activeJobs.size >= this.maxGlobalConcurrency) {
+      if (this.domainLockManager.isGlobalLimitReached()) {
         break;
       }
 
-      const domain = resolveJobResourceDomain(candidate.jobType);
+      const domain = (candidate as any).domain || resolveJobResourceDomain(candidate.jobType);
+      const requiredDomains = getRequiredJobDomains(candidate.jobType);
 
-      // QUY TẮC VÀNG: CÙNG PHÂN HỆ ĐANG CÓ JOB CHẠY -> BẮT BUỘC BỎ QUA ĐỂ CHỜ TRONG HÀNG ĐỢI!
-      if (activeDomains.has(domain)) {
+      // QUY TẮC VÀNG: BẤT KỲ PHÂN HỆ NÀO YÊU CẦU ĐANG CÓ JOB CHẠY -> BẮT BUỘC BỎ QUA ĐỂ CHỜ TRONG HÀNG ĐỢI!
+      if (
+        this.domainLockManager.isAnyDomainBusy(requiredDomains) ||
+        requiredDomains.some((d) => activeDomains.has(d))
+      ) {
         continue;
       }
 
@@ -221,6 +216,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         {
           $set: {
             status: 'PROCESSING',
+            domain,
             lockedBy: instanceId,
             lockedAt: new Date(),
           },
@@ -232,11 +228,13 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
 
-      // Đánh dấu ngay domain này bận trong lượt dispatch hiện tại
-      activeDomains.add(domain);
+      // Đánh dấu ngay tất cả requiredDomains này bận trong lượt dispatch hiện tại
+      for (const d of requiredDomains) {
+        activeDomains.add(d);
+      }
 
       // 5. Khởi chạy Job bất đồng bộ trong Worker Pool (không await để bốc tiếp các domain khác)
-      this.executeJobInPool(job, domain).catch((err) => {
+      this.executeJobInPool(job, domain, requiredDomains).catch((err) => {
         this.logger.error(`Lỗi thực thi Job ${job._id} (${domain}): ${err.message}`, err.stack);
       });
     }
@@ -245,7 +243,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Thực thi một tác vụ trong Worker Pool độc lập
    */
-  private async executeJobInPool(job: any, domain: JobResourceDomain): Promise<void> {
+  private async executeJobInPool(
+    job: any,
+    domain: JobResourceDomain,
+    requiredDomains: JobResourceDomain[] = [domain],
+  ): Promise<void> {
     // Chốt chặn Queue Guard: Kiểm tra xem ca trực đã COMPLETED hoặc tác vụ kiểm tra đã được hoàn thành thủ công chưa
     const payload = parseJobPayload(job);
     const { shiftLogId, taskId } = payload;
@@ -341,13 +343,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     const abortController = new AbortController();
     const cleanups: (() => Promise<void> | void)[] = [];
 
-    this.activeJobs.set(job._id.toString(), {
-      jobId: job._id.toString(),
-      domain,
-      abortController,
-      cleanups,
-      startedAt: new Date(),
-    });
+    this.domainLockManager.tryAcquire(job._id.toString(), requiredDomains, abortController, cleanups);
 
     const context: IJobExecutionContext = {
       syncJobToChecklist: this.syncJobToChecklist.bind(this),
@@ -516,7 +512,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
         }
       }
     } finally {
-      this.activeJobs.delete(job._id.toString());
+      this.domainLockManager.release(job._id.toString());
       // Kích hoạt ngay vòng lặp bốc job tiếp theo cho phân hệ vừa rảnh
       setImmediate(() => {
         this.processQueue().catch((err) => {
@@ -575,25 +571,8 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       return { success: true, message: 'Đã hủy tác vụ đang chờ trong hàng đợi.', job };
     }
 
-    // 2. Trường hợp Job PROCESSING: Kích hoạt abort & cleanup
-    const activeCtx = this.activeJobs.get(jobId);
-    if (activeCtx) {
-      this.logger.log(`[JOB_CANCEL] Đang kích hoạt Abort & Cleanup cho job đang chạy: ${jobId}...`);
-      try {
-        activeCtx.abortController.abort();
-      } catch (abortErr: any) {
-        this.logger.warn(`[JOB_CANCEL] Lỗi khi gọi abort(): ${abortErr.message}`);
-      }
-
-      for (const cleanup of activeCtx.cleanups) {
-        try {
-          await cleanup();
-        } catch (cleanupErr: any) {
-          this.logger.warn(`[JOB_CANCEL] Lỗi trong cleanup handler: ${cleanupErr.message}`);
-        }
-      }
-      this.activeJobs.delete(jobId);
-    }
+    // 2. Trường hợp Job PROCESSING: Kích hoạt abort & cleanup qua DomainLockManager
+    await this.domainLockManager.abortJob(jobId);
 
     job.status = 'CANCELLED';
     job.completedAt = new Date();
@@ -657,18 +636,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     for (const job of stuckJobs) {
       if (job.status === 'PROCESSING') {
-        const activeCtx = this.activeJobs.get(job._id.toString());
-        if (activeCtx) {
-          try {
-            activeCtx.abortController.abort();
-          } catch {}
-          for (const cleanup of activeCtx.cleanups) {
-            try {
-              await cleanup();
-            } catch {}
-          }
-          this.activeJobs.delete(job._id.toString());
-        }
+        await this.domainLockManager.abortJob(job._id.toString());
       }
 
       const reason = isStartup

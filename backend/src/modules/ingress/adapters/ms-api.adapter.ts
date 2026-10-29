@@ -414,7 +414,7 @@ export class MsApiAdapter implements IIngressPort {
         const endMs = startMs + 24 * 60 * 60 * 1000 - 1;
         queryParams['transactions.sessionDate[gte]'] = startMs;
         queryParams['transactions.sessionDate[lte]'] = endMs;
-        this.logger.log(`[MsApiAdapter] 📅 Áp dụng bộ lọc phiên MS cho DSGD (${d}/${m}/${y}): gte=${startMs}, lte=${endMs}`);
+        this.logger.log(`[MsApiAdapter]  Áp dụng bộ lọc phiên MS cho DSGD (${d}/${m}/${y}): gte=${startMs}, lte=${endMs}`);
       }
     }
 
@@ -424,6 +424,10 @@ export class MsApiAdapter implements IIngressPort {
         .join('&');
       fullUrl += fullUrl.includes('?') ? `&${qStr}` : `?${qStr}`;
     }
+
+    const effectiveTimeoutMs =
+      reportDef.timeoutMs ||
+      (reportDef.key.includes('QLTKGD') ? 90000 : 60000);
 
     const res = await fetch(fullUrl, {
       method: reportDef.method,
@@ -435,7 +439,7 @@ export class MsApiAdapter implements IIngressPort {
         'user-agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(effectiveTimeoutMs),
     });
 
     if (!res.ok) {

@@ -1305,7 +1305,7 @@ export class MarginCheckerService {
       if (config.marginOnOrder.telegramChatId) {
         const teleMessage =
           ` *[MXV Margin Checker]* Cảnh báo vi phạm mức ký quỹ\n` +
-          `📅 Ngày phiên: ${currentStr}\n` +
+          ` Ngày phiên: ${currentStr}\n` +
           ` Số lượng vi phạm: ${warningData.length} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo đính kèm.`;
         await this.sendTelegramNotification(
@@ -1534,7 +1534,7 @@ export class MarginCheckerService {
       if (config.marginChange.telegramChatId) {
         const teleMessage =
           ` *[MXV Margin Checker]* Cảnh báo thay đổi mức ký quỹ\n` +
-          `📅 Ngày phiên: ${this.formatDateString(now, 'dd/MM/yyyy')}\n` +
+          ` Ngày phiên: ${this.formatDateString(now, 'dd/MM/yyyy')}\n` +
           `🔵 Số lượng thay đổi: ${countNew} hàng hóa\n` +
           `Vui lòng kiểm tra email hệ thống để xem chi tiết báo cáo thay đổi đính kèm.`;
         await this.sendTelegramNotification(

@@ -1029,7 +1029,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 to: toDmy,
               };
               this.logger.log(
-                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
+                `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
               );
             } else if (formattedDateForSearch) {
               const sessionDateToUse =
@@ -1041,7 +1041,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 to: sessionDateToUse,
               };
               this.logger.log(
-                `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
+                `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
               );
             }
           }
@@ -1062,7 +1062,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               to: txDate,
             };
             this.logger.log(
-              `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc TXDATE T-1: ${txDate} cho ${reportDef.searchCode} (Phiên ca trực: ${formattedDateForSearch})`,
+              `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc TXDATE T-1: ${txDate} cho ${reportDef.searchCode} (Phiên ca trực: ${formattedDateForSearch})`,
             );
           }
 
@@ -1077,7 +1077,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               to: formattedDateForSearch,
             };
             this.logger.log(
-              `[CoreCcpApiAdapter] 📅 Tự động áp dụng bộ lọc CHECKERDT trong ngày: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+              `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc CHECKERDT trong ngày: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
             );
           }
 

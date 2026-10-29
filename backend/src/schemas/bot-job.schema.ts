@@ -6,6 +6,9 @@ export class BotJob extends Document {
   @Prop({ required: true, index: true })
   jobType: string; // e.g., 'RPA_DOWNLOAD_ALL', 'RPA_DOWNLOAD_NKTTHT', etc.
 
+  @Prop({ type: String, index: true, default: null })
+  domain?: string; // Phân hệ tài nguyên: MS | CQG | CCP | CE | ACM | EMAIL | RECON | DEFAULT
+
   @Prop({ required: true, default: 'PENDING', index: true })
   status: string; // 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 

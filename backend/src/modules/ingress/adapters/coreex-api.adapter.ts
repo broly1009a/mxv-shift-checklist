@@ -990,7 +990,7 @@ export class CoreExApiAdapter implements IIngressPort {
                 to: toDmy,
               };
               this.logger.log(
-                `[CoreExApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
+                `[CoreExApiAdapter]  Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
               );
             } else if (formattedDateForSearch) {
               const sessionDateToUse = isHistorical && histDmy ? histDmy : formattedDateForSearch;
@@ -999,7 +999,7 @@ export class CoreExApiAdapter implements IIngressPort {
                 to: sessionDateToUse,
               };
               this.logger.log(
-                `[CoreExApiAdapter] 📅 Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
+                `[CoreExApiAdapter]  Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
               );
             }
           }

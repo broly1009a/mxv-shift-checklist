@@ -156,6 +156,10 @@ conn.on('ready', () => {
       -C /opt mxv-checklist
     echo "=== SAO LUU THANH CONG ==="
     ls -lh "$BACKUP_FILE"
+    # Giữ lại tối đa 2 bản backup mới nhất để chống tràn ổ đĩa
+    echo "Dang don dep cac ban backup cu hon (chi giu lai 2 ban moi nhat)..."
+    cd /home/mxvadmin/code_backups && ls -t mxv-checklist_backup_*.tar.gz | tail -n +3 | xargs -r rm -f
+    df -h /
   `;
 
   conn.exec(backupCmd, (bkErr, bkStream) => {
@@ -261,6 +265,9 @@ conn.on('ready', () => {
       echo "=== 0. CLEANUP ZOMBIE PROCESSES & PROFILE LOCKS ==="
       killall -9 chrome-headless-shell 2>/dev/null || true
       rm -f /opt/mxv-checklist/backend/temp/cqg_profile_*/Singleton* 2>/dev/null || true
+      echo "=== 0.1 CLEANUP RESIDUAL JUNK FILES & FOLDERS IN BACKEND & FRONTEND ==="
+      cd /opt/mxv-checklist/backend && rm -rf C:* M:* 2026 _AdHoc_Reports analysis opt test tools *.png check_klgd_overnight_log.txt diag_*.js probe_*.js test_*.js _test_extract_missing.py extract_cccd_images.py inspect_specific_job.js 2>/dev/null || true
+      rm -rf /opt/mxv-checklist/frontend/src/legacy /opt/mxv-checklist/frontend/src/app/admin/tkgd-* 2>/dev/null || true
       echo "=== 1. BUILD BACKEND ==="
       cd /opt/mxv-checklist/backend && rm -f tsconfig*.tsbuildinfo && rm -rf dist && npm run build
       mkdir -p /opt/mxv-checklist/backend/dist/scripts/python && cp -rf /opt/mxv-checklist/backend/src/scripts/python/* /opt/mxv-checklist/backend/dist/scripts/python/ 2>/dev/null || true

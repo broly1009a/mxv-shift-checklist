@@ -15,6 +15,7 @@ import { ShiftOverdueSweeperWorker } from './scheduler/shift-overdue-sweeper.wor
 import { AutonomousSchedulerService } from './scheduler/autonomous-scheduler.service';
 import { EmailWatcherWorker } from './workers/email-watcher.worker';
 import { CalendarSyncWorker } from './workers/calendar-sync.worker';
+import { DomainLockManagerService } from './queue/domain-lock-manager.service';
 import { BotJobQueueService } from './queue/bot-job-queue.service';
 import { BotJobHandlerRegistry } from './queue/job-handler.registry';
 import { ChecklistBotJobsController } from './controllers/checklist-bot-jobs.controller';
@@ -36,6 +37,7 @@ import { ChecklistBotJobsController } from './controllers/checklist-bot-jobs.con
     ChecklistBotJobsController,
   ],
   providers: [
+    DomainLockManagerService,
     BotDispatcherService,
     BotJobQueueService,
     BotJobHandlerRegistry,
@@ -47,6 +49,7 @@ import { ChecklistBotJobsController } from './controllers/checklist-bot-jobs.con
     CalendarSyncWorker,
   ],
   exports: [
+    DomainLockManagerService,
     BotDispatcherService,
     BotJobQueueService,
     BotJobHandlerRegistry,

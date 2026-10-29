@@ -18,6 +18,7 @@ export interface IMsReportDef {
   queryParams?: Record<string, string>;
   description?: string;
   isDerived?: boolean;
+  timeoutMs?: number;
 }
 
 /**
@@ -73,6 +74,7 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
     ext: 'xlsx',
     queryParams: { 'subInvestorType[eq]': 'NULL' },
     description: 'Danh sách tài khoản giao dịch Futures thông thường',
+    timeoutMs: 120000,
   },
   'DSTKGD-Spread': {
     key: 'DSTKGD-Spread',
@@ -261,6 +263,7 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
     method: 'GET',
     ext: 'xlsx',
     description: 'Quản lý trạng thái ký quỹ tài khoản giao dịch',
+    timeoutMs: 90000, // 90 giây (1.5 phút) tối ưu theo thực tế kết xuất QLTKGD toàn sàn
   },
   'QLTKGDAmKQ': {
     key: 'QLTKGDAmKQ',
@@ -271,6 +274,7 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
     method: 'GET',
     ext: 'xlsx',
     description: 'Danh sách tài khoản giao dịch rơi vào tình trạng âm ký quỹ',
+    timeoutMs: 120000,
   },
   'QLTKGD âm KQ': {
     key: 'QLTKGD âm KQ',
@@ -281,6 +285,7 @@ export const MS_REPORTS_REGISTRY: Record<string, IMsReportDef> = {
     method: 'GET',
     ext: 'xlsx',
     description: 'Danh sách tài khoản giao dịch rơi vào tình trạng âm ký quỹ (Alias)',
+    timeoutMs: 120000,
   },
 
   // 7. BẢNG GIÁ MARKET TRƯỚC 6H
