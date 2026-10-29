@@ -620,7 +620,7 @@ async function run() {
   if (executablePath && !forceChromium) {
     launchOptions.executablePath = executablePath;
   } else {
-    console.log('⚡ Sử dụng Playwright Bundled Chromium (độc lập, chống xung đột Edge/Chrome)...');
+    console.log(' Sử dụng Playwright Bundled Chromium (độc lập, chống xung đột Edge/Chrome)...');
   }
 
   console.log('\n2. Khởi chạy trình duyệt và đăng nhập CQG...');

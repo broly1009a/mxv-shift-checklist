@@ -93,7 +93,7 @@ async function runSynchronizedBarrierTimingTest() {
     await barrierTriggerPromise;
     const barrierWaitMs = Date.now() - waitStart;
 
-    console.log(`⚡ [MS Worker] Rào cản mở! Kích hoạt gọi HTTP GET /position/admin/open/excel...`);
+    console.log(` [MS Worker] Rào cản mở! Kích hoạt gọi HTTP GET /position/admin/open/excel...`);
     const dlStart = Date.now();
     await new Promise((r) => setTimeout(r, 120)); // Giả lập tải HTTP stream 120ms
     const downloadDurationMs = Date.now() - dlStart;
@@ -127,7 +127,7 @@ async function runSynchronizedBarrierTimingTest() {
     await barrierTriggerPromise;
     const barrierWaitMs = Date.now() - waitStart;
 
-    console.log(`⚡ [ACM Worker] Rào cản mở! Kích hoạt SFTP fastGet Straits.csv...`);
+    console.log(` [ACM Worker] Rào cản mở! Kích hoạt SFTP fastGet Straits.csv...`);
     const dlStart = Date.now();
     await new Promise((r) => setTimeout(r, 80)); // Giả lập tải SFTP 80ms
     const downloadDurationMs = Date.now() - dlStart;
@@ -161,7 +161,7 @@ async function runSynchronizedBarrierTimingTest() {
     await barrierTriggerPromise;
     const barrierWaitMs = Date.now() - waitStart;
 
-    console.log(`⚡ [CCP Worker] Rào cản mở! Kích hoạt gọi HTTP GET CoreCCP reports...`);
+    console.log(` [CCP Worker] Rào cản mở! Kích hoạt gọi HTTP GET CoreCCP reports...`);
     const dlStart = Date.now();
     await new Promise((r) => setTimeout(r, 140)); // Giả lập tải HTTP stream 140ms
     const downloadDurationMs = Date.now() - dlStart;
@@ -202,7 +202,7 @@ async function runSynchronizedBarrierTimingTest() {
     // Chờ rào cản (sẽ resolve ngay vì đã đủ 5 bên)
     await barrierTriggerPromise;
 
-    console.log(`⚡ [CQG Worker] Rào cản mở! Bấm nút Export FR1 & FR2 song song với các API...`);
+    console.log(` [CQG Worker] Rào cản mở! Bấm nút Export FR1 & FR2 song song với các API...`);
     const dlStart = Date.now();
     await new Promise((r) => setTimeout(r, 250)); // Giả lập click & download event 250ms
     const downloadDurationMs = Date.now() - dlStart;

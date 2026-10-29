@@ -203,7 +203,7 @@ export class ReconIngressPipelineService {
     const triggerPair = (pair: ReconPairKey) => {
       if (!pairTriggered[pair]) {
         pairTriggered[pair] = true;
-        log(`⚡ [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]. Lập tức kích hoạt tải đồng pha các bên tương ứng!`);
+        log(` [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]. Lập tức kích hoạt tải đồng pha các bên tương ứng!`);
         pairResolvers[pair]();
       }
     };

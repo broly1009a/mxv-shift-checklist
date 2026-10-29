@@ -45,7 +45,7 @@ function createPairCoordinator() {
   const triggerPair = (pair) => {
     if (!pairTriggered[pair]) {
       pairTriggered[pair] = true;
-      console.log(`[${relTime()}] ⚡ [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]!`);
+      console.log(`[${relTime()}]  [Pipelined-Sync] CQG phát tín hiệu tải cặp [${pair}]!`);
       pairResolvers[pair]();
     }
   };
