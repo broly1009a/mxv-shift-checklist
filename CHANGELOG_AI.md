@@ -1,3 +1,22 @@
+## [2026-10-29T15:15] PERF(PM2_BACKEND_LIMITS): Nâng Giới Hạn V8 Heap Lên 4GB Và PM2 Restart Lên 5GB Cho mxv-backend
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER: Nghiên cứu sâu chuẩn xác, không phỏng đoán để tăng giới hạn RAM cho Backend xử lý các file dữ liệu lớn (`QLTKGD.xlsx` 38,327 dòng, `CHECK_KLGD` đa nguồn).
+- **Cơ sở kỹ thuật kiểm chứng trực tiếp trên máy chủ Ubuntu 10.0.0.26**:
+  1. Kiểm chứng Node.js v20.20.2 x64 qua `v8.getHeapStatistics()`: Mức trần V8 nhận diện chính xác 4,144 MB (`--max-old-space-size=4096`).
+  2. Thực nghiệm nạp file sản xuất thật `/mnt/qlgd-it/.../28.10/QLTKGD.xlsx` (3.5MB disk, 38,327 dòng): SheetJS ngốn +347.7 MB RSS (đỉnh điểm 416.5 MB RSS, Heap 251.4 MB).
+  3. Cấp trần V8 Heap 4,096 MB (gấp ~9 lần mức cần thiết) và nâng trần PM2 Restart lên 5,000 MB để tạo vùng đệm an toàn 904 MB cho Native Buffer, chống PM2 kill nhầm khi GC chuẩn bị dọn rác.
+
+### 2. Danh sách file chỉnh sửa & Cấu hình PM2
+- [deploy_to_ubuntu.js#L274-L276](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/deploy_to_ubuntu.js#L274-L276): Cập nhật tham số deploy tự động:
+  `pm2 restart mxv-backend --node-args="--max-old-space-size=4096 --expose-gc" --max-memory-restart 5000M`.
+- **Cấu hình trực tiếp trên máy chủ Ubuntu 10.0.0.26**:
+  - Đã thực thi `pm2 restart mxv-backend --node-args="--max-old-space-size=4096 --expose-gc" --max-memory-restart 5000M` và `pm2 save`.
+  - Kiểm chứng `pm2 describe mxv-backend`: `max memory restart: 5242880000` (5.0 GB), `interpreter args: ['--max-old-space-size=4096', '--expose-gc']`.
+  - Service Backend `online`, phản hồi API port 3001 bình thường.
+
+---
+
 ## [2026-10-29T14:30] PERF(UBUNTU_SWAP_AND_CQG_PARALLEL): Mở Rộng 4GB Swap RAM (Tổng 7.8GB) & Kiểm Chứng Tải Song Song CQG Đạt 25.8s
 
 ### 1. Mục tiêu thay đổi
