@@ -152,6 +152,8 @@ export class KlgdReconService {
       checkTttt?: boolean;
       cutoffTime?: Date;
       cqgCutoffTime?: Date;
+      checkTime?: Date;
+      jobStartTime?: Date | string;
     },
   ): Promise<CheckKLGDResult> {
     if (sessionStartStr) {
@@ -165,7 +167,7 @@ export class KlgdReconService {
     if (files.fr1) rawFrData.push(...parseFR(files.fr1, tradingDate, holidays));
     if (files.fr2) rawFrData.push(...parseFR(files.fr2, tradingDate, holidays));
 
-    // Bảo toàn toàn bộ các lần khớp (partial fills) của CQG từ rawFrData theo chuẩn C# IT Tool (FIleUtils.cs & TransactionCheckingService.cs)
+    // Bảo toàn toàn bộ các lần khớp (partial fills) của CQG từ rawFrData theo chuẩn C# IT Tool (FileUtils.cs & TransactionCheckingService.cs)
 
     const sessionStart = new Date(tradingDate);
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
@@ -179,7 +181,9 @@ export class KlgdReconService {
         tradingDate.getUTCSeconds() === 0);
 
     let checkTime: Date;
-    if (isPastDateOrDateOnly) {
+    if (options?.checkTime) {
+      checkTime = new Date(options.checkTime);
+    } else if (isPastDateOrDateOnly) {
       sessionStart.setHours(sHour, sMin, 0, 0);
       while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
         sessionStart.setDate(sessionStart.getDate() - 1);
@@ -188,6 +192,8 @@ export class KlgdReconService {
       checkTime.setDate(checkTime.getDate() + 1);
     } else {
       checkTime = new Date(tradingDate);
+      checkTime.setSeconds(0, 0);
+      checkTime.setMilliseconds(0);
       sessionStart.setHours(sHour, sMin, 0, 0);
       if (checkTime < sessionStart) {
         sessionStart.setDate(sessionStart.getDate() - 1);
@@ -197,9 +203,6 @@ export class KlgdReconService {
       }
     }
 
-    const dsgdUpperBound = checkTime;
-    const effectiveCutoffTime = options?.cutoffTime;
-    const effectiveCqgCutoffTime = options?.cqgCutoffTime;
     const pendingSyncTrades: Array<{
       source: 'MSystem' | 'CQG' | 'ACM';
       maLenh?: string;
@@ -212,91 +215,33 @@ export class KlgdReconService {
       note: string;
     }> = [];
 
-    const rawFrKeySet = new Set(rawFrData.map((f) => f.combinedKey));
-    const cqgCutoffBufferMs = 2000; // Buffer 2,000ms triệt tiêu độ trễ mạng / clock skew tương tự Chiều 1 dsgdCutoffTime
-    const cqgBoundaryThreshold = effectiveCqgCutoffTime
-      ? new Date(effectiveCqgCutoffTime.getTime() - cqgCutoffBufferMs)
-      : undefined;
-
+    // Chuẩn C# TransactionCheckingService.cs#L120 (timeMatched > time => continue):
+    // Lọc dsgdData theo mốc chặn trên cố định theo phút checkTime (HH:mm:00.000)
     const dsgdData = rawDsgdData.filter((gd) => {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      // Chiều 2: Lệnh M-System khớp sau hoặc sát mốc chốt dữ liệu CQG -> Tự động bảo lưu pendingSyncTrades
-      if (
-        effectiveCqgCutoffTime &&
-        !gd.maTKGD.toUpperCase().endsWith('A')
-      ) {
-        const isLateTrade = tradeTime > effectiveCqgCutoffTime;
-        const isBoundaryTrade =
-          cqgBoundaryThreshold &&
-          tradeTime >= cqgBoundaryThreshold &&
-          !rawFrKeySet.has(gd.combinedKey);
-
-        if (isLateTrade || isBoundaryTrade) {
-          pendingSyncTrades.push({
-            source: 'MSystem',
-            maLenh: gd.maLenh,
-            maTKGD: gd.maTKGD,
-            maHD: gd.maHD,
-            giaKhop: gd.giaKhop,
-            klGiaoDich: gd.klGiaoDich,
-            ngayGio: gd.ngayGio,
-            cutoffTime: effectiveCqgCutoffTime.toISOString(),
-            note: isLateTrade
-              ? `Giao dịch M-System khớp lúc ${gd.ngayGio}, sau mốc chốt dữ liệu CQG (${effectiveCqgCutoffTime.toLocaleTimeString('vi-VN')})`
-              : `Giao dịch M-System khớp lúc ${gd.ngayGio}, sát mốc chốt dữ liệu CQG (${effectiveCqgCutoffTime.toLocaleTimeString('vi-VN')}) do độ trễ đồng bộ mạng`,
-          });
-          return false;
-        }
-      }
-      return tradeTime <= dsgdUpperBound;
+      if (tradeTime < sessionStart) return false;
+      return tradeTime <= checkTime;
     });
 
-    const nanoUpperBound = dsgdUpperBound;
+    // Chuẩn C# TransactionCheckingService.cs#L167 (timeMatched > time => continue):
+    // Lọc nanoData theo mốc chặn trên cố định theo phút checkTime (HH:mm:00.000)
     const nanoData = rawNanoData.filter((gd) => {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
       if (!tradeTime) return true;
-      // [Pipelined-Sync] Khi ACM và CCP đã tải đồng pha cùng giây, comment lại đoạn cắt cutoff để giữ nguyên số liệu thô thực tế (800 = 800)
-      /*
-      if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
-        pendingSyncTrades.push({
-          source: 'ACM',
-          maLenh: gd.maLenh,
-          maTKGD: gd.maTKGD,
-          maHD: gd.maHD,
-          giaKhop: gd.giaKhop,
-          klGiaoDich: gd.klGiaoDich,
-          ngayGio: gd.ngayGio,
-          cutoffTime: effectiveCutoffTime.toISOString(),
-          note: `Giao dịch ACM khớp lúc ${gd.ngayGio}, sau mốc chốt dữ liệu M-System (${effectiveCutoffTime.toLocaleTimeString('vi-VN')})`,
-        });
-        return false;
-      }
-      */
-      return tradeTime <= nanoUpperBound;
+      if (tradeTime < sessionStart) return false;
+      return tradeTime <= checkTime;
     });
 
+    // Chuẩn C# TransactionCheckingService.cs#L153 (fullDateTime > time => continue):
+    // Lọc frData theo mốc chặn trên cố định theo phút checkTime (HH:mm:00.000)
     const frData = rawFrData.filter((fr) => {
       if (!fr.time) return true;
       const tradeTime = parseCqgDateTime(fr.time, tradingDate);
       if (!tradeTime) return true;
       if (tradeTime < sessionStart) return false;
-      if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
-        pendingSyncTrades.push({
-          source: 'CQG',
-          maLenh: fr.ord,
-          maTKGD: fr.accountRaw,
-          maHD: fr.symbol,
-          giaKhop: fr.fillP,
-          klGiaoDich: fr.qty,
-          ngayGio: fr.time,
-          cutoffTime: effectiveCutoffTime.toISOString(),
-          note: `Lệnh CQG khớp lúc ${fr.time}, sau mốc chốt dữ liệu M-System (${effectiveCutoffTime.toLocaleTimeString('vi-VN')})`,
-        });
-        return false;
-      }
       return tradeTime <= checkTime;
     });
 
@@ -332,21 +277,7 @@ export class KlgdReconService {
         const tradeTime = parseTradeDateTime(gd.tradeDateStr, tradingDate);
         if (!tradeTime) return false;
         if (tradeTime < sessionStart) return false;
-        if (effectiveCutoffTime && tradeTime > effectiveCutoffTime) {
-          pendingSyncTrades.push({
-            source: 'ACM',
-            maLenh: gd.maLenh,
-            maTKGD: gd.maTKGD,
-            maHD: gd.maHD,
-            giaKhop: gd.giaKhop,
-            klGiaoDich: gd.klGiaoDich,
-            ngayGio: gd.tradeDateStr,
-            cutoffTime: effectiveCutoffTime.toISOString(),
-            note: `Giao dịch ACM khớp lúc ${gd.tradeDateStr}, sau mốc chốt dữ liệu M-System (${effectiveCutoffTime.toLocaleTimeString('vi-VN')})`,
-          });
-          return false;
-        }
-        return tradeTime <= nanoUpperBound;
+        return tradeTime <= checkTime;
       });
 
       if (candidates.length > 0) {
@@ -664,8 +595,8 @@ export class KlgdReconService {
       mismatchedTTM: finalMismatchedTTM,
       mismatchedTTTT: finalMismatchedTTTT,
       pendingSyncTrades: pendingSyncTrades.length > 0 ? pendingSyncTrades : undefined,
-      cutoffTime: effectiveCutoffTime,
-      cqgCutoffTime: effectiveCqgCutoffTime,
+      cutoffTime: options?.cutoffTime || checkTime,
+      cqgCutoffTime: options?.cqgCutoffTime || checkTime,
       sessionStart,
       checkTime,
       passed: !hasDiscrepancy,
@@ -685,6 +616,8 @@ export class KlgdReconService {
       checkTttt?: boolean;
       cutoffTime?: Date;
       cqgCutoffTime?: Date;
+      checkTime?: Date;
+      jobStartTime?: Date | string;
       customDataDir?: string;
     },
   ): Promise<CheckKLGDResult> {
@@ -783,15 +716,30 @@ export class KlgdReconService {
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
     const sessionStart = new Date(tradingDate);
     sessionStart.setHours(sHour, sMin, 0, 0);
-    const checkTime = new Date();
-    if (checkTime < sessionStart) {
-      if (checkTime.getDay() !== 1) {
-        sessionStart.setDate(sessionStart.getDate() - 1);
-        while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
-          sessionStart.setDate(sessionStart.getDate() - 1);
-        }
-      }
+    while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
+      sessionStart.setDate(sessionStart.getDate() - 1);
     }
+    const sessionEnd = new Date(sessionStart);
+    sessionEnd.setDate(sessionEnd.getDate() + 1);
+
+    // Chuẩn hóa 100% theo C# FormMain.cs#L290 (now.ToString("dd/MM HH:mm")):
+    // Mốc chặn trên luôn được làm tròn về đúng phút bắt đầu chạy (HH:mm:00.000)
+    const runTime = options?.checkTime
+      ? new Date(options.checkTime)
+      : (options?.jobStartTime ? new Date(options.jobStartTime) : new Date());
+
+    const minuteCutoff = new Date(runTime);
+    minuteCutoff.setSeconds(0, 0);
+    minuteCutoff.setMilliseconds(0);
+
+    // Nếu đang trong phiên: chặn đúng mốc phút minuteCutoff; nếu đã qua phiên (lịch sử): lấy mốc đóng phiên sessionEnd
+    const effectiveCheckTime = options?.checkTime
+      ? new Date(options.checkTime)
+      : (runTime >= sessionStart && runTime <= sessionEnd ? minuteCutoff : sessionEnd);
+
+    this.logger.log(
+      `[Recon] Chuẩn hóa mốc lọc C# (HH:mm:00): Từ ${sessionStart.toLocaleTimeString('vi-VN')} (${sessionStart.toLocaleDateString('vi-VN')}) đến ${effectiveCheckTime.toLocaleTimeString('vi-VN')} (${effectiveCheckTime.toLocaleDateString('vi-VN')})`,
+    );
 
     const checkKlgdFlag = options?.checkKlgd !== false;
     const checkTtmFlag = options?.checkTtm !== false;
@@ -811,7 +759,7 @@ export class KlgdReconService {
         passed: true,
         isWaitingFiles: true,
         sessionStart,
-        checkTime,
+        checkTime: effectiveCheckTime,
         message: `[Đang chờ dữ liệu] Thư mục backup ngày ${day}.${month}.${year} đang chờ cập nhật đầy đủ file đối chiếu (Đang thiếu: ${missingFiles.join(', ')}). Bot sẽ tự động kiểm tra lại ở chu kỳ tiếp theo.`,
         totals: {
           totalDSGD: 0,
@@ -827,19 +775,7 @@ export class KlgdReconService {
     }
 
     const files: any = {};
-    let dsgdCutoffTime: Date | undefined = undefined;
-    if (fs.existsSync(dsgdPath)) {
-      files.dsgd = fs.readFileSync(dsgdPath);
-      try {
-        const stat = fs.statSync(dsgdPath);
-        dsgdCutoffTime = new Date(stat.mtime.getTime() - 2000);
-        this.logger.log(
-          `[Recon] Xác định mốc cắt dữ liệu (Cutoff Time) từ file DSGD.xlsx: ${dsgdCutoffTime.toLocaleTimeString('vi-VN')} (${dsgdCutoffTime.toISOString()}, buffer -2s so với mtime ghi đĩa)`,
-        );
-      } catch (err: any) {
-        this.logger.warn(`[Recon] Không lấy được mtime của DSGD.xlsx: ${err.message}`);
-      }
-    }
+    if (fs.existsSync(dsgdPath)) files.dsgd = fs.readFileSync(dsgdPath);
     if (cqgFrPath && fs.existsSync(cqgFrPath)) files.fr = fs.readFileSync(cqgFrPath);
     if (acmTradesPath && fs.existsSync(acmTradesPath)) files.nano = fs.readFileSync(acmTradesPath);
     if (fs.existsSync(ttmPath)) files.ttm = fs.readFileSync(ttmPath);
@@ -851,28 +787,9 @@ export class KlgdReconService {
     if (ttmCcpPath && fs.existsSync(ttmCcpPath)) files.ttmCcp = fs.readFileSync(ttmCcpPath);
     if (ttttCcpPath && fs.existsSync(ttttCcpPath)) files.ttttCcp = fs.readFileSync(ttttCcpPath);
 
-    // Trích xuất mốc chốt dữ liệu thực tế của CQG từ Header file thô (FR1/FR2) hoặc FR.xlsx
-    let cqgCutoffTime: Date | undefined = options?.cqgCutoffTime;
-    if (!cqgCutoffTime && cqgFrPath) {
-      const frDir = path.dirname(cqgFrPath);
-      const snap1 = extractCqgSnapshotTime(path.join(frDir, 'FR1.xlsx'));
-      const snap2 = extractCqgSnapshotTime(path.join(frDir, 'FR2.xlsx'));
-      if (snap1 && snap2) {
-        cqgCutoffTime = new Date(Math.max(snap1.getTime(), snap2.getTime()));
-      } else {
-        cqgCutoffTime = (snap1 || snap2 || extractCqgSnapshotTime(cqgFrPath)) || undefined;
-      }
-      if (cqgCutoffTime) {
-        this.logger.log(
-          `[Recon] Xác định mốc cắt dữ liệu CQG (CQG Cutoff Time) từ Header file: ${cqgCutoffTime.toLocaleTimeString('vi-VN')} (${cqgCutoffTime.toISOString()})`,
-        );
-      }
-    }
-
     const reconOptions = {
       ...options,
-      cutoffTime: options?.cutoffTime || dsgdCutoffTime,
-      cqgCutoffTime,
+      checkTime: effectiveCheckTime,
     };
 
     const lmeHolidaysStr = await this.settingsService.getSetting(

@@ -98,10 +98,12 @@ export class ReconPipelineService implements IReconPipelinePort {
       return payload.result;
     }
 
+    const jobStartTime = job?.createdAt ? new Date(job.createdAt) : new Date();
     const options = {
       checkKlgd: payload.options?.checkKlgd ?? true,
       checkTtm: payload.options?.checkTtm ?? true,
       checkTttt: payload.options?.checkTttt ?? true,
+      jobStartTime,
     };
 
     // ── BƯỚC 1: KÍCH HOẠT LUỒNG INGRESS TẢI DỮ LIỆU TƯƠI 4 NGUỒN ─────────────
@@ -192,7 +194,7 @@ export class ReconPipelineService implements IReconPipelinePort {
         const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
         });
-        log(`Khoảng thời gian lọc: từ ${startStr} đến ${endStr}`);
+        log(`Khoảng thời gian lọc (chuẩn C# HH:mm:00): từ ${startStr} đến ${endStr}`);
       }
       if (result.pendingSyncTrades && result.pendingSyncTrades.length > 0) {
         log(

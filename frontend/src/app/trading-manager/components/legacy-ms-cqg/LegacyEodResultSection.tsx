@@ -222,7 +222,7 @@ export default function LegacyEodResultSection({
               Chưa chạy đối chiếu EOD phiên T-1 ({previousTradingDayFormatted || selectedDate})
             </h5>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
-              Bấm nút &quot;Check EOD&quot; phía trên để đối soát số dư và kết quả đóng sổ EOD giữa M-System và CCP.
+              Bấm nút &quot;Check EOD&quot; phía trên để đối soát số dư dự kiến (QLTKGD &amp; TTTT) với kết quả đóng sổ EOD của M-System.
             </p>
           </div>
         ) : eodData?.isWaitingFiles ? (
@@ -304,10 +304,10 @@ export default function LegacyEodResultSection({
           <div style={{ padding: '48px 20px', textAlign: 'center' }}>
             <CheckCircle size={40} color="#10b981" style={{ margin: '0 auto 12px' }} />
             <h5 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981', margin: '0 0 6px 0' }}>
-              Tất Cả Số Dư Khớp Hoàn Toàn Với Kết Quả Chạy EOD (MS & CCP)
+              Tất Cả Số Dư Khớp Hoàn Toàn Với Kết Quả Chạy EOD (M-System)
             </h5>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Dữ liệu đóng sổ EOD giữa M-System và CCP hoàn toàn đồng nhất, không phát hiện chênh lệch.
+              Dữ liệu giao dịch phát sinh (QLTKGD &amp; TTTT) khớp 100% với số dư đóng sổ EOD của M-System, không phát hiện chênh lệch.
             </p>
           </div>
         )}

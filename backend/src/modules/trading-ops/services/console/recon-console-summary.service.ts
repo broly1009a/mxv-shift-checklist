@@ -686,7 +686,7 @@ export class ReconConsoleSummaryService {
       const marginPromise = this.botJobModel
         .findOne({
           jobType: {
-            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS', 'CHECK_EOD_CCP'],
+            $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS'],
           },
           ...dateFilterCondition,
         })
@@ -696,9 +696,7 @@ export class ReconConsoleSummaryService {
 
       const eodPromise = this.botJobModel
         .findOne({
-          jobType: {
-            $in: ['CHECK_EOD_MS', 'CHECK_EOD_CCP'],
-          },
+          jobType: 'CHECK_EOD_MS',
           ...dateFilterCondition,
         })
         .sort({ createdAt: -1 })
@@ -925,26 +923,42 @@ export class ReconConsoleSummaryService {
       : {};
     const ccpCheckResult = ccpCheckPayload.result || {};
 
+    // 5.1. Xử lý Payload EOD M-System
+    const latestEodJob = eodJob;
+    const latestEodPayload = latestEodJob
+      ? typeof latestEodJob.toObject === 'function'
+        ? latestEodJob.toObject().payload || {}
+        : latestEodJob.payload && typeof latestEodJob.payload.toObject === 'function'
+          ? latestEodJob.payload.toObject()
+          : latestEodJob.payload || {}
+      : {};
+    const latestEodResult = latestEodPayload.result || {};
+
+    const resolvedMismatchedEOD =
+      latestEodResult.eodResult?.mismatchedEOD ||
+      latestEodResult.mismatchedEOD ||
+      [];
+
     const rawNegativeIMR: string[] =
       Array.isArray(marginResult.negativeIMRAcc)
         ? marginResult.negativeIMRAcc
-        : Array.isArray(ccpCheckResult?.negativeIMRAcc)
-          ? ccpCheckResult.negativeIMRAcc
-          : Array.isArray(marginResult.eodResult?.negativeIMRAcc)
-            ? marginResult.eodResult.negativeIMRAcc
-            : Array.isArray(dsgdBeforeEodResult.eodResult?.negativeIMRAcc)
-              ? dsgdBeforeEodResult.eodResult.negativeIMRAcc
+        : Array.isArray(marginResult.newNegIMR)
+          ? marginResult.newNegIMR
+          : Array.isArray(latestEodResult.negativeIMRAcc)
+            ? latestEodResult.negativeIMRAcc
+            : Array.isArray(latestEodResult.newNegIMR)
+              ? latestEodResult.newNegIMR
               : [];
 
     const rawNegativeBalance: string[] =
       Array.isArray(marginResult.negativeBalanceAccs)
         ? marginResult.negativeBalanceAccs
-        : Array.isArray(ccpCheckResult?.negativeBalanceAccs)
-          ? ccpCheckResult.negativeBalanceAccs
-          : Array.isArray(marginResult.eodResult?.negativeBalanceAccs)
-            ? marginResult.eodResult.negativeBalanceAccs
-            : Array.isArray(dsgdBeforeEodResult.eodResult?.negativeBalanceAccs)
-              ? dsgdBeforeEodResult.eodResult.negativeBalanceAccs
+        : Array.isArray(marginResult.newNegBal)
+          ? marginResult.newNegBal
+          : Array.isArray(latestEodResult.negativeBalanceAccs)
+            ? latestEodResult.negativeBalanceAccs
+            : Array.isArray(latestEodResult.newNegBal)
+              ? latestEodResult.newNegBal
               : [];
 
     // Lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi cấu hình (Chuẩn C# FormMain.cs#L1625)
@@ -1067,23 +1081,7 @@ export class ReconConsoleSummaryService {
     const latestRunId = runs.length > 0 ? runs[0].id : null;
     const isViewingHistorical = !!(jobId && latestRunId && jobId !== latestRunId);
 
-    // 8. Xác định Job EOD mới nhất của ngày hôm nay (chỉ giữa CHECK_EOD_MS và CHECK_EOD_CCP)
-    // TUYỆT ĐỐI không đưa dsgdBeforeEodJob vào đây để tránh nhầm lẫn giữa Dsgd-Before-EOD và EOD!
-    const latestEodJob = eodJob;
 
-    const latestEodPayload = latestEodJob
-      ? typeof latestEodJob.toObject === 'function'
-        ? latestEodJob.toObject().payload || {}
-        : latestEodJob.payload && typeof latestEodJob.payload.toObject === 'function'
-          ? latestEodJob.payload.toObject()
-          : latestEodJob.payload || {}
-      : {};
-    const latestEodResult = latestEodPayload.result || {};
-
-    const resolvedMismatchedEOD =
-      latestEodResult.eodResult?.mismatchedEOD ||
-      latestEodResult.mismatchedEOD ||
-      [];
 
     return {
       success: true,
@@ -1253,24 +1251,22 @@ export class ReconConsoleSummaryService {
         totals: latestEodResult.totals || {},
         mismatchedEODCount: resolvedMismatchedEOD.length,
         mismatchedEOD: resolvedMismatchedEOD,
-        negativeIMRAcc: ccpCheckResult?.negativeIMRAcc || [],
-        negativeBalanceAccs: ccpCheckResult?.negativeBalanceAccs || [],
+        negativeIMRAcc: latestEodResult.negativeIMRAcc || latestEodResult.newNegIMR || [],
+        negativeBalanceAccs: latestEodResult.negativeBalanceAccs || latestEodResult.newNegBal || [],
       },
       negativeMargin: {
-        jobId: marginJob?._id?.toString() || ccpCheckJob?._id?.toString() || null,
-        executedAt: (marginJob?.createdAt || ccpCheckJob?.createdAt)
-          ? new Date(marginJob?.createdAt || ccpCheckJob?.createdAt).toISOString()
+        jobId: marginJob?._id?.toString() || null,
+        executedAt: marginJob?.createdAt
+          ? new Date(marginJob.createdAt).toISOString()
           : null,
-        completedAt: (marginJob?.completedAt || ccpCheckJob?.completedAt)
-          ? new Date(marginJob?.completedAt || ccpCheckJob?.completedAt).toISOString()
+        completedAt: marginJob?.completedAt
+          ? new Date(marginJob.completedAt).toISOString()
           : null,
         durationMs:
           marginJob?.completedAt && marginJob?.createdAt
             ? new Date(marginJob.completedAt).getTime() - new Date(marginJob.createdAt).getTime()
-            : ccpCheckJob?.completedAt && ccpCheckJob?.createdAt
-              ? new Date(ccpCheckJob.completedAt).getTime() - new Date(ccpCheckJob.createdAt).getTime()
-              : null,
-        status: marginJob?.status || ccpCheckJob?.status || 'IDLE',
+            : null,
+        status: marginJob?.status || 'IDLE',
         isWaitingFiles: !!(marginResult.isWaitingFiles),
         waitingMessage: marginResult.waitingMessage || marginResult.message || null,
         negativeIMRAccCount: newNegativeIMR.length,

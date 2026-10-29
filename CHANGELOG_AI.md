@@ -1,3 +1,60 @@
+## [2026-10-29T11:35] FIX(RECON_CONSOLE_SUMMARY): Cách Ly Triệt Để Truy Vấn Job EOD & Âm Ký Quỹ Giữa M-System Và CoreCCP
+
+### 1. Mục tiêu thay đổi
+- **Phản ánh & Thắc mắc từ người dùng**:
+  - *"hiển thị nội dung thế này có liên quan gì tới CCP đâu nhỉ"*
+  - *"là check thật trên ms không vậy"*
+- **Phát hiện cốt lõi (Code-First Grounding & Log Audit)**:
+  1. **Check thật 100% trên M-System**: Khi chạy `CHECK_EOD_MS`, bot đọc trực tiếp các file thật `QLTKGD.xlsx` và `eod.csv` trong thư mục `Backup MS\Futures\2026\T10.2026\28.10` và tính toán công thức số dư khớp từng đồng theo chuẩn C# (`TransactionCheckingService.cs#CheckEOD`). Kết quả chạy thực tế ngày 28/10: 4 tài khoản âm ký quỹ mới, 1117 tài khoản chênh lệch công thức.
+  2. **Nguyên nhân ảnh lúc 10:55:23 bị lẫn dữ liệu CCP**:
+     - Lúc 10:55:23, job `CHECK_EOD_CCP` (Job ID: `6ae2c3abf3c57d3eda6f345d`) vừa chạy xong với kết quả thành công (10326 TK khớp).
+     - Trong khi đó, tại [recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts), câu lệnh `eodPromise` dùng `$in: ['CHECK_EOD_MS', 'CHECK_EOD_CCP']` và `marginPromise` dùng `$in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS', 'CHECK_EOD_CCP']`, đồng thời fallback kết quả sang `ccpCheckResult` và `ccpCheckJob`.
+     - Do job MS sáng nay ban đầu ở trạng thái chờ, API `summary` đã lấy luôn kết quả của `CHECK_EOD_CCP` trả về cho tab MS, khiến tab MS hiển thị nhầm kết quả của CCP.
+- **Giải pháp**:
+  - Cách ly 100% truy vấn:
+    - `eodPromise` chỉ lấy `{ jobType: 'CHECK_EOD_MS' }`.
+    - `marginPromise` chỉ lấy `{ jobType: { $in: ['SCAN_NEGATIVE_MARGIN', 'CHECK_MARGIN_DECISION', 'CHECK_EOD_MS'] } }`.
+    - Loại bỏ hoàn toàn các fallback sang `ccpCheckResult` và `ccpCheckJob` trong phần tổng hợp của MS.
+
+### 2. Danh sách file chỉnh sửa
+- [recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts#L686-L706) & [L925-L950](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts#L925-L950) & [L1250-L1275](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts#L1250-L1275)
+- [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L155-L235): Cách ly 100% dữ liệu tab CoreCCP, chỉ đọc từ `data.ccpSummary` và `ccpCheckJob`, loại bỏ hoàn toàn các fallback đọc nhầm sang `data.negativeMargin` và `data.eod` của M-System.
+
+### 3. Xác nhận Build & Triển khai
+- **Backend Check**: `cmd /c npx tsc -p tsconfig.build.json --noEmit` pass 100% (Exit Code 0).
+- **Frontend Check**: `cmd /c npx tsc --noEmit` pass 100% (Exit Code 0).
+- **Deploy Ubuntu 10.0.0.26**: `nest build` & `next build` hoàn tất thành công, restart PM2 `mxv-backend` (pid 2354708) & `mxv-frontend` (pid 2354969) online 100%.
+
+---
+
+## [2026-10-29T11:24] FIX(UI_EOD_MS_LABEL): Chuẩn Hóa Nhãn Hiển Thị Khớp Số Dư EOD M-System - Loại Bỏ Nhầm Lẫn Sang CCP
+
+### 1. Mục tiêu thay đổi
+- **Phản ánh & Thắc mắc từ người dùng**:
+  - Tại sao trên tab **"Phân hệ MS – CQG"** của màn hình Đối chiếu kết quả EOD lại hiển thị:
+    *"Tất Cả Số Dư Khớp Hoàn Toàn Với Kết Quả Chạy EOD (MS & CCP)"*
+    *"Dữ liệu đóng sổ EOD giữa M-System và CCP hoàn toàn đồng nhất, không phát hiện chênh lệch."*
+    $\rightarrow$ Phân hệ này là MS - CQG thì liên quan gì đến CCP?
+- **Nguyên nhân cốt lõi (Code-First Grounding)**:
+  - Bản chất nghiệp vụ và logic Backend tại [ms-eod-recon.service.ts#L300-L355](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ms-eod-recon.service.ts#L300-L355): Tác vụ `CHECK_EOD_MS` (chuẩn C# `TransactionCheckingService.cs#CheckEOD`) đối chiếu nội bộ trong M-System: So sánh công thức số dư dự kiến từ `QLTKGD.xlsx` & `TTTT.xlsx` với số dư chốt sổ thực tế trong file `eod.csv` của M-System. Phép tính này **100% không liên quan gì đến CCP**.
+  - Nguyên nhân chữ `(MS & CCP)` xuất hiện là do **lỗi sao chép / hardcode nhầm chuỗi văn bản (typo copy-paste label)** trên giao diện Frontend tại [LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx) (các dòng 225, 307, 310).
+- **Giải pháp**:
+  - Chuẩn hóa lại toàn bộ chuỗi thông báo sang đúng bản chất M-System:
+    - Tiêu đề: *"Tất Cả Số Dư Khớp Hoàn Toàn Với Kết Quả Chạy EOD (M-System)"*
+    - Mô tả: *"Dữ liệu giao dịch phát sinh (QLTKGD & TTTT) khớp 100% với số dư đóng sổ EOD của M-System, không phát hiện chênh lệch."*
+    - Empty state: *"Bấm nút "Check EOD" phía trên để đối soát số dư dự kiến (QLTKGD & TTTT) với kết quả đóng sổ EOD của M-System."*
+  - Đồng bộ cả `frontend/src` và `frontend/legacy`.
+
+### 2. Danh sách file chỉnh sửa
+- [LegacyEodResultSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx#L222-L228) & [L304-L312](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyEodResultSection.tsx#L304-L312)
+- `frontend/legacy/components/trading-manager-components/legacy-ms-cqg/LegacyEodResultSection.tsx`
+
+### 3. Xác nhận Build & Triển khai
+- **TypeScript Check**: `cmd /c npx tsc --noEmit` pass 100% (Exit Code 0).
+- **Deploy Ubuntu 10.0.0.26**: `next build` hoàn tất 50 static pages thành công, restart PM2 `mxv-frontend` (pid 2348024) online 100%.
+
+---
+
 ## [2026-10-29T11:00] FIX(ACM_ETP_EXTENSION): Chuẩn Hóa Đuôi File Tải Báo Cáo ACM Web Về .xls Khắc Phục Lỗi Mở File Trên Excel Windows
 
 ### 1. Mục tiêu thay đổi

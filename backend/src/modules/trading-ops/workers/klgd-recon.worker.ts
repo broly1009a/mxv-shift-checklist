@@ -63,7 +63,8 @@ export class KlgdReconWorker implements IBotWorker {
       } else {
         // Fallback: Quét file trực tiếp từ ổ đĩa (cho Unit tests hoặc chế độ Offline)
         res = await this.klgdReconService.runAutoCheckKLGD(targetDate, {
-          cutoffTime: context.parameters?.cutoffTime ? new Date(context.parameters.cutoffTime) : undefined,
+          checkTime: context.parameters?.checkTime ? new Date(context.parameters.checkTime) : undefined,
+          jobStartTime: context.parameters?.jobStartTime || new Date(),
           customDataDir: context.parameters?.dataDir,
         });
       }

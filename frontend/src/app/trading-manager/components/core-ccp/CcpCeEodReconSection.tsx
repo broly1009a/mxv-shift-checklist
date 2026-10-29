@@ -153,35 +153,26 @@ export default function CcpCeEodReconSection({
       const data = await api.tradingOps.getConsoleSummary(dateStr, undefined, token);
       if (data) {
         // 1. Tài khoản âm ký quỹ (EOD CoreCCP)
-        const negJob = data?.negativeMargin;
         const ccpSummary = data?.ccpSummary;
         const ccpCheckJob = ccpSummary?.checkJob;
-        const eodSource = data?.eodRun || data?.eod;
+        const ccpResult = ccpCheckJob?.result || {};
 
-        const negExecuted = negJob?.executedAt || ccpCheckJob?.executedAt || eodSource?.executedAt;
-        const negDuration = negJob?.durationMs ?? ccpCheckJob?.durationMs ?? eodSource?.durationMs ?? null;
+        const negExecuted = ccpCheckJob?.completedAt || ccpCheckJob?.createdAt || ccpCheckJob?.executedAt;
+        const negDuration = ccpCheckJob?.durationMs ?? null;
 
         // Lấy danh sách tài khoản âm ký quỹ MỚI (EOD CoreCCP)
-        // Ưu tiên theo thứ tự: negJob.accounts (đã loại trừ âm từ T-2) -> negJob.negativeIMRAcc -> ccpSummary.negativeIMRAcc -> ccpCheckJob.result.negativeIMRAcc -> eodSource.negativeIMRAcc
-        // Tuyệt đối KHÔNG fallback sang negativeBalanceAccs (âm số dư tiền) vì thẻ này chỉ đo lường âm ký quỹ IMR
+        // Ưu tiên theo thứ tự: ccpResult.negativeIMRAcc -> ccpSummary.negativeIMRAcc
+        // Tuyệt đối KHÔNG đọc từ negJob của M-System
         let rawAccs: any[] = [];
-        if (Array.isArray(negJob?.accounts)) {
-          rawAccs = negJob.accounts;
-        } else if (Array.isArray(negJob?.negativeIMRAcc)) {
-          rawAccs = negJob.negativeIMRAcc;
+        if (Array.isArray(ccpResult?.negativeIMRAcc)) {
+          rawAccs = ccpResult.negativeIMRAcc;
         } else if (Array.isArray(ccpSummary?.negativeIMRAcc)) {
           rawAccs = ccpSummary.negativeIMRAcc;
-        } else if (Array.isArray(ccpCheckJob?.result?.negativeIMRAcc)) {
-          rawAccs = ccpCheckJob.result.negativeIMRAcc;
-        } else if (Array.isArray(eodSource?.negativeIMRAcc)) {
-          rawAccs = eodSource.negativeIMRAcc;
         }
 
         const isNegDone = !!(
-          negExecuted ||
-          (negJob && negJob.status === 'COMPLETED') ||
           (ccpCheckJob && ccpCheckJob.status === 'COMPLETED') ||
-          (eodSource && eodSource.status === 'COMPLETED' && eodSource.jobType === 'CHECK_EOD_CCP')
+          (negExecuted && ccpCheckJob?.status === 'COMPLETED')
         );
 
         if (isNegDone) {
@@ -199,12 +190,10 @@ export default function CcpCeEodReconSection({
         }
 
         // 2. Kết quả chạy EOD (CoreCCP ↔ CoreEX)
-        const eodExecuted = eodSource?.executedAt || ccpCheckJob?.executedAt;
-        const eodDuration = eodSource?.durationMs ?? ccpCheckJob?.durationMs ?? null;
+        const eodExecuted = ccpCheckJob?.completedAt || ccpCheckJob?.createdAt || ccpCheckJob?.executedAt;
+        const eodDuration = ccpCheckJob?.durationMs ?? null;
         const isEodDone = !!(
-          eodExecuted ||
-          (eodSource && (eodSource.status === 'COMPLETED' || eodSource.jobId)) ||
-          (ccpCheckJob && ccpCheckJob.status === 'COMPLETED')
+          ccpCheckJob && ccpCheckJob.status === 'COMPLETED'
         );
 
         if (isEodDone) {
@@ -212,10 +201,9 @@ export default function CcpCeEodReconSection({
           setEodExecutedAt(eodExecuted || null);
           setEodDurationMs(eodDuration);
           const rawResults =
-            eodSource?.results ||
-            eodSource?.mismatchedEOD ||
             ccpSummary?.mismatchedAccounts ||
-            ccpCheckJob?.result?.mismatchedEOD ||
+            ccpResult?.mismatchedEOD ||
+            ccpResult?.mismatchedSample ||
             [];
           setEodResults(
             rawResults.map((item: any) => ({
