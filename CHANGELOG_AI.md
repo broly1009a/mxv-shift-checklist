@@ -1,3 +1,29 @@
+## [2026-10-28T18:10] FIX(EOD_CORECCP): Khắc Phục Lỗi Fallback Nuốt Mảng Rỗng Làm Hiển Thị Sai Tài Khoản Âm Ký Quỹ Mới (EOD CoreCCP)
+
+### 1. Mục tiêu thay đổi
+- **Bối cảnh**: Sau khi nâng cấp logic đối chiếu EOD CoreCCP tự động loại trừ các tài khoản âm cố hữu từ phiên liền trước $T-2$, Bot và Backend đã tính toán và kết luận chính xác 100%: 3 tài khoản âm từ phiên $T-1$ đều đã âm từ phiên $T-2$ $\rightarrow$ Số tài khoản âm ký quỹ MỚI phát sinh là **0 TK** (An Toàn tuyệt đối). Bản ghi Job trong CSDL MongoDB ghi nhận đúng: `negativeIMRAcc: []`, `negativeIMRCount: 0`.
+- **Vấn đề phát sinh**: Trên màn hình `/trading-manager/session-open/eod-result`, thẻ *"Tài khoản âm ký quỹ mới (EOD CoreCCP)"* vẫn hiển thị 3 tài khoản (`003C1577943-A`, `046C0002363-A`, `068C2600030-A`) thay vì hiển thị trạng thái An Toàn (Tick Xanh).
+- **Nguyên nhân cốt lõi (Root Cause)**:
+  1. **Tại Frontend ([CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx))**:
+     - Biến `rawAccs` sử dụng điều kiện `negJob.accounts && negJob.accounts.length > 0 ? negJob.accounts : null`. Khi kết quả là mảng rỗng `[]` (0 tài khoản âm mới), `length === 0` khiến mảng rỗng hợp lệ bị coi là `null`.
+     - Toán tử `||` tiếp tục fallback xuống `ccpSummary.negativeBalanceAccs` và `ccpCheckJob.result.negativeBalanceAccs`. Đây là **danh sách tài khoản âm số dư tiền mặt** (từ file `QL TT TKGD.xlsx`), tình cờ có đúng 3 tài khoản này.
+     - Hậu quả: Giao diện nuốt mất kết quả `[]` (An Toàn) và lấy nhầm 3 tài khoản âm số dư tiền hiển thị lên bảng âm ký quỹ mới.
+  2. **Tại Backend ([recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts))**:
+     - `rawNegativeIMR` cũng dùng điều kiện `length > 0` tương tự, khiến mảng rỗng `[]` bị coi là rỗng và fallback sang kết quả cũ nếu có.
+
+### 2. Danh sách file chỉnh sửa
+- [CcpCeEodReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeEodReconSection.tsx#L164-L178):
+  - Chuyển sang kiểm tra kiểu `Array.isArray(negJob?.accounts)` $\rightarrow$ tôn trọng mảng rỗng `[]` khi bot đã thực thi xong.
+  - Tuyệt đối loại bỏ fallback sang `negativeBalanceAccs` vì thẻ này chỉ đo lường âm ký quỹ IMR.
+- [recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts#L928-L945):
+  - Chuyển `rawNegativeIMR` và `rawNegativeBalance` sang kiểm tra bằng `Array.isArray(...)` theo thứ tự ưu tiên chính xác của các Job.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (**Exit Code 0**).
+- **Frontend Build**: `cmd /c npm run build` (`next build`) thành công 100% (**Exit Code 0**).
+
+---
+
 ## [2026-10-28T17:30] FEAT(ARCHITECTURE): Tái Cấu Trúc Hàng Đợi Song Song Phân Hệ (Subsystem-Isolated Parallelism) & Dọn Sạch Tàn Dư TKGD
 
 ### 1. Mục tiêu thay đổi

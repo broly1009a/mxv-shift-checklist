@@ -161,16 +161,21 @@ export default function CcpCeEodReconSection({
         const negExecuted = negJob?.executedAt || ccpCheckJob?.executedAt || eodSource?.executedAt;
         const negDuration = negJob?.durationMs ?? ccpCheckJob?.durationMs ?? eodSource?.durationMs ?? null;
 
-        const rawAccs =
-          (negJob?.accounts && negJob.accounts.length > 0 ? negJob.accounts : null) ||
-          (negJob?.negativeIMRAcc && negJob.negativeIMRAcc.length > 0 ? negJob.negativeIMRAcc : null) ||
-          (ccpSummary?.negativeIMRAcc && ccpSummary.negativeIMRAcc.length > 0 ? ccpSummary.negativeIMRAcc : null) ||
-          (ccpSummary?.negativeBalanceAccs && ccpSummary.negativeBalanceAccs.length > 0 ? ccpSummary.negativeBalanceAccs : null) ||
-          ccpCheckJob?.result?.negativeIMRAcc ||
-          ccpCheckJob?.result?.negativeBalanceAccs ||
-          eodSource?.negativeIMRAcc ||
-          eodSource?.negativeBalanceAccs ||
-          [];
+        // Lấy danh sách tài khoản âm ký quỹ MỚI (EOD CoreCCP)
+        // Ưu tiên theo thứ tự: negJob.accounts (đã loại trừ âm từ T-2) -> negJob.negativeIMRAcc -> ccpSummary.negativeIMRAcc -> ccpCheckJob.result.negativeIMRAcc -> eodSource.negativeIMRAcc
+        // Tuyệt đối KHÔNG fallback sang negativeBalanceAccs (âm số dư tiền) vì thẻ này chỉ đo lường âm ký quỹ IMR
+        let rawAccs: any[] = [];
+        if (Array.isArray(negJob?.accounts)) {
+          rawAccs = negJob.accounts;
+        } else if (Array.isArray(negJob?.negativeIMRAcc)) {
+          rawAccs = negJob.negativeIMRAcc;
+        } else if (Array.isArray(ccpSummary?.negativeIMRAcc)) {
+          rawAccs = ccpSummary.negativeIMRAcc;
+        } else if (Array.isArray(ccpCheckJob?.result?.negativeIMRAcc)) {
+          rawAccs = ccpCheckJob.result.negativeIMRAcc;
+        } else if (Array.isArray(eodSource?.negativeIMRAcc)) {
+          rawAccs = eodSource.negativeIMRAcc;
+        }
 
         const isNegDone = !!(
           negExecuted ||

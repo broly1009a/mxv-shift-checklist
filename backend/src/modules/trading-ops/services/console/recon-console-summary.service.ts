@@ -926,22 +926,26 @@ export class ReconConsoleSummaryService {
     const ccpCheckResult = ccpCheckPayload.result || {};
 
     const rawNegativeIMR: string[] =
-      marginResult.negativeIMRAcc && marginResult.negativeIMRAcc.length > 0
+      Array.isArray(marginResult.negativeIMRAcc)
         ? marginResult.negativeIMRAcc
-        : marginResult.eodResult?.negativeIMRAcc && marginResult.eodResult.negativeIMRAcc.length > 0
-          ? marginResult.eodResult.negativeIMRAcc
-          : ccpCheckResult?.negativeIMRAcc && ccpCheckResult.negativeIMRAcc.length > 0
-            ? ccpCheckResult.negativeIMRAcc
-            : dsgdBeforeEodResult.eodResult?.negativeIMRAcc || [];
+        : Array.isArray(ccpCheckResult?.negativeIMRAcc)
+          ? ccpCheckResult.negativeIMRAcc
+          : Array.isArray(marginResult.eodResult?.negativeIMRAcc)
+            ? marginResult.eodResult.negativeIMRAcc
+            : Array.isArray(dsgdBeforeEodResult.eodResult?.negativeIMRAcc)
+              ? dsgdBeforeEodResult.eodResult.negativeIMRAcc
+              : [];
 
     const rawNegativeBalance: string[] =
-      marginResult.negativeBalanceAccs && marginResult.negativeBalanceAccs.length > 0
+      Array.isArray(marginResult.negativeBalanceAccs)
         ? marginResult.negativeBalanceAccs
-        : marginResult.eodResult?.negativeBalanceAccs && marginResult.eodResult.negativeBalanceAccs.length > 0
-          ? marginResult.eodResult.negativeBalanceAccs
-          : ccpCheckResult?.negativeBalanceAccs && ccpCheckResult.negativeBalanceAccs.length > 0
-            ? ccpCheckResult.negativeBalanceAccs
-            : dsgdBeforeEodResult.eodResult?.negativeBalanceAccs || [];
+        : Array.isArray(ccpCheckResult?.negativeBalanceAccs)
+          ? ccpCheckResult.negativeBalanceAccs
+          : Array.isArray(marginResult.eodResult?.negativeBalanceAccs)
+            ? marginResult.eodResult.negativeBalanceAccs
+            : Array.isArray(dsgdBeforeEodResult.eodResult?.negativeBalanceAccs)
+              ? dsgdBeforeEodResult.eodResult.negativeBalanceAccs
+              : [];
 
     // Lọc loại trừ các tài khoản đã nằm trong danh sách theo dõi cấu hình (Chuẩn C# FormMain.cs#L1625)
     const monitoredAccsStr = await this.settingsService.getSetting(
