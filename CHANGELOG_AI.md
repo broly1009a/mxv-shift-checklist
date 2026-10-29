@@ -1,3 +1,29 @@
+## [2026-10-29T14:30] PERF(UBUNTU_SWAP_AND_CQG_PARALLEL): Mở Rộng 4GB Swap RAM (Tổng 7.8GB) & Kiểm Chứng Tải Song Song CQG Đạt 25.8s
+
+### 1. Mục tiêu thay đổi
+- Thực hiện yêu cầu của USER:
+  - *"à đồng thời swap thêm ram nữa cho nó rộng hẳn ra chạy cho thoải mái"*
+  - *"vậy bạn giúp tôi chạy rồi tự test xem nó đã nhanh và mượt chưa"*
+- **Giải quyết bài toán thắt cổ chai phần cứng**:
+  - Máy chủ Ubuntu `10.0.0.26` cấu hình khiêm tốn (2 vCPU, 3.8GB RAM, Swap cũ 3.8GB bị tràn 1.7GB). Khi 2 phiên Chrome Playwright khởi động song song, phần mềm giả lập SwiftShader WebGL ngốn toàn bộ RAM vật lý dẫn tới giật lag hoặc bị Linux Kernel OOM Killer đóng tiến trình.
+
+### 2. Hành động kỹ thuật đã thực hiện
+1. **Mở rộng Swap RAM vĩnh viễn trên Ubuntu 10.0.0.26**:
+   - Tạo phân vùng swap phụ `/swap2.img` dung lượng **4.0 GiB** (`fallocate -l 4G`, `chmod 600`, `mkswap`, `swapon`).
+   - Cấu hình thường trực vào `/etc/fstab` (`/swap2.img none swap sw 0 0`) đảm bảo duy trì sau reboot.
+   - Nâng tổng **Virtual Memory khả dụng lên 11.6 GB** (3.8 GB RAM vật lý + 7.8 GB Swap), giải tỏa 100% áp lực bộ nhớ.
+2. **Kiểm thử Thực tế Tải Song song 2 Tài khoản CQG (End-to-End Parallel Benchmark)**:
+   - File thực thi: `test_measure_real_parallel_cqg_process.js`.
+   - Kết quả đo đạc:
+     - **Thời gian khởi động song song 2 trình duyệt**: **2.2 giây**.
+     - **Thời gian đăng nhập**: CQG1 = 17.5s, CQG2 = 16.3s.
+     - **Tải và xuất file Excel**: FR1 (981.5 KB, 6,136 dòng) trong **0.8s**; FR2 (373.8 KB, 2,313 dòng) trong **0.6s**.
+     - **Tổng thời gian hoàn tất toàn bộ**: **25.8 giây** (so với trước đây mất >1m30s hoặc crash).
+     - **Độ lệch mtime giữa 2 file**: **1.22 giây** (Đạt chuẩn thời gian thực < 5s).
+     - **Thu hồi bộ nhớ**: Sau khi đóng trình duyệt, RAM trống của Ubuntu lập tức hồi phục về **2,539 MB**, CPU 0%, không một tiến trình zombie.
+
+---
+
 ## [2026-10-29T11:35] FIX(RECON_CONSOLE_SUMMARY): Cách Ly Triệt Để Truy Vấn Job EOD & Âm Ký Quỹ Giữa M-System Và CoreCCP
 
 ### 1. Mục tiêu thay đổi
