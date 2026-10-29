@@ -15,7 +15,13 @@
 # PHẦN I: TÀI LIỆU MỚI (HIỆN HÀNH & CẦN ĐÁNH GIÁ ĐẦU VIỆC)
 *Đây là nhóm tài liệu phản ánh kiến trúc và chức năng đang vận hành trực tiếp trên hệ thống hiện tại, bạn nên tập trung vào nhóm này để rà soát đầu việc.*
 
-### 1. Ngày 14/10/2026 (Nghiệm thu V2 & Thiết kế Chi tiết Task 3.6 + 4.4 + 4.5)
+### 1. Ngày 28/10/2026 (Kiến trúc Hàng Đợi Song Song Đa Phân Hệ & Resource Lock V2)
+| STT | Tài liệu | Ngày tạo | Đầu việc & Trọng tâm nghiệp vụ | Trạng thái |
+| :---: | :--- | :---: | :--- | :---: |
+| 1 | [TAI_LIEU_TONG_HOP_KIEN_TRUC_HANG_DOI_SONG_SONG_VA_DIEU_PHOI_TAI_NGUYEN.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/TAI_LIEU_TONG_HOP_KIEN_TRUC_HANG_DOI_SONG_SONG_VA_DIEU_PHOI_TAI_NGUYEN.md) | 28/10/2026 | **Tài liệu Tổng hợp Kiến trúc Hàng đợi Song song Đa phân hệ & Điều phối Tài nguyên Ca trực**: Giải thích trực quan cơ chế Cái "Nhãn" Yêu Cầu & Chiếc "Bảng Trực" RAM, 3 Kịch bản thực tế (Tuần tự bảo vệ session, Song song rút ngắn thời gian, và Khóa phụ thuộc MS+CQG cho CHECK_KLGD tải file tươi). | **Tài Liệu Hướng Dẫn Vận Hành** |
+| 2 | [THIET_KE_KIEN_TRUC_HANG_DOI_SONG_SONG_DA_PHAN_HE.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/THIET_KE_KIEN_TRUC_HANG_DOI_SONG_SONG_DA_PHAN_HE.md) | 28/10/2026 | **Đặc tả Thiết kế Kiến trúc Hàng đợi Song song Đa phân hệ & Quản lý Khóa Tài nguyên Độc lập (Multi-Domain Parallel Queue)**: Cơ chế O(1) Domain Resolver, In-Memory Domain Locks (`activeJobs`), Atomic MongoDB Lock (`findOneAndUpdate`), Fail-safe Auto-release (`finally` & `setImmediate`), Zero Latency Queue Dispatching, Developer Guide thêm Job/Phân hệ mới. | **Đã Triển Khai Hoàn Thành** |
+
+### 2. Ngày 14/10/2026 (Nghiệm thu V2 & Thiết kế Chi tiết Task 3.6 + 4.4 + 4.5)
 | STT | Tài liệu | Ngày tạo | Đầu việc & Trọng tâm nghiệp vụ | Trạng thái |
 | :---: | :--- | :---: | :--- | :---: |
 | 1 | [BAO_CAO_NGHIEM_THU_TOAN_TRINH_MODULAR_MONOLITH_V2.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/moi/BAO_CAO_NGHIEM_THU_TOAN_TRINH_MODULAR_MONOLITH_V2.md) | 14/10/2026 | **Báo cáo nghiệm thu toàn trình chuyển đổi Modular Monolith V2**: Hoàn thành 100% (27/27 tasks), kết quả Twin-Run Validation, kết quả biên dịch Backend NestJS (`nest build` Exit code 0) & Frontend Next.js Turbopack (`next build` 35/35 static pages Exit code 0), Unit test cây gia phả tác vụ động (7/7 cases pass), cơ chế multi-instance atomic lock trên MongoDB. | **Nghiệm Thu Toàn Trình Hoàn Tất** |

@@ -102,3 +102,21 @@ export function resolveJobResourceDomain(jobType: string): JobResourceDomain {
 
   return JobResourceDomain.DEFAULT;
 }
+
+/**
+ * Danh sách Phân Hệ Tài Nguyên Bắt Buộc (Required Domains) mà một tác vụ cần chiếm giữ.
+ * - Đa số tác vụ chỉ cần 1 phân hệ duy nhất (MS, CQG, CCP, CE...).
+ * - Riêng CHECK_KLGD (Đối chiếu KLGD Trong Phiên) tự động cào file tươi từ cả M-System và CQG,
+ *   nên nó cần giữ khóa của cả MS và CQG để không bị đá session của nhau.
+ */
+export function getRequiredJobDomains(jobType: string): JobResourceDomain[] {
+  if (!jobType) return [JobResourceDomain.DEFAULT];
+  const upper = jobType.toUpperCase().trim();
+
+  // Tác vụ Đối Chiếu Khớp Lệnh Trong Phiên: Cần tải file tươi từ MS và CQG
+  if (upper === 'CHECK_KLGD') {
+    return [JobResourceDomain.MS, JobResourceDomain.CQG, JobResourceDomain.RECON];
+  }
+
+  return [resolveJobResourceDomain(upper)];
+}

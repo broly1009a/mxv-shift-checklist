@@ -654,7 +654,7 @@ async function main() {
   console.log(`\n*************************************************************`);
   console.log(` TOOL KIỂM THỬ PLAYWRIGHT CHECK_KLGD (ĐỐI SOÁT KHỚP LỆNH)`);
   console.log(`*************************************************************`);
-  console.log(`📅 Ngày kiểm tra : ${cliConfig.date}`);
+  console.log(` Ngày kiểm tra : ${cliConfig.date}`);
   console.log(`🎯 Nguồn kiểm thử: ${cliConfig.source.toUpperCase()}`);
   console.log(`🖥️ Chế độ hiển thị: ${cliConfig.headed ? 'CÓ GIAO DIỆN (--headed)' : 'CHẠY NGẦM (--headless)'}`);
   console.log(`📁 Thư mục lưu   : ${cliConfig.outputDir}\n`);

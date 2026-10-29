@@ -65,6 +65,7 @@ export const TRADING_JOB_TYPES = [
 export interface BotJob {
   _id: string;
   jobType: string;
+  domain?: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_CAPTCHA' | 'CANCELLED' | 'ABORTED';
   attempts: number;
   maxAttempts: number;
@@ -96,6 +97,7 @@ export default function TradingManagerJobQueueSection({
 
   // Filters
   const [jobScope, setJobScope] = useState<'ALL' | 'TRADING'>('ALL');
+  const [domainFilter, setDomainFilter] = useState<string>('ALL');
   const [selectedJobTypeFilter, setSelectedJobTypeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PENDING'>('ALL');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
@@ -515,10 +517,72 @@ export default function TradingManagerJobQueueSection({
     }
   };
 
+  /**
+   * Phân giải Phân Hệ (Resource Domain) an toàn ở Client
+   */
+  const resolveFrontendDomain = (jobType: string): string => {
+    if (!jobType) return 'DEFAULT';
+    const upper = jobType.toUpperCase().trim();
+    if (upper.includes('CQG')) return 'CQG';
+    if (upper.includes('CE')) return 'CE';
+    if (upper.includes('CCP') || upper.includes('CAST')) return 'CCP';
+    if (upper.includes('ACM') || upper.includes('STRAITS')) return 'ACM';
+    if (upper.includes('EMAIL') || upper.includes('MAIL')) return 'EMAIL';
+    if (upper.includes('MS') || upper.includes('RPA')) return 'MS';
+    if (upper.includes('RECON') || upper.includes('MACRO') || upper.includes('EOD') || upper.includes('KLGD') || upper.includes('MARGIN')) {
+      return 'RECON';
+    }
+    return 'DEFAULT';
+  };
+
+  /**
+   * Render Badge Phân Hệ Tài Nguyên (Domain Badge) chuẩn Clean Architecture
+   */
+  const getDomainBadge = (domain?: string, jobType?: string) => {
+    const resolved = domain || (jobType ? resolveFrontendDomain(jobType) : 'DEFAULT');
+    const domainConfig: Record<string, { label: string; bg: string; color: string; border: string }> = {
+      MS: { label: 'M-System', bg: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', border: 'rgba(37, 99, 235, 0.35)' },
+      CQG: { label: 'CQG Cloud', bg: 'rgba(139, 92, 246, 0.12)', color: '#a855f7', border: 'rgba(139, 92, 246, 0.35)' },
+      CCP: { label: 'CoreCCP', bg: 'rgba(13, 148, 136, 0.12)', color: '#14b8a6', border: 'rgba(13, 148, 136, 0.35)' },
+      CE: { label: 'CE Clearing', bg: 'rgba(234, 88, 12, 0.12)', color: '#f97316', border: 'rgba(234, 88, 12, 0.35)' },
+      ACM: { label: 'Straits SFTP', bg: 'rgba(217, 119, 6, 0.12)', color: '#f59e0b', border: 'rgba(217, 119, 6, 0.35)' },
+      EMAIL: { label: 'Email Gateway', bg: 'rgba(99, 102, 241, 0.12)', color: '#818cf8', border: 'rgba(99, 102, 241, 0.35)' },
+      RECON: { label: 'Đối Soát', bg: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: 'rgba(16, 185, 129, 0.35)' },
+      DEFAULT: { label: 'Hệ Thống', bg: 'rgba(100, 116, 139, 0.12)', color: '#94a3b8', border: 'rgba(100, 116, 139, 0.35)' },
+    };
+
+    const conf = domainConfig[resolved] || domainConfig.DEFAULT;
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '2px 7px',
+          borderRadius: '8px',
+          fontSize: '0.67rem',
+          fontWeight: 700,
+          backgroundColor: conf.bg,
+          color: conf.color,
+          border: `1px solid ${conf.border}`,
+          letterSpacing: '0.02em',
+        }}
+        title={`Phân hệ tài nguyên: ${conf.label}`}
+      >
+        {conf.label}
+      </span>
+    );
+  };
+
   // Filter jobs
   const filteredJobs = jobs.filter((job) => {
     // Phạm vi tác vụ (Chỉ Trading vs Toàn bộ)
     if (jobScope === 'TRADING' && !TRADING_JOB_TYPES.includes(job.jobType)) return false;
+
+    // Lọc theo Phân Hệ Tài Nguyên (Domain Filter)
+    if (domainFilter !== 'ALL') {
+      const d = job.domain || resolveFrontendDomain(job.jobType);
+      if (d !== domainFilter) return false;
+    }
 
     // Lọc theo Loại Tác Vụ Cụ Thể (Dropdown)
     if (selectedJobTypeFilter !== 'ALL' && job.jobType !== selectedJobTypeFilter) return false;
@@ -619,6 +683,24 @@ export default function TradingManagerJobQueueSection({
               Chỉ Trading
             </button>
           </div>
+
+          {/* Dropdown Lọc Phân Hệ Tài Nguyên (Domain Filter) */}
+          <select
+            value={domainFilter}
+            onChange={(e) => setDomainFilter(e.target.value)}
+            className="form-input"
+            style={{ height: '30px', fontSize: '0.75rem', padding: '2px 8px', maxWidth: '145px' }}
+            title="Lọc tác vụ theo Phân Hệ Tài Nguyên (Resource Domain)"
+          >
+            <option value="ALL">-- Tất cả Phân hệ --</option>
+            <option value="MS">Phân hệ: M-System</option>
+            <option value="CQG">Phân hệ: CQG Cloud</option>
+            <option value="CCP">Phân hệ: CoreCCP</option>
+            <option value="CE">Phân hệ: CE Clearing</option>
+            <option value="ACM">Phân hệ: Straits SFTP</option>
+            <option value="EMAIL">Phân hệ: Email Gateway</option>
+            <option value="RECON">Phân hệ: Đối Soát</option>
+          </select>
 
           {/* Dropdown Lọc Loại Tác Vụ Cụ Thể */}
           <select
@@ -807,7 +889,8 @@ export default function TradingManagerJobQueueSection({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {getDomainBadge(selectedJob.domain, selectedJob.jobType)}
                     {getStatusBadge(selectedJob.status, selectedJob)}
 
                     {/* Nút Dừng Tác Vụ nếu đang chạy */}
@@ -1462,9 +1545,14 @@ export default function TradingManagerJobQueueSection({
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isSelected ? '#10b981' : 'var(--text-primary)', lineHeight: 1.3 }}>
-                        {getJobLabel(job.jobType)}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isSelected ? '#10b981' : 'var(--text-primary)', lineHeight: 1.3 }}>
+                          {getJobLabel(job.jobType)}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {getDomainBadge(job.domain, job.jobType)}
+                        </div>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {getStatusBadge(job.status, job)}
                         {['PENDING', 'PROCESSING', 'AWAITING_CAPTCHA'].includes(job.status) && (

@@ -22,7 +22,7 @@ async function run() {
 
   const targetDate = '2026-07-22';
   console.log(
-    `📅 Running email history report download test in headless mode for date: ${targetDate}`,
+    ` Running email history report download test in headless mode for date: ${targetDate}`,
   );
 
   // We will intercept loginMSystem or modify page object to capture screenshots

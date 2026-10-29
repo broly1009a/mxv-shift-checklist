@@ -85,6 +85,92 @@
 - **Deploy Ubuntu 10.0.0.26**:
   - `npm run build` (`next build`) trên Ubuntu hoàn tất thành công (Exit Code 0).
   - Restart PM2 `mxv-backend` (pid 2332144) & `mxv-frontend` (pid 2332387), trạng thái online 100%.
+## [2026-10-29T11:05] REFACTOR(TRADING_OPS): Đơn Giản Hóa & Bỏ Cắt Cutoff Cho Nano/CCP (Lấy Trọn Vẹn Dữ Liệu Đồng Pha 800=800)
+
+### 1. Mục tiêu thay đổi
+- **Yêu cầu của USER**: Comment lại toàn bộ logic cắt lọc `effectiveCutoffTime` (-2s) đối với Nano và CoreCCP. Vì hệ thống Pipelined-Sync đã tải cả 2 file `Fill.xlsx` và `DSGD CCP.xlsx` tại cùng giây `10:25:30` (cách nhau 48ms), dữ liệu thô gốc của 2 bên vốn dĩ đã khớp 100% (800 lot = 800 lot).
+- **Hành động kỹ thuật**:
+  - Comment block `effectiveCutoffTime` trong filter `nanoData` tại [klgd-recon.service.ts#L261-L274](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L261-L274). Nano giữ trọn vẹn số lot thực tế (800).
+  - Comment block `cutoffTime` trong [ccp-excel.parser.ts#L236-L241](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts#L236-L241). CoreCCP giữ trọn vẹn số lot thực tế (800).
+  - Đơn giản hóa lại công thức `evaluatedDifferACM` trong [klgd-recon.service.ts#L591-L596](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L591-L596) theo toán học thuần túy.
+
+### 2. Danh sách file chỉnh sửa
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L261-L274)
+- [ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts#L236-L241)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (Exit Code 0).
+- **Frontend Typecheck**: `cmd /c npx tsc --noEmit` thành công 100% (Exit Code 0).
+- **Đồng bộ song song**: Đã copy toàn bộ các file sang [mxv-modular-refactor](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor).
+
+---
+
+## [2026-10-29T10:42] FIX(TRADING_OPS): Đồng Bộ Mốc Cutoff Time Giữa CoreCCP Và Straits ACM Trong Luồng Đối Chiếu CheckKLGD
+
+### 1. Mục tiêu thay đổi
+- **Bối cảnh & Dấu vết thực tế**:
+  - Tại phiên chạy lúc 10:25:00 ngày 29/10/2026 (Job `6ae2bc8cf3c57d3eda6f345b`), kết quả đối chiếu:
+    - M-System: `1,402` lot | CQG: `1,402` lot $\rightarrow$ Khớp 100% (Lệch CQG = 0).
+    - ACM (MS): `0` lot | Nano: `799` lot | CoreCCP: `800` lot $\rightarrow$ Báo lệch `1` lot (Lệch ACM = 1).
+    - Log hệ thống ghi nhận: `[Bảo lưu lệnh khớp muộn] Ghi nhận 1 giao dịch phát sinh sau mốc snapshot dữ liệu. Tự động bảo lưu sang chu kỳ kế tiếp.`
+- **Nguyên nhân kỹ thuật đã được kiểm chứng trực tiếp từ mã nguồn (Ground Truth)**:
+  - *Straits ACM (Nano)*: Tại [klgd-recon.service.ts#L261-L274](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L261-L274), dữ liệu `nanoData` bị lọc theo `effectiveCutoffTime` (lấy từ mtime của `DSGD.xlsx` lùi 2s tại [L833](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L833)). Lệnh khớp sau mốc cutoff bị loại trừ khỏi Nano và đưa vào mảng `pendingSyncTrades` $\rightarrow$ Nano chỉ còn `799` lot.
+  - *CoreCCP*: Tại [klgd-recon.service.ts#L554-L560](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L554-L560), hàm `CcpExcelParser.parseDSGD` chỉ nhận `checkTime` (tức 05:00 sáng hôm sau) và hoàn toàn chưa có tham số `cutoffTime`. Do đó CoreCCP tính cả lệnh khớp sát mốc cutoff $\rightarrow$ CoreCCP ra đủ `800` lot.
+  - *Công thức đối soát*: Tại [klgd-recon.service.ts#L591-L595](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L591-L595) và [LegacyReconSection.tsx#L705](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L705), tính `evaluatedDifferACM = |totalNano - (totalACM + ccpDsgdLots)| = |799 - (0 + 800)| = 1` dẫn đến hệ thống đánh giá LỆCH.
+- **Giải pháp xử lý triệt để 2 lớp**:
+  1. *Đồng bộ mốc Cutoff cho CoreCCP*: Bổ sung tham số `cutoffTime?: Date` vào [ccp-excel.parser.ts#L144](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts#L144) và áp dụng lọc `if (cutoffTime && tradeTime > cutoffTime) continue;` tại [L235](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts#L235).
+  2. *Truyền mốc Cutoff*: Tại [klgd-recon.service.ts#L559](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L559), truyền `effectiveCutoffTime` vào `CcpExcelParser.parseDSGD`.
+  3. *Bù trừ phòng vệ Pending Trades*: Tại [klgd-recon.service.ts#L591](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L591), tính thêm `pendingAcmLots` từ `pendingSyncTrades` để so sánh bù trừ an toàn: `diff1Pending = Math.abs((totalNano + pendingAcmLots) - (totalACM + ccpDsgdLots))`.
+
+### 2. Danh sách file chỉnh sửa
+- [ccp-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/ccp-excel.parser.ts#L144-L238)
+- [klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L554-L596)
+- [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L705-L709)
+- [test_live_check_klgd.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_live_check_klgd.js#L910-L922)
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (Exit Code 0).
+- **Frontend Typecheck**: `cmd /c npx tsc --noEmit` thành công 100% (Exit Code 0).
+- **Đồng bộ song song**: Đã copy toàn bộ các file sang [mxv-modular-refactor](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor).
+
+---
+
+## [2026-10-29T09:50] FEAT(INGRESS_PIPELINE): Nâng Cấp Cơ Chế Ghép Cặp Đồng Pha (Pipelined Pairing) Giữa CQG Scraper Và API MS / CoreCCP
+
+### 1. Mục tiêu thay đổi
+- **Bối cảnh & Yêu cầu của USER**:
+  - Bổ sung các event callbacks (`onDownloadingPair('FR')`, `onDownloadingPair('PS')`, `onDownloadingPair('OP')`) vào luồng tải CQG trong [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts).
+  - Tách nhỏ `Promise.all` của MS & CCP trong [recon-ingress-pipeline.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts) để lắng nghe theo từng sự kiện của cặp tương ứng.
+  - Viết file test độc lập để USER kiểm thử thực tế timeline và cơ chế hoạt động.
+- **Vấn đề cốt lõi được giải quyết (Temporal Skew - Lệch pha thời gian)**:
+  - *Cơ chế cũ*: Ngay giây thứ 0 sau khi mở rào cản, API của MS & CCP tải đồng loạt toàn bộ các file (`DSGD`, `TTTT`, `TTM`). Trong khi đó, CQG trên trình duyệt Playwright bắt buộc phải click tải tuần tự từng widget (Giây 0–15: Tải `FR1, FR2`; Giây 15–30: Chuyển tab sang tải `PS1, PS2`; Giây 30–45: Chuyển tab sang tải `OP1, OP2`). Dẫn đến file TTTT và TTM của MS/CCP bị lệch trước 30s-45s so với snapshot của CQG, gây ra hiện tượng lệch đối soát ảo khi có lệnh đóng/mở vị thế trong khoảng thời gian này.
+  - *Cơ chế mới (Pipelined Pairing)*: Hệ thống dùng cơ chế Bộ điều phối sự kiện (`PairCoordinator`). Khi CQG bắt đầu tải widget nào thì API của MS & CCP mới bắt đầu gọi tải file tương ứng:
+    - **Cặp Khớp lệnh (FR)**: Gọi đồng thời `FR1, FR2` (CQG) $\leftrightarrow$ `DSGD.xlsx` (MS), `Fill.xlsx`/`Straits.csv` (ACM), `DSGD CCP.xlsx` (CoreCCP).
+    - **Cặp Tất toán (PS)**: Khi CQG bắt đầu tải `PS1, PS2` $\rightarrow$ Mới gọi API tải `TTTT.xlsx` (MS), `TTTT.xlsx` (CoreCCP).
+    - **Cặp Vị thế mở (OP)**: Khi CQG bắt đầu tải `OP1, OP2` $\rightarrow$ Mới gọi API tải `TTM.xlsx` (MS), `TTM CCP.xlsx` (CoreCCP).
+  - Cơ chế fail-fast và timeout 90s đảm bảo không bao giờ bị nghẽn (hang) nếu CQG gặp sự cố.
+
+### 2. Danh sách file chỉnh sửa
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts):
+  - Thêm callback parameter `onDownloadingPair?: (pair: 'FR' | 'PS' | 'OP' | 'OD') => Promise<void> | void` vào `downloadCqgBackup`.
+  - Bổ sung helper `notifyPair(pair)` với `Set<string>` chống duplicate events.
+  - Kích hoạt callback trước khi click tải từng widget (`FR`, `PS`, `OP`, `OD`) trong cả 2 worker `runCqg1` và `runCqg2`.
+- [recon-ingress-pipeline.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts):
+  - Khởi tạo `PairCoordinator` với `pairPromises`, `pairResolvers`, `triggerPair`, `triggerAllRemainingPairs`, `waitForPair`.
+  - Tách nhỏ khối `Promise.all` của MS: `waitForPair('FR')` $\rightarrow$ `DSGD`, `waitForPair('PS')` $\rightarrow$ `TTTT`, `waitForPair('OP')` $\rightarrow$ `TTM`.
+  - Gắn `waitForPair('FR')` vào các tác vụ ACM (ETP & SFTP).
+  - Tách nhỏ khối `Promise.all` của CoreCCP: `waitForPair('FR')` $\rightarrow$ `DSGD_CCP`, `waitForPair('PS')` $\rightarrow$ `TTTT`, `waitForPair('OP')` $\rightarrow$ `TTM_CCP`.
+  - Kết nối callback `(pair) => triggerPair(pair)` vào `downloadCqgBackup`, kèm `triggerAllRemainingPairs()` trong `finally` để giải phóng toàn bộ promise.
+- [LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx):
+  - Loại bỏ giới hạn `maxHeight: '420px'` và `overflowY: 'auto'` ở các bảng kết quả đối chiếu để bảng hiển thị tràn toàn bộ theo chiều dọc tự nhiên, không bị thanh cuộn lồng nhau.
+- [test_pipelined_pairing_ingress.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_pipelined_pairing_ingress.js):
+  - File test mô phỏng timeline đa luồng độc lập, đo kiểm độ lệch thời gian (time delta) giữa các hệ thống và in bảng thống kê trực quan.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c npm run build` (`nest build`) thành công 100% (Exit Code 0).
+- **Frontend Build**: `cmd /c npm run build` (`next build` Next.js 16) thành công 100% (Exit Code 0).
+- **Đồng bộ song song**: Đã copy toàn bộ các file sửa đổi sang repo kiến trúc [mxv-modular-refactor](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor).
+- **Quy tắc Kiểm thử**: Tuân thủ AGENTS.md Rule 8, script test `test_pipelined_pairing_ingress.js` được để USER chủ động chạy trực tiếp trên terminal.
 
 ---
 
