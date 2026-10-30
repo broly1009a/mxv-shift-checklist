@@ -3124,14 +3124,13 @@ export class RpaScraperService {
         await log(`[RpaDownloader-Facade] Thử ủy quyền tải ACM sang IngressService V2 (Chế độ SFTP)...`);
         const result = await this.ingressService.download('ACM', {
           targetDirectory: dailyPath,
-          targetDate: targetDate.toISOString(),
+          targetDate: yyyy_mm_dd,
           reportCodes: ['SFTP'],
         });
         if (result && result.files && result.files.length > 0) {
           await log(`Đã hoàn thành đồng bộ ${result.files.length} file SFTP ACM qua IngressService V2.`);
-          return;
         }
-        await log(`[RpaDownloader-Facade] IngressService V2 không tải được file SFTP nào, tiếp tục chạy ssh2 nội bộ...`);
+        return;
       } catch (err: any) {
         this.logger.warn(`[RpaDownloader-Facade] IngressService V2 lỗi (${err.message}), fallback về ssh2 nội bộ...`);
       }
@@ -3183,41 +3182,8 @@ export class RpaScraperService {
             });
 
             if (filesToDownload.length === 0) {
-              const prevDate = new Date(targetDate);
-              prevDate.setDate(prevDate.getDate() - 1);
-              while (prevDate.getDay() === 0 || prevDate.getDay() === 6) {
-                prevDate.setDate(prevDate.getDate() - 1);
-              }
-              const pYear = prevDate.getFullYear().toString();
-              const pMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
-              const pDay = String(prevDate.getDate()).padStart(2, '0');
-              const pDdmmyyyy = `${pDay}${pMonth}${pYear}`;
-              const pYyyyMmDd = `${pYear}-${pMonth}-${pDay}`;
-
-              const prevCandidates = list.filter((item) => {
-                const name = item.filename;
-                if (!name) return false;
-                const isCsvMatch =
-                  name.toLowerCase().endsWith(`_${pDdmmyyyy}.csv`.toLowerCase()) &&
-                  !name.toLowerCase().includes('fill') &&
-                  !name.toLowerCase().includes('order');
-                const isXlsMatch =
-                  name.toLowerCase().startsWith(`${pYyyyMmDd}_`.toLowerCase()) &&
-                  name.toLowerCase().endsWith('.xls');
-                return isCsvMatch || isXlsMatch;
-              });
-
-              if (prevCandidates.length > 0) {
-                await log(
-                  `[ACM SFTP] Phiên ${yyyy_mm_dd} đang giao dịch (chưa chốt trên SFTP). Tải dữ liệu phiên T-1 (${pYyyyMmDd}) vừa chốt về phục vụ ca trực.`,
-                );
-                filesToDownload = prevCandidates;
-              }
-            }
-
-            if (filesToDownload.length === 0) {
               await log(
-                `[ACM SFTP] Chưa tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) thuộc phiên ${yyyy_mm_dd} trên SFTP Server.`,
+                `[ACM SFTP] Chưa có tệp báo cáo SFTP của phiên ${yyyy_mm_dd} trên SFTP Server (bỏ qua).`,
               );
               conn.end();
               return resolve();
@@ -3250,26 +3216,15 @@ export class RpaScraperService {
 
                 await log(`Tải thành công file ${item.filename}.`);
 
-                // Trích xuất ngày phiên và tạo alias
-                const isCsv = item.filename.toLowerCase().endsWith('.csv');
-                const csvDateMatch = item.filename.match(/_(\d{2})(\d{2})(\d{4})\.csv$/i);
-                if (isCsv && csvDateMatch) {
-                  const fDay = csvDateMatch[1];
-                  const fMonth = csvDateMatch[2];
-                  const fYear = csvDateMatch[3];
-                  const fDdmmyyyy = `${fDay}${fMonth}${fYear}`;
-
-                  const sessionDir = path.join(path.dirname(dailyPath), `${fDay}.${fMonth}`);
-                  const targetDirs = [dailyPath, sessionDir].filter(d => fs.existsSync(d));
-                  for (const tDir of targetDirs) {
-                    const aliasDated = path.join(tDir, `Straits_${fDdmmyyyy}.csv`);
-                    const aliasGeneric = path.join(tDir, 'Straits.csv');
-                    try {
-                      if (!fs.existsSync(aliasDated)) fs.copyFileSync(localFile, aliasDated);
-                      if (!fs.existsSync(aliasGeneric)) fs.copyFileSync(localFile, aliasGeneric);
-                    } catch {}
-                  }
-                }
+                // [GHI CHÚ]: Tạm comment đoạn tạo alias Straits_<ddmmyyyy>.csv và Straits.csv để giữ đúng 4 file gốc như người dùng sao lưu thủ công
+                // if (isCsv && item.filename.toLowerCase().includes('straits')) {
+                //   const aliasDated = path.join(dailyPath, `Straits_${ddmmyyyy}.csv`);
+                //   const aliasGeneric = path.join(dailyPath, 'Straits.csv');
+                //   try {
+                //     if (!fs.existsSync(aliasDated)) fs.copyFileSync(localFile, aliasDated);
+                //     if (!fs.existsSync(aliasGeneric)) fs.copyFileSync(localFile, aliasGeneric);
+                //   } catch {}
+                // }
 
                 downloadedCount++;
                 await downloadNext();

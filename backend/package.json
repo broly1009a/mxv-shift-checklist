@@ -43,6 +43,7 @@
     "test:email-filter": "ts-node src/tests/test-email-filter.ts",
     "test:ccp-download": "ts-node src/tests/test-ccp-download.ts",
     "test:acm": "ts-node src/tests/test-acm-download.ts",
+    "test:acm-routing": "node src/scripts/test_local_acm_routing.js",
     "test:eod-email": "ts-node src/scripts/test_m365_eod_email.ts",
     "test:ms-20": "node src/scripts/test_ms_download_all_20_reports.js",
     "test:ms-ttm": "node src/scripts/test_ms_download_ttm_tttt.js",

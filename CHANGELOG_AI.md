@@ -1,3 +1,100 @@
+## [2026-10-30T14:55] REFACTOR(ACM_SFTP_DISABLE_ALIAS_CREATION): Tạm Comment Đoạn Tạo File Alias Straits Để Chuẩn Hóa Đúng 4 File Gốc Khi Backup
+
+### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
+- **Chỉ đạo từ USER**:
+  - *"C:\Users\hiepth\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\Pictures\Dữ liệu chuẩn ngày 25\25.09 ACM sao user backup chỉ có 4 file như này thôi mà của tôi khi backup lại ra tận 6 file thừa 2 file và 2 file thừa này để làm gì vậy"*
+  - *"giúp tôi comment lại đoạn code này lại thay vì xóa"*
+- **Giải pháp thực hiện**:
+  - Đã comment lại đoạn tự động copy file alias `Straits_${ddmmyyyy}.csv` và `Straits.csv` trong cả 2 file:
+    1. [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts) (Ingress V2)
+    2. [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts) (Fallback cũ V1)
+  - Hệ thống đối chiếu [dsgd-before-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/dsgd-before-eod.service.ts) ưu tiên đọc trực tiếp tên gốc `EOD FO trades_...` nên hoạt động độc lập, không phụ thuộc vào 2 file alias này.
+  - Sau khi comment, thư mục backup ACM chỉ chứa đúng 4 file gốc chuẩn: `Order.xls`, `Fill.xls`, `YYYY-MM-DD_*.xls`, `EOD FO trades_..._DDMMYYYY.csv`.
+
+### 2. Danh sách file chỉnh sửa
+- [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts): Comment block tạo alias `Straits_${ddmmyyyy}.csv` và `Straits.csv`.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts): Comment block tạo alias tương ứng trong luồng fallback.
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts): Đơn giản hóa hàm `scanAcmBackupFiles`, loại bỏ logic phỏng đoán `hasOtherDatedCsv`.
+
+### 3. Kết quả Kiểm thử & Triển khai thực tế trên Ubuntu 10.0.0.26
+- Build & Deploy hoàn tất thành công (Backend PID `2824446`, Frontend PID `2824697`).
+- Chạy Job tải thực tế `6ae44d0921f624652798284b`: Tải đúng 4 file gốc, không sinh 2 file thừa.
+- Kiểm thử Check EOD CCP: Đọc trực tiếp file gốc `EOD FO trades_..._29102026.csv`, khớp 100% (`differACM: 0`).
+
+---
+
+## [2026-10-30T14:26] FIX(ACM_SFTP_TIMEZONE_ISOLATION): Khắc Phục Triệt Để Lỗi Lệch Múi Giờ Khiến File Ngày 29 Bị Tải Nhầm Vào Thư Mục Ngày 30
+
+### 1. Mục tiêu thay đổi & Phản ánh từ USER
+- **Phản ánh từ USER**:
+  - *"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup ACM\Futures\2026\T10.2026\30.10 và Tải Báo Cáo Tự Doanh ACM ID: 6ae441ed73a09efdc7a9020c ... ủa bạn fix kiểu gì mà file ngày 29 vẫn về folder ngày 30 vậy"*
+- **Nguyên nhân gốc rễ (Root Cause Analysis)**:
+  1. **Lệch múi giờ UTC/GMT+7 do `.toISOString()`**:
+     - `targetDate` khởi tạo theo ca trực địa phương Việt Nam (GMT+7): `new Date(2026, 9, 30, 0, 0, 0)`.
+     - Khi truyền tham số qua `ingressService.download('ACM', { targetDate: targetDate.toISOString() })`, hàm `.toISOString()` chuyển đổi sang múi giờ chuẩn UTC (`2026-10-29T17:00:00.000Z`).
+     - Hàm bóc tách ngày trong `AcmSftpAdapter` dùng `rawTargetDate.split('T')[0]`, vô tình cắt lấy chuỗi ngày UTC là `2026-10-29` thay vì `2026-10-30`.
+     - Dẫn đến việc adapter tìm kiếm `29102026` và `2026-10-29_` trên SFTP Server, tìm thấy 2 file của ngày 29 (`2026-10-29_10017890002.xls` & `EOD FO trades_..._29102026.csv`) và tải thẳng vào thư mục đích đang chỉ định là `30.10`.
+  2. **Cơ chế rào chắn 2 lớp bảo vệ tính toàn vẹn thư mục (Double Guardrail)**:
+     - Chuẩn hóa việc truyền chuỗi ngày cục bộ dạng `YYYY-MM-DD` (`2026-10-30`), cấm dùng `.toISOString()` cho ngày nghiệp vụ.
+     - Trong `AcmSftpAdapter`: Bổ sung cơ chế tự động đồng bộ (folder-sync guardrail) – nếu đường dẫn thư mục đích kết thúc bằng cấu trúc ngày tháng `DD.MM` (ví dụ `30.10`), adapter sẽ cưỡng chế đồng bộ `targetDateObj` theo đúng ngày tháng của thư mục đích, tuyệt đối không để xảy ra sai lệch phiên.
+     - Trong `file-audit.handler.ts`: Bổ sung điều kiện loại trừ cho `scanAcmBackupFiles` – không nhận diện `Straits.csv` trôi nổi nếu trong thư mục có file dated của ngày khác.
+  3. **Dọn dẹp triệt để thư mục `30.10`**:
+     - Đã xóa sạch 4 file lạc của ngày 29 khỏi thư mục `30.10`: `2026-10-29_10017890002.xls`, `EOD FO trades_..._29102026.csv`, `Straits_29102026.csv`, `Straits.csv`.
+     - Thư mục `30.10` hiện tại chỉ còn duy nhất 2 báo cáo hợp lệ của ngày 30 là `Order.xls` và `Fill.xls`.
+
+### 2. Danh sách file chỉnh sửa
+- [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts):
+  - Xử lý parsing ngày chuẩn, phòng ngừa UTC ISO string (`new Date(cleanStr)` giữ đúng ngày theo timezone hệ thống).
+  - Bổ sung logic guardrail đối chiếu với thư mục đích `outputDirectory` dạng `(\d{1,2})\.(\d{1,2})$` để luôn khớp ngày thư mục.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts):
+  - Thay đổi `targetDate: targetDate.toISOString()` thành `targetDate: yyyy_mm_dd` (chuỗi ngày cục bộ `YYYY-MM-DD`).
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts):
+  - Thay thế `targetDate.toISOString()` bằng `dateStr` (`YYYY-MM-DD`).
+  - Nâng cấp `scanAcmBackupFiles`: ngăn chặn việc nhận nhầm `Straits.csv` nếu có file dated của ngày khác.
+
+### 3. Kết quả Kiểm thử & Triển khai thực tế trên Ubuntu 10.0.0.26
+- **Build Backend & Frontend**: Cả 2 đều build thành công và PM2 restart trơn tru (Backend PID `2815320`, Frontend PID `2815548`).
+- **Kiểm thử chạy thực tế Job `FILE_AUDIT_ACM` (ID: `6ae446713c4ee1bcdc090b77`)**:
+  - Log thực tế:
+    ```
+    [2026-10-30T07:25:40.440Z] Bắt đầu kiểm tra file backup ACM tại thư mục: /mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup ACM/Futures/2026/T10.2026/30.10
+    [2026-10-30T07:25:40.446Z] Thiếu file SFTP. Đang tiến hành kết nối SFTP Server để tải bổ sung...
+    [2026-10-30T07:25:40.453Z] Kết nối SFTP tới sftp://qlgd@sftp.mxv.com.vn:2232...
+    [2026-10-30T07:25:40.461Z] [RpaDownloader-Facade] Thử ủy quyền tải ACM sang IngressService V2 (Chế độ SFTP)...
+    [2026-10-30T07:25:42.100Z] Hoàn tất đồng bộ file từ SFTP.
+    [2026-10-30T07:25:42.105Z] [Thông tin SFTP] Báo cáo Web ETP đã đầy đủ. Tệp SFTP [SFTP_CSV (*_30102026.csv), SFTP_XLS (2026-10-30_*.xls)] chưa có trên máy chủ đối tác (bỏ qua).
+    ```
+  - Trạng thái Job: `COMPLETED`, `isWaitingFiles: false`.
+  - Tình trạng thư mục `30.10`:
+    ```
+    -rwxrwxrwx 1 root root 165376 Oct 30 12:15 Fill.xls
+    -rwxrwxrwx 1 root root 374784 Oct 30 12:15 Order.xls
+    ```
+    $\rightarrow$ Không còn bất kỳ file nào của ngày 29 bị lẫn vào thư mục ngày 30.
+
+---
+
+## [2026-10-30T13:55] FIX(ACM_SFTP_SIMPLIFIED_CHECK): Tối Giản Hóa Quét SFTP ACM - Chỉ Kiểm Tra Phiên Hiện Tại, Chưa Có Tự Động Bỏ Qua Thông Báo
+
+### 1. Mục tiêu & Chỉ đạo từ USER
+- **Chỉ đạo dứt khoát từ USER**:
+  - *"không cần làm phức tạp đâu lần trước bạn code phức tạp xong bạn cũng tự xóa hết chỉ cần kiểm tra xem trên SFTP hôm nay có file của ngày 29 chưa nếu chưa có thì bỏ qua thông báo thôi"*
+- **Giải pháp tối giản theo đúng yêu cầu**:
+  - Gỡ bỏ toàn bộ logic rườm rà (không tìm T-1, không chuyển thư mục phức tạp).
+  - Khi chạy tải ACM SFTP cho phiên mục tiêu $T$:
+    1. Kiểm tra trực tiếp trên SFTP xem đã có tệp khớp ngày phiên $T$ (`*_${ddmmyyyy}.csv` hoặc `${yyyy_mm_dd}_*.xls`) hay chưa.
+    2. **Nếu chưa có file**: Ghi nhận một dòng log thông tin ngắn gọn `[AcmSftpAdapter] Chưa có tệp SFTP của phiên ${yyyy_mm_dd} trên máy chủ đối tác (bỏ qua).` rồi kết thúc êm thấm (`resolve()`), không ném lỗi, không kích hoạt cảnh báo, không làm gián đoạn luồng công việc.
+    3. **Nếu đã có file** (ví dụ khi sàn Straits chốt phiên): Tải thẳng vào thư mục `${outputDirectory}` của phiên đó và tạo alias `Straits_${ddmmyyyy}.csv`, `Straits.csv`.
+  - Trong [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts): Báo cáo Web ETP (`Order.xls`, `Fill.xls`) bắt buộc phải có, tệp SFTP nếu chưa có trong phiên thì hệ thống ghi chú `[Thông tin SFTP] Báo cáo Web ETP đã đầy đủ. Tệp SFTP [${missingSftpStr}] chưa có trên máy chủ đối tác (bỏ qua).` và coi như hoàn tất.
+
+### 2. Danh sách file chỉnh sửa
+- [acm-sftp.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/acm-sftp.adapter.ts): Rút gọn hàm quét SFTP, chỉ kiểm tra ngày hiện tại, nếu chưa có thì `resolve()` bỏ qua.
+- [rpa-scraper.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts): Tối giản hàm `downloadAcmSftpBackup` tương tự.
+- [file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts): Chuyển thông báo tệp SFTP sang trạng thái bỏ qua êm thấm.
+- [test_local_acm_routing.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_local_acm_routing.js): Script kiểm thử local kiểm chứng cả 2 trường hợp (phiên đang chạy $\rightarrow$ bỏ qua; phiên đã chốt $\rightarrow$ tải đúng file).
+
+---
+
 ## [2026-10-29T17:45] FIX(PRE_EOD_MS_SNAPSHOT_API_AND_ACM_SFTP_ROUTING): Khắc Phục Lỗi Thiếu Snapshot DSGD Phiên Chiều (Tự Động Gọi API MS) & Chuẩn Hóa Đối Soát SFTP ACM
 
 ### 1. Mục tiêu thay đổi

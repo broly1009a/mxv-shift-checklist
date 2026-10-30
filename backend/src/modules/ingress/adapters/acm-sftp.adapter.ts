@@ -118,20 +118,26 @@ export class AcmSftpAdapter implements IIngressPort {
     const rawTargetDate = (options as any)?.targetDate;
     if (rawTargetDate instanceof Date) {
       targetDateObj = rawTargetDate;
-    } else if (typeof rawTargetDate === 'string' && rawTargetDate) {
-      const parts = rawTargetDate.split('T')[0].replace(/\//g, '-').replace(/\./g, '-').split('-');
-      if (parts.length === 3) {
-        if (parts[0].length === 4) {
-          targetDateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        } else {
-          targetDateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-        }
+    } else if (typeof rawTargetDate === 'string' && rawTargetDate.trim()) {
+      const cleanStr = rawTargetDate.trim();
+      if (cleanStr.includes('T')) {
+        targetDateObj = new Date(cleanStr);
       } else {
-        targetDateObj = new Date(rawTargetDate);
+        const parts = cleanStr.replace(/\//g, '-').replace(/\./g, '-').split('-');
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            targetDateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          } else {
+            targetDateObj = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+          }
+        } else {
+          targetDateObj = new Date(cleanStr);
+        }
       }
     } else {
       targetDateObj = new Date();
     }
+
 
     const year = targetDateObj.getFullYear().toString();
     const month = String(targetDateObj.getMonth() + 1).padStart(2, '0');
@@ -188,46 +194,9 @@ export class AcmSftpAdapter implements IIngressPort {
                   return isCsvMatch || isXlsMatch;
                 });
 
-                // 2. Nếu sàn Straits chưa chốt phiên ban ngày T, tự động nhận diện file phiên T-1 vừa chốt lúc sáng sớm
-                if (candidateFiles.length === 0) {
-                  const prevDate = new Date(targetDateObj);
-                  prevDate.setDate(prevDate.getDate() - 1);
-                  while (prevDate.getDay() === 0 || prevDate.getDay() === 6) {
-                    prevDate.setDate(prevDate.getDate() - 1);
-                  }
-                  const pYear = prevDate.getFullYear().toString();
-                  const pMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
-                  const pDay = String(prevDate.getDate()).padStart(2, '0');
-                  const pDdmmyyyy = `${pDay}${pMonth}${pYear}`;
-                  const pYyyyMmDd = `${pYear}-${pMonth}-${pDay}`;
-
-                  const prevCandidates = (list || []).filter((item) => {
-                    const name = item.filename;
-                    if (!name) return false;
-                    const isCsvMatch =
-                      (name.toLowerCase().endsWith(`_${pDdmmyyyy}.csv`.toLowerCase()) ||
-                        (name.toLowerCase().includes('straits') &&
-                          name.includes(pDdmmyyyy) &&
-                          name.toLowerCase().endsWith('.csv'))) &&
-                      !name.toLowerCase().includes('fill') &&
-                      !name.toLowerCase().includes('order');
-                    const isXlsMatch =
-                      name.toLowerCase().startsWith(`${pYyyyMmDd}_`.toLowerCase()) &&
-                      name.toLowerCase().endsWith('.xls');
-                    return isCsvMatch || isXlsMatch;
-                  });
-
-                  if (prevCandidates.length > 0) {
-                    this.logger.log(
-                      `[AcmSftpAdapter] Phiên ${yyyy_mm_dd} đang giao dịch (chưa chốt trên SFTP). Tải dữ liệu phiên T-1 (${pYyyyMmDd}) vừa chốt về phục vụ ca trực.`,
-                    );
-                    candidateFiles = prevCandidates;
-                  }
-                }
-
                 if (candidateFiles.length === 0) {
                   this.logger.log(
-                    `[AcmSftpAdapter] Chưa tìm thấy file Straits CSV (*_${ddmmyyyy}.csv) hoặc XLS (${yyyy_mm_dd}_*.xls) thuộc phiên ${yyyy_mm_dd} trên SFTP Server.`,
+                    `[AcmSftpAdapter] Chưa có tệp SFTP của phiên ${yyyy_mm_dd} trên máy chủ đối tác (bỏ qua).`,
                   );
                   clearTimeout(timeoutTimer);
                   conn.end();
@@ -262,62 +231,23 @@ export class AcmSftpAdapter implements IIngressPort {
                         transport: 'SFTP_SSH2_CLIENT',
                         host: creds.host,
                         fileType: isCsv ? 'STRAITS_CSV' : 'ACCOUNT_XLS',
+                        sessionDate: `${day}.${month}`,
                       },
                     });
 
-                    // Trích xuất ngày phiên thực tế từ tên file: e.g. 28102026 hoặc 2026-10-28
-                    let fileDay = day;
-                    let fileMonth = month;
-                    let fileYear = year;
-                    let fileDdmmyyyy = ddmmyyyy;
-
-                    const csvDateMatch = item.filename.match(/_(\d{2})(\d{2})(\d{4})\.csv$/i);
-                    const xlsDateMatch = item.filename.match(/^(\d{4})-(\d{2})-(\d{2})_/i);
-                    if (csvDateMatch) {
-                      fileDay = csvDateMatch[1];
-                      fileMonth = csvDateMatch[2];
-                      fileYear = csvDateMatch[3];
-                      fileDdmmyyyy = `${fileDay}${fileMonth}${fileYear}`;
-                    } else if (xlsDateMatch) {
-                      fileYear = xlsDateMatch[1];
-                      fileMonth = xlsDateMatch[2];
-                      fileDay = xlsDateMatch[3];
-                      fileDdmmyyyy = `${fileDay}${fileMonth}${fileYear}`;
-                    }
-
-                    // Lưu bổ sung vào đúng thư mục của phiên đó (ví dụ: .../Backup ACM/Futures/2026/T10.2026/28.10)
-                    const sessionDir = path.join(
-                      path.dirname(outputDirectory),
-                      `${fileDay}.${fileMonth}`,
-                    );
-                    if (sessionDir !== outputDirectory) {
-                      try {
-                        if (!fs.existsSync(sessionDir)) {
-                          fs.mkdirSync(sessionDir, { recursive: true });
-                        }
-                        const sessionFilePath = path.join(sessionDir, item.filename);
-                        if (!fs.existsSync(sessionFilePath)) {
-                          fs.copyFileSync(localPath, sessionFilePath);
-                        }
-                      } catch {}
-                    }
-
-                    // Tự động tạo alias Straits_<ddmmyyyy>.csv và Straits.csv ở cả 2 thư mục
-                    if (item.filename.toLowerCase().includes('straits') && isCsv) {
-                      const targetDirs = [outputDirectory, sessionDir].filter((d) => fs.existsSync(d));
-                      for (const tDir of targetDirs) {
-                        const aliasDated = path.join(tDir, `Straits_${fileDdmmyyyy}.csv`);
-                        const aliasGeneric = path.join(tDir, 'Straits.csv');
-                        try {
-                          if (!fs.existsSync(aliasDated)) {
-                            fs.copyFileSync(localPath, aliasDated);
-                          }
-                          if (!fs.existsSync(aliasGeneric)) {
-                            fs.copyFileSync(localPath, aliasGeneric);
-                          }
-                        } catch {}
-                      }
-                    }
+                    // [GHI CHÚ]: Tạm comment đoạn tạo alias Straits_<ddmmyyyy>.csv và Straits.csv để giữ đúng 4 file gốc như người dùng sao lưu thủ công
+                    // if (item.filename.toLowerCase().includes('straits') && isCsv) {
+                    //   const aliasDated = path.join(outputDirectory, `Straits_${ddmmyyyy}.csv`);
+                    //   const aliasGeneric = path.join(outputDirectory, 'Straits.csv');
+                    //   try {
+                    //     if (!fs.existsSync(aliasDated)) {
+                    //       fs.copyFileSync(localPath, aliasDated);
+                    //     }
+                    //     if (!fs.existsSync(aliasGeneric)) {
+                    //       fs.copyFileSync(localPath, aliasGeneric);
+                    //     }
+                    //   } catch {}
+                    // }
                   }
 
                   sftpSuccess = true;
