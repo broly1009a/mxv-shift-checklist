@@ -356,7 +356,7 @@ export class DsgdBeforeEodService {
       dailyDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
 
       if (!fs.existsSync(path.join(dailyDir, 'DSGD.xlsx'))) {
-        const mShareBase = resolveStoragePathCrossPlatform('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures');
+        const mShareBase = resolveStoragePathCrossPlatform('');
         const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
         if (fs.existsSync(path.join(mShareDir, 'DSGD.xlsx'))) {
           dailyDir = mShareDir;

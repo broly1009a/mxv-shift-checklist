@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { MarginExcelParser } from '../../parsers';
+import { getMsPaymentRates } from '../../helpers/ms-exchange-rate.helper';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { WorkingCalendarService } from '../../../working-calendar/working-calendar.service';
 import {
@@ -59,7 +60,7 @@ export class MsEodReconService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_ms',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        '',
       ),
     );
 
@@ -86,7 +87,7 @@ export class MsEodReconService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_ms',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        '',
       ),
     );
 
@@ -251,50 +252,14 @@ export class MsEodReconService {
       differ: number;
     }> = [];
 
-    // 1. Thu thập tỷ giá Mua / Bán từ cấu hình hệ thống (hoặc REST API M-System)
-    let rateBuyUSD = 25400;
-    let rateSellUSD = 25400;
-    let rateBuyJPY = 165;
-    let rateSellJPY = 165;
-    let rateBuyMYR = 5700;
-    let rateSellMYR = 5700;
-
-    if (this.settingsService) {
-      try {
-        const paymentRatesRaw = await this.settingsService.getSetting('ms_payment_rates', '');
-        if (paymentRatesRaw) {
-          const pr = JSON.parse(paymentRatesRaw);
-          if (pr['USD/VND']) {
-            rateBuyUSD = Number(pr['USD/VND'].buy) || rateBuyUSD;
-            rateSellUSD = Number(pr['USD/VND'].sell) || rateSellUSD;
-          }
-          if (pr['JPY/VND']) {
-            rateBuyJPY = Number(pr['JPY/VND'].buy) || rateBuyJPY;
-            rateSellJPY = Number(pr['JPY/VND'].sell) || rateSellJPY;
-          }
-          if (pr['MYR/VND']) {
-            rateBuyMYR = Number(pr['MYR/VND'].buy) || rateBuyMYR;
-            rateSellMYR = Number(pr['MYR/VND'].sell) || rateSellMYR;
-          }
-        } else {
-          const usdBuyStr = await this.settingsService.getSetting('usd_settlement_rate_buy', '');
-          const usdSellStr = await this.settingsService.getSetting('usd_settlement_rate_sell', '');
-          const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25400');
-          const jpyRateStr = await this.settingsService.getSetting('jpy_exchange_rate', '165');
-          const myrRateStr = await this.settingsService.getSetting('myr_exchange_rate', '5700');
-
-          const baseUsd = parseFloat(usdRateStr) || 25400;
-          rateBuyUSD = parseFloat(usdBuyStr) || baseUsd;
-          rateSellUSD = parseFloat(usdSellStr) || baseUsd;
-          rateBuyJPY = parseFloat(jpyRateStr) || 165;
-          rateSellJPY = parseFloat(jpyRateStr) || 165;
-          rateBuyMYR = parseFloat(myrRateStr) || 5700;
-          rateSellMYR = parseFloat(myrRateStr) || 5700;
-        }
-      } catch (e: any) {
-        this.logger.warn(`Lỗi đọc tỷ giá thanh toán cho CheckEOD: ${e?.message}`);
-      }
-    }
+    // 1. Tỷ giá Mua / Bán thanh toán: nguồn duy nhất ms_payment_rates (thiếu thì throw, không fallback)
+    const paymentRates = await getMsPaymentRates(this.settingsService);
+    const rateBuyUSD = paymentRates['USD/VND'].buy;
+    const rateSellUSD = paymentRates['USD/VND'].sell;
+    const rateBuyJPY = paymentRates['JPY/VND'].buy;
+    const rateSellJPY = paymentRates['JPY/VND'].sell;
+    const rateBuyMYR = paymentRates['MYR/VND'].buy;
+    const rateSellMYR = paymentRates['MYR/VND'].sell;
 
     // 2. Xử lý M-System EOD (chuẩn C# Tool)
     if (files.qltkgd && files.eod) {

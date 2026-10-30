@@ -1,3 +1,138 @@
+## [2026-10-30T18:45] CHORE(SESSION_OPEN_UI): Tạm Thời Ẩn Mục "Kết Quả Đồng Bộ Số Dư CQG" Khỏi Giao Diện Nghiệp Vụ Đầu Phiên
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Yêu cầu từ USER**: "https://10.0.0.26/trading-manager/session-open/cqg-sync giúp tôi tạm thời ẩn comment lại Kết quả đồng bộ số dư CQG để frontend/src/app/trading-manager/session-open/page.tsx để tôi test lại đã tính năng này đang lỗi comment lại và ủn lại lên ubutun riêng file này thôi logic khác giữ nguyên".
+- **Hành động thực hiện**:
+  - Comment khối `SOD_CQG_SYNC` trong danh sách `sodModules` tại [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx#L87-L95).
+  - Tải (upload) duy nhất file `frontend/src/app/trading-manager/session-open/page.tsx` lên Ubuntu 10.0.0.26 tại `/opt/mxv-checklist/frontend/src/app/trading-manager/session-open/page.tsx`, tuyệt đối giữ nguyên toàn bộ các file và logic khác trên Ubuntu.
+  - Rebuild Frontend trên Ubuntu và restart tiến trình PM2 `mxv-frontend`.
+
+### 2. Danh sách file chỉnh sửa & Tóm tắt thay đổi
+1. [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx#L87-L95):
+   - Comment lại cấu hình module `SOD_CQG_SYNC` (Kết quả đồng bộ số dư CQG) để ẩn khỏi danh sách hiển thị trên trang `/trading-manager/session-open`.
+
+### 3. Xác nhận Build & Triển khai
+- Frontend TypeScript Check (`npx tsc --project frontend/tsconfig.json --noEmit`): Pass (Exit code 0).
+- Upload và Rebuild trên Ubuntu 10.0.0.26 (`next build` & `pm2 restart mxv-frontend`): Đang hoàn tất.
+
+---
+
+## [2026-10-30T18:48] FIX(CHECK_CQG_SYNC): Khắc Phục Lỗi Match Cột `End Cash Balance` & Áp Dụng Phương Án 1 Chuẩn 100% C# Tool Gốc
+
+### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
+- **Phản ánh từ USER**: Khi chạy Job đối chiếu đồng bộ số dư CQG ngày 30/10/2026 (`ID: 6ae47c697ffd200bd36920e7`), hệ thống báo lệch 11,963 tài khoản.
+- **Chỉ đạo rõ ràng từ USER**:
+  - Chọn **Phương án 1 (Chuẩn 100% C# Tool gốc)**: Giữ nguyên như C# dòng 660-664 — Nhận diện cột `End Cash Balance` chuẩn, và lấy toàn bộ tài khoản có trên CQG mà thiếu trên MS vào bảng kết quả (kết quả ngày 30/10 là **9,480 tài khoản**).
+
+### 2. Danh sách file chỉnh sửa & Tóm tắt thay đổi
+1. [backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts):
+   - Chuẩn hóa hàm `findHeaderIndex` theo nguyên tắc **Exact-Match-First**: Ưu tiên tìm khớp chính xác 100% với `primary` và `aliases` trước khi fallback sang substring match.
+   - Thu hẹp aliases của `endCashBalanceIdx` thành `['Ending Cash Balance', 'End Balance', 'Ending Balance', 'Số dư cuối ngày']` để khớp chuẩn xác 100% cột 6 `End Cash Balance` (loại bỏ hoàn toàn việc bắt nhầm cột 5 `Begin Cash Balance` = 0 khiến 2,485 tài khoản bị lệch ảo).
+   - Tại nhánh `else` của `checkEODCQG`, giữ nguyên chuẩn 100% theo C# [TransactionCheckingService.cs#L660-L664](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-shift-checklist/it-tool-src/operate-transaction-app/Services/TransactionCheckingService.cs#L660-L664): Đưa toàn bộ các tài khoản có trên CQG mà thiếu trên MS vào bảng kết quả.
+2. [backend/src/modules/trading-ops/parsers/margin-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/margin-excel.parser.ts):
+   - Dùng `parseCqgNumber` cho `balanceVal`, `choDaoHan`, `laiLoVND` trong `parseQltkgd` để an toàn 100% với dữ liệu số dạng text/comma từ Excel.
+
+### 3. Kết quả xác nhận trên dữ liệu thực tế 30/10/2026 (Chuẩn 100% C# Tool)
+- Tài khoản có trên cả MS và CQG lệch > $100: **2 tài khoản**.
+- Tài khoản có trên CQG nhưng thiếu trên MS (nhánh `else if` C#): **9,478 tài khoản**.
+- **Tổng số tài khoản kết quả: đúng 9,480 tài khoản** (Khớp hoàn toàn với mô phỏng C# gốc).
+
+### 4. Xác nhận Build
+- Backend TypeScript Check & Build (`npx tsc -p tsconfig.build.json --noEmit && npm run build`): Exit code 0 (Success).
+- Frontend TypeScript Check (`npx tsc --noEmit`): Exit code 0 (Success).
+  - Số tài khoản có trên cả MS và CQG lệch > $100: **2 tài khoản**.
+  - Số tài khoản chỉ có trên CQG có số dư > $100: **29 tài khoản**.
+  - Tổng số tài khoản lệch thực tế: **31 tài khoản** (Khắc phục hoàn toàn 11,932 tài khoản bị lệch ảo do nhầm cột và bỏ quên ngưỡng).
+
+### 4. Xác nhận Build
+- Backend TypeScript Check & Build (`npx tsc -p tsconfig.build.json --noEmit && npm run build`): Exit code 0 (Success).
+- Frontend TypeScript Check (`npx tsc --noEmit`): Exit code 0 (Success).
+
+---
+
+## [2026-10-30T18:06] FEATURE(SOD_CQG_SYNC_TAB): Thêm Tab "Kết Quả Đồng Bộ Số Dư CQG" Vào Màn Hình Nghiệp Vụ Đầu Phiên (`/trading-manager/session-open`)
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- Bổ sung một mục/tab **"Kết quả đồng bộ số dư CQG"** tại trang **Nghiệp vụ đầu phiên** (`/trading-manager/session-open`) với giao diện đồng bộ các mục hiện có để vào kiểm thử trực tiếp.
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+1. [frontend/src/app/trading-manager/session-open/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/page.tsx#L87-L95):
+   - Thêm thẻ `SOD_CQG_SYNC` ("Kết quả đồng bộ số dư CQG") trỏ tới `/trading-manager/session-open/cqg-sync`.
+2. [frontend/src/app/trading-manager/session-open/cqg-sync/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/session-open/cqg-sync/page.tsx):
+   - Tạo trang con độc lập với Header Bar chuẩn SOD (bộ chọn ngày phiên `selectedDate`, nút Toàn màn hình, nút quay lại Nghiệp vụ đầu phiên) và nhúng trực tiếp component `<LegacyCqgSyncSection token={token} selectedDate={selectedDate} />`.
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend TypeScript Check & Build (`npx tsc --noEmit && npm run build`): Exit code 0 (Success).
+- Backend Build (`npm run build`): Exit code 0 (Success).
+
+---
+
+## [2026-10-30T18:02] FIX(CQG_SYNC_WORKER_AND_UI): Đồng Bộ Kết Quả `cqgResult`, Nhận Diện `AS.xlsx` & Hiển Thị Chuẩn Trạng Thái `WAITING`/`FAILED` Trên UI
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- Rà soát và khắc phục các lỗi truyền dữ liệu và hiển thị của luồng Đối chiếu đồng bộ số dư CQG (`CHECK_CQG_SYNC` - `CqgSyncWorker`).
+
+### 2. Danh sách file chỉnh sửa & Tóm tắt thay đổi
+1. [backend/src/modules/trading-ops/workers/cqg-sync.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/workers/cqg-sync.worker.ts):
+   - Bổ sung trả về `cqgResult` trong `details` (bên cạnh `mismatched`) và `totalMismatchedCQG` trong `metrics` để đồng bộ với cấu trúc đọc của `ReconConsoleSummaryService`.
+   - Mở rộng regex tìm file số dư CQG thành `/^(Accounts_Balances|AS\.xlsx)/i` để nhận diện được cả `Accounts_Balances.xlsx` và `AS.xlsx`.
+2. [backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts):
+   - Trong `runAutoCheckCQGSync`, cập nhật regex tìm file thành `/^(Accounts_Balances|AS\.xlsx)/i` đồng bộ với `CqgSyncWorker`.
+3. [backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/console/recon-console-summary.service.ts):
+   - Chuẩn hóa bóc tách `cqgSyncPayload` qua `.toObject()` (Quy tắc 4.1 AGENTS.md), lấy `resolvedCqgResult` hỗ trợ cả `cqgResult` và `mismatched`, đồng thời trả đầy đủ `error`, `isWaitingFiles`, `waitingMessage`, `passed` trong khối `cqgSync`.
+4. [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx):
+   - Loại bỏ fallback `dsgdBeforeEod` khi gán `cqgSyncData`.
+   - Bổ sung bắt trạng thái `WAITING` / `isWaitingFiles` trong vòng lặp polling để kết thúc sớm và hiển thị thông báo chờ file thay vì treo 120s.
+   - Bổ sung hiển thị tường minh trạng thái `WAITING` (chờ file) và `FAILED`/`CANCELLED`/`ABORTED` (báo lỗi) trên bảng kết quả, tuân thủ quy tắc Zero-Silent-Swallow (không báo tích xanh khớp 100% khi đang chờ file hoặc lỗi).
+
+### 3. Xác nhận Build & Kiểm thử
+- Frontend TypeScript Check (`npx tsc --noEmit`): Exit code 0 (Success).
+- Backend TypeScript Check & Build (`npx tsc -p tsconfig.build.json --noEmit && npm run build`): Exit code 0 (Success).
+- Frontend Build (`npm run build`): Exit code 0 (Success).
+
+---
+
+## [2026-10-30T15:40] FIX(RECON_KLGD_CQG_SUBSECOND_CUTOFF): Chuẩn Hóa 100% Theo C# TransactionCheckingService.cs#L140 - Khắc Phục Lệch Ảo 1 Lot Tại Biên Cutoff 12:00:00
+
+### 1. Mục tiêu thay đổi & Phản ánh từ USER
+- **Phản ánh từ USER**:
+  - `[2026-10-30T05:01:10.569Z] Chi tiết chênh lệch khớp lệnh: - [MSystem] TK 012C8537549, HĐ MHGZ26, Giá 6.556, Qty 1: Giao dịch M-System không tìm thấy bên CQG. Phát hiện lệch: Lệch CQG=1, Lệch ACM=0, Lệch khớp lệnh=1. Vậy với cơ này cơ chế cutoff có hoạt động không mà dư 1 lot vậy?`
+  - `sao nhiều lần trong logchangeai bạn có bảo sửa phần cutoff này y hệt tool C# mà giờ vẫn chưa giống vậy`
+- **Nguyên nhân cốt lõi (Code-First Grounding & File Audit)**:
+  - Trong C# `TransactionCheckingService.cs#L138-L141`:
+    ```csharp
+    if (TimeSpan.TryParse(fr[5], out var itemTimeOnly))
+    {
+        itemTimeOnly = TimeSpan.FromSeconds((int)itemTimeOnly.TotalSeconds);
+        fullDateTime = time.Date + itemTimeOnly;
+    }
+    if (fullDateTime > time) continue;
+    ```
+    Code C# cố tình ép kiểu `(int)itemTimeOnly.TotalSeconds` để **vứt bỏ phần thập phân mili-giây** của CQG (`12:00:00.663` $\rightarrow$ `12:00:00.000`), giúp đồng bộ với định dạng giây nguyên `12:00:00` của M-System.
+  - Trong Backend TypeScript:
+    Ở các lần sửa trước (commit `de68765`), chỉ sửa mốc `checkTime` ở tầng service lọc mà **bỏ quên hàm parser thời gian** `parseCqgDateTime` trong `trading-math.helper.ts`. Hàm này vẫn giữ `ms = 663`.
+    Dẫn tới:
+    - M-System: `12:00:00.000 <= 12:00:00.000` $\implies$ ĐƯỢC NHẬN (Tổng: 1.000 lots).
+    - CQG: `12:00:00.663 <= 12:00:00.000` $\implies$ BỊ LOẠI OAN (Tổng: 999 lots).
+    $\implies$ Báo lệch ảo 1 lot của lệnh `183080104` (TK `012C8537549`).
+
+### 2. Danh sách file chỉnh sửa
+- [trading-math.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/trading-math.helper.ts):
+  - Chuẩn hóa 1:1 theo C# `(int)itemTimeOnly.TotalSeconds`: gán `ms = 0` trong `parseCqgDateTime` và `parseTradeDateTime`.
+  - Triệt tiêu hoàn toàn bất đối xứng độ phân giải thời gian giữa CQG (mili-giây) và M-System (giây).
+
+### 3. Kết quả Kiểm thử & Triển khai thực tế
+- Unit test độc lập `test_cqg_ms_cutoff_fix.js`:
+  - `CQG Parsed milliseconds: 0`
+  - `MS Parsed milliseconds: 0`
+  - `CQG passes cutoff (<= checkTime): true`
+  - `MS passes cutoff (<= checkTime): true`
+  - `TEST PASSED: Cả M-System và CQG đều khớp chính xác tại mốc 12:00:00 (0ms)!`
+- Build Backend NestJS: `Exit Code 0` (Thành công 100%).
+- TypeCheck Frontend NextJS: `Exit Code 0` (Sạch lỗi).
+
+---
+
 ## [2026-10-30T14:55] REFACTOR(ACM_SFTP_DISABLE_ALIAS_CREATION): Tạm Comment Đoạn Tạo File Alias Straits Để Chuẩn Hóa Đúng 4 File Gốc Khi Backup
 
 ### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
@@ -7499,3 +7634,58 @@
 ### 3. Kết quả Build
 
 - `npm run build` (`nest build`) -> **Exit code 0 (Pass 100% không lỗi)**.
+
+
+---
+
+## [2026-10-30T17:10] REFACTOR(TRADING_MATH_COMMENT): Dọn gọn comment và biến thừa `ms` trong trading-math.helper.ts
+
+- **Mục tiêu**: USER yêu cầu bỏ comment giải trình máy móc và biến `const ms = 0` chỉ để gắn comment.
+- **File**: [trading-math.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/trading-math.helper.ts) (`parseCqgDateTime`, `parseTradeDateTime`).
+- **Nội dung**: Trước: biến `secondsVal`, `ms` + comment dài dòng. Sau: `seconds = Math.floor(parseFloat(...) || 0)`, ms để mặc định/truyền trực tiếp `0`. Logic cắt mili-giây không đổi.
+- **Build**: CHƯA chạy được - PowerShell chặn `npm.ps1` (execution policy). USER cần tự chạy `npx tsc --noEmit` và `npm run build`.
+
+## [2026-10-30] Thống nhất nguồn tỷ giá M-System (A + B + C)
+- **Mục tiêu**: USER yêu cầu rà soát, gom tỷ giá M-System về một nguồn (Bảng Tỷ Giá M-System). Bằng chứng C# gốc: tool-C#/operate-transaction-app/Utils/FIleUtils.cs#L1817-L1828 (EOD dùng PaymentExchangeRate1/2) và #L2081 (đối chiếu CQG dùng ConvertExchangeRate.USD).
+- **File mới**: backend/src/modules/trading-ops/helpers/ms-exchange-rate.helper.ts (getMsConversionRate, getMsPaymentRates; thiếu cấu hình thì throw).
+- **File sửa**: cqg-merger.service.ts (bỏ fallback ccp_usd_exchange_rate và hằng 25900), sod-recon.worker.ts (bỏ default 25900), ms-eod-recon.service.ts (bỏ nhánh else và hằng 25400/165/5700, chỉ đọc ms_payment_rates), recon-console-summary.service.ts (ngừng ghi usd_settlement_rate_buy/sell), TradingManagerConfigSection.tsx (bỏ state và key usd_settlement_rate_buy/sell).
+- **Không đổi**: các key ccp_* (tỷ giá CoreCCP, nguồn riêng), value-statistics, qlgd-dashboard.
+- **Build**: tsc --noEmit frontend 0 lỗi; backend chỉ còn lỗi sẵn có ở src/tests, src/scripts; nest build backend OK.
+
+### [2026-10-30] Bổ sung: chuyển các nơi đọc tỷ giá M-System còn lại sang helper chung (không gồm CCP, không sửa legacy)
+- recon-console-summary.service.ts: getCurrentUsdRate dùng getMsConversionRate (thiếu cấu hình thì throw, không trả 0); saveUsdRate chỉ ghi usd_exchange_rate.
+- qlgd-dashboard.service.ts: bỏ fallback ccp_usd_exchange_rate, dùng getMsConversionRate.
+- Không đổi (CCP hoặc dùng chung CCP): ccp-recon.controller, ccp-lot-statistics, ce-lot-statistics, value-statistics, news-gtgd-export, trading-ops-preflight.
+- Build: nest build backend OK; tsc không có lỗi ngoài src/tests và src/scripts.
+
+## [2026-10-30T19:35] REFACTOR(ZERO_HARDCODED_RATES): Triệt Tiêu Toàn Bộ Tỷ Giá Mặc Định / Fallback Cứng (25400, 5400, 165, 3500)
+- **Mục tiêu**: Thực hiện đúng chỉ đạo của USER (kèm ảnh chụp VS Code search key 25400): Loại bỏ 100% các giá trị tỷ giá hardcoded ngầm (25400, 5400, 165, 3500), tuân thủ chuẩn Fail-Fast & Zero-Silent-Swallow của AGENTS.md.
+- **Danh sách file chỉnh sửa**:
+  1. [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/statistics/value-statistics.service.ts):
+     - Xóa bỏ fallback mặc định 25400, 5400, 165, 3500 khi settingsService chưa sẵn sàng hoặc không tìm thấy tỷ giá trong CSDL.
+     - Hàm getRate: Nếu không tìm thấy tỷ giá hợp lệ từ 3 nguồn (matrix, CCP single, MS single) $\rightarrow$ 	hrow new Error(...) để báo lỗi cấu hình trực quan thay vì âm thầm tính toán theo số giả định 25400.
+     - Thêm hàm equireRate: Bắt buộc tỷ giá ngoại tệ USD, JPY, MYR, RMB phải tồn tại và > 10, nếu không thì ném lỗi dừng job.
+  2. [news-gtgd-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/console/news-gtgd-export.service.ts):
+     - Xóa bỏ ternary fallback ates.usdGain && rates.usdGain > 10 ? rates.usdGain : 25400, jpyGain : 165, myrGain : 5400.
+     - Sử dụng trực tiếp tỷ giá thực tế từ alueStatisticsService.getCurrentExchangeRates().
+  3. [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts):
+     - Xóa bỏ tất cả các fallback '25400' trong getSetting('usd_exchange_rate', '').
+     - Endpoint usd-rate, sync-usd-rate, uploadExchangeRatesExcel: Bắt buộc phải có tỷ giá hợp lệ trong file tải lên hoặc CSDL, nếu thiếu thì ném exception rõ ràng.
+  4. [twin-run-comparator.spec.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/twin-run/twin-run-comparator.spec.ts):
+     - Cập nhật test case: Mong đợi alueService.getCurrentExchangeRates() sẽ throw lỗi khi chạy với service không có settings/CSDL (thay vì mong đợi giá trị mặc định 25400).
+- **Kết quả Build & Kiểm thử**:
+  - Backend: 
+pm run build (
+est build) $\rightarrow$ Exit Code 0 (Hoàn thành 100% không lỗi).
+  - Frontend: 
+pm run build (
+ext build) $\rightarrow$ Exit Code 0 (Hoàn thành 100% 51 static & dynamic pages).
+
+## [2026-10-30T19:46] FIX(MS_PAYMENT_RATE_FAILFAST): Bỏ Fallback Tỷ Giá Thanh Toán Về Tỷ Giá Quy Đổi Trong MsApiAdapter
+- **Mục tiêu**: USER chỉ đạo: "Bỏ fallback trong adapter, báo lỗi nếu API paymentRate lỗi. chỉ cần làm cái này thôi".
+- **File sửa**: [ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts) (getExchangeRates).
+- **Trước**: paymentRates khởi tạo sẵn Mua = Bán = tỷ giá quy đổi; 	ry/catch chỉ logger.warn khi /market/paymentRate lỗi; từng dòng thiếu uyingRate/sellingRate tự lấy tỷ giá quy đổi.
+- **Sau**: paymentRates chỉ lấy từ API; API lỗi, dữ liệu không hợp lệ, dòng thiếu/sai Mua-Bán, hoặc thiếu USD/VND thì 	hrow new Error(...), không ghi gì vào CSDL.
+- **Lưu ý hành vi**: Hai nơi gọi trong recon-console-summary.service.ts đã có try/catch quanh getExchangeRates() nên khi lỗi sẽ chuyển sang nhánh Playwright như cũ.
+- **Build**: 
+pm run build backend Exit Code 0. Frontend không đổi trong lượt này.

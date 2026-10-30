@@ -46,6 +46,13 @@ export interface CcpTransactionValueResult {
   calculatedAt: Date;
 }
 
+function requireRate(value: number | undefined, code: string): number {
+  if (!value || value <= 10) {
+    throw new Error(`Thiếu tỷ giá quy đổi ${code}/VND hợp lệ để tính giá trị giao dịch.`);
+  }
+  return value;
+}
+
 @Injectable()
 export class ValueStatisticsService {
   private readonly logger = new Logger(ValueStatisticsService.name);
@@ -60,20 +67,11 @@ export class ValueStatisticsService {
    * 1. Ma trận ccp_exchange_rates_matrix
    * 2. Tỷ giá lẻ riêng CCP (ccp_usd_exchange_rate, ccp_myr_exchange_rate, ccp_jpy_exchange_rate, ccp_rmb_exchange_rate)
    * 3. Fallback M-System (usd_exchange_rate, myr_exchange_rate, ...)
-   * 4. Mặc định an toàn (USD=25400, MYR=5400, JPY=165, RMB=3500)
+   * Thiếu tỷ giá hợp lệ ở cả 3 nguồn => throw (không dùng giá trị mặc định).
    */
   async getCurrentExchangeRates(): Promise<CcpExchangeRates> {
     if (!this.settingsService) {
-      return {
-        usdLoss: 25400,
-        usdGain: 25400,
-        myrLoss: 5400,
-        myrGain: 5400,
-        jpyLoss: 165,
-        jpyGain: 165,
-        rmbLoss: 3500,
-        rmbGain: 3500,
-      };
+      throw new Error('SystemSettingsService chưa sẵn sàng, không thể đọc tỷ giá quy đổi.');
     }
 
     // 1. Ưu tiên đọc ma trận đa nguyên tệ ccp_exchange_rates_matrix
@@ -102,7 +100,7 @@ export class ValueStatisticsService {
       this.settingsService.getSetting('rmb_exchange_rate', ''),
     ]);
 
-    const getRate = (code: string, ccpFallback: string, msFallback: string, defaultRate: number) => {
+    const getRate = (code: string, ccpFallback: string, msFallback: string) => {
       const item = matrix[code];
       const parsedCcp = parseFloat(ccpFallback);
       const parsedMs = parseFloat(msFallback);
@@ -113,16 +111,19 @@ export class ValueStatisticsService {
       const validMs = !isNaN(parsedMs) && parsedMs > 10 ? parsedMs : 0;
       const validMatrix = !isNaN(parsedMatrixConv) && parsedMatrixConv > 10 ? parsedMatrixConv : 0;
 
-      const conv = validMatrix || validCcp || validMs || defaultRate;
+      const conv = validMatrix || validCcp || validMs;
+      if (!conv) {
+        throw new Error(`Chưa cấu hình tỷ giá quy đổi ${code}/VND. Vào Cấu hình hệ thống và bấm "Đồng bộ từ M-System" hoặc CoreCCP.`);
+      }
       const buy = (item?.buyRate && Number(item.buyRate) > 10) ? Number(item.buyRate) : conv;
       const sell = (item?.sellRate && Number(item.sellRate) > 10) ? Number(item.sellRate) : conv;
       return { buy, sell, conv };
     };
 
-    const usd = getRate('USD', ccpUsdStr, usdStr, 25400);
-    const myr = getRate('MYR', ccpMyrStr, myrStr, 5400);
-    const jpy = getRate('JPY', ccpJpyStr, jpyStr, 165);
-    const rmb = getRate('RMB', ccpRmbStr, rmbStr, 3500);
+    const usd = getRate('USD', ccpUsdStr, usdStr);
+    const myr = getRate('MYR', ccpMyrStr, myrStr);
+    const jpy = getRate('JPY', ccpJpyStr, jpyStr);
+    const rmb = getRate('RMB', ccpRmbStr, rmbStr);
 
     return {
       usdLoss: usd.buy,
@@ -186,7 +187,7 @@ export class ValueStatisticsService {
       }
 
       let currency: 'USD' | 'MYR' | 'JPY' | 'RMB' | 'VND' = 'USD';
-      let rate = rates.usdGain && rates.usdGain > 10 ? rates.usdGain : 25400;
+      let rate = requireRate(rates.usdGain, 'USD');
       let divisor = 1;
 
       // Tra cứu độ lớn doCao từ bảng chuẩn CoreCCP nếu có
@@ -198,14 +199,14 @@ export class ValueStatisticsService {
         rate = 1;
       } else if (product === 'TRU' || product.startsWith('JP') || rawProduct.includes('TOCOM') || rawProduct.includes('OSE')) {
         currency = 'JPY';
-        rate = rates.jpyGain && rates.jpyGain > 10 ? rates.jpyGain : 165;
+        rate = requireRate(rates.jpyGain, 'JPY');
         divisor = 100; // JPY niêm yết theo 100 Yên
       } else if (product === 'MPO' || rawProduct.includes('BMD')) {
         currency = 'MYR';
-        rate = rates.myrGain && rates.myrGain > 10 ? rates.myrGain : 5400;
+        rate = requireRate(rates.myrGain, 'MYR');
       } else if (product.startsWith('DCE') || product.startsWith('SHFE') || product.startsWith('ZCE')) {
         currency = 'RMB';
-        rate = rates.rmbGain && rates.rmbGain > 10 ? rates.rmbGain : 3500;
+        rate = requireRate(rates.rmbGain, 'RMB');
       }
 
       // Giá trị tính = Lot * Price * doCao * Rate / Divisor

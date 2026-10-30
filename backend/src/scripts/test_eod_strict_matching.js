@@ -63,7 +63,7 @@ async function runTestSuite() {
   // TEST CASE 1: Kiểm thử trên thư mục thật M:\...\02.10 (nơi xảy ra sự cố)
   // ───────────────────────────────────────────────────────────────────────────
   console.log('📋 1. KIỂM THỬ TRỰC TIẾP TRÊN THƯ MỤC THẬT (Ổ M: - THƯ MỤC 02.10):');
-  const realFolder0210 = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\\2026\\T10.2026\\02.10';
+  const realFolder0210 = '\\2026\\T10.2026\\02.10';
 
   if (fs.existsSync(realFolder0210)) {
     // 1.1 Kiểm tra file eod.2026-10-01.csv có tồn tại trong 02.10 không

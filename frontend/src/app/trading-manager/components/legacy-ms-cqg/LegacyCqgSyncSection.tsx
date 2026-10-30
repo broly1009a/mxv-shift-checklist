@@ -6,6 +6,7 @@ import {
   Clock,
   Loader2,
   Info,
+  AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -30,7 +31,7 @@ export default function LegacyCqgSyncSection({
       if (!silent) setLoading(true);
       try {
         const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-        setCqgSyncData(data?.cqgSync || (data as any)?.dsgdBeforeEod || null);
+        setCqgSyncData(data?.cqgSync || null);
       } catch (err: any) {
         console.error('Lỗi nạp dữ liệu đồng bộ CQG:', err);
       } finally {
@@ -82,6 +83,15 @@ export default function LegacyCqgSyncSection({
           if (job.status === 'COMPLETED') {
             completed = true;
             toast.success('Đồng bộ số dư CQG hoàn tất!', { id: toastId });
+            break;
+          } else if (job.status === 'WAITING' || job.payload?.result?.isWaitingFiles) {
+            completed = true;
+            toast(
+              job.payload?.result?.summary ||
+                job.payload?.result?.message ||
+                'Đang chờ file đối chiếu số dư CQG (QLTKGD.xlsx / Accounts_Balances.xlsx).',
+              { id: toastId },
+            );
             break;
           } else if (['FAILED', 'CANCELLED', 'ABORTED'].includes(job.status)) {
             completed = true;
@@ -283,6 +293,29 @@ export default function LegacyCqgSyncSection({
                     <Clock size={24} color="var(--text-muted)" />
                     <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                       Chưa chạy đồng bộ số dư CQG phiên này. Bấm “Check” để kiểm tra.
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : cqgSyncData?.status === 'WAITING' || cqgSyncData?.isWaitingFiles ? (
+              <tr>
+                <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={26} color="#f59e0b" />
+                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f59e0b' }}>
+                      {cqgSyncData?.waitingMessage ||
+                        'Đang chờ file QLTKGD.xlsx và Accounts_Balances.xlsx trong thư mục backup ngày.'}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : ['FAILED', 'CANCELLED', 'ABORTED'].includes(cqgSyncData?.status) ? (
+              <tr>
+                <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={26} color="#ef4444" />
+                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ef4444' }}>
+                      {cqgSyncData?.error || 'Tiến trình đối chiếu số dư CQG gặp sự cố.'}
                     </span>
                   </div>
                 </td>

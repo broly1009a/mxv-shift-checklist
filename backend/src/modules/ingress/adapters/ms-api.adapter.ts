@@ -674,30 +674,23 @@ export class MsApiAdapter implements IIngressPort {
 
     const usdRate = conversionRates['USD'] || 0;
 
-    // 2. Tỷ giá thanh toán (/market/paymentRate)
-    const paymentRates: Record<string, { buy: number; sell: number }> = {
-      'USD/VND': { buy: usdRate, sell: usdRate },
-      'MYR/VND': { buy: conversionRates['MYR'] || 0, sell: conversionRates['MYR'] || 0 },
-      'JPY/VND': { buy: conversionRates['JPY'] || 0, sell: conversionRates['JPY'] || 0 },
-      'RMB/VND': { buy: conversionRates['RMB'] || 0, sell: conversionRates['RMB'] || 0 },
-    };
-
-    try {
-      const paymentData = await fetchJson('/market/paymentRate?limit=20&offset=0');
-      if (paymentData?.status === 'ok' && Array.isArray(paymentData?.data)) {
-        for (const row of paymentData.data) {
-          if (row.counterCurrency === 'VND') {
-            const code = (row.monetaryBase || '').trim().toUpperCase();
-            const buy = typeof row.buyingRate === 'number' ? row.buyingRate : (conversionRates[code] || 0);
-            const sell = typeof row.sellingRate === 'number' ? row.sellingRate : buy;
-            if (code && buy > 0) {
-              paymentRates[`${code}/VND`] = { buy, sell };
-            }
-          }
-        }
+    // 2. Tỷ giá thanh toán (/market/paymentRate): lỗi API hoặc thiếu dữ liệu => throw, không fallback về tỷ giá quy đổi
+    const paymentRates: Record<string, { buy: number; sell: number }> = {};
+    const paymentData = await fetchJson('/market/paymentRate?limit=20&offset=0');
+    if (paymentData?.status !== 'ok' || !Array.isArray(paymentData?.data)) {
+      throw new Error('API /market/paymentRate trả về dữ liệu không hợp lệ.');
+    }
+    for (const row of paymentData.data) {
+      if (row.counterCurrency !== 'VND') continue;
+      const code = (row.monetaryBase || '').trim().toUpperCase();
+      if (!code) continue;
+      if (typeof row.buyingRate !== 'number' || typeof row.sellingRate !== 'number' || row.buyingRate <= 0 || row.sellingRate <= 0) {
+        throw new Error(`API /market/paymentRate thiếu hoặc sai tỷ giá Mua/Bán cho ${code}/VND.`);
       }
-    } catch (payErr: any) {
-      this.logger.warn(`[MsApiAdapter] Không thể lấy paymentRate, dùng tỷ giá quy đổi làm mặc định: ${payErr.message}`);
+      paymentRates[`${code}/VND`] = { buy: row.buyingRate, sell: row.sellingRate };
+    }
+    if (!paymentRates['USD/VND']) {
+      throw new Error('API /market/paymentRate không có tỷ giá USD/VND.');
     }
 
     return {

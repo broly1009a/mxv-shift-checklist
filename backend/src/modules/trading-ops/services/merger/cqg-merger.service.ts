@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { MarginExcelParser } from '../../parsers';
 import { extractCqgSnapshotTime } from '../../parsers/cqg-excel.parser';
+import { getMsConversionRate } from '../../helpers/ms-exchange-rate.helper';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { TelegramService } from '../../../telegram/telegram.service';
 import { resolveStoragePathCrossPlatform, resolveDailySubfolder, FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../../shared';
@@ -145,10 +146,21 @@ export function validateCqgPairFreshness(
 
 function findHeaderIndex(header: string[], primary: string, aliases: string[] = []): number {
   const norm = (s: string) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  const targets = [primary, ...aliases].map(norm);
+  const primaryNorm = norm(primary);
+  const aliasesNorm = aliases.map(norm);
+
+  // 1. Exact match với primary
+  let exactIdx = header.findIndex((h) => norm(h) === primaryNorm);
+  if (exactIdx !== -1) return exactIdx;
+
+  // 2. Exact match với aliases
+  exactIdx = header.findIndex((h) => aliasesNorm.includes(norm(h)));
+  if (exactIdx !== -1) return exactIdx;
+
+  // 3. Substring match (chỉ khi không có cột nào khớp chính xác)
   return header.findIndex((h) => {
     const nh = norm(h);
-    return targets.some((t) => nh === t || nh.includes(t));
+    return [primaryNorm, ...aliasesNorm].some((t) => nh.includes(t));
   });
 }
 
@@ -661,12 +673,8 @@ export class CqgMergerService {
   > {
     let effectiveRate = usdExchangeRate;
     if (!effectiveRate || effectiveRate <= 0) {
-      if (this.settingsService) {
-        const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25400');
-        effectiveRate = parseFloat(usdRateStr) || 25400;
-      } else {
-        effectiveRate = 25400;
-      }
+      if (!this.settingsService) throw new Error('Thiếu tỷ giá quy đổi USD và SystemSettingsService chưa sẵn sàng.');
+      effectiveRate = await getMsConversionRate(this.settingsService, 'USD');
     }
 
     // 1. Parse QLTKGD.xlsx qua MarginExcelParser dùng chung
@@ -682,7 +690,7 @@ export class CqgMergerService {
 
     const asHeader = asRows[0].map((h: any) => String(h || '').trim());
     const accountNumberIdx = findHeaderIndex(asHeader, 'Account Number', ['Account', 'Tài khoản', 'Mã TKGD', 'Tai khoan']);
-    const endCashBalanceIdx = findHeaderIndex(asHeader, 'End Cash Balance', ['Cash Balance', 'Balance', 'Số dư', 'Số dư cuối ngày']);
+    const endCashBalanceIdx = findHeaderIndex(asHeader, 'End Cash Balance', ['Ending Cash Balance', 'End Balance', 'Ending Balance', 'Số dư cuối ngày']);
     const recordDescriptionIdx = findHeaderIndex(asHeader, 'Record Description', ['Description', 'Mô tả']);
 
     const asName = files.accountsBalancesName || 'Accounts_Balances.xlsx';
@@ -748,11 +756,14 @@ export class CqgMergerService {
           });
         }
       } else {
+        // Chuẩn 100% C# Tool gốc (TransactionCheckingService.cs#L660-L664):
+        // Toàn bộ tài khoản có trên CQG mà không có trên MS đều được đưa vào kết quả lệch
+        const roundedCQG = Math.round(cqgBalance * 100) / 100;
         result.push({
           maTKGD,
           calculatedBalance: 0,
-          cqgBalance: Math.round(cqgBalance * 100) / 100,
-          differ: Math.abs(cqgBalance),
+          cqgBalance: roundedCQG,
+          differ: Math.abs(roundedCQG),
           inMS: false,
           inCQG: true,
         });
@@ -773,7 +784,7 @@ export class CqgMergerService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting(
         'bot_backup_path_ms',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+        '',
       ),
     );
     const cqgBackupBase = resolveStoragePathCrossPlatform(
@@ -793,7 +804,7 @@ export class CqgMergerService {
 
     const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
     const accountsBalancesPath =
-      findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
+      findLatestFile(cqgDailyPath, /^(Accounts_Balances|AS\.xlsx)/i) ||
       findLatestFile(msDailyPath, /Accounts_Balances/i);
 
     if (!fs.existsSync(qltkgdPath)) {
@@ -803,8 +814,7 @@ export class CqgMergerService {
       throw new Error('Không tìm thấy file Accounts_Balances.xlsx từ CQG');
     }
 
-    const usdRateStr = await this.settingsService.getSetting('usd_exchange_rate', '25400');
-    const usdRate = parseFloat(usdRateStr) || 25400;
+    const usdRate = await getMsConversionRate(this.settingsService, 'USD');
 
     const cqgResult = await this.checkEODCQG(
       {

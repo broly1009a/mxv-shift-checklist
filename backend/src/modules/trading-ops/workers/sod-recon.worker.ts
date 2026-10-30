@@ -11,6 +11,7 @@ import {
   findLatestFile,
 } from '../../../shared';
 import { CqgMergerService } from '../services/merger/cqg-merger.service';
+import { getMsConversionRate } from '../helpers/ms-exchange-rate.helper';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
@@ -57,7 +58,7 @@ export class SodReconWorker implements IBotWorker {
       const msBackupBase = resolveStoragePathCrossPlatform(
         await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+          '',
         ),
       );
       const cqgBackupBase = resolveStoragePathCrossPlatform(
@@ -93,11 +94,7 @@ export class SodReconWorker implements IBotWorker {
         };
       }
 
-      const usdRateSetting = await this.settingsService.getSetting(
-        'usd_exchange_rate',
-        '25400',
-      );
-      const usdRate = parseFloat(usdRateSetting) || 25400;
+      const usdRate = await getMsConversionRate(this.settingsService, 'USD');
 
       const qltkgdBuffer = fs.readFileSync(qltkgdPath);
       const accountsBalancesBuffer = fs.readFileSync(accountsBalancesPath);

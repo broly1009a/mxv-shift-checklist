@@ -164,7 +164,7 @@ export default function LegacyDsgdBeforeEodDiffSection({
   const filteredPositions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return rawPositions.filter((p) => {
-      if (!q) return true;
+      if (!q) return true;M-SYSTEM ↔ CQG ↔ STRAITS/ACM
       const acc = (p.account || '').toLowerCase();
       const sym = (p.symbol || '').toLowerCase();
       return acc.includes(q) || sym.includes(q);

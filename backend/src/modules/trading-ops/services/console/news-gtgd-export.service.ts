@@ -155,14 +155,14 @@ export class NewsGtgdExportService {
 
     // 1. Lấy tỷ giá quy đổi ngày
     const rates = await this.valueStatisticsService.getCurrentExchangeRates();
-    const usdRate = rates.usdGain && rates.usdGain > 10 ? rates.usdGain : 25400;
-    const jpyRate = rates.jpyGain && rates.jpyGain > 10 ? rates.jpyGain : 165;
-    const myrRate = rates.myrGain && rates.myrGain > 10 ? rates.myrGain : 5400;
+    const usdRate = rates.usdGain;
+    const jpyRate = rates.jpyGain;
+    const myrRate = rates.myrGain;
 
     // 2. Tìm và nạp file DSGD từ M-System & CoreCCP
     const rawMsBase = await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     );
     const rawCcpBase = await this.settingsService.getSetting('bot_backup_path_ccp', '');
 

@@ -71,7 +71,7 @@ export class EodMsWorker implements IBotWorker {
       const msBackupBase = resolveStoragePathCrossPlatform(
         await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+          '',
         ),
       );
       const msDailyPath = path.join(msBackupBase, subFolder);
