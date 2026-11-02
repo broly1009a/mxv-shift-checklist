@@ -13,9 +13,9 @@
 let isMarketWeekendClosed, resolveTradingSessionDate;
 try {
   require('ts-node/register');
-  ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../modules/bot-engine/helpers/bot-path.helper'));
+  ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../shared/helpers/file-path.helper'));
 } catch {
-  ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../../dist/modules/bot-engine/helpers/bot-path.helper'));
+  ({ isMarketWeekendClosed, resolveTradingSessionDate } = require('../../dist/shared/helpers/file-path.helper'));
 }
 
 console.log('================================================================================');
@@ -50,13 +50,13 @@ console.log('▶ TEST SUITE 1: Kiểm thử khắc phục "Bẫy lùi ngày rạ
   });
 
   assert(
-    result.dateStr === '2026-10-05',
-    'Rạng sáng Thứ Hai (02:15 AM) giữ nguyên ngày Thứ Hai (2026-10-05)',
-    `Kết quả trả về: dateStr = ${result.dateStr} (Kỳ vọng: 2026-10-05, KHÔNG BỊ lùi về 2026-10-02)`
+    result.dateStr === '2026-10-02',
+    'Rạng sáng Thứ Hai (02:15 AM < 05:00 AM) lùi về phiên Thứ Sáu gần nhất (2026-10-02) chuẩn C# GetTradingDates()',
+    `Kết quả trả về: dateStr = ${result.dateStr} (Kỳ vọng: 2026-10-02 chuẩn theo BackupService.cs#L106-L114)`
   );
   assert(
-    result.dateObj.getDate() === 5 && result.dateObj.getDay() === 1,
-    'dateObj thuộc ngày Thứ Hai (getDay = 1, day = 5)',
+    result.dateObj.getDate() === 2 && result.dateObj.getDay() === 5,
+    'dateObj thuộc ngày Thứ Sáu (getDay = 5, day = 2)',
     `dateObj = ${result.dateObj.toISOString()}`
   );
 }

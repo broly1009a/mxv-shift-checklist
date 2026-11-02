@@ -27,14 +27,14 @@ export function getInitialTradingSessionDate(
   }
 
   const sessionDate = new Date(vnTime);
-  // Nếu trước giờ bắt đầu phiên (giờ VN), tự động lùi về ngày T - 1 (trừ rạng sáng thứ Hai)
+  // Chuẩn theo Tool C# (BackupService.cs#L106-L114):
+  // - Nếu trước giờ bắt đầu phiên (giờ VN), lùi 1 ngày (AddDays(-1))
+  // - Nếu rơi vào Thứ 7 hoặc Chủ Nhật, lùi về Thứ 6 gần nhất
   if (currentHour < sessionHour || (currentHour === sessionHour && currentMin < sessionMin)) {
-    if (vnTime.getUTCDay() !== 1) {
-      sessionDate.setUTCDate(sessionDate.getUTCDate() - 1);
-      while (sessionDate.getUTCDay() === 0 || sessionDate.getUTCDay() === 6) {
-        sessionDate.setUTCDate(sessionDate.getUTCDate() - 1);
-      }
-    }
+    sessionDate.setUTCDate(sessionDate.getUTCDate() - 1);
+  }
+  while (sessionDate.getUTCDay() === 0 || sessionDate.getUTCDay() === 6) {
+    sessionDate.setUTCDate(sessionDate.getUTCDate() - 1);
   }
 
   return sessionDate.toISOString().split('T')[0];

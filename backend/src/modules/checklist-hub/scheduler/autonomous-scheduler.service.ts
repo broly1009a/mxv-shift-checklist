@@ -475,7 +475,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
       );
 
       // Market Weekend Guard: Không kích hoạt các task sao lưu / báo cáo thị trường khi cuối tuần đóng cửa
-      if (isMarketWeekendClosed(nowVN, { sessionStartStr: sessionStartSetting })) {
+      if (isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })) {
         this.logger.debug(
           `[Scheduler] Bỏ qua task "${task.name}" (${task.id}) lúc ${task.time} do thị trường đang đóng cửa cuối tuần.`,
         );

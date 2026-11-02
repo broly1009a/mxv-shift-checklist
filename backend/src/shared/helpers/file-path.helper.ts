@@ -263,23 +263,15 @@ export function isMarketWeekendClosed(
 /**
  * Hàm nội bộ: Lùi ngày làm việc cho phiên giao dịch (bỏ qua Thứ 7, Chủ Nhật)
  */
-function rollBackTradingDay(baseDate: Date, isOvernight: boolean, isMonday: boolean): Date {
+function rollBackTradingDay(baseDate: Date, isOvernight: boolean): Date {
   const target = new Date(baseDate);
   target.setHours(0, 0, 0, 0);
 
   if (isOvernight) {
-    // Ca đêm: lùi về phiên trước (trừ rạng sáng Thứ Hai để tránh bẫy lùi vượt cuối tuần về Thứ Sáu)
-    if (!isMonday) {
-      target.setDate(target.getDate() - 1);
-      while (target.getDay() === 0 || target.getDay() === 6) {
-        target.setDate(target.getDate() - 1);
-      }
-    }
-  } else {
-    // Ban ngày: nếu rơi vào Thứ 7 hoặc Chủ Nhật thì lùi về Thứ 6 làm việc gần nhất
-    while (target.getDay() === 0 || target.getDay() === 6) {
-      target.setDate(target.getDate() - 1);
-    }
+    target.setDate(target.getDate() - 1);
+  }
+  while (target.getDay() === 0 || target.getDay() === 6) {
+    target.setDate(target.getDate() - 1);
   }
   return target;
 }
@@ -319,7 +311,7 @@ export function resolveTradingSessionDate(
   }
 
   const nowVN =
-    options?.now ||
+    options?.now ? new Date(options.now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })) :
     new Date(
       new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
     );
@@ -327,12 +319,11 @@ export function resolveTradingSessionDate(
 
   const currentMinutes = nowVN.getHours() * 60 + nowVN.getMinutes();
   const isOvernight = currentMinutes < sessionStartMinutes;
-  const isMonday = nowVN.getDay() === 1;
 
   let targetDateObj: Date;
 
   if (!dateInput) {
-    targetDateObj = rollBackTradingDay(nowVN, isOvernight, isMonday);
+    targetDateObj = rollBackTradingDay(nowVN, isOvernight);
   } else {
     const parsed =
       dateInput instanceof Date
@@ -342,7 +333,7 @@ export function resolveTradingSessionDate(
 
     const parsedStr = formatDateToIso(parsed);
     if (!options?.forceExactDate && parsedStr === todayVnStr) {
-      targetDateObj = rollBackTradingDay(parsed, isOvernight, isMonday);
+      targetDateObj = rollBackTradingDay(parsed, isOvernight);
     } else {
       targetDateObj = parsed;
     }

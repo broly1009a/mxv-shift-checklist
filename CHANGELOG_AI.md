@@ -1,3 +1,34 @@
+## [2026-11-02T09:30] FIX(SCHEDULER_DOUBLE_TZ & TRADING_DATE_ROLLBACK): Khắc Phục Triệt Để Lỗi Cộng Trùng Múi Giờ +14h Trong Scheduler & Đồng Bộ 1:1 Thuật Toán Lùi Ngày Phiên Theo Ground Truth C# (BackupService.cs)
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Yêu cầu từ USER**:
+  - Kiểm tra và khắc phục triệt để lỗi: Tại sao lịch tự động lúc `04:05 AM` (Backup) và `04:55 AM` (Thống kê) không chạy cho phiên Thứ Sáu (`30/10`) vào rạng sáng Thứ Bảy (`31/10`), nhưng lại kích hoạt nhầm vào lúc `04:55 AM` sáng Thứ Hai (`02/11`) và tính vào ngày phiên `2026-11-02` với kết quả `0 lot` / `0.00 tỷ đ` thay vì lùi về phiên Thứ Sáu `2026-10-30`.
+  - Đảm bảo sửa chuẩn Clean 100% theo Ground Truth C# (`operate-transaction-app`), không dùng logic phỏng đoán tự chế.
+- **Nguyên nhân gốc rễ (Root Cause Verified)**:
+  1. **Lỗi cộng trùng múi giờ `+7h` hai lần (`+14h`) tại `autonomous-scheduler.service.ts#L341 & #L478`**:
+     - Dòng 341 khởi tạo `const nowVN = new Date(new Date().getTime() + 7 * 60 * 60 * 1000)` (đã dịch `+7h` lần 1).
+     - Dòng 478 lại truyền `nowVN` vào `isMarketWeekendClosed(nowVN, { sessionStartStr: sessionStartSetting })`, trong khi bên trong `isMarketWeekendClosed` (`file-path.helper.ts#L244-L246`) lại tiếp tục gọi `dateInput.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })` (dịch `+7h` lần 2 $\rightarrow$ tổng cộng lệch `+14 tiếng`).
+     - Hậu quả: Vào lúc `04:05 AM` và `04:55 AM` sáng Thứ Bảy (`31/10` - thời điểm cuối phiên Thứ Sáu `30/10`), giờ bị cộng thêm 7 tiếng thành `11:05 AM` và `11:55 AM` trưa Thứ Bảy (`>= 05:00 AM`), khiến `isMarketWeekendClosed` tưởng thị trường đã đóng cửa và chặn mất cả lịch Backup `04:05 AM` lẫn Thống kê `04:55 AM` của phiên `30/10`. Ngược lại, vào lúc `04:55 AM` sáng Thứ Hai (`02/11` - khi phiên mới chưa mở), giờ bị cộng thêm 7 tiếng thành `11:55 AM` trưa Thứ Hai (`>= 05:00 AM`), khiến `isMarketWeekendClosed` trả về `false` và kích hoạt nhầm lịch chạy.
+  2. **Điều kiện tự chế `if (!isMonday)` trong `rollBackTradingDay` (`file-path.helper.ts#L272`) và `getInitialTradingSessionDate` (`tradingDateUtils.ts#L32`)**:
+     - Đối chiếu trực tiếp với code gốc C# (`BackupService.cs#L106-L114`): Khi `now.TimeOfDay < sessionStartTime` (`05:00 AM`), thuật toán gốc C# luôn lùi 1 ngày (`today.AddDays(-1)`) rồi lặp `while (Saturday || Sunday) today = today.AddDays(-1)` để lùi về Thứ Sáu gần nhất (`30/10`), hoàn toàn không có `if (!isMonday)`.
+     - Việc tự chế `if (!isMonday)` trước đây đã vô hiệu hóa vòng lặp lùi ngày qua cuối tuần khi thời điểm `< 05:00 AM` sáng Thứ Hai, làm cho ngày phiên bị gán thành Thứ Hai (`2026-11-02`) lúc phiên chưa mở cửa.
+
+### 2. Danh sách file chỉnh sửa
+- **[backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts)**:
+  - Dòng 478: Thay `isMarketWeekendClosed(nowVN, { sessionStartStr: sessionStartSetting })` bằng `isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })` (đồng bộ 100% với dòng 76 và dòng 162), triệt tiêu hoàn toàn lỗi nhân đôi múi giờ `+14h`.
+- **[backend/src/shared/helpers/file-path.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/file-path.helper.ts)**:
+  - Dòng 266-277 & 325-336: Loại bỏ tham số và điều kiện tự chế `!isMonday` khỏi `rollBackTradingDay`, đồng bộ `1:1` với `BackupService.cs#L106-L114`.
+- **[frontend/src/app/trading-manager/utils/tradingDateUtils.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/utils/tradingDateUtils.ts)**, **[frontend/src/features/trading/utils/tradingDateUtils.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/features/trading/utils/tradingDateUtils.ts)** & **[frontend/legacy/app/trading-manager-v1/utils/tradingDateUtils.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/legacy/app/trading-manager-v1/utils/tradingDateUtils.ts)**:
+  - Dòng 30-39: Loại bỏ điều kiện `if (vnTime.getUTCDay() !== 1)`, đồng bộ `1:1` với thuật toán `GetTradingDates()` của C#.
+- **[backend/src/scripts/test_stability_and_guards.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_stability_and_guards.js)**:
+  - Cập nhật đường dẫn import sang `../shared/helpers/file-path.helper` và đồng bộ kỳ vọng Test Suite 1 theo đúng Ground Truth C# (`BackupService.cs#L106-L114`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend TypeScript & Build**: `npx tsc -p tsconfig.build.json --noEmit` & `npm run build` (`nest build`) thành công 100% (Exit code 0).
+- **Frontend TypeScript & Build**: `npx tsc --noEmit` & `npm run build` (`next build`) hoàn thành 50/50 routes thành công 100% (Exit code 0).
+
+---
+
 ## [2026-10-30T14:55] REFACTOR(ACM_SFTP_DISABLE_ALIAS_CREATION): Tạm Comment Đoạn Tạo File Alias Straits Để Chuẩn Hóa Đúng 4 File Gốc Khi Backup
 
 ### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
