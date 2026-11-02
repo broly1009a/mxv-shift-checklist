@@ -69,8 +69,8 @@ export class CcpEodWorker implements IBotWorker {
 
       const ignoredCount = res.comparison?.ignoredAccounts?.length || 0;
       const summary = passed
-        ? `Đối chiếu EOD CoreCCP thành công: Khớp 100% trên ${res.totalAccounts} tài khoản, không có tài khoản âm ký quỹ mới (IMR)${ignoredCount > 0 ? ` (đã loại trừ ${ignoredCount} TK âm từ T-2)` : ''}.`
-        : `Đối chiếu EOD CoreCCP có cảnh báo: ${res.mismatchedEOD.length} TK lệch công thức, ${res.negativeIMRAcc.length} TK âm ký quỹ MỚI (IMR)${ignoredCount > 0 ? ` (đã loại trừ ${ignoredCount} TK âm từ T-2)` : ''}.`;
+        ? `Đối chiếu EOD CoreCCP thành công: Khớp 100% trên ${res.totalAccounts} tài khoản, không có tài khoản âm ký quỹ mới (IMR)${ignoredCount > 0 ? ` (đang theo dõi ${ignoredCount} TK âm cũ)` : ''}.`
+        : `Đối chiếu EOD CoreCCP có cảnh báo: ${res.mismatchedEOD.length} TK lệch công thức, ${res.negativeIMRAcc.length} TK âm ký quỹ MỚI (IMR)${ignoredCount > 0 ? ` (đang theo dõi ${ignoredCount} TK âm cũ)` : ''}.`;
 
       let domainLogRefId: string | undefined;
 

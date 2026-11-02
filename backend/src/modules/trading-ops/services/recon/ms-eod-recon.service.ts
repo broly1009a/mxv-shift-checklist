@@ -8,6 +8,9 @@ import { WorkingCalendarService } from '../../../working-calendar/working-calend
 import {
   resolveStoragePathCrossPlatform,
 } from '../../../../shared';
+import {
+  CurrentNegativeAccountDetail,
+} from '../../helpers/negative-margin-sync.helper';
 
 @Injectable()
 export class MsEodReconService {
@@ -240,9 +243,11 @@ export class MsEodReconService {
       eodBalance: number;
       differ: number;
     }>;
+    negativeAccountDetails?: Record<string, CurrentNegativeAccountDetail>;
   }> {
     const negativeBalanceAccs: string[] = [];
     const negativeIMRAcc: string[] = [];
+    const negativeDetailsMap = new Map<string, CurrentNegativeAccountDetail>();
     const mismatchedEOD: Array<{
       system?: 'MS' | 'CCP';
       maTKGD: string;
@@ -303,6 +308,45 @@ export class MsEodReconService {
 
       const eodRes = MarginExcelParser.parseEodMargin(files.eod, { fileName: files.eodName });
       negativeIMRAcc.push(...eodRes.negativeIMRAcc);
+
+      for (const r of qltkgdRes.records) {
+        if (r.soDuTKKQHienTai < 0) {
+          negativeDetailsMap.set(r.maTKGD.toUpperCase(), {
+            account: r.maTKGD,
+            negativeType: 'BALANCE',
+            currentBalance: r.soDuTKKQHienTai,
+            availableMargin: 0,
+            additionalMargin: 0,
+          });
+        }
+      }
+
+      for (const r of eodRes.records) {
+        const accUpper = r.investorCode.toUpperCase();
+        if (r.isNegativeIMR) {
+          if (negativeDetailsMap.has(accUpper)) {
+            const existing = negativeDetailsMap.get(accUpper);
+            existing.negativeType = 'BOTH';
+            existing.availableMargin = r.availableMargin;
+            existing.additionalMargin = r.additionalMargin;
+            existing.initialRequiredMargin = r.initialRequiredMargin;
+          } else {
+            negativeDetailsMap.set(accUpper, {
+              account: r.investorCode,
+              negativeType: 'IMR',
+              currentBalance: 0,
+              availableMargin: r.availableMargin,
+              additionalMargin: r.additionalMargin,
+              initialRequiredMargin: r.initialRequiredMargin,
+            });
+          }
+        } else if (negativeDetailsMap.has(accUpper)) {
+          const existing = negativeDetailsMap.get(accUpper);
+          existing.availableMargin = r.availableMargin;
+          existing.additionalMargin = r.additionalMargin;
+          existing.initialRequiredMargin = r.initialRequiredMargin;
+        }
+      }
 
       const ttttPnlMap = files.tttt ? MarginExcelParser.parseTttt(files.tttt) : new Map();
 
@@ -383,6 +427,7 @@ export class MsEodReconService {
       negativeIMRAcc: Array.from(new Set(negativeIMRAcc)),
       negativeBalanceAccs: Array.from(new Set(negativeBalanceAccs)),
       mismatchedEOD,
+      negativeAccountDetails: Object.fromEntries(negativeDetailsMap),
     };
   }
 }

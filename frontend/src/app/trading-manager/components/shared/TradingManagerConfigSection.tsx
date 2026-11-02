@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+  Eye,
   Sliders,
   Save,
   RefreshCw,
@@ -22,6 +23,7 @@ import toast from 'react-hot-toast';
 import { API_BASE_URL } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { parseWindowsStoragePath } from '@/components/admin/SmartPathInput';
+import NegativeMarginDetailModal from '../modals/NegativeMarginDetailModal';
 
 export interface CcpExchangeRateItem {
   currencyCode: string;
@@ -97,7 +99,14 @@ export default function TradingManagerConfigSection({
   const [pathStatus, setPathStatus] = useState<Record<string, { ok: boolean; msg: string; resolvedPath?: string }>>({});
 
   // Negative Margin Monitored Accounts
-  const [negativeAccounts, setNegativeAccounts] = useState<string[]>([]);
+  const [negativeAccounts, setNegativeAccounts] = useState<any[]>([]);
+  const [showDetailModalMs, setShowDetailModalMs] = useState<boolean>(false);
+
+  // Negative Margin Monitored Accounts (CoreCCP)
+  const [negativeAccountsCcp, setNegativeAccountsCcp] = useState<any[]>([]);
+  const [selectedAccIndexCcp, setSelectedAccIndexCcp] = useState<number | null>(null);
+  const [newAccInputCcp, setNewAccInputCcp] = useState<string>('');
+  const [showDetailModalCcp, setShowDetailModalCcp] = useState<boolean>(false);
   const [selectedAccIndex, setSelectedAccIndex] = useState<number | null>(null);
   const [newAccInput, setNewAccInput] = useState<string>('');
 
@@ -221,9 +230,18 @@ export default function TradingManagerConfigSection({
 
       if (map.negative_margin_monitored_accounts) {
         try {
-          setNegativeAccounts(JSON.parse(map.negative_margin_monitored_accounts));
+          const parsed = JSON.parse(map.negative_margin_monitored_accounts);
+          setNegativeAccounts(Array.isArray(parsed) ? parsed : []);
         } catch {
           setNegativeAccounts([]);
+        }
+      }
+      if (map.negative_margin_monitored_accounts_ccp) {
+        try {
+          const parsed = JSON.parse(map.negative_margin_monitored_accounts_ccp);
+          setNegativeAccountsCcp(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          setNegativeAccountsCcp([]);
         }
       }
       if (map.lme_holiday_replacements) {
@@ -433,6 +451,7 @@ export default function TradingManagerConfigSection({
               ...(ccpRatesMatrix['MYR'] ? [{ key: 'ccp_myr_exchange_rate', value: String(ccpRatesMatrix['MYR'].conversionRate) }] : []),
               ...(ccpRatesMatrix['RMB'] ? [{ key: 'ccp_rmb_exchange_rate', value: String(ccpRatesMatrix['RMB'].conversionRate) }] : []),
               { key: 'bot_backup_path_ccp', value: botBackupPathCcp },
+              { key: 'negative_margin_monitored_accounts_ccp', value: JSON.stringify(negativeAccountsCcp) },
               { key: 'bot_backup_path_ce', value: botBackupPathCe },
               { key: 'bot_backup_path_acm', value: botBackupPathAcm },
               { key: 'bot_ccp_stat_target_root', value: botCcpStatTargetRoot },
@@ -490,12 +509,60 @@ export default function TradingManagerConfigSection({
   const handleAddAccount = () => {
     const acc = newAccInput.trim().toUpperCase();
     if (!acc) return;
-    if (negativeAccounts.includes(acc)) {
+    const exists = negativeAccounts.some((a) => (typeof a === 'string' ? a : a.account) === acc);
+    if (exists) {
       toast.error('Mã tài khoản đã tồn tại trong danh sách');
       return;
     }
-    setNegativeAccounts([...negativeAccounts, acc]);
+    setNegativeAccounts([
+      ...negativeAccounts,
+      {
+        account: acc,
+        negativeType: 'MANUAL',
+        currentBalance: null,
+        availableMargin: null,
+        additionalMargin: null,
+        initialRequiredMargin: null,
+        recordedSessionDate: null,
+        system: 'MS',
+        updatedAt: new Date().toISOString(),
+        note: 'Cán bộ trực nhập tay',
+      },
+    ]);
     setNewAccInput('');
+  };
+
+  const handleAddAccountCcp = () => {
+    const acc = newAccInputCcp.trim().toUpperCase();
+    if (!acc) return;
+    const exists = negativeAccountsCcp.some((a) => (typeof a === 'string' ? a : a.account) === acc);
+    if (exists) {
+      toast.error('Mã tài khoản đã tồn tại trong danh sách CCP');
+      return;
+    }
+    setNegativeAccountsCcp([
+      ...negativeAccountsCcp,
+      {
+        account: acc,
+        negativeType: 'MANUAL',
+        currentBalance: null,
+        availableMargin: null,
+        additionalMargin: null,
+        initialRequiredMargin: null,
+        recordedSessionDate: null,
+        system: 'CCP',
+        updatedAt: new Date().toISOString(),
+        note: 'Cán bộ trực nhập tay',
+      },
+    ]);
+    setNewAccInputCcp('');
+  };
+
+  const handleRemoveAccountCcp = () => {
+    if (selectedAccIndexCcp === null || selectedAccIndexCcp >= negativeAccountsCcp.length) return;
+    const updated = negativeAccountsCcp.filter((_, idx) => idx !== selectedAccIndexCcp);
+    setNegativeAccountsCcp(updated);
+    setSelectedAccIndexCcp(null);
   };
 
   // Remove selected negative account
@@ -1172,7 +1239,110 @@ export default function TradingManagerConfigSection({
         </div>
       )}
 
-      {/* SECTION 2: HAI BẢNG SONG SONG (DANH SÁCH TK ÂM KQ & NGÀY NGHỈ LME) - CHỈ CHO MS-CQG */}
+      {/* SECTION: BẢNG DANH SÁCH TKGD ÂM KQ (CORECCP) */}
+      {isCcpCeScope && (
+        <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #10b981' }}>
+          <div style={{ maxWidth: '640px', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} color="#10b981" />
+                <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Danh sách TKGD âm KQ (CoreCCP)
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  {negativeAccountsCcp.length} tài khoản
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModalCcp(true)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.72rem', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                >
+                  <Eye size={12} color="#10b981" />
+                  <span>Chi tiết</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ListBox hiển thị mã TK CCP */}
+            <div
+              style={{
+                height: '140px',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                backgroundColor: 'var(--bg-input)',
+                overflowY: 'auto',
+                padding: '6px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+                gap: '4px',
+                alignContent: 'start',
+              }}
+            >
+              {negativeAccountsCcp.map((item, idx) => {
+                const accCode = typeof item === 'string' ? item : item?.account || '';
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedAccIndexCcp(selectedAccIndexCcp === idx ? null : idx)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.76rem',
+                      fontFamily: 'monospace',
+                      cursor: 'pointer',
+                      backgroundColor: selectedAccIndexCcp === idx ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                      color: selectedAccIndexCcp === idx ? '#10b981' : 'var(--text-primary)',
+                      fontWeight: selectedAccIndexCcp === idx ? 800 : 500,
+                      border: selectedAccIndexCcp === idx ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent',
+                      userSelect: 'none',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {accCode}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add / Remove Controls CCP */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <input
+                type="text"
+                placeholder="Mã TK CCP mới (vd: 003C...)"
+                value={newAccInputCcp}
+                onChange={(e) => setNewAccInputCcp(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddAccountCcp()}
+                className="form-input"
+                style={{ flex: 1, fontSize: '0.78rem', fontFamily: 'monospace' }}
+              />
+              <button
+                type="button"
+                onClick={handleAddAccountCcp}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Plus size={13} />
+                <span>Thêm</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveAccountCcp}
+                disabled={selectedAccIndexCcp === null}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', color: selectedAccIndexCcp !== null ? '#ef4444' : 'inherit' }}
+              >
+                <Trash2 size={13} />
+                <span>Xóa</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+            {/* SECTION 2: HAI BẢNG SONG SONG (DANH SÁCH TK ÂM KQ & NGÀY NGHỈ LME) - CHỈ CHO MS-CQG */}
       {isMsCqgScope && (
         <div className="glass-panel" style={{ padding: '20px 24px', borderLeft: '4px solid #3b82f6' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
@@ -1185,9 +1355,20 @@ export default function TradingManagerConfigSection({
                   Danh sách TKGD âm KQ
                 </span>
               </div>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                {negativeAccounts.length} tài khoản
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  {negativeAccounts.length} tài khoản
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModalMs(true)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.72rem', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                >
+                  <Eye size={12} color="#ef4444" />
+                  <span>Chi tiết</span>
+                </button>
+              </div>
             </div>
 
             {/* ListBox hiển thị mã TK */}
@@ -1205,27 +1386,30 @@ export default function TradingManagerConfigSection({
                 alignContent: 'start',
               }}
             >
-              {negativeAccounts.map((acc, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedAccIndex(selectedAccIndex === idx ? null : idx)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.76rem',
-                    fontFamily: 'monospace',
-                    cursor: 'pointer',
-                    backgroundColor: selectedAccIndex === idx ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-                    color: selectedAccIndex === idx ? '#ef4444' : 'var(--text-primary)',
-                    fontWeight: selectedAccIndex === idx ? 800 : 500,
-                    border: selectedAccIndex === idx ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid transparent',
-                    userSelect: 'none',
-                    textAlign: 'center',
-                  }}
-                >
-                  {acc}
-                </div>
-              ))}
+              {negativeAccounts.map((item, idx) => {
+                const accCode = typeof item === 'string' ? item : item?.account || '';
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedAccIndex(selectedAccIndex === idx ? null : idx)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.76rem',
+                      fontFamily: 'monospace',
+                      cursor: 'pointer',
+                      backgroundColor: selectedAccIndex === idx ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+                      color: selectedAccIndex === idx ? '#ef4444' : 'var(--text-primary)',
+                      fontWeight: selectedAccIndex === idx ? 800 : 500,
+                      border: selectedAccIndex === idx ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid transparent',
+                      userSelect: 'none',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {accCode}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Add / Remove Controls */}
@@ -1616,6 +1800,30 @@ export default function TradingManagerConfigSection({
           </button>
         </div>
       </div>
+    
+      {/* MODAL CHI TIẾT TK ÂM KQ CHO MS */}
+      <NegativeMarginDetailModal
+        isOpen={showDetailModalMs}
+        onClose={() => setShowDetailModalMs(false)}
+        system="MS"
+        systemTitle="M-System & CQG"
+        accounts={negativeAccounts}
+        onRemoveAccount={(accCode) => {
+          setNegativeAccounts(negativeAccounts.filter((a) => (typeof a === 'string' ? a : a.account) !== accCode));
+        }}
+      />
+
+      {/* MODAL CHI TIẾT TK ÂM KQ CHO CORECCP */}
+      <NegativeMarginDetailModal
+        isOpen={showDetailModalCcp}
+        onClose={() => setShowDetailModalCcp(false)}
+        system="CCP"
+        systemTitle="CoreCCP & VNCLEAR"
+        accounts={negativeAccountsCcp}
+        onRemoveAccount={(accCode) => {
+          setNegativeAccountsCcp(negativeAccountsCcp.filter((a) => (typeof a === 'string' ? a : a.account) !== accCode));
+        }}
+      />
     </div>
   );
 }

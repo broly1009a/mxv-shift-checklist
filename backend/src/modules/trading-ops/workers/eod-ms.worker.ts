@@ -13,6 +13,12 @@ import {
 import type { IReconPipelinePort } from '../../../shared';
 import { RECON_PIPELINE_PORT } from '../../../shared';
 import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
+import {
+  CurrentNegativeAccountDetail,
+  MonitoredNegativeAccount,
+  normalizeMonitoredNegativeAccounts,
+  reconcileNegativeMarginList,
+} from '../helpers/negative-margin-sync.helper';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
@@ -127,40 +133,99 @@ export class EodMsWorker implements IBotWorker {
 
       const checkRes = await this.msEodReconService.checkEOD(files);
 
-      // Lọc tài khoản theo dõi
+            // Xử lý đối soát danh sách âm ký quỹ theo cơ chế đồng bộ CSDL:
+      // 1. Máy tự thêm sau mỗi phiên có TK âm mới
+      // 2. Nếu đã có sẵn trong danh sách -> Thôi không báo động lặp lại
+      // 3. Nếu đã nạp tiền (hết âm) -> Thôi theo dõi, tự động dọn dẹp khỏi CSDL
       const monitoredAccsStr = await this.settingsService.getSetting(
         'negative_margin_monitored_accounts',
         '[]',
       );
-      let monitoredAccounts: string[] = [];
+      let savedMonitoredList: MonitoredNegativeAccount[] = [];
       try {
-        monitoredAccounts = JSON.parse(monitoredAccsStr) || [];
-      } catch {}
-      const monitoredSet = new Set(
-        monitoredAccounts.map((a: string) => String(a || '').trim().toUpperCase()),
-      );
+        savedMonitoredList = normalizeMonitoredNegativeAccounts(JSON.parse(monitoredAccsStr), 'MS');
+      } catch {
+        savedMonitoredList = [];
+      }
 
-      const rawNegIMR = checkRes.negativeIMRAcc || [];
-      const newNegIMR = rawNegIMR.filter(
-        (acc: string) => !monitoredSet.has(String(acc || '').trim().toUpperCase()),
-      );
-      const rawNegBal = checkRes.negativeBalanceAccs || [];
-      const newNegBal = rawNegBal.filter(
-        (acc: string) => !monitoredSet.has(String(acc || '').trim().toUpperCase()),
-      );
+      const currentNegativeMap = new Map<string, CurrentNegativeAccountDetail>();
+      const rawDetails = (checkRes as any).negativeAccountDetails || {};
+      for (const [acc, detail] of Object.entries(rawDetails)) {
+        currentNegativeMap.set(acc.toUpperCase(), detail as any);
+      }
+      for (const acc of checkRes.negativeIMRAcc || []) {
+        const k = acc.toUpperCase();
+        if (!currentNegativeMap.has(k)) {
+          currentNegativeMap.set(k, {
+            account: acc,
+            negativeType: 'IMR',
+            currentBalance: 0,
+            availableMargin: 0,
+            additionalMargin: 0,
+          });
+        }
+      }
+      for (const acc of checkRes.negativeBalanceAccs || []) {
+        const k = acc.toUpperCase();
+        if (!currentNegativeMap.has(k)) {
+          currentNegativeMap.set(k, {
+            account: acc,
+            negativeType: 'BALANCE',
+            currentBalance: 0,
+            availableMargin: 0,
+            additionalMargin: 0,
+          });
+        }
+      }
+
+      const reconSyncRes = reconcileNegativeMarginList({
+        currentNegativeMap,
+        savedAccounts: savedMonitoredList,
+        sessionDateStr: dateStr,
+        systemType: 'MS',
+      });
+
+      if (reconSyncRes.newNegativeAccounts.length > 0 || reconSyncRes.resolvedAccounts.length > 0) {
+        try {
+          await this.settingsService.setSetting(
+            'negative_margin_monitored_accounts',
+            JSON.stringify(reconSyncRes.updatedSavedList),
+          );
+          this.logger.log(
+            `[EodMsWorker] Đã cập nhật CSDL danh sách TK âm MS: +${reconSyncRes.newNegativeAccounts.length} âm mới, -${reconSyncRes.resolvedAccounts.length} đã nạp tiền hết âm.`,
+          );
+        } catch (saveErr: any) {
+          this.logger.warn(`[EodMsWorker] Không thể lưu danh sách âm MS vào CSDL: ${saveErr.message}`);
+        }
+      }
+
       const mismatchedEod = checkRes.mismatchedEOD || [];
-
-      const uniqueNegativeAccounts = Array.from(new Set([...newNegIMR, ...newNegBal]));
+      const rawNegIMR = checkRes.negativeIMRAcc || [];
+      const rawNegBal = checkRes.negativeBalanceAccs || [];
+      const newNegIMR = reconSyncRes.newNegativeAccounts
+        .filter((a) => a.negativeType === 'IMR' || a.negativeType === 'BOTH')
+        .map((a) => a.account);
+      const newNegBal = reconSyncRes.newNegativeAccounts
+        .filter((a) => a.negativeType === 'BALANCE' || a.negativeType === 'BOTH')
+        .map((a) => a.account);
+      const uniqueNegativeAccounts = reconSyncRes.newNegativeAccounts.map((a) => a.account);
       const totalNegativeNew = uniqueNegativeAccounts.length;
       const totalMismatched = mismatchedEod.length;
       const passed = totalNegativeNew === 0 && totalMismatched === 0;
       const status = passed ? 'SUCCESS' : 'WARNING';
 
-      const summary = passed
+      let summary = passed
         ? `Đối chiếu EOD M-System thành công (Phiên T-1: ${day}/${month}/${year}): Tất cả tài khoản khớp số dư hoàn hảo, không có tài khoản âm ký quỹ mới.`
-        : `Đối chiếu EOD M-System có cảnh báo (Phiên T-1: ${day}/${month}/${year}): ${totalNegativeNew} tài khoản âm ký quỹ mới, ${totalMismatched} tài khoản lệch công thức EOD.`;
+        : `Đối chiếu EOD M-System có cảnh báo (Phiên T-1: ${day}/${month}/${year}): ${totalNegativeNew} tài khoản âm ký quỹ MỚI, ${totalMismatched} tài khoản lệch công thức EOD.`;
 
-      if (this.reconLogModel) {
+      if (reconSyncRes.persistentAccounts.length > 0) {
+        summary += ` (Đang theo dõi ${reconSyncRes.persistentAccounts.length} TK âm cũ)`;
+      }
+      if (reconSyncRes.resolvedAccounts.length > 0) {
+        summary += ` (Đã gỡ bỏ ${reconSyncRes.resolvedAccounts.length} TK đã nạp tiền hết âm)`;
+      }
+
+if (this.reconLogModel) {
         try {
           await this.reconLogModel.create({
             reconType: 'EOD_MS',

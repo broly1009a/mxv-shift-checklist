@@ -1,3 +1,52 @@
+## [2026-11-02T10:30] FEATURE(UNIFIED_NEGATIVE_MARGIN_AND_EOD_RECON): Hợp Nhất Cơ Chế Quản Lý Danh Sách TKGD Âm Ký Quỹ Cho Cả M-System & CoreCCP Theo Quy Tắc "3 Thôi" & Bổ Sung Modal Bảng Chi Tiết Tài Chính
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Chỉ đạo nghiệp vụ từ USER**:
+  - *"kết hợp cả hai logic lại để cả hai phân hệ đều dùng chung theo cơ chế này: trên ccp sẽ có Danh sách TKGD âm KQ dành riêng cho CCP mỗi khi check TK Âm ký quỹ mới sẽ thêm vào đây(thay vì check trực tiếp trên T-2) và check trong danh sách này. Tương tự với MS cũng vậy mỗi khi có phát sinh TK âm ký quỹ mới sẽ thêm vào danh sách Danh sách TKGD âm KQ tức của MS và check trong đó."*
+  - *"và đặc biệt sẽ có thêm nút chi tiết ở danh sách TKGD âm KQ của cả CCP và MS để có thể show modal thành bảng chi tiết các TKGD ÂM KQ này ( với các tham số cột cần thiết) còn bên ngoài vẫn hiển thị như cấu hình bình thường"*
+  - Quy tắc vận hành nghiệp vụ chuẩn ("3 Thôi"):
+    1. **Mới phát sinh**: Máy tự động thêm vào danh sách theo dõi CSDL sau mỗi phiên có TK âm mới (kèm chi tiết số dư, ký quỹ khả dụng, ký quỹ bổ sung, loại âm, ngày phiên).
+    2. **Đã có sẵn thì thôi**: Nếu tài khoản đã có sẵn trong danh sách từ các phiên trước và phiên này vẫn âm, cập nhật số liệu mới nhất nhưng giữ nguyên ngày ghi nhận đầu tiên.
+    3. **Đã nạp tiền thì thôi (Tự động dọn dẹp)**: Khi khách hàng đã nộp tiền và không còn âm trong phiên hôm nay, bot tự động gỡ bỏ tài khoản khỏi danh sách theo dõi.
+  - Loại bỏ hoàn toàn sự phụ thuộc tải và đọc file T-2 của CoreCCP (giúp bot chạy siêu tốc, độc lập và ổn định).
+
+### 2. Danh sách file chỉnh sửa & tạo mới
+- **Backend (Tạo mới & Nâng cấp)**:
+  - **[backend/src/modules/trading-ops/helpers/negative-margin-sync.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/helpers/negative-margin-sync.helper.ts)**:
+    - Tạo mới helper chuẩn hóa cấu trúc dữ liệu (`MonitoredNegativeAccount`, `CurrentNegativeAccountDetail`).
+    - Tuân thủ nguyên tắc Zero Fabricated Data: Khi tài khoản chưa qua phiên quét EOD hoặc nhập tay, các trường số dư, ký quỹ và ngày phiên bắt buộc để null (N/A), tuyệt đối không tự bịa số 0 hay new Date().
+  - **[backend/src/scripts/migrate_negative_accounts_schema.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/migrate_negative_accounts_schema.js)**:
+    - Script migration 1 lần duy nhất trong CSDL, quét và chuẩn hóa triệt để các mảng string ["088C..."] sang Schema Object chuẩn với các trường số dư null, tránh nợ kỹ thuật và bệnh polymorphic schema.
+    - Cung cấp hàm `reconcileNegativeMarginList` thực thi chuẩn xác quy tắc "3 Thôi".
+  - **[backend/src/modules/trading-ops/services/recon/ms-eod-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ms-eod-recon.service.ts)**:
+    - Bổ sung trích xuất dữ liệu tài chính chi tiết của các tài khoản âm từ `qltkgdRes.records` và `eodRes.records` vào `negativeAccountDetails`.
+  - **[backend/src/modules/trading-ops/workers/eod-ms.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/eod-ms.worker.ts)**:
+    - Tích hợp `reconcileNegativeMarginList` lưu vào cấu hình `negative_margin_monitored_accounts`.
+    - Ghi log chi tiết số lượng tài khoản mới thêm và tài khoản đã nộp tiền được gỡ bỏ.
+  - **[backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts)**:
+    - Cắt bỏ hoàn toàn tác vụ tải và quét file T-2 (`T-2 EOD_CCP`), chuyển sang đối chiếu theo danh sách theo dõi CSDL `negative_margin_monitored_accounts_ccp`.
+    - Trích xuất chi tiết số liệu ký quỹ CCP (`IMR`, `VM`, `CashBalance`) vào `negativeAccountDetails`.
+  - **[backend/src/modules/trading-ops/workers/ccp-eod.worker.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/ccp-eod.worker.ts)**:
+    - Cập nhật log worker phản ánh trạng thái đối soát theo danh sách CSDL thay vì T-2.
+- **Frontend (Tạo mới & Nâng cấp)**:
+  - **[frontend/src/app/trading-manager/components/modals/NegativeMarginDetailModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/modals/NegativeMarginDetailModal.tsx)**:
+    - Tạo mới Modal chi tiết tài chính với layout Enterprise, hỗ trợ tìm kiếm, lọc theo loại vi phạm, sắp xếp đa cột, thẻ thống kê tổng quan (Tổng số TK, Âm IMR, Âm số dư, Tổng ký quỹ bổ sung) và xuất báo cáo CSV.
+    - Tuân thủ 100% quy tắc Zero Unicode Emojis (dùng hoàn toàn `lucide-react`).
+  - **[frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx)**:
+    - Thêm state `negativeAccountsCcp` và cơ chế lưu cấu hình `negative_margin_monitored_accounts_ccp`.
+    - Bổ sung nút "Chi tiết" (`Eye` icon) trên cả widget MS-CQG và tab CoreCCP / C-E.
+    - Nhúng modal `NegativeMarginDetailModal` phục vụ tra cứu số liệu đa chiều.
+- **Tài liệu & Đặc tả Kiến trúc**:
+  - **[backend/docs/KHAO_SAT_LOGIC_CHECK_EOD_VA_AM_KY_QUY_MS_CCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/docs/KHAO_SAT_LOGIC_CHECK_EOD_VA_AM_KY_QUY_MS_CCP.md)**: Khảo sát hiện trạng và đối chiếu logic cũ.
+  - **[backend/docs/THIET_KE_CHI_TIET_LOGIC_MOI_AM_KY_QUY_MS_CCP.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/docs/THIET_KE_CHI_TIET_LOGIC_MOI_AM_KY_QUY_MS_CCP.md)**: Bản thiết kế chi tiết luồng xử lý và đặc tả kỹ thuật.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm.cmd run build` (`nest build`) thành công 100% (Exit code 0).
+- **Backend Unit Test Helper**: Chạy kịch bản tự động kiểm thử 4 trường hợp của quy tắc "3 Thôi" $\rightarrow$ Thêm mới đúng, gỡ bỏ tài khoản đã nộp tiền đúng, giữ nguyên tài khoản cũ đúng.
+- **Frontend Build**: `npm.cmd run build` (`next build`) hoàn thành toàn bộ 50/50 routes tối ưu tĩnh/động thành công 100% (Exit code 0).
+
+---
+
 ## [2026-11-02T09:30] FIX(SCHEDULER_DOUBLE_TZ & TRADING_DATE_ROLLBACK): Khắc Phục Triệt Để Lỗi Cộng Trùng Múi Giờ +14h Trong Scheduler & Đồng Bộ 1:1 Thuật Toán Lùi Ngày Phiên Theo Ground Truth C# (BackupService.cs)
 
 ### 1. Mục tiêu thay đổi & Yêu cầu từ USER
