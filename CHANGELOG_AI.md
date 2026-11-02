@@ -1,3 +1,114 @@
+## [2026-11-02T11:45] FIX(AUTH): Tự Động Làm Mới Token M-System Khi Bị 401 & Tích Hợp Mutex Chống Xung Đột Hàng Đợi
+
+### 1. Mục tiêu thay đổi & Phản ánh từ USER
+- **Phản ánh từ USER**:
+  > *"M-System API returned HTTP 401: {"status":"error","errMsg":"Invalid accessToken."} đang bị lỗi này tôi tưởng có cơ chế đăng nhập lấy token rồi cơ mà làm sao thêm được mà không ảnh hưởng tới job hàng đợi nếu có ms"*
+  > *"à chỉ cần thêm Tag MS vào là được đúng không"*
+- **Nguyên nhân kỹ thuật**:
+  - `MsApiAdapter.getValidToken()` lưu cache phiên vào file `temp/ms_session.json` dựa trên hạn JWT. Khi M-System hủy session trên máy chủ trước hạn, file cache vẫn trả về token cũ.
+  - Trong hàm `getActivities` ([ms-activities-manual.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/services/ms-activities-manual.service.ts)), hệ thống chưa bắt mã `HTTP 401` để tự động kích hoạt `getValidToken(true)` làm mới phiên mà ném thẳng lỗi ra UI.
+- **Hành động thực hiện**:
+  1. **Tự động bắt lỗi 401 & Refresh Token trong `getActivities`**: Khi API M-System từ chối token (`HTTP 401: Invalid accessToken`), tự động gọi `this.msApiAdapter.getValidToken(true)` để thực hiện đăng nhập 2 bước (Password + PIN), ghi đè file cache `ms_session.json` và retry lại request ngay lập tức.
+  2. **Bảo vệ hàng đợi & chống xung đột session (`activeLoginPromise` Mutex)**: Trong [ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts), bổ sung cơ chế khóa Promise đơn (`activeLoginPromise`). Nếu nhiều request hoặc job bot cùng lúc yêu cầu làm mới token, hệ thống chỉ gửi duy nhất 1 lượt đăng nhập lên M-System và chia sẻ token mới cho tất cả, tuyệt đối không gây xung đột session hay ảnh hưởng tới các Job bot thuộc Phân hệ `MS`.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/ingress/services/ms-activities-manual.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/services/ms-activities-manual.service.ts)**:
+   - Thêm khối xử lý tự động `if (res.status === 401)` để force refresh token và retry request.
+2. **[backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)**:
+   - Bổ sung biến `activeLoginPromise` đóng vai trò Mutex deduplication, đảm bảo an toàn tuyệt đối khi đăng nhập đồng thời.
+
+### 3. Xác nhận Build & Triển khai
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors).
+- **Ubuntu 10.0.0.26 Deployment**: Đồng bộ file và restart PM2 `mxv-backend` thành công (`PID 3842113`, Mem `274MB`, Uptime ổn định).
+
+---
+
+## [2026-11-02T11:34] STYLE(UI): Chuẩn Hóa Toàn Diện Giao Diện Trang Nhật Ký MS (NKTTHT) Theo Hệ Thống CSS MXV & `globals.css`
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Yêu cầu từ USER**: "giúp tôi styles lại theo css của hệ thống" kèm ảnh chụp màn hình thực tế `media_1793593571106_4e180fd4.png`.
+- **Vấn đề nhận diện**:
+  - Giao diện trước đó sử dụng các class Tailwind thô (`bg-slate-50`, `border-slate-200`, `min-h-screen`, `p-6`) bị xung đột với `GlobalLayout` và các biến CSS của hệ thống (`globals.css`), khiến màu sắc bị lệch, các nút bấm bị co rúm, bảng không ăn khớp với Theme chung (Dark/Light Mode).
+- **Hành động thực hiện**:
+  - Tái cấu trúc toàn bộ [page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/tools/ms-activities/page.tsx) theo chuẩn thiết kế đồng nhất của `trading-manager`:
+    - Sử dụng các CSS Design Tokens từ [globals.css](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/globals.css): `var(--text-primary)`, `var(--text-secondary)`, `var(--text-muted)`, `var(--border-color)`, `var(--bg-input)`, `var(--bg-card)`.
+    - Sử dụng class `.glass-panel` cho toolbar bộ lọc và bảng dữ liệu, tương thích 100% cả chế độ Sáng và Tối.
+    - Căn chỉnh nút hành động ("Tải File Excel", "Lưu vào Backup Ca Trực", nút Thu phóng/Fullscreen, nút Quay lại) với khoảng cách và typography chuẩn xác, không bị dính chữ hay co cụm.
+    - Bảng dữ liệu có Header cố định (`sticky top-0`) với hiệu ứng `backdrop-filter`, phân trang mượt mà, chiều cao bảng thoáng rộng (`maxHeight: calc(100vh - 310px)`).
+
+### 2. Danh sách file chỉnh sửa
+1. **[frontend/src/app/trading-manager/tools/ms-activities/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/tools/ms-activities/page.tsx)**:
+   - Thay thế toàn bộ style Tailwind hardcoded bằng hệ thống Design Tokens và Glassmorphism chuẩn MXV.
+
+### 3. Xác nhận Build & Triển khai
+- **Frontend Local Build**: `npm run build` (`next build`) $\rightarrow$ Pass 100% (0 errors).
+- **Ubuntu 10.0.0.26 Deployment**: Đồng bộ file, chạy `next build` và restart PM2 `mxv-frontend` thành công (`PID 3839222`, HTTP 200 OK).
+
+---
+
+## [2026-11-02T11:28] FIX(INGRESS): Gỡ Bỏ Hoàn Toàn Fallback Tự Động Trong `ms-api.adapter.ts`, Tuân Thủ Nghiêm Ngặt Nguyên Tắc Fail-Fast & Xử Lý Lỗi 502
+
+### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
+- **Chỉ đạo dứt khoát từ USER**:
+  > *"không fallback lỗi thì trả về lỗi tuyệt đối không fallback làm sai lệch gây nhầm lẫn"*
+  > *"502 Bad Gateway đang bị lỗi rồi 10.0.0.26"*
+- **Hành động thực hiện**:
+  1. **Khôi phục nguyên trạng `ms-api.adapter.ts`**: Gỡ bỏ 100% logic fallback tự động và dependency inject `MsActivitiesManualService` trong `ms-api.adapter.ts`. Khi M-System trả về HTTP 500, Bot Engine sẽ báo lỗi trung thực (Fail-Fast), tuyệt đối không tự ý sinh file thay thế gây sai lệch hoặc nhầm lẫn trong ca trực.
+  2. **Giải quyết triệt để lỗi 502 Bad Gateway**: Trước đó, việc inject vòng giữa `MsApiAdapter` và `MsActivitiesManualService` gây ra crash-loop lúc khởi động NestJS Backend (`Nest encountered an undefined dependency`). Sau khi gỡ bỏ dependency này, Backend khởi động ổn định 100% và Nginx hết lỗi 502.
+  3. **Cô lập tính năng mới**: Màn hình và API Nhật ký thao tác hệ thống (`/trading-manager/tools/ms-activities`) hoạt động hoàn toàn độc lập dưới dạng công cụ thủ công cho người dùng, không can thiệp hay ảnh hưởng vào bất kỳ luồng chạy tự động nào của Bot.
+
+### 2. Danh sách file chỉnh sửa
+1. **[backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)**:
+   - Gỡ bỏ import và inject `MsActivitiesManualService`.
+   - Gỡ bỏ toàn bộ khối code fallback trong `downloadSingleReport`. Khi `!res.ok`, trực tiếp ném lỗi HTTP thực tế từ M-System.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors).
+- **Trạng thái Ubuntu (`10.0.0.26`)**:
+  - `mxv-backend`: Online (PID `3837432`, Mem `280MB`, uptime ổn định, HTTP 401 trên `/api/v1/users`).
+  - `mxv-frontend`: Online (PID `3828322`, HTTP 200 trên `/login`).
+  - Nginx 502 Bad Gateway đã được giải quyết triệt để.
+
+---
+
+## [2026-11-02T11:15] FEATURE: Xây Dựng API & Màn Hình Riêng Cho Nhật Ký Thao Tác Hệ Thống (NKTTHT) Khắc Phục Lỗi Export M-System
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Phản ánh từ USER**: M-System đang bị lỗi tính năng xuất Excel `/approval/admin/activities/excel` (HTTP 500: `{"status":"error","errMsg":"The Internal Error."}`).
+- **Yêu cầu từ USER**:
+  - Xây dựng 1 đầu API riêng và 1 màn hình riêng với giao diện tương tự M-System theo curl thực tế `https://msapi.mxv.com.vn/approval/admin/activities?sort_by=desc(datetime)&sessionDate[gte]=...&sessionDate[lte]=...`.
+  - Hiển thị và xuất file Excel có đầy đủ các cột: **`STT | Người thực hiện | Thao tác | Mô tả | Thời gian thực hiện | Ghi chú`** (bổ sung cột `Mô tả` và `Ghi chú / IP` mà Web M-System đang bị thiếu).
+  - Tải dữ liệu trực tiếp từ REST query phân trang để chuyển thành file Excel `NKTTHT.xlsx` đầy đủ chuẩn Ground Truth, khắc phục việc phụ thuộc vào tính năng export bị hỏng của M-System.
+
+### 2. Danh sách file đã chỉnh sửa & tạo mới
+1. **[backend/src/modules/ingress/services/ms-activities-manual.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/services/ms-activities-manual.service.ts)** (Tạo mới):
+   - Chuyển đổi khoảng ngày sang Epoch Milliseconds múi giờ VN (UTC+7) cho `sessionDate[gte]` và `sessionDate[lte]`.
+   - Hàm `getActivities`: Truy vấn phân trang `/approval/admin/activities` trả về danh sách hoạt động.
+   - Hàm `exportActivitiesToExcel`: Kéo phân trang tuần tự toàn bộ dữ liệu trong khoảng ngày, sinh file Excel `NKTTHT.xlsx` chuẩn styling MXV với đầy đủ 6 cột (`STT, Người thực hiện, Thao tác, Mô tả, Thời gian, Ghi chú`).
+   - Tùy chọn lưu đồng thời vào thư mục Backup M-System `/mnt/qlgd-it/.../Backup MS/Futures/YYYY/TMM.YYYY/DD.MM/NKTTHT.xlsx` để ca trực ghi nhận hoàn thành.
+2. **[backend/src/modules/ingress/controllers/ms-activities-manual.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ms-activities-manual.controller.ts)** (Tạo mới):
+   - Endpoint `GET /api/v1/ingress/ms-activities`: Trả JSON phân trang.
+   - Endpoint `GET /api/v1/ingress/ms-activities/export-excel`: Stream file Excel `NKTTHT.xlsx` về trình duyệt.
+   - Endpoint `POST /api/v1/ingress/ms-activities/sync-to-backup`: Lưu file trực tiếp vào thư mục ca trực.
+3. **[backend/src/modules/ingress/ingress.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/ingress.module.ts)**:
+   - Đăng ký `MsActivitiesManualController` và `MsActivitiesManualService`.
+4. **[backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)**:
+   - Tích hợp cơ chế Fallback tự động: Khi tải `NKTTHT` mà M-System trả về HTTP 500, tự động chuyển sang kéo dữ liệu qua `MsActivitiesManualService` để sinh file `NKTTHT.xlsx`, giúp cho Job bot chạy ngầm không bị fail cả ca trực.
+5. **[frontend/src/app/trading-manager/tools/ms-activities/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/tools/ms-activities/page.tsx)** (Tạo mới):
+   - Màn hình giao diện chuẩn M-System: Chọn khoảng ngày Từ ngày $\rightarrow$ Đến ngày, ô tìm kiếm nhanh.
+   - Nút "Tải File Excel (Đầy đủ)" và nút "Lưu vào Backup Ca Trực".
+   - Bảng hiển thị đầy đủ 6 cột kèm phân trang `X to Y of Z` chuyên nghiệp.
+6. **[frontend/src/services/api/endpoints.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/endpoints.ts)** & **[frontend/src/services/api/ingress.api.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/services/api/ingress.api.ts)**:
+   - Khai báo các API client methods cho `ms-activities`.
+7. **[frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx)**:
+   - Bổ sung menu "Nhật ký MS (NKTTHT)" dưới nhóm Backup dẫn tới `/trading-manager/tools/ms-activities`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Pass 100% (0 errors).
+- **Frontend Build**: `npm run build` (`next build`) $\rightarrow$ Pass 100% (0 errors, route `/trading-manager/tools/ms-activities` prerendered thành công).
+
+---
+
 ## [2026-10-30T18:45] CHORE(SESSION_OPEN_UI): Tạm Thời Ẩn Mục "Kết Quả Đồng Bộ Số Dư CQG" Khỏi Giao Diện Nghiệp Vụ Đầu Phiên
 
 ### 1. Mục tiêu thay đổi & Yêu cầu từ USER
@@ -7664,9 +7775,11 @@
   1. [value-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/statistics/value-statistics.service.ts):
      - Xóa bỏ fallback mặc định 25400, 5400, 165, 3500 khi settingsService chưa sẵn sàng hoặc không tìm thấy tỷ giá trong CSDL.
      - Hàm getRate: Nếu không tìm thấy tỷ giá hợp lệ từ 3 nguồn (matrix, CCP single, MS single) $\rightarrow$ 	hrow new Error(...) để báo lỗi cấu hình trực quan thay vì âm thầm tính toán theo số giả định 25400.
-     - Thêm hàm equireRate: Bắt buộc tỷ giá ngoại tệ USD, JPY, MYR, RMB phải tồn tại và > 10, nếu không thì ném lỗi dừng job.
+     - Thêm hàm 
+equireRate: Bắt buộc tỷ giá ngoại tệ USD, JPY, MYR, RMB phải tồn tại và > 10, nếu không thì ném lỗi dừng job.
   2. [news-gtgd-export.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/console/news-gtgd-export.service.ts):
-     - Xóa bỏ ternary fallback ates.usdGain && rates.usdGain > 10 ? rates.usdGain : 25400, jpyGain : 165, myrGain : 5400.
+     - Xóa bỏ ternary fallback 
+ates.usdGain && rates.usdGain > 10 ? rates.usdGain : 25400, jpyGain : 165, myrGain : 5400.
      - Sử dụng trực tiếp tỷ giá thực tế từ alueStatisticsService.getCurrentExchangeRates().
   3. [ccp-recon.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/ccp-recon.controller.ts):
      - Xóa bỏ tất cả các fallback '25400' trong getSetting('usd_exchange_rate', '').
@@ -7689,3 +7802,21 @@ ext build) $\rightarrow$ Exit Code 0 (Hoàn thành 100% 51 static & dynamic page
 - **Lưu ý hành vi**: Hai nơi gọi trong recon-console-summary.service.ts đã có try/catch quanh getExchangeRates() nên khi lỗi sẽ chuyển sang nhánh Playwright như cũ.
 - **Build**: 
 pm run build backend Exit Code 0. Frontend không đổi trong lượt này.
+
+## [2026-10-30T20:08] FEAT(CQG_SYNC_UI): Mở Rộng Bảng Số Dư, Ẩn Giá Trị \ Của MS (Để Trắng Chuẩn C#), Bổ Sung Bộ Lọc & Tìm Kiếm TKGD
+- **Mục tiêu**: USER yêu cầu:
+  1. Giao diện bảng rộng thoáng hơn thay vì bị gò bó 160px.
+  2. Cột Balance MS nếu tài khoản không có trên MS (inMS === false) thì để trắng hoàn toàn thay vì hiển thị \ (chuẩn 100% C# dòng 663 
+esult.Add(new[] { maTKGD, "", balanceValue })).
+  3. Bổ sung bộ lọc trạng thái tài khoản trên MS (Tất cả / Lệch cả 2 bên / Chỉ có trên CQG) kèm badge đếm số lượng và ô tìm kiếm mã TKGD nhanh.
+- **File chỉnh sửa**:
+  - [LegacyCqgSyncSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyCqgSyncSection.tsx):
+    - Tăng chiều cao vùng bảng từ 160px lên minHeight: 520px, maxHeight: calc(100vh - 280px), tăng padding ô thành 12px 20px.
+    - Cột Balance MS: {hasMS ? $\{fmt(item.calculatedBalance ?? item.balanceMS ?? 0)} : ''} $\rightarrow$ Hiện trắng hoàn toàn khi thiếu trên MS.
+    - Cột TKGD: Gắn tag badge đỏ nhỏ Không có trên MS cho các tài khoản chỉ xuất hiện phía CQG để phân biệt trực quan.
+    - Thêm Toolbar lọc: Nút Tất cả (), Lệch cả 2 bên (Có trên MS) (), Chỉ có CQG (Không có trên MS) ().
+    - Thêm Input tìm kiếm mã TKGD theo thời gian thực (realtime filter).
+- **Build & Deploy**:
+  - Local 
+ext build: Exit Code 0 (51 pages pass 100%).
+  - Tự động deploy lên Server Ubuntu 10.0.0.26 và restart PM2 mxv-frontend.

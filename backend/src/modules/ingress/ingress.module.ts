@@ -28,6 +28,8 @@ import { EmailWatcherService } from './services/email-watcher.service';
 import { IngressDownloadController } from './controllers/ingress-download.controller';
 import { IngressConfigController } from './controllers/ingress-config.controller';
 import { AgentController } from './controllers/ingress-agent.controller';
+import { MsActivitiesManualController } from './controllers/ms-activities-manual.controller';
+import { MsActivitiesManualService } from './services/ms-activities-manual.service';
 
 // Handlers
 import { RpaDownloadJobHandler } from './handlers/rpa-download.handler';
@@ -49,6 +51,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     IngressDownloadController,
     IngressConfigController,
     AgentController,
+    MsActivitiesManualController,
   ],
   providers: [
     // Playwright Scrapers
@@ -66,6 +69,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     AcmSftpAdapter,
     AcmEtpAdapter,
     MsApiAdapter,
+    MsActivitiesManualService,
     // Facade Service & Pipelines
     IngressService,
     ReconIngressPipelineService,
@@ -95,6 +99,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     AcmSftpAdapter,
     AcmEtpAdapter,
     MsApiAdapter,
+    MsActivitiesManualService,
     FileAuditJobHandler,
   ],
 })

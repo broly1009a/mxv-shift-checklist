@@ -492,6 +492,12 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   label: 'Backup CCP – CE',
                   icon: <Layers size={15} style={{ flexShrink: 0 }} />,
                   active: pathname === '/trading-manager/backup/ccp-ce'
+                },
+                {
+                  href: '/trading-manager/tools/ms-activities',
+                  label: 'Nhật ký MS (NKTTHT)',
+                  icon: <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />,
+                  active: pathname === '/trading-manager/tools/ms-activities'
                 }
               ])}
               onMouseLeave={handleItemMouseLeave}
@@ -556,6 +562,19 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                   >
                     <Layers size={15} style={{ flexShrink: 0 }} />
                     <span>Backup CCP – CE</span>
+                  </Link>
+
+                  <Link
+                    href="/trading-manager/tools/ms-activities"
+                    onClick={onClose}
+                    className={`nav-link ${pathname === '/trading-manager/tools/ms-activities' ? 'active' : ''}`}
+                    style={{
+                      paddingLeft: '10px',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />
+                    <span>Nhật ký MS (NKTTHT)</span>
                   </Link>
                 </div>
               )}
