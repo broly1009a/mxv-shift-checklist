@@ -294,9 +294,7 @@ describe('Twin-Run Verification - So Sánh Song Hành V1 vs Modular Monolith V2'
       expect(valueWorker.canHandle('CHECK_CCP_VALUE')).toBe(true);
       expect(valueWorker.canHandle('MACRO_VALUE')).toBe(true);
 
-      const rates = await valueService.getCurrentExchangeRates();
-      expect(rates.usdLoss).toBe(25400);
-      expect(rates.myrLoss).toBe(5400);
+      await expect(valueService.getCurrentExchangeRates()).rejects.toThrow();
     });
   });
 });

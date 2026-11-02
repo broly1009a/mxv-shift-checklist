@@ -52,8 +52,6 @@ export default function TradingManagerConfigSection({
   const isCcpCeScope = (filterScope === 'ALL' && activeScopeTab === 'CCP_CE') || filterScope === 'CCP_CE' || filterScope === 'OMS';
 
   // Exchange rates - M-System (MXV) - Nạp 100% từ Database MongoDB hoặc Đồng bộ từ M-System
-  const [usdSettlementRateSell, setUsdSettlementRateSell] = useState<number>(0);
-  const [usdSettlementRateBuy, setUsdSettlementRateBuy] = useState<number>(0);
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(0);
   const [currencyUnit, setCurrencyUnit] = useState<string>('USD/VND');
   const [msConversionRates, setMsConversionRates] = useState<Record<string, number>>({});
@@ -134,15 +132,11 @@ export default function TradingManagerConfigSection({
         return parsed?.suggestedPath || p;
       };
 
-      const sellRate = Number(map.usd_settlement_rate_sell || map.usd_exchange_rate || 0);
-      const buyRate = Number(map.usd_settlement_rate_buy || map.usd_exchange_rate || 0);
       const usdConv = Number(map.usd_exchange_rate || 0);
       const jpyConv = Number(map.jpy_exchange_rate || 0);
       const myrConv = Number(map.myr_exchange_rate || 0);
       const rmbConv = Number(map.rmb_exchange_rate || 0);
 
-      setUsdSettlementRateSell(sellRate);
-      setUsdSettlementRateBuy(buyRate);
       setUsdExchangeRate(usdConv);
       setMsConversionRates({
         USD: usdConv,
@@ -154,7 +148,7 @@ export default function TradingManagerConfigSection({
       setMsRateSource(map.ms_rate_source || map.exchange_rate_source || '');
 
       let initialMsPayments: Record<string, { buy: number; sell: number }> = {
-        'USD/VND': { buy: buyRate > 0 ? buyRate : usdConv, sell: sellRate > 0 ? sellRate : usdConv },
+        'USD/VND': { buy: usdConv, sell: usdConv },
         'JPY/VND': { buy: jpyConv, sell: jpyConv },
         'MYR/VND': { buy: myrConv, sell: myrConv },
         'RMB/VND': { buy: rmbConv, sell: rmbConv },
@@ -167,7 +161,6 @@ export default function TradingManagerConfigSection({
             initialMsPayments = {
               ...initialMsPayments,
               ...parsedMsRates,
-              ...(buyRate > 0 || sellRate > 0 ? { 'USD/VND': parsedMsRates['USD/VND'] || { buy: buyRate, sell: sellRate } } : {}),
             };
           }
         } catch {
@@ -281,10 +274,6 @@ export default function TradingManagerConfigSection({
 
         if (data.paymentRates && Object.keys(data.paymentRates).length > 0) {
           setMsPaymentRates((prev) => ({ ...prev, ...data.paymentRates }));
-          if (data.paymentRates['USD/VND']) {
-            setUsdSettlementRateBuy(data.paymentRates['USD/VND'].buy);
-            setUsdSettlementRateSell(data.paymentRates['USD/VND'].sell);
-          }
         }
         const nowIso = new Date().toISOString();
         setMsRatesLastSynced(data.lastSynced || nowIso);
@@ -413,8 +402,6 @@ export default function TradingManagerConfigSection({
       const settingsToSave: Array<{ key: string; value: string }> = [
         ...(filterScope !== 'OMS' && filterScope !== 'CCP_CE'
           ? [
-              { key: 'usd_settlement_rate_sell', value: String(msPaymentRates['USD/VND']?.sell ?? usdSettlementRateSell) },
-              { key: 'usd_settlement_rate_buy', value: String(msPaymentRates['USD/VND']?.buy ?? usdSettlementRateBuy) },
               { key: 'ms_payment_rates', value: JSON.stringify(msPaymentRates) },
               { key: 'usd_exchange_rate', value: String(msConversionRates['USD'] ?? usdExchangeRate) },
               { key: 'jpy_exchange_rate', value: String(msConversionRates['JPY'] ?? 0) },
@@ -791,7 +778,6 @@ export default function TradingManagerConfigSection({
                                   ...prev,
                                   [pair]: { buy: val, sell: prev[pair]?.sell ?? val },
                                 }));
-                                if (pair === 'USD/VND') setUsdSettlementRateBuy(val);
                               }}
                               className="form-input"
                               style={{ width: '130px', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 600, textAlign: 'right', display: 'inline-block' }}
@@ -807,7 +793,6 @@ export default function TradingManagerConfigSection({
                                   ...prev,
                                   [pair]: { buy: prev[pair]?.buy ?? val, sell: val },
                                 }));
-                                if (pair === 'USD/VND') setUsdSettlementRateSell(val);
                               }}
                               className="form-input"
                               style={{ width: '130px', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 600, textAlign: 'right', display: 'inline-block' }}

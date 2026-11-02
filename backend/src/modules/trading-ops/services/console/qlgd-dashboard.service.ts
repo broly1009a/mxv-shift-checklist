@@ -7,6 +7,7 @@
  * Chuẩn Clean Architecture & Domain-Driven Design (DDD).
  */
 
+import { getMsConversionRate } from '../../helpers/ms-exchange-rate.helper';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -652,10 +653,7 @@ export class QlgdDashboardService {
     let lmeLot = 0;
     let optionsLot = 0;
 
-    const rawUsdRate = (await this.settingsService.getSetting('usd_exchange_rate', '')) ||
-                       (await this.settingsService.getSetting('ccp_usd_exchange_rate', ''));
-    const parsedUsdRate = parseFloat(String(rawUsdRate).replace(/,/g, ''));
-    const effectiveUsdRate = Number.isFinite(parsedUsdRate) && parsedUsdRate > 0 ? parsedUsdRate : 0;
+    const effectiveUsdRate = await getMsConversionRate(this.settingsService, 'USD');
 
     for (const trade of filteredTrades) {
       const isAccountAcm = isAcm(trade.account);

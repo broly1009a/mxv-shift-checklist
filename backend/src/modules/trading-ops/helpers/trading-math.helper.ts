@@ -104,19 +104,17 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
     const timeBits = timePart.split(':');
     const hours = Number(timeBits[0]) || 0;
     const minutes = Number(timeBits[1]) || 0;
-    const secondsVal = parseFloat(timeBits[2] || '0') || 0;
-    const seconds = Math.floor(secondsVal);
-    const ms = Math.round((secondsVal - seconds) * 1000);
+    // Bỏ mili-giây, giống C# TransactionCheckingService.cs#L140 (TimeSpan.FromSeconds((int)TotalSeconds))
+    const seconds = Math.floor(parseFloat(timeBits[2] || '0') || 0);
 
-    return new Date(year, month - 1, day, hours, minutes, seconds, ms);
+    return new Date(year, month - 1, day, hours, minutes, seconds);
   } else {
     const timeBits = timeStr.split(':');
     if (timeBits.length < 2) return null;
     const hours = Number(timeBits[0]) || 0;
     const minutes = Number(timeBits[1]) || 0;
-    const secondsVal = parseFloat(timeBits[2] || '0') || 0;
-    const seconds = Math.floor(secondsVal);
-    const ms = Math.round((secondsVal - seconds) * 1000);
+    // Bỏ mili-giây, giống C# TransactionCheckingService.cs#L140 (TimeSpan.FromSeconds((int)TotalSeconds))
+    const seconds = Math.floor(parseFloat(timeBits[2] || '0') || 0);
 
     const result = new Date(defaultDate);
     const todayMidnight = new Date();
@@ -127,7 +125,7 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
     if (defMidnight.getTime() < todayMidnight.getTime() && hours < 6) {
       result.setDate(result.getDate() + 1);
     }
-    result.setHours(hours, minutes, seconds, ms);
+    result.setHours(hours, minutes, seconds, 0);
     return result;
   }
 }
@@ -193,11 +191,10 @@ export function parseTradeDateTime(dateTimeStr: string, defaultDate?: Date): Dat
   const timeBits = (parts.length === 1 && str.includes(':') ? str : timePart).split(':');
   const hr = Number(timeBits[0]) || 0;
   const min = Number(timeBits[1]) || 0;
-  const secVal = parseFloat(timeBits[2] || '0') || 0;
-  const sec = Math.floor(secVal);
-  const ms = Math.round((secVal - sec) * 1000);
+  // Bỏ mili-giây, giống C# TransactionCheckingService.cs#L140 (TimeSpan.FromSeconds((int)TotalSeconds))
+  const sec = Math.floor(parseFloat(timeBits[2] || '0') || 0);
 
-  const result = new Date(year, month - 1, day, hr, min, sec, ms);
+  const result = new Date(year, month - 1, day, hr, min, sec);
   if (parts.length === 1 && str.includes(':') && defaultDate && hr < 6) {
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);

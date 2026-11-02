@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   CheckCircle,
   Clock,
   Loader2,
   Info,
+  AlertTriangle,
+  Search,
+  Filter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api';
@@ -23,6 +26,8 @@ export default function LegacyCqgSyncSection({
   const [triggering, setTriggering] = useState<boolean>(false);
   const [cqgSyncData, setCqgSyncData] = useState<any>(null);
   const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [filterMode, setFilterMode] = useState<'ALL' | 'BOTH' | 'ONLY_CQG'>('ALL');
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
 
   const fetchCqgSyncData = useCallback(
     async (silent: boolean = false) => {
@@ -30,7 +35,7 @@ export default function LegacyCqgSyncSection({
       if (!silent) setLoading(true);
       try {
         const data = await api.tradingOps.getConsoleSummary(selectedDate, undefined, token);
-        setCqgSyncData(data?.cqgSync || (data as any)?.dsgdBeforeEod || null);
+        setCqgSyncData(data?.cqgSync || null);
       } catch (err: any) {
         console.error('Lỗi nạp dữ liệu đồng bộ CQG:', err);
       } finally {
@@ -83,6 +88,15 @@ export default function LegacyCqgSyncSection({
             completed = true;
             toast.success('Đồng bộ số dư CQG hoàn tất!', { id: toastId });
             break;
+          } else if (job.status === 'WAITING' || job.payload?.result?.isWaitingFiles) {
+            completed = true;
+            toast(
+              job.payload?.result?.summary ||
+                job.payload?.result?.message ||
+                'Đang chờ file đối chiếu số dư CQG (QLTKGD.xlsx / Accounts_Balances.xlsx).',
+              { id: toastId },
+            );
+            break;
           } else if (['FAILED', 'CANCELLED', 'ABORTED'].includes(job.status)) {
             completed = true;
             toast.error(`Tiến trình đồng bộ CQG dừng: ${job.error || job.status}`, { id: toastId });
@@ -128,6 +142,22 @@ export default function LegacyCqgSyncSection({
 
   const hasExecuted = !!(cqgSyncData?.executedAt && cqgSyncData?.status !== 'IDLE');
   const cqgResult: any[] = cqgSyncData?.cqgResult || [];
+
+  const bothCount = useMemo(() => cqgResult.filter((item) => item.inMS !== false).length, [cqgResult]);
+  const onlyCqgCount = useMemo(() => cqgResult.filter((item) => item.inMS === false).length, [cqgResult]);
+  const totalCount = cqgResult.length;
+
+  const filteredResult = useMemo(() => {
+    return cqgResult.filter((item: any) => {
+      const acc = String(item.maTKGD || item.account || '').toLowerCase();
+      const kw = searchKeyword.trim().toLowerCase();
+      if (kw && !acc.includes(kw)) return false;
+
+      if (filterMode === 'BOTH') return item.inMS !== false;
+      if (filterMode === 'ONLY_CQG') return item.inMS === false;
+      return true;
+    });
+  }, [cqgResult, searchKeyword, filterMode]);
 
   return (
     <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
@@ -257,7 +287,153 @@ export default function LegacyCqgSyncSection({
         </div>
       )}
 
-      <div style={{ height: '160px', minHeight: '140px', overflowY: 'auto' }}>
+      {/* FILTER & SEARCH TOOLBAR */}
+      {hasExecuted && cqgResult.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 18px',
+            backgroundColor: 'var(--bg-card)',
+            borderBottom: '1px solid var(--border-color)',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
+          {/* Filter Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Filter size={13} />
+              Lọc theo MS:
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setFilterMode('ALL')}
+              className="btn"
+              style={{
+                fontSize: '0.74rem',
+                padding: '4px 10px',
+                fontWeight: 700,
+                borderRadius: '6px',
+                border: filterMode === 'ALL' ? '1px solid #38bdf8' : '1px solid var(--border-color)',
+                backgroundColor: filterMode === 'ALL' ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-input)',
+                color: filterMode === 'ALL' ? '#38bdf8' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>Tất cả</span>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: filterMode === 'ALL' ? '#38bdf8' : 'rgba(148, 163, 184, 0.2)',
+                  color: filterMode === 'ALL' ? '#000' : 'inherit',
+                  fontWeight: 800,
+                }}
+              >
+                {totalCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterMode('BOTH')}
+              className="btn"
+              style={{
+                fontSize: '0.74rem',
+                padding: '4px 10px',
+                fontWeight: 700,
+                borderRadius: '6px',
+                border: filterMode === 'BOTH' ? '1px solid #f59e0b' : '1px solid var(--border-color)',
+                backgroundColor: filterMode === 'BOTH' ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-input)',
+                color: filterMode === 'BOTH' ? '#f59e0b' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>Lệch cả 2 bên (Có trên MS)</span>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: filterMode === 'BOTH' ? '#f59e0b' : 'rgba(245, 158, 11, 0.2)',
+                  color: filterMode === 'BOTH' ? '#000' : '#f59e0b',
+                  fontWeight: 800,
+                }}
+              >
+                {bothCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFilterMode('ONLY_CQG')}
+              className="btn"
+              style={{
+                fontSize: '0.74rem',
+                padding: '4px 10px',
+                fontWeight: 700,
+                borderRadius: '6px',
+                border: filterMode === 'ONLY_CQG' ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                backgroundColor: filterMode === 'ONLY_CQG' ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-input)',
+                color: filterMode === 'ONLY_CQG' ? '#ef4444' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>Chỉ có CQG (Không có trên MS)</span>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: filterMode === 'ONLY_CQG' ? '#ef4444' : 'rgba(239, 68, 68, 0.2)',
+                  color: filterMode === 'ONLY_CQG' ? '#fff' : '#ef4444',
+                  fontWeight: 800,
+                }}
+              >
+                {onlyCqgCount}
+              </span>
+            </button>
+          </div>
+
+          {/* Search box */}
+          <div style={{ position: 'relative', minWidth: '220px' }}>
+            <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              placeholder="Tìm kiếm mã TKGD..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '6px 10px 6px 30px',
+                fontSize: '0.76rem',
+                borderRadius: '6px',
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                fontFamily: 'monospace',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* BẢNG SỐ DƯ RỘNG THOÁNG */}
+      <div style={{ minHeight: '520px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead style={{ position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.02)', zIndex: 5 }}>
             <tr
@@ -287,30 +463,82 @@ export default function LegacyCqgSyncSection({
                   </div>
                 </td>
               </tr>
+            ) : cqgSyncData?.status === 'WAITING' || cqgSyncData?.isWaitingFiles ? (
+              <tr>
+                <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={26} color="#f59e0b" />
+                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f59e0b' }}>
+                      {cqgSyncData?.waitingMessage ||
+                        'Đang chờ file QLTKGD.xlsx và Accounts_Balances.xlsx trong thư mục backup ngày.'}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            ) : ['FAILED', 'CANCELLED', 'ABORTED'].includes(cqgSyncData?.status) ? (
+              <tr>
+                <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={26} color="#ef4444" />
+                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ef4444' }}>
+                      {cqgSyncData?.error || 'Tiến trình đối chiếu số dư CQG gặp sự cố.'}
+                    </span>
+                  </div>
+                </td>
+              </tr>
             ) : cqgResult.length > 0 ? (
-              cqgResult.map((item: any, idx: number) => (
-                <tr
-                  key={idx}
-                  style={{
-                    borderBottom: '1px solid var(--border-color)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                    color: '#ef4444',
-                    fontFamily: 'monospace',
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
-                    {item.maTKGD || item.account || '--'}
-                  </td>
-                  <td style={{ padding: '10px 16px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
-                    ${fmt(item.calculatedBalance ?? item.balanceMS ?? 0)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>
-                    ${fmt(item.cqgBalance ?? item.balanceCQG ?? 0)}{' '}
-                    {item.differ !== undefined && item.differ > 0 ? `(Lệch: $${fmt(item.differ)})` : ''}
+              filteredResult.length > 0 ? (
+                filteredResult.map((item: any, idx: number) => {
+                  const hasMS = item.inMS !== false;
+                  return (
+                    <tr
+                      key={idx}
+                      style={{
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: hasMS ? 'rgba(245, 158, 11, 0.06)' : 'rgba(239, 68, 68, 0.04)',
+                        color: hasMS ? '#f59e0b' : '#ef4444',
+                        fontFamily: 'monospace',
+                        fontSize: '0.86rem',
+                      }}
+                    >
+                      <td style={{ padding: '12px 20px', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>{item.maTKGD || item.account || '--'}</span>
+                          {!hasMS && (
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                fontWeight: 700,
+                                fontFamily: 'sans-serif',
+                              }}
+                            >
+                              Không có trên MS
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 20px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 700 }}>
+                        {/* Chuẩn C# dòng 663: Nếu không có trên MS thì hiện trắng (empty string), không hiện $0 */}
+                        {hasMS ? `${fmt(item.calculatedBalance ?? item.balanceMS ?? 0)}` : ''}
+                      </td>
+                      <td style={{ padding: '12px 20px', textAlign: 'right', fontWeight: 700 }}>
+                        ${fmt(item.cqgBalance ?? item.balanceCQG ?? 0)}{' '}
+                        {item.differ !== undefined && item.differ > 0 ? `(Lệch: ${fmt(item.differ)})` : ''}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                    Không có tài khoản nào phù hợp với bộ lọc hoặc từ khóa tìm kiếm.
                   </td>
                 </tr>
-              ))
+              )
             ) : (
               <tr>
                 <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center' }}>

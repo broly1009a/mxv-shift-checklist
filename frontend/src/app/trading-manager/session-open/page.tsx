@@ -84,6 +84,14 @@ export default function SessionOpenPage() {
       iconColor: '#0ea5e9',
       iconBg: 'rgba(14, 165, 233, 0.12)',
     },
+    {
+      id: 'SOD_CQG_SYNC',
+      title: 'Kết quả đồng bộ số dư CQG',
+      href: '/trading-manager/session-open/cqg-sync',
+      icon: RefreshCw,
+      iconColor: '#f59e0b',
+      iconBg: 'rgba(245, 158, 11, 0.12)',
+    },
   ];
 
   return (

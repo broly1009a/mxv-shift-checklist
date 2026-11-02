@@ -382,5 +382,39 @@ export const ingressApi = {
       token,
     );
   },
+
+  /**
+   * Lấy danh sách nhật ký thao tác M-System (phân trang + lọc ngày)
+   */
+  async getMsActivities(
+    params: { startDate?: string; endDate?: string; page?: number; limit?: number; search?: string },
+    token?: string | null,
+  ): Promise<any> {
+    const query = new URLSearchParams();
+    if (params.startDate) query.append('startDate', params.startDate);
+    if (params.endDate) query.append('endDate', params.endDate);
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    if (params.search) query.append('search', params.search);
+
+    const url = `${API_ENDPOINTS.INGRESS.MS_ACTIVITIES}?${query.toString()}`;
+    return requestJson<any>(url, { method: 'GET' }, token);
+  },
+
+  /**
+   * Đồng bộ lưu file NKTTHT trực tiếp vào thư mục Backup M-System của ca trực
+   */
+  async syncMsActivitiesToBackup(
+    params: { sessionDate?: string; startDate?: string; endDate?: string },
+    token?: string | null,
+  ): Promise<any> {
+    const query = new URLSearchParams();
+    if (params.sessionDate) query.append('sessionDate', params.sessionDate);
+    if (params.startDate) query.append('startDate', params.startDate);
+    if (params.endDate) query.append('endDate', params.endDate);
+
+    const url = `${API_ENDPOINTS.INGRESS.MS_ACTIVITIES_SYNC_BACKUP}?${query.toString()}`;
+    return requestJson<any>(url, { method: 'POST' }, token);
+  },
 };
 

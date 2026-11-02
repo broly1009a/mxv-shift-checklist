@@ -38,7 +38,7 @@ console.log('-------------------------------------------------------------------
 const mockSettingsService = {
   getSetting: async (key, def) => {
     if (key === 'bot_backup_path_ms') {
-      return 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures';
+      return '';
     }
     if (key === 'bot_backup_path_acm') {
       return 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures';

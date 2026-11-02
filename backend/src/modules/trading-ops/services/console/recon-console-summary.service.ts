@@ -1,3 +1,4 @@
+import { getMsConversionRate } from '../../helpers/ms-exchange-rate.helper';
 import { Injectable, Logger, Inject, forwardRef, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -89,10 +90,6 @@ export class ReconConsoleSummaryService {
           if (rates.conversionRates['JPY']) await this.settingsService.setSetting('jpy_exchange_rate', rates.conversionRates['JPY'].toString());
           if (rates.conversionRates['RMB']) await this.settingsService.setSetting('rmb_exchange_rate', rates.conversionRates['RMB'].toString());
           await this.settingsService.setSetting('ms_payment_rates', JSON.stringify(rates.paymentRates));
-          if (rates.paymentRates['USD/VND']) {
-            await this.settingsService.setSetting('usd_settlement_rate_buy', String(rates.paymentRates['USD/VND'].buy));
-            await this.settingsService.setSetting('usd_settlement_rate_sell', String(rates.paymentRates['USD/VND'].sell));
-          }
           await this.settingsService.setSetting('exchange_rates_last_synced', rates.lastSynced);
           await this.settingsService.setSetting('exchange_rate_source', rates.source);
           this.logger.log(`[M-System API] Tỷ giá USD lấy nhanh từ REST API: ${rates.usdRate}`);
@@ -376,10 +373,6 @@ export class ReconConsoleSummaryService {
         await this.settingsService.setSetting('rmb_exchange_rate', rates['RMB'].toString());
       }
       await this.settingsService.setSetting('ms_payment_rates', JSON.stringify(paymentRates));
-      if (paymentRates['USD/VND']) {
-        await this.settingsService.setSetting('usd_settlement_rate_buy', String(paymentRates['USD/VND'].buy));
-        await this.settingsService.setSetting('usd_settlement_rate_sell', String(paymentRates['USD/VND'].sell));
-      }
       await this.settingsService.setSetting('exchange_rates_last_synced', new Date().toISOString());
 
       return usdRate;
@@ -416,10 +409,6 @@ export class ReconConsoleSummaryService {
             await this.settingsService.setSetting('rmb_exchange_rate', conversionRates['RMB'].toString());
           }
           await this.settingsService.setSetting('ms_payment_rates', JSON.stringify(paymentRates));
-          if (paymentRates['USD/VND']) {
-            await this.settingsService.setSetting('usd_settlement_rate_buy', String(paymentRates['USD/VND'].buy));
-            await this.settingsService.setSetting('usd_settlement_rate_sell', String(paymentRates['USD/VND'].sell));
-          }
           await this.settingsService.setSetting('exchange_rates_last_synced', lastSynced);
           await this.settingsService.setSetting('exchange_rate_source', source);
 
@@ -496,25 +485,11 @@ export class ReconConsoleSummaryService {
   }
 
   async getCurrentUsdRate(): Promise<number> {
-    const usdRateStr = await this.settingsService.getSetting(
-      'usd_exchange_rate',
-      '',
-    );
-    const rate = parseFloat(usdRateStr);
-    return isNaN(rate) ? 0 : rate;
+    return getMsConversionRate(this.settingsService, 'USD');
   }
 
   async saveUsdRate(rate: number): Promise<void> {
-    const current = await this.getCurrentUsdRate();
-    if (current !== rate) {
-      this.logger.log(
-        `Tỷ giá mới (${rate}) khác tỷ giá hiện tại (${current}). Đang cập nhật vào cấu hình...`,
-      );
-      await this.settingsService.setSetting(
-        'usd_exchange_rate',
-        rate.toString(),
-      );
-    }
+    await this.settingsService.setSetting('usd_exchange_rate', rate.toString());
   }
 
   /**
@@ -933,6 +908,20 @@ export class ReconConsoleSummaryService {
           : latestEodJob.payload || {}
       : {};
     const latestEodResult = latestEodPayload.result || {};
+    const cqgSyncPayload = cqgSyncJob
+      ? typeof cqgSyncJob.toObject === 'function'
+        ? cqgSyncJob.toObject().payload || {}
+        : cqgSyncJob.payload && typeof cqgSyncJob.payload.toObject === 'function'
+          ? cqgSyncJob.payload.toObject()
+          : cqgSyncJob.payload || {}
+      : {};
+    const cqgSyncResult = cqgSyncPayload.result || {};
+    const resolvedCqgResult =
+      cqgSyncResult.cqgResult ||
+      cqgSyncResult.mismatched ||
+      cqgSyncResult.details?.cqgResult ||
+      cqgSyncResult.details?.mismatched ||
+      [];
 
     const resolvedMismatchedEOD =
       latestEodResult.eodResult?.mismatchedEOD ||
@@ -1310,7 +1299,18 @@ export class ReconConsoleSummaryService {
           ? new Date(cqgSyncJob.createdAt).toISOString()
           : null,
         status: cqgSyncJob?.status || 'IDLE',
-        cqgResult: cqgSyncJob?.payload?.result?.cqgResult || [],
+        error: cqgSyncJob?.error || null,
+        isWaitingFiles: !!(cqgSyncResult.isWaitingFiles || cqgSyncJob?.status === 'WAITING'),
+        waitingMessage:
+          cqgSyncResult.waitingMessage ||
+          cqgSyncResult.message ||
+          cqgSyncResult.summary ||
+          null,
+        passed:
+          cqgSyncResult.passed !== undefined
+            ? cqgSyncResult.passed !== false
+            : resolvedCqgResult.length === 0,
+        cqgResult: resolvedCqgResult,
       },
       ccpSummary: {
         downloadJob: {
@@ -1548,7 +1548,7 @@ export class ReconConsoleSummaryService {
 
     const msBackupBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     ));
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
     const msDailyPath = path.join(msBackupBase, subFolder);

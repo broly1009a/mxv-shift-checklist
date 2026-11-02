@@ -218,14 +218,40 @@ async function main() {
       "
     `;
     await runRemoteCommand(cmd);
-  } else if (arg === 'apply_backend_limits') {
+  } else if (arg === 'monitor_klgd') {
+    console.log('--- MONITORING LIVE KLGD ---');
     const cmd = `
-      echo "=== APPLYING NEW LIMITS TO PM2 BACKEND (4GB V8 / 5GB PM2) ==="
-      pm2 restart mxv-backend --node-args="--max-old-space-size=4096 --expose-gc" --max-memory-restart 5000M
-      pm2 save
+      echo "=== 1. LIVE PM2 BACKEND LOGS (LAST 60 LINES) ==="
+      tail -n 60 /home/mxvadmin/.pm2/logs/mxv-backend-out.log
       echo ""
-      echo "=== VERIFYING PM2 BACKEND CONFIGURATION ==="
-      pm2 describe mxv-backend
+      echo "=== 2. RUNNING CHROME PROCESSES ==="
+      ps aux | grep -iE 'chrome|chromium' | grep -v grep | head -n 10 || echo "No Chrome running"
+      echo ""
+      echo "=== 3. SYSTEM RAM & SWAP ==="
+      free -h
+      echo ""
+      echo "=== 4. LATEST BOT JOBS (LAST 3) ==="
+      mongosh mxv_shift_checklist --quiet --eval '
+        const jobs = db.bot_jobs.find().sort({ createdAt: -1 }).limit(3).toArray();
+        jobs.forEach(j => {
+          print(JSON.stringify({
+            id: j._id,
+            jobType: j.jobType,
+            status: j.status,
+            createdAt: j.createdAt,
+            updatedAt: j.updatedAt,
+            durationMs: j.durationMs,
+            summary: j.result ? {
+              isMatched: j.result.isMatched,
+              totalMS: j.result.totalMS,
+              totalCQG: j.result.totalCQG,
+              totalNano: j.result.totalNano,
+              totalCCP: j.result.totalCCP,
+              differ: j.result.differ
+            } : j.error || "running..."
+          }));
+        });
+      '
     `;
     await runRemoteCommand(cmd);
   }

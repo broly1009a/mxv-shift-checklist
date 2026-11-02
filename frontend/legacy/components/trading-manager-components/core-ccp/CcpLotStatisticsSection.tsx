@@ -1619,7 +1619,7 @@ export default function CcpLotStatisticsSection({
                   },
                   {
                     name: 'Backup MS',
-                    path: 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+                    path: '',
                   },
                 ]}
               />

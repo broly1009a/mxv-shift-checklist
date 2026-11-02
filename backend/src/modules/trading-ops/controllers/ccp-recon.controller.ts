@@ -242,8 +242,9 @@ export class CcpReconController {
 
       const usdRateStr =
         (await this.settingsService.getSetting('ccp_usd_exchange_rate', '')) ||
-        (await this.settingsService.getSetting('usd_exchange_rate', '25400'));
-      const usdRate = parseFloat(usdRateStr) || (detailsToSave['USD']?.conversionRate ?? 25400);
+        (await this.settingsService.getSetting('usd_exchange_rate', ''));
+      const usdRate = parseFloat(usdRateStr) || detailsToSave['USD']?.conversionRate;
+      if (!usdRate || usdRate <= 0) throw new Error('Chưa có tỷ giá USD quy đổi trong CSDL và dữ liệu vừa đồng bộ.');
       const rates = await this.valueStatisticsService.getCurrentExchangeRates();
 
       const currenciesSynced =
@@ -356,10 +357,13 @@ export class CcpReconController {
       await this.settingsService.setSetting('exchange_rates_last_synced', nowIso);
       await this.settingsService.setSetting('exchange_rate_source', `Tệp tải lên: ${file.originalname || 'tygia.xlsx'}`);
 
+      const usdFromFile = detailsToSave['USD']?.conversionRate;
+      if (!usdFromFile || usdFromFile <= 0) throw new BadRequestException('File tỷ giá không có tỷ giá quy đổi USD hợp lệ.');
+
       return {
         success: true,
         data: {
-          usdRate: detailsToSave['USD']?.conversionRate || 25400,
+          usdRate: usdFromFile,
           matrix,
           source: `Tệp tải lên: ${file.originalname || 'tygia.xlsx'}`,
           lastSynced: nowIso,
@@ -380,8 +384,9 @@ export class CcpReconController {
     try {
       const usdRateStr =
         (await this.settingsService.getSetting('ccp_usd_exchange_rate', '')) ||
-        (await this.settingsService.getSetting('usd_exchange_rate', '25400'));
-      const rate = parseFloat(usdRateStr) || 25400;
+        (await this.settingsService.getSetting('usd_exchange_rate', ''));
+      const rate = parseFloat(usdRateStr);
+      if (!rate || rate <= 0) throw new Error('Chưa cấu hình tỷ giá USD (ccp_usd_exchange_rate / usd_exchange_rate).');
       return { success: true, rate };
     } catch (err: any) {
       throw new BadRequestException(`Không thể lấy tỷ giá USD Bù trừ: ${err.message}`);
@@ -397,8 +402,9 @@ export class CcpReconController {
     try {
       const usdRateStr =
         (await this.settingsService.getSetting('ccp_usd_exchange_rate', '')) ||
-        (await this.settingsService.getSetting('usd_exchange_rate', '25400'));
-      const rate = parseFloat(usdRateStr) || 25400;
+        (await this.settingsService.getSetting('usd_exchange_rate', ''));
+      const rate = parseFloat(usdRateStr);
+      if (!rate || rate <= 0) throw new Error('Chưa cấu hình tỷ giá USD (ccp_usd_exchange_rate / usd_exchange_rate).');
       return { success: true, rate, message: 'Làm mới tỷ giá USD Bù trừ thành công.' };
     } catch (err: any) {
       throw new BadRequestException(`Không thể làm mới tỷ giá USD: ${err.message}`);

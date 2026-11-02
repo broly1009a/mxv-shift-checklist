@@ -37,6 +37,9 @@ export const API_ENDPOINTS = {
     TEST_CONNECTION_CE: '/api/v1/ingress/test-connection-ce',
     UPLOAD_DAILY_FILES: '/api/v1/ingress/files/upload-daily',
     READINESS_MATRIX: (date: string) => `/api/v1/ingress/files/readiness-matrix?date=${encodeURIComponent(date)}`,
+      MS_ACTIVITIES: '/api/v1/ingress/ms-activities',
+    MS_ACTIVITIES_EXPORT: '/api/v1/ingress/ms-activities/export-excel',
+    MS_ACTIVITIES_SYNC_BACKUP: '/api/v1/ingress/ms-activities/sync-to-backup',
   },
 
   // ─── TRADING OPS (Đối chiếu giao dịch, Giám sát, KLGD, Dsgd-Before-EOD, GTT MS vs CQG) ──

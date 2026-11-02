@@ -40,6 +40,7 @@ export interface IMsSession {
 export class MsApiAdapter implements IIngressPort {
   private readonly logger = new Logger(MsApiAdapter.name);
   private currentSession: IMsSession | null = null;
+  private activeLoginPromise: Promise<{ token: string; baseUrl: string; adminUrl: string }> | null = null;
   private readonly defaultBaseUrl = EXTERNAL_SYSTEM_MSYSTEM.apiUrl;
   private readonly defaultAdminUrl = EXTERNAL_SYSTEM_MSYSTEM.adminUrl;
   private readonly sessionCachePath = path.resolve(process.cwd(), 'temp', 'ms_session.json');
@@ -183,83 +184,96 @@ export class MsApiAdapter implements IIngressPort {
       this.clearSession();
     }
 
-    // 3. Tiến hành đăng nhập 2 bước Password + PIN
-    this.logger.log(`[MsApiAdapter] Bắt đầu đăng nhập 2 bước vào M-System Newgen API cho user: ${creds.username}...`);
-    const commonHeaders: Record<string, string> = {
-      accept: 'application/json',
-      'accept-language': 'en-US,en;q=0.9',
-      origin: adminUrl,
-      referer: `${adminUrl}/`,
-      'user-agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    };
-
-    // BƯỚC 1: Đăng nhập mật khẩu
-    const loginRes = await fetch(`${baseUrl}/am/admin/users/login`, {
-      method: 'POST',
-      headers: { ...commonHeaders, 'content-type': 'application/json' },
-      body: JSON.stringify({ username: creds.username, password: creds.password }),
-      signal: AbortSignal.timeout(15000),
-    });
-
-    const loginData = (await loginRes.json().catch(() => null)) as any;
-    if (!loginRes.ok || loginData?.status !== 'ok' || !loginData?.data?.user) {
-      throw new Error(
-        `Đăng nhập M-System Bước 1 thất bại: ${loginData?.errMsg || loginData?.message || loginRes.status}`,
-      );
+    // Nếu đang có tiến trình đăng nhập 2 bước diễn ra, tái sử dụng Promise để tránh trùng lặp phiên
+    if (this.activeLoginPromise) {
+      return this.activeLoginPromise;
     }
 
-    const userStep1 = loginData.data.user;
-    const userId = userStep1.id || userStep1._id;
-    const tempToken = userStep1.accessToken;
+    this.activeLoginPromise = (async () => {
+      try {
+        // 3. Tiến hành đăng nhập 2 bước Password + PIN
+        this.logger.log(`[MsApiAdapter] Bắt đầu đăng nhập 2 bước vào M-System Newgen API cho user: ${creds.username}...`);
+        const commonHeaders: Record<string, string> = {
+          accept: 'application/json',
+          'accept-language': 'en-US,en;q=0.9',
+          origin: adminUrl,
+          referer: `${adminUrl}/`,
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        };
 
-    if (!userId || !tempToken) {
-      throw new Error('Không nhận được userId hoặc accessToken tạm từ M-System Bước 1');
-    }
+        // BƯỚC 1: Đăng nhập mật khẩu
+        const loginRes = await fetch(`${baseUrl}/am/admin/users/login`, {
+          method: 'POST',
+          headers: { ...commonHeaders, 'content-type': 'application/json' },
+          body: JSON.stringify({ username: creds.username, password: creds.password }),
+          signal: AbortSignal.timeout(15000),
+        });
 
-    // BƯỚC 2: Xác thực mã PIN
-    const pinRes = await fetch(`${baseUrl}/am/admin/users/verifyPin/${userId}`, {
-      method: 'POST',
-      headers: {
-        ...commonHeaders,
-        'content-type': 'application/json',
-        authorization: `Bearer ${tempToken}`,
-      },
-      body: JSON.stringify({ pin: String(creds.pin) }),
-      signal: AbortSignal.timeout(15000),
-    });
+        const loginData = (await loginRes.json().catch(() => null)) as any;
+        if (!loginRes.ok || loginData?.status !== 'ok' || !loginData?.data?.user) {
+          throw new Error(
+            `Đăng nhập M-System Bước 1 thất bại: ${loginData?.errMsg || loginData?.message || loginRes.status}`,
+          );
+        }
 
-    const pinData = (await pinRes.json().catch(() => null)) as any;
-    if (!pinRes.ok || pinData?.status !== 'ok' || !pinData?.data?.user) {
-      throw new Error(
-        `Xác thực M-System PIN Bước 2 thất bại: ${pinData?.errMsg || pinData?.message || pinRes.status}`,
-      );
-    }
+        const userStep1 = loginData.data.user;
+        const userId = userStep1.id || userStep1._id;
+        const tempToken = userStep1.accessToken;
 
-    const finalUser = pinData.data.user;
-    const finalToken = finalUser.accessToken;
-    if (!finalToken) {
-      throw new Error('Không nhận được Bearer Token chính thức sau Bước 2 verify PIN');
-    }
+        if (!userId || !tempToken) {
+          throw new Error('Không nhận được userId hoặc accessToken tạm từ M-System Bước 1');
+        }
 
-    const jwtInfo = this.decodeJwt(finalToken);
-    const newSession: IMsSession = {
-      token: finalToken,
-      tokenType: 'Bearer',
-      userId: finalUser.id || userId,
-      username: finalUser.username || creds.username || '',
-      fullName: finalUser.fullName || creds.username || '',
-      email: finalUser.email || '',
-      expiresAt: jwtInfo?.expiresAt || '',
-      expiresEpoch: jwtInfo?.expEpoch || 0,
-      updatedAt: new Date().toISOString(),
-    };
+        // BƯỚC 2: Xác thực mã PIN
+        const pinRes = await fetch(`${baseUrl}/am/admin/users/verifyPin/${userId}`, {
+          method: 'POST',
+          headers: {
+            ...commonHeaders,
+            'content-type': 'application/json',
+            authorization: `Bearer ${tempToken}`,
+          },
+          body: JSON.stringify({ pin: String(creds.pin) }),
+          signal: AbortSignal.timeout(15000),
+        });
 
-    this.currentSession = newSession;
-    this.saveSessionToFile(newSession);
-    this.logger.log(`[MsApiAdapter] Đăng nhập 2 bước M-System thành công! Token có hiệu lực đến: ${jwtInfo?.expiresAt}`);
+        const pinData = (await pinRes.json().catch(() => null)) as any;
+        if (!pinRes.ok || pinData?.status !== 'ok' || !pinData?.data?.user) {
+          throw new Error(
+            `Xác thực M-System PIN Bước 2 thất bại: ${pinData?.errMsg || pinData?.message || pinRes.status}`,
+          );
+        }
 
-    return { token: finalToken, baseUrl, adminUrl };
+        const finalUser = pinData.data.user;
+        const finalToken = finalUser.accessToken;
+        if (!finalToken) {
+          throw new Error('Không nhận được Bearer Token chính thức sau Bước 2 verify PIN');
+        }
+
+        const jwtInfo = this.decodeJwt(finalToken);
+        const newSession: IMsSession = {
+          token: finalToken,
+          tokenType: 'Bearer',
+          userId: finalUser.id || userId,
+          username: finalUser.username || creds.username || '',
+          fullName: finalUser.fullName || creds.username || '',
+          email: finalUser.email || '',
+          expiresAt: jwtInfo?.expiresAt || '',
+          expiresEpoch: jwtInfo?.expEpoch || 0,
+          updatedAt: new Date().toISOString(),
+        };
+
+        this.currentSession = newSession;
+        this.saveSessionToFile(newSession);
+        this.logger.log(`[MsApiAdapter] Đăng nhập 2 bước M-System thành công! Token có hiệu lực đến: ${jwtInfo?.expiresAt}`);
+
+        return { token: finalToken, baseUrl, adminUrl };
+      } finally {
+        this.activeLoginPromise = null;
+      }
+    })();
+
+    return this.activeLoginPromise;
   }
 
   /**
@@ -674,30 +688,23 @@ export class MsApiAdapter implements IIngressPort {
 
     const usdRate = conversionRates['USD'] || 0;
 
-    // 2. Tỷ giá thanh toán (/market/paymentRate)
-    const paymentRates: Record<string, { buy: number; sell: number }> = {
-      'USD/VND': { buy: usdRate, sell: usdRate },
-      'MYR/VND': { buy: conversionRates['MYR'] || 0, sell: conversionRates['MYR'] || 0 },
-      'JPY/VND': { buy: conversionRates['JPY'] || 0, sell: conversionRates['JPY'] || 0 },
-      'RMB/VND': { buy: conversionRates['RMB'] || 0, sell: conversionRates['RMB'] || 0 },
-    };
-
-    try {
-      const paymentData = await fetchJson('/market/paymentRate?limit=20&offset=0');
-      if (paymentData?.status === 'ok' && Array.isArray(paymentData?.data)) {
-        for (const row of paymentData.data) {
-          if (row.counterCurrency === 'VND') {
-            const code = (row.monetaryBase || '').trim().toUpperCase();
-            const buy = typeof row.buyingRate === 'number' ? row.buyingRate : (conversionRates[code] || 0);
-            const sell = typeof row.sellingRate === 'number' ? row.sellingRate : buy;
-            if (code && buy > 0) {
-              paymentRates[`${code}/VND`] = { buy, sell };
-            }
-          }
-        }
+    // 2. Tỷ giá thanh toán (/market/paymentRate): lỗi API hoặc thiếu dữ liệu => throw, không fallback về tỷ giá quy đổi
+    const paymentRates: Record<string, { buy: number; sell: number }> = {};
+    const paymentData = await fetchJson('/market/paymentRate?limit=20&offset=0');
+    if (paymentData?.status !== 'ok' || !Array.isArray(paymentData?.data)) {
+      throw new Error('API /market/paymentRate trả về dữ liệu không hợp lệ.');
+    }
+    for (const row of paymentData.data) {
+      if (row.counterCurrency !== 'VND') continue;
+      const code = (row.monetaryBase || '').trim().toUpperCase();
+      if (!code) continue;
+      if (typeof row.buyingRate !== 'number' || typeof row.sellingRate !== 'number' || row.buyingRate <= 0 || row.sellingRate <= 0) {
+        throw new Error(`API /market/paymentRate thiếu hoặc sai tỷ giá Mua/Bán cho ${code}/VND.`);
       }
-    } catch (payErr: any) {
-      this.logger.warn(`[MsApiAdapter] Không thể lấy paymentRate, dùng tỷ giá quy đổi làm mặc định: ${payErr.message}`);
+      paymentRates[`${code}/VND`] = { buy: row.buyingRate, sell: row.sellingRate };
+    }
+    if (!paymentRates['USD/VND']) {
+      throw new Error('API /market/paymentRate không có tỷ giá USD/VND.');
     }
 
     return {

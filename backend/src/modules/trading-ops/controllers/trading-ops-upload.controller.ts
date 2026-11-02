@@ -773,7 +773,7 @@ export class TradingOpsUploadController {
     ));
     const msBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
       'bot_backup_path_ms',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+      '',
     ));
 
     const savedFiles: { filename: string; path: string; category: string }[] = [];

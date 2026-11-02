@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../shared';
+import { parseCqgNumber } from '../helpers/trading-math.helper';
 
 export interface QltkgdRecord {
   maTKGD: string;
@@ -224,9 +225,9 @@ export class MarginExcelParser {
       const maTKGD = String(row[maTKGDIdx] || '').trim();
       if (!maTKGD) continue;
 
-      const balanceVal = soDuTKKQHienTaiIdx !== -1 ? parseFloat(row[soDuTKKQHienTaiIdx]) || 0 : 0;
-      const choDaoHan = choDaoHanIdx !== -1 ? parseFloat(row[choDaoHanIdx]) || 0 : 0;
-      const laiLoVND = laiLoVNDIdx !== -1 ? parseFloat(row[laiLoVNDIdx]) || 0 : 0;
+      const balanceVal = soDuTKKQHienTaiIdx !== -1 ? parseCqgNumber(row[soDuTKKQHienTaiIdx]) : 0;
+      const choDaoHan = choDaoHanIdx !== -1 ? parseCqgNumber(row[choDaoHanIdx]) : 0;
+      const laiLoVND = laiLoVNDIdx !== -1 ? parseCqgNumber(row[laiLoVNDIdx]) : 0;
       const soDuTKKQDauNgay = soDuTKKQDauNgayIdx !== -1 ? parseFloat(row[soDuTKKQDauNgayIdx]) || 0 : 0;
       const nopRutTrongPhien = nopRutTrongPhienIdx !== -1 ? parseFloat(row[nopRutTrongPhienIdx]) || 0 : 0;
       const phiGiaoDich = phiGiaoDichIdx !== -1 ? parseFloat(row[phiGiaoDichIdx]) || 0 : 0;

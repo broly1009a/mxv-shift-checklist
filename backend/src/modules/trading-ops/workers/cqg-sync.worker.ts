@@ -57,7 +57,7 @@ export class CqgSyncWorker implements IBotWorker {
       const msBackupBase = resolveStoragePathCrossPlatform(
         await this.settingsService.getSetting(
           'bot_backup_path_ms',
-          'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures',
+          '',
         ),
       );
       const cqgBackupBase = resolveStoragePathCrossPlatform(
@@ -72,7 +72,7 @@ export class CqgSyncWorker implements IBotWorker {
 
       const qltkgdPath = path.join(msDailyPath, 'QLTKGD.xlsx');
       const accountsBalancesPath =
-        findLatestFile(cqgDailyPath, /Accounts_Balances/i) ||
+        findLatestFile(cqgDailyPath, /^(Accounts_Balances|AS\.xlsx)/i) ||
         findLatestFile(msDailyPath, /Accounts_Balances/i);
 
       if (!fs.existsSync(qltkgdPath) || !accountsBalancesPath) {
@@ -124,9 +124,10 @@ export class CqgSyncWorker implements IBotWorker {
         passed,
         metrics: {
           differCount: totalMismatched,
-          totalAccountsChecked: res?.totalAccounts || 0,
+          totalMismatchedCQG: totalMismatched,
         },
         details: {
+          cqgResult,
           mismatched: cqgResult.slice(0, 30),
         },
         durationMs: Date.now() - startTime,
