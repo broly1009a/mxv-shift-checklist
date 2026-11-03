@@ -1,3 +1,30 @@
+## [2026-11-03T08:45] FEATURE(ACM_DOWNLOAD_DEFAULT_OVERWRITE): Bật Mặc Định Chế Độ Ghi Đè (Overwrite) Cho Tác Vụ Tải Báo Cáo Tự Doanh ACM (FILE_AUDIT_ACM)
+
+### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
+- **Chỉ đạo từ USER**:
+  - *"ngưỡng cờ này làm gì có trong cấu hình, giúp tôi bật mặc định là ghi đè giúp tôi"* (Đính kèm ảnh giao diện khối Backup ACM với nút "Tải Báo Cáo ACM").
+  - Trước đây, khi thư mục backup ACM đã có file, bot quét thấy file hợp lệ sẽ bỏ qua và không tải lại. Người dùng muốn khi bấm "Tải Báo Cáo ACM", bot phải luôn tải bản mới nhất và ghi đè lên file cũ thay vì bỏ qua.
+- **Giải pháp**:
+  - Cập nhật mặc định `isForce = payload.forceDownload !== false` trong `file-audit.handler.ts`.
+  - Cập nhật các Controller và Scheduler: `forceDownload: true`.
+  - Cập nhật toàn bộ các nút bấm "Tải Báo Cáo ACM" trên Frontend: truyền rõ `forceDownload: true`.
+
+### 2. Danh sách file chỉnh sửa
+- **[backend/src/modules/ingress/handlers/file-audit.handler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts)**:
+  - Dòng 828: Chuyển `isForce` sang `payload.forceDownload !== false` để mặc định luôn ghi đè file mới nhất.
+- **[backend/src/modules/ingress/controllers/ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-download.controller.ts)**:
+  - Cập nhật cả 2 endpoint `trigger-acm-download` và `trigger-audit-acm` truyền mặc định `forceDownload: true`.
+- **Frontend (Tất cả các màn hình có khối Backup ACM)**:
+  - **[CcpCeBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx)**: Truyền `forceDownload: true` khi bấm "Tải Báo Cáo ACM".
+  - **[CeAcmBackupSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx)**: Truyền `forceDownload: true`.
+  - **[LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx)**: Truyền `forceDownload: true`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100% (Exit code 0).
+- **Frontend Build**: `next build` biên dịch thành công toàn bộ 52/52 routes (Exit code 0).
+
+---
+
 ## [2026-11-02T10:30] FEATURE(UNIFIED_NEGATIVE_MARGIN_AND_EOD_RECON): Hợp Nhất Cơ Chế Quản Lý Danh Sách TKGD Âm Ký Quỹ Cho Cả M-System & CoreCCP Theo Quy Tắc "3 Thôi" & Bổ Sung Modal Bảng Chi Tiết Tài Chính
 
 ### 1. Mục tiêu thay đổi & Yêu cầu từ USER

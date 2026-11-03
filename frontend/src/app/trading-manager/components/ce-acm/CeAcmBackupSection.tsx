@@ -369,6 +369,7 @@ export default function CeAcmBackupSection({
       const data = await api.ingress.triggerAcmDownload({
         targetDate: selectedDate,
         reports: selectedKeys,
+        forceDownload: true,
       }, token);
 
       const jobId = data.jobId;

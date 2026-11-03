@@ -818,14 +818,15 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     }
 
     const logAndSave = this.createJobLogger(job);
-    await logAndSave(`Bắt đầu kiểm tra file backup ACM tại thư mục: ${dailyPath}`);
+    await logAndSave(`Bắt đầu tải và đồng bộ báo cáo ACM tại thư mục: ${dailyPath} (Chế độ mặc định: Ghi đè file mới nhất)`);
 
     const requestedReports: string[] | undefined =
       Array.isArray(payload.reports) && payload.reports.length > 0
         ? payload.reports.map((r: any) => String(r).toUpperCase().trim())
         : undefined;
 
-    const isForce = payload.forceDownload === true;
+    // Mặc định luôn là ghi đè (true) theo chỉ đạo của USER, trừ khi chỉ định rõ forceDownload: false
+    const isForce = payload.forceDownload !== false;
     const initialScan = await this.scanAcmBackupFiles(dailyPath, targetDate);
     const missing = initialScan.filter((r) => r.status !== 'OK' && isAcmReportRequested(r.key, requestedReports));
 

@@ -370,7 +370,7 @@ export default function CcpCeBackupThongKeSection({
     setDownloadingAcm(true);
     const toastId = toast.loading(`Đang tải ${selected.length} báo cáo ACM...`);
     try {
-      await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected }, token);
+      await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected, forceDownload: true }, token);
       toast.success('Đã kích hoạt tải báo cáo ACM!', { id: toastId });
       await handleAuditAcmBackup(false);
     } catch (err: any) {

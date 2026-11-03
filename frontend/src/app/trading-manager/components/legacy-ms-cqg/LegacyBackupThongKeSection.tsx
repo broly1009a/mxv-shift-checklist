@@ -686,7 +686,7 @@ export default function LegacyBackupThongKeSection({
     setDownloadingAcm(true);
     const toastId = toast.loading(`Đang khởi động bot tải ${selected.length} báo cáo ACM...`);
     try {
-      const data = await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected }, token);
+      const data = await api.ingress.triggerAcmDownload({ targetDate: selectedDate, reports: selected, forceDownload: true }, token);
       const jobId = data.jobId;
 
       if (!jobId) {

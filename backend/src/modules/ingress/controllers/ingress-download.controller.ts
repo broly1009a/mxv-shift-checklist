@@ -298,7 +298,7 @@ export class IngressDownloadController {
       backupPath,
       targetDate: effectiveDate,
       reports: reports && reports.length > 0 ? reports : undefined,
-      forceDownload: forceDownload !== undefined ? forceDownload : true,
+      forceDownload: forceDownload !== false,
       maxAttempts: 1,
     });
 
@@ -347,6 +347,7 @@ export class IngressDownloadController {
     const job = await this.jobQueueService.enqueue('FILE_AUDIT_ACM', {
       backupPath,
       targetDate: targetDateStr || sessionDateStr || new Date().toISOString(),
+      forceDownload: true,
       maxAttempts: 1,
     });
 
