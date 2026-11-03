@@ -448,11 +448,11 @@ export class ShiftScannerService {
           return true;
         }
 
-        const lastRunTime = existingJob.updatedAt || existingJob.createdAt;
+        const lastRunTime = existingJob.createdAt || existingJob.updatedAt || existingJob.completedAt;
         const diffMs = Date.now() - new Date(lastRunTime).getTime();
         const diffMin = diffMs / (60 * 1000);
 
-        if (diffMin >= cooldownMinutes) {
+        if (diffMin >= cooldownMinutes - 0.5) {
           return true;
         } else {
           this.logger.debug(

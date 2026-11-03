@@ -1,3 +1,33 @@
+## [2026-11-03T15:00] FIX(TRADING_MANAGER_PERIODIC_SCAN_SYNC): Khac Phuc Triet De Hien Tuong Treo Lau O Trang Thai "Den Lich Quet Dinh Ky"
+
+### 1. Muc tieu thay doi & Chi dao tu USER
+- **Hien tuong**: Khi het thoi gian dem nguoc "Quet lai sau..." tren giao dien Trading Manager, he thong chuyen sang trang thai `"Den lich quet dinh ky"` voi icon xoay `animate-spin` keo dai tu 1 - 2.5 phut truoc khi Job moi thuc su duoc tao trong hang doi.
+- **Yeu cau tu USER**: "giup toi check lai luong nay toi thay khi het thoi gian quet lai sau thi chay Den lich quet dinh ky quay kha lau toi khong ro vi sao quay lau vay roi moi tao job hang doi de xu ly. giup toi tim nguyen nhan hoac giai thich co che neu no hoat dong dung. giup toi dieu tra sau chuan khong phong doan fix bua de code chuan clean".
+- **Nguyen nhan goc (Root Cause)**:
+  1. **Lech moc thoi gian co so (Timestamp Baseline Mismatch)**:
+     - Frontend dem nguoc theo thoi diem tao Job truoc: `runs[0].createdAt` (`recon-console-summary.service.ts#L1001`).
+     - Backend Scheduler (`autonomous-scheduler.service.ts#L94`) lai tinh thoi gian troi qua theo thoi diem hoan thanh `completedAt`. Do moi luot check mat ~1 phut, `completedAt` luon tre hon `createdAt` 1 phut, khien Backend luon di cham hon Frontend 1 nhip.
+  2. **Lech pha chu ky Cron 1 phut (Quantization Jitter)**:
+     - Backend chay nhip cron `@Interval(60000)`. Khi kiem tra dieu kien cung `elapsedMinutes < intervalMinutes`, tai phut thu 60 thoi gian troi qua dat `59.995` phut (thieu vai tram mili-giay), Backend bo qua nhip nay va phai cho them 60 giay nua toi phut thu 61 hoac 62 moi enqueue.
+  3. **Frontend cho thu dong (Passive Fallback Polling)**:
+     - Khi countdown cham 0, Frontend khong chu dong fetch ngay ma cho bo dem interval fallback 45 giay moi goi API tai summary.
+  - Tong hop 3 nguyen nhan lam icon xoay bi ket tu 120s den 150s.
+
+### 2. Danh sach file chinh sua & Chi tiet code
+- **[backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts#L94-L97)**:
+  - Dong bo moc do thoi gian theo `lastJob.createdAt` (khop 100% voi Frontend).
+  - Bo sung dung sai 30 giay (`elapsedMinutes < intervalMinutes - 0.5`) de triet tieu hien tuong lo nhip cron do do tre mili-giay.
+- **[backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts#L451-L455)**:
+  - Chuan hoa moc do theo `existingJob.createdAt` va ap dung dung sai 30 giay (`diffMin >= cooldownMinutes - 0.5`) cho tac vu theo ca.
+- **[frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyReconSection.tsx#L361-L375)**:
+  - Bo sung hook phan ung tuc thi: Khi `countdownSeconds === 0`, lap tuc goi `fetchConsoleSummary(selectedDate, true)` va kich hoat fast-polling moi 5 giay (thay vi 45 giay) cho den khi Job moi xuat hien va countdown dem nguoc chu ky moi.
+
+### 3. Xac nhan Build & Kiem thu
+- **Backend Build**: `npm run build` (`nest build`) thanh cong 100% (Exit code 0).
+- **Frontend Typecheck & Build**: `npx tsc --noEmit` & `npm run build` (`next build` 52/52 routes) thanh cong 100% (Exit code 0).
+
+---
+
 ## [2026-11-03T08:45] FEATURE(ACM_DOWNLOAD_DEFAULT_OVERWRITE): Bật Mặc Định Chế Độ Ghi Đè (Overwrite) Cho Tác Vụ Tải Báo Cáo Tự Doanh ACM (FILE_AUDIT_ACM)
 
 ### 1. Mục tiêu thay đổi & Chỉ đạo từ USER

@@ -91,10 +91,10 @@ export class AutonomousSchedulerService implements OnModuleInit {
     // 6. Kiểm tra thời điểm hoàn tất gần nhất (tính cả COMPLETED, WAITING, FAILED, CANCELLED)
     const lastJob = await this.jobQueueService.getLatestCompletedJobByType('CHECK_KLGD');
     if (lastJob) {
-      const lastRunTime = lastJob.completedAt || lastJob.updatedAt || lastJob.createdAt;
+      const lastRunTime = lastJob.createdAt || lastJob.updatedAt || lastJob.completedAt;
       if (lastRunTime) {
         const elapsedMinutes = (Date.now() - new Date(lastRunTime).getTime()) / 60000;
-        if (elapsedMinutes < intervalMinutes) {
+        if (elapsedMinutes < intervalMinutes - 0.5) {
           return; // Chưa tới chu kỳ tiếp theo
         }
       }

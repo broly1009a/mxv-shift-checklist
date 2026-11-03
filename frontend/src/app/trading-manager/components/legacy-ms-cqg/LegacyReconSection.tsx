@@ -233,7 +233,7 @@ export default function LegacyReconSection({
       setSelectedRunJobId(null);
       fetchConsoleSummary(selectedDate, false, null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [selectedDate]);
 
   // Điều hướng xem lại các lượt check trong ngày (Quá khứ / Mới nhất)
@@ -356,6 +356,37 @@ export default function LegacyReconSection({
       setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Khi đếm ngược chạm 0 (đến lịch quét định kỳ): Kích hoạt fetchConsoleSummary ngay lập tức
+  // và thực hiện fast-polling mỗi 5 giây cho đến khi Job mới xuất hiện và countdownSeconds > 0
+  useEffect(() => {
+    if (!checkPeriodic || !autoReconActive) return;
+    if (countdownSeconds > 0) return;
+    if (selectedRunJobIdRef.current) return;
+
+    fetchConsoleSummary(selectedDate, true);
+    const fastPollInterval = setInterval(() => {
+      fetchConsoleSummary(selectedDate, true);
+    }, 5000);
+
+    return () => clearInterval(fastPollInterval);
+  }, [countdownSeconds === 0, checkPeriodic, autoReconActive, selectedDate, fetchConsoleSummary]);
+
+  // Khi đếm ngược chạm 0 (đến lịch quét định kỳ): Kích hoạt fetchConsoleSummary ngay lập tức
+  // và thực hiện fast-polling mỗi 5 giây cho đến khi Job mới xuất hiện và countdownSeconds > 0
+  useEffect(() => {
+    if (!checkPeriodic || !autoReconActive) return;
+    if (countdownSeconds > 0) return;
+    if (selectedRunJobIdRef.current) return;
+
+    fetchConsoleSummary(selectedDate, true);
+    const fastPollInterval = setInterval(() => {
+      fetchConsoleSummary(selectedDate, true);
+    }, 5000);
+
+    return () => clearInterval(fastPollInterval);
+
   }, []);
 
   // Trình xử lý hoàn tất bot job dùng chung cho cả WebSocket Real-time & Fallback Polling
