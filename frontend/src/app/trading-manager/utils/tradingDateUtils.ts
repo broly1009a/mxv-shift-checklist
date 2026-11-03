@@ -18,7 +18,7 @@ export function getInitialTradingSessionDate(
     effectiveStart = localStorage.getItem('tm_session_start_time') || undefined;
   }
 
-  let sessionHour = 5;
+  let sessionHour = 0;
   let sessionMin = 0;
   if (effectiveStart) {
     const parts = effectiveStart.split(':').map(Number);
@@ -30,7 +30,7 @@ export function getInitialTradingSessionDate(
   // Chuẩn theo Tool C# (BackupService.cs#L106-L114):
   // - Nếu trước giờ bắt đầu phiên (giờ VN), lùi 1 ngày (AddDays(-1))
   // - Nếu rơi vào Thứ 7 hoặc Chủ Nhật, lùi về Thứ 6 gần nhất
-  if (currentHour < sessionHour || (currentHour === sessionHour && currentMin < sessionMin)) {
+  if (effectiveStart && (currentHour < sessionHour || (currentHour === sessionHour && currentMin < sessionMin))) {
     sessionDate.setUTCDate(sessionDate.getUTCDate() - 1);
   }
   while (sessionDate.getUTCDay() === 0 || sessionDate.getUTCDay() === 6) {

@@ -1916,7 +1916,7 @@ export default function TradingManagerV2Page() {
                 </label>
                 <input
                   type="text"
-                  value={systemConfigs.session_start_time || '05:00'}
+                  value={systemConfigs.session_start_time || ''}
                   onChange={(e) => setSystemConfigs({ ...systemConfigs, session_start_time: e.target.value })}
                   style={{
                     width: '120px',

@@ -8,7 +8,7 @@
 
 export const JOB_TYPE_LABELS: Record<string, string> = {
   // ── 1. ĐỐI SOÁT & TÍNH TOÁN DỮ LIỆU (RECONCILIATION) ───────────────────────
-  CHECK_KLGD: 'Đối Chiếu Khớp Lệnh (Trong Phiên)',
+  CHECK_KLGD: 'Đối Chiếu Khớp Lệnh Trong Phiên',
   CHECK_DSGD_BEFORE_EOD: 'Đối Chiếu DSGD Trước EOD',
   CHECK_EOD_MS: 'Đối Chiếu EOD M-System',
   CHECK_EOD: 'Đối Chiếu EOD M-System',
@@ -18,11 +18,11 @@ export const JOB_TYPE_LABELS: Record<string, string> = {
   AUTO_CHECK_SOD: 'Kiểm Tra Đầu Ngày SOD',
 
   // ── 2. TẢI BÁO CÁO TỪ CÁC HỆ THỐNG / CRAWLER (INGRESS) ──────────────────────
-  DOWNLOAD_CQG_BACKUP: 'Tải Báo Cáo CQG (Sao Lưu)',
-  DOWNLOAD_CQG: 'Tải Báo Cáo CQG (Sao Lưu)',
-  RPA_DOWNLOAD_REPORTS: 'Tải Báo Cáo M-System (RPA)',
-  DOWNLOAD_CCP_REPORT: 'Tải Báo Cáo CoreCCP (VNCLEAR)',
-  DOWNLOAD_CE_REPORT: 'Tải Báo Cáo CE CoreCCP',
+  DOWNLOAD_CQG_BACKUP: 'Tải Báo Cáo CQG',
+  DOWNLOAD_CQG: 'Tải Báo Cáo CQG',
+  RPA_DOWNLOAD_REPORTS: 'Tải Báo Cáo M-System',
+  DOWNLOAD_CCP_REPORT: 'Tải Báo Cáo CoreCCP',
+  DOWNLOAD_CE_REPORT: 'Tải Báo Cáo CoreEX',
   CHECK_EOD_CCP: 'Đối Chiếu EOD CoreCCP',
   DOWNLOAD_CAST: 'Tải Báo Cáo Phí CAST',
   DOWNLOAD_ACM: 'Tải Báo Cáo Tự Doanh ACM',
@@ -37,15 +37,15 @@ export const JOB_TYPE_LABELS: Record<string, string> = {
   RUN_LOT_MACRO: 'Chạy Excel Macro Số Lot',
   RUN_VALUE_MACRO: 'Chạy Excel Macro Giá Trị',
   RUN_MACRO: 'Chạy Excel Macro Tổng Hợp',
-  RUN_LOT_TVKD_MACRO: 'Thống Kê Số Lot TVKD (Macro)',
-  RUN_VALUE_TVKD_MACRO: 'Thống Kê Giá Trị TVKD (Macro)',
+  RUN_LOT_TVKD_MACRO: 'Thống Kê Số Lot TVKD',
+  RUN_VALUE_TVKD_MACRO: 'Thống Kê Giá Trị TVKD',
   CCP_LOT_STATS: 'Thống Kê Số Lot CoreCCP',
   CCP_VALUE_STATS: 'Thống Kê Giá Trị CoreCCP',
 
   // ── 5. GIÁ THANH TOÁN (GTT) ────────────────────────────────────────────────
-  CREATE_GTT_FILE: 'Tạo File Giá Thanh Toán (GTT)',
-  CHECK_GTT: 'Đối Chiếu Giá Thanh Toán (GTT)',
-  GENERATE_IMPORT_GTT_FILE: 'Tạo File Nhập GTT (Import)',
+  CREATE_GTT_FILE: 'Tạo File Giá Thanh Toán',
+  CHECK_GTT: 'Đối Chiếu Giá Thanh Toán',
+  GENERATE_IMPORT_GTT_FILE: 'Tạo File Nhập Giá Thanh Toán',
   CHECK_GTT_CE_CCP: 'Đối Soát Giá Thanh Toán CE vs CCP',
   CHECK_GTT_LEGACY: 'Đối Chiếu Giá Thanh Toán MS vs CQG',
 

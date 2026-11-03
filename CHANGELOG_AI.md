@@ -1,32 +1,56 @@
-## [2026-11-03T09:25] REFACTOR(SCHEDULER_ZERO_HARDCODING): Loại Bỏ Triệt Để Hàm Suy Diễn DST getRecommendedMarketCloseDownloadTime & Toàn Bộ Fallback Giờ Tự Chế Theo AGENTS.md Rule 4 & Rule 7
+## [2026-11-03T10:45] REFACTOR(FRONTEND_ZERO_HARDCODING): Quét & Loại Bỏ Triệt Để Fallback Giờ '05:00' Khỏi Frontend & State Khởi Tạo
 
 ### 1. Mục tiêu thay đổi & Yêu cầu từ USER
-- **Chỉ đạo từ USER**: Chỉ ra đoạn code `return isDst ? '04:00' : '05:00';` trong `scheduler-config-seeder.helper.ts` và phản ánh tình trạng hardcode fallback giờ tự chế sai nghiệp vụ. Yêu cầu nếu CSDL không có thì báo lỗi (Fail-Fast) thay vì âm thầm fallback sai.
+- **Chỉ đạo từ USER**: Quét sạch toàn bộ các vị trí còn hardcode fallback giờ `'05:00'` trên Frontend (Trading Manager, Modal Đối chiếu, Modal Báo cáo Giao dịch, Bot Config).
 - **Phân tích Ground Truth**:
-  - `getRecommendedMarketCloseDownloadTime` phỏng đoán giờ đóng cửa CME DST (`isDst ? '04:00' : '05:00'`) và được nhét làm fallback cho `bot_backup_time` trong `autonomous-scheduler.service.ts`.
-  - Trong MongoDB thực tế trên Ubuntu: `bot_backup_time` là `05:05`, `bot_stat_time` là `04:55`, `session_start_time` là `06:00`.
-  - Việc fallback về `04:00`/`05:00` hay `06:30` là hoàn toàn sai so với thực tế và che giấu việc thiếu cấu hình.
+  - Khi người dùng cấu hình giờ mở phiên trong CSDL là `06:00`, việc Frontend khởi tạo state mặc định `'05:00'` hoặc có fallback `|| '05:00'` sẽ gây chớp nháy giao diện hiển thị sai giá trị, hoặc nếu người dùng bấm lưu trước khi nạp xong cấu hình từ CSDL thì sẽ vô tình ghi đè `'05:00'` trở lại MongoDB.
+  - Tuân thủ AGENTS.md Rule 7 (Universal Zero-Hardcoding): Mọi state khởi tạo là chuỗi rỗng `''` và nạp động 100% từ CSDL qua API. Không phỏng đoán giờ mở phiên.
 
 ### 2. Danh sách file chỉnh sửa
-- [backend/src/modules/checklist-hub/helpers/scheduler-config-seeder.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/helpers/scheduler-config-seeder.helper.ts):
-  - Xóa bỏ hoàn toàn hàm `getRecommendedMarketCloseDownloadTime` và helper `getNthSundayOfMonth`.
-  - Nạp động 100% `bot_backup_time` và `bot_stat_time` từ CSDL `SystemSettings`.
-  - Nếu CSDL chưa có cấu hình: ghi log cảnh báo yêu cầu Quản trị viên cấu hình trên Web UI, không tự gán giờ đoán mò.
-- [backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/scheduler/autonomous-scheduler.service.ts):
-  - Xóa bỏ import & export của `getRecommendedMarketCloseDownloadTime`.
-  - Đọc trực tiếp `bot_backup_time` và `bot_stat_time` không truyền fallback `recommendedCloseTime` hay `'06:30'`.
-  - Ghi cảnh báo Fail-Fast nếu CSDL chưa có cấu hình.
-- [backend/src/modules/ingress/controllers/ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-download.controller.ts):
-  - Xóa bỏ fallback `'06:00'` trong `getSetting('bot_ccp_time')`.
-- [backend/src/modules/shift-jobs/shift-job.scheduler.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/shift-jobs/shift-job.scheduler.ts):
-  - Xóa bỏ fallback `'00:01'` trong `getSetting('shift_generation_time')`.
-- [backend/src/scripts/test_dst_scheduler_guard.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/scripts/test_dst_scheduler_guard.ts):
-  - Cập nhật test script theo chuẩn Zero-Hardcoding mới.
+- [frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/bot-config/components/SystemSchedulerSettings.tsx):
+  - Khởi tạo `sessionStartTime` mặc định `''` thay vì hardcode `'05:00'`.
+- [frontend/src/app/checklist/components/ReconciliationModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/ReconciliationModal.tsx):
+  - Khởi tạo `sessionStart` mặc định `''` thay vì hardcode `'05:00'`.
+- [frontend/src/app/checklist/components/TradingReportModal.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/checklist/components/TradingReportModal.tsx):
+  - Khởi tạo `startSession` và `endSession` mặc định `''` thay vì hardcode `'05:00:00'`.
+- [frontend/src/app/trading-manager-v2/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager-v2/page.tsx):
+  - Thay `systemConfigs.session_start_time || '05:00'` thành `systemConfigs.session_start_time || ''`.
+- [frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx):
+  - Bỏ fallback `'05:00'` khi đọc localStorage.
+- [frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx):
+  - Bỏ fallback `'05:00'` khi khởi tạo state và khi parse cấu hình `session_start_time`, `session_end_time`.
+- [frontend/src/app/trading-manager/utils/tradingDateUtils.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/utils/tradingDateUtils.ts) & [frontend/src/features/trading/utils/tradingDateUtils.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/features/trading/utils/tradingDateUtils.ts):
+  - Không tự gán `sessionHour = 5` nếu chưa có cấu hình phiên. Chỉ tính lùi phiên khi có `effectiveStart` hợp lệ từ CSDL.
 
 ### 3. Xác nhận Build & Kiểm thử
-- **Backend Build (`npm run build` / `nest build`)**: Pass 100% (Exit code 0).
-- **Frontend Build (`npm run build` / `next build`)**: Pass 100% (52/52 routes thành công).
-- **Quét toàn bộ Repo**: Không còn bất kỳ lệnh `getSetting` nào chứa fallback dạng giờ `HH:MM`.
+- **Frontend Typecheck (`cd frontend && npx tsc --noEmit`)**: Pass 100% (Exit code 0).
+- **Backend Build (`nest build`)**: Pass 100% (Exit code 0).
+
+---
+
+## [2026-11-03T10:30] REFACTOR(BOT_JOBS_CONFIG): Chuẩn Hóa Nhãn Hiển Thị Bot Jobs - Loại Bỏ Hậu Tố Ngoặc Đơn () Không Đồng Nhất
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Chỉ đạo từ USER**: Yêu cầu loại bỏ các hậu tố đóng mở ngoặc `(...)` (như `(Sao Lưu)`, `(RPA)`, `(VNCLEAR)`, `(Trong Phiên)`, `(Macro)`, `(GTT)`) trong cấu hình nhãn hiển thị Bot Job [bot-jobs.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/config/bot-jobs.config.ts) để giao diện trực quan, đồng bộ và chuẩn Enterprise.
+- **Phân tích Ground Truth**:
+  - Các nhãn cũ mang tính chắp vá qua nhiều giai đoạn: dòng thì ghi chú theo công nghệ (`RPA`), dòng thì ghi chú theo mục đích (`Sao Lưu`), dòng thì ghi chú theo tên nền tảng hạ tầng (`VNCLEAR`).
+  - Chuẩn hóa loại bỏ toàn bộ `(...)` giúp người dùng nhận diện ngay hệ thống nguồn của báo cáo mà không bị nhiễu bởi các thuật ngữ kỹ thuật ngầm.
+
+### 2. Danh sách file chỉnh sửa
+- [frontend/src/config/bot-jobs.config.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/config/bot-jobs.config.ts):
+  - `CHECK_KLGD`: `'Đối Chiếu Khớp Lệnh (Trong Phiên)'` $\rightarrow$ `'Đối Chiếu Khớp Lệnh Trong Phiên'`
+  - `DOWNLOAD_CQG_BACKUP` / `DOWNLOAD_CQG`: `'Tải Báo Cáo CQG (Sao Lưu)'` $\rightarrow$ `'Tải Báo Cáo CQG'`
+  - `RPA_DOWNLOAD_REPORTS`: `'Tải Báo Cáo M-System (RPA)'` $\rightarrow$ `'Tải Báo Cáo M-System'`
+  - `DOWNLOAD_CCP_REPORT`: `'Tải Báo Cáo CoreCCP (VNCLEAR)'` $\rightarrow$ `'Tải Báo Cáo CoreCCP'`
+  - `DOWNLOAD_CE_REPORT`: `'Tải Báo Cáo CE CoreCCP'` $\rightarrow$ `'Tải Báo Cáo CoreEX'`
+  - `RUN_LOT_TVKD_MACRO` / `RUN_VALUE_TVKD_MACRO`: bỏ `(Macro)` $\rightarrow$ `'Thống Kê Số Lot TVKD'` / `'Thống Kê Giá Trị TVKD'`
+  - `CREATE_GTT_FILE` / `CHECK_GTT` / `GENERATE_IMPORT_GTT_FILE`: bỏ `(GTT)` và `(Import)` $\rightarrow$ `'Tạo File Giá Thanh Toán'`, `'Đối Chiếu Giá Thanh Toán'`, `'Tạo File Nhập Giá Thanh Toán'`
+- [backend/src/shared/constants/bot-task-registry.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/bot-task-registry.ts):
+  - Đồng bộ `displayName` của `CHECK_EOD_MS`, `DOWNLOAD_CCP_REPORT` và `DOWNLOAD_CE_REPORT` sang định dạng sạch không chứa `(...)`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Typecheck & Build (`npx tsc --noEmit` & `npm run build`)**: Pass 100% (52/52 routes thành công, Turbopack optimize hoàn tất).
+- **Backend Build (`nest build`)**: Pass 100% (Exit code 0).
 
 ---
 

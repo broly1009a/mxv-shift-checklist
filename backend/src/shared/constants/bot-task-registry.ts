@@ -412,7 +412,7 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
   CHECK_EOD_MS: {
     jobType: 'CHECK_EOD_MS',
     botCheckType: 'CHECK_EOD_MS',
-    displayName: 'Đối Chiếu Kết Quả EOD (M-System)',
+    displayName: 'Đối Chiếu Kết Quả EOD M-System',
     description: 'Đối chiếu kết quả chạy EOD & Ký quỹ âm M-System',
     category: 'POST_EOD',
   },
@@ -433,14 +433,14 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
   DOWNLOAD_CCP_REPORT: {
     jobType: 'DOWNLOAD_CCP_REPORT',
     botCheckType: 'DOWNLOAD_CCP_REPORT',
-    displayName: 'Tải Báo Cáo CoreCCP (VNCLEAR)',
+    displayName: 'Tải Báo Cáo CoreCCP',
     description: 'Tự động tải các báo cáo từ hệ thống VNCLEAR CoreCCP (NR, TTTT, DSL, DSGD...)',
     category: 'INGRESS',
   },
   DOWNLOAD_CE_REPORT: {
     jobType: 'DOWNLOAD_CE_REPORT',
     botCheckType: 'DOWNLOAD_CE_REPORT',
-    displayName: 'Tải Báo Cáo CoreEX (VNCLEAR)',
+    displayName: 'Tải Báo Cáo CoreEX',
     description: 'Tự động tải các báo cáo từ hệ thống VNCLEAR CoreEX (NR, TTTT, DSL, DSGD...)',
     category: 'INGRESS',
   },
